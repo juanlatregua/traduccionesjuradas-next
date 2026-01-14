@@ -1,0 +1,10 @@
+{
+  "redirects": [
+    {
+      "source": "/traductor-jurado-:slug",
+      "destination": "/documentos-oficiales",
+      "permanent": true
+    }
+  ]
+}
+
