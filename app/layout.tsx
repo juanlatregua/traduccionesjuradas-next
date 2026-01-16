@@ -270,7 +270,7 @@ export default function RootLayout({
               <p className="font-semibold text-slate-800">
                 traduccionesjuradas.net
               </p>
-              <p>Servicio online para toda España y países francófonos.</p>
+              <p>Traducciones juradas oficiales online, válidas en España y en el extranjero.</p>
               <p>
                 Email:{" "}
                 <a
