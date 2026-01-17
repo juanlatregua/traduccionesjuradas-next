@@ -3,7 +3,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+
+type ToastState =
+  | { type: "success" | "error"; message: string }
+  | null;
 
 export default function PresupuestoPage() {
   const [form, setForm] = useState({
@@ -18,11 +21,9 @@ export default function PresupuestoPage() {
     website: "", // honeypot
   });
 
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [toast, setToast] = useState<ToastState>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -32,6 +33,15 @@ export default function PresupuestoPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    setFiles(selected);
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,14 +56,33 @@ export default function PresupuestoPage() {
       return;
     }
 
+    if (files.length === 0) {
+      setToast({
+        type: "error",
+        message:
+          "Te recomendamos adjuntar el documento (PDF o foto) para poder darte presupuesto sin reenvíos.",
+      });
+      return;
+    }
+
     setLoading(true);
+
     try {
+      const fd = new FormData();
+
+      // Campos de texto
+      Object.entries(form).forEach(([k, v]) => {
+        fd.append(k, String(v));
+      });
+
+      // Adjuntos
+      files.forEach((file) => {
+        fd.append("files", file);
+      });
+
       const res = await fetch("/api/presupuesto", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
+        body: fd, // multipart automático
       });
 
       const data = await res.json();
@@ -64,10 +93,11 @@ export default function PresupuestoPage() {
 
       setToast({
         type: "success",
-        message: "Hemos recibido tu solicitud. Te responderemos por email en breve.",
+        message:
+          "Hemos recibido tu solicitud con los documentos. Te responderemos por email en breve.",
       });
 
-      // Limpiar formulario (pero dejamos email por comodidad si quieres)
+      // Reset form
       setForm({
         nombre: "",
         email: "",
@@ -79,12 +109,10 @@ export default function PresupuestoPage() {
         aceptaPrivacidad: false,
         website: "",
       });
+      setFiles([]);
 
-      // Ocultar toast tras unos segundos
-      setTimeout(() => {
-        setToast(null);
-      }, 5000);
-    } catch (error) {
+      setTimeout(() => setToast(null), 5000);
+    } catch (error: unknown) {
       if (process.env.NODE_ENV !== "production") {
         console.error("[FORM] Error al enviar presupuesto:", error);
       }
@@ -103,7 +131,7 @@ export default function PresupuestoPage() {
       {/* TOAST */}
       {toast && (
         <div
-          className={`fixed inset-x-0 top-4 mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg transition-transform ${
+          className={`fixed inset-x-0 top-4 mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
             toast.type === "success"
               ? "bg-emerald-600 text-white"
               : "bg-red-600 text-white"
@@ -131,10 +159,15 @@ export default function PresupuestoPage() {
         Solicitar presupuesto
       </h1>
       <p className="mt-2 text-sm text-slate-600">
-        Rellena este formulario y te enviaremos un presupuesto detallado por email.
+        Adjunta tu documento (PDF o foto) y te enviaremos un presupuesto por
+        email.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4 text-sm">
+      <form
+        onSubmit={handleSubmit}
+        encType="multipart/form-data"
+        className="mt-6 space-y-4 text-sm"
+      >
         <div>
           <label className="block text-slate-700" htmlFor="nombre">
             Nombre y apellidos
@@ -242,6 +275,51 @@ export default function PresupuestoPage() {
           />
         </div>
 
+        {/* ADJUNTOS */}
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <label className="block text-slate-800 font-semibold" htmlFor="files">
+            Adjuntar documentos (PDF o fotos)
+          </label>
+          <p className="mt-1 text-xs text-slate-600">
+            Puedes adjuntar varios archivos. Recomendado: PDF, JPG o PNG.
+          </p>
+
+          <input
+            id="files"
+            name="files"
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            onChange={handleFilesChange}
+            className="mt-3 block w-full text-xs"
+          />
+
+          {files.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {files.map((f, idx) => (
+                <li
+                  key={`${f.name}-${idx}`}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                >
+                  <span className="truncate">
+                    {f.name}{" "}
+                    <span className="text-slate-400">
+                      ({Math.round(f.size / 1024)} KB)
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(idx)}
+                    className="ml-3 rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Quitar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {/* 🕵️‍♂️ HONEYPOT INVISIBLE */}
         <div className="hidden">
           <label htmlFor="website">No rellenar este campo</label>
@@ -283,14 +361,14 @@ export default function PresupuestoPage() {
       </form>
 
       <p className="mt-6 text-xs text-slate-500">
-        También puedes enviarnos directamente tus documentos por email a{" "}
+        Si prefieres, también puedes enviar tus documentos por email a{" "}
         <a
           href="mailto:hola@traduccionesjuradas.net"
           className="text-emerald-700 hover:underline"
         >
           hola@traduccionesjuradas.net
-        </a>{" "}
-        o por WhatsApp.
+        </a>
+        .
       </p>
     </main>
   );
