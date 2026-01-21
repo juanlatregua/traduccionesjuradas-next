@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 function Logo() {
@@ -21,6 +24,19 @@ function Logo() {
 }
 
 export function Header() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Close menu on escape
+  useEffect(() => {
+    function handleKeydown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, []);
+
+  const closeMenu = () => setMenuOpen(false);
+
   return (
     <header className="relative z-40 overflow-visible border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:flex sm:items-center sm:gap-6">
@@ -31,8 +47,12 @@ export function Header() {
           </Link>
 
           {/* TOGGLE MOBILE */}
-          <label
-            htmlFor="mobile-menu"
+          <button
+            type="button"
+            aria-label="Abrir menú"
+            aria-expanded={menuOpen}
+            aria-controls="primary-navigation"
+            onClick={() => setMenuOpen((prev) => !prev)}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm sm:hidden"
           >
             <span className="flex flex-col gap-1" aria-hidden="true">
@@ -41,15 +61,16 @@ export function Header() {
               <span className="block h-[2px] w-4 bg-slate-700" />
             </span>
             Menú
-          </label>
+          </button>
         </div>
 
-        <input id="mobile-menu" type="checkbox" className="peer hidden" />
-
         {/* NAV */}
-        <nav className="mt-3 hidden w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium text-slate-700 shadow-lg peer-checked:flex sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-xs sm:shadow-none sm:text-slate-700">
+        <nav
+          id="primary-navigation"
+          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium text-slate-700 shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-xs sm:shadow-none sm:text-slate-700`}
+        >
           {/* CÓMO FUNCIONA */}
-          <Link href="/proceso" className="hover:text-emerald-600">
+          <Link href="/proceso" className="hover:text-emerald-600" onClick={closeMenu}>
             Cómo funciona
           </Link>
 
@@ -58,12 +79,14 @@ export function Header() {
             <button
               type="button"
               className="flex items-center gap-1 hover:text-emerald-600 focus:outline-none focus-visible:text-emerald-600"
+              aria-haspopup="true"
+              aria-expanded="false"
             >
               <span>Traductor jurado</span>
               <span className="text-[10px]">▼</span>
             </button>
 
-            <div className="pointer-events-none absolute right-0 top-full w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-lg opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+            <div className="pointer-events-none absolute right-0 top-full w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-lg opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
               {/* Idiomas principales */}
               <p className="mb-2 text-[11px] font-semibold text-slate-500">
                 Idiomas principales
@@ -73,18 +96,21 @@ export function Header() {
                 <Link
                   href="/traductor-jurado-frances"
                   className="block rounded-lg px-2 py-1 hover:bg-slate-50"
+                  onClick={closeMenu}
                 >
                   Traductor jurado de francés
                 </Link>
                 <Link
                   href="/traductor-jurado-aleman"
                   className="block rounded-lg px-2 py-1 hover:bg-slate-50"
+                  onClick={closeMenu}
                 >
                   Traductor jurado de alemán
                 </Link>
                 <Link
                   href="/traductor-jurado-ingles"
                   className="block rounded-lg px-2 py-1 hover:bg-slate-50"
+                  onClick={closeMenu}
                 >
                   Traductor jurado de inglés
                 </Link>
@@ -97,41 +123,47 @@ export function Header() {
               <div className="mt-1 grid grid-cols-2 gap-1 text-[11px]">
                 <Link
                   href="/traductor-jurado-neerlandes"
-                  className="rounded-lg px-2 py-1 hover:bg-slate-50"
-                >
-                  Neerlandés
-                </Link>
-                <Link
-                  href="/traductor-jurado-italiano"
-                  className="rounded-lg px-2 py-1 hover:bg-slate-50"
-                >
-                  Italiano
-                </Link>
-                <Link
-                  href="/traductor-jurado-portugues"
-                  className="rounded-lg px-2 py-1 hover:bg-slate-50"
-                >
-                  Portugués
-                </Link>
-                <Link
-                  href="/traductor-jurado-catalan"
-                  className="rounded-lg px-2 py-1 hover:bg-slate-50"
-                >
-                  Catalán
-                </Link>
-                <Link
-                  href="/traductor-jurado-sueco"
-                  className="rounded-lg px-2 py-1 hover:bg-slate-50"
-                >
-                  Sueco
-                </Link>
-                <Link
-                  href="/traductor-jurado-noruego"
-                  className="rounded-lg px-2 py-1 hover:bg-slate-50"
-                >
-                  Noruego
-                </Link>
-              </div>
+                      className="rounded-lg px-2 py-1 hover:bg-slate-50"
+                      onClick={closeMenu}
+                    >
+                      Neerlandés
+                    </Link>
+                    <Link
+                      href="/traductor-jurado-italiano"
+                      className="rounded-lg px-2 py-1 hover:bg-slate-50"
+                      onClick={closeMenu}
+                    >
+                      Italiano
+                    </Link>
+                    <Link
+                      href="/traductor-jurado-portugues"
+                      className="rounded-lg px-2 py-1 hover:bg-slate-50"
+                      onClick={closeMenu}
+                    >
+                      Portugués
+                    </Link>
+                    <Link
+                      href="/traductor-jurado-catalan"
+                      className="rounded-lg px-2 py-1 hover:bg-slate-50"
+                      onClick={closeMenu}
+                    >
+                      Catalán
+                    </Link>
+                    <Link
+                      href="/traductor-jurado-sueco"
+                      className="rounded-lg px-2 py-1 hover:bg-slate-50"
+                      onClick={closeMenu}
+                    >
+                      Sueco
+                    </Link>
+                    <Link
+                      href="/traductor-jurado-noruego"
+                      className="rounded-lg px-2 py-1 hover:bg-slate-50"
+                      onClick={closeMenu}
+                    >
+                      Noruego
+                    </Link>
+                  </div>
             </div>
           </div>
 
@@ -140,12 +172,14 @@ export function Header() {
             <Link
               href="/documentos-oficiales"
               className="flex items-center gap-1 hover:text-emerald-600 focus-visible:text-emerald-600"
+              aria-haspopup="true"
+              aria-expanded="false"
             >
               <span>Documentos oficiales</span>
               <span className="text-[10px]">▼</span>
             </Link>
 
-            <div className="pointer-events-none absolute left-0 top-full w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-lg opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+            <div className="pointer-events-none absolute left-0 top-full w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-lg opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
               <p className="mb-2 text-[11px] font-semibold text-slate-500">
                 Más consultados
               </p>
@@ -154,24 +188,28 @@ export function Header() {
                 <Link
                   href="/documentos-oficiales/certificados-registro-civil"
                   className="block rounded-lg px-2 py-1 hover:bg-slate-50"
+                  onClick={closeMenu}
                 >
                   Certificados del Registro Civil
                 </Link>
                 <Link
                   href="/documentos-oficiales/antecedentes-penales"
                   className="block rounded-lg px-2 py-1 hover:bg-slate-50"
+                  onClick={closeMenu}
                 >
                   Antecedentes penales
                 </Link>
                 <Link
                   href="/teletrabajo"
                   className="block rounded-lg px-2 py-1 hover:bg-slate-50"
+                  onClick={closeMenu}
                 >
                   Documentos para teletrabajar en España
                 </Link>
                 <Link
                   href="/documentos-oficiales/documentos-mercantiles"
                   className="block rounded-lg px-2 py-1 hover:bg-slate-50"
+                  onClick={closeMenu}
                 >
                   Documentos mercantiles y empresariales
                 </Link>
@@ -190,11 +228,11 @@ export function Header() {
             </div>
           </div>
 
-          <Link href="/preguntas-frecuentes" className="hover:text-emerald-600">
+          <Link href="/preguntas-frecuentes" className="hover:text-emerald-600" onClick={closeMenu}>
             Preguntas frecuentes
           </Link>
 
-          <Link href="/precios-traduccion-jurada" className="hover:text-emerald-600">
+          <Link href="/precios-traduccion-jurada" className="hover:text-emerald-600" onClick={closeMenu}>
             Precios
           </Link>
 
@@ -202,6 +240,7 @@ export function Header() {
           <Link
             href="/presupuesto"
             className="w-full rounded-xl bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 sm:w-auto sm:rounded-2xl sm:text-xs"
+            onClick={closeMenu}
           >
             Solicitar presupuesto
           </Link>
@@ -210,4 +249,3 @@ export function Header() {
     </header>
   );
 }
-
