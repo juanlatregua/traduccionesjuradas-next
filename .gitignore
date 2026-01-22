@@ -4,9 +4,11 @@ node_modules/
 # next
 .next/
 out/
+.vercel/
 
 # env
 .env
+.env.local
 .env.*.local
 
 # logs
@@ -18,4 +20,3 @@ pnpm-debug.log*
 # OS / editor
 .DS_Store
 .vscode/
-

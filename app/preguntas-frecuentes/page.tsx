@@ -236,6 +236,70 @@ export default function PreguntasFrecuentesPage() {
           {/* 5 */}
           <article>
             <h2 className="text-base font-semibold text-slate-900">
+              ¿Es válida una traducción jurada en PDF con firma digital?
+            </h2>
+            <p className="mt-2 text-sm text-slate-700">
+              Sí, una <strong>traducción jurada en PDF firmada digitalmente</strong> es válida
+              en muchos trámites administrativos, siempre que el organismo receptor acepte
+              documentación electrónica. Administraciones, universidades y entidades extranjeras
+              suelen admitirla si el traductor jurado está habilitado por el Ministerio de Asuntos
+              Exteriores de España.
+            </p>
+
+            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+              ¿Cuándo no es suficiente el PDF?
+            </h3>
+            <p className="mt-1 text-sm text-slate-700">
+              Cuando el trámite exige <strong>legalización o apostilla</strong>, el PDF no basta,
+              aunque esté firmado digitalmente. El MAEC solo legaliza traducciones juradas
+              en papel, con firma manuscrita y sello original. Un PDF impreso no puede legalizarse.
+            </p>
+
+            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+              ¿Por qué se legaliza una traducción jurada?
+            </h3>
+            <p className="mt-1 text-sm text-slate-700">
+              La traducción jurada certifica la fidelidad lingüística, pero la legalización/apostilla
+              sirve para:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+              <li>Confirmar oficialmente que el traductor jurado está habilitado.</li>
+              <li>Autenticar la firma y el sello del traductor jurado.</li>
+              <li>Garantizar el reconocimiento del documento por autoridades extranjeras.</li>
+            </ul>
+
+            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+              Orden correcto del trámite
+            </h3>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-700">
+              <li>Emisión del documento original.</li>
+              <li>Apostilla o legalización del documento original (si el país de destino lo exige).</li>
+              <li>Traducción jurada del documento y de la apostilla.</li>
+              <li>Si procede: legalización de la traducción jurada en papel.</li>
+            </ol>
+
+            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+              Resumen rápido
+            </h3>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+              <li>Traducción jurada en PDF: válida para muchos trámites.</li>
+              <li>Traducción jurada en PDF: no se puede legalizar.</li>
+              <li>Traducción jurada en papel: necesaria si exigen apostilla o legalización.</li>
+            </ul>
+
+            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+              ¿Dudas sobre tu caso?
+            </h3>
+            <p className="mt-1 text-sm text-slate-700">
+              Cada organismo aplica requisitos distintos. Si no sabes si necesitas PDF o papel,
+              o si deben apostillar/legalizar, consúltanos antes de iniciar el trámite. Te ayudamos
+              a elegir el formato correcto y evitar retrasos o rechazos.
+            </p>
+          </article>
+
+          {/* 6 */}
+          <article>
+            <h2 className="text-base font-semibold text-slate-900">
               ¿Cuándo es necesaria la Apostilla de la Haya?
             </h2>
             <p className="mt-2 text-sm text-slate-700">
@@ -260,7 +324,7 @@ export default function PreguntasFrecuentesPage() {
             </p>
           </article>
 
-          {/* 6 */}
+          {/* 7 */}
           <article>
             <h2 className="text-base font-semibold text-slate-900">
               ¿Mis traducciones juradas son válidas en España si el documento
@@ -280,7 +344,7 @@ export default function PreguntasFrecuentesPage() {
             </p>
           </article>
 
-          {/* 7 */}
+          {/* 8 */}
           <article>
             <h2 className="text-base font-semibold text-slate-900">
               ¿Hacéis traducciones juradas urgentes?
@@ -297,7 +361,7 @@ export default function PreguntasFrecuentesPage() {
             </p>
           </article>
 
-          {/* 8 */}
+          {/* 9 */}
           <article>
             <h2 className="text-base font-semibold text-slate-900">
               ¿Cuánto cuesta una traducción jurada?

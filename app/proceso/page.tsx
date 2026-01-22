@@ -122,6 +122,27 @@ export default function ComoFuncionaPage() {
             </li>
           </ul>
         </div>
+
+        {/* PASO 5 */}
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">
+            5. Legalización o apostilla de la traducción (cuando procede)
+          </h2>
+          <p className="mt-2 text-sm text-slate-700">
+            Si el trámite exige <strong>legalización o apostilla</strong>, la traducción jurada
+            debe ir en papel, firmada y sellada en original. Un PDF (aunque esté firmado digitalmente)
+            <strong> no se puede legalizar</strong>.
+          </p>
+          <ul className="mt-2 space-y-1 list-disc pl-5 text-sm text-slate-700">
+            <li>Legalizar o apostillar <strong>primero</strong> el documento original (si aplica).</li>
+            <li>Traducción jurada del documento y de la apostilla.</li>
+            <li>Si el organismo lo exige, legalización de la traducción en papel.</li>
+          </ul>
+          <p className="mt-2 text-sm text-slate-700">
+            Antes de empezar, confirma con el organismo receptor si admite PDF o requiere el original
+            en papel con legalización/apostilla. Te orientamos en el orden correcto para evitar retrasos.
+          </p>
+        </div>
       </section>
 
       {/* CTA FINAL */}
@@ -164,6 +185,5 @@ export default function ComoFuncionaPage() {
     </main>
   );
 }
-
 
 
