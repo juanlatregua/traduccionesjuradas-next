@@ -1,18 +1,16 @@
 // app/documentos-oficiales/certificado-nacimiento/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
     "Traducción jurada de certificado de nacimiento | Usos, países y apostilla",
   description:
-    "Traducción jurada de certificados de nacimiento para trámites en España: extranjería, nacionalidad, matrimonio, menores, ONG y adopciones. Información práctica para documentos de Marruecos, Francia, Senegal, Costa de Marfil y otros países francófonos.",
+  "Traducción jurada de certificados de nacimiento para trámites en España: extranjería, nacionalidad, matrimonio, menores, ONG y adopciones. Información práctica para documentos de Marruecos, Francia, Senegal, Costa de Marfil y otros países francófonos.",
 };
 
-const whatsappNumber = "34951333614";
-const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-  "Hola, quiero pedir un presupuesto de traducción jurada de mi certificado de nacimiento."
-)}`;
+const whatsappLink = WHATSAPP_LINK;
 const mailLink =
   "mailto:hola@traduccionesjuradas.net?subject=Certificado%20de%20nacimiento%20-%20Presupuesto";
 
@@ -248,4 +246,3 @@ export default function CertificadoNacimientoPage() {
     </main>
   );
 }
-

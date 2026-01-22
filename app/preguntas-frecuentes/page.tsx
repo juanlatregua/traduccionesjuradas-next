@@ -1,6 +1,7 @@
 // app/preguntas-frecuentes/page.tsx
 import type { Metadata } from "next";
 import Script from "next/script";
+import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Preguntas frecuentes sobre traducción jurada",
@@ -8,10 +9,7 @@ export const metadata: Metadata = {
     "Resolvemos las dudas más frecuentes sobre la traducción jurada: plazos, formato de los documentos, apostilla de La Haya, validez legal, envío en PDF firmado, urgencias y precios.",
 };
 
-const whatsappNumber = "34951333614";
-const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-  "Hola, quiero hacer una consulta sobre traducción jurada."
-)}`;
+const whatsappLink = WHATSAPP_LINK;
 const mailLink = "mailto:hola@traduccionesjuradas.net";
 
 export default function PreguntasFrecuentesPage() {

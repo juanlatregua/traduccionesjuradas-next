@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-
-const whatsappNumber = "34951333614";
-const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-  "Hola, quiero saber el precio de una traducción jurada."
-)}`;
+import { WHATSAPP_LINK } from "@/lib/contact";
 const mailLink =
   "mailto:hola@traduccionesjuradas.net?subject=Precios%20traducci%C3%B3n%20jurada";
 
@@ -227,7 +223,7 @@ export default function PreciosTraduccionJuradaPage() {
             Enviar documentos por email
           </a>
           <a
-            href={whatsappLink}
+            href={WHATSAPP_LINK}
             className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
           >
             O enviar fotos por WhatsApp
