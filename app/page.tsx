@@ -212,15 +212,15 @@ export default function Home() {
               <div className="mt-3 flex flex-col gap-1 text-xs">
                 <Link
                   href={item.href}
-                  className="font-semibold text-slate-700 hover:underline"
+                  className="font-semibold text-slate-800 underline-offset-2 hover:underline"
                 >
-                  Ver más información sobre este tipo de documento →
+                  Ver más sobre {item.title} →
                 </Link>
                 <Link
                   href="/presupuesto"
-                  className="font-semibold text-blue-700 hover:underline"
+                  className="inline-flex w-fit items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white shadow-sm hover:bg-emerald-700"
                 >
-                  Pedir presupuesto para este tipo de documento →
+                  Pedir presupuesto para {item.title.toLowerCase()} →
                 </Link>
               </div>
             </div>
@@ -486,7 +486,5 @@ export default function Home() {
     </main>
   );
 }
-
-
 
 

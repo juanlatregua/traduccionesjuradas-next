@@ -290,7 +290,7 @@ export default function PreguntasFrecuentesPage() {
             <h3 className="mt-3 text-sm font-semibold text-slate-900">
               ¿Dudas sobre tu caso?
             </h3>
-            <p className="mt-1 text-sm text-slate-700">
+            <p className="mt-1 text-sm text-slate-800">
               Cada organismo aplica requisitos distintos. Si no sabes si necesitas PDF o papel,
               o si deben apostillar/legalizar, consúltanos antes de iniciar el trámite. Te ayudamos
               a elegir el formato correcto y evitar retrasos o rechazos.
@@ -391,12 +391,12 @@ export default function PreguntasFrecuentesPage() {
           <h2 className="text-lg font-semibold text-emerald-900">
             ¿No has encontrado tu pregunta en esta lista?
           </h2>
-          <p className="mt-1 text-slate-800">
-            Cuéntanos tu caso y te orientamos sin compromiso. Puedes adjuntar
-            los documentos directamente o explicarnos para qué trámite
-            necesitas la traducción jurada.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-3">
+        <p className="mt-1 text-slate-900">
+          Cuéntanos tu caso y te orientamos sin compromiso. Puedes adjuntar
+          los documentos directamente o explicarnos para qué trámite
+          necesitas la traducción jurada.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-3">
             <a
               href={mailLink}
               className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"

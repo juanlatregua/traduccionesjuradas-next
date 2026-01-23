@@ -18,12 +18,12 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  themeColor: "#10b981",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({
