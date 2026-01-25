@@ -38,7 +38,7 @@ export function Header() {
   const closeMenu = () => setMenuOpen(false);
 
   return (
-    <header className="relative z-40 overflow-visible border-b border-slate-200 bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-40 overflow-visible border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:flex sm:items-center sm:gap-6">
         <div className="flex items-center justify-between gap-3 sm:block sm:flex-1">
           {/* LOGO */}
