@@ -254,6 +254,18 @@ export default function PreguntasFrecuentesPage() {
               aunque esté firmado digitalmente. El MAEC solo legaliza traducciones juradas
               en papel, con firma manuscrita y sello original. Un PDF impreso no puede legalizarse.
             </p>
+            <p className="mt-2 text-sm text-slate-700">
+              Consulta la guía oficial del Ministerio de Asuntos Exteriores sobre{" "}
+              <a
+                href="https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Legalizacion-y-apostilla.aspx"
+                className="text-emerald-700 underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                legalización y apostilla
+              </a>
+              .
+            </p>
 
             <h3 className="mt-3 text-sm font-semibold text-slate-900">
               ¿Por qué se legaliza una traducción jurada?

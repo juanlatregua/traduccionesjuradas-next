@@ -142,6 +142,18 @@ export default function ComoFuncionaPage() {
             Antes de empezar, confirma con el organismo receptor si admite PDF o requiere el original
             en papel con legalización/apostilla. Te orientamos en el orden correcto para evitar retrasos.
           </p>
+          <p className="mt-2 text-sm text-slate-700">
+            Más info oficial:{" "}
+            <a
+              href="https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Legalizacion-y-apostilla.aspx"
+              className="text-emerald-700 underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              legalización y apostilla (MAEC)
+            </a>
+            .
+          </p>
         </div>
       </section>
 
@@ -185,5 +197,4 @@ export default function ComoFuncionaPage() {
     </main>
   );
 }
-
 
