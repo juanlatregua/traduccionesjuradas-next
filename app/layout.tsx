@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://traduccionesjuradas.net"),
+  metadataBase: new URL("https://www.traduccionesjuradas.net"),
   title: {
     default:
       "Traducciones Juradas de Francés y otros idiomas | traduccionesjuradas.net",
