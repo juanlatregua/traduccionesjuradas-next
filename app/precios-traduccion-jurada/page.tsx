@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { WHATSAPP_LINK } from "@/lib/contact";
+import dynamic from "next/dynamic";
+
+const PriceEstimator = dynamic(() => import("@/components/PriceEstimator"), {
+  ssr: false,
+});
 const mailLink =
   "mailto:hola@traduccionesjuradas.net?subject=Precios%20traducci%C3%B3n%20jurada";
 
@@ -197,6 +202,9 @@ export default function PreciosTraduccionJuradaPage() {
           explicando siempre qué se incluye y cuáles son los plazos estimados.
         </p>
       </section>
+
+      {/* ESTIMADOR ORIENTATIVO */}
+      <PriceEstimator />
 
       {/* CTA FINAL */}
       <section className="mt-12 rounded-3xl border border-emerald-100 bg-emerald-50 p-6 text-sm">

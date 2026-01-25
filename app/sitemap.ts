@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://traduccionesjuradas.net";
+  const baseUrl = "https://www.traduccionesjuradas.net";
 
   const routes = [
     "/",                          // home

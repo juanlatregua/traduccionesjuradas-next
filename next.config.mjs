@@ -45,6 +45,30 @@ const nextConfig = {
       },
 
       // ===============================
+      // PÁGINAS ANTIGUAS DETECTADAS (403 EN WP)
+      // ===============================
+      {
+        source: "/traductor-jurado-barcelona",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-pontevedra",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-en-persa",
+        destination: "/traductores-jurados",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-certificado-de-nacimiento",
+        destination: "/documentos-oficiales/certificado-de-nacimiento",
+        permanent: true,
+      },
+
+      // ===============================
       // CIUDADES ANTIGUAS
       // ===============================
 

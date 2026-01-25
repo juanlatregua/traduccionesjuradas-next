@@ -2,6 +2,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import { DocumentChecklist } from "@/components/DocumentChecklist";
 
 export const metadata: Metadata = {
   title: "Traducción jurada oficial en España | Traductores jurados online",
@@ -445,6 +446,11 @@ export default function Home() {
         </div>
       </section>
 
+      {/* CHECKLIST DESTACADA */}
+      <section className="mx-auto max-w-6xl px-4 pb-12">
+        <DocumentChecklist slug="certificados-registro-civil" />
+      </section>
+
       {/* BLOQUE CONTACTO RÁPIDO */}
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="rounded-3xl bg-slate-900 px-6 py-8 text-slate-50 shadow-xl sm:px-8">
@@ -486,5 +492,3 @@ export default function Home() {
     </main>
   );
 }
-
-
