@@ -48,9 +48,8 @@ const PAGES_OPTIONS = [1, 2, 3, 4, 5, 6];
 
 function calculateRange(doc: DocType, lang: Lang, pages: number) {
   const basePerPage = Math.round(BASE_PRICE[doc] * LANG_MULTIPLIER[lang]);
-  const total = basePerPage * Math.max(1, pages);
   const days = doc === "certificado" ? "24-48 h laborales" : "2-4 días laborales";
-  return { basePerPage, total, days };
+  return { basePerPage, days };
 }
 
 export default function PriceEstimator() {
@@ -127,9 +126,9 @@ export default function PriceEstimator() {
         <p className="text-sm text-slate-700">
           Desde{" "}
           <span className="font-semibold text-emerald-700">
-            {pages === 1 ? result.basePerPage : result.total} €
+            {result.basePerPage} € por página
           </span>{" "}
-          {pages > 1 ? "(orientativo para todo el documento)" : "(por página)"}.
+          (precio exacto al revisar tus documentos).
         </p>
         <p className="text-sm text-slate-700">
           Plazo estimado: <span className="font-semibold">{result.days}</span>{" "}
