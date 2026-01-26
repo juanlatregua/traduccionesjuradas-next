@@ -1,3 +1,8 @@
+export type DocumentExample = {
+  label: string;
+  url: string;
+};
+
 export type DocumentCategory = {
   slug: string;
   title: string;
@@ -5,7 +10,7 @@ export type DocumentCategory = {
   checklist: string[];
   formatTips: string[];
   legalNotes?: string[];
-  exampleUrl?: string; // placeholder demo; no PII
+  examples?: DocumentExample[];
 };
 
 export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
@@ -26,7 +31,10 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     legalNotes: [
       "Para legalizar la traducción, se requiere copia en papel firmada y sellada por el traductor jurado.",
     ],
-    exampleUrl: "/recursos/ejemplo-certificado.pdf", // mock; reemplazar si se publica un ejemplo anon.
+    examples: [
+      { label: "Certificado nacimiento (ES)", url: "/recursos/certificado-nacimiento-literal-espan%CC%83ol-.pdf" },
+      { label: "Antecedentes penales (BR)", url: "/recursos/PENAL--brasil.pdf" },
+    ],
   },
   {
     slug: "documentos-academicos",
@@ -45,7 +53,9 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     legalNotes: [
       "Si se exige legalización/apostilla, el PDF firmado digitalmente no basta: se necesita traducción en papel.",
     ],
-    exampleUrl: "/recursos/ejemplo-academico.pdf",
+    examples: [
+      { label: "Certificado de residencia (CNIE)", url: "/recursos/certificat-de-residence-pour-obtenir-le-CNIE_Censurado.pdf" },
+    ],
   },
   {
     slug: "documentos-juridicos",
@@ -64,7 +74,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     legalNotes: [
       "Trámites notariales y registros suelen exigir la traducción en papel firmada y sellada.",
     ],
-    exampleUrl: "/recursos/ejemplo-juridico.pdf",
+    examples: [{ label: "Contrato de matrimonio", url: "/recursos/contrat-de-marriage.pdf" }],
   },
   {
     slug: "documentos-mercantiles",
@@ -83,6 +93,10 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     legalNotes: [
       "Para legalización/apostilla, la traducción debe ser en papel con firma y sello original.",
     ],
-    exampleUrl: "/recursos/ejemplo-mercantil.pdf",
+    examples: [
+      { label: "Kbis Francia", url: "/recursos/kbis-france.pdf" },
+      { label: "Saldo bancario Marruecos", url: "/recursos/certificat-de-solde-maroc-certificado-de-saldo-bancario-marruecos.pdf" },
+      { label: "Statuts / extrait (FR)", url: "/recursos/extrait-de-la-fiche-anthropometrique-avec-apostille.pdf" },
+    ],
   },
 ];
