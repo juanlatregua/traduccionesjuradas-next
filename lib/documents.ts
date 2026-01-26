@@ -32,7 +32,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
       "Para legalizar la traducción, se requiere copia en papel firmada y sellada por el traductor jurado.",
     ],
     examples: [
-      { label: "Certificado nacimiento (ES)", url: "/recursos/certificado-nacimiento-literal-espan%CC%83ol-.pdf" },
+      { label: "Certificado nacimiento (ES)", url: "/recursos/certificado-literal-de-nacimiento.pdf" },
       { label: "Antecedentes penales (BR)", url: "/recursos/PENAL--brasil.pdf" },
     ],
   },
@@ -54,7 +54,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
       "Si se exige legalización/apostilla, el PDF firmado digitalmente no basta: se necesita traducción en papel.",
     ],
     examples: [
-      { label: "Certificado de residencia (CNIE)", url: "/recursos/certificat-de-residence-pour-obtenir-le-CNIE_Censurado.pdf" },
+      { label: "Certificado de residencia (CNIE)", url: "/recursos/certificat-de-residence-pour-obtenir-le-CNIE.pdf" },
     ],
   },
   {
