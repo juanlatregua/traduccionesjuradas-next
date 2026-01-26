@@ -229,6 +229,21 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traducciones-",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/shop/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/shop",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/traduccion-jurada-de-poder-notarial",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -250,6 +265,16 @@ const nextConfig = {
       },
       {
         source: "/categoria-producto/notarial/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/notarial/feed/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/civil/",
         destination: "/documentos-oficiales",
         permanent: true,
       },
@@ -322,6 +347,16 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/feed/",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/feed",
+        destination: "/",
+        permanent: true,
+      },
+      {
         source: "/agencia/",
         destination: "/",
         permanent: true,
@@ -332,7 +367,17 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/ciudades-desde-donde-puedes-comprar-una-traduccion-jurada/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/precio-de-traduccion-jurada/",
+        destination: "/precios-traduccion-jurada",
+        permanent: true,
+      },
+      {
+        source: "/precio-de-traduccion-jurada",
         destination: "/precios-traduccion-jurada",
         permanent: true,
       },
@@ -346,6 +391,26 @@ const nextConfig = {
         destination: "/aviso-legal",
         permanent: true,
       },
+      {
+        source: "/documentos/traduccion-jurada-del-libro-de-familia/",
+        destination: "/documentos-oficiales/certificados-registro-civil",
+        permanent: true,
+      },
+      {
+        source: "/category/idiomas/page/4/",
+        destination: "/traductores-jurados",
+        permanent: true,
+      },
+      {
+        source: "/contacto/page/2/",
+        destination: "/contacto",
+        permanent: true,
+      },
+      {
+        source: "/contacto/page/4/",
+        destination: "/contacto",
+        permanent: true,
+      },
 
       // Endpoints WP legacy (poner 410/redirect al inicio)
       {
@@ -355,6 +420,11 @@ const nextConfig = {
       },
       {
         source: "/wp-json/",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/wp-admin/admin-ajax.php",
         destination: "/",
         permanent: true,
       },
