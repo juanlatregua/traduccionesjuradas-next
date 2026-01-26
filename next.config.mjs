@@ -98,6 +98,21 @@ const nextConfig = {
         destination: "/documentos-oficiales",
         permanent: true,
       },
+      {
+        source: "/traduccion-jurada-permiso-de-conducir",
+        destination: "/documentos-oficiales/documentos-laborales",
+        permanent: true,
+      },
+      {
+        source: "/traducciones-juradas-baratas",
+        destination: "/traducciones-juradas-baratas",
+        permanent: true,
+      },
+      {
+        source: "/traducciones-juradas-baratas/",
+        destination: "/traducciones-juradas-baratas",
+        permanent: true,
+      },
 
       // ===============================
       // CATEGORÍAS WOOCOMMERCE
@@ -135,6 +150,26 @@ const nextConfig = {
       {
         source: "/traduccion-jurada-certificado-de-nacimiento",
         destination: "/documentos-oficiales/certificado-de-nacimiento",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-tenerife",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-gran-canaria",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-puerto-de-la-cruz",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-guadalajara",
+        destination: "/documentos-oficiales",
         permanent: true,
       },
 
