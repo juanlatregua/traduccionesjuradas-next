@@ -7,6 +7,76 @@ const nextConfig = {
       // ===============================
       // DOCUMENTOS (WordPress → Next)
       // ===============================
+            {
+        source: "/politica-de-envios",
+        destination: "/proceso",
+        permanent: true,
+      },
+      {
+        source: "/traducciones-",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/shop/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/shop",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/notarial/feed/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/civil/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/feed/",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/feed",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/ciudades-desde-donde-puedes-comprar-una-traduccion-jurada/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/documentos/traduccion-jurada-del-libro-de-familia/",
+        destination: "/documentos-oficiales/certificados-registro-civil",
+        permanent: true,
+      },
+      {
+        source: "/category/idiomas/page/4/",
+        destination: "/traductores-jurados",
+        permanent: true,
+      },
+      {
+        source: "/contacto/page/2/",
+        destination: "/contacto",
+        permanent: true,
+      },
+      {
+        source: "/contacto/page/4/",
+        destination: "/contacto",
+        permanent: true,
+      },
+      {
+        source: "/wp-content/uploads/2019/07/ORDEN-AEX-1971-2002.pdf",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
 
       {
         source: "/traduccion-jurada-de-certificado-empadronamiento/",
