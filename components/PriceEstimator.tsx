@@ -26,37 +26,31 @@ const DOC_LABEL: Record<DocType, string> = {
 };
 
 const BASE_PRICE: Record<DocType, number> = {
-  certificado: 35,
-  academico: 55,
-  juridico: 65,
-  mercantil: 70,
+  certificado: 40,
+  academico: 50,
+  juridico: 50,
+  mercantil: 50,
 };
 
 const LANG_MULTIPLIER: Record<Lang, number> = {
-  fr: 1,
-  de: 1.1,
-  en: 1,
-  it: 1,
-  pt: 1,
-  nl: 1.15,
-  ca: 1,
-  sv: 1.2,
-  no: 1.2,
+  fr: 1, // 40 €/página
+  de: 1.25, // ~50 €/página
+  en: 1.25,
+  it: 1.25,
+  pt: 1.25,
+  nl: 1.25,
+  ca: 1.25,
+  sv: 1.25,
+  no: 1.25,
 };
 
 const PAGES_OPTIONS = [1, 2, 3, 4, 5, 6];
 
 function calculateRange(doc: DocType, lang: Lang, pages: number) {
-  const base = BASE_PRICE[doc] * LANG_MULTIPLIER[lang];
-  const min = Math.round(base * pages);
-  const max = Math.round(base * pages * 1.3);
-  const days =
-    doc === "certificado"
-      ? "24-48 h laborales"
-      : doc === "academico"
-      ? "2-4 días laborales"
-      : "2-5 días laborales";
-  return { min, max, days };
+  const basePerPage = Math.round(BASE_PRICE[doc] * LANG_MULTIPLIER[lang]);
+  const total = basePerPage * Math.max(1, pages);
+  const days = doc === "certificado" ? "24-48 h laborales" : "2-4 días laborales";
+  return { basePerPage, total, days };
 }
 
 export default function PriceEstimator() {
@@ -131,15 +125,15 @@ export default function PriceEstimator() {
 
       <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
         <p className="text-sm text-slate-700">
-          Rango orientativo:{" "}
+          Desde{" "}
           <span className="font-semibold text-emerald-700">
-            {result.min} € – {result.max} €
+            {pages === 1 ? result.basePerPage : result.total} €
           </span>{" "}
-          (incluye firma y sello de traductor jurado).
+          {pages > 1 ? "(orientativo para todo el documento)" : "(por página)"}.
         </p>
         <p className="text-sm text-slate-700">
           Plazo estimado: <span className="font-semibold">{result.days}</span>{" "}
-          dependiendo de volumen e idioma.
+          según idioma y volumen.
         </p>
         <p className="mt-2 text-[13px] text-slate-600">
           El precio exacto se confirma al ver tus documentos. Si necesitas entrega en papel
