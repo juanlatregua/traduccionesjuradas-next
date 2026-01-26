@@ -428,6 +428,11 @@ const nextConfig = {
         destination: "/",
         permanent: true,
       },
+      {
+        source: "/wp-content/uploads/2019/07/ORDEN-AEX-1971-2002.pdf",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
 
       // ===============================
       // CIUDADES ANTIGUAS
