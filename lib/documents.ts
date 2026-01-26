@@ -34,6 +34,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     examples: [
       { label: "Certificado nacimiento (ES)", url: "/recursos/certificado-literal-de-nacimiento.pdf" },
       { label: "Antecedentes penales (BR)", url: "/recursos/PENAL--brasil.pdf" },
+      { label: "Certificado penal (Madagascar)", url: "/recursos/bulletin-n3-madagascar.pdf" },
     ],
   },
   {
@@ -55,6 +56,28 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     ],
     examples: [
       { label: "Certificado de residencia (CNIE)", url: "/recursos/certificat-de-residence-pour-obtenir-le-CNIE.pdf" },
+    ],
+  },
+  {
+    slug: "documentos-laborales",
+    title: "Documentos laborales y teletrabajo",
+    description:
+      "Nóminas, certificados de empresa, certificados de saldo bancario, EM10 / desplazamiento y otros documentos laborales.",
+    checklist: [
+      "Incluye nóminas y certificados de empresa con fechas y firmas visibles.",
+      "Aporta certificados de desplazamiento (EM10) o residencia si te lo piden para teletrabajo.",
+      "Si hay saldo bancario, comprueba que figure titular y moneda.",
+    ],
+    formatTips: [
+      "PDF o fotos nítidas; evita sombras sobre importes y firmas.",
+      "Agrupa por mes/orden; si son muchas nóminas, indícalo.",
+    ],
+    legalNotes: [
+      "Para trámites con apostilla/legalización, la traducción debe entregarse en papel con firma y sello original.",
+    ],
+    examples: [
+      { label: "Certificado de desplazamiento (EM10)", url: "/recursos/certificat-de-detachement---certificado-de-desplazamiento-EM10.pdf" },
+      { label: "Saldo bancario Marruecos", url: "/recursos/certificat-de-solde-maroc-certificado-de-saldo-bancario-marruecos.pdf" },
     ],
   },
   {
