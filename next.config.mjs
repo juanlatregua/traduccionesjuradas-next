@@ -84,6 +84,11 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traduccion-jurada-de-certificado-empadronamiento",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/traduccion-jurada-de-certificado-840/",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -94,7 +99,32 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traduccion-jurada-de-registro-mercantil",
+        destination: "/documentos-oficiales/documentos-mercantiles",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-registro-mercantil/",
+        destination: "/documentos-oficiales/documentos-mercantiles",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-estatutos-sociales",
+        destination: "/documentos-oficiales/documentos-mercantiles",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-estatutos-sociales/",
+        destination: "/documentos-oficiales/documentos-mercantiles",
+        permanent: true,
+      },
+      {
         source: "/traduccion-jurada-certificado-matrimonio/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-certificado-matrimonio",
         destination: "/documentos-oficiales",
         permanent: true,
       },
@@ -113,6 +143,96 @@ const nextConfig = {
         destination: "/traducciones-juradas-baratas",
         permanent: true,
       },
+      {
+        source: "/traduccion-jurada-de-certificado-de-seguridad-social",
+        destination: "/documentos-oficiales/documentos-laborales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-certificado-de-seguridad-social/",
+        destination: "/documentos-oficiales/documentos-laborales",
+        permanent: true,
+      },
+      {
+        source: "/documentos/traduccion-jurada-de-certificado-de-seguridad-social/",
+        destination: "/documentos-oficiales/documentos-laborales",
+        permanent: true,
+      },
+      {
+        source: "/documentos/traduccion-jurada-de-certificado-de-seguridad-social",
+        destination: "/documentos-oficiales/documentos-laborales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-expediente-academico",
+        destination: "/documentos-oficiales/documentos-academicos",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-expediente-academico/",
+        destination: "/documentos-oficiales/documentos-academicos",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-del-libro-de-familia",
+        destination: "/documentos-oficiales/certificados-registro-civil",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-del-libro-de-familia/",
+        destination: "/documentos-oficiales/certificados-registro-civil",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-certificado-pareja-de-hecho",
+        destination: "/documentos-oficiales/certificados-registro-civil",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-certificado-pareja-de-hecho/",
+        destination: "/documentos-oficiales/certificados-registro-civil",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-urgente",
+        destination: "/presupuesto",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-urgente/",
+        destination: "/presupuesto",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-licencia-de-conducir",
+        destination: "/documentos-oficiales/documentos-laborales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-licencia-de-conducir/",
+        destination: "/documentos-oficiales/documentos-laborales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-sentencia-judicial",
+        destination: "/documentos-oficiales/documentos-juridicos",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-sentencia-judicial/",
+        destination: "/documentos-oficiales/documentos-juridicos",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-poder-notarial",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-poder-notarial",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
 
       // ===============================
       // CATEGORÍAS WOOCOMMERCE
@@ -125,6 +245,11 @@ const nextConfig = {
       },
       {
         source: "/categoria-producto/hacienda/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/notarial/",
         destination: "/documentos-oficiales",
         permanent: true,
       },
@@ -170,6 +295,67 @@ const nextConfig = {
       {
         source: "/traductor-jurado-guadalajara",
         destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-tenerife/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-gran-canaria/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-puerto-de-la-cruz/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+
+      // ===============================
+      // OTRAS PÁGINAS ANTIGUAS
+      // ===============================
+      {
+        source: "/inicio/",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/agencia/",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/envios/",
+        destination: "/proceso",
+        permanent: true,
+      },
+      {
+        source: "/precio-de-traduccion-jurada/",
+        destination: "/precios-traduccion-jurada",
+        permanent: true,
+      },
+      {
+        source: "/trabaja-con-nosotros/",
+        destination: "/contacto",
+        permanent: true,
+      },
+      {
+        source: "/aviso-legal-privacidad",
+        destination: "/aviso-legal",
+        permanent: true,
+      },
+
+      // Endpoints WP legacy (poner 410/redirect al inicio)
+      {
+        source: "/wp-content/plugins/burst-statistics/endpoint.php",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/wp-json/",
+        destination: "/",
         permanent: true,
       },
 
