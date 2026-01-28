@@ -22,8 +22,17 @@ export default function PresupuestoPage() {
   });
 
   const [files, setFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
+
+  const MAX_FILE_SIZE_MB = 15;
+  const ACCEPTED_MIMES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ];
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -37,11 +46,44 @@ export default function PresupuestoPage() {
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
-    setFiles(selected);
+    addFiles(selected);
   };
 
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addFiles = (incoming: File[]) => {
+    const validated: File[] = [];
+
+    for (const file of incoming) {
+      const sizeMb = file.size / (1024 * 1024);
+      if (sizeMb > MAX_FILE_SIZE_MB) {
+        setToast({
+          type: "error",
+          message: `El archivo ${file.name} supera ${MAX_FILE_SIZE_MB} MB.`,
+        });
+        continue;
+      }
+
+      if (
+        file.type &&
+        !ACCEPTED_MIMES.includes(file.type) &&
+        !file.name.toLowerCase().endsWith(".pdf") // fallback por si el navegador no da mime
+      ) {
+        setToast({
+          type: "error",
+          message: `Formato no permitido: ${file.name}. Usa PDF, JPG, PNG o WEBP.`,
+        });
+        continue;
+      }
+
+      validated.push(file);
+    }
+
+    if (validated.length > 0) {
+      setFiles((prev) => [...prev, ...validated]);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -276,26 +318,72 @@ export default function PresupuestoPage() {
         </div>
 
         {/* ADJUNTOS */}
+        {/* ADJUNTOS */}
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <label className="block text-slate-800 font-semibold" htmlFor="files">
             Adjuntar documentos (PDF o fotos)
           </label>
           <p className="mt-1 text-xs text-slate-600">
-            Puedes adjuntar varios archivos. Recomendado: PDF, JPG o PNG.
+            Arrastra y suelta o selecciona archivos. Formatos permitidos: PDF, JPG, PNG o WEBP. Máx. {MAX_FILE_SIZE_MB} MB por archivo.
           </p>
 
-          <input
-            id="files"
-            name="files"
-            type="file"
-            multiple
-            accept=".pdf,.jpg,.jpeg,.png,.webp"
-            onChange={handleFilesChange}
-            className="mt-3 block w-full text-xs"
-          />
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              const dropped = Array.from(e.dataTransfer.files || []);
+              addFiles(dropped);
+            }}
+            className={`mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center text-xs transition ${
+              isDragging ? "border-emerald-400 bg-white" : "border-slate-300 bg-white/80"
+            }`}
+            onClick={() => document.getElementById("files")?.click()}
+          >
+            <span className="text-base">📄⬆️</span>
+            <p className="mt-2 font-semibold text-slate-800">
+              Arrastra tus archivos aquí o haz clic para buscarlos
+            </p>
+            <p className="mt-1 text-slate-500">
+              Preferible: PDF nítido o foto completa con sellos visibles.
+            </p>
+            <input
+              id="files"
+              name="files"
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              onChange={handleFilesChange}
+              className="hidden"
+            />
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <ul className="list-disc space-y-1 rounded-xl bg-white px-3 py-3 text-xs text-slate-700">
+              <li>Foto completa, sin recortes ni sombras.</li>
+              <li>Que se lean sellos y márgenes.</li>
+              <li>Si hay varias páginas, súbelas todas.</li>
+              <li>Formato preferido: PDF; también JPG/PNG.</li>
+            </ul>
+            <div className="rounded-xl bg-emerald-50 px-3 py-3 text-xs text-emerald-800">
+              <p className="font-semibold">Seguridad de envío</p>
+              <p className="mt-1">
+                Los archivos se envían cifrados (HTTPS) y solo se usan para preparar tu
+                presupuesto. Si lo prefieres, puedes enviarlos por email o WeTransfer
+                indicando tu nombre.
+              </p>
+            </div>
+          </div>
 
           {files.length > 0 && (
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-4 space-y-2">
               {files.map((f, idx) => (
                 <li
                   key={`${f.name}-${idx}`}
