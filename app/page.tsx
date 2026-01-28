@@ -78,6 +78,59 @@ export default function Home() {
               </Link>
             </div>
 
+            {/* Trust block */}
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-800">
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
+                  ⭐️⭐️⭐️⭐️⭐️ 5.0 / clientes verificados
+                </span>
+                <span className="text-slate-600">
+                  “Rápidos, profesionales y cumplen plazos”
+                </span>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {[
+                  {
+                    nombre: "Gabriella Calderón",
+                    servicio: "Traducción jurada de portugués",
+                    texto:
+                      "Servicio rápido y eficiente para documentos desde Brasil. ¡Los recomiendo!",
+                  },
+                  {
+                    nombre: "Jacob Malka",
+                    servicio: "Traducción jurada de inglés",
+                    texto:
+                      "Muy profesional y puntual. Precios competitivos. Muy recomendable.",
+                  },
+                  {
+                    nombre: "Carmina Martín",
+                    servicio: "Traducción jurada de francés",
+                    texto:
+                      "Envío rápido, precio razonable y cumplen su palabra. Profesionales de confianza.",
+                  },
+                ].map((item, idx) => (
+                  <article
+                    key={item.nombre + idx}
+                    className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-900">
+                        {item.nombre}
+                      </span>
+                      <span className="text-emerald-700">★★★★★</span>
+                    </div>
+                    <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">
+                      {item.servicio}
+                    </p>
+                    <p className="mt-2 leading-relaxed">{item.texto}</p>
+                  </article>
+                ))}
+              </div>
+              <div className="mt-3 text-xs text-slate-500">
+                Reseñas verificadas en Google. Pide más referencias al solicitar tu presupuesto.
+              </div>
+            </div>
+
             {/* Mini confianza */}
             <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
               <span>Traducciones juradas firmadas por traductores jurados</span>

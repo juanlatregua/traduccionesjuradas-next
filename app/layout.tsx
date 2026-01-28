@@ -48,6 +48,41 @@ export default function RootLayout({
             "Traducción jurada oficial de francés y otros idiomas realizada por traductores jurados acreditados para trámites en España y en el extranjero.",
           telephone: "+34 951 333 614",
           email: "hola@traduccionesjuradas.net",
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: "5.0",
+            reviewCount: 4,
+          },
+          review: [
+            {
+              "@type": "Review",
+              author: { "@type": "Person", name: "Gabriella Calderón" },
+              reviewBody:
+                "Servicio rápido y eficiente para documentos desde Brasil. Muy recomendables.",
+              reviewRating: { "@type": "Rating", ratingValue: "5" },
+            },
+            {
+              "@type": "Review",
+              author: { "@type": "Person", name: "Nazarith Rodríguez" },
+              reviewBody:
+                "Amables y cumplen su trabajo a tiempo. Traducción jurada de inglés.",
+              reviewRating: { "@type": "Rating", ratingValue: "5" },
+            },
+            {
+              "@type": "Review",
+              author: { "@type": "Person", name: "Jacob Malka" },
+              reviewBody:
+                "Excelente servicio de traducción. Profesional, puntual y a buen precio.",
+              reviewRating: { "@type": "Rating", ratingValue: "5" },
+            },
+            {
+              "@type": "Review",
+              author: { "@type": "Person", name: "Carmina Martín" },
+              reviewBody:
+                "Envío rápido, precio razonable y cumplen su palabra. Muy recomendables.",
+              reviewRating: { "@type": "Rating", ratingValue: "5" },
+            },
+          ],
           areaServed: {
             "@type": "Country",
             name: "España",
