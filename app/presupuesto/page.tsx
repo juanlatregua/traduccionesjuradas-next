@@ -399,7 +399,7 @@ export default function PresupuestoPage() {
             ¿Cómo se paga?
           </summary>
           <p className="mt-2 text-sm text-slate-700">
-            Te enviaremos el presupuesto con las opciones de pago (transferencia o tarjeta).
+            Te enviaremos el presupuesto con las opciones de pago: transferencia, tarjeta, Bizum o PayPal.
             Para encargos urgentes solemos pedir el pago antes de empezar.
           </p>
         </details>
