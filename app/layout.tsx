@@ -73,6 +73,8 @@ export default function RootLayout({
 
         {/* ================= CONTENIDO ================= */}
         {children}
+        {/* CTA flotante móvil */}
+        <FloatingCTA />
 
         {/* ================= BANNER COOKIES ================= */}
         <CookieBanner />
