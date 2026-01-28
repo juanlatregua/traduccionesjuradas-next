@@ -458,6 +458,85 @@ export default function PresupuestoPage() {
         </a>
         .
       </p>
+
+      {/* Testimonios */}
+      <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-emerald-700">
+              Opiniones verificadas
+            </p>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Clientes que ya tradujeron con nosotros
+            </h2>
+            <p className="text-xs text-slate-500">
+              Basado en reseñas reales de Google.
+            </p>
+          </div>
+          <div className="hidden items-center gap-1 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 sm:flex">
+            <span>⭐️⭐️⭐️⭐️⭐️</span>
+            <span>5.0</span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {[
+            {
+              nombre: "Gabriella Calderón",
+              servicio: "Traducción jurada de portugués",
+              texto:
+                "Encargué la traducción de unos documentos desde Brasil y el servicio fue rápido y eficiente. ¡Los recomiendo!",
+              rating: 5,
+              ciudad: "Brasil → España",
+            },
+            {
+              nombre: "Nazarith Rodríguez",
+              servicio: "Traducción jurada de inglés",
+              texto:
+                "Totalmente recomendables, amables y cumplen su trabajo a tiempo.",
+              rating: 5,
+              ciudad: "",
+            },
+            {
+              nombre: "Jacob Malka",
+              servicio: "Traducción jurada de inglés",
+              texto:
+                "Excelente servicio de traducción. Muy profesional y siempre puntual. Precios competitivos. Muy recomendable.",
+              rating: 5,
+              ciudad: "",
+            },
+            {
+              nombre: "Carmina Martín",
+              servicio: "Traducción jurada de francés",
+              texto:
+                "Muy contenta con su trabajo. Envío rápido, precio aceptable, profesionales en los que se puede confiar. Totalmente recomendables.",
+              rating: 5,
+              ciudad: "",
+            },
+          ].map((item, idx) => (
+            <article
+              key={item.nombre + idx}
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
+            >
+              <div className="flex items-center justify-between">
+                <div className="font-semibold text-slate-900">{item.nombre}</div>
+                <span className="text-xs text-emerald-700">
+                  {"⭐️".repeat(item.rating)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{item.servicio}</p>
+              <p className="mt-2 leading-relaxed">{item.texto}</p>
+              {item.ciudad && (
+                <p className="mt-2 text-xs text-slate-500">{item.ciudad}</p>
+              )}
+            </article>
+          ))}
+        </div>
+
+        <p className="mt-4 text-xs text-slate-500">
+          Puedes pedir referencias o ver más reseñas completas en Google; te las enviaremos con el presupuesto si lo necesitas.
+        </p>
+      </section>
     </main>
   );
 }
