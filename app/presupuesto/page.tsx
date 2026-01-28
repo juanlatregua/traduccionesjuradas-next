@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AvailabilityBadge } from "@/components/AvailabilityBadge";
 
 type ToastState =
   | { type: "success" | "error"; message: string }
@@ -162,6 +163,9 @@ export default function PresupuestoPage() {
         Adjunta tu documento (PDF o foto) y te enviaremos un presupuesto por
         email.
       </p>
+      <div className="mt-2">
+        <AvailabilityBadge variant="inline" />
+      </div>
 
       <form
         onSubmit={handleSubmit}

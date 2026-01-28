@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { DocumentChecklist } from "@/components/DocumentChecklist";
+import { AvailabilityBadge } from "@/components/AvailabilityBadge";
 
 export const metadata: Metadata = {
   title: "Traducción jurada oficial en España | Traductores jurados online",
@@ -76,6 +77,10 @@ export default function Home() {
               >
                 O rellenar el formulario de presupuesto
               </Link>
+            </div>
+
+            <div className="mt-3">
+              <AvailabilityBadge />
             </div>
 
             {/* Mini confianza */}
