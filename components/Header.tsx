@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AvailabilityBadge } from "./AvailabilityBadge";
 
 function Logo() {
   return (
@@ -69,6 +70,11 @@ export function Header() {
           id="primary-navigation"
           className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium text-slate-700 shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-xs sm:shadow-none sm:text-slate-700`}
         >
+          {/* Disponibilidad móvil */}
+          <div className="sm:hidden">
+            <AvailabilityBadge variant="inline" />
+          </div>
+
           {/* CÓMO FUNCIONA */}
           <Link href="/proceso" className="hover:text-emerald-600" onClick={closeMenu}>
             Cómo funciona

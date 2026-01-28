@@ -1,6 +1,7 @@
 // app/contacto/page.tsx
 import type { Metadata } from "next";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import { AvailabilityBadge } from "@/components/AvailabilityBadge";
 
 export const metadata: Metadata = {
   title: "Contacto | Traducciones Juradas en España",
@@ -19,6 +20,9 @@ export default function ContactoPage() {
         Puedes contactar con nosotros por teléfono, email o WhatsApp.
         Estaremos encantados de ayudarte con tu traducción jurada.
       </p>
+      <div className="mt-2">
+        <AvailabilityBadge />
+      </div>
 
       {/* BLOQUE PRINCIPAL DE CONTACTO */}
       <section className="mt-6 space-y-3 text-sm text-slate-700">
