@@ -100,7 +100,13 @@ export default function RootLayout({
             "Traducción jurada de inglés",
             "Traducción jurada de documentos oficiales",
           ],
-          sameAs: ["https://goo.gl/maps/F418UeYmisUfZbFs8"],
+          sameAs: [
+            "https://maps.app.goo.gl/ZB3kGgUHWA17M1Pg6",
+            "https://maps.app.goo.gl/Pdk2FiDrkyG7FpRF9",
+            "https://maps.app.goo.gl/dT69pAN1yGXPvB2D9",
+            "https://maps.app.goo.gl/EW9peVQTs4HroCY98",
+            "https://maps.app.goo.gl/wg2iqwyUQLY8MpYF6",
+          ],
         })}
       </Script>
 

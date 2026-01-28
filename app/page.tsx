@@ -129,7 +129,7 @@ export default function Home() {
               <div className="mt-3 text-xs text-slate-500">
                 Reseñas verificadas en Google.{" "}
                 <a
-                  href="https://goo.gl/maps/F418UeYmisUfZbFs8"
+                  href="https://maps.app.goo.gl/ZB3kGgUHWA17M1Pg6"
                   target="_blank"
                   className="text-emerald-700 hover:underline"
                   rel="noreferrer"
