@@ -194,6 +194,31 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traduccion-jurada-titulo-universitario",
+        destination: "/documentos-oficiales/documentos-academicos",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-titulo-universitario/",
+        destination: "/documentos-oficiales/documentos-academicos",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-online/",
+        destination: "/presupuesto",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-online",
+        destination: "/presupuesto",
+        permanent: true,
+      },
+      {
         source: "/traduccion-jurada-de-certificado-pareja-de-hecho",
         destination: "/documentos-oficiales/certificados-registro-civil",
         permanent: true,
@@ -456,6 +481,18 @@ const nextConfig = {
       {
         source: "/wp-json",
         destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/index.php",
+        has: [
+          {
+            type: "query",
+            key: "route",
+            value: "product/compare",
+          },
+        ],
+        destination: "/documentos-oficiales",
         permanent: true,
       },
       {
