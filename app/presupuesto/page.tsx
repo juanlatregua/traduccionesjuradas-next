@@ -163,6 +163,82 @@ export default function PresupuestoPage() {
         email.
       </p>
 
+      {/* Timeline de tiempos */}
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Qué puedes esperar
+        </p>
+
+        {/* Mobile: acordeón */}
+        <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:hidden">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            Ver tiempos estimados
+          </summary>
+          <div className="mt-3 space-y-3 text-sm text-slate-700">
+            {[
+              {
+                title: "Respuesta",
+                subtitle: "< 30 min (9–19h CET)",
+                desc: "Confirmamos precio y plazo por email/WhatsApp.",
+              },
+              {
+                title: "Traducción",
+                subtitle: "24–72 h según idioma y páginas",
+                desc: "Asignamos al traductor jurado especializado.",
+              },
+              {
+                title: "Entrega",
+                subtitle: "PDF firmado y sellado",
+                desc: "Envío por email; opcional mensajería en papel.",
+              },
+            ].map((item, idx) => (
+              <div key={item.title + idx} className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                  {idx + 1}
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">{item.title}</p>
+                  <p className="text-xs text-emerald-700">{item.subtitle}</p>
+                  <p className="mt-1 text-xs text-slate-600">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+
+        {/* Desktop: grid */}
+        <div className="mt-3 hidden gap-3 sm:grid sm:grid-cols-3">
+          {[
+            {
+              title: "Respuesta",
+              subtitle: "< 30 min (9–19h CET)",
+              desc: "Confirmamos precio y plazo por email/WhatsApp.",
+            },
+            {
+              title: "Traducción",
+              subtitle: "24–72 h según idioma y páginas",
+              desc: "Asignamos al traductor jurado especializado.",
+            },
+            {
+              title: "Entrega",
+              subtitle: "PDF firmado y sellado",
+              desc: "Envío por email; opcional mensajería en papel.",
+            },
+          ].map((item, idx) => (
+            <div key={item.title + idx} className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-3">
+              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                {idx + 1}
+              </div>
+              <div className="text-sm text-slate-700">
+                <p className="font-semibold text-slate-900">{item.title}</p>
+                <p className="text-xs text-emerald-700">{item.subtitle}</p>
+                <p className="mt-1 text-xs text-slate-600">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <form
         onSubmit={handleSubmit}
         encType="multipart/form-data"
