@@ -61,3 +61,60 @@ Adjuntos: ${files.length}
     })),
   });
 }
+
+export async function sendPresupuestoConfirmationEmail(data: any) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  const toUser = data?.email;
+  if (!toUser) return; // nada que enviar
+
+  sgMail.setApiKey(apiKey);
+
+  const subject = "Hemos recibido tu solicitud de presupuesto";
+
+  const whatsapp = "https://wa.me/34951333614?text=Hola%20necesito%20un%20presupuesto";
+
+  const text = `Hola ${data?.nombre || ""},
+
+Hemos recibido tu solicitud de traducción jurada.
+- Idioma origen: ${data?.idiomaOrigen || "-"}
+- Idioma destino: ${data?.idiomaDestino || "-"}
+- Documento: ${data?.tipoDocumento || "-"}
+- Plazo indicado: ${data?.plazo || "-"}
+
+Atendemos de 09:00 a 19:00 CET y solemos responder en <30 minutos dentro de ese horario.
+Si es urgente, escríbenos por WhatsApp: ${whatsapp}
+
+Tus archivos se usan solo para preparar el presupuesto y se eliminan en 30 días o antes si lo pides.
+
+Gracias,
+Equipo de TraduccionesJuradas.net`;
+
+  const html = `
+    <h2>Hemos recibido tu solicitud</h2>
+    <p>Hola ${data?.nombre || ""},</p>
+    <p>Este es un resumen de lo que nos enviaste:</p>
+    <ul>
+      <li><strong>Idioma origen:</strong> ${data?.idiomaOrigen || "-"}</li>
+      <li><strong>Idioma destino:</strong> ${data?.idiomaDestino || "-"}</li>
+      <li><strong>Documento:</strong> ${data?.tipoDocumento || "-"}</li>
+      <li><strong>Plazo indicado:</strong> ${data?.plazo || "-"}</li>
+    </ul>
+    <p>Horario de respuesta: <strong>09:00 a 19:00 CET</strong>. Respondemos normalmente en &lt; 30 minutos dentro de ese horario.</p>
+    <p>Si es urgente, contáctanos por <a href="${whatsapp}">WhatsApp</a>.</p>
+    <p>Tus archivos se usan solo para preparar el presupuesto y se eliminan en 30 días (o antes si lo pides).</p>
+    <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
+  `;
+
+  await sgMail.send({
+    to: toUser,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}

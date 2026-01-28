@@ -1,6 +1,9 @@
 // app/api/presupuesto/route.ts
 import { NextResponse } from "next/server";
-import { sendPresupuestoEmail } from "@/lib/email";
+import {
+  sendPresupuestoEmail,
+  sendPresupuestoConfirmationEmail,
+} from "@/lib/email";
 
 export const runtime = "nodejs"; // importante para libs Node en Vercel
 
@@ -69,7 +72,11 @@ export async function POST(req: Request) {
       })
     );
 
-    await sendPresupuestoEmail(data, files);
+    // Enviamos en paralelo: a equipo + confirmación al cliente (sin adjuntos)
+    await Promise.all([
+      sendPresupuestoEmail(data, files),
+      sendPresupuestoConfirmationEmail(data),
+    ]);
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {
