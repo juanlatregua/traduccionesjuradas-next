@@ -370,6 +370,49 @@ export default function PresupuestoPage() {
         </a>
         .
       </p>
+
+      {/* Mini FAQ */}
+      <section className="mt-8 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Preguntas rápidas
+        </p>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Vale la traducción en PDF o necesito papel?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            El PDF firmado digitalmente por el traductor jurado es válido para la mayoría de trámites.
+            Si tu organismo pide papel, también podemos enviarlo por mensajería.
+          </p>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Puedo mandar fotos en lugar de escaneo?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            Sí, siempre que sean nítidas, sin recortes y con sellos/márgenes visibles. Si hiciera falta,
+            podemos pedir un escaneo mejor antes de entregar.
+          </p>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Cómo se paga?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            Te enviaremos el presupuesto con las opciones de pago (transferencia o tarjeta).
+            Para encargos urgentes solemos pedir el pago antes de empezar.
+          </p>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Qué pasa con mis datos y documentos?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            Usamos tus archivos solo para preparar el presupuesto y la traducción. Viajan por HTTPS
+            y podemos eliminarlos a petición una vez entregada la traducción.
+          </p>
+        </details>
+      </section>
     </main>
   );
 }
