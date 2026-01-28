@@ -409,7 +409,8 @@ export default function PresupuestoPage() {
           </summary>
           <p className="mt-2 text-sm text-slate-700">
             Usamos tus archivos solo para preparar el presupuesto y la traducción. Viajan por HTTPS
-            y podemos eliminarlos a petición una vez entregada la traducción.
+            y se eliminan pasados 30 días desde la entrega, salvo obligación legal. Si quieres, puedes
+            pedir el borrado inmediato tras recibir la traducción.
           </p>
         </details>
       </section>
