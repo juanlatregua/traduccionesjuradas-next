@@ -13,11 +13,65 @@ export default function AvisoLegalPage() {
         Aviso legal
       </h1>
 
-      <p className="mt-4">
-        Aquí podrás incluir el texto legal correspondiente a la titularidad de
-        la web, datos de contacto, condiciones de uso, etc.
-      </p>
+      <section className="mt-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">1. Aviso Legal</h2>
+
+          <h3 className="mt-4 font-semibold text-slate-900">1.1 Información general</h3>
+          <p className="mt-2">
+            En cumplimiento de la Ley 34/2002, de Servicios de la Sociedad de la Información y del
+            Comercio Electrónico (LSSI-CE), se informa de los siguientes datos:
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>
+              <strong>Titular:</strong> HBTJ Consultores Lingüísticos S.L.
+            </li>
+            <li>
+              <strong>CIF:</strong> B93712784
+            </li>
+            <li>
+              <strong>Actividad:</strong> Servicios lingüísticos, traducción, traducción jurada y
+              consultoría lingüística
+            </li>
+            <li>
+              <strong>Correo electrónico:</strong>{" "}
+              <a className="text-emerald-700 underline" href="mailto:hola@traduccionesjuradas.net">
+                hola@traduccionesjuradas.net
+              </a>
+            </li>
+            <li>
+              <strong>Domicilio:</strong> Calle Esperanto, 9 — 29007 Málaga (España)
+            </li>
+          </ul>
+
+          <h3 className="mt-6 font-semibold text-slate-900">1.2 Objeto</h3>
+          <p className="mt-2">
+            Este sitio web tiene como objeto facilitar información sobre los servicios ofrecidos por
+            HBTJ Consultores Lingüísticos S.L., así como permitir el contacto y la solicitud de
+            presupuestos.
+          </p>
+
+          <h3 className="mt-6 font-semibold text-slate-900">1.3 Condiciones de uso</h3>
+          <p className="mt-2">
+            El acceso y uso del sitio web atribuye la condición de usuario, implicando la aceptación
+            plena del contenido del presente aviso. El usuario se compromete a hacer un uso adecuado
+            y lícito del sitio web.
+          </p>
+
+          <h3 className="mt-6 font-semibold text-slate-900">1.4 Propiedad intelectual e industrial</h3>
+          <p className="mt-2">
+            Todos los contenidos del sitio web (textos, imágenes, diseños, logotipos, estructura,
+            código fuente, etc.) son titularidad de HBTJ Consultores Lingüísticos S.L. o de terceros
+            autorizados, quedando prohibida su reproducción sin autorización expresa.
+          </p>
+
+          <h3 className="mt-6 font-semibold text-slate-900">1.5 Responsabilidad</h3>
+          <p className="mt-2">
+            HBTJ Consultores Lingüísticos S.L. no se hace responsable del mal uso que se realice del
+            sitio web ni de los daños derivados del acceso o uso de la información publicada.
+          </p>
+        </div>
+      </section>
     </main>
   );
 }
-

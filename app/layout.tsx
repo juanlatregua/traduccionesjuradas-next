@@ -56,6 +56,8 @@ export default function RootLayout({
             "@type": "PostalAddress",
             addressCountry: "ES",
             addressLocality: "Málaga",
+            streetAddress: "Calle Esperanto, 9",
+            postalCode: "29007",
           },
           serviceType: [
             "Traducción jurada de francés",

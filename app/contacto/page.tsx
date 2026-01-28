@@ -82,7 +82,7 @@ export default function ContactoPage() {
               Dirección
             </span>
             <span className="text-sm text-slate-800">
-              Calle Barroso, 10, 1º IZQ, 29001 Málaga
+              Calle Esperanto, 9, 29007 Málaga
             </span>
           </div>
         </div>
@@ -90,4 +90,3 @@ export default function ContactoPage() {
     </main>
   );
 }
-

@@ -118,7 +118,7 @@ export default function CookiesPage() {
       <h2 className="mt-8 text-xl font-semibold">10. Datos de contacto</h2>
       <p className="mt-2">
         <strong>HBTJ Consultores Lingüísticos S.L</strong><br />
-        Barroso, 10 — 29001 Málaga (España)<br />
+        Calle Esperanto, 9 — 29007 Málaga (España)<br />
         Web: https://www.traduccionesjuradas.net<br />
         Correo electrónico: info@traduccionesjuradas.net<br />
         Teléfono: 951 333 614
@@ -131,4 +131,3 @@ export default function CookiesPage() {
     </main>
   );
 }
-

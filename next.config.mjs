@@ -84,6 +84,16 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traduccion-jurada-antecedentes-penales",
+        destination: "/documentos-oficiales/antecedentes-penales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-antecedentes-penales/",
+        destination: "/documentos-oficiales/antecedentes-penales",
+        permanent: true,
+      },
+      {
         source: "/traduccion-jurada-de-certificado-empadronamiento",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -347,6 +357,11 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/inicio",
+        destination: "/",
+        permanent: true,
+      },
+      {
         source: "/feed/",
         destination: "/",
         permanent: true,
@@ -362,7 +377,17 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/agencia",
+        destination: "/",
+        permanent: true,
+      },
+      {
         source: "/envios/",
+        destination: "/proceso",
+        permanent: true,
+      },
+      {
+        source: "/envios",
         destination: "/proceso",
         permanent: true,
       },
@@ -383,6 +408,11 @@ const nextConfig = {
       },
       {
         source: "/trabaja-con-nosotros/",
+        destination: "/contacto",
+        permanent: true,
+      },
+      {
+        source: "/trabaja-con-nosotros",
         destination: "/contacto",
         permanent: true,
       },
@@ -420,6 +450,11 @@ const nextConfig = {
       },
       {
         source: "/wp-json/",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/wp-json",
         destination: "/",
         permanent: true,
       },
