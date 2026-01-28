@@ -1,5 +1,7 @@
 // lib/email.ts
 import sgMail from "@sendgrid/mail";
+import fs from "fs";
+import path from "path";
 
 type UploadedFile = {
   name: string;
@@ -119,6 +121,9 @@ Equipo de TraduccionesJuradas.net
 ${signatureText}`;
 
   const html = `
+    <div style="margin-bottom:12px;">
+      <img src="cid:logo-tj" alt="TraduccionesJuradas.net" style="height:46px; max-width:180px;" />
+    </div>
     <h2>Hemos recibido tu solicitud</h2>
     <p>Hola ${data?.nombre || ""},</p>
     <p>Este es un resumen de lo que nos enviaste:</p>
@@ -132,9 +137,43 @@ ${signatureText}`;
     <p>Si es urgente, contáctanos por <a href="${whatsapp}">WhatsApp</a>.</p>
     <p>Tus archivos se usan solo para preparar el presupuesto y se eliminan en 30 días (o antes si lo pides).</p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
+    <div style="margin:12px 0;">
+      <img src="cid:sello-ministerio" alt="Traductores jurados nombrados por el Ministerio" style="max-width:220px; height:auto;" />
+    </div>
     <hr style="margin:12px 0; border:0; border-top:1px solid #e5e7eb;" />
     ${signatureHtml}
   `;
+
+  // Inline attachments (opcional si existen en /public)
+  const attachments: any[] = [];
+  const logoPath = path.join(process.cwd(), "public", "logo-tj-app.svg");
+  const sealPath = path.join(process.cwd(), "public", "sello-ministerio.jpg");
+
+  try {
+    const logoContent = fs.readFileSync(logoPath).toString("base64");
+    attachments.push({
+      filename: "logo-tj-app.svg",
+      type: "image/svg+xml",
+      content: logoContent,
+      disposition: "inline",
+      content_id: "logo-tj",
+    });
+  } catch (e) {
+    // opcional: si no existe, no adjuntamos
+  }
+
+  try {
+    const sealContent = fs.readFileSync(sealPath).toString("base64");
+    attachments.push({
+      filename: "sello-ministerio.jpg",
+      type: "image/jpeg",
+      content: sealContent,
+      disposition: "inline",
+      content_id: "sello-ministerio",
+    });
+  } catch (e) {
+    // opcional
+  }
 
   await sgMail.send({
     to: toUser,
@@ -142,5 +181,6 @@ ${signatureText}`;
     subject,
     text,
     html,
+    attachments,
   });
 }
