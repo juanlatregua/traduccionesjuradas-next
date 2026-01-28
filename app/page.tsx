@@ -127,7 +127,16 @@ export default function Home() {
                 ))}
               </div>
               <div className="mt-3 text-xs text-slate-500">
-                Reseñas verificadas en Google. Pide más referencias al solicitar tu presupuesto.
+                Reseñas verificadas en Google.{" "}
+                <a
+                  href="https://goo.gl/maps/F418UeYmisUfZbFs8"
+                  target="_blank"
+                  className="text-emerald-700 hover:underline"
+                  rel="noreferrer"
+                >
+                  Ver más reseñas →
+                </a>{" "}
+                o pide referencias al solicitar tu presupuesto.
               </div>
             </div>
 
