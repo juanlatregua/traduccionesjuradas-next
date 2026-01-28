@@ -283,6 +283,9 @@ export default function PresupuestoPage() {
           <p className="mt-1 text-xs text-slate-600">
             Puedes adjuntar varios archivos. Recomendado: PDF, JPG o PNG.
           </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Envío cifrado por HTTPS · Borramos los archivos 30 días después de la entrega (o antes si lo pides).
+          </p>
 
           <input
             id="files"
@@ -376,6 +379,7 @@ export default function PresupuestoPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Preguntas rápidas
         </p>
+        <p className="text-[11px] text-slate-500">Actualizado enero 2026</p>
         <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
           <summary className="cursor-pointer text-sm font-semibold text-slate-900">
             ¿Vale la traducción en PDF o necesito papel?
