@@ -83,11 +83,22 @@ export async function POST(req: Request) {
       })
     );
 
-    // Enviamos en paralelo: a equipo + confirmación al cliente (sin adjuntos)
-    await Promise.all([
-      sendPresupuestoEmail(data, files),
-      sendPresupuestoConfirmationEmail(data),
-    ]);
+    const missingEnv =
+      !process.env.SENDGRID_API_KEY ||
+      !process.env.SENDGRID_FROM ||
+      !process.env.PRESUPUESTO_TO;
+
+    if (missingEnv && process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[/api/presupuesto] Envío de email omitido en dev: faltan env SENDGRID_* / PRESUPUESTO_TO"
+      );
+    } else {
+      // Enviamos en paralelo: a equipo + confirmación al cliente (sin adjuntos)
+      await Promise.all([
+        sendPresupuestoEmail(data, files),
+        sendPresupuestoConfirmationEmail(data),
+      ]);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {
