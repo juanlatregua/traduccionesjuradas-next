@@ -131,7 +131,7 @@ export default function PresupuestoPage() {
       {/* TOAST */}
       {toast && (
         <div
-          className={`fixed inset-x-0 bottom-8 z-[160] mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
+          className={`fixed inset-x-0 bottom-8 sm:top-16 sm:bottom-auto z-[180] mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
             toast.type === "success"
               ? "bg-emerald-600 text-white"
               : "bg-red-600 text-white"
@@ -141,7 +141,7 @@ export default function PresupuestoPage() {
             <span className="mt-0.5 text-lg">
               {toast.type === "success" ? "✅" : "⚠️"}
             </span>
-            <div className="flex-1">
+          <div className="flex-1">
               <p>{toast.message}</p>
             </div>
             <button
