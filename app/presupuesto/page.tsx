@@ -131,7 +131,7 @@ export default function PresupuestoPage() {
       {/* TOAST */}
       {toast && (
         <div
-          className={`fixed inset-x-0 top-36 sm:top-12 z-[120] mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
+          className={`fixed inset-x-0 bottom-6 sm:top-14 sm:bottom-auto z-[140] mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
             toast.type === "success"
               ? "bg-emerald-600 text-white"
               : "bg-red-600 text-white"
