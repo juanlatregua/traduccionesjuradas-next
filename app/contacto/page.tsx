@@ -1,15 +1,9 @@
 "use client";
 // app/contacto/page.tsx
-import type { Metadata } from "next";
 import { useState } from "react";
+import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { AvailabilityBadge } from "@/components/AvailabilityBadge";
-
-export const metadata: Metadata = {
-  title: "Contacto | Traducciones Juradas en España",
-  description:
-    "Contacto para traducciones juradas: email, WhatsApp y teléfono. Envíanos tus documentos para obtener un presupuesto rápido. Atención en toda España.",
-};
 
 export default function ContactoPage() {
   const [copied, setCopied] = useState<"email" | "whatsapp" | null>(null);
