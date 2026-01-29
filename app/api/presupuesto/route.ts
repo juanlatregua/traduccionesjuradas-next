@@ -39,7 +39,13 @@ export async function POST(req: Request) {
     }
 
     const filesRaw = formData.getAll("files");
-    const fileBlobs = filesRaw.filter((x): x is File => x instanceof File);
+    // Node 16 en local no expone global File; usamos cualquier Blob con arrayBuffer/size
+    const fileBlobs = filesRaw.filter(
+      (x): x is Blob & { name?: string; type?: string; size: number } =>
+        !!x &&
+        typeof (x as any).arrayBuffer === "function" &&
+        typeof (x as any).size === "number"
+    );
 
     if (fileBlobs.length === 0) {
       return NextResponse.json(
@@ -57,16 +63,21 @@ export async function POST(req: Request) {
 
     const files = await Promise.all(
       fileBlobs.map(async (f) => {
-        if (f.size > MAX_FILE_SIZE_BYTES) {
-          throw new Error(`Archivo demasiado grande: ${f.name}`);
+        const fileName = (f as any).name || "archivo";
+        const fileType = (f as any).type || "application/octet-stream";
+        const fileSize = (f as any).size || 0;
+
+        if (fileSize > MAX_FILE_SIZE_BYTES) {
+          throw new Error(`Archivo demasiado grande: ${fileName}`);
         }
+
         const ab = await f.arrayBuffer();
         const contentBase64 = Buffer.from(ab).toString("base64");
 
         return {
-          name: f.name,
-          type: f.type || "application/octet-stream",
-          size: f.size,
+          name: fileName,
+          type: fileType,
+          size: fileSize,
           contentBase64,
         };
       })
