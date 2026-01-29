@@ -1,3 +1,4 @@
+"use client";
 // app/contacto/page.tsx
 import type { Metadata } from "next";
 import { useState } from "react";
