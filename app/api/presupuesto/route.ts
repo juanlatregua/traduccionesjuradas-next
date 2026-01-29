@@ -87,7 +87,11 @@ export async function POST(req: Request) {
       !process.env.SENDGRID_FROM ||
       !process.env.PRESUPUESTO_TO;
 
-    if (missingEnv && process.env.NODE_ENV !== "production") {
+    const skipSend = process.env.SENDGRID_SKIP_DEV === "true";
+
+    if (skipSend) {
+      console.warn("[/api/presupuesto] Envío de email omitido por SENDGRID_SKIP_DEV=true");
+    } else if (missingEnv && process.env.NODE_ENV !== "production") {
       console.warn(
         "[/api/presupuesto] Envío de email omitido en dev: faltan env SENDGRID_* / PRESUPUESTO_TO"
       );
