@@ -40,12 +40,11 @@ export async function POST(req: Request) {
 
     const filesRaw = formData.getAll("files");
     // Node 16 en local no expone global File; usamos cualquier Blob con arrayBuffer/size
-    const fileBlobs = filesRaw.filter(
-      (x): x is Blob & { name?: string; type?: string; size: number } =>
-        !!x &&
-        typeof (x as any).arrayBuffer === "function" &&
-        typeof (x as any).size === "number"
-    );
+    const fileBlobs = filesRaw.filter((x) => {
+      if (!x) return false;
+      const anyX = x as any;
+      return typeof anyX.arrayBuffer === "function" && typeof anyX.size === "number";
+    }) as (Blob & { name?: string; type?: string; size: number })[];
 
     if (fileBlobs.length === 0) {
       return NextResponse.json(
