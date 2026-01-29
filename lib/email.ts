@@ -73,6 +73,7 @@ export async function sendPresupuestoConfirmationEmail(data: any) {
 
   const toUser = data?.email;
   if (!toUser) return; // nada que enviar
+  const bccInternal = process.env.PRESUPUESTO_TO;
 
   sgMail.setApiKey(apiKey);
 
@@ -176,8 +177,13 @@ ${signatureText}`;
   }
 
   await sgMail.send({
-    to: toUser,
     from: { email: from, name: "Traducciones Juradas" },
+    personalizations: [
+      {
+        to: [{ email: toUser }],
+        ...(bccInternal ? { bcc: [{ email: bccInternal }] } : {}),
+      },
+    ],
     subject,
     text,
     html,

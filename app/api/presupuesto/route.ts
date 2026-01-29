@@ -93,11 +93,14 @@ export async function POST(req: Request) {
         "[/api/presupuesto] Envío de email omitido en dev: faltan env SENDGRID_* / PRESUPUESTO_TO"
       );
     } else {
-      // Enviamos en paralelo: a equipo + confirmación al cliente (sin adjuntos)
-      await Promise.all([
-        sendPresupuestoEmail(data, files),
-        sendPresupuestoConfirmationEmail(data),
-      ]);
+      // Primero email interno; si falla, lanzamos.
+      await sendPresupuestoEmail(data, files);
+      // Luego confirmación al cliente; si falla, registramos pero no rompemos al usuario.
+      try {
+        await sendPresupuestoConfirmationEmail(data);
+      } catch (err) {
+        console.error("[/api/presupuesto] Error al enviar confirmación:", err);
+      }
     }
 
     return NextResponse.json({ ok: true });
