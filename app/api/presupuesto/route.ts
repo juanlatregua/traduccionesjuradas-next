@@ -127,11 +127,11 @@ export async function POST(req: Request) {
     // Luego confirmación al cliente; si falla, registramos pero no rompemos al usuario.
     try {
       await sendPresupuestoConfirmationEmail(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[/api/presupuesto] Error al enviar confirmación:", err);
       logPresupuesto({
         status: "error",
-        error: err?.message || "Error confirmación cliente",
+        error: (err as any)?.message || "Error confirmación cliente",
         hasAttachments: files.length > 0,
         route: "api/presupuesto",
         userEmail: data.email,
