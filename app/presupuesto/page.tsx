@@ -1,7 +1,7 @@
 // app/presupuesto/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 
 type ToastState =
@@ -22,6 +22,7 @@ export default function PresupuestoPage() {
   });
 
   const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
 
@@ -38,6 +39,7 @@ export default function PresupuestoPage() {
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     setFiles(selected);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeFile = (index: number) => {
@@ -110,6 +112,7 @@ export default function PresupuestoPage() {
         website: "",
       });
       setFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
 
       setTimeout(() => setToast(null), 5000);
     } catch (error: unknown) {
@@ -131,7 +134,7 @@ export default function PresupuestoPage() {
       {/* TOAST */}
       {toast && (
         <div
-          className={`fixed inset-x-0 top-4 mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
+          className={`fixed inset-x-0 top-20 z-[200] mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
             toast.type === "success"
               ? "bg-emerald-600 text-white"
               : "bg-red-600 text-white"
@@ -162,6 +165,82 @@ export default function PresupuestoPage() {
         Adjunta tu documento (PDF o foto) y te enviaremos un presupuesto por
         email.
       </p>
+
+      {/* Timeline de tiempos */}
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Qué puedes esperar
+        </p>
+
+        {/* Mobile: acordeón */}
+        <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:hidden">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            Ver tiempos estimados
+          </summary>
+          <div className="mt-3 space-y-3 text-sm text-slate-700">
+            {[
+              {
+                title: "Respuesta",
+                subtitle: "< 30 min (9–19h CET)",
+                desc: "Confirmamos precio y plazo por email/WhatsApp.",
+              },
+              {
+                title: "Traducción",
+                subtitle: "24–72 h según idioma y páginas",
+                desc: "Asignamos al traductor jurado especializado.",
+              },
+              {
+                title: "Entrega",
+                subtitle: "PDF firmado y sellado",
+                desc: "Envío por email; opcional mensajería en papel.",
+              },
+            ].map((item, idx) => (
+              <div key={item.title + idx} className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                  {idx + 1}
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">{item.title}</p>
+                  <p className="text-xs text-emerald-700">{item.subtitle}</p>
+                  <p className="mt-1 text-xs text-slate-600">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+
+        {/* Desktop: grid */}
+        <div className="mt-3 hidden gap-3 sm:grid sm:grid-cols-3">
+          {[
+            {
+              title: "Respuesta",
+              subtitle: "< 30 min (9–19h CET)",
+              desc: "Confirmamos precio y plazo por email/WhatsApp.",
+            },
+            {
+              title: "Traducción",
+              subtitle: "24–72 h según idioma y páginas",
+              desc: "Asignamos al traductor jurado especializado.",
+            },
+            {
+              title: "Entrega",
+              subtitle: "PDF firmado y sellado",
+              desc: "Envío por email; opcional mensajería en papel.",
+            },
+          ].map((item, idx) => (
+            <div key={item.title + idx} className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-3">
+              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                {idx + 1}
+              </div>
+              <div className="text-sm text-slate-700">
+                <p className="font-semibold text-slate-900">{item.title}</p>
+                <p className="text-xs text-emerald-700">{item.subtitle}</p>
+                <p className="mt-1 text-xs text-slate-600">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <form
         onSubmit={handleSubmit}
@@ -283,6 +362,9 @@ export default function PresupuestoPage() {
           <p className="mt-1 text-xs text-slate-600">
             Puedes adjuntar varios archivos. Recomendado: PDF, JPG o PNG.
           </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Envío cifrado por HTTPS · Borramos los archivos 30 días después de la entrega (o antes si lo pides).
+          </p>
 
           <input
             id="files"
@@ -370,6 +452,51 @@ export default function PresupuestoPage() {
         </a>
         .
       </p>
+
+      {/* Mini FAQ */}
+      <section className="mt-8 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Preguntas rápidas
+        </p>
+        <p className="text-[11px] text-slate-500">Actualizado enero 2026</p>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Vale la traducción en PDF o necesito papel?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            El PDF firmado digitalmente por el traductor jurado es válido para la mayoría de trámites.
+            Si tu organismo pide papel, también podemos enviarlo por mensajería.
+          </p>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Puedo mandar fotos en lugar de escaneo?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            Sí, siempre que sean nítidas, sin recortes y con sellos/márgenes visibles. Si hiciera falta,
+            podemos pedir un escaneo mejor antes de entregar.
+          </p>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Cómo se paga?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            Te enviaremos el presupuesto con las opciones de pago: transferencia, tarjeta, Bizum o PayPal.
+            Para encargos urgentes solemos pedir el pago antes de empezar.
+          </p>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Qué pasa con mis datos y documentos?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            Usamos tus archivos solo para preparar el presupuesto y la traducción. Viajan por HTTPS
+            y se eliminan pasados 30 días desde la entrega, salvo obligación legal. Si quieres, puedes
+            pedir el borrado inmediato tras recibir la traducción.
+          </p>
+        </details>
+      </section>
     </main>
   );
 }

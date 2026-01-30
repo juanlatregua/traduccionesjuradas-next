@@ -1,6 +1,9 @@
 // app/api/presupuesto/route.ts
 import { NextResponse } from "next/server";
-import { sendPresupuestoEmail } from "@/lib/email";
+import {
+  sendPresupuestoEmail,
+  sendPresupuestoConfirmationEmail,
+} from "@/lib/email";
 
 export const runtime = "nodejs"; // importante para libs Node en Vercel
 
@@ -36,7 +39,12 @@ export async function POST(req: Request) {
     }
 
     const filesRaw = formData.getAll("files");
-    const fileBlobs = filesRaw.filter((x): x is File => x instanceof File);
+    // Node 16 en local no expone global File; usamos cualquier Blob con arrayBuffer/size
+    const fileBlobs = filesRaw.filter((x) => {
+      if (!x) return false;
+      const anyX = x as any;
+      return typeof anyX.arrayBuffer === "function" && typeof anyX.size === "number";
+    }) as (Blob & { name?: string; type?: string; size: number })[];
 
     if (fileBlobs.length === 0) {
       return NextResponse.json(
@@ -54,22 +62,49 @@ export async function POST(req: Request) {
 
     const files = await Promise.all(
       fileBlobs.map(async (f) => {
-        if (f.size > MAX_FILE_SIZE_BYTES) {
-          throw new Error(`Archivo demasiado grande: ${f.name}`);
+        const fileName = (f as any).name || "archivo";
+        const fileType = (f as any).type || "application/octet-stream";
+        const fileSize = (f as any).size || 0;
+
+        if (fileSize > MAX_FILE_SIZE_BYTES) {
+          throw new Error(`Archivo demasiado grande: ${fileName}`);
         }
+
         const ab = await f.arrayBuffer();
         const contentBase64 = Buffer.from(ab).toString("base64");
 
         return {
-          name: f.name,
-          type: f.type || "application/octet-stream",
-          size: f.size,
+          name: fileName,
+          type: fileType,
+          size: fileSize,
           contentBase64,
         };
       })
     );
 
-    await sendPresupuestoEmail(data, files);
+    const missingEnv =
+      !process.env.SENDGRID_API_KEY ||
+      !process.env.SENDGRID_FROM ||
+      !process.env.PRESUPUESTO_TO;
+
+    const skipSend = process.env.SENDGRID_SKIP_DEV === "true";
+
+    if (skipSend) {
+      console.warn("[/api/presupuesto] Envío de email omitido por SENDGRID_SKIP_DEV=true");
+    } else if (missingEnv && process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[/api/presupuesto] Envío de email omitido en dev: faltan env SENDGRID_* / PRESUPUESTO_TO"
+      );
+    } else {
+      // Primero email interno; si falla, lanzamos.
+      await sendPresupuestoEmail(data, files);
+      // Luego confirmación al cliente; si falla, registramos pero no rompemos al usuario.
+      try {
+        await sendPresupuestoConfirmationEmail(data);
+      } catch (err) {
+        console.error("[/api/presupuesto] Error al enviar confirmación:", err);
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

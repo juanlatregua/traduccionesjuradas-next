@@ -1,14 +1,23 @@
+"use client";
 // app/contacto/page.tsx
-import type { Metadata } from "next";
+import { useState } from "react";
+import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
-
-export const metadata: Metadata = {
-  title: "Contacto | Traducciones Juradas en España",
-  description:
-    "Contacto para traducciones juradas: email, WhatsApp y teléfono. Envíanos tus documentos para obtener un presupuesto rápido. Atención en toda España.",
-};
+import { AvailabilityBadge } from "@/components/AvailabilityBadge";
 
 export default function ContactoPage() {
+  const [copied, setCopied] = useState<"email" | "whatsapp" | null>(null);
+
+  const copy = async (text: string, type: "email" | "whatsapp") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (e) {
+      setCopied(null);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -19,6 +28,9 @@ export default function ContactoPage() {
         Puedes contactar con nosotros por teléfono, email o WhatsApp.
         Estaremos encantados de ayudarte con tu traducción jurada.
       </p>
+      <div className="mt-2">
+        <AvailabilityBadge />
+      </div>
 
       {/* BLOQUE PRINCIPAL DE CONTACTO */}
       <section className="mt-6 space-y-3 text-sm text-slate-700">
@@ -54,6 +66,13 @@ export default function ContactoPage() {
               hola@traduccionesjuradas.net
             </span>
           </div>
+          <button
+            type="button"
+            onClick={() => copy("hola@traduccionesjuradas.net", "email")}
+            className="ml-auto rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+          >
+            {copied === "email" ? "Copiado" : "Copiar"}
+          </button>
         </a>
 
         {/* WhatsApp */}
@@ -70,6 +89,13 @@ export default function ContactoPage() {
             </span>
             <span className="text-sm text-slate-800">+34 951 333 614</span>
           </div>
+          <button
+            type="button"
+            onClick={() => copy("+34951333614", "whatsapp")}
+            className="ml-auto rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+          >
+            {copied === "whatsapp" ? "Copiado" : "Copiar"}
+          </button>
         </a>
 
         {/* Dirección */}
@@ -86,6 +112,37 @@ export default function ContactoPage() {
             </span>
           </div>
         </div>
+      </section>
+
+      {/* FAQ breve */}
+      <section className="mt-8 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Preguntas rápidas
+        </p>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Vale el PDF o necesito papel?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            El PDF firmado digitalmente es válido en la mayoría de trámites. Si te piden papel, lo enviamos por mensajería.
+          </p>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Cómo se paga?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            Transferencia, tarjeta, Bizum o PayPal. Para urgentes solemos pedir el pago antes de empezar.
+          </p>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            ¿Qué pasa con mis documentos?
+          </summary>
+          <p className="mt-2 text-sm text-slate-700">
+            Solo se usan para tu presupuesto/traducción, viajan por HTTPS y se eliminan tras 30 días (o antes si lo pides).
+          </p>
+        </details>
       </section>
     </main>
   );
