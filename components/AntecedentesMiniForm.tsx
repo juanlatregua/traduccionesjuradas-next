@@ -132,6 +132,13 @@ export function AntecedentesMiniForm() {
         <p className="text-[11px] text-slate-500">
           Usamos tus archivos solo para prepararte el presupuesto y confirmarte el pago/plazo. Se borran en 30 días o antes si lo pides.
         </p>
+        <p className="text-[11px] text-slate-500">
+          Precio orientativo: lo confirmamos al revisar el documento. Para otros idiomas o casos especiales, usa el{" "}
+          <a href="/presupuesto" className="text-emerald-700 underline">
+            formulario completo
+          </a>
+          .
+        </p>
       </form>
     </div>
   );
