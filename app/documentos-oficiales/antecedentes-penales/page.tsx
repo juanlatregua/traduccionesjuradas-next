@@ -1,6 +1,7 @@
 // app/documentos-oficiales/antecedentes-penales/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AntecedentesMiniForm } from "@/components/AntecedentesMiniForm";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
@@ -61,6 +62,17 @@ export default function AntecedentesPenalesPage() {
           </Link>{" "}
           antes de la traducción jurada.
         </p>
+      </section>
+
+      {/* TARIFAS Y PLAZOS */}
+      <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-800 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">
+          Tarifas y plazos orientativos
+        </h2>
+        <p className="mt-2 text-slate-600">
+          Precios para certificados de antecedentes penales (PDF o foto legible). Incluyen firma y sello de traductor jurado.
+        </p>
+        <AntecedentesMiniForm />
       </section>
 
       {/* TIPOS DE DOCUMENTOS */}
@@ -263,4 +275,3 @@ export default function AntecedentesPenalesPage() {
     </main>
   );
 }
-
