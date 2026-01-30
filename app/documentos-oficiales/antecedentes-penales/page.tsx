@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AntecedentesMiniForm } from "@/components/AntecedentesMiniForm";
 import { SchemaProduct } from "@/components/SchemaProduct";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
@@ -24,6 +26,38 @@ export default function AntecedentesPenalesPage() {
           { price: "45.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
           { price: "75.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
           { price: "40.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+        ]}
+      />
+      <SchemaBreadcrumbs
+        id="breadcrumbs-antecedentes"
+        items={[
+          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
+          { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Antecedentes penales", url: "https://traduccionesjuradas.net/documentos-oficiales/antecedentes-penales" },
+        ]}
+      />
+      <SchemaFAQ
+        id="faq-antecedentes"
+        items={[
+          {
+            question: "¿Vale la traducción en PDF o necesito papel?",
+            answer:
+              "El PDF firmado digitalmente por el traductor jurado es válido en la mayoría de trámites. Si el organismo exige papel, lo enviamos por mensajería.",
+          },
+          {
+            question: "¿Se traduce también la Apostilla de La Haya?",
+            answer:
+              "Sí, la apostilla forma parte del documento y debe traducirse junto con el certificado de antecedentes penales.",
+          },
+          {
+            question: "¿Qué plazo orientativo tiene la traducción?",
+            answer: "Español→Inglés 2 días, Español→Francés 1 día, Francés apostillado→Español 1 día, Portugués apostillado→Español 2 días.",
+          },
+          {
+            question: "¿Cómo envío el documento?",
+            answer:
+              "Puedes adjuntar un PDF o foto clara desde la propia página o enviarlo a hola@traduccionesjuradas.net. Revisamos sellos y apostilla antes de confirmar el precio.",
+          },
         ]}
       />
       {/* CABECERA */}
