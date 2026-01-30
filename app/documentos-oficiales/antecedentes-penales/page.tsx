@@ -1,6 +1,7 @@
 // app/documentos-oficiales/antecedentes-penales/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AntecedentesMiniForm } from "@/components/AntecedentesMiniForm";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
@@ -90,20 +91,7 @@ export default function AntecedentesPenalesPage() {
         <p className="mt-3 text-xs text-slate-500">
           Si tu documento tiene más páginas o requiere legalización adicional, te confirmamos el precio exacto al revisar el archivo.
         </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <a
-            href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-          >
-            Subir documento y pedir precio
-          </a>
-          <a
-            href="mailto:hola@traduccionesjuradas.net?subject=Antecedentes%20penales%20-%20Presupuesto"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
-          >
-            Enviar por email
-          </a>
-        </div>
+        <AntecedentesMiniForm />
       </section>
 
       {/* TIPOS DE DOCUMENTOS */}
