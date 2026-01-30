@@ -79,6 +79,36 @@ export default function DocumentosAcademicosPage() {
               Subir documento y pedir precio
             </a>
           </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {[
+              { title: "DELF / DALF (fr → es)", price: "45 €", plazo: "1 día" },
+              {
+                title: "Título universitario esp → fr (apostillado)",
+                price: "50 €",
+                plazo: "1 día",
+              },
+              {
+                title: "Título universitario esp → fr (legalizado)",
+                price: "55 €",
+                plazo: "1 día",
+              },
+              { title: "Título esp → ing", price: "55 €", plazo: "2 días" },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-700"
+              >
+                <p className="font-semibold text-slate-900">{item.title}</p>
+                <p className="text-sm font-semibold text-emerald-700">
+                  {item.price}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Plazo estimado: {item.plazo}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
 
 
