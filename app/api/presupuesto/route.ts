@@ -31,9 +31,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true }); // silencioso
     }
 
-    if (!data.email || !data.nombre) {
+    if (!data.email) {
       return NextResponse.json(
-        { ok: false, error: "Faltan campos obligatorios." },
+        { ok: false, error: "Falta el email." },
         { status: 400 }
       );
     }
