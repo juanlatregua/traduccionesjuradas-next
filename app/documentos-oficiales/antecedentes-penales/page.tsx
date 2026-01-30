@@ -72,25 +72,6 @@ export default function AntecedentesPenalesPage() {
         <p className="mt-2 text-slate-600">
           Precios para certificados de antecedentes penales (PDF o foto legible). Incluyen firma y sello de traductor jurado.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {[
-            { pair: "Español → Inglés", price: "50 €", plazo: "2 días" },
-            { pair: "Español → Francés", price: "45 €", plazo: "1 día" },
-            { pair: "Portugués (apostillado) → Español", price: "75 €", plazo: "2 días" },
-            { pair: "Francés (apostillado) → Español", price: "40 €", plazo: "1 día" },
-          ].map((item) => (
-            <div key={item.pair} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                {item.pair}
-              </p>
-              <p className="mt-1 text-base font-semibold text-slate-900">{item.price}</p>
-              <p className="text-xs text-slate-600">Plazo estimado: {item.plazo}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Si tu documento tiene más páginas o requiere legalización adicional, te confirmamos el precio exacto al revisar el archivo.
-        </p>
         <AntecedentesMiniForm />
       </section>
 
