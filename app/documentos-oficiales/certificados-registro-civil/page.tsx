@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CivilMiniForm } from "@/components/CivilMiniForm";
+import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title:
@@ -12,6 +13,17 @@ export const metadata: Metadata = {
 export default function CertificadosRegistroCivilPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaProduct
+        name="Traducción jurada de certificados del Registro Civil"
+        description="Precio orientativo para traducir certificados de nacimiento, matrimonio, defunción y fe de vida con firma y sello de traductor jurado."
+        sku="registro-civil"
+        offers={[
+          { price: "50.00", priceCurrency: "EUR" },
+          { price: "45.00", priceCurrency: "EUR" },
+          { price: "75.00", priceCurrency: "EUR" },
+          { price: "40.00", priceCurrency: "EUR" },
+        ]}
+      />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
