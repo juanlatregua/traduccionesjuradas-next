@@ -4,6 +4,7 @@ import {
   sendPresupuestoEmail,
   sendPresupuestoConfirmationEmail,
 } from "@/lib/email";
+import { logPresupuesto } from "./logger";
 
 export const runtime = "nodejs"; // importante para libs Node en Vercel
 
@@ -32,10 +33,15 @@ export async function POST(req: Request) {
     }
 
     if (!data.email) {
-      return NextResponse.json(
-        { ok: false, error: "Falta el email." },
-        { status: 400 }
-      );
+      logPresupuesto({
+        status: "error",
+        error: "Falta el email",
+        hasAttachments: false,
+        route: "api/presupuesto",
+        userEmail: data.email,
+        timestamp: new Date().toISOString(),
+      });
+      return NextResponse.json({ ok: false, error: "Falta el email." }, { status: 400 });
     }
 
     const filesRaw = formData.getAll("files");
@@ -91,20 +97,59 @@ export async function POST(req: Request) {
 
     if (skipSend) {
       console.warn("[/api/presupuesto] Envío de email omitido por SENDGRID_SKIP_DEV=true");
-    } else if (missingEnv && process.env.NODE_ENV !== "production") {
-      console.warn(
-        "[/api/presupuesto] Envío de email omitido en dev: faltan env SENDGRID_* / PRESUPUESTO_TO"
-      );
-    } else {
-      // Primero email interno; si falla, lanzamos.
-      await sendPresupuestoEmail(data, files);
-      // Luego confirmación al cliente; si falla, registramos pero no rompemos al usuario.
-      try {
-        await sendPresupuestoConfirmationEmail(data);
-      } catch (err) {
-        console.error("[/api/presupuesto] Error al enviar confirmación:", err);
-      }
+      logPresupuesto({
+        status: "ok",
+        hasAttachments: files.length > 0,
+        route: "api/presupuesto",
+        userEmail: data.email,
+        toInternal: process.env.PRESUPUESTO_TO,
+        timestamp: new Date().toISOString(),
+        error: "SKIP_DEV",
+      });
+      return NextResponse.json({ ok: true });
     }
+
+    if (missingEnv && process.env.NODE_ENV !== "production") {
+      console.warn("[/api/presupuesto] Envío omitido: faltan env SENDGRID_* / PRESUPUESTO_TO");
+      logPresupuesto({
+        status: "error",
+        error: "Faltan env SENDGRID",
+        hasAttachments: files.length > 0,
+        route: "api/presupuesto",
+        userEmail: data.email,
+        timestamp: new Date().toISOString(),
+      });
+      return NextResponse.json({ ok: false, error: "Faltan variables de email" }, { status: 500 });
+    }
+
+    // Primero email interno; si falla, lanzamos.
+    await sendPresupuestoEmail(data, files);
+    // Luego confirmación al cliente; si falla, registramos pero no rompemos al usuario.
+    try {
+      await sendPresupuestoConfirmationEmail(data);
+    } catch (err) {
+      console.error("[/api/presupuesto] Error al enviar confirmación:", err);
+      logPresupuesto({
+        status: "error",
+        error: err?.message || "Error confirmación cliente",
+        hasAttachments: files.length > 0,
+        route: "api/presupuesto",
+        userEmail: data.email,
+        toInternal: process.env.PRESUPUESTO_TO,
+        toClient: data.email,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    logPresupuesto({
+      status: "ok",
+      hasAttachments: files.length > 0,
+      route: "api/presupuesto",
+      userEmail: data.email,
+      toInternal: process.env.PRESUPUESTO_TO,
+      toClient: data.email,
+      timestamp: new Date().toISOString(),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {
