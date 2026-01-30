@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CivilMiniForm } from "@/components/CivilMiniForm";
 import { SchemaProduct } from "@/components/SchemaProduct";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
   title:
@@ -22,6 +24,38 @@ export default function CertificadosRegistroCivilPage() {
           { price: "45.00", priceCurrency: "EUR" },
           { price: "75.00", priceCurrency: "EUR" },
           { price: "40.00", priceCurrency: "EUR" },
+        ]}
+      />
+      <SchemaBreadcrumbs
+        id="breadcrumbs-registro-civil"
+        items={[
+          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
+          { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Certificados del Registro Civil", url: "https://traduccionesjuradas.net/documentos-oficiales/certificados-registro-civil" },
+        ]}
+      />
+      <SchemaFAQ
+        id="faq-registro-civil"
+        items={[
+          {
+            question: "¿Sirve la traducción jurada en PDF o necesito copia en papel?",
+            answer:
+              "El PDF firmado digitalmente suele ser aceptado. Si el organismo pide papel, podemos enviarlo por mensajería.",
+          },
+          {
+            question: "¿Se traduce también la Apostilla de La Haya?",
+            answer: "Sí, la apostilla se traduce junto con el certificado de nacimiento, matrimonio o defunción.",
+          },
+          {
+            question: "¿Qué plazos orientativos manejan?",
+            answer:
+              "Español↔Inglés 2 días, Español→Francés 1 día, Portugués apostillado→Español 2 días, Francés apostillado→Español 1 día.",
+          },
+          {
+            question: "¿Cómo envío el certificado?",
+            answer:
+              "Adjunta el PDF o una foto clara desde la página o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y apostilla antes de confirmar el importe.",
+          },
         ]}
       />
       {/* CABECERA */}
