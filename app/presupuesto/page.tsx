@@ -1,7 +1,7 @@
 // app/presupuesto/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 
 type ToastState =
@@ -22,6 +22,7 @@ export default function PresupuestoPage() {
   });
 
   const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
 
@@ -38,6 +39,7 @@ export default function PresupuestoPage() {
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     setFiles(selected);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeFile = (index: number) => {
@@ -110,6 +112,7 @@ export default function PresupuestoPage() {
         website: "",
       });
       setFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
 
       setTimeout(() => setToast(null), 5000);
     } catch (error: unknown) {
@@ -131,7 +134,7 @@ export default function PresupuestoPage() {
       {/* TOAST */}
       {toast && (
         <div
-          className={`fixed inset-x-0 bottom-8 sm:top-16 sm:bottom-auto z-[180] mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
+          className={`fixed inset-x-0 top-20 z-[200] mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
             toast.type === "success"
               ? "bg-emerald-600 text-white"
               : "bg-red-600 text-white"
@@ -141,7 +144,7 @@ export default function PresupuestoPage() {
             <span className="mt-0.5 text-lg">
               {toast.type === "success" ? "✅" : "⚠️"}
             </span>
-          <div className="flex-1">
+            <div className="flex-1">
               <p>{toast.message}</p>
             </div>
             <button
