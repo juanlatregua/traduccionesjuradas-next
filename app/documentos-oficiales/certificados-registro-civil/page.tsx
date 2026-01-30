@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CivilMiniForm } from "@/components/CivilMiniForm";
 
 export const metadata: Metadata = {
   title:
@@ -65,6 +66,18 @@ export default function CertificadosRegistroCivilPage() {
           del traductor jurado, para que sean aceptados por notarías, juzgados,
           registros, consulados y administraciones públicas.
         </p>
+      </section>
+
+      {/* TARIFAS Y ENVÍO RÁPIDO */}
+      <section className="mt-10 space-y-3 text-sm text-slate-700">
+        <h2 className="text-lg font-semibold text-slate-900">
+          Tarifas orientativas y envío directo
+        </h2>
+        <p className="text-slate-600">
+          Precios para certificados del Registro Civil (nacimiento, matrimonio, defunción, fe de vida…).
+          Incluyen firma y sello de traductor jurado; confirmamos importe exacto al revisar el documento.
+        </p>
+        <CivilMiniForm />
       </section>
 
       {/* ENLACES A PÁGINAS ESPECÍFICAS */}
