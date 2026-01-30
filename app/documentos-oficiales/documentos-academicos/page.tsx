@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
   title: "Traducción jurada de títulos y documentos académicos | Universidades y oposiciones",
@@ -9,6 +11,33 @@ export const metadata: Metadata = {
 export default function DocumentosAcademicosPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaBreadcrumbs
+        items={[
+          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
+          { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Documentos académicos", url: "https://traduccionesjuradas.net/documentos-oficiales/documentos-academicos" },
+        ]}
+      />
+      <SchemaFAQ
+        items={[
+          {
+            question: "¿Cuánto cuesta traducir un título o expediente académico?",
+            answer: "Orientativamente 25-35 € por página; confirmamos el importe exacto al revisar el PDF/imagen.",
+          },
+          {
+            question: "¿Se traduce también la Apostilla de La Haya?",
+            answer: "Sí, la apostilla o legalización se traduce junto con el título o certificado.",
+          },
+          {
+            question: "¿Sirve el PDF firmado o necesito copia en papel?",
+            answer: "El PDF firmado digitalmente suele ser aceptado; si te piden papel, podemos enviarlo por mensajería.",
+          },
+          {
+            question: "¿Cómo envío el documento?",
+            answer: "Adjunta un PDF o foto clara desde el formulario de presupuesto o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y datos antes de confirmar precio y plazo.",
+          },
+        ]}
+      />
 
       {/* CABECERA */}
       <header className="max-w-3xl">
@@ -30,6 +59,28 @@ export default function DocumentosAcademicosPage() {
 
       {/* CONTENIDO */}
       <section className="mt-8 space-y-10 text-sm text-slate-700">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Precio orientativo
+              </p>
+              <p className="text-sm font-semibold text-slate-900">
+                25–35 € por página · plazo según páginas e idioma
+              </p>
+              <p className="text-xs text-slate-500">
+                Confirmamos importe y plazo al revisar el PDF/imagen.
+              </p>
+            </div>
+            <a
+              href="/presupuesto"
+              className="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            >
+              Subir documento y pedir precio
+            </a>
+          </div>
+        </div>
+
 
         {/* Universitarios */}
         <div>
