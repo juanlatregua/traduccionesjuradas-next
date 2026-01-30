@@ -80,6 +80,20 @@ export function CivilMiniForm() {
         </button>
       </div>
 
+      {toast && (
+        <div
+          className={`mt-3 rounded-xl border px-3 py-2 text-xs font-semibold ${
+            toast.type === "ok"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.msg}
+        </div>
+      )}
+
       {open && (
         <form onSubmit={submit} className="mt-4 space-y-3 text-sm text-slate-700">
           <div className="grid gap-3 sm:grid-cols-2">
