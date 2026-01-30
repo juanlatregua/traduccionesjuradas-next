@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AntecedentesMiniForm } from "@/components/AntecedentesMiniForm";
+import { SchemaProduct } from "@/components/SchemaProduct";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
@@ -14,6 +15,17 @@ export const metadata: Metadata = {
 export default function AntecedentesPenalesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaProduct
+        name="Traducción jurada de antecedentes penales"
+        description="Precio orientativo para traducir certificados de antecedentes penales con firma y sello de traductor jurado."
+        sku="antecedentes-penales"
+        offers={[
+          { price: "50.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { price: "45.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { price: "75.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { price: "40.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+        ]}
+      />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
