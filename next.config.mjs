@@ -4,6 +4,14 @@ const nextConfig = {
 
   async redirects() {
     return [
+      // Forzar dominio sin www (evitar redirecciones en XHR)
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.traduccionesjuradas.net" }],
+        destination: "https://traduccionesjuradas.net/:path*",
+        permanent: true,
+      },
+
       // ===============================
       // DOCUMENTOS (WordPress → Next)
       // ===============================
