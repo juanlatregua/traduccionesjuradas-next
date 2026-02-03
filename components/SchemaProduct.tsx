@@ -34,6 +34,7 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
     "@type": "MerchantReturnPolicy",
     returnPolicyCategory: "https://schema.org/NonRefundable",
     name: "Servicio no reembolsable tras iniciar la traducción",
+    applicableCountry: "ES",
   };
 
   const data = {
@@ -50,7 +51,7 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
       priceCurrency: o.priceCurrency,
       availability: o.availability || "https://schema.org/InStock",
       url: o.url,
-      shippingDetails: o.shippingDetails || shippingDetails,
+      shippingDetails: o.shippingDetails || [shippingDetails],
       hasMerchantReturnPolicy: returnPolicy,
     })),
     provider: {
