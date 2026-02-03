@@ -5,6 +5,7 @@ type Offer = {
   priceCurrency: string;
   availability?: string;
   url?: string;
+  shippingDetails?: any;
 };
 
 type SchemaProductProps = {
@@ -49,7 +50,7 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
       priceCurrency: o.priceCurrency,
       availability: o.availability || "https://schema.org/InStock",
       url: o.url,
-      shippingDetails,
+      shippingDetails: o.shippingDetails || shippingDetails,
       hasMerchantReturnPolicy: returnPolicy,
     })),
     provider: {
