@@ -104,6 +104,21 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traduccion-jurada-de-certificado-840",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-escritura-notarial",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-escritura-notarial/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/traduccion-jurada-de-poder-notarial/",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -294,7 +309,17 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/categoria-producto/judicial",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/categoria-producto/hacienda/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/hacienda",
         destination: "/documentos-oficiales",
         permanent: true,
       },
@@ -535,6 +560,11 @@ const nextConfig = {
         destination: "/presupuesto",
         permanent: true,
       },
+      {
+        source: "/solicitar-presupuesto",
+        destination: "/presupuesto",
+        permanent: true,
+      },
 
       // ===============================
       // LEGAL
@@ -542,6 +572,11 @@ const nextConfig = {
 
       {
         source: "/politica-de-privacidad/",
+        destination: "/privacidad",
+        permanent: true,
+      },
+      {
+        source: "/politica-de-privacidad",
         destination: "/privacidad",
         permanent: true,
       },
