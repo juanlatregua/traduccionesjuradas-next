@@ -605,6 +605,16 @@ const nextConfig = {
         destination: "/privacidad",
         permanent: true,
       },
+      {
+        source: "/carrito",
+        destination: "/presupuesto",
+        permanent: true,
+      },
+      {
+        source: "/carrito/",
+        destination: "/presupuesto",
+        permanent: true,
+      },
     ];
   },
 };
