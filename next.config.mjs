@@ -169,6 +169,11 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traducciones-juradas-baratas",
+        destination: "/traducciones-juradas-baratas",
+        permanent: true,
+      },
+      {
         source: "/traduccion-jurada-de-certificado-de-seguridad-social",
         destination: "/documentos-oficiales/documentos-laborales",
         permanent: true,
