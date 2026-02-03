@@ -33,6 +33,11 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/categoria-producto/notarial/feed",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/categoria-producto/civil/",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -63,12 +68,27 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/category/idiomas/page/4",
+        destination: "/traductores-jurados",
+        permanent: true,
+      },
+      {
         source: "/contacto/page/2/",
         destination: "/contacto",
         permanent: true,
       },
       {
+        source: "/contacto/page/2",
+        destination: "/contacto",
+        permanent: true,
+      },
+      {
         source: "/contacto/page/4/",
+        destination: "/contacto",
+        permanent: true,
+      },
+      {
+        source: "/contacto/page/4",
         destination: "/contacto",
         permanent: true,
       },
