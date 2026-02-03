@@ -48,6 +48,8 @@ export default function RootLayout({
             "Traducción jurada oficial de francés y otros idiomas realizada por traductores jurados acreditados para trámites en España y en el extranjero.",
           telephone: "+34 951 333 614",
           email: "hola@traduccionesjuradas.net",
+          image: "https://traduccionesjuradas.net/logo-tj-app.svg",
+          priceRange: "€€",
           areaServed: {
             "@type": "Country",
             name: "España",
