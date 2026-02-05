@@ -41,7 +41,9 @@ export default function PresupuestoPage() {
   const [toast, setToast] = useState<ToastState>(null);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e:
+      | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+      | React.ChangeEvent<HTMLSelectElement>
   ) => {
     const { name, value, type, checked } = e.target as any;
     setForm((prev) => ({
