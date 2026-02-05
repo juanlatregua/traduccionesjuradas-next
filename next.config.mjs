@@ -354,6 +354,16 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/categoria-producto/notarial",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/notarial/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/categoria-producto/notarial/feed/",
         destination: "/documentos-oficiales",
         permanent: true,
