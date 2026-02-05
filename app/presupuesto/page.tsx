@@ -9,6 +9,20 @@ type ToastState =
   | null;
 
 export default function PresupuestoPage() {
+  const LANGUAGE_OPTIONS = [
+    "Español",
+    "Inglés",
+    "Francés",
+    "Alemán",
+    "Italiano",
+    "Portugués",
+    "Catalán",
+    "Neerlandés",
+    "Noruego",
+    "Sueco",
+    "Otro",
+  ];
+
   const [form, setForm] = useState({
     nombre: "",
     email: "",
@@ -27,7 +41,9 @@ export default function PresupuestoPage() {
   const [toast, setToast] = useState<ToastState>(null);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e:
+      | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+      | React.ChangeEvent<HTMLSelectElement>
   ) => {
     const { name, value, type, checked } = e.target as any;
     setForm((prev) => ({
@@ -297,29 +313,41 @@ export default function PresupuestoPage() {
             <label className="block text-slate-700" htmlFor="idiomaOrigen">
               Idioma de origen
             </label>
-            <input
+            <select
               id="idiomaOrigen"
               name="idiomaOrigen"
-              type="text"
-              placeholder="Por ejemplo: francés"
               value={form.idiomaOrigen}
               onChange={handleChange}
               className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            />
+              required
+            >
+              <option value="">Selecciona idioma</option>
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <option key={`origen-${lang}`} value={lang}>
+                  {lang}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-slate-700" htmlFor="idiomaDestino">
               Idioma de destino
             </label>
-            <input
+            <select
               id="idiomaDestino"
               name="idiomaDestino"
-              type="text"
-              placeholder="Por ejemplo: español"
               value={form.idiomaDestino}
               onChange={handleChange}
               className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            />
+              required
+            >
+              <option value="">Selecciona idioma</option>
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <option key={`destino-${lang}`} value={lang}>
+                  {lang}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -346,12 +374,14 @@ export default function PresupuestoPage() {
           <input
             id="plazo"
             name="plazo"
-            type="text"
-            placeholder="Normal, urgente, fecha límite…"
+            type="date"
             value={form.plazo}
             onChange={handleChange}
             className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
+          <p className="mt-1 text-[11px] text-slate-500">
+            Opcional: indica la fecha límite deseada. Si no la sabes, déjalo en blanco o usa el selector para orientarnos.
+          </p>
         </div>
 
         {/* ADJUNTOS */}
