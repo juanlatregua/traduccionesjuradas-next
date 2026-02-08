@@ -66,7 +66,7 @@ export default function TraduccionesJuradasBaratas() {
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <Link
-            href="/traduccion-jurada-certificado-de-nacimiento/"
+            href="/documentos-oficiales/certificado-de-nacimiento"
             className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm hover:shadow-md"
           >
             <p className="font-semibold text-slate-900">
@@ -78,7 +78,7 @@ export default function TraduccionesJuradasBaratas() {
           </Link>
 
           <Link
-            href="/traduccion-jurada-titulo-universitario/"
+            href="/documentos-oficiales/documentos-academicos"
             className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm hover:shadow-md"
           >
             <p className="font-semibold text-slate-900">

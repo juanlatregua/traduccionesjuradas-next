@@ -4,6 +4,12 @@ const nextConfig = {
 
   async redirects() {
     return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "traduccionesjuradas.net" }],
+        destination: "https://www.traduccionesjuradas.net/:path*",
+        permanent: true,
+      },
       // ===============================
       // DOCUMENTOS (WordPress → Next)
       // ===============================
@@ -179,21 +185,6 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/traducciones-juradas-baratas",
-        destination: "/traducciones-juradas-baratas",
-        permanent: true,
-      },
-      {
-        source: "/traducciones-juradas-baratas/",
-        destination: "/traducciones-juradas-baratas",
-        permanent: true,
-      },
-      {
-        source: "/traducciones-juradas-baratas",
-        destination: "/traducciones-juradas-baratas",
-        permanent: true,
-      },
-      {
         source: "/traduccion-jurada-de-certificado-de-seguridad-social",
         destination: "/documentos-oficiales/documentos-laborales",
         permanent: true,
@@ -246,16 +237,6 @@ const nextConfig = {
       {
         source: "/traduccion-",
         destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-online/",
-        destination: "/presupuesto",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-online",
-        destination: "/presupuesto",
         permanent: true,
       },
       {
@@ -318,12 +299,6 @@ const nextConfig = {
         destination: "/documentos-oficiales",
         permanent: true,
       },
-      {
-        source: "/traduccion-jurada-de-poder-notarial",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-
       // ===============================
       // CATEGORÍAS WOOCOMMERCE
       // ===============================
@@ -388,6 +363,171 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traductor-jurado-pontevedra/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-fuerteventura",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-fuerteventura/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-denia",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-denia/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-badalona",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-badalona/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-cuenca",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-cuenca/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-jerez",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-jerez/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-torrelodones",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-torrelodones/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-alcorcon",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-alcorcon/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-griego",
+        destination: "/traductores-jurados",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-griego/",
+        destination: "/traductores-jurados",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-madrid",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-madrid/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-altea",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-altea/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-sevilla",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-sevilla/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-alcobendas",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-alcobendas/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-fuengirola",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-fuengirola/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-getafe",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-getafe/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-moralzarzal",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-moralzarzal/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-pamplona",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-pamplona/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/traductor-jurado-en-persa",
         destination: "/traductores-jurados",
         permanent: true,
@@ -443,6 +583,11 @@ const nextConfig = {
       },
       {
         source: "/inicio",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/author/traducciones-juradas/",
         destination: "/",
         permanent: true,
       },
@@ -541,6 +686,23 @@ const nextConfig = {
       {
         source: "/wp-json",
         destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/index.php",
+        has: [
+          {
+            type: "query",
+            key: "route",
+            value: "product/category",
+          },
+          {
+            type: "query",
+            key: "path",
+            value: "70",
+          },
+        ],
+        destination: "/documentos-oficiales",
         permanent: true,
       },
       {
