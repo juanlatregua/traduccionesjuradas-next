@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 
 export const metadata: Metadata = {
   title: "Traducción jurada online | PDF firmado en 24-72h",
@@ -18,6 +20,32 @@ const LANG_COMBOS = [
 export default function TraduccionJuradaOnlinePage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12 text-sm text-slate-700">
+      <SchemaBreadcrumbs
+        items={[
+          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
+          { name: "Traducción jurada online", url: "https://traduccionesjuradas.net/traduccion-jurada-online" },
+        ]}
+      />
+      <SchemaFAQ
+        items={[
+          {
+            question: "¿Recibo la traducción jurada en PDF o en papel?",
+            answer: "La entregamos en PDF firmado y sellado; si necesitas papel, podemos enviarlo por mensajería.",
+          },
+          {
+            question: "¿Qué plazos orientativos manejan?",
+            answer: "Según idioma y páginas: 24-72 h. Por ejemplo, inglés 24-48 h, francés 24 h, alemán 48-72 h.",
+          },
+          {
+            question: "¿Puedo enviar foto en lugar de escaneo?",
+            answer: "Sí, siempre que sea nítida y con sellos visibles. Si hace falta, pediremos un escaneo antes de entregar.",
+          },
+          {
+            question: "¿Cómo pago?",
+            answer: "Transferencia, tarjeta, Bizum o PayPal. Para urgentes solemos pedir el pago antes de empezar.",
+          },
+        ]}
+      />
       <header className="max-w-3xl space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
           Traducción jurada online
