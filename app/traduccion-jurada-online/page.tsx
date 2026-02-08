@@ -4,9 +4,9 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 
 export const metadata: Metadata = {
-  title: "Traducción jurada online | PDF firmado en 24-72h",
+  title: "Traducción jurada online desde 40-75 € | PDF firmado en 24-72h",
   description:
-    "Traducción jurada online con entrega en PDF firmado y sellado. Precios orientativos y respuesta en <30 minutos dentro de horario. Idiomas: inglés, francés, alemán, italiano, portugués y otros.",
+    "Adjunta tu documento y recibe la traducción jurada online en PDF firmado. Precios orientativos desde 40-75 € y respuesta en <30 minutos en horario. Entrega 24-72h según idioma.",
 };
 
 const LANG_COMBOS = [

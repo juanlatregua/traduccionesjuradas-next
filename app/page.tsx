@@ -87,6 +87,13 @@ export default function Home() {
               <span>
                 Especialistas en francés, alemán, inglés y otros idiomas
               </span>
+              <span className="h-1 w-1 rounded-full bg-slate-300" />
+              <Link
+                href="/traduccion-jurada-online"
+                className="text-emerald-700 font-semibold hover:underline"
+              >
+                Traducción jurada online (24-72h)
+              </Link>
             </div>
           </div>
 
