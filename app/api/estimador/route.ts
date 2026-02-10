@@ -239,7 +239,6 @@ function extractPdfTextFallback(buffer: Buffer) {
 async function extractPdfText(buffer: Buffer) {
   try {
     // Carga dinámica: si pdf-parse no está disponible o falla, usamos fallback.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pdfParse = require("pdf-parse");
     if (typeof pdfParse === "function") {
       const parsed = await pdfParse(buffer);
@@ -279,7 +278,6 @@ async function extractPdfText(buffer: Buffer) {
 async function extractDocxText(buffer: Buffer) {
   try {
     // Requiere dependencia opcional: mammoth
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mammoth = require("mammoth");
     if (mammoth && typeof mammoth.extractRawText === "function") {
       const out = await mammoth.extractRawText({ buffer });
