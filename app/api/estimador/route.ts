@@ -116,7 +116,8 @@ async function extractTextWithOcrSpace(
     const form = new FormData();
     form.append("language", ocrLanguage);
     form.append("isOverlayRequired", "false");
-    form.append("file", new Blob([fileBuffer], { type: fileType || "application/pdf" }), fileName);
+    const fileBytes = new Uint8Array(fileBuffer);
+    form.append("file", new Blob([fileBytes], { type: fileType || "application/pdf" }), fileName);
 
     const res = await fetch("https://api.ocr.space/parse/image", {
       method: "POST",
