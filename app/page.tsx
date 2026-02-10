@@ -1,8 +1,13 @@
 // app/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { DocumentChecklist } from "@/components/DocumentChecklist";
+
+const PriceEstimator = dynamic(() => import("@/components/PriceEstimator"), {
+  ssr: false,
+});
 
 export const metadata: Metadata = {
   title: "Traducción jurada oficial en España | Traductores jurados online",
@@ -158,6 +163,34 @@ export default function Home() {
                 </Link>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CALCULADORA RÁPIDA */}
+      <section className="mx-auto max-w-6xl px-4 py-10">
+        <div className="relative overflow-hidden rounded-[2rem] border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-5 shadow-[0_18px_50px_-28px_rgba(2,132,199,0.35)] sm:p-7">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-emerald-200/30 blur-3xl" />
+
+          <div className="relative">
+            <p className="inline-flex items-center rounded-full border border-cyan-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
+              Calculadora rápida
+            </p>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+              Precio orientativo en menos de 30 segundos
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-slate-600">
+              Elige combinación de idioma, documento y sube tu PDF. Para documentos con precio prefijado,
+              el cálculo sale al instante.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-700">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1">1. Idioma</span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1">2. Documento</span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1">3. PDF</span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1">4. Precio</span>
+            </div>
+            <PriceEstimator />
           </div>
         </div>
       </section>
