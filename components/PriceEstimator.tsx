@@ -143,6 +143,7 @@ export default function PriceEstimator() {
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<EstimateResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const [presetLangPair, setPresetLangPair] = useState<LangPairOption>("");
   const [presetDocLabel, setPresetDocLabel] = useState("");
@@ -247,6 +248,40 @@ export default function PriceEstimator() {
       source: "file",
     });
     setMessage("Estimación calculada manualmente.");
+  };
+
+  const startCheckout = async () => {
+    if (!result) {
+      setMessage("Calcula primero una estimación antes de pagar.");
+      return;
+    }
+
+    const activeLangPair = result.source === "preset" ? presetLangPair : fileLangPair;
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: result.total,
+          currency: "eur",
+          title: result.title || "Pedido de traducción jurada",
+          source: result.source,
+          langPair: activeLangPair || undefined,
+          words: result.words,
+          pagesLabel: result.presetPagesLabel,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok || !data?.url) {
+        throw new Error(data?.error || "No se pudo iniciar el pago.");
+      }
+      window.location.assign(data.url);
+    } catch (error: any) {
+      setMessage(error?.message || "No se pudo iniciar el pago.");
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   return (
@@ -497,6 +532,16 @@ export default function PriceEstimator() {
           </>
         )}
         <div className="mt-3 flex flex-wrap gap-3 text-sm">
+          {result && (
+            <button
+              type="button"
+              onClick={startCheckout}
+              disabled={checkoutLoading}
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60"
+            >
+              {checkoutLoading ? "Redirigiendo al pago..." : "Pagar y confirmar pedido"}
+            </button>
+          )}
           <Link
             href="/presupuesto"
             className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-emerald-700"
