@@ -41,6 +41,12 @@ export default function PagoExitoPage({
 
         <div className="mt-6 flex flex-wrap gap-3 text-sm">
           <a
+            href="/api/auth/signin/google?callbackUrl=/area-cliente"
+            className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
+          >
+            Entrar con Google y ver area cliente
+          </a>
+          <a
             href={MAIL_LINK}
             className="rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700"
           >

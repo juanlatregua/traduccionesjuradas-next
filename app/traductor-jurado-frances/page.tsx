@@ -178,6 +178,12 @@ export default function TraductorJuradoFrancesPage() {
           >
             Consultar por WhatsApp
           </a>
+          <Link
+            href="/acceso"
+            className="text-xs font-medium text-slate-700 underline-offset-2 hover:underline"
+          >
+            Acceso seguro con Google (opcional)
+          </Link>
         </div>
       </header>
 

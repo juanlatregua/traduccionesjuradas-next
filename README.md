@@ -14,3 +14,18 @@ Flujo implementado:
 - Retornos:
   - `/pago/exito`
   - `/pago/cancelado`
+
+## Acceso cliente con Google (Auth.js)
+
+Variables necesarias en Vercel:
+
+- `NEXTAUTH_URL`: URL pública del sitio (ej. `https://www.traduccionesjuradas.net`).
+- `NEXTAUTH_SECRET`: secreto aleatorio para firmar sesión.
+- `GOOGLE_CLIENT_ID`: credencial OAuth de Google.
+- `GOOGLE_CLIENT_SECRET`: secreto OAuth de Google.
+
+Rutas implementadas:
+
+- `/api/auth/[...nextauth]`: autenticación Google.
+- `/acceso`: pantalla de acceso opcional.
+- `/area-cliente`: área protegida por sesión.
