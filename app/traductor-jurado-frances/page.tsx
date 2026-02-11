@@ -24,12 +24,12 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto tarda una traducción jurada de francés?",
     answer:
-      "Para certificados breves francés-español, el plazo habitual es 24-48 h. Si hay varias páginas o maquetación compleja, el plazo se confirma al revisar el archivo.",
+      "Para documentos de 1 hoja y para 2 hojas cuando una es apostilla, el plazo es 24 h (francés-español y español-francés). En documentos más largos, confirmamos plazo al revisar el archivo.",
   },
   {
     question: "¿Ofrecéis traducción jurada urgente de francés?",
     answer:
-      "Sí, en función del volumen y la fecha límite. Indícanos tu cita o vencimiento y te diremos si es viable con plazo y precio cerrados.",
+      "En documentos de 1 hoja y en 2 hojas con apostilla no aplicamos recargo de urgencia. Para volúmenes mayores, te confirmamos plazo y coste al revisar el material.",
   },
   {
     question: "¿Entregáis en PDF o en papel?",
@@ -40,35 +40,57 @@ const FAQ_ITEMS = [
 
 const PRICE_ROWS = [
   {
-    tipo: "Certificado breve",
-    ejemplos: "Naissance, mariage, casier judiciaire (1 pág.)",
-    normal: "45-55 EUR",
-    urgente: "65-85 EUR",
+    tipo: "Documento 1 hoja",
+    ejemplos: "Certificado breve",
+    normal: "40 EUR",
+    urgente: "40 EUR",
+    plazoNormal: "24 h",
+    plazoUrgente: "24 h",
+  },
+  {
+    tipo: "Documento 2 hojas (1 apostilla)",
+    ejemplos: "Certificado + apostilla",
+    normal: "50 EUR",
+    urgente: "50 EUR",
+    plazoNormal: "24 h",
+    plazoUrgente: "24 h",
+  },
+  {
+    tipo: "Documento 2 hojas (sin apostilla)",
+    ejemplos: "Dos hojas reales (recto/verso no cuenta doble)",
+    normal: "60 EUR",
+    urgente: "Consultar",
     plazoNormal: "24-48 h",
-    plazoUrgente: "Mismo día / 24 h",
+    plazoUrgente: "Según disponibilidad",
   },
   {
-    tipo: "Documento académico",
-    ejemplos: "Diploma, relevé de notes, attestation",
-    normal: "50-90 EUR",
-    urgente: "75-130 EUR",
-    plazoNormal: "24-72 h",
-    plazoUrgente: "24-48 h",
-  },
-  {
-    tipo: "Documento jurídico/mercantil",
-    ejemplos: "Contrato, poderes, estatutos, Kbis",
-    normal: "Desde 0,14 EUR/palabra",
-    urgente: "Desde 0,18 EUR/palabra",
+    tipo: "Documento 3+ hojas",
+    ejemplos: "Académicos, jurídicos, mercantiles",
+    normal: "0,08 EUR/palabra",
+    urgente: "Consultar",
     plazoNormal: "Según volumen",
-    plazoUrgente: "Prioridad con suplemento",
+    plazoUrgente: "Según disponibilidad",
   },
 ];
 
+const REAL_CASES = [
+  { doc: "Certificado de penales apostillado", combo: "fr -> es / es -> fr", price: "50 EUR", time: "24 h" },
+  { doc: "Certificado de nacimiento", combo: "fr -> es / es -> fr", price: "40 EUR", time: "24 h" },
+  { doc: "Certificado de medios economicos", combo: "fr -> es / es -> fr", price: "40 EUR", time: "24 h" },
+  { doc: "Kbis", combo: "fr -> es / es -> fr", price: "45 EUR", time: "24-48 h" },
+  { doc: "Registro Mercantil", combo: "fr -> es / es -> fr", price: "45 EUR", time: "24-48 h" },
+  { doc: "Titulo DELF/DALF", combo: "fr -> es / es -> fr", price: "40 EUR", time: "24 h" },
+  { doc: "Titulo universitario", combo: "fr -> es / es -> fr", price: "40 EUR", time: "24 h" },
+  { doc: "Titulo universitario apostillado", combo: "fr -> es / es -> fr", price: "45 EUR", time: "24-48 h" },
+  { doc: "Titulo universitario apostillado y legalizado", combo: "fr -> es / es -> fr", price: "55 EUR", time: "24-48 h" },
+  { doc: "Expediente universitario", combo: "fr -> es / es -> fr", price: "35 EUR/pagina", time: "Segun paginas" },
+  { doc: "Certificado de nacimiento apostillado", combo: "fr -> es / es -> fr", price: "45 EUR", time: "24-48 h" },
+];
+
 export const metadata: Metadata = {
-  title: "Traductor jurado de francés: precio, plazo y servicio urgente",
+  title: "Traductor jurado de francés: precio por palabra y plazos reales",
   description:
-    "Traducción jurada francés-español y español-francés con traductor jurado acreditado por el MAEC. Precios orientativos, plazos reales y opción urgente para trámites en España.",
+    "Traducción jurada francés-español y español-francés con traductor jurado acreditado por el MAEC. Precio por palabra de 0,08 EUR y precios cerrados para documentos breves para Francia, Bélgica, Suiza, Luxemburgo, Marruecos, Senegal, Costa de Marfil, Argelia y otros países francófonos.",
 };
 
 export default function TraductorJuradoFrancesPage() {
@@ -81,13 +103,19 @@ export default function TraductorJuradoFrancesPage() {
         sku="traductor-jurado-frances"
         offers={[
           {
-            price: "45.00",
+            price: "40.00",
             priceCurrency: "EUR",
             availability: "https://schema.org/InStock",
             url: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
           },
           {
-            price: "55.00",
+            price: "50.00",
+            priceCurrency: "EUR",
+            availability: "https://schema.org/InStock",
+            url: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
+          },
+          {
+            price: "60.00",
             priceCurrency: "EUR",
             availability: "https://schema.org/InStock",
             url: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
@@ -126,6 +154,11 @@ export default function TraductorJuradoFrancesPage() {
           presentar en Extranjería, Registro Civil, universidades, notarías y otros organismos. Todas las
           traducciones las firma un <strong>traductor jurado acreditado por el MAEC</strong>.
         </p>
+        <p className="mt-2 text-sm text-slate-700 sm:text-base">
+          Trabajamos de forma habitual con documentación emitida en <strong>Francia, Bélgica, Suiza,
+          Luxemburgo, Marruecos, Senegal, Costa de Marfil y Argelia</strong>, además de otros países
+          francófonos.
+        </p>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <Link
             href="/presupuesto"
@@ -150,11 +183,11 @@ export default function TraductorJuradoFrancesPage() {
 
       <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
-          Precios y plazos orientativos: francés jurado normal vs urgente
+          Precios y plazos orientativos para francés jurado
         </h2>
         <p className="mt-2 text-sm text-slate-700">
-          Estos importes son orientativos para ayudarte a decidir rápido. El precio final se confirma al revisar
-          el documento (extensión real, sellos, apostilla y formato).
+          Estos importes son orientativos para decidir rápido. El precio final se confirma al revisar
+          el archivo completo (incluyendo sellos y apostilla).
         </p>
 
         <div className="mt-5 overflow-x-auto">
@@ -198,6 +231,50 @@ export default function TraductorJuradoFrancesPage() {
             Ver tarifas generales
           </Link>
         </div>
+      </section>
+
+      <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+          Ejemplos reales de encargos (orientativos)
+        </h2>
+        <p className="mt-2 text-sm text-slate-700">
+          Casos frecuentes en francés-español y español-francés. En expedientes universitarios aplicamos
+          precio por página e indicamos el total al confirmar el número de páginas reales.
+        </p>
+
+        <div className="mt-5 overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+              <tr>
+                <th className="px-3 py-2 font-semibold">Documento</th>
+                <th className="px-3 py-2 font-semibold">Combinacion</th>
+                <th className="px-3 py-2 font-semibold">Precio orientativo</th>
+                <th className="px-3 py-2 font-semibold">Plazo orientativo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {REAL_CASES.map((item) => (
+                <tr key={item.doc} className="border-t border-slate-200 align-top">
+                  <td className="px-3 py-3 font-semibold text-slate-900">{item.doc}</td>
+                  <td className="px-3 py-3 text-slate-700">{item.combo}</td>
+                  <td className="px-3 py-3 text-slate-700">{item.price}</td>
+                  <td className="px-3 py-3 text-slate-700">{item.time}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+          Países francófonos que más trabajamos
+        </h2>
+        <p className="mt-2 text-sm text-slate-700">
+          Francia, Bélgica, Suiza, Luxemburgo, Marruecos, Senegal, Costa de Marfil y Argelia. Si tu documento
+          procede de otro país francófono, aplicamos la misma metodología y revisión de requisitos del
+          organismo de destino.
+        </p>
       </section>
 
       <section className="mt-10">
