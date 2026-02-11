@@ -114,6 +114,15 @@ export default function TraduccionJuradaOnlinePage() {
         </ul>
       </section>
 
+      <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <h2 className="text-lg font-semibold text-slate-900">Si tu idioma es francés</h2>
+        <p className="mt-2 text-sm text-slate-700">
+          Para trámites con documentación de Francia y otros países francófonos, revisa nuestra página específica de
+          <Link href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline"> traducción jurada de francés</Link>
+          : incluye rangos de precio, plazos normales/urgentes y preguntas frecuentes.
+        </p>
+      </section>
+
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
         <p className="font-semibold text-slate-900">Nota de privacidad</p>
         <p>

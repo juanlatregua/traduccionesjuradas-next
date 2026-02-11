@@ -89,9 +89,12 @@ export default function Home() {
               <span className="h-1 w-1 rounded-full bg-slate-300" />
               <span>Servicio online para toda España y países de destino</span>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
-              <span>
-                Especialistas en francés, alemán, inglés y otros idiomas
-              </span>
+              <Link
+                href="/traductor-jurado-frances"
+                className="font-semibold text-emerald-700 hover:underline"
+              >
+                Especialistas en traducción jurada de francés
+              </Link>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
               <Link
                 href="/traduccion-jurada-online"
@@ -168,7 +171,7 @@ export default function Home() {
       </section>
 
       {/* CALCULADORA RÁPIDA */}
-      <section className="mx-auto max-w-6xl px-4 py-10">
+      <section id="calculadora" className="mx-auto max-w-6xl px-4 py-10">
         <div className="relative overflow-hidden rounded-[2rem] border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-5 shadow-[0_18px_50px_-28px_rgba(2,132,199,0.35)] sm:p-7">
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-emerald-200/30 blur-3xl" />
@@ -292,6 +295,9 @@ export default function Home() {
             <p className="mt-1 text-slate-600">
               Documentos de Francia, Bélgica, Suiza, Canadá y países francófonos
               para trámites en España.
+            </p>
+            <p className="mt-2 text-xs text-slate-500">
+              Precio orientativo desde 45 EUR y opción urgente según fecha límite.
             </p>
             <span className="mt-3 inline-block text-xs font-semibold text-emerald-700">
               Ver traducciones juradas de francés →
