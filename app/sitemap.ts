@@ -8,6 +8,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/proceso",
     "/preguntas-frecuentes",
     "/precios-traduccion-jurada",
+    "/traduccion-jurada-online",
+    "/traducciones-juradas-baratas",
     "/documentos-oficiales",
     "/documentos-oficiales/certificados-registro-civil",
     "/documentos-oficiales/antecedentes-penales",

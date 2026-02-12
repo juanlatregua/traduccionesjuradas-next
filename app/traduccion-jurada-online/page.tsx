@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: "Traducción jurada online desde 40-75 € | PDF firmado en 24-72h",
   description:
     "Adjunta tu documento y recibe la traducción jurada online en PDF firmado. Precios orientativos desde 40-75 € y respuesta en <30 minutos en horario. Entrega 24-72h según idioma.",
+  alternates: {
+    canonical: "https://www.traduccionesjuradas.net/traduccion-jurada-online",
+  },
 };
 
 const LANG_COMBOS = [
