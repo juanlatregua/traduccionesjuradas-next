@@ -446,8 +446,8 @@ export default function FrenchOfferPanel() {
           onChange={(e) => setDirection(e.target.value as Direction)}
           className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
         >
-          <option value="fr-es">Frances -> Espanol</option>
-          <option value="es-fr">Espanol -> Frances</option>
+          <option value="fr-es">Frances a Espanol</option>
+          <option value="es-fr">Espanol a Frances</option>
         </select>
       </label>
 
@@ -658,7 +658,7 @@ export default function FrenchOfferPanel() {
       {step === 3 && (
         <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
           <p className="text-sm text-slate-700">
-            Pedido preparado en dirección <span className="font-semibold">{direction === "fr-es" ? "Frances -> Espanol" : "Espanol -> Frances"}</span>.
+            Pedido preparado en dirección <span className="font-semibold">{direction === "fr-es" ? "Frances a Espanol" : "Espanol a Frances"}</span>.
           </p>
           <p className="mt-1 text-xl font-bold text-emerald-700">{money(cartTotal)}</p>
 
