@@ -7,9 +7,6 @@ export const metadata: Metadata = {
   title: "Traducciones juradas con precio ajustado | Desde 40 € por documento",
   description:
     "Traducciones juradas oficiales con validez legal. Sin intermediarios. Precio mínimo orientativo desde 40 € por documento (según idioma, extensión y plazo). Presupuesto rápido y personalizado.",
-  alternates: {
-    canonical: "https://www.traduccionesjuradas.net/traducciones-juradas-baratas",
-  },
 };
 
 export default function TraduccionesJuradasBaratas() {

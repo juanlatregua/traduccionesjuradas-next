@@ -7,9 +7,6 @@ export const metadata: Metadata = {
   title: "Traducción jurada online desde 40-75 € | PDF firmado en 24-72h",
   description:
     "Adjunta tu documento y recibe la traducción jurada online en PDF firmado. Precios orientativos desde 40-75 € y respuesta en <30 minutos en horario. Entrega 24-72h según idioma.",
-  alternates: {
-    canonical: "https://www.traduccionesjuradas.net/traduccion-jurada-online",
-  },
 };
 
 const LANG_COMBOS = [
@@ -115,15 +112,6 @@ export default function TraduccionJuradaOnlinePage() {
           <li>Títulos y certificados académicos.</li>
           <li>Contratos, poderes notariales y documentos mercantiles.</li>
         </ul>
-      </section>
-
-      <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-        <h2 className="text-lg font-semibold text-slate-900">Si tu idioma es francés</h2>
-        <p className="mt-2 text-sm text-slate-700">
-          Para trámites con documentación de Francia y otros países francófonos, revisa nuestra página específica de
-          <Link href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline"> traducción jurada de francés</Link>
-          : incluye rangos de precio, plazos normales/urgentes y preguntas frecuentes.
-        </p>
       </section>
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600">

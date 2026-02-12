@@ -17,7 +17,6 @@ type DocumentPreset = {
   langPair: LangPair;
   pagesLabel: string;
   fixedPrice: number;
-  daysLabel?: string;
 };
 
 type EstimateResult = {
@@ -68,13 +67,8 @@ const DOCUMENT_PRESETS: DocumentPreset[] = [
   { label: "Certificado ético", docType: "certificado", langPair: "pt-es", pagesLabel: "1 página", fixedPrice: 45 },
   { label: "Certificado de matrimonio + apostilla", docType: "certificado", langPair: "pt-es", pagesLabel: "2 páginas", fixedPrice: 165 },
   { label: "Expediente + certificado + apostillado", docType: "academico", langPair: "pt-es", pagesLabel: "3 páginas", fixedPrice: 130 },
-  { label: "Documento 1 hoja", docType: "certificado", langPair: "fr-es", pagesLabel: "1 hoja", fixedPrice: 40, daysLabel: "24 h" },
-  { label: "Documento 1 hoja", docType: "certificado", langPair: "es-fr", pagesLabel: "1 hoja", fixedPrice: 40, daysLabel: "24 h" },
-  { label: "Documento 2 hojas (1 apostilla)", docType: "certificado", langPair: "fr-es", pagesLabel: "2 hojas (1 apostilla)", fixedPrice: 50, daysLabel: "24 h" },
-  { label: "Documento 2 hojas (1 apostilla)", docType: "certificado", langPair: "es-fr", pagesLabel: "2 hojas (1 apostilla)", fixedPrice: 50, daysLabel: "24 h" },
-  { label: "Documento 2 hojas (sin apostilla)", docType: "certificado", langPair: "fr-es", pagesLabel: "2 hojas", fixedPrice: 60 },
-  { label: "Documento 2 hojas (sin apostilla)", docType: "certificado", langPair: "es-fr", pagesLabel: "2 hojas", fixedPrice: 60 },
   { label: "Expediente + apostillado", docType: "academico", langPair: "de-es", pagesLabel: "2 páginas", fixedPrice: 170 },
+  { label: "Certificado", docType: "certificado", langPair: "fr-es", pagesLabel: "2 páginas", fixedPrice: 95 },
   { label: "Certificado de matrimonio", docType: "certificado", langPair: "de-es", pagesLabel: "1 página", fixedPrice: 55 },
   { label: "Certificado literal de nacimiento", docType: "certificado", langPair: "es-en", pagesLabel: "3 páginas", fixedPrice: 75 },
   { label: "Título universitario + expediente", docType: "academico", langPair: "en-es", pagesLabel: "4 páginas (3 + 1)", fixedPrice: 215 },
@@ -127,7 +121,7 @@ function getRateLang(langPair: LangPair): Lang {
 }
 
 function getWordRate(lang: Lang) {
-  return lang === "fr" ? 0.08 : 0.14;
+  return lang === "fr" ? 0.1 : 0.14;
 }
 
 function clampInt(n: number, min: number, max: number) {
@@ -149,7 +143,6 @@ export default function PriceEstimator() {
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<EstimateResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const [presetLangPair, setPresetLangPair] = useState<LangPairOption>("");
   const [presetDocLabel, setPresetDocLabel] = useState("");
@@ -186,7 +179,7 @@ export default function PriceEstimator() {
       base: selectedPreset.fixedPrice,
       urgencyPct: 0,
       marginPct: 0,
-      days: selectedPreset.daysLabel || getEstimatedDays(selectedPreset.docType, "normal"),
+      days: getEstimatedDays(selectedPreset.docType, "normal"),
       source: "preset",
       title: selectedPreset.label,
       presetPagesLabel: selectedPreset.pagesLabel,
@@ -254,40 +247,6 @@ export default function PriceEstimator() {
       source: "file",
     });
     setMessage("Estimación calculada manualmente.");
-  };
-
-  const startCheckout = async () => {
-    if (!result) {
-      setMessage("Calcula primero una estimación antes de pagar.");
-      return;
-    }
-
-    const activeLangPair = result.source === "preset" ? presetLangPair : fileLangPair;
-    setCheckoutLoading(true);
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: result.total,
-          currency: "eur",
-          title: result.title || "Pedido de traducción jurada",
-          source: result.source,
-          langPair: activeLangPair || undefined,
-          words: result.words,
-          pagesLabel: result.presetPagesLabel,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok || !data?.url) {
-        throw new Error(data?.error || "No se pudo iniciar el pago.");
-      }
-      window.location.assign(data.url);
-    } catch (error: any) {
-      setMessage(error?.message || "No se pudo iniciar el pago.");
-    } finally {
-      setCheckoutLoading(false);
-    }
   };
 
   return (
@@ -385,7 +344,7 @@ export default function PriceEstimator() {
               ))}
             </select>
             <p className="text-[11px] text-slate-500">
-              Al elegir documento, el precio fijo se muestra automáticamente (recto/verso no cuenta como dos hojas).
+              Al elegir documento, el precio fijo se muestra automáticamente.
             </p>
           </label>
         </div>
@@ -538,16 +497,6 @@ export default function PriceEstimator() {
           </>
         )}
         <div className="mt-3 flex flex-wrap gap-3 text-sm">
-          {result && (
-            <button
-              type="button"
-              onClick={startCheckout}
-              disabled={checkoutLoading}
-              className="inline-flex items-center gap-2 rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60"
-            >
-              {checkoutLoading ? "Redirigiendo al pago..." : "Pagar y confirmar pedido"}
-            </button>
-          )}
           <Link
             href="/presupuesto"
             className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-emerald-700"

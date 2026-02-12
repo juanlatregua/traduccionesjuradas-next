@@ -185,11 +185,6 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/traduccion-jurada-permiso-de-conducir/",
-        destination: "/documentos-oficiales/documentos-laborales",
-        permanent: true,
-      },
-      {
         source: "/traduccion-jurada-de-certificado-de-seguridad-social",
         destination: "/documentos-oficiales/documentos-laborales",
         permanent: true,
