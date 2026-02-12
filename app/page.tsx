@@ -83,6 +83,26 @@ export default function Home() {
               </Link>
             </div>
 
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { flag: "🇫🇷", label: "Francés", href: "/traductor-jurado-frances" },
+                { flag: "🇩🇪", label: "Alemán", href: "/traductor-jurado-aleman" },
+                { flag: "🇬🇧", label: "Inglés", href: "/traductor-jurado-ingles" },
+                { flag: "🇵🇹", label: "Portugués", href: "/traductor-jurado-portugues" },
+                { flag: "🇮🇹", label: "Italiano", href: "/traductor-jurado-italiano" },
+                { flag: "🇳🇱", label: "Neerlandés", href: "/traductor-jurado-neerlandes" },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-emerald-400 hover:text-emerald-700"
+                >
+                  <span aria-hidden="true">{item.flag}</span>
+                  <span>Traductor jurado de {item.label}</span>
+                </Link>
+              ))}
+            </div>
+
             {/* Mini confianza */}
             <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
               <span>Traducciones juradas firmadas por traductores jurados</span>
@@ -282,28 +302,6 @@ export default function Home() {
           para que puedas presentar tus documentos en España y en el extranjero
           con todas las garantías.
         </p>
-
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { flag: "🇫🇷", label: "Francés", href: "/traductor-jurado-frances" },
-            { flag: "🇩🇪", label: "Alemán", href: "/traductor-jurado-aleman" },
-            { flag: "🇬🇧", label: "Inglés", href: "/traductor-jurado-ingles" },
-            { flag: "🇵🇹", label: "Portugués", href: "/traductor-jurado-portugues" },
-            { flag: "🇮🇹", label: "Italiano", href: "/traductor-jurado-italiano" },
-            { flag: "🇳🇱", label: "Neerlandés", href: "/traductor-jurado-neerlandes" },
-            { flag: "🇸🇪", label: "Sueco", href: "/traductor-jurado-sueco" },
-            { flag: "🇳🇴", label: "Noruego", href: "/traductor-jurado-noruego" },
-          ].map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:border-emerald-400 hover:text-emerald-700"
-            >
-              <span aria-hidden="true">{item.flag}</span>
-              <span>Traductor jurado de {item.label}</span>
-            </Link>
-          ))}
-        </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           {/* FRANCÉS */}

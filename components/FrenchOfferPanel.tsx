@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type Direction = "fr-es" | "es-fr";
@@ -289,7 +289,7 @@ export default function FrenchOfferPanel() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [activeFaq, setActiveFaq] = useState(0);
+  const [botHistory, setBotHistory] = useState<Array<{ from: "bot" | "user"; text: string }>>([]);
 
   const selectedDoc = useMemo(
     () => DOC_OPTIONS.find((doc) => doc.id === selectedDocId) || DOC_OPTIONS[0],
@@ -319,6 +319,21 @@ export default function FrenchOfferPanel() {
     }
     return `Para "${selectedDoc.label}" usa extractor PDF o palabras manuales (0,08 EUR/palabra).`;
   }, [selectedDoc]);
+
+  useEffect(() => {
+    setBotHistory([
+      { from: "bot", text: "Hola, te ayudo a cerrar el pedido en menos de 1 minuto." },
+      { from: "bot", text: botContext },
+    ]);
+  }, [botContext]);
+
+  const askBot = (question: string, answer: string) => {
+    setBotHistory((prev) => [
+      ...prev,
+      { from: "user", text: question },
+      { from: "bot", text: answer },
+    ]);
+  };
 
   const addToCart = () => {
     const item: CartItem = {
@@ -583,23 +598,31 @@ export default function FrenchOfferPanel() {
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
                 Bot de confianza
               </p>
-              <p className="mt-1 text-xs text-slate-600">Respuestas rapidas mientras preparas tu pedido.</p>
-              <p className="mt-2 text-xs font-semibold text-emerald-800">{botContext}</p>
+              <p className="mt-1 text-xs text-slate-600">Respuestas en vivo según el documento seleccionado.</p>
+              <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-emerald-100 bg-white p-2">
+                {botHistory.map((msg, idx) => (
+                  <p
+                    key={`${msg.from}-${idx}`}
+                    className={`text-xs ${
+                      msg.from === "bot" ? "text-slate-700" : "text-emerald-700 font-semibold text-right"
+                    }`}
+                  >
+                    {msg.text}
+                  </p>
+                ))}
+              </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {QUICK_FAQ.map((item, idx) => (
                   <button
                     key={item.q}
                     type="button"
-                    onClick={() => setActiveFaq(idx)}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                      activeFaq === idx ? "bg-emerald-600 text-white" : "bg-white text-slate-700 border border-slate-200"
-                    }`}
+                    onClick={() => askBot(item.q, item.a)}
+                    className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
                   >
                     {item.q}
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-slate-700">{QUICK_FAQ[activeFaq].a}</p>
               <Link
                 href="/preguntas-frecuentes"
                 className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
