@@ -310,6 +310,15 @@ export default function FrenchOfferPanel() {
   const previewDetail = estimateDetail(selectedDoc, pages, words);
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
   const allPayDirect = cart.length > 0 && cart.every((item) => item.payDirect);
+  const botContext = useMemo(() => {
+    if (selectedDoc.pricing === "fixed") {
+      return `Para "${selectedDoc.label}" tienes precio cerrado y puedes pagar al instante.`;
+    }
+    if (selectedDoc.pricing === "per-page") {
+      return `Para "${selectedDoc.label}" calcula por paginas (35 EUR/pagina).`;
+    }
+    return `Para "${selectedDoc.label}" usa extractor PDF o palabras manuales (0,08 EUR/palabra).`;
+  }, [selectedDoc]);
 
   const addToCart = () => {
     const item: CartItem = {
@@ -575,6 +584,7 @@ export default function FrenchOfferPanel() {
                 Bot de confianza
               </p>
               <p className="mt-1 text-xs text-slate-600">Respuestas rapidas mientras preparas tu pedido.</p>
+              <p className="mt-2 text-xs font-semibold text-emerald-800">{botContext}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {QUICK_FAQ.map((item, idx) => (
                   <button
