@@ -24,7 +24,7 @@ function getBaseLang(langOrPair: string) {
 
 function getWordRate(langOrPair: string) {
   const baseLang = getBaseLang(langOrPair);
-  return baseLang === "fr" ? 0.08 : 0.14;
+  return baseLang === "fr" ? 0.10 : 0.14;
 }
 
 function getOcrLanguage(langOrPair: string) {
