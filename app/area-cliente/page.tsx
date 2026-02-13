@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 export const metadata: Metadata = {
   title: "Area de cliente",
@@ -30,12 +31,11 @@ export default async function AreaClientePage() {
             seguimiento y datos de tus encargos.
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm">
-            <a
-              href="/api/auth/signin/google?callbackUrl=/area-cliente"
+            <GoogleSignInButton
+              callbackUrl="/area-cliente"
+              label="Entrar con Google"
               className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
-            >
-              Entrar con Google
-            </a>
+            />
             <Link
               href="/"
               className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
