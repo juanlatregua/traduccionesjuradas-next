@@ -7,7 +7,6 @@ const nextAuthSecret = process.env.NEXTAUTH_SECRET || undefined;
 
 export const authOptions: NextAuthOptions = {
   secret: nextAuthSecret,
-  trustHost: true,
   providers: [
     GoogleProvider({
       clientId: googleClientId,
