@@ -344,6 +344,16 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/categoria-producto/mercantil/",
+        destination: "/documentos-oficiales/documentos-mercantiles",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/mercantil",
+        destination: "/documentos-oficiales/documentos-mercantiles",
+        permanent: true,
+      },
+      {
         source: "/categoria-producto/civil/",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -454,6 +464,16 @@ const nextConfig = {
       },
       {
         source: "/traductor-jurado-madrid/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-zaragoza",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-zaragoza/",
         destination: "/documentos-oficiales",
         permanent: true,
       },
