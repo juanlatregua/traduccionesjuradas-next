@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: "Traductor jurado de francés | Traducciones juradas francés-español",
   description:
     "Traducciones juradas de francés a español y de español a francés realizadas por traductores jurados acreditados por el MAEC. Válidas para trámites en España, Francia y otros países francófonos.",
+  alternates: {
+    canonical: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
+  },
 };
 
 export default function TraductorJuradoFrancesPage() {
@@ -28,6 +31,13 @@ export default function TraductorJuradoFrancesPage() {
           otros organismos oficiales en España, Francia y otros países
           francófonos. Todas las traducciones las firma un{" "}
           <strong>traductor jurado de francés acreditado por el MAEC</strong>.
+        </p>
+        <p className="mt-2 text-xs text-slate-600">
+          Si tu tramite es local, consulta tambien nuestra pagina de{" "}
+          <Link href="/traduccion-jurada-frances-malaga" className="font-semibold text-emerald-700 hover:underline">
+            traduccion jurada de frances en Malaga
+          </Link>
+          .
         </p>
 
         {/* CTA PRINCIPAL */}

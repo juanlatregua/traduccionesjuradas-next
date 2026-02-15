@@ -99,6 +99,13 @@ export default function Home() {
               >
                 Traducción jurada online (24-72h)
               </Link>
+              <span className="h-1 w-1 rounded-full bg-slate-300" />
+              <Link
+                href="/traduccion-jurada-frances-malaga"
+                className="text-emerald-700 font-semibold hover:underline"
+              >
+                Frances jurado en Malaga
+              </Link>
             </div>
           </div>
 
