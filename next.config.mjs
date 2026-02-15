@@ -10,6 +10,21 @@ const nextConfig = {
         destination: "https://www.traduccionesjuradas.net/:path*",
         permanent: true,
       },
+      {
+        source: "/",
+        has: [{ type: "query", key: "action", value: "rest-nonce" }],
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/documentos-oficiales",
+        has: [
+          { type: "query", key: "route", value: "product/category" },
+          { type: "query", key: "path", value: "70" },
+        ],
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
       // ===============================
       // DOCUMENTOS (WordPress → Next)
       // ===============================
@@ -45,6 +60,11 @@ const nextConfig = {
       },
       {
         source: "/categoria-producto/civil/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/civil",
         destination: "/documentos-oficiales",
         permanent: true,
       },
@@ -100,6 +120,11 @@ const nextConfig = {
       },
       {
         source: "/wp-content/uploads/2019/07/ORDEN-AEX-1971-2002.pdf",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/wp-content/uploads/2019/07/ORDEN-AEX-1971-2002.pdf/",
         destination: "/documentos-oficiales",
         permanent: true,
       },
@@ -758,12 +783,27 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/traductor-jurado-palma-de-mallorca",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/traductor-jurado-calpe/",
         destination: "/documentos-oficiales",
         permanent: true,
       },
       {
+        source: "/traductor-jurado-calpe",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
         source: "/traductor-jurado-teruel/",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-teruel",
         destination: "/documentos-oficiales",
         permanent: true,
       },
