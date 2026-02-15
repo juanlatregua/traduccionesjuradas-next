@@ -114,6 +114,21 @@ export default function TraduccionJuradaOnlinePage() {
         </ul>
       </section>
 
+      <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <h2 className="text-lg font-semibold text-slate-900">Si tu idioma es frances</h2>
+        <p className="mt-2 text-sm text-slate-700">
+          Si buscas un servicio especifico para documentacion en frances, revisa{" "}
+          <Link href="/traduccion-jurada-frances-malaga" className="font-semibold text-emerald-700 hover:underline">
+            traduccion jurada de frances en Malaga
+          </Link>{" "}
+          o la guia general de{" "}
+          <Link href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline">
+            traductor jurado de frances
+          </Link>
+          .
+        </p>
+      </section>
+
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
         <p className="font-semibold text-slate-900">Nota de privacidad</p>
         <p>
