@@ -190,3 +190,43 @@ ${signatureText}`;
     attachments,
   });
 }
+
+export async function sendTranslationReadyEmail(data: {
+  toEmail: string;
+  reference: string;
+  downloadUrl: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const subject = `Tu traduccion jurada esta lista (${data.reference})`;
+  const text = `Hola,
+
+Tu traduccion jurada ya esta disponible.
+Referencia: ${data.reference}
+Descarga: ${data.downloadUrl}
+
+Si tienes cualquier duda, responde a este correo.
+`;
+
+  const html = `
+    <h2>Tu traduccion jurada esta lista</h2>
+    <p>Referencia: <strong>${data.reference}</strong></p>
+    <p>Puedes descargar tu archivo desde este enlace:</p>
+    <p><a href="${data.downloadUrl}">${data.downloadUrl}</a></p>
+    <p>Si necesitas factura o envio en papel, responde a este correo.</p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}

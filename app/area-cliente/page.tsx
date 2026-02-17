@@ -9,6 +9,7 @@ import {
   getDeliveryTypeLabel,
   getPaymentStateLabel,
 } from "@/lib/client-area";
+import { isStaffEmail } from "@/lib/staff-access";
 
 export const metadata: Metadata = {
   title: "Area de cliente",
@@ -53,6 +54,8 @@ export default async function AreaClientePage() {
       </main>
     );
   }
+
+  const isStaff = isStaffEmail(session?.user?.email);
 
   const paidOrders = CLIENT_ORDERS.filter((order) => order.paymentState === "pagado").length;
   const pendingOrders = CLIENT_ORDERS.filter((order) => order.paymentState === "pendiente").length;
@@ -107,6 +110,14 @@ export default async function AreaClientePage() {
           >
             Servicio frances
           </Link>
+          {isStaff && (
+            <Link
+              href="/zona-traductor"
+              className="rounded-2xl border border-emerald-300 px-4 py-2 font-semibold text-emerald-700 hover:bg-emerald-50"
+            >
+              Zona traductor
+            </Link>
+          )}
         </div>
       </section>
 
