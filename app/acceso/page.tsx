@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 type AccesoPageProps = {
   searchParams?: {
     error?: string;
+    callbackUrl?: string;
   };
 };
 
@@ -29,6 +30,10 @@ function getAuthErrorMessage(errorCode?: string) {
 
 export default function AccesoPage({ searchParams }: AccesoPageProps) {
   const authError = getAuthErrorMessage(searchParams?.error);
+  const callbackUrl =
+    searchParams?.callbackUrl && searchParams.callbackUrl.startsWith("/")
+      ? searchParams.callbackUrl
+      : "/area-cliente";
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -50,7 +55,7 @@ export default function AccesoPage({ searchParams }: AccesoPageProps) {
 
         <div className="mt-6 flex flex-wrap gap-3 text-sm">
           <GoogleSignInButton
-            callbackUrl="/area-cliente"
+            callbackUrl={callbackUrl}
             label="Continuar con Google"
             className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
           />
