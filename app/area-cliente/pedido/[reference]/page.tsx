@@ -6,6 +6,7 @@ import {
   getDeliveryStateLabel,
   getPaymentStateLabel,
 } from "@/lib/client-area";
+import OrderClientPanel from "@/components/OrderClientPanel";
 
 export const metadata: Metadata = {
   title: "Estado de pedido",
@@ -91,26 +92,19 @@ export default function PedidoPage({ params }: PedidoPageProps) {
         </Link>
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Pago</h2>
-        <p className="mt-2 text-sm text-slate-700">
-          Puedes pagar con tarjeta, Bizum, PayPal o transferencia bancaria.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <Link href={order.paymentUrl} className="rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">
-            Pagar con tarjeta
-          </Link>
-          <Link href={order.bizumUrl} className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100">
-            Bizum
-          </Link>
-          <Link href={order.paypalUrl} className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100">
-            PayPal
-          </Link>
-          <Link href={order.bankTransferUrl} className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100">
-            Transferencia
-          </Link>
-        </div>
-      </section>
+      <OrderClientPanel
+        reference={order.reference}
+        deliveryType={order.deliveryType}
+        shippingDataCompleted={order.shippingDataCompleted}
+        shippingSummary={order.shippingSummary}
+        invoiceRequested={order.invoiceRequested}
+        invoiceDataCompleted={order.invoiceDataCompleted}
+        invoiceHistory={order.invoiceHistory}
+        paymentUrl={order.paymentUrl}
+        bizumUrl={order.bizumUrl}
+        paypalUrl={order.paypalUrl}
+        bankTransferUrl={order.bankTransferUrl}
+      />
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Archivo traducido</h2>

@@ -1,5 +1,6 @@
 export type PaymentState = "pendiente" | "pagado";
 export type DeliveryState = "presupuesto" | "en_proceso" | "traducido";
+export type DeliveryType = "pdf" | "envio";
 
 export type OrderConcept = {
   concept: string;
@@ -24,10 +25,16 @@ export type ClientOrder = {
   bankTransferUrl: string;
   paymentState: PaymentState;
   deliveryState: DeliveryState;
+  deliveryType: DeliveryType;
+  shippingDataCompleted: boolean;
+  shippingSummary?: string;
+  invoiceRequested: boolean;
+  invoiceDataCompleted: boolean;
   translatedFileUrl?: string;
   concepts: OrderConcept[];
   total: number;
   history: OrderHistoryEntry[];
+  invoiceHistory: OrderHistoryEntry[];
 };
 
 export const CLIENT_ORDERS: ClientOrder[] = [
@@ -42,6 +49,10 @@ export const CLIENT_ORDERS: ClientOrder[] = [
     bankTransferUrl: "/pago?ref=26_001&method=transfer",
     paymentState: "pendiente",
     deliveryState: "en_proceso",
+    deliveryType: "envio",
+    shippingDataCompleted: false,
+    invoiceRequested: true,
+    invoiceDataCompleted: false,
     concepts: [
       { concept: "Certificado de nacimiento (1 hoja)", quantity: 1, unitPrice: 40, total: 40 },
       { concept: "Apostilla (1 hoja)", quantity: 1, unitPrice: 10, total: 10 },
@@ -51,6 +62,9 @@ export const CLIENT_ORDERS: ClientOrder[] = [
       { date: "2026-02-16 09:15", text: "Presupuesto generado con referencia 26_001." },
       { date: "2026-02-16 09:20", text: "Pedido confirmado. Pendiente de pago." },
       { date: "2026-02-16 10:30", text: "Traduccion en proceso." },
+    ],
+    invoiceHistory: [
+      { date: "2026-02-16 09:22", text: "Solicitud de factura recibida. Faltan datos fiscales." },
     ],
   },
   {
@@ -64,6 +78,10 @@ export const CLIENT_ORDERS: ClientOrder[] = [
     bankTransferUrl: "/pago?ref=26_002&method=transfer",
     paymentState: "pagado",
     deliveryState: "traducido",
+    deliveryType: "pdf",
+    shippingDataCompleted: false,
+    invoiceRequested: true,
+    invoiceDataCompleted: true,
     translatedFileUrl: "/pago/exito?ref=26_002",
     concepts: [
       { concept: "Titulo universitario apostillado", quantity: 1, unitPrice: 45, total: 45 },
@@ -74,6 +92,10 @@ export const CLIENT_ORDERS: ClientOrder[] = [
       { date: "2026-02-15 08:45", text: "Presupuesto generado con referencia 26_002." },
       { date: "2026-02-15 09:05", text: "Pago recibido por tarjeta." },
       { date: "2026-02-15 12:40", text: "Traduccion finalizada y entregada en PDF." },
+    ],
+    invoiceHistory: [
+      { date: "2026-02-15 09:08", text: "Factura solicitada con datos fiscales completos." },
+      { date: "2026-02-15 09:20", text: "Factura emitida y enviada por email." },
     ],
   },
 ];
@@ -86,4 +108,8 @@ export function getDeliveryStateLabel(state: DeliveryState) {
   if (state === "presupuesto") return "Presupuesto emitido";
   if (state === "en_proceso") return "En proceso";
   return "Traducido";
+}
+
+export function getDeliveryTypeLabel(type: DeliveryType) {
+  return type === "pdf" ? "PDF firmado" : "Envio fisico";
 }

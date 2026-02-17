@@ -6,6 +6,7 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
 import {
   CLIENT_ORDERS,
   getDeliveryStateLabel,
+  getDeliveryTypeLabel,
   getPaymentStateLabel,
 } from "@/lib/client-area";
 
@@ -123,7 +124,9 @@ export default async function AreaClientePage() {
                 <th className="px-4 py-3 font-semibold">Referencia</th>
                 <th className="px-4 py-3 font-semibold">Presupuesto</th>
                 <th className="px-4 py-3 font-semibold">Pago</th>
+                <th className="px-4 py-3 font-semibold">Entrega</th>
                 <th className="px-4 py-3 font-semibold">Proceso</th>
+                <th className="px-4 py-3 font-semibold">Facturacion</th>
                 <th className="px-4 py-3 font-semibold">Archivo</th>
                 <th className="px-4 py-3 font-semibold">Acciones</th>
               </tr>
@@ -138,7 +141,15 @@ export default async function AreaClientePage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{getPaymentStateLabel(order.paymentState)}</td>
+                  <td className="px-4 py-3 text-slate-700">{getDeliveryTypeLabel(order.deliveryType)}</td>
                   <td className="px-4 py-3 text-slate-700">{getDeliveryStateLabel(order.deliveryState)}</td>
+                  <td className="px-4 py-3 text-slate-700">
+                    {order.invoiceRequested
+                      ? order.invoiceDataCompleted
+                        ? "Solicitada"
+                        : "Solicitada (faltan datos)"
+                      : "No solicitada"}
+                  </td>
                   <td className="px-4 py-3">
                     {order.translatedFileUrl ? (
                       <Link href={order.translatedFileUrl} className="font-semibold text-emerald-700 hover:underline">
