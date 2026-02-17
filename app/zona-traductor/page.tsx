@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { CLIENT_ORDERS, getDeliveryStateLabel, getPaymentStateLabel } from "@/lib/client-area";
-import { getStaffEmails, isStaffEmail } from "@/lib/staff-access";
+import { isStaffEmail } from "@/lib/staff-access";
 import { isVerifiedOtpTokenValid, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import TranslatorNotifyForm from "@/components/TranslatorNotifyForm";
 
@@ -21,31 +21,44 @@ export const metadata: Metadata = {
 export default async function ZonaTraductorPage() {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email || null;
-  const allowedEmails = getStaffEmails();
 
   if (!isStaffEmail(email)) {
+    const hasSession = Boolean(email);
     return (
-      <main className="mx-auto max-w-3xl px-4 py-12">
-        <section className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Acceso restringido</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Esta zona es solo para traductor y administracion
+      <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-12 text-slate-100">
+        <section className="mx-auto max-w-3xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Zona traductor · Acceso protegido</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            Verificacion de acceso requerida
           </h1>
-          <p className="mt-3 text-sm text-slate-700">
-            Tu sesion actual no tiene permisos para esta seccion.
+          <p className="mt-3 text-sm text-slate-300">
+            {hasSession
+              ? "La cuenta actual no tiene permisos para esta zona interna."
+              : "No hay sesion iniciada. Accede con tu cuenta autorizada para continuar."}
           </p>
-          <p className="mt-2 text-xs text-slate-600">
-            Sesion detectada: <span className="font-mono">{email || "sin email"}</span>
-          </p>
-          <p className="mt-1 text-xs text-slate-600">
-            Correos autorizados: <span className="font-mono">{allowedEmails.join(", ")}</span>
-          </p>
-          <Link
-            href="/area-cliente"
-            className="mt-4 inline-flex rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-          >
-            Volver al area de cliente
-          </Link>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {!hasSession ? (
+              <a
+                href="/api/auth/signin/google?callbackUrl=/zona-traductor/verificar"
+                className="inline-flex rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+              >
+                Entrar con Google
+              </a>
+            ) : (
+              <a
+                href="/api/auth/signout?callbackUrl=/acceso"
+                className="inline-flex rounded-2xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-400"
+              >
+                Cambiar de cuenta
+              </a>
+            )}
+            <Link
+              href="/area-cliente"
+              className="inline-flex rounded-2xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
+            >
+              Ir a area cliente
+            </Link>
+          </div>
         </section>
       </main>
     );
@@ -58,20 +71,20 @@ export default async function ZonaTraductorPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Zona traductor</p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-10">
+      <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Zona traductor</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
           Gestion de pedidos y entrega al cliente
         </h1>
-        <p className="mt-2 text-sm text-slate-600">Sesion autorizada: {email}</p>
+        <p className="mt-2 text-sm text-slate-300">Sesion autorizada: {email}</p>
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Pedidos activos</h2>
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
+        <h2 className="text-lg font-semibold text-white">Pedidos activos</h2>
+        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-700">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-800 text-xs uppercase tracking-wide text-slate-300">
               <tr>
                 <th className="px-4 py-3 font-semibold">Referencia</th>
                 <th className="px-4 py-3 font-semibold">Combinacion</th>
@@ -82,12 +95,12 @@ export default async function ZonaTraductorPage() {
             </thead>
             <tbody>
               {CLIENT_ORDERS.map((order, idx) => (
-                <tr key={order.reference} className="border-t border-slate-200">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-700">{order.reference}</td>
-                  <td className="px-4 py-3 text-slate-700">{order.langPair}</td>
-                  <td className="px-4 py-3 text-slate-700">{getPaymentStateLabel(order.paymentState)}</td>
-                  <td className="px-4 py-3 text-slate-700">{getDeliveryStateLabel(order.deliveryState)}</td>
-                  <td className="px-4 py-3 text-slate-700">
+                <tr key={order.reference} className="border-t border-slate-700">
+                  <td className="px-4 py-3 font-mono text-xs text-slate-200">{order.reference}</td>
+                  <td className="px-4 py-3 text-slate-200">{order.langPair}</td>
+                  <td className="px-4 py-3 text-slate-200">{getPaymentStateLabel(order.paymentState)}</td>
+                  <td className="px-4 py-3 text-slate-200">{getDeliveryStateLabel(order.deliveryState)}</td>
+                  <td className="px-4 py-3 text-slate-300">
                     {idx === 0 ? "cliente1@example.com" : "cliente2@example.com"}
                   </td>
                 </tr>
@@ -97,7 +110,7 @@ export default async function ZonaTraductorPage() {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2">
+      <section className="mx-auto mt-6 grid max-w-6xl gap-4 md:grid-cols-2">
         {CLIENT_ORDERS.map((order, idx) => (
           <TranslatorNotifyForm
             key={order.reference}
