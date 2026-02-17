@@ -230,3 +230,34 @@ Si tienes cualquier duda, responde a este correo.
     html,
   });
 }
+
+export async function sendStaffOtpEmail(data: { toEmail: string; code: string }) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const subject = "Codigo de acceso - Zona traductor";
+  const text = `Tu codigo de acceso es: ${data.code}
+
+Caduca en 10 minutos.
+Si no has solicitado este acceso, ignora este mensaje.`;
+
+  const html = `
+    <h2>Codigo de acceso</h2>
+    <p>Tu codigo para entrar en la zona traductor es:</p>
+    <p style="font-size:24px; font-weight:700; letter-spacing:2px;">${data.code}</p>
+    <p>Caduca en 10 minutos.</p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}

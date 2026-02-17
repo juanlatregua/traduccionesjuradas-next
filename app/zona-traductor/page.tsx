@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { CLIENT_ORDERS, getDeliveryStateLabel, getPaymentStateLabel } from "@/lib/client-area";
-import { isStaffEmail } from "@/lib/staff-access";
+import { getStaffEmails, isStaffEmail } from "@/lib/staff-access";
+import { isVerifiedOtpTokenValid, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import TranslatorNotifyForm from "@/components/TranslatorNotifyForm";
 
 export const metadata: Metadata = {
@@ -18,6 +21,7 @@ export const metadata: Metadata = {
 export default async function ZonaTraductorPage() {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email || null;
+  const allowedEmails = getStaffEmails();
 
   if (!isStaffEmail(email)) {
     return (
@@ -30,6 +34,12 @@ export default async function ZonaTraductorPage() {
           <p className="mt-3 text-sm text-slate-700">
             Tu sesion actual no tiene permisos para esta seccion.
           </p>
+          <p className="mt-2 text-xs text-slate-600">
+            Sesion detectada: <span className="font-mono">{email || "sin email"}</span>
+          </p>
+          <p className="mt-1 text-xs text-slate-600">
+            Correos autorizados: <span className="font-mono">{allowedEmails.join(", ")}</span>
+          </p>
           <Link
             href="/area-cliente"
             className="mt-4 inline-flex rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
@@ -39,6 +49,12 @@ export default async function ZonaTraductorPage() {
         </section>
       </main>
     );
+  }
+
+  const verifiedCookie = cookies().get(STAFF_OTP_VERIFIED_COOKIE)?.value;
+  const isOtpVerified = isVerifiedOtpTokenValid(verifiedCookie, email);
+  if (!isOtpVerified) {
+    redirect("/zona-traductor/verificar");
   }
 
   return (
