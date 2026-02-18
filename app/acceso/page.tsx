@@ -39,21 +39,51 @@ export default function AccesoPage({ searchParams }: AccesoPageProps) {
       : "/area-cliente";
   const isTranslatorAccess = callbackUrl.startsWith("/zona-traductor");
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+    <main
+      className={
+        isTranslatorAccess
+          ? "min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-12"
+          : "mx-auto max-w-3xl px-4 py-12"
+      }
+    >
+      <section
+        className={
+          isTranslatorAccess
+            ? "mx-auto max-w-3xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8"
+            : "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+        }
+      >
+        <p
+          className={
+            isTranslatorAccess
+              ? "text-xs font-semibold uppercase tracking-wide text-cyan-300"
+              : "text-xs font-semibold uppercase tracking-wide text-emerald-700"
+          }
+        >
           Acceso seguro
         </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+        <h1
+          className={
+            isTranslatorAccess
+              ? "mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl"
+              : "mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl"
+          }
+        >
           {isTranslatorAccess ? "Acceso a zona traductor" : "Entra en tu area de cliente"}
         </h1>
-        <p className="mt-3 text-sm text-slate-700">
+        <p className={isTranslatorAccess ? "mt-3 text-sm text-slate-300" : "mt-3 text-sm text-slate-700"}>
           {isTranslatorAccess
             ? "Inicia sesion con una cuenta autorizada de traductor o administracion para continuar con la verificacion."
             : "Puedes seguir como invitado para pagar. Si prefieres, accede con Google para centralizar seguimiento, datos de contacto y futuros pedidos."}
         </p>
         {authError && (
-          <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+          <p
+            className={
+              isTranslatorAccess
+                ? "mt-3 rounded-xl border border-amber-300/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200"
+                : "mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+            }
+          >
             {authError}
           </p>
         )}
@@ -62,14 +92,20 @@ export default function AccesoPage({ searchParams }: AccesoPageProps) {
           <GoogleSignInButton
             callbackUrl={callbackUrl}
             label={isTranslatorAccess ? "Entrar como traductor con Google" : "Continuar con Google"}
-            className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
+            className={
+              isTranslatorAccess
+                ? "rounded-2xl bg-cyan-500 px-4 py-2 font-semibold text-slate-900 hover:bg-cyan-400"
+                : "rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
+            }
           />
-          <a
-            href="/presupuesto"
-            className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
-          >
-            Seguir como invitado
-          </a>
+          {!isTranslatorAccess && (
+            <a
+              href="/presupuesto"
+              className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              Seguir como invitado
+            </a>
+          )}
         </div>
       </section>
     </main>
