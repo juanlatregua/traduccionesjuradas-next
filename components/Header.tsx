@@ -236,6 +236,14 @@ export function Header() {
             Precios
           </Link>
 
+          <Link href="/area-cliente" className="hover:text-emerald-600" onClick={closeMenu}>
+            Area cliente
+          </Link>
+
+          <Link href="/zona-traductor" className="hover:text-emerald-600" onClick={closeMenu}>
+            Zona traductor
+          </Link>
+
           {/* CTA PRESUPUESTO */}
           <Link
             href="/presupuesto"

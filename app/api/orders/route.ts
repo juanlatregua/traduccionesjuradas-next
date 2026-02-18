@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { createOrder, getOrdersByClientEmail } from "@/lib/orders";
+
+export const runtime = "nodejs";
+
+/* GET  /api/orders  — list orders for authenticated client */
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
+  }
+
+  try {
+    const orders = await getOrdersByClientEmail(session.user.email);
+    return NextResponse.json({ ok: true, orders });
+  } catch (err) {
+    console.error("[orders] error listing orders", err);
+    return NextResponse.json({ ok: false, error: "Error al consultar pedidos." }, { status: 500 });
+  }
+}
+
+/* POST /api/orders  — create a new order */
+type CreateBody = {
+  source?: "preset" | "file";
+  title?: string;
+  langPair?: string;
+  words?: number;
+  pagesLabel?: string;
+  amountCents?: number;
+  currency?: string;
+};
+
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
+  }
+
+  try {
+    const body = (await req.json()) as CreateBody;
+
+    if (!body.title || !body.amountCents || body.amountCents < 100) {
+      return NextResponse.json(
+        { ok: false, error: "Titulo e importe requeridos (minimo 1 EUR)." },
+        { status: 400 }
+      );
+    }
+
+    const order = await createOrder({
+      clientEmail: session.user.email,
+      clientName: session.user.name || undefined,
+      source: body.source || "file",
+      title: body.title,
+      langPair: body.langPair,
+      words: body.words,
+      pagesLabel: body.pagesLabel,
+      amountCents: body.amountCents,
+      currency: body.currency || "eur",
+    });
+
+    return NextResponse.json({ ok: true, order: { id: order.id, reference: order.reference } });
+  } catch (err) {
+    console.error("[orders] error creating order", err);
+    return NextResponse.json({ ok: false, error: "Error al crear pedido." }, { status: 500 });
+  }
+}
