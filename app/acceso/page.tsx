@@ -19,6 +19,9 @@ type AccesoPageProps = {
 
 function getAuthErrorMessage(errorCode?: string) {
   if (!errorCode) return null;
+  if (errorCode === "StaffOnly") {
+    return "Esta seccion es solo para traductor/administracion. Accede con un correo autorizado.";
+  }
   if (errorCode === "OAuthSignin" || errorCode === "OAuthCallback") {
     return "No se pudo completar el acceso con Google. Revisa la configuracion OAuth.";
   }

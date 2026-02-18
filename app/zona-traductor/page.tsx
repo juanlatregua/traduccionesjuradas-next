@@ -34,33 +34,7 @@ export default async function ZonaTraductorPage() {
   }
 
   if (!isStaffEmail(email)) {
-    return (
-      <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-12 text-slate-100">
-        <section className="mx-auto max-w-3xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Zona traductor · Acceso protegido</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Verificacion de acceso requerida
-          </h1>
-          <p className="mt-3 text-sm text-slate-300">
-            La cuenta actual no tiene permisos para esta zona interna.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <a
-              href="/api/auth/signout?callbackUrl=/acceso?callbackUrl=/zona-traductor/verificar"
-              className="inline-flex rounded-2xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-400"
-            >
-              Cambiar de cuenta
-            </a>
-            <Link
-              href="/area-cliente"
-              className="inline-flex rounded-2xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
-            >
-              Ir a area cliente
-            </Link>
-          </div>
-        </section>
-      </main>
-    );
+    redirect("/acceso?callbackUrl=/zona-traductor/verificar&error=StaffOnly");
   }
 
   const verifiedCookie = cookies().get(STAFF_OTP_VERIFIED_COOKIE)?.value;
