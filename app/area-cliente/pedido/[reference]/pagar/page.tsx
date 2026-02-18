@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import PayPalButton from "@/components/PayPalButton";
@@ -13,11 +13,16 @@ type OrderInfo = {
 };
 
 const MANUAL_PAYMENT = {
-  bizumPhone: "607 356 273",
+  bizumPhone: "+34 607 356 273",
   accountHolder: "HBTJ Consultores Lingüísticos S.L.",
   iban: "ES66 0182 3370 67 0201616991",
   bic: "BBVAESMM",
   paypalMe: "https://paypal.me/traduccionesjurada",
+};
+
+const PAYMENT_FEATURES = {
+  redsys: process.env.NEXT_PUBLIC_ENABLE_REDSYS === "true",
+  paypal: process.env.NEXT_PUBLIC_ENABLE_PAYPAL === "true",
 };
 
 export default function PagarPage() {
@@ -28,7 +33,7 @@ export default function PagarPage() {
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"tarjeta" | "paypal" | "bizum" | "transferencia">("tarjeta");
+  const [tab, setTab] = useState<"tarjeta" | "paypal" | "bizum" | "transferencia">("bizum");
   const [redsysSubmitting, setRedsysSubmitting] = useState(false);
   const redsysFormRef = useRef<HTMLFormElement>(null);
 
@@ -84,6 +89,22 @@ export default function PagarPage() {
     router.push(`/pago/exito?ref=${reference}`);
   }
 
+  const tabs = useMemo(
+    () => [
+      ...(PAYMENT_FEATURES.redsys ? [{ id: "tarjeta" as const, label: "Tarjeta" }] : []),
+      ...(PAYMENT_FEATURES.paypal ? [{ id: "paypal" as const, label: "PayPal" }] : []),
+      { id: "bizum" as const, label: "Bizum" },
+      { id: "transferencia" as const, label: "Transferencia" },
+    ],
+    []
+  );
+
+  useEffect(() => {
+    if (!tabs.some((t) => t.id === tab)) {
+      setTab(tabs[0].id);
+    }
+  }, [tab, tabs]);
+
   if (loading) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
@@ -120,13 +141,6 @@ export default function PagarPage() {
     );
   }
 
-  const tabs = [
-    { id: "tarjeta" as const, label: "Tarjeta" },
-    { id: "paypal" as const, label: "PayPal" },
-    { id: "bizum" as const, label: "Bizum" },
-    { id: "transferencia" as const, label: "Transferencia" },
-  ];
-
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -160,6 +174,11 @@ export default function PagarPage() {
         </div>
 
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+        {!PAYMENT_FEATURES.redsys || !PAYMENT_FEATURES.paypal ? (
+          <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Algunos metodos online estan en configuracion. Puedes completar tu pedido ahora mismo por Bizum o transferencia.
+          </p>
+        ) : null}
 
         {/* Tarjeta (Redsys) */}
         {tab === "tarjeta" && (
