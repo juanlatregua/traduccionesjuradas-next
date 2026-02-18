@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { getOrderDetail } from "@/lib/orders";
 import {
-  CLIENT_ORDERS,
   getDeliveryStateLabel,
   getPaymentStateLabel,
 } from "@/lib/client-area";
@@ -23,13 +26,20 @@ type PedidoPageProps = {
   };
 };
 
-function formatMoney(value: number) {
-  return `${value.toFixed(2)} EUR`;
+function formatMoney(cents: number) {
+  return `${(cents / 100).toFixed(2)} EUR`;
 }
 
-export default function PedidoPage({ params }: PedidoPageProps) {
-  const order = CLIENT_ORDERS.find((item) => item.reference === params.reference);
+export default async function PedidoPage({ params }: PedidoPageProps) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    redirect("/acceso?callbackUrl=" + encodeURIComponent(`/area-cliente/pedido/${params.reference}`));
+  }
+
+  const order = await getOrderDetail(params.reference, session.user.email);
   if (!order) notFound();
+
+  const invoiceEvents = order.events.filter((e) => e.type.startsWith("invoice"));
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
@@ -41,16 +51,18 @@ export default function PedidoPage({ params }: PedidoPageProps) {
           Estado de tu pedido
         </h1>
         <p className="mt-2 text-sm text-slate-600">
-          Fecha: {order.createdAt} · Combinacion: {order.langPair}
+          Fecha: {order.createdAt.toISOString().slice(0, 10)} · Combinacion: {order.langPair || "—"}
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs uppercase tracking-wide text-slate-500">Presupuesto</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">Generado</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">
+              {formatMoney(order.amountCents)}
+            </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs uppercase tracking-wide text-slate-500">Pago</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{getPaymentStateLabel(order.paymentState)}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{getPaymentStateLabel(order.paymentStatus)}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs uppercase tracking-wide text-slate-500">Proceso</p>
@@ -60,61 +72,40 @@ export default function PedidoPage({ params }: PedidoPageProps) {
       </section>
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Presupuesto generado</h2>
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Concepto</th>
-                <th className="px-4 py-3 font-semibold">Cantidad</th>
-                <th className="px-4 py-3 font-semibold">Precio unitario</th>
-                <th className="px-4 py-3 font-semibold">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.concepts.map((concept) => (
-                <tr key={concept.concept} className="border-t border-slate-200">
-                  <td className="px-4 py-3 text-slate-700">{concept.concept}</td>
-                  <td className="px-4 py-3 text-slate-700">{concept.quantity}</td>
-                  <td className="px-4 py-3 text-slate-700">{formatMoney(concept.unitPrice)}</td>
-                  <td className="px-4 py-3 text-slate-900">{formatMoney(concept.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <h2 className="text-lg font-semibold text-slate-900">Detalle del pedido</h2>
+        <div className="mt-4 space-y-1 text-sm text-slate-700">
+          <p><span className="font-semibold">Concepto:</span> {order.title}</p>
+          {order.langPair && <p><span className="font-semibold">Idiomas:</span> {order.langPair}</p>}
+          {order.words && <p><span className="font-semibold">Palabras:</span> {order.words}</p>}
+          {order.pagesLabel && <p><span className="font-semibold">Alcance:</span> {order.pagesLabel}</p>}
         </div>
-        <p className="mt-3 text-sm font-semibold text-slate-900">Total: {formatMoney(order.total)}</p>
-        <Link
-          href={order.presupuestoUrl}
-          className="mt-4 inline-flex rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-        >
-          Ver presupuesto
-        </Link>
+        <p className="mt-3 text-sm font-semibold text-slate-900">Total: {formatMoney(order.amountCents)}</p>
       </section>
 
       <OrderClientPanel
         reference={order.reference}
         deliveryType={order.deliveryType}
-        shippingDataCompleted={order.shippingDataCompleted}
-        shippingSummary={order.shippingSummary}
-        invoiceRequested={order.invoiceRequested}
-        invoiceDataCompleted={order.invoiceDataCompleted}
-        invoiceHistory={order.invoiceHistory}
-        paymentUrl={order.paymentUrl}
-        bizumUrl={order.bizumUrl}
-        paypalUrl={order.paypalUrl}
-        bankTransferUrl={order.bankTransferUrl}
+        paymentStatus={order.paymentStatus}
+        hasShipping={!!order.shipping}
+        hasBilling={!!order.billing}
+        billingRequested={order.billing?.requested || false}
+        invoiceEvents={invoiceEvents.map((e) => ({
+          date: e.createdAt.toISOString().slice(0, 16).replace("T", " "),
+          text: e.message,
+        }))}
       />
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Archivo traducido</h2>
         {order.translatedFileUrl ? (
-          <Link
+          <a
             href={order.translatedFileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="mt-3 inline-flex rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
             Descargar PDF traducido
-          </Link>
+          </a>
         ) : (
           <p className="mt-2 text-sm text-slate-700">
             Aun no hay archivo disponible. Te avisaremos cuando el pedido pase a estado traducido.
@@ -124,13 +115,18 @@ export default function PedidoPage({ params }: PedidoPageProps) {
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Historial</h2>
-        <ul className="mt-4 space-y-2 text-sm text-slate-700">
-          {order.history.map((entry) => (
-            <li key={`${entry.date}-${entry.text}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <span className="font-semibold">{entry.date}</span> · {entry.text}
-            </li>
-          ))}
-        </ul>
+        {order.events.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">Sin eventos registrados.</p>
+        ) : (
+          <ul className="mt-4 space-y-2 text-sm text-slate-700">
+            {order.events.map((entry) => (
+              <li key={entry.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="font-semibold">{entry.createdAt.toISOString().slice(0, 16).replace("T", " ")}</span>{" "}
+                · {entry.message}
+              </li>
+            ))}
+          </ul>
+        )}
         <Link href="/area-cliente" className="mt-4 inline-block text-sm font-semibold text-emerald-700 hover:underline">
           Volver al area de cliente
         </Link>

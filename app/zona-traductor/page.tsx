@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { CLIENT_ORDERS, getDeliveryStateLabel, getPaymentStateLabel } from "@/lib/client-area";
+import { getDeliveryStateLabel, getPaymentStateLabel } from "@/lib/client-area";
 import { isStaffEmail } from "@/lib/staff-access";
 import { isVerifiedOtpTokenValid, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
+import { getAllOrdersForStaff } from "@/lib/orders";
 import TranslatorNotifyForm from "@/components/TranslatorNotifyForm";
+import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -18,12 +20,19 @@ export const metadata: Metadata = {
   },
 };
 
+function formatMoney(cents: number) {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
+
 export default async function ZonaTraductorPage() {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email || null;
 
+  if (!email) {
+    redirect("/acceso?callbackUrl=/zona-traductor/verificar");
+  }
+
   if (!isStaffEmail(email)) {
-    const hasSession = Boolean(email);
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-12 text-slate-100">
         <section className="mx-auto max-w-3xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
@@ -32,26 +41,15 @@ export default async function ZonaTraductorPage() {
             Verificacion de acceso requerida
           </h1>
           <p className="mt-3 text-sm text-slate-300">
-            {hasSession
-              ? "La cuenta actual no tiene permisos para esta zona interna."
-              : "No hay sesion iniciada. Accede con tu cuenta autorizada para continuar."}
+            La cuenta actual no tiene permisos para esta zona interna.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            {!hasSession ? (
-              <a
-                href="/api/auth/signin/google?callbackUrl=/zona-traductor/verificar"
-                className="inline-flex rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-              >
-                Entrar con Google
-              </a>
-            ) : (
-              <a
-                href="/api/auth/signout?callbackUrl=/acceso"
-                className="inline-flex rounded-2xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-400"
-              >
-                Cambiar de cuenta
-              </a>
-            )}
+            <a
+              href="/api/auth/signout?callbackUrl=/acceso?callbackUrl=/zona-traductor/verificar"
+              className="inline-flex rounded-2xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-400"
+            >
+              Cambiar de cuenta
+            </a>
             <Link
               href="/area-cliente"
               className="inline-flex rounded-2xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
@@ -70,6 +68,8 @@ export default async function ZonaTraductorPage() {
     redirect("/zona-traductor/verificar");
   }
 
+  const orders = await getAllOrdersForStaff();
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-10">
       <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
@@ -81,44 +81,56 @@ export default async function ZonaTraductorPage() {
       </section>
 
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
-        <h2 className="text-lg font-semibold text-white">Pedidos activos</h2>
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-700">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-800 text-xs uppercase tracking-wide text-slate-300">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Referencia</th>
-                <th className="px-4 py-3 font-semibold">Combinacion</th>
-                <th className="px-4 py-3 font-semibold">Pago</th>
-                <th className="px-4 py-3 font-semibold">Proceso</th>
-                <th className="px-4 py-3 font-semibold">Cliente</th>
-              </tr>
-            </thead>
-            <tbody>
-              {CLIENT_ORDERS.map((order, idx) => (
-                <tr key={order.reference} className="border-t border-slate-700">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-200">{order.reference}</td>
-                  <td className="px-4 py-3 text-slate-200">{order.langPair}</td>
-                  <td className="px-4 py-3 text-slate-200">{getPaymentStateLabel(order.paymentState)}</td>
-                  <td className="px-4 py-3 text-slate-200">{getDeliveryStateLabel(order.deliveryState)}</td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {idx === 0 ? "cliente1@example.com" : "cliente2@example.com"}
-                  </td>
+        <h2 className="text-lg font-semibold text-white">Pedidos ({orders.length})</h2>
+        {orders.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-400">No hay pedidos registrados.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-700">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-800 text-xs uppercase tracking-wide text-slate-300">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Referencia</th>
+                  <th className="px-4 py-3 font-semibold">Combinacion</th>
+                  <th className="px-4 py-3 font-semibold">Importe</th>
+                  <th className="px-4 py-3 font-semibold">Pago</th>
+                  <th className="px-4 py-3 font-semibold">Proceso</th>
+                  <th className="px-4 py-3 font-semibold">Cliente</th>
+                  <th className="px-4 py-3 font-semibold">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.reference} className="border-t border-slate-700">
+                    <td className="px-4 py-3 font-mono text-xs text-slate-200">{order.reference}</td>
+                    <td className="px-4 py-3 text-slate-200">{order.langPair || "—"}</td>
+                    <td className="px-4 py-3 text-slate-200">{formatMoney(order.amountCents)}</td>
+                    <td className="px-4 py-3 text-slate-200">{getPaymentStateLabel(order.paymentStatus)}</td>
+                    <td className="px-4 py-3 text-slate-200">{getDeliveryStateLabel(order.deliveryState)}</td>
+                    <td className="px-4 py-3 text-slate-300">{order.clientEmail}</td>
+                    <td className="px-4 py-3">
+                      {order.paymentStatus === "PENDING" && (
+                        <ConfirmPaymentButton reference={order.reference} />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
-      <section className="mx-auto mt-6 grid max-w-6xl gap-4 md:grid-cols-2">
-        {CLIENT_ORDERS.map((order, idx) => (
-          <TranslatorNotifyForm
-            key={order.reference}
-            reference={order.reference}
-            defaultClientEmail={idx === 0 ? "cliente1@example.com" : "cliente2@example.com"}
-          />
-        ))}
-      </section>
+      {orders.length > 0 && (
+        <section className="mx-auto mt-6 grid max-w-6xl gap-4 md:grid-cols-2">
+          {orders.map((order) => (
+            <TranslatorNotifyForm
+              key={order.reference}
+              reference={order.reference}
+              defaultClientEmail={order.clientEmail}
+            />
+          ))}
+        </section>
+      )}
     </main>
   );
 }

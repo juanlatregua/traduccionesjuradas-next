@@ -265,11 +265,11 @@ export default function PriceEstimator() {
     const activeLangPair = result.source === "preset" ? presetLangPair : fileLangPair;
     setCheckoutLoading(true);
     try {
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: result.total,
+          amountCents: result.total * 100,
           currency: "eur",
           title: result.title || "Pedido de traducción jurada",
           source: result.source,
@@ -279,10 +279,15 @@ export default function PriceEstimator() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok || !data?.url) {
-        throw new Error(data?.error || "No se pudo iniciar el pago.");
+      if (!res.ok || !data?.ok) {
+        if (res.status === 401) {
+          // Not logged in — redirect to login, then back here
+          window.location.assign("/acceso?callbackUrl=" + encodeURIComponent(window.location.pathname));
+          return;
+        }
+        throw new Error(data?.error || "No se pudo crear el pedido.");
       }
-      window.location.assign(data.url);
+      window.location.assign(`/area-cliente/pedido/${data.order.reference}/pagar`);
     } catch (error: any) {
       setMessage(error?.message || "No se pudo iniciar el pago.");
     } finally {

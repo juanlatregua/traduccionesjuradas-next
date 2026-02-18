@@ -403,11 +403,11 @@ export default function FrenchOfferPanel() {
     setError(null);
     try {
       const labels = cart.map((item) => item.label).join(" + ").slice(0, 110);
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: cartTotal,
+          amountCents: Math.round(cartTotal * 100),
           currency: "eur",
           title: `Pedido frances: ${labels}`,
           source: "preset",
@@ -416,12 +416,16 @@ export default function FrenchOfferPanel() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok || !data?.url) {
-        throw new Error(data?.error || "No se pudo iniciar el pago.");
+      if (!res.ok || !data?.ok || !data?.order?.reference) {
+        if (res.status === 401) {
+          window.location.assign("/acceso?callbackUrl=" + encodeURIComponent(window.location.pathname));
+          return;
+        }
+        throw new Error(data?.error || "No se pudo crear el pedido.");
       }
-      window.location.assign(data.url);
+      window.location.assign(`/area-cliente/pedido/${data.order.reference}/pagar`);
     } catch (err: any) {
-      setError(err?.message || "No se pudo iniciar el pago.");
+      setError(err?.message || "No se pudo crear el pedido.");
     } finally {
       setCheckoutLoading(false);
     }

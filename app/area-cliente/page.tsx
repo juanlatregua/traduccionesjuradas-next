@@ -3,8 +3,8 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { getOrdersByClientEmail } from "@/lib/orders";
 import {
-  CLIENT_ORDERS,
   getDeliveryStateLabel,
   getDeliveryTypeLabel,
   getPaymentStateLabel,
@@ -19,6 +19,10 @@ export const metadata: Metadata = {
     follow: false,
   },
 };
+
+function formatMoney(cents: number) {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
 
 export default async function AreaClientePage() {
   const session = await getServerSession(authOptions);
@@ -56,12 +60,11 @@ export default async function AreaClientePage() {
   }
 
   const isStaff = isStaffEmail(session?.user?.email);
+  const orders = await getOrdersByClientEmail(session.user?.email || "");
 
-  const paidOrders = CLIENT_ORDERS.filter((order) => order.paymentState === "pagado").length;
-  const pendingOrders = CLIENT_ORDERS.filter((order) => order.paymentState === "pendiente").length;
-  const translatedOrders = CLIENT_ORDERS.filter(
-    (order) => order.deliveryState === "traducido"
-  ).length;
+  const paidOrders = orders.filter((o) => o.paymentStatus === "PAID").length;
+  const pendingOrders = orders.filter((o) => o.paymentStatus === "PENDING").length;
+  const translatedOrders = orders.filter((o) => o.deliveryState === "TRADUCIDO").length;
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
@@ -123,79 +126,77 @@ export default async function AreaClientePage() {
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Estado de mis pedidos</h2>
-        <p className="mt-2 text-sm text-slate-700">
-          Referencias activas desde <span className="font-semibold">26_001</span>. Cada fila incluye
-          acceso al presupuesto, pago, estado del proceso y descarga del archivo final cuando este listo.
-        </p>
-
-        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Referencia</th>
-                <th className="px-4 py-3 font-semibold">Presupuesto</th>
-                <th className="px-4 py-3 font-semibold">Pago</th>
-                <th className="px-4 py-3 font-semibold">Entrega</th>
-                <th className="px-4 py-3 font-semibold">Proceso</th>
-                <th className="px-4 py-3 font-semibold">Facturacion</th>
-                <th className="px-4 py-3 font-semibold">Archivo</th>
-                <th className="px-4 py-3 font-semibold">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {CLIENT_ORDERS.map((order) => (
-                <tr key={order.reference} className="border-t border-slate-200">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-700">{order.reference}</td>
-                  <td className="px-4 py-3">
-                    <Link href={order.presupuestoUrl} className="font-semibold text-emerald-700 hover:underline">
-                      Ver presupuesto
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{getPaymentStateLabel(order.paymentState)}</td>
-                  <td className="px-4 py-3 text-slate-700">{getDeliveryTypeLabel(order.deliveryType)}</td>
-                  <td className="px-4 py-3 text-slate-700">{getDeliveryStateLabel(order.deliveryState)}</td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {order.invoiceRequested
-                      ? order.invoiceDataCompleted
-                        ? "Solicitada"
-                        : "Solicitada (faltan datos)"
-                      : "No solicitada"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {order.translatedFileUrl ? (
-                      <Link href={order.translatedFileUrl} className="font-semibold text-emerald-700 hover:underline">
-                        Descargar PDF
-                      </Link>
-                    ) : (
-                      <span className="text-slate-500">Pendiente</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/area-cliente/pedido/${order.reference}`}
-                      className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    >
-                      Ver estado
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {orders.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-600">
+            No tienes pedidos todavia.{" "}
+            <Link href="/presupuesto" className="font-semibold text-emerald-700 hover:underline">
+              Solicita un presupuesto
+            </Link>{" "}
+            para empezar.
+          </p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-slate-700">
+              Cada fila incluye acceso al pago, estado del proceso y descarga del archivo final cuando este listo.
+            </p>
+            <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Referencia</th>
+                    <th className="px-4 py-3 font-semibold">Descripcion</th>
+                    <th className="px-4 py-3 font-semibold">Importe</th>
+                    <th className="px-4 py-3 font-semibold">Pago</th>
+                    <th className="px-4 py-3 font-semibold">Entrega</th>
+                    <th className="px-4 py-3 font-semibold">Proceso</th>
+                    <th className="px-4 py-3 font-semibold">Factura</th>
+                    <th className="px-4 py-3 font-semibold">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr key={order.reference} className="border-t border-slate-200">
+                      <td className="px-4 py-3 font-mono text-xs text-slate-700">{order.reference}</td>
+                      <td className="px-4 py-3 text-slate-700">{order.title}</td>
+                      <td className="px-4 py-3 text-slate-700">{formatMoney(order.amountCents)}</td>
+                      <td className="px-4 py-3 text-slate-700">{getPaymentStateLabel(order.paymentStatus)}</td>
+                      <td className="px-4 py-3 text-slate-700">{getDeliveryTypeLabel(order.deliveryType)}</td>
+                      <td className="px-4 py-3 text-slate-700">{getDeliveryStateLabel(order.deliveryState)}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {order.billing?.requested
+                          ? "Solicitada"
+                          : "No solicitada"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/area-cliente/pedido/${order.reference}`}
+                          className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        >
+                          Ver estado
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Historial de pedidos</h2>
-        <ul className="mt-3 space-y-2 text-sm text-slate-700">
-          {CLIENT_ORDERS.map((order) => (
-            <li key={`history-${order.reference}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <span className="font-mono text-xs font-semibold text-slate-800">{order.reference}</span>{" "}
-              · {order.langPair} · {order.createdAt} · {getDeliveryStateLabel(order.deliveryState)}
-            </li>
-          ))}
-        </ul>
-      </section>
+      {orders.length > 0 && (
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="text-lg font-semibold text-slate-900">Historial de pedidos</h2>
+          <ul className="mt-3 space-y-2 text-sm text-slate-700">
+            {orders.map((order) => (
+              <li key={`history-${order.reference}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="font-mono text-xs font-semibold text-slate-800">{order.reference}</span>{" "}
+                · {order.langPair || "—"} · {order.createdAt.toISOString().slice(0, 10)} · {getDeliveryStateLabel(order.deliveryState)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

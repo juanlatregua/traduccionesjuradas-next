@@ -231,6 +231,77 @@ Si tienes cualquier duda, responde a este correo.
   });
 }
 
+export async function sendInvoiceRequestEmail(data: {
+  reference: string;
+  title: string;
+  amountCents: number;
+  clientEmail: string;
+  billing: {
+    fiscalName: string;
+    nif: string;
+    address: string;
+    city: string;
+    postalCode: string;
+    country: string;
+    email: string;
+  };
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  const to = process.env.PRESUPUESTO_TO;
+  if (!to) throw new Error("Missing PRESUPUESTO_TO");
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = (data.amountCents / 100).toFixed(2);
+  const subject = `Solicitud de factura - ${data.reference}`;
+
+  const text = `Solicitud de factura para pedido ${data.reference}
+
+Pedido: ${data.title}
+Importe: ${amount} EUR
+Cliente: ${data.clientEmail}
+
+Datos fiscales:
+- Nombre fiscal: ${data.billing.fiscalName}
+- NIF/CIF: ${data.billing.nif}
+- Direccion: ${data.billing.address}
+- Ciudad: ${data.billing.city}
+- Codigo postal: ${data.billing.postalCode}
+- Pais: ${data.billing.country}
+- Email factura: ${data.billing.email}
+`;
+
+  const html = `
+    <h2>Solicitud de factura</h2>
+    <p><strong>Pedido:</strong> ${data.reference} - ${data.title}</p>
+    <p><strong>Importe:</strong> ${amount} EUR</p>
+    <p><strong>Cliente:</strong> ${data.clientEmail}</p>
+    <h3>Datos fiscales</h3>
+    <ul>
+      <li><strong>Nombre fiscal:</strong> ${data.billing.fiscalName}</li>
+      <li><strong>NIF/CIF:</strong> ${data.billing.nif}</li>
+      <li><strong>Direccion:</strong> ${data.billing.address}</li>
+      <li><strong>Ciudad:</strong> ${data.billing.city}</li>
+      <li><strong>Codigo postal:</strong> ${data.billing.postalCode}</li>
+      <li><strong>Pais:</strong> ${data.billing.country}</li>
+      <li><strong>Email factura:</strong> ${data.billing.email}</li>
+    </ul>
+  `;
+
+  await sgMail.send({
+    to,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
 export async function sendStaffOtpEmail(data: { toEmail: string; code: string }) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");

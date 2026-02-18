@@ -23,8 +23,12 @@ export default async function VerificarZonaTraductorPage() {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email || null;
 
+  if (!email) {
+    redirect("/acceso?callbackUrl=/zona-traductor/verificar");
+  }
+
   if (!isStaffEmail(email)) {
-    redirect("/acceso");
+    redirect("/acceso?callbackUrl=/zona-traductor/verificar");
   }
 
   const verifiedCookie = cookies().get(STAFF_OTP_VERIFIED_COOKIE)?.value;

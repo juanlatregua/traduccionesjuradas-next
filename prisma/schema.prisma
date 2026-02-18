@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  IN_PROGRESS
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  REDSYS
+  PAYPAL
+  BIZUM
+  TRANSFER
+}
+
+enum DeliveryState {
+  PRESUPUESTO
+  EN_PROCESO
+  TRADUCIDO
+}
+
+model Order {
+  id                 String         @id @default(cuid())
+  reference          String         @unique
+  clientEmail        String
+  clientName         String?
+  source             String
+  title              String
+  langPair           String?
+  words              Int?
+  pagesLabel         String?
+  amountCents        Int
+  currency           String         @default("eur")
+  status             OrderStatus    @default(PENDING_PAYMENT)
+  paymentStatus      PaymentStatus  @default(PENDING)
+  paymentMethod      PaymentMethod?
+  externalPaymentId  String?
+  deliveryState      DeliveryState  @default(PRESUPUESTO)
+  deliveryType       String         @default("pdf")
+  translatedFileUrl  String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  paidAt             DateTime?
+
+  events   OrderEvent[]
+  billing  BillingData?
+  shipping ShippingData?
+
+  @@index([clientEmail])
+  @@index([createdAt])
+  @@index([paymentStatus, status])
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  type      String
+  message   String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+model BillingData {
+  id         String    @id @default(cuid())
+  orderId    String    @unique
+  fiscalName String
+  nif        String
+  address    String
+  city       String
+  postalCode String
+  country    String    @default("España")
+  email      String
+  requested  Boolean   @default(false)
+  notifiedAt DateTime?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model ShippingData {
+  id         String @id @default(cuid())
+  orderId    String @unique
+  name       String
+  phone      String
+  address    String
+  city       String
+  province   String
+  postalCode String
+  country    String @default("España")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}

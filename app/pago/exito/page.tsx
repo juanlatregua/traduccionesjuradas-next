@@ -1,24 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import { getOrderPublic } from "@/lib/orders";
+import { getPaymentStateLabel } from "@/lib/client-area";
 
 export const metadata: Metadata = {
   title: "Pago confirmado | Traducciones Juradas",
-  description: "Pago confirmado correctamente. Te contactamos para iniciar tu traducción jurada.",
+  description: "Pago confirmado correctamente. Te contactamos para iniciar tu traduccion jurada.",
   robots: {
     index: false,
     follow: false,
   },
 };
 
-export default function PagoExitoPage({
+export default async function PagoExitoPage({
   searchParams,
 }: {
-  searchParams?: { session_id?: string | string[] };
+  searchParams?: { ref?: string | string[] };
 }) {
-  const sessionId = Array.isArray(searchParams?.session_id)
-    ? searchParams?.session_id[0]
-    : searchParams?.session_id;
+  const reference = Array.isArray(searchParams?.ref) ? searchParams?.ref[0] : searchParams?.ref;
+
+  const order = reference
+    ? await getOrderPublic(reference).catch(() => null)
+    : null;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
@@ -30,27 +34,32 @@ export default function PagoExitoPage({
           Pago recibido correctamente
         </h1>
         <p className="mt-3 text-sm text-slate-700">
-          Hemos recibido tu pago. Nuestro equipo revisará la documentación y te confirmará por email
+          Hemos recibido tu pago. Nuestro equipo revisara la documentacion y te confirmara por email
           el inicio del encargo y el plazo final.
         </p>
-        {sessionId && (
+        {reference && (
           <p className="mt-3 text-xs text-slate-500">
-            Referencia de pago: <span className="font-mono">{sessionId}</span>
+            Referencia de pedido: <span className="font-mono">{reference}</span>
+          </p>
+        )}
+        {order && (
+          <p className="mt-1 text-xs text-slate-500">
+            Estado: <span className="font-semibold">{getPaymentStateLabel(order.paymentStatus)}</span>
           </p>
         )}
 
         <div className="mt-6 flex flex-wrap gap-3 text-sm">
-          <a
-            href="/api/auth/signin/google?callbackUrl=/area-cliente"
+          <Link
+            href="/area-cliente"
             className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
           >
-            Entrar con Google y ver area cliente
-          </a>
+            Ver area de cliente
+          </Link>
           <a
             href={MAIL_LINK}
             className="rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700"
           >
-            Enviar documentación por email
+            Enviar documentacion por email
           </a>
           <a
             href={WHATSAPP_LINK}

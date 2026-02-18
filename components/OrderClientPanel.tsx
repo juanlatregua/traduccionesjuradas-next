@@ -1,26 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-
-type DeliveryType = "pdf" | "envio";
 
 type OrderClientPanelProps = {
   reference: string;
-  deliveryType: DeliveryType;
-  shippingDataCompleted: boolean;
-  shippingSummary?: string;
-  invoiceRequested: boolean;
-  invoiceDataCompleted: boolean;
-  invoiceHistory: Array<{ date: string; text: string }>;
-  paymentUrl: string;
-  bizumUrl: string;
-  paypalUrl: string;
-  bankTransferUrl: string;
+  deliveryType: string;
+  paymentStatus: string;
+  hasShipping: boolean;
+  hasBilling: boolean;
+  billingRequested: boolean;
+  invoiceEvents: Array<{ date: string; text: string }>;
 };
 
 type ShippingForm = {
-  fullName: string;
+  name: string;
   phone: string;
   address: string;
   city: string;
@@ -31,17 +25,17 @@ type ShippingForm = {
 
 type BillingForm = {
   requestInvoice: boolean;
-  legalName: string;
-  taxId: string;
-  billingAddress: string;
-  billingCity: string;
-  billingPostalCode: string;
-  billingCountry: string;
-  billingEmail: string;
+  fiscalName: string;
+  nif: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  email: string;
 };
 
 const EMPTY_SHIPPING: ShippingForm = {
-  fullName: "",
+  name: "",
   phone: "",
   address: "",
   city: "",
@@ -52,146 +46,160 @@ const EMPTY_SHIPPING: ShippingForm = {
 
 const EMPTY_BILLING: BillingForm = {
   requestInvoice: false,
-  legalName: "",
-  taxId: "",
-  billingAddress: "",
-  billingCity: "",
-  billingPostalCode: "",
-  billingCountry: "España",
-  billingEmail: "",
+  fiscalName: "",
+  nif: "",
+  address: "",
+  city: "",
+  postalCode: "",
+  country: "España",
+  email: "",
 };
 
 function isShippingComplete(data: ShippingForm) {
   return Boolean(
-    data.fullName &&
-      data.phone &&
-      data.address &&
-      data.city &&
-      data.province &&
-      data.postalCode &&
-      data.country
+    data.name && data.phone && data.address && data.city && data.province && data.postalCode && data.country
   );
 }
 
 function isBillingComplete(data: BillingForm) {
   if (!data.requestInvoice) return false;
   return Boolean(
-    data.legalName &&
-      data.taxId &&
-      data.billingAddress &&
-      data.billingCity &&
-      data.billingPostalCode &&
-      data.billingCountry &&
-      data.billingEmail
+    data.fiscalName && data.nif && data.address && data.city && data.postalCode && data.country && data.email
   );
 }
 
 export default function OrderClientPanel({
   reference,
   deliveryType,
-  shippingDataCompleted,
-  shippingSummary,
-  invoiceRequested,
-  invoiceDataCompleted,
-  invoiceHistory,
-  paymentUrl,
-  bizumUrl,
-  paypalUrl,
-  bankTransferUrl,
+  paymentStatus,
+  hasShipping,
+  hasBilling,
+  billingRequested,
+  invoiceEvents,
 }: OrderClientPanelProps) {
-  const shippingKey = useMemo(() => `order-shipping-${reference}`, [reference]);
-  const billingKey = useMemo(() => `order-billing-${reference}`, [reference]);
   const [shipping, setShipping] = useState<ShippingForm>(EMPTY_SHIPPING);
   const [billing, setBilling] = useState<BillingForm>({
     ...EMPTY_BILLING,
-    requestInvoice: invoiceRequested,
+    requestInvoice: billingRequested,
   });
   const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const savedShipping = localStorage.getItem(shippingKey);
-      if (savedShipping) {
-        setShipping(JSON.parse(savedShipping) as ShippingForm);
-      }
-      const savedBilling = localStorage.getItem(billingKey);
-      if (savedBilling) {
-        setBilling(JSON.parse(savedBilling) as BillingForm);
-      }
-    } catch {
-      // no-op: local storage can fail in privacy mode
-    }
-  }, [shippingKey, billingKey]);
-
-  const saveShipping = () => {
-    localStorage.setItem(shippingKey, JSON.stringify(shipping));
-    setNotice("Datos de envio guardados.");
-  };
-
-  const saveBilling = () => {
-    localStorage.setItem(billingKey, JSON.stringify(billing));
-    setNotice("Datos de facturacion guardados.");
-  };
+  const [saving, setSaving] = useState(false);
 
   const shippingComplete = isShippingComplete(shipping);
   const billingComplete = isBillingComplete(billing);
 
+  async function saveShipping() {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/orders/${reference}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shipping }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setNotice("Datos de envio guardados correctamente.");
+      } else {
+        setNotice(data.error || "Error al guardar datos de envio.");
+      }
+    } catch {
+      setNotice("Error de conexion al guardar datos de envio.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveBilling() {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/orders/${reference}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          billing: {
+            fiscalName: billing.fiscalName,
+            nif: billing.nif,
+            address: billing.address,
+            city: billing.city,
+            postalCode: billing.postalCode,
+            country: billing.country,
+            email: billing.email,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setNotice("Datos de facturacion guardados correctamente.");
+      } else {
+        setNotice(data.error || "Error al guardar datos de facturacion.");
+      }
+    } catch {
+      setNotice("Error de conexion al guardar datos de facturacion.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const isPaid = paymentStatus === "PAID";
+
   return (
     <>
+      {/* Shipping */}
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Entrega</h2>
         <p className="mt-2 text-sm text-slate-700">
           Modalidad elegida:{" "}
           <span className="font-semibold">
-            {deliveryType === "pdf" ? "PDF firmado digitalmente" : "Envio fisico"}
+            {deliveryType === "envio" ? "Envio fisico" : "PDF firmado digitalmente"}
           </span>
         </p>
         {deliveryType === "envio" ? (
           <>
             <p className="mt-2 text-xs text-slate-600">
-              Estado inicial del pedido:{" "}
-              {shippingDataCompleted ? shippingSummary || "Datos de envio completados" : "Faltan datos de envio"}
+              {hasShipping ? "Datos de envio registrados" : "Faltan datos de envio"}
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <input
-                value={shipping.fullName}
-                onChange={(e) => setShipping((prev) => ({ ...prev, fullName: e.target.value }))}
+                value={shipping.name}
+                onChange={(e) => setShipping((p) => ({ ...p, name: e.target.value }))}
                 placeholder="Nombre y apellidos"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
               <input
                 value={shipping.phone}
-                onChange={(e) => setShipping((prev) => ({ ...prev, phone: e.target.value }))}
+                onChange={(e) => setShipping((p) => ({ ...p, phone: e.target.value }))}
                 placeholder="Telefono"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
               <input
                 value={shipping.address}
-                onChange={(e) => setShipping((prev) => ({ ...prev, address: e.target.value }))}
+                onChange={(e) => setShipping((p) => ({ ...p, address: e.target.value }))}
                 placeholder="Direccion"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm sm:col-span-2"
               />
               <input
                 value={shipping.city}
-                onChange={(e) => setShipping((prev) => ({ ...prev, city: e.target.value }))}
+                onChange={(e) => setShipping((p) => ({ ...p, city: e.target.value }))}
                 placeholder="Ciudad"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
               <input
                 value={shipping.province}
-                onChange={(e) => setShipping((prev) => ({ ...prev, province: e.target.value }))}
+                onChange={(e) => setShipping((p) => ({ ...p, province: e.target.value }))}
                 placeholder="Provincia"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
               <input
                 value={shipping.postalCode}
-                onChange={(e) => setShipping((prev) => ({ ...prev, postalCode: e.target.value }))}
+                onChange={(e) => setShipping((p) => ({ ...p, postalCode: e.target.value }))}
                 placeholder="Codigo postal"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
               <input
                 value={shipping.country}
-                onChange={(e) => setShipping((prev) => ({ ...prev, country: e.target.value }))}
+                onChange={(e) => setShipping((p) => ({ ...p, country: e.target.value }))}
                 placeholder="Pais"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
@@ -200,7 +208,8 @@ export default function OrderClientPanel({
               <button
                 type="button"
                 onClick={saveShipping}
-                className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                disabled={saving}
+                className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 Guardar datos de envio
               </button>
@@ -216,78 +225,80 @@ export default function OrderClientPanel({
         )}
       </section>
 
+      {/* Payment */}
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Pago</h2>
-        <p className="mt-2 text-sm text-slate-700">
-          Selecciona metodo: tarjeta, Bizum, PayPal o transferencia.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <Link href={paymentUrl} className="rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">
-            Tarjeta
-          </Link>
-          <Link href={bizumUrl} className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100">
-            Bizum
-          </Link>
-          <Link href={paypalUrl} className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100">
-            PayPal
-          </Link>
-          <Link href={bankTransferUrl} className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100">
-            Transferencia
-          </Link>
-        </div>
+        {isPaid ? (
+          <p className="mt-2 text-sm font-semibold text-emerald-700">Pago completado.</p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-slate-700">
+              Selecciona metodo: tarjeta, Bizum, PayPal o transferencia.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3 text-sm">
+              <Link
+                href={`/area-cliente/pedido/${reference}/pagar`}
+                className="rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
+              >
+                Ir a pagar
+              </Link>
+            </div>
+          </>
+        )}
       </section>
 
+      {/* Billing */}
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Facturacion</h2>
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
             checked={billing.requestInvoice}
-            onChange={(e) => setBilling((prev) => ({ ...prev, requestInvoice: e.target.checked }))}
+            onChange={(e) => setBilling((p) => ({ ...p, requestInvoice: e.target.checked }))}
           />
           Solicitar factura
         </label>
         {billing.requestInvoice && (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <input
-              value={billing.legalName}
-              onChange={(e) => setBilling((prev) => ({ ...prev, legalName: e.target.value }))}
+              value={billing.fiscalName}
+              onChange={(e) => setBilling((p) => ({ ...p, fiscalName: e.target.value }))}
               placeholder="Nombre fiscal / Empresa"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
             />
             <input
-              value={billing.taxId}
-              onChange={(e) => setBilling((prev) => ({ ...prev, taxId: e.target.value }))}
+              value={billing.nif}
+              onChange={(e) => setBilling((p) => ({ ...p, nif: e.target.value }))}
               placeholder="NIF / CIF / VAT"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
             />
             <input
-              value={billing.billingAddress}
-              onChange={(e) => setBilling((prev) => ({ ...prev, billingAddress: e.target.value }))}
+              value={billing.address}
+              onChange={(e) => setBilling((p) => ({ ...p, address: e.target.value }))}
               placeholder="Direccion fiscal"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm sm:col-span-2"
             />
             <input
-              value={billing.billingCity}
-              onChange={(e) => setBilling((prev) => ({ ...prev, billingCity: e.target.value }))}
+              value={billing.city}
+              onChange={(e) => setBilling((p) => ({ ...p, city: e.target.value }))}
               placeholder="Ciudad"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
             />
             <input
-              value={billing.billingPostalCode}
-              onChange={(e) => setBilling((prev) => ({ ...prev, billingPostalCode: e.target.value }))}
+              value={billing.postalCode}
+              onChange={(e) => setBilling((p) => ({ ...p, postalCode: e.target.value }))}
               placeholder="Codigo postal"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
             />
             <input
-              value={billing.billingCountry}
-              onChange={(e) => setBilling((prev) => ({ ...prev, billingCountry: e.target.value }))}
+              value={billing.country}
+              onChange={(e) => setBilling((p) => ({ ...p, country: e.target.value }))}
               placeholder="Pais"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
             />
             <input
-              value={billing.billingEmail}
-              onChange={(e) => setBilling((prev) => ({ ...prev, billingEmail: e.target.value }))}
+              value={billing.email}
+              onChange={(e) => setBilling((p) => ({ ...p, email: e.target.value }))}
               placeholder="Email para factura"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
             />
@@ -297,13 +308,14 @@ export default function OrderClientPanel({
           <button
             type="button"
             onClick={saveBilling}
-            className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            disabled={saving}
+            className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
           >
             Guardar datos de facturacion
           </button>
           <span className={`text-sm font-semibold ${billing.requestInvoice && billingComplete ? "text-emerald-700" : "text-amber-700"}`}>
             {billing.requestInvoice
-              ? billingComplete || invoiceDataCompleted
+              ? billingComplete || hasBilling
                 ? "Datos de facturacion completos"
                 : "Pendiente completar datos de facturacion"
               : "Factura no solicitada"}
@@ -311,14 +323,14 @@ export default function OrderClientPanel({
         </div>
         <h3 className="mt-5 text-sm font-semibold text-slate-900">Historial de facturas</h3>
         <ul className="mt-2 space-y-2 text-sm text-slate-700">
-          {invoiceHistory.length === 0 ? (
+          {invoiceEvents.length === 0 ? (
             <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
               Sin movimientos de facturacion.
             </li>
           ) : (
-            invoiceHistory.map((entry) => (
+            invoiceEvents.map((entry, i) => (
               <li
-                key={`invoice-${entry.date}-${entry.text}`}
+                key={`invoice-${i}`}
                 className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"
               >
                 <span className="font-semibold">{entry.date}</span> · {entry.text}
