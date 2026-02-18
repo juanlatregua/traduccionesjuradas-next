@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import FrenchOfferPanel from "@/components/FrenchOfferPanel";
 
 export const metadata: Metadata = {
   title: "Traductor jurado de francés | Traducciones juradas francés-español",
@@ -62,6 +63,8 @@ export default function TraductorJuradoFrancesPage() {
           </Link>
         </div>
       </header>
+
+      <FrenchOfferPanel />
 
       {/* BLOQUE TIPOS DE DOCUMENTOS */}
       <section className="mt-10">
