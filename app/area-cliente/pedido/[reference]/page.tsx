@@ -89,6 +89,33 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         hasShipping={!!order.shipping}
         hasBilling={!!order.billing}
         billingRequested={order.billing?.requested || false}
+        initialShipping={
+          order.shipping
+            ? {
+                name: order.shipping.name,
+                phone: order.shipping.phone,
+                address: order.shipping.address,
+                city: order.shipping.city,
+                province: order.shipping.province,
+                postalCode: order.shipping.postalCode,
+                country: order.shipping.country,
+              }
+            : null
+        }
+        initialBilling={
+          order.billing
+            ? {
+                requestInvoice: order.billing.requested,
+                fiscalName: order.billing.fiscalName,
+                nif: order.billing.nif,
+                address: order.billing.address,
+                city: order.billing.city,
+                postalCode: order.billing.postalCode,
+                country: order.billing.country,
+                email: order.billing.email,
+              }
+            : null
+        }
         invoiceEvents={invoiceEvents.map((e) => ({
           date: e.createdAt.toISOString().slice(0, 16).replace("T", " "),
           text: e.message,

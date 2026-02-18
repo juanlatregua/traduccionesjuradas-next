@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { capturePayPalOrder } from "@/lib/paypal";
-import { updateOrderPayment } from "@/lib/orders";
+import { getOrderDetail, updateOrderPayment } from "@/lib/orders";
 
 export const runtime = "nodejs";
 
@@ -11,6 +13,11 @@ type CaptureBody = {
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
+    }
+
     const body = (await req.json()) as CaptureBody;
 
     if (!body.paypalOrderId || !body.reference) {
@@ -18,6 +25,11 @@ export async function POST(req: Request) {
         { ok: false, error: "paypalOrderId y reference requeridos." },
         { status: 400 }
       );
+    }
+
+    const order = await getOrderDetail(body.reference, session.user.email);
+    if (!order) {
+      return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
 
     const captured = await capturePayPalOrder(body.paypalOrderId);

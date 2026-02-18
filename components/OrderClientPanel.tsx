@@ -11,6 +11,8 @@ type OrderClientPanelProps = {
   hasBilling: boolean;
   billingRequested: boolean;
   invoiceEvents: Array<{ date: string; text: string }>;
+  initialShipping?: Partial<ShippingForm> | null;
+  initialBilling?: Partial<BillingForm> | null;
 };
 
 type ShippingForm = {
@@ -76,14 +78,21 @@ export default function OrderClientPanel({
   hasBilling,
   billingRequested,
   invoiceEvents,
+  initialShipping,
+  initialBilling,
 }: OrderClientPanelProps) {
-  const [shipping, setShipping] = useState<ShippingForm>(EMPTY_SHIPPING);
+  const [shipping, setShipping] = useState<ShippingForm>({
+    ...EMPTY_SHIPPING,
+    ...initialShipping,
+  });
   const [billing, setBilling] = useState<BillingForm>({
     ...EMPTY_BILLING,
     requestInvoice: billingRequested,
+    ...initialBilling,
   });
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [requestingInvoice, setRequestingInvoice] = useState(false);
 
   const shippingComplete = isShippingComplete(shipping);
   const billingComplete = isBillingComplete(billing);
@@ -139,6 +148,45 @@ export default function OrderClientPanel({
       setNotice("Error de conexion al guardar datos de facturacion.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function requestInvoice() {
+    if (!billing.requestInvoice) {
+      setNotice("Marca la opcion de solicitar factura.");
+      return;
+    }
+    if (!billingComplete) {
+      setNotice("Completa todos los datos fiscales antes de solicitar la factura.");
+      return;
+    }
+
+    setRequestingInvoice(true);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/orders/${reference}/invoice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fiscalName: billing.fiscalName,
+          nif: billing.nif,
+          address: billing.address,
+          city: billing.city,
+          postalCode: billing.postalCode,
+          country: billing.country,
+          email: billing.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setNotice("Solicitud de factura enviada correctamente.");
+      } else {
+        setNotice(data.error || "No se pudo solicitar la factura.");
+      }
+    } catch {
+      setNotice("Error de conexion al solicitar factura.");
+    } finally {
+      setRequestingInvoice(false);
     }
   }
 
@@ -320,6 +368,14 @@ export default function OrderClientPanel({
                 : "Pendiente completar datos de facturacion"
               : "Factura no solicitada"}
           </span>
+          <button
+            type="button"
+            onClick={requestInvoice}
+            disabled={requestingInvoice || !billing.requestInvoice || !billingComplete}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            {requestingInvoice ? "Solicitando..." : "Solicitar factura"}
+          </button>
         </div>
         <h3 className="mt-5 text-sm font-semibold text-slate-900">Historial de facturas</h3>
         <ul className="mt-2 space-y-2 text-sm text-slate-700">

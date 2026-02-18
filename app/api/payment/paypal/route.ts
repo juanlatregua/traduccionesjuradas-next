@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getOrderPublic } from "@/lib/orders";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { getOrderDetail } from "@/lib/orders";
 import { createPayPalOrder } from "@/lib/paypal";
 
 export const runtime = "nodejs";
@@ -10,6 +12,11 @@ type PayPalBody = {
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
+    }
+
     const body = (await req.json()) as PayPalBody;
     const reference = body.reference;
 
@@ -17,7 +24,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Referencia requerida." }, { status: 400 });
     }
 
-    const order = await getOrderPublic(reference);
+    const order = await getOrderDetail(reference, session.user.email);
     if (!order) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }

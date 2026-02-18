@@ -10,6 +10,7 @@ import { isVerifiedOtpTokenValid, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-
 import { getAllOrdersForStaff } from "@/lib/orders";
 import TranslatorNotifyForm from "@/components/TranslatorNotifyForm";
 import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
+import TranslatorDeliveryForm from "@/components/TranslatorDeliveryForm";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -123,11 +124,10 @@ export default async function ZonaTraductorPage() {
       {orders.length > 0 && (
         <section className="mx-auto mt-6 grid max-w-6xl gap-4 md:grid-cols-2">
           {orders.map((order) => (
-            <TranslatorNotifyForm
-              key={order.reference}
-              reference={order.reference}
-              defaultClientEmail={order.clientEmail}
-            />
+            <div key={order.reference} className="space-y-3">
+              <TranslatorDeliveryForm reference={order.reference} />
+              <TranslatorNotifyForm reference={order.reference} defaultClientEmail={order.clientEmail} />
+            </div>
           ))}
         </section>
       )}
