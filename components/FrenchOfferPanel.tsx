@@ -5,6 +5,7 @@ import Link from "next/link";
 
 type Direction = "fr-es" | "es-fr";
 type Step = 1 | 2 | 3;
+type SelectionMode = "presets" | "file";
 
 type DocOption = {
   id: string;
@@ -278,6 +279,7 @@ function estimateDetail(doc: DocOption, pages: number, words: number) {
 
 export default function FrenchOfferPanel() {
   const [step, setStep] = useState<Step>(1);
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("presets");
   const [direction, setDirection] = useState<Direction>("fr-es");
   const [query, setQuery] = useState("");
   const [selectedDocId, setSelectedDocId] = useState<string>(DOC_OPTIONS[0].id);
@@ -285,6 +287,7 @@ export default function FrenchOfferPanel() {
   const [words, setWords] = useState(1200);
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [extractingWords, setExtractingWords] = useState(false);
+  const [filePrice, setFilePrice] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -352,6 +355,31 @@ export default function FrenchOfferPanel() {
     setNotice(null);
   };
 
+  const addFileDocToCart = () => {
+    if (words < 5) {
+      setError("Sube un documento y extrae las palabras primero.");
+      return;
+    }
+    const price = filePrice ?? Math.round(words * WORD_PRICE_FR * 1.1);
+    const fileName = fileUpload?.name || "Documento";
+    const item: CartItem = {
+      uid: `file-${Date.now()}`,
+      docId: "file-upload",
+      label: `${fileName} (${words} palabras)`,
+      price,
+      deadline: "Segun volumen",
+      detail: `${words} palabras x ${money(WORD_PRICE_FR)} + 10% margen.`,
+      samplePdf: "",
+      payDirect: true,
+    };
+    setCart((prev) => [...prev, item]);
+    setStep(2);
+    setError(null);
+    setNotice(null);
+    setFileUpload(null);
+    setFilePrice(null);
+  };
+
   const removeItem = (uid: string) => {
     setCart((prev) => prev.filter((item) => item.uid !== uid));
   };
@@ -365,10 +393,11 @@ export default function FrenchOfferPanel() {
     setError(null);
   };
 
+  const WORD_PRICE_FR = 0.08;
+
   const extractWordsFromFile = async () => {
-    if (selectedDoc.pricing !== "per-word") return;
     if (!fileUpload) {
-      setError("Adjunta un PDF para extraer palabras.");
+      setError("Adjunta un PDF o imagen para extraer palabras.");
       return;
     }
     setExtractingWords(true);
@@ -389,7 +418,8 @@ export default function FrenchOfferPanel() {
         throw new Error("No se pudieron extraer palabras validas.");
       }
       setWords(extracted);
-      setNotice(`Palabras extraidas: ${extracted}. Precio actualizado al instante.`);
+      setFilePrice(Math.round(extracted * WORD_PRICE_FR * 1.1));
+      setNotice(`Palabras extraidas: ${extracted}. Precio actualizado.`);
     } catch (err: any) {
       setError(err?.message || "No se pudieron extraer palabras.");
     } finally {
@@ -480,161 +510,273 @@ export default function FrenchOfferPanel() {
       </label>
 
       {step === 1 && (
-      <div className="mt-5 grid gap-4 md:grid-cols-[1.5fr_1fr]">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Documento (escribe y te proponemos opciones)
-              </span>
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ejemplo: penales, nacimiento, Kbis..."
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-              />
-            </label>
+        <div className="mt-5 space-y-4">
+          <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setSelectionMode("presets")}
+              className={`rounded-xl px-3 py-2 text-xs font-semibold ${
+                selectionMode === "presets" ? "bg-emerald-600 text-white" : "text-slate-700"
+              }`}
+            >
+              Documentos habituales (precio cerrado)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectionMode("file")}
+              className={`rounded-xl px-3 py-2 text-xs font-semibold ${
+                selectionMode === "file" ? "bg-emerald-600 text-white" : "text-slate-700"
+              }`}
+            >
+              Subir documento (contar palabras)
+            </button>
+          </div>
 
-            <div className="mt-3 space-y-2">
-              {matches.map((doc) => (
+          {selectionMode === "presets" ? (
+            <div className="grid gap-4 md:grid-cols-[1.5fr_1fr]">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <label className="block">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Documento (escribe y te proponemos opciones)
+                  </span>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Ejemplo: penales, nacimiento, Kbis..."
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </label>
+
+                <div className="mt-3 space-y-2">
+                  {matches.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => setSelectedDocId(doc.id)}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left text-sm ${
+                        selectedDoc.id === doc.id
+                          ? "border-emerald-400 bg-emerald-50 text-slate-900"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      {doc.label}
+                      {doc.pricing === "per-word" && (
+                        <span className="ml-2 text-[11px] text-emerald-600">(por palabra)</span>
+                      )}
+                      {doc.pricing === "per-page" && (
+                        <span className="ml-2 text-[11px] text-emerald-600">(por pagina)</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {selectedDoc.pricing === "per-page" && (
+                  <label className="mt-3 flex max-w-[220px] flex-col gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Paginas</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={pages}
+                      onChange={(e) => setPages(Number(e.target.value) || 1)}
+                      className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                    />
+                  </label>
+                )}
+
+                {selectedDoc.pricing === "per-word" && (
+                  <div className="mt-3 space-y-3">
+                    <label className="flex max-w-[280px] flex-col gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Adjuntar PDF (extractor)</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                        onChange={(e) => setFileUpload(e.target.files?.[0] || null)}
+                        className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={extractWordsFromFile}
+                      disabled={extractingWords}
+                      className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                    >
+                      {extractingWords ? "Extrayendo palabras..." : "Extraer palabras del documento"}
+                    </button>
+                    <label className="flex max-w-[220px] flex-col gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Palabras (manual)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={200000}
+                        value={words}
+                        onChange={(e) => setWords(Number(e.target.value) || 1)}
+                        className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Precio estimado</p>
+                  <p className="mt-1 text-xl font-bold text-emerald-700">{money(previewPrice)}</p>
+                  <p className="text-xs text-slate-600">{previewDetail}</p>
+                  <p className="text-xs text-slate-600">Plazo: {selectedDoc.deadline}</p>
+                </div>
+
                 <button
-                  key={doc.id}
                   type="button"
-                  onClick={() => setSelectedDocId(doc.id)}
-                  className={`w-full rounded-2xl border px-3 py-2 text-left text-sm ${
-                    selectedDoc.id === doc.id
-                      ? "border-emerald-400 bg-emerald-50 text-slate-900"
-                      : "border-slate-200 bg-white text-slate-700"
-                  }`}
+                  onClick={addToCart}
+                  className="mt-4 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
-                  {doc.label}
+                  Añadir a la cesta
                 </button>
-              ))}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Vista previa documento</p>
+                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                  <object
+                    data={selectedDoc.samplePdf}
+                    type="application/pdf"
+                    className="h-[220px] w-full"
+                    aria-label="Vista previa PDF"
+                  >
+                    <div className="flex h-[220px] items-center justify-center text-xs text-slate-500">
+                      Vista previa no disponible
+                    </div>
+                  </object>
+                </div>
+                <a
+                  href={selectedDoc.samplePdf}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
+                >
+                  Ver ejemplo en nueva pestaña
+                </a>
+
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    Bot de confianza
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">Respuestas en vivo según el documento seleccionado.</p>
+                  <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-emerald-100 bg-white p-2">
+                    {botHistory.map((msg, idx) => (
+                      <p
+                        key={`${msg.from}-${idx}`}
+                        className={`text-xs ${
+                          msg.from === "bot" ? "text-slate-700" : "text-emerald-700 font-semibold text-right"
+                        }`}
+                      >
+                        {msg.text}
+                      </p>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {QUICK_FAQ.map((item) => (
+                      <button
+                        key={item.q}
+                        type="button"
+                        onClick={() => askBot(item.q, item.a)}
+                        className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
+                      >
+                        {item.q}
+                      </button>
+                    ))}
+                  </div>
+                  <Link
+                    href="/preguntas-frecuentes"
+                    className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
+                  >
+                    Ver FAQ completa
+                  </Link>
+                </div>
+              </div>
             </div>
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-900">
+                Sube tu documento y calculamos el precio por palabras
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                Tarifa: {money(WORD_PRICE_FR)}/palabra + 10% margen de seguridad. Valido para cualquier documento en frances.
+              </p>
 
-            {selectedDoc.pricing === "per-page" && (
-              <label className="mt-3 flex max-w-[220px] flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Paginas</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={pages}
-                  onChange={(e) => setPages(Number(e.target.value) || 1)}
-                  className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-                />
-              </label>
-            )}
-
-            {selectedDoc.pricing === "per-word" && (
-              <div className="mt-3 space-y-3">
-                <label className="flex max-w-[280px] flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Adjuntar PDF (extractor)</span>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Adjuntar documento (PDF, JPG o PNG)
+                  </span>
                   <input
                     type="file"
-                    accept=".pdf,application/pdf"
-                    onChange={(e) => setFileUpload(e.target.files?.[0] || null)}
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    onChange={(e) => {
+                      setFileUpload(e.target.files?.[0] || null);
+                      setFilePrice(null);
+                    }}
                     className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700"
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={extractWordsFromFile}
-                  disabled={extractingWords}
-                  className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-                >
-                  {extractingWords ? "Extrayendo palabras..." : "Extraer palabras del PDF"}
-                </button>
-                <label className="flex max-w-[220px] flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Palabras (manual)</span>
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    O introduce palabras manualmente
+                  </span>
                   <input
                     type="number"
                     min={1}
                     max={200000}
                     value={words}
-                    onChange={(e) => setWords(Number(e.target.value) || 1)}
+                    onChange={(e) => {
+                      const w = Number(e.target.value) || 1;
+                      setWords(w);
+                      setFilePrice(Math.round(w * WORD_PRICE_FR * 1.1));
+                    }}
                     className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                   />
                 </label>
               </div>
-            )}
 
-            <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Precio estimado</p>
-              <p className="mt-1 text-xl font-bold text-emerald-700">{money(previewPrice)}</p>
-              <p className="text-xs text-slate-600">{previewDetail}</p>
-              <p className="text-xs text-slate-600">Plazo: {selectedDoc.deadline}</p>
-            </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={extractWordsFromFile}
+                  disabled={extractingWords || !fileUpload}
+                  className="rounded-2xl bg-gradient-to-r from-emerald-600 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {extractingWords ? "Extrayendo palabras..." : "Extraer palabras del documento"}
+                </button>
+              </div>
 
-            <button
-              type="button"
-              onClick={addToCart}
-              className="mt-4 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-            >
-              Añadir a la cesta
-            </button>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Vista previa documento</p>
-            <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-              <object
-                data={selectedDoc.samplePdf}
-                type="application/pdf"
-                className="h-[220px] w-full"
-                aria-label="Vista previa PDF"
-              >
-                <div className="flex h-[220px] items-center justify-center text-xs text-slate-500">
-                  Vista previa no disponible
-                </div>
-              </object>
-            </div>
-            <a
-              href={selectedDoc.samplePdf}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
-            >
-              Ver ejemplo en nueva pestaña
-            </a>
-
-            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                Bot de confianza
-              </p>
-              <p className="mt-1 text-xs text-slate-600">Respuestas en vivo según el documento seleccionado.</p>
-              <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-emerald-100 bg-white p-2">
-                {botHistory.map((msg, idx) => (
-                  <p
-                    key={`${msg.from}-${idx}`}
-                    className={`text-xs ${
-                      msg.from === "bot" ? "text-slate-700" : "text-emerald-700 font-semibold text-right"
-                    }`}
-                  >
-                    {msg.text}
+              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Precio estimado</p>
+                {filePrice != null ? (
+                  <>
+                    <p className="mt-1 text-xl font-bold text-emerald-700">{money(filePrice)}</p>
+                    <p className="text-xs text-slate-600">
+                      {words} palabras x {money(WORD_PRICE_FR)} + 10% margen.
+                    </p>
+                    <p className="text-xs text-slate-600">Plazo: segun volumen.</p>
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-slate-600">
+                    Sube un documento o introduce las palabras para ver el precio.
                   </p>
-                ))}
+                )}
               </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {QUICK_FAQ.map((item, idx) => (
-                  <button
-                    key={item.q}
-                    type="button"
-                    onClick={() => askBot(item.q, item.a)}
-                    className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
-                  >
-                    {item.q}
-                  </button>
-                ))}
-              </div>
-              <Link
-                href="/preguntas-frecuentes"
-                className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
-              >
-                Ver FAQ completa
-              </Link>
+
+              {filePrice != null && (
+                <button
+                  type="button"
+                  onClick={addFileDocToCart}
+                  className="mt-4 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  Añadir a la cesta
+                </button>
+              )}
             </div>
-          </div>
+          )}
         </div>
       )}
 

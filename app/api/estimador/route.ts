@@ -154,6 +154,14 @@ async function extractPdfTextWithOcrSpaceByPages(
   try {
     await fs.writeFile(pdfPath, pdfBuffer);
 
+    // En Vercel no existe pdftoppm por defecto.
+    if (process.env.VERCEL) {
+      return {
+        ok: false as const,
+        error: "OCR por páginas no disponible en este entorno (pdftoppm no instalado).",
+      };
+    }
+
     // Genera JPG por página para evitar el límite de 1MB por archivo del plan gratuito.
     await execFileAsync("pdftoppm", ["-jpeg", "-r", "110", "-f", "1", "-l", "8", pdfPath, prefix]);
 
@@ -203,16 +211,26 @@ function getGoogleVisionApiKey() {
 }
 
 function parseGoogleServiceAccount(): GoogleServiceAccount | null {
-  const raw = process.env.GOOGLE_VISION_SERVICE_ACCOUNT_JSON || "";
+  let raw = process.env.GOOGLE_VISION_SERVICE_ACCOUNT_JSON || "";
   if (!raw) return null;
+
+  // Quitar comillas simples externas si las hay (copiado de .env.local)
+  if (raw.startsWith("'") && raw.endsWith("'")) {
+    raw = raw.slice(1, -1);
+  }
+
   try {
     const parsed = JSON.parse(raw) as GoogleServiceAccount;
-    if (!parsed.client_email || !parsed.private_key) return null;
+    if (!parsed.client_email || !parsed.private_key) {
+      console.error("[GOOGLE_VISION] JSON parseado pero faltan client_email o private_key.");
+      return null;
+    }
     return {
       ...parsed,
       private_key: parsed.private_key.replace(/\\n/g, "\n"),
     };
-  } catch {
+  } catch (err) {
+    console.error("[GOOGLE_VISION] Error parseando GOOGLE_VISION_SERVICE_ACCOUNT_JSON:", (err as Error)?.message, "Primeros 80 chars:", raw.slice(0, 80));
     return null;
   }
 }
@@ -298,7 +316,9 @@ async function extractTextWithGoogleVisionImage(
   if (!accessToken && !apiKey) {
     return {
       ok: false as const,
-      error: "Falta configurar GOOGLE_VISION_SERVICE_ACCOUNT_JSON o GOOGLE_VISION_API_KEY.",
+      error: process.env.GOOGLE_VISION_SERVICE_ACCOUNT_JSON
+        ? "GOOGLE_VISION_SERVICE_ACCOUNT_JSON existe pero no se pudo parsear (revisa formato JSON en Vercel)."
+        : "Falta configurar GOOGLE_VISION_SERVICE_ACCOUNT_JSON o GOOGLE_VISION_API_KEY.",
     };
   }
 
@@ -315,9 +335,10 @@ async function extractTextWithGoogleVisionImage(
       ],
     };
 
-    const endpoint = apiKey
-      ? `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey)}`
-      : "https://vision.googleapis.com/v1/images:annotate";
+    const endpoint =
+      accessToken || !apiKey
+        ? "https://vision.googleapis.com/v1/images:annotate"
+        : `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey)}`;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (accessToken) {
       headers.Authorization = `Bearer ${accessToken}`;
@@ -329,7 +350,11 @@ async function extractTextWithGoogleVisionImage(
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      return { ok: false as const, error: `Google Vision HTTP ${res.status}` };
+      const errText = await res.text().catch(() => "");
+      return {
+        ok: false as const,
+        error: `Google Vision HTTP ${res.status}${errText ? `: ${errText}` : ""}`,
+      };
     }
     const data = (await res.json()) as any;
     const text = String(data?.responses?.[0]?.fullTextAnnotation?.text || "")
@@ -349,52 +374,73 @@ async function extractPdfTextWithGoogleVision(
   pdfBuffer: Buffer,
   ocrLanguage: string
 ) {
-  // Intenta enviar el PDF completo como "imagen" a Google Vision.
-  // Vision acepta PDFs inline (hasta ~20MB) con DOCUMENT_TEXT_DETECTION.
-  const result = await extractTextWithGoogleVisionImage(pdfBuffer, ocrLanguage);
-  if (result.ok) {
-    return { ...result, method: "google-vision-pdf" as const };
+  const accessToken = await getGoogleAccessTokenFromServiceAccount();
+  const apiKey = getGoogleVisionApiKey();
+  if (!accessToken && !apiKey) {
+    return {
+      ok: false as const,
+      error: process.env.GOOGLE_VISION_SERVICE_ACCOUNT_JSON
+        ? "GOOGLE_VISION_SERVICE_ACCOUNT_JSON existe pero no se pudo parsear (revisa formato JSON en Vercel)."
+        : "Falta configurar GOOGLE_VISION_SERVICE_ACCOUNT_JSON o GOOGLE_VISION_API_KEY.",
+    };
   }
 
-  // Si falla (PDF demasiado grande o no soportado), intenta con pdftoppm si existe.
   try {
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "estimador-gvision-"));
-    const pdfPath = path.join(tmpDir, "input.pdf");
-    const prefix = path.join(tmpDir, "page");
-    try {
-      await fs.writeFile(pdfPath, pdfBuffer);
-      await execFileAsync("pdftoppm", ["-jpeg", "-r", "140", "-f", "1", "-l", "8", pdfPath, prefix]);
+    const payload = {
+      requests: [
+        {
+          inputConfig: {
+            content: pdfBuffer.toString("base64"),
+            mimeType: "application/pdf",
+          },
+          features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
+          pages: [1, 2, 3, 4, 5, 6, 7, 8],
+          imageContext: {
+            languageHints: [toVisionLanguageHint(ocrLanguage)],
+          },
+        },
+      ],
+    };
 
-      const names = (await fs.readdir(tmpDir))
-        .filter((n) => /^page-\d+\.jpg$/i.test(n))
-        .sort((a, b) => {
-          const na = Number(a.match(/\d+/)?.[0] || 0);
-          const nb = Number(b.match(/\d+/)?.[0] || 0);
-          return na - nb;
-        });
+    const endpoint =
+      accessToken || !apiKey
+        ? "https://vision.googleapis.com/v1/files:annotate"
+        : `https://vision.googleapis.com/v1/files:annotate?key=${encodeURIComponent(apiKey)}`;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
-      if (names.length === 0) {
-        return { ok: false as const, error: "No se pudieron generar páginas para Google Vision." };
-      }
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
 
-      const parts: string[] = [];
-      for (const n of names) {
-        const img = await fs.readFile(path.join(tmpDir, n));
-        const out = await extractTextWithGoogleVisionImage(img, ocrLanguage);
-        if (out.ok && out.text) parts.push(out.text);
-      }
-
-      const text = parts.join(" ").replace(/\s+/g, " ").trim();
-      if (!text) {
-        return { ok: false as const, error: "Google Vision por páginas no devolvió texto." };
-      }
-      return { ok: true as const, text, method: "google-vision-pages" as const };
-    } finally {
-      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      return {
+        ok: false as const,
+        error: `Google Vision HTTP ${res.status}${errText ? `: ${errText}` : ""}`,
+      };
     }
+
+    const data = (await res.json()) as any;
+    const pages = data?.responses?.[0]?.responses;
+    const text = Array.isArray(pages)
+      ? pages
+          .map((p: any) => String(p?.fullTextAnnotation?.text || ""))
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim()
+      : "";
+
+    if (!text) {
+      const errMsg = data?.responses?.[0]?.error?.message;
+      return { ok: false as const, error: errMsg || "Google Vision files:annotate no devolvió texto." };
+    }
+
+    return { ok: true as const, text, method: "google-vision-pdf" as const };
   } catch {
-    // pdftoppm no disponible (Vercel) — devolvemos el error original
-    return { ok: false as const, error: result.error || "Google Vision no pudo procesar el PDF." };
+    return { ok: false as const, error: "No se pudo conectar con Google Vision (files:annotate)." };
   }
 }
 
@@ -594,7 +640,7 @@ export async function POST(req: Request) {
           ocrError = `${visionExtraction.error} | ${ocrExtraction.error}`;
 
           // Si falla por tamaño del PDF, intenta OCR por páginas (OCR.space).
-          if (/size exceeds|file failed validation/i.test(ocrExtraction.error || "")) {
+          if (!process.env.VERCEL && /size exceeds|file failed validation/i.test(ocrExtraction.error || "")) {
             const pageOcr = await extractPdfTextWithOcrSpaceByPages(buffer, fileName, ocrLanguage);
             if (pageOcr.ok) {
               extraction = pageOcr;
@@ -622,7 +668,7 @@ export async function POST(req: Request) {
           error:
             ocrError
               ? `No hemos podido extraer texto fiable. OCR: ${ocrError}`
-              : "No hemos podido extraer texto fiable del archivo. Si es PDF escaneado, activa OCR automático (GOOGLE_VISION_API_KEY u OCR_SPACE_API_KEY) o usa presupuesto cerrado.",
+              : "No hemos podido extraer texto fiable del archivo. Configura Google Vision (GOOGLE_VISION_SERVICE_ACCOUNT_JSON) u OCR_SPACE_API_KEY, o usa presupuesto cerrado.",
         },
         { status: 422 }
       );
