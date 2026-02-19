@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { capturePayPalOrder } from "@/lib/paypal";
 import { getOrderDetail, updateOrderPayment } from "@/lib/orders";
+import { sendPaymentConfirmedEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,15 @@ export async function POST(req: Request) {
         captured.purchase_units?.[0]?.payments?.captures?.[0]?.id || body.paypalOrderId;
 
       await updateOrderPayment(body.reference, "PAYPAL", captureId);
+
+      // Notify client (non-blocking)
+      sendPaymentConfirmedEmail({
+        toEmail: session.user.email,
+        reference: order.reference,
+        title: order.title,
+        amountCents: order.amountCents,
+        method: "PAYPAL",
+      }).catch((e) => console.error("[paypal-capture] email failed", e));
 
       return NextResponse.json({ ok: true, status: "COMPLETED" });
     }

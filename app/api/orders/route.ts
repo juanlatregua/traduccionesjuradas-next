@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createOrder, getOrdersByClientEmail } from "@/lib/orders";
+import { sendOrderCreatedEmail, sendNewOrderStaffEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -59,6 +60,27 @@ export async function POST(req: Request) {
       amountCents: body.amountCents,
       currency: body.currency || "eur",
     });
+
+    // Send emails (non-blocking)
+    const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
+    const paymentUrl = `${baseUrl}/area-cliente/pedido/${order.reference}/pagar`;
+
+    sendOrderCreatedEmail({
+      toEmail: session.user.email,
+      clientName: session.user.name || undefined,
+      reference: order.reference,
+      title: body.title,
+      amountCents: body.amountCents,
+      paymentUrl,
+    }).catch((e) => console.error("[orders] email to client failed", e));
+
+    sendNewOrderStaffEmail({
+      reference: order.reference,
+      title: body.title,
+      amountCents: body.amountCents,
+      clientEmail: session.user.email,
+      langPair: body.langPair,
+    }).catch((e) => console.error("[orders] email to staff failed", e));
 
     return NextResponse.json({ ok: true, order: { id: order.id, reference: order.reference } });
   } catch (err) {

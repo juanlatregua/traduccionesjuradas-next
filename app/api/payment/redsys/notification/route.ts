@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyRedsysNotification } from "@/lib/redsys";
-import { updateOrderPayment, markPaymentFailed } from "@/lib/orders";
+import { updateOrderPayment, markPaymentFailed, getOrderDetail } from "@/lib/orders";
+import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { isResponseCodeOk } from "redsys-easy";
 
 export const runtime = "nodejs";
@@ -35,6 +36,18 @@ export async function POST(req: Request) {
     if (isResponseCodeOk(responseCode)) {
       await updateOrderPayment(orderReference, "REDSYS", authCode || responseCode);
       console.info(`[redsys-notification] payment OK for ${orderReference}`);
+
+      // Notify client (non-blocking)
+      const order = await getOrderDetail(orderReference);
+      if (order?.clientEmail) {
+        sendPaymentConfirmedEmail({
+          toEmail: order.clientEmail,
+          reference: order.reference,
+          title: order.title,
+          amountCents: order.amountCents,
+          method: "REDSYS",
+        }).catch((e) => console.error("[redsys-notification] email failed", e));
+      }
     } else {
       await markPaymentFailed(orderReference);
       console.warn(`[redsys-notification] payment FAILED for ${orderReference}, code: ${responseCode}`);

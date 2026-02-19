@@ -302,6 +302,182 @@ Datos fiscales:
   });
 }
 
+export async function sendOrderCreatedEmail(data: {
+  toEmail: string;
+  clientName?: string;
+  reference: string;
+  title: string;
+  amountCents: number;
+  paymentUrl: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = (data.amountCents / 100).toFixed(2);
+  const name = data.clientName || "";
+  const subject = `Pedido ${data.reference} creado - Traducciones Juradas`;
+
+  const text = `Hola ${name},
+
+Hemos registrado tu pedido correctamente.
+
+Referencia: ${data.reference}
+Concepto: ${data.title}
+Importe: ${amount} EUR
+
+Puedes realizar el pago en: ${data.paymentUrl}
+
+Si ya has cerrado la ventana, accede a tu area de cliente en https://www.traduccionesjuradas.net/area-cliente para ver tus pedidos.
+
+Gracias,
+Equipo de TraduccionesJuradas.net`;
+
+  const html = `
+    <h2>Pedido registrado</h2>
+    <p>Hola ${name},</p>
+    <p>Hemos registrado tu pedido correctamente. Aqui tienes el resumen:</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
+    </table>
+    <p><a href="${data.paymentUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ir al pago</a></p>
+    <p style="font-size:13px; color:#6b7280;">Tambien puedes acceder desde tu <a href="https://www.traduccionesjuradas.net/area-cliente">area de cliente</a>.</p>
+    <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendPaymentConfirmedEmail(data: {
+  toEmail: string;
+  reference: string;
+  title: string;
+  amountCents: number;
+  method: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = (data.amountCents / 100).toFixed(2);
+  const methodLabels: Record<string, string> = {
+    REDSYS: "Tarjeta bancaria",
+    PAYPAL: "PayPal",
+    BIZUM: "Bizum",
+    TRANSFER: "Transferencia bancaria",
+  };
+  const methodLabel = methodLabels[data.method] || data.method;
+  const subject = `Pago confirmado - Pedido ${data.reference}`;
+
+  const clientUrl = `https://www.traduccionesjuradas.net/area-cliente/pedido/${data.reference}`;
+
+  const text = `Hola,
+
+Hemos recibido tu pago correctamente.
+
+Referencia: ${data.reference}
+Concepto: ${data.title}
+Importe: ${amount} EUR
+Metodo: ${methodLabel}
+
+Puedes seguir el estado de tu pedido en: ${clientUrl}
+
+Te avisaremos cuando tu traduccion este lista.
+
+Gracias,
+Equipo de TraduccionesJuradas.net`;
+
+  const html = `
+    <h2>Pago confirmado</h2>
+    <p>Hemos recibido tu pago correctamente.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Metodo</td><td>${methodLabel}</td></tr>
+    </table>
+    <p><a href="${clientUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver mi pedido</a></p>
+    <p>Te avisaremos cuando tu traduccion este lista.</p>
+    <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendNewOrderStaffEmail(data: {
+  reference: string;
+  title: string;
+  amountCents: number;
+  clientEmail: string;
+  langPair?: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  const to = process.env.PRESUPUESTO_TO;
+  if (!to) throw new Error("Missing PRESUPUESTO_TO");
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = (data.amountCents / 100).toFixed(2);
+  const subject = `Nuevo pedido ${data.reference} - ${amount} EUR`;
+
+  const text = `Nuevo pedido creado desde la web.
+
+Referencia: ${data.reference}
+Concepto: ${data.title}
+Idiomas: ${data.langPair || "-"}
+Importe: ${amount} EUR
+Cliente: ${data.clientEmail}
+
+Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
+
+  const html = `
+    <h2>Nuevo pedido</h2>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Idiomas</td><td>${data.langPair || "-"}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
+    </table>
+    <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
+  `;
+
+  await sgMail.send({
+    to,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
 export async function sendStaffOtpEmail(data: { toEmail: string; code: string }) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");

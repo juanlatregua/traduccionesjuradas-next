@@ -122,6 +122,21 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         }))}
       />
 
+      {order.billing?.requested && (
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="text-lg font-semibold text-slate-900">Factura</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Datos de facturacion registrados a nombre de {order.billing.fiscalName} ({order.billing.nif}).
+          </p>
+          <a
+            href={`/api/orders/${order.reference}/invoice-pdf`}
+            className="mt-3 inline-flex rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          >
+            Descargar factura PDF
+          </a>
+        </section>
+      )}
+
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Archivo traducido</h2>
         {order.translatedFileUrl ? (
