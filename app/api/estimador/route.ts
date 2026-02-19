@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { getWordRateForLangOrPair } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
@@ -11,21 +12,6 @@ const SAFETY_MARGIN_MULTIPLIER = 1.1;
 const SAFETY_MARGIN_PCT = 10;
 
 type Urgency = "normal" | "urgente24";
-
-function getBaseLang(langOrPair: string) {
-  if (langOrPair.includes("-")) {
-    const [from, to] = langOrPair.split("-");
-    if (from === "es" && to) return to;
-    if (to === "es" && from) return from;
-    return from || langOrPair;
-  }
-  return langOrPair;
-}
-
-function getWordRate(langOrPair: string) {
-  const baseLang = getBaseLang(langOrPair);
-  return baseLang === "fr" ? 0.10 : 0.14;
-}
 
 function getOcrLanguage(langOrPair: string) {
   const normalized = String(langOrPair || "").toLowerCase();
@@ -396,7 +382,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const rate = getWordRate(lang);
+    const rate = getWordRateForLangOrPair(lang);
     const base = Math.round(words * rate);
     const urgencyMultiplier = urgency === "urgente24" ? 1.25 : 1;
     const subtotal = Math.round(base * urgencyMultiplier);

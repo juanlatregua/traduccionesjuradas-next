@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getWordRateForLangOrPair } from "@/lib/pricing";
 
 type Lang = "fr" | "de" | "en" | "it" | "pt" | "nl" | "ca" | "sv" | "no";
 type AnyLang = Lang | "es";
@@ -99,36 +100,6 @@ const PRESET_LANG_OPTIONS = Array.from(
 const LANG_PAIR_OPTIONS = Array.from(
   new Map([...DEFAULT_LANG_PAIR_OPTIONS, ...PRESET_LANG_OPTIONS].map((o) => [o.value, o])).values()
 );
-
-const BASE_PRICE_PER_DOC: Record<DocType, number> = {
-  certificado: 40,
-  academico: 50,
-  juridico: 50,
-  mercantil: 50,
-};
-
-const LANG_MULTIPLIER: Record<Lang, number> = {
-  fr: 1,
-  de: 1.25,
-  en: 1.25,
-  it: 1.25,
-  pt: 1.25,
-  nl: 1.25,
-  ca: 1.25,
-  sv: 1.25,
-  no: 1.25,
-};
-
-function getRateLang(langPair: LangPair): Lang {
-  const [from, to] = langPair.split("-") as [AnyLang, AnyLang];
-  if (from === "es" && to !== "es") return to as Lang;
-  if (to === "es" && from !== "es") return from as Lang;
-  return from === "es" ? "en" : (from as Lang);
-}
-
-function getWordRate(lang: Lang) {
-  return lang === "fr" ? 0.08 : 0.14;
-}
 
 function clampInt(n: number, min: number, max: number) {
   if (!Number.isFinite(n)) return min;
@@ -238,8 +209,7 @@ export default function PriceEstimator() {
       setMessage("Selecciona la combinación de idiomas.");
       return;
     }
-    const lang = getRateLang(fileLangPair as LangPair);
-    const rate = getWordRate(lang);
+    const rate = getWordRateForLangOrPair(fileLangPair as string);
     const base = Math.round(manualWords * rate);
     const subtotal = Math.round(base * (fileUrgency === "urgente24" ? 1.25 : 1));
     const total = Math.round(subtotal * SAFETY_MARGIN_MULTIPLIER);
