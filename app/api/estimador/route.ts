@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
@@ -191,8 +192,76 @@ async function extractPdfTextWithOcrSpaceByPages(
   }
 }
 
+type GoogleServiceAccount = {
+  client_email: string;
+  private_key: string;
+  token_uri?: string;
+};
+
 function getGoogleVisionApiKey() {
   return process.env.GOOGLE_VISION_API_KEY || "";
+}
+
+function parseGoogleServiceAccount(): GoogleServiceAccount | null {
+  const raw = process.env.GOOGLE_VISION_SERVICE_ACCOUNT_JSON || "";
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as GoogleServiceAccount;
+    if (!parsed.client_email || !parsed.private_key) return null;
+    return {
+      ...parsed,
+      private_key: parsed.private_key.replace(/\\n/g, "\n"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function base64Url(input: string | Buffer) {
+  const buff = Buffer.isBuffer(input) ? input : Buffer.from(input, "utf8");
+  return buff
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+async function getGoogleAccessTokenFromServiceAccount() {
+  const sa = parseGoogleServiceAccount();
+  if (!sa) return null;
+
+  const iat = Math.floor(Date.now() / 1000);
+  const exp = iat + 3600;
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri || "https://oauth2.googleapis.com/token",
+    iat,
+    exp,
+  };
+
+  const unsigned = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(payload))}`;
+  const signer = crypto.createSign("RSA-SHA256");
+  signer.update(unsigned);
+  signer.end();
+  const signature = signer.sign(sa.private_key);
+  const assertion = `${unsigned}.${base64Url(signature)}`;
+
+  const tokenUrl = sa.token_uri || "https://oauth2.googleapis.com/token";
+  const body = new URLSearchParams();
+  body.set("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
+  body.set("assertion", assertion);
+
+  const res = await fetch(tokenUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as { access_token?: string };
+  return data.access_token || null;
 }
 
 function toVisionLanguageHint(ocrLanguage: string) {
@@ -224,8 +293,14 @@ async function extractTextWithGoogleVisionImage(
   imageBuffer: Buffer,
   ocrLanguage: string
 ) {
+  const accessToken = await getGoogleAccessTokenFromServiceAccount();
   const apiKey = getGoogleVisionApiKey();
-  if (!apiKey) return { ok: false as const, error: "GOOGLE_VISION_API_KEY no configurada." };
+  if (!accessToken && !apiKey) {
+    return {
+      ok: false as const,
+      error: "Falta configurar GOOGLE_VISION_SERVICE_ACCOUNT_JSON o GOOGLE_VISION_API_KEY.",
+    };
+  }
 
   try {
     const payload = {
@@ -240,14 +315,19 @@ async function extractTextWithGoogleVisionImage(
       ],
     };
 
-    const res = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }
-    );
+    const endpoint = apiKey
+      ? `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey)}`
+      : "https://vision.googleapis.com/v1/images:annotate";
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
     if (!res.ok) {
       return { ok: false as const, error: `Google Vision HTTP ${res.status}` };
     }
@@ -270,8 +350,14 @@ async function extractPdfTextWithGoogleVisionByPages(
   baseName: string,
   ocrLanguage: string
 ) {
-  const apiKey = getGoogleVisionApiKey();
-  if (!apiKey) return { ok: false as const, error: "GOOGLE_VISION_API_KEY no configurada." };
+  const hasSa = Boolean(parseGoogleServiceAccount());
+  const hasApiKey = Boolean(getGoogleVisionApiKey());
+  if (!hasSa && !hasApiKey) {
+    return {
+      ok: false as const,
+      error: "Falta configurar GOOGLE_VISION_SERVICE_ACCOUNT_JSON o GOOGLE_VISION_API_KEY.",
+    };
+  }
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "estimador-gvision-"));
   const pdfPath = path.join(tmpDir, `${baseName || "input"}.pdf`);
