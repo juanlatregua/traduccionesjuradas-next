@@ -350,11 +350,13 @@ async function extractTextWithGoogleVisionImage(
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      return {
-        ok: false as const,
-        error: `Google Vision HTTP ${res.status}${errText ? `: ${errText}` : ""}`,
-      };
+      const errBody = await res.json().catch(() => null);
+      const apiMsg = String(errBody?.error?.message || "");
+      console.error("[GOOGLE_VISION]", res.status, apiMsg.slice(0, 200));
+      const userMsg = apiMsg.includes("billing")
+        ? "Google Vision requiere facturacion activa en el proyecto de Google Cloud."
+        : `Google Vision HTTP ${res.status}`;
+      return { ok: false as const, error: userMsg };
     }
     const data = (await res.json()) as any;
     const text = String(data?.responses?.[0]?.fullTextAnnotation?.text || "")
@@ -416,11 +418,13 @@ async function extractPdfTextWithGoogleVision(
     });
 
     if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      return {
-        ok: false as const,
-        error: `Google Vision HTTP ${res.status}${errText ? `: ${errText}` : ""}`,
-      };
+      const errBody = await res.json().catch(() => null);
+      const apiMsg = String(errBody?.error?.message || "");
+      console.error("[GOOGLE_VISION]", res.status, apiMsg.slice(0, 200));
+      const userMsg = apiMsg.includes("billing")
+        ? "Google Vision requiere facturacion activa en el proyecto de Google Cloud."
+        : `Google Vision HTTP ${res.status}`;
+      return { ok: false as const, error: userMsg };
     }
 
     const data = (await res.json()) as any;
