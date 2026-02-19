@@ -21,6 +21,14 @@ type DocumentPreset = {
   daysLabel?: string;
 };
 
+type AiAnalysis = {
+  documentType: string;
+  hasApostille: boolean;
+  suggestedUrgency: "normal" | "urgente24";
+  warnings: string[];
+  confidence: number;
+};
+
 type EstimateResult = {
   total: number;
   base: number;
@@ -32,9 +40,20 @@ type EstimateResult = {
   source: "preset" | "file";
   title?: string;
   presetPagesLabel?: string;
+  ai?: AiAnalysis;
 };
 const SAFETY_MARGIN_MULTIPLIER = 1.1;
 const SAFETY_MARGIN_PCT = 10;
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  registro_civil: "Registro civil",
+  academico: "Academico",
+  juridico_notarial: "Juridico / Notarial",
+  laboral: "Laboral",
+  mercantil: "Mercantil",
+  identidad: "Documento de identidad",
+  otro: "Otro",
+};
 
 const LANG_LABEL: Record<Lang, string> = {
   fr: "Francés",
@@ -195,6 +214,7 @@ export default function PriceEstimator() {
         marginPct: Number(data.marginPct || SAFETY_MARGIN_PCT),
         days: getEstimatedDays(fileDocType, fileUrgency),
         source: "file",
+        ai: data.ai || undefined,
       });
       setMessage(`Archivo analizado: ${data.words} palabras (${data.extractionMethod}).`);
     } catch (error: any) {
@@ -507,8 +527,25 @@ export default function PriceEstimator() {
             <p className="text-sm text-slate-700">
               Plazo estimado: <span className="font-semibold">{result.days}</span>.
             </p>
+            {result.ai && (
+              <div className="mt-3 space-y-1">
+                <p className="text-xs text-slate-600">
+                  Tipo detectado: <span className="font-semibold">{DOC_TYPE_LABELS[result.ai.documentType] || result.ai.documentType}</span>
+                  {result.ai.hasApostille && <span className="ml-2 rounded-lg bg-cyan-100 px-1.5 py-0.5 text-[11px] font-semibold text-cyan-800">Apostilla detectada</span>}
+                </p>
+                {result.ai.warnings.length > 0 && (
+                  <ul className="space-y-0.5">
+                    {result.ai.warnings.map((w, i) => (
+                      <li key={i} className="text-xs font-medium text-amber-700">
+                        {w}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             <p className="mt-2 text-[13px] text-slate-600">
-              Simulación orientativa. El precio exacto se confirma al revisar el documento final.
+              Simulacion orientativa. El precio exacto se confirma al revisar el documento final.
             </p>
           </>
         )}

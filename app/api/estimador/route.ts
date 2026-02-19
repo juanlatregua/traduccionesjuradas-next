@@ -345,56 +345,56 @@ async function extractTextWithGoogleVisionImage(
   }
 }
 
-async function extractPdfTextWithGoogleVisionByPages(
+async function extractPdfTextWithGoogleVision(
   pdfBuffer: Buffer,
-  baseName: string,
   ocrLanguage: string
 ) {
-  const hasSa = Boolean(parseGoogleServiceAccount());
-  const hasApiKey = Boolean(getGoogleVisionApiKey());
-  if (!hasSa && !hasApiKey) {
-    return {
-      ok: false as const,
-      error: "Falta configurar GOOGLE_VISION_SERVICE_ACCOUNT_JSON o GOOGLE_VISION_API_KEY.",
-    };
+  // Intenta enviar el PDF completo como "imagen" a Google Vision.
+  // Vision acepta PDFs inline (hasta ~20MB) con DOCUMENT_TEXT_DETECTION.
+  const result = await extractTextWithGoogleVisionImage(pdfBuffer, ocrLanguage);
+  if (result.ok) {
+    return { ...result, method: "google-vision-pdf" as const };
   }
 
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "estimador-gvision-"));
-  const pdfPath = path.join(tmpDir, `${baseName || "input"}.pdf`);
-  const prefix = path.join(tmpDir, "page");
+  // Si falla (PDF demasiado grande o no soportado), intenta con pdftoppm si existe.
   try {
-    await fs.writeFile(pdfPath, pdfBuffer);
-    await execFileAsync("pdftoppm", ["-jpeg", "-r", "140", "-f", "1", "-l", "8", pdfPath, prefix]);
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "estimador-gvision-"));
+    const pdfPath = path.join(tmpDir, "input.pdf");
+    const prefix = path.join(tmpDir, "page");
+    try {
+      await fs.writeFile(pdfPath, pdfBuffer);
+      await execFileAsync("pdftoppm", ["-jpeg", "-r", "140", "-f", "1", "-l", "8", pdfPath, prefix]);
 
-    const names = (await fs.readdir(tmpDir))
-      .filter((n) => /^page-\d+\.jpg$/i.test(n))
-      .sort((a, b) => {
-        const na = Number(a.match(/\d+/)?.[0] || 0);
-        const nb = Number(b.match(/\d+/)?.[0] || 0);
-        return na - nb;
-      });
+      const names = (await fs.readdir(tmpDir))
+        .filter((n) => /^page-\d+\.jpg$/i.test(n))
+        .sort((a, b) => {
+          const na = Number(a.match(/\d+/)?.[0] || 0);
+          const nb = Number(b.match(/\d+/)?.[0] || 0);
+          return na - nb;
+        });
 
-    if (names.length === 0) {
-      return { ok: false as const, error: "No se pudieron generar páginas para Google Vision." };
+      if (names.length === 0) {
+        return { ok: false as const, error: "No se pudieron generar páginas para Google Vision." };
+      }
+
+      const parts: string[] = [];
+      for (const n of names) {
+        const img = await fs.readFile(path.join(tmpDir, n));
+        const out = await extractTextWithGoogleVisionImage(img, ocrLanguage);
+        if (out.ok && out.text) parts.push(out.text);
+      }
+
+      const text = parts.join(" ").replace(/\s+/g, " ").trim();
+      if (!text) {
+        return { ok: false as const, error: "Google Vision por páginas no devolvió texto." };
+      }
+      return { ok: true as const, text, method: "google-vision-pages" as const };
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
     }
-
-    const parts: string[] = [];
-    for (const n of names) {
-      const img = await fs.readFile(path.join(tmpDir, n));
-      const out = await extractTextWithGoogleVisionImage(img, ocrLanguage);
-      if (out.ok && out.text) parts.push(out.text);
-    }
-
-    const text = parts.join(" ").replace(/\s+/g, " ").trim();
-    if (!text) {
-      return { ok: false as const, error: "Google Vision por páginas no devolvió texto." };
-    }
-
-    return { ok: true as const, text, method: "google-vision-pages" as const };
-  } catch (err: any) {
-    return { ok: false as const, error: err?.message || "Fallo en Google Vision por páginas." };
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+  } catch {
+    // pdftoppm no disponible (Vercel) — devolvemos el error original
+    return { ok: false as const, error: result.error || "Google Vision no pudo procesar el PDF." };
   }
 }
 
@@ -546,6 +546,7 @@ export async function POST(req: Request) {
             | "ocr-space"
             | "ocr-space-pages"
             | "google-vision"
+            | "google-vision-pdf"
             | "google-vision-pages";
         };
 
@@ -580,7 +581,7 @@ export async function POST(req: Request) {
 
     let ocrError: string | null = null;
     if (isPdf && unreliable) {
-      const visionExtraction = await extractPdfTextWithGoogleVisionByPages(buffer, fileName, ocrLanguage);
+      const visionExtraction = await extractPdfTextWithGoogleVision(buffer, ocrLanguage);
       if (visionExtraction.ok) {
         extraction = visionExtraction;
         words = clampInt(countWords(extraction.text), 0, 200000);
