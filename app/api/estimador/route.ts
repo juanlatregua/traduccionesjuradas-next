@@ -5,6 +5,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
+import { analyzeDocumentForBudget, normalizeOcrText } from "@/lib/ai-document";
 
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
@@ -190,6 +191,127 @@ async function extractPdfTextWithOcrSpaceByPages(
   }
 }
 
+function getGoogleVisionApiKey() {
+  return process.env.GOOGLE_VISION_API_KEY || "";
+}
+
+function toVisionLanguageHint(ocrLanguage: string) {
+  switch (ocrLanguage) {
+    case "spa":
+      return "es";
+    case "eng":
+      return "en";
+    case "fre":
+      return "fr";
+    case "ger":
+      return "de";
+    case "ita":
+      return "it";
+    case "por":
+      return "pt";
+    case "dut":
+      return "nl";
+    case "swe":
+      return "sv";
+    case "nor":
+      return "no";
+    default:
+      return "en";
+  }
+}
+
+async function extractTextWithGoogleVisionImage(
+  imageBuffer: Buffer,
+  ocrLanguage: string
+) {
+  const apiKey = getGoogleVisionApiKey();
+  if (!apiKey) return { ok: false as const, error: "GOOGLE_VISION_API_KEY no configurada." };
+
+  try {
+    const payload = {
+      requests: [
+        {
+          image: { content: imageBuffer.toString("base64") },
+          features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
+          imageContext: {
+            languageHints: [toVisionLanguageHint(ocrLanguage)],
+          },
+        },
+      ],
+    };
+
+    const res = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!res.ok) {
+      return { ok: false as const, error: `Google Vision HTTP ${res.status}` };
+    }
+    const data = (await res.json()) as any;
+    const text = String(data?.responses?.[0]?.fullTextAnnotation?.text || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!text) {
+      const errMsg = data?.responses?.[0]?.error?.message;
+      return { ok: false as const, error: errMsg || "Google Vision no devolvio texto." };
+    }
+    return { ok: true as const, text, method: "google-vision" as const };
+  } catch {
+    return { ok: false as const, error: "No se pudo conectar con Google Vision." };
+  }
+}
+
+async function extractPdfTextWithGoogleVisionByPages(
+  pdfBuffer: Buffer,
+  baseName: string,
+  ocrLanguage: string
+) {
+  const apiKey = getGoogleVisionApiKey();
+  if (!apiKey) return { ok: false as const, error: "GOOGLE_VISION_API_KEY no configurada." };
+
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "estimador-gvision-"));
+  const pdfPath = path.join(tmpDir, `${baseName || "input"}.pdf`);
+  const prefix = path.join(tmpDir, "page");
+  try {
+    await fs.writeFile(pdfPath, pdfBuffer);
+    await execFileAsync("pdftoppm", ["-jpeg", "-r", "140", "-f", "1", "-l", "8", pdfPath, prefix]);
+
+    const names = (await fs.readdir(tmpDir))
+      .filter((n) => /^page-\d+\.jpg$/i.test(n))
+      .sort((a, b) => {
+        const na = Number(a.match(/\d+/)?.[0] || 0);
+        const nb = Number(b.match(/\d+/)?.[0] || 0);
+        return na - nb;
+      });
+
+    if (names.length === 0) {
+      return { ok: false as const, error: "No se pudieron generar páginas para Google Vision." };
+    }
+
+    const parts: string[] = [];
+    for (const n of names) {
+      const img = await fs.readFile(path.join(tmpDir, n));
+      const out = await extractTextWithGoogleVisionImage(img, ocrLanguage);
+      if (out.ok && out.text) parts.push(out.text);
+    }
+
+    const text = parts.join(" ").replace(/\s+/g, " ").trim();
+    if (!text) {
+      return { ok: false as const, error: "Google Vision por páginas no devolvió texto." };
+    }
+
+    return { ok: true as const, text, method: "google-vision-pages" as const };
+  } catch (err: any) {
+    return { ok: false as const, error: err?.message || "Fallo en Google Vision por páginas." };
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
 function unescapePdfString(input: string) {
   return input
     .replace(/\\\(/g, "(")
@@ -316,10 +438,11 @@ export async function POST(req: Request) {
       fileType.includes("msword") ||
       ext === "docx";
     const isTxt = fileType.startsWith("text/") || ext === "txt";
+    const isImage = fileType.startsWith("image/") || ["jpg", "jpeg", "png"].includes(ext);
 
-    if (!isPdf && !isDocx && !isTxt) {
+    if (!isPdf && !isDocx && !isTxt && !isImage) {
       return NextResponse.json(
-        { ok: false, error: "Formato no soportado. Sube PDF, DOCX o TXT." },
+        { ok: false, error: "Formato no soportado. Sube PDF, DOCX, TXT, JPG o PNG." },
         { status: 400 }
       );
     }
@@ -329,7 +452,16 @@ export async function POST(req: Request) {
 
     let extraction:
       | { text: string; method: "pdf-parse" | "pdftotext" | "pdf-text-operators" }
-      | { text: string; method: "docx-mammoth" | "txt-utf8" | "ocr-space" | "ocr-space-pages" };
+      | {
+          text: string;
+          method:
+            | "docx-mammoth"
+            | "txt-utf8"
+            | "ocr-space"
+            | "ocr-space-pages"
+            | "google-vision"
+            | "google-vision-pages";
+        };
 
     if (isPdf) {
       extraction = await extractPdfText(buffer);
@@ -339,6 +471,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: docxExtraction.error }, { status: 422 });
       }
       extraction = { text: docxExtraction.text, method: docxExtraction.method };
+    } else if (isImage) {
+      const imageVision = await extractTextWithGoogleVisionImage(buffer, ocrLanguage);
+      if (imageVision.ok) {
+        extraction = imageVision;
+      } else {
+        const imageOcr = await extractTextWithOcrSpace(buffer, fileName, fileType, ocrLanguage);
+        if (!imageOcr.ok) {
+          return NextResponse.json(
+            { ok: false, error: `No hemos podido extraer texto de la imagen. ${imageVision.error} | ${imageOcr.error}` },
+            { status: 422 }
+          );
+        }
+        extraction = imageOcr;
+      }
     } else {
       extraction = extractTxtText(buffer);
     }
@@ -348,26 +494,39 @@ export async function POST(req: Request) {
 
     let ocrError: string | null = null;
     if (isPdf && unreliable) {
-      const ocrExtraction = await extractTextWithOcrSpace(buffer, fileName, fileType, ocrLanguage);
-      if (ocrExtraction.ok) {
-        extraction = ocrExtraction;
+      const visionExtraction = await extractPdfTextWithGoogleVisionByPages(buffer, fileName, ocrLanguage);
+      if (visionExtraction.ok) {
+        extraction = visionExtraction;
         words = clampInt(countWords(extraction.text), 0, 200000);
       } else {
-        ocrError = ocrExtraction.error;
+        const ocrExtraction = await extractTextWithOcrSpace(buffer, fileName, fileType, ocrLanguage);
+        if (ocrExtraction.ok) {
+          extraction = ocrExtraction;
+          words = clampInt(countWords(extraction.text), 0, 200000);
+        } else {
+          ocrError = `${visionExtraction.error} | ${ocrExtraction.error}`;
 
-        // Si falla por tamaño del PDF, intenta OCR por páginas.
-        if (/size exceeds|file failed validation/i.test(ocrError)) {
-          const pageOcr = await extractPdfTextWithOcrSpaceByPages(buffer, fileName, ocrLanguage);
-          if (pageOcr.ok) {
-            extraction = pageOcr;
-            words = clampInt(countWords(extraction.text), 0, 200000);
-            ocrError = null;
-          } else {
-            ocrError = `${ocrError} | ${pageOcr.error}`;
+          // Si falla por tamaño del PDF, intenta OCR por páginas (OCR.space).
+          if (/size exceeds|file failed validation/i.test(ocrExtraction.error || "")) {
+            const pageOcr = await extractPdfTextWithOcrSpaceByPages(buffer, fileName, ocrLanguage);
+            if (pageOcr.ok) {
+              extraction = pageOcr;
+              words = clampInt(countWords(extraction.text), 0, 200000);
+              ocrError = null;
+            } else {
+              ocrError = `${ocrError} | ${pageOcr.error}`;
+            }
           }
         }
       }
     }
+
+    const normalizedText = normalizeOcrText(extraction.text);
+    words = clampInt(countWords(normalizedText), 0, 200000);
+    extraction = {
+      ...extraction,
+      text: normalizedText,
+    };
 
     if (words < 5 || (isPdf && looksLikePdfTechnicalGarbage(extraction.text))) {
       return NextResponse.json(
@@ -376,7 +535,7 @@ export async function POST(req: Request) {
           error:
             ocrError
               ? `No hemos podido extraer texto fiable. OCR: ${ocrError}`
-              : "No hemos podido extraer texto fiable del archivo. Si es PDF escaneado, activa OCR automático (OCR_SPACE_API_KEY) o usa presupuesto cerrado.",
+              : "No hemos podido extraer texto fiable del archivo. Si es PDF escaneado, activa OCR automático (GOOGLE_VISION_API_KEY u OCR_SPACE_API_KEY) o usa presupuesto cerrado.",
         },
         { status: 422 }
       );
@@ -388,6 +547,8 @@ export async function POST(req: Request) {
     const subtotal = Math.round(base * urgencyMultiplier);
     const total = Math.round(subtotal * SAFETY_MARGIN_MULTIPLIER);
 
+    const ai = analyzeDocumentForBudget(extraction.text, words);
+
     return NextResponse.json({
       ok: true,
       words,
@@ -397,6 +558,7 @@ export async function POST(req: Request) {
       total,
       marginPct: SAFETY_MARGIN_PCT,
       extractionMethod: extraction.method,
+      ai,
     });
   } catch (err: any) {
     return NextResponse.json(

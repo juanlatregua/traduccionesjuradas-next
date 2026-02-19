@@ -111,7 +111,7 @@ const DOC_OPTIONS: DocOption[] = [
     pricing: "fixed",
     fixedPrice: 40,
     deadline: "24 h",
-    samplePdf: "/recursos/ejemplo-academico.pdf",
+    samplePdf: "/recursos/DELF-DALF .pdf",
     payDirect: true,
   },
   {
@@ -121,7 +121,7 @@ const DOC_OPTIONS: DocOption[] = [
     pricing: "fixed",
     fixedPrice: 40,
     deadline: "24 h",
-    samplePdf: "/recursos/ejemplo-academico.pdf",
+    samplePdf: "/recursos/DIPLOME-LICENCE.pdf",
     payDirect: true,
   },
   {
@@ -131,7 +131,7 @@ const DOC_OPTIONS: DocOption[] = [
     pricing: "fixed",
     fixedPrice: 45,
     deadline: "24-48 h",
-    samplePdf: "/recursos/ejemplo-academico.pdf",
+    samplePdf: "/recursos/diplome-apostille.pdf",
     payDirect: true,
   },
   {
