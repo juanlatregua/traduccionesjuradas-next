@@ -202,6 +202,46 @@ export default function Home() {
         </div>
       </section>
 
+      {/* TARIFAS ORIENTATIVAS */}
+      <section className="mx-auto max-w-6xl px-4 py-10">
+        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+          Tarifas orientativas por idioma
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm text-slate-600">
+          Estos son nuestros precios de referencia. El precio final depende del tipo de documento,
+          su extension y la urgencia. Te confirmamos un precio cerrado al ver tus documentos.
+        </p>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { lang: "Frances", flag: "\u{1F1EB}\u{1F1F7}", rate: "0,08", note: "Certificados desde 35 EUR" },
+            { lang: "Ingles", flag: "\u{1F1EC}\u{1F1E7}", rate: "0,10", note: "Certificados desde 40 EUR" },
+            { lang: "Aleman", flag: "\u{1F1E9}\u{1F1EA}", rate: "0,12", note: "Certificados desde 45 EUR" },
+            { lang: "Neerlandes", flag: "\u{1F1F3}\u{1F1F1}", rate: "0,14", note: "Certificados desde 50 EUR" },
+          ].map((item) => (
+            <div
+              key={item.lang}
+              className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm"
+            >
+              <p className="text-2xl">{item.flag}</p>
+              <h3 className="mt-2 text-base font-semibold text-slate-900">{item.lang}</h3>
+              <p className="mt-1 text-2xl font-bold text-emerald-700">{item.rate} EUR<span className="text-sm font-normal text-slate-500">/palabra</span></p>
+              <p className="mt-1 text-xs text-slate-600">{item.note}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+          <span>IVA exento (art. 20.1.26 LIVA)</span>
+          <span className="h-1 w-1 rounded-full bg-slate-300" />
+          <span>Urgencia +25%</span>
+          <span className="h-1 w-1 rounded-full bg-slate-300" />
+          <Link href="/precios-traduccion-jurada" className="font-semibold text-emerald-700 hover:underline">
+            Ver mas sobre precios →
+          </Link>
+        </div>
+      </section>
+
       {/* BLOQUE PRINCIPALES DOCUMENTOS */}
       <section className="mx-auto max-w-6xl px-4 py-12">
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
@@ -364,6 +404,45 @@ export default function Home() {
           </Link>
           .
         </p>
+      </section>
+
+      {/* BLOQUE CONFIANZA */}
+      <section className="mx-auto max-w-6xl px-4 py-12">
+        <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-6 sm:p-8">
+          <h2 className="text-xl font-semibold tracking-tight text-emerald-900 sm:text-2xl">
+            Por que confiar en traduccionesjuradas.net
+          </h2>
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-emerald-700">MAEC</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">Nombrados por el Ministerio</p>
+              <p className="mt-1 text-xs text-slate-600">
+                Traductores jurados acreditados por el Ministerio de Asuntos Exteriores de Espana. No intermediarios.
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-emerald-700">N.3850</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">Traductor jurado de frances</p>
+              <p className="mt-1 text-xs text-slate-600">
+                Juan Silva Moreno, traductor jurado de frances nombrado por el MAEC con numero 3850.
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-emerald-700">PDF</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">Firma digital oficial</p>
+              <p className="mt-1 text-xs text-slate-600">
+                Entrega habitual en PDF firmado digitalmente, aceptado por administraciones y universidades.
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-emerald-700">24-72h</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">Entrega rapida</p>
+              <p className="mt-1 text-xs text-slate-600">
+                Certificados sencillos en 24-48h. Documentos extensos en 2-5 dias. Urgencias disponibles.
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* BLOQUE ESPECIAL TELETRABAJO MARRUECOS */}

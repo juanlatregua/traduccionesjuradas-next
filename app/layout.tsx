@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Header } from "@/components/Header";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -75,6 +76,9 @@ export default function RootLayout({
 
         {/* ================= CONTENIDO ================= */}
         {children}
+
+        {/* ================= WHATSAPP FLOTANTE ================= */}
+        <WhatsAppFloat />
 
         {/* ================= BANNER COOKIES ================= */}
         <CookieBanner />
