@@ -175,87 +175,23 @@ export default function PresupuestoPage() {
       )}
 
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-        Solicitar presupuesto
+        Sube tu documento y calcula rápido
       </h1>
       <p className="mt-2 text-sm text-slate-600">
-        Adjunta tu documento (PDF o foto) y te enviaremos un presupuesto por
-        email.
+        Flujo simple: idioma, documento, archivos y envío. Te respondemos con precio y opciones de pago.
       </p>
 
-      {/* Timeline de tiempos */}
       <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Qué puedes esperar
-        </p>
-
-        {/* Mobile: acordeón */}
-        <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:hidden">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-            Ver tiempos estimados
-          </summary>
-          <div className="mt-3 space-y-3 text-sm text-slate-700">
-            {[
-              {
-                title: "Respuesta",
-                subtitle: "< 30 min (9–19h CET)",
-                desc: "Confirmamos precio y plazo por email/WhatsApp.",
-              },
-              {
-                title: "Traducción",
-                subtitle: "24–72 h según idioma y páginas",
-                desc: "Asignamos al traductor jurado especializado.",
-              },
-              {
-                title: "Entrega",
-                subtitle: "PDF firmado y sellado",
-                desc: "Envío por email; opcional mensajería en papel.",
-              },
-            ].map((item, idx) => (
-              <div key={item.title + idx} className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
-                  {idx + 1}
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">{item.title}</p>
-                  <p className="text-xs text-emerald-700">{item.subtitle}</p>
-                  <p className="mt-1 text-xs text-slate-600">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </details>
-
-        {/* Desktop: grid */}
-        <div className="mt-3 hidden gap-3 sm:grid sm:grid-cols-3">
-          {[
-            {
-              title: "Respuesta",
-              subtitle: "< 30 min (9–19h CET)",
-              desc: "Confirmamos precio y plazo por email/WhatsApp.",
-            },
-            {
-              title: "Traducción",
-              subtitle: "24–72 h según idioma y páginas",
-              desc: "Asignamos al traductor jurado especializado.",
-            },
-            {
-              title: "Entrega",
-              subtitle: "PDF firmado y sellado",
-              desc: "Envío por email; opcional mensajería en papel.",
-            },
-          ].map((item, idx) => (
-            <div key={item.title + idx} className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-3">
-              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
-                {idx + 1}
-              </div>
-              <div className="text-sm text-slate-700">
-                <p className="font-semibold text-slate-900">{item.title}</p>
-                <p className="text-xs text-emerald-700">{item.subtitle}</p>
-                <p className="mt-1 text-xs text-slate-600">{item.desc}</p>
-              </div>
-            </div>
-          ))}
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pasos rápidos</p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">1. Idiomas</span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">2. Documento</span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">3. Adjuntar</span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">4. Enviar</span>
         </div>
+        <p className="mt-3 text-xs text-slate-600">
+          Respuesta habitual en horario laboral: menos de 30 minutos.
+        </p>
       </div>
 
       <form
@@ -271,7 +207,6 @@ export default function PresupuestoPage() {
             id="nombre"
             name="nombre"
             type="text"
-            required
             value={form.nombre}
             onChange={handleChange}
             className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -485,46 +420,49 @@ export default function PresupuestoPage() {
 
       {/* Mini FAQ */}
       <section className="mt-8 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Preguntas rápidas
-        </p>
-        <p className="text-[11px] text-slate-500">Actualizado enero 2026</p>
-        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-            ¿Vale la traducción en PDF o necesito papel?
+        <details>
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Preguntas rápidas (actualizado enero 2026)
           </summary>
-          <p className="mt-2 text-sm text-slate-700">
-            El PDF firmado digitalmente por el traductor jurado es válido para la mayoría de trámites.
-            Si tu organismo pide papel, también podemos enviarlo por mensajería.
-          </p>
-        </details>
-        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-            ¿Puedo mandar fotos en lugar de escaneo?
-          </summary>
-          <p className="mt-2 text-sm text-slate-700">
-            Sí, siempre que sean nítidas, sin recortes y con sellos/márgenes visibles. Si hiciera falta,
-            podemos pedir un escaneo mejor antes de entregar.
-          </p>
-        </details>
-        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-            ¿Cómo se paga?
-          </summary>
-          <p className="mt-2 text-sm text-slate-700">
-            Te enviaremos el presupuesto con las opciones de pago: transferencia, tarjeta, Bizum o PayPal.
-            Para encargos urgentes solemos pedir el pago antes de empezar.
-          </p>
-        </details>
-        <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-            ¿Qué pasa con mis datos y documentos?
-          </summary>
-          <p className="mt-2 text-sm text-slate-700">
-            Usamos tus archivos solo para preparar el presupuesto y la traducción. Viajan por HTTPS
-            y se eliminan pasados 30 días desde la entrega, salvo obligación legal. Si quieres, puedes
-            pedir el borrado inmediato tras recibir la traducción.
-          </p>
+          <div className="mt-3 space-y-3">
+            <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+                ¿Vale la traducción en PDF o necesito papel?
+              </summary>
+              <p className="mt-2 text-sm text-slate-700">
+                El PDF firmado digitalmente por el traductor jurado es válido para la mayoría de trámites.
+                Si tu organismo pide papel, también podemos enviarlo por mensajería.
+              </p>
+            </details>
+            <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+                ¿Puedo mandar fotos en lugar de escaneo?
+              </summary>
+              <p className="mt-2 text-sm text-slate-700">
+                Sí, siempre que sean nítidas, sin recortes y con sellos/márgenes visibles. Si hiciera falta,
+                podemos pedir un escaneo mejor antes de entregar.
+              </p>
+            </details>
+            <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+                ¿Cómo se paga?
+              </summary>
+              <p className="mt-2 text-sm text-slate-700">
+                Te enviaremos el presupuesto con las opciones de pago: transferencia, tarjeta, Bizum o PayPal.
+                Para encargos urgentes solemos pedir el pago antes de empezar.
+              </p>
+            </details>
+            <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+                ¿Qué pasa con mis datos y documentos?
+              </summary>
+              <p className="mt-2 text-sm text-slate-700">
+                Usamos tus archivos solo para preparar el presupuesto y la traducción. Viajan por HTTPS
+                y se eliminan pasados 30 días desde la entrega, salvo obligación legal. Si quieres, puedes
+                pedir el borrado inmediato tras recibir la traducción.
+              </p>
+            </details>
+          </div>
         </details>
       </section>
     </main>

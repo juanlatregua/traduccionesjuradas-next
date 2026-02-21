@@ -69,13 +69,29 @@ export function Header() {
           id="primary-navigation"
           className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium text-slate-700 shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-xs sm:shadow-none sm:text-slate-700`}
         >
+          <Link href="/presupuesto" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
+            Calcular y pedir presupuesto
+          </Link>
+          <Link href="/traductores-jurados" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
+            Idiomas
+          </Link>
+          <Link href="/documentos-oficiales" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
+            Documentos oficiales
+          </Link>
+          <Link href="/consulta" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
+            Consultar pedido
+          </Link>
+          <Link href="/preguntas-frecuentes" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
+            Preguntas frecuentes
+          </Link>
+
           {/* CÓMO FUNCIONA */}
-          <Link href="/proceso" className="hover:text-emerald-600" onClick={closeMenu}>
+          <Link href="/proceso" className="hidden hover:text-emerald-600 sm:inline" onClick={closeMenu}>
             Cómo funciona
           </Link>
 
           {/* ===== TRADUCTOR JURADO (DESPLEGABLE) ===== */}
-          <div className="relative group">
+          <div className="relative hidden sm:block group">
             <button
               type="button"
               className="flex items-center gap-1 hover:text-emerald-600 focus:outline-none focus-visible:text-emerald-600"
@@ -168,7 +184,7 @@ export function Header() {
           </div>
 
           {/* ===== DOCUMENTOS OFICIALES (DESPLEGABLE) ===== */}
-          <div className="relative group">
+          <div className="relative hidden sm:block group">
             <Link
               href="/documentos-oficiales"
               className="flex items-center gap-1 hover:text-emerald-600 focus-visible:text-emerald-600"
@@ -228,19 +244,23 @@ export function Header() {
             </div>
           </div>
 
-          <Link href="/preguntas-frecuentes" className="hover:text-emerald-600" onClick={closeMenu}>
+          <Link href="/preguntas-frecuentes" className="hidden hover:text-emerald-600 sm:inline" onClick={closeMenu}>
             Preguntas frecuentes
           </Link>
 
-          <Link href="/precios-traduccion-jurada" className="hover:text-emerald-600" onClick={closeMenu}>
+          <Link href="/precios-traduccion-jurada" className="hidden hover:text-emerald-600 sm:inline" onClick={closeMenu}>
             Precios
           </Link>
 
-          <Link href="/area-cliente" className="hover:text-emerald-600" onClick={closeMenu}>
+          <Link href="/area-cliente" className="hidden hover:text-emerald-600 sm:inline" onClick={closeMenu}>
             Area cliente
           </Link>
 
-          <Link href="/zona-traductor" className="hover:text-emerald-600" onClick={closeMenu}>
+          <Link href="/consulta" className="hidden hover:text-emerald-600 sm:inline" onClick={closeMenu}>
+            Consulta pedido
+          </Link>
+
+          <Link href="/zona-traductor" className="hidden hover:text-emerald-600 sm:inline" onClick={closeMenu}>
             Zona traductor
           </Link>
 

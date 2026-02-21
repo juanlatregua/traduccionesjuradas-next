@@ -23,41 +23,21 @@ export default function Home() {
         <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 lg:flex-row lg:items-center lg:py-20">
           <div className="flex-1 space-y-6">
             <p className="inline rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Traducciones juradas oficiales · Traductores jurados, no
-              intermediarios
+              Traducción jurada oficial · Rápido y online
             </p>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              Traducciones juradas para trámites en España
-              <span className="block text-blue-700">
-                y en el extranjero, con traductores jurados reales.
-              </span>
+              Sube tu documento,
+              <span className="block text-blue-700">calcula precio y paga en minutos.</span>
             </h1>
             <p className="max-w-xl text-base text-slate-600 sm:text-lg">
-              Coordinamos un equipo de traductores jurados nombrados por el
-              MAEC para que puedas presentar tus documentos ante
-              administraciones, universidades, juzgados y organismos oficiales
-              en España y en otros países. Trabajamos sobre todo online, con
-              entrega en PDF firmado digitalmente.
-            </p>
-            <p className="max-w-xl text-xs text-slate-500 sm:text-sm">
-              También ayudamos a muchos clientes de{" "}
-              <strong>Marruecos</strong> a preparar el paquete completo de
-              documentos para <strong>teletrabajar en España</strong> (salarios,
-              antecedentes penales, Registro Mercantil, EM 30, etc.). Más
-              información en nuestra{" "}
-              <Link
-                href="/teletrabajo"
-                className="font-semibold text-emerald-700 hover:underline"
-              >
-                guía para teletrabajo Marruecos → España
-              </Link>
-              .
+              Flujo simple para cliente: elige idioma, adjunta PDF/foto, obtén estimación y confirma el pago.
+              Traductores jurados reales y entrega en PDF firmado.
             </p>
 
             {/* CTA principal */}
             <div className="flex flex-wrap items-center gap-3">
-              <a
-                href={MAIL_LINK}
+              <Link
+                href="#calculadora-rapida"
                 className="rounded-2xl px-6 py-3 text-sm font-semibold shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 style={{
                   background:
@@ -65,46 +45,37 @@ export default function Home() {
                   color: "white",
                 }}
               >
-                Pedir presupuesto por email
-              </a>
-
-              <a
-                href={WHATSAPP_LINK}
-                className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              >
-                Enviar documentos por WhatsApp
-              </a>
+                Calcular precio ahora
+              </Link>
 
               <Link
                 href="/presupuesto"
-                className="text-sm font-medium text-blue-700 hover:underline"
+                className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
-                O rellenar el formulario de presupuesto
+                Enviar documentos para presupuesto
               </Link>
+
+              <a
+                href={WHATSAPP_LINK}
+                className="text-sm font-medium text-emerald-700 hover:underline"
+              >
+                Consultar por WhatsApp
+              </a>
             </div>
 
             {/* Mini confianza */}
             <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-              <span>Traducciones juradas firmadas por traductores jurados</span>
+              <span>Precio orientativo en menos de 30 segundos</span>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
-              <span>Servicio online para toda España y países de destino</span>
+              <span>Pago online seguro y confirmación inmediata</span>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
-              <span>
-                Especialistas en francés, alemán, inglés y otros idiomas
-              </span>
+              <span>Entrega habitual 24-72h</span>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
               <Link
                 href="/traduccion-jurada-online"
                 className="text-emerald-700 font-semibold hover:underline"
               >
-                Traducción jurada online (24-72h)
-              </Link>
-              <span className="h-1 w-1 rounded-full bg-slate-300" />
-              <Link
-                href="/traduccion-jurada-frances-malaga"
-                className="text-emerald-700 font-semibold hover:underline"
-              >
-                Frances jurado en Malaga
+                Ver proceso completo
               </Link>
             </div>
           </div>
@@ -175,7 +146,7 @@ export default function Home() {
       </section>
 
       {/* CALCULADORA RÁPIDA */}
-      <section className="mx-auto max-w-6xl px-4 py-10">
+      <section id="calculadora-rapida" className="mx-auto max-w-6xl px-4 py-10">
         <div className="relative overflow-hidden rounded-[2rem] border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-5 shadow-[0_18px_50px_-28px_rgba(2,132,199,0.35)] sm:p-7">
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-emerald-200/30 blur-3xl" />
@@ -202,8 +173,41 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ATAJOS MÓVIL */}
+      <section className="mx-auto max-w-6xl px-4 pb-8 sm:hidden">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-900">¿Qué necesitas hacer ahora?</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <Link
+              href="/traductores-jurados"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-700"
+            >
+              Ver idiomas
+            </Link>
+            <Link
+              href="/documentos-oficiales"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-700"
+            >
+              Ver documentos
+            </Link>
+            <Link
+              href="/presupuesto"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-700"
+            >
+              Presupuesto cerrado
+            </Link>
+            <Link
+              href="/consulta"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-700"
+            >
+              Estado pedido
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* TARIFAS ORIENTATIVAS */}
-      <section className="mx-auto max-w-6xl px-4 py-10">
+      <section className="mx-auto hidden max-w-6xl px-4 py-10 sm:block">
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
           Tarifas orientativas por idioma
         </h2>
@@ -243,7 +247,7 @@ export default function Home() {
       </section>
 
       {/* BLOQUE PRINCIPALES DOCUMENTOS */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
+      <section className="mx-auto hidden max-w-6xl px-4 py-12 sm:block">
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
           Principales documentos que traducimos
         </h2>
@@ -316,7 +320,7 @@ export default function Home() {
         </div>
       </section>
       {/* BLOQUE IDIOMAS PRINCIPALES */}
-      <section className="mx-auto max-w-6xl px-4 pb-4">
+      <section className="mx-auto hidden max-w-6xl px-4 pb-4 sm:block">
         <h2 className="mt-4 text-xl font-semibold tracking-tight sm:text-2xl">
           Traducciones juradas por idioma
         </h2>
@@ -407,7 +411,7 @@ export default function Home() {
       </section>
 
       {/* BLOQUE CONFIANZA */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
+      <section className="mx-auto hidden max-w-6xl px-4 py-12 sm:block">
         <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-6 sm:p-8">
           <h2 className="text-xl font-semibold tracking-tight text-emerald-900 sm:text-2xl">
             Por que confiar en traduccionesjuradas.net
@@ -446,7 +450,7 @@ export default function Home() {
       </section>
 
       {/* BLOQUE ESPECIAL TELETRABAJO MARRUECOS */}
-      <section className="border-y border-slate-200 bg-slate-100/60">
+      <section className="hidden border-y border-slate-200 bg-slate-100/60 sm:block">
         <div className="mx-auto max-w-6xl px-4 py-10 lg:py-12">
           <div className="grid gap-8 md:grid-cols-2">
             <div>
@@ -512,7 +516,7 @@ export default function Home() {
       </section>
 
       {/* BLOQUE APOSTILLA / FIRMA DIGITAL */}
-      <section className="border-b border-slate-200 bg-slate-100/60">
+      <section className="hidden border-b border-slate-200 bg-slate-100/60 sm:block">
         <div className="mx-auto max-w-6xl px-4 py-12">
           <div className="grid gap-10 md:grid-cols-2">
             <div>
@@ -573,7 +577,7 @@ export default function Home() {
       </section>
 
       {/* CHECKLIST DESTACADA */}
-      <section className="mx-auto max-w-6xl px-4 pb-12">
+      <section className="mx-auto hidden max-w-6xl px-4 pb-12 sm:block">
         <DocumentChecklist slug="certificados-registro-civil" />
       </section>
 
