@@ -15,6 +15,11 @@ type Props = {
   assignedTo: string | null;
   dueDate: string | null;
   amountCents: number;
+  paymentProofs: Array<{
+    fileUrl: string;
+    fileName: string;
+    uploadedAt?: string;
+  }>;
 };
 
 function PaymentBadge({ status }: { status: string }) {
@@ -56,11 +61,13 @@ export default function OrderActionPanel({
   assignedTo,
   dueDate,
   amountCents,
+  paymentProofs,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"asignar" | "entrega" | "notificar">("asignar");
+  const [tab, setTab] = useState<"comprobante" | "asignar" | "entrega" | "notificar">("comprobante");
 
   const tabs = [
+    { key: "comprobante" as const, label: "Comprobante", color: "text-cyan-300" },
     { key: "asignar" as const, label: "Asignar", color: "text-amber-300" },
     { key: "entrega" as const, label: "Entrega", color: "text-emerald-300" },
     { key: "notificar" as const, label: "Notificar", color: "text-violet-300" },
@@ -104,6 +111,7 @@ export default function OrderActionPanel({
           <div className="flex flex-wrap gap-4 border-b border-slate-700/50 bg-slate-800/30 px-5 py-3 text-xs text-slate-400">
             <span>Cliente: <span className="text-slate-200">{clientEmail}</span></span>
             <span>Importe: <span className="text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span></span>
+            <span>Comprobante: <span className="text-slate-200">{paymentProofs.length > 0 ? "Subido" : "No subido"}</span></span>
             {dueDate && (
               <span>
                 Entrega:{" "}
@@ -134,6 +142,35 @@ export default function OrderActionPanel({
 
           {/* Tab content */}
           <div className="p-5">
+            {tab === "comprobante" && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">
+                  Comprobante de pago
+                </p>
+                {paymentProofs.length === 0 ? (
+                  <p className="mt-3 text-sm text-slate-400">Aun no se ha subido comprobante.</p>
+                ) : (
+                  <ul className="mt-3 space-y-2">
+                    {paymentProofs.map((proof, idx) => (
+                      <li key={`${proof.fileUrl}-${idx}`} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-200">
+                        <p className="font-semibold text-slate-100">{proof.fileName || "Comprobante"}</p>
+                        {proof.uploadedAt && (
+                          <p className="text-xs text-slate-400">Subido: {new Date(proof.uploadedAt).toLocaleString("es-ES")}</p>
+                        )}
+                        <a
+                          href={proof.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                        >
+                          Abrir comprobante
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             {tab === "asignar" && (
               <AssignOrderForm
                 reference={reference}

@@ -10,6 +10,7 @@ import {
   getPaymentStateLabel,
 } from "@/lib/client-area";
 import { isStaffEmail } from "@/lib/staff-access";
+import AutoRefresh from "@/components/AutoRefresh";
 
 export const metadata: Metadata = {
   title: "Area de cliente",
@@ -68,6 +69,7 @@ export default async function AreaClientePage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
+      <AutoRefresh intervalMs={6000} />
       <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
           Area de cliente
@@ -149,6 +151,7 @@ export default async function AreaClientePage() {
                     <th className="px-4 py-3 font-semibold">Pago</th>
                     <th className="px-4 py-3 font-semibold">Entrega</th>
                     <th className="px-4 py-3 font-semibold">Proceso</th>
+                    <th className="px-4 py-3 font-semibold">ETA</th>
                     <th className="px-4 py-3 font-semibold">Factura</th>
                     <th className="px-4 py-3 font-semibold">Acciones</th>
                   </tr>
@@ -162,6 +165,9 @@ export default async function AreaClientePage() {
                       <td className="px-4 py-3 text-slate-700">{getPaymentStateLabel(order.paymentStatus)}</td>
                       <td className="px-4 py-3 text-slate-700">{getDeliveryTypeLabel(order.deliveryType)}</td>
                       <td className="px-4 py-3 text-slate-700">{getDeliveryStateLabel(order.deliveryState)}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {order.dueDate ? order.dueDate.toISOString().slice(0, 10) : "—"}
+                      </td>
                       <td className="px-4 py-3 text-slate-700">
                         {order.billing?.requested
                           ? "Solicitada"

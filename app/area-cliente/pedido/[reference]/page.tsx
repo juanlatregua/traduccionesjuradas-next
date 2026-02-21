@@ -10,6 +10,7 @@ import {
   getPaymentStateLabel,
 } from "@/lib/client-area";
 import OrderClientPanel from "@/components/OrderClientPanel";
+import AutoRefresh from "@/components/AutoRefresh";
 
 export const metadata: Metadata = {
   title: "Estado de pedido",
@@ -40,9 +41,18 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
   if (!order) notFound();
 
   const invoiceEvents = order.events.filter((e) => e.type.startsWith("invoice"));
+  const proofEvents = order.events.filter((e) => e.type === "payment.proof_uploaded");
+  const hasProofUploaded = proofEvents.length > 0;
+  const paymentVerificationLabel =
+    order.paymentStatus === "PAID"
+      ? "Pago confirmado"
+      : hasProofUploaded
+      ? "Comprobante enviado (pendiente de verificacion)"
+      : "Pendiente de pago";
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
+      <AutoRefresh intervalMs={5000} />
       <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
           Referencia {order.reference}
@@ -69,6 +79,22 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
             <p className="mt-1 text-sm font-semibold text-slate-900">{getDeliveryStateLabel(order.deliveryState)}</p>
           </div>
         </div>
+        <p className="mt-3 text-sm text-slate-700">
+          Verificacion de pago: <span className="font-semibold">{paymentVerificationLabel}</span>
+        </p>
+        {order.dueDate && (
+          <p className="mt-1 text-sm text-slate-700">
+            Fecha estimada de entrega:{" "}
+            <span className="font-semibold">
+              {order.dueDate.toLocaleDateString("es-ES", {
+                weekday: "long",
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })}
+            </span>
+          </p>
+        )}
       </section>
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -121,6 +147,72 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           text: e.message,
         }))}
       />
+
+      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-slate-900">Comprobante de pago</h2>
+        {proofEvents.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-700">
+            Aun no hemos recibido ningun comprobante en este pedido.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {proofEvents.map((event) => {
+              const payload = (event.payload || {}) as any;
+              const fileUrl = String(payload.fileUrl || "");
+              const fileName = String(payload.fileName || "Comprobante");
+              return (
+                <li key={event.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <p>
+                    <span className="font-semibold">
+                      {event.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+                    </span>{" "}
+                    · {fileName}
+                  </p>
+                  {fileUrl && (
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex text-xs font-semibold text-emerald-700 hover:underline"
+                    >
+                      Ver comprobante
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-slate-900">Agenda del pedido</h2>
+        <ol className="mt-3 space-y-2 text-sm text-slate-700">
+          <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+            Pedido creado: {order.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+          </li>
+          {hasProofUploaded && (
+            <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+              Comprobante recibido: {proofEvents[0].createdAt.toISOString().slice(0, 16).replace("T", " ")}
+            </li>
+          )}
+          {order.paidAt && (
+            <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+              Pago confirmado: {order.paidAt.toISOString().slice(0, 16).replace("T", " ")}
+            </li>
+          )}
+          {order.dueDate && (
+            <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+              ETA entrega: {order.dueDate.toISOString().slice(0, 10)}
+            </li>
+          )}
+          {order.deliveryState === "TRADUCIDO" && (
+            <li className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-700">
+              Traduccion finalizada
+            </li>
+          )}
+        </ol>
+      </section>
 
       {order.billing?.requested && (
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">

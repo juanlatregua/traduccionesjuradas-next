@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import {
+  sendPaymentProofReceivedClientEmail,
+  sendPaymentProofUploadedStaffEmail,
+} from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -24,7 +28,14 @@ export async function POST(req: Request, { params }: Params) {
   try {
     const order = await prisma.order.findUnique({
       where: { reference: params.reference },
-      select: { id: true, paymentStatus: true },
+      select: {
+        id: true,
+        reference: true,
+        paymentStatus: true,
+        clientEmail: true,
+        title: true,
+        amountCents: true,
+      },
     });
     if (!order) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
@@ -64,15 +75,31 @@ export async function POST(req: Request, { params }: Params) {
 
     const pathname = `orders/${params.reference}/comprobantes/${Date.now()}-${file.name}`;
     const blob = await put(pathname, file, { access: "public" });
+    const uploadedAt = new Date().toISOString();
 
     await prisma.orderEvent.create({
       data: {
         orderId: order.id,
         type: "payment.proof_uploaded",
-        message: "Comprobante de pago adjuntado por el cliente.",
-        payload: { fileUrl: blob.url, fileName: file.name },
+        message: "Comprobante de pago adjuntado por el cliente. Pendiente de verificacion.",
+        payload: { fileUrl: blob.url, fileName: file.name, uploadedAt },
       },
     });
+
+    // Non-blocking notifications
+    sendPaymentProofUploadedStaffEmail({
+      reference: order.reference,
+      title: order.title,
+      amountCents: order.amountCents,
+      clientEmail: order.clientEmail,
+      proofUrl: blob.url,
+      fileName: file.name,
+    }).catch((e) => console.error("[payment-proof] staff email failed", e));
+
+    sendPaymentProofReceivedClientEmail({
+      toEmail: order.clientEmail,
+      reference: order.reference,
+    }).catch((e) => console.error("[payment-proof] client email failed", e));
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

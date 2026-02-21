@@ -9,6 +9,8 @@ import { getAllOrdersForStaff } from "@/lib/orders";
 import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
 import ZonaTraductorFilters from "@/components/ZonaTraductorFilters";
 import OrderActionPanel from "@/components/OrderActionPanel";
+import TranslatorAgenda from "@/components/TranslatorAgenda";
+import AutoRefresh from "@/components/AutoRefresh";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -67,6 +69,17 @@ function DeliveryBadge({ state }: { state: string }) {
       {info.label}
     </span>
   );
+}
+
+function getPaymentProofs(order: any) {
+  return (order.events || [])
+    .filter((e: any) => e.type === "payment.proof_uploaded")
+    .map((e: any) => ({
+      fileUrl: String((e.payload as any)?.fileUrl || ""),
+      fileName: String((e.payload as any)?.fileName || "Comprobante"),
+      uploadedAt: String((e.payload as any)?.uploadedAt || e.createdAt?.toISOString?.() || ""),
+    }))
+    .filter((p: any) => p.fileUrl);
 }
 
 export default async function ZonaTraductorPage({
@@ -128,6 +141,7 @@ export default async function ZonaTraductorPage({
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-10">
+      <AutoRefresh intervalMs={4000} />
       {/* Header */}
       <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Zona traductor</p>
@@ -157,6 +171,16 @@ export default async function ZonaTraductorPage({
         </div>
       </section>
 
+      <TranslatorAgenda
+        items={allOrders.map((o) => ({
+          reference: o.reference,
+          title: o.title,
+          dueDate: o.dueDate,
+          deliveryState: o.deliveryState,
+          assignedTo: o.assignedTo,
+        }))}
+      />
+
       {/* Table section */}
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
         <h2 className="text-lg font-semibold text-white">
@@ -180,6 +204,7 @@ export default async function ZonaTraductorPage({
                   <th className="px-4 py-3 font-semibold">Estado</th>
                   <th className="px-4 py-3 font-semibold">Asignado</th>
                   <th className="px-4 py-3 font-semibold">Entrega</th>
+                  <th className="px-4 py-3 font-semibold">Comprobante</th>
                   <th className="px-4 py-3 font-semibold">Cliente</th>
                   <th className="px-4 py-3 font-semibold">Acciones</th>
                 </tr>
@@ -188,6 +213,8 @@ export default async function ZonaTraductorPage({
                 {orders.map((order) => {
                   const overdue = isOverdue(order.dueDate);
                   const dueSoon = isDueSoon(order.dueDate);
+                  const paymentProofs = getPaymentProofs(order);
+                  const latestProof = paymentProofs[0];
                   return (
                     <tr
                       key={order.reference}
@@ -213,6 +240,20 @@ export default async function ZonaTraductorPage({
                             {formatDate(order.dueDate)}
                             {overdue && " !"}
                           </span>
+                        ) : (
+                          <span className="text-xs text-slate-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {latestProof ? (
+                          <a
+                            href={latestProof.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex rounded-lg border border-cyan-500/40 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                          >
+                            Ver
+                          </a>
                         ) : (
                           <span className="text-xs text-slate-600">—</span>
                         )}
@@ -255,6 +296,7 @@ export default async function ZonaTraductorPage({
               assignedTo={order.assignedTo}
               dueDate={order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null}
               amountCents={order.amountCents}
+              paymentProofs={getPaymentProofs(order)}
             />
           ))}
         </section>

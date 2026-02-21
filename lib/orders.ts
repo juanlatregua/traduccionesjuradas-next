@@ -81,7 +81,7 @@ export async function getOrdersByClientEmail(email: string) {
     orderBy: { createdAt: "desc" },
     include: {
       billing: true,
-      events: { orderBy: { createdAt: "desc" }, take: 1 },
+      events: { orderBy: { createdAt: "desc" }, take: 8 },
     },
   });
 }
@@ -133,6 +133,7 @@ export async function getOrderLookupByReferenceAndEmail(reference: string, email
       langPair: true,
       words: true,
       pagesLabel: true,
+      dueDate: true,
       deliveryState: true,
       events: { orderBy: { createdAt: "desc" }, take: 5 },
     },
@@ -206,7 +207,11 @@ export async function markPaymentFailed(reference: string) {
 export async function updateDeliveryState(
   reference: string,
   state: "PRESUPUESTO" | "EN_PROCESO" | "TRADUCIDO",
-  translatedFileUrl?: string
+  options?: {
+    translatedFileUrl?: string;
+    dueDate?: Date | null;
+    eventMessage?: string;
+  }
 ) {
   const nextStatus = state === "TRADUCIDO" ? "DELIVERED" : state === "EN_PROCESO" ? "IN_PROGRESS" : undefined;
   return prisma.order.update({
@@ -214,11 +219,12 @@ export async function updateDeliveryState(
     data: {
       deliveryState: state,
       ...(nextStatus ? { status: nextStatus } : {}),
-      ...(translatedFileUrl ? { translatedFileUrl } : {}),
+      ...(options?.translatedFileUrl ? { translatedFileUrl: options.translatedFileUrl } : {}),
+      ...(options?.dueDate !== undefined ? { dueDate: options.dueDate } : {}),
       events: {
         create: {
           type: "delivery.updated",
-          message: `Estado de entrega actualizado a ${state}.`,
+          message: options?.eventMessage || `Estado de entrega actualizado a ${state}.`,
         },
       },
     },
@@ -322,7 +328,7 @@ export async function getAllOrdersForStaff() {
     orderBy: { createdAt: "desc" },
     include: {
       billing: true,
-      events: { orderBy: { createdAt: "desc" }, take: 1 },
+      events: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
 }

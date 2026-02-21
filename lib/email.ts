@@ -479,6 +479,137 @@ Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
   });
 }
 
+export async function sendPaymentProofUploadedStaffEmail(data: {
+  reference: string;
+  title: string;
+  amountCents: number;
+  clientEmail: string;
+  proofUrl: string;
+  fileName?: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  const to = process.env.PRESUPUESTO_TO;
+  if (!to) throw new Error("Missing PRESUPUESTO_TO");
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = (data.amountCents / 100).toFixed(2);
+  const subject = `Comprobante subido - ${data.reference}`;
+
+  const text = `El cliente ha subido un comprobante de pago.
+
+Referencia: ${data.reference}
+Concepto: ${data.title}
+Importe: ${amount} EUR
+Cliente: ${data.clientEmail}
+Archivo: ${data.fileName || "comprobante"}
+URL: ${data.proofUrl}
+
+Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
+
+  const html = `
+    <h2>Comprobante de pago recibido</h2>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Archivo</td><td>${data.fileName || "comprobante"}</td></tr>
+    </table>
+    <p><a href="${data.proofUrl}">Abrir comprobante</a></p>
+    <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
+  `;
+
+  await sgMail.send({
+    to,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendPaymentProofReceivedClientEmail(data: {
+  toEmail: string;
+  reference: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const subject = `Comprobante recibido - Pedido ${data.reference}`;
+  const text = `Hola,
+
+Hemos recibido tu comprobante de pago para el pedido ${data.reference}.
+Nuestro equipo lo revisara y confirmara el pago en breve.
+
+Puedes consultar el estado en:
+https://www.traduccionesjuradas.net/consulta
+`;
+
+  const html = `
+    <h2>Comprobante recibido</h2>
+    <p>Hemos recibido tu comprobante de pago para el pedido <strong>${data.reference}</strong>.</p>
+    <p>Lo revisaremos y te confirmaremos el pago en cuanto se valide.</p>
+    <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendTranslationEtaEmail(data: {
+  toEmail: string;
+  reference: string;
+  etaDateLabel: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const subject = `Traduccion en curso - ETA ${data.reference}`;
+  const text = `Hola,
+
+Tu pedido ${data.reference} ya esta en proceso de traduccion.
+Fecha estimada de entrega: ${data.etaDateLabel}
+
+Te avisaremos en cuanto la traduccion este lista.
+`;
+
+  const html = `
+    <h2>Tu traduccion esta en proceso</h2>
+    <p>Pedido <strong>${data.reference}</strong>.</p>
+    <p>Fecha estimada de entrega: <strong>${data.etaDateLabel}</strong>.</p>
+    <p>Te avisaremos cuando el archivo final este disponible.</p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
 export async function sendStaffOtpEmail(data: { toEmail: string; code: string }) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
