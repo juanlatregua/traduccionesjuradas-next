@@ -36,7 +36,8 @@
     "pdf-parse": "^1.1.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "redsys-easy": "^5.3.2"
+    "redsys-easy": "^5.3.2",
+    "stripe": "^20.3.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

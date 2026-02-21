@@ -8,17 +8,31 @@ import {
   STAFF_OTP_PENDING_COOKIE,
   STAFF_OTP_VERIFIED_COOKIE,
 } from "@/lib/staff-otp";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 type VerifyBody = {
   code?: string;
 };
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
   const session = await getServerSession(authOptions);
   const email = session?.user?.email || null;
 
   if (!isStaffEmail(email)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+  }
+
+  const rl = checkRateLimit({
+    key: `staff:verify-code:${email}:${ip}`,
+    limit: 12,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiados intentos de verificacion. Espera unos minutos." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
   }
 
   try {

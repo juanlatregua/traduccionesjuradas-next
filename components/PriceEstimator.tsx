@@ -42,6 +42,16 @@ type EstimateResult = {
   presetPagesLabel?: string;
   ai?: AiAnalysis;
 };
+
+type CartItem = {
+  id: string;
+  title: string;
+  langPair: string;
+  words?: number;
+  pagesLabel?: string;
+  total: number;
+  source: "preset" | "file";
+};
 const SAFETY_MARGIN_MULTIPLIER = 1.1;
 const SAFETY_MARGIN_PCT = 10;
 
@@ -140,6 +150,9 @@ export default function PriceEstimator() {
   const [result, setResult] = useState<EstimateResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [showGuestEmail, setShowGuestEmail] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   const [presetLangPair, setPresetLangPair] = useState<LangPairOption>("");
   const [presetDocLabel, setPresetDocLabel] = useState("");
@@ -246,33 +259,87 @@ export default function PriceEstimator() {
     setMessage("Estimación calculada manualmente.");
   };
 
-  const startCheckout = async () => {
+  const addToCart = () => {
     if (!result) {
-      setMessage("Calcula primero una estimación antes de pagar.");
+      setMessage("Calcula primero una estimación antes de añadir.");
+      return;
+    }
+    const activeLangPair = (result.source === "preset" ? presetLangPair : fileLangPair) || "";
+    const item: CartItem = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: result.title || (result.source === "preset" ? "Documento" : fileUpload?.name || "Documento"),
+      langPair: activeLangPair,
+      words: result.words,
+      pagesLabel: result.presetPagesLabel,
+      total: result.total,
+      source: result.source,
+    };
+    setCart((prev) => [...prev, item]);
+    setResult(null);
+    setMessage(`"${item.title}" añadido al presupuesto.`);
+    // Reset form for next document
+    if (result.source === "preset") {
+      setPresetDocLabel("");
+    } else {
+      setFileUpload(null);
+    }
+  };
+
+  const removeFromCart = (id: string) => {
+    setCart((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
+
+  const startCheckout = async (emailOverride?: string) => {
+    // Determine what to pay: cart items or single result
+    const hasCart = cart.length > 0;
+    const payResult = hasCart ? null : result;
+    const payTotal = hasCart ? cartTotal : result?.total;
+
+    if (!payTotal || payTotal <= 0) {
+      setMessage("Calcula primero una estimación o añade documentos al presupuesto.");
       return;
     }
 
-    const activeLangPair = result.source === "preset" ? presetLangPair : fileLangPair;
+    const activeLangPair = payResult
+      ? (payResult.source === "preset" ? presetLangPair : fileLangPair)
+      : (cart.length === 1 ? cart[0].langPair : undefined);
+
+    // Build title
+    const title = hasCart
+      ? (cart.length === 1
+          ? cart[0].title
+          : `${cart.length} documentos: ${cart.map((c) => c.title).join(", ").slice(0, 120)}`)
+      : (payResult?.title || "Pedido de traducción jurada");
+
     setCheckoutLoading(true);
     try {
+      const payload: Record<string, unknown> = {
+        amountCents: Math.round(payTotal * 100),
+        currency: "eur",
+        title,
+        source: hasCart ? (cart.some((c) => c.source === "file") ? "file" : "preset") : payResult?.source,
+        langPair: activeLangPair || undefined,
+        words: hasCart ? cart.reduce((s, c) => s + (c.words || 0), 0) || undefined : payResult?.words,
+        pagesLabel: hasCart
+          ? cart.map((c) => c.pagesLabel).filter(Boolean).join(", ") || undefined
+          : payResult?.presetPagesLabel,
+      };
+      if (emailOverride) {
+        payload.guestEmail = emailOverride;
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amountCents: result.total * 100,
-          currency: "eur",
-          title: result.title || "Pedido de traducción jurada",
-          source: result.source,
-          langPair: activeLangPair || undefined,
-          words: result.words,
-          pagesLabel: result.presetPagesLabel,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        if (res.status === 401) {
-          // Not logged in — redirect to login, then back here
-          window.location.assign("/acceso?callbackUrl=" + encodeURIComponent(window.location.pathname));
+        if (res.status === 401 && !emailOverride) {
+          setShowGuestEmail(true);
+          setCheckoutLoading(false);
           return;
         }
         throw new Error(data?.error || "No se pudo crear el pedido.");
@@ -549,16 +616,65 @@ export default function PriceEstimator() {
             </p>
           </>
         )}
-        <div className="mt-3 flex flex-wrap gap-3 text-sm">
-          {result && (
-            <button
-              type="button"
-              onClick={startCheckout}
-              disabled={checkoutLoading}
-              className="inline-flex items-center gap-2 rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60"
+        {showGuestEmail && result && (
+          <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <p className="text-sm font-semibold text-blue-900">
+              Introduce tu email para recibir la confirmación y el enlace de pago:
+            </p>
+            <form
+              className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (guestEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+                  startCheckout(guestEmail.trim().toLowerCase());
+                } else {
+                  setMessage("Introduce un email válido.");
+                }
+              }}
             >
-              {checkoutLoading ? "Redirigiendo al pago..." : "Pagar y confirmar pedido"}
-            </button>
+              <input
+                type="email"
+                required
+                placeholder="tu@email.com"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={checkoutLoading}
+                className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+              >
+                {checkoutLoading ? "Creando pedido..." : "Continuar al pago"}
+              </button>
+            </form>
+            <p className="mt-1.5 text-[11px] text-slate-600">
+              Solo usaremos tu email para este pedido. Sin registro ni contraseña.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+          {result && !showGuestEmail && (
+            <>
+              <button
+                type="button"
+                onClick={addToCart}
+                className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300 bg-cyan-50 px-4 py-2 font-semibold text-cyan-800 shadow-sm hover:bg-cyan-100"
+              >
+                Añadir al presupuesto
+              </button>
+              {cart.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => startCheckout()}
+                  disabled={checkoutLoading}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60"
+                >
+                  {checkoutLoading ? "Redirigiendo al pago..." : "Pagar y confirmar pedido"}
+                </button>
+              )}
+            </>
           )}
           <Link
             href="/presupuesto"
@@ -571,6 +687,50 @@ export default function PriceEstimator() {
           </Link>
         </div>
       </div>
+      {/* Cart summary */}
+      {cart.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <p className="text-sm font-semibold text-emerald-900">
+            Presupuesto ({cart.length} {cart.length === 1 ? "documento" : "documentos"})
+          </p>
+          <ul className="mt-2 divide-y divide-emerald-200">
+            {cart.map((item) => (
+              <li key={item.id} className="flex items-center justify-between py-2 text-sm">
+                <div className="flex-1">
+                  <span className="font-medium text-slate-800">{item.title}</span>
+                  {item.pagesLabel && (
+                    <span className="ml-2 text-xs text-slate-500">({item.pagesLabel})</span>
+                  )}
+                  {item.words && (
+                    <span className="ml-2 text-xs text-slate-500">{item.words} palabras</span>
+                  )}
+                </div>
+                <span className="mx-3 font-semibold text-emerald-800">{item.total} EUR</span>
+                <button
+                  type="button"
+                  onClick={() => removeFromCart(item.id)}
+                  className="text-xs font-semibold text-red-600 hover:text-red-800"
+                >
+                  Eliminar
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex items-center justify-between border-t border-emerald-300 pt-3">
+            <p className="text-lg font-bold text-emerald-900">Total: {cartTotal} EUR</p>
+            {!showGuestEmail && (
+              <button
+                type="button"
+                onClick={() => startCheckout()}
+                disabled={checkoutLoading}
+                className="rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60"
+              >
+                {checkoutLoading ? "Redirigiendo al pago..." : "Pagar todo"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

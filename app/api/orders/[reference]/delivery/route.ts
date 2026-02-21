@@ -31,6 +31,13 @@ export async function POST(req: Request, { params }: Params) {
     const state = body.state || "EN_PROCESO";
     const translatedFileUrl = (body.translatedFileUrl || "").trim();
 
+    if (order.paymentStatus !== "PAID") {
+      return NextResponse.json(
+        { ok: false, error: "No se puede avanzar la entrega en pedidos pendientes de pago." },
+        { status: 400 }
+      );
+    }
+
     if (state === "TRADUCIDO" && !translatedFileUrl) {
       return NextResponse.json(
         { ok: false, error: "Para marcar como traducido debes adjuntar URL del archivo." },

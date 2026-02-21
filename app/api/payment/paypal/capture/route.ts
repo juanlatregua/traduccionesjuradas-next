@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { capturePayPalOrder } from "@/lib/paypal";
-import { getOrderDetail, updateOrderPayment } from "@/lib/orders";
+import { getOrderDetail, getOrderPublic, updateOrderPayment } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -13,12 +12,20 @@ type CaptureBody = {
 };
 
 export async function POST(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
-    }
+  const ip = getClientIp(req);
+  const rl = checkRateLimit({
+    key: `paypal:capture:${ip}`,
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiados intentos. Espera unos minutos." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
 
+  try {
     const body = (await req.json()) as CaptureBody;
 
     if (!body.paypalOrderId || !body.reference) {
@@ -28,27 +35,42 @@ export async function POST(req: Request) {
       );
     }
 
-    const order = await getOrderDetail(body.reference, session.user.email);
+    const order = await getOrderPublic(body.reference);
     if (!order) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
+    }
+    if (order.paymentStatus === "PAID") {
+      return NextResponse.json({ ok: false, error: "Este pedido ya esta pagado." }, { status: 400 });
     }
 
     const captured = await capturePayPalOrder(body.paypalOrderId);
 
     if (captured.status === "COMPLETED") {
+      const paypalReference = captured.purchase_units?.[0]?.reference_id;
+      if (paypalReference && paypalReference !== body.reference) {
+        return NextResponse.json({ ok: false, error: "Referencia de PayPal no valida." }, { status: 400 });
+      }
+
       const captureId =
         captured.purchase_units?.[0]?.payments?.captures?.[0]?.id || body.paypalOrderId;
 
       await updateOrderPayment(body.reference, "PAYPAL", captureId);
 
       // Notify client (non-blocking)
+      const fullOrder = await getOrderDetail(body.reference);
+      const toEmail = fullOrder?.clientEmail;
+      const title = fullOrder?.title || order.title;
+      const amountCents = fullOrder?.amountCents || order.amountCents;
+
+      if (toEmail) {
       sendPaymentConfirmedEmail({
-        toEmail: session.user.email,
+        toEmail,
         reference: order.reference,
-        title: order.title,
-        amountCents: order.amountCents,
+        title,
+        amountCents,
         method: "PAYPAL",
       }).catch((e) => console.error("[paypal-capture] email failed", e));
+      }
 
       return NextResponse.json({ ok: true, status: "COMPLETED" });
     }

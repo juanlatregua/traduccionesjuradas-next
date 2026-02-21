@@ -219,6 +219,7 @@ Si tienes cualquier duda, responde a este correo.
     <p>Referencia: <strong>${data.reference}</strong></p>
     <p>Puedes descargar tu archivo desde este enlace:</p>
     <p><a href="${data.downloadUrl}">${data.downloadUrl}</a></p>
+    <p style="font-size:13px; color:#6b7280;">Tambien puedes consultar el estado en <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a>.</p>
     <p>Si necesitas factura o envio en papel, responde a este correo.</p>
   `;
 
@@ -332,7 +333,7 @@ Importe: ${amount} EUR
 
 Puedes realizar el pago en: ${data.paymentUrl}
 
-Si ya has cerrado la ventana, accede a tu area de cliente en https://www.traduccionesjuradas.net/area-cliente para ver tus pedidos.
+Si ya has cerrado la ventana, puedes consultar el estado de tu pedido en: https://www.traduccionesjuradas.net/consulta
 
 Gracias,
 Equipo de TraduccionesJuradas.net`;
@@ -347,7 +348,7 @@ Equipo de TraduccionesJuradas.net`;
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
     </table>
     <p><a href="${data.paymentUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ir al pago</a></p>
-    <p style="font-size:13px; color:#6b7280;">Tambien puedes acceder desde tu <a href="https://www.traduccionesjuradas.net/area-cliente">area de cliente</a>.</p>
+    <p style="font-size:13px; color:#6b7280;">Tambien puedes consultar el estado de tu pedido en <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a> con tu referencia y email.</p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
@@ -381,11 +382,10 @@ export async function sendPaymentConfirmedEmail(data: {
     PAYPAL: "PayPal",
     BIZUM: "Bizum",
     TRANSFER: "Transferencia bancaria",
+    STRIPE: "Tarjeta (Stripe)",
   };
   const methodLabel = methodLabels[data.method] || data.method;
   const subject = `Pago confirmado - Pedido ${data.reference}`;
-
-  const clientUrl = `https://www.traduccionesjuradas.net/area-cliente/pedido/${data.reference}`;
 
   const text = `Hola,
 
@@ -396,7 +396,7 @@ Concepto: ${data.title}
 Importe: ${amount} EUR
 Metodo: ${methodLabel}
 
-Puedes seguir el estado de tu pedido en: ${clientUrl}
+Puedes seguir el estado de tu pedido en: https://www.traduccionesjuradas.net/consulta
 
 Te avisaremos cuando tu traduccion este lista.
 
@@ -412,7 +412,8 @@ Equipo de TraduccionesJuradas.net`;
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Metodo</td><td>${methodLabel}</td></tr>
     </table>
-    <p><a href="${clientUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver mi pedido</a></p>
+    <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado de mi pedido</a></p>
+    <p style="font-size:13px; color:#6b7280;">Usa tu referencia <strong>${data.reference}</strong> y tu email para consultar el estado.</p>
     <p>Te avisaremos cuando tu traduccion este lista.</p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;

@@ -1,19 +1,16 @@
 import { NextResponse } from "next/server";
+import { createCheckoutSession } from "@/lib/stripe";
 import { getOrderPublic } from "@/lib/orders";
-import { createPayPalOrder } from "@/lib/paypal";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
-type PayPalBody = {
-  reference?: string;
-};
-
-/* POST /api/payment/paypal — no auth required (guests can pay) */
+/* POST /api/payment/stripe — create Stripe Checkout session.
+   No auth required (guests can pay with card). */
 export async function POST(req: Request) {
   const ip = getClientIp(req);
   const rl = checkRateLimit({
-    key: `paypal:create:${ip}`,
+    key: `stripe:create:${ip}`,
     limit: 30,
     windowMs: 10 * 60 * 1000,
   });
@@ -25,9 +22,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = (await req.json()) as PayPalBody;
+    const body = (await req.json()) as { reference?: string };
     const reference = body.reference?.trim();
-
     if (!reference) {
       return NextResponse.json({ ok: false, error: "Referencia requerida." }, { status: 400 });
     }
@@ -36,23 +32,21 @@ export async function POST(req: Request) {
     if (!order) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
-
     if (order.paymentStatus === "PAID") {
-      return NextResponse.json({ ok: false, error: "Este pedido ya esta pagado." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Este pedido ya está pagado." }, { status: 400 });
     }
 
-    const amountEur = (order.amountCents / 100).toFixed(2);
-    const paypalOrder = await createPayPalOrder({
-      orderReference: reference,
-      amountEur,
-      description: order.title || `Traduccion jurada ${reference}`,
+    const session = await createCheckoutSession({
+      reference: order.reference,
+      amountCents: order.amountCents,
+      title: order.title,
     });
 
-    return NextResponse.json({ ok: true, paypalOrderId: paypalOrder.id });
+    return NextResponse.json({ ok: true, url: session.url });
   } catch (err: any) {
-    console.error("[paypal] error creating order", err);
+    console.error("[stripe] error creating checkout session", err);
     return NextResponse.json(
-      { ok: false, error: err?.message || "Error al crear orden PayPal." },
+      { ok: false, error: err?.message || "Error al crear sesión de pago." },
       { status: 500 }
     );
   }

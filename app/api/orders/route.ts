@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createOrder, getOrdersByClientEmail } from "@/lib/orders";
 import { sendOrderCreatedEmail, sendNewOrderStaffEmail } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,7 @@ export async function GET() {
   }
 }
 
-/* POST /api/orders  — create a new order */
+/* POST /api/orders  — create a new order (auth OR guest with email) */
 type CreateBody = {
   source?: "preset" | "file";
   title?: string;
@@ -31,17 +32,48 @@ type CreateBody = {
   pagesLabel?: string;
   amountCents?: number;
   currency?: string;
+  guestEmail?: string;
+  guestName?: string;
 };
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit({
+    key: `orders:create:${ip}`,
+    limit: 10,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiadas solicitudes. Intentalo de nuevo en unos minutos." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
+
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
+  let clientEmail: string;
+  let clientName: string | undefined;
+
+  try {
+    var body = (await req.json()) as CreateBody;
+  } catch {
+    return NextResponse.json({ ok: false, error: "Cuerpo invalido." }, { status: 400 });
+  }
+
+  if (session?.user?.email) {
+    clientEmail = session.user.email;
+    clientName = session.user.name || undefined;
+  } else if (body.guestEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.guestEmail)) {
+    clientEmail = body.guestEmail.trim().toLowerCase();
+    clientName = body.guestName?.trim() || undefined;
+  } else {
+    return NextResponse.json(
+      { ok: false, error: "Sesion o email requerido." },
+      { status: 401 }
+    );
   }
 
   try {
-    const body = (await req.json()) as CreateBody;
-
     if (!body.title || !body.amountCents || body.amountCents < 100) {
       return NextResponse.json(
         { ok: false, error: "Titulo e importe requeridos (minimo 1 EUR)." },
@@ -50,8 +82,8 @@ export async function POST(req: Request) {
     }
 
     const order = await createOrder({
-      clientEmail: session.user.email,
-      clientName: session.user.name || undefined,
+      clientEmail,
+      clientName,
       source: body.source || "file",
       title: body.title,
       langPair: body.langPair,
@@ -66,8 +98,8 @@ export async function POST(req: Request) {
     const paymentUrl = `${baseUrl}/area-cliente/pedido/${order.reference}/pagar`;
 
     sendOrderCreatedEmail({
-      toEmail: session.user.email,
-      clientName: session.user.name || undefined,
+      toEmail: clientEmail,
+      clientName,
       reference: order.reference,
       title: body.title,
       amountCents: body.amountCents,
@@ -78,7 +110,7 @@ export async function POST(req: Request) {
       reference: order.reference,
       title: body.title,
       amountCents: body.amountCents,
-      clientEmail: session.user.email,
+      clientEmail,
       langPair: body.langPair,
     }).catch((e) => console.error("[orders] email to staff failed", e));
 

@@ -27,6 +27,7 @@ enum PaymentMethod {
   PAYPAL
   BIZUM
   TRANSFER
+  STRIPE
 }
 
 enum DeliveryState {
@@ -54,6 +55,8 @@ model Order {
   deliveryState      DeliveryState  @default(PRESUPUESTO)
   deliveryType       String         @default("pdf")
   translatedFileUrl  String?
+  assignedTo         String?
+  dueDate            DateTime?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   paidAt             DateTime?

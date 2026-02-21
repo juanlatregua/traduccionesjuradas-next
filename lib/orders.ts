@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { PaymentMethod } from "@prisma/client";
+import crypto from "node:crypto";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -18,7 +19,7 @@ type CreateOrderInput = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Reference generator  (format: YY_NNN)                              */
+/*  Reference generator  (format: YY_XXXXXX)                           */
 /* ------------------------------------------------------------------ */
 
 function twoDigits(value: number) {
@@ -29,11 +30,8 @@ async function generateOrderReference() {
   const now = new Date();
   const year = now.getFullYear() % 100;
   const prefix = `${twoDigits(year)}_`;
-  const count = await prisma.order.count({
-    where: { reference: { startsWith: prefix } },
-  });
-  const seq = String(count + 1).padStart(3, "0");
-  return `${prefix}${seq}`;
+  const randomSuffix = crypto.randomBytes(3).toString("hex").toUpperCase();
+  return `${prefix}${randomSuffix}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -41,27 +39,36 @@ async function generateOrderReference() {
 /* ------------------------------------------------------------------ */
 
 export async function createOrder(input: CreateOrderInput) {
-  const reference = await generateOrderReference();
-  return prisma.order.create({
-    data: {
-      reference,
-      clientEmail: input.clientEmail,
-      clientName: input.clientName,
-      source: input.source,
-      title: input.title,
-      langPair: input.langPair,
-      words: input.words,
-      pagesLabel: input.pagesLabel,
-      amountCents: input.amountCents,
-      currency: input.currency || "eur",
-      events: {
-        create: {
-          type: "order.created",
-          message: "Pedido creado y pendiente de pago.",
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const reference = await generateOrderReference();
+    try {
+      return await prisma.order.create({
+        data: {
+          reference,
+          clientEmail: input.clientEmail,
+          clientName: input.clientName,
+          source: input.source,
+          title: input.title,
+          langPair: input.langPair,
+          words: input.words,
+          pagesLabel: input.pagesLabel,
+          amountCents: input.amountCents,
+          currency: input.currency || "eur",
+          events: {
+            create: {
+              type: "order.created",
+              message: "Pedido creado y pendiente de pago.",
+            },
+          },
         },
-      },
-    },
-  });
+      });
+    } catch (err: any) {
+      if (err?.code !== "P2002") {
+        throw err;
+      }
+    }
+  }
+  throw new Error("No se pudo generar una referencia de pedido unica.");
 }
 
 /* ------------------------------------------------------------------ */
@@ -106,6 +113,28 @@ export async function getOrderPublic(reference: string) {
       paidAt: true,
       title: true,
       langPair: true,
+      deliveryState: true,
+    },
+  });
+}
+
+export async function getOrderLookupByReferenceAndEmail(reference: string, email: string) {
+  return prisma.order.findFirst({
+    where: { reference, clientEmail: email.toLowerCase() },
+    select: {
+      reference: true,
+      amountCents: true,
+      currency: true,
+      paymentStatus: true,
+      status: true,
+      createdAt: true,
+      paidAt: true,
+      title: true,
+      langPair: true,
+      words: true,
+      pagesLabel: true,
+      deliveryState: true,
+      events: { orderBy: { createdAt: "desc" }, take: 5 },
     },
   });
 }
@@ -179,10 +208,12 @@ export async function updateDeliveryState(
   state: "PRESUPUESTO" | "EN_PROCESO" | "TRADUCIDO",
   translatedFileUrl?: string
 ) {
+  const nextStatus = state === "TRADUCIDO" ? "DELIVERED" : state === "EN_PROCESO" ? "IN_PROGRESS" : undefined;
   return prisma.order.update({
     where: { reference },
     data: {
       deliveryState: state,
+      ...(nextStatus ? { status: nextStatus } : {}),
       ...(translatedFileUrl ? { translatedFileUrl } : {}),
       events: {
         create: {
@@ -252,6 +283,32 @@ export async function saveShippingData(
     update: {
       ...data,
       country: data.country || "España",
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Assignment                                                         */
+/* ------------------------------------------------------------------ */
+
+export async function assignOrder(
+  reference: string,
+  assignedTo: string | null,
+  dueDate: Date | null
+) {
+  return prisma.order.update({
+    where: { reference },
+    data: {
+      assignedTo,
+      dueDate,
+      events: {
+        create: {
+          type: "order.assigned",
+          message: assignedTo
+            ? `Pedido asignado a ${assignedTo}${dueDate ? ` con fecha límite ${dueDate.toLocaleDateString("es-ES")}` : ""}.`
+            : "Asignación de pedido eliminada.",
+        },
+      },
     },
   });
 }

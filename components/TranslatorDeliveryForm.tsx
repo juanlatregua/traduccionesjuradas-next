@@ -59,15 +59,15 @@ export default function TranslatorDeliveryForm({ reference }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-900 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">
-        Entrega pedido {reference}
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+        Estado de entrega
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <select
           value={state}
           onChange={(e) => setState(e.target.value as "EN_PROCESO" | "TRADUCIDO")}
-          className="rounded-2xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
         >
           <option value="EN_PROCESO">En proceso</option>
           <option value="TRADUCIDO">Traducido</option>
@@ -77,7 +77,7 @@ export default function TranslatorDeliveryForm({ reference }: Props) {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="URL PDF traducido (opcional si subes archivo)"
-          className="rounded-2xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
         />
       </div>
       {state === "TRADUCIDO" && (
@@ -86,7 +86,7 @@ export default function TranslatorDeliveryForm({ reference }: Props) {
             type="file"
             accept=".pdf,.doc,.docx"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="block w-full text-xs text-slate-300 file:mr-3 file:rounded-xl file:border file:border-slate-500 file:bg-slate-800 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-slate-100"
+            className="block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-slate-500 file:bg-slate-800 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-slate-100"
           />
         </div>
       )}
@@ -95,6 +95,7 @@ export default function TranslatorDeliveryForm({ reference }: Props) {
           type="checkbox"
           checked={notifyClient}
           onChange={(e) => setNotifyClient(e.target.checked)}
+          className="rounded border-slate-500"
         />
         Notificar al cliente al marcar como traducido
       </label>
@@ -102,7 +103,7 @@ export default function TranslatorDeliveryForm({ reference }: Props) {
         type="button"
         onClick={submit}
         disabled={loading}
-        className="mt-3 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+        className="mt-3 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
         {loading ? "Guardando..." : "Guardar entrega"}
       </button>

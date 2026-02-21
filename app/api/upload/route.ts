@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
   }
 
+  const ip = getClientIp(req);
+  const rl = checkRateLimit({
+    key: `upload:${session.user.email}:${ip}`,
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiadas subidas en poco tiempo. Intentalo de nuevo mas tarde." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -18,6 +32,19 @@ export async function POST(req: Request) {
 
     if (!file) {
       return NextResponse.json({ ok: false, error: "Archivo requerido." }, { status: 400 });
+    }
+
+    const allowedTypes = new Set([
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "text/plain",
+    ]);
+    if (file.type && !allowedTypes.has(file.type)) {
+      return NextResponse.json({ ok: false, error: "Tipo de archivo no permitido." }, { status: 400 });
     }
 
     const maxSize = 10 * 1024 * 1024; // 10 MB

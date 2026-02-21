@@ -35,9 +35,12 @@ export function buildRedsysFormData(opts: {
 
   const { createRedirectForm } = getRedsysAPI();
 
-  // Redsys order must be 4-12 alphanumeric, first 4 digits.
-  // We transform "26_001" → "2600100000" (pad to 10 chars)
-  const dsOrder = opts.orderReference.replace(/_/g, "").padEnd(10, "0").slice(0, 12);
+  // Redsys order must be 4-12 alphanumeric and the first 4 chars must be numeric.
+  const cleaned = opts.orderReference.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const onlyDigits = cleaned.replace(/\D/g, "");
+  const numericPrefix = (onlyDigits + "0000").slice(0, 4);
+  const tail = cleaned.slice(-8);
+  const dsOrder = `${numericPrefix}${tail}`.slice(0, 12);
 
   const form = createRedirectForm({
     DS_MERCHANT_MERCHANTCODE: merchantCode,

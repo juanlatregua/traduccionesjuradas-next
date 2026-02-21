@@ -4,6 +4,7 @@ import {
   sendPresupuestoEmail,
   sendPresupuestoConfirmationEmail,
 } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { logPresupuesto } from "./logger";
 
 export const runtime = "nodejs"; // importante para libs Node en Vercel
@@ -12,6 +13,19 @@ const MAX_FILES = 6;
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB por archivo (ajústalo)
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit({
+    key: `presupuesto:${ip}`,
+    limit: 12,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiadas solicitudes. Intentalo de nuevo en unos minutos." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
+
   try {
     const formData = await req.formData();
 

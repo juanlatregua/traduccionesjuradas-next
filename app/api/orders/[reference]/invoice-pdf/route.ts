@@ -27,6 +27,13 @@ export async function GET(_req: Request, { params }: Params) {
       );
     }
 
+    if (order.paymentStatus !== "PAID") {
+      return NextResponse.json(
+        { ok: false, error: "La factura solo esta disponible para pedidos pagados." },
+        { status: 400 }
+      );
+    }
+
     const pdfBuffer = generateInvoicePdf({
       reference: order.reference,
       title: order.title,
