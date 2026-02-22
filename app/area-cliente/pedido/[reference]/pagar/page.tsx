@@ -32,6 +32,7 @@ export default function PagarPage() {
   const [uploading, setUploading] = useState(false);
   const [proofSent, setProofSent] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [proofEmail, setProofEmail] = useState("");
 
   useEffect(() => {
     fetch(`/api/orders/${reference}`)
@@ -62,6 +63,9 @@ export default function PagarPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (proofEmail.trim()) {
+        formData.append("clientEmail", proofEmail.trim().toLowerCase());
+      }
       const res = await fetch(`/api/orders/${reference}/payment-proof`, {
         method: "POST",
         body: formData,
@@ -259,6 +263,17 @@ export default function PagarPage() {
             Verificaremos el pago y te enviaremos una confirmacion por email.
           </p>
           <div className="mt-4">
+            <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">
+              Email del pedido (recomendado si no has iniciado sesion)
+            </label>
+            <input
+              id="proofEmail"
+              type="email"
+              value={proofEmail}
+              onChange={(e) => setProofEmail(e.target.value)}
+              placeholder="tu@email.com"
+              className="mb-3 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700"
+            />
             <input
               type="file"
               accept="image/*,.pdf"

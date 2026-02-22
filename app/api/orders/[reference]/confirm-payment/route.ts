@@ -23,7 +23,10 @@ export async function POST(req: Request, { params }: Params) {
     const body = (await req.json()) as ConfirmBody;
     const method = body.method === "TRANSFER" ? "TRANSFER" : "BIZUM";
 
-    await confirmManualPayment(params.reference, method);
+    const paymentUpdate = await confirmManualPayment(params.reference, method);
+    if (!paymentUpdate.changed) {
+      return NextResponse.json({ ok: true, alreadyPaid: true });
+    }
 
     // Notify client (non-blocking)
     const order = await getOrderDetail(params.reference);

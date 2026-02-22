@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { isStaffEmail } from "@/lib/staff-access";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   sendPaymentProofReceivedClientEmail,
   sendPaymentProofUploadedStaffEmail,
 } from "@/lib/email";
+import { validatePaymentProofFile } from "@/lib/file-security";
 
 export const runtime = "nodejs";
 
@@ -13,8 +17,11 @@ type Params = { params: { reference: string } };
 
 export async function POST(req: Request, { params }: Params) {
   const ip = getClientIp(req);
+  const session = await getServerSession(authOptions);
+  const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
+
   const rl = checkRateLimit({
-    key: `payment-proof:${ip}`,
+    key: `payment-proof:${params.reference}:${ip}`,
     limit: 10,
     windowMs: 10 * 60 * 1000,
   });
@@ -47,6 +54,7 @@ export async function POST(req: Request, { params }: Params) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const clientEmailRaw = String(formData.get("clientEmail") || "").trim().toLowerCase();
 
     if (!file) {
       return NextResponse.json({ ok: false, error: "Archivo requerido." }, { status: 400 });
@@ -65,6 +73,25 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
+    const isStaff = !!sessionEmail && isStaffEmail(sessionEmail);
+    const isAuthenticatedOwner = !!sessionEmail && sessionEmail === order.clientEmail.toLowerCase();
+    const isGuestOwner = !sessionEmail && !!clientEmailRaw && clientEmailRaw === order.clientEmail.toLowerCase();
+    if (!isStaff && !isAuthenticatedOwner && !isGuestOwner) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "No autorizado para subir comprobante. Inicia sesion o indica el mismo email del pedido.",
+        },
+        { status: 403 }
+      );
+    }
+
+    const validation = await validatePaymentProofFile(file);
+    if (!validation.ok) {
+      return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+    }
+
     const maxSize = 5 * 1024 * 1024; // 5 MB
     if (file.size > maxSize) {
       return NextResponse.json(
@@ -73,8 +100,8 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    const pathname = `orders/${params.reference}/comprobantes/${Date.now()}-${file.name}`;
-    const blob = await put(pathname, file, { access: "public" });
+    const pathname = `orders/${params.reference}/comprobantes/${Date.now()}-${validation.safeName}`;
+    const blob = await put(pathname, file, { access: "public", addRandomSuffix: true });
     const uploadedAt = new Date().toISOString();
 
     await prisma.orderEvent.create({
@@ -82,7 +109,12 @@ export async function POST(req: Request, { params }: Params) {
         orderId: order.id,
         type: "payment.proof_uploaded",
         message: "Comprobante de pago adjuntado por el cliente. Pendiente de verificacion.",
-        payload: { fileUrl: blob.url, fileName: file.name, uploadedAt },
+        payload: {
+          fileUrl: blob.url,
+          fileName: validation.safeName,
+          uploadedAt,
+          uploadedBy: sessionEmail || clientEmailRaw || null,
+        },
       },
     });
 

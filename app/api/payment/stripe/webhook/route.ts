@@ -32,7 +32,10 @@ export async function POST(req: Request) {
 
     try {
       // Update order payment status
-      await updateOrderPayment(reference, "STRIPE", session.id);
+      const paymentUpdate = await updateOrderPayment(reference, "STRIPE", session.id);
+      if (!paymentUpdate.changed) {
+        return NextResponse.json({ received: true });
+      }
 
       // Fetch order to get client email for confirmation
       const order = await prisma.order.findUnique({

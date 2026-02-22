@@ -54,7 +54,10 @@ export async function POST(req: Request) {
       const captureId =
         captured.purchase_units?.[0]?.payments?.captures?.[0]?.id || body.paypalOrderId;
 
-      await updateOrderPayment(body.reference, "PAYPAL", captureId);
+      const paymentUpdate = await updateOrderPayment(body.reference, "PAYPAL", captureId);
+      if (!paymentUpdate.changed) {
+        return NextResponse.json({ ok: true, status: "COMPLETED", alreadyPaid: true });
+      }
 
       // Notify client (non-blocking)
       const fullOrder = await getOrderDetail(body.reference);

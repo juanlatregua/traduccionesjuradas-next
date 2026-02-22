@@ -34,7 +34,10 @@ export async function POST(req: Request) {
     }
 
     if (isResponseCodeOk(responseCode)) {
-      await updateOrderPayment(orderReference, "REDSYS", authCode || responseCode);
+      const paymentUpdate = await updateOrderPayment(orderReference, "REDSYS", authCode || responseCode);
+      if (!paymentUpdate.changed) {
+        return NextResponse.json({ ok: true });
+      }
       console.info(`[redsys-notification] payment OK for ${orderReference}`);
 
       // Notify client (non-blocking)
