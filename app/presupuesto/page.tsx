@@ -109,10 +109,13 @@ export default function PresupuestoPage() {
         throw new Error(data.error || "Error al enviar el formulario");
       }
 
+      const reference = typeof data.reference === "string" && data.reference.trim() ? data.reference.trim() : null;
+
       setToast({
         type: "success",
-        message:
-          "Hemos recibido tu solicitud con los documentos. Te responderemos por email en breve.",
+        message: reference
+          ? `Hemos recibido tu solicitud (${reference}). Te responderemos por email en breve.`
+          : "Hemos recibido tu solicitud con los documentos. Te responderemos por email en breve.",
       });
 
       // Reset form
