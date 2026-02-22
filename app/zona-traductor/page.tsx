@@ -13,6 +13,7 @@ import TranslatorAgenda from "@/components/TranslatorAgenda";
 import AutoRefresh from "@/components/AutoRefresh";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
+import { getTrackedConsultaUrl, getTrackedPresupuestoUrl } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -93,6 +94,26 @@ function WorkflowBadge({ state }: { state: string }) {
   );
 }
 
+function getAcquisitionSource(order: any): "WHATSAPP" | "WEB" {
+  const events = order.events || [];
+  if (events.some((e: any) => e.type === "wa.lead_received")) return "WHATSAPP";
+  const acquisitionEvent = events.find((e: any) => e.type === "order.acquisition");
+  const source = String((acquisitionEvent?.payload as any)?.source || "").toUpperCase();
+  return source === "WHATSAPP" ? "WHATSAPP" : "WEB";
+}
+
+function ChannelBadge({ source }: { source: "WHATSAPP" | "WEB" }) {
+  const cls =
+    source === "WHATSAPP"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      : "border-slate-500/40 bg-slate-500/10 text-slate-300";
+  return (
+    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
+      {source === "WHATSAPP" ? "WhatsApp" : "Web"}
+    </span>
+  );
+}
+
 function getPaymentProofs(order: any) {
   return (order.events || [])
     .filter((e: any) => e.type === "payment.proof_uploaded")
@@ -128,6 +149,7 @@ function matchesSearch(order: any, q: string) {
     order.clientEmail,
     order.assignedTo,
     order.langPair,
+    order.acquisitionSource,
     order?.billing?.nif,
     order?.billing?.fiscalName,
   ]
@@ -175,6 +197,7 @@ export default async function ZonaTraductorPage({
     ...o,
     financeSnapshot: getFinanceSnapshot(o),
     workflowState: getWorkflowState(o),
+    acquisitionSource: getAcquisitionSource(o),
   }));
 
   const filtro = searchParams.filtro || "todos";
@@ -189,6 +212,8 @@ export default async function ZonaTraductorPage({
         return order.paymentStatus === "PAID" && !order.assignedTo && order.deliveryState !== "TRADUCIDO";
       case "pendientes-revision":
         return order.workflowState === "PENDIENTE_REVISION";
+      case "origen-whatsapp":
+        return order.acquisitionSource === "WHATSAPP";
       case "en-proceso":
         return order.deliveryState === "EN_PROCESO";
       case "sla-riesgo":
@@ -212,6 +237,7 @@ export default async function ZonaTraductorPage({
     todos: scopedOrders.length,
     "pagados-sin-asignar": scopedOrders.filter((o) => o.paymentStatus === "PAID" && !o.assignedTo && o.deliveryState !== "TRADUCIDO").length,
     "pendientes-revision": scopedOrders.filter((o) => o.workflowState === "PENDIENTE_REVISION").length,
+    "origen-whatsapp": scopedOrders.filter((o) => o.acquisitionSource === "WHATSAPP").length,
     "en-proceso": scopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length,
     "sla-riesgo": scopedOrders.filter((o) => o.dueDate && (isDueSoon(o.dueDate) || isOverdue(o.dueDate)) && o.deliveryState !== "TRADUCIDO").length,
     "pendientes-pago": scopedOrders.filter((o) => o.paymentStatus === "PENDING").length,
@@ -225,6 +251,7 @@ export default async function ZonaTraductorPage({
   const inProgressCount = scopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length;
   const pendingPayCount = scopedOrders.filter((o) => o.paymentStatus === "PENDING").length;
   const reviewPendingCount = counts["pendientes-revision"];
+  const whatsappLeadCount = counts["origen-whatsapp"];
   const financialRiskCount = counts["riesgo-financiero"];
   const marginApprovalPendingCount = counts["margen-aprobacion"];
   const monthlyBatchPendingCount = counts["lote-pendiente"];
@@ -284,6 +311,10 @@ export default async function ZonaTraductorPage({
             <p className="text-2xl font-bold text-orange-300">{reviewPendingCount}</p>
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-orange-300/70">Pend. revisión</p>
           </div>
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
+            <p className="text-2xl font-bold text-emerald-300">{whatsappLeadCount}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-300/70">Origen WA</p>
+          </div>
           <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-center">
             <p className="text-2xl font-bold text-red-400">{financialRiskCount}</p>
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-red-400/70">Riesgo financiero</p>
@@ -317,6 +348,27 @@ export default async function ZonaTraductorPage({
           </p>
           <p className="mt-1 text-slate-400">
             Si un pedido cae por debajo del umbral de margen (10%), queda bloqueado para cierre hasta aprobar.
+          </p>
+          <p className="mt-2 text-slate-400">
+            Flujo WhatsApp: usa{" "}
+            <a
+              href={getTrackedPresupuestoUrl("pm")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-cyan-300 underline"
+            >
+              enlace presupuesto
+            </a>{" "}
+            y{" "}
+            <a
+              href={getTrackedConsultaUrl(undefined, "pm")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-cyan-300 underline"
+            >
+              enlace consulta
+            </a>{" "}
+            para que el lead entre trazado como `src=wa`.
           </p>
         </div>
       </section>
@@ -367,6 +419,7 @@ export default async function ZonaTraductorPage({
                   <th className="px-4 py-3 font-semibold">Titulo</th>
                   <th className="px-4 py-3 font-semibold">Importe</th>
                   <th className="px-4 py-3 font-semibold">Pago</th>
+                  <th className="px-4 py-3 font-semibold">Canal</th>
                   <th className="px-4 py-3 font-semibold">Workflow</th>
                   <th className="px-4 py-3 font-semibold">Estado</th>
                   <th className="px-4 py-3 font-semibold">Asignado</th>
@@ -401,6 +454,7 @@ export default async function ZonaTraductorPage({
                       </td>
                       <td className="px-4 py-3 text-xs font-medium text-slate-200">{formatMoney(order.amountCents)}</td>
                       <td className="px-4 py-3"><PaymentBadge status={order.paymentStatus} /></td>
+                      <td className="px-4 py-3"><ChannelBadge source={order.acquisitionSource} /></td>
                       <td className="px-4 py-3"><WorkflowBadge state={order.workflowState} /></td>
                       <td className="px-4 py-3"><DeliveryBadge state={order.deliveryState} /></td>
                       <td className="px-4 py-3 text-xs text-slate-300">{order.assignedTo || <span className="text-slate-600">—</span>}</td>
@@ -482,6 +536,7 @@ export default async function ZonaTraductorPage({
               paymentStatus={order.paymentStatus}
               deliveryState={order.deliveryState}
               workflowState={order.workflowState}
+              acquisitionSource={order.acquisitionSource}
               assignedTo={order.assignedTo}
               dueDate={order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null}
               amountCents={order.amountCents}

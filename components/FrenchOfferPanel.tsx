@@ -295,6 +295,36 @@ export default function FrenchOfferPanel() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [botHistory, setBotHistory] = useState<Array<{ from: "bot" | "user"; text: string }>>([]);
+  const [tracking, setTracking] = useState<{
+    sourceRaw?: string;
+    sourceChannel?: string;
+    sourceAgent?: string;
+    sourceCampaign?: string;
+    sourceMedium?: string;
+    sourceLanding?: string;
+  }>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const srcRaw = (params.get("src") || params.get("utm_source") || "").trim().toLowerCase();
+    const sourceChannel =
+      srcRaw === "wa" || srcRaw === "whatsapp" || srcRaw.startsWith("whatsapp")
+        ? "WHATSAPP"
+        : undefined;
+    const sourceAgent = (params.get("agent") || "").trim() || undefined;
+    const sourceCampaign =
+      (params.get("campaign") || params.get("utm_campaign") || "").trim() || undefined;
+    const sourceMedium = (params.get("utm_medium") || "").trim() || undefined;
+    setTracking({
+      sourceRaw: srcRaw || undefined,
+      sourceChannel,
+      sourceAgent,
+      sourceCampaign,
+      sourceMedium,
+      sourceLanding: window.location.pathname + window.location.search,
+    });
+  }, []);
 
   const selectedDoc = useMemo(
     () => DOC_OPTIONS.find((doc) => doc.id === selectedDocId) || DOC_OPTIONS[0],
@@ -457,6 +487,11 @@ export default function FrenchOfferPanel() {
             ? "Carrito mixto (prefijado + por palabras) requiere validacion interna previa."
             : undefined,
           urgencyNotes: urgencyNotes.trim() || undefined,
+          sourceChannel: tracking.sourceChannel,
+          sourceAgent: tracking.sourceAgent,
+          sourceCampaign: tracking.sourceCampaign,
+          sourceMedium: tracking.sourceMedium,
+          sourceLanding: tracking.sourceLanding,
         }),
       });
       const data = await res.json();
@@ -467,7 +502,12 @@ export default function FrenchOfferPanel() {
         }
         throw new Error(data?.error || "No se pudo crear el pedido.");
       }
-      window.location.assign(`/area-cliente/pedido/${data.order.reference}/pagar`);
+      const params = new URLSearchParams();
+      if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
+      if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
+      const qs = params.toString();
+      const paymentUrl = `/area-cliente/pedido/${data.order.reference}/pagar${qs ? `?${qs}` : ""}`;
+      window.location.assign(paymentUrl);
     } catch (err: any) {
       setError(err?.message || "No se pudo crear el pedido.");
     } finally {

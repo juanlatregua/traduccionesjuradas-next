@@ -2,12 +2,55 @@
 
 const WHATSAPP_NUMBER = "34951333614"; // sin el + aquí
 
-const WHATSAPP_MESSAGE =
-  "Hola, quiero pedir un presupuesto de traducción jurada. Gracias por usar Traduccionesjuradas.net. Un proceso rápido y fácil para encargar 100% online una traducción jurada. Envíe su documento en pdf o fotografía e indique si necesita una traducción jurada en pdf o en papel. En breve le enviamos un presupuesto exacto.";
+export const SITE_BASE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.traduccionesjuradas.net"
+).replace(/\/$/, "");
 
-export const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-  WHATSAPP_MESSAGE
-)}`;
+function withTracking(path: string, params?: Record<string, string | null | undefined>) {
+  const url = new URL(path, SITE_BASE_URL);
+  const merged: Record<string, string> = {
+    src: "wa",
+    ...(params
+      ? Object.fromEntries(
+          Object.entries(params)
+            .filter((entry): entry is [string, string] => Boolean(entry[1]))
+            .map(([key, value]) => [key, String(value)])
+        )
+      : {}),
+  };
+  for (const [key, value] of Object.entries(merged)) {
+    url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+export function getTrackedPresupuestoUrl(agent = "whatsapp") {
+  return withTracking("/presupuesto", { agent });
+}
+
+export function getTrackedConsultaUrl(reference?: string | null, agent = "whatsapp") {
+  return withTracking("/consulta", {
+    agent,
+    ...(reference ? { ref: reference } : {}),
+  });
+}
+
+export function getTrackedPaymentUrl(reference: string, agent = "whatsapp") {
+  return withTracking(`/area-cliente/pedido/${reference}/pagar`, { agent, ref: reference });
+}
+
+export function getWhatsAppNumber() {
+  return WHATSAPP_NUMBER;
+}
+
+export function buildWhatsAppLinkFromText(text: string) {
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+}
+
+const WHATSAPP_MESSAGE =
+  "Hola, quiero pedir un presupuesto de traduccion jurada. Idioma origen: / Idioma destino: / Tipo de documento: / Email de contacto:";
+
+export const WHATSAPP_LINK = buildWhatsAppLinkFromText(WHATSAPP_MESSAGE);
 
 export const EMAIL = "hola@traduccionesjuradas.net";
 const SUBJECT = "Presupuesto traducción jurada";

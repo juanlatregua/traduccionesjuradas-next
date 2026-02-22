@@ -17,6 +17,7 @@ type Props = {
   paymentStatus: string;
   deliveryState: string;
   workflowState: string;
+  acquisitionSource: "WHATSAPP" | "WEB";
   assignedTo: string | null;
   dueDate: string | null;
   amountCents: number;
@@ -65,6 +66,7 @@ export default function OrderActionPanel({
   paymentStatus,
   deliveryState,
   workflowState,
+  acquisitionSource,
   assignedTo,
   dueDate,
   amountCents,
@@ -122,6 +124,7 @@ export default function OrderActionPanel({
             <span>Cliente: <span className="text-slate-200">{clientEmail}</span></span>
             <span>Importe: <span className="text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span></span>
             <span>Workflow: <span className="text-slate-200">{getWorkflowStateLabel(workflowState)}</span></span>
+            <span>Canal: <span className="text-slate-200">{acquisitionSource === "WHATSAPP" ? "WhatsApp" : "Web"}</span></span>
             <span>Comprobante: <span className="text-slate-200">{paymentProofs.length > 0 ? "Subido" : "No subido"}</span></span>
             <span>
               Conciliación:{" "}
@@ -212,7 +215,11 @@ export default function OrderActionPanel({
             )}
             {tab === "entrega" && <TranslatorDeliveryForm reference={reference} />}
             {tab === "notificar" && (
-              <TranslatorNotifyForm reference={reference} defaultClientEmail={clientEmail} />
+              <TranslatorNotifyForm
+                reference={reference}
+                defaultClientEmail={clientEmail}
+                acquisitionSource={acquisitionSource}
+              />
             )}
             {tab === "finanzas" && (
               <OrderFinancePanel

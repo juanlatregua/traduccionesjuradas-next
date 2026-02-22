@@ -48,7 +48,67 @@ type CreateBody = {
   reviewReason?: string;
   hasMixedCart?: boolean;
   containsWordCountItem?: boolean;
+  sourceChannel?: string;
+  sourceAgent?: string;
+  sourceCampaign?: string;
+  sourceMedium?: string;
+  sourceLanding?: string;
 };
+
+type AcquisitionSnapshot = {
+  source: "WHATSAPP" | "WEB";
+  sourceRaw: string | null;
+  agent: string | null;
+  campaign: string | null;
+  medium: string | null;
+  landing: string | null;
+  referer: string | null;
+};
+
+function normalizeToken(raw?: string | null) {
+  if (!raw) return null;
+  const cleaned = raw.trim().toLowerCase();
+  return cleaned || null;
+}
+
+function inferAcquisitionSource(req: Request, body: CreateBody): AcquisitionSnapshot {
+  const refererRaw = req.headers.get("referer");
+  const refererUrl = refererRaw ? (() => { try { return new URL(refererRaw); } catch { return null; } })() : null;
+
+  const sourceRaw =
+    normalizeToken(body.sourceChannel) ||
+    normalizeToken(refererUrl?.searchParams.get("src")) ||
+    normalizeToken(refererUrl?.searchParams.get("utm_source"));
+  const agent =
+    normalizeToken(body.sourceAgent) ||
+    normalizeToken(refererUrl?.searchParams.get("agent"));
+  const campaign =
+    normalizeToken(body.sourceCampaign) ||
+    normalizeToken(refererUrl?.searchParams.get("campaign")) ||
+    normalizeToken(refererUrl?.searchParams.get("utm_campaign"));
+  const medium =
+    normalizeToken(body.sourceMedium) ||
+    normalizeToken(refererUrl?.searchParams.get("utm_medium"));
+  const landing =
+    normalizeToken(body.sourceLanding) ||
+    (refererUrl ? refererUrl.pathname + refererUrl.search : null);
+
+  const isWhatsApp =
+    sourceRaw === "wa" ||
+    sourceRaw === "whatsapp" ||
+    sourceRaw === "whatsapp_web" ||
+    sourceRaw === "whatsapp_app";
+
+  return {
+    source: isWhatsApp ? "WHATSAPP" : "WEB",
+    sourceRaw,
+    agent,
+    campaign,
+    medium,
+    landing,
+    referer: refererRaw || null,
+  };
+}
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
@@ -106,6 +166,41 @@ export async function POST(req: Request) {
       amountCents: body.amountCents,
       currency: body.currency || "eur",
     });
+    const acquisition = inferAcquisitionSource(req, body);
+
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "order.acquisition",
+        message: `Origen de captacion: ${acquisition.source}.`,
+        payload: {
+          source: acquisition.source,
+          sourceRaw: acquisition.sourceRaw,
+          agent: acquisition.agent,
+          campaign: acquisition.campaign,
+          medium: acquisition.medium,
+          landing: acquisition.landing,
+          referer: acquisition.referer,
+          actorEmail: clientEmail,
+        },
+      },
+    });
+
+    if (acquisition.source === "WHATSAPP") {
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "wa.lead_received",
+          message: "Lead recibido desde WhatsApp y derivado al flujo web.",
+          payload: {
+            sourceRaw: acquisition.sourceRaw,
+            agent: acquisition.agent,
+            campaign: acquisition.campaign,
+            actorEmail: clientEmail,
+          },
+        },
+      });
+    }
 
     const flowProfile = inferFlowProfile({
       langPair: body.langPair,
@@ -247,6 +342,7 @@ export async function POST(req: Request) {
       order: { id: order.id, reference: order.reference },
       nextStep: needsInternalReview ? "WAIT_REVIEW" : "PAY_NOW",
       flowProfile,
+      acquisitionSource: acquisition.source,
     });
   } catch (err) {
     console.error("[orders] error creating order", err);

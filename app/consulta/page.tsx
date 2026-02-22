@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getWorkflowStateLabel } from "@/lib/client-area";
 
@@ -43,6 +43,15 @@ export default function ConsultaPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = (params.get("ref") || "").trim();
+    const prefillEmail = (params.get("email") || "").trim().toLowerCase();
+    if (ref && !reference) setReference(ref);
+    if (prefillEmail && !email) setEmail(prefillEmail);
+  }, [reference, email]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -7,6 +7,7 @@ type FilterKey =
   | "todos"
   | "pagados-sin-asignar"
   | "pendientes-revision"
+  | "origen-whatsapp"
   | "en-proceso"
   | "sla-riesgo"
   | "pendientes-pago"
@@ -19,6 +20,7 @@ const LABELS: Record<FilterKey, string> = {
   todos: "Todos",
   "pagados-sin-asignar": "Pagados sin asignar",
   "pendientes-revision": "Pend. revisión",
+  "origen-whatsapp": "Origen WhatsApp",
   "en-proceso": "En proceso",
   "sla-riesgo": "SLA en riesgo",
   "pendientes-pago": "Pend. pago",
