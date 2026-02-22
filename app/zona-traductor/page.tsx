@@ -216,10 +216,162 @@ function topFinancialAlert(order: any) {
   return "Revisar estado financiero";
 }
 
+type PeriodKey = "total" | "hoy" | "7d" | "mes" | "mes-anterior" | "custom";
+
+type DateRange = {
+  key: PeriodKey;
+  label: string;
+  from: Date | null;
+  to: Date | null;
+  fromInput: string;
+  toInput: string;
+};
+
+function startOfDay(value: Date) {
+  const d = new Date(value);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfDay(value: Date) {
+  const d = new Date(value);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function startOfMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), 1, 0, 0, 0, 0);
+}
+
+function endOfMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+function parseDateInput(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const parsed = new Date(`${raw}T00:00:00`);
+  if (isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function formatInputDate(date: Date | null) {
+  if (!date) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function normalizePeriod(value?: string | null): PeriodKey {
+  if (value === "hoy" || value === "7d" || value === "mes" || value === "mes-anterior" || value === "custom") {
+    return value;
+  }
+  return "total";
+}
+
+function getDateRange(periodRaw?: string | null, fromRaw?: string | null, toRaw?: string | null): DateRange {
+  const now = new Date();
+  const key = normalizePeriod(periodRaw);
+
+  if (key === "hoy") {
+    return {
+      key,
+      label: "Hoy",
+      from: startOfDay(now),
+      to: endOfDay(now),
+      fromInput: "",
+      toInput: "",
+    };
+  }
+
+  if (key === "7d") {
+    const from = startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
+    return {
+      key,
+      label: "Ultimos 7 dias",
+      from,
+      to: endOfDay(now),
+      fromInput: "",
+      toInput: "",
+    };
+  }
+
+  if (key === "mes") {
+    return {
+      key,
+      label: "Mes actual",
+      from: startOfMonth(now),
+      to: endOfDay(now),
+      fromInput: "",
+      toInput: "",
+    };
+  }
+
+  if (key === "mes-anterior") {
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const from = startOfMonth(prevMonth);
+    const to = endOfMonth(prevMonth);
+    return {
+      key,
+      label: "Mes anterior",
+      from,
+      to,
+      fromInput: "",
+      toInput: "",
+    };
+  }
+
+  if (key === "custom") {
+    const fromDate = parseDateInput(fromRaw);
+    const toDate = parseDateInput(toRaw);
+    const from = fromDate ? startOfDay(fromDate) : null;
+    const to = toDate ? endOfDay(toDate) : null;
+    const label =
+      from && to
+        ? `Rango ${formatDate(from)} - ${formatDate(to)}`
+        : from
+          ? `Desde ${formatDate(from)}`
+          : to
+            ? `Hasta ${formatDate(to)}`
+            : "Rango personalizado";
+    return {
+      key,
+      label,
+      from,
+      to,
+      fromInput: formatInputDate(fromDate),
+      toInput: formatInputDate(toDate),
+    };
+  }
+
+  return {
+    key: "total",
+    label: "Total historico",
+    from: null,
+    to: null,
+    fromInput: "",
+    toInput: "",
+  };
+}
+
+function isWithinDateRange(date: Date, range: DateRange) {
+  const time = new Date(date).getTime();
+  if (range.from && time < range.from.getTime()) return false;
+  if (range.to && time > range.to.getTime()) return false;
+  return true;
+}
+
 export default async function ZonaTraductorPage({
   searchParams,
 }: {
-  searchParams: { filtro?: string; q?: string };
+  searchParams: {
+    filtro?: string;
+    q?: string;
+    periodo?: string;
+    desde?: string;
+    hasta?: string;
+  };
 }) {
   const session = await getServerSession(authOptions);
   const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
@@ -246,12 +398,14 @@ export default async function ZonaTraductorPage({
     workflowState: getWorkflowState(o),
     acquisitionSource: getAcquisitionSource(o),
   }));
+  const dateRange = getDateRange(searchParams.periodo, searchParams.desde, searchParams.hasta);
 
   const filtro = searchParams.filtro || "todos";
   const qRaw = String(searchParams.q || "").trim();
   const q = qRaw.toLowerCase();
 
-  const scopedOrders = q ? allOrdersWithFinance.filter((order) => matchesSearch(order, q)) : allOrdersWithFinance;
+  const periodOrders = allOrdersWithFinance.filter((order) => isWithinDateRange(order.createdAt, dateRange));
+  const scopedOrders = q ? periodOrders.filter((order) => matchesSearch(order, q)) : periodOrders;
 
   const orders = scopedOrders.filter((order) => {
     switch (filtro) {
@@ -391,6 +545,12 @@ export default async function ZonaTraductorPage({
 
         <div className="mt-3 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-xs text-slate-300">
           <p>
+            Periodo activo:{" "}
+            <span className="font-semibold text-slate-100">{dateRange.label}</span>
+            {" · "}
+            <span className="text-slate-400">Resetear vista no borra datos, solo limpia filtros y estadisticas.</span>
+          </p>
+          <p>
             Margen medio con datos:{" "}
             <span className="font-semibold text-slate-100">{avgMarginPct === null ? "—" : `${avgMarginPct}%`}</span>
           </p>
@@ -468,7 +628,7 @@ export default async function ZonaTraductorPage({
       )}
 
       <TranslatorAgenda
-        items={allOrdersWithFinance.map((o) => ({
+        items={periodOrders.map((o) => ({
           reference: o.reference,
           title: o.title,
           dueDate: o.dueDate,
@@ -483,7 +643,14 @@ export default async function ZonaTraductorPage({
           <span className="ml-2 text-sm font-normal text-slate-400">({orders.length})</span>
         </h2>
 
-        <ZonaTraductorFilters current={filtro} counts={counts} query={qRaw} />
+        <ZonaTraductorFilters
+          current={filtro}
+          counts={counts}
+          query={qRaw}
+          period={dateRange.key}
+          fromDate={dateRange.fromInput}
+          toDate={dateRange.toInput}
+        />
 
         {orders.length === 0 ? (
           <p className="mt-6 text-center text-sm text-slate-500">No hay pedidos con este filtro.</p>
