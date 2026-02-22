@@ -14,6 +14,7 @@ export const runtime = "nodejs"; // importante para libs Node en Vercel
 
 const MAX_FILES = 6;
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB por archivo (ajústalo)
+const INTERNAL_PLACEHOLDER_AMOUNT_CENTS = 100; // 1 EUR temporal hasta revision interna
 
 const LANGUAGE_CODE_MAP: Record<string, string> = {
   espanol: "es",
@@ -195,7 +196,6 @@ export async function POST(req: Request) {
       size: file.size,
     }));
     let orderReference: string | null = null;
-
     try {
       const sourceSnapshot = inferPresupuestoSource(req);
       const langPair = buildLangPair(data.idiomaOrigen, data.idiomaDestino) || undefined;
@@ -207,7 +207,7 @@ export async function POST(req: Request) {
         title: buildOrderTitle(data.tipoDocumento),
         langPair,
         pagesLabel: data.tipoDocumento?.trim() || undefined,
-        amountCents: 0,
+        amountCents: INTERNAL_PLACEHOLDER_AMOUNT_CENTS,
       });
       orderReference = order.reference;
 
@@ -278,6 +278,13 @@ export async function POST(req: Request) {
         userEmail: data.email,
         timestamp: new Date().toISOString(),
       });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "No se pudo registrar tu solicitud internamente. Reintenta en unos minutos.",
+        },
+        { status: 500 }
+      );
     }
 
     const missingEnv =
