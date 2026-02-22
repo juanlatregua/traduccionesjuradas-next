@@ -15,7 +15,7 @@ function Logo() {
         <span className="text-sm font-semibold text-slate-900">
           TraduccionesJuradas.Net
         </span>
-        <span className="text-[11px] text-slate-500">
+        <span className="hidden text-[11px] text-slate-500 sm:block">
           Soluciones de Traducción Jurada
         </span>
       </div>

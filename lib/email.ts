@@ -640,3 +640,69 @@ Si no has solicitado este acceso, ignora este mensaje.`;
     html,
   });
 }
+
+export async function sendProjectManagerFinanceUpdateEmail(data: {
+  reference: string;
+  clientEmail: string;
+  supplierName?: string | null;
+  supplierType?: "AUTONOMO" | "EMPRESA" | string | null;
+  billingMode?: "PER_ORDER" | "MONTHLY_BATCH" | string | null;
+  invoiceNumber?: string | null;
+  totalCents?: number | null;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  const to = process.env.PM_NOTIFICATION_TO || process.env.PRESUPUESTO_TO;
+  if (!to) throw new Error("Missing PM_NOTIFICATION_TO or PRESUPUESTO_TO");
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = Number.isFinite(Number(data.totalCents))
+    ? `${(Number(data.totalCents) / 100).toFixed(2)} EUR`
+    : "N/D";
+  const supplierTypeLabel =
+    data.supplierType === "AUTONOMO" ? "Autonomo" : data.supplierType === "EMPRESA" ? "Empresa" : "N/D";
+  const billingModeLabel =
+    data.billingMode === "MONTHLY_BATCH" ? "Lote mensual" : data.billingMode === "PER_ORDER" ? "Por pedido" : "N/D";
+
+  const subject = `Pago proveedor confirmado - ${data.reference}`;
+  const text = `Se ha marcado como PAGADA la factura del proveedor.
+
+Pedido: ${data.reference}
+Cliente: ${data.clientEmail}
+Proveedor: ${data.supplierName || "N/D"}
+Tipo proveedor: ${supplierTypeLabel}
+Modalidad factura: ${billingModeLabel}
+Factura: ${data.invoiceNumber || "N/D"}
+Importe factura: ${amount}
+
+Revisar en zona traductor:
+https://www.traduccionesjuradas.net/zona-traductor`;
+
+  const html = `
+    <h2>Pago a proveedor confirmado</h2>
+    <p>Se ha marcado como <strong>PAGADA</strong> la factura del proveedor.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Pedido</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Proveedor</td><td>${data.supplierName || "N/D"}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Tipo proveedor</td><td>${supplierTypeLabel}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Modalidad factura</td><td>${billingModeLabel}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Factura</td><td>${data.invoiceNumber || "N/D"}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount}</td></tr>
+    </table>
+    <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona traductor</a></p>
+  `;
+
+  await sgMail.send({
+    to,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}

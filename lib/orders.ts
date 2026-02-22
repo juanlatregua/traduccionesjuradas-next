@@ -328,7 +328,7 @@ export async function getAllOrdersForStaff() {
     orderBy: { createdAt: "desc" },
     include: {
       billing: true,
-      events: { orderBy: { createdAt: "desc" }, take: 20 },
+      events: { orderBy: { createdAt: "desc" }, take: 50 },
     },
   });
 }

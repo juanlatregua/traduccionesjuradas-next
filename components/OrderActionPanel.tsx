@@ -4,6 +4,8 @@ import { useState } from "react";
 import AssignOrderForm from "./AssignOrderForm";
 import TranslatorDeliveryForm from "./TranslatorDeliveryForm";
 import TranslatorNotifyForm from "./TranslatorNotifyForm";
+import OrderFinancePanel from "./OrderFinancePanel";
+import type { FinanceSnapshot } from "@/lib/finance";
 
 type Props = {
   reference: string;
@@ -20,6 +22,7 @@ type Props = {
     fileName: string;
     uploadedAt?: string;
   }>;
+  financeSnapshot: FinanceSnapshot;
 };
 
 function PaymentBadge({ status }: { status: string }) {
@@ -62,15 +65,17 @@ export default function OrderActionPanel({
   dueDate,
   amountCents,
   paymentProofs,
+  financeSnapshot,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"comprobante" | "asignar" | "entrega" | "notificar">("comprobante");
+  const [tab, setTab] = useState<"comprobante" | "asignar" | "entrega" | "notificar" | "finanzas">("comprobante");
 
   const tabs = [
     { key: "comprobante" as const, label: "Comprobante", color: "text-cyan-300" },
     { key: "asignar" as const, label: "Asignar", color: "text-amber-300" },
     { key: "entrega" as const, label: "Entrega", color: "text-emerald-300" },
     { key: "notificar" as const, label: "Notificar", color: "text-violet-300" },
+    { key: "finanzas" as const, label: "Finanzas", color: "text-lime-300" },
   ];
 
   return (
@@ -112,6 +117,24 @@ export default function OrderActionPanel({
             <span>Cliente: <span className="text-slate-200">{clientEmail}</span></span>
             <span>Importe: <span className="text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span></span>
             <span>Comprobante: <span className="text-slate-200">{paymentProofs.length > 0 ? "Subido" : "No subido"}</span></span>
+            <span>
+              Conciliación:{" "}
+              <span className={financeSnapshot.reconciliationStatus === "MATCHED" ? "text-emerald-300" : "text-amber-300"}>
+                {financeSnapshot.reconciliationStatus}
+              </span>
+            </span>
+            <span>
+              Factura proveedor:{" "}
+              <span className={financeSnapshot.supplierInvoiceStatus === "PAID" || financeSnapshot.supplierInvoiceStatus === "VALIDATED" ? "text-emerald-300" : "text-amber-300"}>
+                {financeSnapshot.supplierInvoiceStatus}
+              </span>
+            </span>
+            <span>
+              Margen:{" "}
+              <span className={financeSnapshot.marginCents !== null && financeSnapshot.marginCents < 0 ? "text-red-300 font-semibold" : "text-slate-200"}>
+                {financeSnapshot.marginCents === null ? "—" : `${(financeSnapshot.marginCents / 100).toFixed(2)} EUR`}
+              </span>
+            </span>
             {dueDate && (
               <span>
                 Entrega:{" "}
@@ -181,6 +204,13 @@ export default function OrderActionPanel({
             {tab === "entrega" && <TranslatorDeliveryForm reference={reference} />}
             {tab === "notificar" && (
               <TranslatorNotifyForm reference={reference} defaultClientEmail={clientEmail} />
+            )}
+            {tab === "finanzas" && (
+              <OrderFinancePanel
+                reference={reference}
+                amountCents={amountCents}
+                snapshot={financeSnapshot}
+              />
             )}
           </div>
         </div>

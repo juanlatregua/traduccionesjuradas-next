@@ -11,6 +11,7 @@ import ZonaTraductorFilters from "@/components/ZonaTraductorFilters";
 import OrderActionPanel from "@/components/OrderActionPanel";
 import TranslatorAgenda from "@/components/TranslatorAgenda";
 import AutoRefresh from "@/components/AutoRefresh";
+import { getFinanceSnapshot } from "@/lib/finance";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -82,10 +83,54 @@ function getPaymentProofs(order: any) {
     .filter((p: any) => p.fileUrl);
 }
 
+function hasFinancialRisk(order: any) {
+  return !order.financeSnapshot.isFinanciallyCloseable || order.financeSnapshot.reconciliationStatus === "MISMATCH";
+}
+
+function requiresMarginApproval(order: any) {
+  return order.financeSnapshot.requiresMarginApproval && order.financeSnapshot.marginApprovalStatus !== "APPROVED";
+}
+
+function hasMonthlyBatchPending(order: any) {
+  return (
+    order.financeSnapshot.supplierInvoiceBillingMode === "MONTHLY_BATCH" &&
+    order.financeSnapshot.accountingCutoffPassed &&
+    !["VALIDATED", "PAID"].includes(order.financeSnapshot.supplierInvoiceStatus)
+  );
+}
+
+function matchesSearch(order: any, q: string) {
+  if (!q) return true;
+  const haystack = [
+    order.reference,
+    order.title,
+    order.clientEmail,
+    order.assignedTo,
+    order.langPair,
+    order?.billing?.nif,
+    order?.billing?.fiscalName,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(q);
+}
+
+function topFinancialAlert(order: any) {
+  const snapshot = order.financeSnapshot;
+  if (snapshot.reconciliationStatus === "MISMATCH") return "Descuadre en conciliacion de cobro";
+  if (snapshot.marginCents !== null && snapshot.marginCents < 0) return "Margen negativo";
+  if (requiresMarginApproval(order)) return "Margen bajo pendiente de aprobacion";
+  if (hasMonthlyBatchPending(order)) return "Factura de lote mensual vencida tras corte";
+  if (!["VALIDATED", "PAID"].includes(snapshot.supplierInvoiceStatus)) return "Factura proveedor pendiente de validar";
+  if (snapshot.accountingCutoffPassed && !snapshot.hasFinanceCloseEvent) return "Pendiente cierre contable del periodo";
+  return "Revisar estado financiero";
+}
+
 export default async function ZonaTraductorPage({
   searchParams,
 }: {
-  searchParams: { filtro?: string };
+  searchParams: { filtro?: string; q?: string };
 }) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email || null;
@@ -105,9 +150,18 @@ export default async function ZonaTraductorPage({
   }
 
   const allOrders = await getAllOrdersForStaff();
-  const filtro = searchParams.filtro || "todos";
+  const allOrdersWithFinance = allOrders.map((o) => ({
+    ...o,
+    financeSnapshot: getFinanceSnapshot(o),
+  }));
 
-  const orders = allOrders.filter((order) => {
+  const filtro = searchParams.filtro || "todos";
+  const qRaw = String(searchParams.q || "").trim();
+  const q = qRaw.toLowerCase();
+
+  const scopedOrders = q ? allOrdersWithFinance.filter((order) => matchesSearch(order, q)) : allOrdersWithFinance;
+
+  const orders = scopedOrders.filter((order) => {
     switch (filtro) {
       case "pagados-sin-asignar":
         return order.paymentStatus === "PAID" && !order.assignedTo && order.deliveryState !== "TRADUCIDO";
@@ -119,41 +173,73 @@ export default async function ZonaTraductorPage({
         return order.paymentStatus === "PENDING";
       case "traducidos":
         return order.deliveryState === "TRADUCIDO";
+      case "riesgo-financiero":
+        return hasFinancialRisk(order);
+      case "margen-aprobacion":
+        return requiresMarginApproval(order);
+      case "lote-pendiente":
+        return hasMonthlyBatchPending(order);
       default:
         return true;
     }
   });
 
   const counts = {
-    todos: allOrders.length,
-    "pagados-sin-asignar": allOrders.filter((o) => o.paymentStatus === "PAID" && !o.assignedTo && o.deliveryState !== "TRADUCIDO").length,
-    "en-proceso": allOrders.filter((o) => o.deliveryState === "EN_PROCESO").length,
-    "sla-riesgo": allOrders.filter((o) => o.dueDate && (isDueSoon(o.dueDate) || isOverdue(o.dueDate)) && o.deliveryState !== "TRADUCIDO").length,
-    "pendientes-pago": allOrders.filter((o) => o.paymentStatus === "PENDING").length,
-    "traducidos": allOrders.filter((o) => o.deliveryState === "TRADUCIDO").length,
+    todos: scopedOrders.length,
+    "pagados-sin-asignar": scopedOrders.filter((o) => o.paymentStatus === "PAID" && !o.assignedTo && o.deliveryState !== "TRADUCIDO").length,
+    "en-proceso": scopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length,
+    "sla-riesgo": scopedOrders.filter((o) => o.dueDate && (isDueSoon(o.dueDate) || isOverdue(o.dueDate)) && o.deliveryState !== "TRADUCIDO").length,
+    "pendientes-pago": scopedOrders.filter((o) => o.paymentStatus === "PENDING").length,
+    traducidos: scopedOrders.filter((o) => o.deliveryState === "TRADUCIDO").length,
+    "riesgo-financiero": scopedOrders.filter((o) => hasFinancialRisk(o)).length,
+    "margen-aprobacion": scopedOrders.filter((o) => requiresMarginApproval(o)).length,
+    "lote-pendiente": scopedOrders.filter((o) => hasMonthlyBatchPending(o)).length,
   };
 
-  /* ---- KPI counters ---- */
-  const paidCount = allOrders.filter((o) => o.paymentStatus === "PAID").length;
-  const inProgressCount = allOrders.filter((o) => o.deliveryState === "EN_PROCESO").length;
-  const deliveredCount = allOrders.filter((o) => o.deliveryState === "TRADUCIDO").length;
-  const pendingPayCount = allOrders.filter((o) => o.paymentStatus === "PENDING").length;
+  const paidCount = scopedOrders.filter((o) => o.paymentStatus === "PAID").length;
+  const inProgressCount = scopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length;
+  const pendingPayCount = scopedOrders.filter((o) => o.paymentStatus === "PENDING").length;
+  const financialRiskCount = counts["riesgo-financiero"];
+  const marginApprovalPendingCount = counts["margen-aprobacion"];
+  const monthlyBatchPendingCount = counts["lote-pendiente"];
+  const financeClosedCount = scopedOrders.filter((o) => o.financeSnapshot.hasFinanceCloseEvent).length;
+  const paidRevenueCents = scopedOrders
+    .filter((o) => o.paymentStatus === "PAID")
+    .reduce((acc, order) => acc + order.amountCents, 0);
+  const supplierPaymentPendingCount = scopedOrders.filter(
+    (o) => o.paymentStatus === "PAID" && o.financeSnapshot.supplierInvoiceStatus !== "PAID"
+  ).length;
+
+  const marginValues = scopedOrders
+    .map((o) => o.financeSnapshot.marginPct)
+    .filter((v): v is number => typeof v === "number");
+  const avgMarginPct = marginValues.length
+    ? Number((marginValues.reduce((acc, v) => acc + v, 0) / marginValues.length).toFixed(2))
+    : null;
+
+  const criticalFinanceOrders = scopedOrders
+    .filter(
+      (o) =>
+        hasFinancialRisk(o) ||
+        requiresMarginApproval(o) ||
+        hasMonthlyBatchPending(o) ||
+        (o.paymentStatus === "PAID" && o.financeSnapshot.accountingCutoffPassed && !o.financeSnapshot.hasFinanceCloseEvent)
+    )
+    .slice(0, 6);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-10">
       <AutoRefresh intervalMs={4000} />
-      {/* Header */}
       <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Zona traductor</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Gestion de pedidos
+          Gestion operativa + control economico
         </h1>
         <p className="mt-1 text-sm text-slate-400">Sesion: {email}</p>
 
-        {/* KPI cards */}
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
           <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-4 text-center">
-            <p className="text-2xl font-bold text-white">{allOrders.length}</p>
+            <p className="text-2xl font-bold text-white">{scopedOrders.length}</p>
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total pedidos</p>
           </div>
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
@@ -168,11 +254,62 @@ export default async function ZonaTraductorPage({
             <p className="text-2xl font-bold text-amber-400">{pendingPayCount}</p>
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-amber-400/60">Pend. pago</p>
           </div>
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-center">
+            <p className="text-2xl font-bold text-red-400">{financialRiskCount}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-red-400/70">Riesgo financiero</p>
+          </div>
+          <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 text-center col-span-2 sm:col-span-1">
+            <p className="text-sm font-bold text-cyan-300">{formatMoney(paidRevenueCents)}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-300/70">Ingresos cobrados</p>
+          </div>
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 text-center">
+            <p className="text-2xl font-bold text-rose-300">{supplierPaymentPendingCount}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-rose-300/70">Pagos prov. pend.</p>
+          </div>
+          <div className="rounded-2xl border border-lime-500/20 bg-lime-500/5 p-4 text-center">
+            <p className="text-2xl font-bold text-lime-300">{financeClosedCount}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-lime-300/70">Cierres fin.</p>
+          </div>
+          <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-center">
+            <p className="text-2xl font-bold text-yellow-300">{marginApprovalPendingCount}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-yellow-300/70">Aprob. margen</p>
+          </div>
+          <div className="rounded-2xl border border-fuchsia-500/20 bg-fuchsia-500/5 p-4 text-center">
+            <p className="text-2xl font-bold text-fuchsia-300">{monthlyBatchPendingCount}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-300/70">Lote vencido</p>
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-xs text-slate-300">
+          <p>
+            Margen medio con datos:{" "}
+            <span className="font-semibold text-slate-100">{avgMarginPct === null ? "—" : `${avgMarginPct}%`}</span>
+          </p>
+          <p className="mt-1 text-slate-400">
+            Si un pedido cae por debajo del umbral de margen (10%), queda bloqueado para cierre hasta aprobar.
+          </p>
         </div>
       </section>
 
+      {criticalFinanceOrders.length > 0 && (
+        <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-red-500/30 bg-red-500/5 p-6 shadow-xl sm:p-8">
+          <h2 className="text-lg font-semibold text-red-200">Alertas criticas a resolver hoy</h2>
+          <ul className="mt-3 space-y-2 text-sm text-red-100">
+            {criticalFinanceOrders.map((order) => (
+              <li key={order.reference} className="rounded-xl border border-red-500/20 bg-slate-900/50 px-3 py-2">
+                <span className="font-mono text-xs font-bold text-cyan-300">{order.reference}</span>
+                <span className="mx-2 text-slate-500">·</span>
+                <span>{topFinancialAlert(order)}</span>
+                <span className="mx-2 text-slate-500">·</span>
+                <span className="text-slate-300">{order.clientEmail}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <TranslatorAgenda
-        items={allOrders.map((o) => ({
+        items={allOrdersWithFinance.map((o) => ({
           reference: o.reference,
           title: o.title,
           dueDate: o.dueDate,
@@ -181,14 +318,13 @@ export default async function ZonaTraductorPage({
         }))}
       />
 
-      {/* Table section */}
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
         <h2 className="text-lg font-semibold text-white">
           Pedidos
           <span className="ml-2 text-sm font-normal text-slate-400">({orders.length})</span>
         </h2>
 
-        <ZonaTraductorFilters current={filtro} counts={counts} />
+        <ZonaTraductorFilters current={filtro} counts={counts} query={qRaw} />
 
         {orders.length === 0 ? (
           <p className="mt-6 text-center text-sm text-slate-500">No hay pedidos con este filtro.</p>
@@ -205,6 +341,7 @@ export default async function ZonaTraductorPage({
                   <th className="px-4 py-3 font-semibold">Asignado</th>
                   <th className="px-4 py-3 font-semibold">Entrega</th>
                   <th className="px-4 py-3 font-semibold">Comprobante</th>
+                  <th className="px-4 py-3 font-semibold">Finanzas</th>
                   <th className="px-4 py-3 font-semibold">Cliente</th>
                   <th className="px-4 py-3 font-semibold">Acciones</th>
                 </tr>
@@ -215,6 +352,11 @@ export default async function ZonaTraductorPage({
                   const dueSoon = isDueSoon(order.dueDate);
                   const paymentProofs = getPaymentProofs(order);
                   const latestProof = paymentProofs[0];
+                  const financeRisk = hasFinancialRisk(order);
+                  const financialLabel = financeRisk ? "Riesgo" : "OK";
+                  const financeTitle = order.financeSnapshot.warnings.length
+                    ? order.financeSnapshot.warnings.join(" | ")
+                    : "Sin alertas financieras";
                   return (
                     <tr
                       key={order.reference}
@@ -258,13 +400,27 @@ export default async function ZonaTraductorPage({
                           <span className="text-xs text-slate-600">—</span>
                         )}
                       </td>
+                      <td className="px-4 py-3" title={financeTitle}>
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
+                            financeRisk
+                              ? "border-red-500/40 bg-red-500/10 text-red-300"
+                              : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                          }`}
+                        >
+                          {financialLabel}
+                        </span>
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          {order.financeSnapshot.marginPct === null ? "Margen —" : `Margen ${order.financeSnapshot.marginPct}%`}
+                          {requiresMarginApproval(order) ? " · aprobar" : ""}
+                          {hasMonthlyBatchPending(order) ? " · lote vencido" : ""}
+                        </p>
+                      </td>
                       <td className="max-w-[160px] truncate px-4 py-3 text-xs text-slate-400" title={order.clientEmail}>
                         {order.clientEmail}
                       </td>
                       <td className="px-4 py-3">
-                        {order.paymentStatus === "PENDING" && (
-                          <ConfirmPaymentButton reference={order.reference} />
-                        )}
+                        {order.paymentStatus === "PENDING" && <ConfirmPaymentButton reference={order.reference} />}
                       </td>
                     </tr>
                   );
@@ -275,14 +431,11 @@ export default async function ZonaTraductorPage({
         )}
       </section>
 
-      {/* Action panels - collapsible per order */}
       {orders.length > 0 && (
         <section className="mx-auto mt-6 max-w-6xl space-y-3">
           <h2 className="text-lg font-semibold text-white">
             Acciones por pedido
-            <span className="ml-2 text-sm font-normal text-slate-400">
-              (pulsa para expandir)
-            </span>
+            <span className="ml-2 text-sm font-normal text-slate-400">(pulsa para expandir)</span>
           </h2>
           {orders.map((order) => (
             <OrderActionPanel
@@ -297,6 +450,7 @@ export default async function ZonaTraductorPage({
               dueDate={order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null}
               amountCents={order.amountCents}
               paymentProofs={getPaymentProofs(order)}
+              financeSnapshot={order.financeSnapshot}
             />
           ))}
         </section>
