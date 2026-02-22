@@ -9,6 +9,7 @@ import { logPresupuesto } from "./logger";
 import { createOrder } from "@/lib/orders";
 import { prisma } from "@/lib/prisma";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { put } from "@vercel/blob";
 
 export const runtime = "nodejs"; // importante para libs Node en Vercel
 
@@ -57,6 +58,16 @@ function buildOrderTitle(tipoDocumento: string) {
   const clean = tipoDocumento.trim().replace(/\s+/g, " ");
   if (!clean) return "Solicitud web de traduccion jurada";
   return clean.length > 120 ? `${clean.slice(0, 117)}...` : clean;
+}
+
+function toSafeFileName(name: string) {
+  const normalized = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "");
+  return normalized || "archivo";
 }
 
 function inferPresupuestoSource(req: Request) {
@@ -180,21 +191,18 @@ export async function POST(req: Request) {
         }
 
         const ab = await f.arrayBuffer();
-        const contentBase64 = Buffer.from(ab).toString("base64");
+        const contentBuffer = Buffer.from(ab);
+        const contentBase64 = contentBuffer.toString("base64");
 
         return {
           name: fileName,
           type: fileType,
           size: fileSize,
           contentBase64,
+          contentBuffer,
         };
       })
     );
-    const filesMeta = files.map((file) => ({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    }));
     let orderReference: string | null = null;
     try {
       const sourceSnapshot = inferPresupuestoSource(req);
@@ -210,6 +218,25 @@ export async function POST(req: Request) {
         amountCents: INTERNAL_PLACEHOLDER_AMOUNT_CENTS,
       });
       orderReference = order.reference;
+
+      const uploadedFiles = await Promise.all(
+        files.map(async (file, index) => {
+          const pathname = `orders/${order.reference}/presupuesto/${Date.now()}-${index + 1}-${toSafeFileName(file.name)}`;
+          const blob = await put(pathname, file.contentBuffer, {
+            access: "public",
+            addRandomSuffix: true,
+            contentType: file.type || "application/octet-stream",
+          });
+          return {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            url: blob.url,
+            pathname: blob.pathname,
+            uploadedAt: new Date().toISOString(),
+          };
+        })
+      );
 
       await prisma.orderEvent.create({
         data: {
@@ -257,7 +284,7 @@ export async function POST(req: Request) {
             tipoDocumento: data.tipoDocumento || null,
             plazo: data.plazo || null,
             aceptaPrivacidad: data.aceptaPrivacidad || null,
-            files: filesMeta,
+            files: uploadedFiles,
           },
         },
       });

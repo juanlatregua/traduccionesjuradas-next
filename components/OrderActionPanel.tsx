@@ -6,6 +6,7 @@ import TranslatorDeliveryForm from "./TranslatorDeliveryForm";
 import TranslatorNotifyForm from "./TranslatorNotifyForm";
 import OrderFinancePanel from "./OrderFinancePanel";
 import OrderWorkflowPanel from "./OrderWorkflowPanel";
+import OrderDocumentsPanel from "./OrderDocumentsPanel";
 import type { FinanceSnapshot } from "@/lib/finance";
 import { getWorkflowStateLabel } from "@/lib/workflow";
 
@@ -26,6 +27,22 @@ type Props = {
     fileName: string;
     uploadedAt?: string;
   }>;
+  documents: Array<{
+    name: string;
+    type: string;
+    size: number;
+    url?: string;
+    uploadedAt?: string;
+  }>;
+  quoteDraft?: {
+    lines: Array<{
+      documentName: string;
+      amountCents: number;
+      notes?: string | null;
+    }>;
+    totalCents: number | null;
+    updatedAt?: string | null;
+  } | null;
   financeSnapshot: FinanceSnapshot;
 };
 
@@ -71,12 +88,15 @@ export default function OrderActionPanel({
   dueDate,
   amountCents,
   paymentProofs,
+  documents,
+  quoteDraft,
   financeSnapshot,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas">("comprobante");
+  const [tab, setTab] = useState<"documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas">("documentos");
 
   const tabs = [
+    { key: "documentos" as const, label: "Documentos", color: "text-teal-300" },
     { key: "comprobante" as const, label: "Comprobante", color: "text-cyan-300" },
     { key: "workflow" as const, label: "Workflow", color: "text-indigo-300" },
     { key: "asignar" as const, label: "Asignar", color: "text-amber-300" },
@@ -174,6 +194,15 @@ export default function OrderActionPanel({
 
           {/* Tab content */}
           <div className="p-5">
+            {tab === "documentos" && (
+              <OrderDocumentsPanel
+                reference={reference}
+                workflowState={workflowState}
+                amountCents={amountCents}
+                documents={documents}
+                quoteDraft={quoteDraft || null}
+              />
+            )}
             {tab === "comprobante" && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">

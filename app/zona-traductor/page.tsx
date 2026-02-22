@@ -14,6 +14,7 @@ import AutoRefresh from "@/components/AutoRefresh";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 import { getTrackedConsultaUrl, getTrackedPresupuestoUrl } from "@/lib/contact";
+import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -123,6 +124,51 @@ function getPaymentProofs(order: any) {
       uploadedAt: String((e.payload as any)?.uploadedAt || e.createdAt?.toISOString?.() || ""),
     }))
     .filter((p: any) => p.fileUrl);
+}
+
+function getSubmittedDocuments(order: any) {
+  const events = order.events || [];
+  const submitted = events.find((e: any) => e.type === "presupuesto.submitted");
+  if (!submitted) return [];
+  const payload = (submitted.payload as any) || {};
+  const files = Array.isArray(payload.files) ? payload.files : [];
+  const fallbackUploadedAt = submitted.createdAt?.toISOString?.() || null;
+
+  return files.map((file: any) => {
+    const name = String(file?.name || "Documento");
+    const type = String(file?.type || "application/octet-stream");
+    const size = Number(file?.size || 0);
+    const url = file?.url ? String(file.url) : undefined;
+    const uploadedAt = file?.uploadedAt ? String(file.uploadedAt) : fallbackUploadedAt || undefined;
+
+    return {
+      name,
+      type,
+      size: Number.isFinite(size) ? size : 0,
+      url,
+      uploadedAt,
+    };
+  });
+}
+
+function getQuoteDraft(order: any) {
+  const quoteEvent = (order.events || []).find((e: any) => e.type === "quote.documents.updated");
+  if (!quoteEvent) return null;
+  const payload = (quoteEvent.payload as any) || {};
+  const rawLines = Array.isArray(payload.lines) ? payload.lines : [];
+  const lines = rawLines
+    .map((line: any) => ({
+      documentName: String(line?.documentName || "").trim(),
+      amountCents: Math.max(0, Math.round(Number(line?.amountCents || 0))),
+      notes: line?.notes ? String(line.notes) : null,
+    }))
+    .filter((line: any) => !!line.documentName);
+  const totalRaw = Number(payload.totalCents);
+  return {
+    lines,
+    totalCents: Number.isFinite(totalRaw) ? Math.round(totalRaw) : null,
+    updatedAt: quoteEvent.createdAt?.toISOString?.() || null,
+  };
 }
 
 function hasFinancialRisk(order: any) {
@@ -282,7 +328,7 @@ export default async function ZonaTraductorPage({
     .slice(0, 6);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-10">
+    <main id="zona-traductor-root" className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-10">
       <AutoRefresh intervalMs={4000} />
       <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Zona traductor</p>
@@ -290,6 +336,7 @@ export default async function ZonaTraductorPage({
           Gestion operativa + control economico
         </h1>
         <p className="mt-1 text-sm text-slate-400">Sesion: {email}</p>
+        <ZonaTraductorThemeToggle />
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
           <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-4 text-center">
@@ -373,6 +420,35 @@ export default async function ZonaTraductorPage({
           </p>
         </div>
       </section>
+
+      {orders.length > 0 && (
+        <section className="mx-auto mt-6 max-w-6xl space-y-3">
+          <h2 className="text-lg font-semibold text-white">
+            Acciones por pedido
+            <span className="ml-2 text-sm font-normal text-slate-400">(pulsa para expandir)</span>
+          </h2>
+          {orders.map((order) => (
+            <OrderActionPanel
+              key={order.reference}
+              reference={order.reference}
+              clientEmail={order.clientEmail}
+              title={order.title}
+              langPair={order.langPair}
+              paymentStatus={order.paymentStatus}
+              deliveryState={order.deliveryState}
+              workflowState={order.workflowState}
+              acquisitionSource={order.acquisitionSource}
+              assignedTo={order.assignedTo}
+              dueDate={order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null}
+              amountCents={order.amountCents}
+              paymentProofs={getPaymentProofs(order)}
+              documents={getSubmittedDocuments(order)}
+              quoteDraft={getQuoteDraft(order)}
+              financeSnapshot={order.financeSnapshot}
+            />
+          ))}
+        </section>
+      )}
 
       {criticalFinanceOrders.length > 0 && (
         <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-red-500/30 bg-red-500/5 p-6 shadow-xl sm:p-8">
@@ -520,33 +596,6 @@ export default async function ZonaTraductorPage({
           </div>
         )}
       </section>
-
-      {orders.length > 0 && (
-        <section className="mx-auto mt-6 max-w-6xl space-y-3">
-          <h2 className="text-lg font-semibold text-white">
-            Acciones por pedido
-            <span className="ml-2 text-sm font-normal text-slate-400">(pulsa para expandir)</span>
-          </h2>
-          {orders.map((order) => (
-            <OrderActionPanel
-              key={order.reference}
-              reference={order.reference}
-              clientEmail={order.clientEmail}
-              title={order.title}
-              langPair={order.langPair}
-              paymentStatus={order.paymentStatus}
-              deliveryState={order.deliveryState}
-              workflowState={order.workflowState}
-              acquisitionSource={order.acquisitionSource}
-              assignedTo={order.assignedTo}
-              dueDate={order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null}
-              amountCents={order.amountCents}
-              paymentProofs={getPaymentProofs(order)}
-              financeSnapshot={order.financeSnapshot}
-            />
-          ))}
-        </section>
-      )}
     </main>
   );
 }
