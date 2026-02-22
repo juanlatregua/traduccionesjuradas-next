@@ -9,6 +9,7 @@ type OrderInfo = {
   title: string;
   amountCents: number;
   paymentStatus: string;
+  workflowState?: string;
 };
 
 const MANUAL_PAYMENT = {
@@ -111,6 +112,23 @@ export default function PagarPage() {
         <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
           <p className="text-sm font-semibold text-emerald-700">Este pedido ya esta pagado.</p>
           <Link href="/consulta" className="mt-3 inline-block text-sm font-semibold text-emerald-700 hover:underline">
+            Consultar estado del pedido
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  if (["BORRADOR", "PENDIENTE_REVISION"].includes(String(order.workflowState || ""))) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-12">
+        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm sm:p-8">
+          <p className="text-sm font-semibold text-amber-800">Pedido en revisión interna</p>
+          <p className="mt-2 text-sm text-amber-700">
+            Tu pedido <span className="font-mono">{order.reference}</span> se está validando antes de habilitar el pago.
+            Te avisaremos por email cuando esté listo.
+          </p>
+          <Link href="/consulta" className="mt-4 inline-block text-sm font-semibold text-amber-800 underline">
             Consultar estado del pedido
           </Link>
         </section>

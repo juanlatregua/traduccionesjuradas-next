@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 type FilterKey =
   | "todos"
   | "pagados-sin-asignar"
+  | "pendientes-revision"
   | "en-proceso"
   | "sla-riesgo"
   | "pendientes-pago"
@@ -17,6 +18,7 @@ type FilterKey =
 const LABELS: Record<FilterKey, string> = {
   todos: "Todos",
   "pagados-sin-asignar": "Pagados sin asignar",
+  "pendientes-revision": "Pend. revisión",
   "en-proceso": "En proceso",
   "sla-riesgo": "SLA en riesgo",
   "pendientes-pago": "Pend. pago",

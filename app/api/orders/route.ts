@@ -2,8 +2,17 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createOrder, getOrdersByClientEmail } from "@/lib/orders";
-import { sendOrderCreatedEmail, sendNewOrderStaffEmail } from "@/lib/email";
+import {
+  sendNewOrderStaffEmail,
+  sendOrderCreatedEmail,
+  sendOrderReviewRoutingEmail,
+  sendOrderUnderReviewClientEmail,
+} from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { prisma } from "@/lib/prisma";
+import { transitionWorkflowState } from "@/lib/workflow-server";
+import { inferFlowProfile, requiresInternalReview } from "@/lib/workflow";
+import { getAdminEmails, getCollaboratorEmails, getPmEmails } from "@/lib/staff-access";
 
 export const runtime = "nodejs";
 
@@ -34,6 +43,11 @@ type CreateBody = {
   currency?: string;
   guestEmail?: string;
   guestName?: string;
+  urgencyNotes?: string;
+  reviewRequired?: boolean;
+  reviewReason?: string;
+  hasMixedCart?: boolean;
+  containsWordCountItem?: boolean;
 };
 
 export async function POST(req: Request) {
@@ -93,28 +107,147 @@ export async function POST(req: Request) {
       currency: body.currency || "eur",
     });
 
+    const flowProfile = inferFlowProfile({
+      langPair: body.langPair,
+      hasMixedCart: Boolean(body.hasMixedCart),
+      containsWordCountItem: Boolean(body.containsWordCountItem),
+    });
+    const needsInternalReview = body.reviewRequired === true || requiresInternalReview(flowProfile);
+    const reviewReason =
+      (body.reviewReason || "").trim() ||
+      (needsInternalReview ? "Pedido requiere validacion interna antes de cobro." : null);
+    const urgencyNotes = (body.urgencyNotes || "").trim() || null;
+
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "workflow.state_changed",
+        message: "Workflow inicial en BORRADOR.",
+        payload: {
+          from: null,
+          to: "BORRADOR",
+          actorEmail: "system",
+          reason: "order_created",
+        },
+      },
+    });
+
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "order.flow_profile",
+        message: `Perfil de flujo detectado: ${flowProfile}.`,
+        payload: {
+          profile: flowProfile,
+          hasMixedCart: Boolean(body.hasMixedCart),
+          containsWordCountItem: Boolean(body.containsWordCountItem),
+          reviewRequired: needsInternalReview,
+        },
+      },
+    });
+
+    if (urgencyNotes) {
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "order.urgency_notes",
+          message: "Observaciones de urgencia registradas.",
+          payload: {
+            notes: urgencyNotes,
+            actorEmail: clientEmail,
+          },
+        },
+      });
+    }
+
+    if (needsInternalReview) {
+      await transitionWorkflowState({
+        reference: order.reference,
+        to: "PENDIENTE_REVISION",
+        actorEmail: clientEmail,
+        reason: reviewReason,
+      });
+    } else {
+      await transitionWorkflowState({
+        reference: order.reference,
+        to: "PENDIENTE_PAGO",
+        actorEmail: clientEmail,
+        reason: "Pedido listo para cobro directo.",
+      });
+    }
+
     // Send emails (non-blocking)
     const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
     const paymentUrl = `${baseUrl}/area-cliente/pedido/${order.reference}/pagar`;
+    const pmEmail = getPmEmails()[0] || "juansilva@traduccionesjuradas.net";
 
-    sendOrderCreatedEmail({
-      toEmail: clientEmail,
-      clientName,
-      reference: order.reference,
-      title: body.title,
-      amountCents: body.amountCents,
-      paymentUrl,
-    }).catch((e) => console.error("[orders] email to client failed", e));
+    if (needsInternalReview) {
+      const reviewers =
+        flowProfile === "LANG_REVIEW"
+          ? getCollaboratorEmails()
+          : Array.from(new Set([...getAdminEmails(), "hola@traduccionesjuradas.net"]));
 
-    sendNewOrderStaffEmail({
-      reference: order.reference,
-      title: body.title,
-      amountCents: body.amountCents,
-      clientEmail,
-      langPair: body.langPair,
-    }).catch((e) => console.error("[orders] email to staff failed", e));
+      prisma.orderEvent
+        .create({
+          data: {
+            orderId: order.id,
+            type: "order.review_routed",
+            message: "Pedido enviado a revision interna.",
+            payload: {
+              flowProfile,
+              reviewers,
+              pmEmail,
+              reason: reviewReason,
+            },
+          },
+        })
+        .catch((e) => console.error("[orders] failed to save review_routed event", e));
 
-    return NextResponse.json({ ok: true, order: { id: order.id, reference: order.reference } });
+      sendOrderReviewRoutingEmail({
+        reference: order.reference,
+        title: body.title,
+        amountCents: body.amountCents,
+        clientEmail,
+        langPair: body.langPair,
+        flowProfile,
+        reviewers,
+        pmEmail,
+        urgencyNotes,
+        reviewReason,
+      }).catch((e) => console.error("[orders] review routing email failed", e));
+
+      sendOrderUnderReviewClientEmail({
+        toEmail: clientEmail,
+        clientName,
+        reference: order.reference,
+        title: body.title,
+        amountCents: body.amountCents,
+      }).catch((e) => console.error("[orders] client review email failed", e));
+    } else {
+      sendOrderCreatedEmail({
+        toEmail: clientEmail,
+        clientName,
+        reference: order.reference,
+        title: body.title,
+        amountCents: body.amountCents,
+        paymentUrl,
+      }).catch((e) => console.error("[orders] email to client failed", e));
+
+      sendNewOrderStaffEmail({
+        reference: order.reference,
+        title: body.title,
+        amountCents: body.amountCents,
+        clientEmail,
+        langPair: body.langPair,
+      }).catch((e) => console.error("[orders] email to staff failed", e));
+    }
+
+    return NextResponse.json({
+      ok: true,
+      order: { id: order.id, reference: order.reference },
+      nextStep: needsInternalReview ? "WAIT_REVIEW" : "PAY_NOW",
+      flowProfile,
+    });
   } catch (err) {
     console.error("[orders] error creating order", err);
     return NextResponse.json({ ok: false, error: "Error al crear pedido." }, { status: 500 });

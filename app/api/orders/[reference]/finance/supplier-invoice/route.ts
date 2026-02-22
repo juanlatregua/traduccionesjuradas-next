@@ -5,6 +5,7 @@ import { isStaffEmail } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
 import { sendProjectManagerFinanceUpdateEmail } from "@/lib/email";
 import { getFinanceSnapshot } from "@/lib/finance";
+import { transitionWorkflowState } from "@/lib/workflow-server";
 
 export const runtime = "nodejs";
 
@@ -221,6 +222,17 @@ export async function POST(req: Request, { params }: Params) {
                 marginPct: snapshot.marginPct,
               },
             },
+          });
+          await transitionWorkflowState({
+            reference: params.reference,
+            to: "CERRADO",
+            actorEmail: session.user.email,
+            reason: "Cierre financiero automatico tras pago a proveedor.",
+            payload: {
+              source: "supplier_invoice_paid",
+            },
+          }).catch((err) => {
+            console.error("[finance-supplier-invoice] workflow close transition failed", err);
           });
         }
       }

@@ -3,6 +3,7 @@ import { verifyRedsysNotification } from "@/lib/redsys";
 import { updateOrderPayment, markPaymentFailed, getOrderDetail } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { isResponseCodeOk } from "redsys-easy";
+import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,16 @@ export async function POST(req: Request) {
       if (!paymentUpdate.changed) {
         return NextResponse.json({ ok: true });
       }
+      await transitionWorkflowState({
+        reference: orderReference,
+        to: "PAGO_VALIDADO",
+        actorEmail: "redsys_notification",
+        reason: "Pago confirmado por Redsys.",
+      }).catch((err) => console.error("[redsys-notification] workflow transition failed", err));
+      await assignDefaultFrenchEtaIfNeeded({
+        reference: orderReference,
+        actorEmail: "redsys_notification",
+      }).catch((err) => console.error("[redsys-notification] default FR ETA assignment failed", err));
       console.info(`[redsys-notification] payment OK for ${orderReference}`);
 
       // Notify client (non-blocking)

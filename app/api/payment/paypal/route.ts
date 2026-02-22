@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getOrderPublic } from "@/lib/orders";
 import { createPayPalOrder } from "@/lib/paypal";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getWorkflowState } from "@/lib/workflow";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,13 @@ export async function POST(req: Request) {
 
     if (order.paymentStatus === "PAID") {
       return NextResponse.json({ ok: false, error: "Este pedido ya esta pagado." }, { status: 400 });
+    }
+    const workflowState = getWorkflowState(order);
+    if (!["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(workflowState)) {
+      return NextResponse.json(
+        { ok: false, error: "Este pedido aun no esta habilitado para pago." },
+        { status: 400 }
+      );
     }
 
     const amountEur = (order.amountCents / 100).toFixed(2);

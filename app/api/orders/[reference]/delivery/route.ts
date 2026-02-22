@@ -5,6 +5,7 @@ import { isStaffEmail } from "@/lib/staff-access";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail } from "@/lib/email";
 import { addBusinessDays, formatEta, getHolidaySetFromEnv, suggestEtaBusinessDays } from "@/lib/eta";
+import { transitionWorkflowState } from "@/lib/workflow-server";
 
 export const runtime = "nodejs";
 
@@ -79,6 +80,26 @@ export async function POST(req: Request, { params }: Params) {
       if (etaDate) {
         etaMessage = ` ETA: ${formatEta(etaDate)}.`;
       }
+    }
+
+    const nextWorkflowState = state === "TRADUCIDO" ? "TRADUCIDO_ENTREGADO" : "EN_TRADUCCION";
+    try {
+      await transitionWorkflowState({
+        reference: order.reference,
+        to: nextWorkflowState,
+        actorEmail: session.user.email,
+        reason: state === "TRADUCIDO" ? "Entrega final completada." : "Inicio de traduccion.",
+      });
+    } catch (transitionErr: any) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            transitionErr?.message ||
+            "No se pudo actualizar el workflow para la entrega.",
+        },
+        { status: 400 }
+      );
     }
 
     await updateDeliveryState(order.reference, state, {

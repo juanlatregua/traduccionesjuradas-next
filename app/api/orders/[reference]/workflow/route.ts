@@ -1,0 +1,98 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { isStaffEmail } from "@/lib/staff-access";
+import { transitionWorkflowState } from "@/lib/workflow-server";
+import { prisma } from "@/lib/prisma";
+import { sendOrderCreatedEmail } from "@/lib/email";
+import { WORKFLOW_STATES, type WorkflowState } from "@/lib/workflow";
+
+export const runtime = "nodejs";
+
+type Params = { params: { reference: string } };
+
+type Body = {
+  to?: WorkflowState;
+  reason?: string;
+  notifyClient?: boolean;
+};
+
+function isWorkflowState(value: unknown): value is WorkflowState {
+  return typeof value === "string" && (WORKFLOW_STATES as readonly string[]).includes(value);
+}
+
+export async function POST(req: Request, { params }: Params) {
+  const session = await getServerSession(authOptions);
+  const actorEmail = session?.user?.email || null;
+  if (!actorEmail || !isStaffEmail(actorEmail)) {
+    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  }
+
+  try {
+    const body = (await req.json()) as Body;
+    if (!isWorkflowState(body.to)) {
+      return NextResponse.json({ ok: false, error: "Estado de workflow no valido." }, { status: 400 });
+    }
+
+    const transition = await transitionWorkflowState({
+      reference: params.reference,
+      to: body.to,
+      actorEmail,
+      reason: body.reason || null,
+    });
+    let finalTo = transition.to;
+
+    if (body.notifyClient && (body.to === "PRESUPUESTO_ENVIADO" || body.to === "PENDIENTE_PAGO")) {
+      const order = await prisma.order.findUnique({
+        where: { reference: params.reference },
+        select: {
+          reference: true,
+          title: true,
+          amountCents: true,
+          clientEmail: true,
+          clientName: true,
+        },
+      });
+      if (order?.clientEmail) {
+        const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
+        const paymentUrl = `${baseUrl}/area-cliente/pedido/${order.reference}/pagar`;
+        sendOrderCreatedEmail({
+          toEmail: order.clientEmail,
+          clientName: order.clientName || undefined,
+          reference: order.reference,
+          title: order.title,
+          amountCents: order.amountCents,
+          paymentUrl,
+        }).catch((err) => console.error("[workflow-transition] client notify failed", err));
+      }
+
+      if (body.to === "PRESUPUESTO_ENVIADO") {
+        const followUp = await transitionWorkflowState({
+          reference: params.reference,
+          to: "PENDIENTE_PAGO",
+          actorEmail,
+          reason: "Presupuesto notificado al cliente, se habilita pago.",
+        }).catch((err) => {
+          console.error("[workflow-transition] follow-up transition to PENDIENTE_PAGO failed", err);
+          return null;
+        });
+        if (followUp?.to) {
+          finalTo = followUp.to;
+        }
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      changed: transition.changed,
+      from: transition.from,
+      to: finalTo,
+    });
+  } catch (err: any) {
+    console.error("[workflow-transition] error", err);
+    return NextResponse.json(
+      { ok: false, error: err?.message || "No se pudo actualizar el workflow." },
+      { status: 500 }
+    );
+  }
+}

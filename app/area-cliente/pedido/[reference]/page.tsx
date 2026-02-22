@@ -8,9 +8,11 @@ import { getOrderDetail } from "@/lib/orders";
 import {
   getDeliveryStateLabel,
   getPaymentStateLabel,
+  getWorkflowStateLabel,
 } from "@/lib/client-area";
 import OrderClientPanel from "@/components/OrderClientPanel";
 import AutoRefresh from "@/components/AutoRefresh";
+import { getWorkflowState } from "@/lib/workflow";
 
 export const metadata: Metadata = {
   title: "Estado de pedido",
@@ -43,6 +45,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
   const invoiceEvents = order.events.filter((e) => e.type.startsWith("invoice"));
   const proofEvents = order.events.filter((e) => e.type === "payment.proof_uploaded");
   const hasProofUploaded = proofEvents.length > 0;
+  const workflowState = getWorkflowState(order);
   const paymentVerificationLabel =
     order.paymentStatus === "PAID"
       ? "Pago confirmado"
@@ -63,7 +66,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         <p className="mt-2 text-sm text-slate-600">
           Fecha: {order.createdAt.toISOString().slice(0, 10)} · Combinacion: {order.langPair || "—"}
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs uppercase tracking-wide text-slate-500">Presupuesto</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -78,10 +81,24 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
             <p className="text-xs uppercase tracking-wide text-slate-500">Proceso</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{getDeliveryStateLabel(order.deliveryState)}</p>
           </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Workflow</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{getWorkflowStateLabel(workflowState)}</p>
+          </div>
         </div>
         <p className="mt-3 text-sm text-slate-700">
           Verificacion de pago: <span className="font-semibold">{paymentVerificationLabel}</span>
         </p>
+        {workflowState === "PENDIENTE_REVISION" && (
+          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Tu pedido está en revisión interna para validar precio y plazo. Te enviaremos el enlace de pago en cuanto esté confirmado.
+          </p>
+        )}
+        {workflowState === "PRESUPUESTO_ENVIADO" && (
+          <p className="mt-2 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-800">
+            Ya hemos enviado tu presupuesto final. Puedes completar el pago desde la pantalla de pago del pedido.
+          </p>
+        )}
         {order.dueDate && (
           <p className="mt-1 text-sm text-slate-700">
             Fecha estimada de entrega:{" "}

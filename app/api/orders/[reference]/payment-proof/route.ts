@@ -10,6 +10,8 @@ import {
   sendPaymentProofUploadedStaffEmail,
 } from "@/lib/email";
 import { validatePaymentProofFile } from "@/lib/file-security";
+import { getWorkflowState } from "@/lib/workflow";
+import { transitionWorkflowState } from "@/lib/workflow-server";
 
 export const runtime = "nodejs";
 
@@ -42,6 +44,15 @@ export async function POST(req: Request, { params }: Params) {
         clientEmail: true,
         title: true,
         amountCents: true,
+        events: {
+          orderBy: { createdAt: "desc" },
+          take: 40,
+          select: {
+            type: true,
+            payload: true,
+            createdAt: true,
+          },
+        },
       },
     });
     if (!order) {
@@ -87,6 +98,27 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
+    const workflowState = getWorkflowState(order);
+    if (workflowState === "PRESUPUESTO_ENVIADO") {
+      await transitionWorkflowState({
+        reference: order.reference,
+        to: "PENDIENTE_PAGO",
+        actorEmail: sessionEmail || clientEmailRaw || "guest",
+        reason: "Cliente sube comprobante tras presupuesto enviado.",
+      }).catch((err) => {
+        console.error("[payment-proof] workflow transition to PENDIENTE_PAGO failed", err);
+      });
+    } else if (!["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO"].includes(workflowState)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Este pedido aun no esta en fase de pago. Espera a recibir el presupuesto final.",
+        },
+        { status: 400 }
+      );
+    }
+
     const validation = await validatePaymentProofFile(file);
     if (!validation.ok) {
       return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
@@ -116,6 +148,15 @@ export async function POST(req: Request, { params }: Params) {
           uploadedBy: sessionEmail || clientEmailRaw || null,
         },
       },
+    });
+
+    await transitionWorkflowState({
+      reference: order.reference,
+      to: "JUSTIFICANTE_SUBIDO",
+      actorEmail: sessionEmail || clientEmailRaw || "guest",
+      reason: "Comprobante de pago subido por cliente.",
+    }).catch((err) => {
+      console.error("[payment-proof] workflow transition failed", err);
     });
 
     // Non-blocking notifications

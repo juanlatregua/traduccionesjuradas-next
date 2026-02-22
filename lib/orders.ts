@@ -57,7 +57,7 @@ export async function createOrder(input: CreateOrderInput) {
           events: {
             create: {
               type: "order.created",
-              message: "Pedido creado y pendiente de pago.",
+              message: "Pedido creado.",
             },
           },
         },
@@ -81,7 +81,7 @@ export async function getOrdersByClientEmail(email: string) {
     orderBy: { createdAt: "desc" },
     include: {
       billing: true,
-      events: { orderBy: { createdAt: "desc" }, take: 8 },
+      events: { orderBy: { createdAt: "desc" }, take: 30 },
     },
   });
 }
@@ -111,9 +111,20 @@ export async function getOrderPublic(reference: string) {
       status: true,
       createdAt: true,
       paidAt: true,
+      dueDate: true,
       title: true,
       langPair: true,
       deliveryState: true,
+      events: {
+        where: { type: "workflow.state_changed" },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          type: true,
+          payload: true,
+          createdAt: true,
+        },
+      },
     },
   });
 }
@@ -135,7 +146,7 @@ export async function getOrderLookupByReferenceAndEmail(reference: string, email
       pagesLabel: true,
       dueDate: true,
       deliveryState: true,
-      events: { orderBy: { createdAt: "desc" }, take: 5 },
+      events: { orderBy: { createdAt: "desc" }, take: 30 },
     },
   });
 }

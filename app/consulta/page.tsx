@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { getWorkflowStateLabel } from "@/lib/client-area";
 
 type OrderResult = {
   reference: string;
@@ -18,6 +19,7 @@ type OrderResult = {
   dueDate?: string;
   deliveryState?: string;
   events?: Array<{ type: string; message: string; createdAt: string; payload?: any }>;
+  workflowState?: string;
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -200,6 +202,12 @@ export default function ConsultaPage() {
                     <span className="font-semibold text-slate-600">ETA:</span> {formatDate(order.dueDate)}
                   </div>
                 )}
+                {order.workflowState && (
+                  <div className="col-span-2">
+                    <span className="font-semibold text-slate-600">Workflow:</span>{" "}
+                    {getWorkflowStateLabel(order.workflowState)}
+                  </div>
+                )}
               </div>
 
               {/* Delivery state */}
@@ -223,8 +231,19 @@ export default function ConsultaPage() {
                 </div>
               )}
 
+              {order.workflowState === "PENDIENTE_REVISION" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-sm text-amber-800">
+                    Este pedido está en revisión interna. Te avisaremos por email cuando esté listo para pago.
+                  </p>
+                </div>
+              )}
+
               {/* Payment pending → link to pay */}
-              {order.paymentStatus === "PENDING" && (
+              {order.paymentStatus === "PENDING" &&
+                ["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO", ""].includes(
+                  String(order.workflowState || "")
+                ) && (
                 <div className="mt-2">
                   <Link
                     href={`/area-cliente/pedido/${order.reference}/pagar`}

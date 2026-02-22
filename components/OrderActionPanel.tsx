@@ -5,7 +5,9 @@ import AssignOrderForm from "./AssignOrderForm";
 import TranslatorDeliveryForm from "./TranslatorDeliveryForm";
 import TranslatorNotifyForm from "./TranslatorNotifyForm";
 import OrderFinancePanel from "./OrderFinancePanel";
+import OrderWorkflowPanel from "./OrderWorkflowPanel";
 import type { FinanceSnapshot } from "@/lib/finance";
+import { getWorkflowStateLabel } from "@/lib/workflow";
 
 type Props = {
   reference: string;
@@ -14,6 +16,7 @@ type Props = {
   langPair: string | null;
   paymentStatus: string;
   deliveryState: string;
+  workflowState: string;
   assignedTo: string | null;
   dueDate: string | null;
   amountCents: number;
@@ -61,6 +64,7 @@ export default function OrderActionPanel({
   langPair,
   paymentStatus,
   deliveryState,
+  workflowState,
   assignedTo,
   dueDate,
   amountCents,
@@ -68,10 +72,11 @@ export default function OrderActionPanel({
   financeSnapshot,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"comprobante" | "asignar" | "entrega" | "notificar" | "finanzas">("comprobante");
+  const [tab, setTab] = useState<"comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas">("comprobante");
 
   const tabs = [
     { key: "comprobante" as const, label: "Comprobante", color: "text-cyan-300" },
+    { key: "workflow" as const, label: "Workflow", color: "text-indigo-300" },
     { key: "asignar" as const, label: "Asignar", color: "text-amber-300" },
     { key: "entrega" as const, label: "Entrega", color: "text-emerald-300" },
     { key: "notificar" as const, label: "Notificar", color: "text-violet-300" },
@@ -116,6 +121,7 @@ export default function OrderActionPanel({
           <div className="flex flex-wrap gap-4 border-b border-slate-700/50 bg-slate-800/30 px-5 py-3 text-xs text-slate-400">
             <span>Cliente: <span className="text-slate-200">{clientEmail}</span></span>
             <span>Importe: <span className="text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span></span>
+            <span>Workflow: <span className="text-slate-200">{getWorkflowStateLabel(workflowState)}</span></span>
             <span>Comprobante: <span className="text-slate-200">{paymentProofs.length > 0 ? "Subido" : "No subido"}</span></span>
             <span>
               Conciliación:{" "}
@@ -193,6 +199,9 @@ export default function OrderActionPanel({
                   </ul>
                 )}
               </div>
+            )}
+            {tab === "workflow" && (
+              <OrderWorkflowPanel reference={reference} currentState={workflowState} />
             )}
             {tab === "asignar" && (
               <AssignOrderForm

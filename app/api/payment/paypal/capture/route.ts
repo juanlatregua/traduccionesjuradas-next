@@ -3,6 +3,8 @@ import { capturePayPalOrder } from "@/lib/paypal";
 import { getOrderDetail, getOrderPublic, updateOrderPayment } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { getWorkflowState } from "@/lib/workflow";
 
 export const runtime = "nodejs";
 
@@ -42,6 +44,13 @@ export async function POST(req: Request) {
     if (order.paymentStatus === "PAID") {
       return NextResponse.json({ ok: false, error: "Este pedido ya esta pagado." }, { status: 400 });
     }
+    const workflowState = getWorkflowState(order);
+    if (!["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(workflowState)) {
+      return NextResponse.json(
+        { ok: false, error: "Este pedido aun no esta habilitado para pago." },
+        { status: 400 }
+      );
+    }
 
     const captured = await capturePayPalOrder(body.paypalOrderId);
 
@@ -58,6 +67,17 @@ export async function POST(req: Request) {
       if (!paymentUpdate.changed) {
         return NextResponse.json({ ok: true, status: "COMPLETED", alreadyPaid: true });
       }
+
+      await transitionWorkflowState({
+        reference: body.reference,
+        to: "PAGO_VALIDADO",
+        actorEmail: "paypal_capture",
+        reason: "Pago capturado por PayPal.",
+      }).catch((err) => console.error("[paypal-capture] workflow transition failed", err));
+      await assignDefaultFrenchEtaIfNeeded({
+        reference: body.reference,
+        actorEmail: "paypal_capture",
+      }).catch((err) => console.error("[paypal-capture] default FR ETA assignment failed", err));
 
       // Notify client (non-blocking)
       const fullOrder = await getOrderDetail(body.reference);

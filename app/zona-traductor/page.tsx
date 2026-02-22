@@ -12,6 +12,7 @@ import OrderActionPanel from "@/components/OrderActionPanel";
 import TranslatorAgenda from "@/components/TranslatorAgenda";
 import AutoRefresh from "@/components/AutoRefresh";
 import { getFinanceSnapshot } from "@/lib/finance";
+import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -68,6 +69,26 @@ function DeliveryBadge({ state }: { state: string }) {
   return (
     <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${info.cls}`}>
       {info.label}
+    </span>
+  );
+}
+
+function WorkflowBadge({ state }: { state: string }) {
+  const palette: Record<string, string> = {
+    BORRADOR: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+    PENDIENTE_REVISION: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    PRESUPUESTO_ENVIADO: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+    PENDIENTE_PAGO: "bg-orange-500/20 text-orange-300 border-orange-500/30",
+    JUSTIFICANTE_SUBIDO: "bg-violet-500/20 text-violet-300 border-violet-500/30",
+    PAGO_VALIDADO: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    EN_TRADUCCION: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    TRADUCIDO_ENTREGADO: "bg-lime-500/20 text-lime-300 border-lime-500/30",
+    CERRADO: "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30",
+  };
+  const cls = palette[state] || palette.PENDIENTE_PAGO;
+  return (
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
+      {getWorkflowStateLabel(state)}
     </span>
   );
 }
@@ -153,6 +174,7 @@ export default async function ZonaTraductorPage({
   const allOrdersWithFinance = allOrders.map((o) => ({
     ...o,
     financeSnapshot: getFinanceSnapshot(o),
+    workflowState: getWorkflowState(o),
   }));
 
   const filtro = searchParams.filtro || "todos";
@@ -165,6 +187,8 @@ export default async function ZonaTraductorPage({
     switch (filtro) {
       case "pagados-sin-asignar":
         return order.paymentStatus === "PAID" && !order.assignedTo && order.deliveryState !== "TRADUCIDO";
+      case "pendientes-revision":
+        return order.workflowState === "PENDIENTE_REVISION";
       case "en-proceso":
         return order.deliveryState === "EN_PROCESO";
       case "sla-riesgo":
@@ -187,6 +211,7 @@ export default async function ZonaTraductorPage({
   const counts = {
     todos: scopedOrders.length,
     "pagados-sin-asignar": scopedOrders.filter((o) => o.paymentStatus === "PAID" && !o.assignedTo && o.deliveryState !== "TRADUCIDO").length,
+    "pendientes-revision": scopedOrders.filter((o) => o.workflowState === "PENDIENTE_REVISION").length,
     "en-proceso": scopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length,
     "sla-riesgo": scopedOrders.filter((o) => o.dueDate && (isDueSoon(o.dueDate) || isOverdue(o.dueDate)) && o.deliveryState !== "TRADUCIDO").length,
     "pendientes-pago": scopedOrders.filter((o) => o.paymentStatus === "PENDING").length,
@@ -199,6 +224,7 @@ export default async function ZonaTraductorPage({
   const paidCount = scopedOrders.filter((o) => o.paymentStatus === "PAID").length;
   const inProgressCount = scopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length;
   const pendingPayCount = scopedOrders.filter((o) => o.paymentStatus === "PENDING").length;
+  const reviewPendingCount = counts["pendientes-revision"];
   const financialRiskCount = counts["riesgo-financiero"];
   const marginApprovalPendingCount = counts["margen-aprobacion"];
   const monthlyBatchPendingCount = counts["lote-pendiente"];
@@ -253,6 +279,10 @@ export default async function ZonaTraductorPage({
           <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
             <p className="text-2xl font-bold text-amber-400">{pendingPayCount}</p>
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-amber-400/60">Pend. pago</p>
+          </div>
+          <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-center">
+            <p className="text-2xl font-bold text-orange-300">{reviewPendingCount}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-orange-300/70">Pend. revisión</p>
           </div>
           <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-center">
             <p className="text-2xl font-bold text-red-400">{financialRiskCount}</p>
@@ -337,6 +367,7 @@ export default async function ZonaTraductorPage({
                   <th className="px-4 py-3 font-semibold">Titulo</th>
                   <th className="px-4 py-3 font-semibold">Importe</th>
                   <th className="px-4 py-3 font-semibold">Pago</th>
+                  <th className="px-4 py-3 font-semibold">Workflow</th>
                   <th className="px-4 py-3 font-semibold">Estado</th>
                   <th className="px-4 py-3 font-semibold">Asignado</th>
                   <th className="px-4 py-3 font-semibold">Entrega</th>
@@ -370,6 +401,7 @@ export default async function ZonaTraductorPage({
                       </td>
                       <td className="px-4 py-3 text-xs font-medium text-slate-200">{formatMoney(order.amountCents)}</td>
                       <td className="px-4 py-3"><PaymentBadge status={order.paymentStatus} /></td>
+                      <td className="px-4 py-3"><WorkflowBadge state={order.workflowState} /></td>
                       <td className="px-4 py-3"><DeliveryBadge state={order.deliveryState} /></td>
                       <td className="px-4 py-3 text-xs text-slate-300">{order.assignedTo || <span className="text-slate-600">—</span>}</td>
                       <td className="px-4 py-3">
@@ -420,7 +452,10 @@ export default async function ZonaTraductorPage({
                         {order.clientEmail}
                       </td>
                       <td className="px-4 py-3">
-                        {order.paymentStatus === "PENDING" && <ConfirmPaymentButton reference={order.reference} />}
+                        {order.paymentStatus === "PENDING" &&
+                          ["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(order.workflowState) && (
+                            <ConfirmPaymentButton reference={order.reference} />
+                          )}
                       </td>
                     </tr>
                   );
@@ -446,6 +481,7 @@ export default async function ZonaTraductorPage({
               langPair={order.langPair}
               paymentStatus={order.paymentStatus}
               deliveryState={order.deliveryState}
+              workflowState={order.workflowState}
               assignedTo={order.assignedTo}
               dueDate={order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null}
               amountCents={order.amountCents}

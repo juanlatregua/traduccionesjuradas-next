@@ -152,6 +152,7 @@ export default function PriceEstimator() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showGuestEmail, setShowGuestEmail] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
+  const [urgencyNotes, setUrgencyNotes] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const [presetLangPair, setPresetLangPair] = useState<LangPairOption>("");
@@ -305,6 +306,10 @@ export default function PriceEstimator() {
     const activeLangPair = payResult
       ? (payResult.source === "preset" ? presetLangPair : fileLangPair)
       : (cart.length === 1 ? cart[0].langPair : undefined);
+    const hasMixedCart = hasCart && new Set(cart.map((item) => item.source)).size > 1;
+    const containsWordCountItem = hasCart
+      ? cart.some((item) => item.source === "file" || typeof item.words === "number")
+      : payResult?.source === "file" || typeof payResult?.words === "number";
 
     // Build title
     const title = hasCart
@@ -325,6 +330,9 @@ export default function PriceEstimator() {
         pagesLabel: hasCart
           ? cart.map((c) => c.pagesLabel).filter(Boolean).join(", ") || undefined
           : payResult?.presetPagesLabel,
+        hasMixedCart,
+        containsWordCountItem,
+        urgencyNotes: urgencyNotes.trim() || undefined,
       };
       if (emailOverride) {
         payload.guestEmail = emailOverride;
@@ -686,6 +694,17 @@ export default function PriceEstimator() {
             Ver dudas frecuentes
           </Link>
         </div>
+      </div>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+          Observaciones de urgencia (opcional)
+        </label>
+        <textarea
+          value={urgencyNotes}
+          onChange={(e) => setUrgencyNotes(e.target.value)}
+          className="mt-2 h-20 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          placeholder="Ejemplo: necesito entrega para cita el jueves por la mañana."
+        />
       </div>
       {/* Cart summary */}
       {cart.length > 0 && (

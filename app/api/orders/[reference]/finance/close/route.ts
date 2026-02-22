@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
+import { transitionWorkflowState } from "@/lib/workflow-server";
 
 export const runtime = "nodejs";
 
@@ -67,6 +68,18 @@ export async function POST(req: Request, { params }: Params) {
           marginPct: snapshot.marginPct,
         },
       },
+    });
+
+    await transitionWorkflowState({
+      reference: params.reference,
+      to: "CERRADO",
+      actorEmail: session.user.email,
+      reason: "Cierre financiero validado.",
+      payload: {
+        source: "finance.close",
+      },
+    }).catch((err) => {
+      console.error("[finance-close] workflow transition failed", err);
     });
 
     return NextResponse.json({ ok: true });

@@ -479,6 +479,129 @@ Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
   });
 }
 
+export async function sendOrderReviewRoutingEmail(data: {
+  reference: string;
+  title: string;
+  amountCents: number;
+  clientEmail: string;
+  langPair?: string | null;
+  flowProfile: string;
+  reviewers: string[];
+  pmEmail?: string | null;
+  urgencyNotes?: string | null;
+  reviewReason?: string | null;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  const toRecipients = data.reviewers.filter(Boolean);
+  if (toRecipients.length === 0) {
+    throw new Error("Missing review recipients");
+  }
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = (data.amountCents / 100).toFixed(2);
+  const subject = `Revision interna requerida - ${data.reference}`;
+  const text = `Pedido en revision interna.
+
+Referencia: ${data.reference}
+Cliente: ${data.clientEmail}
+Concepto: ${data.title}
+Idiomas: ${data.langPair || "-"}
+Importe estimado: ${amount} EUR
+Flujo: ${data.flowProfile}
+Motivo: ${data.reviewReason || "Revision operativa previa al cobro"}
+Observaciones urgencia: ${data.urgencyNotes || "—"}
+
+Revisar en:
+https://www.traduccionesjuradas.net/zona-traductor`;
+
+  const html = `
+    <h2>Pedido en revisión interna</h2>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Idiomas</td><td>${data.langPair || "-"}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe estimado</td><td>${amount} EUR</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Flujo</td><td>${data.flowProfile}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Motivo</td><td>${data.reviewReason || "Revision operativa previa al cobro"}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Urgencia</td><td>${data.urgencyNotes || "—"}</td></tr>
+    </table>
+    <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona operativa</a></p>
+  `;
+
+  await sgMail.send({
+    from: { email: from, name: "Traducciones Juradas" },
+    personalizations: [
+      {
+        to: toRecipients.map((email) => ({ email })),
+        ...(data.pmEmail ? { cc: [{ email: data.pmEmail }] } : {}),
+      },
+    ],
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendOrderUnderReviewClientEmail(data: {
+  toEmail: string;
+  clientName?: string;
+  reference: string;
+  title: string;
+  amountCents: number;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = (data.amountCents / 100).toFixed(2);
+  const subject = `Pedido ${data.reference} en revisión interna`;
+  const name = data.clientName || "";
+  const text = `Hola ${name},
+
+Hemos recibido tu pedido y está en revisión interna antes de habilitar el pago.
+
+Referencia: ${data.reference}
+Concepto: ${data.title}
+Importe estimado: ${amount} EUR
+
+Te avisaremos por email en cuanto esté listo para pago.
+También puedes consultar el estado en:
+https://www.traduccionesjuradas.net/consulta
+`;
+
+  const html = `
+    <h2>Pedido recibido</h2>
+    <p>Hola ${name},</p>
+    <p>Hemos recibido tu pedido y ahora mismo está en <strong>revisión interna</strong> antes de habilitar el pago.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe estimado</td><td>${amount} EUR</td></tr>
+    </table>
+    <p>Te avisaremos por email en cuanto esté listo para pago.</p>
+    <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
 export async function sendPaymentProofUploadedStaffEmail(data: {
   reference: string;
   title: string;
