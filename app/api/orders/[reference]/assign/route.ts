@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { assignOrder } from "@/lib/orders";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -14,9 +12,9 @@ type AssignBody = {
 };
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isStaffEmail(session.user.email)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
 
   try {

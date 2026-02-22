@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
 import { sendProjectManagerFinanceUpdateEmail } from "@/lib/email";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -61,10 +59,11 @@ function pctOrNull(raw: unknown) {
 }
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isStaffEmail(session.user.email)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   try {
     const order = await prisma.order.findUnique({
@@ -143,7 +142,7 @@ export async function POST(req: Request, { params }: Params) {
       paidAt: body.paidAt || null,
       pdfUrl: body.pdfUrl || null,
       notes: body.notes || null,
-      actorEmail: session.user.email,
+      actorEmail,
     };
 
     await prisma.orderEvent.create({
@@ -172,7 +171,7 @@ export async function POST(req: Request, { params }: Params) {
             type: "finance.pm_notified",
             message: "Project Manager notificado tras pago a proveedor.",
             payload: {
-              actorEmail: session.user.email,
+              actorEmail,
               notifiedTo: process.env.PM_NOTIFICATION_TO || process.env.PRESUPUESTO_TO || null,
             },
           },
@@ -186,7 +185,7 @@ export async function POST(req: Request, { params }: Params) {
               type: "finance.pm_notification_failed",
               message: "Fallo al notificar al Project Manager tras pago a proveedor.",
               payload: {
-                actorEmail: session.user.email,
+                actorEmail,
                 error: String(notifyErr?.message || notifyErr || "unknown"),
               },
             },
@@ -213,7 +212,7 @@ export async function POST(req: Request, { params }: Params) {
               type: "finance.closed",
               message: "Pedido cerrado financieramente de forma automatica tras pago a proveedor.",
               payload: {
-                actorEmail: session.user.email,
+                actorEmail,
                 auto: true,
                 trigger: "supplier_invoice_paid",
                 reconciliationStatus: snapshot.reconciliationStatus,
@@ -226,7 +225,7 @@ export async function POST(req: Request, { params }: Params) {
           await transitionWorkflowState({
             reference: params.reference,
             to: "CERRADO",
-            actorEmail: session.user.email,
+            actorEmail,
             reason: "Cierre financiero automatico tras pago a proveedor.",
             payload: {
               source: "supplier_invoice_paid",

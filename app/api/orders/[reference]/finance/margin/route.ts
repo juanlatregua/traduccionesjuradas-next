@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -22,10 +20,11 @@ function toCents(value: unknown) {
 }
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isStaffEmail(session.user.email)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   try {
     const order = await prisma.order.findUnique({
@@ -57,7 +56,7 @@ export async function POST(req: Request, { params }: Params) {
           marginCents,
           marginPct,
           notes: body.notes || null,
-          actorEmail: session.user.email,
+          actorEmail,
         },
       },
     });
@@ -71,4 +70,3 @@ export async function POST(req: Request, { params }: Params) {
     );
   }
 }
-

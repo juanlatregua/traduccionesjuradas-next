@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderCreatedEmail } from "@/lib/email";
 import { WORKFLOW_STATES, type WorkflowState } from "@/lib/workflow";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -22,11 +20,11 @@ function isWorkflowState(value: unknown): value is WorkflowState {
 }
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  const actorEmail = session?.user?.email || null;
-  if (!actorEmail || !isStaffEmail(actorEmail)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   try {
     const body = (await req.json()) as Body;

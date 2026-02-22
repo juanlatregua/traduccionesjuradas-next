@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -15,10 +13,11 @@ type Body = {
 };
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isStaffEmail(session.user.email)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   try {
     const order = await prisma.order.findUnique({
@@ -61,7 +60,7 @@ export async function POST(req: Request, { params }: Params) {
         message: "Pedido cerrado financieramente.",
         payload: {
           notes: body.notes || null,
-          actorEmail: session.user.email,
+          actorEmail,
           reconciliationStatus: snapshot.reconciliationStatus,
           supplierInvoiceStatus: snapshot.supplierInvoiceStatus,
           marginCents: snapshot.marginCents,
@@ -73,7 +72,7 @@ export async function POST(req: Request, { params }: Params) {
     await transitionWorkflowState({
       reference: params.reference,
       to: "CERRADO",
-      actorEmail: session.user.email,
+      actorEmail,
       reason: "Cierre financiero validado.",
       payload: {
         source: "finance.close",

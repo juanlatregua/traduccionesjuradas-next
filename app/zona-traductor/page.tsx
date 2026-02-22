@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
-import { isVerifiedOtpTokenValid, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
+import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import { getAllOrdersForStaff } from "@/lib/orders";
 import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
 import ZonaTraductorFilters from "@/components/ZonaTraductorFilters";
@@ -176,19 +176,20 @@ export default async function ZonaTraductorPage({
   searchParams: { filtro?: string; q?: string };
 }) {
   const session = await getServerSession(authOptions);
-  const email = session?.user?.email || null;
-
-  if (!email) {
-    redirect("/acceso?callbackUrl=/zona-traductor/verificar");
-  }
-
-  if (!isStaffEmail(email)) {
-    redirect("/acceso?callbackUrl=/zona-traductor/verificar&error=StaffOnly");
-  }
-
+  const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
   const verifiedCookie = cookies().get(STAFF_OTP_VERIFIED_COOKIE)?.value;
-  const isOtpVerified = isVerifiedOtpTokenValid(verifiedCookie, email);
-  if (!isOtpVerified) {
+  const verified = readVerifiedOtpToken(verifiedCookie);
+  const verifiedEmail = verified?.email && isStaffEmail(verified.email) ? verified.email : null;
+  const sessionStaffEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : null;
+
+  if (sessionStaffEmail) {
+    if (!verifiedEmail || verifiedEmail !== sessionStaffEmail) {
+      redirect("/zona-traductor/verificar");
+    }
+  }
+
+  const email = sessionStaffEmail || verifiedEmail;
+  if (!email) {
     redirect("/zona-traductor/verificar");
   }
 

@@ -2,20 +2,33 @@
 
 import { useState } from "react";
 
-export default function StaffOtpGate() {
+type StaffOtpGateProps = {
+  initialEmail?: string;
+};
+
+export default function StaffOtpGate({ initialEmail = "" }: StaffOtpGateProps) {
+  const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loadingSend, setLoadingSend] = useState(false);
   const [loadingVerify, setLoadingVerify] = useState(false);
 
   const sendCode = async () => {
+    if (!email.trim()) {
+      setMessage("Introduce tu correo autorizado.");
+      return;
+    }
     setLoadingSend(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/traductor/send-code", { method: "POST" });
+      const res = await fetch("/api/traductor/send-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo enviar el codigo.");
-      setMessage("Codigo enviado a tu correo autorizado.");
+      setMessage(`Codigo enviado a ${email.trim().toLowerCase()}.`);
     } catch (err: any) {
       setMessage(err?.message || "Error al enviar codigo.");
     } finally {
@@ -52,11 +65,19 @@ export default function StaffOtpGate() {
         Envia un codigo de 6 digitos a tu correo autorizado y usalo para entrar en zona traductor.
       </p>
 
-      <div className="mt-5 flex flex-wrap gap-3">
+      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Correo staff autorizado"
+          autoComplete="email"
+          className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+        />
         <button
           type="button"
           onClick={sendCode}
-          disabled={loadingSend}
+          disabled={loadingSend || !email.trim()}
           className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
         >
           {loadingSend ? "Enviando..." : "Enviar codigo"}

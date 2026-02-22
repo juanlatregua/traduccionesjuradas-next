@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail } from "@/lib/email";
 import { addBusinessDays, formatEta, getHolidaySetFromEnv, suggestEtaBusinessDays } from "@/lib/eta";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -20,10 +18,11 @@ type DeliveryBody = {
 };
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isStaffEmail(session.user.email)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   try {
     const order = await getOrderDetail(params.reference);
@@ -87,7 +86,7 @@ export async function POST(req: Request, { params }: Params) {
       await transitionWorkflowState({
         reference: order.reference,
         to: nextWorkflowState,
-        actorEmail: session.user.email,
+        actorEmail,
         reason: state === "TRADUCIDO" ? "Entrega final completada." : "Inicio de traduccion.",
       });
     } catch (transitionErr: any) {

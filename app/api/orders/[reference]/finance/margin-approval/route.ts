@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
 import { MARGIN_APPROVAL_THRESHOLD_PCT } from "@/lib/finance";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -22,10 +20,11 @@ function safeStatus(raw: unknown): ApprovalStatus | null {
 }
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isStaffEmail(session.user.email)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   try {
     const order = await prisma.order.findUnique({
@@ -61,7 +60,7 @@ export async function POST(req: Request, { params }: Params) {
           marginPct: Number.isFinite(marginPct) ? marginPct : null,
           thresholdPct: MARGIN_APPROVAL_THRESHOLD_PCT,
           note: body.note || null,
-          actorEmail: session.user.email,
+          actorEmail,
         },
       },
     });

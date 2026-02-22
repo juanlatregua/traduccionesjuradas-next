@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { validateGeneralUploadFile } from "@/lib/file-security";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   const ip = getClientIp(req);
   const rl = checkRateLimit({
-    key: `upload:${session.user.email}:${ip}`,
+    key: `upload:${actorEmail}:${ip}`,
     limit: 30,
     windowMs: 10 * 60 * 1000,
   });
