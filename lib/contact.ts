@@ -1,6 +1,9 @@
 // lib/contact.ts
 
 const WHATSAPP_NUMBER = "34951333614"; // sin el + aquí
+export const WHATSAPP_E164 = `+${WHATSAPP_NUMBER}`;
+export const WHATSAPP_LOCAL = "951333614";
+export const WHATSAPP_DISPLAY = "+34 951 333 614";
 
 export const SITE_BASE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.traduccionesjuradas.net"

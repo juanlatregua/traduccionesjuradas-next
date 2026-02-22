@@ -2,6 +2,7 @@
 import sgMail from "@sendgrid/mail";
 import fs from "fs";
 import path from "path";
+import { WHATSAPP_DISPLAY, buildWhatsAppLinkFromText } from "@/lib/contact";
 
 type UploadedFile = {
   name: string;
@@ -79,12 +80,12 @@ export async function sendPresupuestoConfirmationEmail(data: any) {
 
   const subject = "Hemos recibido tu solicitud de presupuesto";
 
-  const whatsapp = "https://wa.me/34951333614?text=Hola%20necesito%20un%20presupuesto";
+  const whatsapp = buildWhatsAppLinkFromText("Hola necesito un presupuesto");
   const signatureText = `Juan Silva Moreno
 Jefe de proyectos · Traductor jurado de francés (Nº3850)
 HBTJ Consultores Lingüísticos S.L. · CIF B93712784
 Calle Esperanto, 9 · 29007 Málaga
-Tel: +34 951 333 614
+Tel: ${WHATSAPP_DISPLAY}
 
 NOTA LEGAL –
 Este documento se dirige exclusivamente a su destinatario y puede contener información confidencial sometida a secreto profesional. Si no es el destinatario autorizado, su uso o divulgación está prohibido; por favor comuníquelo y destrúyalo. Las comunicaciones por email pueden ser modificadas o interceptadas; el remitente no asume responsabilidad por errores u omisiones.
@@ -97,7 +98,7 @@ Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingü�
     Jefe de proyectos · Traductor jurado de francés (Nº3850)<br/>
     HBTJ Consultores Lingüísticos S.L. · CIF B93712784<br/>
     Calle Esperanto, 9 · 29007 Málaga<br/>
-    Tel: <a href="tel:+34951333614">+34 951 333 614</a></p>
+    Tel: <a href="tel:+34951333614">${WHATSAPP_DISPLAY}</a></p>
     <p style="font-size:12px; color:#6b7280; margin:8px 0 0 0;"><strong>NOTA LEGAL</strong> – Este documento se dirige exclusivamente a su destinatario y puede contener información confidencial sometida a secreto profesional. Si no es el destinatario autorizado, su uso o divulgación está prohibido; por favor comuníquelo y destrúyalo. Las comunicaciones por email pueden ser modificadas o interceptadas; el remitente no asume responsabilidad por errores u omisiones.</p>
     <p style="font-size:12px; color:#6b7280; margin:6px 0 0 0;"><strong>Protección de datos:</strong> Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingüísticos S.L. para gestionar su encargo y comunicaciones. Puede ejercer derechos de acceso, rectificación, supresión y oposición en Calle Esperanto, 9 · 29007 Málaga o en <a href="mailto:hola@traduccionesjuradas.net">hola@traduccionesjuradas.net</a>.</p>
   `;
