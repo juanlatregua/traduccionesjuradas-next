@@ -26,30 +26,13 @@ type SourceDocument = {
   uploadedAt?: string;
 };
 
-type PaymentTab = "tarjeta" | "paypal" | "bizum" | "transferencia";
+type PaymentTab = "paypal" | "bizum" | "transferencia";
 
 type PaymentCapabilities = {
   cardEnabled: boolean;
   cardProvider: "stripe" | "redsys" | null;
   paypalEnabled: boolean;
   manualProofUploadEnabled: boolean;
-};
-
-type CardRedirectResponse = {
-  ok: true;
-  kind: "redirect";
-  provider: "stripe" | "redsys";
-  url: string;
-};
-
-type CardRedsysResponse = {
-  ok: true;
-  kind: "redsys_form";
-  provider: "redsys";
-  url: string;
-  Ds_SignatureVersion: string;
-  Ds_MerchantParameters: string;
-  Ds_Signature: string;
 };
 
 const MANUAL_PAYMENT = {
@@ -129,8 +112,6 @@ export default function PagarPage() {
   const [sourceUploadError, setSourceUploadError] = useState<string | null>(null);
   const [sourceUploaded, setSourceUploaded] = useState(false);
   const [sourceDocuments, setSourceDocuments] = useState<SourceDocument[]>([]);
-  const [cardLoading, setCardLoading] = useState(false);
-  const [cardError, setCardError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/payment/capabilities")
@@ -167,31 +148,13 @@ export default function PagarPage() {
   }, [reference]);
 
   useEffect(() => {
-    const tabAvailable =
-      tab === "paypal"
-        ? capabilities.paypalEnabled
-        : tab === "tarjeta"
-          ? capabilities.cardEnabled
-          : true;
-    if (!tabAvailable) {
-      if (capabilities.cardEnabled) setTab("tarjeta");
-      else if (capabilities.paypalEnabled) setTab("paypal");
-      else setTab("bizum");
-    }
-  }, [capabilities, tab]);
-
-  useEffect(() => {
-    if (tab !== "tarjeta") {
-      setCardError(null);
-    }
-    if (tab !== "bizum" && tab !== "transferencia") {
+    if (tab !== "bizum" && tab !== "transferencia" && tab !== "paypal") {
       setUploadError(null);
       setFile(null);
     }
   }, [tab]);
 
-  const isManualTab = tab === "bizum" || tab === "transferencia";
-  const onlyManualPayments = !capabilities.cardEnabled && !capabilities.paypalEnabled;
+  const acceptsProofUpload = tab === "bizum" || tab === "transferencia" || tab === "paypal";
 
   const handlePayPalSuccess = useCallback(() => {
     window.location.assign(`/pago/exito?ref=${encodeURIComponent(reference)}`);
@@ -294,68 +257,6 @@ export default function PagarPage() {
     );
   }
 
-  function submitRedsysForm(data: CardRedsysResponse) {
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = data.url;
-    form.style.display = "none";
-
-    const fields: Record<string, string> = {
-      Ds_SignatureVersion: data.Ds_SignatureVersion,
-      Ds_MerchantParameters: data.Ds_MerchantParameters,
-      Ds_Signature: data.Ds_Signature,
-    };
-    Object.entries(fields).forEach(([name, value]) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value;
-      form.appendChild(input);
-    });
-
-    document.body.appendChild(form);
-    form.submit();
-  }
-
-  async function handleCardPayment() {
-    if (!capabilities.cardEnabled) {
-      setCardError("Pago con tarjeta no disponible en este entorno.");
-      return;
-    }
-    setCardLoading(true);
-    setCardError(null);
-    try {
-      const res = await fetch("/api/payment/card", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference }),
-      });
-      const data = (await res.json()) as
-        | CardRedirectResponse
-        | CardRedsysResponse
-        | { ok: false; error?: string };
-      if (!res.ok || !data?.ok) {
-        throw new Error((data as any)?.error || "No se pudo iniciar el pago con tarjeta.");
-      }
-
-      if (data.kind === "redirect") {
-        window.location.assign(data.url);
-        return;
-      }
-
-      if (data.kind === "redsys_form") {
-        submitRedsysForm(data);
-        return;
-      }
-
-      throw new Error("Respuesta de pago no reconocida.");
-    } catch (err: any) {
-      setCardError(err?.message || "No se pudo iniciar el pago con tarjeta.");
-    } finally {
-      setCardLoading(false);
-    }
-  }
-
   async function handleUploadProof() {
     if (!capabilities.manualProofUploadEnabled) {
       setUploadError("La subida automatica de justificantes esta temporalmente no disponible.");
@@ -367,6 +268,8 @@ export default function PagarPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      const selectedMethod = tab === "transferencia" ? "TRANSFER" : tab === "paypal" ? "PAYPAL" : "BIZUM";
+      formData.append("method", selectedMethod);
       if (proofEmail.trim()) {
         formData.append("clientEmail", proofEmail.trim().toLowerCase());
       }
@@ -499,12 +402,12 @@ export default function PagarPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-emerald-800">Comprobante recibido</h2>
+          <h2 className="text-xl font-bold text-emerald-800">Pago registrado</h2>
           <p className="mt-2 text-sm text-emerald-700">
-            Hemos recibido tu comprobante de pago para el pedido <span className="font-mono font-semibold">{reference}</span>.
+            Hemos recibido tu comprobante para el pedido <span className="font-mono font-semibold">{reference}</span> y ya ha quedado marcado como pagado.
           </p>
           <p className="mt-1 text-sm text-emerald-600">
-            Verificaremos el pago y recibiras una actualizacion por email en breve.
+            Te hemos enviado la confirmacion por email y puedes seguir el avance desde tu area cliente.
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
@@ -541,44 +444,25 @@ export default function PagarPage() {
           Referencia: <span className="font-mono">{order.reference}</span> · Importe:{" "}
           <span className="font-semibold">{formatMoney(order.amountCents)}</span>
         </p>
-        {onlyManualPayments && (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            Por el momento, el pago esta habilitado solo por Bizum o transferencia.
-            {" "}
-            Sube el justificante aqui y el sistema lo registra automaticamente en tu pedido.
-          </p>
-        )}
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          Selecciona Bizum, transferencia o PayPal y adjunta el justificante para que el pedido quede marcado como pagado automaticamente.
+        </p>
 
         {renderSourceDocumentsPreview("default")}
 
         {/* Tabs */}
         <div className="mt-6 flex flex-wrap gap-2">
-          {capabilities.cardEnabled && (
-            <button
-              type="button"
-              onClick={() => setTab("tarjeta")}
-              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                tab === "tarjeta"
-                  ? "bg-blue-700 text-white"
-                  : "border border-slate-300 text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              Tarjeta
-            </button>
-          )}
-          {capabilities.paypalEnabled && (
-            <button
-              type="button"
-              onClick={() => setTab("paypal")}
-              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                tab === "paypal"
-                  ? "bg-blue-700 text-white"
-                  : "border border-slate-300 text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              PayPal
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setTab("paypal")}
+            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+              tab === "paypal"
+                ? "bg-blue-700 text-white"
+                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            PayPal
+          </button>
           <button
             type="button"
             onClick={() => setTab("bizum")}
@@ -603,44 +487,30 @@ export default function PagarPage() {
           </button>
         </div>
 
-        {tab === "tarjeta" && capabilities.cardEnabled && (
-          <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-            <p className="text-sm font-semibold text-blue-900">Pago con tarjeta</p>
-            <p className="mt-1 text-xs text-blue-700">
-              Se abre pasarela segura (
-              {capabilities.cardProvider === "redsys"
-                ? "Redsys"
-                : capabilities.cardProvider === "stripe"
-                  ? "Stripe"
-                  : "pasarela configurada"}
-              ) y la confirmación es automática.
-            </p>
-            {!capabilities.cardEnabled && (
-              <p className="mt-2 text-xs font-semibold text-red-700">
-                Pago con tarjeta no disponible en este entorno.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleCardPayment}
-              disabled={cardLoading || !capabilities.cardEnabled}
-              className="mt-4 rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
-            >
-              {cardLoading ? "Conectando pasarela..." : "Pagar con tarjeta ahora"}
-            </button>
-            {cardError && <p className="mt-2 text-xs font-semibold text-red-700">{cardError}</p>}
-          </div>
-        )}
-
         {tab === "paypal" && (
           <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
             <p className="text-sm font-semibold text-blue-900">Pago con PayPal</p>
-            <p className="mt-1 text-xs text-blue-700">
-              Completa el pago en PayPal. Al confirmar, te llevamos automáticamente a la confirmación.
-            </p>
-            <div className="mt-4 max-w-sm">
-              <PayPalButton reference={reference} onSuccess={handlePayPalSuccess} />
-            </div>
+            {capabilities.paypalEnabled ? (
+              <>
+                <p className="mt-1 text-xs text-blue-700">
+                  Completa el pago en PayPal. Al confirmar, te llevamos automaticamente a la confirmacion.
+                </p>
+                <div className="mt-4 max-w-sm">
+                  <PayPalButton reference={reference} onSuccess={handlePayPalSuccess} />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-blue-700">
+                  PayPal no esta automatizado en este entorno.
+                  {" "}
+                  Puedes pagar por Bizum/transferencia o subir aqui el justificante de tu pago por PayPal para activar el pedido.
+                </p>
+                <p className="mt-3 rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs text-blue-800">
+                  Concepto recomendado en PayPal: <span className="font-mono font-semibold">{order.reference}</span>
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -704,14 +574,15 @@ export default function PagarPage() {
         )}
 
         {/* Upload comprobante */}
-        {isManualTab && (
+        {acceptsProofUpload && (
           <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-5">
             <h3 className="text-sm font-semibold text-blue-900">
               Adjunta tu comprobante de pago
             </h3>
             <p className="mt-1 text-xs text-blue-700">
-              Sube una captura del Bizum o el justificante de la transferencia.
-              Verificaremos el pago y te enviaremos una confirmacion por email.
+              {tab === "paypal"
+                ? "Sube el justificante de PayPal para registrar el pago automaticamente."
+                : "Sube una captura del Bizum o el justificante de la transferencia para registrar el pago automaticamente."}
             </p>
             <div className="mt-4">
               <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">
