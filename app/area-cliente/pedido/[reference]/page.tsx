@@ -34,6 +34,39 @@ function formatMoney(cents: number) {
   return `${(cents / 100).toFixed(2)} EUR`;
 }
 
+function getSourceDocuments(events: Array<any>) {
+  const submitted = events.find((e) => e.type === "presupuesto.submitted");
+  const fromSubmitted = (() => {
+    if (!submitted) return [];
+    const payload = (submitted.payload || {}) as any;
+    const files = Array.isArray(payload.files) ? payload.files : [];
+    return files.map((file: any) => ({
+      fileUrl: String(file?.url || ""),
+      fileName: String(file?.name || "Documento"),
+      uploadedAt: String(file?.uploadedAt || submitted.createdAt?.toISOString?.() || ""),
+    }));
+  })();
+
+  const fromOrderUpload = events
+    .filter((e) => e.type === "order.source_document_uploaded")
+    .map((event) => {
+      const payload = (event.payload || {}) as any;
+      return {
+        fileUrl: String(payload.fileUrl || ""),
+        fileName: String(payload.fileName || "Documento"),
+        uploadedAt: String(payload.uploadedAt || event.createdAt?.toISOString?.() || ""),
+      };
+    });
+
+  const seen = new Set<string>();
+  return [...fromOrderUpload, ...fromSubmitted].filter((doc) => {
+    if (!doc.fileUrl) return false;
+    if (seen.has(doc.fileUrl)) return false;
+    seen.add(doc.fileUrl);
+    return true;
+  });
+}
+
 export default async function PedidoPage({ params }: PedidoPageProps) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -45,6 +78,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
 
   const invoiceEvents = order.events.filter((e) => e.type.startsWith("invoice"));
   const proofEvents = order.events.filter((e) => e.type === "payment.proof_uploaded");
+  const sourceDocuments = getSourceDocuments(order.events);
   const hasProofUploaded = proofEvents.length > 0;
   const workflowState = getWorkflowState(order);
   const translatorProfile = findTranslatorProfile(order.assignedTo);
@@ -173,6 +207,36 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           text: e.message,
         }))}
       />
+
+      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-slate-900">Documento original</h2>
+        {sourceDocuments.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-700">
+            Aun no hay documento fuente adjunto en este pedido.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {sourceDocuments.map((doc, idx) => (
+              <li key={`${doc.fileUrl}-${idx}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                <p>
+                  <span className="font-semibold">
+                    {doc.uploadedAt ? doc.uploadedAt.slice(0, 16).replace("T", " ") : "Sin fecha"}
+                  </span>{" "}
+                  · {doc.fileName}
+                </p>
+                <a
+                  href={doc.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex text-xs font-semibold text-emerald-700 hover:underline"
+                >
+                  Ver documento
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-slate-900">Comprobante de pago</h2>

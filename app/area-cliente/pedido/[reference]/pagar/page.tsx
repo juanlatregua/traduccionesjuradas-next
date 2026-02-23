@@ -67,6 +67,10 @@ export default function PagarPage() {
   const [proofSent, setProofSent] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [proofEmail, setProofEmail] = useState("");
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [sourceUploading, setSourceUploading] = useState(false);
+  const [sourceUploadError, setSourceUploadError] = useState<string | null>(null);
+  const [sourceUploaded, setSourceUploaded] = useState(false);
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
@@ -228,6 +232,37 @@ export default function PagarPage() {
     }
   }
 
+  async function handleUploadSourceDocument() {
+    if (!capabilities.manualProofUploadEnabled) {
+      setSourceUploadError("La subida automatica de documentos esta temporalmente no disponible.");
+      return;
+    }
+    if (!sourceFile) return;
+    setSourceUploading(true);
+    setSourceUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", sourceFile);
+      if (proofEmail.trim()) {
+        formData.append("clientEmail", proofEmail.trim().toLowerCase());
+      }
+      const res = await fetch(`/api/orders/${reference}/documents`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Error al subir el documento.");
+      }
+      setSourceUploaded(true);
+      setSourceFile(null);
+    } catch (err: any) {
+      setSourceUploadError(err?.message || "Error al subir el documento.");
+    } finally {
+      setSourceUploading(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
@@ -289,7 +324,8 @@ export default function PagarPage() {
   if (proofSent) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
-        <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm sm:p-8 text-center">
+        <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm sm:p-8">
+          <div className="text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
             <svg className="h-7 w-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -316,6 +352,40 @@ export default function PagarPage() {
               Volver al inicio
             </Link>
           </div>
+          </div>
+
+          <div className="mt-7 rounded-2xl border border-emerald-200 bg-white p-4">
+            <p className="text-sm font-semibold text-emerald-900">Documento a traducir</p>
+            <p className="mt-1 text-xs text-emerald-700">
+              Si aun no lo has subido, puedes adjuntarlo ahora mismo para que aparezca en la zona traductor.
+            </p>
+            {sourceUploaded ? (
+              <p className="mt-3 text-xs font-semibold text-emerald-700">
+                Documento fuente subido correctamente.
+              </p>
+            ) : (
+              <>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
+                  onChange={(e) => {
+                    setSourceFile(e.target.files?.[0] || null);
+                    setSourceUploadError(null);
+                  }}
+                  className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-emerald-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-200"
+                />
+                {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
+                <button
+                  type="button"
+                  onClick={handleUploadSourceDocument}
+                  disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
+                  className="mt-3 rounded-2xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                >
+                  {sourceUploading ? "Subiendo..." : "Subir documento fuente"}
+                </button>
+              </>
+            )}
+          </div>
         </section>
       </main>
     );
@@ -341,6 +411,38 @@ export default function PagarPage() {
             Sube el justificante aqui y el sistema lo registra automaticamente en tu pedido.
           </p>
         )}
+
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-semibold text-slate-900">Documento a traducir</p>
+          <p className="mt-1 text-xs text-slate-600">
+            Adjunta el documento original para que el traductor lo vea en la zona operativa.
+          </p>
+          {sourceUploaded ? (
+            <p className="mt-3 text-xs font-semibold text-emerald-700">Documento fuente subido correctamente.</p>
+          ) : (
+            <>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
+                onChange={(e) => {
+                  setSourceFile(e.target.files?.[0] || null);
+                  setSourceUploadError(null);
+                }}
+                className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-800 hover:file:bg-slate-300"
+                disabled={!capabilities.manualProofUploadEnabled}
+              />
+              {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
+              <button
+                type="button"
+                onClick={handleUploadSourceDocument}
+                disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
+                className="mt-3 rounded-2xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
+              >
+                {sourceUploading ? "Subiendo..." : "Subir documento fuente"}
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Tabs */}
         <div className="mt-6 flex flex-wrap gap-2">

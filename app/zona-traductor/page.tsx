@@ -129,26 +129,49 @@ function getPaymentProofs(order: any) {
 function getSubmittedDocuments(order: any) {
   const events = order.events || [];
   const submitted = events.find((e: any) => e.type === "presupuesto.submitted");
-  if (!submitted) return [];
-  const payload = (submitted.payload as any) || {};
-  const files = Array.isArray(payload.files) ? payload.files : [];
-  const fallbackUploadedAt = submitted.createdAt?.toISOString?.() || null;
+  const submittedFiles = (() => {
+    if (!submitted) return [];
+    const payload = (submitted.payload as any) || {};
+    const files = Array.isArray(payload.files) ? payload.files : [];
+    const fallbackUploadedAt = submitted.createdAt?.toISOString?.() || null;
+    return files.map((file: any) => ({
+      name: String(file?.name || "Documento"),
+      type: String(file?.type || "application/octet-stream"),
+      size: Number(file?.size || 0),
+      url: file?.url ? String(file.url) : undefined,
+      uploadedAt: file?.uploadedAt ? String(file.uploadedAt) : fallbackUploadedAt || undefined,
+    }));
+  })();
 
-  return files.map((file: any) => {
-    const name = String(file?.name || "Documento");
-    const type = String(file?.type || "application/octet-stream");
-    const size = Number(file?.size || 0);
-    const url = file?.url ? String(file.url) : undefined;
-    const uploadedAt = file?.uploadedAt ? String(file.uploadedAt) : fallbackUploadedAt || undefined;
+  const sourceUploadFiles = events
+    .filter((e: any) => e.type === "order.source_document_uploaded")
+    .map((e: any) => {
+      const payload = (e.payload as any) || {};
+      return {
+        name: String(payload.fileName || "Documento"),
+        type: String(payload.fileType || "application/octet-stream"),
+        size: Number(payload.fileSize || 0),
+        url: payload.fileUrl ? String(payload.fileUrl) : undefined,
+        uploadedAt: String(payload.uploadedAt || e.createdAt?.toISOString?.() || ""),
+      };
+    });
 
-    return {
-      name,
-      type,
-      size: Number.isFinite(size) ? size : 0,
-      url,
-      uploadedAt,
-    };
-  });
+  const seen = new Set<string>();
+  return [...sourceUploadFiles, ...submittedFiles]
+    .filter((doc) => {
+      const url = doc.url || "";
+      if (!url) return true;
+      if (seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    })
+    .map((doc) => ({
+      name: doc.name,
+      type: doc.type,
+      size: Number.isFinite(doc.size) ? doc.size : 0,
+      url: doc.url,
+      uploadedAt: doc.uploadedAt || undefined,
+    }));
 }
 
 function getQuoteDraft(order: any) {
