@@ -30,6 +30,7 @@ type CartItem = {
   samplePdf: string;
   payDirect: boolean;
   pricingModel: "fixed" | "per-page" | "per-word";
+  attachedFileName?: string;
 };
 
 const QUICK_FAQ = [
@@ -286,12 +287,16 @@ export default function FrenchOfferPanel() {
   const [selectedDocId, setSelectedDocId] = useState<string>(DOC_OPTIONS[0].id);
   const [pages, setPages] = useState(3);
   const [words, setWords] = useState(1200);
+  const [presetAttachment, setPresetAttachment] = useState<File | null>(null);
+  const [presetAttachmentInputKey, setPresetAttachmentInputKey] = useState(0);
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [extractingWords, setExtractingWords] = useState(false);
   const [filePrice, setFilePrice] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartFiles, setCartFiles] = useState<Record<string, File>>({});
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [urgencyNotes, setUrgencyNotes] = useState("");
+  const [pendingOrderReference, setPendingOrderReference] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [botHistory, setBotHistory] = useState<Array<{ from: "bot" | "user"; text: string }>>([]);
@@ -374,8 +379,10 @@ export default function FrenchOfferPanel() {
   };
 
   const addToCart = () => {
+    const uid = `${selectedDoc.id}-${Date.now()}`;
+    const selectedAttachment = presetAttachment || (selectedDoc.pricing === "per-word" ? fileUpload : null);
     const item: CartItem = {
-      uid: `${selectedDoc.id}-${Date.now()}`,
+      uid,
       docId: selectedDoc.id,
       label: selectedDoc.label,
       price: previewPrice,
@@ -384,8 +391,20 @@ export default function FrenchOfferPanel() {
       samplePdf: selectedDoc.samplePdf,
       payDirect: selectedDoc.payDirect,
       pricingModel: selectedDoc.pricing,
+      attachedFileName: selectedAttachment?.name || undefined,
     };
     setCart((prev) => [...prev, item]);
+    if (selectedAttachment) {
+      setCartFiles((prev) => ({ ...prev, [uid]: selectedAttachment }));
+    }
+    if (presetAttachment) {
+      setPresetAttachment(null);
+      setPresetAttachmentInputKey((prev) => prev + 1);
+    }
+    if (selectedDoc.pricing === "per-word" && fileUpload) {
+      setFileUpload(null);
+    }
+    setPendingOrderReference(null);
     setStep(2);
     setError(null);
     setNotice(null);
@@ -398,8 +417,9 @@ export default function FrenchOfferPanel() {
     }
     const price = filePrice ?? Math.round(words * WORD_PRICE_FR * 1.1);
     const fileName = fileUpload?.name || "Documento";
+    const uid = `file-${Date.now()}`;
     const item: CartItem = {
-      uid: `file-${Date.now()}`,
+      uid,
       docId: "file-upload",
       label: `${fileName} (${words} palabras)`,
       price,
@@ -408,8 +428,13 @@ export default function FrenchOfferPanel() {
       samplePdf: "",
       payDirect: true,
       pricingModel: "per-word",
+      attachedFileName: fileUpload?.name || undefined,
     };
     setCart((prev) => [...prev, item]);
+    if (fileUpload) {
+      setCartFiles((prev) => ({ ...prev, [uid]: fileUpload }));
+    }
+    setPendingOrderReference(null);
     setStep(2);
     setError(null);
     setNotice(null);
@@ -419,6 +444,12 @@ export default function FrenchOfferPanel() {
 
   const removeItem = (uid: string) => {
     setCart((prev) => prev.filter((item) => item.uid !== uid));
+    setCartFiles((prev) => {
+      const next = { ...prev };
+      delete next[uid];
+      return next;
+    });
+    setPendingOrderReference(null);
   };
 
   const goCheckout = () => {
@@ -464,49 +495,105 @@ export default function FrenchOfferPanel() {
     }
   };
 
+  const uploadCartDocuments = async (reference: string) => {
+    const entries = cart
+      .map((item) => ({ item, file: cartFiles[item.uid] }))
+      .filter((entry): entry is { item: CartItem; file: File } => Boolean(entry.file));
+
+    if (entries.length === 0) return;
+
+    const uploadedUids: string[] = [];
+    const failedLabels: string[] = [];
+
+    for (const entry of entries) {
+      const formData = new FormData();
+      formData.append("file", entry.file);
+      const res = await fetch(`/api/orders/${reference}/documents`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        failedLabels.push(entry.item.label);
+        continue;
+      }
+      uploadedUids.push(entry.item.uid);
+    }
+
+    if (uploadedUids.length > 0) {
+      setCartFiles((prev) => {
+        const next = { ...prev };
+        for (const uid of uploadedUids) delete next[uid];
+        return next;
+      });
+    }
+
+    if (failedLabels.length > 0) {
+      throw new Error(
+        `Pedido ${reference} creado, pero faltan adjuntos por subir (${failedLabels.length}). Reintenta para completar la carga.`
+      );
+    }
+  };
+
   const payNow = async () => {
     setCheckoutLoading(true);
     setError(null);
+    setNotice(null);
     try {
       const labels = cart.map((item) => item.label).join(" + ").slice(0, 110);
       const containsWordCountItem = cart.some((item) => item.pricingModel === "per-word");
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amountCents: Math.round(cartTotal * 100),
-          currency: "eur",
-          title: `Pedido frances: ${labels}`,
-          source: "preset",
-          langPair: direction,
-          pagesLabel: `${cart.length} documento(s)`,
-          hasMixedCart: hasMixedPricing,
-          containsWordCountItem,
-          reviewRequired: hasMixedPricing,
-          reviewReason: hasMixedPricing
-            ? "Carrito mixto (prefijado + por palabras) requiere validacion interna previa."
-            : undefined,
-          urgencyNotes: urgencyNotes.trim() || undefined,
-          sourceChannel: tracking.sourceChannel,
-          sourceAgent: tracking.sourceAgent,
-          sourceCampaign: tracking.sourceCampaign,
-          sourceMedium: tracking.sourceMedium,
-          sourceLanding: tracking.sourceLanding,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok || !data?.order?.reference) {
-        if (res.status === 401) {
-          window.location.assign("/acceso?callbackUrl=" + encodeURIComponent(window.location.pathname));
-          return;
+
+      let orderReference = pendingOrderReference;
+      if (!orderReference) {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountCents: Math.round(cartTotal * 100),
+            currency: "eur",
+            title: `Pedido frances: ${labels}`,
+            source: "preset",
+            langPair: direction,
+            pagesLabel: `${cart.length} documento(s)`,
+            hasMixedCart: hasMixedPricing,
+            containsWordCountItem,
+            reviewRequired: hasMixedPricing,
+            reviewReason: hasMixedPricing
+              ? "Carrito mixto (prefijado + por palabras) requiere validacion interna previa."
+              : undefined,
+            urgencyNotes: urgencyNotes.trim() || undefined,
+            sourceChannel: tracking.sourceChannel,
+            sourceAgent: tracking.sourceAgent,
+            sourceCampaign: tracking.sourceCampaign,
+            sourceMedium: tracking.sourceMedium,
+            sourceLanding: tracking.sourceLanding,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.ok || !data?.order?.reference) {
+          if (res.status === 401) {
+            window.location.assign("/acceso?callbackUrl=" + encodeURIComponent(window.location.pathname));
+            return;
+          }
+          throw new Error(data?.error || "No se pudo crear el pedido.");
         }
-        throw new Error(data?.error || "No se pudo crear el pedido.");
+        orderReference = data.order.reference as string;
+        setPendingOrderReference(orderReference);
       }
+
+      const attachmentsCount = cart.filter((item) => Boolean(cartFiles[item.uid])).length;
+      if (attachmentsCount > 0) {
+        setNotice(`Subiendo ${attachmentsCount} documento(s) adjuntos al pedido...`);
+        await uploadCartDocuments(orderReference);
+      }
+
       const params = new URLSearchParams();
       if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
       if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
       const qs = params.toString();
-      const paymentUrl = `/area-cliente/pedido/${data.order.reference}/pagar${qs ? `?${qs}` : ""}`;
+      setPendingOrderReference(null);
+      setNotice(null);
+      const paymentUrl = `/area-cliente/pedido/${orderReference}/pagar${qs ? `?${qs}` : ""}`;
       window.location.assign(paymentUrl);
     } catch (err: any) {
       setError(err?.message || "No se pudo crear el pedido.");
@@ -669,6 +756,24 @@ export default function FrenchOfferPanel() {
                         className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                       />
                     </label>
+                  </div>
+                )}
+
+                {selectedDoc.pricing !== "per-word" && (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Adjuntar tu documento (opcional)
+                    </p>
+                    <input
+                      key={presetAttachmentInputKey}
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png"
+                      onChange={(e) => setPresetAttachment(e.target.files?.[0] || null)}
+                      className="mt-2 block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700"
+                    />
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      Si lo adjuntas ahora, quedara dentro del pedido para revision directa del traductor.
+                    </p>
                   </div>
                 )}
 
@@ -847,6 +952,11 @@ export default function FrenchOfferPanel() {
                       <p className="text-sm font-semibold text-slate-900">{item.label}</p>
                       <p className="text-xs text-slate-600">{item.detail}</p>
                       <p className="text-xs text-slate-600">Plazo: {item.deadline}</p>
+                      {item.attachedFileName && (
+                        <p className="text-xs font-semibold text-emerald-700">
+                          Adjunto: {item.attachedFileName}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-emerald-700">{money(item.price)}</p>
@@ -875,7 +985,7 @@ export default function FrenchOfferPanel() {
               onClick={() => setStep(1)}
               className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
             >
-              + Documentos
+              Añadir otro documento
             </button>
             <button
               type="button"
