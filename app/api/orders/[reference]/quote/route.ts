@@ -26,6 +26,14 @@ type NormalizedLine = {
   notes: string | null;
 };
 
+const SEND_ALLOWED_STATES = new Set([
+  "BORRADOR",
+  "PENDIENTE_REVISION",
+  "PRESUPUESTO_ENVIADO",
+  "PENDIENTE_PAGO",
+  "JUSTIFICANTE_SUBIDO",
+]);
+
 function normalizeLines(lines: QuoteLineInput[] | undefined) {
   if (!Array.isArray(lines) || lines.length === 0) {
     return { ok: false as const, error: "Debes añadir al menos una linea de coste." };
@@ -106,6 +114,17 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
 
+    let workflowState = getWorkflowState(order);
+    if (body.sendToClient && !SEND_ALLOWED_STATES.has(workflowState)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `No se puede enviar presupuesto en estado ${workflowState}.`,
+        },
+        { status: 400 }
+      );
+    }
+
     await prisma.order.update({
       where: { reference: params.reference },
       data: {
@@ -128,7 +147,6 @@ export async function POST(req: Request, { params }: Params) {
       },
     });
 
-    let workflowState = getWorkflowState(order);
     let emailWarning: string | null = null;
 
     if (body.sendToClient) {
@@ -230,4 +248,3 @@ export async function POST(req: Request, { params }: Params) {
     );
   }
 }
-

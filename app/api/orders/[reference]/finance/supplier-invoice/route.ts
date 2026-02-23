@@ -206,7 +206,7 @@ export async function POST(req: Request, { params }: Params) {
       if (latestOrder) {
         const snapshot = getFinanceSnapshot(latestOrder);
         if (snapshot.isFinanciallyCloseable && !snapshot.hasFinanceCloseEvent) {
-          await prisma.orderEvent.create({
+          const closeEvent = await prisma.orderEvent.create({
             data: {
               orderId: latestOrder.id,
               type: "finance.closed",
@@ -222,17 +222,20 @@ export async function POST(req: Request, { params }: Params) {
               },
             },
           });
-          await transitionWorkflowState({
-            reference: params.reference,
-            to: "CERRADO",
-            actorEmail,
-            reason: "Cierre financiero automatico tras pago a proveedor.",
-            payload: {
-              source: "supplier_invoice_paid",
-            },
-          }).catch((err) => {
+          try {
+            await transitionWorkflowState({
+              reference: params.reference,
+              to: "CERRADO",
+              actorEmail,
+              reason: "Cierre financiero automatico tras pago a proveedor.",
+              payload: {
+                source: "supplier_invoice_paid",
+              },
+            });
+          } catch (err) {
+            await prisma.orderEvent.delete({ where: { id: closeEvent.id } }).catch(() => undefined);
             console.error("[finance-supplier-invoice] workflow close transition failed", err);
-          });
+          }
         }
       }
     }

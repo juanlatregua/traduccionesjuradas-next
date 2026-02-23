@@ -69,7 +69,10 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     if (body.billing) {
-      await saveBillingData(order.id, body.billing);
+      await saveBillingData(order.id, {
+        ...body.billing,
+        requested: Boolean(order.billing?.requested),
+      });
     }
 
     return NextResponse.json({ ok: true });

@@ -53,7 +53,7 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     const body = (await req.json().catch(() => ({}))) as Body;
-    await prisma.orderEvent.create({
+    const closeEvent = await prisma.orderEvent.create({
       data: {
         orderId: order.id,
         type: "finance.closed",
@@ -69,17 +69,30 @@ export async function POST(req: Request, { params }: Params) {
       },
     });
 
-    await transitionWorkflowState({
-      reference: params.reference,
-      to: "CERRADO",
-      actorEmail,
-      reason: "Cierre financiero validado.",
-      payload: {
-        source: "finance.close",
-      },
-    }).catch((err) => {
-      console.error("[finance-close] workflow transition failed", err);
-    });
+    try {
+      await transitionWorkflowState({
+        reference: params.reference,
+        to: "CERRADO",
+        actorEmail,
+        reason: "Cierre financiero validado.",
+        payload: {
+          source: "finance.close",
+        },
+      });
+    } catch (workflowErr: any) {
+      await prisma.orderEvent
+        .delete({ where: { id: closeEvent.id } })
+        .catch(() => undefined);
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            workflowErr?.message ||
+            "No se pudo marcar el pedido como CERRADO en workflow.",
+        },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

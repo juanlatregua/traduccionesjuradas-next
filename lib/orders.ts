@@ -355,6 +355,7 @@ export async function saveBillingData(
     postalCode: string;
     country?: string;
     email: string;
+    requested?: boolean;
   }
 ) {
   return prisma.billingData.upsert({
@@ -363,12 +364,12 @@ export async function saveBillingData(
       orderId,
       ...data,
       country: data.country || "España",
-      requested: true,
+      requested: data.requested === true,
     },
     update: {
       ...data,
       country: data.country || "España",
-      requested: true,
+      requested: data.requested === true,
     },
   });
 }
@@ -438,7 +439,7 @@ export async function getAllOrdersForStaff() {
     orderBy: { createdAt: "desc" },
     include: {
       billing: true,
-      events: { orderBy: { createdAt: "desc" }, take: 50 },
+      events: { orderBy: { createdAt: "desc" }, take: 150 },
     },
   });
 }

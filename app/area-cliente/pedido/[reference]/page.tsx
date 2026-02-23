@@ -55,7 +55,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
-      <AutoRefresh intervalMs={5000} />
+      <AutoRefresh intervalMs={20000} idleMs={30000} />
       <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
           Referencia {order.reference}

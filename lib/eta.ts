@@ -55,6 +55,20 @@ export function addBusinessDays(from: Date, days: number, holidaySet: Set<string
   return d;
 }
 
+export function getMadridBusinessBaseDate() {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = Number(parts.find((part) => part.type === "year")?.value || "1970");
+  const month = Number(parts.find((part) => part.type === "month")?.value || "01");
+  const day = Number(parts.find((part) => part.type === "day")?.value || "01");
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+}
+
 export function suggestEtaBusinessDays(input: EtaInput) {
   const words = Number(input.words || 0);
   const pages = parsePages(input.pagesLabel);
@@ -86,4 +100,3 @@ export function formatEta(date: Date) {
     year: "numeric",
   });
 }
-

@@ -217,6 +217,7 @@ function topFinancialAlert(order: any) {
 }
 
 type PeriodKey = "total" | "hoy" | "7d" | "mes" | "mes-anterior" | "custom";
+type DateBaseKey = "created" | "paid";
 
 type DateRange = {
   key: PeriodKey;
@@ -226,6 +227,10 @@ type DateRange = {
   fromInput: string;
   toInput: string;
 };
+
+function normalizeDateBase(value?: string | null): DateBaseKey {
+  return value === "paid" ? "paid" : "created";
+}
 
 function startOfDay(value: Date) {
   const d = new Date(value);
@@ -362,6 +367,25 @@ function isWithinDateRange(date: Date, range: DateRange) {
   return true;
 }
 
+function getOrderDateForBase(order: any, base: DateBaseKey) {
+  if (base === "paid") {
+    return order.paidAt ? new Date(order.paidAt) : null;
+  }
+  return new Date(order.createdAt);
+}
+
+function getArchiveState(order: any) {
+  const evt = (order.events || []).find(
+    (e: any) => e.type === "order.archived" || e.type === "order.unarchived"
+  );
+  if (!evt) {
+    return { isArchived: false, archivedAt: null as string | null };
+  }
+  const isArchived = evt.type === "order.archived";
+  const archivedAt = evt.createdAt?.toISOString?.() || null;
+  return { isArchived, archivedAt };
+}
+
 export default async function ZonaTraductorPage({
   searchParams,
 }: {
@@ -371,6 +395,7 @@ export default async function ZonaTraductorPage({
     periodo?: string;
     desde?: string;
     hasta?: string;
+    base?: string;
   };
 }) {
   const session = await getServerSession(authOptions);
@@ -397,17 +422,26 @@ export default async function ZonaTraductorPage({
     financeSnapshot: getFinanceSnapshot(o),
     workflowState: getWorkflowState(o),
     acquisitionSource: getAcquisitionSource(o),
+    ...getArchiveState(o),
   }));
   const dateRange = getDateRange(searchParams.periodo, searchParams.desde, searchParams.hasta);
+  const dateBase = normalizeDateBase(searchParams.base);
 
   const filtro = searchParams.filtro || "todos";
   const qRaw = String(searchParams.q || "").trim();
   const q = qRaw.toLowerCase();
 
-  const periodOrders = allOrdersWithFinance.filter((order) => isWithinDateRange(order.createdAt, dateRange));
+  const periodOrders = allOrdersWithFinance.filter((order) => {
+    const baseDate = getOrderDateForBase(order, dateBase);
+    if (!baseDate) return false;
+    return isWithinDateRange(baseDate, dateRange);
+  });
   const scopedOrders = q ? periodOrders.filter((order) => matchesSearch(order, q)) : periodOrders;
+  const activeScopedOrders = scopedOrders.filter((order) => !order.isArchived);
 
   const orders = scopedOrders.filter((order) => {
+    if (filtro === "archivados") return order.isArchived;
+    if (order.isArchived) return false;
     switch (filtro) {
       case "pagados-sin-asignar":
         return order.paymentStatus === "PAID" && !order.assignedTo && order.deliveryState !== "TRADUCIDO";
@@ -429,49 +463,52 @@ export default async function ZonaTraductorPage({
         return requiresMarginApproval(order);
       case "lote-pendiente":
         return hasMonthlyBatchPending(order);
+      case "archivados":
+        return order.isArchived;
       default:
         return true;
     }
   });
 
   const counts = {
-    todos: scopedOrders.length,
-    "pagados-sin-asignar": scopedOrders.filter((o) => o.paymentStatus === "PAID" && !o.assignedTo && o.deliveryState !== "TRADUCIDO").length,
-    "pendientes-revision": scopedOrders.filter((o) => o.workflowState === "PENDIENTE_REVISION").length,
-    "origen-whatsapp": scopedOrders.filter((o) => o.acquisitionSource === "WHATSAPP").length,
-    "en-proceso": scopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length,
-    "sla-riesgo": scopedOrders.filter((o) => o.dueDate && (isDueSoon(o.dueDate) || isOverdue(o.dueDate)) && o.deliveryState !== "TRADUCIDO").length,
-    "pendientes-pago": scopedOrders.filter((o) => o.paymentStatus === "PENDING").length,
-    traducidos: scopedOrders.filter((o) => o.deliveryState === "TRADUCIDO").length,
-    "riesgo-financiero": scopedOrders.filter((o) => hasFinancialRisk(o)).length,
-    "margen-aprobacion": scopedOrders.filter((o) => requiresMarginApproval(o)).length,
-    "lote-pendiente": scopedOrders.filter((o) => hasMonthlyBatchPending(o)).length,
+    todos: activeScopedOrders.length,
+    "pagados-sin-asignar": activeScopedOrders.filter((o) => o.paymentStatus === "PAID" && !o.assignedTo && o.deliveryState !== "TRADUCIDO").length,
+    "pendientes-revision": activeScopedOrders.filter((o) => o.workflowState === "PENDIENTE_REVISION").length,
+    "origen-whatsapp": activeScopedOrders.filter((o) => o.acquisitionSource === "WHATSAPP").length,
+    "en-proceso": activeScopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length,
+    "sla-riesgo": activeScopedOrders.filter((o) => o.dueDate && (isDueSoon(o.dueDate) || isOverdue(o.dueDate)) && o.deliveryState !== "TRADUCIDO").length,
+    "pendientes-pago": activeScopedOrders.filter((o) => o.paymentStatus === "PENDING").length,
+    traducidos: activeScopedOrders.filter((o) => o.deliveryState === "TRADUCIDO").length,
+    "riesgo-financiero": activeScopedOrders.filter((o) => hasFinancialRisk(o)).length,
+    "margen-aprobacion": activeScopedOrders.filter((o) => requiresMarginApproval(o)).length,
+    "lote-pendiente": activeScopedOrders.filter((o) => hasMonthlyBatchPending(o)).length,
+    archivados: scopedOrders.filter((o) => o.isArchived).length,
   };
 
-  const paidCount = scopedOrders.filter((o) => o.paymentStatus === "PAID").length;
-  const inProgressCount = scopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length;
-  const pendingPayCount = scopedOrders.filter((o) => o.paymentStatus === "PENDING").length;
+  const paidCount = activeScopedOrders.filter((o) => o.paymentStatus === "PAID").length;
+  const inProgressCount = activeScopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length;
+  const pendingPayCount = activeScopedOrders.filter((o) => o.paymentStatus === "PENDING").length;
   const reviewPendingCount = counts["pendientes-revision"];
   const whatsappLeadCount = counts["origen-whatsapp"];
   const financialRiskCount = counts["riesgo-financiero"];
   const marginApprovalPendingCount = counts["margen-aprobacion"];
   const monthlyBatchPendingCount = counts["lote-pendiente"];
-  const financeClosedCount = scopedOrders.filter((o) => o.financeSnapshot.hasFinanceCloseEvent).length;
-  const paidRevenueCents = scopedOrders
+  const financeClosedCount = activeScopedOrders.filter((o) => o.financeSnapshot.hasFinanceCloseEvent).length;
+  const paidRevenueCents = activeScopedOrders
     .filter((o) => o.paymentStatus === "PAID")
     .reduce((acc, order) => acc + order.amountCents, 0);
-  const supplierPaymentPendingCount = scopedOrders.filter(
+  const supplierPaymentPendingCount = activeScopedOrders.filter(
     (o) => o.paymentStatus === "PAID" && o.financeSnapshot.supplierInvoiceStatus !== "PAID"
   ).length;
 
-  const marginValues = scopedOrders
+  const marginValues = activeScopedOrders
     .map((o) => o.financeSnapshot.marginPct)
     .filter((v): v is number => typeof v === "number");
   const avgMarginPct = marginValues.length
     ? Number((marginValues.reduce((acc, v) => acc + v, 0) / marginValues.length).toFixed(2))
     : null;
 
-  const criticalFinanceOrders = scopedOrders
+  const criticalFinanceOrders = activeScopedOrders
     .filter(
       (o) =>
         hasFinancialRisk(o) ||
@@ -483,7 +520,7 @@ export default async function ZonaTraductorPage({
 
   return (
     <main id="zona-traductor-root" className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-10">
-      <AutoRefresh intervalMs={4000} />
+      <AutoRefresh intervalMs={20000} idleMs={30000} />
       <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Zona traductor</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
@@ -494,8 +531,8 @@ export default async function ZonaTraductorPage({
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
           <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-4 text-center">
-            <p className="text-2xl font-bold text-white">{scopedOrders.length}</p>
-            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total pedidos</p>
+            <p className="text-2xl font-bold text-white">{activeScopedOrders.length}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total activos</p>
           </div>
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
             <p className="text-2xl font-bold text-emerald-400">{paidCount}</p>
@@ -547,6 +584,10 @@ export default async function ZonaTraductorPage({
           <p>
             Periodo activo:{" "}
             <span className="font-semibold text-slate-100">{dateRange.label}</span>
+            {" · "}
+            <span className="font-semibold text-slate-100">
+              {dateBase === "paid" ? "Base fecha cobro" : "Base fecha pedido"}
+            </span>
             {" · "}
             <span className="text-slate-400">Resetear vista no borra datos, solo limpia filtros y estadisticas.</span>
           </p>
@@ -604,6 +645,7 @@ export default async function ZonaTraductorPage({
               paymentProofs={getPaymentProofs(order)}
               documents={getSubmittedDocuments(order)}
               quoteDraft={getQuoteDraft(order)}
+              isArchived={Boolean(order.isArchived)}
               financeSnapshot={order.financeSnapshot}
             />
           ))}
@@ -650,6 +692,7 @@ export default async function ZonaTraductorPage({
           period={dateRange.key}
           fromDate={dateRange.fromInput}
           toDate={dateRange.toInput}
+          dateBase={dateBase}
         />
 
         {orders.length === 0 ? (

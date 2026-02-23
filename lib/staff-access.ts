@@ -1,9 +1,10 @@
 const DEFAULT_STAFF_EMAILS = [
   "juansilva@traduccionesjuradas.net",
+  "juasilva@traduccionesjuradas.net",
   "hola@traduccionesjuradas.net",
 ];
 
-const DEFAULT_PM_EMAILS = ["juansilva@traduccionesjuradas.net"];
+const DEFAULT_PM_EMAILS = ["juansilva@traduccionesjuradas.net", "juasilva@traduccionesjuradas.net"];
 const DEFAULT_COLLABORATOR_EMAILS = ["juan@gestremor.com"];
 const DEFAULT_ADMIN_EMAILS = ["hola@traduccionesjuradas.net"];
 

@@ -71,7 +71,7 @@ export default async function AreaClientePage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
-      <AutoRefresh intervalMs={6000} />
+      <AutoRefresh intervalMs={20000} idleMs={30000} />
       <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
           Area de cliente

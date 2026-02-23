@@ -7,6 +7,7 @@ import TranslatorNotifyForm from "./TranslatorNotifyForm";
 import OrderFinancePanel from "./OrderFinancePanel";
 import OrderWorkflowPanel from "./OrderWorkflowPanel";
 import OrderDocumentsPanel from "./OrderDocumentsPanel";
+import OrderLifecyclePanel from "./OrderLifecyclePanel";
 import type { FinanceSnapshot } from "@/lib/finance";
 import { getWorkflowStateLabel } from "@/lib/workflow";
 
@@ -18,6 +19,7 @@ type Props = {
   paymentStatus: string;
   deliveryState: string;
   workflowState: string;
+  isArchived: boolean;
   acquisitionSource: "WHATSAPP" | "WEB";
   assignedTo: string | null;
   dueDate: string | null;
@@ -83,6 +85,7 @@ export default function OrderActionPanel({
   paymentStatus,
   deliveryState,
   workflowState,
+  isArchived,
   acquisitionSource,
   assignedTo,
   dueDate,
@@ -93,7 +96,7 @@ export default function OrderActionPanel({
   financeSnapshot,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas">("documentos");
+  const [tab, setTab] = useState<"documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas" | "control">("documentos");
 
   const tabs = [
     { key: "documentos" as const, label: "Documentos", color: "text-teal-300" },
@@ -103,6 +106,7 @@ export default function OrderActionPanel({
     { key: "entrega" as const, label: "Entrega", color: "text-emerald-300" },
     { key: "notificar" as const, label: "Notificar", color: "text-violet-300" },
     { key: "finanzas" as const, label: "Finanzas", color: "text-lime-300" },
+    { key: "control" as const, label: "Control", color: "text-rose-300" },
   ];
 
   return (
@@ -256,6 +260,9 @@ export default function OrderActionPanel({
                 amountCents={amountCents}
                 snapshot={financeSnapshot}
               />
+            )}
+            {tab === "control" && (
+              <OrderLifecyclePanel reference={reference} isArchived={isArchived} />
             )}
           </div>
         </div>

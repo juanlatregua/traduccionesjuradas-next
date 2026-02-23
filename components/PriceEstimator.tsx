@@ -664,7 +664,7 @@ export default function PriceEstimator() {
             </p>
           </>
         )}
-        {showGuestEmail && result && (
+        {showGuestEmail && (result || cart.length > 0) && (
           <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
             <p className="text-sm font-semibold text-blue-900">
               Introduce tu email para recibir la confirmación y el enlace de pago:

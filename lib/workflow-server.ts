@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { addBusinessDays, getHolidaySetFromEnv } from "@/lib/eta";
+import { addBusinessDays, getHolidaySetFromEnv, getMadridBusinessBaseDate } from "@/lib/eta";
 import {
   canTransitionWorkflow,
   getFlowProfile,
@@ -101,20 +101,6 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
 
     return { changed: true, from, to };
   });
-}
-
-function getMadridBusinessBaseDate() {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Madrid",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(new Date());
-  const year = Number(parts.find((part) => part.type === "year")?.value || "1970");
-  const month = Number(parts.find((part) => part.type === "month")?.value || "01");
-  const day = Number(parts.find((part) => part.type === "day")?.value || "01");
-  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
 }
 
 export async function assignDefaultFrenchEtaIfNeeded(options: {
