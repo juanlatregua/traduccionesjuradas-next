@@ -19,6 +19,11 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  icons: {
+    icon: "/brand/favicon.svg",
+    shortcut: "/brand/favicon.svg",
+    apple: "/brand/isotipo.svg",
+  },
 };
 
 export const viewport: Viewport = {
@@ -49,7 +54,7 @@ export default function RootLayout({
             "Traducción jurada oficial de francés y otros idiomas realizada por traductores jurados acreditados para trámites en España y en el extranjero.",
           telephone: "+34 951 333 614",
           email: "hola@traduccionesjuradas.net",
-          image: "https://www.traduccionesjuradas.net/logo-tj-app.svg",
+          image: "https://www.traduccionesjuradas.net/brand/logo-horizontal.svg",
           priceRange: "€€",
           areaServed: {
             "@type": "Country",

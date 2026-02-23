@@ -2,22 +2,29 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 function Logo() {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500 shadow-md shadow-emerald-500/40">
-        <span className="text-xs font-black tracking-tight text-white">
-          TJ
-        </span>
-      </div>
-      <div className="flex flex-col leading-tight">
-        <span className="text-sm font-semibold text-slate-900">
-          TraduccionesJuradas.Net
-        </span>
-        <span className="hidden text-[11px] text-slate-500 sm:block">
-          Soluciones de Traducción Jurada
-        </span>
+      <Image
+        src="/brand/isotipo.svg"
+        alt="Traducciones Juradas"
+        width={34}
+        height={34}
+        className="h-9 w-9 sm:hidden"
+        priority
+      />
+      <Image
+        src="/brand/logo-horizontal.svg"
+        alt="Traducciones Juradas"
+        width={240}
+        height={52}
+        className="hidden h-10 w-auto sm:block"
+        priority
+      />
+      <div className="leading-tight sm:hidden">
+        <span className="block text-sm font-semibold text-slate-900">Traducciones Juradas</span>
       </div>
     </div>
   );

@@ -11,6 +11,32 @@ type UploadedFile = {
   contentBase64: string; // base64 SIN prefijo "data:..."
 };
 
+const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
+const BRAND_LOGO_URL = `${BRAND_HOME_URL}/brand/logo-horizontal.svg`;
+
+function wrapClientEmailHtml(content: string) {
+  return `
+    <div style="background:#f8fafc; padding:24px 12px;">
+      <div style="max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:22px;">
+        <div style="margin-bottom:14px;">
+          <a href="${BRAND_HOME_URL}" style="text-decoration:none;" target="_blank" rel="noopener noreferrer">
+            <img src="${BRAND_LOGO_URL}" alt="Traducciones Juradas" style="height:44px; width:auto; max-width:240px;" />
+          </a>
+        </div>
+        <div style="font-family:Arial, sans-serif; color:#0f172a; font-size:15px; line-height:1.45;">
+          ${content}
+        </div>
+        <hr style="margin:18px 0 12px 0; border:0; border-top:1px solid #e2e8f0;" />
+        <p style="margin:0; font-family:Arial, sans-serif; font-size:12px; color:#64748b;">
+          TraduccionesJuradas.net · Málaga ·
+          <a href="mailto:hola@traduccionesjuradas.net" style="color:#0f6b66; text-decoration:none;">hola@traduccionesjuradas.net</a>
+          · <a href="tel:+34951333614" style="color:#0f6b66; text-decoration:none;">951 333 614</a>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
 export async function sendPresupuestoEmail(data: any, files: UploadedFile[]) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
@@ -148,13 +174,13 @@ ${signatureText}`;
 
   // Inline attachments (opcional si existen en /public)
   const attachments: any[] = [];
-  const logoPath = path.join(process.cwd(), "public", "logo-tj-app.svg");
+  const logoPath = path.join(process.cwd(), "public", "brand", "logo-horizontal.svg");
   const sealPath = path.join(process.cwd(), "public", "sello-ministerio.jpg");
 
   try {
     const logoContent = fs.readFileSync(logoPath).toString("base64");
     attachments.push({
-      filename: "logo-tj-app.svg",
+      filename: "logo-horizontal.svg",
       type: "image/svg+xml",
       content: logoContent,
       disposition: "inline",
@@ -229,7 +255,7 @@ Si tienes cualquier duda, responde a este correo.
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
-    html,
+    html: wrapClientEmailHtml(html),
   });
 }
 
@@ -358,7 +384,7 @@ Equipo de TraduccionesJuradas.net`;
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
-    html,
+    html: wrapClientEmailHtml(html),
   })) as any;
 
   const response = Array.isArray(sendResponse) ? sendResponse[0] : sendResponse;
@@ -434,7 +460,7 @@ Equipo de TraduccionesJuradas.net`;
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
-    html,
+    html: wrapClientEmailHtml(html),
   });
 }
 
@@ -609,7 +635,7 @@ https://www.traduccionesjuradas.net/consulta
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
-    html,
+    html: wrapClientEmailHtml(html),
   });
 }
 
@@ -702,7 +728,7 @@ https://www.traduccionesjuradas.net/consulta
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
-    html,
+    html: wrapClientEmailHtml(html),
   });
 }
 
@@ -740,7 +766,7 @@ Te avisaremos en cuanto la traduccion este lista.
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
-    html,
+    html: wrapClientEmailHtml(html),
   });
 }
 
@@ -790,7 +816,7 @@ https://www.traduccionesjuradas.net/consulta
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
-    html,
+    html: wrapClientEmailHtml(html),
   });
 }
 
@@ -845,7 +871,7 @@ Gracias.
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
-    html,
+    html: wrapClientEmailHtml(html),
   });
 }
 

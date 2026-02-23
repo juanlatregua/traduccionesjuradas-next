@@ -44,7 +44,7 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
     description,
     category: category || "Traducción jurada",
     sku: sku || undefined,
-    image: ["https://traduccionesjuradas.net/logo-tj-app.svg"],
+    image: ["https://traduccionesjuradas.net/brand/logo-horizontal.svg"],
     offers: offers.map((o) => ({
       "@type": "Offer",
       price: o.price,

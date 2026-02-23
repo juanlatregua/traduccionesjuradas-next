@@ -9,7 +9,7 @@ import { isDuplicateStripeEventError } from "@/lib/quote-idempotency";
 export const runtime = "nodejs";
 
 function buildPaidWhatsAppDraft(params: { name: string; quoteNumber: string; etaDate: Date }) {
-  return `Hola ${params.name}, confirmamos el pago del presupuesto ${params.quoteNumber}. Fecha estimada de entrega: ${formatDateEs(params.etaDate)}. – Juan Silva`;
+  return `Hola ${params.name}, desde TraduccionesJuradas.net confirmamos el pago del presupuesto ${params.quoteNumber}. Fecha estimada de entrega: ${formatDateEs(params.etaDate)}.`;
 }
 
 export async function POST(req: Request) {
