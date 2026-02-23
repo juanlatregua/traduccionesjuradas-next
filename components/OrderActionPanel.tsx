@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import AssignOrderForm from "./AssignOrderForm";
 import TranslatorDeliveryForm from "./TranslatorDeliveryForm";
 import TranslatorNotifyForm from "./TranslatorNotifyForm";
@@ -13,6 +13,7 @@ import { getWorkflowStateLabel } from "@/lib/workflow";
 
 type Props = {
   reference: string;
+  clientName?: string | null;
   clientEmail: string;
   title: string;
   langPair: string | null;
@@ -97,6 +98,7 @@ function DeliveryBadge({ state }: { state: string }) {
 
 export default function OrderActionPanel({
   reference,
+  clientName,
   clientEmail,
   title,
   langPair,
@@ -116,6 +118,16 @@ export default function OrderActionPanel({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas" | "control">("documentos");
+
+  const quickQuoteHref = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("customerEmail", clientEmail);
+    if (clientName) params.set("customerName", clientName);
+    params.set("lineDescription", title || "Traducción jurada");
+    params.set("lineAmount", (Math.max(0, amountCents) / 100).toFixed(2));
+    if (langPair) params.set("langPair", langPair);
+    return `/admin/quotes/new?${params.toString()}`;
+  }, [clientEmail, clientName, title, amountCents, langPair]);
 
   const tabs = [
     { key: "documentos" as const, label: "Documentos", color: "text-teal-300" },
@@ -195,6 +207,12 @@ export default function OrderActionPanel({
                 </span>
               </span>
             )}
+            <a
+              href={quickQuoteHref}
+              className="rounded-md border border-cyan-500/40 px-2 py-0.5 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/10"
+            >
+              Crear presupuesto con preview
+            </a>
           </div>
 
           {/* Tabs */}

@@ -8,25 +8,48 @@ type QuoteLine = {
   unitPrice: string;
 };
 
+type InitialData = {
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  sourceLang?: string;
+  targetLang?: string;
+  deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP";
+  lineDescription?: string;
+  lineAmount?: string;
+};
+
+type Props = {
+  initialData?: InitialData;
+};
+
 const defaultLine = (): QuoteLine => ({
   description: "",
   quantity: "1",
   unitPrice: "",
 });
 
-export default function AdminQuoteCreateForm() {
-  const [customerName, setCustomerName] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [sourceLang, setSourceLang] = useState("fr");
-  const [targetLang, setTargetLang] = useState("es");
-  const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">("DIGITAL_PDF");
+export default function AdminQuoteCreateForm({ initialData }: Props) {
+  const [customerName, setCustomerName] = useState(initialData?.customerName || "");
+  const [customerEmail, setCustomerEmail] = useState(initialData?.customerEmail || "");
+  const [customerPhone, setCustomerPhone] = useState(initialData?.customerPhone || "");
+  const [sourceLang, setSourceLang] = useState(initialData?.sourceLang || "fr");
+  const [targetLang, setTargetLang] = useState(initialData?.targetLang || "es");
+  const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">(
+    initialData?.deliveryType || "DIGITAL_PDF"
+  );
   const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">("NONE");
   const [discountValue, setDiscountValue] = useState("0");
   const [vatRate, setVatRate] = useState("0.21");
   const [validityDays, setValidityDays] = useState("15");
   const [notesLegal, setNotesLegal] = useState("");
-  const [lines, setLines] = useState<QuoteLine[]>([defaultLine()]);
+  const [lines, setLines] = useState<QuoteLine[]>([
+    {
+      description: initialData?.lineDescription || "",
+      quantity: "1",
+      unitPrice: initialData?.lineAmount || "",
+    },
+  ]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
