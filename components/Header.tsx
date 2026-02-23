@@ -10,17 +10,17 @@ function Logo() {
       <Image
         src="/brand/isotipo.svg"
         alt="Traducciones Juradas"
-        width={34}
-        height={34}
-        className="h-9 w-9 sm:hidden"
+        width={40}
+        height={40}
+        className="h-10 w-10 sm:hidden"
         priority
       />
       <Image
         src="/brand/logo-horizontal.svg"
         alt="Traducciones Juradas"
-        width={240}
-        height={52}
-        className="hidden h-10 w-auto sm:block"
+        width={360}
+        height={74}
+        className="hidden h-12 w-auto max-w-none sm:block lg:h-14"
         priority
       />
       <div className="leading-tight sm:hidden">
@@ -47,9 +47,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 overflow-visible border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:flex sm:items-center sm:gap-6">
-        <div className="flex items-center justify-between gap-3 sm:block sm:flex-1">
+        <div className="flex items-center justify-between gap-3 sm:flex sm:flex-1 sm:items-center">
           {/* LOGO */}
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex shrink-0 items-center gap-2">
             <Logo />
           </Link>
 
