@@ -49,6 +49,38 @@ function buildPaymentUrl(reference: string, channel: "whatsapp" | "email" | "web
   return url.toString();
 }
 
+function buildZonaTraductorUrl(reference: string) {
+  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  const url = new URL("/zona-traductor", baseUrl);
+  url.searchParams.set("q", reference);
+  return url.toString();
+}
+
+function buildConsultaUrl(reference: string, clientEmail: string) {
+  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  const url = new URL("/consulta", baseUrl);
+  url.searchParams.set("ref", reference);
+  url.searchParams.set("email", clientEmail);
+  return url.toString();
+}
+
+function buildQuickQuoteUrl(params: {
+  clientEmail: string;
+  clientName?: string;
+  title: string;
+  amountCents: number;
+  langPair?: string;
+}) {
+  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  const url = new URL("/admin/quotes/new", baseUrl);
+  url.searchParams.set("customerEmail", params.clientEmail);
+  if (params.clientName) url.searchParams.set("customerName", params.clientName);
+  url.searchParams.set("lineDescription", params.title);
+  url.searchParams.set("lineAmount", (Math.max(0, params.amountCents) / 100).toFixed(2));
+  if (params.langPair) url.searchParams.set("langPair", params.langPair);
+  return url.toString();
+}
+
 export async function POST(req: Request) {
   const staff = await requireStaffAccess(req);
   if (!staff.ok) {
@@ -190,6 +222,8 @@ export async function POST(req: Request) {
 
     const paymentUrl = buildPaymentUrl(order.reference, channel);
     let emailWarning: string | null = null;
+    let emailMessageId: string | null = null;
+    let emailSubject: string | null = null;
     if (sendEmail) {
       try {
         const emailResult = await sendOrderCreatedEmail({
@@ -200,6 +234,8 @@ export async function POST(req: Request) {
           amountCents,
           paymentUrl,
         });
+        emailMessageId = emailResult.messageId;
+        emailSubject = emailResult.subject;
         await prisma.orderEvent.create({
           data: {
             orderId: order.id,
@@ -242,7 +278,18 @@ export async function POST(req: Request) {
         clientEmail,
       },
       paymentUrl,
+      zonaTraductorUrl: buildZonaTraductorUrl(order.reference),
+      consultaUrl: buildConsultaUrl(order.reference, clientEmail),
+      quickQuoteUrl: buildQuickQuoteUrl({
+        clientEmail,
+        clientName,
+        title,
+        amountCents,
+        langPair,
+      }),
       emailSent: sendEmail && !emailWarning,
+      emailMessageId,
+      emailSubject,
       warning: emailWarning,
     });
   } catch (err: any) {

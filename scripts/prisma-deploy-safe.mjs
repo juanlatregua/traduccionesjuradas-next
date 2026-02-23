@@ -21,7 +21,7 @@ const migrateOutput = `${migrate.stdout || ""}\n${migrate.stderr || ""}`;
 const isBaselineError = migrateOutput.includes("P3005");
 
 if (!isBaselineError) {
-  process.exit(migrate.status || 1);
+  process.exit(typeof migrate.status === "number" ? migrate.status : 1);
 }
 
 process.stdout.write(
@@ -29,4 +29,4 @@ process.stdout.write(
 );
 
 const push = runPrisma(["db", "push"]);
-process.exit(push.status || 1);
+process.exit(typeof push.status === "number" ? push.status : 1);

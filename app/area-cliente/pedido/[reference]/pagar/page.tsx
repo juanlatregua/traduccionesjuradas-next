@@ -11,6 +11,19 @@ type OrderInfo = {
   amountCents: number;
   paymentStatus: string;
   workflowState?: string;
+  sourceDocuments?: Array<{
+    fileUrl: string;
+    fileName: string;
+    fileType?: string;
+    uploadedAt?: string;
+  }>;
+};
+
+type SourceDocument = {
+  fileUrl: string;
+  fileName: string;
+  fileType?: string;
+  uploadedAt?: string;
 };
 
 type PaymentTab = "tarjeta" | "paypal" | "bizum" | "transferencia";
@@ -46,6 +59,50 @@ const MANUAL_PAYMENT = {
   bic: "BBVAESMM",
 };
 
+function extractSourceDocumentsFromOrder(rawOrder: any): SourceDocument[] {
+  const direct = Array.isArray(rawOrder?.sourceDocuments) ? rawOrder.sourceDocuments : [];
+  if (direct.length > 0) {
+    return direct
+      .map((doc: any) => ({
+        fileUrl: String(doc?.fileUrl || doc?.url || "").trim(),
+        fileName: String(doc?.fileName || doc?.name || "Documento").trim(),
+        fileType: doc?.fileType ? String(doc.fileType) : doc?.type ? String(doc.type) : undefined,
+        uploadedAt: doc?.uploadedAt ? String(doc.uploadedAt) : undefined,
+      }))
+      .filter((doc: SourceDocument) => !!doc.fileUrl);
+  }
+
+  const events = Array.isArray(rawOrder?.events) ? rawOrder.events : [];
+  return events
+    .filter((event: any) => event?.type === "order.source_document_uploaded")
+    .map((event: any) => {
+      const payload = event?.payload || {};
+      return {
+        fileUrl: String(payload?.fileUrl || "").trim(),
+        fileName: String(payload?.fileName || "Documento").trim(),
+        fileType: payload?.fileType ? String(payload.fileType) : undefined,
+        uploadedAt: payload?.uploadedAt
+          ? String(payload.uploadedAt)
+          : event?.createdAt
+            ? String(event.createdAt)
+            : undefined,
+      };
+    })
+    .filter((doc: SourceDocument) => !!doc.fileUrl);
+}
+
+function isImageDocument(doc: SourceDocument) {
+  const type = String(doc.fileType || "").toLowerCase();
+  const name = doc.fileName.toLowerCase();
+  return type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(name);
+}
+
+function isPdfDocument(doc: SourceDocument) {
+  const type = String(doc.fileType || "").toLowerCase();
+  const name = doc.fileName.toLowerCase();
+  return type.includes("pdf") || name.endsWith(".pdf");
+}
+
 export default function PagarPage() {
   const params = useParams<{ reference: string }>();
   const reference = params.reference;
@@ -71,6 +128,7 @@ export default function PagarPage() {
   const [sourceUploading, setSourceUploading] = useState(false);
   const [sourceUploadError, setSourceUploadError] = useState<string | null>(null);
   const [sourceUploaded, setSourceUploaded] = useState(false);
+  const [sourceDocuments, setSourceDocuments] = useState<SourceDocument[]>([]);
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
@@ -96,7 +154,10 @@ export default function PagarPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {
+          const docs = extractSourceDocumentsFromOrder(data.order);
           setOrder(data.order);
+          setSourceDocuments(docs);
+          setSourceUploaded(docs.length > 0);
         } else {
           setError(data.error || "Pedido no encontrado.");
         }
@@ -138,6 +199,99 @@ export default function PagarPage() {
 
   function formatMoney(cents: number) {
     return `${(cents / 100).toFixed(2)} EUR`;
+  }
+
+  function renderSourceDocumentsPreview(theme: "default" | "success" = "default") {
+    const isSuccess = theme === "success";
+    const titleCls = isSuccess ? "text-emerald-900" : "text-slate-900";
+    const hintCls = isSuccess ? "text-emerald-700" : "text-slate-600";
+    const accentBorder = isSuccess ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-slate-50";
+    const buttonCls = isSuccess
+      ? "bg-emerald-700 hover:bg-emerald-800"
+      : "bg-slate-800 hover:bg-slate-700";
+
+    return (
+      <div className={`mt-7 rounded-2xl border p-4 ${isSuccess ? "border-emerald-200 bg-white" : "border-slate-200 bg-slate-50"}`}>
+        <p className={`text-sm font-semibold ${titleCls}`}>Revisa tu documento</p>
+        {sourceDocuments.length > 0 ? (
+          <p className={`mt-1 text-xs ${hintCls}`}>
+            Ya hemos recibido {sourceDocuments.length} documento(s). Revisa miniatura y abre el archivo para confirmar que es correcto.
+          </p>
+        ) : (
+          <p className={`mt-1 text-xs ${hintCls}`}>
+            Si ya lo enviaste por email o WhatsApp, no necesitas subirlo de nuevo.
+            Solo adjúntalo aquí si quieres reemplazarlo o asegurarte de que aparece en el pedido.
+          </p>
+        )}
+
+        {sourceDocuments.length > 0 && (
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {sourceDocuments.map((doc, idx) => (
+              <li key={`${doc.fileUrl}-${idx}`} className={`rounded-xl border p-2 ${accentBorder}`}>
+                <div className="flex items-start gap-2">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    {isImageDocument(doc) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={doc.fileUrl} alt={doc.fileName} className="h-full w-full object-cover" />
+                    ) : isPdfDocument(doc) ? (
+                      <object data={doc.fileUrl} type="application/pdf" className="h-full w-full">
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">PDF</div>
+                      </object>
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-slate-800">{doc.fileName}</p>
+                    {doc.uploadedAt && (
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {new Date(doc.uploadedAt).toLocaleString("es-ES")}
+                      </p>
+                    )}
+                    <a
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex text-[11px] font-semibold text-emerald-700 hover:underline"
+                    >
+                      Abrir documento
+                    </a>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-3">
+          <p className="text-xs font-semibold text-slate-700">Subir o reemplazar documento (opcional)</p>
+          {sourceUploaded && (
+            <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+              Documento fuente registrado correctamente.
+            </p>
+          )}
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
+            onChange={(e) => {
+              setSourceFile(e.target.files?.[0] || null);
+              setSourceUploadError(null);
+            }}
+            className={`mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white ${buttonCls}`}
+            disabled={!capabilities.manualProofUploadEnabled}
+          />
+          {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
+          <button
+            type="button"
+            onClick={handleUploadSourceDocument}
+            disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
+            className={`mt-3 rounded-2xl px-4 py-2 text-xs font-semibold text-white disabled:opacity-60 ${buttonCls}`}
+          >
+            {sourceUploading ? "Subiendo..." : "Guardar documento en el pedido"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   function submitRedsysForm(data: CardRedsysResponse) {
@@ -254,6 +408,20 @@ export default function PagarPage() {
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "Error al subir el documento.");
       }
+      const uploadedDoc = data?.document
+        ? {
+            fileUrl: String(data.document.fileUrl || "").trim(),
+            fileName: String(data.document.fileName || "Documento").trim(),
+            fileType: data.document.fileType ? String(data.document.fileType) : undefined,
+            uploadedAt: data.document.uploadedAt ? String(data.document.uploadedAt) : undefined,
+          }
+        : null;
+      if (uploadedDoc?.fileUrl) {
+        setSourceDocuments((prev) => {
+          const dedupe = prev.filter((doc) => doc.fileUrl !== uploadedDoc.fileUrl);
+          return [uploadedDoc, ...dedupe];
+        });
+      }
       setSourceUploaded(true);
       setSourceFile(null);
     } catch (err: any) {
@@ -354,38 +522,7 @@ export default function PagarPage() {
           </div>
           </div>
 
-          <div className="mt-7 rounded-2xl border border-emerald-200 bg-white p-4">
-            <p className="text-sm font-semibold text-emerald-900">Documento a traducir</p>
-            <p className="mt-1 text-xs text-emerald-700">
-              Si aun no lo has subido, puedes adjuntarlo ahora mismo para que aparezca en la zona traductor.
-            </p>
-            {sourceUploaded ? (
-              <p className="mt-3 text-xs font-semibold text-emerald-700">
-                Documento fuente subido correctamente.
-              </p>
-            ) : (
-              <>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
-                  onChange={(e) => {
-                    setSourceFile(e.target.files?.[0] || null);
-                    setSourceUploadError(null);
-                  }}
-                  className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-emerald-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-200"
-                />
-                {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
-                <button
-                  type="button"
-                  onClick={handleUploadSourceDocument}
-                  disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
-                  className="mt-3 rounded-2xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
-                >
-                  {sourceUploading ? "Subiendo..." : "Subir documento fuente"}
-                </button>
-              </>
-            )}
-          </div>
+          {renderSourceDocumentsPreview("success")}
         </section>
       </main>
     );
@@ -412,37 +549,7 @@ export default function PagarPage() {
           </p>
         )}
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-900">Documento a traducir</p>
-          <p className="mt-1 text-xs text-slate-600">
-            Adjunta el documento original para que el traductor lo vea en la zona operativa.
-          </p>
-          {sourceUploaded ? (
-            <p className="mt-3 text-xs font-semibold text-emerald-700">Documento fuente subido correctamente.</p>
-          ) : (
-            <>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
-                onChange={(e) => {
-                  setSourceFile(e.target.files?.[0] || null);
-                  setSourceUploadError(null);
-                }}
-                className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-800 hover:file:bg-slate-300"
-                disabled={!capabilities.manualProofUploadEnabled}
-              />
-              {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
-              <button
-                type="button"
-                onClick={handleUploadSourceDocument}
-                disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
-                className="mt-3 rounded-2xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
-              >
-                {sourceUploading ? "Subiendo..." : "Subir documento fuente"}
-              </button>
-            </>
-          )}
-        </div>
+        {renderSourceDocumentsPreview("default")}
 
         {/* Tabs */}
         <div className="mt-6 flex flex-wrap gap-2">

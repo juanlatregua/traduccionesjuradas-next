@@ -4,6 +4,17 @@ import { useState } from "react";
 
 type Channel = "whatsapp" | "email" | "web";
 
+type CreatedQuickOrder = {
+  reference: string;
+  paymentUrl: string;
+  zonaTraductorUrl: string;
+  consultaUrl: string;
+  quickQuoteUrl: string;
+  emailSent: boolean;
+  emailSubject?: string | null;
+  emailMessageId?: string | null;
+};
+
 export default function PMQuickCreatePanel() {
   const [clientEmail, setClientEmail] = useState("");
   const [clientName, setClientName] = useState("");
@@ -17,13 +28,12 @@ export default function PMQuickCreatePanel() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const [reference, setReference] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedQuickOrder | null>(null);
 
   async function copyPaymentUrl() {
-    if (!paymentUrl) return;
+    if (!created?.paymentUrl) return;
     try {
-      await navigator.clipboard.writeText(paymentUrl);
+      await navigator.clipboard.writeText(created.paymentUrl);
       setMessage("Enlace de pago copiado.");
     } catch {
       setMessage("No se pudo copiar automaticamente. Copia el enlace manualmente.");
@@ -33,8 +43,7 @@ export default function PMQuickCreatePanel() {
   async function submit() {
     setLoading(true);
     setMessage(null);
-    setPaymentUrl(null);
-    setReference(null);
+    setCreated(null);
     try {
       const amount = Number(String(amountEur || "").replace(",", "."));
       const res = await fetch("/api/orders/pm-create", {
@@ -56,8 +65,21 @@ export default function PMQuickCreatePanel() {
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "No se pudo crear el pedido.");
       }
-      setReference(String(data.order?.reference || ""));
-      setPaymentUrl(String(data.paymentUrl || ""));
+      const reference = String(data.order?.reference || "");
+      const paymentUrl = String(data.paymentUrl || "");
+      const zonaTraductorUrl = String(data.zonaTraductorUrl || "");
+      const consultaUrl = String(data.consultaUrl || "");
+      const quickQuoteUrl = String(data.quickQuoteUrl || "");
+      setCreated({
+        reference,
+        paymentUrl,
+        zonaTraductorUrl,
+        consultaUrl,
+        quickQuoteUrl,
+        emailSent: Boolean(data.emailSent),
+        emailSubject: data.emailSubject ? String(data.emailSubject) : null,
+        emailMessageId: data.emailMessageId ? String(data.emailMessageId) : null,
+      });
       const warning = data.warning ? ` ${String(data.warning)}` : "";
       setMessage(`Pedido creado y listo para pago.${warning}`);
     } catch (err: any) {
@@ -171,7 +193,7 @@ export default function PMQuickCreatePanel() {
         >
           {loading ? "Creando..." : "Crear pedido y habilitar pago"}
         </button>
-        {paymentUrl && (
+        {created?.paymentUrl && (
           <>
             <button
               type="button"
@@ -181,7 +203,7 @@ export default function PMQuickCreatePanel() {
               Copiar enlace pago
             </button>
             <a
-              href={paymentUrl}
+              href={created.paymentUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
@@ -192,10 +214,48 @@ export default function PMQuickCreatePanel() {
         )}
       </div>
 
-      {reference && (
-        <p className="mt-3 text-xs text-slate-200">
-          Referencia creada: <span className="font-mono font-semibold text-cyan-300">{reference}</span>
-        </p>
+      {created && (
+        <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-200">
+          <p>
+            Referencia creada:{" "}
+            <span className="font-mono font-semibold text-cyan-300">{created.reference}</span>
+          </p>
+          <p className="mt-1">
+            Email al cliente:{" "}
+            <span className={created.emailSent ? "font-semibold text-emerald-300" : "font-semibold text-amber-300"}>
+              {created.emailSent ? "Enviado" : "Pendiente / fallo de envío"}
+            </span>
+          </p>
+          {created.emailSubject && (
+            <p className="mt-1 text-slate-300">Asunto: {created.emailSubject}</p>
+          )}
+          {created.emailMessageId && (
+            <p className="mt-1 text-slate-400">ID proveedor: {created.emailMessageId}</p>
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={created.zonaTraductorUrl}
+              className="rounded-lg border border-slate-600 px-3 py-1.5 font-semibold text-slate-200 hover:bg-slate-800"
+            >
+              Ver pedido en zona traductor
+            </a>
+            <a
+              href={created.consultaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-slate-600 px-3 py-1.5 font-semibold text-slate-200 hover:bg-slate-800"
+            >
+              Ver consulta cliente
+            </a>
+            <a
+              href={created.quickQuoteUrl}
+              className="rounded-lg border border-cyan-500/50 px-3 py-1.5 font-semibold text-cyan-300 hover:bg-cyan-500/10"
+            >
+              Crear presupuesto con preview
+            </a>
+          </div>
+        </div>
       )}
       {message && <p className="mt-2 text-xs font-semibold text-slate-200">{message}</p>}
     </section>
