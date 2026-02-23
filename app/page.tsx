@@ -25,14 +25,6 @@ const LANGUAGE_QUICK_LINKS: LanguageQuickLink[] = [
   { href: "/traductor-jurado-neerlandes", flag: "\u{1F1F3}\u{1F1F1}", label: "Neerlandés" },
   { href: "/traductor-jurado-italiano", flag: "\u{1F1EE}\u{1F1F9}", label: "Italiano" },
   { href: "/traductor-jurado-portugues", flag: "\u{1F1F5}\u{1F1F9}", label: "Portugués" },
-  {
-    href: "/traductor-jurado-catalan",
-    flagSrc: "/flags/catalan.svg",
-    flagAlt: "Bandera de Cataluña",
-    label: "Catalán",
-  },
-  { href: "/traductor-jurado-sueco", flag: "\u{1F1F8}\u{1F1EA}", label: "Sueco" },
-  { href: "/traductor-jurado-noruego", flag: "\u{1F1F3}\u{1F1F4}", label: "Noruego" },
 ];
 
 export const metadata: Metadata = {
