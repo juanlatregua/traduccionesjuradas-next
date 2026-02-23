@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { findTranslatorProfile, formatTranslatorCredential, getTranslatorProfiles } from "@/lib/translators";
 
 type Props = {
   reference: string;
@@ -13,6 +14,8 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
   const [dueDate, setDueDate] = useState(currentDueDate || "");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const selectedProfile = findTranslatorProfile(assignedTo);
+  const translatorProfiles = getTranslatorProfiles();
 
   async function submit() {
     setLoading(true);
@@ -48,9 +51,17 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
           type="text"
           value={assignedTo}
           onChange={(e) => setAssignedTo(e.target.value)}
+          list="translator-profiles"
           placeholder="Nombre del traductor"
           className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
         />
+        <datalist id="translator-profiles">
+          {translatorProfiles.map((profile) => (
+            <option key={profile.id} value={profile.fullName}>
+              {formatTranslatorCredential(profile)}
+            </option>
+          ))}
+        </datalist>
         <input
           type="date"
           value={dueDate}
@@ -58,6 +69,11 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
           className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
         />
       </div>
+      {selectedProfile && (
+        <p className="mt-2 text-xs text-amber-200">
+          {formatTranslatorCredential(selectedProfile)}
+        </p>
+      )}
       <button
         type="button"
         onClick={submit}

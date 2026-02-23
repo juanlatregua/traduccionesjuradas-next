@@ -734,6 +734,56 @@ Te avisaremos en cuanto la traduccion este lista.
   });
 }
 
+export async function sendTranslationStartedAssignedEmail(data: {
+  toEmail: string;
+  reference: string;
+  translatorName: string;
+  translatorSwornNumber?: string | null;
+  etaDateLabel?: string | null;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const translatorLabel = data.translatorSwornNumber
+    ? `${data.translatorName} (Nº ${data.translatorSwornNumber})`
+    : data.translatorName;
+  const etaLine = data.etaDateLabel
+    ? `Fecha estimada de entrega: ${data.etaDateLabel}`
+    : "La fecha estimada de entrega se confirmara en breve.";
+
+  const subject = `Tu traduccion ya esta en proceso (${data.reference})`;
+  const text = `Hola,
+
+Tu pedido ${data.reference} ya esta en proceso de traduccion.
+Tu traductor jurado asignado es ${translatorLabel}.
+${etaLine}
+
+Puedes consultar el estado en:
+https://www.traduccionesjuradas.net/consulta
+`;
+
+  const html = `
+    <h2>Tu traduccion ya esta en proceso</h2>
+    <p>Pedido <strong>${data.reference}</strong>.</p>
+    <p>Tu traductor jurado asignado es <strong>${translatorLabel}</strong>.</p>
+    <p>${etaLine}</p>
+    <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
 export async function sendStaffOtpEmail(data: { toEmail: string; code: string }) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
