@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import {
@@ -92,6 +93,14 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
     },
   });
   if (!quote) {
+    const host = headers().get("host") || "";
+    if (host.includes("vercel.app")) {
+      const qs = new URLSearchParams();
+      if (searchParams?.paid) qs.set("paid", String(searchParams.paid));
+      if (searchParams?.canceled) qs.set("canceled", String(searchParams.canceled));
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      redirect(`https://www.traduccionesjuradas.net/q/${encodeURIComponent(params.token)}${suffix}`);
+    }
     notFound();
   }
 
