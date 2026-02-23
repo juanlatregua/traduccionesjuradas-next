@@ -7,13 +7,25 @@ type Channel = "whatsapp" | "email" | "web";
 type CreatedQuickOrder = {
   reference: string;
   paymentUrl: string;
-  zonaTraductorUrl: string;
-  consultaUrl: string;
-  quickQuoteUrl: string;
+  zonaTraductorPath: string;
+  consultaPath: string;
+  quickQuotePath: string;
   emailSent: boolean;
   emailSubject?: string | null;
   emailMessageId?: string | null;
 };
+
+function toInternalPath(raw: string, fallback: string) {
+  const value = String(raw || "").trim();
+  if (!value) return fallback;
+  if (value.startsWith("/")) return value;
+  try {
+    const parsed = new URL(value);
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function PMQuickCreatePanel() {
   const [clientEmail, setClientEmail] = useState("");
@@ -67,15 +79,32 @@ export default function PMQuickCreatePanel() {
       }
       const reference = String(data.order?.reference || "");
       const paymentUrl = String(data.paymentUrl || "");
-      const zonaTraductorUrl = String(data.zonaTraductorUrl || "");
-      const consultaUrl = String(data.consultaUrl || "");
-      const quickQuoteUrl = String(data.quickQuoteUrl || "");
+      const zonaTraductorPath = toInternalPath(
+        String(data.zonaTraductorUrl || ""),
+        `/zona-traductor?q=${encodeURIComponent(reference)}`
+      );
+      const consultaPath = toInternalPath(
+        String(data.consultaUrl || ""),
+        `/consulta?ref=${encodeURIComponent(reference)}&email=${encodeURIComponent(
+          clientEmail.trim().toLowerCase()
+        )}`
+      );
+      const quickQuotePath = toInternalPath(
+        String(data.quickQuoteUrl || ""),
+        `/admin/quotes/new?customerEmail=${encodeURIComponent(
+          clientEmail.trim().toLowerCase()
+        )}&customerName=${encodeURIComponent(clientName.trim())}&lineDescription=${encodeURIComponent(
+          title.trim()
+        )}&lineAmount=${encodeURIComponent(String(amount.toFixed(2)))}&langPair=${encodeURIComponent(
+          langPair || ""
+        )}`
+      );
       setCreated({
         reference,
         paymentUrl,
-        zonaTraductorUrl,
-        consultaUrl,
-        quickQuoteUrl,
+        zonaTraductorPath,
+        consultaPath,
+        quickQuotePath,
         emailSent: Boolean(data.emailSent),
         emailSubject: data.emailSubject ? String(data.emailSubject) : null,
         emailMessageId: data.emailMessageId ? String(data.emailMessageId) : null,
@@ -235,13 +264,13 @@ export default function PMQuickCreatePanel() {
 
           <div className="mt-3 flex flex-wrap gap-2">
             <a
-              href={created.zonaTraductorUrl}
+              href={created.zonaTraductorPath}
               className="rounded-lg border border-slate-600 px-3 py-1.5 font-semibold text-slate-200 hover:bg-slate-800"
             >
               Ver pedido en zona traductor
             </a>
             <a
-              href={created.consultaUrl}
+              href={created.consultaPath}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg border border-slate-600 px-3 py-1.5 font-semibold text-slate-200 hover:bg-slate-800"
@@ -249,7 +278,7 @@ export default function PMQuickCreatePanel() {
               Ver consulta cliente
             </a>
             <a
-              href={created.quickQuoteUrl}
+              href={created.quickQuotePath}
               className="rounded-lg border border-cyan-500/50 px-3 py-1.5 font-semibold text-cyan-300 hover:bg-cyan-500/10"
             >
               Crear presupuesto con preview
