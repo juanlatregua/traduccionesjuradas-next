@@ -53,11 +53,11 @@ export default function PagarPage() {
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<PaymentTab>("tarjeta");
+  const [tab, setTab] = useState<PaymentTab>("bizum");
   const [capabilities, setCapabilities] = useState<PaymentCapabilities>({
-    cardEnabled: true,
+    cardEnabled: false,
     cardProvider: null,
-    paypalEnabled: true,
+    paypalEnabled: false,
     manualProofUploadEnabled: true,
   });
 
@@ -126,6 +126,7 @@ export default function PagarPage() {
   }, [tab]);
 
   const isManualTab = tab === "bizum" || tab === "transferencia";
+  const onlyManualPayments = !capabilities.cardEnabled && !capabilities.paypalEnabled;
 
   const handlePayPalSuccess = useCallback(() => {
     window.location.assign(`/pago/exito?ref=${encodeURIComponent(reference)}`);
@@ -199,9 +200,7 @@ export default function PagarPage() {
 
   async function handleUploadProof() {
     if (!capabilities.manualProofUploadEnabled) {
-      setUploadError(
-        "Subida de justificantes no disponible en este entorno. Contacta con hola@traduccionesjuradas.net."
-      );
+      setUploadError("La subida automatica de justificantes esta temporalmente no disponible.");
       return;
     }
     if (!file) return;
@@ -335,20 +334,29 @@ export default function PagarPage() {
           Referencia: <span className="font-mono">{order.reference}</span> · Importe:{" "}
           <span className="font-semibold">{formatMoney(order.amountCents)}</span>
         </p>
+        {onlyManualPayments && (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            Por el momento, el pago esta habilitado solo por Bizum o transferencia.
+            {" "}
+            Sube el justificante aqui y el sistema lo registra automaticamente en tu pedido.
+          </p>
+        )}
 
         {/* Tabs */}
         <div className="mt-6 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setTab("tarjeta")}
-            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-              tab === "tarjeta"
-                ? "bg-blue-700 text-white"
-                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
-            }`}
-          >
-            Tarjeta
-          </button>
+          {capabilities.cardEnabled && (
+            <button
+              type="button"
+              onClick={() => setTab("tarjeta")}
+              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                tab === "tarjeta"
+                  ? "bg-blue-700 text-white"
+                  : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              Tarjeta
+            </button>
+          )}
           {capabilities.paypalEnabled && (
             <button
               type="button"
@@ -386,7 +394,7 @@ export default function PagarPage() {
           </button>
         </div>
 
-        {tab === "tarjeta" && (
+        {tab === "tarjeta" && capabilities.cardEnabled && (
           <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
             <p className="text-sm font-semibold text-blue-900">Pago con tarjeta</p>
             <p className="mt-1 text-xs text-blue-700">
@@ -496,49 +504,44 @@ export default function PagarPage() {
               Sube una captura del Bizum o el justificante de la transferencia.
               Verificaremos el pago y te enviaremos una confirmacion por email.
             </p>
-            {!capabilities.manualProofUploadEnabled ? (
-              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                La subida de justificantes esta desactivada en este entorno. Contacta con
-                {" "}
-                <a className="underline" href="mailto:hola@traduccionesjuradas.net">hola@traduccionesjuradas.net</a>
-                {" "}
-                para validacion manual.
+            <div className="mt-4">
+              <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">
+                Email del pedido (recomendado si no has iniciado sesion)
+              </label>
+              <input
+                id="proofEmail"
+                type="email"
+                value={proofEmail}
+                onChange={(e) => setProofEmail(e.target.value)}
+                placeholder="tu@email.com"
+                className="mb-3 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700"
+                disabled={!capabilities.manualProofUploadEnabled}
+              />
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] || null);
+                  setUploadError(null);
+                }}
+                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-200 disabled:opacity-60"
+                disabled={!capabilities.manualProofUploadEnabled}
+              />
+            </div>
+            {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
+            {!capabilities.manualProofUploadEnabled && (
+              <p className="mt-2 text-xs font-semibold text-amber-800">
+                La subida automatica de justificantes esta temporalmente no disponible.
               </p>
-            ) : (
-              <>
-                <div className="mt-4">
-                  <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">
-                    Email del pedido (recomendado si no has iniciado sesion)
-                  </label>
-                  <input
-                    id="proofEmail"
-                    type="email"
-                    value={proofEmail}
-                    onChange={(e) => setProofEmail(e.target.value)}
-                    placeholder="tu@email.com"
-                    className="mb-3 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700"
-                  />
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={(e) => {
-                      setFile(e.target.files?.[0] || null);
-                      setUploadError(null);
-                    }}
-                    className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-200"
-                  />
-                </div>
-                {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
-                <button
-                  type="button"
-                  onClick={handleUploadProof}
-                  disabled={!file || uploading}
-                  className="mt-4 rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
-                >
-                  {uploading ? "Enviando..." : "Enviar comprobante"}
-                </button>
-              </>
             )}
+            <button
+              type="button"
+              onClick={handleUploadProof}
+              disabled={!file || uploading || !capabilities.manualProofUploadEnabled}
+              className="mt-4 rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+            >
+              {uploading ? "Enviando..." : "Enviar comprobante"}
+            </button>
           </div>
         )}
 

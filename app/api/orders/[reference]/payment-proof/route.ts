@@ -138,7 +138,7 @@ export async function POST(req: Request, { params }: Params) {
         {
           ok: false,
           error:
-            "La subida de justificantes no esta disponible en este entorno. Usa pago con tarjeta o solicita validacion manual en hola@traduccionesjuradas.net.",
+            "La subida automatica de justificantes no esta disponible temporalmente en este entorno.",
         },
         { status: 503 }
       );
