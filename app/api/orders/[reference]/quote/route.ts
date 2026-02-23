@@ -194,7 +194,7 @@ export async function POST(req: Request, { params }: Params) {
       const paymentUrl = `${baseUrl}/area-cliente/pedido/${order.reference}/pagar`;
 
       try {
-        await sendOrderCreatedEmail({
+        const emailResult = await sendOrderCreatedEmail({
           toEmail: order.clientEmail,
           clientName: order.clientName || undefined,
           reference: order.reference,
@@ -210,7 +210,13 @@ export async function POST(req: Request, { params }: Params) {
             payload: {
               actorEmail,
               totalCents,
+              lines,
+              toEmail: order.clientEmail,
+              subject: emailResult.subject,
               paymentUrl,
+              sentAt: new Date().toISOString(),
+              provider: "sendgrid",
+              providerMessageId: emailResult.messageId,
             },
           },
         });
@@ -226,6 +232,10 @@ export async function POST(req: Request, { params }: Params) {
                 actorEmail,
                 error: String(sendErr?.message || sendErr || "unknown"),
                 totalCents,
+                lines,
+                toEmail: order.clientEmail,
+                paymentUrl,
+                failedAt: new Date().toISOString(),
               },
             },
           })

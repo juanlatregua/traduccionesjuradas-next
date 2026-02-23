@@ -11,9 +11,22 @@ type OrderInfo = {
   amountCents: number;
   paymentStatus: string;
   workflowState?: string;
+  sourceDocuments?: Array<{
+    fileUrl: string;
+    fileName: string;
+    fileType?: string;
+    uploadedAt?: string;
+  }>;
 };
 
-type PaymentTab = "tarjeta" | "paypal" | "bizum" | "transferencia";
+type SourceDocument = {
+  fileUrl: string;
+  fileName: string;
+  fileType?: string;
+  uploadedAt?: string;
+};
+
+type PaymentTab = "paypal" | "bizum" | "transferencia";
 
 type PaymentCapabilities = {
   cardEnabled: boolean;
@@ -22,29 +35,56 @@ type PaymentCapabilities = {
   manualProofUploadEnabled: boolean;
 };
 
-type CardRedirectResponse = {
-  ok: true;
-  kind: "redirect";
-  provider: "stripe" | "redsys";
-  url: string;
-};
-
-type CardRedsysResponse = {
-  ok: true;
-  kind: "redsys_form";
-  provider: "redsys";
-  url: string;
-  Ds_SignatureVersion: string;
-  Ds_MerchantParameters: string;
-  Ds_Signature: string;
-};
-
 const MANUAL_PAYMENT = {
   bizumPhone: "+34 607 356 273",
   accountHolder: "HBTJ Consultores Lingüísticos S.L.",
   iban: "ES66 0182 3370 67 0201616991",
   bic: "BBVAESMM",
 };
+
+function extractSourceDocumentsFromOrder(rawOrder: any): SourceDocument[] {
+  const direct = Array.isArray(rawOrder?.sourceDocuments) ? rawOrder.sourceDocuments : [];
+  if (direct.length > 0) {
+    return direct
+      .map((doc: any) => ({
+        fileUrl: String(doc?.fileUrl || doc?.url || "").trim(),
+        fileName: String(doc?.fileName || doc?.name || "Documento").trim(),
+        fileType: doc?.fileType ? String(doc.fileType) : doc?.type ? String(doc.type) : undefined,
+        uploadedAt: doc?.uploadedAt ? String(doc.uploadedAt) : undefined,
+      }))
+      .filter((doc: SourceDocument) => !!doc.fileUrl);
+  }
+
+  const events = Array.isArray(rawOrder?.events) ? rawOrder.events : [];
+  return events
+    .filter((event: any) => event?.type === "order.source_document_uploaded")
+    .map((event: any) => {
+      const payload = event?.payload || {};
+      return {
+        fileUrl: String(payload?.fileUrl || "").trim(),
+        fileName: String(payload?.fileName || "Documento").trim(),
+        fileType: payload?.fileType ? String(payload.fileType) : undefined,
+        uploadedAt: payload?.uploadedAt
+          ? String(payload.uploadedAt)
+          : event?.createdAt
+            ? String(event.createdAt)
+            : undefined,
+      };
+    })
+    .filter((doc: SourceDocument) => !!doc.fileUrl);
+}
+
+function isImageDocument(doc: SourceDocument) {
+  const type = String(doc.fileType || "").toLowerCase();
+  const name = doc.fileName.toLowerCase();
+  return type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(name);
+}
+
+function isPdfDocument(doc: SourceDocument) {
+  const type = String(doc.fileType || "").toLowerCase();
+  const name = doc.fileName.toLowerCase();
+  return type.includes("pdf") || name.endsWith(".pdf");
+}
 
 export default function PagarPage() {
   const params = useParams<{ reference: string }>();
@@ -71,8 +111,7 @@ export default function PagarPage() {
   const [sourceUploading, setSourceUploading] = useState(false);
   const [sourceUploadError, setSourceUploadError] = useState<string | null>(null);
   const [sourceUploaded, setSourceUploaded] = useState(false);
-  const [cardLoading, setCardLoading] = useState(false);
-  const [cardError, setCardError] = useState<string | null>(null);
+  const [sourceDocuments, setSourceDocuments] = useState<SourceDocument[]>([]);
 
   useEffect(() => {
     fetch("/api/payment/capabilities")
@@ -96,7 +135,10 @@ export default function PagarPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {
+          const docs = extractSourceDocumentsFromOrder(data.order);
           setOrder(data.order);
+          setSourceDocuments(docs);
+          setSourceUploaded(docs.length > 0);
         } else {
           setError(data.error || "Pedido no encontrado.");
         }
@@ -106,31 +148,13 @@ export default function PagarPage() {
   }, [reference]);
 
   useEffect(() => {
-    const tabAvailable =
-      tab === "paypal"
-        ? capabilities.paypalEnabled
-        : tab === "tarjeta"
-          ? capabilities.cardEnabled
-          : true;
-    if (!tabAvailable) {
-      if (capabilities.cardEnabled) setTab("tarjeta");
-      else if (capabilities.paypalEnabled) setTab("paypal");
-      else setTab("bizum");
-    }
-  }, [capabilities, tab]);
-
-  useEffect(() => {
-    if (tab !== "tarjeta") {
-      setCardError(null);
-    }
-    if (tab !== "bizum" && tab !== "transferencia") {
+    if (tab !== "bizum" && tab !== "transferencia" && tab !== "paypal") {
       setUploadError(null);
       setFile(null);
     }
   }, [tab]);
 
-  const isManualTab = tab === "bizum" || tab === "transferencia";
-  const onlyManualPayments = !capabilities.cardEnabled && !capabilities.paypalEnabled;
+  const acceptsProofUpload = tab === "bizum" || tab === "transferencia" || tab === "paypal";
 
   const handlePayPalSuccess = useCallback(() => {
     window.location.assign(`/pago/exito?ref=${encodeURIComponent(reference)}`);
@@ -140,66 +164,97 @@ export default function PagarPage() {
     return `${(cents / 100).toFixed(2)} EUR`;
   }
 
-  function submitRedsysForm(data: CardRedsysResponse) {
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = data.url;
-    form.style.display = "none";
+  function renderSourceDocumentsPreview(theme: "default" | "success" = "default") {
+    const isSuccess = theme === "success";
+    const titleCls = isSuccess ? "text-emerald-900" : "text-slate-900";
+    const hintCls = isSuccess ? "text-emerald-700" : "text-slate-600";
+    const accentBorder = isSuccess ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-slate-50";
+    const buttonCls = isSuccess
+      ? "bg-emerald-700 hover:bg-emerald-800"
+      : "bg-slate-800 hover:bg-slate-700";
 
-    const fields: Record<string, string> = {
-      Ds_SignatureVersion: data.Ds_SignatureVersion,
-      Ds_MerchantParameters: data.Ds_MerchantParameters,
-      Ds_Signature: data.Ds_Signature,
-    };
-    Object.entries(fields).forEach(([name, value]) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value;
-      form.appendChild(input);
-    });
+    return (
+      <div className={`mt-7 rounded-2xl border p-4 ${isSuccess ? "border-emerald-200 bg-white" : "border-slate-200 bg-slate-50"}`}>
+        <p className={`text-sm font-semibold ${titleCls}`}>Revisa tu documento</p>
+        {sourceDocuments.length > 0 ? (
+          <p className={`mt-1 text-xs ${hintCls}`}>
+            Ya hemos recibido {sourceDocuments.length} documento(s). Revisa miniatura y abre el archivo para confirmar que es correcto.
+          </p>
+        ) : (
+          <p className={`mt-1 text-xs ${hintCls}`}>
+            Si ya lo enviaste por email o WhatsApp, no necesitas subirlo de nuevo.
+            Solo adjúntalo aquí si quieres reemplazarlo o asegurarte de que aparece en el pedido.
+          </p>
+        )}
 
-    document.body.appendChild(form);
-    form.submit();
-  }
+        {sourceDocuments.length > 0 && (
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {sourceDocuments.map((doc, idx) => (
+              <li key={`${doc.fileUrl}-${idx}`} className={`rounded-xl border p-2 ${accentBorder}`}>
+                <div className="flex items-start gap-2">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    {isImageDocument(doc) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={doc.fileUrl} alt={doc.fileName} className="h-full w-full object-cover" />
+                    ) : isPdfDocument(doc) ? (
+                      <object data={doc.fileUrl} type="application/pdf" className="h-full w-full">
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">PDF</div>
+                      </object>
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-slate-800">{doc.fileName}</p>
+                    {doc.uploadedAt && (
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {new Date(doc.uploadedAt).toLocaleString("es-ES")}
+                      </p>
+                    )}
+                    <a
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex text-[11px] font-semibold text-emerald-700 hover:underline"
+                    >
+                      Abrir documento
+                    </a>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
-  async function handleCardPayment() {
-    if (!capabilities.cardEnabled) {
-      setCardError("Pago con tarjeta no disponible en este entorno.");
-      return;
-    }
-    setCardLoading(true);
-    setCardError(null);
-    try {
-      const res = await fetch("/api/payment/card", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference }),
-      });
-      const data = (await res.json()) as
-        | CardRedirectResponse
-        | CardRedsysResponse
-        | { ok: false; error?: string };
-      if (!res.ok || !data?.ok) {
-        throw new Error((data as any)?.error || "No se pudo iniciar el pago con tarjeta.");
-      }
-
-      if (data.kind === "redirect") {
-        window.location.assign(data.url);
-        return;
-      }
-
-      if (data.kind === "redsys_form") {
-        submitRedsysForm(data);
-        return;
-      }
-
-      throw new Error("Respuesta de pago no reconocida.");
-    } catch (err: any) {
-      setCardError(err?.message || "No se pudo iniciar el pago con tarjeta.");
-    } finally {
-      setCardLoading(false);
-    }
+        <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-3">
+          <p className="text-xs font-semibold text-slate-700">Subir o reemplazar documento (opcional)</p>
+          {sourceUploaded && (
+            <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+              Documento fuente registrado correctamente.
+            </p>
+          )}
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
+            onChange={(e) => {
+              setSourceFile(e.target.files?.[0] || null);
+              setSourceUploadError(null);
+            }}
+            className={`mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white ${buttonCls}`}
+            disabled={!capabilities.manualProofUploadEnabled}
+          />
+          {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
+          <button
+            type="button"
+            onClick={handleUploadSourceDocument}
+            disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
+            className={`mt-3 rounded-2xl px-4 py-2 text-xs font-semibold text-white disabled:opacity-60 ${buttonCls}`}
+          >
+            {sourceUploading ? "Subiendo..." : "Guardar documento en el pedido"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   async function handleUploadProof() {
@@ -213,6 +268,8 @@ export default function PagarPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      const selectedMethod = tab === "transferencia" ? "TRANSFER" : tab === "paypal" ? "PAYPAL" : "BIZUM";
+      formData.append("method", selectedMethod);
       if (proofEmail.trim()) {
         formData.append("clientEmail", proofEmail.trim().toLowerCase());
       }
@@ -253,6 +310,20 @@ export default function PagarPage() {
       const data = await res.json();
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "Error al subir el documento.");
+      }
+      const uploadedDoc = data?.document
+        ? {
+            fileUrl: String(data.document.fileUrl || "").trim(),
+            fileName: String(data.document.fileName || "Documento").trim(),
+            fileType: data.document.fileType ? String(data.document.fileType) : undefined,
+            uploadedAt: data.document.uploadedAt ? String(data.document.uploadedAt) : undefined,
+          }
+        : null;
+      if (uploadedDoc?.fileUrl) {
+        setSourceDocuments((prev) => {
+          const dedupe = prev.filter((doc) => doc.fileUrl !== uploadedDoc.fileUrl);
+          return [uploadedDoc, ...dedupe];
+        });
       }
       setSourceUploaded(true);
       setSourceFile(null);
@@ -331,12 +402,12 @@ export default function PagarPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-emerald-800">Comprobante recibido</h2>
+          <h2 className="text-xl font-bold text-emerald-800">Pago registrado</h2>
           <p className="mt-2 text-sm text-emerald-700">
-            Hemos recibido tu comprobante de pago para el pedido <span className="font-mono font-semibold">{reference}</span>.
+            Hemos recibido tu comprobante para el pedido <span className="font-mono font-semibold">{reference}</span> y ya ha quedado marcado como pagado.
           </p>
           <p className="mt-1 text-sm text-emerald-600">
-            Verificaremos el pago y recibiras una actualizacion por email en breve.
+            Te hemos enviado la confirmacion por email y puedes seguir el avance desde tu area cliente.
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
@@ -354,38 +425,7 @@ export default function PagarPage() {
           </div>
           </div>
 
-          <div className="mt-7 rounded-2xl border border-emerald-200 bg-white p-4">
-            <p className="text-sm font-semibold text-emerald-900">Documento a traducir</p>
-            <p className="mt-1 text-xs text-emerald-700">
-              Si aun no lo has subido, puedes adjuntarlo ahora mismo para que aparezca en la zona traductor.
-            </p>
-            {sourceUploaded ? (
-              <p className="mt-3 text-xs font-semibold text-emerald-700">
-                Documento fuente subido correctamente.
-              </p>
-            ) : (
-              <>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
-                  onChange={(e) => {
-                    setSourceFile(e.target.files?.[0] || null);
-                    setSourceUploadError(null);
-                  }}
-                  className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-emerald-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-200"
-                />
-                {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
-                <button
-                  type="button"
-                  onClick={handleUploadSourceDocument}
-                  disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
-                  className="mt-3 rounded-2xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
-                >
-                  {sourceUploading ? "Subiendo..." : "Subir documento fuente"}
-                </button>
-              </>
-            )}
-          </div>
+          {renderSourceDocumentsPreview("success")}
         </section>
       </main>
     );
@@ -404,74 +444,25 @@ export default function PagarPage() {
           Referencia: <span className="font-mono">{order.reference}</span> · Importe:{" "}
           <span className="font-semibold">{formatMoney(order.amountCents)}</span>
         </p>
-        {onlyManualPayments && (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            Por el momento, el pago esta habilitado solo por Bizum o transferencia.
-            {" "}
-            Sube el justificante aqui y el sistema lo registra automaticamente en tu pedido.
-          </p>
-        )}
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          Selecciona Bizum, transferencia o PayPal y adjunta el justificante para que el pedido quede marcado como pagado automaticamente.
+        </p>
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-900">Documento a traducir</p>
-          <p className="mt-1 text-xs text-slate-600">
-            Adjunta el documento original para que el traductor lo vea en la zona operativa.
-          </p>
-          {sourceUploaded ? (
-            <p className="mt-3 text-xs font-semibold text-emerald-700">Documento fuente subido correctamente.</p>
-          ) : (
-            <>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
-                onChange={(e) => {
-                  setSourceFile(e.target.files?.[0] || null);
-                  setSourceUploadError(null);
-                }}
-                className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-800 hover:file:bg-slate-300"
-                disabled={!capabilities.manualProofUploadEnabled}
-              />
-              {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
-              <button
-                type="button"
-                onClick={handleUploadSourceDocument}
-                disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
-                className="mt-3 rounded-2xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
-              >
-                {sourceUploading ? "Subiendo..." : "Subir documento fuente"}
-              </button>
-            </>
-          )}
-        </div>
+        {renderSourceDocumentsPreview("default")}
 
         {/* Tabs */}
         <div className="mt-6 flex flex-wrap gap-2">
-          {capabilities.cardEnabled && (
-            <button
-              type="button"
-              onClick={() => setTab("tarjeta")}
-              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                tab === "tarjeta"
-                  ? "bg-blue-700 text-white"
-                  : "border border-slate-300 text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              Tarjeta
-            </button>
-          )}
-          {capabilities.paypalEnabled && (
-            <button
-              type="button"
-              onClick={() => setTab("paypal")}
-              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                tab === "paypal"
-                  ? "bg-blue-700 text-white"
-                  : "border border-slate-300 text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              PayPal
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setTab("paypal")}
+            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+              tab === "paypal"
+                ? "bg-blue-700 text-white"
+                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            PayPal
+          </button>
           <button
             type="button"
             onClick={() => setTab("bizum")}
@@ -496,44 +487,30 @@ export default function PagarPage() {
           </button>
         </div>
 
-        {tab === "tarjeta" && capabilities.cardEnabled && (
-          <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-            <p className="text-sm font-semibold text-blue-900">Pago con tarjeta</p>
-            <p className="mt-1 text-xs text-blue-700">
-              Se abre pasarela segura (
-              {capabilities.cardProvider === "redsys"
-                ? "Redsys"
-                : capabilities.cardProvider === "stripe"
-                  ? "Stripe"
-                  : "pasarela configurada"}
-              ) y la confirmación es automática.
-            </p>
-            {!capabilities.cardEnabled && (
-              <p className="mt-2 text-xs font-semibold text-red-700">
-                Pago con tarjeta no disponible en este entorno.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleCardPayment}
-              disabled={cardLoading || !capabilities.cardEnabled}
-              className="mt-4 rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
-            >
-              {cardLoading ? "Conectando pasarela..." : "Pagar con tarjeta ahora"}
-            </button>
-            {cardError && <p className="mt-2 text-xs font-semibold text-red-700">{cardError}</p>}
-          </div>
-        )}
-
         {tab === "paypal" && (
           <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
             <p className="text-sm font-semibold text-blue-900">Pago con PayPal</p>
-            <p className="mt-1 text-xs text-blue-700">
-              Completa el pago en PayPal. Al confirmar, te llevamos automáticamente a la confirmación.
-            </p>
-            <div className="mt-4 max-w-sm">
-              <PayPalButton reference={reference} onSuccess={handlePayPalSuccess} />
-            </div>
+            {capabilities.paypalEnabled ? (
+              <>
+                <p className="mt-1 text-xs text-blue-700">
+                  Completa el pago en PayPal. Al confirmar, te llevamos automaticamente a la confirmacion.
+                </p>
+                <div className="mt-4 max-w-sm">
+                  <PayPalButton reference={reference} onSuccess={handlePayPalSuccess} />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-blue-700">
+                  PayPal no esta automatizado en este entorno.
+                  {" "}
+                  Puedes pagar por Bizum/transferencia o subir aqui el justificante de tu pago por PayPal para activar el pedido.
+                </p>
+                <p className="mt-3 rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs text-blue-800">
+                  Concepto recomendado en PayPal: <span className="font-mono font-semibold">{order.reference}</span>
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -597,14 +574,15 @@ export default function PagarPage() {
         )}
 
         {/* Upload comprobante */}
-        {isManualTab && (
+        {acceptsProofUpload && (
           <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-5">
             <h3 className="text-sm font-semibold text-blue-900">
               Adjunta tu comprobante de pago
             </h3>
             <p className="mt-1 text-xs text-blue-700">
-              Sube una captura del Bizum o el justificante de la transferencia.
-              Verificaremos el pago y te enviaremos una confirmacion por email.
+              {tab === "paypal"
+                ? "Sube el justificante de PayPal para registrar el pago automaticamente."
+                : "Sube una captura del Bizum o el justificante de la transferencia para registrar el pago automaticamente."}
             </p>
             <div className="mt-4">
               <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">

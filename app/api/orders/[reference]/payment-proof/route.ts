@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { getServerSession } from "next-auth";
+import type { PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
-  sendPaymentProofReceivedClientEmail,
+  sendPaymentConfirmedEmail,
   sendPaymentProofUploadedStaffEmail,
 } from "@/lib/email";
+import { updateOrderPayment } from "@/lib/orders";
 import { validatePaymentProofFile } from "@/lib/file-security";
 import { getWorkflowState } from "@/lib/workflow";
-import { transitionWorkflowState } from "@/lib/workflow-server";
+import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { isBlobConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
@@ -67,6 +69,9 @@ export async function POST(req: Request, { params }: Params) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const clientEmailRaw = String(formData.get("clientEmail") || "").trim().toLowerCase();
+    const methodRaw = String(formData.get("method") || "").trim().toUpperCase();
+    const paymentMethod: PaymentMethod =
+      methodRaw === "TRANSFER" ? "TRANSFER" : methodRaw === "PAYPAL" ? "PAYPAL" : "BIZUM";
 
     if (!file) {
       return NextResponse.json({ ok: false, error: "Archivo requerido." }, { status: 400 });
@@ -152,12 +157,13 @@ export async function POST(req: Request, { params }: Params) {
       data: {
         orderId: order.id,
         type: "payment.proof_uploaded",
-        message: "Comprobante de pago adjuntado por el cliente. Pendiente de verificacion.",
+        message: "Comprobante de pago adjuntado por el cliente. Pago marcado automaticamente.",
         payload: {
           fileUrl: blob.url,
           fileName: validation.safeName,
           uploadedAt,
           uploadedBy: sessionEmail || clientEmailRaw || null,
+          method: paymentMethod,
         },
       },
     });
@@ -171,6 +177,30 @@ export async function POST(req: Request, { params }: Params) {
       console.error("[payment-proof] workflow transition failed", err);
     });
 
+    const paymentUpdate = await updateOrderPayment(
+      order.reference,
+      paymentMethod,
+      `proof_upload:${params.reference}:${Date.now()}`
+    );
+
+    if (paymentUpdate.changed) {
+      await transitionWorkflowState({
+        reference: order.reference,
+        to: "PAGO_VALIDADO",
+        actorEmail: sessionEmail || clientEmailRaw || "guest",
+        reason: "Pago validado automaticamente tras subir comprobante.",
+      }).catch((err) => {
+        console.error("[payment-proof] workflow transition to PAGO_VALIDADO failed", err);
+      });
+
+      await assignDefaultFrenchEtaIfNeeded({
+        reference: order.reference,
+        actorEmail: sessionEmail || clientEmailRaw || "guest",
+      }).catch((err) => {
+        console.error("[payment-proof] default FR ETA assignment failed", err);
+      });
+    }
+
     // Non-blocking notifications
     sendPaymentProofUploadedStaffEmail({
       reference: order.reference,
@@ -181,12 +211,17 @@ export async function POST(req: Request, { params }: Params) {
       fileName: file.name,
     }).catch((e) => console.error("[payment-proof] staff email failed", e));
 
-    sendPaymentProofReceivedClientEmail({
-      toEmail: order.clientEmail,
-      reference: order.reference,
-    }).catch((e) => console.error("[payment-proof] client email failed", e));
+    if (paymentUpdate.changed) {
+      sendPaymentConfirmedEmail({
+        toEmail: order.clientEmail,
+        reference: order.reference,
+        title: order.title,
+        amountCents: order.amountCents,
+        method: paymentMethod,
+      }).catch((e) => console.error("[payment-proof] client payment confirmation email failed", e));
+    }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, paymentStatus: "PAID" });
   } catch (err: any) {
     console.error("[payment-proof] error", err);
     const msg = String(err?.message || "");

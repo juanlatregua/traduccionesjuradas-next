@@ -195,6 +195,47 @@ function getQuoteDraft(order: any) {
   };
 }
 
+function getQuoteAuditTrail(order: any) {
+  const auditTypes = new Set([
+    "quote.documents.updated",
+    "quote.sent_to_client",
+    "quote.send_failed",
+    "order.payment_link_sent",
+    "order.payment_link_send_failed",
+  ]);
+
+  return (order.events || [])
+    .filter((e: any) => auditTypes.has(e.type))
+    .slice(0, 12)
+    .map((event: any) => {
+      const payload = (event.payload as any) || {};
+      const rawLines = Array.isArray(payload.lines) ? payload.lines : [];
+      const lines = rawLines
+        .map((line: any) => ({
+          documentName: String(line?.documentName || "").trim(),
+          amountCents: Math.max(0, Math.round(Number(line?.amountCents || 0))),
+          notes: line?.notes ? String(line.notes) : null,
+        }))
+        .filter((line: any) => !!line.documentName);
+
+      const totalRaw = Number(payload.totalCents);
+      return {
+        type: String(event.type || ""),
+        message: String(event.message || ""),
+        createdAt: event.createdAt?.toISOString?.() || null,
+        actorEmail: payload.actorEmail ? String(payload.actorEmail) : null,
+        toEmail: payload.toEmail ? String(payload.toEmail) : null,
+        paymentUrl: payload.paymentUrl ? String(payload.paymentUrl) : null,
+        subject: payload.subject ? String(payload.subject) : null,
+        error: payload.error ? String(payload.error) : null,
+        provider: payload.provider ? String(payload.provider) : null,
+        providerMessageId: payload.providerMessageId ? String(payload.providerMessageId) : null,
+        totalCents: Number.isFinite(totalRaw) ? Math.round(totalRaw) : null,
+        lines,
+      };
+    });
+}
+
 function hasFinancialRisk(order: any) {
   return !order.financeSnapshot.isFinanciallyCloseable || order.financeSnapshot.reconciliationStatus === "MISMATCH";
 }
@@ -648,6 +689,30 @@ export default async function ZonaTraductorPage({
 
       <PMQuickCreatePanel />
 
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cyan-500/30 bg-cyan-500/5 p-6 shadow-xl sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Presupuestos con preview</p>
+        <h2 className="mt-2 text-lg font-semibold text-white">
+          Crear, previsualizar y enviar presupuesto desde zona traductor
+        </h2>
+        <p className="mt-1 text-sm text-slate-300">
+          Flujo recomendado para leads que te llegan por email o WhatsApp: primero previsualiza PDF y email, luego envía.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            href="/admin/quotes/new"
+            className="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600"
+          >
+            Nuevo presupuesto con preview
+          </a>
+          <a
+            href="/admin/quotes"
+            className="rounded-xl border border-cyan-500/40 px-4 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/10"
+          >
+            Ver todos los presupuestos
+          </a>
+        </div>
+      </section>
+
       {orders.length > 0 && (
         <section className="mx-auto mt-6 max-w-6xl space-y-3">
           <h2 className="text-lg font-semibold text-white">
@@ -658,6 +723,7 @@ export default async function ZonaTraductorPage({
             <OrderActionPanel
               key={order.reference}
               reference={order.reference}
+              clientName={order.clientName}
               clientEmail={order.clientEmail}
               title={order.title}
               langPair={order.langPair}
@@ -671,6 +737,7 @@ export default async function ZonaTraductorPage({
               paymentProofs={getPaymentProofs(order)}
               documents={getSubmittedDocuments(order)}
               quoteDraft={getQuoteDraft(order)}
+              quoteAuditTrail={getQuoteAuditTrail(order)}
               isArchived={Boolean(order.isArchived)}
               financeSnapshot={order.financeSnapshot}
             />
@@ -819,6 +886,19 @@ export default async function ZonaTraductorPage({
                         {order.clientEmail}
                       </td>
                       <td className="px-4 py-3">
+                        <a
+                          href={`/admin/quotes/new?${new URLSearchParams({
+                            customerEmail: order.clientEmail || "",
+                            customerName: order.clientName || "",
+                            lineDescription: order.title || "Traducción jurada",
+                            lineAmount: (Math.max(0, Number(order.amountCents || 0)) / 100).toFixed(2),
+                            langPair: order.langPair || "",
+                          }).toString()}`}
+                          className="mb-2 inline-flex rounded-lg border border-cyan-500/40 px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                        >
+                          Presupuesto pro
+                        </a>
+                        <br />
                         {order.paymentStatus === "PENDING" &&
                           ["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(order.workflowState) && (
                             <ConfirmPaymentButton reference={order.reference} />

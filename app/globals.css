@@ -4,6 +4,13 @@
 
 body {
   @apply bg-slate-50 text-slate-900;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: Merriweather, Georgia, "Times New Roman", serif;
 }
 
 #zona-traductor-root.zona-theme-light {

@@ -1,5 +1,6 @@
 // app/page.tsx
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
@@ -8,6 +9,23 @@ import { DocumentChecklist } from "@/components/DocumentChecklist";
 const PriceEstimator = dynamic(() => import("@/components/PriceEstimator"), {
   ssr: false,
 });
+
+type LanguageQuickLink = {
+  href: string;
+  label: string;
+  flag?: string;
+  flagSrc?: string;
+  flagAlt?: string;
+};
+
+const LANGUAGE_QUICK_LINKS: LanguageQuickLink[] = [
+  { href: "/traductor-jurado-frances", flag: "\u{1F1EB}\u{1F1F7}", label: "Francés" },
+  { href: "/traductor-jurado-ingles", flag: "\u{1F1EC}\u{1F1E7}", label: "Inglés" },
+  { href: "/traductor-jurado-aleman", flag: "\u{1F1E9}\u{1F1EA}", label: "Alemán" },
+  { href: "/traductor-jurado-neerlandes", flag: "\u{1F1F3}\u{1F1F1}", label: "Neerlandés" },
+  { href: "/traductor-jurado-italiano", flag: "\u{1F1EE}\u{1F1F9}", label: "Italiano" },
+  { href: "/traductor-jurado-portugues", flag: "\u{1F1F5}\u{1F1F9}", label: "Portugués" },
+];
 
 export const metadata: Metadata = {
   title: "Traducción jurada oficial en España | Traductores jurados online",
@@ -33,18 +51,45 @@ export default function Home() {
               Flujo simple para cliente: elige idioma, adjunta PDF/foto, obtén estimación y confirma el pago.
               Traductores jurados reales y entrega en PDF firmado.
             </p>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <Link href="/traductor-jurado-frances" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
-                Francés
-              </Link>
-              <Link href="/traductor-jurado-ingles" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
-                Inglés
-              </Link>
-              <Link href="/traductor-jurado-aleman" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
-                Alemán
-              </Link>
-              <Link href="/traductores-jurados" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-emerald-700">
-                Ver todos
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Elige traductor jurado por idioma (empieza por francés)
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {LANGUAGE_QUICK_LINKS.map((item, idx) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`rounded-xl border px-3 py-3 text-left ${
+                      idx === 0
+                        ? "border-emerald-300 bg-emerald-50"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    {item.flagSrc ? (
+                      <Image
+                        src={item.flagSrc}
+                        alt={item.flagAlt || `Bandera ${item.label}`}
+                        width={34}
+                        height={24}
+                        className="h-6 w-[34px] rounded-sm border border-slate-200 object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <p className="text-2xl leading-none" aria-hidden="true">{item.flag}</p>
+                    )}
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                      {item.label}
+                    </p>
+                    <p className="text-[11px] text-slate-500">Traducción jurada</p>
+                  </Link>
+                ))}
+              </div>
+              <Link
+                href="/traductores-jurados"
+                className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
+              >
+                Ver todos los idiomas disponibles →
               </Link>
             </div>
 

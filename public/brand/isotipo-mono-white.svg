@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Isotipo Traducciones Juradas">
+  <title>Traducciones Juradas — Isotipo</title>
+  <defs>
+    <style>
+      .navy { fill: transparent; }
+      .teal { fill: transparent; }
+      .line { stroke: #FFFFFF; stroke-width: 8; stroke-linecap: round; opacity: .85; }
+      .paper { fill: transparent; }
+      .cut { fill: transparent; opacity: 0; }
+    </style>
+  </defs>
+
+  <!-- Shield -->
+  <path class="navy" d="M100 18
+    C136 18 160 30 174 44
+    V98
+    C174 142 146 170 100 186
+    C54 170 26 142 26 98
+    V44
+    C40 30 64 18 100 18 Z" />
+
+  <!-- Paper with folded corner -->
+  <path class="paper" d="M70 52 H122 L140 70 V126
+    C140 131 136 135 131 135 H70
+    C65 135 61 131 61 126 V61
+    C61 56 65 52 70 52 Z" />
+  <path class="cut" d="M122 52 V70 H140" />
+
+  <!-- Paper lines -->
+  <line class="line" x1="76" y1="82" x2="122" y2="82"/>
+  <line class="line" x1="76" y1="100" x2="122" y2="100"/>
+  <line class="line" x1="76" y1="118" x2="108" y2="118"/>
+
+  <!-- Check (badge) -->
+  <circle class="teal" cx="135" cy="124" r="26"/>
+  <path d="M124 124 L132 132 L147 113" fill="none" stroke="#1B2A41" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

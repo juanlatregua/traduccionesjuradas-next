@@ -4,6 +4,15 @@ function hasValue(value?: string | null) {
   return Boolean(String(value || "").trim());
 }
 
+function envFlagEnabled(value?: string | null, fallback = false) {
+  if (value == null) return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (["1", "true", "yes", "on", "si", "sí"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return fallback;
+}
+
 export function isStripeConfigured() {
   return hasValue(process.env.STRIPE_SECRET_KEY);
 }
@@ -22,6 +31,10 @@ export function isPayPalConfigured() {
 
 export function isBlobConfigured() {
   return hasValue(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+export function isCardPaymentsEnabled() {
+  return envFlagEnabled(process.env.ENABLE_CARD_PAYMENTS, false);
 }
 
 export function resolveCardProvider(preferredRaw?: string | null): CardProvider | null {
@@ -44,7 +57,7 @@ export function resolveCardProvider(preferredRaw?: string | null): CardProvider 
 }
 
 export function getPaymentCapabilities() {
-  const cardProvider = resolveCardProvider();
+  const cardProvider = isCardPaymentsEnabled() ? resolveCardProvider() : null;
   return {
     cardEnabled: !!cardProvider,
     cardProvider,

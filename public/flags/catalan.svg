@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 90" role="img" aria-label="Bandera de Cataluña">
+  <rect width="150" height="90" fill="#ffd100" />
+  <rect y="10" width="150" height="10" fill="#d5001c" />
+  <rect y="30" width="150" height="10" fill="#d5001c" />
+  <rect y="50" width="150" height="10" fill="#d5001c" />
+  <rect y="70" width="150" height="10" fill="#d5001c" />
+</svg>

@@ -4,7 +4,7 @@ import { createCheckoutSession } from "@/lib/stripe";
 import { buildRedsysFormData } from "@/lib/redsys";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getWorkflowState } from "@/lib/workflow";
-import { resolveCardProvider } from "@/lib/payment-config";
+import { getPaymentCapabilities } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
 
@@ -46,17 +46,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const provider = resolveCardProvider();
-    if (!provider) {
+    const capabilities = getPaymentCapabilities();
+    if (!capabilities.cardEnabled || !capabilities.cardProvider) {
       return NextResponse.json(
         {
           ok: false,
-          error:
-            "Pago con tarjeta no disponible ahora. Falta configurar Stripe o Redsys en este entorno.",
+          error: "Pago con tarjeta desactivado temporalmente en este entorno.",
         },
         { status: 503 }
       );
     }
+    const provider = capabilities.cardProvider;
 
     if (provider === "stripe") {
       const session = await createCheckoutSession({
