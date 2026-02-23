@@ -1,5 +1,6 @@
 // app/page.tsx
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
@@ -9,14 +10,27 @@ const PriceEstimator = dynamic(() => import("@/components/PriceEstimator"), {
   ssr: false,
 });
 
-const LANGUAGE_QUICK_LINKS = [
-  { href: "/traductor-jurado-frances", flag: "\u{1F1EB}\u{1F1F7}", label: "Frances" },
-  { href: "/traductor-jurado-ingles", flag: "\u{1F1EC}\u{1F1E7}", label: "Ingles" },
-  { href: "/traductor-jurado-aleman", flag: "\u{1F1E9}\u{1F1EA}", label: "Aleman" },
-  { href: "/traductor-jurado-neerlandes", flag: "\u{1F1F3}\u{1F1F1}", label: "Neerlandes" },
+type LanguageQuickLink = {
+  href: string;
+  label: string;
+  flag?: string;
+  flagSrc?: string;
+  flagAlt?: string;
+};
+
+const LANGUAGE_QUICK_LINKS: LanguageQuickLink[] = [
+  { href: "/traductor-jurado-frances", flag: "\u{1F1EB}\u{1F1F7}", label: "Francés" },
+  { href: "/traductor-jurado-ingles", flag: "\u{1F1EC}\u{1F1E7}", label: "Inglés" },
+  { href: "/traductor-jurado-aleman", flag: "\u{1F1E9}\u{1F1EA}", label: "Alemán" },
+  { href: "/traductor-jurado-neerlandes", flag: "\u{1F1F3}\u{1F1F1}", label: "Neerlandés" },
   { href: "/traductor-jurado-italiano", flag: "\u{1F1EE}\u{1F1F9}", label: "Italiano" },
-  { href: "/traductor-jurado-portugues", flag: "\u{1F1F5}\u{1F1F9}", label: "Portugues" },
-  { href: "/traductor-jurado-catalan", flag: "CAT", label: "Catalan" },
+  { href: "/traductor-jurado-portugues", flag: "\u{1F1F5}\u{1F1F9}", label: "Portugués" },
+  {
+    href: "/traductor-jurado-catalan",
+    flagSrc: "/flags/catalan.svg",
+    flagAlt: "Bandera de Cataluña",
+    label: "Catalán",
+  },
   { href: "/traductor-jurado-sueco", flag: "\u{1F1F8}\u{1F1EA}", label: "Sueco" },
   { href: "/traductor-jurado-noruego", flag: "\u{1F1F3}\u{1F1F4}", label: "Noruego" },
 ];
@@ -47,7 +61,7 @@ export default function Home() {
             </p>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Elige traductor jurado por idioma (empieza por frances)
+                Elige traductor jurado por idioma (empieza por francés)
               </p>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {LANGUAGE_QUICK_LINKS.map((item, idx) => (
@@ -60,11 +74,22 @@ export default function Home() {
                         : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
-                    <p className="text-2xl leading-none">{item.flag}</p>
+                    {item.flagSrc ? (
+                      <Image
+                        src={item.flagSrc}
+                        alt={item.flagAlt || `Bandera ${item.label}`}
+                        width={34}
+                        height={24}
+                        className="h-6 w-[34px] rounded-sm border border-slate-200 object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <p className="text-2xl leading-none" aria-hidden="true">{item.flag}</p>
+                    )}
                     <p className="mt-2 text-sm font-semibold text-slate-900">
                       {item.label}
                     </p>
-                    <p className="text-[11px] text-slate-500">Traduccion jurada</p>
+                    <p className="text-[11px] text-slate-500">Traducción jurada</p>
                   </Link>
                 ))}
               </div>
