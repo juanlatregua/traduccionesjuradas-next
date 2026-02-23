@@ -1,0 +1,203 @@
+"use client";
+
+import { useState } from "react";
+
+type Channel = "whatsapp" | "email" | "web";
+
+export default function PMQuickCreatePanel() {
+  const [clientEmail, setClientEmail] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [title, setTitle] = useState("");
+  const [amountEur, setAmountEur] = useState("");
+  const [langPair, setLangPair] = useState("fr-es");
+  const [pagesLabel, setPagesLabel] = useState("");
+  const [channel, setChannel] = useState<Channel>("whatsapp");
+  const [urgencyNotes, setUrgencyNotes] = useState("");
+  const [sendEmail, setSendEmail] = useState(true);
+
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [reference, setReference] = useState<string | null>(null);
+
+  async function copyPaymentUrl() {
+    if (!paymentUrl) return;
+    try {
+      await navigator.clipboard.writeText(paymentUrl);
+      setMessage("Enlace de pago copiado.");
+    } catch {
+      setMessage("No se pudo copiar automaticamente. Copia el enlace manualmente.");
+    }
+  }
+
+  async function submit() {
+    setLoading(true);
+    setMessage(null);
+    setPaymentUrl(null);
+    setReference(null);
+    try {
+      const amount = Number(String(amountEur || "").replace(",", "."));
+      const res = await fetch("/api/orders/pm-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientEmail: clientEmail.trim().toLowerCase(),
+          clientName: clientName.trim() || undefined,
+          title: title.trim(),
+          amountEur: amount,
+          langPair: langPair || undefined,
+          pagesLabel: pagesLabel.trim() || undefined,
+          sourceChannel: channel,
+          urgencyNotes: urgencyNotes.trim() || undefined,
+          sendEmail,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "No se pudo crear el pedido.");
+      }
+      setReference(String(data.order?.reference || ""));
+      setPaymentUrl(String(data.paymentUrl || ""));
+      const warning = data.warning ? ` ${String(data.warning)}` : "";
+      setMessage(`Pedido creado y listo para pago.${warning}`);
+    } catch (err: any) {
+      setMessage(err?.message || "No se pudo crear el pedido.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cyan-500/30 bg-cyan-500/5 p-6 shadow-xl sm:p-8">
+      <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">
+        Alta rápida PM
+      </p>
+      <h2 className="mt-2 text-lg font-semibold text-white">
+        Crear pedido desde WhatsApp/Email y enviar enlace de pago
+      </h2>
+      <p className="mt-1 text-xs text-slate-300">
+        Uso recomendado para leads que entran directos a {`juansilva@traduccionesjuradas.net`} o por WhatsApp.
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <input
+          type="email"
+          value={clientEmail}
+          onChange={(e) => setClientEmail(e.target.value)}
+          placeholder="Email cliente *"
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+        />
+        <input
+          type="text"
+          value={clientName}
+          onChange={(e) => setClientName(e.target.value)}
+          placeholder="Nombre cliente (opcional)"
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+        />
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Titulo/servicio *"
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+        />
+        <input
+          type="number"
+          min={1}
+          step="0.01"
+          value={amountEur}
+          onChange={(e) => setAmountEur(e.target.value)}
+          placeholder="Importe EUR *"
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+        />
+        <select
+          value={langPair}
+          onChange={(e) => setLangPair(e.target.value)}
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+        >
+          <option value="fr-es">fr-es</option>
+          <option value="es-fr">es-fr</option>
+          <option value="en-es">en-es</option>
+          <option value="de-es">de-es</option>
+          <option value="it-es">it-es</option>
+          <option value="pt-es">pt-es</option>
+          <option value="ca-es">ca-es</option>
+          <option value="">Sin especificar</option>
+        </select>
+        <select
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as Channel)}
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+        >
+          <option value="whatsapp">Origen WhatsApp</option>
+          <option value="email">Origen Email</option>
+          <option value="web">Origen Web</option>
+        </select>
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <input
+          type="text"
+          value={pagesLabel}
+          onChange={(e) => setPagesLabel(e.target.value)}
+          placeholder="Alcance/paginas (opcional)"
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+        />
+        <input
+          type="text"
+          value={urgencyNotes}
+          onChange={(e) => setUrgencyNotes(e.target.value)}
+          placeholder="Notas urgencia (opcional)"
+          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+        />
+      </div>
+
+      <label className="mt-3 inline-flex items-center gap-2 text-xs text-slate-300">
+        <input
+          type="checkbox"
+          checked={sendEmail}
+          onChange={(e) => setSendEmail(e.target.checked)}
+          className="h-4 w-4 rounded border-slate-500 bg-slate-950 text-cyan-500"
+        />
+        Enviar email automático al cliente con enlace de pago
+      </label>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={loading}
+          className="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600 disabled:opacity-60"
+        >
+          {loading ? "Creando..." : "Crear pedido y habilitar pago"}
+        </button>
+        {paymentUrl && (
+          <>
+            <button
+              type="button"
+              onClick={copyPaymentUrl}
+              className="rounded-xl border border-cyan-500/40 px-4 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/10"
+            >
+              Copiar enlace pago
+            </button>
+            <a
+              href={paymentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+            >
+              Abrir enlace
+            </a>
+          </>
+        )}
+      </div>
+
+      {reference && (
+        <p className="mt-3 text-xs text-slate-200">
+          Referencia creada: <span className="font-mono font-semibold text-cyan-300">{reference}</span>
+        </p>
+      )}
+      {message && <p className="mt-2 text-xs font-semibold text-slate-200">{message}</p>}
+    </section>
+  );
+}

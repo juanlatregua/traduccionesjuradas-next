@@ -15,6 +15,7 @@ import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 import { getTrackedConsultaUrl, getTrackedPresupuestoUrl } from "@/lib/contact";
 import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
+import PMQuickCreatePanel from "@/components/PMQuickCreatePanel";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -644,6 +645,8 @@ export default async function ZonaTraductorPage({
           </p>
         </div>
       </section>
+
+      <PMQuickCreatePanel />
 
       {orders.length > 0 && (
         <section className="mx-auto mt-6 max-w-6xl space-y-3">

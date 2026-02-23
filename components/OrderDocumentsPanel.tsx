@@ -80,6 +80,9 @@ export default function OrderDocumentsPanel({
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sourceUploading, setSourceUploading] = useState(false);
   const [sourceMessage, setSourceMessage] = useState<string | null>(null);
+  const [resubmissionReason, setResubmissionReason] = useState("");
+  const [resubmissionLoading, setResubmissionLoading] = useState(false);
+  const [resubmissionMessage, setResubmissionMessage] = useState<string | null>(null);
 
   const totalEur = useMemo(() => {
     return rows.reduce((acc, row) => {
@@ -182,6 +185,29 @@ export default function OrderDocumentsPanel({
     }
   }
 
+  async function requestResubmission() {
+    setResubmissionLoading(true);
+    setResubmissionMessage(null);
+    try {
+      const res = await fetch(`/api/orders/${reference}/documents/request-resubmission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: resubmissionReason.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "No se pudo solicitar el reenvio.");
+      }
+      setResubmissionMessage("Solicitud enviada al cliente para reenviar el documento.");
+    } catch (err: any) {
+      setResubmissionMessage(err?.message || "No se pudo solicitar el reenvio.");
+    } finally {
+      setResubmissionLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
@@ -248,6 +274,33 @@ export default function OrderDocumentsPanel({
             {sourceUploading ? "Subiendo..." : "Subir documento"}
           </button>
           {sourceMessage && <p className="mt-2 text-xs font-semibold text-slate-200">{sourceMessage}</p>}
+        </div>
+
+        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
+            Documento ilegible
+          </p>
+          <p className="mt-1 text-[11px] text-slate-300">
+            Envía aviso al cliente para que reenvíe el archivo con mejor calidad.
+          </p>
+          <textarea
+            value={resubmissionReason}
+            onChange={(e) => setResubmissionReason(e.target.value)}
+            placeholder="Ejemplo: foto borrosa, falta margen izquierdo, sello no legible."
+            className="mt-3 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500"
+            rows={3}
+          />
+          <button
+            type="button"
+            onClick={requestResubmission}
+            disabled={resubmissionLoading}
+            className="mt-3 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+          >
+            {resubmissionLoading ? "Enviando solicitud..." : "Solicitar reenvio al cliente"}
+          </button>
+          {resubmissionMessage && (
+            <p className="mt-2 text-xs font-semibold text-slate-100">{resubmissionMessage}</p>
+          )}
         </div>
       </div>
 

@@ -784,6 +784,61 @@ https://www.traduccionesjuradas.net/consulta
   });
 }
 
+export async function sendDocumentResubmissionRequestEmail(data: {
+  toEmail: string;
+  reference: string;
+  reason?: string | null;
+  uploadUrl: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const reason = (data.reason || "").trim();
+  const reasonLine = reason
+    ? `Motivo detectado por revision: ${reason}`
+    : "Motivo detectado por revision: el archivo no es suficientemente legible para traducir con seguridad.";
+
+  const subject = `Necesitamos reenviar el documento - Pedido ${data.reference}`;
+  const text = `Hola,
+
+Para continuar con tu pedido ${data.reference}, necesitamos que vuelvas a subir el documento original con mejor calidad.
+${reasonLine}
+
+Sube el nuevo archivo aqui:
+${data.uploadUrl}
+
+Formatos recomendados: PDF o imagen nitida (JPG/PNG), con todo el texto visible.
+Gracias.
+`;
+
+  const html = `
+    <h2>Necesitamos que reenvies el documento</h2>
+    <p>Para continuar con tu pedido <strong>${data.reference}</strong>, necesitamos que vuelvas a subir el documento original con mejor calidad.</p>
+    <p><strong>${reasonLine}</strong></p>
+    <p>
+      <a href="${data.uploadUrl}" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">
+        Subir documento de nuevo
+      </a>
+    </p>
+    <p style="font-size:13px; color:#6b7280;">
+      Formatos recomendados: PDF o imagen nitida (JPG/PNG), con todo el texto visible.
+    </p>
+  `;
+
+  await sgMail.send({
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html,
+  });
+}
+
 export async function sendStaffOtpEmail(data: { toEmail: string; code: string }) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
