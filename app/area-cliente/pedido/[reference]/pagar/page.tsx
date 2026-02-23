@@ -15,6 +15,13 @@ type OrderInfo = {
 
 type PaymentTab = "tarjeta" | "paypal" | "bizum" | "transferencia";
 
+type PaymentCapabilities = {
+  cardEnabled: boolean;
+  cardProvider: "stripe" | "redsys" | null;
+  paypalEnabled: boolean;
+  manualProofUploadEnabled: boolean;
+};
+
 type CardRedirectResponse = {
   ok: true;
   kind: "redirect";
@@ -47,6 +54,12 @@ export default function PagarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<PaymentTab>("tarjeta");
+  const [capabilities, setCapabilities] = useState<PaymentCapabilities>({
+    cardEnabled: true,
+    cardProvider: null,
+    paypalEnabled: true,
+    manualProofUploadEnabled: true,
+  });
 
   // Upload state
   const [file, setFile] = useState<File | null>(null);
@@ -56,6 +69,19 @@ export default function PagarPage() {
   const [proofEmail, setProofEmail] = useState("");
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/payment/capabilities")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.ok && data.capabilities) {
+          setCapabilities(data.capabilities as PaymentCapabilities);
+        }
+      })
+      .catch(() => {
+        // Keep optimistic defaults if capabilities endpoint fails.
+      });
+  }, []);
 
   useEffect(() => {
     fetch(`/api/orders/${reference}`)
@@ -74,6 +100,20 @@ export default function PagarPage() {
       .catch(() => setError("Error de conexion."))
       .finally(() => setLoading(false));
   }, [reference]);
+
+  useEffect(() => {
+    const tabAvailable =
+      tab === "paypal"
+        ? capabilities.paypalEnabled
+        : tab === "tarjeta"
+          ? capabilities.cardEnabled
+          : true;
+    if (!tabAvailable) {
+      if (capabilities.cardEnabled) setTab("tarjeta");
+      else if (capabilities.paypalEnabled) setTab("paypal");
+      else setTab("bizum");
+    }
+  }, [capabilities, tab]);
 
   useEffect(() => {
     if (tab !== "tarjeta") {
@@ -119,6 +159,10 @@ export default function PagarPage() {
   }
 
   async function handleCardPayment() {
+    if (!capabilities.cardEnabled) {
+      setCardError("Pago con tarjeta no disponible en este entorno.");
+      return;
+    }
     setCardLoading(true);
     setCardError(null);
     try {
@@ -154,6 +198,12 @@ export default function PagarPage() {
   }
 
   async function handleUploadProof() {
+    if (!capabilities.manualProofUploadEnabled) {
+      setUploadError(
+        "Subida de justificantes no disponible en este entorno. Contacta con hola@traduccionesjuradas.net."
+      );
+      return;
+    }
     if (!file) return;
     setUploading(true);
     setUploadError(null);
@@ -299,17 +349,19 @@ export default function PagarPage() {
           >
             Tarjeta
           </button>
-          <button
-            type="button"
-            onClick={() => setTab("paypal")}
-            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-              tab === "paypal"
-                ? "bg-blue-700 text-white"
-                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
-            }`}
-          >
-            PayPal
-          </button>
+          {capabilities.paypalEnabled && (
+            <button
+              type="button"
+              onClick={() => setTab("paypal")}
+              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                tab === "paypal"
+                  ? "bg-blue-700 text-white"
+                  : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              PayPal
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setTab("bizum")}
@@ -338,12 +390,23 @@ export default function PagarPage() {
           <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
             <p className="text-sm font-semibold text-blue-900">Pago con tarjeta</p>
             <p className="mt-1 text-xs text-blue-700">
-              Se abre pasarela segura (Stripe o Redsys según configuración) y la confirmación es automática.
+              Se abre pasarela segura (
+              {capabilities.cardProvider === "redsys"
+                ? "Redsys"
+                : capabilities.cardProvider === "stripe"
+                  ? "Stripe"
+                  : "pasarela configurada"}
+              ) y la confirmación es automática.
             </p>
+            {!capabilities.cardEnabled && (
+              <p className="mt-2 text-xs font-semibold text-red-700">
+                Pago con tarjeta no disponible en este entorno.
+              </p>
+            )}
             <button
               type="button"
               onClick={handleCardPayment}
-              disabled={cardLoading}
+              disabled={cardLoading || !capabilities.cardEnabled}
               className="mt-4 rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
             >
               {cardLoading ? "Conectando pasarela..." : "Pagar con tarjeta ahora"}
@@ -433,37 +496,49 @@ export default function PagarPage() {
               Sube una captura del Bizum o el justificante de la transferencia.
               Verificaremos el pago y te enviaremos una confirmacion por email.
             </p>
-            <div className="mt-4">
-              <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">
-                Email del pedido (recomendado si no has iniciado sesion)
-              </label>
-              <input
-                id="proofEmail"
-                type="email"
-                value={proofEmail}
-                onChange={(e) => setProofEmail(e.target.value)}
-                placeholder="tu@email.com"
-                className="mb-3 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700"
-              />
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => {
-                  setFile(e.target.files?.[0] || null);
-                  setUploadError(null);
-                }}
-                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-200"
-              />
-            </div>
-            {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
-            <button
-              type="button"
-              onClick={handleUploadProof}
-              disabled={!file || uploading}
-              className="mt-4 rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
-            >
-              {uploading ? "Enviando..." : "Enviar comprobante"}
-            </button>
+            {!capabilities.manualProofUploadEnabled ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                La subida de justificantes esta desactivada en este entorno. Contacta con
+                {" "}
+                <a className="underline" href="mailto:hola@traduccionesjuradas.net">hola@traduccionesjuradas.net</a>
+                {" "}
+                para validacion manual.
+              </p>
+            ) : (
+              <>
+                <div className="mt-4">
+                  <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">
+                    Email del pedido (recomendado si no has iniciado sesion)
+                  </label>
+                  <input
+                    id="proofEmail"
+                    type="email"
+                    value={proofEmail}
+                    onChange={(e) => setProofEmail(e.target.value)}
+                    placeholder="tu@email.com"
+                    className="mb-3 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700"
+                  />
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => {
+                      setFile(e.target.files?.[0] || null);
+                      setUploadError(null);
+                    }}
+                    className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-200"
+                  />
+                </div>
+                {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
+                <button
+                  type="button"
+                  onClick={handleUploadProof}
+                  disabled={!file || uploading}
+                  className="mt-4 rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+                >
+                  {uploading ? "Enviando..." : "Enviar comprobante"}
+                </button>
+              </>
+            )}
           </div>
         )}
 

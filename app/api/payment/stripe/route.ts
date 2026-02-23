@@ -3,12 +3,20 @@ import { createCheckoutSession } from "@/lib/stripe";
 import { getOrderPublic } from "@/lib/orders";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getWorkflowState } from "@/lib/workflow";
+import { isStripeConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
 
 /* POST /api/payment/stripe — create Stripe Checkout session.
    No auth required (guests can pay with card). */
 export async function POST(req: Request) {
+  if (!isStripeConfigured()) {
+    return NextResponse.json(
+      { ok: false, error: "Stripe no esta disponible en este entorno." },
+      { status: 503 }
+    );
+  }
+
   const ip = getClientIp(req);
   const rl = checkRateLimit({
     key: `stripe:create:${ip}`,

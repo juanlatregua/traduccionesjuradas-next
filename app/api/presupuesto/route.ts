@@ -10,6 +10,7 @@ import { createOrder } from "@/lib/orders";
 import { prisma } from "@/lib/prisma";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { put } from "@vercel/blob";
+import { isBlobConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs"; // importante para libs Node en Vercel
 
@@ -203,6 +204,18 @@ export async function POST(req: Request) {
         };
       })
     );
+
+    if (!isBlobConfigured()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "No se pueden adjuntar archivos en este entorno porque falta BLOB_READ_WRITE_TOKEN.",
+        },
+        { status: 503 }
+      );
+    }
+
     let orderReference: string | null = null;
     try {
       const sourceSnapshot = inferPresupuestoSource(req);
@@ -383,6 +396,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, reference: orderReference });
   } catch (err: any) {
     console.error("[API /presupuesto] Error:", err?.message || err);
+    const msg = String(err?.message || "");
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "No se pudieron guardar los archivos adjuntos. Configura BLOB_READ_WRITE_TOKEN en Vercel.",
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { ok: false, error: err?.message || "Error interno del servidor." },
       { status: 500 }

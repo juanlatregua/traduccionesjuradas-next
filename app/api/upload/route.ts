@@ -3,6 +3,7 @@ import { put } from "@vercel/blob";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { validateGeneralUploadFile } from "@/lib/file-security";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { isBlobConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
 
@@ -61,6 +62,17 @@ export async function POST(req: Request) {
     const prefix = reference ? `orders/${reference}` : "uploads";
     const pathname = `${prefix}/${Date.now()}-${validation.safeName}`;
 
+    if (!isBlobConfigured()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Subida de archivos no disponible en este entorno. Configura BLOB_READ_WRITE_TOKEN en Vercel.",
+        },
+        { status: 503 }
+      );
+    }
+
     const blob = await put(pathname, file, {
       access: "public",
       addRandomSuffix: true,
@@ -69,6 +81,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, url: blob.url, pathname: blob.pathname });
   } catch (err: any) {
     console.error("[upload] error", err);
+    const msg = String(err?.message || "");
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Subida de archivos no disponible en este entorno. Falta BLOB_READ_WRITE_TOKEN.",
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { ok: false, error: err?.message || "Error al subir archivo." },
       { status: 500 }

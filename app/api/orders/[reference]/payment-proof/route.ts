@@ -12,6 +12,7 @@ import {
 import { validatePaymentProofFile } from "@/lib/file-security";
 import { getWorkflowState } from "@/lib/workflow";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { isBlobConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
 
@@ -132,6 +133,17 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
+    if (!isBlobConfigured()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "La subida de justificantes no esta disponible en este entorno. Usa pago con tarjeta o solicita validacion manual en hola@traduccionesjuradas.net.",
+        },
+        { status: 503 }
+      );
+    }
+
     const pathname = `orders/${params.reference}/comprobantes/${Date.now()}-${validation.safeName}`;
     const blob = await put(pathname, file, { access: "public", addRandomSuffix: true });
     const uploadedAt = new Date().toISOString();
@@ -177,6 +189,17 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error("[payment-proof] error", err);
+    const msg = String(err?.message || "");
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "No se ha podido guardar el justificante en este entorno. Configura BLOB_READ_WRITE_TOKEN en Vercel.",
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { ok: false, error: err?.message || "Error al subir comprobante." },
       { status: 500 }

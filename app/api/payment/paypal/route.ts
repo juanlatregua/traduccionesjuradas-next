@@ -3,6 +3,7 @@ import { getOrderPublic } from "@/lib/orders";
 import { createPayPalOrder } from "@/lib/paypal";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getWorkflowState } from "@/lib/workflow";
+import { isPayPalConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,13 @@ type PayPalBody = {
 
 /* POST /api/payment/paypal — no auth required (guests can pay) */
 export async function POST(req: Request) {
+  if (!isPayPalConfigured()) {
+    return NextResponse.json(
+      { ok: false, error: "PayPal no esta disponible en este entorno." },
+      { status: 503 }
+    );
+  }
+
   const ip = getClientIp(req);
   const rl = checkRateLimit({
     key: `paypal:create:${ip}`,

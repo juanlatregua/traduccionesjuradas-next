@@ -5,6 +5,7 @@ import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { getWorkflowState } from "@/lib/workflow";
+import { isPayPalConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,13 @@ type CaptureBody = {
 };
 
 export async function POST(req: Request) {
+  if (!isPayPalConfigured()) {
+    return NextResponse.json(
+      { ok: false, error: "PayPal no esta disponible en este entorno." },
+      { status: 503 }
+    );
+  }
+
   const ip = getClientIp(req);
   const rl = checkRateLimit({
     key: `paypal:capture:${ip}`,
