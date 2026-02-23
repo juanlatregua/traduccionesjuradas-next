@@ -264,23 +264,6 @@ export default function ConsultaPage() {
               )}
             </div>
 
-            {/* Recent events */}
-            {order.events && order.events.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700">Historial reciente</h3>
-                <ul className="mt-2 space-y-1">
-                  {order.events.map((ev, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-blue-400" />
-                      <span className="text-slate-600">
-                        {ev.message}{" "}
-                        <span className="text-xs text-slate-400">{formatDate(ev.createdAt)}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         )}
 
