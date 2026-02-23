@@ -3,6 +3,7 @@ import { verifyWebhookSignature } from "@/lib/stripe";
 import { updateOrderPayment } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 
 export const runtime = "nodejs";
 
@@ -32,7 +33,21 @@ export async function POST(req: Request) {
 
     try {
       // Update order payment status
-      await updateOrderPayment(reference, "STRIPE", session.id);
+      const paymentUpdate = await updateOrderPayment(reference, "STRIPE", session.id);
+      if (!paymentUpdate.changed) {
+        return NextResponse.json({ received: true });
+      }
+
+      await transitionWorkflowState({
+        reference,
+        to: "PAGO_VALIDADO",
+        actorEmail: "stripe_webhook",
+        reason: "Pago validado por webhook Stripe.",
+      }).catch((err) => console.error("[stripe-webhook] workflow transition failed", err));
+      await assignDefaultFrenchEtaIfNeeded({
+        reference,
+        actorEmail: "stripe_webhook",
+      }).catch((err) => console.error("[stripe-webhook] default FR ETA assignment failed", err));
 
       // Fetch order to get client email for confirmation
       const order = await prisma.order.findUnique({

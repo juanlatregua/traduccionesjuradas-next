@@ -2,7 +2,7 @@
 // app/contacto/page.tsx
 import { useState } from "react";
 import Link from "next/link";
-import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import { MAIL_LINK, WHATSAPP_DISPLAY, WHATSAPP_LINK, WHATSAPP_LOCAL } from "@/lib/contact";
 import { AvailabilityBadge } from "@/components/AvailabilityBadge";
 
 export default function ContactoPage() {
@@ -87,11 +87,11 @@ export default function ContactoPage() {
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               WhatsApp
             </span>
-            <span className="text-sm text-slate-800">+34 951 333 614</span>
+            <span className="text-sm text-slate-800">{WHATSAPP_DISPLAY}</span>
           </div>
           <button
             type="button"
-            onClick={() => copy("+34951333614", "whatsapp")}
+            onClick={() => copy(WHATSAPP_LOCAL, "whatsapp")}
             className="ml-auto rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
           >
             {copied === "whatsapp" ? "Copiado" : "Copiar"}

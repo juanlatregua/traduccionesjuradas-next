@@ -8,9 +8,11 @@ import {
   getDeliveryStateLabel,
   getDeliveryTypeLabel,
   getPaymentStateLabel,
+  getWorkflowStateLabel,
 } from "@/lib/client-area";
 import { isStaffEmail } from "@/lib/staff-access";
 import AutoRefresh from "@/components/AutoRefresh";
+import { getWorkflowState } from "@/lib/workflow";
 
 export const metadata: Metadata = {
   title: "Area de cliente",
@@ -69,7 +71,7 @@ export default async function AreaClientePage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
-      <AutoRefresh intervalMs={6000} />
+      <AutoRefresh intervalMs={20000} idleMs={30000} />
       <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
           Area de cliente
@@ -151,38 +153,43 @@ export default async function AreaClientePage() {
                     <th className="px-4 py-3 font-semibold">Pago</th>
                     <th className="px-4 py-3 font-semibold">Entrega</th>
                     <th className="px-4 py-3 font-semibold">Proceso</th>
+                    <th className="px-4 py-3 font-semibold">Workflow</th>
                     <th className="px-4 py-3 font-semibold">ETA</th>
                     <th className="px-4 py-3 font-semibold">Factura</th>
                     <th className="px-4 py-3 font-semibold">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((order) => (
-                    <tr key={order.reference} className="border-t border-slate-200">
-                      <td className="px-4 py-3 font-mono text-xs text-slate-700">{order.reference}</td>
-                      <td className="px-4 py-3 text-slate-700">{order.title}</td>
-                      <td className="px-4 py-3 text-slate-700">{formatMoney(order.amountCents)}</td>
-                      <td className="px-4 py-3 text-slate-700">{getPaymentStateLabel(order.paymentStatus)}</td>
-                      <td className="px-4 py-3 text-slate-700">{getDeliveryTypeLabel(order.deliveryType)}</td>
-                      <td className="px-4 py-3 text-slate-700">{getDeliveryStateLabel(order.deliveryState)}</td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {order.dueDate ? order.dueDate.toISOString().slice(0, 10) : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {order.billing?.requested
-                          ? "Solicitada"
-                          : "No solicitada"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/area-cliente/pedido/${order.reference}`}
-                          className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                        >
-                          Ver estado
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {orders.map((order) => {
+                    const workflowState = getWorkflowState(order);
+                    return (
+                      <tr key={order.reference} className="border-t border-slate-200">
+                        <td className="px-4 py-3 font-mono text-xs text-slate-700">{order.reference}</td>
+                        <td className="px-4 py-3 text-slate-700">{order.title}</td>
+                        <td className="px-4 py-3 text-slate-700">{formatMoney(order.amountCents)}</td>
+                        <td className="px-4 py-3 text-slate-700">{getPaymentStateLabel(order.paymentStatus)}</td>
+                        <td className="px-4 py-3 text-slate-700">{getDeliveryTypeLabel(order.deliveryType)}</td>
+                        <td className="px-4 py-3 text-slate-700">{getDeliveryStateLabel(order.deliveryState)}</td>
+                        <td className="px-4 py-3 text-slate-700">{getWorkflowStateLabel(workflowState)}</td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {order.dueDate ? order.dueDate.toISOString().slice(0, 10) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {order.billing?.requested
+                            ? "Solicitada"
+                            : "No solicitada"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/area-cliente/pedido/${order.reference}`}
+                            className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                          >
+                            Ver estado
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -3,6 +3,7 @@ export type PresupuestoLog = {
   error?: string;
   toInternal?: string;
   toClient?: string;
+  orderReference?: string | null;
   hasAttachments: boolean;
   route: string;
   userEmail?: string;

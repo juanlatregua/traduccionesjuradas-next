@@ -2,12 +2,21 @@ import { NextResponse } from "next/server";
 import { createCheckoutSession } from "@/lib/stripe";
 import { getOrderPublic } from "@/lib/orders";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getWorkflowState } from "@/lib/workflow";
+import { isStripeConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
 
 /* POST /api/payment/stripe — create Stripe Checkout session.
    No auth required (guests can pay with card). */
 export async function POST(req: Request) {
+  if (!isStripeConfigured()) {
+    return NextResponse.json(
+      { ok: false, error: "Stripe no esta disponible en este entorno." },
+      { status: 503 }
+    );
+  }
+
   const ip = getClientIp(req);
   const rl = checkRateLimit({
     key: `stripe:create:${ip}`,
@@ -34,6 +43,13 @@ export async function POST(req: Request) {
     }
     if (order.paymentStatus === "PAID") {
       return NextResponse.json({ ok: false, error: "Este pedido ya está pagado." }, { status: 400 });
+    }
+    const workflowState = getWorkflowState(order);
+    if (!["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(workflowState)) {
+      return NextResponse.json(
+        { ok: false, error: "Este pedido aun no esta habilitado para pago." },
+        { status: 400 }
+      );
     }
 
     const session = await createCheckoutSession({

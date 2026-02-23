@@ -49,6 +49,7 @@ export async function POST(req: Request, { params }: Params) {
       postalCode: body.postalCode,
       country: body.country || "España",
       email: body.email,
+      requested: true,
     });
 
     // Mark as notified

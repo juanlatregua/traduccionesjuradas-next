@@ -33,13 +33,19 @@ const EMITTER = {
 export function generateInvoicePdf(data: InvoiceData): Buffer {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = 210;
+  const pageHeight = 297;
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
   let y = 20;
 
+  // Force white page background to avoid dark-mode viewers showing black canvas.
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, pageWidth, pageHeight, "F");
+
   // Header
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
   doc.text("FACTURA", margin, y);
 
   doc.setFontSize(10);

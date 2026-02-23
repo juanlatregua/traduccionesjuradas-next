@@ -29,6 +29,7 @@ type CartItem = {
   detail: string;
   samplePdf: string;
   payDirect: boolean;
+  pricingModel: "fixed" | "per-page" | "per-word";
 };
 
 const QUICK_FAQ = [
@@ -290,9 +291,40 @@ export default function FrenchOfferPanel() {
   const [filePrice, setFilePrice] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [urgencyNotes, setUrgencyNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [botHistory, setBotHistory] = useState<Array<{ from: "bot" | "user"; text: string }>>([]);
+  const [tracking, setTracking] = useState<{
+    sourceRaw?: string;
+    sourceChannel?: string;
+    sourceAgent?: string;
+    sourceCampaign?: string;
+    sourceMedium?: string;
+    sourceLanding?: string;
+  }>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const srcRaw = (params.get("src") || params.get("utm_source") || "").trim().toLowerCase();
+    const sourceChannel =
+      srcRaw === "wa" || srcRaw === "whatsapp" || srcRaw.startsWith("whatsapp")
+        ? "WHATSAPP"
+        : undefined;
+    const sourceAgent = (params.get("agent") || "").trim() || undefined;
+    const sourceCampaign =
+      (params.get("campaign") || params.get("utm_campaign") || "").trim() || undefined;
+    const sourceMedium = (params.get("utm_medium") || "").trim() || undefined;
+    setTracking({
+      sourceRaw: srcRaw || undefined,
+      sourceChannel,
+      sourceAgent,
+      sourceCampaign,
+      sourceMedium,
+      sourceLanding: window.location.pathname + window.location.search,
+    });
+  }, []);
 
   const selectedDoc = useMemo(
     () => DOC_OPTIONS.find((doc) => doc.id === selectedDocId) || DOC_OPTIONS[0],
@@ -312,7 +344,10 @@ export default function FrenchOfferPanel() {
   const previewPrice = estimatePrice(selectedDoc, pages, words);
   const previewDetail = estimateDetail(selectedDoc, pages, words);
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
-  const allPayDirect = cart.length > 0 && cart.every((item) => item.payDirect);
+  const hasMixedPricing =
+    cart.some((item) => item.pricingModel === "per-word") &&
+    cart.some((item) => item.pricingModel !== "per-word");
+  const allPayDirect = cart.length > 0 && cart.every((item) => item.payDirect) && !hasMixedPricing;
   const botContext = useMemo(() => {
     if (selectedDoc.pricing === "fixed") {
       return `Para "${selectedDoc.label}" tienes precio cerrado y puedes pagar al instante.`;
@@ -348,6 +383,7 @@ export default function FrenchOfferPanel() {
       detail: previewDetail,
       samplePdf: selectedDoc.samplePdf,
       payDirect: selectedDoc.payDirect,
+      pricingModel: selectedDoc.pricing,
     };
     setCart((prev) => [...prev, item]);
     setStep(2);
@@ -371,6 +407,7 @@ export default function FrenchOfferPanel() {
       detail: `${words} palabras x ${money(WORD_PRICE_FR)} + 10% margen.`,
       samplePdf: "",
       payDirect: true,
+      pricingModel: "per-word",
     };
     setCart((prev) => [...prev, item]);
     setStep(2);
@@ -428,11 +465,11 @@ export default function FrenchOfferPanel() {
   };
 
   const payNow = async () => {
-    if (!allPayDirect) return;
     setCheckoutLoading(true);
     setError(null);
     try {
       const labels = cart.map((item) => item.label).join(" + ").slice(0, 110);
+      const containsWordCountItem = cart.some((item) => item.pricingModel === "per-word");
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -443,6 +480,18 @@ export default function FrenchOfferPanel() {
           source: "preset",
           langPair: direction,
           pagesLabel: `${cart.length} documento(s)`,
+          hasMixedCart: hasMixedPricing,
+          containsWordCountItem,
+          reviewRequired: hasMixedPricing,
+          reviewReason: hasMixedPricing
+            ? "Carrito mixto (prefijado + por palabras) requiere validacion interna previa."
+            : undefined,
+          urgencyNotes: urgencyNotes.trim() || undefined,
+          sourceChannel: tracking.sourceChannel,
+          sourceAgent: tracking.sourceAgent,
+          sourceCampaign: tracking.sourceCampaign,
+          sourceMedium: tracking.sourceMedium,
+          sourceLanding: tracking.sourceLanding,
         }),
       });
       const data = await res.json();
@@ -453,7 +502,12 @@ export default function FrenchOfferPanel() {
         }
         throw new Error(data?.error || "No se pudo crear el pedido.");
       }
-      window.location.assign(`/area-cliente/pedido/${data.order.reference}/pagar`);
+      const params = new URLSearchParams();
+      if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
+      if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
+      const qs = params.toString();
+      const paymentUrl = `/area-cliente/pedido/${data.order.reference}/pagar${qs ? `?${qs}` : ""}`;
+      window.location.assign(paymentUrl);
     } catch (err: any) {
       setError(err?.message || "No se pudo crear el pedido.");
     } finally {
@@ -840,6 +894,20 @@ export default function FrenchOfferPanel() {
             Pedido preparado en dirección <span className="font-semibold">{direction === "fr-es" ? "Frances a Espanol" : "Espanol a Frances"}</span>.
           </p>
           <p className="mt-1 text-xl font-bold text-emerald-700">{money(cartTotal)}</p>
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Observaciones urgencia
+            </label>
+            <textarea
+              value={urgencyNotes}
+              onChange={(e) => setUrgencyNotes(e.target.value)}
+              placeholder="Ejemplo: necesito entrega antes del viernes por cita administrativa."
+              className="mt-2 h-20 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              En francés estándar (rama A) el ETA base es de 2 días laborables sin contar el día del pago.
+            </p>
+          </div>
 
           {allPayDirect ? (
             <button
@@ -851,12 +919,14 @@ export default function FrenchOfferPanel() {
               {checkoutLoading ? "Redirigiendo al pago..." : "Pagar y confirmar pedido"}
             </button>
           ) : (
-            <Link
-              href="/presupuesto"
-              className="mt-3 inline-flex rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            <button
+              type="button"
+              onClick={payNow}
+              disabled={checkoutLoading || cart.length === 0}
+              className="mt-3 rounded-2xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
             >
-              Solicitar presupuesto confirmado
-            </Link>
+              {checkoutLoading ? "Enviando..." : "Enviar a revisión interna"}
+            </button>
           )}
 
           <div className="mt-3 flex flex-wrap gap-3 text-sm">

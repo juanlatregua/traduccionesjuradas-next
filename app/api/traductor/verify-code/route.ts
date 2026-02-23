@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
 import {
   createVerifiedOtpToken,
@@ -16,15 +14,17 @@ type VerifyBody = {
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const session = await getServerSession(authOptions);
-  const email = session?.user?.email || null;
-
-  if (!isStaffEmail(email)) {
-    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
-  }
+  const pendingCookie = req.headers
+    .get("cookie")
+    ?.split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${STAFF_OTP_PENDING_COOKIE}=`))
+    ?.split("=")[1];
+  const pending = readPendingOtpToken(pendingCookie);
+  const pendingEmail = pending?.email || "unknown";
 
   const rl = checkRateLimit({
-    key: `staff:verify-code:${email}:${ip}`,
+    key: `staff:verify-code:${pendingEmail}:${ip}`,
     limit: 12,
     windowMs: 10 * 60 * 1000,
   });
@@ -41,15 +41,6 @@ export async function POST(req: Request) {
     if (!code) {
       return NextResponse.json({ ok: false, error: "Codigo requerido." }, { status: 400 });
     }
-
-    const pendingCookie = req.headers
-      .get("cookie")
-      ?.split(";")
-      .map((item) => item.trim())
-      .find((item) => item.startsWith(`${STAFF_OTP_PENDING_COOKIE}=`))
-      ?.split("=")[1];
-
-    const pending = readPendingOtpToken(pendingCookie);
     if (!pending) {
       return NextResponse.json(
         { ok: false, error: "No hay codigo pendiente. Solicita uno nuevo." },
@@ -59,14 +50,14 @@ export async function POST(req: Request) {
     if (pending.exp < Date.now()) {
       return NextResponse.json({ ok: false, error: "Codigo caducado." }, { status: 400 });
     }
-    if (pending.email !== email?.trim().toLowerCase()) {
-      return NextResponse.json({ ok: false, error: "Codigo no valido para esta cuenta." }, { status: 400 });
+    if (!isStaffEmail(pending.email)) {
+      return NextResponse.json({ ok: false, error: "Correo no autorizado." }, { status: 403 });
     }
     if (pending.code !== code) {
       return NextResponse.json({ ok: false, error: "Codigo incorrecto." }, { status: 400 });
     }
 
-    const verifiedToken = createVerifiedOtpToken(email!, 8 * 60 * 60 * 1000);
+    const verifiedToken = createVerifiedOtpToken(pending.email, 8 * 60 * 60 * 1000);
     const response = NextResponse.json({ ok: true });
     response.cookies.set({
       name: STAFF_OTP_VERIFIED_COOKIE,

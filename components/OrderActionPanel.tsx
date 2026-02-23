@@ -4,6 +4,12 @@ import { useState } from "react";
 import AssignOrderForm from "./AssignOrderForm";
 import TranslatorDeliveryForm from "./TranslatorDeliveryForm";
 import TranslatorNotifyForm from "./TranslatorNotifyForm";
+import OrderFinancePanel from "./OrderFinancePanel";
+import OrderWorkflowPanel from "./OrderWorkflowPanel";
+import OrderDocumentsPanel from "./OrderDocumentsPanel";
+import OrderLifecyclePanel from "./OrderLifecyclePanel";
+import type { FinanceSnapshot } from "@/lib/finance";
+import { getWorkflowStateLabel } from "@/lib/workflow";
 
 type Props = {
   reference: string;
@@ -12,6 +18,9 @@ type Props = {
   langPair: string | null;
   paymentStatus: string;
   deliveryState: string;
+  workflowState: string;
+  isArchived: boolean;
+  acquisitionSource: "WHATSAPP" | "WEB";
   assignedTo: string | null;
   dueDate: string | null;
   amountCents: number;
@@ -20,6 +29,23 @@ type Props = {
     fileName: string;
     uploadedAt?: string;
   }>;
+  documents: Array<{
+    name: string;
+    type: string;
+    size: number;
+    url?: string;
+    uploadedAt?: string;
+  }>;
+  quoteDraft?: {
+    lines: Array<{
+      documentName: string;
+      amountCents: number;
+      notes?: string | null;
+    }>;
+    totalCents: number | null;
+    updatedAt?: string | null;
+  } | null;
+  financeSnapshot: FinanceSnapshot;
 };
 
 function PaymentBadge({ status }: { status: string }) {
@@ -58,19 +84,29 @@ export default function OrderActionPanel({
   langPair,
   paymentStatus,
   deliveryState,
+  workflowState,
+  isArchived,
+  acquisitionSource,
   assignedTo,
   dueDate,
   amountCents,
   paymentProofs,
+  documents,
+  quoteDraft,
+  financeSnapshot,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"comprobante" | "asignar" | "entrega" | "notificar">("comprobante");
+  const [tab, setTab] = useState<"documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas" | "control">("documentos");
 
   const tabs = [
+    { key: "documentos" as const, label: "Documentos", color: "text-teal-300" },
     { key: "comprobante" as const, label: "Comprobante", color: "text-cyan-300" },
+    { key: "workflow" as const, label: "Workflow", color: "text-indigo-300" },
     { key: "asignar" as const, label: "Asignar", color: "text-amber-300" },
     { key: "entrega" as const, label: "Entrega", color: "text-emerald-300" },
     { key: "notificar" as const, label: "Notificar", color: "text-violet-300" },
+    { key: "finanzas" as const, label: "Finanzas", color: "text-lime-300" },
+    { key: "control" as const, label: "Control", color: "text-rose-300" },
   ];
 
   return (
@@ -111,7 +147,27 @@ export default function OrderActionPanel({
           <div className="flex flex-wrap gap-4 border-b border-slate-700/50 bg-slate-800/30 px-5 py-3 text-xs text-slate-400">
             <span>Cliente: <span className="text-slate-200">{clientEmail}</span></span>
             <span>Importe: <span className="text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span></span>
+            <span>Workflow: <span className="text-slate-200">{getWorkflowStateLabel(workflowState)}</span></span>
+            <span>Canal: <span className="text-slate-200">{acquisitionSource === "WHATSAPP" ? "WhatsApp" : "Web"}</span></span>
             <span>Comprobante: <span className="text-slate-200">{paymentProofs.length > 0 ? "Subido" : "No subido"}</span></span>
+            <span>
+              Conciliación:{" "}
+              <span className={financeSnapshot.reconciliationStatus === "MATCHED" ? "text-emerald-300" : "text-amber-300"}>
+                {financeSnapshot.reconciliationStatus}
+              </span>
+            </span>
+            <span>
+              Factura proveedor:{" "}
+              <span className={financeSnapshot.supplierInvoiceStatus === "PAID" || financeSnapshot.supplierInvoiceStatus === "VALIDATED" ? "text-emerald-300" : "text-amber-300"}>
+                {financeSnapshot.supplierInvoiceStatus}
+              </span>
+            </span>
+            <span>
+              Margen:{" "}
+              <span className={financeSnapshot.marginCents !== null && financeSnapshot.marginCents < 0 ? "text-red-300 font-semibold" : "text-slate-200"}>
+                {financeSnapshot.marginCents === null ? "—" : `${(financeSnapshot.marginCents / 100).toFixed(2)} EUR`}
+              </span>
+            </span>
             {dueDate && (
               <span>
                 Entrega:{" "}
@@ -142,6 +198,15 @@ export default function OrderActionPanel({
 
           {/* Tab content */}
           <div className="p-5">
+            {tab === "documentos" && (
+              <OrderDocumentsPanel
+                reference={reference}
+                workflowState={workflowState}
+                amountCents={amountCents}
+                documents={documents}
+                quoteDraft={quoteDraft || null}
+              />
+            )}
             {tab === "comprobante" && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">
@@ -171,6 +236,9 @@ export default function OrderActionPanel({
                 )}
               </div>
             )}
+            {tab === "workflow" && (
+              <OrderWorkflowPanel reference={reference} currentState={workflowState} />
+            )}
             {tab === "asignar" && (
               <AssignOrderForm
                 reference={reference}
@@ -180,7 +248,21 @@ export default function OrderActionPanel({
             )}
             {tab === "entrega" && <TranslatorDeliveryForm reference={reference} />}
             {tab === "notificar" && (
-              <TranslatorNotifyForm reference={reference} defaultClientEmail={clientEmail} />
+              <TranslatorNotifyForm
+                reference={reference}
+                defaultClientEmail={clientEmail}
+                acquisitionSource={acquisitionSource}
+              />
+            )}
+            {tab === "finanzas" && (
+              <OrderFinancePanel
+                reference={reference}
+                amountCents={amountCents}
+                snapshot={financeSnapshot}
+              />
+            )}
+            {tab === "control" && (
+              <OrderLifecyclePanel reference={reference} isArchived={isArchived} />
             )}
           </div>
         </div>

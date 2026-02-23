@@ -77,6 +77,13 @@ export function isVerifiedOtpTokenValid(value: string | undefined, email: string
   return payload.email === email.trim().toLowerCase();
 }
 
+export function readVerifiedOtpToken(value?: string | null) {
+  const payload = decodeSignedPayload<VerifiedPayload>(value);
+  if (!payload) return null;
+  if (payload.exp < Date.now()) return null;
+  return payload;
+}
+
 export function generateOtpCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }

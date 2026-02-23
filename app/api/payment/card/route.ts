@@ -3,15 +3,12 @@ import { getOrderPublic } from "@/lib/orders";
 import { createCheckoutSession } from "@/lib/stripe";
 import { buildRedsysFormData } from "@/lib/redsys";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getWorkflowState } from "@/lib/workflow";
+import { resolveCardProvider } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
 
 type Body = { reference?: string };
-
-function getCardProvider() {
-  const provider = (process.env.CARD_PROVIDER || "stripe").trim().toLowerCase();
-  return provider === "redsys" ? "redsys" : "stripe";
-}
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
@@ -41,8 +38,25 @@ export async function POST(req: Request) {
     if (order.paymentStatus === "PAID") {
       return NextResponse.json({ ok: false, error: "Este pedido ya esta pagado." }, { status: 400 });
     }
+    const workflowState = getWorkflowState(order);
+    if (!["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(workflowState)) {
+      return NextResponse.json(
+        { ok: false, error: "Este pedido aun no esta habilitado para pago." },
+        { status: 400 }
+      );
+    }
 
-    const provider = getCardProvider();
+    const provider = resolveCardProvider();
+    if (!provider) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Pago con tarjeta no disponible ahora. Falta configurar Stripe o Redsys en este entorno.",
+        },
+        { status: 503 }
+      );
+    }
 
     if (provider === "stripe") {
       const session = await createCheckoutSession({

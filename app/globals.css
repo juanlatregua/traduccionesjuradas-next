@@ -5,3 +5,41 @@
 body {
   @apply bg-slate-50 text-slate-900;
 }
+
+#zona-traductor-root.zona-theme-light {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 55%, #e2e8f0 100%);
+  color: #0f172a;
+}
+
+#zona-traductor-root.zona-theme-light [class*="bg-slate-950"],
+#zona-traductor-root.zona-theme-light [class*="bg-slate-900"],
+#zona-traductor-root.zona-theme-light [class*="bg-slate-800"],
+#zona-traductor-root.zona-theme-light [class*="bg-slate-700"] {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
+
+#zona-traductor-root.zona-theme-light [class*="text-white"] {
+  color: #0f172a !important;
+}
+
+#zona-traductor-root.zona-theme-light [class*="text-slate-4"],
+#zona-traductor-root.zona-theme-light [class*="text-slate-5"],
+#zona-traductor-root.zona-theme-light [class*="text-slate-6"] {
+  color: #475569 !important;
+}
+
+#zona-traductor-root.zona-theme-light [class*="text-slate-1"],
+#zona-traductor-root.zona-theme-light [class*="text-slate-2"],
+#zona-traductor-root.zona-theme-light [class*="text-slate-3"] {
+  color: #0f172a !important;
+}
+
+#zona-traductor-root.zona-theme-light [class*="border-slate-7"],
+#zona-traductor-root.zona-theme-light [class*="border-slate-6"],
+#zona-traductor-root.zona-theme-light [class*="border-slate-5"] {
+  border-color: #cbd5e1 !important;
+}
+
+#zona-traductor-root.zona-theme-light table thead {
+  background-color: #e2e8f0 !important;
+}

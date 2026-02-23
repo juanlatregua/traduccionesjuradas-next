@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail } from "@/lib/email";
-import { addBusinessDays, formatEta, getHolidaySetFromEnv, suggestEtaBusinessDays } from "@/lib/eta";
+import {
+  addBusinessDays,
+  formatEta,
+  getHolidaySetFromEnv,
+  getMadridBusinessBaseDate,
+  suggestEtaBusinessDays,
+} from "@/lib/eta";
+import { transitionWorkflowState } from "@/lib/workflow-server";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -19,10 +24,11 @@ type DeliveryBody = {
 };
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isStaffEmail(session.user.email)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   try {
     const order = await getOrderDetail(params.reference);
@@ -61,11 +67,21 @@ export async function POST(req: Request, { params }: Params) {
       }
 
       if (etaDateRaw) {
-        const parsed = new Date(etaDateRaw);
-        if (isNaN(parsed.getTime())) {
+        const parts = etaDateRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!parts) {
           return NextResponse.json({ ok: false, error: "Fecha ETA no valida." }, { status: 400 });
         }
-        parsed.setHours(12, 0, 0, 0);
+        const year = Number(parts[1]);
+        const month = Number(parts[2]);
+        const day = Number(parts[3]);
+        const parsed = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+        if (
+          parsed.getUTCFullYear() !== year ||
+          parsed.getUTCMonth() !== month - 1 ||
+          parsed.getUTCDate() !== day
+        ) {
+          return NextResponse.json({ ok: false, error: "Fecha ETA no valida." }, { status: 400 });
+        }
         etaDate = parsed;
       } else if (body.autoEta !== false) {
         const businessDays = suggestEtaBusinessDays({
@@ -73,12 +89,32 @@ export async function POST(req: Request, { params }: Params) {
           pagesLabel: order.pagesLabel,
           langPair: order.langPair,
         });
-        etaDate = addBusinessDays(new Date(), businessDays, getHolidaySetFromEnv());
+        etaDate = addBusinessDays(getMadridBusinessBaseDate(), businessDays, getHolidaySetFromEnv());
       }
 
       if (etaDate) {
         etaMessage = ` ETA: ${formatEta(etaDate)}.`;
       }
+    }
+
+    const nextWorkflowState = state === "TRADUCIDO" ? "TRADUCIDO_ENTREGADO" : "EN_TRADUCCION";
+    try {
+      await transitionWorkflowState({
+        reference: order.reference,
+        to: nextWorkflowState,
+        actorEmail,
+        reason: state === "TRADUCIDO" ? "Entrega final completada." : "Inicio de traduccion.",
+      });
+    } catch (transitionErr: any) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            transitionErr?.message ||
+            "No se pudo actualizar el workflow para la entrega.",
+        },
+        { status: 400 }
+      );
     }
 
     await updateDeliveryState(order.reference, state, {

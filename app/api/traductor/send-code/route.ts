@@ -6,17 +6,33 @@ import { sendStaffOtpEmail } from "@/lib/email";
 import { createPendingOtpToken, generateOtpCode, STAFF_OTP_PENDING_COOKIE } from "@/lib/staff-otp";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
+type Body = {
+  email?: string;
+};
+
 export async function POST(req: Request) {
   const ip = getClientIp(req);
   const session = await getServerSession(authOptions);
-  const email = session?.user?.email || null;
+  let body: Body = {};
+  try {
+    body = (await req.json()) as Body;
+  } catch {
+    body = {};
+  }
 
-  if (!isStaffEmail(email)) {
-    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+  const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
+  const requestedEmail = String(body.email || "").trim().toLowerCase() || null;
+  const targetEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : requestedEmail;
+
+  if (!isStaffEmail(targetEmail)) {
+    return NextResponse.json(
+      { ok: false, error: "Correo no autorizado para zona traductor." },
+      { status: 403 }
+    );
   }
 
   const rl = checkRateLimit({
-    key: `staff:send-code:${email}:${ip}`,
+    key: `staff:send-code:${targetEmail}:${ip}`,
     limit: 6,
     windowMs: 10 * 60 * 1000,
   });
@@ -29,8 +45,8 @@ export async function POST(req: Request) {
 
   try {
     const code = generateOtpCode();
-    const pendingToken = createPendingOtpToken(email!, code, 10 * 60 * 1000);
-    await sendStaffOtpEmail({ toEmail: email!, code });
+    const pendingToken = createPendingOtpToken(targetEmail!, code, 10 * 60 * 1000);
+    await sendStaffOtpEmail({ toEmail: targetEmail!, code });
 
     const response = NextResponse.json({ ok: true });
     response.cookies.set({

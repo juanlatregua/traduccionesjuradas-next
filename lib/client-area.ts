@@ -16,3 +16,18 @@ export function getDeliveryStateLabel(state: string) {
 export function getDeliveryTypeLabel(type: string) {
   return type === "envio" ? "Envio fisico" : "PDF firmado";
 }
+
+export function getWorkflowStateLabel(state?: string | null) {
+  const map: Record<string, string> = {
+    BORRADOR: "Borrador",
+    PENDIENTE_REVISION: "Pendiente de revisión interna",
+    PRESUPUESTO_ENVIADO: "Presupuesto enviado",
+    PENDIENTE_PAGO: "Pendiente de pago",
+    JUSTIFICANTE_SUBIDO: "Justificante subido",
+    PAGO_VALIDADO: "Pago validado",
+    EN_TRADUCCION: "En traducción",
+    TRADUCIDO_ENTREGADO: "Traducido y entregado",
+    CERRADO: "Cerrado",
+  };
+  return map[String(state || "")] || "Pendiente de pago";
+}

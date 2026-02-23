@@ -20,7 +20,7 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50 text-slate-900">
       {/* HERO */}
       <section className="relative overflow-hidden border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 lg:flex-row lg:items-center lg:py-20">
+        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:py-14 lg:flex-row lg:items-center lg:py-20">
           <div className="flex-1 space-y-6">
             <p className="inline rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
               Traducción jurada oficial · Rápido y online
@@ -33,6 +33,20 @@ export default function Home() {
               Flujo simple para cliente: elige idioma, adjunta PDF/foto, obtén estimación y confirma el pago.
               Traductores jurados reales y entrega en PDF firmado.
             </p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <Link href="/traductor-jurado-frances" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
+                Francés
+              </Link>
+              <Link href="/traductor-jurado-ingles" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
+                Inglés
+              </Link>
+              <Link href="/traductor-jurado-aleman" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
+                Alemán
+              </Link>
+              <Link href="/traductores-jurados" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-emerald-700">
+                Ver todos
+              </Link>
+            </div>
 
             {/* CTA principal */}
             <div className="flex flex-wrap items-center gap-3">
@@ -81,7 +95,7 @@ export default function Home() {
           </div>
 
           {/* Box de proceso 3 pasos */}
-          <div className="flex-1">
+          <div className="hidden flex-1 lg:block">
             <div className="rounded-3xl border border-slate-200 bg-slate-900/95 p-6 text-slate-100 shadow-xl lg:ml-8">
               <h2 className="mb-4 text-lg font-semibold">
                 Tu traducción jurada en 3 pasos

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
 import { confirmManualPayment, getOrderDetail } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
+import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { prisma } from "@/lib/prisma";
+import { getWorkflowState } from "@/lib/workflow";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -14,16 +15,63 @@ type ConfirmBody = {
 };
 
 export async function POST(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isStaffEmail(session.user.email)) {
-    return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actorEmail = staff.email;
 
   try {
     const body = (await req.json()) as ConfirmBody;
     const method = body.method === "TRANSFER" ? "TRANSFER" : "BIZUM";
+    const orderBefore = await prisma.order.findUnique({
+      where: { reference: params.reference },
+      select: {
+        paymentStatus: true,
+        deliveryState: true,
+        events: {
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: {
+            type: true,
+            payload: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+    if (!orderBefore) {
+      return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
+    }
 
-    await confirmManualPayment(params.reference, method);
+    const workflowState = getWorkflowState(orderBefore);
+    if (!["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(workflowState)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "No se puede validar pago en este estado operativo.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const paymentUpdate = await confirmManualPayment(params.reference, method);
+    if (!paymentUpdate.changed) {
+      return NextResponse.json({ ok: true, alreadyPaid: true });
+    }
+
+    await transitionWorkflowState({
+      reference: params.reference,
+      to: "PAGO_VALIDADO",
+      actorEmail,
+      reason: `Pago manual validado (${method}).`,
+    });
+    await assignDefaultFrenchEtaIfNeeded({
+      reference: params.reference,
+      actorEmail,
+    }).catch((err) => {
+      console.error("[confirm-payment] default FR ETA assignment failed", err);
+    });
 
     // Notify client (non-blocking)
     const order = await getOrderDetail(params.reference);

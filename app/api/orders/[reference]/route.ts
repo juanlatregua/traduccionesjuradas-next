@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOrderDetail, saveShippingData, saveBillingData } from "@/lib/orders";
+import { getWorkflowState } from "@/lib/workflow";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,8 @@ export async function GET(_req: Request, { params }: Params) {
     if (!order) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
-    return NextResponse.json({ ok: true, order });
+    const workflowState = getWorkflowState(order);
+    return NextResponse.json({ ok: true, order: { ...order, workflowState } });
   } catch (err) {
     console.error("[orders] error fetching order", err);
     return NextResponse.json({ ok: false, error: "Error al consultar pedido." }, { status: 500 });
@@ -67,7 +69,10 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     if (body.billing) {
-      await saveBillingData(order.id, body.billing);
+      await saveBillingData(order.id, {
+        ...body.billing,
+        requested: Boolean(order.billing?.requested),
+      });
     }
 
     return NextResponse.json({ ok: true });

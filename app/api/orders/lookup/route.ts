@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrderLookupByReferenceAndEmail } from "@/lib/orders";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getWorkflowState } from "@/lib/workflow";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "No se ha encontrado el pedido." }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, order });
+    const workflowState = getWorkflowState(order);
+    return NextResponse.json({ ok: true, order: { ...order, workflowState } });
   } catch (err) {
     console.error("[orders/lookup] error", err);
     return NextResponse.json({ ok: false, error: "Error al consultar pedido." }, { status: 500 });

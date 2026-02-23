@@ -152,6 +152,7 @@ export default function PriceEstimator() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showGuestEmail, setShowGuestEmail] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
+  const [urgencyNotes, setUrgencyNotes] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const [presetLangPair, setPresetLangPair] = useState<LangPairOption>("");
@@ -163,6 +164,36 @@ export default function PriceEstimator() {
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [manualWords, setManualWords] = useState<number>(300);
   const [manualText, setManualText] = useState("");
+  const [tracking, setTracking] = useState<{
+    sourceRaw?: string;
+    sourceChannel?: string;
+    sourceAgent?: string;
+    sourceCampaign?: string;
+    sourceMedium?: string;
+    sourceLanding?: string;
+  }>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const srcRaw = (params.get("src") || params.get("utm_source") || "").trim().toLowerCase();
+    const sourceChannel =
+      srcRaw === "wa" || srcRaw === "whatsapp" || srcRaw.startsWith("whatsapp")
+        ? "WHATSAPP"
+        : undefined;
+    const sourceAgent = (params.get("agent") || "").trim() || undefined;
+    const sourceCampaign =
+      (params.get("campaign") || params.get("utm_campaign") || "").trim() || undefined;
+    const sourceMedium = (params.get("utm_medium") || "").trim() || undefined;
+    setTracking({
+      sourceRaw: srcRaw || undefined,
+      sourceChannel,
+      sourceAgent,
+      sourceCampaign,
+      sourceMedium,
+      sourceLanding: window.location.pathname + window.location.search,
+    });
+  }, []);
 
   const filteredPresets = useMemo(
     () =>
@@ -305,6 +336,10 @@ export default function PriceEstimator() {
     const activeLangPair = payResult
       ? (payResult.source === "preset" ? presetLangPair : fileLangPair)
       : (cart.length === 1 ? cart[0].langPair : undefined);
+    const hasMixedCart = hasCart && new Set(cart.map((item) => item.source)).size > 1;
+    const containsWordCountItem = hasCart
+      ? cart.some((item) => item.source === "file" || typeof item.words === "number")
+      : payResult?.source === "file" || typeof payResult?.words === "number";
 
     // Build title
     const title = hasCart
@@ -325,6 +360,14 @@ export default function PriceEstimator() {
         pagesLabel: hasCart
           ? cart.map((c) => c.pagesLabel).filter(Boolean).join(", ") || undefined
           : payResult?.presetPagesLabel,
+        hasMixedCart,
+        containsWordCountItem,
+        urgencyNotes: urgencyNotes.trim() || undefined,
+        sourceChannel: tracking.sourceChannel,
+        sourceAgent: tracking.sourceAgent,
+        sourceCampaign: tracking.sourceCampaign,
+        sourceMedium: tracking.sourceMedium,
+        sourceLanding: tracking.sourceLanding,
       };
       if (emailOverride) {
         payload.guestEmail = emailOverride;
@@ -344,7 +387,12 @@ export default function PriceEstimator() {
         }
         throw new Error(data?.error || "No se pudo crear el pedido.");
       }
-      window.location.assign(`/area-cliente/pedido/${data.order.reference}/pagar`);
+      const params = new URLSearchParams();
+      if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
+      if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
+      const qs = params.toString();
+      const paymentUrl = `/area-cliente/pedido/${data.order.reference}/pagar${qs ? `?${qs}` : ""}`;
+      window.location.assign(paymentUrl);
     } catch (error: any) {
       setMessage(error?.message || "No se pudo iniciar el pago.");
     } finally {
@@ -616,7 +664,7 @@ export default function PriceEstimator() {
             </p>
           </>
         )}
-        {showGuestEmail && result && (
+        {showGuestEmail && (result || cart.length > 0) && (
           <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
             <p className="text-sm font-semibold text-blue-900">
               Introduce tu email para recibir la confirmación y el enlace de pago:
@@ -686,6 +734,17 @@ export default function PriceEstimator() {
             Ver dudas frecuentes
           </Link>
         </div>
+      </div>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+          Observaciones de urgencia (opcional)
+        </label>
+        <textarea
+          value={urgencyNotes}
+          onChange={(e) => setUrgencyNotes(e.target.value)}
+          className="mt-2 h-20 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          placeholder="Ejemplo: necesito entrega para cita el jueves por la mañana."
+        />
       </div>
       {/* Cart summary */}
       {cart.length > 0 && (
