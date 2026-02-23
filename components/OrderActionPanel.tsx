@@ -45,6 +45,24 @@ type Props = {
     totalCents: number | null;
     updatedAt?: string | null;
   } | null;
+  quoteAuditTrail?: Array<{
+    type: string;
+    message: string;
+    createdAt: string | null;
+    actorEmail?: string | null;
+    toEmail?: string | null;
+    paymentUrl?: string | null;
+    subject?: string | null;
+    error?: string | null;
+    provider?: string | null;
+    providerMessageId?: string | null;
+    totalCents?: number | null;
+    lines?: Array<{
+      documentName: string;
+      amountCents: number;
+      notes?: string | null;
+    }>;
+  }>;
   financeSnapshot: FinanceSnapshot;
 };
 
@@ -93,6 +111,7 @@ export default function OrderActionPanel({
   paymentProofs,
   documents,
   quoteDraft,
+  quoteAuditTrail,
   financeSnapshot,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -205,6 +224,7 @@ export default function OrderActionPanel({
                 amountCents={amountCents}
                 documents={documents}
                 quoteDraft={quoteDraft || null}
+                quoteAuditTrail={quoteAuditTrail || []}
               />
             )}
             {tab === "comprobante" && (

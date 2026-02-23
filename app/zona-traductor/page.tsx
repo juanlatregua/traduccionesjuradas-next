@@ -195,6 +195,47 @@ function getQuoteDraft(order: any) {
   };
 }
 
+function getQuoteAuditTrail(order: any) {
+  const auditTypes = new Set([
+    "quote.documents.updated",
+    "quote.sent_to_client",
+    "quote.send_failed",
+    "order.payment_link_sent",
+    "order.payment_link_send_failed",
+  ]);
+
+  return (order.events || [])
+    .filter((e: any) => auditTypes.has(e.type))
+    .slice(0, 12)
+    .map((event: any) => {
+      const payload = (event.payload as any) || {};
+      const rawLines = Array.isArray(payload.lines) ? payload.lines : [];
+      const lines = rawLines
+        .map((line: any) => ({
+          documentName: String(line?.documentName || "").trim(),
+          amountCents: Math.max(0, Math.round(Number(line?.amountCents || 0))),
+          notes: line?.notes ? String(line.notes) : null,
+        }))
+        .filter((line: any) => !!line.documentName);
+
+      const totalRaw = Number(payload.totalCents);
+      return {
+        type: String(event.type || ""),
+        message: String(event.message || ""),
+        createdAt: event.createdAt?.toISOString?.() || null,
+        actorEmail: payload.actorEmail ? String(payload.actorEmail) : null,
+        toEmail: payload.toEmail ? String(payload.toEmail) : null,
+        paymentUrl: payload.paymentUrl ? String(payload.paymentUrl) : null,
+        subject: payload.subject ? String(payload.subject) : null,
+        error: payload.error ? String(payload.error) : null,
+        provider: payload.provider ? String(payload.provider) : null,
+        providerMessageId: payload.providerMessageId ? String(payload.providerMessageId) : null,
+        totalCents: Number.isFinite(totalRaw) ? Math.round(totalRaw) : null,
+        lines,
+      };
+    });
+}
+
 function hasFinancialRisk(order: any) {
   return !order.financeSnapshot.isFinanciallyCloseable || order.financeSnapshot.reconciliationStatus === "MISMATCH";
 }
@@ -671,6 +712,7 @@ export default async function ZonaTraductorPage({
               paymentProofs={getPaymentProofs(order)}
               documents={getSubmittedDocuments(order)}
               quoteDraft={getQuoteDraft(order)}
+              quoteAuditTrail={getQuoteAuditTrail(order)}
               isArchived={Boolean(order.isArchived)}
               financeSnapshot={order.financeSnapshot}
             />

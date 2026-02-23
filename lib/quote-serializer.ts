@@ -1,0 +1,58 @@
+import { decimalToNumber } from "@/lib/quotes";
+
+function serializeLine(line: any) {
+  return {
+    id: line.id,
+    description: line.description,
+    quantity: decimalToNumber(line.quantity),
+    unitPrice: decimalToNumber(line.unitPrice),
+    lineTotal: decimalToNumber(line.lineTotal),
+  };
+}
+
+export function serializeQuote(quote: any) {
+  if (!quote) return null;
+  return {
+    id: quote.id,
+    quoteNumber: quote.quoteNumber,
+    status: quote.status,
+    customerId: quote.customerId,
+    customerName: quote.customerName,
+    customerEmail: quote.customerEmail,
+    customerPhone: quote.customerPhone,
+    sourceLang: quote.sourceLang,
+    targetLang: quote.targetLang,
+    deliveryType: quote.deliveryType,
+    shippingBase: decimalToNumber(quote.shippingBase),
+    vatRate: decimalToNumber(quote.vatRate),
+    currency: quote.currency,
+    discountType: quote.discountType,
+    discountValue: decimalToNumber(quote.discountValue),
+    notesLegal: quote.notesLegal,
+    validityDays: quote.validityDays,
+    issuedAt: quote.issuedAt,
+    validUntil: quote.validUntil,
+    sentAt: quote.sentAt,
+    openedAt: quote.openedAt,
+    paidAt: quote.paidAt,
+    deliveredAt: quote.deliveredAt,
+    publicToken: quote.publicToken,
+    tokenExpiresAt: quote.tokenExpiresAt,
+    pdfUrl: quote.pdfUrl,
+    pdfHash: quote.pdfHash,
+    subtotal: decimalToNumber(quote.subtotal),
+    discountAmount: decimalToNumber(quote.discountAmount),
+    shippingAmount: decimalToNumber(quote.shippingAmount),
+    vatAmount: decimalToNumber(quote.vatAmount),
+    total: decimalToNumber(quote.total),
+    adminCreatedBy: quote.adminCreatedBy,
+    adminSentBy: quote.adminSentBy,
+    createdAt: quote.createdAt,
+    updatedAt: quote.updatedAt,
+    lines: Array.isArray(quote.lines) ? quote.lines.map(serializeLine) : [],
+    customer: quote.customer || null,
+    messageLogs: quote.messageLogs || [],
+    payments: quote.payments || [],
+    accessEvents: quote.accessEvents || [],
+  };
+}

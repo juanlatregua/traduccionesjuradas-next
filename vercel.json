@@ -1,3 +1,9 @@
 {
-  "redirects": []
+  "redirects": [],
+  "crons": [
+    {
+      "path": "/api/quotes/reminders",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

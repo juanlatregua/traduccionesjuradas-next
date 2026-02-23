@@ -22,6 +22,21 @@ type QuoteDraft = {
   updatedAt?: string | null;
 };
 
+type QuoteAuditEntry = {
+  type: string;
+  message: string;
+  createdAt: string | null;
+  actorEmail?: string | null;
+  toEmail?: string | null;
+  paymentUrl?: string | null;
+  subject?: string | null;
+  error?: string | null;
+  provider?: string | null;
+  providerMessageId?: string | null;
+  totalCents?: number | null;
+  lines?: QuoteDraftLine[];
+};
+
 type QuoteRow = {
   documentName: string;
   amountEur: string;
@@ -34,6 +49,7 @@ type Props = {
   amountCents: number;
   documents: OrderDocument[];
   quoteDraft?: QuoteDraft | null;
+  quoteAuditTrail?: QuoteAuditEntry[];
 };
 
 function formatSize(bytes: number) {
@@ -47,12 +63,37 @@ function centsToEurInput(cents: number) {
   return (cents / 100).toFixed(2);
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return value;
+  return date.toLocaleString("es-ES");
+}
+
+function getAuditEntryLabel(type: string) {
+  if (type === "quote.sent_to_client") return "Presupuesto enviado";
+  if (type === "quote.send_failed") return "Error enviando presupuesto";
+  if (type === "order.payment_link_sent") return "Enlace de pago enviado";
+  if (type === "order.payment_link_send_failed") return "Error enviando enlace";
+  if (type === "quote.documents.updated") return "Presupuesto actualizado";
+  return type;
+}
+
+function getAuditEntryClass(type: string) {
+  if (type.endsWith("send_failed")) return "border-red-500/30 bg-red-500/5 text-red-200";
+  if (type === "quote.sent_to_client" || type === "order.payment_link_sent") {
+    return "border-emerald-500/30 bg-emerald-500/5 text-emerald-200";
+  }
+  return "border-slate-600 bg-slate-900/70 text-slate-200";
+}
+
 export default function OrderDocumentsPanel({
   reference,
   workflowState,
   amountCents,
   documents,
   quoteDraft,
+  quoteAuditTrail = [],
 }: Props) {
   const initialRows: QuoteRow[] = useMemo(() => {
     if (quoteDraft?.lines?.length) {
@@ -83,6 +124,7 @@ export default function OrderDocumentsPanel({
   const [resubmissionReason, setResubmissionReason] = useState("");
   const [resubmissionLoading, setResubmissionLoading] = useState(false);
   const [resubmissionMessage, setResubmissionMessage] = useState<string | null>(null);
+  const [auditMessage, setAuditMessage] = useState<string | null>(null);
 
   const totalEur = useMemo(() => {
     return rows.reduce((acc, row) => {
@@ -91,6 +133,12 @@ export default function OrderDocumentsPanel({
       return acc + value;
     }, 0);
   }, [rows]);
+
+  const latestSendEvent = useMemo(() => {
+    return quoteAuditTrail.find((entry) =>
+      ["quote.sent_to_client", "quote.send_failed", "order.payment_link_sent", "order.payment_link_send_failed"].includes(entry.type)
+    );
+  }, [quoteAuditTrail]);
 
   function updateRow(index: number, patch: Partial<QuoteRow>) {
     setRows((prev) => prev.map((row, idx) => (idx === index ? { ...row, ...patch } : row)));
@@ -205,6 +253,16 @@ export default function OrderDocumentsPanel({
       setResubmissionMessage(err?.message || "No se pudo solicitar el reenvio.");
     } finally {
       setResubmissionLoading(false);
+    }
+  }
+
+  async function copyAuditPaymentUrl(url?: string | null) {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setAuditMessage("Enlace de pago copiado.");
+    } catch {
+      setAuditMessage("No se pudo copiar automaticamente.");
     }
   }
 
@@ -373,6 +431,103 @@ export default function OrderDocumentsPanel({
           >
             {loading ? "Enviando..." : "Guardar y enviar presupuesto"}
           </button>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-slate-700 bg-slate-900/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-300">
+            Control de envio al cliente
+          </p>
+          {latestSendEvent ? (
+            <div className="mt-2 rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-200">
+              <p className="font-semibold text-slate-100">
+                Ultimo estado: {getAuditEntryLabel(latestSendEvent.type)}
+              </p>
+              <p className="mt-1 text-slate-400">
+                {formatDateTime(latestSendEvent.createdAt)} · {latestSendEvent.toEmail || "Sin destinatario"}
+              </p>
+              {latestSendEvent.totalCents !== null && latestSendEvent.totalCents !== undefined && (
+                <p className="mt-1 text-slate-300">
+                  Total enviado: {(latestSendEvent.totalCents / 100).toFixed(2)} EUR
+                </p>
+              )}
+              {latestSendEvent.paymentUrl && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a
+                    href={latestSendEvent.paymentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                  >
+                    Abrir enlace pago enviado
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => copyAuditPaymentUrl(latestSendEvent.paymentUrl)}
+                    className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                  >
+                    Copiar enlace
+                  </button>
+                </div>
+              )}
+              {latestSendEvent.providerMessageId && (
+                <p className="mt-2 text-[11px] text-slate-500">
+                  ID proveedor: {latestSendEvent.providerMessageId}
+                </p>
+              )}
+              {latestSendEvent.error && (
+                <p className="mt-2 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-200">
+                  {latestSendEvent.error}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-slate-400">
+              Aun no hay registro de envio de presupuesto/enlace para este pedido.
+            </p>
+          )}
+
+          {quoteAuditTrail.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {quoteAuditTrail.slice(0, 8).map((entry, idx) => (
+                <li
+                  key={`${entry.type}-${entry.createdAt || idx}-${idx}`}
+                  className={`rounded-lg border px-3 py-2 text-xs ${getAuditEntryClass(entry.type)}`}
+                >
+                  <p className="font-semibold">
+                    {getAuditEntryLabel(entry.type)} · {formatDateTime(entry.createdAt)}
+                  </p>
+                  <p className="mt-0.5 text-slate-300">{entry.message}</p>
+                  <p className="mt-0.5 text-slate-400">
+                    {entry.actorEmail ? `Por ${entry.actorEmail}` : "Actor no registrado"}
+                    {entry.toEmail ? ` · Destino ${entry.toEmail}` : ""}
+                  </p>
+                  {entry.totalCents !== null && entry.totalCents !== undefined && (
+                    <p className="mt-0.5 text-slate-300">Total: {(entry.totalCents / 100).toFixed(2)} EUR</p>
+                  )}
+                  {entry.lines && entry.lines.length > 0 && (
+                    <p className="mt-0.5 text-slate-400">
+                      Lineas:{" "}
+                      {entry.lines
+                        .slice(0, 3)
+                        .map((line) => `${line.documentName} (${(line.amountCents / 100).toFixed(2)} EUR)`)
+                        .join(" · ")}
+                      {entry.lines.length > 3 ? ` · +${entry.lines.length - 3} mas` : ""}
+                    </p>
+                  )}
+                  {entry.subject && <p className="mt-0.5 text-slate-500">Asunto: {entry.subject}</p>}
+                  {entry.providerMessageId && (
+                    <p className="mt-0.5 text-slate-500">ID proveedor: {entry.providerMessageId}</p>
+                  )}
+                  {entry.error && (
+                    <p className="mt-1 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-200">
+                      {entry.error}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {auditMessage && <p className="mt-2 text-xs font-semibold text-slate-200">{auditMessage}</p>}
         </div>
       </div>
 

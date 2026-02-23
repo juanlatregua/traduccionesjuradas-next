@@ -311,7 +311,7 @@ export async function sendOrderCreatedEmail(data: {
   title: string;
   amountCents: number;
   paymentUrl: string;
-}) {
+}): Promise<{ messageId: string | null; subject: string }> {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
 
@@ -353,13 +353,23 @@ Equipo de TraduccionesJuradas.net`;
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
-  await sgMail.send({
+  const sendResponse = (await sgMail.send({
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
     text,
     html,
-  });
+  })) as any;
+
+  const response = Array.isArray(sendResponse) ? sendResponse[0] : sendResponse;
+  const headerValue =
+    response?.headers?.["x-message-id"] ||
+    response?.headers?.["X-Message-Id"] ||
+    response?.headers?.get?.("x-message-id") ||
+    null;
+  const messageId = headerValue ? String(headerValue) : null;
+
+  return { messageId, subject };
 }
 
 export async function sendPaymentConfirmedEmail(data: {

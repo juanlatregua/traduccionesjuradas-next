@@ -192,7 +192,7 @@ export async function POST(req: Request) {
     let emailWarning: string | null = null;
     if (sendEmail) {
       try {
-        await sendOrderCreatedEmail({
+        const emailResult = await sendOrderCreatedEmail({
           toEmail: clientEmail,
           clientName,
           reference: order.reference,
@@ -207,7 +207,12 @@ export async function POST(req: Request) {
             message: "Enlace de pago enviado al cliente por PM.",
             payload: {
               actorEmail,
+              toEmail: clientEmail,
+              subject: emailResult.subject,
               paymentUrl,
+              sentAt: new Date().toISOString(),
+              provider: "sendgrid",
+              providerMessageId: emailResult.messageId,
             },
           },
         });
@@ -220,7 +225,10 @@ export async function POST(req: Request) {
             message: "Fallo el envio del enlace de pago al cliente.",
             payload: {
               actorEmail,
+              toEmail: clientEmail,
               error: String(err?.message || err || "unknown"),
+              paymentUrl,
+              failedAt: new Date().toISOString(),
             },
           },
         });
