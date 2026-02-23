@@ -22,7 +22,9 @@ export async function POST(req: Request) {
 
   const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
   const requestedEmail = String(body.email || "").trim().toLowerCase() || null;
-  const targetEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : requestedEmail;
+  const requestedIsStaff = isStaffEmail(requestedEmail);
+  const sessionIsStaff = isStaffEmail(sessionEmail);
+  const targetEmail = requestedIsStaff ? requestedEmail : sessionIsStaff ? sessionEmail : null;
 
   if (!isStaffEmail(targetEmail)) {
     return NextResponse.json(
@@ -48,7 +50,7 @@ export async function POST(req: Request) {
     const pendingToken = createPendingOtpToken(targetEmail!, code, 10 * 60 * 1000);
     await sendStaffOtpEmail({ toEmail: targetEmail!, code });
 
-    const response = NextResponse.json({ ok: true });
+    const response = NextResponse.json({ ok: true, sentTo: targetEmail });
     response.cookies.set({
       name: STAFF_OTP_PENDING_COOKIE,
       value: pendingToken,

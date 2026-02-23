@@ -28,7 +28,8 @@ export default function StaffOtpGate({ initialEmail = "" }: StaffOtpGateProps) {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo enviar el codigo.");
-      setMessage(`Codigo enviado a ${email.trim().toLowerCase()}.`);
+      const sentTo = String(data?.sentTo || email.trim()).toLowerCase();
+      setMessage(`Codigo enviado a ${sentTo}. Revisa entrada y spam.`);
     } catch (err: any) {
       setMessage(err?.message || "Error al enviar codigo.");
     } finally {
@@ -63,6 +64,9 @@ export default function StaffOtpGate({ initialEmail = "" }: StaffOtpGateProps) {
       </h1>
       <p className="mt-3 text-sm text-slate-700">
         Envia un codigo de 6 digitos a tu correo autorizado y usalo para entrar en zona traductor.
+      </p>
+      <p className="mt-2 text-xs text-slate-500">
+        Si has iniciado sesion con otro correo, indica aqui el correo staff que debe recibir el codigo.
       </p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
