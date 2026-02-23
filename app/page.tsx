@@ -10,15 +10,15 @@ const PriceEstimator = dynamic(() => import("@/components/PriceEstimator"), {
 });
 
 const LANGUAGE_QUICK_LINKS = [
-  { href: "/traductor-jurado-frances", flag: "\u{1F1EB}\u{1F1F7}", label: "Frances", hint: "Ruta rapida" },
-  { href: "/traductor-jurado-ingles", flag: "\u{1F1EC}\u{1F1E7}", label: "Ingles", hint: "Certificados y titulos" },
-  { href: "/traductor-jurado-aleman", flag: "\u{1F1E9}\u{1F1EA}", label: "Aleman", hint: "Academico y juridico" },
-  { href: "/traductor-jurado-neerlandes", flag: "\u{1F1F3}\u{1F1F1}", label: "Neerlandes", hint: "Documentos oficiales" },
-  { href: "/traductor-jurado-italiano", flag: "\u{1F1EE}\u{1F1F9}", label: "Italiano", hint: "Registro civil" },
-  { href: "/traductor-jurado-portugues", flag: "\u{1F1F5}\u{1F1F9}", label: "Portugues", hint: "Laboral y mercantil" },
-  { href: "/traductor-jurado-catalan", flag: "CAT", label: "Catalan", hint: "Tramites locales" },
-  { href: "/traductor-jurado-sueco", flag: "\u{1F1F8}\u{1F1EA}", label: "Sueco", hint: "Nuevos expedientes" },
-  { href: "/traductor-jurado-noruego", flag: "\u{1F1F3}\u{1F1F4}", label: "Noruego", hint: "Nuevos expedientes" },
+  { href: "/traductor-jurado-frances", flag: "\u{1F1EB}\u{1F1F7}", label: "Frances" },
+  { href: "/traductor-jurado-ingles", flag: "\u{1F1EC}\u{1F1E7}", label: "Ingles" },
+  { href: "/traductor-jurado-aleman", flag: "\u{1F1E9}\u{1F1EA}", label: "Aleman" },
+  { href: "/traductor-jurado-neerlandes", flag: "\u{1F1F3}\u{1F1F1}", label: "Neerlandes" },
+  { href: "/traductor-jurado-italiano", flag: "\u{1F1EE}\u{1F1F9}", label: "Italiano" },
+  { href: "/traductor-jurado-portugues", flag: "\u{1F1F5}\u{1F1F9}", label: "Portugues" },
+  { href: "/traductor-jurado-catalan", flag: "CAT", label: "Catalan" },
+  { href: "/traductor-jurado-sueco", flag: "\u{1F1F8}\u{1F1EA}", label: "Sueco" },
+  { href: "/traductor-jurado-noruego", flag: "\u{1F1F3}\u{1F1F4}", label: "Noruego" },
 ];
 
 export const metadata: Metadata = {
@@ -54,19 +54,17 @@ export default function Home() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-xl border px-3 py-2 text-left ${
+                    className={`rounded-xl border px-3 py-3 text-left ${
                       idx === 0
                         ? "border-emerald-300 bg-emerald-50"
                         : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
-                    <p className="text-xs font-semibold text-slate-900">
-                      <span className="mr-1.5 inline-flex min-w-8 justify-center rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">
-                        {item.flag}
-                      </span>
+                    <p className="text-2xl leading-none">{item.flag}</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
                       {item.label}
                     </p>
-                    <p className="mt-1 text-[11px] text-slate-500">{item.hint}</p>
+                    <p className="text-[11px] text-slate-500">Traduccion jurada</p>
                   </Link>
                 ))}
               </div>
