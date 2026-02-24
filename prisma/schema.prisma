@@ -132,6 +132,7 @@ model Order {
   paidAt             DateTime?
 
   events   OrderEvent[]
+  paymentEvents OrderPaymentEvent[]
   billing  BillingData?
   shipping ShippingData?
 
@@ -151,6 +152,22 @@ model OrderEvent {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt])
+}
+
+model OrderPaymentEvent {
+  id              String        @id @default(cuid())
+  orderId          String
+  provider         PaymentMethod
+  providerEventId  String
+  idempotencyKey   String        @unique
+  source           String
+  payload          Json?
+  createdAt        DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([provider, providerEventId])
 }
 
 model BillingData {

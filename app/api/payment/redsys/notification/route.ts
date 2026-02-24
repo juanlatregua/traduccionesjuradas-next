@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     const orderReference = decoded.Ds_MerchantData as string;
     const responseCode = decoded.Ds_Response as string;
     const authCode = decoded.Ds_AuthorisationCode as string;
+    const dsOrder = decoded.Ds_Order as string;
 
     if (!orderReference) {
       console.error("[redsys-notification] no order reference in Ds_MerchantData");
@@ -35,9 +36,17 @@ export async function POST(req: Request) {
     }
 
     if (isResponseCodeOk(responseCode)) {
-      const paymentUpdate = await updateOrderPayment(orderReference, "REDSYS", authCode || responseCode);
+      const providerEventId = `${String(dsOrder || orderReference || "").trim()}:${String(authCode || responseCode || "").trim()}`;
+      const paymentUpdate = await updateOrderPayment(orderReference, "REDSYS", providerEventId, {
+        source: "redsys_notification",
+        payload: {
+          responseCode: String(responseCode || ""),
+          authCode: String(authCode || ""),
+          dsOrder: String(dsOrder || ""),
+        },
+      });
       if (!paymentUpdate.changed) {
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ ok: true, duplicate: true, alreadyPaid: paymentUpdate.alreadyPaid });
       }
       await transitionWorkflowState({
         reference: orderReference,

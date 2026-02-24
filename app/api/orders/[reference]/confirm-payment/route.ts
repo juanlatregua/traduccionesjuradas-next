@@ -55,9 +55,13 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    const paymentUpdate = await confirmManualPayment(params.reference, method);
+    const paymentUpdate = await confirmManualPayment(params.reference, method, actorEmail);
     if (!paymentUpdate.changed) {
-      return NextResponse.json({ ok: true, alreadyPaid: true });
+      return NextResponse.json({
+        ok: true,
+        alreadyPaid: true,
+        duplicate: paymentUpdate.duplicate,
+      });
     }
 
     await transitionWorkflowState({

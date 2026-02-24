@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { getServerSession } from "next-auth";
 import type { PaymentMethod } from "@prisma/client";
+import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
@@ -142,6 +143,10 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const proofHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+    const proofProviderEventId = `proof:${paymentMethod}:${proofHash}`;
+
     if (!isBlobConfigured()) {
       return NextResponse.json(
         {
@@ -192,7 +197,16 @@ export async function POST(req: Request, { params }: Params) {
     const paymentUpdate = await updateOrderPayment(
       order.reference,
       paymentMethod,
-      `proof_upload:${params.reference}:${Date.now()}`
+      proofProviderEventId,
+      {
+        source: "payment_proof_upload",
+        payload: {
+          proofHash,
+          fileName: validation.safeName,
+          fileSize: file.size,
+          uploadedBy: sessionEmail || clientEmailRaw || null,
+        },
+      }
     );
 
     if (paymentUpdate.changed) {
@@ -233,7 +247,12 @@ export async function POST(req: Request, { params }: Params) {
       }).catch((e) => console.error("[payment-proof] client payment confirmation email failed", e));
     }
 
-    return NextResponse.json({ ok: true, paymentStatus: "PAID" });
+    return NextResponse.json({
+      ok: true,
+      paymentStatus: paymentUpdate.changed ? "PAID" : order.paymentStatus,
+      duplicate: paymentUpdate.duplicate,
+      alreadyPaid: !paymentUpdate.changed && paymentUpdate.alreadyPaid,
+    });
   } catch (err: any) {
     console.error("[payment-proof] error", err);
     const msg = String(err?.message || "");

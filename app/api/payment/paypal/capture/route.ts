@@ -75,9 +75,21 @@ export async function POST(req: Request) {
       const captureId =
         captured.purchase_units?.[0]?.payments?.captures?.[0]?.id || body.paypalOrderId;
 
-      const paymentUpdate = await updateOrderPayment(body.reference, "PAYPAL", captureId);
+      const paymentUpdate = await updateOrderPayment(body.reference, "PAYPAL", captureId, {
+        source: "paypal_capture",
+        payload: {
+          paypalOrderId: body.paypalOrderId,
+          captureId,
+          capturedStatus: captured.status,
+        },
+      });
       if (!paymentUpdate.changed) {
-        return NextResponse.json({ ok: true, status: "COMPLETED", alreadyPaid: true });
+        return NextResponse.json({
+          ok: true,
+          status: "COMPLETED",
+          alreadyPaid: true,
+          duplicate: paymentUpdate.duplicate,
+        });
       }
 
       await transitionWorkflowState({

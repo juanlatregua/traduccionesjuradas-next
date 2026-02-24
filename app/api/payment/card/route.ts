@@ -67,6 +67,7 @@ export async function POST(req: Request) {
         reference: order.reference,
         amountCents: order.amountCents,
         title: order.title,
+        idempotencyKey: `order:${order.reference}:stripe:${order.amountCents}`,
       });
       return NextResponse.json({ ok: true, kind: "redirect", provider, url: session.url });
     }

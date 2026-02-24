@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import type { PaymentMethod } from "@prisma/client";
 import crypto from "node:crypto";
+import {
+  buildManualPaymentProviderEventId,
+  registerOrderPaymentEvent,
+} from "@/lib/order-payment-idempotency";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -189,8 +193,17 @@ export async function getOrderLookupByReferenceAndEmail(reference: string, email
 export async function updateOrderPayment(
   reference: string,
   method: PaymentMethod,
-  externalId: string
+  externalId: string,
+  options?: {
+    source?: string;
+    payload?: Record<string, unknown>;
+  }
 ) {
+  const providerEventId = String(externalId || "").trim();
+  if (!providerEventId) {
+    throw new Error("Identificador externo de pago requerido.");
+  }
+
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { reference },
@@ -205,33 +218,48 @@ export async function updateOrderPayment(
       throw new Error("Pedido no encontrado.");
     }
 
-    if (order.paymentStatus === "PAID") {
-      const isSameProvider = order.paymentMethod === method;
-      const isSameExternalId = order.externalPaymentId === externalId;
-      if (!(isSameProvider && isSameExternalId)) {
-        await tx.orderEvent.create({
-          data: {
-            orderId: order.id,
-            type: "payment.duplicate_ignored",
-            message: "Intento de pago duplicado ignorado por idempotencia.",
-            payload: {
-              method,
-              externalId,
-              existingMethod: order.paymentMethod,
-              existingExternalPaymentId: order.externalPaymentId,
-            },
-          },
-        });
-      }
+    const paymentEvent = await registerOrderPaymentEvent({
+      tx,
+      orderId: order.id,
+      reference,
+      provider: method,
+      providerEventId,
+      source: options?.source || "unknown",
+      payload: options?.payload,
+    });
+    if (paymentEvent.duplicate) {
+      const latest = await tx.order.findUnique({
+        where: { id: order.id },
+        select: { paymentStatus: true },
+      });
+      return { changed: false as const, alreadyPaid: latest?.paymentStatus === "PAID", duplicate: true as const };
+    }
 
-      return { changed: false as const, alreadyPaid: true as const };
+    if (order.paymentStatus === "PAID") {
+      await tx.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "payment.duplicate_ignored",
+          message: "Intento de pago duplicado ignorado por idempotencia.",
+          payload: {
+            method,
+            providerEventId,
+            existingMethod: order.paymentMethod,
+            existingExternalPaymentId: order.externalPaymentId,
+            source: options?.source || "unknown",
+            idempotencyKey: paymentEvent.idempotencyKey,
+          },
+        },
+      });
+
+      return { changed: false as const, alreadyPaid: true as const, duplicate: false as const };
     }
 
     const updated = await tx.order.update({
       where: { reference },
       data: {
         paymentMethod: method,
-        externalPaymentId: externalId,
+        externalPaymentId: providerEventId,
         paymentStatus: "PAID",
         status: "PAID",
         paidAt: new Date(),
@@ -246,67 +274,34 @@ export async function updateOrderPayment(
         message: `Pago confirmado via ${method}.`,
         payload: {
           method,
-          externalId,
+          providerEventId,
+          source: options?.source || "unknown",
+          idempotencyKey: paymentEvent.idempotencyKey,
+          ...(options?.payload || {}),
         },
       },
     });
 
-    return { changed: true as const, alreadyPaid: false as const };
+    return { changed: true as const, alreadyPaid: false as const, duplicate: false as const };
   });
 }
 
-export async function confirmManualPayment(reference: string, method: "BIZUM" | "TRANSFER") {
-  return prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { reference },
-      select: {
-        id: true,
-        paymentStatus: true,
-        paymentMethod: true,
+export async function confirmManualPayment(
+  reference: string,
+  method: "BIZUM" | "TRANSFER",
+  actorEmail?: string | null
+) {
+  return updateOrderPayment(
+    reference,
+    method,
+    buildManualPaymentProviderEventId(reference, method),
+    {
+      source: "staff_manual_confirm",
+      payload: {
+        actorEmail: actorEmail || null,
       },
-    });
-    if (!order) {
-      throw new Error("Pedido no encontrado.");
     }
-
-    if (order.paymentStatus === "PAID") {
-      if (order.paymentMethod !== method) {
-        await tx.orderEvent.create({
-          data: {
-            orderId: order.id,
-            type: "payment.manual_duplicate_ignored",
-            message: "Confirmacion manual ignorada: el pedido ya constaba como pagado.",
-            payload: {
-              requestedMethod: method,
-              existingMethod: order.paymentMethod,
-            },
-          },
-        });
-      }
-      return { changed: false as const, alreadyPaid: true as const };
-    }
-
-    await tx.order.update({
-      where: { reference },
-      data: {
-        paymentMethod: method,
-        paymentStatus: "PAID",
-        status: "PAID",
-        paidAt: new Date(),
-      },
-    });
-
-    await tx.orderEvent.create({
-      data: {
-        orderId: order.id,
-        type: "payment.manual_confirmed",
-        message: `Pago manual confirmado (${method === "BIZUM" ? "Bizum" : "Transferencia"}).`,
-        payload: { method },
-      },
-    });
-
-    return { changed: true as const, alreadyPaid: false as const };
-  });
+  );
 }
 
 export async function markPaymentFailed(reference: string) {

@@ -27,6 +27,8 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
   const session = event.data.object as any;
   const orderSessionId = String(session?.metadata?.orderSessionId || "").trim();
   const reference = String(session?.metadata?.orderReference || "").trim();
+  const stripeSessionId = String(session?.id || "").trim();
+  const stripePaymentIntentId = String(session?.payment_intent || "").trim();
 
   if (orderSessionId) {
     try {
@@ -50,9 +52,21 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
   }
 
   try {
-    const paymentUpdate = await updateOrderPayment(reference, "STRIPE", String(session.id || ""));
+    const paymentUpdate = await updateOrderPayment(
+      reference,
+      "STRIPE",
+      stripePaymentIntentId || stripeSessionId,
+      {
+        source,
+        payload: {
+          stripeEventId: String(event.id || ""),
+          stripeSessionId: stripeSessionId || null,
+          stripePaymentIntentId: stripePaymentIntentId || null,
+        },
+      }
+    );
     if (!paymentUpdate.changed) {
-      return NextResponse.json({ received: true, duplicate: true });
+      return NextResponse.json({ received: true, duplicate: true, alreadyPaid: paymentUpdate.alreadyPaid });
     }
 
     await transitionWorkflowState({

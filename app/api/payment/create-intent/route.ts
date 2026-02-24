@@ -62,29 +62,34 @@ export async function POST(req: Request) {
 
     const stripe = getStripe();
     const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
-    const checkout = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            unit_amount: session.totalCents,
-            product_data: {
-              name: "Traduccion jurada",
-              description: `Referencia ${session.reference}`,
+    const checkout = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              unit_amount: session.totalCents,
+              product_data: {
+                name: "Traduccion jurada",
+                description: `Referencia ${session.reference}`,
+              },
             },
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        metadata: {
+          orderSessionId: session.id,
+          orderSessionReference: session.reference,
         },
-      ],
-      metadata: {
-        orderSessionId: session.id,
-        orderSessionReference: session.reference,
+        success_url: `${baseUrl}/confirmation?paid=1`,
+        cancel_url: `${baseUrl}/checkout`,
       },
-      success_url: `${baseUrl}/confirmation?paid=1`,
-      cancel_url: `${baseUrl}/checkout`,
-    });
+      {
+        idempotencyKey: `session:${session.id}:checkout:${session.totalCents}`,
+      }
+    );
 
     await prisma.orderSession.update({
       where: { id: session.id },

@@ -17,33 +17,41 @@ export async function createCheckoutSession(params: {
   amountCents: number;
   title: string;
   customerEmail?: string;
+  idempotencyKey?: string;
 }) {
   const stripe = getStripe();
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card"],
-    customer_email: params.customerEmail,
-    line_items: [
-      {
-        price_data: {
-          currency: "eur",
-          unit_amount: params.amountCents,
-          product_data: {
-            name: `Traducción jurada: ${params.title}`,
-            description: `Referencia: ${params.reference}`,
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: params.customerEmail,
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            unit_amount: params.amountCents,
+            product_data: {
+              name: `Traducción jurada: ${params.title}`,
+              description: `Referencia: ${params.reference}`,
+            },
           },
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      metadata: {
+        orderReference: params.reference,
       },
-    ],
-    metadata: {
-      orderReference: params.reference,
+      success_url: `${baseUrl}/pago/exito?ref=${params.reference}`,
+      cancel_url: `${baseUrl}/area-cliente/pedido/${params.reference}/pagar`,
     },
-    success_url: `${baseUrl}/pago/exito?ref=${params.reference}`,
-    cancel_url: `${baseUrl}/area-cliente/pedido/${params.reference}/pagar`,
-  });
+    params.idempotencyKey
+      ? {
+          idempotencyKey: params.idempotencyKey,
+        }
+      : undefined
+  );
 
   return session;
 }
