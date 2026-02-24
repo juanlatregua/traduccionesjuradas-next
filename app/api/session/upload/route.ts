@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { computeSessionPricing } from "@/lib/session-pricing";
 import { getSessionIdFromRequest } from "@/lib/session";
 import { serializeOrderSession } from "@/lib/session-dto";
-import { validateGeneralUploadFile } from "@/lib/file-security";
+import { sanitizeFileName, validateGeneralUploadFile } from "@/lib/file-security";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
@@ -69,9 +69,10 @@ export async function POST(req: Request) {
     if (!validation.ok) {
       return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
     }
+    const safeName = (validation as { safeName?: string }).safeName || sanitizeFileName(file.name);
 
     const detectedMime = (validation as any).detectedMime as string | undefined;
-    const pathname = `funnel/${existing.reference}/${Date.now()}-${validation.safeName}`;
+    const pathname = `funnel/${existing.reference}/${Date.now()}-${safeName}`;
     const blob = await put(pathname, file, {
       access: "public",
       addRandomSuffix: true,
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
         sessionId: existing.id,
         fileKey: blob.pathname,
         fileUrl: blob.url,
-        filename: validation.safeName,
+        filename: safeName,
         mimeType: detectedMime || file.type || "application/octet-stream",
         sizeBytes: file.size,
         detectedType: detectedMime || null,
