@@ -33,11 +33,12 @@ export const MARGIN_APPROVAL_THRESHOLD_PCT = Math.max(
 );
 export const ACCOUNTING_CUTOFF_DAY = clamp(envInt("FINANCE_ACCOUNTING_CUTOFF_DAY", 25), 1, 28);
 
-export type ReconciliationStatus = "PENDING" | "MATCHED" | "MISMATCH";
+export type ReconciliationStatus = "PENDING" | "MATCHED" | "RECONCILED" | "MISMATCH";
 export type SupplierInvoiceStatus =
   | "PENDING_REQUEST"
+  | "REQUESTED"
   | "RECEIVED"
-  | "VALIDATED"
+  | "BOOKED"
   | "PAID"
   | "UNKNOWN";
 export type SupplierBillingMode = "PER_ORDER" | "MONTHLY_BATCH" | "UNKNOWN";
@@ -107,7 +108,16 @@ function cents(value: unknown, fallback = 0) {
 
 function safeSupplierStatus(raw: unknown): SupplierInvoiceStatus {
   const s = String(raw || "").toUpperCase();
-  if (s === "PENDING_REQUEST" || s === "RECEIVED" || s === "VALIDATED" || s === "PAID") return s;
+  if (s === "VALIDATED") return "BOOKED";
+  if (
+    s === "PENDING_REQUEST" ||
+    s === "REQUESTED" ||
+    s === "RECEIVED" ||
+    s === "BOOKED" ||
+    s === "PAID"
+  ) {
+    return s;
+  }
   return "UNKNOWN";
 }
 
@@ -154,7 +164,13 @@ function getReconciliationStatus(order: OrderLike) {
     FINANCE_RECONCILIATION_TOLERANCE_MIN_CENTS,
     FINANCE_RECONCILIATION_TOLERANCE_MAX_CENTS
   );
-  const status = evt.payload?.status === "MATCHED" ? "MATCHED" : "MISMATCH";
+  const rawStatus = String(evt.payload?.status || "").toUpperCase();
+  const status: ReconciliationStatus =
+    rawStatus === "RECONCILED"
+      ? "RECONCILED"
+      : rawStatus === "MATCHED"
+        ? "MATCHED"
+        : "MISMATCH";
   return {
     status: status as ReconciliationStatus,
     diffCents,
@@ -263,11 +279,13 @@ export function getFinanceSnapshot(order: OrderLike): FinanceSnapshot {
 
   const warnings: string[] = [];
   if (order.paymentStatus !== "PAID") warnings.push("Pago no confirmado");
-  if (reconciliation.status !== "MATCHED") warnings.push("Conciliacion pendiente o con descuadre");
+  if (!["MATCHED", "RECONCILED"].includes(reconciliation.status)) {
+    warnings.push("Conciliacion pendiente o con descuadre");
+  }
 
-  const supplierValidated = ["VALIDATED", "PAID"].includes(supplierInvoice.status);
+  const supplierBooked = ["BOOKED", "PAID"].includes(supplierInvoice.status);
   const isMonthlyBatch = supplierInvoice.billingMode === "MONTHLY_BATCH";
-  const supplierInvoiceBlocksClose = isMonthlyBatch ? accountingCutoffPassed && !supplierValidated : !supplierValidated;
+  const supplierInvoiceBlocksClose = isMonthlyBatch ? accountingCutoffPassed && !supplierBooked : !supplierBooked;
   if (supplierInvoiceBlocksClose) {
     warnings.push(
       isMonthlyBatch
@@ -286,7 +304,7 @@ export function getFinanceSnapshot(order: OrderLike): FinanceSnapshot {
 
   const isFinanciallyCloseable =
     order.paymentStatus === "PAID" &&
-    reconciliation.status === "MATCHED" &&
+    reconciliation.status === "RECONCILED" &&
     !supplierInvoiceBlocksClose &&
     (margin.marginCents === null || margin.marginCents >= 0) &&
     (!requiresMarginApproval || marginApprovalStatus === "APPROVED");

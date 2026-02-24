@@ -10,6 +10,7 @@ import {
 } from "@/lib/eta";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,9 @@ type Params = { params: { reference: string } };
 type DeliveryBody = {
   state?: "EN_PROCESO" | "TRADUCIDO";
   translatedFileUrl?: string;
+  translatedFileKey?: string;
+  translatedFilename?: string;
+  translatedMimeType?: string;
   notifyClient?: boolean;
   etaDate?: string;
   autoEta?: boolean;
@@ -39,6 +43,9 @@ export async function POST(req: Request, { params }: Params) {
     const body = (await req.json()) as DeliveryBody;
     const state = body.state || "EN_PROCESO";
     const translatedFileUrl = (body.translatedFileUrl || "").trim();
+    const translatedFileKey = (body.translatedFileKey || "").trim();
+    const translatedFilename = (body.translatedFilename || "").trim();
+    const translatedMimeType = (body.translatedMimeType || "").trim();
     const etaDateRaw = (body.etaDate || "").trim();
 
     if (order.paymentStatus !== "PAID") {
@@ -119,6 +126,9 @@ export async function POST(req: Request, { params }: Params) {
 
     await updateDeliveryState(order.reference, state, {
       translatedFileUrl: translatedFileUrl || undefined,
+      translatedFileKey: translatedFileKey || undefined,
+      translatedFilename: translatedFilename || undefined,
+      translatedMimeType: translatedMimeType || undefined,
       dueDate: state === "EN_PROCESO" ? etaDate : undefined,
       eventMessage: `Estado de entrega actualizado a ${state}.${etaMessage}`.trim(),
     });
@@ -137,6 +147,22 @@ export async function POST(req: Request, { params }: Params) {
         reference: order.reference,
         downloadUrl: translatedFileUrl,
       }).catch((e) => console.error("[orders-delivery] ready email failed", e));
+
+      await prisma.orderEvent
+        .create({
+          data: {
+            orderId: order.id,
+            type: "notification.delivery_ready.sent",
+            message: "Cliente notificado de traduccion lista con enlace de descarga.",
+            payload: {
+              actorEmail,
+              channel: "EMAIL",
+              toEmail: order.clientEmail,
+              downloadUrl: translatedFileUrl,
+            },
+          },
+        })
+        .catch((err) => console.error("[orders-delivery] delivery notification event failed", err));
     }
 
     return NextResponse.json({

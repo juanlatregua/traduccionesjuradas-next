@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import AssignOrderForm from "./AssignOrderForm";
 import TranslatorDeliveryForm from "./TranslatorDeliveryForm";
 import TranslatorNotifyForm from "./TranslatorNotifyForm";
@@ -8,8 +9,10 @@ import OrderFinancePanel from "./OrderFinancePanel";
 import OrderWorkflowPanel from "./OrderWorkflowPanel";
 import OrderDocumentsPanel from "./OrderDocumentsPanel";
 import OrderLifecyclePanel from "./OrderLifecyclePanel";
+import CopyField from "./CopyField";
 import type { FinanceSnapshot } from "@/lib/finance";
 import { getWorkflowStateLabel } from "@/lib/workflow";
+import type { NextBestAction, OrderActionStage, OrderGates } from "@/lib/order-actions";
 
 type Props = {
   reference: string;
@@ -65,6 +68,30 @@ type Props = {
     }>;
   }>;
   financeSnapshot: FinanceSnapshot;
+  artifacts: {
+    quotePreviewFileKey?: string | null;
+    quotePreviewFileUrl?: string | null;
+    quoteSnapshotJson?: unknown;
+    paymentProofFileKey?: string | null;
+    finalDeliveryFileKey?: string | null;
+    finalDeliveryFileUrl?: string | null;
+    finalFilename?: string | null;
+    finalMimeType?: string | null;
+  };
+  deliveryNotification?: {
+    type: string;
+    sentAt: string | null;
+    toEmail?: string | null;
+    channel?: string | null;
+    downloadUrl?: string | null;
+  } | null;
+  trackedLinks: {
+    paymentUrl: string;
+    statusUrl: string;
+  };
+  canonicalStage: OrderActionStage;
+  gates: OrderGates;
+  nextBestAction: NextBestAction;
 };
 
 function PaymentBadge({ status }: { status: string }) {
@@ -96,6 +123,26 @@ function DeliveryBadge({ state }: { state: string }) {
   );
 }
 
+function StageBadge({ stage }: { stage: OrderActionStage }) {
+  const map: Record<OrderActionStage, { label: string; cls: string }> = {
+    DRAFT: { label: "DRAFT", cls: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
+    QUOTE_READY: { label: "QUOTE_READY", cls: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
+    SENT_TO_CLIENT: { label: "SENT_TO_CLIENT", cls: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+    PAYMENT_PENDING: { label: "PAYMENT_PENDING", cls: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+    PAYMENT_VALIDATED: { label: "PAYMENT_VALIDATED", cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+    IN_PRODUCTION: { label: "IN_PRODUCTION", cls: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" },
+    DELIVERY_READY: { label: "DELIVERY_READY", cls: "bg-violet-500/20 text-violet-300 border-violet-500/30" },
+    DELIVERED: { label: "DELIVERED", cls: "bg-lime-500/20 text-lime-300 border-lime-500/30" },
+    CLOSED: { label: "CLOSED", cls: "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30" },
+  };
+  const info = map[stage];
+  return (
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${info.cls}`}>
+      {info.label}
+    </span>
+  );
+}
+
 export default function OrderActionPanel({
   reference,
   clientName,
@@ -115,9 +162,19 @@ export default function OrderActionPanel({
   quoteDraft,
   quoteAuditTrail,
   financeSnapshot,
+  artifacts,
+  deliveryNotification,
+  trackedLinks,
+  canonicalStage,
+  gates,
+  nextBestAction,
 }: Props) {
+  const router = useRouter();
+  const lastRefreshedTab = useRef<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas" | "control">("documentos");
+  const [tab, setTab] = useState<
+    "presupuesto" | "documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas" | "control"
+  >("presupuesto");
 
   const quickQuoteHref = useMemo(() => {
     const params = new URLSearchParams();
@@ -130,6 +187,7 @@ export default function OrderActionPanel({
   }, [clientEmail, clientName, title, amountCents, langPair]);
 
   const tabs = [
+    { key: "presupuesto" as const, label: "Presupuesto", color: "text-cyan-300" },
     { key: "documentos" as const, label: "Documentos", color: "text-teal-300" },
     { key: "comprobante" as const, label: "Comprobante", color: "text-cyan-300" },
     { key: "workflow" as const, label: "Workflow", color: "text-indigo-300" },
@@ -139,6 +197,21 @@ export default function OrderActionPanel({
     { key: "finanzas" as const, label: "Finanzas", color: "text-lime-300" },
     { key: "control" as const, label: "Control", color: "text-rose-300" },
   ];
+
+  const finalDownloadUrl = String(artifacts.finalDeliveryFileUrl || "").trim();
+  const quotePreviewUrl = String(artifacts.quotePreviewFileUrl || "").trim();
+  const latestProofUrl = String(paymentProofs?.[0]?.fileUrl || "").trim();
+  const canClose = gates.closeReady;
+
+  useEffect(() => {
+    if (!open) {
+      lastRefreshedTab.current = null;
+      return;
+    }
+    if (lastRefreshedTab.current === tab) return;
+    lastRefreshedTab.current = tab;
+    router.refresh();
+  }, [open, tab, router]);
 
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/90 overflow-hidden">
@@ -174,45 +247,118 @@ export default function OrderActionPanel({
       {/* Expanded content */}
       {open && (
         <div className="border-t border-slate-700">
-          {/* Info row */}
-          <div className="flex flex-wrap gap-4 border-b border-slate-700/50 bg-slate-800/30 px-5 py-3 text-xs text-slate-400">
-            <span>Cliente: <span className="text-slate-200">{clientEmail}</span></span>
-            <span>Importe: <span className="text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span></span>
-            <span>Workflow: <span className="text-slate-200">{getWorkflowStateLabel(workflowState)}</span></span>
-            <span>Canal: <span className="text-slate-200">{acquisitionSource === "WHATSAPP" ? "WhatsApp" : "Web"}</span></span>
-            <span>Comprobante: <span className="text-slate-200">{paymentProofs.length > 0 ? "Subido" : "No subido"}</span></span>
-            <span>
-              Conciliación:{" "}
-              <span className={financeSnapshot.reconciliationStatus === "MATCHED" ? "text-emerald-300" : "text-amber-300"}>
-                {financeSnapshot.reconciliationStatus}
-              </span>
-            </span>
-            <span>
-              Factura proveedor:{" "}
-              <span className={financeSnapshot.supplierInvoiceStatus === "PAID" || financeSnapshot.supplierInvoiceStatus === "VALIDATED" ? "text-emerald-300" : "text-amber-300"}>
-                {financeSnapshot.supplierInvoiceStatus}
-              </span>
-            </span>
-            <span>
-              Margen:{" "}
-              <span className={financeSnapshot.marginCents !== null && financeSnapshot.marginCents < 0 ? "text-red-300 font-semibold" : "text-slate-200"}>
-                {financeSnapshot.marginCents === null ? "—" : `${(financeSnapshot.marginCents / 100).toFixed(2)} EUR`}
-              </span>
-            </span>
-            {dueDate && (
-              <span>
-                Entrega:{" "}
-                <span className={new Date(dueDate) < new Date() ? "text-red-400 font-semibold" : "text-slate-200"}>
-                  {new Date(dueDate).toLocaleDateString("es-ES")}
+          <div className="border-b border-slate-700/50 bg-slate-800/30 px-5 py-4">
+            <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
+              <p>
+                Cliente: <span className="font-semibold text-slate-100">{clientEmail}</span>
+              </p>
+              <p>
+                Referencia: <span className="font-mono font-semibold text-cyan-300">{reference}</span>
+              </p>
+              <p>
+                Importe: <span className="font-semibold text-slate-100">{(amountCents / 100).toFixed(2)} EUR</span>
+              </p>
+              <p>
+                Workflow: <span className="font-semibold text-slate-100">{getWorkflowStateLabel(workflowState)}</span>
+              </p>
+              <p>
+                Canal: <span className="font-semibold text-slate-100">{acquisitionSource === "WHATSAPP" ? "WhatsApp" : "Web"}</span>
+              </p>
+              <p>
+                Entrega prevista:{" "}
+                <span className="font-semibold text-slate-100">
+                  {dueDate ? new Date(dueDate).toLocaleDateString("es-ES") : "—"}
                 </span>
-              </span>
-            )}
-            <a
-              href={quickQuoteHref}
-              className="rounded-md border border-cyan-500/40 px-2 py-0.5 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/10"
-            >
-              Crear presupuesto con preview
-            </a>
+              </p>
+              <p>
+                Stage canonico: <StageBadge stage={canonicalStage} />
+              </p>
+              <p>
+                Conciliacion:{" "}
+                <span
+                  className={
+                    ["MATCHED", "RECONCILED"].includes(financeSnapshot.reconciliationStatus)
+                      ? "font-semibold text-emerald-300"
+                      : "font-semibold text-amber-300"
+                  }
+                >
+                  {financeSnapshot.reconciliationStatus}
+                </span>
+              </p>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <CopyField label="Referencia" value={reference} />
+              <CopyField label="Email cliente" value={clientEmail} mono={false} />
+            </div>
+          </div>
+
+          <div className="border-b border-slate-700/50 bg-slate-900/60 px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">Next Best Action</p>
+            <p className="mt-1 text-sm font-semibold text-slate-100">{nextBestAction.label}</p>
+            <p className="mt-1 text-xs text-slate-400">{nextBestAction.reason}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setTab(nextBestAction.tab)}
+                className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+              >
+                Ir a {nextBestAction.tab}
+              </button>
+              <a
+                href={quickQuoteHref}
+                className="rounded-lg border border-cyan-500/40 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+              >
+                Crear presupuesto con preview
+              </a>
+            </div>
+          </div>
+
+          <div className="border-b border-slate-700/50 bg-slate-950/60 px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-300">
+              Artefactos clave del pedido
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Enlaces persistidos en DB para evitar perder contexto entre pestañas.
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {quotePreviewUrl ? (
+                <CopyField
+                  label="Preview presupuesto"
+                  value={quotePreviewUrl}
+                  actionLabel="Abrir"
+                  actionHref={quotePreviewUrl}
+                />
+              ) : (
+                <p className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-amber-300">
+                  Falta preview de presupuesto.
+                </p>
+              )}
+              {latestProofUrl ? (
+                <CopyField
+                  label="Comprobante pago"
+                  value={latestProofUrl}
+                  actionLabel="Abrir"
+                  actionHref={latestProofUrl}
+                />
+              ) : (
+                <p className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-amber-300">
+                  Sin comprobante registrado.
+                </p>
+              )}
+              {finalDownloadUrl ? (
+                <CopyField
+                  label="Entrega final"
+                  value={finalDownloadUrl}
+                  actionLabel="Abrir"
+                  actionHref={finalDownloadUrl}
+                />
+              ) : (
+                <p className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-amber-300">
+                  Falta archivo final de entrega.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Tabs */}
@@ -235,7 +381,7 @@ export default function OrderActionPanel({
 
           {/* Tab content */}
           <div className="p-5">
-            {tab === "documentos" && (
+            {tab === "presupuesto" && (
               <OrderDocumentsPanel
                 reference={reference}
                 workflowState={workflowState}
@@ -244,6 +390,40 @@ export default function OrderActionPanel({
                 quoteDraft={quoteDraft || null}
                 quoteAuditTrail={quoteAuditTrail || []}
               />
+            )}
+            {tab === "documentos" && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">
+                  Documentos del cliente
+                </p>
+                {documents.length === 0 ? (
+                  <p className="text-sm text-slate-400">No hay documentos guardados en este pedido.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {documents.map((doc, idx) => (
+                      <li
+                        key={`${doc.name}-${idx}`}
+                        className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-200"
+                      >
+                        <p className="font-semibold text-slate-100">{doc.name}</p>
+                        <p className="text-xs text-slate-400">{doc.type || "application/octet-stream"}</p>
+                        {doc.url ? (
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-flex rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                          >
+                            Abrir documento
+                          </a>
+                        ) : (
+                          <p className="mt-2 text-xs text-slate-500">Sin URL registrada.</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
             {tab === "comprobante" && (
               <div>
@@ -290,6 +470,12 @@ export default function OrderActionPanel({
                 reference={reference}
                 defaultClientEmail={clientEmail}
                 acquisitionSource={acquisitionSource}
+                defaultDownloadUrl={finalDownloadUrl || undefined}
+                quotePreviewUrl={String(artifacts.quotePreviewFileUrl || "") || undefined}
+                paymentLink={trackedLinks.paymentUrl}
+                statusLink={trackedLinks.statusUrl}
+                deliveryNotifiedAt={deliveryNotification?.sentAt || null}
+                deliveryNotifiedTo={deliveryNotification?.toEmail || null}
               />
             )}
             {tab === "finanzas" && (
@@ -300,7 +486,13 @@ export default function OrderActionPanel({
               />
             )}
             {tab === "control" && (
-              <OrderLifecyclePanel reference={reference} isArchived={isArchived} />
+              <OrderLifecyclePanel
+                reference={reference}
+                isArchived={isArchived}
+                canonicalStage={canonicalStage}
+                gates={gates}
+                canClose={canClose}
+              />
             )}
           </div>
         </div>

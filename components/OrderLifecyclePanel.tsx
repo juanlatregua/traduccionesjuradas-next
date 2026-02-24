@@ -1,13 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import type { OrderActionStage, OrderGates } from "@/lib/order-actions";
 
 type Props = {
   reference: string;
   isArchived: boolean;
+  canonicalStage: OrderActionStage;
+  gates: OrderGates;
+  canClose: boolean;
 };
 
-export default function OrderLifecyclePanel({ reference, isArchived }: Props) {
+export default function OrderLifecyclePanel({
+  reference,
+  isArchived,
+  canonicalStage,
+  gates,
+  canClose,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -68,6 +78,20 @@ export default function OrderLifecyclePanel({ reference, isArchived }: Props) {
     }
   }
 
+  async function closeOrder() {
+    setLoading(true);
+    setMessage(null);
+    try {
+      await postJson(`/api/orders/${reference}/finance/close`, {});
+      setMessage("Pedido cerrado correctamente.");
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err: any) {
+      setMessage(err?.message || "No se pudo cerrar el pedido.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-rose-300">Control del pedido</p>
@@ -78,12 +102,43 @@ export default function OrderLifecyclePanel({ reference, isArchived }: Props) {
             {isArchived ? "Archivado" : "Activo"}
           </span>
         </p>
+        <p className="mt-1">
+          Stage canónico: <span className="font-semibold text-cyan-300">{canonicalStage}</span>
+        </p>
         <p className="mt-1 text-[11px] text-slate-400">
           Archivar oculta el pedido de la operativa habitual. Eliminar lo borra de forma permanente.
         </p>
+        <ul className="mt-3 space-y-1 text-[11px]">
+          <li className={gates.quoteReady ? "text-emerald-300" : "text-amber-300"}>
+            {gates.quoteReady ? "OK" : "PEND"} quote + preview
+          </li>
+          <li className={gates.paymentValidated ? "text-emerald-300" : "text-amber-300"}>
+            {gates.paymentValidated ? "OK" : "PEND"} pago validado
+          </li>
+          <li className={gates.productionReady ? "text-emerald-300" : "text-amber-300"}>
+            {gates.productionReady ? "OK" : "PEND"} asignación producción
+          </li>
+          <li className={gates.deliveryReady ? "text-emerald-300" : "text-amber-300"}>
+            {gates.deliveryReady ? "OK" : "PEND"} artefacto entrega final
+          </li>
+          <li className={gates.deliveredReady ? "text-emerald-300" : "text-amber-300"}>
+            {gates.deliveredReady ? "OK" : "PEND"} notificación cliente enviada
+          </li>
+          <li className={gates.closeReady ? "text-emerald-300" : "text-amber-300"}>
+            {gates.closeReady ? "OK" : "PEND"} cierre financiero y operativo
+          </li>
+        </ul>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <button
+          type="button"
+          onClick={closeOrder}
+          disabled={loading || !canClose}
+          className="rounded-lg bg-fuchsia-600 px-3 py-2 text-xs font-semibold text-white hover:bg-fuchsia-500 disabled:opacity-60"
+        >
+          {loading ? "Cerrando..." : "Cerrar pedido"}
+        </button>
         <button
           type="button"
           onClick={toggleArchive}
@@ -106,4 +161,3 @@ export default function OrderLifecyclePanel({ reference, isArchived }: Props) {
     </div>
   );
 }
-

@@ -25,6 +25,24 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as any;
+    const orderSessionId = String(session.metadata?.orderSessionId || "").trim();
+    if (orderSessionId) {
+      try {
+        await prisma.orderSession.updateMany({
+          where: { id: orderSessionId, isPaid: false },
+          data: {
+            isPaid: true,
+            paidAt: new Date(),
+            paymentMethod: "stripe",
+            step: "CONFIRMATION",
+          },
+        });
+      } catch (err) {
+        console.error("[stripe-webhook] failed updating order session", err);
+      }
+      return NextResponse.json({ received: true });
+    }
+
     const reference = session.metadata?.orderReference;
     if (!reference) {
       console.error("[stripe-webhook] no orderReference in metadata");

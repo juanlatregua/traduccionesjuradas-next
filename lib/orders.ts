@@ -105,6 +105,8 @@ export async function getOrderPublic(reference: string) {
     where: { reference },
     select: {
       reference: true,
+      clientEmail: true,
+      clientName: true,
       amountCents: true,
       currency: true,
       paymentStatus: true,
@@ -115,10 +117,24 @@ export async function getOrderPublic(reference: string) {
       title: true,
       langPair: true,
       deliveryState: true,
+      quoteSnapshotJson: true,
+      quotePreviewFileKey: true,
+      quotePreviewFileUrl: true,
+      paymentProofFileKey: true,
+      finalDeliveryFileKey: true,
+      finalDeliveryFileUrl: true,
+      finalFilename: true,
+      finalMimeType: true,
+      translatedFileUrl: true,
+      assignedTo: true,
       events: {
-        where: { type: "workflow.state_changed" },
+        where: {
+          type: {
+            in: ["workflow.state_changed", "order.source_document_uploaded"],
+          },
+        },
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: 200,
         select: {
           type: true,
           payload: true,
@@ -319,6 +335,9 @@ export async function updateDeliveryState(
   state: "PRESUPUESTO" | "EN_PROCESO" | "TRADUCIDO",
   options?: {
     translatedFileUrl?: string;
+    translatedFileKey?: string;
+    translatedFilename?: string;
+    translatedMimeType?: string;
     dueDate?: Date | null;
     eventMessage?: string;
   }
@@ -330,6 +349,10 @@ export async function updateDeliveryState(
       deliveryState: state,
       ...(nextStatus ? { status: nextStatus } : {}),
       ...(options?.translatedFileUrl ? { translatedFileUrl: options.translatedFileUrl } : {}),
+      ...(options?.translatedFileUrl ? { finalDeliveryFileUrl: options.translatedFileUrl } : {}),
+      ...(options?.translatedFileKey ? { finalDeliveryFileKey: options.translatedFileKey } : {}),
+      ...(options?.translatedFilename ? { finalFilename: options.translatedFilename } : {}),
+      ...(options?.translatedMimeType ? { finalMimeType: options.translatedMimeType } : {}),
       ...(options?.dueDate !== undefined ? { dueDate: options.dueDate } : {}),
       events: {
         create: {

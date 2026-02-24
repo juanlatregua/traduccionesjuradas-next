@@ -28,8 +28,20 @@ export async function GET(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
     const workflowState = getWorkflowState(order);
+    const sourceDocuments = (order.events || [])
+      .filter((event) => event.type === "order.source_document_uploaded")
+      .map((event) => {
+        const payload = (event.payload || {}) as any;
+        return {
+          fileUrl: String(payload.fileUrl || "").trim(),
+          fileName: String(payload.fileName || "Documento").trim(),
+          fileType: payload.fileType ? String(payload.fileType) : undefined,
+          uploadedAt: payload.uploadedAt ? String(payload.uploadedAt) : event.createdAt,
+        };
+      })
+      .filter((doc) => !!doc.fileUrl);
     const { events: _events, ...safeOrder } = order;
-    return NextResponse.json({ ok: true, order: { ...safeOrder, workflowState } });
+    return NextResponse.json({ ok: true, order: { ...safeOrder, workflowState, sourceDocuments } });
   } catch (err) {
     console.error("[orders/public] error fetching order", err);
     return NextResponse.json({ ok: false, error: "Error al consultar pedido." }, { status: 500 });

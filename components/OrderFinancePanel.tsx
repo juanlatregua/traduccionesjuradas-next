@@ -9,7 +9,7 @@ type Props = {
   snapshot: FinanceSnapshot;
 };
 
-type SupplierStatus = "PENDING_REQUEST" | "RECEIVED" | "VALIDATED" | "PAID";
+type SupplierStatus = "PENDING_REQUEST" | "REQUESTED" | "RECEIVED" | "BOOKED" | "PAID";
 type BillingMode = "PER_ORDER" | "MONTHLY_BATCH";
 type SupplierType = "AUTONOMO" | "EMPRESA";
 
@@ -46,10 +46,14 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot }: 
     ((snapshot.reconciliationToleranceCents || 300) / 100).toFixed(2)
   );
   const [settledAt, setSettledAt] = useState(toDateInput(snapshot.reconciledAt));
+  const [markReconciled, setMarkReconciled] = useState(
+    snapshot.reconciliationStatus === "RECONCILED"
+  );
 
   const [supplierStatus, setSupplierStatus] = useState<SupplierStatus>(
-    snapshot.supplierInvoiceStatus === "RECEIVED" ||
-      snapshot.supplierInvoiceStatus === "VALIDATED" ||
+    snapshot.supplierInvoiceStatus === "REQUESTED" ||
+      snapshot.supplierInvoiceStatus === "RECEIVED" ||
+      snapshot.supplierInvoiceStatus === "BOOKED" ||
       snapshot.supplierInvoiceStatus === "PAID"
       ? snapshot.supplierInvoiceStatus
       : "PENDING_REQUEST"
@@ -105,6 +109,7 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot }: 
         gatewayFeeCents: Number(gatewayFeeCents),
         toleranceCents: Math.round(Number(toleranceEur || 0) * 100),
         settledAt: settledAt || null,
+        markReconciled,
       });
       setMessage(
         `Conciliacion guardada (${data.reconciliationStatus}, tolerancia ${(Number(data.toleranceCents || 0) / 100).toFixed(2)} EUR).`
@@ -277,6 +282,15 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot }: 
               onChange={(e) => setSettledAt(e.target.value)}
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200">
+              <input
+                type="checkbox"
+                checked={markReconciled}
+                onChange={(e) => setMarkReconciled(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-500 bg-slate-950 text-cyan-500"
+              />
+              Marcar como RECONCILED (listo para cierre)
+            </label>
             <button
               type="button"
               onClick={saveReconciliation}
@@ -297,8 +311,9 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot }: 
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             >
               <option value="PENDING_REQUEST">Pendiente de solicitar</option>
+              <option value="REQUESTED">Solicitada</option>
               <option value="RECEIVED">Recibida</option>
-              <option value="VALIDATED">Validada</option>
+              <option value="BOOKED">Contabilizada (BOOKED)</option>
               <option value="PAID">Pagada</option>
             </select>
             <select

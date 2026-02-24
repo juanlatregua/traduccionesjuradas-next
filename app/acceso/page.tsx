@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { sanitizeAllowedCallbackPath } from "@/lib/auth-callback";
 
 export const metadata: Metadata = {
   title: "Acceso seguro",
@@ -14,6 +15,7 @@ type AccesoPageProps = {
   searchParams?: {
     error?: string;
     callbackUrl?: string;
+    returnTo?: string;
   };
 };
 
@@ -33,11 +35,10 @@ function getAuthErrorMessage(errorCode?: string) {
 
 export default function AccesoPage({ searchParams }: AccesoPageProps) {
   const authError = getAuthErrorMessage(searchParams?.error);
-  const callbackUrl =
-    searchParams?.callbackUrl && searchParams.callbackUrl.startsWith("/")
-      ? searchParams.callbackUrl
-      : "/area-cliente";
+  const callbackCandidate = searchParams?.callbackUrl || searchParams?.returnTo || "";
+  const callbackUrl = sanitizeAllowedCallbackPath(callbackCandidate, "/area-cliente");
   const isTranslatorAccess = callbackUrl.startsWith("/zona-traductor");
+  const guestHref = callbackUrl !== "/area-cliente" ? callbackUrl : "/presupuesto";
   return (
     <main
       className={
@@ -100,7 +101,7 @@ export default function AccesoPage({ searchParams }: AccesoPageProps) {
           />
           {!isTranslatorAccess && (
             <a
-              href={callbackUrl !== "/area-cliente" ? callbackUrl : "/presupuesto"}
+              href={guestHref}
               className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
             >
               Seguir como invitado

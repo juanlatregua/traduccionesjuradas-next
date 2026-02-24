@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { getWorkflowState } from "@/lib/workflow";
 import { isPayPalConfigured } from "@/lib/payment-config";
+import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
 
 export const runtime = "nodejs";
 
@@ -58,6 +59,9 @@ export async function POST(req: Request) {
         { ok: false, error: "Este pedido aun no esta habilitado para pago." },
         { status: 400 }
       );
+    }
+    if (!hasUploadedSourceDocument(order)) {
+      return NextResponse.json({ ok: false, error: MISSING_SOURCE_DOCUMENT_ERROR }, { status: 400 });
     }
 
     const captured = await capturePayPalOrder(body.paypalOrderId);
