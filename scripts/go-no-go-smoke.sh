@@ -4,6 +4,9 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-https://www.traduccionesjuradas.net}"
 QUOTE_TOKEN="${QUOTE_TOKEN:-}"
 TEST_EMAIL="${TEST_EMAIL:-qa-go-$(date +%s)@example.com}"
+INTERACTIVE="${INTERACTIVE:-0}"
+RATE_BURST="${RATE_BURST:-25}"
+REPORT_FILE="${REPORT_FILE:-./go-no-go-report-$(date +%Y%m%d-%H%M%S).txt}"
 
 TMP_DIR="$(mktemp -d)"
 COOKIE_JAR="$TMP_DIR/cookies.txt"
@@ -12,21 +15,90 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 PASS=0
 FAIL=0
 WARN=0
+MANUAL_PASS=0
+MANUAL_FAIL=0
+MANUAL_WARN=0
 
 green() { printf "\033[32m%s\033[0m\n" "$1"; }
 red() { printf "\033[31m%s\033[0m\n" "$1"; }
 yellow() { printf "\033[33m%s\033[0m\n" "$1"; }
 
-pass() { PASS=$((PASS + 1)); green "PASS  $1"; }
-fail() { FAIL=$((FAIL + 1)); red "FAIL  $1"; }
-warn() { WARN=$((WARN + 1)); yellow "WARN  $1"; }
+log_line() {
+  printf "%s\n" "$1" >> "$REPORT_FILE"
+}
+
+pass() {
+  PASS=$((PASS + 1))
+  green "PASS  $1"
+  log_line "PASS|$1"
+}
+fail() {
+  FAIL=$((FAIL + 1))
+  red "FAIL  $1"
+  log_line "FAIL|$1"
+}
+warn() {
+  WARN=$((WARN + 1))
+  yellow "WARN  $1"
+  log_line "WARN|$1"
+}
+
+manual_pass() {
+  MANUAL_PASS=$((MANUAL_PASS + 1))
+  green "MANUAL PASS  $1"
+  log_line "MANUAL_PASS|$1"
+}
+manual_fail() {
+  MANUAL_FAIL=$((MANUAL_FAIL + 1))
+  red "MANUAL FAIL  $1"
+  log_line "MANUAL_FAIL|$1"
+}
+manual_warn() {
+  MANUAL_WARN=$((MANUAL_WARN + 1))
+  yellow "MANUAL WARN  $1"
+  log_line "MANUAL_WARN|$1"
+}
 
 extract_reference() {
   sed -n 's/.*"reference":"\([^"]*\)".*/\1/p'
 }
 
+normalize_quote_token() {
+  local raw="$1"
+  if [[ -z "$raw" ]]; then
+    echo ""
+    return
+  fi
+  if [[ "$raw" =~ /q/([^/?#]+) ]]; then
+    echo "${BASH_REMATCH[1]}"
+    return
+  fi
+  echo "$raw"
+}
+
+ask_yn() {
+  local prompt="$1"
+  local default="${2:-n}"
+  local answer
+  if [[ "$default" == "y" ]]; then
+    read -r -p "$prompt [Y/n]: " answer || true
+    answer="${answer:-y}"
+  else
+    read -r -p "$prompt [y/N]: " answer || true
+    answer="${answer:-n}"
+  fi
+  answer="$(printf "%s" "$answer" | tr '[:upper:]' '[:lower:]')"
+  [[ "$answer" == "y" || "$answer" == "yes" || "$answer" == "s" || "$answer" == "si" || "$answer" == "sí" ]]
+}
+
+QUOTE_TOKEN="$(normalize_quote_token "$QUOTE_TOKEN")"
+: > "$REPORT_FILE"
+
 echo "BASE_URL=$BASE_URL"
 echo "TEST_EMAIL=$TEST_EMAIL"
+echo "QUOTE_TOKEN=${QUOTE_TOKEN:-<vacío>}"
+echo "INTERACTIVE=$INTERACTIVE"
+echo "REPORTE=$REPORT_FILE"
 echo
 
 echo "1) Funnel crítico live (/start + /api/session/*)"
@@ -118,7 +190,7 @@ fi
 echo
 echo "5) Rate limiting activo"
 hits_429=0
-for i in $(seq 1 25); do
+for i in $(seq 1 "$RATE_BURST"); do
   code="$(curl -sS -o /dev/null -w "%{http_code}" -H "content-type: application/json" \
     -d '{"reference":"NO_EXISTE_123","email":"nobody@example.com"}' \
     "$BASE_URL/api/orders/lookup")"
@@ -151,10 +223,58 @@ fi
 echo
 echo "===== RESUMEN ====="
 echo "PASS=$PASS FAIL=$FAIL WARN=$WARN"
+log_line "SUMMARY|PASS=$PASS|FAIL=$FAIL|WARN=$WARN"
 
 if [[ "$FAIL" -gt 0 ]]; then
   red "DECISIÓN AUTOMÁTICA: NO-GO"
+  log_line "DECISION|NO-GO"
   exit 1
+fi
+
+if [[ "$INTERACTIVE" == "1" ]]; then
+  echo
+  echo "===== CHECKLIST MANUAL (GO FINAL) ====="
+  log_line "MANUAL|start"
+
+  if ask_yn "E2E cliente completo OK (documento -> pago -> estado -> entrega)?" "n"; then
+    manual_pass "E2E cliente completo"
+  else
+    manual_fail "E2E cliente completo"
+  fi
+  if ask_yn "E2E traductor/PM OK (asignación, ETA, entrega, notificación)?" "n"; then
+    manual_pass "E2E traductor/PM"
+  else
+    manual_fail "E2E traductor/PM"
+  fi
+  if ask_yn "WCAG mínimo OK (teclado/foco/contraste/zoom 200%)?" "n"; then
+    manual_pass "WCAG mínimo"
+  else
+    manual_warn "WCAG mínimo pendiente"
+  fi
+  if ask_yn "Vercel env OK (RATE_LIMIT_STORE=db + Stripe/webhooks + Blob)?" "y"; then
+    manual_pass "Entorno Vercel"
+  else
+    manual_fail "Entorno Vercel incompleto"
+  fi
+
+  echo
+  echo "MANUAL_PASS=$MANUAL_PASS MANUAL_FAIL=$MANUAL_FAIL MANUAL_WARN=$MANUAL_WARN"
+  log_line "MANUAL_SUMMARY|PASS=$MANUAL_PASS|FAIL=$MANUAL_FAIL|WARN=$MANUAL_WARN"
+
+  if [[ "$MANUAL_FAIL" -gt 0 ]]; then
+    red "DECISIÓN FINAL: NO-GO"
+    log_line "DECISION|NO-GO"
+    exit 1
+  fi
+  if [[ "$MANUAL_WARN" -gt 0 ]]; then
+    yellow "DECISIÓN FINAL: GO CONDICIONADO"
+    log_line "DECISION|GO_CONDICIONADO"
+    exit 0
+  fi
+
+  green "DECISIÓN FINAL: GO"
+  log_line "DECISION|GO"
+  exit 0
 fi
 
 yellow "Validaciones manuales aún necesarias para GO final:"
@@ -162,4 +282,4 @@ echo "- E2E manual cliente + traductor (documento -> pago -> entrega -> cierre)"
 echo "- WCAG mínimo funnel + backoffice (teclado/foco/contraste/zoom 200%)"
 echo "- Confirmar en Vercel: RATE_LIMIT_STORE=db y claves Stripe/webhooks correctas"
 green "DECISIÓN AUTOMÁTICA: GO TÉCNICO (pendiente validación manual final)"
-
+log_line "DECISION|GO_TECNICO"
