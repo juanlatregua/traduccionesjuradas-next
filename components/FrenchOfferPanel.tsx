@@ -581,7 +581,7 @@ export default function FrenchOfferPanel() {
     }
   };
 
-  const uploadCartDocuments = async (reference: string) => {
+  const uploadCartDocuments = async (reference: string, clientEmail?: string) => {
     const entries = cart
       .map((item) => ({ item, file: cartFiles[item.uid] }))
       .filter((entry): entry is { item: CartItem; file: File } => Boolean(entry.file));
@@ -589,21 +589,31 @@ export default function FrenchOfferPanel() {
     if (entries.length === 0) return;
 
     const uploadedUids: string[] = [];
-    const failedLabels: string[] = [];
+    const failedDetails: string[] = [];
 
     for (const entry of entries) {
       const formData = new FormData();
       formData.append("file", entry.file);
-      const res = await fetch(`/api/orders/${reference}/documents`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) {
-        failedLabels.push(entry.item.label);
-        continue;
+      if (clientEmail) {
+        formData.append("clientEmail", clientEmail);
       }
-      uploadedUids.push(entry.item.uid);
+      try {
+        const res = await fetch(`/api/orders/${reference}/documents`, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok) {
+          const reason = data?.error
+            ? String(data.error)
+            : `HTTP ${res.status}`;
+          failedDetails.push(`${entry.item.label}: ${reason}`);
+          continue;
+        }
+        uploadedUids.push(entry.item.uid);
+      } catch (err: any) {
+        failedDetails.push(`${entry.item.label}: ${String(err?.message || "Error de red")}`);
+      }
     }
 
     if (uploadedUids.length > 0) {
@@ -614,9 +624,10 @@ export default function FrenchOfferPanel() {
       });
     }
 
-    if (failedLabels.length > 0) {
+    if (failedDetails.length > 0) {
+      const firstError = failedDetails[0];
       throw new Error(
-        `Pedido ${reference} creado, pero faltan adjuntos por subir (${failedLabels.length}). Reintenta para completar la carga.`
+        `Pedido ${reference} creado, pero faltan adjuntos por subir (${failedDetails.length}). ${firstError}`
       );
     }
   };
@@ -682,7 +693,8 @@ export default function FrenchOfferPanel() {
       const attachmentsCount = cart.filter((item) => Boolean(cartFiles[item.uid])).length;
       if (attachmentsCount > 0) {
         setNotice(`Subiendo ${attachmentsCount} documento(s) adjuntos al pedido...`);
-        await uploadCartDocuments(orderReference);
+        await uploadCartDocuments(orderReference, normalizedGuestEmail);
+        setNotice("Adjuntos subidos correctamente. Redirigiendo al pago...");
       }
 
       const baseStep = resolveGuestStep({
@@ -716,6 +728,7 @@ export default function FrenchOfferPanel() {
 
       window.location.assign(paymentUrl);
     } catch (err: any) {
+      setNotice(null);
       setError(err?.message || "No se pudo crear el pedido.");
     } finally {
       setCheckoutLoading(false);
