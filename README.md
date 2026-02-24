@@ -6,13 +6,16 @@ Variables necesarias en Vercel:
 
 - `STRIPE_SECRET_KEY`: clave secreta de Stripe.
 - `STRIPE_WEBHOOK_SECRET`: secreto del endpoint webhook de Stripe.
+- `STRIPE_QUOTES_WEBHOOK_SECRET` (opcional): secreto dedicado para webhook de presupuestos.
 - `NEXT_PUBLIC_SITE_URL`: URL pública del sitio (ej. `https://www.traduccionesjuradas.net`).
 - `DATABASE_URL`: conexión PostgreSQL para guardar pedidos y estado de pago.
+- `RATE_LIMIT_STORE=db` (recomendado): rate limit distribuido usando la base de datos.
 
 Flujo implementado:
 
 - `POST /api/checkout` crea pedido y sesión de pago en Stripe.
-- `POST /api/stripe/webhook` confirma el pago y actualiza estado en base de datos.
+- `POST /api/payment/stripe/webhook` confirma el pago y actualiza estado en base de datos (endpoint canónico).
+- `POST /api/payment/webhook` queda como alias legacy del endpoint canónico.
 - `GET /api/pedido/:reference` devuelve estado público de un pedido.
 - `components/PriceEstimator.tsx` añade botón `Pagar y confirmar pedido`.
 - Retornos:

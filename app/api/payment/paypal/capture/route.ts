@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `paypal:capture:${ip}`,
     limit: 30,
     windowMs: 10 * 60 * 1000,

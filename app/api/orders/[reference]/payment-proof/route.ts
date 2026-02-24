@@ -26,7 +26,7 @@ export async function POST(req: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
   const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
 
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `payment-proof:${params.reference}:${ip}`,
     limit: 10,
     windowMs: 10 * 60 * 1000,

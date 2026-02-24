@@ -13,7 +13,7 @@ type Body = { reference?: string };
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `payment:card:${ip}`,
     limit: 30,
     windowMs: 10 * 60 * 1000,
@@ -85,8 +85,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, kind: "redsys_form", provider, ...formData });
   } catch (err: any) {
     console.error("[payment/card] error", err);
+    const msg = String(err?.message || "");
+    if (msg.includes("STRIPE_SECRET_KEY")) {
+      return NextResponse.json(
+        { ok: false, error: "Pago con tarjeta desactivado temporalmente en este entorno." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { ok: false, error: err?.message || "Error al iniciar pago con tarjeta." },
+      { ok: false, error: "Error al iniciar pago con tarjeta." },
       { status: 500 }
     );
   }

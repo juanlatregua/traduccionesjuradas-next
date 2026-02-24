@@ -57,6 +57,7 @@ type CreateBody = {
   checkoutStep?: "SELECT" | "UPLOAD" | "CHECKOUT" | "CONFIRM";
   selectedDocumentTypes?: string[];
   uploadedFilesCount?: number;
+  idempotencyKey?: string;
 };
 
 type AcquisitionSnapshot = {
@@ -73,6 +74,14 @@ function normalizeToken(raw?: string | null) {
   if (!raw) return null;
   const cleaned = raw.trim().toLowerCase();
   return cleaned || null;
+}
+
+function normalizeIdempotencyKey(raw?: string | null) {
+  const value = String(raw || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9:_\-.]/g, "");
+  if (!value) return null;
+  return value.slice(0, 140);
 }
 
 function inferAcquisitionSource(req: Request, body: CreateBody): AcquisitionSnapshot {
@@ -116,7 +125,7 @@ function inferAcquisitionSource(req: Request, body: CreateBody): AcquisitionSnap
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `orders:create:${ip}`,
     limit: 10,
     windowMs: 10 * 60 * 1000,
@@ -132,8 +141,9 @@ export async function POST(req: Request) {
   let clientEmail: string;
   let clientName: string | undefined;
 
+  let body: CreateBody;
   try {
-    var body = (await req.json()) as CreateBody;
+    body = (await req.json()) as CreateBody;
   } catch {
     return NextResponse.json({ ok: false, error: "Cuerpo invalido." }, { status: 400 });
   }
@@ -159,6 +169,34 @@ export async function POST(req: Request) {
       );
     }
 
+    const idempotencyKey =
+      normalizeIdempotencyKey(req.headers.get("x-idempotency-key")) ||
+      normalizeIdempotencyKey(body.idempotencyKey) ||
+      normalizeIdempotencyKey(body.checkoutSessionId ? `checkout:${body.checkoutSessionId}` : null);
+
+    if (idempotencyKey) {
+      const existing = await prisma.order.findFirst({
+        where: {
+          idempotencyKey,
+          clientEmail,
+        },
+        select: {
+          id: true,
+          reference: true,
+        },
+      });
+      if (existing) {
+        return NextResponse.json({
+          ok: true,
+          order: { id: existing.id, reference: existing.reference },
+          nextStep: "PAY_NOW",
+          flowProfile: null,
+          acquisitionSource: null,
+          idempotentReplay: true,
+        });
+      }
+    }
+
     const order = await createOrder({
       clientEmail,
       clientName,
@@ -169,6 +207,7 @@ export async function POST(req: Request) {
       pagesLabel: body.pagesLabel,
       amountCents: body.amountCents,
       currency: body.currency || "eur",
+      idempotencyKey: idempotencyKey || undefined,
     });
     const acquisition = inferAcquisitionSource(req, body);
 

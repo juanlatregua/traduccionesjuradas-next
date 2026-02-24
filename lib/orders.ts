@@ -16,6 +16,7 @@ type CreateOrderInput = {
   pagesLabel?: string;
   amountCents: number;
   currency?: string;
+  idempotencyKey?: string;
 };
 
 /* ------------------------------------------------------------------ */
@@ -45,6 +46,7 @@ export async function createOrder(input: CreateOrderInput) {
       return await prisma.order.create({
         data: {
           reference,
+          idempotencyKey: input.idempotencyKey || null,
           clientEmail: input.clientEmail,
           clientName: input.clientName,
           source: input.source,
@@ -65,6 +67,19 @@ export async function createOrder(input: CreateOrderInput) {
     } catch (err: any) {
       if (err?.code !== "P2002") {
         throw err;
+      }
+
+      const targets = Array.isArray(err?.meta?.target) ? err.meta.target.map(String) : [];
+      const idempotencyConflict =
+        Boolean(input.idempotencyKey) &&
+        (targets.includes("idempotencyKey") || targets.includes("Order_idempotencyKey_key"));
+      if (idempotencyConflict && input.idempotencyKey) {
+        const existing = await prisma.order.findUnique({
+          where: { idempotencyKey: input.idempotencyKey },
+        });
+        if (existing) {
+          return existing;
+        }
       }
     }
   }

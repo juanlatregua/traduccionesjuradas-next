@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `stripe:create:${ip}`,
     limit: 30,
     windowMs: 10 * 60 * 1000,
@@ -65,8 +65,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, url: session.url });
   } catch (err: any) {
     console.error("[stripe] error creating checkout session", err);
+    const msg = String(err?.message || "");
+    if (msg.includes("STRIPE_SECRET_KEY")) {
+      return NextResponse.json(
+        { ok: false, error: "Stripe no esta disponible en este entorno." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { ok: false, error: err?.message || "Error al crear sesión de pago." },
+      { ok: false, error: "Error al crear sesión de pago." },
       { status: 500 }
     );
   }

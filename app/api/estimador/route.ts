@@ -608,7 +608,7 @@ function extractTxtText(buffer: Buffer) {
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `estimador:${ip}`,
     limit: 40,
     windowMs: 10 * 60 * 1000,

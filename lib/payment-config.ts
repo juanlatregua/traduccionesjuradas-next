@@ -14,7 +14,8 @@ function envFlagEnabled(value?: string | null, fallback = false) {
 }
 
 export function isStripeConfigured() {
-  return hasValue(process.env.STRIPE_SECRET_KEY);
+  const key = String(process.env.STRIPE_SECRET_KEY || "").trim();
+  return /^sk_(test|live)_[^\s]{12,}$/.test(key);
 }
 
 export function isRedsysConfigured() {

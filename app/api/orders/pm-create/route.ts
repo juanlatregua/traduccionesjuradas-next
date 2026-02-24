@@ -19,6 +19,7 @@ type Body = {
   sourceChannel?: "whatsapp" | "email" | "web";
   urgencyNotes?: string;
   sendEmail?: boolean;
+  idempotencyKey?: string;
 };
 
 function normalizeChannel(raw?: string | null) {
@@ -33,6 +34,14 @@ function sanitizeLangPair(raw?: string | null) {
   if (!value) return undefined;
   if (!/^[a-z]{2}-[a-z]{2}$/.test(value)) return undefined;
   return value;
+}
+
+function normalizeIdempotencyKey(raw?: string | null) {
+  const value = String(raw || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9:_\-.]/g, "");
+  if (!value) return null;
+  return value.slice(0, 140);
 }
 
 function buildPaymentUrl(reference: string, channel: "whatsapp" | "email" | "web") {
@@ -89,7 +98,7 @@ export async function POST(req: Request) {
   const actorEmail = staff.email;
 
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `orders:pm-create:${actorEmail}:${ip}`,
     limit: 30,
     windowMs: 10 * 60 * 1000,
@@ -134,6 +143,45 @@ export async function POST(req: Request) {
       );
     }
 
+    const idempotencyKey =
+      normalizeIdempotencyKey(req.headers.get("x-idempotency-key")) ||
+      normalizeIdempotencyKey(body.idempotencyKey);
+
+    if (idempotencyKey) {
+      const existing = await prisma.order.findFirst({
+        where: {
+          idempotencyKey,
+          clientEmail,
+        },
+        select: {
+          id: true,
+          reference: true,
+        },
+      });
+      if (existing) {
+        return NextResponse.json({
+          ok: true,
+          order: {
+            reference: existing.reference,
+            clientEmail,
+          },
+          paymentUrl: buildPaymentUrl(existing.reference, channel),
+          zonaTraductorUrl: buildZonaTraductorUrl(existing.reference),
+          consultaUrl: buildConsultaUrl(existing.reference, clientEmail),
+          quickQuoteUrl: buildQuickQuoteUrl({
+            clientEmail,
+            clientName,
+            title,
+            amountCents,
+            langPair,
+          }),
+          emailSent: false,
+          warning: "Solicitud duplicada detectada. Se reutiliza el pedido existente.",
+          idempotentReplay: true,
+        });
+      }
+    }
+
     const order = await createOrder({
       clientEmail,
       clientName,
@@ -143,6 +191,7 @@ export async function POST(req: Request) {
       pagesLabel,
       amountCents,
       currency: "eur",
+      idempotencyKey: idempotencyKey || undefined,
     });
 
     const acquisitionSource = channel === "whatsapp" ? "WHATSAPP" : "WEB";

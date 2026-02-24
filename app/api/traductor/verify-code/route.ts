@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const pending = readPendingOtpToken(pendingCookie);
   const pendingEmail = pending?.email || "unknown";
 
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `staff:verify-code:${pendingEmail}:${ip}`,
     limit: 12,
     windowMs: 10 * 60 * 1000,

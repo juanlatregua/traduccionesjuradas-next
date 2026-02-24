@@ -11,7 +11,7 @@ type Params = { params: { reference: string } };
 export async function GET(req: Request, { params }: Params) {
   try {
     const ip = getClientIp(req);
-    const rl = checkRateLimit({
+    const rl = await checkRateLimit({
       key: `orders:public:${ip}`,
       limit: 120,
       windowMs: 10 * 60 * 1000,
@@ -40,8 +40,22 @@ export async function GET(req: Request, { params }: Params) {
         };
       })
       .filter((doc) => !!doc.fileUrl);
-    const { events: _events, ...safeOrder } = order;
-    return NextResponse.json({ ok: true, order: { ...safeOrder, workflowState, sourceDocuments } });
+    const publicOrder = {
+      reference: order.reference,
+      title: order.title,
+      amountCents: order.amountCents,
+      currency: order.currency,
+      paymentStatus: order.paymentStatus,
+      status: order.status,
+      langPair: order.langPair,
+      deliveryState: order.deliveryState,
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      dueDate: order.dueDate,
+      workflowState,
+      sourceDocuments,
+    };
+    return NextResponse.json({ ok: true, order: publicOrder });
   } catch (err) {
     console.error("[orders/public] error fetching order", err);
     return NextResponse.json({ ok: false, error: "Error al consultar pedido." }, { status: 500 });

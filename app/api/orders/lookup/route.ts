@@ -12,7 +12,7 @@ type LookupBody = {
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `orders:lookup:${ip}`,
     limit: 20,
     windowMs: 10 * 60 * 1000,

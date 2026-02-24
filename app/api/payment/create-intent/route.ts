@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `payment-intent:${sessionId}:${ip}`,
     limit: 25,
     windowMs: 10 * 60 * 1000,
@@ -96,8 +96,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, url: checkout.url });
   } catch (err: any) {
     console.error("[payment/create-intent] error", err);
+    const msg = String(err?.message || "");
+    if (msg.includes("STRIPE_SECRET_KEY")) {
+      return NextResponse.json(
+        { ok: false, error: "Pago con tarjeta no disponible en este entorno." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { ok: false, error: err?.message || "No se pudo crear el pago con tarjeta." },
+      { ok: false, error: "No se pudo crear el pago con tarjeta." },
       { status: 500 }
     );
   }
