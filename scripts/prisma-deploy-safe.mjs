@@ -34,4 +34,19 @@ const pushLooksSuccessful = pushOutput.includes("database is now in sync");
 if (push.status === 0 || pushLooksSuccessful) {
   process.exit(0);
 }
+
+const requiresAcceptDataLoss = pushOutput.includes("Use the --accept-data-loss flag");
+if (requiresAcceptDataLoss) {
+  process.stdout.write(
+    "\n[prisma-deploy-safe] `db push` requiere --accept-data-loss. Reintentando de forma controlada...\n"
+  );
+  const pushWithAccept = runPrisma(["db", "push", "--accept-data-loss", "--skip-generate"]);
+  const pushWithAcceptOutput = `${pushWithAccept.stdout || ""}\n${pushWithAccept.stderr || ""}`;
+  const acceptedLooksSuccessful = pushWithAcceptOutput.includes("database is now in sync");
+  if (pushWithAccept.status === 0 || acceptedLooksSuccessful) {
+    process.exit(0);
+  }
+  process.exit(typeof pushWithAccept.status === "number" ? pushWithAccept.status : 1);
+}
+
 process.exit(typeof push.status === "number" ? push.status : 1);
