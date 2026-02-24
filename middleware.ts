@@ -30,7 +30,8 @@ export function middleware(req: NextRequest) {
   const isWpPluginEndpoint = /^\/wp-content\/plugins\/[^/]+\/endpoint\.php$/i.test(pathLower);
   const isFeed = pathLower === "/feed" || pathLower.endsWith("/feed");
   const hasLegacyRouteQuery =
-    searchParams.has("route") && (pathLower === "/index.php" || pathLower === "/");
+    searchParams.has("route") &&
+    (pathLower === "/" || pathLower === "/index.php" || pathLower.endsWith("/index.php"));
 
   if (
     isWpJson ||
