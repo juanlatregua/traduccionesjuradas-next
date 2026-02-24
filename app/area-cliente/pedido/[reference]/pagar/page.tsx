@@ -10,8 +10,17 @@ type OrderInfo = {
   reference: string;
   title: string;
   amountCents: number;
+  currency?: string;
   paymentStatus: string;
+  status?: string;
+  paymentBlocked?: boolean;
+  hasSourceDocument?: boolean;
   workflowState?: string;
+  items?: Array<{
+    description: string;
+    quantity: number;
+    amountCents: number;
+  }>;
   sourceDocuments?: Array<{
     fileUrl: string;
     fileName: string;
@@ -156,7 +165,7 @@ export default function PagarPage() {
           const docs = extractSourceDocumentsFromOrder(data.order);
           setOrder(data.order);
           setSourceDocuments(docs);
-          setSourceUploaded(docs.length > 0);
+          setSourceUploaded(Boolean(data.order?.hasSourceDocument) || docs.length > 0);
         } else {
           setError(data.error || "Pedido no encontrado.");
         }
@@ -172,7 +181,10 @@ export default function PagarPage() {
     }
   }, [tab]);
 
-  const hasSourceDocument = useMemo(() => sourceDocuments.length > 0, [sourceDocuments]);
+  const hasSourceDocument = useMemo(
+    () => sourceUploaded || sourceDocuments.length > 0,
+    [sourceDocuments, sourceUploaded]
+  );
   const paymentBlockedBySource = !hasSourceDocument;
   const acceptsProofUpload =
     hasSourceDocument && (tab === "bizum" || tab === "transferencia" || (tab === "paypal" && !capabilities.paypalEnabled));
@@ -251,9 +263,11 @@ export default function PagarPage() {
     return (
       <div className={`mt-7 rounded-2xl border p-4 ${isSuccess ? "border-emerald-200 bg-white" : "border-slate-200 bg-slate-50"}`}>
         <p className={`text-sm font-semibold ${titleCls}`}>Revisa tu documento</p>
-        {sourceDocuments.length > 0 ? (
+        {hasSourceDocument ? (
           <p className={`mt-1 text-xs ${hintCls}`}>
-            Ya hemos recibido {sourceDocuments.length} documento(s). Revisa miniatura y abre el archivo para confirmar que es correcto.
+            {sourceDocuments.length > 0
+              ? `Ya hemos recibido ${sourceDocuments.length} documento(s). Revisa miniatura y abre el archivo para confirmar que es correcto.`
+              : "Ya consta al menos un documento en el pedido. Puedes subir otro si necesitas reemplazarlo."}
           </p>
         ) : (
           <p className={`mt-1 text-xs ${hintCls}`}>
@@ -303,9 +317,9 @@ export default function PagarPage() {
 
         <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-3">
           <p className="text-xs font-semibold text-slate-700">
-            {sourceDocuments.length > 0
-              ? "Subir o reemplazar documento"
-              : "Subir documento original (obligatorio para pagar)"}
+              {hasSourceDocument
+                ? "Subir o reemplazar documento"
+                : "Subir documento original (obligatorio para pagar)"}
           </p>
           {sourceUploaded && (
             <p className="mt-1 text-[11px] font-semibold text-emerald-700">
@@ -459,7 +473,7 @@ export default function PagarPage() {
     );
   }
 
-  if (["BORRADOR", "PENDIENTE_REVISION"].includes(String(order.workflowState || ""))) {
+  if (order.paymentBlocked || ["BORRADOR", "PENDIENTE_REVISION"].includes(String(order.workflowState || ""))) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
         <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm sm:p-8">
