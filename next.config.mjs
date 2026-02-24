@@ -2,6 +2,36 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  async headers() {
+    const noindexHeader = {
+      key: "X-Robots-Tag",
+      value: "noindex, nofollow",
+    };
+
+    return [
+      {
+        source: "/area-cliente/:path*",
+        headers: [noindexHeader],
+      },
+      {
+        source: "/zona-traductor/:path*",
+        headers: [noindexHeader],
+      },
+      {
+        source: "/admin/:path*",
+        headers: [noindexHeader],
+      },
+      {
+        source: "/acceso",
+        headers: [noindexHeader],
+      },
+      {
+        source: "/q/:path*",
+        headers: [noindexHeader],
+      },
+    ];
+  },
+
   async redirects() {
     return [
       {
