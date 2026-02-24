@@ -48,7 +48,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Sesion no encontrada." }, { status: 404 });
     }
 
-    const formData = await req.formData();
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: "Solicitud de subida invalida. Usa multipart/form-data." },
+        { status: 400 }
+      );
+    }
     const file = formData.get("file") as File | null;
     const sourceLang = String(formData.get("sourceLang") || "").trim() || null;
     const targetLang = String(formData.get("targetLang") || "").trim() || "es";
