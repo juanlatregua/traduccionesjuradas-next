@@ -8,6 +8,7 @@ import {
   isFrenchPair,
   type WorkflowState,
 } from "@/lib/workflow";
+import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 
 type TransitionOptions = {
   reference: string;
@@ -71,6 +72,11 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
     if (from === to) {
       return { changed: false, from, to };
     }
+
+    assertWorkflowTransitionPreconditions({
+      to,
+      paymentStatus: order.paymentStatus,
+    });
 
     if (!canTransitionWorkflow(from, to)) {
       throw new Error(`Transicion no permitida: ${from} -> ${to}.`);

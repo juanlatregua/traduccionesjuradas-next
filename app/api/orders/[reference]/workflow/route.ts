@@ -88,8 +88,15 @@ export async function POST(req: Request, { params }: Params) {
     });
   } catch (err: any) {
     console.error("[workflow-transition] error", err);
+    const message = String(err?.message || "No se pudo actualizar el workflow.");
+    if (
+      message.includes("Transicion no permitida") ||
+      message.includes("PAGO_VALIDADO sin pago confirmado")
+    ) {
+      return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    }
     return NextResponse.json(
-      { ok: false, error: err?.message || "No se pudo actualizar el workflow." },
+      { ok: false, error: message },
       { status: 500 }
     );
   }
