@@ -1,6 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkRateLimit } from "../../lib/rate-limit.ts";
+import path from "node:path";
+import { registerHooks } from "node:module";
+import { pathToFileURL } from "node:url";
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "@/lib/prisma") {
+      const prismaPath = pathToFileURL(path.resolve(process.cwd(), "lib/prisma.ts")).href;
+      return nextResolve(prismaPath, context);
+    }
+    return nextResolve(specifier, context);
+  },
+});
+
+const { checkRateLimit } = await import("../../lib/rate-limit.ts");
 
 const ORIGINAL_RATE_LIMIT_STORE = process.env.RATE_LIMIT_STORE;
 
