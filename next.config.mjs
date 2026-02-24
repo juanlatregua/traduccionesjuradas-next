@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  skipTrailingSlashRedirect: true,
 
   async headers() {
     const noindexHeader = {
@@ -66,6 +67,11 @@ const nextConfig = {
       },
       {
         source: "/agencia/:path*",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/categoria-producto/:path*",
         destination: "/",
         permanent: true,
       },

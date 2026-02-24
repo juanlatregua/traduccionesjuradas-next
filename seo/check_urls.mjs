@@ -4,6 +4,7 @@ import path from "node:path";
 
 const INPUT_FILE = path.resolve(process.cwd(), "seo/urls_5xx.txt");
 const BASE_URL = process.env.SEO_BASE_URL || "https://www.traduccionesjuradas.net";
+const OVERRIDE_ORIGIN = process.env.SEO_OVERRIDE_ORIGIN === "1";
 const MAX_REDIRECTS = 10;
 const TIMEOUT_MS = 15000;
 
@@ -15,6 +16,10 @@ function toAbsoluteUrl(raw) {
   const value = raw.trim();
   if (!value) return null;
   if (value.startsWith("http://") || value.startsWith("https://")) {
+    if (OVERRIDE_ORIGIN) {
+      const parsed = new URL(value);
+      return new URL(`${parsed.pathname}${parsed.search}`, BASE_URL).toString();
+    }
     return value;
   }
 
