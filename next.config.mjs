@@ -36,6 +36,15 @@ const nextConfig = {
     return [
       {
         source: "/:path*",
+        has: [
+          { type: "host", value: "www.traduccionesjuradas.net" },
+          { type: "header", key: "x-forwarded-proto", value: "http" },
+        ],
+        destination: "https://www.traduccionesjuradas.net/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
         has: [{ type: "host", value: "traduccionesjuradas.net" }],
         destination: "https://www.traduccionesjuradas.net/:path*",
         permanent: true,
