@@ -50,6 +50,46 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/:legacy((?!api/|_next/|traductor-jurado-frances(?:/)?$).*(?:frances).*)",
+        destination: "/traductor-jurado-frances",
+        permanent: true,
+      },
+      {
+        source: "/contacto/page/:page(\\d+)",
+        destination: "/contacto",
+        permanent: true,
+      },
+      {
+        source: "/inicio/:path*",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/agencia/:path*",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/traductor-jurado-:slug((?!.*frances).*)",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-:slug((?!.*frances).*)",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/traductor-:slug((?!.*frances).*)",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/traducciones-:slug((?!.*frances).*)",
+        destination: "/",
+        permanent: true,
+      },
+      {
         source: "/",
         has: [{ type: "query", key: "action", value: "rest-nonce" }],
         destination: "/",
