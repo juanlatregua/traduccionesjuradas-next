@@ -12,9 +12,14 @@ type Params = {
   };
 };
 
+function hasValidStripeSecret() {
+  const key = String(process.env.STRIPE_SECRET_KEY || "").trim();
+  return /^sk_(test|live)_/.test(key);
+}
+
 export async function POST(req: Request, { params }: Params) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `quote-checkout:${params.token}:${ip}`,
     limit: 20,
     windowMs: 10 * 60 * 1000,
@@ -67,6 +72,16 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Importe inválido para pago." }, { status: 400 });
     }
 
+    if (!hasValidStripeSecret()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Pago con tarjeta temporalmente no disponible. Contacta con soporte para finalizar el pago.",
+        },
+        { status: 503 }
+      );
+    }
+
     const session = await createQuoteStripeCheckoutSession({
       quoteId: quote.id,
       quoteNumber: quote.quoteNumber,
@@ -92,8 +107,22 @@ export async function POST(req: Request, { params }: Params) {
     });
   } catch (err: any) {
     console.error("[quotes:public-checkout] error", err);
+    const msg = String(err?.message || "");
+    const stripeConfigError =
+      msg.includes("STRIPE_SECRET_KEY") ||
+      msg.toLowerCase().includes("invalid api key") ||
+      msg.toLowerCase().includes("no such api key");
+    if (stripeConfigError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Pago con tarjeta temporalmente no disponible. Contacta con soporte para finalizar el pago.",
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { ok: false, error: err?.message || "No se pudo iniciar el pago." },
+      { ok: false, error: "No se pudo iniciar el pago." },
       { status: 500 }
     );
   }

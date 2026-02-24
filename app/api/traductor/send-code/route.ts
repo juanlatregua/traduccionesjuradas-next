@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `staff:send-code:${targetEmail}:${ip}`,
     limit: 6,
     windowMs: 10 * 60 * 1000,

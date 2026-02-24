@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 type Channel = "whatsapp" | "email" | "web";
 
@@ -41,6 +41,8 @@ export default function PMQuickCreatePanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedQuickOrder | null>(null);
+  const idempotencyKeyRef = useRef<string | null>(null);
+  const idempotencyFingerprintRef = useRef<string | null>(null);
 
   async function copyPaymentUrl() {
     if (!created?.paymentUrl) return;
@@ -58,9 +60,27 @@ export default function PMQuickCreatePanel() {
     setCreated(null);
     try {
       const amount = Number(String(amountEur || "").replace(",", "."));
+      const idempotencyFingerprint = JSON.stringify({
+        clientEmail: clientEmail.trim().toLowerCase(),
+        clientName: clientName.trim(),
+        title: title.trim(),
+        amountEur: Number.isFinite(amount) ? amount.toFixed(2) : "NaN",
+        langPair: langPair || "",
+        pagesLabel: pagesLabel.trim(),
+        channel,
+      });
+      if (idempotencyFingerprintRef.current !== idempotencyFingerprint) {
+        idempotencyFingerprintRef.current = idempotencyFingerprint;
+        idempotencyKeyRef.current = `pm:${Date.now()}:${Math.random().toString(16).slice(2, 10)}`;
+      }
+      const idempotencyKey = idempotencyKeyRef.current as string;
+
       const res = await fetch("/api/orders/pm-create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-idempotency-key": idempotencyKey,
+        },
         body: JSON.stringify({
           clientEmail: clientEmail.trim().toLowerCase(),
           clientName: clientName.trim() || undefined,
@@ -71,6 +91,7 @@ export default function PMQuickCreatePanel() {
           sourceChannel: channel,
           urgencyNotes: urgencyNotes.trim() || undefined,
           sendEmail,
+          idempotencyKey,
         }),
       });
       const data = await res.json();

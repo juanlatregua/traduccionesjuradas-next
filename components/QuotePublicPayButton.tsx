@@ -41,7 +41,7 @@ export default function QuotePublicPayButton({ token, isPayable }: Props) {
         {loading ? "Redirigiendo..." : "Pagar"}
       </button>
       <p className="text-xs text-slate-600">
-        Formas de pago: <strong>Tarjeta</strong> (activo) · PayPal/Bizum (próximamente).
+        Formas de pago: <strong>Tarjeta</strong> (según disponibilidad) · PayPal/Bizum (próximamente).
       </p>
       {message && <p className="text-xs font-semibold text-red-700">{message}</p>}
     </div>

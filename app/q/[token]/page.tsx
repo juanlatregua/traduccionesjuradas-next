@@ -71,7 +71,7 @@ async function trackOpen(quote: { id: string; status: string }) {
 
 export default async function PublicQuotePage({ params, searchParams }: Props) {
   const ip = resolveIp();
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `quote-public:${params.token}:${ip}`,
     limit: 90,
     windowMs: 10 * 60 * 1000,
@@ -88,8 +88,10 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
 
   const quote = await prisma.quote.findUnique({
     where: { publicToken: params.token },
-    include: {
-      lines: { orderBy: { createdAt: "asc" } },
+    select: {
+      id: true,
+      status: true,
+      tokenExpiresAt: true,
     },
   });
   if (!quote) {
@@ -118,8 +120,30 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
 
   const refreshed = await prisma.quote.findUnique({
     where: { id: quote.id },
-    include: {
-      lines: { orderBy: { createdAt: "asc" } },
+    select: {
+      id: true,
+      quoteNumber: true,
+      status: true,
+      validUntil: true,
+      sourceLang: true,
+      targetLang: true,
+      deliveryType: true,
+      pdfUrl: true,
+      subtotal: true,
+      discountAmount: true,
+      shippingAmount: true,
+      vatAmount: true,
+      total: true,
+      lines: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          description: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+        },
+      },
     },
   });
   if (!refreshed) notFound();
@@ -159,7 +183,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
           <div className="space-y-4 rounded-2xl border border-slate-200 p-4">
             <h2 className="text-lg font-semibold text-slate-900">Detalle</h2>
             <p className="text-sm text-slate-700">
-              Cliente: <strong>{refreshed.customerName}</strong> ({refreshed.customerEmail})
+              Cliente: <strong>Datos protegidos</strong>
             </p>
             <p className="text-sm text-slate-700">
               Idiomas: <strong>{refreshed.sourceLang}</strong> → <strong>{refreshed.targetLang}</strong>

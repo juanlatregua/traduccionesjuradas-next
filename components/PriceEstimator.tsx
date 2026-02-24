@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 
@@ -154,6 +154,8 @@ export default function PriceEstimator() {
   const [guestEmail, setGuestEmail] = useState("");
   const [urgencyNotes, setUrgencyNotes] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const createOrderIdempotencyRef = useRef<string | null>(null);
+  const createOrderFingerprintRef = useRef<string | null>(null);
 
   const [presetLangPair, setPresetLangPair] = useState<LangPairOption>("");
   const [presetDocLabel, setPresetDocLabel] = useState("");
@@ -350,6 +352,20 @@ export default function PriceEstimator() {
 
     setCheckoutLoading(true);
     try {
+      const idempotencyFingerprint = JSON.stringify({
+        total: Math.round(payTotal * 100),
+        title,
+        langPair: activeLangPair || "",
+        email: (emailOverride || "").trim().toLowerCase(),
+        source: hasCart ? "cart" : payResult?.source || "single",
+        cartSize: cart.length,
+      });
+      if (createOrderFingerprintRef.current !== idempotencyFingerprint) {
+        createOrderFingerprintRef.current = idempotencyFingerprint;
+        createOrderIdempotencyRef.current = `est:${Date.now()}:${Math.random().toString(16).slice(2, 10)}`;
+      }
+      const idempotencyKey = createOrderIdempotencyRef.current as string;
+
       const payload: Record<string, unknown> = {
         amountCents: Math.round(payTotal * 100),
         currency: "eur",
@@ -368,6 +384,7 @@ export default function PriceEstimator() {
         sourceCampaign: tracking.sourceCampaign,
         sourceMedium: tracking.sourceMedium,
         sourceLanding: tracking.sourceLanding,
+        idempotencyKey,
       };
       if (emailOverride) {
         payload.guestEmail = emailOverride;
@@ -375,7 +392,10 @@ export default function PriceEstimator() {
 
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-idempotency-key": idempotencyKey,
+        },
         body: JSON.stringify(payload),
       });
       const data = await res.json();

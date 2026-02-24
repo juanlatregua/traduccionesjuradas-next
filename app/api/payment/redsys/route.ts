@@ -14,7 +14,7 @@ type RedsysBody = {
 /* POST /api/payment/redsys — no auth required (guests can pay) */
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `redsys:create:${ip}`,
     limit: 30,
     windowMs: 10 * 60 * 1000,

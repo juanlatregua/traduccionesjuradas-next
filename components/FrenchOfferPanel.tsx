@@ -319,6 +319,7 @@ export default function FrenchOfferPanel() {
   const [guestEmail, setGuestEmail] = useState("");
   const [urgencyNotes, setUrgencyNotes] = useState("");
   const [pendingOrderReference, setPendingOrderReference] = useState<string | null>(null);
+  const createOrderIdempotencyRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [botHistory, setBotHistory] = useState<Array<{ from: "bot" | "user"; text: string }>>([]);
@@ -449,6 +450,11 @@ export default function FrenchOfferPanel() {
     ]);
   };
 
+  const clearPendingOrder = () => {
+    setPendingOrderReference(null);
+    createOrderIdempotencyRef.current = null;
+  };
+
   const addToCart = () => {
     const uid = `${selectedDoc.id}-${Date.now()}`;
     const selectedAttachment = presetAttachment || (selectedDoc.pricing === "per-word" ? fileUpload : null);
@@ -475,7 +481,7 @@ export default function FrenchOfferPanel() {
     if (selectedDoc.pricing === "per-word" && fileUpload) {
       setFileUpload(null);
     }
-    setPendingOrderReference(null);
+    clearPendingOrder();
     setStep(2);
     setError(null);
     setNotice(null);
@@ -505,7 +511,7 @@ export default function FrenchOfferPanel() {
     if (fileUpload) {
       setCartFiles((prev) => ({ ...prev, [uid]: fileUpload }));
     }
-    setPendingOrderReference(null);
+    clearPendingOrder();
     setStep(2);
     setError(null);
     setNotice(null);
@@ -520,7 +526,7 @@ export default function FrenchOfferPanel() {
       delete next[uid];
       return next;
     });
-    setPendingOrderReference(null);
+    clearPendingOrder();
   };
 
   const attachFileToCartItem = (uid: string, file: File | null) => {
@@ -653,9 +659,16 @@ export default function FrenchOfferPanel() {
 
       let orderReference = pendingOrderReference;
       if (!orderReference) {
+        const idempotencyKey =
+          createOrderIdempotencyRef.current ||
+          `fr:${sessionId}:${Date.now()}:${Math.random().toString(16).slice(2, 10)}`;
+        createOrderIdempotencyRef.current = idempotencyKey;
         const res = await fetch("/api/orders", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-idempotency-key": idempotencyKey,
+          },
           body: JSON.stringify({
             amountCents: Math.round(cartTotal * 100),
             currency: "eur",
@@ -680,6 +693,7 @@ export default function FrenchOfferPanel() {
             checkoutStep: "CHECKOUT",
             selectedDocumentTypes: cart.map((item) => item.docId),
             uploadedFilesCount: cart.length,
+            idempotencyKey,
           }),
         });
         const data = await res.json();

@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `quotes:create:${access.email}:${ip}`,
     limit: 60,
     windowMs: 10 * 60 * 1000,

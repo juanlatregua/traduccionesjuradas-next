@@ -6,6 +6,9 @@ export function getStripe() {
   if (!stripeSecretKey) {
     throw new Error("STRIPE_SECRET_KEY no configurada.");
   }
+  if (!/^sk_(test|live)_[^\s]{12,}$/.test(String(stripeSecretKey).trim())) {
+    throw new Error("STRIPE_SECRET_KEY no valida.");
+  }
   return new Stripe(stripeSecretKey);
 }
 

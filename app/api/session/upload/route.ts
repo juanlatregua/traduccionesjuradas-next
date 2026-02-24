@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `session-upload:${sessionId}:${ip}`,
     limit: 15,
     windowMs: 10 * 60 * 1000,

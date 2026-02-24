@@ -28,5 +28,10 @@ process.stdout.write(
   "\n[prisma-deploy-safe] Detectado P3005 (baseline). Se aplica `prisma db push` para sincronizar esquema.\n"
 );
 
-const push = runPrisma(["db", "push"]);
+const push = runPrisma(["db", "push", "--skip-generate"]);
+const pushOutput = `${push.stdout || ""}\n${push.stderr || ""}`;
+const pushLooksSuccessful = pushOutput.includes("database is now in sync");
+if (push.status === 0 || pushLooksSuccessful) {
+  process.exit(0);
+}
 process.exit(typeof push.status === "number" ? push.status : 1);

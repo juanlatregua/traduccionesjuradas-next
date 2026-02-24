@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
   const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
 
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `source-doc:${params.reference}:${ip}`,
     limit: 12,
     windowMs: 10 * 60 * 1000,

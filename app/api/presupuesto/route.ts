@@ -115,7 +115,7 @@ function inferPresupuestoSource(req: Request) {
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     key: `presupuesto:${ip}`,
     limit: 12,
     windowMs: 10 * 60 * 1000,
