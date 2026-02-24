@@ -55,15 +55,6 @@ const nextConfig = {
         destination: "/",
         permanent: true,
       },
-      {
-        source: "/documentos-oficiales",
-        has: [
-          { type: "query", key: "route", value: "product/category" },
-          { type: "query", key: "path", value: "70" },
-        ],
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
       // ===============================
       // DOCUMENTOS (WordPress → Next)
       // ===============================
@@ -88,16 +79,6 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/categoria-producto/notarial/feed/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/notarial/feed",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
         source: "/categoria-producto/civil/",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -105,16 +86,6 @@ const nextConfig = {
       {
         source: "/categoria-producto/civil",
         destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/feed/",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/feed",
-        destination: "/",
         permanent: true,
       },
       {
@@ -408,11 +379,6 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/categoria-producto/notarial/feed/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
         source: "/categoria-producto/mercantil/",
         destination: "/documentos-oficiales/documentos-mercantiles",
         permanent: true,
@@ -681,16 +647,6 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/feed/",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/feed",
-        destination: "/",
-        permanent: true,
-      },
-      {
         source: "/agencia/",
         destination: "/",
         permanent: true,
@@ -761,56 +717,7 @@ const nextConfig = {
         permanent: true,
       },
 
-      // Endpoints WP legacy (poner 410/redirect al inicio)
-      {
-        source: "/wp-content/plugins/burst-statistics/endpoint.php",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/wp-json/",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/wp-json",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/index.php",
-        has: [
-          {
-            type: "query",
-            key: "route",
-            value: "product/category",
-          },
-          {
-            type: "query",
-            key: "path",
-            value: "70",
-          },
-        ],
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/index.php",
-        has: [
-          {
-            type: "query",
-            key: "route",
-            value: "product/compare",
-          },
-        ],
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/wp-admin/admin-ajax.php",
-        destination: "/",
-        permanent: true,
-      },
+      // Endpoints WP legacy -> 410 gestionado por middleware
       {
         source: "/wp-content/uploads/2019/07/ORDEN-AEX-1971-2002.pdf",
         destination: "/documentos-oficiales",
