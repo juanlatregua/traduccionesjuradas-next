@@ -64,7 +64,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: MISSING_SOURCE_DOCUMENT_ERROR }, { status: 400 });
     }
 
-    const captured = await capturePayPalOrder(body.paypalOrderId);
+    const captured = await capturePayPalOrder(
+      body.paypalOrderId,
+      `order:${body.reference}:paypal:capture`
+    );
 
     if (captured.status === "COMPLETED") {
       const paypalReference = captured.purchase_units?.[0]?.reference_id;

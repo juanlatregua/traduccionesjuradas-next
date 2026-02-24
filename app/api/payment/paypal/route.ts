@@ -66,6 +66,7 @@ export async function POST(req: Request) {
       orderReference: reference,
       amountEur,
       description: order.title || `Traduccion jurada ${reference}`,
+      requestId: `order:${reference}:paypal:create`,
     });
 
     return NextResponse.json({ ok: true, paypalOrderId: paypalOrder.id });

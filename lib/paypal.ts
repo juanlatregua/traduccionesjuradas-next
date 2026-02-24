@@ -33,6 +33,7 @@ export async function createPayPalOrder(opts: {
   orderReference: string;
   amountEur: string; // e.g. "50.00"
   description: string;
+  requestId?: string;
 }) {
   const token = await getAccessToken();
 
@@ -41,6 +42,7 @@ export async function createPayPalOrder(opts: {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ...(opts.requestId ? { "PayPal-Request-Id": opts.requestId } : {}),
     },
     body: JSON.stringify({
       intent: "CAPTURE",
@@ -71,7 +73,7 @@ export async function createPayPalOrder(opts: {
  * Capture a previously approved PayPal order.
  * Returns capture details.
  */
-export async function capturePayPalOrder(paypalOrderId: string) {
+export async function capturePayPalOrder(paypalOrderId: string, requestId?: string) {
   const token = await getAccessToken();
 
   const res = await fetch(`${BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
@@ -79,6 +81,7 @@ export async function capturePayPalOrder(paypalOrderId: string) {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ...(requestId ? { "PayPal-Request-Id": requestId } : {}),
     },
     cache: "no-store",
   });
