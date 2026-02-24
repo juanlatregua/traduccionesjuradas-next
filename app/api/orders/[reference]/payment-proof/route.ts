@@ -15,6 +15,7 @@ import { validatePaymentProofFile } from "@/lib/file-security";
 import { getWorkflowState } from "@/lib/workflow";
 import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { isBlobConfigured } from "@/lib/payment-config";
+import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
 
 export const runtime = "nodejs";
 
@@ -49,7 +50,7 @@ export async function POST(req: Request, { params }: Params) {
         amountCents: true,
         events: {
           orderBy: { createdAt: "desc" },
-          take: 40,
+          take: 200,
           select: {
             type: true,
             payload: true,
@@ -102,6 +103,9 @@ export async function POST(req: Request, { params }: Params) {
         },
         { status: 403 }
       );
+    }
+    if (!hasUploadedSourceDocument(order)) {
+      return NextResponse.json({ ok: false, error: MISSING_SOURCE_DOCUMENT_ERROR }, { status: 400 });
     }
 
     const workflowState = getWorkflowState(order);
@@ -159,12 +163,20 @@ export async function POST(req: Request, { params }: Params) {
         type: "payment.proof_uploaded",
         message: "Comprobante de pago adjuntado por el cliente. Pago marcado automaticamente.",
         payload: {
+          fileKey: blob.pathname,
           fileUrl: blob.url,
           fileName: validation.safeName,
           uploadedAt,
           uploadedBy: sessionEmail || clientEmailRaw || null,
           method: paymentMethod,
         },
+      },
+    });
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        paymentProofFileKey: blob.pathname,
       },
     });
 

@@ -53,6 +53,23 @@ export function Header() {
             <Logo />
           </Link>
 
+          <div className="ml-auto flex items-center gap-2 sm:hidden">
+            <Link
+              href="/area-cliente"
+              aria-label="Área cliente"
+              className="inline-flex h-9 items-center rounded-xl border border-slate-200 px-2 text-[11px] font-semibold text-slate-700 shadow-sm"
+            >
+              Cliente
+            </Link>
+            <Link
+              href="/zona-traductor"
+              aria-label="Zona traductor"
+              className="inline-flex h-9 items-center rounded-xl border border-slate-200 px-2 text-[11px] font-semibold text-slate-700 shadow-sm"
+            >
+              Traductor
+            </Link>
+          </div>
+
           {/* TOGGLE MOBILE */}
           <button
             type="button"
@@ -87,6 +104,12 @@ export function Header() {
           </Link>
           <Link href="/consulta" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
             Consultar pedido
+          </Link>
+          <Link href="/area-cliente" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
+            Área cliente
+          </Link>
+          <Link href="/zona-traductor" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
+            Zona traductor
           </Link>
           <Link href="/preguntas-frecuentes" className="sm:hidden hover:text-emerald-600" onClick={closeMenu}>
             Preguntas frecuentes

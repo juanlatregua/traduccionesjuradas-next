@@ -18,6 +18,8 @@ type QuoteLineInput = {
 type Body = {
   lines?: QuoteLineInput[];
   sendToClient?: boolean;
+  quotePreviewFileKey?: string | null;
+  quotePreviewFileUrl?: string | null;
 };
 
 type NormalizedLine = {
@@ -129,6 +131,20 @@ export async function POST(req: Request, { params }: Params) {
       where: { reference: params.reference },
       data: {
         amountCents: totalCents,
+        quoteSnapshotJson: {
+          lines,
+          totalCents,
+          currency: "EUR",
+          updatedAt: new Date().toISOString(),
+          terms:
+            "Presupuesto para traduccion jurada. Incluye revision y gestion administrativa segun encargo.",
+        },
+        quotePreviewFileKey: body.quotePreviewFileKey
+          ? String(body.quotePreviewFileKey).trim()
+          : undefined,
+        quotePreviewFileUrl: body.quotePreviewFileUrl
+          ? String(body.quotePreviewFileUrl).trim()
+          : undefined,
       },
     });
 

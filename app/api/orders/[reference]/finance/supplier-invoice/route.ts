@@ -9,7 +9,13 @@ export const runtime = "nodejs";
 
 type Params = { params: { reference: string } };
 
-type InvoiceStatus = "PENDING_REQUEST" | "RECEIVED" | "VALIDATED" | "PAID";
+type InvoiceStatus =
+  | "PENDING_REQUEST"
+  | "REQUESTED"
+  | "RECEIVED"
+  | "BOOKED"
+  | "VALIDATED"
+  | "PAID";
 type BillingMode = "PER_ORDER" | "MONTHLY_BATCH";
 type SupplierType = "AUTONOMO" | "EMPRESA" | "UNKNOWN";
 
@@ -32,7 +38,15 @@ type Body = {
 
 function safeStatus(raw: unknown): InvoiceStatus {
   const s = String(raw || "").toUpperCase();
-  if (s === "RECEIVED" || s === "VALIDATED" || s === "PAID") return s;
+  if (s === "VALIDATED") return "BOOKED";
+  if (
+    s === "REQUESTED" ||
+    s === "RECEIVED" ||
+    s === "BOOKED" ||
+    s === "PAID"
+  ) {
+    return s;
+  }
   return "PENDING_REQUEST";
 }
 
@@ -84,11 +98,16 @@ export async function POST(req: Request, { params }: Params) {
     const status = safeStatus(body.status);
     const latestInvoiceEvent = order.events.find((e) => e.type === "finance.supplier_invoice.updated");
     const prevPayload = (latestInvoiceEvent?.payload as any) || {};
-    const prevStatus = String(prevPayload?.status || "").toUpperCase();
+    const prevStatusRaw = String(prevPayload?.status || "").toUpperCase();
+    const prevStatus = prevStatusRaw === "VALIDATED" ? "BOOKED" : prevStatusRaw;
 
-    if (status === "PAID" && prevStatus !== "VALIDATED" && prevStatus !== "PAID") {
+    if (
+      status === "PAID" &&
+      prevStatus !== "BOOKED" &&
+      prevStatus !== "PAID"
+    ) {
       return NextResponse.json(
-        { ok: false, error: "No se puede marcar como pagada sin estado VALIDATED previo." },
+        { ok: false, error: "No se puede marcar como pagada sin estado BOOKED previo." },
         { status: 400 }
       );
     }

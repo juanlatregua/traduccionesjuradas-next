@@ -84,6 +84,19 @@ enum QuoteAccessEventType {
   OPENED
 }
 
+enum SessionStep {
+  START
+  UPLOAD
+  REVIEW
+  CHECKOUT
+  CONFIRMATION
+}
+
+enum AuthState {
+  GUEST
+  AUTHENTICATED
+}
+
 model Order {
   id                 String         @id @default(cuid())
   reference          String         @unique
@@ -103,6 +116,14 @@ model Order {
   deliveryState      DeliveryState  @default(PRESUPUESTO)
   deliveryType       String         @default("pdf")
   translatedFileUrl  String?
+  quotePreviewFileKey String?
+  quotePreviewFileUrl String?
+  quoteSnapshotJson   Json?
+  paymentProofFileKey String?
+  finalDeliveryFileKey String?
+  finalDeliveryFileUrl String?
+  finalFilename       String?
+  finalMimeType       String?
   assignedTo         String?
   dueDate            DateTime?
   createdAt          DateTime       @default(now())
@@ -299,4 +320,44 @@ model StripeEventLog {
   quote Quote? @relation(fields: [quoteId], references: [id], onDelete: SetNull)
 
   @@index([quoteId, processedAt])
+}
+
+model OrderSession {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  step          SessionStep @default(UPLOAD)
+  purpose       String?
+  authState     AuthState   @default(GUEST)
+  userId        String?
+  subtotalCents Int         @default(0)
+  vatCents      Int         @default(0)
+  totalCents    Int         @default(0)
+  currency      String      @default("EUR")
+  isPaid        Boolean     @default(false)
+  paidAt        DateTime?
+  paymentMethod String?
+  reference     String      @unique
+
+  docs OrderDocument[]
+
+  @@index([userId])
+  @@index([step, updatedAt])
+}
+
+model OrderDocument {
+  id           String       @id @default(cuid())
+  sessionId    String
+  session      OrderSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  fileKey      String
+  fileUrl      String
+  filename     String
+  mimeType     String
+  sizeBytes    Int
+  detectedType String?
+  sourceLang   String?
+  targetLang   String?      @default("es")
+  createdAt    DateTime     @default(now())
+
+  @@index([sessionId, createdAt])
 }

@@ -17,6 +17,7 @@ type Body = {
   gatewayFeeCents?: number;
   toleranceCents?: number;
   settledAt?: string;
+  markReconciled?: boolean;
   notes?: string;
 };
 
@@ -67,7 +68,8 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     const diffCents = receivedAmountCents - expectedAmountCents;
-    const status = Math.abs(diffCents) <= toleranceCents ? "MATCHED" : "MISMATCH";
+    const isMatched = Math.abs(diffCents) <= toleranceCents;
+    const status = isMatched ? (body.markReconciled ? "RECONCILED" : "MATCHED") : "MISMATCH";
     const netAmountCents = receivedAmountCents - gatewayFeeCents;
 
     await prisma.orderEvent.create({
@@ -75,9 +77,11 @@ export async function POST(req: Request, { params }: Params) {
         orderId: order.id,
         type: "finance.reconciliation.updated",
         message:
-          status === "MATCHED"
-            ? "Conciliacion de cobro registrada (OK)."
-            : `Conciliacion con descuadre (${(diffCents / 100).toFixed(2)} EUR).`,
+          status === "RECONCILED"
+            ? "Conciliacion de cobro registrada y reconciliada."
+            : status === "MATCHED"
+              ? "Conciliacion de cobro registrada (OK)."
+              : `Conciliacion con descuadre (${(diffCents / 100).toFixed(2)} EUR).`,
         payload: {
           expectedAmountCents,
           receivedAmountCents,

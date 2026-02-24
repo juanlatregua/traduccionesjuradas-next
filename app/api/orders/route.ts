@@ -53,6 +53,10 @@ type CreateBody = {
   sourceCampaign?: string;
   sourceMedium?: string;
   sourceLanding?: string;
+  checkoutSessionId?: string;
+  checkoutStep?: "SELECT" | "UPLOAD" | "CHECKOUT" | "CONFIRM";
+  selectedDocumentTypes?: string[];
+  uploadedFilesCount?: number;
 };
 
 type AcquisitionSnapshot = {
@@ -249,6 +253,39 @@ export async function POST(req: Request) {
           message: "Observaciones de urgencia registradas.",
           payload: {
             notes: urgencyNotes,
+            actorEmail: clientEmail,
+          },
+        },
+      });
+    }
+
+    const checkoutSessionId = String(body.checkoutSessionId || "").trim() || null;
+    const checkoutStepRaw = String(body.checkoutStep || "")
+      .trim()
+      .toUpperCase();
+    const checkoutStep = ["SELECT", "UPLOAD", "CHECKOUT", "CONFIRM"].includes(checkoutStepRaw)
+      ? checkoutStepRaw
+      : null;
+    const selectedDocumentTypes = Array.isArray(body.selectedDocumentTypes)
+      ? body.selectedDocumentTypes
+          .map((item) => String(item || "").trim())
+          .filter(Boolean)
+          .slice(0, 50)
+      : [];
+    const uploadedFilesCount = Number.isFinite(Number(body.uploadedFilesCount))
+      ? Math.max(0, Math.floor(Number(body.uploadedFilesCount)))
+      : null;
+    if (checkoutSessionId || checkoutStep || selectedDocumentTypes.length > 0 || uploadedFilesCount != null) {
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "checkout.session_synced",
+          message: "Snapshot de checkout recibido para preservar estado del funnel.",
+          payload: {
+            checkoutSessionId,
+            checkoutStep,
+            selectedDocumentTypes,
+            uploadedFilesCount,
             actorEmail: clientEmail,
           },
         },

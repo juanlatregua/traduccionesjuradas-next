@@ -3,6 +3,7 @@ import { getOrderPublic } from "@/lib/orders";
 import { buildRedsysFormData } from "@/lib/redsys";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getWorkflowState } from "@/lib/workflow";
+import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
 
 export const runtime = "nodejs";
 
@@ -47,6 +48,9 @@ export async function POST(req: Request) {
         { ok: false, error: "Este pedido aun no esta habilitado para pago." },
         { status: 400 }
       );
+    }
+    if (!hasUploadedSourceDocument(order)) {
+      return NextResponse.json({ ok: false, error: MISSING_SOURCE_DOCUMENT_ERROR }, { status: 400 });
     }
 
     const origin =

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
+import { getOrderGates } from "@/lib/order-actions";
+import { getWorkflowState } from "@/lib/workflow";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { requireStaffAccess } from "@/lib/staff-auth";
 
@@ -27,8 +29,21 @@ export async function POST(req: Request, { params }: Params) {
         reference: true,
         amountCents: true,
         paymentStatus: true,
+        assignedTo: true,
+        deliveryState: true,
+        quoteSnapshotJson: true,
+        quotePreviewFileKey: true,
+        quotePreviewFileUrl: true,
+        paymentProofFileKey: true,
+        finalDeliveryFileKey: true,
+        finalDeliveryFileUrl: true,
+        translatedFileUrl: true,
         createdAt: true,
-        events: { orderBy: { createdAt: "desc" }, take: 40 },
+        events: {
+          orderBy: { createdAt: "desc" },
+          take: 200,
+          select: { type: true, payload: true, createdAt: true },
+        },
       },
     });
 
@@ -37,19 +52,40 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     const snapshot = getFinanceSnapshot(order);
-    if (snapshot.hasFinanceCloseEvent) {
-      return NextResponse.json({ ok: true, alreadyClosed: true });
-    }
-    if (!snapshot.isFinanciallyCloseable) {
+    const workflowState = getWorkflowState(order as any);
+    const gates = getOrderGates(
+      {
+        ...order,
+        workflowState,
+      } as any,
+      snapshot
+    );
+
+    if (!gates.closeReady) {
+      const missing: string[] = [];
+      if (!gates.quoteReady) missing.push("quote + preview");
+      if (!gates.paymentValidated) missing.push("pago validado/comprobante");
+      if (!gates.productionReady) missing.push("asignación de traductor");
+      if (!gates.deliveryReady) missing.push("artefacto final de entrega");
+      if (!gates.deliveredReady) missing.push("notificación de entrega al cliente");
+      if (snapshot.reconciliationStatus !== "RECONCILED") missing.push("conciliación RECONCILED");
+      if (!["BOOKED", "PAID"].includes(snapshot.supplierInvoiceStatus)) {
+        missing.push("factura proveedor BOOKED");
+      }
+      if (snapshot.marginCents === null) missing.push("margen final");
       return NextResponse.json(
         {
           ok: false,
-          error:
-            "No se puede cerrar financieramente: revisa conciliación, factura proveedor y margen.",
+          error: "No se puede cerrar: faltan gates operativos/financieros.",
+          missing,
           warnings: snapshot.warnings,
         },
         { status: 400 }
       );
+    }
+
+    if (snapshot.hasFinanceCloseEvent) {
+      return NextResponse.json({ ok: true, alreadyClosed: true });
     }
 
     const body = (await req.json().catch(() => ({}))) as Body;

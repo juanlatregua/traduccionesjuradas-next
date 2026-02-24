@@ -26,7 +26,12 @@ export default function TranslatorDeliveryForm({ reference }: Props) {
     if (!res.ok || !data?.ok || !data?.url) {
       throw new Error(data?.error || "No se pudo subir el archivo.");
     }
-    return String(data.url);
+    return {
+      url: String(data.url),
+      fileKey: String(data.pathname || "").trim() || null,
+      filename: file.name,
+      mimeType: file.type || null,
+    };
   }
 
   async function submit() {
@@ -39,8 +44,19 @@ export default function TranslatorDeliveryForm({ reference }: Props) {
     setMessage(null);
     try {
       let finalUrl = url.trim();
+      let finalFileKey: string | null = null;
+      let finalFilename: string | null = null;
+      let finalMimeType: string | null = null;
       if (state === "TRADUCIDO" && !finalUrl) {
-        finalUrl = await uploadFile();
+        const upload = await uploadFile();
+        if (typeof upload === "string") {
+          finalUrl = upload;
+        } else {
+          finalUrl = upload.url;
+          finalFileKey = upload.fileKey;
+          finalFilename = upload.filename;
+          finalMimeType = upload.mimeType;
+        }
         setUrl(finalUrl);
       }
 
@@ -50,6 +66,9 @@ export default function TranslatorDeliveryForm({ reference }: Props) {
         body: JSON.stringify({
           state,
           translatedFileUrl: finalUrl || undefined,
+          translatedFileKey: finalFileKey || undefined,
+          translatedFilename: finalFilename || undefined,
+          translatedMimeType: finalMimeType || undefined,
           notifyClient,
           etaDate: state === "EN_PROCESO" && !autoEta ? etaDate || undefined : undefined,
           autoEta: state === "EN_PROCESO" ? autoEta : false,

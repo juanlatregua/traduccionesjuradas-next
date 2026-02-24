@@ -1,7 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  resolveFunnelPathForStep,
+  resolveGuestStep,
+  resolveGoogleCallbackStep,
+  sanitizeReturnPath,
+  type CheckoutSessionSnapshot,
+  type FunnelStep,
+} from "@/lib/funnel-routing";
+import {
+  createCheckoutSessionId,
+  readCheckoutSession,
+  saveCheckoutSession,
+} from "@/lib/funnel-session-client";
 
 type Direction = "fr-es" | "es-fr";
 type Step = 1 | 2 | 3;
@@ -279,7 +292,14 @@ function estimateDetail(doc: DocOption, pages: number, words: number) {
   return `${Math.max(1, words)} palabras x ${money(doc.wordPrice || 0)}.`;
 }
 
+function uiStepToFunnelStep(step: Step): FunnelStep {
+  if (step === 1) return "SELECT";
+  if (step === 2) return "UPLOAD";
+  return "CHECKOUT";
+}
+
 export default function FrenchOfferPanel() {
+  const [sessionId, setSessionId] = useState<string>(() => createCheckoutSessionId());
   const [step, setStep] = useState<Step>(1);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("presets");
   const [direction, setDirection] = useState<Direction>("fr-es");
@@ -295,11 +315,15 @@ export default function FrenchOfferPanel() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartFiles, setCartFiles] = useState<Record<string, File>>({});
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [googleRedirecting, setGoogleRedirecting] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
   const [urgencyNotes, setUrgencyNotes] = useState("");
   const [pendingOrderReference, setPendingOrderReference] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [botHistory, setBotHistory] = useState<Array<{ from: "bot" | "user"; text: string }>>([]);
+  const [sessionHydrated, setSessionHydrated] = useState(false);
+  const firstMissingInputRef = useRef<HTMLInputElement | null>(null);
   const [tracking, setTracking] = useState<{
     sourceRaw?: string;
     sourceChannel?: string;
@@ -311,7 +335,20 @@ export default function FrenchOfferPanel() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const saved = readCheckoutSession();
+    if (saved?.sessionId) {
+      setSessionId(saved.sessionId);
+      if (saved.currentStep === "UPLOAD") setStep(2);
+      if (saved.currentStep === "CHECKOUT") setStep(3);
+      if (saved.orderReference) setPendingOrderReference(saved.orderReference);
+      if (saved.guestEmail) setGuestEmail(saved.guestEmail);
+    }
+
     const params = new URLSearchParams(window.location.search);
+    const requestedStep = (params.get("step") || "").toLowerCase();
+    if (requestedStep === "upload") setStep(2);
+    if (requestedStep === "checkout") setStep(3);
+
     const srcRaw = (params.get("src") || params.get("utm_source") || "").trim().toLowerCase();
     const sourceChannel =
       srcRaw === "wa" || srcRaw === "whatsapp" || srcRaw.startsWith("whatsapp")
@@ -329,6 +366,7 @@ export default function FrenchOfferPanel() {
       sourceMedium,
       sourceLanding: window.location.pathname + window.location.search,
     });
+    setSessionHydrated(true);
   }, []);
 
   const selectedDoc = useMemo(
@@ -349,6 +387,13 @@ export default function FrenchOfferPanel() {
   const previewPrice = estimatePrice(selectedDoc, pages, words);
   const previewDetail = estimateDetail(selectedDoc, pages, words);
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
+  const missingUploadItems = useMemo(
+    () => cart.filter((item) => !cartFiles[item.uid]),
+    [cart, cartFiles]
+  );
+  const firstMissingUid = missingUploadItems[0]?.uid || null;
+  const uploadReady = cart.length > 0 && missingUploadItems.length === 0;
+  const guestEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim());
   const hasMixedPricing =
     cart.some((item) => item.pricingModel === "per-word") &&
     cart.some((item) => item.pricingModel !== "per-word");
@@ -369,6 +414,32 @@ export default function FrenchOfferPanel() {
       { from: "bot", text: botContext },
     ]);
   }, [botContext]);
+
+  useEffect(() => {
+    if (!sessionHydrated) return;
+    const snapshot: CheckoutSessionSnapshot = {
+      sessionId,
+      selectedDocumentTypes: cart.map((item) => item.docId),
+      uploadedFiles: cart
+        .map((item) => ({ uid: item.uid, fileName: cartFiles[item.uid]?.name || item.attachedFileName || "" }))
+        .filter((item) => Boolean(item.fileName)),
+      customerAuthState: guestEmailValid ? "guest" : "unknown",
+      currentStep: uiStepToFunnelStep(step),
+      orderReference: pendingOrderReference,
+      guestEmail: guestEmail.trim().toLowerCase() || undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    saveCheckoutSession(snapshot);
+  }, [
+    cart,
+    cartFiles,
+    guestEmail,
+    guestEmailValid,
+    pendingOrderReference,
+    sessionHydrated,
+    sessionId,
+    step,
+  ]);
 
   const askBot = (question: string, answer: string) => {
     setBotHistory((prev) => [
@@ -452,9 +523,24 @@ export default function FrenchOfferPanel() {
     setPendingOrderReference(null);
   };
 
+  const attachFileToCartItem = (uid: string, file: File | null) => {
+    if (!file) return;
+    setCartFiles((prev) => ({ ...prev, [uid]: file }));
+    setCart((prev) =>
+      prev.map((item) => (item.uid === uid ? { ...item, attachedFileName: file.name } : item))
+    );
+    setError(null);
+  };
+
   const goCheckout = () => {
     if (cart.length === 0) {
       setError("Añade al menos un documento a la cesta.");
+      return;
+    }
+    if (!uploadReady) {
+      setError("Sube el documento original de cada item para continuar al checkout.");
+      setNotice("Paso obligatorio: sube el original (PDF/JPG/PNG) y luego finaliza pedido.");
+      firstMissingInputRef.current?.focus();
       return;
     }
     setStep(3);
@@ -535,11 +621,22 @@ export default function FrenchOfferPanel() {
     }
   };
 
-  const payNow = async () => {
+  const payNow = async (authMode: "guest" | "google") => {
     setCheckoutLoading(true);
     setError(null);
     setNotice(null);
     try {
+      if (cart.length === 0) {
+        throw new Error("Añade al menos un documento antes de continuar.");
+      }
+      if (!uploadReady) {
+        throw new Error("Sube el documento original de cada item para continuar al checkout.");
+      }
+      const normalizedGuestEmail = guestEmail.trim().toLowerCase();
+      if (!guestEmailValid) {
+        throw new Error("Indica un email valido para continuar.");
+      }
+
       const labels = cart.map((item) => item.label).join(" + ").slice(0, 110);
       const containsWordCountItem = cart.some((item) => item.pricingModel === "per-word");
 
@@ -567,14 +664,15 @@ export default function FrenchOfferPanel() {
             sourceCampaign: tracking.sourceCampaign,
             sourceMedium: tracking.sourceMedium,
             sourceLanding: tracking.sourceLanding,
+            guestEmail: normalizedGuestEmail,
+            checkoutSessionId: sessionId,
+            checkoutStep: "CHECKOUT",
+            selectedDocumentTypes: cart.map((item) => item.docId),
+            uploadedFilesCount: cart.length,
           }),
         });
         const data = await res.json();
         if (!res.ok || !data?.ok || !data?.order?.reference) {
-          if (res.status === 401) {
-            window.location.assign("/acceso?callbackUrl=" + encodeURIComponent(window.location.pathname));
-            return;
-          }
           throw new Error(data?.error || "No se pudo crear el pedido.");
         }
         orderReference = data.order.reference as string;
@@ -587,19 +685,51 @@ export default function FrenchOfferPanel() {
         await uploadCartDocuments(orderReference);
       }
 
+      const baseStep = resolveGuestStep({
+        selectedCount: cart.length,
+        uploadedCount: attachmentsCount,
+      });
+      if (baseStep !== "CHECKOUT") {
+        setStep(baseStep === "UPLOAD" ? 2 : 1);
+        throw new Error("Faltan datos para llegar al checkout.");
+      }
+
       const params = new URLSearchParams();
       if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
       if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
       const qs = params.toString();
-      setPendingOrderReference(null);
       setNotice(null);
       const paymentUrl = `/area-cliente/pedido/${orderReference}/pagar${qs ? `?${qs}` : ""}`;
+      setPendingOrderReference(orderReference);
+
+      if (authMode === "google") {
+        const authStep = resolveGoogleCallbackStep({
+          selectedCount: cart.length,
+          uploadedCount: attachmentsCount,
+          lastKnownStep: uiStepToFunnelStep(step),
+        });
+        const callbackTarget = authStep === "CHECKOUT" ? paymentUrl : resolveFunnelPathForStep(authStep);
+        const callbackUrl = sanitizeReturnPath(callbackTarget, paymentUrl);
+        window.location.assign(`/acceso?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+        return;
+      }
+
       window.location.assign(paymentUrl);
     } catch (err: any) {
       setError(err?.message || "No se pudo crear el pedido.");
     } finally {
       setCheckoutLoading(false);
+      setGoogleRedirecting(false);
     }
+  };
+
+  const handleGuestCheckout = () => {
+    void payNow("guest");
+  };
+
+  const handleGoogleCheckout = () => {
+    setGoogleRedirecting(true);
+    void payNow("google");
   };
 
   return (
@@ -608,10 +738,10 @@ export default function FrenchOfferPanel() {
         Contratacion autonoma en frances
       </p>
       <h2 className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">
-        Elige documento, añade a cesta y finaliza pedido
+        Elige documento, sube original y finaliza pedido
       </h2>
       <p className="mt-2 text-sm text-slate-700">
-        Flujo guiado para contratar sin esperas. Puedes mezclar documentos de precio cerrado y por palabra en la misma cesta.
+        Flujo guiado sin pérdidas de estado: selecciona, adjunta original y pasa al checkout con pago claro.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
@@ -627,14 +757,14 @@ export default function FrenchOfferPanel() {
           onClick={() => setStep(2)}
           className={`rounded-full px-3 py-1 ${step === 2 ? "bg-emerald-600 text-white" : "bg-white text-slate-600"}`}
         >
-          2. Cesta
+          2. Subir original
         </button>
         <button
           type="button"
-          onClick={() => setStep(3)}
+          onClick={goCheckout}
           className={`rounded-full px-3 py-1 ${step === 3 ? "bg-emerald-600 text-white" : "bg-white text-slate-600"}`}
         >
-          3. Pago y acceso
+          3. Checkout
         </button>
       </div>
 
@@ -762,7 +892,7 @@ export default function FrenchOfferPanel() {
                 {selectedDoc.pricing !== "per-word" && (
                   <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                      Adjuntar tu documento (opcional)
+                      Adjuntar tu documento (recomendado)
                     </p>
                     <input
                       key={presetAttachmentInputKey}
@@ -772,7 +902,7 @@ export default function FrenchOfferPanel() {
                       className="mt-2 block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700"
                     />
                     <p className="mt-2 text-[11px] text-slate-500">
-                      Si lo adjuntas ahora, quedara dentro del pedido para revision directa del traductor.
+                      Si no lo adjuntas aquí, te lo pediremos en el paso 2 para poder continuar al checkout.
                     </p>
                   </div>
                 )}
@@ -945,6 +1075,18 @@ export default function FrenchOfferPanel() {
             <p className="text-sm text-slate-700">La cesta esta vacia. Añade un documento en el paso 1.</p>
           ) : (
             <>
+              <div
+                className={`mb-4 rounded-xl border px-3 py-2 text-sm ${
+                  uploadReady
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-amber-200 bg-amber-50 text-amber-800"
+                }`}
+              >
+                {uploadReady
+                  ? "Originales completos. Ya puedes pasar al checkout."
+                  : "Sube el documento original de cada item para continuar al checkout."}
+              </div>
+
               <div className="space-y-3">
                 {cart.map((item) => (
                   <div key={item.uid} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3">
@@ -952,10 +1094,23 @@ export default function FrenchOfferPanel() {
                       <p className="text-sm font-semibold text-slate-900">{item.label}</p>
                       <p className="text-xs text-slate-600">{item.detail}</p>
                       <p className="text-xs text-slate-600">Plazo: {item.deadline}</p>
-                      {item.attachedFileName && (
+                      {cartFiles[item.uid] ? (
                         <p className="text-xs font-semibold text-emerald-700">
-                          Adjunto: {item.attachedFileName}
+                          Original listo: {cartFiles[item.uid].name}
                         </p>
+                      ) : (
+                        <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2">
+                          <p className="text-[11px] font-semibold text-amber-800">
+                            Obligatorio para pagar
+                          </p>
+                          <input
+                            ref={item.uid === firstMissingUid ? firstMissingInputRef : null}
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                            onChange={(e) => attachFileToCartItem(item.uid, e.target.files?.[0] || null)}
+                            className="mt-1 block w-full text-[11px] file:mr-2 file:rounded-lg file:border-0 file:bg-white file:px-2 file:py-1.5 file:text-[11px] file:font-semibold file:text-slate-700"
+                          />
+                        </div>
                       )}
                     </div>
                     <div className="text-right">
@@ -976,6 +1131,16 @@ export default function FrenchOfferPanel() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Subtotal</p>
                 <p className="text-xl font-bold text-emerald-700">{money(cartTotal)}</p>
               </div>
+              {uploadReady && (
+                <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-sm font-semibold text-blue-900">
+                    ¿Añadir otro documento o finalizar pedido?
+                  </p>
+                  <p className="mt-1 text-xs text-blue-800">
+                    Puedes volver al selector para añadir más tipos o continuar directamente al checkout.
+                  </p>
+                </div>
+              )}
             </>
           )}
 
@@ -990,9 +1155,10 @@ export default function FrenchOfferPanel() {
             <button
               type="button"
               onClick={goCheckout}
-              className="rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
+              className="rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+              disabled={!uploadReady}
             >
-              Finalizar pedido
+              Ir a checkout
             </button>
           </div>
         </div>
@@ -1001,9 +1167,31 @@ export default function FrenchOfferPanel() {
       {step === 3 && (
         <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
           <p className="text-sm text-slate-700">
-            Pedido preparado en dirección <span className="font-semibold">{direction === "fr-es" ? "Frances a Espanol" : "Espanol a Frances"}</span>.
+            Pedido preparado en dirección{" "}
+            <span className="font-semibold">{direction === "fr-es" ? "Frances a Espanol" : "Espanol a Frances"}</span>.
           </p>
           <p className="mt-1 text-xl font-bold text-emerald-700">{money(cartTotal)}</p>
+          <ul className="mt-2 list-disc pl-5 text-xs text-slate-700">
+            {cart.map((item) => (
+              <li key={item.uid}>{item.label}</li>
+            ))}
+          </ul>
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Email de contacto (obligatorio)
+            </label>
+            <input
+              type="email"
+              value={guestEmail}
+              onChange={(e) => setGuestEmail(e.target.value)}
+              placeholder="tu@email.com"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Usaremos este email para confirmaciones y para recuperar tu pedido.
+            </p>
+          </div>
+
           <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
               Observaciones urgencia
@@ -1022,17 +1210,17 @@ export default function FrenchOfferPanel() {
           {allPayDirect ? (
             <button
               type="button"
-              onClick={payNow}
-              disabled={checkoutLoading || cart.length === 0}
+              onClick={handleGuestCheckout}
+              disabled={checkoutLoading || cart.length === 0 || !uploadReady || !guestEmailValid}
               className="mt-3 rounded-2xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
             >
-              {checkoutLoading ? "Redirigiendo al pago..." : "Pagar y confirmar pedido"}
+              {checkoutLoading ? "Preparando checkout..." : "Continuar como invitado al pago"}
             </button>
           ) : (
             <button
               type="button"
-              onClick={payNow}
-              disabled={checkoutLoading || cart.length === 0}
+              onClick={handleGuestCheckout}
+              disabled={checkoutLoading || cart.length === 0 || !uploadReady || !guestEmailValid}
               className="mt-3 rounded-2xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
             >
               {checkoutLoading ? "Enviando..." : "Enviar a revisión interna"}
@@ -1040,12 +1228,14 @@ export default function FrenchOfferPanel() {
           )}
 
           <div className="mt-3 flex flex-wrap gap-3 text-sm">
-            <a
-              href="/api/auth/signin/google?callbackUrl=/area-cliente"
+            <button
+              type="button"
+              onClick={handleGoogleCheckout}
+              disabled={checkoutLoading || googleRedirecting || !uploadReady || !guestEmailValid}
               className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
             >
-              Registrarme con Google para seguimiento
-            </a>
+              {googleRedirecting ? "Abriendo Google..." : "Continuar con Google y seguir al checkout"}
+            </button>
             <button
               type="button"
               onClick={() => setStep(2)}
@@ -1054,6 +1244,9 @@ export default function FrenchOfferPanel() {
               Volver a cesta
             </button>
           </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Si eliges Google, guardamos el progreso y te devolvemos al checkout correcto.
+          </p>
         </div>
       )}
 

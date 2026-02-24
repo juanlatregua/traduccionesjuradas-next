@@ -140,7 +140,7 @@ function hasMonthlyBatchPending(order: any) {
   return (
     order.financeSnapshot.supplierInvoiceBillingMode === "MONTHLY_BATCH" &&
     order.financeSnapshot.accountingCutoffPassed &&
-    !["VALIDATED", "PAID"].includes(order.financeSnapshot.supplierInvoiceStatus)
+    !["BOOKED", "PAID"].includes(order.financeSnapshot.supplierInvoiceStatus)
   );
 }
 

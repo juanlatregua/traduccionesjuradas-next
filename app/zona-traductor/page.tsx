@@ -16,6 +16,13 @@ import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 import { getTrackedConsultaUrl, getTrackedPresupuestoUrl } from "@/lib/contact";
 import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
 import PMQuickCreatePanel from "@/components/PMQuickCreatePanel";
+import {
+  buildOrderTrackedLinks,
+  getDeliveryArtifactUrl,
+  getNextBestAction,
+  getOrderActionStage,
+  getOrderGates,
+} from "@/lib/order-actions";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -236,6 +243,38 @@ function getQuoteAuditTrail(order: any) {
     });
 }
 
+function getLatestDeliveryNotification(order: any) {
+  const events = order.events || [];
+  const evt = events.find(
+    (event: any) =>
+      event.type === "notification.delivery_ready.sent" ||
+      event.type === "client.translation_ready_notified"
+  );
+  if (!evt) return null;
+  const payload = (evt.payload as any) || {};
+  return {
+    type: String(evt.type || ""),
+    sentAt: evt.createdAt?.toISOString?.() || null,
+    toEmail: payload.toEmail ? String(payload.toEmail) : null,
+    channel: payload.channel ? String(payload.channel) : null,
+    downloadUrl: payload.downloadUrl ? String(payload.downloadUrl) : null,
+  };
+}
+
+function getOrderArtifacts(order: any) {
+  const deliveryUrl = getDeliveryArtifactUrl(order);
+  return {
+    quotePreviewFileKey: order.quotePreviewFileKey ? String(order.quotePreviewFileKey) : null,
+    quotePreviewFileUrl: order.quotePreviewFileUrl ? String(order.quotePreviewFileUrl) : null,
+    quoteSnapshotJson: order.quoteSnapshotJson || null,
+    paymentProofFileKey: order.paymentProofFileKey ? String(order.paymentProofFileKey) : null,
+    finalDeliveryFileKey: order.finalDeliveryFileKey ? String(order.finalDeliveryFileKey) : null,
+    finalDeliveryFileUrl: deliveryUrl || null,
+    finalFilename: order.finalFilename ? String(order.finalFilename) : null,
+    finalMimeType: order.finalMimeType ? String(order.finalMimeType) : null,
+  };
+}
+
 function hasFinancialRisk(order: any) {
   return !order.financeSnapshot.isFinanciallyCloseable || order.financeSnapshot.reconciliationStatus === "MISMATCH";
 }
@@ -248,7 +287,7 @@ function hasMonthlyBatchPending(order: any) {
   return (
     order.financeSnapshot.supplierInvoiceBillingMode === "MONTHLY_BATCH" &&
     order.financeSnapshot.accountingCutoffPassed &&
-    !["VALIDATED", "PAID"].includes(order.financeSnapshot.supplierInvoiceStatus)
+    !["BOOKED", "PAID"].includes(order.financeSnapshot.supplierInvoiceStatus)
   );
 }
 
@@ -276,7 +315,7 @@ function topFinancialAlert(order: any) {
   if (snapshot.marginCents !== null && snapshot.marginCents < 0) return "Margen negativo";
   if (requiresMarginApproval(order)) return "Margen bajo pendiente de aprobacion";
   if (hasMonthlyBatchPending(order)) return "Factura de lote mensual vencida tras corte";
-  if (!["VALIDATED", "PAID"].includes(snapshot.supplierInvoiceStatus)) return "Factura proveedor pendiente de validar";
+  if (!["BOOKED", "PAID"].includes(snapshot.supplierInvoiceStatus)) return "Factura proveedor pendiente de validar";
   if (snapshot.accountingCutoffPassed && !snapshot.hasFinanceCloseEvent) return "Pendiente cierre contable del periodo";
   return "Revisar estado financiero";
 }
@@ -482,13 +521,27 @@ export default async function ZonaTraductorPage({
   }
 
   const allOrders = await getAllOrdersForStaff();
-  const allOrdersWithFinance = allOrders.map((o) => ({
-    ...o,
-    financeSnapshot: getFinanceSnapshot(o),
-    workflowState: getWorkflowState(o),
-    acquisitionSource: getAcquisitionSource(o),
-    ...getArchiveState(o),
-  }));
+  const allOrdersWithFinance = allOrders.map((o) => {
+    const financeSnapshot = getFinanceSnapshot(o);
+    const workflowState = getWorkflowState(o);
+    const orderWithState = {
+      ...o,
+      workflowState,
+    };
+    return {
+      ...o,
+      financeSnapshot,
+      workflowState,
+      acquisitionSource: getAcquisitionSource(o),
+      artifacts: getOrderArtifacts(o),
+      deliveryNotification: getLatestDeliveryNotification(o),
+      trackedLinks: buildOrderTrackedLinks(o.reference),
+      canonicalStage: getOrderActionStage(orderWithState as any, financeSnapshot),
+      gates: getOrderGates(orderWithState as any, financeSnapshot),
+      nextBestAction: getNextBestAction(orderWithState as any, financeSnapshot),
+      ...getArchiveState(o),
+    };
+  });
   const dateRange = getDateRange(searchParams.periodo, searchParams.desde, searchParams.hasta);
   const dateBase = normalizeDateBase(searchParams.base);
 
@@ -740,6 +793,12 @@ export default async function ZonaTraductorPage({
               quoteAuditTrail={getQuoteAuditTrail(order)}
               isArchived={Boolean(order.isArchived)}
               financeSnapshot={order.financeSnapshot}
+              artifacts={order.artifacts}
+              deliveryNotification={order.deliveryNotification}
+              trackedLinks={order.trackedLinks}
+              canonicalStage={order.canonicalStage}
+              gates={order.gates}
+              nextBestAction={order.nextBestAction}
             />
           ))}
         </section>
