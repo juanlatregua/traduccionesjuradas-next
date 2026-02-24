@@ -11,18 +11,26 @@ function gone() {
   });
 }
 
+function redirectPermanent(req: NextRequest, destination: string) {
+  const url = req.nextUrl.clone();
+  url.pathname = destination;
+  url.search = "";
+  return NextResponse.redirect(url, 301);
+}
+
 export function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+  const pathLower = normalizedPath.toLowerCase();
 
-  const isWpJson = normalizedPath === "/wp-json" || normalizedPath.startsWith("/wp-json/");
-  const isWpAdmin = normalizedPath === "/wp-admin" || normalizedPath.startsWith("/wp-admin/");
-  const isWpLogin = normalizedPath === "/wp-login.php";
-  const isXmlRpc = normalizedPath === "/xmlrpc.php";
-  const isWpPluginEndpoint = /^\/wp-content\/plugins\/[^/]+\/endpoint\.php$/i.test(normalizedPath);
-  const isFeed = normalizedPath === "/feed" || normalizedPath.endsWith("/feed");
+  const isWpJson = pathLower === "/wp-json" || pathLower.startsWith("/wp-json/");
+  const isWpAdmin = pathLower === "/wp-admin" || pathLower.startsWith("/wp-admin/");
+  const isWpLogin = pathLower === "/wp-login.php";
+  const isXmlRpc = pathLower === "/xmlrpc.php";
+  const isWpPluginEndpoint = /^\/wp-content\/plugins\/[^/]+\/endpoint\.php$/i.test(pathLower);
+  const isFeed = pathLower === "/feed" || pathLower.endsWith("/feed");
   const hasLegacyRouteQuery =
-    searchParams.has("route") && (normalizedPath === "/index.php" || normalizedPath === "/");
+    searchParams.has("route") && (pathLower === "/index.php" || pathLower === "/");
 
   if (
     isWpJson ||
@@ -34,6 +42,42 @@ export function middleware(req: NextRequest) {
     hasLegacyRouteQuery
   ) {
     return gone();
+  }
+
+  const isFrenchPillar = pathLower === "/traductor-jurado-frances";
+  const isFrenchLegacy =
+    !isFrenchPillar &&
+    pathLower.includes("frances") &&
+    !pathLower.startsWith("/api/") &&
+    !pathLower.startsWith("/_next/");
+
+  if (isFrenchLegacy) {
+    return redirectPermanent(req, "/traductor-jurado-frances");
+  }
+
+  if (
+    pathLower === "/inicio" ||
+    pathLower.startsWith("/inicio/") ||
+    pathLower === "/agencia" ||
+    pathLower.startsWith("/agencia/")
+  ) {
+    return redirectPermanent(req, "/");
+  }
+
+  const isLegacyContactPage = /^\/contacto\/page\/\d+$/i.test(pathLower);
+  if (isLegacyContactPage) {
+    return redirectPermanent(req, "/contacto");
+  }
+
+  const startsWithLegacySlug =
+    pathLower.startsWith("/traductor-jurado-") ||
+    pathLower.startsWith("/traduccion-jurada-") ||
+    pathLower.startsWith("/traductor-") ||
+    pathLower.startsWith("/traducciones-") ||
+    pathLower.startsWith("/categoria-producto/");
+
+  if (startsWithLegacySlug && !isFrenchPillar) {
+    return redirectPermanent(req, "/");
   }
 
   return NextResponse.next();
