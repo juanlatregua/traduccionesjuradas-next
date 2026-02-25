@@ -9,9 +9,9 @@ import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Traducción jurada de antecedentes penales extranjeros | Casier judiciaire y certificados de buena conducta",
+    "Antecedentes penales y casier judiciaire | Traducción jurada oficial",
   description:
-    "Traducción jurada de certificados de antecedentes penales y documentos equivalentes extranjeros (casier judiciaire, bulletin n°3, police clearance, buena conducta) para trámites de extranjería, visados, nacionalidad, teletrabajo y empleo en España.",
+    "Traducción jurada de antecedentes penales para extranjería, nacionalidad y visados. Incluye casier judiciaire en francés con apostilla, precio claro y entrega 24-72h.",
 };
 
 export default function AntecedentesPenalesPage() {
@@ -75,6 +75,16 @@ export default function AntecedentesPenalesPage() {
           Realizamos la <strong>traducción jurada de antecedentes penales
           extranjeros</strong> para que sean aceptados por las autoridades
           españolas y, cuando corresponde, por otros países.
+        </p>
+        <p className="mt-2 text-xs text-slate-600">
+          Para expedientes con documentación en francés, revisa también el{" "}
+          <Link
+            href="/traductor-jurado-frances"
+            className="font-semibold text-emerald-700 hover:underline"
+          >
+            servicio oficial de francés
+          </Link>
+          .
         </p>
       </header>
 

@@ -3,9 +3,9 @@ import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
-  title: "Traductores jurados de francés y otros idiomas | Quiénes somos",
+  title: "Equipo de traductores jurados oficiales | Quiénes somos",
   description:
-    "Equipo de traductores jurados de francés, alemán, inglés y otros idiomas. Coordinamos traducciones juradas oficiales para trámites en España y en el extranjero, sin intermediarios opacos.",
+    "Equipo de traductores jurados oficiales para documentación personal, académica, jurídica y mercantil. Trabajamos por especialidad e idioma, sin intermediarios opacos.",
 };
 
 export default function TraductoresJuradosPage() {
@@ -17,7 +17,7 @@ export default function TraductoresJuradosPage() {
           Sobre nosotros
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-          Traductores jurados de francés y otros idiomas, sin intermediarios
+          Equipo de traductores jurados oficiales, sin intermediarios
         </h1>
         <p className="mt-3 text-sm text-slate-700 sm:text-base">
           Detrás de traduccionesjuradas.net no hay una gran plataforma anónima,
@@ -34,13 +34,24 @@ export default function TraductoresJuradosPage() {
           ¿Quién está detrás de traduccionesjuradas.net?
         </h2>
         <p>
-          El proyecto está impulsado por un traductor jurado de francés con
+          El proyecto está impulsado por un traductor jurado con
           amplia experiencia en traducción jurada de documentos para extranjería,
           Registro Civil, universidades, notarías y procedimientos judiciales.
           Con los años, hemos creado una red de colaboradores traductores
           jurados de otros idiomas (alemán, inglés, neerlandés, italiano,
           portugués, catalán, sueco, noruego…) para poder dar respuesta a
           expedientes más complejos.
+        </p>
+        <p>
+          Si tu expediente está centrado en documentación en francés, consulta
+          la página especializada del{" "}
+          <Link
+            href="/traductor-jurado-frances"
+            className="font-semibold text-emerald-700 hover:underline"
+          >
+            servicio oficial de francés
+          </Link>
+          .
         </p>
         <p>
           Nuestro trabajo consiste en coordinar cada encargo, asignarlo al
@@ -216,4 +227,3 @@ export default function TraductoresJuradosPage() {
     </main>
   );
 }
-

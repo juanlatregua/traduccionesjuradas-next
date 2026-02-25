@@ -115,15 +115,15 @@ export default function TraduccionJuradaOnlinePage() {
       </section>
 
       <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-        <h2 className="text-lg font-semibold text-slate-900">Si tu idioma es frances</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Si tu idioma es francés</h2>
         <p className="mt-2 text-sm text-slate-700">
-          Si buscas un servicio especifico para documentacion en frances, revisa{" "}
-          <Link href="/traduccion-jurada-frances-malaga" className="font-semibold text-emerald-700 hover:underline">
-            traduccion jurada de frances en Malaga
-          </Link>{" "}
-          o la guia general de{" "}
           <Link href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline">
-            traductor jurado de frances
+            servicio oficial de traducción jurada en francés
+          </Link>
+          {" "}para ver precio, plazos y documentos habituales. Si tu gestión es local, también
+          puedes revisar la página de{" "}
+          <Link href="/traduccion-jurada-frances-malaga" className="font-semibold text-emerald-700 hover:underline">
+            atención en Málaga
           </Link>
           .
         </p>

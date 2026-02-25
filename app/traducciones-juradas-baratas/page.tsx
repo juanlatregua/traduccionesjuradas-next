@@ -173,7 +173,7 @@ export default function TraduccionesJuradasBaratas() {
             href="/traductor-jurado-frances"
             className="rounded-2xl border border-slate-400 px-5 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
           >
-            Traducciones juradas de francés
+            Servicio oficial de francés
           </Link>
         </div>
 

@@ -3,9 +3,9 @@ import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
-  title: "Traduccion jurada frances Malaga | Traductor jurado oficial",
+  title: "Traducción jurada de francés en Málaga | Servicio local oficial",
   description:
-    "Traduccion jurada de frances en Malaga para tramites en Espana y en el extranjero. Precio orientativo desde 40 EUR y entrega habitual en 24-72h segun documento.",
+    "Servicio local de traducción jurada de francés en Málaga para trámites oficiales. Gestión online, validez legal y plazos habituales de 24-72h según documento.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traduccion-jurada-frances-malaga",
   },
@@ -25,6 +25,13 @@ export default function TraduccionJuradaFrancesMalagaPage() {
           Servicio de <strong>traductor jurado de frances</strong> para clientes de Malaga y de toda
           Espana. Gestion online, validez oficial y entrega en PDF firmado digitalmente. Si necesitas
           copia en papel, la enviamos por mensajeria.
+        </p>
+        <p className="mt-2 text-xs text-slate-600">
+          Para información general (precio, plazos y documentos), revisa la{" "}
+          <Link href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline">
+            guía principal del servicio oficial de francés
+          </Link>
+          .
         </p>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <Link
@@ -79,7 +86,7 @@ export default function TraduccionJuradaFrancesMalagaPage() {
         <p className="mt-2 text-sm text-slate-700">
           Si buscas informacion general de combinaciones y documentos, consulta la pagina principal de{" "}
           <Link href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline">
-            traductor jurado de frances
+            traduccion jurada en frances
           </Link>
           .
         </p>

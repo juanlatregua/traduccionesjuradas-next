@@ -7,9 +7,9 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
   title:
-    "Traducción jurada de certificados del Registro Civil | Nacimiento, matrimonio y defunción",
+    "Registro Civil en francés | Traducción jurada nacimiento, matrimonio y defunción",
   description:
-    "Traducción jurada de certificados del Registro Civil para trámites en España: nacimiento, matrimonio, divorcio, defunción, fe de vida, soltería y cambios de nombre. Información práctica para documentos de Marruecos, Francia y otros países francófonos.",
+    "Traducción jurada de certificados del Registro Civil para trámites oficiales. Incluye documentos en francés y apostilla, con precio orientativo y plazos habituales 24-72h.",
 };
 
 export default function CertificadosRegistroCivilPage() {
@@ -72,6 +72,16 @@ export default function CertificadosRegistroCivilPage() {
           Traducimos estos certificados de forma jurada para que puedan
           utilizarse en trámites de extranjería, nacionalidad, matrimonio,
           herencias y muchos otros procedimientos en España y en el extranjero.
+        </p>
+        <p className="mt-2 text-xs text-slate-600">
+          Si tu certificado está en francés, puedes revisar también el{" "}
+          <Link
+            href="/traductor-jurado-frances"
+            className="font-semibold text-emerald-700 hover:underline"
+          >
+            servicio oficial de francés
+          </Link>
+          .
         </p>
       </header>
 
