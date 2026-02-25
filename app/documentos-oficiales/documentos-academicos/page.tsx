@@ -3,9 +3,9 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
-  title: "Traducción jurada de títulos y documentos académicos | Universidades y oposiciones",
+  title: "Títulos y DELF/DALF en francés | Traducción jurada académica",
   description:
-    "Traducción jurada de títulos universitarios, certificados de notas, diplomas, DELF/DALF, TOEFL, IELTS, Goethe, certificaciones oficiales de idiomas y documentos académicos para oposiciones, universidades y trámites en España.",
+    "Traducción jurada de títulos, expedientes y certificados académicos para homologación y oposiciones. Soporte para DELF/DALF en francés y otros idiomas oficiales.",
 };
 
 export default function DocumentosAcademicosPage() {
@@ -55,6 +55,14 @@ export default function DocumentosAcademicosPage() {
         <a href="/traductor-jurado-aleman" className="text-emerald-700 hover:underline"> Goethe</a> 
         y otras, para oposiciones, universidades, homologaciones y trámites administrativos en España y en el extranjero.
         </p>   
+        <p className="mt-2 text-xs text-slate-600">
+          Si tu documentación académica está en francés, puedes ampliar
+          información en la guía de{" "}
+          <a href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline">
+            traducción jurada en francés
+          </a>
+          .
+        </p>
       </header>
 
       {/* CONTENIDO */}

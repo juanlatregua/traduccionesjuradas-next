@@ -9,12 +9,11 @@ import Link from "next/link";
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.traduccionesjuradas.net"),
   title: {
-    default:
-      "Traducciones Juradas de Francés y otros idiomas | traduccionesjuradas.net",
+    default: "Traducciones juradas oficiales online | traduccionesjuradas.net",
     template: "%s | traduccionesjuradas.net",
   },
   description:
-    "Traducción jurada oficial de francés y otros idiomas para trámites en España y en el extranjero. Traductores jurados reales, no intermediarios.",
+    "Traducción jurada oficial para trámites en España y en el extranjero. Traductores jurados reales por especialidad e idioma, sin intermediarios opacos.",
   robots: {
     index: true,
     follow: true,
@@ -135,6 +134,12 @@ export default function RootLayout({
                 className="hover:text-emerald-600 hover:underline"
               >
                 Preguntas frecuentes
+              </Link>
+              <Link
+                href="/traductor-jurado-frances"
+                className="hover:text-emerald-600 hover:underline"
+              >
+                Servicio oficial de francés
               </Link>
             </div>
           </div>

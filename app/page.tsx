@@ -91,6 +91,16 @@ export default function Home() {
               >
                 Ver todos los idiomas disponibles →
               </Link>
+              <p className="mt-2 text-xs text-slate-600">
+                Si tu trámite es en francés, accede directamente al{" "}
+                <Link
+                  href="/traductor-jurado-frances"
+                  className="font-semibold text-emerald-700 hover:underline"
+                >
+                  servicio oficial de francés
+                </Link>{" "}
+                con información de precio, plazos y validez.
+              </p>
             </div>
 
             {/* CTA principal */}
