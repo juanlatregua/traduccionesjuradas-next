@@ -8,7 +8,6 @@ import { getOrderDetail } from "@/lib/orders";
 import {
   getDeliveryStateLabel,
   getPaymentStateLabel,
-  getWorkflowStateLabel,
 } from "@/lib/client-area";
 import OrderClientPanel from "@/components/OrderClientPanel";
 import AutoRefresh from "@/components/AutoRefresh";
@@ -87,7 +86,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
     order.paymentStatus === "PAID"
       ? "Pago confirmado"
       : hasProofUploaded
-      ? "Comprobante enviado (pendiente de verificacion)"
+      ? "Comprobante enviado (pendiente de verificación)"
       : "Pendiente de pago";
 
   return (
@@ -101,9 +100,9 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           Estado de tu pedido
         </h1>
         <p className="mt-2 text-sm text-slate-600">
-          Fecha: {order.createdAt.toISOString().slice(0, 10)} · Combinacion: {order.langPair || "—"}
+          Fecha: {order.createdAt.toISOString().slice(0, 10)} · Combinación: {order.langPair || "—"}
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs uppercase tracking-wide text-slate-500">Presupuesto</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -115,16 +114,12 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
             <p className="mt-1 text-sm font-semibold text-slate-900">{getPaymentStateLabel(order.paymentStatus)}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Proceso</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Estado</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{getDeliveryStateLabel(order.deliveryState)}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Workflow</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{getWorkflowStateLabel(workflowState)}</p>
           </div>
         </div>
         <p className="mt-3 text-sm text-slate-700">
-          Verificacion de pago: <span className="font-semibold">{paymentVerificationLabel}</span>
+          Verificación de pago: <span className="font-semibold">{paymentVerificationLabel}</span>
         </p>
         {workflowState === "PENDIENTE_REVISION" && (
           <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -212,7 +207,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         <h2 className="text-lg font-semibold text-slate-900">Documento original</h2>
         {sourceDocuments.length === 0 ? (
           <p className="mt-2 text-sm text-slate-700">
-            Aun no hay documento fuente adjunto en este pedido.
+            Aún no hay documento fuente adjunto en este pedido.
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -242,7 +237,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         <h2 className="text-lg font-semibold text-slate-900">Comprobante de pago</h2>
         {proofEvents.length === 0 ? (
           <p className="mt-2 text-sm text-slate-700">
-            Aun no hemos recibido ningun comprobante en este pedido.
+            Aún no hemos recibido ningún comprobante en este pedido.
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -293,12 +288,12 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           )}
           {order.dueDate && (
             <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-              ETA entrega: {order.dueDate.toISOString().slice(0, 10)}
+              ETA entrega: {order.dueDate.toLocaleDateString("es-ES")}
             </li>
           )}
           {order.deliveryState === "TRADUCIDO" && (
             <li className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-700">
-              Traduccion finalizada
+              Traducción finalizada
             </li>
           )}
         </ol>
@@ -308,7 +303,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-lg font-semibold text-slate-900">Factura</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Datos de facturacion registrados a nombre de {order.billing.fiscalName} ({order.billing.nif}).
+            Datos de facturación registrados a nombre de {order.billing.fiscalName} ({order.billing.nif}).
           </p>
           <a
             href={`/api/orders/${order.reference}/invoice-pdf`}
@@ -332,7 +327,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           </a>
         ) : (
           <p className="mt-2 text-sm text-slate-700">
-            Aun no hay archivo disponible. Te avisaremos cuando el pedido pase a estado traducido.
+            Aún no hay archivo disponible. Te avisaremos cuando el pedido pase a estado traducido.
           </p>
         )}
       </section>
@@ -352,7 +347,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           </ul>
         )}
         <Link href="/area-cliente" className="mt-4 inline-block text-sm font-semibold text-emerald-700 hover:underline">
-          Volver al area de cliente
+          Volver al área de cliente
         </Link>
       </section>
     </main>

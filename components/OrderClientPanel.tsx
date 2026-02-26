@@ -108,12 +108,12 @@ export default function OrderClientPanel({
       });
       const data = await res.json();
       if (data.ok) {
-        setNotice("Datos de envio guardados correctamente.");
+        setNotice("Datos de envío guardados correctamente.");
       } else {
-        setNotice(data.error || "Error al guardar datos de envio.");
+        setNotice(data.error || "Error al guardar datos de envío.");
       }
     } catch {
-      setNotice("Error de conexion al guardar datos de envio.");
+      setNotice("Error de conexión al guardar datos de envío.");
     } finally {
       setSaving(false);
     }
@@ -140,12 +140,12 @@ export default function OrderClientPanel({
       });
       const data = await res.json();
       if (data.ok) {
-        setNotice("Datos de facturacion guardados correctamente.");
+        setNotice("Datos de facturación guardados correctamente.");
       } else {
-        setNotice(data.error || "Error al guardar datos de facturacion.");
+        setNotice(data.error || "Error al guardar datos de facturación.");
       }
     } catch {
-      setNotice("Error de conexion al guardar datos de facturacion.");
+      setNotice("Error de conexión al guardar datos de facturación.");
     } finally {
       setSaving(false);
     }
@@ -153,7 +153,7 @@ export default function OrderClientPanel({
 
   async function requestInvoice() {
     if (!billing.requestInvoice) {
-      setNotice("Marca la opcion de solicitar factura.");
+      setNotice("Marca la opción de solicitar factura.");
       return;
     }
     if (!billingComplete) {
@@ -184,7 +184,7 @@ export default function OrderClientPanel({
         setNotice(data.error || "No se pudo solicitar la factura.");
       }
     } catch {
-      setNotice("Error de conexion al solicitar factura.");
+      setNotice("Error de conexión al solicitar factura.");
     } finally {
       setRequestingInvoice(false);
     }
@@ -200,13 +200,13 @@ export default function OrderClientPanel({
         <p className="mt-2 text-sm text-slate-700">
           Modalidad elegida:{" "}
           <span className="font-semibold">
-            {deliveryType === "envio" ? "Envio fisico" : "PDF firmado digitalmente"}
+            {deliveryType === "envio" ? "Envío físico" : "PDF firmado digitalmente"}
           </span>
         </p>
         {deliveryType === "envio" ? (
           <>
             <p className="mt-2 text-xs text-slate-600">
-              {hasShipping ? "Datos de envio registrados" : "Faltan datos de envio"}
+              {hasShipping ? "Datos de envío registrados" : "Faltan datos de envío"}
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <input
@@ -218,13 +218,13 @@ export default function OrderClientPanel({
               <input
                 value={shipping.phone}
                 onChange={(e) => setShipping((p) => ({ ...p, phone: e.target.value }))}
-                placeholder="Telefono"
+                placeholder="Teléfono"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
               <input
                 value={shipping.address}
                 onChange={(e) => setShipping((p) => ({ ...p, address: e.target.value }))}
-                placeholder="Direccion"
+                placeholder="Dirección"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm sm:col-span-2"
               />
               <input
@@ -242,13 +242,13 @@ export default function OrderClientPanel({
               <input
                 value={shipping.postalCode}
                 onChange={(e) => setShipping((p) => ({ ...p, postalCode: e.target.value }))}
-                placeholder="Codigo postal"
+                placeholder="Código postal"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
               <input
                 value={shipping.country}
                 onChange={(e) => setShipping((p) => ({ ...p, country: e.target.value }))}
-                placeholder="Pais"
+                placeholder="País"
                 className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
               />
             </div>
@@ -259,16 +259,16 @@ export default function OrderClientPanel({
                 disabled={saving}
                 className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                Guardar datos de envio
+                Guardar datos de envío
               </button>
               <span className={`text-sm font-semibold ${shippingComplete ? "text-emerald-700" : "text-amber-700"}`}>
-                {shippingComplete ? "Datos de envio completos" : "Pendiente completar datos de envio"}
+                {shippingComplete ? "Datos de envío completos" : "Pendiente completar datos de envío"}
               </span>
             </div>
           </>
         ) : (
           <p className="mt-3 text-sm text-slate-700">
-            No se requieren datos de envio. Recibiras el documento por PDF firmado.
+            No se requieren datos de envío. Recibirás el documento por PDF firmado.
           </p>
         )}
       </section>
@@ -281,7 +281,7 @@ export default function OrderClientPanel({
         ) : (
           <>
             <p className="mt-2 text-sm text-slate-700">
-              Selecciona metodo: tarjeta, Bizum, PayPal o transferencia.
+              Selecciona método: tarjeta, Bizum, PayPal o transferencia.
             </p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
               <Link
@@ -297,7 +297,7 @@ export default function OrderClientPanel({
 
       {/* Billing */}
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Facturacion</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Facturación</h2>
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
@@ -323,7 +323,7 @@ export default function OrderClientPanel({
             <input
               value={billing.address}
               onChange={(e) => setBilling((p) => ({ ...p, address: e.target.value }))}
-              placeholder="Direccion fiscal"
+              placeholder="Dirección fiscal"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm sm:col-span-2"
             />
             <input
@@ -335,13 +335,13 @@ export default function OrderClientPanel({
             <input
               value={billing.postalCode}
               onChange={(e) => setBilling((p) => ({ ...p, postalCode: e.target.value }))}
-              placeholder="Codigo postal"
+              placeholder="Código postal"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
             />
             <input
               value={billing.country}
               onChange={(e) => setBilling((p) => ({ ...p, country: e.target.value }))}
-              placeholder="Pais"
+              placeholder="País"
               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
             />
             <input
@@ -359,13 +359,13 @@ export default function OrderClientPanel({
             disabled={saving}
             className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
           >
-            Guardar datos de facturacion
+            Guardar datos de facturación
           </button>
           <span className={`text-sm font-semibold ${billing.requestInvoice && billingComplete ? "text-emerald-700" : "text-amber-700"}`}>
             {billing.requestInvoice
               ? billingComplete || hasBilling
-                ? "Datos de facturacion completos"
-                : "Pendiente completar datos de facturacion"
+                ? "Datos de facturación completos"
+                : "Pendiente completar datos de facturación"
               : "Factura no solicitada"}
           </span>
           <button
@@ -381,7 +381,7 @@ export default function OrderClientPanel({
         <ul className="mt-2 space-y-2 text-sm text-slate-700">
           {invoiceEvents.length === 0 ? (
             <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-              Sin movimientos de facturacion.
+              Sin movimientos de facturación.
             </li>
           ) : (
             invoiceEvents.map((entry, i) => (

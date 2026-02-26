@@ -14,7 +14,7 @@ export function getDeliveryStateLabel(state: string) {
 }
 
 export function getDeliveryTypeLabel(type: string) {
-  return type === "envio" ? "Envio fisico" : "PDF firmado";
+  return type === "envio" ? "Envío físico" : "PDF firmado";
 }
 
 export function getWorkflowStateLabel(state?: string | null) {

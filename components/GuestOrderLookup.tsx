@@ -33,8 +33,8 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 const DELIVERY_LABELS: Record<string, string> = {
   PRESUPUESTO: "Presupuesto enviado",
-  EN_PROCESO: "En proceso de traduccion",
-  TRADUCIDO: "Traduccion lista",
+  EN_PROCESO: "En proceso de traducción",
+  TRADUCIDO: "Traducción lista",
 };
 
 export default function GuestOrderLookup() {
@@ -79,7 +79,7 @@ export default function GuestOrderLookup() {
         setOrder(data.order);
       }
     } catch {
-      setError("Error de conexion. Intentalo de nuevo.");
+      setError("Error de conexión. Inténtalo de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -148,12 +148,12 @@ export default function GuestOrderLookup() {
               order.paymentStatus === "PAID"
                 ? "Pago confirmado"
                 : hasProof
-                ? "Comprobante enviado (pendiente de verificacion)"
+                ? "Comprobante enviado (pendiente de verificación)"
                 : "Pendiente de pago";
             return (
               <div className="rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2">
                 <p className="text-sm font-semibold text-cyan-900">
-                  Verificacion de pago: {paymentCheckLabel}
+                  Verificación de pago: {paymentCheckLabel}
                 </p>
               </div>
             );
@@ -205,7 +205,7 @@ export default function GuestOrderLookup() {
               )}
               {order.workflowState && (
                 <div className="col-span-2">
-                  <span className="font-semibold text-slate-600">Workflow:</span>{" "}
+                  <span className="font-semibold text-slate-600">Estado:</span>{" "}
                   {getWorkflowStateLabel(order.workflowState)}
                 </div>
               )}
@@ -222,11 +222,11 @@ export default function GuestOrderLookup() {
             {order.deliveryState === "TRADUCIDO" && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
                 <p className="text-sm text-emerald-800">
-                  Tu traduccion esta lista. Para descargarla, accede a tu{" "}
+                  Tu traducción está lista. Para descargarla, accede a tu{" "}
                   <Link href="/area-cliente" className="font-semibold underline">
-                    area de cliente
+                    área de cliente
                   </Link>{" "}
-                  iniciando sesion.
+                  iniciando sesión.
                 </p>
               </div>
             )}
@@ -234,7 +234,7 @@ export default function GuestOrderLookup() {
             {order.workflowState === "PENDIENTE_REVISION" && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                 <p className="text-sm text-amber-800">
-                  Este pedido esta en revision interna. Te avisaremos por email cuando este listo para pago.
+                  Este pedido está en revisión interna. Te avisaremos por email cuando esté listo para pago.
                 </p>
               </div>
             )}

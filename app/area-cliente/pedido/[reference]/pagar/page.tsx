@@ -358,7 +358,7 @@ export default function PagarPage() {
       return;
     }
     if (!capabilities.manualProofUploadEnabled) {
-      setUploadError("La subida automatica de justificantes esta temporalmente no disponible.");
+      setUploadError("La subida automática de justificantes está temporalmente no disponible.");
       return;
     }
     if (!file) return;
@@ -390,7 +390,7 @@ export default function PagarPage() {
 
   async function handleUploadSourceDocument() {
     if (!capabilities.manualProofUploadEnabled) {
-      setSourceUploadError("La subida automatica de documentos esta temporalmente no disponible.");
+      setSourceUploadError("La subida automática de documentos está temporalmente no disponible.");
       return;
     }
     if (!sourceFile) return;
@@ -460,9 +460,9 @@ export default function PagarPage() {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
         <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold text-emerald-700">Este pedido ya esta pagado.</p>
+          <p className="text-sm font-semibold text-emerald-700">Este pedido ya está pagado.</p>
           <Link href={`/pago/exito?ref=${encodeURIComponent(order.reference)}`} className="mt-3 inline-block text-sm font-semibold text-emerald-700 hover:underline">
-            Ver confirmacion de pago
+            Ver confirmación de pago
           </Link>
           <br />
           <Link href="/consulta" className="mt-2 inline-block text-sm font-semibold text-emerald-700 hover:underline">
@@ -506,7 +506,7 @@ export default function PagarPage() {
             Hemos recibido tu comprobante para el pedido <span className="font-mono font-semibold">{reference}</span> y ya ha quedado marcado como pagado.
           </p>
           <p className="mt-1 text-sm text-emerald-600">
-            Te hemos enviado la confirmacion por email y puedes seguir el avance desde tu area cliente.
+            Te hemos enviado la confirmación por email y puedes seguir el avance desde tu área de cliente.
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
@@ -633,7 +633,7 @@ export default function PagarPage() {
             {capabilities.paypalEnabled ? (
               <>
                 <p className="mt-1 text-xs text-blue-700">
-                  Completa el pago en PayPal. Al confirmar, te llevamos automaticamente a la confirmacion.
+                  Completa el pago en PayPal. Al confirmar, te llevamos automáticamente a la confirmación.
                 </p>
                 {paymentBlockedBySource ? (
                   <p className="mt-3 text-xs font-semibold text-red-700">
@@ -648,7 +648,7 @@ export default function PagarPage() {
             ) : (
               <>
                 <p className="mt-1 text-xs text-blue-700">
-                  PayPal no esta automatizado en este entorno.
+                  PayPal no está automatizado en este entorno.
                   {" "}Puedes pagar por Bizum/transferencia o usar PayPal manual y subir justificante.
                 </p>
                 <div className="mt-3 space-y-2">
@@ -718,12 +718,12 @@ export default function PagarPage() {
             </h3>
             <p className="mt-1 text-xs text-blue-700">
               {tab === "paypal"
-                ? "Sube el justificante de PayPal para registrar el pago automaticamente."
-                : "Sube una captura del Bizum o el justificante de la transferencia para registrar el pago automaticamente."}
+                ? "Sube el justificante de PayPal para registrar el pago automáticamente."
+                : "Sube una captura del Bizum o el justificante de la transferencia para registrar el pago automáticamente."}
             </p>
             <div className="mt-4">
               <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">
-                Email del pedido (recomendado si no has iniciado sesion)
+                Email del pedido (recomendado si no has iniciado sesión)
               </label>
               <input
                 id="proofEmail"
@@ -748,7 +748,7 @@ export default function PagarPage() {
             {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
             {!capabilities.manualProofUploadEnabled && (
               <p className="mt-2 text-xs font-semibold text-amber-800">
-                La subida automatica de justificantes esta temporalmente no disponible.
+                La subida automática de justificantes está temporalmente no disponible.
               </p>
             )}
             {paymentBlockedBySource && (
