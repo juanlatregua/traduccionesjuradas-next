@@ -139,7 +139,7 @@ export default function RootLayout({
                 href="/traductor-jurado-frances"
                 className="hover:text-emerald-600 hover:underline"
               >
-                Servicio oficial de francés
+                Traductor jurado de francés
               </Link>
             </div>
           </div>

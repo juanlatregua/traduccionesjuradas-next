@@ -7,7 +7,7 @@ import { getSessionOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
-  title: "Checkout | Traducción jurada",
+  title: "Pago seguro | Traducción jurada",
   robots: { index: false, follow: false },
 };
 

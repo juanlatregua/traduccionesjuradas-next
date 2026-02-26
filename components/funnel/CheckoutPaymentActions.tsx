@@ -63,7 +63,7 @@ export default function CheckoutPaymentActions({
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-      <h2 className="text-lg font-semibold text-slate-900">Paso 4. Checkout</h2>
+      <h2 className="text-lg font-semibold text-slate-900">Paso 4. Pago</h2>
       <p className="mt-2 text-sm text-slate-700">
         Referencia: <span className="font-mono font-semibold">{reference}</span> · Total:{" "}
         <span className="font-semibold">{amountLabel}</span>
@@ -88,7 +88,7 @@ export default function CheckoutPaymentActions({
       </div>
 
       <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-        <p className="text-sm font-semibold text-blue-900">Tarjeta (Stripe)</p>
+        <p className="text-sm font-semibold text-blue-900">Tarjeta de crédito o débito</p>
         <button
           type="button"
           onClick={payByCard}
@@ -100,7 +100,7 @@ export default function CheckoutPaymentActions({
       </div>
 
       <div className="mt-5 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">Métodos manuales (pendiente verificación)</p>
+        <p className="text-sm font-semibold text-slate-900">Transferencia, Bizum o PayPal</p>
         <CopyField label="Beneficiario" value={MANUAL.beneficiary} mono={false} onCopied={onCopy} />
         <CopyField label="IBAN" value={MANUAL.iban} onCopied={onCopy} />
         <CopyField label="BIC/SWIFT" value={MANUAL.bic} onCopied={onCopy} />
