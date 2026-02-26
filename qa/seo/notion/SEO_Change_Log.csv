@@ -1,0 +1,2 @@
+Date,Change,Scope,URLs Affected,Hypothesis,Expected KPI,Result After 7d,Result After 21d,Keep / Revert
+2026-02-25,"Pilar francés + metadata + internal linking",Content,"/traductor-jurado-frances; /; /documentos-oficiales/*","Aumentar impresiones FR y CTR en queries transaccionales","+20% CTR pilar; +30 impresiones FR",,,Keep

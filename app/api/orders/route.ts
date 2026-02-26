@@ -13,6 +13,13 @@ import { prisma } from "@/lib/prisma";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { inferFlowProfile, requiresInternalReview } from "@/lib/workflow";
 import { getAdminEmails, getCollaboratorEmails, getPmEmails } from "@/lib/staff-access";
+import {
+  computeQuoteTotals,
+  calculateValidUntil,
+  generateQuoteNumber,
+  generateQuoteToken,
+} from "@/lib/quotes";
+import { getWordRateForLangOrPair } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 
@@ -58,6 +65,7 @@ type CreateBody = {
   selectedDocumentTypes?: string[];
   uploadedFilesCount?: number;
   idempotencyKey?: string;
+  estimationMeta?: Record<string, unknown>;
 };
 
 type AcquisitionSnapshot = {
@@ -298,6 +306,31 @@ export async function POST(req: Request) {
       });
     }
 
+    if (body.estimationMeta && typeof body.estimationMeta === "object") {
+      const meta = body.estimationMeta;
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "order.estimation_snapshot",
+          message: "Snapshot de estimacion automatica capturado.",
+          payload: {
+            words: meta.words ?? null,
+            rate: meta.rate ?? null,
+            estimatedByPages: meta.estimatedByPages ?? null,
+            pageCount: meta.pageCount ?? null,
+            marginPct: meta.marginPct ?? null,
+            extractionMethod: meta.extractionMethod ?? null,
+            confidence: meta.confidence ?? null,
+            documentType: meta.documentType ?? null,
+            hasApostille: meta.hasApostille ?? null,
+            warnings: Array.isArray(meta.warnings) ? meta.warnings : [],
+            estimatedTotalCents: body.amountCents ?? null,
+            actorEmail: clientEmail,
+          },
+        },
+      });
+    }
+
     const checkoutSessionId = String(body.checkoutSessionId || "").trim() || null;
     const checkoutStepRaw = String(body.checkoutStep || "")
       .trim()
@@ -331,6 +364,8 @@ export async function POST(req: Request) {
       });
     }
 
+    let autoQuoteId: string | null = null;
+
     if (needsInternalReview) {
       await transitionWorkflowState({
         reference: order.reference,
@@ -338,6 +373,117 @@ export async function POST(req: Request) {
         actorEmail: clientEmail,
         reason: reviewReason,
       });
+
+      // Auto-create Quote DRAFT for review languages
+      try {
+        const langPair = String(body.langPair || "").trim().toLowerCase();
+        const [sourceLang, targetLang] = langPair.includes("-")
+          ? langPair.split("-")
+          : [langPair, "es"];
+        const unitPrice = getWordRateForLangOrPair(langPair);
+        const words = body.words || 0;
+
+        const totals = computeQuoteTotals({
+          lines: [{ description: body.title, quantity: words, unitPrice }],
+          discountType: "NONE",
+          discountValue: 0,
+          vatRate: 0.21,
+          deliveryType: "DIGITAL_PDF",
+        });
+
+        const issuedAt = new Date();
+        const validUntil = calculateValidUntil(issuedAt, 15);
+
+        const year = issuedAt.getFullYear();
+        const prefix = `${year}-`;
+        const baseCount = await prisma.quote.count({
+          where: { quoteNumber: { startsWith: prefix } },
+        });
+        let quoteNumber: string | null = null;
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const candidate = await generateQuoteNumber(baseCount + attempt + 1, issuedAt);
+          const exists = await prisma.quote.findUnique({
+            where: { quoteNumber: candidate },
+            select: { id: true },
+          });
+          if (!exists) { quoteNumber = candidate; break; }
+        }
+        if (!quoteNumber) throw new Error("No se pudo generar número de presupuesto único.");
+
+        let publicToken: string | null = null;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const candidate = generateQuoteToken(28);
+          const exists = await prisma.quote.findUnique({
+            where: { publicToken: candidate },
+            select: { id: true },
+          });
+          if (!exists) { publicToken = candidate; break; }
+        }
+        if (!publicToken) throw new Error("No se pudo generar token público único.");
+
+        const customer = await prisma.customer.upsert({
+          where: { email: clientEmail },
+          update: { name: clientName || clientEmail },
+          create: { name: clientName || clientEmail, email: clientEmail },
+        });
+
+        const quote = await prisma.quote.create({
+          data: {
+            quoteNumber,
+            status: "DRAFT",
+            customerId: customer.id,
+            customerName: clientName || clientEmail,
+            customerEmail: clientEmail,
+            sourceLang: sourceLang || "unknown",
+            targetLang: targetLang || "es",
+            deliveryType: "DIGITAL_PDF",
+            vatRate: 0.21,
+            discountType: "NONE",
+            discountValue: 0,
+            validityDays: 15,
+            issuedAt,
+            validUntil,
+            publicToken,
+            subtotal: totals.subtotal,
+            discountAmount: totals.discountAmount,
+            shippingAmount: totals.shippingAmount,
+            vatAmount: totals.vatAmount,
+            total: totals.total,
+            adminCreatedBy: "system:auto",
+            lines: {
+              create: totals.lines.map((line) => ({
+                description: line.description,
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+                lineTotal: line.lineTotal,
+              })),
+            },
+          },
+        });
+
+        autoQuoteId = quote.id;
+
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { quoteId: quote.id },
+        });
+
+        await prisma.orderEvent.create({
+          data: {
+            orderId: order.id,
+            type: "order.auto_quote_created",
+            message: `Presupuesto DRAFT ${quoteNumber} generado automaticamente.`,
+            payload: {
+              quoteId: quote.id,
+              quoteNumber,
+              total: totals.total,
+              actorEmail: "system:auto",
+            },
+          },
+        });
+      } catch (quoteErr) {
+        console.error("[orders] auto-quote creation failed (non-blocking)", quoteErr);
+      }
     } else {
       await transitionWorkflowState({
         reference: order.reference,
@@ -385,6 +531,7 @@ export async function POST(req: Request) {
         pmEmail,
         urgencyNotes,
         reviewReason,
+        quoteId: autoQuoteId || undefined,
       }).catch((e) => console.error("[orders] review routing email failed", e));
 
       sendOrderUnderReviewClientEmail({
@@ -419,6 +566,7 @@ export async function POST(req: Request) {
       nextStep: needsInternalReview ? "WAIT_REVIEW" : "PAY_NOW",
       flowProfile,
       acquisitionSource: acquisition.source,
+      estimatedAmountCents: body.amountCents,
     });
   } catch (err) {
     console.error("[orders] error creating order", err);

@@ -4,7 +4,12 @@ export const WORD_RATE_BY_LANG: Record<string, number> = {
   fr: 0.08,
   en: 0.1,
   de: 0.12,
+  pt: 0.12,
+  it: 0.12,
   nl: 0.14,
+  ca: 0.1,
+  sv: 0.14,
+  no: 0.14,
 };
 
 export function getBaseLangFromPair(langOrPair: string) {

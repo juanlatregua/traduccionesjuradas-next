@@ -2,6 +2,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import LanguageOfferPanel from "@/components/LanguageOfferPanel";
+import { LANGUAGE_CONFIGS } from "@/lib/language-config";
 
 export const metadata: Metadata = {
   title: "Traductor jurado de alemán | Traducciones juradas alemán-español",
@@ -54,6 +56,9 @@ export default function TraductorJuradoAlemanPage() {
           </Link>
         </div>
       </header>
+
+      {/* PANEL DE PEDIDO */}
+      <LanguageOfferPanel config={LANGUAGE_CONFIGS.aleman} />
 
       {/* BLOQUE TIPOS DE DOCUMENTOS */}
       <section className="mt-10">

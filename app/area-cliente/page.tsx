@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import GuestOrderLookup from "@/components/GuestOrderLookup";
 import { getOrdersByClientEmail } from "@/lib/orders";
 import {
   getDeliveryStateLabel,
@@ -32,30 +33,36 @@ export default async function AreaClientePage() {
 
   if (!session) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-12">
+      <main className="mx-auto max-w-xl px-4 py-12">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-            Acceso requerido
-          </p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Inicia sesion para ver tu area de cliente
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Area de cliente
           </h1>
-          <p className="mt-3 text-sm text-slate-700">
-            El pago directo sigue disponible sin login. El acceso con Google es opcional para centralizar
-            seguimiento y datos de tus encargos.
+          <p className="mt-2 text-sm text-slate-700">
+            Consulta el estado de tu pedido con la referencia y el email.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3 text-sm">
-            <GoogleSignInButton
-              callbackUrl="/area-cliente"
-              label="Entrar con Google"
-              className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
-            />
-            <Link
-              href="/"
-              className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
-            >
-              Volver al inicio
-            </Link>
+
+          <div className="mt-6">
+            <GuestOrderLookup />
+          </div>
+
+          <div className="mt-8 border-t border-slate-200 pt-6">
+            <p className="text-sm text-slate-600">
+              Para ver todos tus pedidos y descargar traducciones, inicia sesion:
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3 text-sm">
+              <GoogleSignInButton
+                callbackUrl="/area-cliente"
+                label="Entrar con Google"
+                className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
+              />
+              <Link
+                href="/"
+                className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Volver al inicio
+              </Link>
+            </div>
           </div>
         </section>
       </main>

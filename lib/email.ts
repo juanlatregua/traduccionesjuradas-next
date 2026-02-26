@@ -527,6 +527,7 @@ export async function sendOrderReviewRoutingEmail(data: {
   pmEmail?: string | null;
   urgencyNotes?: string | null;
   reviewReason?: string | null;
+  quoteId?: string;
 }) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
@@ -542,7 +543,18 @@ export async function sendOrderReviewRoutingEmail(data: {
   sgMail.setApiKey(apiKey);
 
   const amount = (data.amountCents / 100).toFixed(2);
-  const subject = `Revision interna requerida - ${data.reference}`;
+  const baseUrl = "https://www.traduccionesjuradas.net";
+  const hasQuote = Boolean(data.quoteId);
+  const subject = hasQuote
+    ? `Nuevo pedido ${data.reference} — Presupuesto listo para revisar`
+    : `Revision interna requerida - ${data.reference}`;
+  const ctaUrl = hasQuote
+    ? `${baseUrl}/admin/quotes/${data.quoteId}`
+    : `${baseUrl}/zona-traductor`;
+  const ctaLabel = hasQuote ? "Revisar presupuesto y enviar" : "Abrir zona operativa";
+  const quoteNotice = hasQuote
+    ? "\nSe ha generado un presupuesto automatico. Revisalo y haz clic en Enviar.\n"
+    : "";
   const text = `Pedido en revision interna.
 
 Referencia: ${data.reference}
@@ -553,10 +565,13 @@ Importe estimado: ${amount} EUR
 Flujo: ${data.flowProfile}
 Motivo: ${data.reviewReason || "Revision operativa previa al cobro"}
 Observaciones urgencia: ${data.urgencyNotes || "—"}
-
+${quoteNotice}
 Revisar en:
-https://www.traduccionesjuradas.net/zona-traductor`;
+${ctaUrl}`;
 
+  const quoteHtml = hasQuote
+    ? `<p style="margin:12px 0; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; font-size:14px; color:#065f46;">Se ha generado un presupuesto automatico. Revisalo y haz clic en <strong>Enviar</strong>.</p>`
+    : "";
   const html = `
     <h2>Pedido en revisión interna</h2>
     <table style="border-collapse:collapse; margin:12px 0;">
@@ -569,7 +584,8 @@ https://www.traduccionesjuradas.net/zona-traductor`;
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Motivo</td><td>${data.reviewReason || "Revision operativa previa al cobro"}</td></tr>
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Urgencia</td><td>${data.urgencyNotes || "—"}</td></tr>
     </table>
-    <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona operativa</a></p>
+    ${quoteHtml}
+    <p><a href="${ctaUrl}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">${ctaLabel}</a></p>
   `;
 
   await sgMail.send({

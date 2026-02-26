@@ -16,6 +16,7 @@ import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 import { getTrackedConsultaUrl, getTrackedPresupuestoUrl } from "@/lib/contact";
 import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
 import PMQuickCreatePanel from "@/components/PMQuickCreatePanel";
+import EstimationAccuracyCard from "@/components/EstimationAccuracyCard";
 import {
   buildOrderTrackedLinks,
   getDeliveryArtifactUrl,
@@ -765,6 +766,8 @@ export default async function ZonaTraductorPage({
           </a>
         </div>
       </section>
+
+      <EstimationAccuracyCard />
 
       {orders.length > 0 && (
         <section className="mx-auto mt-6 max-w-6xl space-y-3">

@@ -60,6 +60,7 @@ export async function POST(req: Request) {
     const file = formData.get("file") as File | null;
     const sourceLang = String(formData.get("sourceLang") || "").trim() || null;
     const targetLang = String(formData.get("targetLang") || "").trim() || "es";
+    const advance = String(formData.get("advance") || "") === "true";
 
     if (!file) {
       return NextResponse.json({ ok: false, error: "Archivo requerido." }, { status: 400 });
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
     const session = await prisma.orderSession.update({
       where: { id: existing.id },
       data: {
-        step: "REVIEW",
+        ...(advance ? { step: "REVIEW" } : {}),
         subtotalCents: pricing.subtotalCents,
         vatCents: pricing.vatCents,
         totalCents: pricing.totalCents,

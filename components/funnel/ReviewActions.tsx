@@ -22,7 +22,7 @@ export default function ReviewActions({ canProceed }: ReviewActionsProps) {
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "No se pudo preparar la sesión para añadir otro documento.");
       }
-      router.push("/start");
+      router.push("/upload");
       router.refresh();
     } catch (err: any) {
       setError(err?.message || "No se pudo preparar la sesión.");

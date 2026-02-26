@@ -127,10 +127,12 @@ model Order {
   finalMimeType       String?
   assignedTo         String?
   dueDate            DateTime?
+  quoteId            String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   paidAt             DateTime?
 
+  quote    Quote?         @relation(fields: [quoteId], references: [id])
   events   OrderEvent[]
   paymentEvents OrderPaymentEvent[]
   billing  BillingData?
@@ -252,6 +254,7 @@ model Quote {
   updatedAt      DateTime          @updatedAt
 
   customer     Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  orders       Order[]
   lines        QuoteLine[]
   payments     QuotePayment[]
   messageLogs  MessageLog[]

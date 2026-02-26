@@ -5,6 +5,7 @@ import { decimalToNumber } from "@/lib/quotes";
 import { buildQuotePdfBuffer, hashPdf, uploadFinalQuotePdf } from "@/lib/quote-pdf";
 import { buildPayLinkEmail, buildWhatsAppPayText } from "@/lib/quote-messages";
 import { sendQuoteEmail } from "@/lib/quote-email";
+import { transitionWorkflowState } from "@/lib/workflow-server";
 
 export const runtime = "nodejs";
 
@@ -39,7 +40,17 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-    const payUrl = `${baseUrl}/q/${quote.publicToken}`;
+
+    // Check for linked orders to use order payment flow instead of quote token
+    const linkedOrders = await prisma.order.findMany({
+      where: { quoteId: quote.id },
+      select: { id: true, reference: true, events: { orderBy: { createdAt: "desc" }, take: 30 } },
+    });
+    const primaryLinkedOrder = linkedOrders[0] || null;
+
+    const payUrl = primaryLinkedOrder
+      ? `${baseUrl}/area-cliente/pedido/${primaryLinkedOrder.reference}/pagar`
+      : `${baseUrl}/q/${quote.publicToken}`;
 
     const pdfBuffer = buildQuotePdfBuffer({
       quoteNumber: quote.quoteNumber,
@@ -131,6 +142,76 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
     });
+
+    // Transition linked orders: PENDIENTE_REVISION → PRESUPUESTO_ENVIADO → PENDIENTE_PAGO
+    for (const linkedOrder of linkedOrders) {
+      try {
+        // Detect if admin modified the auto-generated quote
+        const wasAutoQuote = quote.adminCreatedBy === "system:auto";
+        let adminModified = false;
+        if (wasAutoQuote) {
+          const autoQuoteEvent = linkedOrder.events.find(
+            (e: any) => e.type === "order.auto_quote_created"
+          );
+          if (autoQuoteEvent) {
+            const originalTotal = Number((autoQuoteEvent.payload as any)?.total ?? 0);
+            const currentTotal = decimalToNumber(quote.total);
+            adminModified = Math.abs(originalTotal - currentTotal) > 0.01;
+          }
+        }
+
+        // Compute final words from first line quantity
+        const firstLine = quote.lines[0];
+        const finalWords = firstLine ? decimalToNumber(firstLine.quantity) : 0;
+        const finalUnitPrice = firstLine ? decimalToNumber(firstLine.unitPrice) : 0;
+
+        await prisma.orderEvent.create({
+          data: {
+            orderId: linkedOrder.id,
+            type: "order.quote_final_snapshot",
+            message: `Snapshot final del presupuesto ${quote.quoteNumber} al enviar.`,
+            payload: {
+              quoteId: quote.id,
+              quoteNumber: quote.quoteNumber,
+              finalWords,
+              finalUnitPrice,
+              finalSubtotal: decimalToNumber(quote.subtotal),
+              finalTotal: decimalToNumber(quote.total),
+              linesCount: quote.lines.length,
+              adminModified,
+              sentBy: access.email,
+            },
+          },
+        });
+
+        await transitionWorkflowState({
+          reference: linkedOrder.reference,
+          to: "PRESUPUESTO_ENVIADO",
+          actorEmail: access.email,
+          reason: `Presupuesto ${quote.quoteNumber} enviado al cliente.`,
+        });
+        await transitionWorkflowState({
+          reference: linkedOrder.reference,
+          to: "PENDIENTE_PAGO",
+          actorEmail: access.email,
+          reason: `Pago habilitado tras envio de presupuesto ${quote.quoteNumber}.`,
+        });
+        await prisma.orderEvent.create({
+          data: {
+            orderId: linkedOrder.id,
+            type: "order.quote_sent_payment_enabled",
+            message: `Presupuesto ${quote.quoteNumber} enviado. Pago habilitado.`,
+            payload: {
+              quoteId: quote.id,
+              quoteNumber: quote.quoteNumber,
+              actorEmail: access.email,
+            },
+          },
+        });
+      } catch (transitionErr) {
+        console.error(`[quotes:finalize-send] failed to transition order ${linkedOrder.reference}`, transitionErr);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

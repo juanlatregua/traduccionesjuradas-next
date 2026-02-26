@@ -2,6 +2,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import LanguageOfferPanel from "@/components/LanguageOfferPanel";
+import { LANGUAGE_CONFIGS } from "@/lib/language-config";
 
 export const metadata: Metadata = {
   title: "Traductor jurado de inglés | Traducciones juradas inglés-español",
@@ -54,6 +56,9 @@ export default function TraductorJuradoInglesPage() {
           </Link>
         </div>
       </header>
+
+      {/* PANEL DE PEDIDO */}
+      <LanguageOfferPanel config={LANGUAGE_CONFIGS.ingles} />
 
       {/* DOCUMENTOS */}
       <section className="mt-10">

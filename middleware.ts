@@ -45,6 +45,18 @@ export function middleware(req: NextRequest) {
     return gone();
   }
 
+  const LANGUAGE_PILLARS = new Set([
+    "/traductor-jurado-frances",
+    "/traductor-jurado-ingles",
+    "/traductor-jurado-aleman",
+    "/traductor-jurado-portugues",
+    "/traductor-jurado-italiano",
+    "/traductor-jurado-neerlandes",
+    "/traductor-jurado-catalan",
+    "/traductor-jurado-sueco",
+    "/traductor-jurado-noruego",
+  ]);
+  const isLanguagePillar = LANGUAGE_PILLARS.has(pathLower);
   const isFrenchPillar = pathLower === "/traductor-jurado-frances";
   const isFrenchLegacy =
     !isFrenchPillar &&
@@ -77,7 +89,7 @@ export function middleware(req: NextRequest) {
     pathLower.startsWith("/traducciones-") ||
     pathLower.startsWith("/categoria-producto/");
 
-  if (startsWithLegacySlug && !isFrenchPillar) {
+  if (startsWithLegacySlug && !isLanguagePillar) {
     return redirectPermanent(req, "/");
   }
 

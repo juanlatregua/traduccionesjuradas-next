@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   try {
     const session = await prisma.orderSession.update({
       where: { id: sessionId },
-      data: { step: "START" },
+      data: { step: "UPLOAD" },
       include: { docs: { orderBy: { createdAt: "desc" } } },
     });
     return NextResponse.json({ ok: true, session: serializeOrderSession(session) });
