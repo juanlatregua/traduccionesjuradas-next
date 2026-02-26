@@ -7,6 +7,7 @@ export const metadata: Metadata = {
     "Traducción jurada de documentos laborales extranjeros | Contratos, nóminas, certificados y teletrabajo",
   description:
     "Traducción jurada de contratos de trabajo, nóminas, certificados de empresa, vida laboral extranjera, despidos y paquetes completos de documentación laboral para residir o teletrabajar en España, especialmente con empresas de Marruecos y otros países extranjeros.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-laborales" },
 };
 
 export default function DocumentosLaboralesPage() {

@@ -12,6 +12,7 @@ export const metadata: Metadata = {
     "Antecedentes penales y casier judiciaire | Traducción jurada oficial",
   description:
     "Traducción jurada de antecedentes penales para extranjería, nacionalidad y visados. Incluye casier judiciaire en francés con apostilla, precio claro y entrega 24-72h.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/antecedentes-penales" },
 };
 
 export default function AntecedentesPenalesPage() {

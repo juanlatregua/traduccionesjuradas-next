@@ -7,6 +7,7 @@ export const metadata: Metadata = {
     "Traducción jurada de documentos jurídicos extranjeros | Divorcios, herencias y poderes",
   description:
     "Traducción jurada de documentos jurídicos extranjeros para su uso en España: sentencias de divorcio, capitulaciones matrimoniales, herencias, testamentos, poderes notariales, resoluciones judiciales y actas. Enfoque práctico para compraventa de inmuebles, sucesiones y extranjería, especialmente con documentos de países francófonos como Marruecos y Francia.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-juridicos" },
 };
 
 export default function DocumentosJuridicosPage() {

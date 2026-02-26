@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Traducción jurada de certificado de nacimiento | Usos, países y apostilla",
   description:
   "Traducción jurada de certificados de nacimiento para trámites en España: extranjería, nacionalidad, matrimonio, menores, ONG y adopciones. Información práctica para documentos de Marruecos, Francia, Senegal, Costa de Marfil y otros países francófonos.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
 };
 
 const whatsappLink = WHATSAPP_LINK;

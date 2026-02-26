@@ -5,6 +5,35 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { DocumentChecklist } from "@/components/DocumentChecklist";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
+
+const HOME_FAQ_ITEMS = [
+  {
+    question: "¿Qué es una traducción jurada?",
+    answer:
+      "Una traducción jurada es una traducción realizada y firmada por un traductor jurado acreditado, que añade su sello y una declaración de veracidad. Tiene validez oficial ante administraciones, juzgados, notarías, universidades y otros organismos.",
+  },
+  {
+    question: "¿Cuánto tarda una traducción jurada?",
+    answer:
+      "El plazo habitual para una traducción jurada sencilla es de 24 a 72 horas laborables. En el caso de documentos extensos o varios idiomas, el plazo se ajusta al volumen. Si tienes una cita o plazo concreto, puedes indicarlo al pedir presupuesto para valorar la urgencia.",
+  },
+  {
+    question: "¿La traducción jurada se entrega en papel o en PDF?",
+    answer:
+      "Cada vez más organismos aceptan la traducción jurada en PDF firmado digitalmente. Nosotros solemos entregar en PDF firmado y, si lo necesitas, también podemos enviarte el original en papel por mensajería a tu dirección en España.",
+  },
+  {
+    question: "¿Cuánto cuesta una traducción jurada?",
+    answer:
+      "El precio depende del tipo de documento, el idioma, la extensión y la urgencia. Trabajamos con tarifas ajustadas y te indicamos siempre un precio cerrado antes de empezar. Puedes consultar una tabla de precios orientativos en nuestra página de precios o pedir un presupuesto personalizado.",
+  },
+  {
+    question: "¿Hacéis traducciones juradas urgentes?",
+    answer:
+      "En muchos casos podemos ofrecer traducción jurada urgente, dependiendo del volumen y del idioma. Si tienes una cita de extranjería, una firma notarial o un plazo universitario, indícalo al pedir presupuesto para revisar la disponibilidad del equipo.",
+  },
+];
 
 const PriceEstimator = dynamic(() => import("@/components/PriceEstimator"), {
   ssr: false,
@@ -31,11 +60,13 @@ export const metadata: Metadata = {
   title: "Traducción jurada oficial en España | Traductores jurados online",
   description:
     "Traducciones juradas realizadas por traductores jurados oficiales. Envío online en PDF firmado digitalmente. Especialistas en documentos personales, académicos, laborales, jurídicos y mercantiles. Servicio para España y extranjeros (incluido Marruecos → España).",
+  alternates: { canonical: "https://www.traduccionesjuradas.net" },
 };
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
+      <SchemaFAQ items={HOME_FAQ_ITEMS} id="schema-faq-home" />
       {/* HERO */}
       <section className="relative overflow-hidden border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:py-14 lg:flex-row lg:items-center lg:py-20">
@@ -44,8 +75,8 @@ export default function Home() {
               Traducción jurada oficial · Rápido y online
             </p>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              Sube tu documento,
-              <span className="block text-blue-700">calcula precio y paga en minutos.</span>
+              Traducción jurada online:
+              <span className="block text-blue-700">sube tu documento y recíbela en 24 h</span>
             </h1>
             <p className="max-w-xl text-base text-slate-600 sm:text-lg">
               Así de fácil: elige idioma, adjunta PDF/foto, obtén estimación y confirma el pago.

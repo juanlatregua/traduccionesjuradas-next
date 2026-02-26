@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Política de cookies | Traducciones Juradas",
+  description:
+    "Política de cookies de traduccionesjuradas.net: tipos de cookies utilizadas, finalidad y cómo gestionarlas.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/politica-de-cookies" },
+};
+
 export default function CookiesPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-12 text-sm text-slate-700">

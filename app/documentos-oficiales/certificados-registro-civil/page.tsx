@@ -10,6 +10,7 @@ export const metadata: Metadata = {
     "Registro Civil en francés | Traducción jurada nacimiento, matrimonio y defunción",
   description:
     "Traducción jurada de certificados del Registro Civil para trámites oficiales. Incluye documentos en francés y apostilla, con precio orientativo y plazos habituales 24-72h.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/certificados-registro-civil" },
 };
 
 export default function CertificadosRegistroCivilPage() {

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Documentos para teletrabajar en España desde Marruecos | Traducción jurada",
   description:
     "Requisitos y documentos para teletrabajar en España desde Marruecos. Traducción jurada de certificados, antecedentes, nóminas, estatutos y documentos con apostilla.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/teletrabajo" },
 };
 
 export default function TeletrabajoMarruecosPage() {

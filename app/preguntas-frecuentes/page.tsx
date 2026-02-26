@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Preguntas frecuentes sobre traducción jurada",
   description:
     "Resolvemos las dudas más frecuentes sobre la traducción jurada: plazos, formato de los documentos, apostilla de La Haya, validez legal, envío en PDF firmado, urgencias y precios.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/preguntas-frecuentes" },
 };
 
 const whatsappLink = WHATSAPP_LINK;

@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Cómo funciona la traducción jurada | Traductores jurados oficiales",
   description:
     "Descubre cómo funciona el proceso de la traducción jurada: envío de documentos, presupuesto cerrado, aceptación, traducción por traductores jurados oficiales y entrega en PDF firmado digitalmente o en papel.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/proceso" },
 };
 
 export default function ComoFuncionaPage() {

@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Política de privacidad | Traducciones Juradas",
+  description:
+    "Política de privacidad de traduccionesjuradas.net: responsable del tratamiento, finalidad, derechos RGPD y datos de contacto.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/privacidad" },
+};
+
 export default function PrivacidadPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-12 text-sm text-slate-700">
