@@ -45,7 +45,7 @@ export function middleware(req: NextRequest) {
     return gone();
   }
 
-  const LANGUAGE_PILLARS = new Set([
+  const VALID_LEGACY_PATHS = new Set([
     "/traductor-jurado-frances",
     "/traductor-jurado-ingles",
     "/traductor-jurado-aleman",
@@ -55,8 +55,12 @@ export function middleware(req: NextRequest) {
     "/traductor-jurado-catalan",
     "/traductor-jurado-sueco",
     "/traductor-jurado-noruego",
+    "/traduccion-jurada-online",
+    "/traduccion-jurada-frances-malaga",
+    "/traducciones-juradas-baratas",
+    "/traductores-jurados",
   ]);
-  const isLanguagePillar = LANGUAGE_PILLARS.has(pathLower);
+  const isLanguagePillar = VALID_LEGACY_PATHS.has(pathLower);
   const isFrenchPillar = pathLower === "/traductor-jurado-frances";
   const isFrenchLegacy =
     !isFrenchPillar &&

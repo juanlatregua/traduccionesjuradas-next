@@ -75,26 +75,9 @@ const nextConfig = {
         destination: "/",
         permanent: true,
       },
-      {
-        source: "/traductor-jurado-:slug((?!.*frances).*)",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-:slug((?!.*frances).*)",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/traductor-:slug((?!.*frances).*)",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/traducciones-:slug((?!.*frances).*)",
-        destination: "/",
-        permanent: true,
-      },
+      // Legacy catch-all redirects removed — handled by middleware.ts
+      // with proper allowlist (LANGUAGE_PILLARS) to avoid blocking
+      // valid language pages like /traductor-jurado-ingles, etc.
       {
         source: "/",
         has: [{ type: "query", key: "action", value: "rest-nonce" }],
