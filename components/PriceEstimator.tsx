@@ -487,7 +487,7 @@ export default function PriceEstimator() {
               }}
             >
               <option value="">Selecciona combinación</option>
-              {PRESET_LANG_OPTIONS.map((opt) => (
+              {LANG_PAIR_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -518,6 +518,18 @@ export default function PriceEstimator() {
               Al elegir documento, el precio fijo se muestra automáticamente (recto/verso no cuenta como dos hojas).
             </p>
           </label>
+
+          {presetLangPair && filteredPresets.length === 0 && (
+            <div className="col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
+              <p className="font-semibold text-amber-800">
+                Aún no tenemos precios fijos para esta combinación.
+              </p>
+              <p className="mt-1 text-amber-700">
+                Tarifa orientativa: <strong>{getWordRateForLangOrPair(presetLangPair).toFixed(2)} EUR/palabra</strong>.
+                Usa la ruta &ldquo;Calcula tu presupuesto&rdquo; para una estimación por archivo, o contáctanos directamente.
+              </p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -537,6 +549,11 @@ export default function PriceEstimator() {
                 </option>
               ))}
             </select>
+            {fileLangPair && (
+              <p className="text-sm text-slate-600">
+                Tarifa para esta combinación: <strong className="text-emerald-700">{getWordRateForLangOrPair(fileLangPair).toFixed(2)} EUR/palabra</strong>
+              </p>
+            )}
           </label>
 
           <label className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3">

@@ -13,7 +13,7 @@ export type LanguageConfig = {
 export const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   ingles: {
     slug: "ingles",
-    name: "ingles",
+    name: "inglés",
     nameEn: "English",
     langCode: "en",
     defaultPair: "en-es",
@@ -22,7 +22,7 @@ export const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   },
   aleman: {
     slug: "aleman",
-    name: "aleman",
+    name: "alemán",
     nameEn: "German",
     langCode: "de",
     defaultPair: "de-es",
@@ -31,7 +31,7 @@ export const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   },
   portugues: {
     slug: "portugues",
-    name: "portugues",
+    name: "portugués",
     nameEn: "Portuguese",
     langCode: "pt",
     defaultPair: "pt-es",
@@ -49,7 +49,7 @@ export const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   },
   neerlandes: {
     slug: "neerlandes",
-    name: "neerlandes",
+    name: "neerlandés",
     nameEn: "Dutch",
     langCode: "nl",
     defaultPair: "nl-es",
@@ -58,7 +58,7 @@ export const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   },
   catalan: {
     slug: "catalan",
-    name: "catalan",
+    name: "catalán",
     nameEn: "Catalan",
     langCode: "ca",
     defaultPair: "ca-es",

@@ -4,16 +4,48 @@ import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import LanguageOfferPanel from "@/components/LanguageOfferPanel";
 import { LANGUAGE_CONFIGS } from "@/lib/language-config";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
   title: "Traductor jurado de inglés | Traducciones juradas inglés-español",
   description:
     "Traducciones juradas de inglés a español y de español a inglés realizadas por traductores jurados acreditados. Válidas para trámites en España, Reino Unido, Irlanda, Estados Unidos y otros países anglófonos.",
+  alternates: {
+    canonical: "https://www.traduccionesjuradas.net/traductor-jurado-ingles",
+  },
 };
 
 export default function TraductorJuradoInglesPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 lg:py-12">
+      <SchemaBreadcrumbs
+        id="breadcrumbs-traductor-jurado-ingles"
+        items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Traductor jurado de inglés", url: "https://www.traduccionesjuradas.net/traductor-jurado-ingles" },
+        ]}
+      />
+      <SchemaFAQ
+        id="faq-traductor-jurado-ingles"
+        items={[
+          {
+            question: "¿Qué validez tiene una traducción jurada de inglés en España?",
+            answer:
+              "Tiene validez oficial si la firma un traductor jurado nombrado por el MAEC y se entrega con firma y sello conforme a los requisitos del trámite.",
+          },
+          {
+            question: "¿Cuánto cuesta una traducción jurada de inglés?",
+            answer:
+              "El precio depende del tipo de documento, su extensión y la urgencia. Confirmamos presupuesto cerrado tras revisar el archivo.",
+          },
+          {
+            question: "¿En cuánto tiempo se entrega una traducción jurada de inglés?",
+            answer:
+              "Los certificados sencillos suelen resolverse en 24-72 horas laborables, y los expedientes extensos requieren más plazo según volumen.",
+          },
+        ]}
+      />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
@@ -59,6 +91,51 @@ export default function TraductorJuradoInglesPage() {
 
       {/* PANEL DE PEDIDO */}
       <LanguageOfferPanel config={LANGUAGE_CONFIGS.ingles} />
+
+      {/* BLOQUE PRECIO / PLAZO / VALIDEZ */}
+      <section className="mt-10 grid gap-4 md:grid-cols-3">
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+          <h2 className="text-base font-semibold text-slate-900">
+            Precio de traducción jurada de inglés
+          </h2>
+          <p className="mt-2 text-slate-700">
+            El precio depende del tipo de documento, páginas, sellos y
+            urgencia. Confirmamos siempre presupuesto cerrado al revisar el
+            archivo.
+          </p>
+          <Link
+            href="/precios-traduccion-jurada"
+            className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
+          >
+            Ver tarifas orientativas →
+          </Link>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+          <h2 className="text-base font-semibold text-slate-900">
+            Plazo de entrega
+          </h2>
+          <p className="mt-2 text-slate-700">
+            Para certificados sencillos, el plazo habitual es de 24-72 h
+            laborables. Los expedientes extensos se planifican con fecha de
+            entrega realista desde el inicio.
+          </p>
+          <p className="mt-2 text-xs text-slate-600">
+            También podemos valorar urgencias según volumen y disponibilidad.
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+          <h2 className="text-base font-semibold text-slate-900">
+            Validez oficial (MAEC)
+          </h2>
+          <p className="mt-2 text-slate-700">
+            La traducción jurada tiene validez cuando la firma un traductor
+            jurado nombrado por el Ministerio de Asuntos Exteriores (MAEC) y
+            respeta el formato oficial requerido.
+          </p>
+        </article>
+      </section>
 
       {/* DOCUMENTOS */}
       <section className="mt-10">
@@ -228,6 +305,42 @@ export default function TraductorJuradoInglesPage() {
             </p>
           </div>
         </div>
+      </section>
+
+      {/* BLOQUE E-E-A-T */}
+      <section className="mt-12 rounded-3xl border border-slate-200 bg-white p-6">
+        <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+          Despacho profesional y garantías legales
+        </h2>
+        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+          <li>
+            Servicio prestado por <strong>HBTJ Consultores Lingüísticos S.L.</strong>.
+          </li>
+          <li>
+            Sede profesional: <strong>Calle Esperanto, 9 · 29007 Málaga</strong>.
+          </li>
+          <li>
+            Traducciones firmadas por traductor jurado acreditado por el MAEC.
+          </li>
+          <li>
+            Tratamiento de datos conforme a RGPD y LOPDGDD: consulta nuestra{" "}
+            <Link href="/privacidad" className="text-emerald-700 underline">
+              política de privacidad
+            </Link>
+            .
+          </li>
+        </ul>
+        <p className="mt-3 text-sm text-slate-700">
+          Contacto directo:{" "}
+          <a href="mailto:hola@traduccionesjuradas.net" className="font-semibold text-emerald-700 hover:underline">
+            hola@traduccionesjuradas.net
+          </a>{" "}
+          ·{" "}
+          <a href="tel:+34951333614" className="font-semibold text-emerald-700 hover:underline">
+            951 333 614
+          </a>
+          .
+        </p>
       </section>
 
       {/* URGENCIAS */}

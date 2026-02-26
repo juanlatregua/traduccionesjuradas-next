@@ -105,7 +105,7 @@ export default function LanguageOfferPanel({ config }: Props) {
       return;
     }
     if (wordCount == null || wordCount < 1) {
-      setError("Indica el numero de palabras o sube un archivo para estimarlas.");
+      setError("Indica el número de palabras o sube un archivo para estimarlas.");
       return;
     }
     setError(null);
@@ -123,7 +123,7 @@ export default function LanguageOfferPanel({ config }: Props) {
 
   const submitOrder = async () => {
     if (!guestEmailValid) {
-      setError("Indica un email valido para continuar.");
+      setError("Indica un e-mail válido para continuar.");
       return;
     }
     setCheckoutLoading(true);
@@ -131,7 +131,7 @@ export default function LanguageOfferPanel({ config }: Props) {
     setNotice(null);
     try {
       const categoryLabel = DOCUMENT_CATEGORIES.find((c) => c.id === selectedCategory)?.label || selectedCategory;
-      const title = `Traduccion jurada de ${config.name}: ${categoryLabel}`;
+      const title = `Traducción jurada de ${config.name}: ${categoryLabel}`;
 
       if (!idempotencyRef.current) {
         idempotencyRef.current = `lang:${config.langCode}:${Date.now()}:${Math.random().toString(16).slice(2, 10)}`;
@@ -154,7 +154,7 @@ export default function LanguageOfferPanel({ config }: Props) {
           pagesLabel: `${wordCount} palabras`,
           containsWordCountItem: true,
           reviewRequired: true,
-          reviewReason: `Pedido de ${config.name} - precio estimado pendiente de confirmacion.`,
+          reviewReason: `Pedido de ${config.name} - precio estimado pendiente de confirmación.`,
           urgencyNotes: urgencyNotes.trim() || undefined,
           estimationMeta: estimationMeta || undefined,
           sourceChannel: tracking.sourceChannel,
@@ -249,7 +249,7 @@ export default function LanguageOfferPanel({ config }: Props) {
           {/* Direction */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Combinacion
+              Combinación
             </label>
             <div className="mt-1 flex gap-2">
               <button
@@ -261,7 +261,7 @@ export default function LanguageOfferPanel({ config }: Props) {
                     : "border border-slate-200 text-slate-700"
                 }`}
               >
-                {config.nameEn} → Espanol
+                {config.name} → Español
               </button>
               <button
                 type="button"
@@ -272,7 +272,7 @@ export default function LanguageOfferPanel({ config }: Props) {
                     : "border border-slate-200 text-slate-700"
                 }`}
               >
-                Espanol → {config.nameEn}
+                Español → {config.name}
               </button>
             </div>
           </div>
@@ -304,10 +304,10 @@ export default function LanguageOfferPanel({ config }: Props) {
           {/* Word count */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Numero de palabras
+              Número de palabras
             </label>
             <p className="mt-1 text-xs text-slate-500">
-              Sube un archivo PDF/DOCX para contar automaticamente, o introduce el numero a mano.
+              Sube un archivo PDF/DOCX para contar automáticamente, o introduce el número a mano.
             </p>
             <div className="mt-2 flex flex-wrap gap-3">
               <label className="cursor-pointer rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
@@ -439,7 +439,7 @@ export default function LanguageOfferPanel({ config }: Props) {
             <h3 className="text-lg font-semibold text-slate-900">Confirmar y enviar</h3>
             <p className="mt-1 text-sm text-slate-600">
               Revisaremos tu documento y te enviaremos el presupuesto definitivo por email.
-              Podras pagar una vez confirmado el precio.
+              Podrás pagar una vez confirmado el precio.
             </p>
           </div>
 
@@ -456,14 +456,14 @@ export default function LanguageOfferPanel({ config }: Props) {
                 Precio estimado: ~{estimate.total.toFixed(2)} EUR
               </p>
               <p className="mt-0.5 text-xs text-emerald-700">
-                El precio final se confirma tras revision.
+                El precio final se confirma tras revisión.
               </p>
             </div>
           )}
 
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Tu email
+              Tu e-mail
             </label>
             <input
               type="email"
@@ -476,10 +476,10 @@ export default function LanguageOfferPanel({ config }: Props) {
 
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Notas de urgencia (opcional)
+              Observaciones de urgencia (opcional)
             </label>
             <textarea
-              placeholder="Si necesitas la traduccion para una fecha concreta, indicalo aqui..."
+              placeholder="Si necesitas la traducción para una fecha concreta, indícalo aquí..."
               value={urgencyNotes}
               onChange={(e) => setUrgencyNotes(e.target.value)}
               rows={2}
