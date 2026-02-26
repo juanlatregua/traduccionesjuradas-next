@@ -6,6 +6,7 @@ import {
   getEstimatedPrice,
   type LanguageConfig,
 } from "@/lib/language-config";
+import { getWordRateForLangOrPair } from "@/lib/pricing";
 
 type Step = 1 | 2 | 3;
 
@@ -57,6 +58,7 @@ export default function LanguageOfferPanel({ config }: Props) {
   }, []);
 
   const estimate = wordCount != null ? getEstimatedPrice(direction, wordCount) : null;
+  const baseRate = getWordRateForLangOrPair(config.defaultPair);
   const guestEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim());
 
   const countWordsFromText = () => {
@@ -233,10 +235,14 @@ export default function LanguageOfferPanel({ config }: Props) {
         <div className="mt-5 space-y-5">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">
-              Traduccion jurada de {config.name}
+              Calcula tu presupuesto de {config.name}
             </h3>
             <p className="mt-1 text-sm text-slate-600">
               Selecciona el tipo de documento y calcula el precio estimado.
+            </p>
+            <p className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm">
+              <span className="font-semibold text-emerald-700">{baseRate.toFixed(2).replace(".", ",")} EUR/palabra</span>
+              <span className="text-xs text-slate-500">· IVA exento · Precio final tras revisión</span>
             </p>
           </div>
 

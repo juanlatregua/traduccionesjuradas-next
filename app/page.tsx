@@ -56,15 +56,11 @@ export default function Home() {
                 Elige traductor jurado por idioma (empieza por francés)
               </p>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {LANGUAGE_QUICK_LINKS.map((item, idx) => (
+                {LANGUAGE_QUICK_LINKS.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-xl border px-3 py-3 text-left ${
-                      idx === 0
-                        ? "border-emerald-300 bg-emerald-50"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50"
                   >
                     {item.flagSrc ? (
                       <Image
@@ -277,41 +273,32 @@ export default function Home() {
 
       {/* TARIFAS ORIENTATIVAS */}
       <section className="mx-auto hidden max-w-6xl px-4 py-10 sm:block">
-        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          Tarifas orientativas por idioma
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          Estos son nuestros precios de referencia. El precio final depende del tipo de documento,
-          su extension y la urgencia. Te confirmamos un precio cerrado al ver tus documentos.
-        </p>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { lang: "Frances", flag: "\u{1F1EB}\u{1F1F7}", rate: "0,08", note: "Certificados desde 35 EUR" },
-            { lang: "Ingles", flag: "\u{1F1EC}\u{1F1E7}", rate: "0,10", note: "Certificados desde 40 EUR" },
-            { lang: "Aleman", flag: "\u{1F1E9}\u{1F1EA}", rate: "0,12", note: "Certificados desde 45 EUR" },
-            { lang: "Neerlandes", flag: "\u{1F1F3}\u{1F1F1}", rate: "0,14", note: "Certificados desde 50 EUR" },
-          ].map((item) => (
-            <div
-              key={item.lang}
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm"
-            >
-              <p className="text-2xl">{item.flag}</p>
-              <h3 className="mt-2 text-base font-semibold text-slate-900">{item.lang}</h3>
-              <p className="mt-1 text-2xl font-bold text-emerald-700">{item.rate} EUR<span className="text-sm font-normal text-slate-500">/palabra</span></p>
-              <p className="mt-1 text-xs text-slate-600">{item.note}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-          <span>IVA exento (art. 20.1.26 LIVA)</span>
-          <span className="h-1 w-1 rounded-full bg-slate-300" />
-          <span>Urgencia +25%</span>
-          <span className="h-1 w-1 rounded-full bg-slate-300" />
-          <Link href="/precios-traduccion-jurada" className="font-semibold text-emerald-700 hover:underline">
-            Ver mas sobre precios →
-          </Link>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Tarifas de traducción jurada
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+            Nuestros precios dependen del idioma, el tipo de documento, su extensión y la urgencia.
+            Te confirmamos un <strong>precio cerrado</strong> al ver tus documentos.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="rounded-xl bg-emerald-50 px-4 py-2 text-lg font-bold text-emerald-700">
+              Desde 0,08 EUR<span className="text-sm font-normal text-slate-500">/palabra</span>
+            </span>
+            <span className="text-sm text-slate-500">·</span>
+            <span className="text-sm text-slate-600">Certificados sencillos desde 35 EUR</span>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <span>IVA exento (art. 20.1.26 LIVA)</span>
+            <span className="h-1 w-1 rounded-full bg-slate-300" />
+            <span>Urgencia +25 %</span>
+            <span className="h-1 w-1 rounded-full bg-slate-300" />
+            <span>Consulta el precio exacto en cada idioma</span>
+            <span className="h-1 w-1 rounded-full bg-slate-300" />
+            <Link href="/precios-traduccion-jurada" className="font-semibold text-emerald-700 hover:underline">
+              Ver más sobre precios →
+            </Link>
+          </div>
         </div>
       </section>
 
