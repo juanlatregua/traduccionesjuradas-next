@@ -663,7 +663,7 @@ export default function PriceEstimator() {
             <p className="mt-1 text-xs text-slate-600">
               Base: {result.base} EUR
               {result.urgencyPct > 0 ? ` + urgencia ${result.urgencyPct}%` : ""}
-              {result.marginPct > 0 ? ` + margen ${result.marginPct}%` : ""}
+              {result.marginPct > 0 ? " (precio orientativo)" : ""}
             </p>
             {result.title && <p className="mt-1 text-xs text-slate-600">Documento: {result.title}</p>}
             {result.source === "preset" && result.presetPagesLabel && (

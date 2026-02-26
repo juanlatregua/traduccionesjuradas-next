@@ -501,7 +501,7 @@ export default function FrenchOfferPanel() {
       label: `${fileName} (${words} palabras)`,
       price,
       deadline: "Segun volumen",
-      detail: `${words} palabras x ${money(WORD_PRICE_FR)} + 10% margen.`,
+      detail: `Precio orientativo basado en ${words} palabras.`,
       samplePdf: "",
       payDirect: true,
       pricingModel: "per-word",
@@ -1017,7 +1017,7 @@ export default function FrenchOfferPanel() {
                 Sube tu documento y calculamos el precio por palabras
               </p>
               <p className="mt-1 text-xs text-slate-600">
-                Tarifa: {money(WORD_PRICE_FR)}/palabra + 10% margen de seguridad. Valido para cualquier documento en frances.
+                Tarifa: {money(WORD_PRICE_FR)}/palabra. Válido para cualquier documento en francés.
               </p>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -1071,7 +1071,7 @@ export default function FrenchOfferPanel() {
                   <>
                     <p className="mt-1 text-xl font-bold text-emerald-700">{money(filePrice)}</p>
                     <p className="text-xs text-slate-600">
-                      {words} palabras x {money(WORD_PRICE_FR)} + 10% margen.
+                      Precio orientativo basado en {words} palabras.
                     </p>
                     <p className="text-xs text-slate-600">Plazo: segun volumen.</p>
                   </>
