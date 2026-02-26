@@ -283,7 +283,7 @@ export function Header() {
           </Link>
 
           <Link href="/area-cliente" className="hidden hover:text-emerald-600 sm:inline" onClick={closeMenu}>
-            Area cliente
+            Área cliente
           </Link>
 
           <Link href="/consulta" className="hidden hover:text-emerald-600 sm:inline" onClick={closeMenu}>

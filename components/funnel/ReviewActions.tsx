@@ -38,12 +38,12 @@ export default function ReviewActions({ canProceed }: ReviewActionsProps) {
       const res = await fetch("/api/session/proceed-checkout", { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "No se pudo avanzar al checkout.");
+        throw new Error(data?.error || "No se pudo avanzar al paso de pago.");
       }
       router.push("/checkout");
       router.refresh();
     } catch (err: any) {
-      setError(err?.message || "No se pudo avanzar al checkout.");
+      setError(err?.message || "No se pudo avanzar al paso de pago.");
     } finally {
       setLoadingProceed(false);
     }
@@ -65,7 +65,7 @@ export default function ReviewActions({ canProceed }: ReviewActionsProps) {
         disabled={!canProceed || loadingProceed}
         className="rounded-2xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
       >
-        {loadingProceed ? "Calculando..." : "Proceder al checkout"}
+        {loadingProceed ? "Calculando..." : "Continuar al pago"}
       </button>
       {error && <p className="w-full text-sm font-semibold text-red-700">{error}</p>}
     </div>

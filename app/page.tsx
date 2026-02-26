@@ -48,12 +48,12 @@ export default function Home() {
               <span className="block text-blue-700">calcula precio y paga en minutos.</span>
             </h1>
             <p className="max-w-xl text-base text-slate-600 sm:text-lg">
-              Flujo simple para cliente: elige idioma, adjunta PDF/foto, obtén estimación y confirma el pago.
+              Así de fácil: elige idioma, adjunta PDF/foto, obtén estimación y confirma el pago.
               Traductores jurados reales y entrega en PDF firmado.
             </p>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Elige traductor jurado por idioma (empieza por francés)
+                Elige idioma
               </p>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {LANGUAGE_QUICK_LINKS.map((item) => (
@@ -470,21 +470,21 @@ export default function Home() {
       <section className="mx-auto hidden max-w-6xl px-4 py-12 sm:block">
         <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-6 sm:p-8">
           <h2 className="text-xl font-semibold tracking-tight text-emerald-900 sm:text-2xl">
-            Por que confiar en traduccionesjuradas.net
+            Por qué confiar en traduccionesjuradas.net
           </h2>
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div className="text-center">
-              <p className="text-3xl font-bold text-emerald-700">MAEC</p>
+              <p className="text-xl font-bold text-emerald-700 leading-tight">Ministerio de Asuntos Exteriores</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">Nombrados por el Ministerio</p>
               <p className="mt-1 text-xs text-slate-600">
-                Traductores jurados acreditados por el Ministerio de Asuntos Exteriores de Espana. No intermediarios.
+                Traductores jurados acreditados por el Ministerio de Asuntos Exteriores de España. No intermediarios.
               </p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-emerald-700">N.3850</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">Traductor jurado de frances</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">Traductor jurado de francés</p>
               <p className="mt-1 text-xs text-slate-600">
-                Juan Silva Moreno, traductor jurado de frances nombrado por el MAEC con numero 3850.
+                Juan Silva Moreno, traductor jurado de francés nombrado por el Ministerio de Asuntos Exteriores con número 3850.
               </p>
             </div>
             <div className="text-center">
@@ -496,11 +496,80 @@ export default function Home() {
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-emerald-700">24-72h</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">Entrega rapida</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">Entrega rápida</p>
               <p className="mt-1 text-xs text-slate-600">
-                Certificados sencillos en 24-48h. Documentos extensos en 2-5 dias. Urgencias disponibles.
+                Certificados sencillos en 24-48h. Documentos extensos en 2-5 días. Urgencias disponibles.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* BLOQUE RESEÑAS GOOGLE */}
+      <section className="mx-auto hidden max-w-6xl px-4 py-12 sm:block">
+        <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-6 sm:p-8">
+          <div className="flex flex-col items-center text-center">
+            <p className="text-3xl font-bold text-emerald-700">5,0 ★★★★★</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">en Google · 19 reseñas</p>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                author: "Lucía Garzón",
+                text: "Todo el trámite ha sido muy rápido y sencillo. En menos de una semana ya tenía los documentos traducidos.",
+                date: "mayo 2024",
+              },
+              {
+                author: "Pedro Vicente",
+                text: "Necesitábamos con urgencia una traducción jurada y el servicio fue fantástico. Muy profesionales y rápidos.",
+                date: "abril 2024",
+              },
+              {
+                author: "Ángela Negrón",
+                text: "He solicitado la traducción de certificados oficiales y la respuesta ha sido rápida y muy profesional.",
+                date: "mayo 2023",
+              },
+              {
+                author: "Pabola Pabola",
+                text: "Mi hijo se va a estudiar a EEUU y necesitaba la traducción de muchos papeles. El trabajo estaba perfecto.",
+                date: "julio 2022",
+              },
+              {
+                author: "Glenn Angell",
+                text: "Sofia delivered exceptional document translations. She was very responsive and professional throughout the process.",
+                date: "julio 2024",
+              },
+              {
+                author: "Serg Martin",
+                text: "Muy buen trabajo con mi traducción. Y muy rápido también.",
+                date: "febrero 2026",
+              },
+            ].map((review) => (
+              <div
+                key={review.author}
+                className="rounded-2xl border border-emerald-100 bg-white p-4 text-sm shadow-sm"
+              >
+                <p className="text-slate-700">
+                  <span className="text-emerald-600">&ldquo;</span>
+                  {review.text}
+                  <span className="text-emerald-600">&rdquo;</span>
+                </p>
+                <p className="mt-3 text-xs font-semibold text-slate-900">{review.author}</p>
+                <p className="text-[11px] text-slate-500">{review.date}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 text-center">
+            <a
+              href="https://www.google.com/maps/search/HBTJ+Consultores+Ling%C3%BC%C3%ADsticos"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold text-emerald-700 hover:underline"
+            >
+              Ver todas las reseñas en Google →
+            </a>
           </div>
         </div>
       </section>

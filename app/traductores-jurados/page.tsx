@@ -34,7 +34,8 @@ export default function TraductoresJuradosPage() {
           ¿Quién está detrás de traduccionesjuradas.net?
         </h2>
         <p>
-          El proyecto está impulsado por un traductor jurado con
+          El proyecto está impulsado por Juan Silva Moreno, traductor jurado
+          de francés (n.º 3850, Ministerio de Asuntos Exteriores), con
           amplia experiencia en traducción jurada de documentos para extranjería,
           Registro Civil, universidades, notarías y procedimientos judiciales.
           Con los años, hemos creado una red de colaboradores traductores
@@ -57,6 +58,19 @@ export default function TraductoresJuradosPage() {
           Nuestro trabajo consiste en coordinar cada encargo, asignarlo al
           traductor jurado más adecuado y acompañarte durante el proceso para
           evitar errores que puedan retrasar tus trámites.
+        </p>
+        <p className="text-xs text-slate-600">
+          Puedes verificar el nombramiento de Juan Silva Moreno como traductor-intérprete
+          jurado en el{" "}
+          <a
+            href="https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Traductores-Interpretes-Jurados.aspx"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-emerald-700 hover:underline"
+          >
+            listado oficial del Ministerio de Asuntos Exteriores
+          </a>
+          .
         </p>
       </section>
 

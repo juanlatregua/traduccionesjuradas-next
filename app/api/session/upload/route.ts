@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const sessionId = getSessionIdFromRequest(req);
   if (!sessionId) {
-    return NextResponse.json({ ok: false, error: "Sesion no encontrada." }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "Sesión no encontrada." }, { status: 401 });
   }
 
   const ip = getClientIp(req);
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   });
   if (!rl.ok) {
     return NextResponse.json(
-      { ok: false, error: "Demasiadas subidas en poco tiempo. Intentalo de nuevo." },
+      { ok: false, error: "Demasiadas subidas en poco tiempo. Inténtalo de nuevo." },
       { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
     );
   }
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       select: { id: true, reference: true },
     });
     if (!existing) {
-      return NextResponse.json({ ok: false, error: "Sesion no encontrada." }, { status: 404 });
+      return NextResponse.json({ ok: false, error: "Sesión no encontrada." }, { status: 404 });
     }
 
     let formData: FormData;
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       formData = await req.formData();
     } catch {
       return NextResponse.json(
-        { ok: false, error: "Solicitud de subida invalida. Usa multipart/form-data." },
+        { ok: false, error: "Solicitud de subida inválida. Usa multipart/form-data." },
         { status: 400 }
       );
     }

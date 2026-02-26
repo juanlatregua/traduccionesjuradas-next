@@ -22,15 +22,15 @@ type AccesoPageProps = {
 function getAuthErrorMessage(errorCode?: string) {
   if (!errorCode) return null;
   if (errorCode === "StaffOnly") {
-    return "Esta seccion es solo para traductor/administracion. Accede con un correo autorizado.";
+    return "Esta sección es solo para traductor/administración. Accede con un correo autorizado.";
   }
   if (errorCode === "OAuthSignin" || errorCode === "OAuthCallback") {
-    return "No se pudo completar el acceso con Google. Revisa la configuracion OAuth.";
+    return "No se pudo completar el acceso con Google. Revisa la configuración OAuth.";
   }
   if (errorCode === "Configuration") {
-    return "Configuracion incompleta del acceso. Falta revisar variables de entorno.";
+    return "Configuración incompleta del acceso. Falta revisar variables de entorno.";
   }
-  return "No se pudo iniciar sesion con Google. Intentalo de nuevo.";
+  return "No se pudo iniciar sesión con Google. Inténtalo de nuevo.";
 }
 
 export default function AccesoPage({ searchParams }: AccesoPageProps) {
@@ -70,11 +70,11 @@ export default function AccesoPage({ searchParams }: AccesoPageProps) {
               : "mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl"
           }
         >
-          {isTranslatorAccess ? "Acceso a zona traductor" : "Entra en tu area de cliente"}
+          {isTranslatorAccess ? "Acceso a zona traductor" : "Entra en tu área de cliente"}
         </h1>
         <p className={isTranslatorAccess ? "mt-3 text-sm text-slate-300" : "mt-3 text-sm text-slate-700"}>
           {isTranslatorAccess
-            ? "Inicia sesion con una cuenta autorizada de traductor o administracion para continuar con la verificacion."
+            ? "Inicia sesión con una cuenta autorizada de traductor o administración para continuar con la verificación."
             : "Puedes seguir como invitado para pagar. Si prefieres, accede con Google para centralizar seguimiento, datos de contacto y futuros pedidos."}
         </p>
         {authError && (
