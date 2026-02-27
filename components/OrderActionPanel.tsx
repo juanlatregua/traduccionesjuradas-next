@@ -186,7 +186,7 @@ export default function OrderActionPanel({
     return `/admin/quotes/new?${params.toString()}`;
   }, [clientEmail, clientName, title, amountCents, langPair]);
 
-  const tabs = [
+  const allTabs = [
     { key: "presupuesto" as const, label: "Presupuesto", color: "text-cyan-300" },
     { key: "documentos" as const, label: "Documentos", color: "text-teal-300" },
     { key: "comprobante" as const, label: "Comprobante", color: "text-cyan-300" },
@@ -197,6 +197,34 @@ export default function OrderActionPanel({
     { key: "finanzas" as const, label: "Finanzas", color: "text-lime-300" },
     { key: "control" as const, label: "Control", color: "text-rose-300" },
   ];
+
+  // Tabs relevantes según el stage del pedido
+  const visibleTabKeys = useMemo(() => {
+    const always = ["presupuesto", "documentos", "workflow"] as const;
+    const stage = canonicalStage;
+    const extra: string[] = [];
+
+    if (stage === "DRAFT" || stage === "QUOTE_READY" || stage === "SENT_TO_CLIENT") {
+      extra.push("notificar");
+    }
+    if (stage === "PAYMENT_PENDING" || stage === "PAYMENT_VALIDATED" || stage === "IN_PRODUCTION" || stage === "DELIVERY_READY" || stage === "DELIVERED" || stage === "CLOSED") {
+      extra.push("comprobante", "asignar", "entrega", "notificar");
+    }
+    if (stage === "DELIVERED" || stage === "CLOSED") {
+      extra.push("finanzas", "control");
+    }
+    // Siempre mostrar finanzas si ya hay pago validado
+    if (paymentStatus === "PAID") {
+      extra.push("finanzas");
+    }
+    // Siempre mostrar control para poder archivar
+    extra.push("control");
+
+    const set = new Set([...always, ...extra]);
+    return set;
+  }, [canonicalStage, paymentStatus]);
+
+  const tabs = allTabs.filter((t) => visibleTabKeys.has(t.key));
 
   const finalDownloadUrl = String(artifacts.finalDeliveryFileUrl || "").trim();
   const quotePreviewUrl = String(artifacts.quotePreviewFileUrl || "").trim();
@@ -305,12 +333,14 @@ export default function OrderActionPanel({
               >
                 Ir a {nextBestAction.tab}
               </button>
-              <a
-                href={quickQuoteHref}
-                className="rounded-lg border border-cyan-500/40 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
-              >
-                Crear presupuesto con preview
-              </a>
+              {(canonicalStage === "DRAFT" || canonicalStage === "QUOTE_READY") && (
+                <a
+                  href={quickQuoteHref}
+                  className="rounded-lg border border-cyan-500/40 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                >
+                  Crear presupuesto con preview
+                </a>
+              )}
             </div>
           </div>
 
@@ -362,21 +392,27 @@ export default function OrderActionPanel({
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-slate-700/50">
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={`px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition-colors ${
-                  tab === t.key
-                    ? `${t.color} border-b-2 border-current bg-slate-800/40`
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap border-b border-slate-700/50">
+            {tabs.map((t) => {
+              const isRecommended = t.key === nextBestAction.tab && tab !== t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTab(t.key)}
+                  className={`px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition-colors ${
+                    tab === t.key
+                      ? `${t.color} border-b-2 border-current bg-slate-800/40`
+                      : isRecommended
+                        ? "text-emerald-400 animate-pulse hover:text-emerald-300"
+                        : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {t.label}
+                  {isRecommended && <span className="ml-1 text-[9px]">●</span>}
+                </button>
+              );
+            })}
           </div>
 
           {/* Tab content */}

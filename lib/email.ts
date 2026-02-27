@@ -32,6 +32,10 @@ export type PresupuestoPayload = {
   website?: string;
 };
 
+const NO_CLICK_TRACKING = {
+  clickTracking: { enable: false, enableText: false },
+};
+
 const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
 const BRAND_LOGO_URL = `${BRAND_HOME_URL}/brand/logo-horizontal.svg`;
 
@@ -124,7 +128,7 @@ ${payload.orderReference ? `Zona traductor: https://www.traduccionesjuradas.net/
     ${quoteLink}
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to,
     from: { email: from, name: "Traducciones Juradas" },
     replyTo: payload.contacto.email,
@@ -244,7 +248,7 @@ Equipo de TraduccionesJuradas.net`;
     // opcional
   }
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     from: { email: from, name: "Traducciones Juradas" },
     personalizations: [
       {
@@ -291,7 +295,7 @@ Si tienes cualquier duda, responde a este correo.
     <p>Si necesitas factura o envio en papel, responde a este correo.</p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -362,7 +366,7 @@ Datos fiscales:
     </ul>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -420,7 +424,7 @@ Equipo de TraduccionesJuradas.net`;
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
-  const sendResponse = (await sgMail.send({
+  const sendResponse = (await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -496,7 +500,7 @@ Equipo de TraduccionesJuradas.net`;
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -548,7 +552,7 @@ Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
     <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -629,7 +633,7 @@ ${ctaUrl}`;
     <p><a href="${ctaUrl}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">${ctaLabel}</a></p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     from: { email: from, name: "Traducciones Juradas" },
     personalizations: [
       {
@@ -687,7 +691,7 @@ https://www.traduccionesjuradas.net/consulta
     <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -742,7 +746,7 @@ Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
     <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -780,7 +784,7 @@ https://www.traduccionesjuradas.net/consulta
     <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -818,7 +822,7 @@ Te avisaremos en cuanto la traduccion este lista.
     <p>Te avisaremos cuando el archivo final este disponible.</p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -868,7 +872,7 @@ https://www.traduccionesjuradas.net/consulta
     <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -923,7 +927,7 @@ Gracias.
     </p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -954,7 +958,7 @@ Si no has solicitado este acceso, ignora este mensaje.`;
     <p>Caduca en 10 minutos.</p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to: data.toEmail,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
@@ -1020,7 +1024,7 @@ https://www.traduccionesjuradas.net/zona-traductor`;
     <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona traductor</a></p>
   `;
 
-  await sgMail.send({
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
     to,
     from: { email: from, name: "Traducciones Juradas" },
     subject,
