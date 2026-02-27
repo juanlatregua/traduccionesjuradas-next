@@ -15,7 +15,6 @@ export default function TraductorJuradoSuecoPage() {
     <PaginaIdioma
       idioma="sueco"
       idiomaSlug="sueco"
-      precioPorPalabra={0.14}
       combinaciones={["sv-es", "es-sv"]}
       tituloH1="Traductor jurado de sueco para trámites entre España y Suecia"
       descripcion="Realizamos traducciones juradas de sueco a español y de español a sueco válidas para administraciones públicas, notarías, universidades y empresas. Traductores jurados acreditados, con entrega en PDF firmado digitalmente."

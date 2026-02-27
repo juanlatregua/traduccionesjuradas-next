@@ -17,7 +17,6 @@ type FAQItem = {
 type Props = {
   idioma: string;
   idiomaSlug: string;
-  precioPorPalabra: number;
   combinaciones: string[];
   tituloH1: string;
   descripcion: string;
@@ -28,7 +27,6 @@ type Props = {
 export default function PaginaIdioma({
   idioma,
   idiomaSlug,
-  precioPorPalabra,
   combinaciones,
   tituloH1,
   descripcion,
@@ -64,7 +62,6 @@ export default function PaginaIdioma({
       {/* 2. ESTIMADOR CARRITO */}
       <EstimadorCarrito
         idioma={idioma}
-        precioPorPalabra={precioPorPalabra}
         combinaciones={combinaciones}
       />
 

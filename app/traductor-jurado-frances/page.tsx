@@ -15,7 +15,6 @@ export default function TraductorJuradoFrancesPage() {
     <PaginaIdioma
       idioma="francés"
       idiomaSlug="frances"
-      precioPorPalabra={0.08}
       combinaciones={["fr-es", "es-fr"]}
       tituloH1="Traducción jurada de francés para trámites oficiales en España y en países francófonos"
       descripcion="La traducción jurada de francés es el formato que te piden cuando un documento en francés debe presentarse ante una administración, notaría, universidad o juzgado en España, o cuando un documento español se utiliza en Francia y otros países francófonos. Precio orientativo, plazo estimado, validez oficial y tipos de documentos más frecuentes. Todas las traducciones las firma un traductor jurado de francés acreditado por el MAEC, con entrega en PDF firmado digitalmente."

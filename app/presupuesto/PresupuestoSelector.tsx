@@ -36,7 +36,6 @@ export default function PresupuestoSelector() {
       {config && (
         <EstimadorCarrito
           idioma={config.name}
-          precioPorPalabra={0}
           combinaciones={[config.defaultPair, config.reversePair]}
         />
       )}

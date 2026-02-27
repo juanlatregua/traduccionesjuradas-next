@@ -15,7 +15,6 @@ export default function TraductorJuradoCatalanPage() {
     <PaginaIdioma
       idioma="catalán"
       idiomaSlug="catalan"
-      precioPorPalabra={0.10}
       combinaciones={["ca-es", "es-ca"]}
       tituloH1="Traductor jurado de catalán para trámites en toda España"
       descripcion="Realizamos traducciones juradas de catalán a español y de español a catalán para documentos emitidos en Cataluña, Comunidad Valenciana, Islas Baleares y otras administraciones que usen el catalán como lengua de trabajo."

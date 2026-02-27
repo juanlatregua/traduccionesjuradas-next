@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
   DOCUMENT_CATEGORIES,
   getEstimatedPrice,
 } from "@/lib/language-config";
+import { getFixedPrice } from "@/lib/fixed-prices";
 import { buildWhatsAppLinkFromText } from "@/lib/contact";
+import {
+  getEstimatedDeliveryDate,
+  formatDeliveryDate,
+  isUrgent,
+} from "@/lib/delivery-date";
 import {
   useCarritoPresupuesto,
   type ItemCarrito,
@@ -14,7 +20,6 @@ import {
 
 type Props = {
   idioma: string;
-  precioPorPalabra: number;
   combinaciones: string[];
 };
 
@@ -22,7 +27,6 @@ type ToastState = { type: "success" | "error"; message: string } | null;
 
 export default function EstimadorCarrito({
   idioma,
-  precioPorPalabra,
   combinaciones,
 }: Props) {
   const { items, añadir, eliminar, vaciar, total } =
@@ -33,6 +37,13 @@ export default function EstimadorCarrito({
   const [tipoSeleccionado, setTipoSeleccionado] = useState("");
   const [palabras, setPalabras] = useState<number>(250);
   const [archivoNombre, setArchivoNombre] = useState("");
+
+  // File upload + extraction state
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [extrayendo, setExtrayendo] = useState(false);
+  const [palabrasExtraidas, setPalabrasExtraidas] = useState<number | null>(null);
+  const [errorExtraccion, setErrorExtraccion] = useState("");
+  const [usandoPrecioFijo, setUsandoPrecioFijo] = useState(false);
 
   // Contact form state
   const [email, setEmail] = useState("");
@@ -47,57 +58,129 @@ export default function EstimadorCarrito({
   const selectorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const precioFijo = getFixedPrice(combinacion, tipoSeleccionado);
   const estimated = getEstimatedPrice(combinacion, palabras);
   const tipoLabel =
     DOCUMENT_CATEGORIES.find((c) => c.id === tipoSeleccionado)?.label || "";
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const fechaEntregaEstimada = useMemo(() => getEstimatedDeliveryDate(), []);
+  const esUrgente = fechaLimite ? isUrgent(fechaLimite, fechaEntregaEstimada) : false;
+
+  // Determine which price to show
+  const precioMostrado = usandoPrecioFijo && precioFijo !== null
+    ? precioFijo
+    : palabrasExtraidas !== null || palabras > 0
+      ? estimated.total
+      : null;
+
+  async function handleSubirArchivo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setArchivo(file);
     setArchivoNombre(file.name);
+    setPalabrasExtraidas(null);
+    setErrorExtraccion("");
+    setUsandoPrecioFijo(false);
 
-    // Count words from text-based files
-    const reader = new FileReader();
-    if (file.type === "text/plain" || file.name.endsWith(".txt")) {
-      reader.onload = (ev) => {
-        const text = ev.target?.result as string;
-        const count = text.trim().split(/\s+/).filter(Boolean).length;
-        if (count > 0) setPalabras(count);
-      };
-      reader.readAsText(file);
-    } else {
-      // For PDF/DOCX we can't easily count in the browser without heavy libs.
-      // Keep the filename, user enters words manually.
-      // TODO: add client-side PDF text extraction if needed
+    // Auto-extract words
+    setExtrayendo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("lang", combinacion);
+      fd.append("urgency", "normal");
+      const res = await fetch("/api/estimador", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok && data.ok && data.words > 0) {
+        setPalabrasExtraidas(data.words);
+        setPalabras(data.words);
+      } else {
+        setErrorExtraccion(
+          "No hemos podido extraer las palabras automáticamente. Puedes indicarlas manualmente o enviar el documento tal cual."
+        );
+      }
+    } catch {
+      setErrorExtraccion(
+        "Error al analizar el archivo. Puedes indicar las palabras manualmente."
+      );
+    } finally {
+      setExtrayendo(false);
     }
+
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  function handleSeleccionarPrecioFijo() {
+    setUsandoPrecioFijo(true);
+    setPalabrasExtraidas(null);
+    setArchivo(null);
+    setArchivoNombre("");
+    setErrorExtraccion("");
+  }
+
   function handleAñadir() {
-    if (!tipoSeleccionado || palabras < 1) return;
-    añadir({
-      tipo: tipoSeleccionado,
-      tipoLabel,
-      combinacion,
-      palabras,
-      precioEstimado: estimated.total,
-      archivoNombre: archivoNombre || undefined,
-    });
+    if (!tipoSeleccionado) return;
+
+    if (usandoPrecioFijo && precioFijo !== null) {
+      añadir({
+        tipo: tipoSeleccionado,
+        tipoLabel,
+        combinacion,
+        palabras: 0,
+        precioEstimado: precioFijo,
+        archivoNombre: archivoNombre || undefined,
+        precioFijo: true,
+      });
+    } else if (palabrasExtraidas !== null || palabras > 0) {
+      añadir({
+        tipo: tipoSeleccionado,
+        tipoLabel,
+        combinacion,
+        palabras,
+        precioEstimado: estimated.total,
+        archivoNombre: archivoNombre || undefined,
+      });
+    } else {
+      // Sin precio: el traductor lo cotiza manualmente
+      añadir({
+        tipo: tipoSeleccionado,
+        tipoLabel,
+        combinacion,
+        palabras: 0,
+        precioEstimado: 0,
+        archivoNombre: archivoNombre || undefined,
+        sinPrecio: true,
+      });
+    }
+
+    // Reset selector
     setTipoSeleccionado("");
     setPalabras(250);
     setArchivoNombre("");
+    setArchivo(null);
+    setPalabrasExtraidas(null);
+    setErrorExtraccion("");
+    setUsandoPrecioFijo(false);
   }
 
   function scrollAlSelector() {
     selectorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function buildResumenCarrito(carritoItems: ItemCarrito[], carritoTotal: number, emailCliente: string) {
-    const lineas = carritoItems.map(
-      (it, i) =>
-        `${i + 1}. ${it.tipoLabel} (${it.combinacion.toUpperCase()}) ~${it.palabras} pal. ~${it.precioEstimado.toFixed(2)}€`
+  function buildResumenCarrito(
+    carritoItems: ItemCarrito[],
+    carritoTotal: number,
+    emailCliente?: string
+  ) {
+    const lineas = carritoItems.map((it, i) =>
+      it.sinPrecio
+        ? `${i + 1}. ${it.tipoLabel} (${it.combinacion.toUpperCase()}) - precio a confirmar`
+        : `${i + 1}. ${it.tipoLabel} (${it.combinacion.toUpperCase()}) ~${it.precioEstimado.toFixed(2)}€`
     );
-    return `Hola, quiero presupuesto para:\n${lineas.join("\n")}\nTotal estimado: ~${carritoTotal.toFixed(2)}€\nEmail: ${emailCliente}`;
+    let msg = `Hola, quiero presupuesto para:\n${lineas.join("\n")}`;
+    if (carritoTotal > 0) msg += `\nTotal estimado: ~${carritoTotal.toFixed(2)}€`;
+    if (emailCliente) msg += `\nEmail: ${emailCliente}`;
+    return msg;
   }
 
   async function handleEnviar(e: React.FormEvent) {
@@ -123,6 +206,13 @@ export default function EstimadorCarrito({
     setLoading(true);
 
     try {
+      // Auto-add urgente note if deadline is before estimated delivery
+      let notasFinales = notas;
+      if (esUrgente && fechaLimite) {
+        const urgNote = `URGENTE: cliente solicita entrega antes del ${fechaLimite}.`;
+        notasFinales = notasFinales ? `${urgNote} ${notasFinales}` : urgNote;
+      }
+
       const payload = {
         documentos: items.map((it) => ({
           tipo: it.tipo,
@@ -131,12 +221,14 @@ export default function EstimadorCarrito({
           palabras: it.palabras,
           precioEstimado: it.precioEstimado,
           archivoNombre: it.archivoNombre || undefined,
+          sinPrecio: it.sinPrecio || undefined,
+          precioFijo: it.precioFijo || undefined,
         })),
         contacto: {
           email,
           telefono: telefono || undefined,
           fechaLimite: fechaLimite || undefined,
-          notas: notas || undefined,
+          notas: notasFinales || undefined,
         },
         metadata: {
           idioma,
@@ -217,8 +309,8 @@ export default function EstimadorCarrito({
           Estima tu presupuesto en segundos
         </h2>
         <p className="mt-1 text-xs text-slate-500">
-          Precio orientativo · ~{precioPorPalabra.toFixed(2)} €/palabra · IVA
-          exento
+          Precio orientativo · IVA exento · el precio final se confirma
+          tras revisar el documento
         </p>
 
         {/* Combinación */}
@@ -232,7 +324,11 @@ export default function EstimadorCarrito({
           <select
             id="combinacion"
             value={combinacion}
-            onChange={(e) => setCombinacion(e.target.value)}
+            onChange={(e) => {
+              setCombinacion(e.target.value);
+              setUsandoPrecioFijo(false);
+              setPalabrasExtraidas(null);
+            }}
             className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm sm:w-auto"
           >
             {combinaciones.map((c) => (
@@ -253,7 +349,12 @@ export default function EstimadorCarrito({
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => setTipoSeleccionado(cat.id)}
+                onClick={() => {
+                  setTipoSeleccionado(cat.id);
+                  setUsandoPrecioFijo(false);
+                  setPalabrasExtraidas(null);
+                  setErrorExtraccion("");
+                }}
                 className={`rounded-2xl border px-3 py-2 text-left text-xs transition-colors ${
                   tipoSeleccionado === cat.id
                     ? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-800"
@@ -269,59 +370,152 @@ export default function EstimadorCarrito({
           </div>
         </div>
 
-        {/* Palabras + archivo + precio */}
-        <div className="mt-4 flex flex-wrap items-end gap-4">
-          <div>
-            <label
-              htmlFor="palabras"
-              className="block text-sm font-medium text-slate-700"
-            >
-              Palabras aproximadas
-            </label>
-            <input
-              id="palabras"
-              type="number"
-              min={1}
-              max={100000}
-              value={palabras}
-              onChange={(e) => setPalabras(Math.max(1, Number(e.target.value)))}
-              className="mt-1 w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            />
+        {/* Precio fijo disponible */}
+        {tipoSeleccionado && precioFijo !== null && (
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-sm font-semibold text-emerald-800">
+              Documento estándar (~1 hoja):{" "}
+              <span className="text-lg">{precioFijo} €</span>
+            </p>
+            <p className="mt-1 text-xs text-slate-600">
+              Precio cerrado para certificados, antecedentes y títulos de una hoja.
+              Recto/verso no cuenta como dos hojas.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleSeleccionarPrecioFijo}
+                className={`rounded-2xl px-4 py-2 text-sm font-semibold shadow-sm ${
+                  usandoPrecioFijo
+                    ? "bg-emerald-600 text-white"
+                    : "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                }`}
+              >
+                Usar precio cerrado ({precioFijo} €)
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              ¿Tu documento tiene más de 1 hoja o es atípico?
+              Sube el archivo más abajo para un presupuesto personalizado.
+            </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">
-              O sube un archivo
-            </label>
+        )}
+
+        {/* Subida de archivo (principal) */}
+        {tipoSeleccionado && !usandoPrecioFijo && (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-medium text-slate-700">
+              {precioFijo !== null
+                ? "Sube tu documento para presupuesto personalizado"
+                : "Sube tu documento para calcular el precio"}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              PDF, DOCX, JPG o PNG. Analizamos el documento y te damos precio estimado al instante.
+            </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,.doc,.txt"
-              onChange={handleFileUpload}
-              className="mt-1 block text-xs text-slate-600"
+              accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png"
+              onChange={handleSubirArchivo}
+              className="mt-2 block text-xs text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700"
             />
-            {archivoNombre && (
-              <p className="mt-1 text-xs text-slate-500">
-                {archivoNombre}
+
+            {extrayendo && (
+              <p className="mt-2 text-sm text-emerald-700">
+                Analizando documento...
               </p>
             )}
+
+            {palabrasExtraidas !== null && (
+              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-sm text-slate-700">
+                  {archivoNombre} · {palabrasExtraidas} palabras detectadas
+                </p>
+                <p className="mt-1">
+                  <span className="text-slate-500">Precio estimado: </span>
+                  <span className="text-lg font-bold text-emerald-700">
+                    {estimated.total.toFixed(2)} €
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {errorExtraccion && (
+              <p className="mt-2 text-xs text-amber-700">
+                {errorExtraccion}
+              </p>
+            )}
+
+            {/* Entrada manual de palabras (colapsable) */}
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-medium text-slate-600 hover:text-slate-800">
+                ¿Sabes las palabras? Introdúcelas manualmente
+              </summary>
+              <div className="mt-2 flex items-end gap-3">
+                <div>
+                  <label
+                    htmlFor="palabras-manual"
+                    className="block text-xs font-medium text-slate-600"
+                  >
+                    Palabras aproximadas
+                  </label>
+                  <input
+                    id="palabras-manual"
+                    type="number"
+                    min={1}
+                    max={100000}
+                    value={palabras}
+                    onChange={(e) => {
+                      setPalabras(Math.max(1, Number(e.target.value)));
+                      setPalabrasExtraidas(null);
+                    }}
+                    className="mt-1 w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="text-sm">
+                  <span className="text-slate-500">Precio estimado: </span>
+                  <span className="text-lg font-bold text-emerald-700">
+                    {estimated.total.toFixed(2)} €
+                  </span>
+                </div>
+              </div>
+            </details>
           </div>
-          <div className="text-sm">
-            <span className="text-slate-500">Precio estimado: </span>
-            <span className="text-lg font-bold text-emerald-700">
-              {estimated.total.toFixed(2)} €
+        )}
+
+        {/* Precio mostrado (resumen) */}
+        {tipoSeleccionado && precioMostrado !== null && precioMostrado > 0 && (
+          <div className="mt-4 flex items-baseline gap-2">
+            <span className="text-sm text-slate-500">Total estimado:</span>
+            <span className="text-xl font-bold text-emerald-700">
+              {precioMostrado.toFixed(2)} €
             </span>
+            {usandoPrecioFijo && (
+              <span className="text-xs text-emerald-600">(precio cerrado)</span>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Botón añadir */}
-        <button
-          type="button"
-          onClick={handleAñadir}
-          disabled={!tipoSeleccionado || palabras < 1}
-          className="mt-4 rounded-2xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          + Añadir al presupuesto
-        </button>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={handleAñadir}
+            disabled={!tipoSeleccionado}
+            className="rounded-2xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            + Añadir al presupuesto
+          </button>
+          {tipoSeleccionado && !usandoPrecioFijo && !palabrasExtraidas && precioFijo === null && (
+            <button
+              type="button"
+              onClick={handleAñadir}
+              className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Añadir sin precio (lo cotizamos nosotros)
+            </button>
+          )}
+        </div>
       </section>
 
       {/* B) LISTA DEL CARRITO */}
@@ -339,7 +533,6 @@ export default function EstimadorCarrito({
                   <th className="pb-2 pr-2">#</th>
                   <th className="pb-2 pr-2">Tipo</th>
                   <th className="pb-2 pr-2">Comb.</th>
-                  <th className="pb-2 pr-2 text-right">~Palabras</th>
                   <th className="pb-2 pr-2 text-right">~Precio</th>
                   <th className="pb-2"></th>
                 </tr>
@@ -360,13 +553,19 @@ export default function EstimadorCarrito({
                           {it.archivoNombre}
                         </span>
                       )}
+                      {it.precioFijo && (
+                        <span className="ml-1 text-[11px] text-emerald-600">
+                          precio cerrado
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 pr-2 text-xs">
                       {it.combinacion.toUpperCase()}
                     </td>
-                    <td className="py-2 pr-2 text-right">{it.palabras}</td>
                     <td className="py-2 pr-2 text-right font-medium">
-                      {it.precioEstimado.toFixed(2)} €
+                      {it.sinPrecio
+                        ? "A confirmar"
+                        : `${it.precioEstimado.toFixed(2)} €`}
                     </td>
                     <td className="py-2">
                       <button
@@ -388,17 +587,29 @@ export default function EstimadorCarrito({
               IVA exento · precio final tras revisión del traductor
             </p>
             <p className="text-lg font-bold text-emerald-700">
-              ~{total.toFixed(2)} €
+              {total > 0 ? `~${total.toFixed(2)} €` : "Precio a confirmar"}
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={scrollAlSelector}
-            className="mt-3 text-sm font-medium text-emerald-700 hover:underline"
-          >
-            + Añadir otro documento
-          </button>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={scrollAlSelector}
+              className="text-sm font-medium text-emerald-700 hover:underline"
+            >
+              + Añadir otro documento
+            </button>
+            <a
+              href={buildWhatsAppLinkFromText(
+                buildResumenCarrito(items, total)
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+            >
+              Enviar por WhatsApp
+            </a>
+          </div>
         </section>
       )}
 
@@ -448,7 +659,7 @@ export default function EstimadorCarrito({
                   htmlFor="carrito-fecha"
                   className="block font-medium text-slate-700"
                 >
-                  ¿Fecha límite? (opcional)
+                  Fecha de entrega deseada (opcional)
                 </label>
                 <input
                   id="carrito-fecha"
@@ -457,6 +668,18 @@ export default function EstimadorCarrito({
                   onChange={(e) => setFechaLimite(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  Entrega estándar estimada:{" "}
+                  <span className="font-medium">
+                    {formatDeliveryDate(fechaEntregaEstimada)}
+                  </span>
+                </p>
+                {esUrgente && (
+                  <p className="mt-1 text-xs font-medium text-amber-700">
+                    Fecha anterior a la entrega estándar. Marcaremos tu solicitud como urgente
+                    para confirmar disponibilidad (sin coste adicional).
+                  </p>
+                )}
               </div>
             </div>
 

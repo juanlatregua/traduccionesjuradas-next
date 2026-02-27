@@ -15,7 +15,6 @@ export default function TraductorJuradoAlemanPage() {
     <PaginaIdioma
       idioma="alemán"
       idiomaSlug="aleman"
-      precioPorPalabra={0.12}
       combinaciones={["de-es", "es-de"]}
       tituloH1="Traductor jurado de alemán para trámites en España y países de habla alemana"
       descripcion="Realizamos traducciones juradas de alemán a español y de español a alemán para presentar documentos ante administraciones públicas, universidades, notarías, juzgados y empresas en España, Alemania, Austria, Suiza y otros países germanoparlantes. Cada encargo lo firma un traductor jurado de alemán acreditado, sin plataformas intermediarias."

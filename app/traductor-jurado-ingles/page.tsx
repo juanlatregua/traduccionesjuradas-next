@@ -15,7 +15,6 @@ export default function TraductorJuradoInglesPage() {
     <PaginaIdioma
       idioma="inglés"
       idiomaSlug="ingles"
-      precioPorPalabra={0.10}
       combinaciones={["en-es", "es-en"]}
       tituloH1="Traductor jurado de inglés para trámites en España y en el extranjero"
       descripcion="Realizamos traducciones juradas de inglés a español y de español a inglés para presentar documentos ante administraciones, universidades, notarías, juzgados y empresas en España, Reino Unido, Irlanda, Estados Unidos y otros países anglófonos. Cada encargo lo firma un traductor jurado de inglés acreditado, sin plataformas intermediarias."

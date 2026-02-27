@@ -9,6 +9,8 @@ export type ItemCarrito = {
   palabras: number;
   precioEstimado: number;
   archivoNombre?: string;
+  sinPrecio?: boolean;
+  precioFijo?: boolean;
 };
 
 const STORAGE_KEY = "tj-carrito-presupuesto";

@@ -15,7 +15,6 @@ export default function TraductorJuradoPortuguesPage() {
     <PaginaIdioma
       idioma="portugués"
       idiomaSlug="portugues"
-      precioPorPalabra={0.12}
       combinaciones={["pt-es", "es-pt"]}
       tituloH1="Traductor jurado de portugués para España, Portugal y Brasil"
       descripcion="Realizamos traducciones juradas de portugués a español y de español a portugués para documentos emitidos en Portugal, Brasil y otros países lusófonos que deban presentarse en España o ante autoridades extranjeras. Cada encargo lo firma un traductor jurado de portugués acreditado."

@@ -15,7 +15,6 @@ export default function TraductorJuradoItalianoPage() {
     <PaginaIdioma
       idioma="italiano"
       idiomaSlug="italiano"
-      precioPorPalabra={0.12}
       combinaciones={["it-es", "es-it"]}
       tituloH1="Traductor jurado de italiano para trámites entre España e Italia"
       descripcion="Realizamos traducciones juradas de italiano a español y de español a italiano para documentos personales, académicos, laborales, notariales y mercantiles. Válidas ante administraciones, notarios, universidades y juzgados en España, Italia y otros países de la Unión Europea. Cada traducción la firma un traductor jurado de italiano, sin plataformas intermediarias."

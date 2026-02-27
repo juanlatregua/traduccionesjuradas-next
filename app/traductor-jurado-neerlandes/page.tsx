@@ -16,7 +16,6 @@ export default function TraductorJuradoNeerlandesPage() {
     <PaginaIdioma
       idioma="neerlandés"
       idiomaSlug="neerlandes"
-      precioPorPalabra={0.14}
       combinaciones={["nl-es", "es-nl"]}
       tituloH1="Traductor jurado de neerlandés para España, Países Bajos y Bélgica"
       descripcion="Realizamos traducciones juradas de neerlandés a español y de español a neerlandés para trámites en España y en países como Países Bajos y Bélgica: empleo, residencia, estudios, empresas y herencias. Cada traducción la firma un traductor jurado de neerlandés, sin plataformas intermediarias."

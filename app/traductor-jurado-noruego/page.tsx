@@ -15,7 +15,6 @@ export default function TraductorJuradoNoruegoPage() {
     <PaginaIdioma
       idioma="noruego"
       idiomaSlug="noruego"
-      precioPorPalabra={0.14}
       combinaciones={["no-es", "es-no"]}
       tituloH1="Traductor jurado de noruego para trámites entre España y Noruega"
       descripcion="Realizamos traducciones juradas de noruego a español y de español a noruego para documentación civil, académica, laboral, judicial y de empresa. Cada traducción la firma un traductor jurado de noruego, sin plataformas intermediarias, para que tus documentos sean aceptados en España y en Noruega ante administraciones, notarías, universidades y juzgados."
