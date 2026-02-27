@@ -18,6 +18,7 @@ export async function sendQuoteEmail(params: {
   sgMail.setApiKey(apiKey);
   const html = renderSimpleEmailHtml(params.body);
   const responseRaw = (await sgMail.send({
+    trackingSettings: { clickTracking: { enable: false, enableText: false } },
     to: params.to,
     from: { email: from, name: "Traducciones Juradas" },
     subject: params.subject,

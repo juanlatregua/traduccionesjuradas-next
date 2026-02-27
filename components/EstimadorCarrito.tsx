@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   DOCUMENT_CATEGORIES,
@@ -25,6 +25,39 @@ type Props = {
 };
 
 const IVA = 1.21;
+const ULTIMO_PEDIDO_KEY = "tj-ultimo-pedido";
+const ULTIMO_PEDIDO_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+function getUltimoPedido(): { referencia: string; email: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(ULTIMO_PEDIDO_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.timestamp > ULTIMO_PEDIDO_TTL_MS) {
+      localStorage.removeItem(ULTIMO_PEDIDO_KEY);
+      return null;
+    }
+    return { referencia: parsed.referencia, email: parsed.email };
+  } catch {
+    return null;
+  }
+}
+
+function guardarUltimoPedido(referencia: string, email: string) {
+  try {
+    localStorage.setItem(
+      ULTIMO_PEDIDO_KEY,
+      JSON.stringify({ referencia, email, timestamp: Date.now() })
+    );
+  } catch {}
+}
+
+function borrarUltimoPedido() {
+  try {
+    localStorage.removeItem(ULTIMO_PEDIDO_KEY);
+  } catch {}
+}
 
 export default function EstimadorCarrito({
   idioma,
@@ -57,12 +90,18 @@ export default function EstimadorCarrito({
   const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Post-envío: pedido creado
+  // Post-envío: pedido creado (se recupera de localStorage si existe)
   const [pedidoCreado, setPedidoCreado] = useState<{
     referencia: string;
     email: string;
   } | null>(null);
   const [errorEnvio, setErrorEnvio] = useState("");
+
+  // Recuperar pedido reciente de localStorage al montar
+  useEffect(() => {
+    const ultimo = getUltimoPedido();
+    if (ultimo) setPedidoCreado(ultimo);
+  }, []);
 
   const selectorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -256,10 +295,10 @@ export default function EstimadorCarrito({
         throw new Error(data.error || "Error al enviar la solicitud");
       }
 
-      setPedidoCreado({
-        referencia: data.referencia || "",
-        email,
-      });
+      const ref = data.referencia || "";
+      setPedidoCreado({ referencia: ref, email });
+      guardarUltimoPedido(ref, email);
+      vaciar();
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : "Error al enviar la solicitud";
@@ -271,6 +310,7 @@ export default function EstimadorCarrito({
 
   function handleNuevoPresupuesto() {
     setPedidoCreado(null);
+    borrarUltimoPedido();
     vaciar();
     setEmail("");
     setTelefono("");
@@ -535,6 +575,12 @@ export default function EstimadorCarrito({
               </div>
 
               <div className="flex flex-wrap gap-3">
+                <Link
+                  href={`/consulta?ref=${encodeURIComponent(pedidoCreado.referencia)}&email=${encodeURIComponent(pedidoCreado.email)}`}
+                  className="rounded-2xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+                >
+                  Ver mi solicitud
+                </Link>
                 <a
                   href={buildWhatsAppLinkFromText(
                     buildResumenCarrito(pedidoCreado.referencia, items, total)
@@ -545,20 +591,14 @@ export default function EstimadorCarrito({
                 >
                   Escribir por WhatsApp
                 </a>
-                <Link
-                  href="/consulta"
-                  className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  Consultar estado
-                </Link>
               </div>
 
               <button
                 type="button"
                 onClick={handleNuevoPresupuesto}
-                className="text-sm font-medium text-emerald-700 hover:underline"
+                className="mt-2 text-sm font-medium text-slate-500 hover:text-emerald-700 hover:underline"
               >
-                + Nuevo presupuesto
+                Solicitar otro presupuesto
               </button>
             </div>
           ) : (
