@@ -76,7 +76,7 @@ export default function Home() {
             </p>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               Traducción jurada online:
-              <span className="block text-blue-700">sube tu documento y recíbela en 24 h</span>
+              <span className="block text-emerald-700">sube tu documento y recíbela en 24 h</span>
             </h1>
             <p className="max-w-xl text-base text-slate-600 sm:text-lg">
               Así de fácil: elige idioma, adjunta PDF/foto, obtén estimación y confirma el pago.
@@ -134,12 +134,7 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="#calculadora-rapida"
-                className="rounded-2xl px-6 py-3 text-sm font-semibold shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 50%, #22c55e 100%)",
-                  color: "white",
-                }}
+                className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 px-6 py-3 text-sm font-semibold shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
               >
                 Calcular precio ahora
               </Link>
@@ -184,7 +179,7 @@ export default function Home() {
               </h2>
               <ol className="space-y-4 text-sm">
                 <li className="flex gap-3">
-                  <span className="mt-1 h-6 w-6 shrink-0 rounded-full bg-blue-500 text-center text-xs font-bold leading-6">
+                  <span className="mt-1 h-6 w-6 shrink-0 rounded-full bg-emerald-500 text-center text-xs font-bold leading-6">
                     1
                   </span>
                   <div>
@@ -199,7 +194,7 @@ export default function Home() {
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="mt-1 h-6 w-6 shrink-0 rounded-full bg-blue-500 text-center text-xs font-bold leading-6">
+                  <span className="mt-1 h-6 w-6 shrink-0 rounded-full bg-emerald-500 text-center text-xs font-bold leading-6">
                     2
                   </span>
                   <div>
@@ -212,7 +207,7 @@ export default function Home() {
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="mt-1 h-6 w-6 shrink-0 rounded-full bg-blue-500 text-center text-xs font-bold leading-6">
+                  <span className="mt-1 h-6 w-6 shrink-0 rounded-full bg-emerald-500 text-center text-xs font-bold leading-6">
                     3
                   </span>
                   <div>
@@ -231,7 +226,7 @@ export default function Home() {
               <div className="mt-6">
                 <Link
                   href="/proceso"
-                  className="text-xs font-medium text-blue-300 hover:underline"
+                  className="text-xs font-medium text-emerald-300 hover:underline"
                 >
                   Ver el proceso completo →
                 </Link>
@@ -243,12 +238,12 @@ export default function Home() {
 
       {/* CALCULADORA RÁPIDA */}
       <section id="calculadora-rapida" className="mx-auto max-w-6xl px-4 py-10">
-        <div className="relative overflow-hidden rounded-[2rem] border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-5 shadow-[0_18px_50px_-28px_rgba(2,132,199,0.35)] sm:p-7">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
+        <div className="relative overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50 p-5 shadow-[0_18px_50px_-28px_rgba(16,185,129,0.25)] sm:p-7">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-emerald-200/30 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-emerald-200/30 blur-3xl" />
 
           <div className="relative">
-            <p className="inline-flex items-center rounded-full border border-cyan-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
+            <p className="inline-flex items-center rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
               Calculadora rápida
             </p>
             <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
@@ -290,7 +285,7 @@ export default function Home() {
               href="/presupuesto"
               className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-700"
             >
-              Presupuesto cerrado
+              Solicitar presupuesto
             </Link>
             <Link
               href="/consulta"
@@ -314,10 +309,10 @@ export default function Home() {
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="rounded-xl bg-emerald-50 px-4 py-2 text-lg font-bold text-emerald-700">
-              Desde 0,10 EUR<span className="text-sm font-normal text-slate-500">/palabra</span>
+              Desde 0,08 €<span className="text-sm font-normal text-slate-500">/palabra</span>
             </span>
             <span className="text-sm text-slate-500">·</span>
-            <span className="text-sm text-slate-600">Certificados sencillos desde 42 EUR</span>
+            <span className="text-sm text-slate-600">Certificados sencillos desde 42 €</span>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
             <span>IVA incluido</span>
@@ -722,7 +717,7 @@ export default function Home() {
                 </a>
                 <a
                   href={MAIL_LINK}
-                  className="font-medium text-blue-700 hover:underline"
+                  className="font-medium text-emerald-700 hover:underline"
                 >
                   Enviar una consulta por email
                 </a>
@@ -761,7 +756,7 @@ export default function Home() {
               </a>
               <a
               href={MAIL_LINK}
-                className="rounded-2xl px-6 py-3 text-sm font-semibold shadow-lg"
+                className="rounded-2xl border border-slate-400 text-white hover:bg-slate-800 px-6 py-3 text-sm font-semibold shadow-lg"
               >
                 Pedir presupuesto por email
               </a>
