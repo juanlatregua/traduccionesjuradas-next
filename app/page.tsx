@@ -314,13 +314,13 @@ export default function Home() {
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="rounded-xl bg-emerald-50 px-4 py-2 text-lg font-bold text-emerald-700">
-              Desde 0,08 EUR<span className="text-sm font-normal text-slate-500">/palabra</span>
+              Desde 0,10 EUR<span className="text-sm font-normal text-slate-500">/palabra</span>
             </span>
             <span className="text-sm text-slate-500">·</span>
-            <span className="text-sm text-slate-600">Certificados sencillos desde 35 EUR</span>
+            <span className="text-sm text-slate-600">Certificados sencillos desde 42 EUR</span>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-            <span>IVA exento (art. 20.1.26 LIVA)</span>
+            <span>IVA incluido</span>
             <span className="h-1 w-1 rounded-full bg-slate-300" />
             <span>Urgencia +25 %</span>
             <span className="h-1 w-1 rounded-full bg-slate-300" />

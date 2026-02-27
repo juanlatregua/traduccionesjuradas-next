@@ -11,6 +11,9 @@ export type PresupuestoPayload = {
     combinacion: string;
     palabras: number;
     precioEstimado: number;
+    archivoNombre?: string;
+    sinPrecio?: boolean;
+    precioFijo?: boolean;
   }>;
   contacto: {
     email: string;
@@ -23,7 +26,10 @@ export type PresupuestoPayload = {
     paginaOrigen: string;
     timestamp: string;
   };
-  referencia: string;
+  referencia?: string;
+  orderReference?: string;
+  quoteId?: string;
+  website?: string;
 };
 
 const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
@@ -87,7 +93,14 @@ ${docsRows}
 Total estimado: ~${total} EUR
 
 Notas: ${payload.contacto.notas || "-"}
+${payload.quoteId ? `\nRevisar presupuesto: https://www.traduccionesjuradas.net/admin/quotes/${payload.quoteId}` : ""}
+${payload.orderReference ? `Zona traductor: https://www.traduccionesjuradas.net/zona-traductor` : ""}
 `;
+
+  const baseUrl = "https://www.traduccionesjuradas.net";
+  const quoteLink = payload.quoteId
+    ? `<p><a href="${baseUrl}/admin/quotes/${payload.quoteId}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Revisar presupuesto y enviar</a></p>`
+    : `<p><a href="${baseUrl}/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona operativa</a></p>`;
 
   const docsHtmlRows = payload.documentos
     .map(
@@ -108,6 +121,7 @@ Notas: ${payload.contacto.notas || "-"}
     </table>
     <p><strong>Total estimado:</strong> ~${total} EUR</p>
     <p><strong>Notas:</strong> ${payload.contacto.notas || "-"}</p>
+    ${quoteLink}
   `;
 
   await sgMail.send({
@@ -158,7 +172,10 @@ Hemos recibido tu solicitud de traducción jurada (ref. ${payload.referencia}).
 Documentos solicitados:
 ${docsText}
 
-Total estimado: ~${total} EUR (IVA exento · precio final tras revisión)
+Total estimado: ~${total} EUR (IVA incluido · precio final tras revisión)
+
+Puedes consultar el estado de tu solicitud en cualquier momento en:
+https://www.traduccionesjuradas.net/consulta
 
 Atendemos de 09:00 a 19:00 CET y solemos responder en menos de 2 horas laborables.
 Si es urgente, escríbenos por WhatsApp: ${whatsapp}
@@ -184,9 +201,10 @@ Equipo de TraduccionesJuradas.net`;
       <tr style="background:#f1f5f9;"><th style="padding:4px 8px; border:1px solid #e2e8f0; text-align:left;">Tipo</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Combinación</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Palabras</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Precio est.</th></tr>
       ${docsHtmlRows}
     </table>
-    <p><strong>Total estimado:</strong> ~${total} EUR <span style="color:#6b7280;">(IVA exento · precio final tras revisión)</span></p>
+    <p><strong>Total estimado:</strong> ~${total} EUR <span style="color:#6b7280;">(IVA incluido · precio final tras revisión)</span></p>
     <p>Horario de respuesta: <strong>09:00 a 19:00 CET</strong>. Respondemos normalmente en menos de 2 horas laborables.</p>
     <p>Si es urgente, contáctanos por <a href="${whatsapp}">WhatsApp</a>.</p>
+    <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600; margin:8px 0;">Consultar estado de mi solicitud</a></p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
     <div style="margin:12px 0;">
       <img src="cid:sello-ministerio" alt="Traductores jurados nombrados por el Ministerio" style="max-width:220px; height:auto;" />

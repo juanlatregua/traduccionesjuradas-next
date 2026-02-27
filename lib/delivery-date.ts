@@ -30,6 +30,10 @@ export function formatDeliveryDate(date: Date): string {
   });
 }
 
+export function formatDateForInput(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
 export function isUrgent(requestedDate: string, estimatedDate: Date): boolean {
   const requested = new Date(requestedDate);
   requested.setHours(23, 59, 59);

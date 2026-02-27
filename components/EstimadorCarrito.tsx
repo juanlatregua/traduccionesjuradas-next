@@ -7,10 +7,11 @@ import {
   getEstimatedPrice,
 } from "@/lib/language-config";
 import { getFixedPrice } from "@/lib/fixed-prices";
-import { buildWhatsAppLinkFromText } from "@/lib/contact";
+import { buildWhatsAppLinkFromText, getTrackedConsultaUrl } from "@/lib/contact";
 import {
   getEstimatedDeliveryDate,
   formatDeliveryDate,
+  formatDateForInput,
   isUrgent,
 } from "@/lib/delivery-date";
 import {
@@ -23,7 +24,7 @@ type Props = {
   combinaciones: string[];
 };
 
-type ToastState = { type: "success" | "error"; message: string } | null;
+const IVA = 1.21;
 
 export default function EstimadorCarrito({
   idioma,
@@ -35,7 +36,7 @@ export default function EstimadorCarrito({
   // Selector state
   const [combinacion, setCombinacion] = useState(combinaciones[0] || "");
   const [tipoSeleccionado, setTipoSeleccionado] = useState("");
-  const [palabras, setPalabras] = useState<number>(250);
+  const [palabras, setPalabras] = useState<number>(0);
   const [archivoNombre, setArchivoNombre] = useState("");
 
   // File upload + extraction state
@@ -45,15 +46,23 @@ export default function EstimadorCarrito({
   const [errorExtraccion, setErrorExtraccion] = useState("");
   const [usandoPrecioFijo, setUsandoPrecioFijo] = useState(false);
 
-  // Contact form state
+  // Contact form state (inline in carrito)
   const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [fechaLimite, setFechaLimite] = useState("");
+  const [fechaLimite, setFechaLimite] = useState(() =>
+    formatDateForInput(getEstimatedDeliveryDate())
+  );
   const [notas, setNotas] = useState("");
   const [website, setWebsite] = useState(""); // honeypot
   const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<ToastState>(null);
+
+  // Post-envío: pedido creado
+  const [pedidoCreado, setPedidoCreado] = useState<{
+    referencia: string;
+    email: string;
+  } | null>(null);
+  const [errorEnvio, setErrorEnvio] = useState("");
 
   const selectorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,12 +75,14 @@ export default function EstimadorCarrito({
   const fechaEntregaEstimada = useMemo(() => getEstimatedDeliveryDate(), []);
   const esUrgente = fechaLimite ? isUrgent(fechaLimite, fechaEntregaEstimada) : false;
 
-  // Determine which price to show
+  // Determine which price to show (IVA incluido)
   const precioMostrado = usandoPrecioFijo && precioFijo !== null
-    ? precioFijo
-    : palabrasExtraidas !== null || palabras > 0
-      ? estimated.total
-      : null;
+    ? Math.round(precioFijo * IVA * 100) / 100
+    : palabrasExtraidas !== null
+      ? Math.round(estimated.total * IVA * 100) / 100
+      : palabras > 0
+        ? Math.round(estimated.total * IVA * 100) / 100
+        : null;
 
   async function handleSubirArchivo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -127,7 +138,7 @@ export default function EstimadorCarrito({
         tipoLabel,
         combinacion,
         palabras: 0,
-        precioEstimado: precioFijo,
+        precioEstimado: Math.round(precioFijo * IVA * 100) / 100,
         archivoNombre: archivoNombre || undefined,
         precioFijo: true,
       });
@@ -137,7 +148,7 @@ export default function EstimadorCarrito({
         tipoLabel,
         combinacion,
         palabras,
-        precioEstimado: estimated.total,
+        precioEstimado: Math.round(estimated.total * IVA * 100) / 100,
         archivoNombre: archivoNombre || undefined,
       });
     } else {
@@ -155,7 +166,7 @@ export default function EstimadorCarrito({
 
     // Reset selector
     setTipoSeleccionado("");
-    setPalabras(250);
+    setPalabras(0);
     setArchivoNombre("");
     setArchivo(null);
     setPalabrasExtraidas(null);
@@ -168,38 +179,33 @@ export default function EstimadorCarrito({
   }
 
   function buildResumenCarrito(
+    referencia: string,
     carritoItems: ItemCarrito[],
     carritoTotal: number,
-    emailCliente?: string
   ) {
     const lineas = carritoItems.map((it, i) =>
       it.sinPrecio
         ? `${i + 1}. ${it.tipoLabel} (${it.combinacion.toUpperCase()}) - precio a confirmar`
         : `${i + 1}. ${it.tipoLabel} (${it.combinacion.toUpperCase()}) ~${it.precioEstimado.toFixed(2)}€`
     );
-    let msg = `Hola, quiero presupuesto para:\n${lineas.join("\n")}`;
-    if (carritoTotal > 0) msg += `\nTotal estimado: ~${carritoTotal.toFixed(2)}€`;
-    if (emailCliente) msg += `\nEmail: ${emailCliente}`;
+    let msg = `Hola, he solicitado presupuesto (ref. ${referencia}) para:\n${lineas.join("\n")}`;
+    if (carritoTotal > 0) msg += `\nTotal estimado: ~${carritoTotal.toFixed(2)}€ (IVA incl.)`;
+    msg += `\n\nMi solicitud: ${getTrackedConsultaUrl(referencia)}`;
+    msg += `\n\n¿Me podéis confirmar precio y plazo?`;
     return msg;
   }
 
-  async function handleEnviar(e: React.FormEvent) {
+  async function handleSolicitar(e: React.FormEvent) {
     e.preventDefault();
-    setToast(null);
+    setErrorEnvio("");
 
     if (!aceptaPrivacidad) {
-      setToast({
-        type: "error",
-        message: "Debes aceptar la política de privacidad para continuar.",
-      });
+      setErrorEnvio("Debes aceptar la política de privacidad para continuar.");
       return;
     }
 
     if (items.length === 0) {
-      setToast({
-        type: "error",
-        message: "Añade al menos un documento al presupuesto.",
-      });
+      setErrorEnvio("Añade al menos un documento al presupuesto.");
       return;
     }
 
@@ -250,56 +256,33 @@ export default function EstimadorCarrito({
         throw new Error(data.error || "Error al enviar la solicitud");
       }
 
-      setToast({
-        type: "success",
-        message: data.referencia
-          ? `Solicitud recibida (${data.referencia}). Te responderemos en menos de 2 horas laborables.`
-          : "Solicitud recibida. Te responderemos en menos de 2 horas laborables.",
+      setPedidoCreado({
+        referencia: data.referencia || "",
+        email,
       });
-
-      vaciar();
-      setEmail("");
-      setTelefono("");
-      setFechaLimite("");
-      setNotas("");
-      setAceptaPrivacidad(false);
-
-      setTimeout(() => setToast(null), 6000);
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : "Error al enviar la solicitud";
-      setToast({ type: "error", message: msg });
+      setErrorEnvio(msg);
     } finally {
       setLoading(false);
     }
   }
 
+  function handleNuevoPresupuesto() {
+    setPedidoCreado(null);
+    vaciar();
+    setEmail("");
+    setTelefono("");
+    setFechaLimite(formatDateForInput(getEstimatedDeliveryDate()));
+    setNotas("");
+    setAceptaPrivacidad(false);
+    setErrorEnvio("");
+    scrollAlSelector();
+  }
+
   return (
     <div className="mt-8 space-y-6">
-      {/* TOAST */}
-      {toast && (
-        <div
-          className={`fixed inset-x-0 top-20 z-[200] mx-auto w-[90%] max-w-md rounded-2xl px-4 py-3 text-sm shadow-lg ${
-            toast.type === "success"
-              ? "bg-emerald-600 text-white"
-              : "bg-red-600 text-white"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
-              <p>{toast.message}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setToast(null)}
-              className="ml-2 text-xs font-semibold underline"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* A) SELECTOR DE DOCUMENTO */}
       <section
         ref={selectorRef}
@@ -309,7 +292,7 @@ export default function EstimadorCarrito({
           Estima tu presupuesto en segundos
         </h2>
         <p className="mt-1 text-xs text-slate-500">
-          Precio orientativo · IVA exento · el precio final se confirma
+          Precio orientativo con IVA incluido · el precio final se confirma
           tras revisar el documento
         </p>
 
@@ -375,7 +358,8 @@ export default function EstimadorCarrito({
           <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
             <p className="text-sm font-semibold text-emerald-800">
               Documento estándar (~1 hoja):{" "}
-              <span className="text-lg">{precioFijo} €</span>
+              <span className="text-lg">{(Math.round(precioFijo * IVA * 100) / 100).toFixed(2)} €</span>
+              <span className="ml-1 text-xs font-normal text-slate-500">IVA incl.</span>
             </p>
             <p className="mt-1 text-xs text-slate-600">
               Precio cerrado para certificados, antecedentes y títulos de una hoja.
@@ -391,7 +375,7 @@ export default function EstimadorCarrito({
                     : "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
                 }`}
               >
-                Usar precio cerrado ({precioFijo} €)
+                Usar precio cerrado ({(Math.round(precioFijo * IVA * 100) / 100).toFixed(2)} €)
               </button>
             </div>
             <p className="mt-2 text-xs text-slate-500">
@@ -434,8 +418,9 @@ export default function EstimadorCarrito({
                 <p className="mt-1">
                   <span className="text-slate-500">Precio estimado: </span>
                   <span className="text-lg font-bold text-emerald-700">
-                    {estimated.total.toFixed(2)} €
+                    {(Math.round(estimated.total * IVA * 100) / 100).toFixed(2)} €
                   </span>
+                  <span className="ml-1 text-xs text-slate-500">IVA incl.</span>
                 </p>
               </div>
             )}
@@ -464,20 +449,25 @@ export default function EstimadorCarrito({
                     type="number"
                     min={1}
                     max={100000}
-                    value={palabras}
+                    value={palabras || ""}
+                    placeholder="0"
                     onChange={(e) => {
-                      setPalabras(Math.max(1, Number(e.target.value)));
+                      const v = Number(e.target.value);
+                      setPalabras(v > 0 ? v : 0);
                       setPalabrasExtraidas(null);
                     }}
                     className="mt-1 w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm"
                   />
                 </div>
-                <div className="text-sm">
-                  <span className="text-slate-500">Precio estimado: </span>
-                  <span className="text-lg font-bold text-emerald-700">
-                    {estimated.total.toFixed(2)} €
-                  </span>
-                </div>
+                {palabras > 0 && (
+                  <div className="text-sm">
+                    <span className="text-slate-500">Precio estimado: </span>
+                    <span className="text-lg font-bold text-emerald-700">
+                      {(Math.round(estimated.total * IVA * 100) / 100).toFixed(2)} €
+                    </span>
+                    <span className="ml-1 text-xs text-slate-500">IVA incl.</span>
+                  </div>
+                )}
               </div>
             </details>
           </div>
@@ -518,242 +508,275 @@ export default function EstimadorCarrito({
         </div>
       </section>
 
-      {/* B) LISTA DEL CARRITO */}
-      {items.length > 0 && (
+      {/* B) CARRITO + SOLICITUD / CONFIRMACIÓN */}
+      {(items.length > 0 || pedidoCreado) && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Tu presupuesto ({items.length}{" "}
-            {items.length === 1 ? "documento" : "documentos"})
-          </h2>
-
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-xs text-slate-500">
-                  <th className="pb-2 pr-2">#</th>
-                  <th className="pb-2 pr-2">Tipo</th>
-                  <th className="pb-2 pr-2">Comb.</th>
-                  <th className="pb-2 pr-2 text-right">~Precio</th>
-                  <th className="pb-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it, idx) => (
-                  <tr
-                    key={it.id}
-                    className="border-b border-slate-100 text-slate-700"
-                  >
-                    <td className="py-2 pr-2 text-xs text-slate-400">
-                      {idx + 1}
-                    </td>
-                    <td className="py-2 pr-2">
-                      {it.tipoLabel}
-                      {it.archivoNombre && (
-                        <span className="ml-1 text-[11px] text-slate-400">
-                          {it.archivoNombre}
-                        </span>
-                      )}
-                      {it.precioFijo && (
-                        <span className="ml-1 text-[11px] text-emerald-600">
-                          precio cerrado
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-2 text-xs">
-                      {it.combinacion.toUpperCase()}
-                    </td>
-                    <td className="py-2 pr-2 text-right font-medium">
-                      {it.sinPrecio
-                        ? "A confirmar"
-                        : `${it.precioEstimado.toFixed(2)} €`}
-                    </td>
-                    <td className="py-2">
-                      <button
-                        type="button"
-                        onClick={() => eliminar(it.id)}
-                        className="rounded-lg border border-slate-300 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-100"
-                      >
-                        x
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-3 flex items-baseline justify-between">
-            <p className="text-xs text-slate-500">
-              IVA exento · precio final tras revisión del traductor
-            </p>
-            <p className="text-lg font-bold text-emerald-700">
-              {total > 0 ? `~${total.toFixed(2)} €` : "Precio a confirmar"}
-            </p>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={scrollAlSelector}
-              className="text-sm font-medium text-emerald-700 hover:underline"
-            >
-              + Añadir otro documento
-            </button>
-            <a
-              href={buildWhatsAppLinkFromText(
-                buildResumenCarrito(items, total)
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
-            >
-              Enviar por WhatsApp
-            </a>
-          </div>
-        </section>
-      )}
-
-      {/* C) FORMULARIO DE CONTACTO Y ENVÍO */}
-      {items.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Datos de contacto y envío
-          </h2>
-
-          <form onSubmit={handleEnviar} className="mt-4 space-y-4 text-sm">
-            <div>
-              <label
-                htmlFor="carrito-email"
-                className="block font-medium text-slate-700"
-              >
-                Email *
-              </label>
-              <input
-                id="carrito-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="carrito-tel"
-                  className="block font-medium text-slate-700"
-                >
-                  Teléfono / WhatsApp (opcional)
-                </label>
-                <input
-                  id="carrito-tel"
-                  type="tel"
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="carrito-fecha"
-                  className="block font-medium text-slate-700"
-                >
-                  Fecha de entrega deseada (opcional)
-                </label>
-                <input
-                  id="carrito-fecha"
-                  type="date"
-                  value={fechaLimite}
-                  onChange={(e) => setFechaLimite(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  Entrega estándar estimada:{" "}
-                  <span className="font-medium">
-                    {formatDeliveryDate(fechaEntregaEstimada)}
-                  </span>
-                </p>
-                {esUrgente && (
-                  <p className="mt-1 text-xs font-medium text-amber-700">
-                    Fecha anterior a la entrega estándar. Marcaremos tu solicitud como urgente
-                    para confirmar disponibilidad (sin coste adicional).
+          {pedidoCreado ? (
+            /* ── PANEL DE CONFIRMACIÓN ── */
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl text-emerald-700">
+                  ✓
+                </span>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Solicitud{" "}
+                    {pedidoCreado.referencia && (
+                      <span className="text-emerald-700">{pedidoCreado.referencia}</span>
+                    )}{" "}
+                    recibida
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Hemos recibido tu solicitud. Te enviaremos el presupuesto
+                    definitivo por email a{" "}
+                    <span className="font-medium">{pedidoCreado.email}</span>.
                   </p>
-                )}
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label
-                htmlFor="carrito-notas"
-                className="block font-medium text-slate-700"
-              >
-                Notas (opcional)
-              </label>
-              <textarea
-                id="carrito-notas"
-                rows={2}
-                value={notas}
-                onChange={(e) => setNotas(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                placeholder="Indica tu trámite, plazos o cualquier detalle relevante"
-              />
-            </div>
-
-            {/* Honeypot */}
-            <div className="hidden">
-              <label htmlFor="carrito-website">No rellenar</label>
-              <input
-                id="carrito-website"
-                name="website"
-                type="text"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-slate-600">
-              <input
-                id="carrito-privacidad"
-                type="checkbox"
-                checked={aceptaPrivacidad}
-                onChange={(e) => setAceptaPrivacidad(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300"
-              />
-              <label htmlFor="carrito-privacidad">
-                Acepto la{" "}
-                <Link
-                  href="/privacidad"
-                  className="text-emerald-700 hover:underline"
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href={buildWhatsAppLinkFromText(
+                    buildResumenCarrito(pedidoCreado.referencia, items, total)
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
                 >
-                  política de privacidad
-                </Link>{" "}
-                y el tratamiento de mis datos para responder a mi solicitud.
-              </label>
-            </div>
+                  Escribir por WhatsApp
+                </a>
+                <Link
+                  href="/consulta"
+                  className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  Consultar estado
+                </Link>
+              </div>
 
-            <div className="flex flex-wrap gap-3">
               <button
-                type="submit"
-                disabled={loading}
-                className="rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                type="button"
+                onClick={handleNuevoPresupuesto}
+                className="text-sm font-medium text-emerald-700 hover:underline"
               >
-                {loading ? "Enviando..." : "Enviar para revisión"}
+                + Nuevo presupuesto
               </button>
-
-              <a
-                href={buildWhatsAppLinkFromText(
-                  buildResumenCarrito(items, total, email)
-                )}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-2xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-100"
-              >
-                Escribir por WhatsApp
-              </a>
             </div>
-          </form>
+          ) : (
+            /* ── CARRITO + FORMULARIO INLINE ── */
+            <>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Tu presupuesto ({items.length}{" "}
+                {items.length === 1 ? "documento" : "documentos"})
+              </h2>
+
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs text-slate-500">
+                      <th className="pb-2 pr-2">#</th>
+                      <th className="pb-2 pr-2">Tipo</th>
+                      <th className="pb-2 pr-2">Comb.</th>
+                      <th className="pb-2 pr-2 text-right">~Precio</th>
+                      <th className="pb-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it, idx) => (
+                      <tr
+                        key={it.id}
+                        className="border-b border-slate-100 text-slate-700"
+                      >
+                        <td className="py-2 pr-2 text-xs text-slate-400">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2 pr-2">
+                          {it.tipoLabel}
+                          {it.archivoNombre && (
+                            <span className="ml-1 text-[11px] text-slate-400">
+                              {it.archivoNombre}
+                            </span>
+                          )}
+                          {it.precioFijo && (
+                            <span className="ml-1 text-[11px] text-emerald-600">
+                              precio cerrado
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-2 text-xs">
+                          {it.combinacion.toUpperCase()}
+                        </td>
+                        <td className="py-2 pr-2 text-right font-medium">
+                          {it.sinPrecio
+                            ? "A confirmar"
+                            : `${it.precioEstimado.toFixed(2)} €`}
+                        </td>
+                        <td className="py-2">
+                          <button
+                            type="button"
+                            onClick={() => eliminar(it.id)}
+                            className="rounded-lg border border-slate-300 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-100"
+                          >
+                            x
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-3 flex items-baseline justify-between">
+                <p className="text-xs text-slate-500">
+                  IVA incluido · precio final tras revisión del traductor
+                </p>
+                <p className="text-lg font-bold text-emerald-700">
+                  {total > 0 ? `~${total.toFixed(2)} €` : "Precio a confirmar"}
+                </p>
+              </div>
+
+              {/* Formulario inline: email + privacidad + opcionales */}
+              <form onSubmit={handleSolicitar} className="mt-5 space-y-4 border-t border-slate-200 pt-5 text-sm">
+                <div>
+                  <label
+                    htmlFor="carrito-email"
+                    className="block font-medium text-slate-700"
+                  >
+                    Email *
+                  </label>
+                  <input
+                    id="carrito-email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <input
+                    id="carrito-privacidad"
+                    type="checkbox"
+                    checked={aceptaPrivacidad}
+                    onChange={(e) => setAceptaPrivacidad(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  <label htmlFor="carrito-privacidad">
+                    Acepto la{" "}
+                    <Link
+                      href="/privacidad"
+                      className="text-emerald-700 hover:underline"
+                    >
+                      política de privacidad
+                    </Link>{" "}
+                    y el tratamiento de mis datos para responder a mi solicitud.
+                  </label>
+                </div>
+
+                {/* Campos opcionales colapsables */}
+                <details>
+                  <summary className="cursor-pointer text-xs font-medium text-slate-600 hover:text-slate-800">
+                    Teléfono, fecha de entrega, notas (opcional)
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label
+                        htmlFor="carrito-tel"
+                        className="block font-medium text-slate-700"
+                      >
+                        Teléfono / WhatsApp
+                      </label>
+                      <input
+                        id="carrito-tel"
+                        type="tel"
+                        value={telefono}
+                        onChange={(e) => setTelefono(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="carrito-fecha"
+                        className="block font-medium text-slate-700"
+                      >
+                        Fecha de entrega deseada
+                      </label>
+                      <input
+                        id="carrito-fecha"
+                        type="date"
+                        value={fechaLimite}
+                        onChange={(e) => setFechaLimite(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Entrega estándar estimada:{" "}
+                        <span className="font-medium">
+                          {formatDeliveryDate(fechaEntregaEstimada)}
+                        </span>
+                      </p>
+                      {esUrgente && (
+                        <p className="mt-1 text-xs font-medium text-amber-700">
+                          Fecha anterior a la entrega estándar. Marcaremos tu solicitud como urgente
+                          para confirmar disponibilidad (sin coste adicional).
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="carrito-notas"
+                        className="block font-medium text-slate-700"
+                      >
+                        Notas
+                      </label>
+                      <textarea
+                        id="carrito-notas"
+                        rows={2}
+                        value={notas}
+                        onChange={(e) => setNotas(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                        placeholder="Indica tu trámite, plazos o cualquier detalle relevante"
+                      />
+                    </div>
+                  </div>
+                </details>
+
+                {/* Honeypot */}
+                <div className="hidden">
+                  <label htmlFor="carrito-website">No rellenar</label>
+                  <input
+                    id="carrito-website"
+                    name="website"
+                    type="text"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+
+                {/* Error inline */}
+                {errorEnvio && (
+                  <p className="text-sm text-red-600">{errorEnvio}</p>
+                )}
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="rounded-2xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {loading ? "Enviando..." : "Solicitar presupuesto"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={scrollAlSelector}
+                    className="text-sm font-medium text-emerald-700 hover:underline"
+                  >
+                    + Añadir otro documento
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </section>
       )}
     </div>

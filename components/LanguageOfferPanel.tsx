@@ -241,8 +241,8 @@ export default function LanguageOfferPanel({ config }: Props) {
               Selecciona el tipo de documento y calcula el precio estimado.
             </p>
             <p className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm">
-              <span className="font-semibold text-emerald-700">{baseRate.toFixed(2).replace(".", ",")} EUR/palabra</span>
-              <span className="text-xs text-slate-500">· IVA exento · Precio final tras revisión</span>
+              <span className="font-semibold text-emerald-700">{(baseRate * 1.21).toFixed(2).replace(".", ",")} EUR/palabra</span>
+              <span className="text-xs text-slate-500">· IVA incluido · Precio final tras revisión</span>
             </p>
           </div>
 

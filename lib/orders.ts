@@ -13,7 +13,7 @@ import {
 type CreateOrderInput = {
   clientEmail: string;
   clientName?: string;
-  source: "preset" | "file";
+  source: "preset" | "file" | "estimador";
   title: string;
   langPair?: string;
   words?: number;

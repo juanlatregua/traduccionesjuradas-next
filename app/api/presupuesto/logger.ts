@@ -4,6 +4,8 @@ export type PresupuestoLog = {
   toInternal?: string;
   toClient?: string;
   referencia?: string;
+  orderReference?: string;
+  quoteId?: string;
   route: string;
   userEmail?: string;
   timestamp: string;
