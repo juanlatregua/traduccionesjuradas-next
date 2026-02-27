@@ -11,6 +11,15 @@ export type LanguageConfig = {
 };
 
 export const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
+  frances: {
+    slug: "frances",
+    name: "francés",
+    nameEn: "French",
+    langCode: "fr",
+    defaultPair: "fr-es",
+    reversePair: "es-fr",
+    hasFixedPrices: false,
+  },
   ingles: {
     slug: "ingles",
     name: "inglés",
