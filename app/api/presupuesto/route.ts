@@ -163,7 +163,23 @@ export async function POST(req: Request) {
       },
     });
 
-    // Transition workflow → PENDIENTE_REVISION (estimador orders always need review)
+    // Bootstrap workflow: insert BORRADOR event directly (no prior workflow event exists,
+    // so getWorkflowState falls back to PENDIENTE_PAGO and no transition to BORRADOR is valid).
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "workflow.state_changed",
+        message: "Workflow actualizado: (nuevo) -> BORRADOR. Motivo: Pedido creado desde estimador.",
+        payload: {
+          from: "NUEVO",
+          to: "BORRADOR",
+          actorEmail: email,
+          reason: "Pedido creado desde estimador.",
+        },
+      },
+    });
+
+    // Now transition BORRADOR → PENDIENTE_REVISION (allowed by workflow rules)
     await transitionWorkflowState({
       reference: order.reference,
       to: "PENDIENTE_REVISION",
