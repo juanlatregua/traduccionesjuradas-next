@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Traducciones juradas Marruecos – España | Documentos y apostilla",
   description:
     "Traducción jurada de documentos marroquíes para usarlos en España: casier judiciaire, actas de nacimiento y matrimonio, salarios CNSS, chiffre d'affaires, Registre du Commerce, estatutos y poderes. Información sobre apostilla y requisitos habituales.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/marruecos" },
 };
 
 export default function MarruecosPage() {

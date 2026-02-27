@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Equipo de traductores jurados oficiales | Quiénes somos",
   description:
     "Equipo de traductores jurados oficiales para documentación personal, académica, jurídica y mercantil. Trabajamos por especialidad e idioma, sin intermediarios opacos.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/traductores-jurados" },
 };
 
 export default function TraductoresJuradosPage() {
@@ -43,6 +44,38 @@ export default function TraductoresJuradosPage() {
           portugués, catalán, sueco, noruego…) para poder dar respuesta a
           expedientes más complejos.
         </p>
+        {/* Tarjeta E-E-A-T */}
+        <div className="my-6 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            Datos clave del traductor jurado principal
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-700">2009</p>
+              <p className="mt-1 text-xs font-semibold text-slate-900">Año de nombramiento</p>
+              <p className="mt-0.5 text-[11px] text-slate-600">Ministerio de Asuntos Exteriores</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-700">+15 años</p>
+              <p className="mt-1 text-xs font-semibold text-slate-900">De experiencia</p>
+              <p className="mt-0.5 text-[11px] text-slate-600">Traducción jurada FR↔ES</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-700">+3.000</p>
+              <p className="mt-1 text-xs font-semibold text-slate-900">Traducciones entregadas</p>
+              <p className="mt-0.5 text-[11px] text-slate-600">Particulares y empresas</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-700">Lic. TeI</p>
+              <p className="mt-1 text-xs font-semibold text-slate-900">Formación académica</p>
+              <p className="mt-0.5 text-[11px] text-slate-600">Traducción e Interpretación</p>
+            </div>
+          </div>
+          <p className="mt-4 text-xs text-slate-600">
+            Documentos más frecuentes: certificados del Registro Civil, documentos académicos, antecedentes penales y documentos mercantiles.
+          </p>
+        </div>
+
         <p>
           Si tu expediente está centrado en documentación en francés, consulta
           la página especializada del{" "}

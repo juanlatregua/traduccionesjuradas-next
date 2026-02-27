@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "Aviso legal | Traducciones Juradas",
   description:
     "Información legal y datos del titular del sitio web traduccionesjuradas.net: responsabilidad, condiciones de uso y datos de contacto.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/aviso-legal" },
 };
 
 export default function AvisoLegalPage() {

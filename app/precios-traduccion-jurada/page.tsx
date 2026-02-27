@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: "Precios de traducción jurada | Tarifas orientativas",
   description:
     "Tarifas orientativas de traducción jurada según tipo de documento, idioma y volumen. Certificados breves, expedientes académicos, contratos, documentación mercantil y paquetes de documentos para trámites en España y en el extranjero.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/precios-traduccion-jurada" },
 };
 
 export default function PreciosTraduccionJuradaPage() {

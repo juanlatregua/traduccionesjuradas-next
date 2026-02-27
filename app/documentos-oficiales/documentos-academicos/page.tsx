@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Títulos y DELF/DALF en francés | Traducción jurada académica",
   description:
     "Traducción jurada de títulos, expedientes y certificados académicos para homologación y oposiciones. Soporte para DELF/DALF en francés y otros idiomas oficiales.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-academicos" },
 };
 
 export default function DocumentosAcademicosPage() {

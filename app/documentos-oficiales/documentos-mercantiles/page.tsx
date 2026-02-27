@@ -6,6 +6,7 @@ export const metadata: Metadata = {
     "Traducción jurada de documentos mercantiles y empresariales | Registro Mercantil, estatutos y poderes",
   description:
     "Traducción jurada de documentos mercantiles y empresariales para usarlos en España: escrituras, estatutos sociales, poderes, certificados del Registro Mercantil, cuentas anuales, acuerdos societarios y documentación de empresas extranjeras (incluidas empresas de Marruecos).",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-mercantiles" },
 };
 
 export default function DocumentosMercantilesPage() {

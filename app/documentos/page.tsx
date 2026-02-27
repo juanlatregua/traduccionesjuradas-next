@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "Documentos que traducimos | Traducción jurada oficial",
   description:
     "Listado de documentos que traducimos de forma jurada: certificados del Registro Civil, documentos de identidad, títulos académicos, contratos, escrituras, documentos mercantiles, sentencias y apostillas de la Haya.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/documentos" },
 };
 
 export default function DocumentosPage() {
