@@ -4,11 +4,26 @@ import fs from "fs";
 import path from "path";
 import { WHATSAPP_DISPLAY, buildWhatsAppLinkFromText } from "@/lib/contact";
 
-type UploadedFile = {
-  name: string;
-  type: string;
-  size: number;
-  contentBase64: string; // base64 SIN prefijo "data:..."
+export type PresupuestoPayload = {
+  documentos: Array<{
+    tipo: string;
+    tipoLabel: string;
+    combinacion: string;
+    palabras: number;
+    precioEstimado: number;
+  }>;
+  contacto: {
+    email: string;
+    telefono?: string;
+    fechaLimite?: string;
+    notas?: string;
+  };
+  metadata: {
+    idioma: string;
+    paginaOrigen: string;
+    timestamp: string;
+  };
+  referencia: string;
 };
 
 const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
@@ -37,7 +52,7 @@ function wrapClientEmailHtml(content: string) {
   `;
 }
 
-export async function sendPresupuestoEmail(data: any, files: UploadedFile[]) {
+export async function sendPresupuestoEmail(payload: PresupuestoPayload) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
 
@@ -49,75 +64,82 @@ export async function sendPresupuestoEmail(data: any, files: UploadedFile[]) {
 
   sgMail.setApiKey(apiKey);
 
-  const subject = `Nueva solicitud de presupuesto - ${
-    data?.nombre || "Sin nombre"
-  }`;
+  const total = payload.documentos.reduce((s, d) => s + d.precioEstimado, 0).toFixed(2);
+  const subject = `Solicitud estimador ${payload.referencia} — ${payload.contacto.email}`;
 
-  const text = `Nombre: ${data?.nombre || "-"}
-Email: ${data?.email || "-"}
-Teléfono: ${data?.telefono || "-"}
-Idioma origen: ${data?.idiomaOrigen || "-"}
-Idioma destino: ${data?.idiomaDestino || "-"}
-Documento: ${data?.tipoDocumento || "-"}
-Plazo: ${data?.plazo || "-"}
-Adjuntos: ${files.length}
+  const docsRows = payload.documentos
+    .map(
+      (d, i) =>
+        `${i + 1}. ${d.tipoLabel} | ${d.combinacion} | ~${d.palabras} pal. | ~${d.precioEstimado.toFixed(2)} EUR`
+    )
+    .join("\n");
+
+  const text = `Ref: ${payload.referencia}
+Email: ${payload.contacto.email}
+Teléfono: ${payload.contacto.telefono || "-"}
+Fecha límite: ${payload.contacto.fechaLimite || "-"}
+Idioma: ${payload.metadata.idioma}
+Página: ${payload.metadata.paginaOrigen}
+
+Documentos:
+${docsRows}
+
+Total estimado: ~${total} EUR
+
+Notas: ${payload.contacto.notas || "-"}
 `;
 
+  const docsHtmlRows = payload.documentos
+    .map(
+      (d) =>
+        `<tr><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.tipoLabel}</td><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.combinacion}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.palabras}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.precioEstimado.toFixed(2)} EUR</td></tr>`
+    )
+    .join("");
+
   const html = `
-    <h2>Nueva solicitud de presupuesto</h2>
-    <p><strong>Nombre:</strong> ${data?.nombre || "-"}</p>
-    <p><strong>Email:</strong> ${data?.email || "-"}</p>
-    <p><strong>Teléfono:</strong> ${data?.telefono || "-"}</p>
-    <p><strong>Idioma origen:</strong> ${data?.idiomaOrigen || "-"}</p>
-    <p><strong>Idioma destino:</strong> ${data?.idiomaDestino || "-"}</p>
-    <p><strong>Documento:</strong> ${data?.tipoDocumento || "-"}</p>
-    <p><strong>Plazo:</strong> ${data?.plazo || "-"}</p>
-    <p><strong>Adjuntos:</strong> ${files.length}</p>
+    <h2>Solicitud desde estimador — ${payload.referencia}</h2>
+    <p><strong>Email:</strong> ${payload.contacto.email}</p>
+    <p><strong>Teléfono:</strong> ${payload.contacto.telefono || "-"}</p>
+    <p><strong>Fecha límite:</strong> ${payload.contacto.fechaLimite || "-"}</p>
+    <p><strong>Idioma:</strong> ${payload.metadata.idioma} · <strong>Página:</strong> ${payload.metadata.paginaOrigen}</p>
+    <table style="border-collapse:collapse; margin:12px 0; font-size:14px;">
+      <tr style="background:#f1f5f9;"><th style="padding:4px 8px; border:1px solid #e2e8f0; text-align:left;">Tipo</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Combinación</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Palabras</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Precio est.</th></tr>
+      ${docsHtmlRows}
+    </table>
+    <p><strong>Total estimado:</strong> ~${total} EUR</p>
+    <p><strong>Notas:</strong> ${payload.contacto.notas || "-"}</p>
   `;
 
   await sgMail.send({
     to,
     from: { email: from, name: "Traducciones Juradas" },
-    replyTo: data?.email,
+    replyTo: payload.contacto.email,
     subject,
     text,
     html,
-    attachments: files.map((f) => ({
-      filename: f.name,
-      type: f.type,
-      content: f.contentBase64,
-      disposition: "attachment",
-    })),
   });
 }
 
-export async function sendPresupuestoConfirmationEmail(data: any) {
+export async function sendPresupuestoConfirmationEmail(payload: PresupuestoPayload) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
 
   const from = process.env.SENDGRID_FROM;
   if (!from) throw new Error("Missing SENDGRID_FROM");
 
-  const toUser = data?.email;
-  if (!toUser) return; // nada que enviar
+  const toUser = payload.contacto.email;
+  if (!toUser) return;
   const bccInternal = process.env.PRESUPUESTO_TO;
 
   sgMail.setApiKey(apiKey);
 
-  const subject = "Hemos recibido tu solicitud de presupuesto";
-
+  const subject = `Solicitud ${payload.referencia} recibida — Traducciones Juradas`;
+  const total = payload.documentos.reduce((s, d) => s + d.precioEstimado, 0).toFixed(2);
   const whatsapp = buildWhatsAppLinkFromText("Hola necesito un presupuesto");
-  const signatureText = `Juan Silva Moreno
-Jefe de proyectos · Traductor jurado de francés (Nº3850)
-HBTJ Consultores Lingüísticos S.L. · CIF B93712784
-Calle Esperanto, 9 · 29007 Málaga
-Tel: ${WHATSAPP_DISPLAY}
 
-NOTA LEGAL –
-Este documento se dirige exclusivamente a su destinatario y puede contener información confidencial sometida a secreto profesional. Si no es el destinatario autorizado, su uso o divulgación está prohibido; por favor comuníquelo y destrúyalo. Las comunicaciones por email pueden ser modificadas o interceptadas; el remitente no asume responsabilidad por errores u omisiones.
-
-Protección de datos:
-Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingüísticos S.L. para gestionar su encargo y comunicaciones. Puede ejercer acceso, rectificación, supresión y oposición en Calle Esperanto, 9 · 29007 Málaga o en hola@traduccionesjuradas.net.`;
+  const docsText = payload.documentos
+    .map((d, i) => `  ${i + 1}. ${d.tipoLabel} (${d.combinacion}) — ~${d.palabras} palabras — ~${d.precioEstimado.toFixed(2)} EUR`)
+    .join("\n");
 
   const signatureHtml = `
     <p style="margin:12px 0 4px 0;"><strong>Juan Silva Moreno</strong><br/>
@@ -129,41 +151,42 @@ Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingü�
     <p style="font-size:12px; color:#6b7280; margin:6px 0 0 0;"><strong>Protección de datos:</strong> Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingüísticos S.L. para gestionar su encargo y comunicaciones. Puede ejercer derechos de acceso, rectificación, supresión y oposición en Calle Esperanto, 9 · 29007 Málaga o en <a href="mailto:hola@traduccionesjuradas.net">hola@traduccionesjuradas.net</a>.</p>
   `;
 
-  const text = `Hola ${data?.nombre || ""},
+  const text = `Hola,
 
-Hemos recibido tu solicitud de traducción jurada.
-- Idioma origen: ${data?.idiomaOrigen || "-"}
-- Idioma destino: ${data?.idiomaDestino || "-"}
-- Documento: ${data?.tipoDocumento || "-"}
-- Plazo indicado: ${data?.plazo || "-"}
+Hemos recibido tu solicitud de traducción jurada (ref. ${payload.referencia}).
 
-Atendemos de 09:00 a 19:00 CET y solemos responder en <30 minutos dentro de ese horario.
+Documentos solicitados:
+${docsText}
+
+Total estimado: ~${total} EUR (IVA exento · precio final tras revisión)
+
+Atendemos de 09:00 a 19:00 CET y solemos responder en menos de 2 horas laborables.
 Si es urgente, escríbenos por WhatsApp: ${whatsapp}
 
-Tus archivos se usan solo para preparar el presupuesto y se eliminan en 30 días o antes si lo pides.
-
 Gracias,
-Equipo de TraduccionesJuradas.net
+Equipo de TraduccionesJuradas.net`;
 
---
-${signatureText}`;
+  const docsHtmlRows = payload.documentos
+    .map(
+      (d) =>
+        `<tr><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.tipoLabel}</td><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.combinacion}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.palabras}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.precioEstimado.toFixed(2)} EUR</td></tr>`
+    )
+    .join("");
 
   const html = `
     <div style="margin-bottom:12px;">
       <img src="cid:logo-tj" alt="TraduccionesJuradas.net" style="height:46px; max-width:180px;" />
     </div>
-    <h2>Hemos recibido tu solicitud</h2>
-    <p>Hola ${data?.nombre || ""},</p>
-    <p>Este es un resumen de lo que nos enviaste:</p>
-    <ul>
-      <li><strong>Idioma origen:</strong> ${data?.idiomaOrigen || "-"}</li>
-      <li><strong>Idioma destino:</strong> ${data?.idiomaDestino || "-"}</li>
-      <li><strong>Documento:</strong> ${data?.tipoDocumento || "-"}</li>
-      <li><strong>Plazo indicado:</strong> ${data?.plazo || "-"}</li>
-    </ul>
-    <p>Horario de respuesta: <strong>09:00 a 19:00 CET</strong>. Respondemos normalmente en &lt; 30 minutos dentro de ese horario.</p>
+    <h2>Solicitud ${payload.referencia} recibida</h2>
+    <p>Hola,</p>
+    <p>Hemos recibido tu solicitud. Este es el resumen:</p>
+    <table style="border-collapse:collapse; margin:12px 0; font-size:14px;">
+      <tr style="background:#f1f5f9;"><th style="padding:4px 8px; border:1px solid #e2e8f0; text-align:left;">Tipo</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Combinación</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Palabras</th><th style="padding:4px 8px; border:1px solid #e2e8f0;">Precio est.</th></tr>
+      ${docsHtmlRows}
+    </table>
+    <p><strong>Total estimado:</strong> ~${total} EUR <span style="color:#6b7280;">(IVA exento · precio final tras revisión)</span></p>
+    <p>Horario de respuesta: <strong>09:00 a 19:00 CET</strong>. Respondemos normalmente en menos de 2 horas laborables.</p>
     <p>Si es urgente, contáctanos por <a href="${whatsapp}">WhatsApp</a>.</p>
-    <p>Tus archivos se usan solo para preparar el presupuesto y se eliminan en 30 días (o antes si lo pides).</p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
     <div style="margin:12px 0;">
       <img src="cid:sello-ministerio" alt="Traductores jurados nombrados por el Ministerio" style="max-width:220px; height:auto;" />
