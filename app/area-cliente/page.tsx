@@ -176,12 +176,22 @@ export default async function AreaClientePage() {
                             : "No solicitada"}
                         </td>
                         <td className="px-4 py-3">
-                          <Link
-                            href={`/area-cliente/pedido/${order.reference}`}
-                            className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                          >
-                            Ver estado
-                          </Link>
+                          <div className="flex flex-wrap gap-2">
+                            <Link
+                              href={`/area-cliente/pedido/${order.reference}`}
+                              className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                              Ver estado
+                            </Link>
+                            {order.paymentStatus === "PENDING" && (
+                              <Link
+                                href={`/area-cliente/pedido/${order.reference}/pagar`}
+                                className="rounded-xl bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                              >
+                                Pagar
+                              </Link>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );

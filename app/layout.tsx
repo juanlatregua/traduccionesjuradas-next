@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Merriweather } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
@@ -6,6 +7,19 @@ import { Header } from "@/components/Header";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import Link from "next/link";
 import { TrustBar } from "@/components/TrustBar";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const merriweather = Merriweather({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-merriweather",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.traduccionesjuradas.net"),
@@ -38,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
+    <html lang="es" className={`${inter.variable} ${merriweather.variable}`}>
       {/* SCHEMA ORG / PROFESSIONAL SERVICE */}
       <Script
         id="schema-organization"
@@ -76,11 +90,20 @@ export default function RootLayout({
         })}
       </Script>
 
-      <body className="min-h-screen bg-slate-50 text-slate-900">
+      <body className={`${inter.className} min-h-screen bg-slate-50 text-slate-900`}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-xl focus:bg-emerald-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        >
+          Saltar al contenido
+        </a>
+
         <Header />
 
         {/* ================= CONTENIDO ================= */}
-        {children}
+        <main id="main-content">
+          {children}
+        </main>
 
         {/* ================= WHATSAPP FLOTANTE ================= */}
         <WhatsAppFloat />

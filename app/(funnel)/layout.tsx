@@ -3,7 +3,7 @@ import FunnelStepper from "@/components/FunnelStepper";
 
 export default function FunnelLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8 sm:py-10">
+    <div className="mx-auto max-w-4xl px-4 py-8 sm:py-10">
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
           Encargo de traducción jurada
@@ -18,7 +18,6 @@ export default function FunnelLayout({ children }: { children: ReactNode }) {
       </section>
 
       <div className="mt-6">{children}</div>
-    </main>
+    </div>
   );
 }
-
