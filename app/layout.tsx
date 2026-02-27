@@ -5,6 +5,7 @@ import { CookieBanner } from "@/components/CookieBanner";
 import { Header } from "@/components/Header";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import Link from "next/link";
+import { TrustBar } from "@/components/TrustBar";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.traduccionesjuradas.net"),
@@ -86,6 +87,9 @@ export default function RootLayout({
 
         {/* ================= BANNER COOKIES ================= */}
         <CookieBanner />
+
+        {/* ================= TRUST BAR ================= */}
+        <TrustBar />
 
         {/* ================= FOOTER ================= */}
         <footer className="mt-16 border-t border-slate-200 bg-white">

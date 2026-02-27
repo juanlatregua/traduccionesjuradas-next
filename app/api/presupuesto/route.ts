@@ -3,115 +3,25 @@ import { NextResponse } from "next/server";
 import {
   sendPresupuestoEmail,
   sendPresupuestoConfirmationEmail,
+  sendOrderReviewRoutingEmail,
+  type PresupuestoPayload,
 } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { logPresupuesto } from "./logger";
 import { createOrder } from "@/lib/orders";
 import { prisma } from "@/lib/prisma";
 import { transitionWorkflowState } from "@/lib/workflow-server";
-import { put } from "@vercel/blob";
-import { isBlobConfigured } from "@/lib/payment-config";
+import { inferFlowProfile } from "@/lib/workflow";
+import { getAdminEmails, getPmEmails } from "@/lib/staff-access";
+import {
+  computeQuoteTotals,
+  calculateValidUntil,
+  generateQuoteNumber,
+  generateQuoteToken,
+} from "@/lib/quotes";
+import { getWordRateForLangOrPair } from "@/lib/pricing";
 
-export const runtime = "nodejs"; // importante para libs Node en Vercel
-
-const MAX_FILES = 6;
-const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB por archivo (ajústalo)
-const INTERNAL_PLACEHOLDER_AMOUNT_CENTS = 100; // 1 EUR temporal hasta revision interna
-
-const LANGUAGE_CODE_MAP: Record<string, string> = {
-  espanol: "es",
-  espanolcastellano: "es",
-  castellano: "es",
-  ingles: "en",
-  frances: "fr",
-  aleman: "de",
-  italiano: "it",
-  portugues: "pt",
-  catalan: "ca",
-  neerlandes: "nl",
-  noruego: "no",
-  sueco: "sv",
-};
-
-function normalizeToken(raw?: string | null) {
-  if (!raw) return "";
-  return raw
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z]/g, "");
-}
-
-function toLanguageCode(value?: string | null) {
-  const normalized = normalizeToken(value);
-  return LANGUAGE_CODE_MAP[normalized] || null;
-}
-
-function buildLangPair(origen?: string | null, destino?: string | null) {
-  const from = toLanguageCode(origen);
-  const to = toLanguageCode(destino);
-  if (from && to) return `${from}-${to}`;
-  return null;
-}
-
-function buildOrderTitle(tipoDocumento: string) {
-  const clean = tipoDocumento.trim().replace(/\s+/g, " ");
-  if (!clean) return "Solicitud web de traduccion jurada";
-  return clean.length > 120 ? `${clean.slice(0, 117)}...` : clean;
-}
-
-function toSafeFileName(name: string) {
-  const normalized = name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^[-.]+|[-.]+$/g, "");
-  return normalized || "archivo";
-}
-
-function inferPresupuestoSource(req: Request) {
-  const refererRaw = req.headers.get("referer");
-  let sourceRaw: string | null = null;
-  let campaign: string | null = null;
-  let medium: string | null = null;
-  let landing: string | null = null;
-
-  if (refererRaw) {
-    try {
-      const refererUrl = new URL(refererRaw);
-      sourceRaw =
-        refererUrl.searchParams.get("src") ||
-        refererUrl.searchParams.get("utm_source") ||
-        null;
-      campaign = refererUrl.searchParams.get("campaign") || refererUrl.searchParams.get("utm_campaign") || null;
-      medium = refererUrl.searchParams.get("utm_medium") || null;
-      landing = `${refererUrl.pathname}${refererUrl.search}`;
-    } catch {
-      landing = null;
-    }
-  }
-
-  const normalizedSource = normalizeToken(sourceRaw);
-  const source =
-    normalizedSource === "wa" ||
-    normalizedSource === "whatsapp" ||
-    normalizedSource === "whatsappweb" ||
-    normalizedSource === "whatsappapp"
-      ? "WHATSAPP"
-      : "WEB";
-
-  return {
-    source,
-    sourceRaw: sourceRaw ? sourceRaw.trim() : null,
-    campaign: campaign ? campaign.trim() : null,
-    medium: medium ? medium.trim() : null,
-    landing,
-    referer: refererRaw || null,
-    agent: req.headers.get("user-agent") || null,
-  };
-}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
@@ -122,291 +32,434 @@ export async function POST(req: Request) {
   });
   if (!rl.ok) {
     return NextResponse.json(
-      { ok: false, error: "Demasiadas solicitudes. Intentalo de nuevo en unos minutos." },
+      { ok: false, error: "Demasiadas solicitudes. Inténtalo de nuevo en unos minutos." },
       { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
     );
   }
 
   try {
-    const formData = await req.formData();
+    const body = (await req.json()) as PresupuestoPayload;
 
-    const data: any = {
-      nombre: String(formData.get("nombre") || ""),
-      email: String(formData.get("email") || ""),
-      telefono: String(formData.get("telefono") || ""),
-      idiomaOrigen: String(formData.get("idiomaOrigen") || ""),
-      idiomaDestino: String(formData.get("idiomaDestino") || ""),
-      tipoDocumento: String(formData.get("tipoDocumento") || ""),
-      plazo: String(formData.get("plazo") || ""),
-      aceptaPrivacidad: String(formData.get("aceptaPrivacidad") || ""),
-      website: String(formData.get("website") || ""), // honeypot
-    };
-
-    // Honeypot (si bots lo rellenan, cortamos)
-    if (data.website) {
-      return NextResponse.json({ ok: true }); // silencioso
+    // Honeypot
+    if (body.website) {
+      return NextResponse.json({ ok: true });
     }
 
-    if (!data.email) {
-      logPresupuesto({
-        status: "error",
-        error: "Falta el email",
-        hasAttachments: false,
-        route: "api/presupuesto",
-        userEmail: data.email,
-        timestamp: new Date().toISOString(),
-      });
-      return NextResponse.json({ ok: false, error: "Falta el email." }, { status: 400 });
-    }
-
-    const filesRaw = formData.getAll("files");
-    // Node 16 en local no expone global File; usamos cualquier Blob con arrayBuffer/size
-    const fileBlobs = filesRaw.filter((x) => {
-      if (!x) return false;
-      const anyX = x as any;
-      return typeof anyX.arrayBuffer === "function" && typeof anyX.size === "number";
-    }) as (Blob & { name?: string; type?: string; size: number })[];
-
-    if (fileBlobs.length === 0) {
+    const email = body.contacto?.email?.trim().toLowerCase();
+    if (!email || !EMAIL_RE.test(email)) {
       return NextResponse.json(
-        { ok: false, error: "Adjunta al menos un archivo (PDF o foto)." },
+        { ok: false, error: "Falta un email válido." },
         { status: 400 }
       );
     }
 
-    if (fileBlobs.length > MAX_FILES) {
+    if (!body.documentos || body.documentos.length === 0) {
       return NextResponse.json(
-        { ok: false, error: `Máximo ${MAX_FILES} archivos.` },
+        { ok: false, error: "Añade al menos un documento al presupuesto." },
         { status: 400 }
       );
     }
 
-    const files = await Promise.all(
-      fileBlobs.map(async (f) => {
-        const fileName = (f as any).name || "archivo";
-        const fileType = (f as any).type || "application/octet-stream";
-        const fileSize = (f as any).size || 0;
+    if (body.documentos.length > 20) {
+      return NextResponse.json(
+        { ok: false, error: "Máximo 20 documentos por solicitud." },
+        { status: 400 }
+      );
+    }
 
-        if (fileSize > MAX_FILE_SIZE_BYTES) {
-          throw new Error(`Archivo demasiado grande: ${fileName}`);
-        }
+    /* ------------------------------------------------------------------ */
+    /*  1. Build title & compute totals from cart                          */
+    /* ------------------------------------------------------------------ */
+    const docLabels = body.documentos.map((d) => d.tipoLabel);
+    const title =
+      body.documentos.length === 1
+        ? docLabels[0]
+        : `${body.documentos.length} docs: ${docLabels.join(", ")}`;
 
-        const ab = await f.arrayBuffer();
-        const contentBuffer = Buffer.from(ab);
-        const contentBase64 = contentBuffer.toString("base64");
+    const totalEstimadoEur = body.documentos.reduce(
+      (sum, d) => sum + (d.precioEstimado || 0),
+      0
+    );
+    const amountCents = Math.round(totalEstimadoEur * 100);
 
-        return {
-          name: fileName,
-          type: fileType,
-          size: fileSize,
-          contentBase64,
-          contentBuffer,
-        };
-      })
+    // Determine primary langPair from documents
+    const combinaciones = [...new Set(body.documentos.map((d) => d.combinacion))];
+    const langPair = combinaciones.length === 1 ? combinaciones[0] : combinaciones[0];
+
+    const totalWords = body.documentos.reduce(
+      (sum, d) => sum + (d.palabras || 0),
+      0
     );
 
-    if (!isBlobConfigured()) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "No se pueden adjuntar archivos en este entorno porque falta BLOB_READ_WRITE_TOKEN.",
+    /* ------------------------------------------------------------------ */
+    /*  2. Persist: Customer + Order + Quote                               */
+    /* ------------------------------------------------------------------ */
+    const customer = await prisma.customer.upsert({
+      where: { email },
+      update: { name: email },
+      create: { name: email, email, phone: body.contacto.telefono || null },
+    });
+
+    const order = await createOrder({
+      clientEmail: email,
+      clientName: undefined,
+      source: "estimador",
+      title,
+      langPair,
+      words: totalWords || undefined,
+      amountCents: Math.max(amountCents, 0),
+    });
+
+    // OrderEvent: acquisition tracking
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "order.acquisition",
+        message: "Captacion desde estimador de presupuestos.",
+        payload: {
+          source: "estimador",
+          paginaOrigen: body.metadata.paginaOrigen,
+          idioma: body.metadata.idioma,
+          telefono: body.contacto.telefono || null,
+          fechaLimite: body.contacto.fechaLimite || null,
         },
-        { status: 503 }
-      );
+      },
+    });
+
+    // OrderEvent: items snapshot
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "estimador.items_snapshot",
+        message: `${body.documentos.length} documento(s) en carrito estimador.`,
+        payload: {
+          items: body.documentos.map((d) => ({
+            tipo: d.tipo,
+            tipoLabel: d.tipoLabel,
+            combinacion: d.combinacion,
+            palabras: d.palabras,
+            precioEstimado: d.precioEstimado,
+            archivoNombre: d.archivoNombre || null,
+            sinPrecio: d.sinPrecio || false,
+            precioFijo: d.precioFijo || false,
+          })),
+          totalEstimadoEur,
+          notas: body.contacto.notas || null,
+        },
+      },
+    });
+
+    // Flow profile
+    const hasMixedCart = combinaciones.length > 1;
+    const containsWordCountItem = body.documentos.some((d) => d.palabras > 0 && !d.precioFijo);
+    const flowProfile = inferFlowProfile({ langPair, hasMixedCart, containsWordCountItem });
+
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "order.flow_profile",
+        message: `Perfil de flujo: ${flowProfile}.`,
+        payload: { profile: flowProfile, hasMixedCart, containsWordCountItem },
+      },
+    });
+
+    // Bootstrap workflow: insert BORRADOR event directly (no prior workflow event exists,
+    // so getWorkflowState falls back to PENDIENTE_PAGO and no transition to BORRADOR is valid).
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "workflow.state_changed",
+        message: "Workflow actualizado: (nuevo) -> BORRADOR. Motivo: Pedido creado desde estimador.",
+        payload: {
+          from: "NUEVO",
+          to: "BORRADOR",
+          actorEmail: email,
+          reason: "Pedido creado desde estimador.",
+        },
+      },
+    });
+
+    // Now transition BORRADOR → PENDIENTE_REVISION (allowed by workflow rules)
+    await transitionWorkflowState({
+      reference: order.reference,
+      to: "PENDIENTE_REVISION",
+      actorEmail: email,
+      reason: "Solicitud desde estimador: revisión previa al cobro.",
+    });
+
+    // Set due date if provided
+    if (body.contacto.fechaLimite) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { dueDate: new Date(body.contacto.fechaLimite) },
+      });
     }
 
-    let orderReference: string | null = null;
+    // Notes as event
+    if (body.contacto.notas) {
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "order.urgency_notes",
+          message: body.contacto.notas,
+          payload: { actorEmail: email },
+        },
+      });
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  3. Auto-create Quote DRAFT                                         */
+    /* ------------------------------------------------------------------ */
+    let autoQuoteId: string | null = null;
+
     try {
-      const sourceSnapshot = inferPresupuestoSource(req);
-      const langPair = buildLangPair(data.idiomaOrigen, data.idiomaDestino) || undefined;
+      const [sourceLang, targetLang] = langPair.includes("-")
+        ? langPair.split("-")
+        : [langPair, "es"];
 
-      const order = await createOrder({
-        clientEmail: data.email.trim().toLowerCase(),
-        clientName: data.nombre?.trim() || undefined,
-        source: "file",
-        title: buildOrderTitle(data.tipoDocumento),
-        langPair,
-        pagesLabel: data.tipoDocumento?.trim() || undefined,
-        amountCents: INTERNAL_PLACEHOLDER_AMOUNT_CENTS,
-      });
-      orderReference = order.reference;
-
-      const uploadedFiles = await Promise.all(
-        files.map(async (file, index) => {
-          const pathname = `orders/${order.reference}/presupuesto/${Date.now()}-${index + 1}-${toSafeFileName(file.name)}`;
-          const blob = await put(pathname, file.contentBuffer, {
-            access: "public",
-            addRandomSuffix: true,
-            contentType: file.type || "application/octet-stream",
-          });
+      // Build quote lines: one per document
+      const quoteLines = body.documentos.map((doc) => {
+        if (doc.sinPrecio || doc.precioEstimado <= 0) {
           return {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            url: blob.url,
-            pathname: blob.pathname,
-            uploadedAt: new Date().toISOString(),
+            description: `${doc.tipoLabel} (${doc.combinacion.toUpperCase()})`,
+            quantity: 1,
+            unitPrice: 0,
           };
-        })
-      );
+        }
+        if (doc.precioFijo || doc.palabras <= 0) {
+          // Fixed-price item: reverse IVA to get base price
+          const basePrice = Math.round((doc.precioEstimado / 1.21) * 100) / 100;
+          return {
+            description: `${doc.tipoLabel} (${doc.combinacion.toUpperCase()}) — precio cerrado`,
+            quantity: 1,
+            unitPrice: basePrice,
+          };
+        }
+        // Word-count item: use pricing config rate
+        const rate = getWordRateForLangOrPair(doc.combinacion);
+        return {
+          description: `${doc.tipoLabel} (${doc.combinacion.toUpperCase()})`,
+          quantity: doc.palabras,
+          unitPrice: rate,
+        };
+      });
 
-      await prisma.orderEvent.create({
+      const totals = computeQuoteTotals({
+        lines: quoteLines,
+        discountType: "NONE",
+        discountValue: 0,
+        vatRate: 0.21,
+        deliveryType: "DIGITAL_PDF",
+      });
+
+      const issuedAt = new Date();
+      const validUntil = calculateValidUntil(issuedAt, 15);
+
+      // Generate unique quote number
+      const year = issuedAt.getFullYear();
+      const prefix = `${year}-`;
+      const baseCount = await prisma.quote.count({
+        where: { quoteNumber: { startsWith: prefix } },
+      });
+      let quoteNumber: string | null = null;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const candidate = await generateQuoteNumber(baseCount + attempt + 1, issuedAt);
+        const exists = await prisma.quote.findUnique({
+          where: { quoteNumber: candidate },
+          select: { id: true },
+        });
+        if (!exists) { quoteNumber = candidate; break; }
+      }
+      if (!quoteNumber) throw new Error("No se pudo generar número de presupuesto único.");
+
+      // Generate unique public token
+      let publicToken: string | null = null;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const candidate = generateQuoteToken(28);
+        const exists = await prisma.quote.findUnique({
+          where: { publicToken: candidate },
+          select: { id: true },
+        });
+        if (!exists) { publicToken = candidate; break; }
+      }
+      if (!publicToken) throw new Error("No se pudo generar token público único.");
+
+      const quote = await prisma.quote.create({
         data: {
-          orderId: order.id,
-          type: "order.acquisition",
-          message: `Origen de captacion: ${sourceSnapshot.source}.`,
-          payload: {
-            source: sourceSnapshot.source,
-            sourceRaw: sourceSnapshot.sourceRaw,
-            campaign: sourceSnapshot.campaign,
-            medium: sourceSnapshot.medium,
-            landing: sourceSnapshot.landing,
-            referer: sourceSnapshot.referer,
-            agent: sourceSnapshot.agent,
-            actorEmail: data.email.trim().toLowerCase(),
+          quoteNumber,
+          status: "DRAFT",
+          customerId: customer.id,
+          customerName: email,
+          customerEmail: email,
+          sourceLang: sourceLang || "unknown",
+          targetLang: targetLang || "es",
+          deliveryType: "DIGITAL_PDF",
+          vatRate: 0.21,
+          discountType: "NONE",
+          discountValue: 0,
+          validityDays: 15,
+          issuedAt,
+          validUntil,
+          publicToken,
+          subtotal: totals.subtotal,
+          discountAmount: totals.discountAmount,
+          shippingAmount: totals.shippingAmount,
+          vatAmount: totals.vatAmount,
+          total: totals.total,
+          adminCreatedBy: "system:estimador",
+          lines: {
+            create: totals.lines.map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              lineTotal: line.lineTotal,
+            })),
           },
         },
       });
 
-      await prisma.orderEvent.create({
-        data: {
-          orderId: order.id,
-          type: "workflow.state_changed",
-          message: "Workflow inicial en BORRADOR (solicitud web).",
-          payload: {
-            from: null,
-            to: "BORRADOR",
-            actorEmail: data.email.trim().toLowerCase(),
-            reason: "presupuesto_submitted",
-          },
-        },
+      autoQuoteId = quote.id;
+
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { quoteId: quote.id },
       });
 
       await prisma.orderEvent.create({
         data: {
           orderId: order.id,
-          type: "presupuesto.submitted",
-          message: "Solicitud de presupuesto recibida desde web.",
+          type: "order.auto_quote_created",
+          message: `Presupuesto DRAFT ${quoteNumber} generado desde estimador.`,
           payload: {
-            nombre: data.nombre || null,
-            email: data.email || null,
-            telefono: data.telefono || null,
-            idiomaOrigen: data.idiomaOrigen || null,
-            idiomaDestino: data.idiomaDestino || null,
-            tipoDocumento: data.tipoDocumento || null,
-            plazo: data.plazo || null,
-            aceptaPrivacidad: data.aceptaPrivacidad || null,
-            files: uploadedFiles,
+            quoteId: quote.id,
+            quoteNumber,
+            total: totals.total,
+            actorEmail: "system:estimador",
           },
         },
       });
-
-      await transitionWorkflowState({
-        reference: order.reference,
-        to: "PENDIENTE_REVISION",
-        actorEmail: data.email.trim().toLowerCase(),
-        reason: "Solicitud recibida desde /presupuesto.",
-      });
-    } catch (err: any) {
-      console.error("[/api/presupuesto] No se pudo crear pedido interno", err);
-      logPresupuesto({
-        status: "error",
-        error: `No se pudo crear pedido interno: ${err?.message || "unknown"}`,
-        hasAttachments: files.length > 0,
-        route: "api/presupuesto",
-        userEmail: data.email,
-        timestamp: new Date().toISOString(),
-      });
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "No se pudo registrar tu solicitud internamente. Reintenta en unos minutos.",
-        },
-        { status: 500 }
-      );
+    } catch (quoteErr) {
+      console.error("[presupuesto] auto-quote creation failed (non-blocking)", quoteErr);
     }
 
+    /* ------------------------------------------------------------------ */
+    /*  4. Send emails                                                     */
+    /* ------------------------------------------------------------------ */
+    const referencia = order.reference;
+    const payload: PresupuestoPayload = {
+      ...body,
+      contacto: { ...body.contacto, email },
+      referencia,
+      orderReference: order.reference,
+      quoteId: autoQuoteId || undefined,
+    };
+
+    const skipSend = process.env.SENDGRID_SKIP_DEV === "true";
     const missingEnv =
       !process.env.SENDGRID_API_KEY ||
       !process.env.SENDGRID_FROM ||
       !process.env.PRESUPUESTO_TO;
 
-    const skipSend = process.env.SENDGRID_SKIP_DEV === "true";
-
     if (skipSend) {
       console.warn("[/api/presupuesto] Envío de email omitido por SENDGRID_SKIP_DEV=true");
       logPresupuesto({
         status: "ok",
-        hasAttachments: files.length > 0,
+        referencia,
+        orderReference: order.reference,
+        quoteId: autoQuoteId || undefined,
         route: "api/presupuesto",
-        userEmail: data.email,
-        orderReference,
-        toInternal: process.env.PRESUPUESTO_TO,
+        userEmail: email,
         timestamp: new Date().toISOString(),
         error: "SKIP_DEV",
       });
-      return NextResponse.json({ ok: true, reference: orderReference });
+      return NextResponse.json({
+        ok: true,
+        mensaje: "Solicitud recibida. Te responderemos en menos de 2 horas laborables.",
+        referencia,
+      });
     }
 
     if (missingEnv && process.env.NODE_ENV !== "production") {
       console.warn("[/api/presupuesto] Envío omitido: faltan env SENDGRID_* / PRESUPUESTO_TO");
       logPresupuesto({
-        status: "error",
-        error: "Faltan env SENDGRID",
-        hasAttachments: files.length > 0,
+        status: "ok",
+        referencia,
+        orderReference: order.reference,
+        quoteId: autoQuoteId || undefined,
         route: "api/presupuesto",
-        userEmail: data.email,
+        userEmail: email,
         timestamp: new Date().toISOString(),
+        error: "Faltan env SENDGRID (pedido creado en BD)",
       });
-      return NextResponse.json({ ok: false, error: "Faltan variables de email" }, { status: 500 });
+      return NextResponse.json({
+        ok: true,
+        mensaje: "Solicitud recibida. Te responderemos en menos de 2 horas laborables.",
+        referencia,
+      });
     }
 
-    // Primero email interno; si falla, lanzamos.
-    await sendPresupuestoEmail(data, files);
-    // Luego confirmación al cliente; si falla, registramos pero no rompemos al usuario.
-    try {
-      await sendPresupuestoConfirmationEmail(data);
-    } catch (err: any) {
+    // Email interno (presupuesto detallado)
+    await sendPresupuestoEmail(payload);
+
+    // Email de routing para revisión interna (con link a quote si existe)
+    const reviewers = [...new Set([...getAdminEmails(), "hola@traduccionesjuradas.net"])];
+    const pmEmail = getPmEmails()[0] || undefined;
+
+    sendOrderReviewRoutingEmail({
+      reference: order.reference,
+      title,
+      amountCents: Math.max(amountCents, 0),
+      clientEmail: email,
+      langPair,
+      flowProfile,
+      reviewers: reviewers.filter(Boolean),
+      pmEmail,
+      urgencyNotes: body.contacto.notas || undefined,
+      reviewReason: "Solicitud desde estimador: revisión previa al cobro.",
+      quoteId: autoQuoteId || undefined,
+    }).catch((e) => console.error("[presupuesto] review routing email failed", e));
+
+    // Confirmación al cliente (no bloqueante)
+    sendPresupuestoConfirmationEmail(payload).catch((err: any) => {
       console.error("[/api/presupuesto] Error al enviar confirmación:", err);
-      logPresupuesto({
-        status: "error",
-        error: (err as any)?.message || "Error confirmación cliente",
-        hasAttachments: files.length > 0,
-        route: "api/presupuesto",
-        userEmail: data.email,
-        orderReference,
-        toInternal: process.env.PRESUPUESTO_TO,
-        toClient: data.email,
-        timestamp: new Date().toISOString(),
-      });
-    }
+    });
+
+    // Review routed event
+    prisma.orderEvent
+      .create({
+        data: {
+          orderId: order.id,
+          type: "order.review_routed",
+          message: "Pedido enviado a revision interna desde estimador.",
+          payload: {
+            flowProfile,
+            reviewers,
+            pmEmail,
+            reason: "Solicitud desde estimador.",
+          },
+        },
+      })
+      .catch((e) => console.error("[presupuesto] failed to save review_routed event", e));
 
     logPresupuesto({
       status: "ok",
-      hasAttachments: files.length > 0,
+      referencia,
+      orderReference: order.reference,
+      quoteId: autoQuoteId || undefined,
       route: "api/presupuesto",
-      userEmail: data.email,
-      orderReference,
+      userEmail: email,
       toInternal: process.env.PRESUPUESTO_TO,
-      toClient: data.email,
+      toClient: email,
       timestamp: new Date().toISOString(),
     });
 
-    return NextResponse.json({ ok: true, reference: orderReference });
+    return NextResponse.json({
+      ok: true,
+      mensaje: "Solicitud recibida. Te responderemos en menos de 2 horas laborables.",
+      referencia,
+    });
   } catch (err: any) {
     console.error("[API /presupuesto] Error:", err?.message || err);
-    const msg = String(err?.message || "");
-    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "No se pudieron guardar los archivos adjuntos. Configura BLOB_READ_WRITE_TOKEN en Vercel.",
-        },
-        { status: 503 }
-      );
-    }
     return NextResponse.json(
       { ok: false, error: err?.message || "Error interno del servidor." },
       { status: 500 }
