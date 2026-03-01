@@ -512,7 +512,7 @@ export default function Home() {
               <p className="text-3xl font-bold text-or">N.3850</p>
               <p className="mt-1 text-sm font-semibold text-parchment">Traductor jurado de francés</p>
               <p className="mt-1 text-xs text-cream/70">
-                Juan Silva Moreno, traductor jurado de francés nombrado por el Ministerio de Asuntos Exteriores con número 3850.
+                Juan Antonio Silva Moreno, traductor jurado de francés nombrado por el Ministerio de Asuntos Exteriores con número 3850.
               </p>
             </div>
             <div className="text-center">
