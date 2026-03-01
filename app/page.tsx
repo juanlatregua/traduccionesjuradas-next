@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { DocumentChecklist } from "@/components/DocumentChecklist";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
-import { SelloMinisterio } from "@/components/SelloMinisterio";
+
 
 const HOME_FAQ_ITEMS = [
   {
@@ -169,11 +169,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Box de proceso 3 pasos + Sello */}
+          {/* Box de proceso 3 pasos */}
           <div className="hidden flex-1 lg:block">
-            <div className="flex justify-center mb-6">
-              <SelloMinisterio size="lg" />
-            </div>
             <div className="rounded-3xl border border-cream bg-bleu p-6 text-parchment shadow-paper lg:ml-8">
               <h2 className="mb-4 text-lg font-semibold">
                 Tu traducción jurada en 3 pasos
@@ -512,7 +509,6 @@ export default function Home() {
               </p>
             </div>
             <div className="text-center">
-              <SelloMinisterio size="sm" className="mx-auto mb-2" />
               <p className="text-3xl font-bold text-or">N.3850</p>
               <p className="mt-1 text-sm font-semibold text-parchment">Traductor jurado de francés</p>
               <p className="mt-1 text-xs text-cream/70">

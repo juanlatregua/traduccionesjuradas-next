@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import Link from "next/link";
 import { TrustStrip } from "@/components/TrustStrip";
+import { SelloMinisterio } from "@/components/SelloMinisterio";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.traduccionesjuradas.net"),
@@ -192,10 +193,15 @@ export default function RootLayout({
 
             {/* Separador */}
             <div className="mt-10 border-t border-cream/10 pt-8">
-              {/* Firma manuscrita */}
-              <p className="font-caveat text-2xl text-cream/90 animate-inkWrite">
-                Juan Silva Moreno · Traductor jurado N.º 3850
-              </p>
+              {/* Firma manuscrita + sello */}
+              <div className="flex items-center gap-4">
+                <div>
+                  <p className="font-caveat text-2xl text-cream/90 animate-inkWrite">
+                    Juan Silva Moreno · Traductor jurado N.º 3850
+                  </p>
+                </div>
+                <SelloMinisterio size="sm" className="opacity-30" />
+              </div>
               <p className="mt-2 text-xs text-cream/40">
                 © {new Date().getFullYear()} HBTJ Consultores Lingüísticos S.L.
                 · Todos los derechos reservados
