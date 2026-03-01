@@ -15,7 +15,7 @@ export default function PresupuestoSelector() {
     <div className="mt-6">
       <label
         htmlFor="idioma-selector"
-        className="block text-sm font-semibold text-slate-700"
+        className="block text-sm font-semibold text-sepia"
       >
         Selecciona el idioma de tu traducción
       </label>
@@ -23,7 +23,7 @@ export default function PresupuestoSelector() {
         id="idioma-selector"
         value={selected}
         onChange={(e) => setSelected(e.target.value)}
-        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm sm:max-w-xs"
+        className="mt-2 w-full rounded-xl border border-cream px-3 py-2 text-sm sm:max-w-xs"
       >
         <option value="">— Elige idioma —</option>
         {idiomas.map((c) => (

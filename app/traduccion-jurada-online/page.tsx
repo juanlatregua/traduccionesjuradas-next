@@ -20,7 +20,7 @@ const LANG_COMBOS = [
 
 export default function TraduccionJuradaOnlinePage() {
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12 text-sm text-slate-700">
+    <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12 text-sm text-sepia">
       <SchemaBreadcrumbs
         items={[
           { name: "Inicio", url: "https://traduccionesjuradas.net/" },
@@ -48,30 +48,30 @@ export default function TraduccionJuradaOnlinePage() {
         ]}
       />
       <header className="max-w-3xl space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Traducción jurada online
         </p>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada online con entrega en PDF firmado
         </h1>
-        <p className="text-slate-700">
+        <p className="text-sepia">
           Adjunta tu documento y recibe la traducción jurada en PDF firmado y sellado por el traductor jurado. Plazos rápidos (24-72 h) según idioma y páginas.
         </p>
-        <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+        <div className="flex flex-wrap gap-3 text-xs text-graphite">
           <span>Respuesta en &lt; 30 minutos en horario 09:00-19:00 CET</span>
-          <span className="h-1 w-1 rounded-full bg-slate-300" />
+          <span className="h-1 w-1 rounded-full bg-graphite/30" />
           <span>Entrega online; envío en papel opcional</span>
         </div>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Subir documento y pedir precio
           </Link>
           <a
             href="mailto:hola@traduccionesjuradas.net?subject=Traducción%20jurada%20online"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O enviar por email
           </a>
@@ -79,25 +79,25 @@ export default function TraduccionJuradaOnlinePage() {
       </header>
 
       <section className="mt-8 space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Precios orientativos y plazos</h2>
+        <h2 className="text-lg font-semibold text-encre">Precios orientativos y plazos</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {LANG_COMBOS.map((item) => (
-            <div key={item.pair} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <div key={item.pair} className="rounded-xl border border-cream bg-parchment px-3 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
                 {item.pair}
               </p>
-              <p className="text-base font-semibold text-slate-900">{item.price}</p>
-              <p className="text-xs text-slate-600">Plazo estimado: {item.plazo}</p>
+              <p className="text-base font-semibold text-encre">{item.price}</p>
+              <p className="text-xs text-sepia">Plazo estimado: {item.plazo}</p>
             </div>
           ))}
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-graphite">
           Precios para 1 página estándar. Confirmamos importe y plazo al revisar el PDF/imagen. Si tu documento tiene más páginas o incluye apostilla/legalización, te enviamos el precio exacto.
         </p>
       </section>
 
       <section className="mt-8 space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Cómo funciona</h2>
+        <h2 className="text-lg font-semibold text-encre">Cómo funciona</h2>
         <ol className="list-decimal pl-5 space-y-2">
           <li>Adjunta tu documento (PDF o foto clara) y elige idiomas.</li>
           <li>Te respondemos con precio cerrado y plazo estimado (normal/urgente).</li>
@@ -106,7 +106,7 @@ export default function TraduccionJuradaOnlinePage() {
       </section>
 
       <section className="mt-8 space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">¿Qué documentos traducimos online?</h2>
+        <h2 className="text-lg font-semibold text-encre">¿Qué documentos traducimos online?</h2>
         <ul className="list-disc pl-5 space-y-1">
           <li>Certificados del Registro Civil: nacimiento, matrimonio, defunción, fe de vida.</li>
           <li>Antecedentes penales y apostillas.</li>
@@ -115,23 +115,23 @@ export default function TraduccionJuradaOnlinePage() {
         </ul>
       </section>
 
-      <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-        <h2 className="text-lg font-semibold text-slate-900">Si tu idioma es francés</h2>
-        <p className="mt-2 text-sm text-slate-700">
-          <Link href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline">
+      <section className="mt-8 rounded-2xl border border-cream bg-cream p-4">
+        <h2 className="text-lg font-semibold text-encre">Si tu idioma es francés</h2>
+        <p className="mt-2 text-sm text-sepia">
+          <Link href="/traductor-jurado-frances" className="font-semibold text-bleu hover:underline">
             servicio oficial de traducción jurada en francés
           </Link>
           {" "}para ver precio, plazos y documentos habituales. Si tu gestión es local, también
           puedes revisar la página de{" "}
-          <Link href="/traduccion-jurada-frances-malaga" className="font-semibold text-emerald-700 hover:underline">
+          <Link href="/traduccion-jurada-frances-malaga" className="font-semibold text-bleu hover:underline">
             atención en Málaga
           </Link>
           .
         </p>
       </section>
 
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
-        <p className="font-semibold text-slate-900">Nota de privacidad</p>
+      <section className="mt-8 rounded-2xl border border-cream bg-card p-4 text-xs text-sepia">
+        <p className="font-semibold text-encre">Nota de privacidad</p>
         <p>
           Usamos tus archivos solo para preparar el presupuesto y la traducción. Se transmiten por HTTPS y se eliminan en 30 días o antes si lo pides. PDF firmado digitalmente por traductor jurado; envío en papel opcional.
         </p>

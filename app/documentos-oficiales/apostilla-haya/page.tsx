@@ -13,13 +13,13 @@ export default function ApostillaHayaPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Apostilla de La Haya
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Apostilla de La Haya y traducción jurada: cómo encajan
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           La Apostilla de La Haya es un sello o anotación que confirma la
           autenticidad de firmas y cargos públicos de un documento para que sea
           válido en otro país que también forme parte del Convenio de La Haya.
@@ -29,8 +29,8 @@ export default function ApostillaHayaPage() {
       </header>
 
       {/* QUE ES */}
-      <section className="mt-8 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-8 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Qué es exactamente la Apostilla de La Haya?
         </h2>
         <p>
@@ -54,8 +54,8 @@ export default function ApostillaHayaPage() {
       </section>
 
       {/* DOCUMENTOS QUE SUELEN REQUERIR APOSTILLA */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Documentos que con frecuencia deben llevar Apostilla
         </h2>
         <p>
@@ -97,8 +97,8 @@ export default function ApostillaHayaPage() {
       </section>
 
       {/* APOSTILLA + TRADUCCION JURADA */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Primero apostilla o primero traducción?
         </h2>
         <p>
@@ -121,8 +121,8 @@ export default function ApostillaHayaPage() {
       </section>
 
       {/* PAISES FRANCÓFONOS / MARRUECOS */}
-      <section className="mt-10 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 rounded-2xl border border-cream bg-parchment p-5 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Apostilla en documentos de Marruecos, Francia y países francófonos
         </h2>
         <p>
@@ -150,7 +150,7 @@ export default function ApostillaHayaPage() {
           <li>La Apostilla de La Haya no se aplique, o</li>
           <li>Haya que utilizar sistemas de legalización distintos.</li>
         </ul>
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-sepia">
           Lo más seguro siempre es confirmar los requisitos en el consulado
           español, en la oficina de Extranjería o en la notaría que va a usar el
           documento.
@@ -158,8 +158,8 @@ export default function ApostillaHayaPage() {
       </section>
 
       {/* CUANDO NO HAY APOSTILLA */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Y si mi país no aplica la Apostilla de La Haya?
         </h2>
         <p>
@@ -180,8 +180,8 @@ export default function ApostillaHayaPage() {
       </section>
 
       {/* ENLACES A OTROS CONTENIDOS */}
-      <section className="mt-10 space-y-3 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-3 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Documentos en los que la apostilla es especialmente importante
         </h2>
         <p>
@@ -192,7 +192,7 @@ export default function ApostillaHayaPage() {
           <li>
             <Link
               href="/documentos-oficiales/certificado-de-nacimiento"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Certificado de nacimiento
             </Link>{" "}
@@ -201,7 +201,7 @@ export default function ApostillaHayaPage() {
           <li>
             <Link
               href="/documentos-oficiales/antecedentes-penales"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Certificados de antecedentes penales
             </Link>
@@ -210,7 +210,7 @@ export default function ApostillaHayaPage() {
           <li>
             <Link
               href="/documentos-oficiales/documentos-mercantiles"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Documentos mercantiles y empresariales
             </Link>{" "}
@@ -219,7 +219,7 @@ export default function ApostillaHayaPage() {
           <li>
             <Link
               href="/teletrabajo"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Documentos para teletrabajar en España
             </Link>{" "}
@@ -230,8 +230,8 @@ export default function ApostillaHayaPage() {
       </section>
 
       {/* COMO ENVIAR */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Cómo enviarnos tus documentos con apostilla para traducir?
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -255,11 +255,11 @@ export default function ApostillaHayaPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-12 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Tienes documentos con Apostilla de La Haya para usar en España?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Envíanos tus certificados con apostilla (nacimiento, matrimonio,
           antecedentes penales, documentos mercantiles, etc.) en PDF o foto
           clara y te responderemos con un presupuesto cerrado y un plazo
@@ -268,13 +268,13 @@ export default function ApostillaHayaPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Solicitar presupuesto
           </Link>
           <a
             href="mailto:hola@traduccionesjuradas.net?subject=Apostilla%20de%20La%20Haya%20-%20Presupuesto"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O enviar directamente los documentos por email
           </a>

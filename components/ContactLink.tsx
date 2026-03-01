@@ -22,8 +22,8 @@ export default function ContactLink({
   const isLink = Boolean(href);
 
   const Classes =
-    "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700" +
-    (isLink ? " hover:border-emerald-300 hover:bg-emerald-50/50" : "");
+    "flex items-center gap-3 rounded-xl border border-cream bg-white px-3 py-2 text-sm text-sepia" +
+    (isLink ? " hover:border-bleu hover:bg-cream/50" : "");
 
   const icon =
     type === "email" ? (
@@ -31,11 +31,11 @@ export default function ContactLink({
     ) : type === "whatsapp" ? (
       <IconWhatsapp />
     ) : type === "phone" ? (
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-semibold text-emerald-700">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cream text-[11px] font-semibold text-bleu">
         Tel
       </span>
     ) : (
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cream text-[11px] font-semibold text-sepia">
         📍
       </span>
     );
@@ -45,10 +45,10 @@ export default function ContactLink({
       <a href={href} className={Classes}>
         {icon}
         <div className="flex flex-col">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <span className="text-xs font-semibold uppercase tracking-wide text-graphite">
             {label}
           </span>
-          <span className="text-sm text-slate-800">{value}</span>
+          <span className="text-sm text-encre">{value}</span>
         </div>
       </a>
     );
@@ -58,10 +58,10 @@ export default function ContactLink({
     <div className={Classes}>
       {icon}
       <div className="flex flex-col">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span className="text-xs font-semibold uppercase tracking-wide text-graphite">
           {label}
         </span>
-        <span className="text-sm text-slate-800">{value}</span>
+        <span className="text-sm text-encre">{value}</span>
       </div>
     </div>
   );

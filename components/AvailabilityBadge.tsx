@@ -40,11 +40,11 @@ export function AvailabilityBadge({ variant = "pill" }: { variant?: "pill" | "in
       : "inline-flex items-center gap-2 text-xs font-semibold";
 
   const colorClasses = isOpen
-    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    ? "border-cream bg-cream text-bleu"
     : "border-amber-200 bg-amber-50 text-amber-800";
 
   return (
-    <span className={`${baseClasses} ${variant === "pill" ? colorClasses : "text-slate-600"}`}>
+    <span className={`${baseClasses} ${variant === "pill" ? colorClasses : "text-sepia"}`}>
       <span role="img" aria-label={isOpen ? "Disponible" : "Fuera de horario"}>
         {isOpen ? "🟢" : "⏳"}
       </span>

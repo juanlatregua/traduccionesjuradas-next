@@ -24,9 +24,9 @@ type OrderResult = {
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   PENDING: { label: "Pendiente de pago", color: "text-amber-700 bg-amber-50 border-amber-200" },
-  PAID: { label: "Pagado", color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+  PAID: { label: "Pagado", color: "text-bleu bg-cream border-cream" },
   IN_PROGRESS: { label: "En proceso", color: "text-blue-700 bg-blue-50 border-blue-200" },
-  DELIVERED: { label: "Entregado", color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+  DELIVERED: { label: "Entregado", color: "text-bleu bg-cream border-cream" },
   CANCELLED: { label: "Cancelado", color: "text-red-700 bg-red-50 border-red-200" },
   FAILED: { label: "Fallido", color: "text-red-700 bg-red-50 border-red-200" },
 };
@@ -103,7 +103,7 @@ export default function GuestOrderLookup() {
     <div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="guest-reference" className="block text-sm font-semibold text-slate-700">
+          <label htmlFor="guest-reference" className="block text-sm font-semibold text-sepia">
             Referencia del pedido
           </label>
           <input
@@ -112,11 +112,11 @@ export default function GuestOrderLookup() {
             placeholder="Ej: 26_ABC123"
             value={reference}
             onChange={(e) => setReference(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 w-full rounded-xl border border-cream px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label htmlFor="guest-email" className="block text-sm font-semibold text-slate-700">
+          <label htmlFor="guest-email" className="block text-sm font-semibold text-sepia">
             Email
           </label>
           <input
@@ -125,7 +125,7 @@ export default function GuestOrderLookup() {
             placeholder="tu@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 w-full rounded-xl border border-cream px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
@@ -158,9 +158,9 @@ export default function GuestOrderLookup() {
               </div>
             );
           })()}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+          <div className="rounded-2xl border border-cream bg-parchment p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">{order.title}</h2>
+              <h2 className="text-lg font-bold text-encre">{order.title}</h2>
               {(() => {
                 const s = STATUS_LABELS[order.paymentStatus] || STATUS_LABELS[order.status];
                 return s ? (
@@ -173,39 +173,39 @@ export default function GuestOrderLookup() {
 
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
-                <span className="font-semibold text-slate-600">Referencia:</span>{" "}
+                <span className="font-semibold text-sepia">Referencia:</span>{" "}
                 <span className="font-mono">{order.reference}</span>
               </div>
               <div>
-                <span className="font-semibold text-slate-600">Importe:</span>{" "}
+                <span className="font-semibold text-sepia">Importe:</span>{" "}
                 <span className="font-semibold">{formatMoney(order.amountCents)}</span>
               </div>
               {order.langPair && (
                 <div>
-                  <span className="font-semibold text-slate-600">Idiomas:</span> {order.langPair}
+                  <span className="font-semibold text-sepia">Idiomas:</span> {order.langPair}
                 </div>
               )}
               {order.words && (
                 <div>
-                  <span className="font-semibold text-slate-600">Palabras:</span> {order.words}
+                  <span className="font-semibold text-sepia">Palabras:</span> {order.words}
                 </div>
               )}
               <div>
-                <span className="font-semibold text-slate-600">Creado:</span> {formatDate(order.createdAt)}
+                <span className="font-semibold text-sepia">Creado:</span> {formatDate(order.createdAt)}
               </div>
               {order.paidAt && (
                 <div>
-                  <span className="font-semibold text-slate-600">Pagado:</span> {formatDate(order.paidAt)}
+                  <span className="font-semibold text-sepia">Pagado:</span> {formatDate(order.paidAt)}
                 </div>
               )}
               {order.dueDate && (
                 <div>
-                  <span className="font-semibold text-slate-600">ETA:</span> {formatDate(order.dueDate)}
+                  <span className="font-semibold text-sepia">ETA:</span> {formatDate(order.dueDate)}
                 </div>
               )}
               {order.workflowState && (
                 <div className="col-span-2">
-                  <span className="font-semibold text-slate-600">Estado:</span>{" "}
+                  <span className="font-semibold text-sepia">Estado:</span>{" "}
                   {getWorkflowStateLabel(order.workflowState)}
                 </div>
               )}
@@ -220,8 +220,8 @@ export default function GuestOrderLookup() {
             )}
 
             {order.deliveryState === "TRADUCIDO" && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-                <p className="text-sm text-emerald-800">
+              <div className="rounded-xl border border-cream bg-cream px-3 py-2">
+                <p className="text-sm text-bleu">
                   Tu traducción está lista. Para descargarla, accede a tu{" "}
                   <Link href="/area-cliente" className="font-semibold underline">
                     área de cliente
@@ -246,7 +246,7 @@ export default function GuestOrderLookup() {
               <div className="mt-2">
                 <Link
                   href={`/area-cliente/pedido/${order.reference}/pagar`}
-                  className="inline-block rounded-2xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"
+                  className="inline-block rounded-2xl bg-bleu-dark px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"
                 >
                   Ir al pago
                 </Link>

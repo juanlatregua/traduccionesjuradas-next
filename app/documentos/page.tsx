@@ -14,13 +14,13 @@ export default function DocumentosPage() {
         Documentos que traducimos
       </h1>
 
-      <p className="mt-2 text-sm text-slate-600">
+      <p className="mt-2 text-sm text-sepia">
         Trabajamos con la mayoría de documentos personales, académicos y
         profesionales que requieren traducción jurada para presentarse ante
         organismos oficiales.
       </p>
 
-      <ul className="mt-6 list-disc space-y-2 pl-5 text-sm text-slate-700">
+      <ul className="mt-6 list-disc space-y-2 pl-5 text-sm text-sepia">
         <li>
           Certificados del Registro Civil (nacimiento, matrimonio, defunción…)
         </li>

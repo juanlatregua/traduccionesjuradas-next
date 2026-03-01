@@ -60,16 +60,16 @@ export default function CopyField({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+    <div className="rounded-xl border border-cream bg-white px-3 py-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-graphite">{label}</p>
       <div className="mt-1 flex flex-wrap items-center gap-2">
-        <p className={`min-w-0 flex-1 break-all text-sm text-slate-900 ${mono ? "font-mono" : ""}`}>{value}</p>
+        <p className={`min-w-0 flex-1 break-all text-sm text-encre ${mono ? "font-mono" : ""}`}>{value}</p>
         {actionHref && actionLabel && (
           <a
             href={actionHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            className="rounded-lg border border-cream px-2 py-1 text-xs font-semibold text-sepia hover:bg-cream"
           >
             {actionLabel}
           </a>
@@ -78,7 +78,7 @@ export default function CopyField({
           type="button"
           onClick={handleCopy}
           disabled={copying}
-          className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+          className="rounded-lg border border-cream px-2 py-1 text-xs font-semibold text-sepia hover:bg-cream disabled:opacity-60"
           aria-label={`Copiar ${label}`}
         >
           {copying ? "Copiando..." : "Copiar"}

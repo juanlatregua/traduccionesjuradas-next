@@ -36,11 +36,11 @@ export default function QuotePublicPayButton({ token, isPayable }: Props) {
         type="button"
         onClick={startCheckout}
         disabled={!isPayable || loading}
-        className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Redirigiendo..." : "Pagar"}
       </button>
-      <p className="text-xs text-slate-600">
+      <p className="text-xs text-sepia">
         Formas de pago: <strong>Tarjeta</strong> (según disponibilidad) · PayPal/Bizum (próximamente).
       </p>
       {message && <p className="text-xs font-semibold text-red-700">{message}</p>}

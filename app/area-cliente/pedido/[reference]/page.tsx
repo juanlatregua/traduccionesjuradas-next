@@ -92,33 +92,33 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <AutoRefresh intervalMs={20000} idleMs={30000} />
-      <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+      <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Referencia {order.reference}
         </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-encre sm:text-3xl">
           Estado de tu pedido
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-sepia">
           Fecha: {order.createdAt.toISOString().slice(0, 10)} · Combinación: {order.langPair || "—"}
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Presupuesto</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-parchment p-3">
+            <p className="text-xs uppercase tracking-wide text-graphite">Presupuesto</p>
+            <p className="mt-1 text-sm font-semibold text-encre">
               {formatMoney(order.amountCents)}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Pago</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{getPaymentStateLabel(order.paymentStatus)}</p>
+          <div className="rounded-2xl border border-cream bg-parchment p-3">
+            <p className="text-xs uppercase tracking-wide text-graphite">Pago</p>
+            <p className="mt-1 text-sm font-semibold text-encre">{getPaymentStateLabel(order.paymentStatus)}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Estado</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{getDeliveryStateLabel(order.deliveryState)}</p>
+          <div className="rounded-2xl border border-cream bg-parchment p-3">
+            <p className="text-xs uppercase tracking-wide text-graphite">Estado</p>
+            <p className="mt-1 text-sm font-semibold text-encre">{getDeliveryStateLabel(order.deliveryState)}</p>
           </div>
         </div>
-        <p className="mt-3 text-sm text-slate-700">
+        <p className="mt-3 text-sm text-sepia">
           Verificación de pago: <span className="font-semibold">{paymentVerificationLabel}</span>
         </p>
         {workflowState === "PENDIENTE_REVISION" && (
@@ -132,7 +132,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           </p>
         )}
         {order.dueDate && (
-          <p className="mt-1 text-sm text-slate-700">
+          <p className="mt-1 text-sm text-sepia">
             Fecha estimada de entrega:{" "}
             <span className="font-semibold">
               {order.dueDate.toLocaleDateString("es-ES", {
@@ -146,9 +146,9 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         )}
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Detalle del pedido</h2>
-        <div className="mt-4 space-y-1 text-sm text-slate-700">
+      <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-encre">Detalle del pedido</h2>
+        <div className="mt-4 space-y-1 text-sm text-sepia">
           <p><span className="font-semibold">Concepto:</span> {order.title}</p>
           {order.langPair && <p><span className="font-semibold">Idiomas:</span> {order.langPair}</p>}
           {order.words && <p><span className="font-semibold">Palabras:</span> {order.words}</p>}
@@ -160,7 +160,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
             </p>
           )}
         </div>
-        <p className="mt-3 text-sm font-semibold text-slate-900">Total: {formatMoney(order.amountCents)}</p>
+        <p className="mt-3 text-sm font-semibold text-encre">Total: {formatMoney(order.amountCents)}</p>
       </section>
 
       <OrderClientPanel
@@ -203,16 +203,16 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         }))}
       />
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Documento original</h2>
+      <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-encre">Documento original</h2>
         {sourceDocuments.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-700">
+          <p className="mt-2 text-sm text-sepia">
             Aún no hay documento fuente adjunto en este pedido.
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
             {sourceDocuments.map((doc, idx) => (
-              <li key={`${doc.fileUrl}-${idx}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <li key={`${doc.fileUrl}-${idx}`} className="rounded-2xl border border-cream bg-parchment px-3 py-2 text-sm text-sepia">
                 <p>
                   <span className="font-semibold">
                     {doc.uploadedAt ? doc.uploadedAt.slice(0, 16).replace("T", " ") : "Sin fecha"}
@@ -223,7 +223,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
                   href={doc.fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-1 inline-flex text-xs font-semibold text-emerald-700 hover:underline"
+                  className="mt-1 inline-flex text-xs font-semibold text-bleu hover:underline"
                 >
                   Ver documento
                 </a>
@@ -233,10 +233,10 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         )}
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Comprobante de pago</h2>
+      <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-encre">Comprobante de pago</h2>
         {proofEvents.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-700">
+          <p className="mt-2 text-sm text-sepia">
             Aún no hemos recibido ningún comprobante en este pedido.
           </p>
         ) : (
@@ -246,7 +246,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
               const fileUrl = String(payload.fileUrl || "");
               const fileName = String(payload.fileName || "Comprobante");
               return (
-                <li key={event.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                <li key={event.id} className="rounded-2xl border border-cream bg-parchment px-3 py-2 text-sm text-sepia">
                   <p>
                     <span className="font-semibold">
                       {event.createdAt.toISOString().slice(0, 16).replace("T", " ")}
@@ -258,7 +258,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
                       href={fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 inline-flex text-xs font-semibold text-emerald-700 hover:underline"
+                      className="mt-1 inline-flex text-xs font-semibold text-bleu hover:underline"
                     >
                       Ver comprobante
                     </a>
@@ -270,29 +270,29 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         )}
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Agenda del pedido</h2>
-        <ol className="mt-3 space-y-2 text-sm text-slate-700">
-          <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-encre">Agenda del pedido</h2>
+        <ol className="mt-3 space-y-2 text-sm text-sepia">
+          <li className="rounded-2xl border border-cream bg-parchment px-3 py-2">
             Pedido creado: {order.createdAt.toISOString().slice(0, 16).replace("T", " ")}
           </li>
           {hasProofUploaded && (
-            <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <li className="rounded-2xl border border-cream bg-parchment px-3 py-2">
               Comprobante recibido: {proofEvents[0].createdAt.toISOString().slice(0, 16).replace("T", " ")}
             </li>
           )}
           {order.paidAt && (
-            <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <li className="rounded-2xl border border-cream bg-parchment px-3 py-2">
               Pago confirmado: {order.paidAt.toISOString().slice(0, 16).replace("T", " ")}
             </li>
           )}
           {order.dueDate && (
-            <li className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <li className="rounded-2xl border border-cream bg-parchment px-3 py-2">
               ETA entrega: {order.dueDate.toLocaleDateString("es-ES")}
             </li>
           )}
           {order.deliveryState === "TRADUCIDO" && (
-            <li className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-700">
+            <li className="rounded-2xl border border-cream bg-cream px-3 py-2 font-semibold text-bleu">
               Traducción finalizada
             </li>
           )}
@@ -300,53 +300,53 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
       </section>
 
       {order.billing?.requested && (
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-lg font-semibold text-slate-900">Factura</h2>
-          <p className="mt-2 text-sm text-slate-600">
+        <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+          <h2 className="text-lg font-semibold text-encre">Factura</h2>
+          <p className="mt-2 text-sm text-sepia">
             Datos de facturación registrados a nombre de {order.billing.fiscalName} ({order.billing.nif}).
           </p>
           <a
             href={`/api/orders/${order.reference}/invoice-pdf`}
-            className="mt-3 inline-flex rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            className="mt-3 inline-flex rounded-2xl bg-encre px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark"
           >
             Descargar factura PDF
           </a>
         </section>
       )}
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Archivo traducido</h2>
+      <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-encre">Archivo traducido</h2>
         {order.translatedFileUrl ? (
           <a
             href={order.translatedFileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="mt-3 inline-flex rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark"
           >
             Descargar PDF traducido
           </a>
         ) : (
-          <p className="mt-2 text-sm text-slate-700">
+          <p className="mt-2 text-sm text-sepia">
             Aún no hay archivo disponible. Te avisaremos cuando el pedido pase a estado traducido.
           </p>
         )}
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Historial</h2>
+      <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-encre">Historial</h2>
         {order.events.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">Sin eventos registrados.</p>
+          <p className="mt-2 text-sm text-sepia">Sin eventos registrados.</p>
         ) : (
-          <ul className="mt-4 space-y-2 text-sm text-slate-700">
+          <ul className="mt-4 space-y-2 text-sm text-sepia">
             {order.events.map((entry) => (
-              <li key={entry.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <li key={entry.id} className="rounded-2xl border border-cream bg-parchment px-3 py-2">
                 <span className="font-semibold">{entry.createdAt.toISOString().slice(0, 16).replace("T", " ")}</span>{" "}
                 · {entry.message}
               </li>
             ))}
           </ul>
         )}
-        <Link href="/area-cliente" className="mt-4 inline-block text-sm font-semibold text-emerald-700 hover:underline">
+        <Link href="/area-cliente" className="mt-4 inline-block text-sm font-semibold text-bleu hover:underline">
           Volver al área de cliente
         </Link>
       </section>

@@ -211,14 +211,14 @@ export default function LanguageOfferPanel({ config }: Props) {
   };
 
   return (
-    <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+    <section className="mt-8 rounded-3xl border border-cream bg-white p-5 shadow-sm sm:p-7">
       {/* Step indicator */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-        <span className={step >= 1 ? "text-emerald-700" : ""}>1. Documento</span>
-        <span className="text-slate-300">/</span>
-        <span className={step >= 2 ? "text-emerald-700" : ""}>2. Archivo</span>
-        <span className="text-slate-300">/</span>
-        <span className={step >= 3 ? "text-emerald-700" : ""}>3. Enviar</span>
+      <div className="flex items-center gap-2 text-xs font-semibold text-graphite">
+        <span className={step >= 1 ? "text-bleu" : ""}>1. Documento</span>
+        <span className="text-cream">/</span>
+        <span className={step >= 2 ? "text-bleu" : ""}>2. Archivo</span>
+        <span className="text-cream">/</span>
+        <span className={step >= 3 ? "text-bleu" : ""}>3. Enviar</span>
       </div>
 
       {notice && (
@@ -234,21 +234,21 @@ export default function LanguageOfferPanel({ config }: Props) {
       {step === 1 && (
         <div className="mt-5 space-y-5">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">
+            <h3 className="text-lg font-semibold text-encre">
               Calcula tu presupuesto de {config.name}
             </h3>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-sepia">
               Selecciona el tipo de documento y calcula el precio estimado.
             </p>
-            <p className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm">
-              <span className="font-semibold text-emerald-700">{(baseRate * 1.21).toFixed(2).replace(".", ",")} EUR/palabra</span>
-              <span className="text-xs text-slate-500">· IVA incluido · Precio final tras revisión</span>
+            <p className="mt-2 inline-flex items-center gap-2 rounded-xl bg-cream px-3 py-1.5 text-sm">
+              <span className="font-semibold text-bleu">{(baseRate * 1.21).toFixed(2).replace(".", ",")} EUR/palabra</span>
+              <span className="text-xs text-graphite">· IVA incluido · Precio final tras revisión</span>
             </p>
           </div>
 
           {/* Direction */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Combinación
             </label>
             <div className="mt-1 flex gap-2">
@@ -257,8 +257,8 @@ export default function LanguageOfferPanel({ config }: Props) {
                 onClick={() => setDirection(config.defaultPair)}
                 className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
                   direction === config.defaultPair
-                    ? "bg-emerald-600 text-white"
-                    : "border border-slate-200 text-slate-700"
+                    ? "bg-bleu text-white"
+                    : "border border-cream text-sepia"
                 }`}
               >
                 {config.name} → Español
@@ -268,8 +268,8 @@ export default function LanguageOfferPanel({ config }: Props) {
                 onClick={() => setDirection(config.reversePair)}
                 className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
                   direction === config.reversePair
-                    ? "bg-emerald-600 text-white"
-                    : "border border-slate-200 text-slate-700"
+                    ? "bg-bleu text-white"
+                    : "border border-cream text-sepia"
                 }`}
               >
                 Español → {config.name}
@@ -279,7 +279,7 @@ export default function LanguageOfferPanel({ config }: Props) {
 
           {/* Document category */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Tipo de documento
             </label>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -290,12 +290,12 @@ export default function LanguageOfferPanel({ config }: Props) {
                   onClick={() => { setSelectedCategory(cat.id); setError(null); }}
                   className={`rounded-xl border px-3 py-2 text-left text-sm ${
                     selectedCategory === cat.id
-                      ? "border-emerald-300 bg-emerald-50 font-semibold text-emerald-800"
-                      : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                      ? "border-bleu bg-cream font-semibold text-bleu"
+                      : "border-cream text-sepia hover:bg-parchment"
                   }`}
                 >
                   <p className="font-semibold">{cat.label}</p>
-                  <p className="text-xs text-slate-500">{cat.examples}</p>
+                  <p className="text-xs text-graphite">{cat.examples}</p>
                 </button>
               ))}
             </div>
@@ -303,14 +303,14 @@ export default function LanguageOfferPanel({ config }: Props) {
 
           {/* Word count */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Número de palabras
             </label>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-graphite">
               Sube un archivo PDF/DOCX para contar automáticamente, o introduce el número a mano.
             </p>
             <div className="mt-2 flex flex-wrap gap-3">
-              <label className="cursor-pointer rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <label className="cursor-pointer rounded-xl border border-cream px-3 py-2 text-xs font-semibold text-sepia hover:bg-parchment">
                 {estimating ? "Analizando..." : "Subir archivo para contar"}
                 <input
                   type="file"
@@ -332,24 +332,24 @@ export default function LanguageOfferPanel({ config }: Props) {
                 placeholder="O escribe las palabras"
                 value={wordCount ?? ""}
                 onChange={(e) => { setWordCount(e.target.value ? parseInt(e.target.value, 10) : null); setEstimationMeta(null); }}
-                className="w-40 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                className="w-40 rounded-xl border border-cream px-3 py-2 text-sm"
               />
             </div>
             {file && (
-              <p className="mt-1 text-xs text-slate-500">Archivo: {file.name}</p>
+              <p className="mt-1 text-xs text-graphite">Archivo: {file.name}</p>
             )}
           </div>
 
           {/* Estimate preview */}
           {estimate && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <div className="rounded-2xl border border-cream bg-cream p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
                 Precio estimado
               </p>
-              <p className="mt-1 text-2xl font-bold text-emerald-900">
+              <p className="mt-1 text-2xl font-bold text-bleu">
                 ~{estimate.total.toFixed(2)} EUR
               </p>
-              <p className="mt-1 text-xs text-emerald-700">
+              <p className="mt-1 text-xs text-bleu">
                 Precio orientativo basado en {wordCount} palabras.
                 El precio definitivo se confirma tras revisar el documento.
               </p>
@@ -360,7 +360,7 @@ export default function LanguageOfferPanel({ config }: Props) {
             type="button"
             onClick={goToStep2}
             disabled={!selectedCategory || wordCount == null}
-            className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="rounded-2xl bg-bleu px-5 py-2.5 text-sm font-semibold text-white hover:bg-bleu-dark disabled:opacity-50"
           >
             Continuar
           </button>
@@ -371,23 +371,23 @@ export default function LanguageOfferPanel({ config }: Props) {
       {step === 2 && (
         <div className="mt-5 space-y-5">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Sube el documento original</h3>
-            <p className="mt-1 text-sm text-slate-600">
+            <h3 className="text-lg font-semibold text-encre">Sube el documento original</h3>
+            <p className="mt-1 text-sm text-sepia">
               Adjunta el PDF o imagen del documento a traducir.
             </p>
           </div>
 
           {estimate && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-              <span className="font-semibold text-slate-700">Estimado:</span>{" "}
-              <span className="font-bold text-emerald-700">~{estimate.total.toFixed(2)} EUR</span>
-              <span className="text-slate-500"> · {wordCount} palabras</span>
+            <div className="rounded-xl border border-cream bg-parchment p-3 text-sm">
+              <span className="font-semibold text-sepia">Estimado:</span>{" "}
+              <span className="font-bold text-bleu">~{estimate.total.toFixed(2)} EUR</span>
+              <span className="text-graphite"> · {wordCount} palabras</span>
             </div>
           )}
 
           {file ? (
-            <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
-              <span className="flex-1 truncate font-semibold text-emerald-800">{file.name}</span>
+            <div className="flex items-center gap-3 rounded-xl border border-cream bg-cream px-3 py-2 text-sm">
+              <span className="flex-1 truncate font-semibold text-bleu">{file.name}</span>
               <button
                 type="button"
                 onClick={() => setFile(null)}
@@ -397,9 +397,9 @@ export default function LanguageOfferPanel({ config }: Props) {
               </button>
             </div>
           ) : (
-            <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center hover:border-emerald-400">
-              <p className="text-sm font-semibold text-slate-700">Haz clic o arrastra un archivo</p>
-              <p className="mt-1 text-xs text-slate-500">PDF, JPG, PNG (max 12 MB)</p>
+            <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-cream p-8 text-center hover:border-bleu">
+              <p className="text-sm font-semibold text-sepia">Haz clic o arrastra un archivo</p>
+              <p className="mt-1 text-xs text-graphite">PDF, JPG, PNG (max 12 MB)</p>
               <input
                 type="file"
                 className="hidden"
@@ -416,7 +416,7 @@ export default function LanguageOfferPanel({ config }: Props) {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              className="rounded-2xl border border-cream px-4 py-2 text-sm font-semibold text-sepia hover:bg-cream"
             >
               Atras
             </button>
@@ -424,7 +424,7 @@ export default function LanguageOfferPanel({ config }: Props) {
               type="button"
               onClick={goToStep3}
               disabled={!file}
-              className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="rounded-2xl bg-bleu px-5 py-2.5 text-sm font-semibold text-white hover:bg-bleu-dark disabled:opacity-50"
             >
               Continuar al checkout
             </button>
@@ -436,33 +436,33 @@ export default function LanguageOfferPanel({ config }: Props) {
       {step === 3 && (
         <div className="mt-5 space-y-5">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Confirmar y enviar</h3>
-            <p className="mt-1 text-sm text-slate-600">
+            <h3 className="text-lg font-semibold text-encre">Confirmar y enviar</h3>
+            <p className="mt-1 text-sm text-sepia">
               Revisaremos tu documento y te enviaremos el presupuesto definitivo por email.
               Podrás pagar una vez confirmado el precio.
             </p>
           </div>
 
           {estimate && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <div className="rounded-2xl border border-cream bg-cream p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
                 Resumen
               </p>
-              <p className="mt-1 text-sm text-slate-800">
+              <p className="mt-1 text-sm text-encre">
                 {DOCUMENT_CATEGORIES.find((c) => c.id === selectedCategory)?.label} ·{" "}
                 {direction.toUpperCase()} · {wordCount} palabras
               </p>
-              <p className="mt-1 text-lg font-bold text-emerald-900">
+              <p className="mt-1 text-lg font-bold text-bleu">
                 Precio estimado: ~{estimate.total.toFixed(2)} EUR
               </p>
-              <p className="mt-0.5 text-xs text-emerald-700">
+              <p className="mt-0.5 text-xs text-bleu">
                 El precio final se confirma tras revisión.
               </p>
             </div>
           )}
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Tu e-mail
             </label>
             <input
@@ -470,12 +470,12 @@ export default function LanguageOfferPanel({ config }: Props) {
               placeholder="tu@email.com"
               value={guestEmail}
               onChange={(e) => setGuestEmail(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-xl border border-cream px-4 py-2.5 text-sm focus:border-bleu focus:outline-none focus:ring-1 focus:ring-bleu"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Observaciones de urgencia (opcional)
             </label>
             <textarea
@@ -483,7 +483,7 @@ export default function LanguageOfferPanel({ config }: Props) {
               value={urgencyNotes}
               onChange={(e) => setUrgencyNotes(e.target.value)}
               rows={2}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-xl border border-cream px-4 py-2.5 text-sm focus:border-bleu focus:outline-none focus:ring-1 focus:ring-bleu"
             />
           </div>
 
@@ -491,7 +491,7 @@ export default function LanguageOfferPanel({ config }: Props) {
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              className="rounded-2xl border border-cream px-4 py-2 text-sm font-semibold text-sepia hover:bg-cream"
             >
               Atras
             </button>
@@ -499,7 +499,7 @@ export default function LanguageOfferPanel({ config }: Props) {
               type="button"
               onClick={submitOrder}
               disabled={checkoutLoading || !guestEmailValid}
-              className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="rounded-2xl bg-bleu px-5 py-2.5 text-sm font-semibold text-white hover:bg-bleu-dark disabled:opacity-50"
             >
               {checkoutLoading ? "Enviando..." : "Enviar pedido"}
             </button>

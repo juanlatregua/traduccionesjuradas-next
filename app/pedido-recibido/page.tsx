@@ -16,11 +16,11 @@ function PedidoRecibidoContent() {
 
   return (
     <main className="flex min-h-[60vh] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="w-full max-w-lg rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
         {/* Check icon */}
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cream">
           <svg
-            className="h-8 w-8 text-emerald-600"
+            className="h-8 w-8 text-bleu"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth={2.5}
@@ -30,37 +30,37 @@ function PedidoRecibidoContent() {
           </svg>
         </div>
 
-        <h1 className="mt-5 text-center text-xl font-bold text-slate-900">
+        <h1 className="mt-5 text-center text-xl font-bold text-encre">
           Hemos recibido tu pedido
         </h1>
 
-        <div className="mt-5 space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <div className="mt-5 space-y-3 rounded-2xl border border-cream bg-cream p-4">
           {ref && (
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-slate-600">Referencia</span>
-              <span className="font-bold text-emerald-800">{ref}</span>
+              <span className="font-semibold text-sepia">Referencia</span>
+              <span className="font-bold text-bleu">{ref}</span>
             </div>
           )}
           {title && (
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-slate-600">Concepto</span>
-              <span className="truncate pl-4 text-right text-slate-800">{title}</span>
+              <span className="font-semibold text-sepia">Concepto</span>
+              <span className="truncate pl-4 text-right text-encre">{title}</span>
             </div>
           )}
           {amount && (
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-slate-600">Precio estimado</span>
-              <span className="font-bold text-emerald-800">~{amount} EUR</span>
+              <span className="font-semibold text-sepia">Precio estimado</span>
+              <span className="font-bold text-bleu">~{amount} EUR</span>
             </div>
           )}
         </div>
 
-        <div className="mt-5 space-y-3 text-sm text-slate-600">
+        <div className="mt-5 space-y-3 text-sm text-sepia">
           <p>
             Revisaremos tu documento y te enviaremos el <strong>presupuesto definitivo por email</strong> en breve.
             Podras pagar una vez confirmado el precio.
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-graphite">
             Horario de respuesta: <strong>09:00 a 19:00 CET</strong>. Solemos responder en menos de 30 minutos dentro de ese horario.
           </p>
         </div>
@@ -68,7 +68,7 @@ function PedidoRecibidoContent() {
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <a
             href="/consulta"
-            className="flex-1 rounded-2xl border border-emerald-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+            className="flex-1 rounded-2xl border border-bleu bg-card px-4 py-2.5 text-center text-sm font-semibold text-bleu hover:bg-cream"
           >
             Consultar estado
           </a>
@@ -76,7 +76,7 @@ function PedidoRecibidoContent() {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 rounded-2xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700"
+            className="flex-1 rounded-2xl bg-bleu px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-bleu-dark"
           >
             WhatsApp (urgencias)
           </a>
@@ -91,7 +91,7 @@ export default function PedidoRecibidoPage() {
     <Suspense
       fallback={
         <main className="flex min-h-[60vh] items-center justify-center">
-          <p className="text-sm text-slate-500">Cargando...</p>
+          <p className="text-sm text-graphite">Cargando...</p>
         </main>
       }
     >

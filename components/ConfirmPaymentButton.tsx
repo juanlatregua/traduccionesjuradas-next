@@ -34,7 +34,7 @@ export default function ConfirmPaymentButton({ reference }: Props) {
   }
 
   if (done) {
-    return <span className="text-xs font-semibold text-emerald-400">Confirmado</span>;
+    return <span className="text-xs font-semibold text-bleu-light">Confirmado</span>;
   }
 
   return (
@@ -51,7 +51,7 @@ export default function ConfirmPaymentButton({ reference }: Props) {
         type="button"
         onClick={() => confirm("TRANSFER")}
         disabled={confirming}
-        className="rounded-lg bg-slate-600 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-500 disabled:opacity-50"
+        className="rounded-lg bg-bleu px-2 py-1 text-xs font-semibold text-white hover:bg-parchment0 disabled:opacity-50"
       >
         Transf.
       </button>

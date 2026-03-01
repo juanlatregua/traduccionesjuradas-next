@@ -28,24 +28,24 @@ export default async function ReviewPage() {
   }
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-      <h2 className="text-lg font-semibold text-slate-900">Paso 3. Revisión del pedido</h2>
-      <p className="mt-2 text-sm text-slate-700">
+    <section className="rounded-3xl border border-cream bg-card p-5 shadow-sm sm:p-7">
+      <h2 className="text-lg font-semibold text-encre">Paso 3. Revisión del pedido</h2>
+      <p className="mt-2 text-sm text-sepia">
         Revisa los documentos cargados y confirma para continuar al checkout.
       </p>
 
       <div className="mt-4 space-y-2">
         {session.docs.map((doc) => (
-          <article key={doc.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-            <p className="text-sm font-semibold text-slate-900">{doc.filename}</p>
-            <p className="text-xs text-slate-600">
+          <article key={doc.id} className="rounded-xl border border-cream bg-parchment px-3 py-2">
+            <p className="text-sm font-semibold text-encre">{doc.filename}</p>
+            <p className="text-xs text-sepia">
               {(doc.sizeBytes / 1024).toFixed(1)} KB · {doc.mimeType}
             </p>
             <a
               href={doc.fileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs font-semibold text-emerald-700 hover:underline"
+              className="text-xs font-semibold text-bleu hover:underline"
             >
               Ver documento
             </a>
@@ -54,17 +54,17 @@ export default async function ReviewPage() {
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Subtotal</p>
-          <p className="text-sm font-semibold text-slate-900">{money(session.subtotalCents, session.currency)}</p>
+        <div className="rounded-xl border border-cream bg-parchment p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-graphite">Subtotal</p>
+          <p className="text-sm font-semibold text-encre">{money(session.subtotalCents, session.currency)}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">IVA</p>
-          <p className="text-sm font-semibold text-slate-900">{money(session.vatCents, session.currency)}</p>
+        <div className="rounded-xl border border-cream bg-parchment p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-graphite">IVA</p>
+          <p className="text-sm font-semibold text-encre">{money(session.vatCents, session.currency)}</p>
         </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Total</p>
-          <p className="text-sm font-semibold text-emerald-900">{money(session.totalCents, session.currency)}</p>
+        <div className="rounded-xl border border-cream bg-cream p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-bleu">Total</p>
+          <p className="text-sm font-semibold text-bleu">{money(session.totalCents, session.currency)}</p>
         </div>
       </div>
 

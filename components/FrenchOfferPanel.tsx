@@ -760,14 +760,14 @@ export default function FrenchOfferPanel() {
   };
 
   return (
-    <section className="mt-10 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-5 shadow-sm sm:p-6">
-      <p className="inline-flex rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+    <section className="mt-10 rounded-3xl border border-cream bg-cream p-5 shadow-sm sm:p-6">
+      <p className="inline-flex rounded-full border border-cream bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-bleu">
         Contratacion autonoma en frances
       </p>
-      <h2 className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">
+      <h2 className="mt-3 text-xl font-semibold text-encre sm:text-2xl">
         Elige documento, sube original y finaliza pedido
       </h2>
-      <p className="mt-2 text-sm text-slate-700">
+      <p className="mt-2 text-sm text-sepia">
         Flujo guiado sin pérdidas de estado: selecciona, adjunta original y pasa al checkout con pago claro.
       </p>
 
@@ -775,32 +775,32 @@ export default function FrenchOfferPanel() {
         <button
           type="button"
           onClick={() => setStep(1)}
-          className={`rounded-full px-3 py-1 ${step === 1 ? "bg-emerald-600 text-white" : "bg-white text-slate-600"}`}
+          className={`rounded-full px-3 py-1 ${step === 1 ? "bg-bleu text-white" : "bg-white text-sepia"}`}
         >
           1. Seleccion
         </button>
         <button
           type="button"
           onClick={() => setStep(2)}
-          className={`rounded-full px-3 py-1 ${step === 2 ? "bg-emerald-600 text-white" : "bg-white text-slate-600"}`}
+          className={`rounded-full px-3 py-1 ${step === 2 ? "bg-bleu text-white" : "bg-white text-sepia"}`}
         >
           2. Subir original
         </button>
         <button
           type="button"
           onClick={goCheckout}
-          className={`rounded-full px-3 py-1 ${step === 3 ? "bg-emerald-600 text-white" : "bg-white text-slate-600"}`}
+          className={`rounded-full px-3 py-1 ${step === 3 ? "bg-bleu text-white" : "bg-white text-sepia"}`}
         >
           3. Checkout
         </button>
       </div>
 
-      <label className="mt-4 flex max-w-xs flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Combinacion</span>
+      <label className="mt-4 flex max-w-xs flex-col gap-2 rounded-2xl border border-cream bg-white p-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-sepia">Combinacion</span>
         <select
           value={direction}
           onChange={(e) => setDirection(e.target.value as Direction)}
-          className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          className="rounded-2xl border border-cream bg-white px-3 py-2 text-sm"
         >
           <option value="fr-es">Frances a Espanol</option>
           <option value="es-fr">Espanol a Frances</option>
@@ -809,12 +809,12 @@ export default function FrenchOfferPanel() {
 
       {step === 1 && (
         <div className="mt-5 space-y-4">
-          <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1">
+          <div className="inline-flex rounded-2xl border border-cream bg-white p-1">
             <button
               type="button"
               onClick={() => setSelectionMode("presets")}
               className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                selectionMode === "presets" ? "bg-emerald-600 text-white" : "text-slate-700"
+                selectionMode === "presets" ? "bg-bleu text-white" : "text-sepia"
               }`}
             >
               Documentos habituales (precio cerrado)
@@ -823,7 +823,7 @@ export default function FrenchOfferPanel() {
               type="button"
               onClick={() => setSelectionMode("file")}
               className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                selectionMode === "file" ? "bg-emerald-600 text-white" : "text-slate-700"
+                selectionMode === "file" ? "bg-bleu text-white" : "text-sepia"
               }`}
             >
               Subir documento (contar palabras)
@@ -832,9 +832,9 @@ export default function FrenchOfferPanel() {
 
           {selectionMode === "presets" ? (
             <div className="grid gap-4 md:grid-cols-[1.5fr_1fr]">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="rounded-2xl border border-cream bg-white p-4">
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-sepia">
                     Documento (escribe y te proponemos opciones)
                   </span>
                   <input
@@ -842,7 +842,7 @@ export default function FrenchOfferPanel() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Ejemplo: penales, nacimiento, Kbis..."
-                    className="mt-2 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                    className="mt-2 w-full rounded-2xl border border-cream px-3 py-2 text-sm"
                   />
                 </label>
 
@@ -854,16 +854,16 @@ export default function FrenchOfferPanel() {
                       onClick={() => setSelectedDocId(doc.id)}
                       className={`w-full rounded-2xl border px-3 py-2 text-left text-sm ${
                         selectedDoc.id === doc.id
-                          ? "border-emerald-400 bg-emerald-50 text-slate-900"
-                          : "border-slate-200 bg-white text-slate-700"
+                          ? "border-bleu bg-cream text-encre"
+                          : "border-cream bg-white text-sepia"
                       }`}
                     >
                       {doc.label}
                       {doc.pricing === "per-word" && (
-                        <span className="ml-2 text-[11px] text-emerald-600">(por palabra)</span>
+                        <span className="ml-2 text-[11px] text-bleu">(por palabra)</span>
                       )}
                       {doc.pricing === "per-page" && (
-                        <span className="ml-2 text-[11px] text-emerald-600">(por pagina)</span>
+                        <span className="ml-2 text-[11px] text-bleu">(por pagina)</span>
                       )}
                     </button>
                   ))}
@@ -871,14 +871,14 @@ export default function FrenchOfferPanel() {
 
                 {selectedDoc.pricing === "per-page" && (
                   <label className="mt-3 flex max-w-[220px] flex-col gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Paginas</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-sepia">Paginas</span>
                     <input
                       type="number"
                       min={1}
                       max={120}
                       value={pages}
                       onChange={(e) => setPages(Number(e.target.value) || 1)}
-                      className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                      className="rounded-2xl border border-cream px-3 py-2 text-sm"
                     />
                   </label>
                 )}
@@ -886,39 +886,39 @@ export default function FrenchOfferPanel() {
                 {selectedDoc.pricing === "per-word" && (
                   <div className="mt-3 space-y-3">
                     <label className="flex max-w-[280px] flex-col gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Adjuntar PDF (extractor)</span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-sepia">Adjuntar PDF (extractor)</span>
                       <input
                         type="file"
                         accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
                         onChange={(e) => setFileUpload(e.target.files?.[0] || null)}
-                        className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700"
+                        className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-cream file:px-3 file:py-2 file:text-xs file:font-semibold file:text-sepia"
                       />
                     </label>
                     <button
                       type="button"
                       onClick={extractWordsFromFile}
                       disabled={extractingWords}
-                      className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                      className="rounded-2xl border border-cream px-4 py-2 text-sm font-semibold text-sepia hover:bg-cream disabled:opacity-60"
                     >
                       {extractingWords ? "Extrayendo palabras..." : "Extraer palabras del documento"}
                     </button>
                     <label className="flex max-w-[220px] flex-col gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Palabras (manual)</span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-sepia">Palabras (manual)</span>
                       <input
                         type="number"
                         min={1}
                         max={200000}
                         value={words}
                         onChange={(e) => setWords(Number(e.target.value) || 1)}
-                        className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                        className="rounded-2xl border border-cream px-3 py-2 text-sm"
                       />
                     </label>
                   </div>
                 )}
 
                 {selectedDoc.pricing !== "per-word" && (
-                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <div className="mt-3 rounded-2xl border border-cream bg-parchment p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-sepia">
                       Adjuntar tu documento (recomendado)
                     </p>
                     <input
@@ -926,40 +926,40 @@ export default function FrenchOfferPanel() {
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png"
                       onChange={(e) => setPresetAttachment(e.target.files?.[0] || null)}
-                      className="mt-2 block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700"
+                      className="mt-2 block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-semibold file:text-sepia"
                     />
-                    <p className="mt-2 text-[11px] text-slate-500">
+                    <p className="mt-2 text-[11px] text-graphite">
                       Si no lo adjuntas aquí, te lo pediremos en el paso 2 para poder continuar al checkout.
                     </p>
                   </div>
                 )}
 
-                <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Precio estimado</p>
-                  <p className="mt-1 text-xl font-bold text-emerald-700">{money(previewPrice)}</p>
-                  <p className="text-xs text-slate-600">{previewDetail}</p>
-                  <p className="text-xs text-slate-600">Plazo: {selectedDoc.deadline}</p>
+                <div className="mt-4 rounded-2xl border border-cream bg-cream p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-sepia">Precio estimado</p>
+                  <p className="mt-1 text-xl font-bold text-bleu">{money(previewPrice)}</p>
+                  <p className="text-xs text-sepia">{previewDetail}</p>
+                  <p className="text-xs text-sepia">Plazo: {selectedDoc.deadline}</p>
                 </div>
 
                 <button
                   type="button"
                   onClick={addToCart}
-                  className="mt-4 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  className="mt-4 rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark"
                 >
                   Añadir a la cesta
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Vista previa documento</p>
-                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+              <div className="rounded-2xl border border-cream bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sepia">Vista previa documento</p>
+                <div className="mt-2 overflow-hidden rounded-xl border border-cream bg-cream">
                   <object
                     data={selectedDoc.samplePdf}
                     type="application/pdf"
                     className="h-[220px] w-full"
                     aria-label="Vista previa PDF"
                   >
-                    <div className="flex h-[220px] items-center justify-center text-xs text-slate-500">
+                    <div className="flex h-[220px] items-center justify-center text-xs text-graphite">
                       Vista previa no disponible
                     </div>
                   </object>
@@ -968,22 +968,22 @@ export default function FrenchOfferPanel() {
                   href={selectedDoc.samplePdf}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
+                  className="mt-2 inline-block text-xs font-semibold text-bleu hover:underline"
                 >
                   Ver ejemplo en nueva pestaña
                 </a>
 
-                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                <div className="mt-4 rounded-2xl border border-cream bg-cream p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
                     Bot de confianza
                   </p>
-                  <p className="mt-1 text-xs text-slate-600">Respuestas en vivo según el documento seleccionado.</p>
-                  <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-emerald-100 bg-white p-2">
+                  <p className="mt-1 text-xs text-sepia">Respuestas en vivo según el documento seleccionado.</p>
+                  <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-cream bg-white p-2">
                     {botHistory.map((msg, idx) => (
                       <p
                         key={`${msg.from}-${idx}`}
                         className={`text-xs ${
-                          msg.from === "bot" ? "text-slate-700" : "text-emerald-700 font-semibold text-right"
+                          msg.from === "bot" ? "text-sepia" : "text-bleu font-semibold text-right"
                         }`}
                       >
                         {msg.text}
@@ -996,7 +996,7 @@ export default function FrenchOfferPanel() {
                         key={item.q}
                         type="button"
                         onClick={() => askBot(item.q, item.a)}
-                        className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
+                        className="rounded-full border border-cream bg-white px-2.5 py-1 text-[11px] font-semibold text-sepia"
                       >
                         {item.q}
                       </button>
@@ -1004,7 +1004,7 @@ export default function FrenchOfferPanel() {
                   </div>
                   <Link
                     href="/preguntas-frecuentes"
-                    className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline"
+                    className="mt-2 inline-block text-xs font-semibold text-bleu hover:underline"
                   >
                     Ver FAQ completa
                   </Link>
@@ -1012,17 +1012,17 @@ export default function FrenchOfferPanel() {
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-sm font-semibold text-slate-900">
+            <div className="rounded-2xl border border-cream bg-white p-4">
+              <p className="text-sm font-semibold text-encre">
                 Sube tu documento y calculamos el precio por palabras
               </p>
-              <p className="mt-1 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-sepia">
                 Tarifa: {money(WORD_PRICE_FR)}/palabra. Válido para cualquier documento en francés.
               </p>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-sepia">
                     Adjuntar documento (PDF, JPG o PNG)
                   </span>
                   <input
@@ -1032,11 +1032,11 @@ export default function FrenchOfferPanel() {
                       setFileUpload(e.target.files?.[0] || null);
                       setFilePrice(null);
                     }}
-                    className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700"
+                    className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-cream file:px-3 file:py-2 file:text-xs file:font-semibold file:text-sepia"
                   />
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-sepia">
                     O introduce palabras manualmente
                   </span>
                   <input
@@ -1049,7 +1049,7 @@ export default function FrenchOfferPanel() {
                       setWords(w);
                       setFilePrice(Math.round(w * WORD_PRICE_FR * 1.1));
                     }}
-                    className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                    className="rounded-2xl border border-cream px-3 py-2 text-sm"
                   />
                 </label>
               </div>
@@ -1059,24 +1059,24 @@ export default function FrenchOfferPanel() {
                   type="button"
                   onClick={extractWordsFromFile}
                   disabled={extractingWords || !fileUpload}
-                  className="rounded-2xl bg-gradient-to-r from-emerald-600 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                  className="rounded-2xl bg-bleu px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {extractingWords ? "Extrayendo palabras..." : "Extraer palabras del documento"}
                 </button>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Precio estimado</p>
+              <div className="mt-4 rounded-2xl border border-cream bg-cream p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sepia">Precio estimado</p>
                 {filePrice != null ? (
                   <>
-                    <p className="mt-1 text-xl font-bold text-emerald-700">{money(filePrice)}</p>
-                    <p className="text-xs text-slate-600">
+                    <p className="mt-1 text-xl font-bold text-bleu">{money(filePrice)}</p>
+                    <p className="text-xs text-sepia">
                       Precio orientativo basado en {words} palabras.
                     </p>
-                    <p className="text-xs text-slate-600">Plazo: segun volumen.</p>
+                    <p className="text-xs text-sepia">Plazo: segun volumen.</p>
                   </>
                 ) : (
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-sepia">
                     Sube un documento o introduce las palabras para ver el precio.
                   </p>
                 )}
@@ -1086,7 +1086,7 @@ export default function FrenchOfferPanel() {
                 <button
                   type="button"
                   onClick={addFileDocToCart}
-                  className="mt-4 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  className="mt-4 rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark"
                 >
                   Añadir a la cesta
                 </button>
@@ -1097,15 +1097,15 @@ export default function FrenchOfferPanel() {
       )}
 
       {step === 2 && (
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="mt-5 rounded-2xl border border-cream bg-white p-4">
           {cart.length === 0 ? (
-            <p className="text-sm text-slate-700">La cesta esta vacia. Añade un documento en el paso 1.</p>
+            <p className="text-sm text-sepia">La cesta esta vacia. Añade un documento en el paso 1.</p>
           ) : (
             <>
               <div
                 className={`mb-4 rounded-xl border px-3 py-2 text-sm ${
                   uploadReady
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    ? "border-cream bg-cream text-bleu"
                     : "border-amber-200 bg-amber-50 text-amber-800"
                 }`}
               >
@@ -1116,13 +1116,13 @@ export default function FrenchOfferPanel() {
 
               <div className="space-y-3">
                 {cart.map((item) => (
-                  <div key={item.uid} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3">
+                  <div key={item.uid} className="flex items-start justify-between gap-3 rounded-xl border border-cream p-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{item.label}</p>
-                      <p className="text-xs text-slate-600">{item.detail}</p>
-                      <p className="text-xs text-slate-600">Plazo: {item.deadline}</p>
+                      <p className="text-sm font-semibold text-encre">{item.label}</p>
+                      <p className="text-xs text-sepia">{item.detail}</p>
+                      <p className="text-xs text-sepia">Plazo: {item.deadline}</p>
                       {cartFiles[item.uid] ? (
-                        <p className="text-xs font-semibold text-emerald-700">
+                        <p className="text-xs font-semibold text-bleu">
                           Original listo: {cartFiles[item.uid].name}
                         </p>
                       ) : (
@@ -1135,17 +1135,17 @@ export default function FrenchOfferPanel() {
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
                             onChange={(e) => attachFileToCartItem(item.uid, e.target.files?.[0] || null)}
-                            className="mt-1 block w-full text-[11px] file:mr-2 file:rounded-lg file:border-0 file:bg-white file:px-2 file:py-1.5 file:text-[11px] file:font-semibold file:text-slate-700"
+                            className="mt-1 block w-full text-[11px] file:mr-2 file:rounded-lg file:border-0 file:bg-white file:px-2 file:py-1.5 file:text-[11px] file:font-semibold file:text-sepia"
                           />
                         </div>
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-emerald-700">{money(item.price)}</p>
+                      <p className="text-sm font-semibold text-bleu">{money(item.price)}</p>
                       <button
                         type="button"
                         onClick={() => removeItem(item.uid)}
-                        className="mt-1 text-xs font-semibold text-slate-500 hover:text-slate-700"
+                        className="mt-1 text-xs font-semibold text-graphite hover:text-sepia"
                       >
                         Quitar
                       </button>
@@ -1154,9 +1154,9 @@ export default function FrenchOfferPanel() {
                 ))}
               </div>
 
-              <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Subtotal</p>
-                <p className="text-xl font-bold text-emerald-700">{money(cartTotal)}</p>
+              <div className="mt-4 rounded-xl border border-cream bg-cream p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sepia">Subtotal</p>
+                <p className="text-xl font-bold text-bleu">{money(cartTotal)}</p>
               </div>
               {uploadReady && (
                 <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
@@ -1175,7 +1175,7 @@ export default function FrenchOfferPanel() {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+              className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream"
             >
               Añadir otro documento
             </button>
@@ -1192,19 +1192,19 @@ export default function FrenchOfferPanel() {
       )}
 
       {step === 3 && (
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-700">
+        <div className="mt-5 rounded-2xl border border-cream bg-white p-4">
+          <p className="text-sm text-sepia">
             Pedido preparado en dirección{" "}
             <span className="font-semibold">{direction === "fr-es" ? "Frances a Espanol" : "Espanol a Frances"}</span>.
           </p>
-          <p className="mt-1 text-xl font-bold text-emerald-700">{money(cartTotal)}</p>
-          <ul className="mt-2 list-disc pl-5 text-xs text-slate-700">
+          <p className="mt-1 text-xl font-bold text-bleu">{money(cartTotal)}</p>
+          <ul className="mt-2 list-disc pl-5 text-xs text-sepia">
             {cart.map((item) => (
               <li key={item.uid}>{item.label}</li>
             ))}
           </ul>
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <div className="mt-3 rounded-2xl border border-cream bg-parchment p-3">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-sepia">
               Email de contacto (obligatorio)
             </label>
             <input
@@ -1212,24 +1212,24 @@ export default function FrenchOfferPanel() {
               value={guestEmail}
               onChange={(e) => setGuestEmail(e.target.value)}
               placeholder="tu@email.com"
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+              className="mt-2 w-full rounded-xl border border-cream bg-white px-3 py-2 text-sm text-encre"
             />
-            <p className="mt-1 text-[11px] text-slate-500">
+            <p className="mt-1 text-[11px] text-graphite">
               Usaremos este email para confirmaciones y para recuperar tu pedido.
             </p>
           </div>
 
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <div className="mt-3 rounded-2xl border border-cream bg-parchment p-3">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-sepia">
               Observaciones urgencia
             </label>
             <textarea
               value={urgencyNotes}
               onChange={(e) => setUrgencyNotes(e.target.value)}
               placeholder="Ejemplo: necesito entrega antes del viernes por cita administrativa."
-              className="mt-2 h-20 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+              className="mt-2 h-20 w-full rounded-xl border border-cream bg-white px-3 py-2 text-sm text-encre"
             />
-            <p className="mt-1 text-[11px] text-slate-500">
+            <p className="mt-1 text-[11px] text-graphite">
               En francés estándar (rama A) el ETA base es de 2 días laborables sin contar el día del pago.
             </p>
           </div>
@@ -1248,7 +1248,7 @@ export default function FrenchOfferPanel() {
               type="button"
               onClick={handleGuestCheckout}
               disabled={checkoutLoading || cart.length === 0 || !uploadReady || !guestEmailValid}
-              className="mt-3 rounded-2xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+              className="mt-3 rounded-2xl bg-bleu-dark px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark disabled:opacity-60"
             >
               {checkoutLoading ? "Enviando..." : "Enviar a revisión interna"}
             </button>
@@ -1259,26 +1259,26 @@ export default function FrenchOfferPanel() {
               type="button"
               onClick={handleGoogleCheckout}
               disabled={checkoutLoading || googleRedirecting || !uploadReady || !guestEmailValid}
-              className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+              className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream"
             >
               {googleRedirecting ? "Abriendo Google..." : "Continuar con Google y seguir al checkout"}
             </button>
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+              className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream"
             >
               Volver a cesta
             </button>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-graphite">
             Si eliges Google, guardamos el progreso y te devolvemos al checkout correcto.
           </p>
         </div>
       )}
 
       {error && <p className="mt-3 text-sm font-semibold text-red-700">{error}</p>}
-      {notice && <p className="mt-3 text-sm font-semibold text-emerald-700">{notice}</p>}
+      {notice && <p className="mt-3 text-sm font-semibold text-bleu">{notice}</p>}
     </section>
   );
 }

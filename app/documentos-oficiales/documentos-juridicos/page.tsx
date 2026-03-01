@@ -15,13 +15,13 @@ export default function DocumentosJuridicosPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Documentos jurídicos
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada de documentos jurídicos
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           Traducimos de forma jurada{" "}
           <strong>sentencias, capitulaciones matrimoniales, herencias, testamentos, poderes notariales y otras resoluciones judiciales</strong>{" "}
           emitidas en el extranjero para que puedan utilizarse ante tribunales, notarías,
@@ -30,8 +30,8 @@ export default function DocumentosJuridicosPage() {
       </header>
 
       {/* TIPOS DE DOCUMENTOS */}
-      <section className="mt-8 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-8 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Principales documentos jurídicos que traducimos
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -74,8 +74,8 @@ export default function DocumentosJuridicosPage() {
       </section>
 
       {/* COMPRAVENTA DE INMUEBLES Y NOTARÍAS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Documentos jurídicos en compraventa de inmuebles en España
         </h2>
         <p>
@@ -111,8 +111,8 @@ export default function DocumentosJuridicosPage() {
       </section>
 
       {/* HERENCIAS Y SUCESIONES */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Herencias y sucesiones con documentos extranjeros
         </h2>
         <p>
@@ -143,8 +143,8 @@ export default function DocumentosJuridicosPage() {
       </section>
 
       {/* ENFOQUE MARRUECOS / FRANCÓFONOS */}
-      <section className="mt-10 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 rounded-2xl border border-cream bg-parchment p-5 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Documentos jurídicos de Marruecos y países francófonos
         </h2>
         <p>
@@ -172,17 +172,17 @@ export default function DocumentosJuridicosPage() {
             notariales marroquíes.
           </li>
         </ul>
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-sepia">
           Si trabajas con documentación marroquí de forma habitual, puedes ver un resumen más amplio en{" "}
           <Link
             href="/marruecos"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             documentos marroquíes para España
           </Link>
           .
         </p>
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-sepia">
           Es frecuente que estos documentos deban llevar Apostilla de La Haya o
           legalización antes de la traducción jurada. Conviene confirmarlo con
           la notaría, el juzgado o el consulado correspondiente.
@@ -190,8 +190,8 @@ export default function DocumentosJuridicosPage() {
       </section>
 
       {/* RELACIÓN CON OTRAS PÁGINAS */}
-      <section className="mt-10 space-y-3 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-3 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Relación con otros documentos oficiales
         </h2>
         <p>
@@ -202,7 +202,7 @@ export default function DocumentosJuridicosPage() {
           <li>
             <Link
               href="/documentos-oficiales/certificados-registro-civil"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Certificados del Registro Civil
             </Link>{" "}
@@ -211,7 +211,7 @@ export default function DocumentosJuridicosPage() {
           <li>
             <Link
               href="/documentos-oficiales/certificado-de-nacimiento"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Certificados de nacimiento
             </Link>{" "}
@@ -220,7 +220,7 @@ export default function DocumentosJuridicosPage() {
           <li>
             <Link
               href="/documentos-oficiales/antecedentes-penales"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Certificados de antecedentes penales
             </Link>{" "}
@@ -229,7 +229,7 @@ export default function DocumentosJuridicosPage() {
           <li>
             <Link
               href="/documentos-oficiales/documentos-mercantiles"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Documentos mercantiles y empresariales
             </Link>{" "}
@@ -240,8 +240,8 @@ export default function DocumentosJuridicosPage() {
       </section>
 
       {/* CÓMO ENVIAR DOCUMENTOS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Cómo enviarnos tus documentos jurídicos para traducir?
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -262,7 +262,7 @@ export default function DocumentosJuridicosPage() {
           Aquí puedes ver en detalle{" "}
           <Link
             href="/proceso"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             cómo funciona nuestro proceso de trabajo
           </Link>{" "}
@@ -275,11 +275,11 @@ export default function DocumentosJuridicosPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-12 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Necesitas traducir una sentencia, unas capitulaciones o un poder?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Envíanos tus documentos jurídicos en PDF o como fotos legibles y te
           responderemos con un presupuesto cerrado y un plazo aproximado de
           entrega. Trabajamos a diario con notarías, despachos de abogados y
@@ -288,13 +288,13 @@ export default function DocumentosJuridicosPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Solicitar presupuesto
           </Link>
           <a
             href="mailto:hola@traduccionesjuradas.net?subject=Documentos%20jur%C3%ADdicos%20-%20Presupuesto"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O enviar documentos por email
           </a>

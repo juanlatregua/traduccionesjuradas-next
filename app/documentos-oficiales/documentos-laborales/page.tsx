@@ -15,13 +15,13 @@ export default function DocumentosLaboralesPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Documentos laborales
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada de documentos laborales
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           Realizamos <strong>traducciones juradas de contratos de trabajo, nóminas,
           certificados de empresa, documentos de Seguridad Social y otros
           documentos laborales extranjeros</strong> necesarios para extranjería, visados, procesos de
@@ -31,10 +31,10 @@ export default function DocumentosLaboralesPage() {
       </header>
 
       {/* CONTENIDO */}
-      <section className="mt-8 space-y-10 text-sm text-slate-700">
+      <section className="mt-8 space-y-10 text-sm text-sepia">
         {/* Contratos */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Contratos de trabajo y documentación asociada
           </h2>
           <ul className="mt-2 list-disc pl-5 space-y-1">
@@ -51,7 +51,7 @@ export default function DocumentosLaboralesPage() {
 
         {/* Nóminas */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Nóminas y justificantes de ingresos
           </h2>
           <p className="mt-2">
@@ -72,7 +72,7 @@ export default function DocumentosLaboralesPage() {
 
         {/* Certificados de empresa */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Certificados de empresa y experiencia profesional
           </h2>
           <p className="mt-2">
@@ -90,7 +90,7 @@ export default function DocumentosLaboralesPage() {
 
         {/* Vida laboral extranjera */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Vida laboral extranjera y documentos de Seguridad Social
           </h2>
           <p className="mt-2">
@@ -107,7 +107,7 @@ export default function DocumentosLaboralesPage() {
 
         {/* Finalización de relación laboral */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Finiquitos, despidos y documentación de finalización
           </h2>
           <ul className="mt-2 list-disc pl-5 space-y-1">
@@ -124,7 +124,7 @@ export default function DocumentosLaboralesPage() {
 
         {/* Teletrabajo y paquetes completos */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Paquetes completos de documentación para teletrabajo en España
           </h2>
           <p className="mt-2">
@@ -139,7 +139,7 @@ export default function DocumentosLaboralesPage() {
             Puedes ampliar información específica sobre este tipo de expedientes en{" "}
             <Link
               href="/teletrabajo"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               traducciones juradas para teletrabajar en España
             </Link>
@@ -165,7 +165,7 @@ export default function DocumentosLaboralesPage() {
               <strong>Certificados del Registro Mercantil</strong> o equivalente
               en el país de origen de la empresa (<Link
                 href="/documentos-oficiales/documentos-mercantiles"
-                className="text-emerald-700 hover:underline"
+                className="text-bleu hover:underline"
               >
                 ver documentos mercantiles
               </Link>
@@ -188,7 +188,7 @@ export default function DocumentosLaboralesPage() {
               documentos de la unidad familiar{" "}
               (<Link
                 href="/documentos-oficiales/certificados-registro-civil"
-                className="text-emerald-700 hover:underline"
+                className="text-bleu hover:underline"
               >
                 certificados del Registro Civil
               </Link>
@@ -199,7 +199,7 @@ export default function DocumentosLaboralesPage() {
               documentos personales exigidos por extranjería{" "}
               (<Link
                 href="/documentos-oficiales/antecedentes-penales"
-                className="text-emerald-700 hover:underline"
+                className="text-bleu hover:underline"
               >
                 ver antecedentes penales
               </Link>
@@ -219,18 +219,18 @@ export default function DocumentosLaboralesPage() {
       </section>
 
       {/* CTA */}
-      <section className="mt-10 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-10 rounded-2xl border border-cream bg-cream/70 p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Necesitas traducir documentación laboral o un paquete completo para teletrabajo?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Puedes enviarnos tu contrato, nóminas, certificados de empresa o todo
           el paquete de documentos que te ha solicitado extranjería (medios
           económicos, certificados mercantiles, antecedentes penales, estatutos,
           etc.) y te prepararemos un presupuesto ajustado. Si quieres ver el flujo completo de trabajo, puedes consultar{" "}
           <Link
             href="/proceso"
-            className="font-semibold text-emerald-800 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             cómo funciona nuestro proceso
           </Link>
@@ -240,13 +240,13 @@ export default function DocumentosLaboralesPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Solicitar presupuesto
           </Link>
           <a
             href="mailto:hola@traduccionesjuradas.net?subject=Presupuesto%20documentos%20laborales%20y%20teletrabajo"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             Enviar documentación por email
           </a>

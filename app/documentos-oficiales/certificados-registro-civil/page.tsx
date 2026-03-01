@@ -61,24 +61,24 @@ export default function CertificadosRegistroCivilPage() {
       />
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Certificados del Registro Civil
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada de certificados del Registro Civil
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           El Registro Civil emite los certificados básicos de la vida de una
           persona: nacimiento, matrimonio, defunción, cambios de nombre, etc.
           Traducimos estos certificados de forma jurada para que puedan
           utilizarse en trámites de extranjería, nacionalidad, matrimonio,
           herencias y muchos otros procedimientos en España y en el extranjero.
         </p>
-        <p className="mt-2 text-xs text-slate-600">
+        <p className="mt-2 text-xs text-sepia">
           Si tu certificado está en francés, puedes revisar también el{" "}
           <Link
             href="/traductor-jurado-frances"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             servicio oficial de francés
           </Link>
@@ -87,8 +87,8 @@ export default function CertificadosRegistroCivilPage() {
       </header>
 
       {/* TIPOS DE CERTIFICADOS */}
-      <section className="mt-8 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-8 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Principales certificados del Registro Civil que suelen requerir traducción
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -126,11 +126,11 @@ export default function CertificadosRegistroCivilPage() {
       </section>
 
       {/* TARIFAS Y ENVÍO RÁPIDO */}
-      <section className="mt-10 space-y-3 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-3 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Tarifas orientativas y envío directo
         </h2>
-        <p className="text-slate-600">
+        <p className="text-sepia">
           Precios para certificados del Registro Civil (nacimiento, matrimonio, defunción, fe de vida…).
           Incluyen firma y sello de traductor jurado; confirmamos importe exacto al revisar el documento.
         </p>
@@ -138,8 +138,8 @@ export default function CertificadosRegistroCivilPage() {
       </section>
 
       {/* ENLACES A PÁGINAS ESPECÍFICAS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Páginas específicas por tipo de certificado
         </h2>
         <p>
@@ -150,7 +150,7 @@ export default function CertificadosRegistroCivilPage() {
           <li>
             <Link
               href="/documentos-oficiales/certificado-de-nacimiento"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Traducción jurada de certificado de nacimiento
             </Link>
@@ -159,7 +159,7 @@ export default function CertificadosRegistroCivilPage() {
           {/* <li>
             <Link
               href="/documentos-oficiales/certificado-de-matrimonio"
-              className="font-semibold text-emerald-700 hover:underline"
+              className="font-semibold text-bleu hover:underline"
             >
               Certificado de matrimonio
             </Link>
@@ -168,8 +168,8 @@ export default function CertificadosRegistroCivilPage() {
       </section>
 
       {/* DIFERENCIAS POR PAÍS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Certificados de Registro Civil extranjeros: países francófonos y Marruecos
         </h2>
         <p>
@@ -178,8 +178,8 @@ export default function CertificadosRegistroCivilPage() {
           diferentes:
         </p>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-cream bg-parchment p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-encre">
             Marruecos y Francia
           </h3>
           <p>
@@ -201,8 +201,8 @@ export default function CertificadosRegistroCivilPage() {
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-cream bg-parchment p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-encre">
             Senegal, Costa de Marfil y otros países africanos francófonos
           </h3>
           <p>
@@ -227,8 +227,8 @@ export default function CertificadosRegistroCivilPage() {
       </section>
 
       {/* ONG Y MENORES */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Certificados del Registro Civil en proyectos de ONG y menores
         </h2>
         <p>
@@ -255,8 +255,8 @@ export default function CertificadosRegistroCivilPage() {
       </section>
 
       {/* CÓMO ENVIAR DOCUMENTOS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Cómo enviarnos tus certificados del Registro Civil?
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -280,11 +280,11 @@ export default function CertificadosRegistroCivilPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-12 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Necesitas traducir certificados del Registro Civil?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Envíanos tus certificados (nacimiento, matrimonio, defunción, fe de
           vida, soltería, etc.) en PDF o foto clara y te responderemos con un
           precio cerrado y un plazo estimado de entrega.
@@ -292,13 +292,13 @@ export default function CertificadosRegistroCivilPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Solicitar presupuesto
           </Link>
           <a
             href="mailto:hola@traduccionesjuradas.net?subject=Certificados%20del%20Registro%20Civil%20-%20Presupuesto"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O enviar directamente los documentos por email
           </a>

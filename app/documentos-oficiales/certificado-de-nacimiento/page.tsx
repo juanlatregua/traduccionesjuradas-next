@@ -20,13 +20,13 @@ export default function CertificadoNacimientoPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Certificado de nacimiento
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada de certificados de nacimiento
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           El certificado de nacimiento es uno de los documentos que más se
           solicita en trámites de <strong>extranjería, nacionalidad, matrimonio,
           reagrupación familiar, adopciones y procedimientos relacionados con
@@ -34,12 +34,12 @@ export default function CertificadoNacimientoPage() {
           aceptado por las autoridades españolas y, cuando corresponde, por
           otros países.
         </p>
-        <p className="mt-2 text-xs text-slate-600">
+        <p className="mt-2 text-xs text-sepia">
           Si necesitas información más general sobre tipos de certificados, puedes
           consultar también{" "}
           <Link
             href="/documentos-oficiales/certificados-registro-civil"
-            className="text-emerald-700 underline"
+            className="text-bleu underline"
           >
             certificados del Registro Civil
           </Link>
@@ -48,8 +48,8 @@ export default function CertificadoNacimientoPage() {
       </header>
 
       {/* USOS HABITUALES */}
-      <section className="mt-8 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-8 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Para qué trámites se pide la traducción del certificado de
           nacimiento?
         </h2>
@@ -69,7 +69,7 @@ export default function CertificadoNacimientoPage() {
           tienes dudas sobre la apostilla, puedes ampliar información en{" "}
           <Link
             href="/documentos-oficiales/apostilla-haya"
-            className="text-emerald-700 underline"
+            className="text-bleu underline"
           >
             Apostilla de la Haya
           </Link>
@@ -78,8 +78,8 @@ export default function CertificadoNacimientoPage() {
       </section>
 
       {/* PAISES Y APOSTILLA */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Diferencias por país: apostilla y requisitos habituales
         </h2>
         <p>
@@ -88,8 +88,8 @@ export default function CertificadoNacimientoPage() {
           apostilla no existe o no se aplica a este tipo de documentos.
         </p>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-cream bg-parchment p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-encre">
             Marruecos y Francia: certificados con apostilla
           </h3>
           <p>
@@ -109,13 +109,13 @@ export default function CertificadoNacimientoPage() {
               página de la apostilla.
             </li>
           </ul>
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-sepia">
             Si tu certificado forma parte de un expediente para trabajar a
             distancia desde España, puedes ver un resumen de la documentación
             habitual en{" "}
             <Link
               href="/teletrabajo/marruecos"
-              className="text-emerald-700 underline"
+              className="text-bleu underline"
             >
               documentos para teletrabajar en España (Marruecos)
             </Link>
@@ -123,8 +123,8 @@ export default function CertificadoNacimientoPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-cream bg-parchment p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-encre">
             Senegal, Costa de Marfil y otros países africanos francófonos
           </h3>
           <p>
@@ -146,7 +146,7 @@ export default function CertificadoNacimientoPage() {
           </p>
         </div>
 
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-sepia">
           Aunque podemos orientarte con nuestra experiencia, los requisitos
           formales (apostilla, legalización adicional, antigüedad del
           documento…) dependen siempre de la administración que tramita tu
@@ -155,8 +155,8 @@ export default function CertificadoNacimientoPage() {
       </section>
 
       {/* ONG Y MENORES PARA OPERACIONES EN ESPAÑA */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Certificados de nacimiento en proyectos de ONG y operaciones de
           menores en España
         </h2>
@@ -186,8 +186,8 @@ export default function CertificadoNacimientoPage() {
       </section>
 
       {/* FORMATO Y ENVÍO */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Cómo enviarnos tu certificado de nacimiento?
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -212,11 +212,11 @@ export default function CertificadoNacimientoPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-12 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Necesitas traducir tu certificado de nacimiento?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Envíanos tu certificado (y la apostilla, si la tiene) en PDF o foto
           clara y te responderemos con un{" "}
           <strong>precio cerrado y un plazo estimado de entrega</strong>. Si se
@@ -226,19 +226,19 @@ export default function CertificadoNacimientoPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Solicitar presupuesto
           </Link>
           <a
             href={mailLink}
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             Enviar directamente el documento por email
           </a>
           <a
             href={whatsappLink}
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O mandarlo por WhatsApp
           </a>

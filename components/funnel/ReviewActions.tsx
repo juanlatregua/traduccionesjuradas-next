@@ -55,7 +55,7 @@ export default function ReviewActions({ canProceed }: ReviewActionsProps) {
         type="button"
         onClick={addAnother}
         disabled={loadingAdd}
-        className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+        className="rounded-2xl border border-cream px-4 py-2 text-sm font-semibold text-sepia hover:bg-cream disabled:opacity-60"
       >
         {loadingAdd ? "Preparando..." : "Añadir otro documento"}
       </button>

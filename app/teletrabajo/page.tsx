@@ -16,20 +16,20 @@ export default function TeletrabajoMarruecosPage() {
     <main className="mx-auto max-w-5xl px-4 py-10 lg:py-12">
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Teletrabajo Marruecos → España
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Documentos necesarios para teletrabajar en España desde Marruecos
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           Si resides en <strong>Marruecos</strong> y quieres{" "}
           <strong>teletrabajar legalmente desde España</strong>, necesitarás
           presentar un expediente con varios documentos oficiales marroquíes,
           muchos de ellos con <strong>Apostilla de La Haya</strong> y{" "}
           <strong>traducción jurada al español</strong>.
         </p>
-        <p className="mt-2 text-sm text-slate-700 sm:text-base">
+        <p className="mt-2 text-sm text-sepia sm:text-base">
           En <strong>traduccionesjuradas.net</strong> ayudamos cada día a
           trabajadores, familias y empresas marroquíes a preparar la
           documentación necesaria para visados, autorizaciones de residencia y
@@ -41,19 +41,19 @@ export default function TeletrabajoMarruecosPage() {
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <a
             href={MAIL_LINK}
-            className="rounded-2xl bg-emerald-600 px-5 py-2 font-semibold text-white shadow-sm hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 font-semibold text-white shadow-sm hover:bg-bleu-dark"
           >
             Pedir presupuesto para mi paquete de documentos
           </a>
           <a
             href={WHATSAPP_LINK}
-            className="rounded-2xl border border-slate-300 px-4 py-2 font-medium text-slate-800 hover:bg-slate-100"
+            className="rounded-2xl border border-cream px-4 py-2 font-medium text-encre hover:bg-cream"
           >
             Enviar documentos por WhatsApp
           </a>
           <Link
             href="/presupuesto"
-            className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O rellenar el formulario de presupuesto
           </Link>
@@ -62,21 +62,21 @@ export default function TeletrabajoMarruecosPage() {
 
       {/* SECCIÓN 2: DOCUMENTOS QUE DEBEN TRADUCIRSE */}
       <section className="mt-12">
-        <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+        <h2 className="text-xl font-semibold text-encre sm:text-2xl">
           Documentos que suelen exigir para teletrabajar en España desde
           Marruecos
         </h2>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-sepia">
           Cada consulado, gestoría o despacho de extranjería puede pedir una
           combinación distinta, pero en la práctica vemos casi siempre{" "}
           <strong>el mismo paquete de documentos</strong>. Los más habituales
           son:
         </p>
 
-        <div className="mt-6 space-y-6 text-sm text-slate-700">
+        <div className="mt-6 space-y-6 text-sm text-sepia">
           {/* PERSONALES Y FAMILIA */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
+            <h3 className="text-base font-semibold text-encre">
               1. Documentación personal y familiar
             </h3>
             <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -94,11 +94,11 @@ export default function TeletrabajoMarruecosPage() {
               </li>
               <li>Pasaporte marroquí (páginas relevantes).</li>
             </ul>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-sepia">
               Estos documentos suelen encajar dentro de los{" "}
               <Link
                 href="/documentos-oficiales/certificados-registro-civil"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
               >
                 certificados del Registro Civil
               </Link>
@@ -107,8 +107,8 @@ export default function TeletrabajoMarruecosPage() {
           </div>
 
           {/* ANTECEDENTES */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
+            <h3 className="text-base font-semibold text-encre">
               2. Antecedentes penales y buena conducta
             </h3>
             <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -122,11 +122,11 @@ export default function TeletrabajoMarruecosPage() {
                 policiales adicionales.
               </li>
             </ul>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-sepia">
               Encontrarás más información general en la sección de{" "}
               <Link
                 href="/documentos-oficiales/antecedentes-penales"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
               >
                 antecedentes penales y buena conducta
               </Link>
@@ -135,8 +135,8 @@ export default function TeletrabajoMarruecosPage() {
           </div>
 
           {/* MEDIOS ECONÓMICOS Y TRABAJO */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
+            <h3 className="text-base font-semibold text-encre">
               3. Medios económicos y situación laboral
             </h3>
             <p className="mt-2">
@@ -171,18 +171,18 @@ export default function TeletrabajoMarruecosPage() {
                 prefieren en español).
               </li>
             </ul>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-sepia">
               Estos documentos se incluyen dentro de los{" "}
               <Link
                 href="/documentos-oficiales/documentos-laborales"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
               >
                 documentos laborales
               </Link>{" "}
               y, en parte, de los{" "}
               <Link
                 href="/documentos-oficiales/documentos-fiscales"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
               >
                 documentos fiscales
               </Link>
@@ -191,8 +191,8 @@ export default function TeletrabajoMarruecosPage() {
           </div>
 
           {/* DOCUMENTOS EMPRESA */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
+            <h3 className="text-base font-semibold text-encre">
               4. Documentación de la empresa en Marruecos
             </h3>
             <p className="mt-2">
@@ -218,11 +218,11 @@ export default function TeletrabajoMarruecosPage() {
                 sociales, si se requieren.
               </li>
             </ul>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-sepia">
               Toda esta documentación se considera{" "}
               <Link
                 href="/documentos-oficiales/documentos-mercantiles"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
               >
                 documentos mercantiles y empresariales
               </Link>
@@ -231,8 +231,8 @@ export default function TeletrabajoMarruecosPage() {
           </div>
 
           {/* DOCUMENTOS MIGRATORIOS */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
+            <h3 className="text-base font-semibold text-encre">
               5. Formularios y documentos migratorios
             </h3>
             <p className="mt-2">
@@ -250,11 +250,11 @@ export default function TeletrabajoMarruecosPage() {
               </li>
               <li>En ocasiones, seguros médicos u otros anexos.</li>
             </ul>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-sepia">
               Todo esto se enmarca dentro de los{" "}
               <Link
                 href="/documentos-oficiales/documentos-migratorios"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
               >
                 documentos migratorios
               </Link>
@@ -265,20 +265,20 @@ export default function TeletrabajoMarruecosPage() {
       </section>
 
       {/* APOSTILLA */}
-      <section className="mt-12 rounded-3xl border border-slate-200 bg-slate-50 p-6">
-        <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+      <section className="mt-12 rounded-3xl border border-cream bg-parchment p-6">
+        <h2 className="text-lg font-semibold text-encre sm:text-xl">
           ¿Qué documentos marroquíes necesitan Apostilla de La Haya?
         </h2>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-sepia">
           En la mayoría de expedientes, la regla general es que{" "}
           <strong>primero se legaliza el documento</strong> (con Apostilla de
           La Haya o el sistema que corresponda) y{" "}
           <strong>después se hace la traducción jurada</strong>.
         </p>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-sepia">
           Suelen requerir apostilla, entre otros:
         </p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-sepia">
           <li>Certificados de nacimiento y matrimonio.</li>
           <li>Certificados de antecedentes penales.</li>
           <li>Documentos notariales.</li>
@@ -287,16 +287,16 @@ export default function TeletrabajoMarruecosPage() {
             certificados oficiales.
           </li>
         </ul>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-sepia">
           En cambio, los documentos privados de empresa (nóminas, contratos,
           autorizaciones de teletrabajo) normalmente{" "}
           <strong>no se apostillan</strong>.
         </p>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-sepia">
           Para una explicación más general puedes consultar{" "}
           <Link
             href="/documentos-oficiales/apostilla-haya"
-            className="text-emerald-700 underline"
+            className="text-bleu underline"
           >
             nuestra página sobre la Apostilla de La Haya
           </Link>
@@ -306,35 +306,35 @@ export default function TeletrabajoMarruecosPage() {
 
       {/* CÓMO TRABAJAMOS CON CLIENTES DE MARRUECOS */}
       <section className="mt-12">
-        <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+        <h2 className="text-xl font-semibold text-encre sm:text-2xl">
           Cómo trabajamos con clientes de Marruecos
         </h2>
         <div className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-card p-4">
+            <h3 className="text-sm font-semibold text-encre">
               1. Envío digital de documentos
             </h3>
-            <p className="mt-1 text-slate-700">
+            <p className="mt-1 text-sepia">
               Puedes enviarnos <strong>fotos claras o escaneos</strong> por
               email o WhatsApp. No necesitas desplazarte a España para pedir
               presupuesto.
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-card p-4">
+            <h3 className="text-sm font-semibold text-encre">
               2. Especialistas en documentación marroquí
             </h3>
-            <p className="mt-1 text-slate-700">
+            <p className="mt-1 text-sepia">
               Trabajamos a diario con documentos en{" "}
               <strong>francés y árabe de Marruecos</strong>. Entregamos
               traducciones juradas al español listas para presentar en España.
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-slate-900">
+          <div className="rounded-2xl border border-cream bg-card p-4">
+            <h3 className="text-sm font-semibold text-encre">
               3. Entrega en PDF firmado y, si hace falta, en papel
             </h3>
-            <p className="mt-1 text-slate-700">
+            <p className="mt-1 text-sepia">
               Recibirás la traducción en{" "}
               <strong>PDF firmado digitalmente</strong>. Si tu gestoría o
               consulado lo exige, también podemos organizar{" "}
@@ -345,14 +345,14 @@ export default function TeletrabajoMarruecosPage() {
       </section>
 
       {/* CHECKLIST + CTA FINAL */}
-      <section className="mt-12 rounded-3xl border border-emerald-100 bg-emerald-50/70 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-3xl border border-cream bg-cream/70 p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           Checklist rápida antes de pedir presupuesto
         </h2>
-        <p className="mt-2 text-slate-800">
+        <p className="mt-2 text-encre">
           Para poder darte un presupuesto ajustado, intenta tener preparados:
         </p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-800">
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-encre">
           <li>
             Copia de tus <strong>documentos de identidad</strong> (y de tu
             familia, si los incluyes en el expediente).
@@ -382,19 +382,19 @@ export default function TeletrabajoMarruecosPage() {
         <div className="mt-4 flex flex-wrap gap-3">
           <a
             href={MAIL_LINK}
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Enviar mi paquete de documentos por email
           </a>
           <a
             href={WHATSAPP_LINK}
-            className="rounded-2xl border border-emerald-400 px-4 py-2 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
+            className="rounded-2xl border border-bleu px-4 py-2 text-xs font-medium text-bleu hover:bg-cream"
           >
             Enviar fotos por WhatsApp
           </a>
           <Link
             href="/presupuesto"
-            className="text-xs font-medium text-emerald-900 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O rellenar el formulario de presupuesto
           </Link>

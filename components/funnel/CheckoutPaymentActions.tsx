@@ -62,16 +62,16 @@ export default function CheckoutPaymentActions({
   };
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-      <h2 className="text-lg font-semibold text-slate-900">Paso 4. Pago</h2>
-      <p className="mt-2 text-sm text-slate-700">
+    <section className="rounded-3xl border border-cream bg-white p-5 shadow-sm sm:p-7">
+      <h2 className="text-lg font-semibold text-encre">Paso 4. Pago</h2>
+      <p className="mt-2 text-sm text-sepia">
         Referencia: <span className="font-mono font-semibold">{reference}</span> · Total:{" "}
         <span className="font-semibold">{amountLabel}</span>
       </p>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Acceso</p>
-        <p className="mt-1 text-sm text-slate-700">
+      <div className="mt-4 rounded-xl border border-cream bg-parchment p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-sepia">Acceso</p>
+        <p className="mt-1 text-sm text-sepia">
           Estado actual:{" "}
           <span className="font-semibold">
             {authState === "AUTHENTICATED" ? "Autenticado con Google" : "Invitado"}
@@ -80,7 +80,7 @@ export default function CheckoutPaymentActions({
         {authState !== "AUTHENTICATED" && (
           <Link
             href={`/acceso?callbackUrl=${encodeURIComponent("/checkout")}`}
-            className="mt-2 inline-flex rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-white"
+            className="mt-2 inline-flex rounded-xl border border-cream px-3 py-1.5 text-xs font-semibold text-sepia hover:bg-white"
           >
             Continuar con Google
           </Link>
@@ -99,8 +99,8 @@ export default function CheckoutPaymentActions({
         </button>
       </div>
 
-      <div className="mt-5 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">Transferencia, Bizum o PayPal</p>
+      <div className="mt-5 space-y-3 rounded-2xl border border-cream bg-parchment p-4">
+        <p className="text-sm font-semibold text-encre">Transferencia, Bizum o PayPal</p>
         <CopyField label="Beneficiario" value={MANUAL.beneficiary} mono={false} onCopied={onCopy} />
         <CopyField label="IBAN" value={MANUAL.iban} onCopied={onCopy} />
         <CopyField label="BIC/SWIFT" value={MANUAL.bic} onCopied={onCopy} />
@@ -118,14 +118,14 @@ export default function CheckoutPaymentActions({
         ) : (
           <CopyField label="PayPal cuenta" value={MANUAL.paypalAccount} onCopied={onCopy} />
         )}
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-sepia">
           Los métodos manuales no marcan pago automático inmediato. Se revisan y se notifican en el área cliente.
         </p>
       </div>
 
       {error && <p className="mt-3 text-sm font-semibold text-red-700">{error}</p>}
       {toast && (
-        <p className="fixed bottom-4 left-1/2 z-[200] -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+        <p className="fixed bottom-4 left-1/2 z-[200] -translate-x-1/2 rounded-full bg-encre px-3 py-1 text-xs font-semibold text-white">
           {toast}
         </p>
       )}
