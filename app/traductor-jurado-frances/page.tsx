@@ -27,12 +27,22 @@ export default function TraductorJuradoFrancesPage() {
         {
           question: "¿Cuánto cuesta traducir un certificado en francés?",
           answer:
-            "El precio depende del tipo de documento, su extensión y la urgencia. Confirmamos presupuesto cerrado tras revisar el archivo.",
+            "El precio orientativo de un certificado sencillo (nacimiento, matrimonio) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Enviamos presupuesto cerrado tras revisar el archivo.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de francés?",
           answer:
             "Los certificados sencillos suelen resolverse en 24-72 horas laborables, y los expedientes extensos requieren más plazo según volumen.",
+        },
+        {
+          question: "¿Necesito apostillar la traducción jurada de francés?",
+          answer:
+            "Depende del país de destino. Para Francia y otros países firmantes del Convenio de la Haya, se necesita Apostilla. Para trámites dentro de España normalmente no es necesaria. Te orientamos según tu caso concreto.",
+        },
+        {
+          question: "¿Qué documentos franceses se traducen con más frecuencia?",
+          answer:
+            "Los más habituales son: acte de naissance (certificado de nacimiento), acte de mariage (matrimonio), extrait de casier judiciaire (antecedentes penales / Bulletin nº3), diplômes et relevés de notes (títulos académicos), contrats de travail y fiches de paie (documentos laborales).",
         },
       ]}
       documentosHabituales={[

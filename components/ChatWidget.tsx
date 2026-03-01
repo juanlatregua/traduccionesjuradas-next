@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { WHATSAPP_LINK } from "@/lib/contact";
+import { RichMessage } from "@/lib/chat/format-response";
 
 type Message = {
   role: "user" | "assistant";
@@ -372,7 +373,11 @@ export default function ChatWidget() {
                       : "rounded-[4px_12px_12px_12px] border-l-[3px] border-or bg-cream text-sepia"
                   }`}
                 >
-                  {msg.content}
+                  {msg.role === "assistant" ? (
+                    <RichMessage content={msg.content} />
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </div>
             ))}

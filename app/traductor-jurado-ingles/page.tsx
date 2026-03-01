@@ -27,12 +27,22 @@ export default function TraductorJuradoInglesPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de inglés?",
           answer:
-            "El precio depende del tipo de documento, su extensión y la urgencia. Confirmamos presupuesto cerrado tras revisar el archivo.",
+            "El precio orientativo de un certificado sencillo (birth certificate, marriage certificate) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Enviamos presupuesto cerrado tras revisar el archivo.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de inglés?",
           answer:
             "Los certificados sencillos suelen resolverse en 24-72 horas laborables, y los expedientes extensos requieren más plazo según volumen.",
+        },
+        {
+          question: "¿Sirve una traducción jurada de inglés para trámites en Reino Unido o Estados Unidos?",
+          answer:
+            "La traducción jurada española es válida para trámites en España. Para presentar documentos en Reino Unido o EE.UU., se requiere una certified translation conforme a los requisitos del país. Te orientamos según el trámite concreto.",
+        },
+        {
+          question: "¿Qué documentos en inglés se traducen con más frecuencia?",
+          answer:
+            "Los más habituales son: birth certificates, marriage certificates, police certificates (DBS, ACRO, FBI), diplomas and transcripts, employment contracts, payslips y powers of attorney.",
         },
       ]}
       documentosHabituales={[
