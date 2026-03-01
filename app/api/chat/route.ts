@@ -40,9 +40,23 @@ export async function POST(req: NextRequest) {
     }
 
     if (isPromptInjection(sanitized)) {
-      return Response.json({
-        error: "No puedo procesar esa solicitud. ¿En qué puedo ayudarte con traducciones juradas?",
-      }, { status: 400 });
+      // Return friendly response as SSE stream (not a 400 error)
+      const rejectionMsg = "No puedo procesar esa solicitud. ¿En qué puedo ayudarte con traducciones juradas?";
+      const enc = new TextEncoder();
+      const rejectionStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(enc.encode(`data: ${JSON.stringify({ text: rejectionMsg })}\n\n`));
+          controller.enqueue(enc.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(rejectionStream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "X-Session-Id": sessionId,
+        },
+      });
     }
 
     // Rate limits
@@ -99,7 +113,7 @@ export async function POST(req: NextRequest) {
     // Stream from Anthropic
     const stream = anthropic.messages.stream({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 512,
+      max_tokens: 1024,
       system: SYSTEM_PROMPT,
       messages,
     });
