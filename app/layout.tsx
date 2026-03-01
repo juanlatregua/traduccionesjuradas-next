@@ -1,11 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Header } from "@/components/Header";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import Link from "next/link";
 import { TrustStrip } from "@/components/TrustStrip";
+
+const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
+  ssr: false,
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.traduccionesjuradas.net"),
@@ -82,6 +87,9 @@ export default function RootLayout({
 
         {/* ================= CONTENIDO ================= */}
         {children}
+
+        {/* ================= CHATBOT IA ================= */}
+        <ChatWidget />
 
         {/* ================= WHATSAPP FLOTANTE ================= */}
         <WhatsAppFloat />
