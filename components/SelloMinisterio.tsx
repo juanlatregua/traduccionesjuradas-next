@@ -116,7 +116,7 @@ export function SelloMinisterio({ size = "lg", className = "" }: SelloMinisterio
             startOffset="50%"
             textAnchor="middle"
           >
-            MINISTERIO AA.EE.
+            MAEC
           </textPath>
         </text>
         {/* Center number */}
