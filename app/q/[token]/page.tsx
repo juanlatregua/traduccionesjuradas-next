@@ -78,7 +78,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   });
   if (!rl.ok) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-10">
+      <main className="min-h-screen bg-parchment px-4 py-10">
         <section className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
           Has superado el límite de consultas para este enlace. Espera unos minutos e inténtalo de nuevo.
         </section>
@@ -157,19 +157,19 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   const total = decimalToNumber(refreshed.total);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10">
-      <section className="mx-auto max-w-5xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+    <main className="min-h-screen bg-parchment px-4 py-10">
+      <section className="mx-auto max-w-5xl rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Presupuesto {refreshed.quoteNumber}
         </p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">Traducción jurada</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="mt-2 text-2xl font-bold text-encre">Traducción jurada</h1>
+        <p className="mt-1 text-sm text-sepia">
           Estado: <strong>{QUOTE_STATUS_LABELS[status as QuoteStatus]}</strong> · Validez hasta{" "}
           <strong>{refreshed.validUntil.toLocaleDateString("es-ES")}</strong>
         </p>
 
         {searchParams?.paid === "1" && (
-          <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          <p className="mt-3 rounded-xl border border-cream bg-cream px-3 py-2 text-sm text-bleu">
             Pago recibido correctamente. Te hemos enviado confirmación por email.
           </p>
         )}
@@ -180,24 +180,24 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
         )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <div className="space-y-4 rounded-2xl border border-slate-200 p-4">
-            <h2 className="text-lg font-semibold text-slate-900">Detalle</h2>
-            <p className="text-sm text-slate-700">
+          <div className="space-y-4 rounded-2xl border border-cream p-4">
+            <h2 className="text-lg font-semibold text-encre">Detalle</h2>
+            <p className="text-sm text-sepia">
               Cliente: <strong>Datos protegidos</strong>
             </p>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-sepia">
               Idiomas: <strong>{refreshed.sourceLang}</strong> → <strong>{refreshed.targetLang}</strong>
             </p>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-sepia">
               Entrega:{" "}
               <strong>
                 {refreshed.deliveryType === "PAPER_SHIP" ? "Papel con envío 24/48h" : "PDF digital firmado"}
               </strong>
             </p>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <div className="overflow-x-auto rounded-xl border border-cream">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100 text-slate-600">
+                <thead className="bg-cream text-sepia">
                   <tr>
                     <th className="px-3 py-2">Descripción</th>
                     <th className="px-3 py-2 text-right">Cant.</th>
@@ -207,7 +207,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 </thead>
                 <tbody>
                   {refreshed.lines.map((line) => (
-                    <tr key={line.id} className="border-t border-slate-100">
+                    <tr key={line.id} className="border-t border-cream">
                       <td className="px-3 py-2">{line.description}</td>
                       <td className="px-3 py-2 text-right">{decimalToNumber(line.quantity)}</td>
                       <td className="px-3 py-2 text-right">{formatMoney(decimalToNumber(line.unitPrice))}</td>
@@ -219,25 +219,25 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
             </div>
           </div>
 
-          <aside className="space-y-3 rounded-2xl border border-slate-200 p-4">
-            <h2 className="text-base font-semibold text-slate-900">Resumen</h2>
-            <p className="flex items-center justify-between text-sm text-slate-700">
+          <aside className="space-y-3 rounded-2xl border border-cream p-4">
+            <h2 className="text-base font-semibold text-encre">Resumen</h2>
+            <p className="flex items-center justify-between text-sm text-sepia">
               <span>Subtotal</span>
               <strong>{formatMoney(subtotal)}</strong>
             </p>
-            <p className="flex items-center justify-between text-sm text-slate-700">
+            <p className="flex items-center justify-between text-sm text-sepia">
               <span>Descuento</span>
               <strong>- {formatMoney(discountAmount)}</strong>
             </p>
-            <p className="flex items-center justify-between text-sm text-slate-700">
+            <p className="flex items-center justify-between text-sm text-sepia">
               <span>Envío</span>
               <strong>{formatMoney(shippingAmount)}</strong>
             </p>
-            <p className="flex items-center justify-between text-sm text-slate-700">
+            <p className="flex items-center justify-between text-sm text-sepia">
               <span>IVA</span>
               <strong>{formatMoney(vatAmount)}</strong>
             </p>
-            <p className="flex items-center justify-between border-t border-slate-200 pt-2 text-base text-slate-900">
+            <p className="flex items-center justify-between border-t border-cream pt-2 text-base text-encre">
               <span>Total</span>
               <strong>{formatMoney(total)}</strong>
             </p>
@@ -255,26 +255,26 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
           </aside>
         </div>
 
-        <section className="mt-6 rounded-2xl border border-slate-200 p-4">
-          <h2 className="text-base font-semibold text-slate-900">PDF del presupuesto</h2>
+        <section className="mt-6 rounded-2xl border border-cream p-4">
+          <h2 className="text-base font-semibold text-encre">PDF del presupuesto</h2>
           {refreshed.pdfUrl ? (
             <div className="mt-3 space-y-3">
               <iframe
                 src={refreshed.pdfUrl}
                 title="PDF presupuesto"
-                className="h-72 w-full rounded-xl border border-slate-200"
+                className="h-72 w-full rounded-xl border border-cream"
               />
               <a
                 href={refreshed.pdfUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex rounded-lg border border-emerald-500/40 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                className="inline-flex rounded-lg border border-bleu/40 px-3 py-2 text-sm font-semibold text-bleu hover:bg-cream"
               >
                 Abrir / descargar PDF completo
               </a>
             </div>
           ) : (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-sepia">
               El PDF final se mostrará en cuanto el presupuesto sea confirmado por el equipo.
             </p>
           )}

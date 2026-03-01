@@ -14,13 +14,13 @@ export default function DocumentosMercantilesPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Documentos mercantiles y empresariales
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada de documentos mercantiles y empresariales
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           Ayudamos a empresas, autónomos y asesores a traducir de forma jurada
           toda la documentación mercantil necesaria para operar en España o en
           el extranjero: escrituras, estatutos, poderes, certificados del
@@ -29,8 +29,8 @@ export default function DocumentosMercantilesPage() {
       </header>
 
       {/* TIPOS DE DOCUMENTOS */}
-      <section className="mt-8 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-8 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Principales documentos mercantiles que traducimos
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -76,8 +76,8 @@ export default function DocumentosMercantilesPage() {
       </section>
 
       {/* CASOS TÍPICOS EN ESPAÑA */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Casos habituales en los que se pide la traducción jurada
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -109,8 +109,8 @@ export default function DocumentosMercantilesPage() {
       </section>
 
       {/* ENFOQUE MARRUECOS / FRANCÓFONOS */}
-      <section className="mt-10 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 rounded-2xl border border-cream bg-parchment p-5 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Empresas de Marruecos y países francófonos que quieren operar en
           España
         </h2>
@@ -144,7 +144,7 @@ export default function DocumentosMercantilesPage() {
           teletrabajo, en desplazamientos temporales de personal y en
           operaciones bancarias.
         </p>
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-sepia">
           En muchos casos, además de la traducción jurada, se exige Apostilla de
           La Haya u otra forma de legalización. Lo más prudente es confirmar
           siempre los requisitos en la notaría, banco o administración española
@@ -153,8 +153,8 @@ export default function DocumentosMercantilesPage() {
       </section>
 
       {/* RELACIÓN CON TELETRABAJO */}
-      <section className="mt-10 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 rounded-2xl border border-cream bg-card p-5 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Documentos mercantiles en expedientes de teletrabajo
         </h2>
         <p>
@@ -187,14 +187,14 @@ export default function DocumentosMercantilesPage() {
         <p className="space-x-2">
           <Link
             href="/teletrabajo"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             Traducciones juradas para teletrabajar en España
           </Link>
-          <span className="text-slate-400">·</span>
+          <span className="text-graphite">·</span>
           <Link
             href="/marruecos"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             Documentos marroquíes para España
           </Link>
@@ -202,8 +202,8 @@ export default function DocumentosMercantilesPage() {
       </section>
 
       {/* CÓMO ENVIAR DOCUMENTOS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Cómo enviarnos tus documentos mercantiles para traducir?
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -227,11 +227,11 @@ export default function DocumentosMercantilesPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-12 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Necesitas traducir documentación mercantil o de empresa?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Envíanos tus escrituras, estatutos, poderes, certificados del Registro
           Mercantil o cualquier otro documento empresarial en PDF o como fotos
           legibles. Te responderemos con un presupuesto cerrado y un plazo
@@ -240,13 +240,13 @@ export default function DocumentosMercantilesPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Solicitar presupuesto
           </Link>
           <a
             href="mailto:hola@traduccionesjuradas.net?subject=Documentos%20mercantiles%20-%20Presupuesto"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O enviar documentos por email
           </a>

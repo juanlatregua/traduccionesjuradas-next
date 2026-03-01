@@ -31,8 +31,8 @@ export default function FunnelStepper() {
             aria-current={isCurrent ? "step" : undefined}
             className={`min-w-[3.5rem] rounded-xl border px-2 py-2 ${
               active
-                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                : "border-slate-200 bg-white text-slate-500"
+                ? "border-bleu bg-cream text-bleu"
+                : "border-cream bg-white text-graphite"
             }`}
           >
             <span className="block">{index + 1}</span>

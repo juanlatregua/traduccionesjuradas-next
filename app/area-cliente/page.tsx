@@ -32,11 +32,11 @@ export default async function AreaClientePage() {
   if (!session) {
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+        <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+          <h1 className="text-2xl font-bold tracking-tight text-encre sm:text-3xl">
             Área de cliente
           </h1>
-          <p className="mt-2 text-sm text-slate-700">
+          <p className="mt-2 text-sm text-sepia">
             Consulta el estado de tu pedido con la referencia y el email.
           </p>
 
@@ -44,19 +44,19 @@ export default async function AreaClientePage() {
             <GuestOrderLookup />
           </div>
 
-          <div className="mt-8 border-t border-slate-200 pt-6">
-            <p className="text-sm text-slate-600">
+          <div className="mt-8 border-t border-cream pt-6">
+            <p className="text-sm text-sepia">
               Para ver todos tus pedidos y descargar traducciones, inicia sesión:
             </p>
             <div className="mt-3 flex flex-wrap gap-3 text-sm">
               <GoogleSignInButton
                 callbackUrl="/area-cliente"
                 label="Entrar con Google"
-                className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
+                className="rounded-2xl bg-encre px-4 py-2 font-semibold text-white hover:bg-encre"
               />
               <Link
                 href="/"
-                className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+                className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream"
               >
                 Volver al inicio
               </Link>
@@ -77,49 +77,49 @@ export default async function AreaClientePage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
       <AutoRefresh intervalMs={20000} idleMs={30000} />
-      <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+      <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Área de cliente
         </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-encre sm:text-3xl">
           Bienvenido, {session.user?.name || "cliente"}
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-sepia">
           Sesión activa: {session.user?.email || "sin email"}
         </p>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Pedidos pendientes</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{pendingOrders}</p>
+          <div className="rounded-2xl border border-cream bg-parchment p-3">
+            <p className="text-xs uppercase tracking-wide text-graphite">Pedidos pendientes</p>
+            <p className="mt-1 text-sm font-semibold text-encre">{pendingOrders}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Pedidos pagados</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{paidOrders}</p>
+          <div className="rounded-2xl border border-cream bg-parchment p-3">
+            <p className="text-xs uppercase tracking-wide text-graphite">Pedidos pagados</p>
+            <p className="mt-1 text-sm font-semibold text-encre">{paidOrders}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Traducidos</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{translatedOrders}</p>
+          <div className="rounded-2xl border border-cream bg-parchment p-3">
+            <p className="text-xs uppercase tracking-wide text-graphite">Traducidos</p>
+            <p className="mt-1 text-sm font-semibold text-encre">{translatedOrders}</p>
           </div>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <a
             href="/api/auth/signout?callbackUrl=/"
-            className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+            className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream"
           >
             Cerrar sesión
           </a>
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-4 py-2 font-semibold text-white hover:bg-bleu-dark"
           >
             Crear nuevo encargo
           </Link>
           {isStaff && (
             <Link
               href="/zona-traductor"
-              className="rounded-2xl border border-emerald-300 px-4 py-2 font-semibold text-emerald-700 hover:bg-emerald-50"
+              className="rounded-2xl border border-bleu px-4 py-2 font-semibold text-bleu hover:bg-cream"
             >
               Zona traductor
             </Link>
@@ -127,24 +127,24 @@ export default async function AreaClientePage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Estado de mis pedidos</h2>
+      <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <h2 className="text-lg font-semibold text-encre">Estado de mis pedidos</h2>
         {orders.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-sepia">
             No tienes pedidos todavía.{" "}
-            <Link href="/presupuesto" className="font-semibold text-emerald-700 hover:underline">
+            <Link href="/presupuesto" className="font-semibold text-bleu hover:underline">
               Solicita un presupuesto
             </Link>{" "}
             para empezar.
           </p>
         ) : (
           <>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Cada fila incluye acceso al pago, estado del proceso y descarga del archivo final cuando esté listo.
             </p>
-            <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
+            <div className="mt-5 overflow-x-auto rounded-2xl border border-cream">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="bg-parchment text-xs uppercase tracking-wide text-graphite">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Referencia</th>
                     <th className="px-4 py-3 font-semibold">Descripción</th>
@@ -160,17 +160,17 @@ export default async function AreaClientePage() {
                 <tbody>
                   {orders.map((order) => {
                     return (
-                      <tr key={order.reference} className="border-t border-slate-200">
-                        <td className="px-4 py-3 font-mono text-xs text-slate-700">{order.reference}</td>
-                        <td className="px-4 py-3 text-slate-700">{order.title}</td>
-                        <td className="px-4 py-3 text-slate-700">{formatMoney(order.amountCents)}</td>
-                        <td className="px-4 py-3 text-slate-700">{getPaymentStateLabel(order.paymentStatus)}</td>
-                        <td className="px-4 py-3 text-slate-700">{getDeliveryTypeLabel(order.deliveryType)}</td>
-                        <td className="px-4 py-3 text-slate-700">{getDeliveryStateLabel(order.deliveryState)}</td>
-                        <td className="px-4 py-3 text-slate-700">
+                      <tr key={order.reference} className="border-t border-cream">
+                        <td className="px-4 py-3 font-mono text-xs text-sepia">{order.reference}</td>
+                        <td className="px-4 py-3 text-sepia">{order.title}</td>
+                        <td className="px-4 py-3 text-sepia">{formatMoney(order.amountCents)}</td>
+                        <td className="px-4 py-3 text-sepia">{getPaymentStateLabel(order.paymentStatus)}</td>
+                        <td className="px-4 py-3 text-sepia">{getDeliveryTypeLabel(order.deliveryType)}</td>
+                        <td className="px-4 py-3 text-sepia">{getDeliveryStateLabel(order.deliveryState)}</td>
+                        <td className="px-4 py-3 text-sepia">
                           {order.dueDate ? order.dueDate.toLocaleDateString("es-ES") : "—"}
                         </td>
-                        <td className="px-4 py-3 text-slate-700">
+                        <td className="px-4 py-3 text-sepia">
                           {order.billing?.requested
                             ? "Solicitada"
                             : "No solicitada"}
@@ -179,14 +179,14 @@ export default async function AreaClientePage() {
                           <div className="flex flex-wrap gap-2">
                             <Link
                               href={`/area-cliente/pedido/${order.reference}`}
-                              className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                              className="rounded-xl border border-cream px-2.5 py-1 text-xs font-semibold text-sepia hover:bg-cream"
                             >
                               Ver estado
                             </Link>
                             {order.paymentStatus === "PENDING" && (
                               <Link
                                 href={`/area-cliente/pedido/${order.reference}/pagar`}
-                                className="rounded-xl bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                                className="rounded-xl bg-bleu px-2.5 py-1 text-xs font-semibold text-white hover:bg-bleu-dark"
                               >
                                 Pagar
                               </Link>
@@ -204,12 +204,12 @@ export default async function AreaClientePage() {
       </section>
 
       {orders.length > 0 && (
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-lg font-semibold text-slate-900">Historial de pedidos</h2>
-          <ul className="mt-3 space-y-2 text-sm text-slate-700">
+        <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+          <h2 className="text-lg font-semibold text-encre">Historial de pedidos</h2>
+          <ul className="mt-3 space-y-2 text-sm text-sepia">
             {orders.map((order) => (
-              <li key={`history-${order.reference}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="font-mono text-xs font-semibold text-slate-800">{order.reference}</span>{" "}
+              <li key={`history-${order.reference}`} className="rounded-2xl border border-cream bg-parchment px-3 py-2">
+                <span className="font-mono text-xs font-semibold text-encre">{order.reference}</span>{" "}
                 · {order.langPair || "—"} · {order.createdAt.toISOString().slice(0, 10)} · {getDeliveryStateLabel(order.deliveryState)}
               </li>
             ))}

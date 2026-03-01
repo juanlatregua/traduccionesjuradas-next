@@ -93,7 +93,7 @@ export default function PayPalButton({ reference, onSuccess }: PayPalButtonProps
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">Cargando PayPal...</p>;
+    return <p className="text-sm text-graphite">Cargando PayPal...</p>;
   }
 
   return <div ref={containerRef} />;

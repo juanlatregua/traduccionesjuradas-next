@@ -8,7 +8,7 @@ export default function IconEmail(
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className="h-5 w-5 text-emerald-600"
+      className="h-5 w-5 text-bleu"
       {...props}
     >
       <rect

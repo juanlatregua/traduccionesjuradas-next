@@ -253,15 +253,15 @@ export default function PagarPage() {
 
   function renderSourceDocumentsPreview(theme: "default" | "success" = "default") {
     const isSuccess = theme === "success";
-    const titleCls = isSuccess ? "text-emerald-900" : "text-slate-900";
-    const hintCls = isSuccess ? "text-emerald-700" : "text-slate-600";
-    const accentBorder = isSuccess ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-slate-50";
+    const titleCls = isSuccess ? "text-bleu" : "text-encre";
+    const hintCls = isSuccess ? "text-bleu" : "text-sepia";
+    const accentBorder = isSuccess ? "border-cream bg-cream/60" : "border-cream bg-parchment";
     const buttonCls = isSuccess
-      ? "bg-emerald-700 hover:bg-emerald-800"
-      : "bg-slate-800 hover:bg-slate-700";
+      ? "bg-bleu-dark hover:bg-bleu-dark"
+      : "bg-encre hover:bg-bleu-dark";
 
     return (
-      <div className={`mt-7 rounded-2xl border p-4 ${isSuccess ? "border-emerald-200 bg-white" : "border-slate-200 bg-slate-50"}`}>
+      <div className={`mt-7 rounded-2xl border p-4 ${isSuccess ? "border-cream bg-card" : "border-cream bg-parchment"}`}>
         <p className={`text-sm font-semibold ${titleCls}`}>Revisa tu documento</p>
         {hasSourceDocument ? (
           <p className={`mt-1 text-xs ${hintCls}`}>
@@ -281,22 +281,22 @@ export default function PagarPage() {
             {sourceDocuments.map((doc, idx) => (
               <li key={`${doc.fileUrl}-${idx}`} className={`rounded-xl border p-2 ${accentBorder}`}>
                 <div className="flex items-start gap-2">
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-cream bg-card">
                     {isImageDocument(doc) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={doc.fileUrl} alt={doc.fileName} className="h-full w-full object-cover" />
                     ) : isPdfDocument(doc) ? (
                       <object data={doc.fileUrl} type="application/pdf" className="h-full w-full">
-                        <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">PDF</div>
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-graphite">PDF</div>
                       </object>
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-graphite">DOC</div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-slate-800">{doc.fileName}</p>
+                    <p className="truncate text-xs font-semibold text-encre">{doc.fileName}</p>
                     {doc.uploadedAt && (
-                      <p className="mt-0.5 text-[11px] text-slate-500">
+                      <p className="mt-0.5 text-[11px] text-graphite">
                         {new Date(doc.uploadedAt).toLocaleString("es-ES")}
                       </p>
                     )}
@@ -304,7 +304,7 @@ export default function PagarPage() {
                       href={doc.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 inline-flex text-[11px] font-semibold text-emerald-700 hover:underline"
+                      className="mt-1 inline-flex text-[11px] font-semibold text-bleu hover:underline"
                     >
                       Abrir documento
                     </a>
@@ -315,14 +315,14 @@ export default function PagarPage() {
           </ul>
         )}
 
-        <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-3">
-          <p className="text-xs font-semibold text-slate-700">
+        <div className="mt-3 rounded-xl border border-dashed border-cream bg-card p-3">
+          <p className="text-xs font-semibold text-sepia">
               {hasSourceDocument
                 ? "Subir o reemplazar documento"
                 : "Subir documento original (obligatorio para pagar)"}
           </p>
           {sourceUploaded && (
-            <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+            <p className="mt-1 text-[11px] font-semibold text-bleu">
               Documento fuente registrado correctamente.
             </p>
           )}
@@ -334,7 +334,7 @@ export default function PagarPage() {
               setSourceFile(e.target.files?.[0] || null);
               setSourceUploadError(null);
             }}
-            className={`mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white ${buttonCls}`}
+            className={`mt-2 block w-full text-sm text-sepia file:mr-3 file:rounded-xl file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white ${buttonCls}`}
             disabled={!capabilities.manualProofUploadEnabled}
           />
           {sourceUploadError && <p className="mt-2 text-xs text-red-600">{sourceUploadError}</p>}
@@ -436,7 +436,7 @@ export default function PagarPage() {
   if (loading) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
-        <p className="text-sm text-slate-600">Cargando datos del pedido...</p>
+        <p className="text-sm text-sepia">Cargando datos del pedido...</p>
       </main>
     );
   }
@@ -444,9 +444,9 @@ export default function PagarPage() {
   if (error && !order) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
-        <section className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm sm:p-8">
+        <section className="rounded-3xl border border-red-200 bg-card p-6 shadow-sm sm:p-8">
           <p className="text-sm text-red-600">{error}</p>
-          <Link href="/" className="mt-3 inline-block text-sm font-semibold text-emerald-700 hover:underline">
+          <Link href="/" className="mt-3 inline-block text-sm font-semibold text-bleu hover:underline">
             Volver al inicio
           </Link>
         </section>
@@ -459,13 +459,13 @@ export default function PagarPage() {
   if (order.paymentStatus === "PAID") {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
-        <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold text-emerald-700">Este pedido ya está pagado.</p>
-          <Link href={`/pago/exito?ref=${encodeURIComponent(order.reference)}`} className="mt-3 inline-block text-sm font-semibold text-emerald-700 hover:underline">
+        <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+          <p className="text-sm font-semibold text-bleu">Este pedido ya está pagado.</p>
+          <Link href={`/pago/exito?ref=${encodeURIComponent(order.reference)}`} className="mt-3 inline-block text-sm font-semibold text-bleu hover:underline">
             Ver confirmación de pago
           </Link>
           <br />
-          <Link href="/consulta" className="mt-2 inline-block text-sm font-semibold text-emerald-700 hover:underline">
+          <Link href="/consulta" className="mt-2 inline-block text-sm font-semibold text-bleu hover:underline">
             Consultar estado del pedido
           </Link>
         </section>
@@ -494,30 +494,30 @@ export default function PagarPage() {
   if (proofSent) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
-        <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm sm:p-8">
+        <section className="rounded-3xl border border-cream bg-cream p-6 shadow-sm sm:p-8">
           <div className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-            <svg className="h-7 w-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-cream">
+            <svg className="h-7 w-7 text-bleu" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-emerald-800">Pago registrado</h2>
-          <p className="mt-2 text-sm text-emerald-700">
+          <h2 className="text-xl font-bold text-bleu">Pago registrado</h2>
+          <p className="mt-2 text-sm text-bleu">
             Hemos recibido tu comprobante para el pedido <span className="font-mono font-semibold">{reference}</span> y ya ha quedado marcado como pagado.
           </p>
-          <p className="mt-1 text-sm text-emerald-600">
+          <p className="mt-1 text-sm text-bleu">
             Te hemos enviado la confirmación por email y puedes seguir el avance desde tu área de cliente.
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/consulta"
-              className="rounded-2xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"
+              className="rounded-2xl bg-bleu-dark px-5 py-2.5 text-sm font-semibold text-white hover:bg-bleu-dark"
             >
               Consultar estado del pedido
             </Link>
             <Link
               href="/"
-              className="text-sm font-semibold text-emerald-700 hover:underline"
+              className="text-sm font-semibold text-bleu hover:underline"
             >
               Volver al inicio
             </Link>
@@ -532,14 +532,14 @@ export default function PagarPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
           Pagar pedido
         </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-encre">
           {order.title}
         </h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-sepia">
           Referencia: <span className="font-mono">{order.reference}</span> · Importe:{" "}
           <span className="font-semibold">{formatMoney(order.amountCents)}</span>
         </p>
@@ -562,7 +562,7 @@ export default function PagarPage() {
             className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
               tab === "tarjeta"
                 ? "bg-blue-700 text-white"
-                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+                : "border border-cream text-sepia hover:bg-cream"
             }`}
           >
             Tarjeta
@@ -573,7 +573,7 @@ export default function PagarPage() {
             className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
               tab === "paypal"
                 ? "bg-blue-700 text-white"
-                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+                : "border border-cream text-sepia hover:bg-cream"
             }`}
           >
             PayPal
@@ -584,7 +584,7 @@ export default function PagarPage() {
             className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
               tab === "bizum"
                 ? "bg-blue-700 text-white"
-                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+                : "border border-cream text-sepia hover:bg-cream"
             }`}
           >
             Bizum
@@ -595,7 +595,7 @@ export default function PagarPage() {
             className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
               tab === "transferencia"
                 ? "bg-blue-700 text-white"
-                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+                : "border border-cream text-sepia hover:bg-cream"
             }`}
           >
             Transferencia
@@ -677,15 +677,15 @@ export default function PagarPage() {
         {/* Bizum */}
         {tab === "bizum" && (
           <div className="mt-6">
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-sepia">
               Realiza un Bizum con los siguientes datos:
             </p>
-            <div className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mt-4 space-y-2 rounded-2xl border border-cream bg-parchment p-4">
               <CopyField label="Bizum" value={MANUAL_PAYMENT.bizumPhone} onCopied={handleCopied} />
               <CopyField label="Concepto" value={order.reference} onCopied={handleCopied} />
               <CopyField label="Importe" value={formatMoney(order.amountCents)} mono={false} onCopied={handleCopied} />
             </div>
-            <p className="mt-3 text-xs text-slate-500">
+            <p className="mt-3 text-xs text-graphite">
               Incluye la referencia <span className="font-mono font-semibold">{order.reference}</span> en el concepto.
             </p>
           </div>
@@ -694,17 +694,17 @@ export default function PagarPage() {
         {/* Transferencia */}
         {tab === "transferencia" && (
           <div className="mt-6">
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-sepia">
               Realiza una transferencia bancaria con los siguientes datos:
             </p>
-            <div className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mt-4 space-y-2 rounded-2xl border border-cream bg-parchment p-4">
               <CopyField label="Beneficiario" value={MANUAL_PAYMENT.accountHolder} mono={false} onCopied={handleCopied} />
               <CopyField label="IBAN" value={MANUAL_PAYMENT.iban} onCopied={handleCopied} />
               <CopyField label="BIC/SWIFT" value={MANUAL_PAYMENT.bic} onCopied={handleCopied} />
               <CopyField label="Concepto" value={order.reference} onCopied={handleCopied} />
               <CopyField label="Importe" value={formatMoney(order.amountCents)} mono={false} onCopied={handleCopied} />
             </div>
-            <p className="mt-3 text-xs text-slate-500">
+            <p className="mt-3 text-xs text-graphite">
               Incluye la referencia <span className="font-mono font-semibold">{order.reference}</span> en el concepto.
             </p>
           </div>
@@ -731,7 +731,7 @@ export default function PagarPage() {
                 value={proofEmail}
                 onChange={(e) => setProofEmail(e.target.value)}
                 placeholder="tu@email.com"
-                className="mb-3 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700"
+                className="mb-3 block w-full rounded-xl border border-blue-200 bg-card px-3 py-2 text-sm text-sepia"
                 disabled={!capabilities.manualProofUploadEnabled}
               />
               <input
@@ -741,7 +741,7 @@ export default function PagarPage() {
                   setFile(e.target.files?.[0] || null);
                   setUploadError(null);
                 }}
-                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-200 disabled:opacity-60"
+                className="block w-full text-sm text-sepia file:mr-3 file:rounded-xl file:border-0 file:bg-blue-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-200 disabled:opacity-60"
                 disabled={!capabilities.manualProofUploadEnabled || paymentBlockedBySource}
               />
             </div>
@@ -768,13 +768,13 @@ export default function PagarPage() {
         )}
 
         <div className="mt-6">
-          <Link href="/" className="text-sm font-semibold text-emerald-700 hover:underline">
+          <Link href="/" className="text-sm font-semibold text-bleu hover:underline">
             Volver al inicio
           </Link>
         </div>
       </section>
       {copyToast && (
-        <p className="fixed bottom-4 left-1/2 z-[220] -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+        <p className="fixed bottom-4 left-1/2 z-[220] -translate-x-1/2 rounded-full bg-encre px-3 py-1 text-xs font-semibold text-white">
           {copyToast}
         </p>
       )}

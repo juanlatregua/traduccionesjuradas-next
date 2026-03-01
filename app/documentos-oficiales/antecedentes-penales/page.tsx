@@ -63,13 +63,13 @@ export default function AntecedentesPenalesPage() {
       />
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Antecedentes penales
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada de certificados de antecedentes penales extranjeros
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           El certificado de antecedentes penales (y sus equivalentes en otros
           países) es uno de los documentos más sensibles y solicitados en
           trámites de extranjería, nacionalidad, visados, empleo y teletrabajo.
@@ -77,11 +77,11 @@ export default function AntecedentesPenalesPage() {
           extranjeros</strong> para que sean aceptados por las autoridades
           españolas y, cuando corresponde, por otros países.
         </p>
-        <p className="mt-2 text-xs text-slate-600">
+        <p className="mt-2 text-xs text-sepia">
           Para expedientes con documentación en francés, revisa también el{" "}
           <Link
             href="/traductor-jurado-frances"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             servicio oficial de francés
           </Link>
@@ -90,8 +90,8 @@ export default function AntecedentesPenalesPage() {
       </header>
 
       {/* USOS HABITUALES */}
-      <section className="mt-8 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-8 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Para qué trámites se pide la traducción de antecedentes penales?
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -113,7 +113,7 @@ export default function AntecedentesPenalesPage() {
           se haya legalizado con la{" "}
           <Link
             href="/documentos-oficiales/apostilla-haya"
-            className="text-emerald-700 underline"
+            className="text-bleu underline"
           >
             Apostilla de La Haya
           </Link>{" "}
@@ -122,19 +122,19 @@ export default function AntecedentesPenalesPage() {
       </section>
 
       {/* TARIFAS Y PLAZOS */}
-      <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-800 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 rounded-2xl border border-cream bg-card p-5 text-sm text-encre shadow-sm">
+        <h2 className="text-lg font-semibold text-encre">
           Tarifas y plazos orientativos
         </h2>
-        <p className="mt-2 text-slate-600">
+        <p className="mt-2 text-sepia">
           Precios para certificados de antecedentes penales (PDF o foto legible). Incluyen firma y sello de traductor jurado.
         </p>
         <AntecedentesMiniForm />
       </section>
 
       {/* TIPOS DE DOCUMENTOS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Documentos que entran en esta categoría
         </h2>
         <p>
@@ -172,8 +172,8 @@ export default function AntecedentesPenalesPage() {
       </section>
 
       {/* PAÍSES Y APOSTILLA */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Diferencias por país y Apostilla de La Haya
         </h2>
         <p>
@@ -183,8 +183,8 @@ export default function AntecedentesPenalesPage() {
           jurada. La situación típica que vemos es:
         </p>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-cream bg-parchment p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-encre">
             Marruecos, Francia y otros países con apostilla
           </h3>
           <p>
@@ -205,8 +205,8 @@ export default function AntecedentesPenalesPage() {
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-cream bg-parchment p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-encre">
             Países africanos francófonos sin apostilla
           </h3>
           <p>
@@ -228,7 +228,7 @@ export default function AntecedentesPenalesPage() {
           </p>
         </div>
 
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-sepia">
           Podemos orientarte según nuestra experiencia, pero los requisitos
           finales (apostilla, legalización adicional, antigüedad del
           certificado) dependen siempre de la autoridad que tramita tu
@@ -237,8 +237,8 @@ export default function AntecedentesPenalesPage() {
       </section>
 
       {/* RELACIÓN CON TELETRABAJO Y MARRUECOS */}
-      <section className="mt-10 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 rounded-2xl border border-cream bg-card p-5 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Antecedentes penales en expedientes de teletrabajo y clientes de
           Marruecos
         </h2>
@@ -261,14 +261,14 @@ export default function AntecedentesPenalesPage() {
         <p className="space-x-2">
           <Link
             href="/teletrabajo"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             Traducciones juradas para teletrabajar en España
           </Link>
-          <span className="text-slate-400">·</span>
+          <span className="text-graphite">·</span>
           <Link
             href="/marruecos"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             Documentos marroquíes para España
           </Link>
@@ -276,8 +276,8 @@ export default function AntecedentesPenalesPage() {
       </section>
 
       {/* CÓMO ENVIAR LOS DOCUMENTOS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Cómo enviarnos tu certificado de antecedentes penales?
         </h2>
         <ul className="list-disc pl-5 space-y-2">
@@ -302,11 +302,11 @@ export default function AntecedentesPenalesPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-12 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Necesitas traducir tu certificado de antecedentes penales?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Envíanos tu certificado (y la apostilla o legalización, si la tiene)
           en PDF o foto clara y te responderemos con un precio cerrado y un
           plazo estimado de entrega. Trabajamos tanto con certificados emitidos
@@ -317,13 +317,13 @@ export default function AntecedentesPenalesPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <a
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Solicitar presupuesto
           </a>
           <a
             href="mailto:hola@traduccionesjuradas.net?subject=Antecedentes%20penales%20-%20Presupuesto"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O enviar directamente el documento por email
           </a>

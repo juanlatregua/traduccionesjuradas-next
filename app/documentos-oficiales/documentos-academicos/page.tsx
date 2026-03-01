@@ -42,24 +42,24 @@ export default function DocumentosAcademicosPage() {
 
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Documentos académicos
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada de títulos y documentos académicos
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
         Realizamos traducciones juradas de títulos universitarios, certificados de notas,
         diplomas, planes de estudios y certificaciones oficiales de idiomas como
-        <a href="/traductor-jurado-frances" className="text-emerald-700 hover:underline"> DELF/DALF</a>, 
-        <a href="/traductor-jurado-ingles" className="text-emerald-700 hover:underline"> TOEFL, IELTS, Cambridge</a>, 
-        <a href="/traductor-jurado-aleman" className="text-emerald-700 hover:underline"> Goethe</a> 
+        <a href="/traductor-jurado-frances" className="text-bleu hover:underline"> DELF/DALF</a>, 
+        <a href="/traductor-jurado-ingles" className="text-bleu hover:underline"> TOEFL, IELTS, Cambridge</a>, 
+        <a href="/traductor-jurado-aleman" className="text-bleu hover:underline"> Goethe</a> 
         y otras, para oposiciones, universidades, homologaciones y trámites administrativos en España y en el extranjero.
         </p>   
-        <p className="mt-2 text-xs text-slate-600">
+        <p className="mt-2 text-xs text-sepia">
           Si tu documentación académica está en francés, puedes ampliar
           información en la guía de{" "}
-          <a href="/traductor-jurado-frances" className="font-semibold text-emerald-700 hover:underline">
+          <a href="/traductor-jurado-frances" className="font-semibold text-bleu hover:underline">
             traducción jurada en francés
           </a>
           .
@@ -67,23 +67,23 @@ export default function DocumentosAcademicosPage() {
       </header>
 
       {/* CONTENIDO */}
-      <section className="mt-8 space-y-10 text-sm text-slate-700">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="mt-8 space-y-10 text-sm text-sepia">
+        <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
                 Precio orientativo
               </p>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-encre">
                 25–35 € por página · plazo según páginas e idioma
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-graphite">
                 Confirmamos importe y plazo al revisar el PDF/imagen.
               </p>
             </div>
             <a
               href="/presupuesto"
-              className="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+              className="rounded-2xl bg-bleu px-4 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
             >
               Subir documento y pedir precio
             </a>
@@ -106,13 +106,13 @@ export default function DocumentosAcademicosPage() {
             ].map((item) => (
               <div
                 key={item.title}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-700"
+                className="rounded-xl border border-cream bg-parchment px-3 py-3 text-xs text-sepia"
               >
-                <p className="font-semibold text-slate-900">{item.title}</p>
-                <p className="text-sm font-semibold text-emerald-700">
+                <p className="font-semibold text-encre">{item.title}</p>
+                <p className="text-sm font-semibold text-bleu">
                   {item.price}
                 </p>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-graphite">
                   Plazo estimado: {item.plazo}
                 </p>
               </div>
@@ -123,7 +123,7 @@ export default function DocumentosAcademicosPage() {
 
         {/* Universitarios */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Títulos universitarios y documentos académicos
           </h2>
           <ul className="mt-2 list-disc pl-5 space-y-1">
@@ -141,7 +141,7 @@ export default function DocumentosAcademicosPage() {
 
         {/* IDIOMAS – muy importante para opositores */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Certificaciones oficiales de idiomas (muy frecuentes para oposiciones)
           </h2>
 
@@ -150,7 +150,7 @@ export default function DocumentosAcademicosPage() {
           <ul className="mt-2 list-disc pl-5 space-y-1">
 
             {/* FRANCÉS */}
-            <li className="font-semibold text-slate-900">Francés:</li>
+            <li className="font-semibold text-encre">Francés:</li>
             <ul className="ml-6 list-disc space-y-1">
               <li>DELF (A1–B2) — Alliance Française</li>
               <li>DALF (C1–C2)</li>
@@ -159,7 +159,7 @@ export default function DocumentosAcademicosPage() {
             </ul>
 
             {/* INGLÉS */}
-            <li className="font-semibold text-slate-900">Inglés:</li>
+            <li className="font-semibold text-encre">Inglés:</li>
             <ul className="ml-6 list-disc space-y-1">
               <li>Cambridge English (A2 Key, B1 Preliminary, B2 First, C1 Advanced, C2 Proficiency)</li>
               <li>IELTS (Academic / General)</li>
@@ -169,7 +169,7 @@ export default function DocumentosAcademicosPage() {
             </ul>
 
             {/* ALEMÁN */}
-            <li className="font-semibold text-slate-900">Alemán:</li>
+            <li className="font-semibold text-encre">Alemán:</li>
             <ul className="ml-6 list-disc space-y-1">
               <li>Goethe-Zertifikat (A1–C2)</li>
               <li>TestDaF</li>
@@ -177,7 +177,7 @@ export default function DocumentosAcademicosPage() {
             </ul>
 
             {/* OTROS */}
-            <li className="font-semibold text-slate-900">Otras certificaciones:</li>
+            <li className="font-semibold text-encre">Otras certificaciones:</li>
             <ul className="ml-6 list-disc space-y-1">
               <li>CILS / CELI (italiano)</li>
               <li>DELE (español)</li>
@@ -193,7 +193,7 @@ export default function DocumentosAcademicosPage() {
 
         {/* Oposiciones */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-encre">
             Traducciones juradas para oposiciones en España
           </h2>
           <p className="mt-2">
@@ -212,7 +212,7 @@ export default function DocumentosAcademicosPage() {
           <p className="mt-1">
             Es recomendable verificar siempre los requisitos del tribunal convocante y, en caso de duda,
             consultar nuestros{" "}
-            <a href="/precios-traduccion-jurada" className="text-emerald-700 hover:underline">
+            <a href="/precios-traduccion-jurada" className="text-bleu hover:underline">
                 precios orientativos de traducción jurada
             </a>
             .
@@ -222,11 +222,11 @@ export default function DocumentosAcademicosPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-10 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-10 rounded-2xl border border-cream bg-cream/70 p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Necesitas traducir un título o certificado de idiomas?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Envíanos tu título universitario, certificado DELF/DALF, TOEFL, IELTS,
           Cambridge, Goethe u otro documento y te informaremos del precio y
           el plazo de entrega.
@@ -234,13 +234,13 @@ export default function DocumentosAcademicosPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <a
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Pedir presupuesto
           </a>
           <a
             href="mailto:hola@traduccionesjuradas.net?subject=Presupuesto%20documentos%20acad%C3%A9micos"
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             Enviar por email
           </a>

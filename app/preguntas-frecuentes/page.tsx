@@ -108,32 +108,32 @@ export default function PreguntasFrecuentesPage() {
       <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
         {/* CABECERA */}
         <header className="max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+          <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
             Preguntas frecuentes
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
             Preguntas frecuentes sobre traducción jurada
           </h1>
-          <p className="mt-3 text-sm text-slate-700 sm:text-base">
+          <p className="mt-3 text-sm text-sepia sm:text-base">
             Hemos reunido las dudas más habituales sobre la{" "}
             <strong>traducción jurada de documentos oficiales extranjeros</strong>:
             plazos, envío de documentos, validez legal, Apostilla de la Haya, formato
             de entrega y urgencias. Si no encuentras tu caso, puedes escribirnos
             y lo vemos contigo.
           </p>
-          <p className="mt-2 text-xs text-slate-600">
+          <p className="mt-2 text-xs text-sepia">
             Si aún no sabes qué documentos vas a tener que traducir, puedes revisar la
             sección de{" "}
             <a
               href="/documentos-oficiales"
-              className="font-semibold text-emerald-700 underline-offset-2 hover:underline"
+              className="font-semibold text-bleu underline-offset-2 hover:underline"
             >
               documentos oficiales
             </a>{" "}
             o ver{" "}
             <a
               href="/proceso"
-              className="font-semibold text-emerald-700 underline-offset-2 hover:underline"
+              className="font-semibold text-bleu underline-offset-2 hover:underline"
             >
               cómo funciona nuestro proceso
             </a>
@@ -145,10 +145,10 @@ export default function PreguntasFrecuentesPage() {
         <section className="mt-10 space-y-8">
           {/* 1 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿Qué es una traducción jurada?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Una traducción jurada es una traducción realizada por un{" "}
               <strong>traductor jurado acreditado</strong>, que incorpora su
               firma, sello y una declaración de veracidad. No es un simple
@@ -161,29 +161,29 @@ export default function PreguntasFrecuentesPage() {
 
           {/* 2 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿Puedo enviar una foto del documento o tiene que ser un escaneo?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Para preparar el presupuesto basta con una{" "}
               <strong>foto clara o un escaneo</strong> donde se lea todo el
               contenido. Para la traducción jurada definitiva también solemos
               trabajar con imágenes nítidas en PDF o JPG. Lo importante es que
               no falten fragmentos de texto ni datos en los márgenes.
             </p>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Puedes enviarnos tus documentos directamente por email o WhatsApp:
             </p>
-            <ul className="mt-2 list-disc pl-5 text-sm text-slate-700 space-y-1">
+            <ul className="mt-2 list-disc pl-5 text-sm text-sepia space-y-1">
               <li>
                 Email:{" "}
-                <a href={mailLink} className="text-emerald-700 underline">
+                <a href={mailLink} className="text-bleu underline">
                   hola@traduccionesjuradas.net
                 </a>
               </li>
               <li>
                 WhatsApp:{" "}
-                <a href={whatsappLink} className="text-emerald-700 underline">
+                <a href={whatsappLink} className="text-bleu underline">
                   enviar mensaje por WhatsApp
                 </a>
               </li>
@@ -192,14 +192,14 @@ export default function PreguntasFrecuentesPage() {
 
           {/* 3 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿Cuánto tarda una traducción jurada?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Depende del tipo de documento, del idioma y del volumen. Como
               referencia general:
             </p>
-            <ul className="mt-2 list-disc pl-5 text-sm text-slate-700 space-y-1">
+            <ul className="mt-2 list-disc pl-5 text-sm text-sepia space-y-1">
               <li>
                 Un certificado breve suele estar listo en{" "}
                 <strong>24–48 horas laborables</strong>.
@@ -209,7 +209,7 @@ export default function PreguntasFrecuentesPage() {
                 <strong>2–5 días laborables</strong>.
               </li>
             </ul>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Si tienes una cita en extranjería, una firma notarial o un
               plazo universitario, indícalo al pedir presupuesto para valorar
               un <strong>servicio urgente</strong>.
@@ -218,16 +218,16 @@ export default function PreguntasFrecuentesPage() {
 
           {/* 4 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿La traducción jurada se entrega en papel o en PDF?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Actualmente muchas administraciones y universidades aceptan la{" "}
               <strong>traducción jurada en PDF firmado digitalmente</strong>.
               Por ello, nuestra forma habitual de entrega es en PDF, que
               recibirás por email y podrás descargar o reenviar fácilmente.
             </p>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Si el organismo te exige el original en papel, también podemos
               enviarte las <strong>copias en papel por mensajería</strong> a
               tu domicilio o despacho profesional en España.
@@ -236,10 +236,10 @@ export default function PreguntasFrecuentesPage() {
 
           {/* 5 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿Es válida una traducción jurada en PDF con firma digital?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Sí, una <strong>traducción jurada en PDF firmada digitalmente</strong> es válida
               en muchos trámites administrativos, siempre que el organismo receptor acepte
               documentación electrónica. Administraciones, universidades y entidades extranjeras
@@ -247,19 +247,19 @@ export default function PreguntasFrecuentesPage() {
               Exteriores de España.
             </p>
 
-            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+            <h3 className="mt-3 text-sm font-semibold text-encre">
               ¿Cuándo no es suficiente el PDF?
             </h3>
-            <p className="mt-1 text-sm text-slate-700">
+            <p className="mt-1 text-sm text-sepia">
               Cuando el trámite exige <strong>legalización o apostilla</strong>, el PDF no basta,
               aunque esté firmado digitalmente. El MAEC solo legaliza traducciones juradas
               en papel, con firma manuscrita y sello original. Un PDF impreso no puede legalizarse.
             </p>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Consulta la guía oficial del Ministerio de Asuntos Exteriores sobre{" "}
               <a
                 href="https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Legalizacion-y-apostilla.aspx"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -268,42 +268,42 @@ export default function PreguntasFrecuentesPage() {
               .
             </p>
 
-            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+            <h3 className="mt-3 text-sm font-semibold text-encre">
               ¿Por qué se legaliza una traducción jurada?
             </h3>
-            <p className="mt-1 text-sm text-slate-700">
+            <p className="mt-1 text-sm text-sepia">
               La traducción jurada certifica la fidelidad lingüística, pero la legalización/apostilla
               sirve para:
             </p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-sepia">
               <li>Confirmar oficialmente que el traductor jurado está habilitado.</li>
               <li>Autenticar la firma y el sello del traductor jurado.</li>
               <li>Garantizar el reconocimiento del documento por autoridades extranjeras.</li>
             </ul>
 
-            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+            <h3 className="mt-3 text-sm font-semibold text-encre">
               Orden correcto del trámite
             </h3>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-700">
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-sepia">
               <li>Emisión del documento original.</li>
               <li>Apostilla o legalización del documento original (si el país de destino lo exige).</li>
               <li>Traducción jurada del documento y de la apostilla.</li>
               <li>Si procede: legalización de la traducción jurada en papel.</li>
             </ol>
 
-            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+            <h3 className="mt-3 text-sm font-semibold text-encre">
               Resumen rápido
             </h3>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-sepia">
               <li>Traducción jurada en PDF: válida para muchos trámites.</li>
               <li>Traducción jurada en PDF: no se puede legalizar.</li>
               <li>Traducción jurada en papel: necesaria si exigen apostilla o legalización.</li>
             </ul>
 
-            <h3 className="mt-3 text-sm font-semibold text-slate-900">
+            <h3 className="mt-3 text-sm font-semibold text-encre">
               ¿Dudas sobre tu caso?
             </h3>
-            <p className="mt-1 text-sm text-slate-800">
+            <p className="mt-1 text-sm text-encre">
               Cada organismo aplica requisitos distintos. Si no sabes si necesitas PDF o papel,
               o si deben apostillar/legalizar, consúltanos antes de iniciar el trámite. Te ayudamos
               a elegir el formato correcto y evitar retrasos o rechazos.
@@ -312,24 +312,24 @@ export default function PreguntasFrecuentesPage() {
 
           {/* 6 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿Cuándo es necesaria la Apostilla de la Haya?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               La Apostilla de la Haya suele exigirse cuando un{" "}
               <strong>documento público</strong> (por ejemplo, un certificado
               del Registro Civil, antecedentes penales o un documento
               mercantil) va a surtir efecto en otro país firmante del Convenio
               de La Haya.
             </p>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               En muchos casos hay que presentar el documento original
               apostillado y su <strong>traducción jurada</strong>, incluyendo
               también la apostilla. Puedes ampliar información en nuestra
               sección de{" "}
               <a
                 href="/documentos-oficiales/apostilla-haya"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
               >
                 Apostilla de la Haya
               </a>
@@ -339,17 +339,17 @@ export default function PreguntasFrecuentesPage() {
 
           {/* 7 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿Mis traducciones juradas son válidas en España si el documento
               es extranjero?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Sí, siempre que la traducción la firme un{" "}
               <strong>traductor jurado acreditado</strong> y el documento
               original cumpla las condiciones que exige la administración,
               consulado, notaría o universidad donde lo vas a presentar.
             </p>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               En trámites sensibles (extranjería, nacionalidad, procesos
               judiciales…) es recomendable consultar antes con el organismo
               receptor para confirmar si requieren originales, copias
@@ -359,15 +359,15 @@ export default function PreguntasFrecuentesPage() {
 
           {/* 8 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿Hacéis traducciones juradas urgentes?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               En función del idioma y del volumen, podemos asumir{" "}
               <strong>encargos urgentes</strong>. Es habitual en casos de
               citas de extranjería, trámites notariales o plazos de matrícula.
             </p>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Indícanos siempre la <strong>fecha límite</strong> al solicitar
               tu presupuesto para que podamos confirmar la disponibilidad del
               equipo.
@@ -376,20 +376,20 @@ export default function PreguntasFrecuentesPage() {
 
           {/* 9 */}
           <article>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-encre">
               ¿Cuánto cuesta una traducción jurada?
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               El precio depende del tipo de documento, el idioma, la extensión
               y la urgencia. No es lo mismo un certificado breve que un
               expediente académico completo o un conjunto de documentos
               mercantiles.
             </p>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-sepia">
               Puedes consultar una tabla de{" "}
               <a
                 href="/precios-traduccion-jurada"
-                className="text-emerald-700 underline"
+                className="text-bleu underline"
               >
                 precios de traducción jurada orientativos
               </a>{" "}
@@ -400,11 +400,11 @@ export default function PreguntasFrecuentesPage() {
         </section>
 
         {/* CTA FINAL */}
-        <section className="mt-12 rounded-3xl border border-emerald-100 bg-emerald-50/70 p-6 text-sm">
-          <h2 className="text-lg font-semibold text-emerald-900">
+        <section className="mt-12 rounded-3xl border border-cream bg-cream/70 p-6 text-sm">
+          <h2 className="text-lg font-semibold text-bleu">
             ¿No has encontrado tu pregunta en esta lista?
           </h2>
-        <p className="mt-1 text-slate-900">
+        <p className="mt-1 text-encre">
           Cuéntanos tu caso y te orientamos sin compromiso. Puedes adjuntar
           los documentos directamente o explicarnos para qué trámite
           necesitas la traducción jurada.
@@ -412,13 +412,13 @@ export default function PreguntasFrecuentesPage() {
         <div className="mt-3 flex flex-wrap gap-3">
             <a
               href={mailLink}
-              className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+              className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
             >
               Enviar una consulta por email
             </a>
             <a
               href={whatsappLink}
-              className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+              className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
             >
               Escribir por WhatsApp
             </a>

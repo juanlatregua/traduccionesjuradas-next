@@ -51,13 +51,13 @@ export default function PaginaIdioma({
       />
 
       {/* 1. HERO */}
-      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+      <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
         Traductor jurado de {idioma}
       </p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+      <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre">
         {tituloH1}
       </h1>
-      <p className="mt-3 text-base text-slate-600">{descripcion}</p>
+      <p className="mt-3 text-base text-sepia">{descripcion}</p>
 
       {/* 2. ESTIMADOR CARRITO */}
       <EstimadorCarrito
@@ -67,20 +67,20 @@ export default function PaginaIdioma({
 
       {/* 3. DOCUMENTOS HABITUALES */}
       <section className="mt-10">
-        <h2 className="text-xl font-semibold text-slate-900">
+        <h2 className="text-xl font-semibold text-encre">
           Documentos habituales en {idioma}
         </h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {documentosHabituales.map((doc) => (
             <div
               key={doc.titulo}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              className="rounded-doc border border-cream bg-card p-4 shadow-paper"
             >
-              <h3 className="font-semibold text-slate-900">{doc.titulo}</h3>
-              <p className="mt-1 text-sm text-slate-600">{doc.descripcion}</p>
+              <h3 className="font-semibold text-encre">{doc.titulo}</h3>
+              <p className="mt-1 text-sm text-sepia">{doc.descripcion}</p>
               <Link
                 href={doc.enlace}
-                className="mt-2 inline-block text-sm text-emerald-700 hover:underline"
+                className="mt-2 inline-block text-sm text-bleu hover:underline"
               >
                 Ver más →
               </Link>

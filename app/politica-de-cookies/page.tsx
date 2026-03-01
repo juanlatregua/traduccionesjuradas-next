@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function CookiesPage() {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 text-sm text-slate-700">
+    <main className="mx-auto max-w-3xl px-4 py-12 text-sm text-sepia">
 
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
         Política de cookies (UE)
@@ -133,7 +133,7 @@ export default function CookiesPage() {
         Teléfono: 951 333 614
       </p>
 
-      <p className="mt-8 text-xs text-slate-500">
+      <p className="mt-8 text-xs text-graphite">
         Esta política de cookies se ha sincronizado con cookiedatabase.org el 25 de marzo de 2025.
       </p>
 

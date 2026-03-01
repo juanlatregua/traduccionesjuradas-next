@@ -14,31 +14,31 @@ export default function DocumentosOficialesPage() {
     <main className="mx-auto max-w-5xl px-4 py-10">
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Documentos oficiales
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre">
           Documentos oficiales que requieren traducción jurada para usarlos en España
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           Gestionamos la <strong>traducción jurada de documentos oficiales extranjeros</strong> 
           más habituales para trámites de extranjería, estudios, trabajo, oposiciones, procesos
           judiciales, empresas, movilidad internacional y teletrabajo en España. Cada traducción 
           es realizada y firmada por un <strong>traductor jurado oficial</strong> y se puede entregar
           en PDF firmado digitalmente o en papel.
         </p>
-        <p className="mt-2 text-xs text-slate-600">
+        <p className="mt-2 text-xs text-sepia">
           Si no tienes claro qué te van a pedir o cómo es el flujo completo, puedes ver{" "}
           <Link
             href="/proceso"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             cómo funciona nuestro proceso
           </Link>{" "}
           o revisar las{" "}
           <Link
             href="/preguntas-frecuentes"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             preguntas frecuentes
           </Link>
@@ -98,13 +98,13 @@ export default function DocumentosOficialesPage() {
           <Link
             key={item.title}
             href={item.href}
-            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-emerald-400 hover:shadow-md"
+            className="rounded-2xl border border-cream bg-card p-4 shadow-sm transition hover:border-bleu hover:shadow-md"
           >
-            <h3 className="text-sm font-semibold text-slate-900">
+            <h3 className="text-sm font-semibold text-encre">
               {item.title}
             </h3>
-            <p className="mt-2 text-xs text-slate-600">{item.desc}</p>
-            <span className="mt-3 inline-block text-xs font-semibold text-emerald-700">
+            <p className="mt-2 text-xs text-sepia">{item.desc}</p>
+            <span className="mt-3 inline-block text-xs font-semibold text-bleu">
               Ver más →
             </span>
           </Link>
@@ -112,11 +112,11 @@ export default function DocumentosOficialesPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-12 rounded-2xl bg-emerald-50 p-6 border border-emerald-100">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-2xl bg-cream p-6 border border-cream">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Necesitas traducir alguno de estos documentos?
         </h2>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-sepia">
           Envíanos tu documento en PDF o foto y te indicamos{" "}
           <strong>precio cerrado, plazo aproximado y forma de entrega</strong>. Todas nuestras
           traducciones juradas incluyen firma y sello oficial y se pueden entregar en{" "}
@@ -124,7 +124,7 @@ export default function DocumentosOficialesPage() {
         </p>
         <Link
           href="/presupuesto"
-          className="mt-4 inline-block rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          className="mt-4 inline-block rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
         >
           Solicitar presupuesto
         </Link>

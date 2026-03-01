@@ -51,7 +51,7 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
 
   if (!isPayable) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-sepia">
         Este presupuesto no admite pago en su estado actual.
       </p>
     );
@@ -65,10 +65,10 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Forma de pago</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-graphite">Forma de pago</p>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+      <div className="flex gap-1 rounded-xl border border-cream bg-parchment p-1">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -76,8 +76,8 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
             onClick={() => setTab(t.key)}
             className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
               tab === t.key
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-white"
+                ? "bg-bleu text-white shadow-sm"
+                : "text-sepia hover:bg-card"
             }`}
           >
             {t.label}
@@ -88,12 +88,12 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       {/* Bizum */}
       {tab === "bizum" && (
         <div className="space-y-2">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-sepia">
             Envía un Bizum por <strong>{totalLabel}</strong> con estos datos:
           </p>
           <CopyField label="Bizum" value={MANUAL_PAYMENT.bizumPhone} onCopied={onCopy} />
           <CopyField label="Concepto" value={quoteNumber} onCopied={onCopy} />
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-graphite">
             Indica el número de presupuesto en el concepto. Se confirma en menos de 24 h laborables.
           </p>
         </div>
@@ -102,14 +102,14 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       {/* Transferencia */}
       {tab === "transferencia" && (
         <div className="space-y-2">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-sepia">
             Realiza una transferencia por <strong>{totalLabel}</strong>:
           </p>
           <CopyField label="Beneficiario" value={MANUAL_PAYMENT.accountHolder} mono={false} onCopied={onCopy} />
           <CopyField label="IBAN" value={MANUAL_PAYMENT.iban} onCopied={onCopy} />
           <CopyField label="BIC/SWIFT" value={MANUAL_PAYMENT.bic} onCopied={onCopy} />
           <CopyField label="Concepto" value={quoteNumber} onCopied={onCopy} />
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-graphite">
             Indica el número de presupuesto en el concepto. Se confirma en menos de 24 h laborables.
           </p>
         </div>
@@ -122,11 +122,11 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
             type="button"
             onClick={startCardCheckout}
             disabled={loading}
-            className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Redirigiendo..." : `Pagar ${totalLabel} con tarjeta`}
           </button>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-graphite">
             Pago seguro con tarjeta de crédito o débito (según disponibilidad).
           </p>
           {message && <p className="text-xs font-semibold text-red-700">{message}</p>}
@@ -134,7 +134,7 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       )}
 
       {toast && (
-        <p className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+        <p className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full bg-encre px-3 py-1 text-xs font-semibold text-white">
           {toast}
         </p>
       )}

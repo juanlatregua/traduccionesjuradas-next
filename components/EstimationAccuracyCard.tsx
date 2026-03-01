@@ -18,7 +18,7 @@ type AccuracyData = {
 };
 
 function accuracyColor(rate: number) {
-  if (rate >= 80) return "text-emerald-400 border-emerald-500/30 bg-emerald-500/10";
+  if (rate >= 80) return "text-bleu-light border-bleu/30 bg-bleu/10";
   if (rate >= 60) return "text-amber-400 border-amber-500/30 bg-amber-500/10";
   return "text-red-400 border-red-500/30 bg-red-500/10";
 }
@@ -41,11 +41,11 @@ export default function EstimationAccuracyCard() {
 
   if (loading) {
     return (
-      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cream/20 bg-encre/80 p-6 shadow-xl sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-graphite">
           Precision del estimador
         </p>
-        <p className="mt-3 text-sm text-slate-500">Cargando datos...</p>
+        <p className="mt-3 text-sm text-graphite">Cargando datos...</p>
       </section>
     );
   }
@@ -63,11 +63,11 @@ export default function EstimationAccuracyCard() {
 
   if (!data || data.totalSamples === 0) {
     return (
-      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cream/20 bg-encre/80 p-6 shadow-xl sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-graphite">
           Precision del estimador
         </p>
-        <p className="mt-3 text-sm text-slate-500">
+        <p className="mt-3 text-sm text-graphite">
           Sin datos suficientes. Los datos se acumularan a medida que se procesen pedidos con estimacion automatica.
         </p>
       </section>
@@ -81,8 +81,8 @@ export default function EstimationAccuracyCard() {
     .sort((a, b) => b[1].samples - a[1].samples);
 
   return (
-    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cream/20 bg-encre/80 p-6 shadow-xl sm:p-8">
+      <p className="text-xs font-semibold uppercase tracking-wide text-graphite">
         Precision del estimador
       </p>
 
@@ -93,13 +93,13 @@ export default function EstimationAccuracyCard() {
             Precision global
           </p>
         </div>
-        <div className="text-sm text-slate-300">
+        <div className="text-sm text-cream">
           <p>
             <span className="font-semibold text-white">{data.accurateCount}</span> de{" "}
             <span className="font-semibold text-white">{data.totalSamples}</span> estimaciones
             dentro del 10% del precio final.
           </p>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-graphite">
             Desviacion media: {data.avgPriceDeltaPct}%
           </p>
         </div>
@@ -117,9 +117,9 @@ export default function EstimationAccuracyCard() {
           return (
             <div
               key={band}
-              className="rounded-xl border border-slate-700 bg-slate-800/50 px-3 py-2 text-xs text-slate-300"
+              className="rounded-xl border border-cream/20 bg-encre/50 px-3 py-2 text-xs text-cream"
             >
-              <p className="font-semibold text-slate-200">{label}</p>
+              <p className="font-semibold text-cream">{label}</p>
               <p className="mt-1">
                 {info.samples} muestras · {info.accuracyRate}% precision
               </p>
@@ -130,7 +130,7 @@ export default function EstimationAccuracyCard() {
 
       {data.totalSamples > 20 && docTypeEntries.length > 0 && (
         <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wide text-graphite">
             Por tipo de documento
           </p>
           <div className="mt-2 flex flex-wrap gap-2">

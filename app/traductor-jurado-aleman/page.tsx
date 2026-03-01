@@ -27,12 +27,22 @@ export default function TraductorJuradoAlemanPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de alemán?",
           answer:
-            "El precio depende del tipo de documento, su extensión y la urgencia. Confirmamos presupuesto cerrado tras revisar el archivo.",
+            "El precio orientativo de un certificado sencillo (Geburtsurkunde, Heiratsurkunde) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Enviamos presupuesto cerrado tras revisar el archivo.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de alemán?",
           answer:
             "Los certificados sencillos suelen resolverse en 24-72 horas laborables, y los expedientes extensos requieren más plazo según volumen.",
+        },
+        {
+          question: "¿Se necesita Apostilla para usar una traducción jurada en Alemania, Austria o Suiza?",
+          answer:
+            "Alemania, Austria y Suiza son firmantes del Convenio de la Haya, por lo que puede requerirse Apostilla. Para trámites dentro de España normalmente no es necesaria. Te orientamos según tu caso concreto.",
+        },
+        {
+          question: "¿Qué documentos en alemán se traducen con más frecuencia?",
+          answer:
+            "Los más habituales son: Geburtsurkunde (certificado de nacimiento), Heiratsurkunde (matrimonio), Führungszeugnis (antecedentes penales), Abschlusszeugnis (título académico), Arbeitsvertrag y Gehaltsabrechnungen (documentos laborales).",
         },
       ]}
       documentosHabituales={[

@@ -14,13 +14,13 @@ export default function TraductoresJuradosPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       {/* CABECERA */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Sobre nosotros
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Equipo de traductores jurados oficiales, sin intermediarios
         </h1>
-        <p className="mt-3 text-sm text-slate-700 sm:text-base">
+        <p className="mt-3 text-sm text-sepia sm:text-base">
           Detrás de traduccionesjuradas.net no hay una gran plataforma anónima,
           sino un equipo reducido de traductores jurados que trabaja de forma
           directa y cercana con cada cliente. Coordinamos encargos de
@@ -30,8 +30,8 @@ export default function TraductoresJuradosPage() {
       </header>
 
       {/* QUIÉN ESTÁ DETRÁS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           ¿Quién está detrás de traduccionesjuradas.net?
         </h2>
         <p>
@@ -45,33 +45,33 @@ export default function TraductoresJuradosPage() {
           expedientes más complejos.
         </p>
         {/* Tarjeta E-E-A-T */}
-        <div className="my-6 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+        <div className="my-6 rounded-2xl border border-cream bg-cream/60 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
             Datos clave del traductor jurado principal
           </p>
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-700">2009</p>
-              <p className="mt-1 text-xs font-semibold text-slate-900">Año de nombramiento</p>
-              <p className="mt-0.5 text-[11px] text-slate-600">Ministerio de Asuntos Exteriores</p>
+              <p className="text-2xl font-bold text-bleu">2009</p>
+              <p className="mt-1 text-xs font-semibold text-encre">Año de nombramiento</p>
+              <p className="mt-0.5 text-[11px] text-sepia">Ministerio de Asuntos Exteriores</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-700">+15 años</p>
-              <p className="mt-1 text-xs font-semibold text-slate-900">De experiencia</p>
-              <p className="mt-0.5 text-[11px] text-slate-600">Traducción jurada FR↔ES</p>
+              <p className="text-2xl font-bold text-bleu">+15 años</p>
+              <p className="mt-1 text-xs font-semibold text-encre">De experiencia</p>
+              <p className="mt-0.5 text-[11px] text-sepia">Traducción jurada FR↔ES</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-700">+3.000</p>
-              <p className="mt-1 text-xs font-semibold text-slate-900">Traducciones entregadas</p>
-              <p className="mt-0.5 text-[11px] text-slate-600">Particulares y empresas</p>
+              <p className="text-2xl font-bold text-bleu">+3.000</p>
+              <p className="mt-1 text-xs font-semibold text-encre">Traducciones entregadas</p>
+              <p className="mt-0.5 text-[11px] text-sepia">Particulares y empresas</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-700">Lic. TeI</p>
-              <p className="mt-1 text-xs font-semibold text-slate-900">Formación académica</p>
-              <p className="mt-0.5 text-[11px] text-slate-600">Traducción e Interpretación</p>
+              <p className="text-2xl font-bold text-bleu">Lic. TeI</p>
+              <p className="mt-1 text-xs font-semibold text-encre">Formación académica</p>
+              <p className="mt-0.5 text-[11px] text-sepia">Traducción e Interpretación</p>
             </div>
           </div>
-          <p className="mt-4 text-xs text-slate-600">
+          <p className="mt-4 text-xs text-sepia">
             Documentos más frecuentes: certificados del Registro Civil, documentos académicos, antecedentes penales y documentos mercantiles.
           </p>
         </div>
@@ -81,7 +81,7 @@ export default function TraductoresJuradosPage() {
           la página especializada del{" "}
           <Link
             href="/traductor-jurado-frances"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             servicio oficial de francés
           </Link>
@@ -92,14 +92,14 @@ export default function TraductoresJuradosPage() {
           traductor jurado más adecuado y acompañarte durante el proceso para
           evitar errores que puedan retrasar tus trámites.
         </p>
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-sepia">
           Puedes verificar el nombramiento de Juan Silva Moreno como traductor-intérprete
           jurado en el{" "}
           <a
             href="https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Traductores-Interpretes-Jurados.aspx"
             target="_blank"
             rel="noopener noreferrer"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             listado oficial del Ministerio de Asuntos Exteriores
           </a>
@@ -108,8 +108,8 @@ export default function TraductoresJuradosPage() {
       </section>
 
       {/* NO SOMOS INTERMEDIARIOS OPACOS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           No somos una plataforma de intermediación cualquiera
         </h2>
         <p>
@@ -139,8 +139,8 @@ export default function TraductoresJuradosPage() {
       </section>
 
       {/* TIPOS DE CLIENTES Y EXPEDIENTES */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Tipos de clientes y expedientes con los que trabajamos
         </h2>
         <p>
@@ -167,7 +167,7 @@ export default function TraductoresJuradosPage() {
             con documentación en varios idiomas.
           </li>
         </ul>
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-sepia">
           Una parte importante de nuestro trabajo está relacionada con expedientes
           que incluyen documentos de países francófonos (como Francia o
           Marruecos) y de países europeos como Alemania, Países Bajos o los
@@ -176,8 +176,8 @@ export default function TraductoresJuradosPage() {
       </section>
 
       {/* CÓMO TRABAJAMOS (RESUMEN) */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Cómo trabajamos con tus documentos
         </h2>
         <p>
@@ -204,7 +204,7 @@ export default function TraductoresJuradosPage() {
           Puedes ver el detalle del proceso en la página de{" "}
           <Link
             href="/proceso"
-            className="font-semibold text-emerald-700 hover:underline"
+            className="font-semibold text-bleu hover:underline"
           >
             cómo funciona la traducción jurada
           </Link>
@@ -213,8 +213,8 @@ export default function TraductoresJuradosPage() {
       </section>
 
       {/* COMPROMISOS */}
-      <section className="mt-10 space-y-4 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
           Nuestros compromisos contigo
         </h2>
         <ul className="list-disc pl-5 space-y-1">
@@ -237,11 +237,11 @@ export default function TraductoresJuradosPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="mt-12 rounded-3xl border border-emerald-100 bg-emerald-50 p-6 text-sm">
-        <h2 className="text-lg font-semibold text-emerald-900">
+      <section className="mt-12 rounded-3xl border border-cream bg-cream p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
           ¿Hablamos sobre tu caso concreto?
         </h2>
-        <p className="mt-1 text-slate-800">
+        <p className="mt-1 text-encre">
           Cada expediente es distinto. Puedes enviarnos tus documentos para que
           los revisemos y te propongamos la mejor forma de preparar la
           traducción jurada.
@@ -249,24 +249,24 @@ export default function TraductoresJuradosPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto"
-            className="rounded-2xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Rellenar el formulario de presupuesto
           </Link>
           <a
             href={MAIL_LINK}
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             Enviar documentos por email
           </a>
           <a
             href={WHATSAPP_LINK}
-            className="text-xs font-medium text-emerald-800 underline-offset-2 hover:underline"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O enviar fotos por WhatsApp
           </a>
         </div>
-        <p className="mt-2 text-[11px] text-slate-700">
+        <p className="mt-2 text-[11px] text-sepia">
           Damos prioridad a las consultas por email y WhatsApp para poder
           revisar tus documentos con calma y ofrecerte un presupuesto ajustado.
         </p>

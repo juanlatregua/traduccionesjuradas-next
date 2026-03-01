@@ -54,12 +54,12 @@ export function AntecedentesMiniForm() {
   };
 
   return (
-    <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="mt-6 rounded-2xl border border-cream bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <select
           value={pair.id}
           onChange={(e) => setPair(OPTIONS.find((o) => o.id === e.target.value) || OPTIONS[0])}
-          className="rounded-xl border border-slate-300 px-3 py-2 text-xs"
+          className="rounded-xl border border-cream px-3 py-2 text-xs"
         >
           {OPTIONS.map((o) => (
             <option key={o.id} value={o.id}>
@@ -67,8 +67,8 @@ export function AntecedentesMiniForm() {
             </option>
           ))}
         </select>
-        <div className="flex-1 text-slate-800">
-          <p className="text-xs uppercase tracking-wide text-emerald-700 font-semibold">Precio orientativo</p>
+        <div className="flex-1 text-encre">
+          <p className="text-xs uppercase tracking-wide text-bleu font-semibold">Precio orientativo</p>
           <p className="text-sm font-semibold">
             {pair.price} · {pair.plazo}
           </p>
@@ -76,7 +76,7 @@ export function AntecedentesMiniForm() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          className="rounded-2xl bg-bleu px-4 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
         >
           {open ? "Cerrar" : "Adjuntar y enviar"}
         </button>
@@ -86,7 +86,7 @@ export function AntecedentesMiniForm() {
         <div
           className={`mt-3 rounded-xl border px-3 py-2 text-xs font-semibold ${
             toast.type === "ok"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              ? "border-cream bg-cream text-bleu"
               : "border-red-200 bg-red-50 text-red-700"
           }`}
           role="status"
@@ -97,31 +97,31 @@ export function AntecedentesMiniForm() {
       )}
 
       {open && (
-        <form onSubmit={submit} className="mt-4 space-y-3 text-sm text-slate-700">
+        <form onSubmit={submit} className="mt-4 space-y-3 text-sm text-sepia">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs text-slate-600">Nombre (opcional)</label>
+              <label className="text-xs text-sepia">Nombre (opcional)</label>
               <input
                 type="text"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl border border-cream px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="text-xs text-slate-600">Email para enviarte el precio</label>
+              <label className="text-xs text-sepia">Email para enviarte el precio</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl border border-cream px-3 py-2 text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-xs text-slate-600">Adjuntar certificado (PDF o foto)</label>
+            <label className="text-xs text-sepia">Adjuntar certificado (PDF o foto)</label>
             <input
               ref={fileRef}
               type="file"
@@ -131,7 +131,7 @@ export function AntecedentesMiniForm() {
               className="mt-1 block w-full text-xs"
             />
             {file && (
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-graphite">
                 Archivo: {file.name} ({Math.round(file.size / 1024)} KB)
               </p>
             )}
@@ -140,7 +140,7 @@ export function AntecedentesMiniForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Enviando..." : "Enviar y confirmar pago/plazo"}
           </button>
@@ -148,18 +148,18 @@ export function AntecedentesMiniForm() {
           {toast && (
             <p
               className={`text-xs font-semibold ${
-                toast.type === "ok" ? "text-emerald-700" : "text-red-600"
+                toast.type === "ok" ? "text-bleu" : "text-red-600"
               }`}
             >
               {toast.msg}
             </p>
           )}
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-graphite">
             Usamos tus archivos solo para prepararte el presupuesto y confirmarte el pago/plazo. Se borran en 30 días o antes si lo pides.
           </p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-graphite">
             Precio orientativo: lo confirmamos al revisar el documento. Para otros idiomas o casos especiales, usa el{" "}
-            <a href="/presupuesto" className="text-emerald-700 underline">
+            <a href="/presupuesto" className="text-bleu underline">
               formulario completo
             </a>
             .

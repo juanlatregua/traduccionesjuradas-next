@@ -42,9 +42,9 @@ export default function StartSessionForm({
   };
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-      <h2 className="text-lg font-semibold text-slate-900">Paso 1. Contexto del encargo</h2>
-      <p className="mt-2 text-sm text-slate-700">
+    <section className="rounded-3xl border border-cream bg-white p-5 shadow-sm sm:p-7">
+      <h2 className="text-lg font-semibold text-encre">Paso 1. Contexto del encargo</h2>
+      <p className="mt-2 text-sm text-sepia">
         Indica para qué trámite necesitas la traducción. Esto nos ayuda a priorizar revisión y formato.
       </p>
 
@@ -55,12 +55,12 @@ export default function StartSessionForm({
       )}
 
       <label className="mt-4 block">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Finalidad</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-sepia">Finalidad</span>
         <input
           value={purpose}
           onChange={(e) => setPurpose(e.target.value)}
           placeholder="Ejemplo: extranjería, nacionalidad, homologación, registro..."
-          className="mt-2 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+          className="mt-2 w-full rounded-2xl border border-cream px-3 py-2 text-sm"
         />
       </label>
 
@@ -69,7 +69,7 @@ export default function StartSessionForm({
           type="button"
           onClick={handleContinue}
           disabled={loading}
-          className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          className="rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark disabled:opacity-60"
         >
           {loading ? "Preparando..." : "Continuar al paso de documento"}
         </button>
