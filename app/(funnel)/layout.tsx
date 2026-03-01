@@ -21,4 +21,3 @@ export default function FunnelLayout({ children }: { children: ReactNode }) {
     </main>
   );
 }
-

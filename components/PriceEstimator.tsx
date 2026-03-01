@@ -54,11 +54,12 @@ type CartItem = {
 };
 const SAFETY_MARGIN_MULTIPLIER = 1.1;
 const SAFETY_MARGIN_PCT = 10;
+const CART_STORAGE_KEY = "tj-price-estimator-cart";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   registro_civil: "Registro civil",
-  academico: "Academico",
-  juridico_notarial: "Juridico / Notarial",
+  academico: "Académico",
+  juridico_notarial: "Jurídico / Notarial",
   laboral: "Laboral",
   mercantil: "Mercantil",
   identidad: "Documento de identidad",
@@ -144,6 +145,17 @@ function getEstimatedDays(doc: DocType, urgency: Urgency) {
   return doc === "certificado" ? "24-48 h laborales" : "48-72 h laborales";
 }
 
+function readCartFromStorage(): CartItem[] {
+  try {
+    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function PriceEstimator() {
   const [mode, setMode] = useState<CalcMode>("preset");
   const [message, setMessage] = useState<string | null>(null);
@@ -156,6 +168,7 @@ export default function PriceEstimator() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const createOrderIdempotencyRef = useRef<string | null>(null);
   const createOrderFingerprintRef = useRef<string | null>(null);
+  const checkoutInFlightRef = useRef(false);
 
   const [presetLangPair, setPresetLangPair] = useState<LangPairOption>("");
   const [presetDocLabel, setPresetDocLabel] = useState("");
@@ -174,6 +187,22 @@ export default function PriceEstimator() {
     sourceMedium?: string;
     sourceLanding?: string;
   }>({});
+
+  // Load cart from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setCart(readCartFromStorage());
+  }, []);
+
+  // Persist cart to localStorage on change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    } catch {
+      // storage full or unavailable
+    }
+  }, [cart]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -325,6 +354,9 @@ export default function PriceEstimator() {
   const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
 
   const startCheckout = async (emailOverride?: string) => {
+    if (checkoutInFlightRef.current) return;
+    checkoutInFlightRef.current = true;
+
     // Determine what to pay: cart items or single result
     const hasCart = cart.length > 0;
     const payResult = hasCart ? null : result;
@@ -332,6 +364,7 @@ export default function PriceEstimator() {
 
     if (!payTotal || payTotal <= 0) {
       setMessage("Calcula primero una estimación o añade documentos al presupuesto.");
+      checkoutInFlightRef.current = false;
       return;
     }
 
@@ -407,6 +440,10 @@ export default function PriceEstimator() {
         }
         throw new Error(data?.error || "No se pudo crear el pedido.");
       }
+
+      // Clear cart from localStorage on successful checkout
+      try { window.localStorage.removeItem(CART_STORAGE_KEY); } catch {}
+
       const params = new URLSearchParams();
       if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
       if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
@@ -417,6 +454,7 @@ export default function PriceEstimator() {
       setMessage(error?.message || "No se pudo iniciar el pago.");
     } finally {
       setCheckoutLoading(false);
+      checkoutInFlightRef.current = false;
     }
   };
 
@@ -459,7 +497,7 @@ export default function PriceEstimator() {
             mode === "preset" ? "bg-bleu text-white" : "text-sepia"
           }`}
         >
-          Documentos habituales (precios orientativos)
+          Precio por tipo de documento
         </button>
         <button
           type="button"
@@ -468,17 +506,18 @@ export default function PriceEstimator() {
             mode === "file" ? "bg-bleu text-white" : "text-sepia"
           }`}
         >
-          Calcula tu presupuesto (Adjuntar archivo)
+          Precio por análisis de archivo
         </button>
       </div>
 
       {mode === "preset" ? (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-sepia">
+          <div className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
+            <label htmlFor="preset-lang-pair" className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Combinación de idioma
-            </span>
+            </label>
             <select
+              id="preset-lang-pair"
               className="rounded-2xl border border-cream bg-card px-3 py-2 text-sm"
               value={presetLangPair}
               onChange={(e) => {
@@ -493,13 +532,14 @@ export default function PriceEstimator() {
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-sepia">
+          <div className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
+            <label htmlFor="preset-doc-label" className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Documento con precio fijo
-            </span>
+            </label>
             <select
+              id="preset-doc-label"
               className="rounded-2xl border border-cream bg-card px-3 py-2 text-sm"
               value={presetDocLabel}
               onChange={(e) => setPresetDocLabel(e.target.value)}
@@ -517,7 +557,7 @@ export default function PriceEstimator() {
             <p className="text-[11px] text-graphite">
               Al elegir documento, el precio fijo se muestra automáticamente (recto/verso no cuenta como dos hojas).
             </p>
-          </label>
+          </div>
 
           {presetLangPair && filteredPresets.length === 0 && (
             <div className="col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
@@ -525,7 +565,7 @@ export default function PriceEstimator() {
                 Aún no tenemos precios fijos para esta combinación.
               </p>
               <p className="mt-1 text-amber-700">
-                Tarifa orientativa: <strong>{getWordRateForLangOrPair(presetLangPair).toFixed(2)} EUR/palabra</strong>.
+                Tarifa orientativa: <strong>{getWordRateForLangOrPair(presetLangPair).toFixed(2)} €/palabra</strong>.
                 Usa la ruta &ldquo;Calcula tu presupuesto&rdquo; para una estimación por archivo, o contáctanos directamente.
               </p>
             </div>
@@ -533,11 +573,12 @@ export default function PriceEstimator() {
         </div>
       ) : (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-sepia">
+          <div className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
+            <label htmlFor="file-lang-pair" className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Combinación de idioma
-            </span>
+            </label>
             <select
+              id="file-lang-pair"
               className="rounded-2xl border border-cream bg-card px-3 py-2 text-sm"
               value={fileLangPair}
               onChange={(e) => setFileLangPair(e.target.value as LangPairOption)}
@@ -554,13 +595,14 @@ export default function PriceEstimator() {
                 Tarifa para esta combinación: <strong className="text-bleu">{getWordRateForLangOrPair(fileLangPair).toFixed(2)} EUR/palabra</strong>
               </p>
             )}
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-sepia">
+          <div className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
+            <label htmlFor="file-doc-type" className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Familia de documento
-            </span>
+            </label>
             <select
+              id="file-doc-type"
               className="rounded-2xl border border-cream bg-card px-3 py-2 text-sm"
               value={fileDocType}
               onChange={(e) => setFileDocType(e.target.value as DocType)}
@@ -571,11 +613,12 @@ export default function PriceEstimator() {
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-sepia">Plazo</span>
+          <div className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
+            <label htmlFor="file-urgency" className="text-xs font-semibold uppercase tracking-wide text-sepia">Plazo</label>
             <select
+              id="file-urgency"
               className="rounded-2xl border border-cream bg-card px-3 py-2 text-sm"
               value={fileUrgency}
               onChange={(e) => setFileUrgency(e.target.value as Urgency)}
@@ -583,20 +626,21 @@ export default function PriceEstimator() {
               <option value="normal">Normal</option>
               <option value="urgente24">Urgente 24 h (+25%)</option>
             </select>
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-sepia">
+          <div className="flex flex-col gap-2 rounded-2xl border border-cream bg-card p-3">
+            <label htmlFor="file-upload" className="text-xs font-semibold uppercase tracking-wide text-sepia">
               Adjuntar archivo
-            </span>
+            </label>
             <input
+              id="file-upload"
               type="file"
               accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
               onChange={(e) => setFileUpload(e.target.files?.[0] || null)}
               className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-cream file:px-3 file:py-2 file:text-xs file:font-semibold file:text-sepia"
             />
             <p className="text-[11px] text-graphite">PDF, DOCX o TXT. Para PDF escaneado usamos OCR si está configurado.</p>
-          </label>
+          </div>
         </div>
       )}
 
@@ -606,7 +650,7 @@ export default function PriceEstimator() {
             type="button"
             onClick={calculateFile}
             disabled={loading}
-            className="rounded-2xl bg-bleu px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            className="rounded-2xl bg-bleu px-5 py-2.5 text-sm font-semibold text-white hover:bg-bleu-dark disabled:opacity-60"
           >
             {loading ? "Calculando..." : "Calcular precio"}
           </button>
@@ -649,13 +693,13 @@ export default function PriceEstimator() {
         </details>
       )}
 
-      <div className="mt-6 rounded-2xl border border-cream bg-card border-cream p-4 shadow-sm">
+      <div className="mt-6 rounded-2xl border border-cream bg-card p-4 shadow-sm">
         <p className="text-sm font-semibold text-encre">Estimación orientativa</p>
         {!result ? (
           <p className="mt-2 text-sm text-sepia">
             {mode === "preset"
               ? "Selecciona idioma y documento para ver el precio fijo."
-              : "Completa la ruta elegida y pulsa “Calcular precio”."}
+              : "Completa la ruta elegida y pulsa \u201cCalcular precio\u201d."}
           </p>
         ) : (
           <>
@@ -697,7 +741,7 @@ export default function PriceEstimator() {
               </div>
             )}
             <p className="mt-2 text-[13px] text-sepia">
-              Simulacion orientativa. El precio exacto se confirma al revisar el documento final.
+              Simulación orientativa. El precio exacto se confirma al revisar el documento final.
             </p>
           </>
         )}
@@ -728,7 +772,7 @@ export default function PriceEstimator() {
               <button
                 type="submit"
                 disabled={checkoutLoading}
-                className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
               >
                 {checkoutLoading ? "Creando pedido..." : "Continuar al pago"}
               </button>
@@ -754,7 +798,7 @@ export default function PriceEstimator() {
                   type="button"
                   onClick={() => startCheckout()}
                   disabled={checkoutLoading}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
                 >
                   {checkoutLoading ? "Redirigiendo al pago..." : "Pagar y confirmar pedido"}
                 </button>
@@ -765,7 +809,7 @@ export default function PriceEstimator() {
             href="/presupuesto"
             className="inline-flex items-center gap-2 rounded-2xl bg-bleu px-4 py-2 font-semibold text-white shadow-sm hover:bg-bleu-dark"
           >
-            Pedir presupuesto cerrado
+            Solicitar presupuesto personalizado
           </Link>
           <Link href="/preguntas-frecuentes" className="font-semibold text-bleu underline-offset-2 hover:underline">
             Ver dudas frecuentes
@@ -773,10 +817,11 @@ export default function PriceEstimator() {
         </div>
       </div>
       <div className="mt-4 rounded-2xl border border-cream bg-card p-4">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-sepia">
+        <label htmlFor="urgency-notes" className="block text-xs font-semibold uppercase tracking-wide text-sepia">
           Observaciones de urgencia (opcional)
         </label>
         <textarea
+          id="urgency-notes"
           value={urgencyNotes}
           onChange={(e) => setUrgencyNotes(e.target.value)}
           className="mt-2 h-20 w-full rounded-2xl border border-cream bg-card px-3 py-2 text-sm"
@@ -819,7 +864,7 @@ export default function PriceEstimator() {
                 type="button"
                 onClick={() => startCheckout()}
                 disabled={checkoutLoading}
-                className="rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60"
+                className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
               >
                 {checkoutLoading ? "Redirigiendo al pago..." : "Pagar todo"}
               </button>

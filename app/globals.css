@@ -15,6 +15,17 @@ h3 {
   font-family: "Libre Baskerville", Georgia, "Times New Roman", serif;
 }
 
+/* Push WhatsApp float above cookie banner when visible */
+.cookie-banner-visible .whatsapp-float {
+  bottom: 6rem;
+}
+
+@media (min-width: 640px) {
+  .cookie-banner-visible .whatsapp-float {
+    bottom: 5rem;
+  }
+}
+
 /* Paper texture noise overlay */
 body::before {
   content: "";

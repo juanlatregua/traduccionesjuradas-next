@@ -246,7 +246,12 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 El envío en papel (12 € + IVA) está incluido en el total.
               </p>
             )}
-            <QuotePublicPayButton token={params.token} isPayable={isPayable} />
+            <QuotePublicPayButton
+              token={params.token}
+              isPayable={isPayable}
+              quoteNumber={refreshed.quoteNumber}
+              totalLabel={formatMoney(total)}
+            />
           </aside>
         </div>
 

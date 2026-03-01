@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -32,17 +32,45 @@ function Logo() {
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [translatorDropdownOpen, setTranslatorDropdownOpen] = useState(false);
+  const [docsDropdownOpen, setDocsDropdownOpen] = useState(false);
 
-  // Close menu on escape
-  useEffect(() => {
-    function handleKeydown(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    window.addEventListener("keydown", handleKeydown);
-    return () => window.removeEventListener("keydown", handleKeydown);
+  const translatorRef = useRef<HTMLDivElement>(null);
+  const docsRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on Escape or outside click
+  const closeAllDropdowns = useCallback(() => {
+    setTranslatorDropdownOpen(false);
+    setDocsDropdownOpen(false);
   }, []);
 
-  const closeMenu = () => setMenuOpen(false);
+  useEffect(() => {
+    function handleKeydown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        closeAllDropdowns();
+      }
+    }
+    function handleClickOutside(e: MouseEvent) {
+      if (translatorRef.current && !translatorRef.current.contains(e.target as Node)) {
+        setTranslatorDropdownOpen(false);
+      }
+      if (docsRef.current && !docsRef.current.contains(e.target as Node)) {
+        setDocsDropdownOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeydown);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("keydown", handleKeydown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [closeAllDropdowns]);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    closeAllDropdowns();
+  };
 
   return (
     <header className="sticky top-0 z-40 overflow-visible border-b border-cream bg-card/90 backdrop-blur">
@@ -73,18 +101,30 @@ export function Header() {
           {/* TOGGLE MOBILE */}
           <button
             type="button"
-            aria-label="Abrir menú"
+            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={menuOpen}
             aria-controls="primary-navigation"
             onClick={() => setMenuOpen((prev) => !prev)}
             className="inline-flex items-center gap-2 rounded-xl border border-cream px-3 py-2 text-xs font-semibold text-sepia shadow-sm sm:hidden"
           >
-            <span className="flex flex-col gap-1" aria-hidden="true">
-              <span className="block h-[2px] w-4 bg-sepia" />
-              <span className="block h-[2px] w-4 bg-sepia" />
-              <span className="block h-[2px] w-4 bg-sepia" />
+            <span className="relative flex h-4 w-4 flex-col items-center justify-center" aria-hidden="true">
+              <span
+                className={`absolute block h-[2px] w-4 bg-sepia transition-transform duration-200 ${
+                  menuOpen ? "rotate-45" : "-translate-y-[5px]"
+                }`}
+              />
+              <span
+                className={`absolute block h-[2px] w-4 bg-sepia transition-opacity duration-200 ${
+                  menuOpen ? "opacity-0" : "opacity-100"
+                }`}
+              />
+              <span
+                className={`absolute block h-[2px] w-4 bg-sepia transition-transform duration-200 ${
+                  menuOpen ? "-rotate-45" : "translate-y-[5px]"
+                }`}
+              />
             </span>
-            Menú
+            {menuOpen ? "Cerrar" : "Menú"}
           </button>
         </div>
 
@@ -121,18 +161,35 @@ export function Header() {
           </Link>
 
           {/* ===== TRADUCTOR JURADO (DESPLEGABLE) ===== */}
-          <div className="relative hidden sm:block group">
+          <div className="relative hidden sm:block" ref={translatorRef}>
             <button
               type="button"
               className="flex items-center gap-1 hover:text-bleu focus:outline-none focus-visible:text-bleu"
               aria-haspopup="true"
-              aria-expanded="false"
+              aria-expanded={translatorDropdownOpen}
+              onClick={() => {
+                setTranslatorDropdownOpen((prev) => !prev);
+                setDocsDropdownOpen(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setTranslatorDropdownOpen((prev) => !prev);
+                  setDocsDropdownOpen(false);
+                }
+              }}
             >
               <span>Traductor jurado</span>
               <span className="text-[10px]">▼</span>
             </button>
 
-            <div className="pointer-events-none absolute right-0 top-full w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-cream bg-card p-3 text-xs text-sepia shadow-lg opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+            <div
+              className={`absolute right-0 top-full w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-cream bg-card p-3 text-xs text-sepia shadow-lg transition ${
+                translatorDropdownOpen
+                  ? "pointer-events-auto opacity-100"
+                  : "pointer-events-none opacity-0"
+              }`}
+            >
               {/* Idiomas principales */}
               <p className="mb-2 text-[11px] font-semibold text-graphite">
                 Idiomas principales
@@ -214,18 +271,35 @@ export function Header() {
           </div>
 
           {/* ===== DOCUMENTOS OFICIALES (DESPLEGABLE) ===== */}
-          <div className="relative hidden sm:block group">
-            <Link
-              href="/documentos-oficiales"
-              className="flex items-center gap-1 hover:text-bleu focus-visible:text-bleu"
+          <div className="relative hidden sm:block" ref={docsRef}>
+            <button
+              type="button"
+              className="flex items-center gap-1 hover:text-bleu focus:outline-none focus-visible:text-bleu"
               aria-haspopup="true"
-              aria-expanded="false"
+              aria-expanded={docsDropdownOpen}
+              onClick={() => {
+                setDocsDropdownOpen((prev) => !prev);
+                setTranslatorDropdownOpen(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setDocsDropdownOpen((prev) => !prev);
+                  setTranslatorDropdownOpen(false);
+                }
+              }}
             >
               <span>Documentos oficiales</span>
               <span className="text-[10px]">▼</span>
-            </Link>
+            </button>
 
-            <div className="pointer-events-none absolute left-0 top-full w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-cream bg-card p-3 text-xs text-sepia shadow-lg opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+            <div
+              className={`absolute left-0 top-full w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-cream bg-card p-3 text-xs text-sepia shadow-lg transition ${
+                docsDropdownOpen
+                  ? "pointer-events-auto opacity-100"
+                  : "pointer-events-none opacity-0"
+              }`}
+            >
               <p className="mb-2 text-[11px] font-semibold text-graphite">
                 Más consultados
               </p>
