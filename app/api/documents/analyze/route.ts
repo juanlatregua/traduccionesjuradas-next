@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { analyzeDocument, censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Allow up to 60s for IA analysis
@@ -12,15 +13,15 @@ export const maxDuration = 60; // Allow up to 60s for IA analysis
 export async function POST(req: Request) {
   const ip = getClientIp(req);
 
-  // Rate limit: 10 análisis por IP por hora
+  // Rate limit: 5 análisis por IP por día
   const rl = await checkRateLimit({
     key: `doc-analyze:${ip}`,
-    limit: 10,
-    windowMs: 60 * 60 * 1000,
+    limit: 5,
+    windowMs: 24 * 60 * 60 * 1000,
   });
   if (!rl.ok) {
     return NextResponse.json(
-      { ok: false, error: "Has superado el límite de análisis. Inténtalo de nuevo en una hora." },
+      { ok: false, error: "Has superado el límite diario de análisis. Inténtalo mañana." },
       { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
     );
   }
@@ -40,6 +41,21 @@ export async function POST(req: Request) {
 
     if (!doc) {
       return NextResponse.json({ ok: false, error: "Documento no encontrado." }, { status: 404 });
+    }
+
+    // Rate limit por email: 3 análisis por email por día
+    if (doc.clientEmail) {
+      const rlEmail = await checkRateLimit({
+        key: `doc-analyze:email:${doc.clientEmail}`,
+        limit: 3,
+        windowMs: 24 * 60 * 60 * 1000,
+      });
+      if (!rlEmail.ok) {
+        return NextResponse.json(
+          { ok: false, error: "Has superado el límite diario de análisis para este email." },
+          { status: 429, headers: { "Retry-After": String(rlEmail.retryAfterSec) } }
+        );
+      }
     }
 
     if (doc.status === "ANALYZED" || doc.status === "QUOTE_GENERATED") {
@@ -136,6 +152,20 @@ export async function POST(req: Request) {
         pageCount: analysis.document_metrics.pages,
       },
     });
+
+    // Send follow-up email (fire-and-forget, non-blocking)
+    if (doc.clientEmail && doc.clientName) {
+      sendQuoteFollowupEmail({
+        email: doc.clientEmail,
+        name: doc.clientName,
+        documentType: analysis.document_type.specific_type_es,
+        price: quote.basePrice,
+        langPair: `${analysis.language.source_name} → ${analysis.language.target_name}`,
+        estimatedDays: quote.estimatedDaysStandard,
+      }).catch((err) => {
+        console.error("[documents/analyze] Follow-up email error:", err.message);
+      });
+    }
 
     return NextResponse.json({
       ok: true,

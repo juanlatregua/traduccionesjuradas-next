@@ -106,15 +106,11 @@ export default function InstantQuote({
         {/* Breakdown */}
         <div className="mt-5 space-y-2 rounded-lg bg-cream/40 p-3 text-xs text-graphite">
           <div className="flex justify-between">
-            <span>Palabras estimadas</span>
+            <span>Documento analizado</span>
             <span className="font-medium text-encre">
-              ~{quote.breakdown.words}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Tarifa por palabra</span>
-            <span className="font-medium text-encre">
-              {quote.breakdown.ratePerWord.toFixed(2)}€
+              {analysis.document_type.specific_type_es} &middot;{" "}
+              {analysis.document_metrics.pages}{" "}
+              {analysis.document_metrics.pages === 1 ? "página" : "páginas"}
             </span>
           </div>
           {quote.breakdown.minimumApplied && (

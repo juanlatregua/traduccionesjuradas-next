@@ -10,6 +10,9 @@ const DocumentUploader = dynamic(
   () => import("@/components/ia/DocumentUploader"),
   { ssr: false }
 );
+const LeadGate = dynamic(() => import("@/components/ia/LeadGate"), {
+  ssr: false,
+});
 const DocumentAnalysis = dynamic(
   () => import("@/components/ia/DocumentAnalysis"),
   { ssr: false }
@@ -26,11 +29,18 @@ const OrderTracker = dynamic(() => import("@/components/ia/OrderTracker"), {
 
 type FlowStep =
   | "upload"
+  | "email-gate"
   | "analyzing"
   | "quote"
   | "payment"
   | "success"
   | "error";
+
+type LeadData = {
+  name: string;
+  email: string;
+  phone: string;
+};
 
 export default function PresupuestoInstantaneoClient() {
   const [step, setStep] = useState<FlowStep>("upload");
@@ -41,15 +51,21 @@ export default function PresupuestoInstantaneoClient() {
   const [isUrgent, setIsUrgent] = useState(false);
   const [orderReference, setOrderReference] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [leadData, setLeadData] = useState<LeadData | null>(null);
 
   const handleUploadComplete = useCallback(
     (docId: string, token: string) => {
       setDocumentId(docId);
       setSessionToken(token);
-      setStep("analyzing");
+      setStep("email-gate");
     },
     []
   );
+
+  const handleLeadComplete = useCallback((data: LeadData) => {
+    setLeadData(data);
+    setStep("analyzing");
+  }, []);
 
   const handleAnalysisComplete = useCallback(
     (analysisResult: DocumentAnalysisResult, quoteResult: Quote) => {
@@ -82,6 +98,7 @@ export default function PresupuestoInstantaneoClient() {
     setQuote(null);
     setErrorMessage(null);
     setOrderReference(null);
+    setLeadData(null);
   }, []);
 
   const whatsappFallback = `https://wa.me/34951333614?text=${encodeURIComponent(
@@ -99,7 +116,15 @@ export default function PresupuestoInstantaneoClient() {
         />
       )}
 
-      {/* Step 2: Analyzing */}
+      {/* Step 2: Email gate */}
+      {step === "email-gate" && documentId && (
+        <LeadGate
+          documentId={documentId}
+          onComplete={handleLeadComplete}
+        />
+      )}
+
+      {/* Step 3: Analyzing */}
       {step === "analyzing" && documentId && (
         <DocumentAnalysis
           documentId={documentId}
@@ -108,7 +133,7 @@ export default function PresupuestoInstantaneoClient() {
         />
       )}
 
-      {/* Step 3: Quote */}
+      {/* Step 4: Quote */}
       {step === "quote" && analysis && quote && documentId && (
         <>
           <DocumentAnalysis
@@ -126,17 +151,20 @@ export default function PresupuestoInstantaneoClient() {
         </>
       )}
 
-      {/* Step 4: Payment */}
+      {/* Step 5: Payment */}
       {step === "payment" && documentId && (
         <PaymentFlow
           documentId={documentId}
           isUrgent={isUrgent}
           onSuccess={handlePaymentSuccess}
           onCancel={() => setStep("quote")}
+          defaultName={leadData?.name}
+          defaultEmail={leadData?.email}
+          defaultPhone={leadData?.phone}
         />
       )}
 
-      {/* Step 5: Success */}
+      {/* Step 6: Success */}
       {step === "success" && orderReference && (
         <OrderTracker
           orderReference={orderReference}

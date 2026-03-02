@@ -46,15 +46,15 @@ function hashIp(ip: string): string {
 export async function POST(req: Request) {
   const ip = getClientIp(req);
 
-  // Rate limit: 10 análisis por IP por hora
+  // Rate limit: 5 subidas por IP por día
   const rl = await checkRateLimit({
     key: `doc-upload:${ip}`,
-    limit: 10,
-    windowMs: 60 * 60 * 1000,
+    limit: 5,
+    windowMs: 24 * 60 * 60 * 1000,
   });
   if (!rl.ok) {
     return NextResponse.json(
-      { ok: false, error: "Has superado el límite de subidas. Inténtalo de nuevo en una hora." },
+      { ok: false, error: "Has superado el límite diario de subidas. Inténtalo mañana." },
       { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
     );
   }

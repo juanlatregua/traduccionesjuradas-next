@@ -241,8 +241,7 @@ export default function DocumentAnalysis({
             </p>
             <p className="mt-1 text-sm font-medium text-encre">
               {analysis.document_metrics.pages}{" "}
-              {analysis.document_metrics.pages === 1 ? "página" : "páginas"} &middot;{" "}
-              ~{analysis.document_metrics.estimated_words} palabras
+              {analysis.document_metrics.pages === 1 ? "página" : "páginas"}
             </p>
           </div>
         </div>
