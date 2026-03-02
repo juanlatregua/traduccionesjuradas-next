@@ -57,6 +57,15 @@ export default function PresupuestoInstantaneoClient() {
     (docId: string, token: string) => {
       setDocumentId(docId);
       setSessionToken(token);
+      setStep("analyzing");
+    },
+    []
+  );
+
+  const handleAnalysisComplete = useCallback(
+    (analysisResult: DocumentAnalysisResult, quoteResult: Quote) => {
+      setAnalysis(analysisResult);
+      setQuote(quoteResult);
       setStep("email-gate");
     },
     []
@@ -64,17 +73,8 @@ export default function PresupuestoInstantaneoClient() {
 
   const handleLeadComplete = useCallback((data: LeadData) => {
     setLeadData(data);
-    setStep("analyzing");
+    setStep("quote");
   }, []);
-
-  const handleAnalysisComplete = useCallback(
-    (analysisResult: DocumentAnalysisResult, quoteResult: Quote) => {
-      setAnalysis(analysisResult);
-      setQuote(quoteResult);
-      setStep("quote");
-    },
-    []
-  );
 
   const handleAnalysisError = useCallback((error: string) => {
     setErrorMessage(error);
@@ -116,21 +116,28 @@ export default function PresupuestoInstantaneoClient() {
         />
       )}
 
-      {/* Step 2: Email gate */}
-      {step === "email-gate" && documentId && (
-        <LeadGate
-          documentId={documentId}
-          onComplete={handleLeadComplete}
-        />
-      )}
-
-      {/* Step 3: Analyzing */}
+      {/* Step 2: Analyzing */}
       {step === "analyzing" && documentId && (
         <DocumentAnalysis
           documentId={documentId}
           onAnalysisComplete={handleAnalysisComplete}
           onError={handleAnalysisError}
         />
+      )}
+
+      {/* Step 3: Email gate (after seeing analysis) */}
+      {step === "email-gate" && documentId && (
+        <>
+          <DocumentAnalysis
+            documentId={documentId}
+            onAnalysisComplete={() => {}}
+            onError={() => {}}
+          />
+          <LeadGate
+            documentId={documentId}
+            onComplete={handleLeadComplete}
+          />
+        </>
       )}
 
       {/* Step 4: Quote */}

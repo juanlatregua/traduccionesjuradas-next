@@ -1,4 +1,4 @@
-// app/api/documents/payment/route.ts — Crear sesión Stripe o pedido Bizum para documento analizado
+// app/api/documents/payment/route.ts — Crear sesión Stripe o pedido Bizum/Transferencia para documento analizado
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { documentId, isUrgent, clientName, clientEmail, clientPhone, paymentMethod: rawPaymentMethod } = body;
-    const paymentMethod = rawPaymentMethod === "BIZUM" ? "BIZUM" : "STRIPE";
+    const paymentMethod = rawPaymentMethod === "BIZUM" ? "BIZUM" : rawPaymentMethod === "TRANSFER" ? "TRANSFER" : "STRIPE";
 
     if (!documentId || !clientName || !clientEmail) {
       return NextResponse.json(
@@ -91,8 +91,8 @@ export async function POST(req: Request) {
       },
     });
 
-    if (paymentMethod === "BIZUM") {
-      // Bizum: no Stripe session needed — redirect to manual payment page
+    if (paymentMethod === "BIZUM" || paymentMethod === "TRANSFER") {
+      // Manual payment: redirect to payment page for proof upload
       return NextResponse.json({
         ok: true,
         orderReference: orderReference,
