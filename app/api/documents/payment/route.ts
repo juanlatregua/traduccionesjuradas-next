@@ -1,4 +1,4 @@
-// app/api/documents/payment/route.ts — Crear sesión Stripe para documento analizado
+// app/api/documents/payment/route.ts — Crear sesión Stripe o pedido Bizum para documento analizado
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -17,7 +17,8 @@ function generateOrderReference(): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { documentId, isUrgent, clientName, clientEmail, clientPhone } = body;
+    const { documentId, isUrgent, clientName, clientEmail, clientPhone, paymentMethod: rawPaymentMethod } = body;
+    const paymentMethod = rawPaymentMethod === "BIZUM" ? "BIZUM" : "STRIPE";
 
     if (!documentId || !clientName || !clientEmail) {
       return NextResponse.json(
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
         currency: "eur",
         status: "PENDING_PAYMENT",
         paymentStatus: "PENDING",
-        paymentMethod: "STRIPE",
+        paymentMethod: paymentMethod,
         deliveryState: "PRESUPUESTO",
         dueDate: new Date(Date.now() + (isUrgent ? 24 : 48) * 60 * 60 * 1000),
       },
@@ -90,7 +91,16 @@ export async function POST(req: Request) {
       },
     });
 
-    // Create Stripe checkout session
+    if (paymentMethod === "BIZUM") {
+      // Bizum: no Stripe session needed — redirect to manual payment page
+      return NextResponse.json({
+        ok: true,
+        orderReference: orderReference,
+        paymentUrl: `/area-cliente/pedido/${orderReference}/pagar`,
+      });
+    }
+
+    // Stripe: create checkout session
     const idempotencyKey = `ia-doc-${documentId}-${orderReference}`;
 
     const session = await createCheckoutSession({

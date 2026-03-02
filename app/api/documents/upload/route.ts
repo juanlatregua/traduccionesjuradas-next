@@ -46,10 +46,10 @@ function hashIp(ip: string): string {
 export async function POST(req: Request) {
   const ip = getClientIp(req);
 
-  // Rate limit: 5 subidas por IP por día
+  // Rate limit: 15 subidas por IP por día
   const rl = await checkRateLimit({
     key: `doc-upload:${ip}`,
-    limit: 5,
+    limit: 15,
     windowMs: 24 * 60 * 60 * 1000,
   });
   if (!rl.ok) {

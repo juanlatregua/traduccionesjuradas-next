@@ -156,6 +156,13 @@ export default function PresupuestoInstantaneoClient() {
         <PaymentFlow
           documentId={documentId}
           isUrgent={isUrgent}
+          amount={
+            quote
+              ? isUrgent
+                ? quote.urgentPrice
+                : quote.basePrice
+              : 0
+          }
           onSuccess={handlePaymentSuccess}
           onCancel={() => setStep("quote")}
           defaultName={leadData?.name}

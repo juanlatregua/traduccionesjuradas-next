@@ -13,10 +13,10 @@ export const maxDuration = 60; // Allow up to 60s for IA analysis
 export async function POST(req: Request) {
   const ip = getClientIp(req);
 
-  // Rate limit: 5 análisis por IP por día
+  // Rate limit: 15 análisis por IP por día
   const rl = await checkRateLimit({
     key: `doc-analyze:${ip}`,
-    limit: 5,
+    limit: 15,
     windowMs: 24 * 60 * 60 * 1000,
   });
   if (!rl.ok) {
@@ -43,11 +43,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Documento no encontrado." }, { status: 404 });
     }
 
-    // Rate limit por email: 3 análisis por email por día
+    // Rate limit por email: 10 análisis por email por día
     if (doc.clientEmail) {
       const rlEmail = await checkRateLimit({
         key: `doc-analyze:email:${doc.clientEmail}`,
-        limit: 3,
+        limit: 10,
         windowMs: 24 * 60 * 60 * 1000,
       });
       if (!rlEmail.ok) {

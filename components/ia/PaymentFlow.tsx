@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CreditCard, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, CreditCard, AlertTriangle, Smartphone } from "lucide-react";
+import CopyField from "@/components/CopyField";
+
+const BIZUM_PHONE =
+  process.env.NEXT_PUBLIC_BIZUM_IDENTIFIER || "+34 607 356 273";
 
 type Props = {
   documentId: string;
   isUrgent: boolean;
+  amount: number;
   onSuccess: (orderReference: string) => void;
   onCancel: () => void;
   defaultName?: string;
@@ -16,12 +21,14 @@ type Props = {
 export default function PaymentFlow({
   documentId,
   isUrgent,
+  amount,
   onSuccess,
   onCancel,
   defaultName,
   defaultEmail,
   defaultPhone,
 }: Props) {
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "bizum">("card");
   const [step, setStep] = useState<"form" | "processing" | "error">("form");
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +62,7 @@ export default function PaymentFlow({
           clientName: name.trim(),
           clientEmail: email.trim(),
           clientPhone: phone.trim() || undefined,
+          paymentMethod: paymentMethod === "bizum" ? "BIZUM" : "STRIPE",
         }),
       });
 
@@ -66,8 +74,11 @@ export default function PaymentFlow({
         return;
       }
 
-      // Redirect to Stripe Checkout
-      if (data.checkoutUrl) {
+      if (paymentMethod === "bizum" && data.paymentUrl) {
+        // Redirect to manual payment page (Bizum proof upload)
+        window.location.href = data.paymentUrl;
+      } else if (data.checkoutUrl) {
+        // Redirect to Stripe Checkout
         window.location.href = data.checkoutUrl;
       } else {
         onSuccess(data.orderReference);
@@ -83,7 +94,9 @@ export default function PaymentFlow({
       <div className="flex flex-col items-center gap-4 rounded-xl border border-bleu/15 bg-card p-8 shadow-paper animate-fadeIn">
         <Loader2 className="h-10 w-10 text-bleu animate-spin" />
         <p className="font-baskerville text-lg text-bleu">
-          Preparando pasarela de pago...
+          {paymentMethod === "bizum"
+            ? "Creando tu pedido..."
+            : "Preparando pasarela de pago..."}
         </p>
         <p className="text-sm text-graphite">No cierres esta página.</p>
       </div>
@@ -94,13 +107,68 @@ export default function PaymentFlow({
     <div className="rounded-xl border border-bleu/15 bg-card p-6 shadow-paper animate-fadeIn">
       <h3 className="font-baskerville text-xl text-encre flex items-center gap-2">
         <CreditCard className="h-5 w-5 text-bleu" />
-        Datos de contacto
+        Método de pago
       </h3>
       <p className="mt-1 text-sm text-graphite">
-        Para enviarte la traducción jurada y la factura.
+        Elige cómo prefieres pagar tu traducción jurada.
       </p>
 
+      {/* Payment method tabs */}
+      <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-cream/60 p-1">
+        <button
+          type="button"
+          onClick={() => {
+            setPaymentMethod("card");
+            setError(null);
+          }}
+          className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all ${
+            paymentMethod === "card"
+              ? "bg-white text-bleu shadow-sm"
+              : "text-graphite hover:text-encre"
+          }`}
+        >
+          <CreditCard className="h-4 w-4" />
+          Tarjeta
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPaymentMethod("bizum");
+            setError(null);
+          }}
+          className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all ${
+            paymentMethod === "bizum"
+              ? "bg-white text-bleu shadow-sm"
+              : "text-graphite hover:text-encre"
+          }`}
+        >
+          <Smartphone className="h-4 w-4" />
+          Bizum
+        </button>
+      </div>
+
+      {/* Bizum info (only when Bizum selected) */}
+      {paymentMethod === "bizum" && (
+        <div className="mt-4 space-y-2">
+          <p className="text-sm font-medium text-encre">
+            Datos para el Bizum:
+          </p>
+          <CopyField label="Teléfono Bizum" value={BIZUM_PHONE} />
+          <CopyField
+            label="Importe"
+            value={`${amount.toFixed(2)} €`}
+            copyValue={amount.toFixed(2)}
+          />
+          <p className="text-xs text-graphite">
+            Al confirmar el pedido, se te redirigirá a una página donde podrás
+            realizar el Bizum y subir el comprobante.
+          </p>
+        </div>
+      )}
+
+      {/* Contact form */}
       <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        <p className="text-sm font-medium text-encre">Datos de contacto</p>
         <div>
           <label
             htmlFor="ia-name"
@@ -170,19 +238,30 @@ export default function PaymentFlow({
           >
             Volver
           </button>
-          <button
-            type="submit"
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-bleu px-6 py-2.5 text-sm font-semibold text-cream shadow-md hover:bg-bleu-dark transition-colors"
-          >
-            <CreditCard className="h-4 w-4" />
-            Pagar con tarjeta
-          </button>
+          {paymentMethod === "card" ? (
+            <button
+              type="submit"
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-bleu px-6 py-2.5 text-sm font-semibold text-cream shadow-md hover:bg-bleu-dark transition-colors"
+            >
+              <CreditCard className="h-4 w-4" />
+              Pagar con tarjeta
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-bleu px-6 py-2.5 text-sm font-semibold text-cream shadow-md hover:bg-bleu-dark transition-colors"
+            >
+              <Smartphone className="h-4 w-4" />
+              Confirmar y pagar por Bizum
+            </button>
+          )}
         </div>
       </form>
 
       <p className="mt-4 text-center text-[11px] text-graphite/60">
-        Pago seguro con Stripe. Tus datos bancarios no se almacenan en nuestros
-        servidores.
+        {paymentMethod === "card"
+          ? "Pago seguro con Stripe. Tus datos bancarios no se almacenan en nuestros servidores."
+          : "Tras confirmar, podrás realizar el Bizum y subir el comprobante de pago."}
       </p>
     </div>
   );
