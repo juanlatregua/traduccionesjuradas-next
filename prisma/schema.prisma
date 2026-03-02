@@ -137,6 +137,7 @@ model Order {
   paymentEvents OrderPaymentEvent[]
   billing  BillingData?
   shipping ShippingData?
+  documentAnalyses DocumentAnalysis[]
 
   @@index([clientEmail])
   @@index([createdAt])
@@ -381,6 +382,49 @@ model OrderDocument {
   createdAt    DateTime     @default(now())
 
   @@index([sessionId, createdAt])
+}
+
+model DocumentAnalysis {
+  id                 String   @id @default(cuid())
+  fileName           String
+  fileUrl            String
+  fileSize           Int
+  mimeType           String
+  sessionToken       String
+  ipHash             String?
+  gdprConsent        Boolean  @default(false)
+  gdprConsentAt      DateTime?
+  status             String   @default("UPLOADED")
+  analysisJson       Json?
+  documentType       String?
+  documentCategory   String?
+  sourceLanguage     String?
+  targetLanguage     String?
+  countryOrigin      String?
+  estimatedWords     Int?
+  complexity         String?
+  confidence         Float?
+  pageCount          Int?
+  extractedNames     String[] @default([])
+  extractedDates     String[] @default([])
+  quoteAmount        Float?
+  quoteUrgent        Float?
+  estimatedDays      String?
+  estimatedDaysUrgent String?
+  quoteBreakdown     Json?
+  clientEmail        String?
+  clientName         String?
+  clientPhone        String?
+  orderId            String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@index([sessionToken])
+  @@index([status])
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 model RateLimitBucket {
