@@ -137,7 +137,7 @@ model Order {
   paymentEvents OrderPaymentEvent[]
   billing  BillingData?
   shipping ShippingData?
-  documentAnalyses DocumentAnalysis[]
+  documentAnalysis DocumentAnalysis?
 
   @@index([clientEmail])
   @@index([createdAt])
@@ -384,49 +384,6 @@ model OrderDocument {
   @@index([sessionId, createdAt])
 }
 
-model DocumentAnalysis {
-  id                 String   @id @default(cuid())
-  fileName           String
-  fileUrl            String
-  fileSize           Int
-  mimeType           String
-  sessionToken       String
-  ipHash             String?
-  gdprConsent        Boolean  @default(false)
-  gdprConsentAt      DateTime?
-  status             String   @default("UPLOADED")
-  analysisJson       Json?
-  documentType       String?
-  documentCategory   String?
-  sourceLanguage     String?
-  targetLanguage     String?
-  countryOrigin      String?
-  estimatedWords     Int?
-  complexity         String?
-  confidence         Float?
-  pageCount          Int?
-  extractedNames     String[] @default([])
-  extractedDates     String[] @default([])
-  quoteAmount        Float?
-  quoteUrgent        Float?
-  estimatedDays      String?
-  estimatedDaysUrgent String?
-  quoteBreakdown     Json?
-  clientEmail        String?
-  clientName         String?
-  clientPhone        String?
-  orderId            String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  order Order? @relation(fields: [orderId], references: [id])
-
-  @@index([sessionToken])
-  @@index([status])
-  @@index([orderId])
-  @@index([createdAt])
-}
-
 model RateLimitBucket {
   key       String   @id
   count     Int      @default(0)
@@ -446,4 +403,77 @@ model ChatSession {
   messageCount       Int      @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SISTEMA IA — Análisis de documentos y presupuesto instantáneo
+// ─────────────────────────────────────────────────────────────────
+
+model DocumentAnalysis {
+  id               String                 @id @default(cuid())
+
+  // Archivo
+  fileName         String
+  fileUrl          String
+  fileSize         Int
+  mimeType         String
+  pageCount        Int                    @default(1)
+
+  // Análisis IA (respuesta completa de Claude)
+  analysisJson     Json?
+  documentType     String?                // birth_certificate, marriage_certificate, etc.
+  documentCategory String?                // civil_registry, identity, academic, legal, etc.
+  sourceLanguage   String?                // ISO 639-1
+  targetLanguage   String?                @default("es")
+  countryOrigin    String?                // ISO 3166-1 alpha-2
+  estimatedWords   Int?
+  complexity       String?                // standard, complex, highly_complex
+  confidence       Float?                 // 0-1
+
+  // Datos extraídos (censurados para RGPD)
+  extractedNames   String[]
+  extractedDates   String[]
+
+  // Presupuesto generado
+  quoteAmount      Float?
+  quoteUrgent      Float?
+  estimatedDays    String?
+  estimatedDaysUrgent String?
+  quoteBreakdown   Json?
+
+  // Estado
+  status           DocAnalysisStatus      @default(UPLOADED)
+
+  // Cliente (anónimo hasta que paga)
+  sessionToken     String?
+  clientEmail      String?
+  clientName       String?
+  clientPhone      String?
+  ipHash           String?
+  gdprConsent      Boolean                @default(false)
+  gdprConsentAt    DateTime?
+
+  // Relación con Order (se crea al pagar)
+  orderId          String?                @unique
+  order            Order?                 @relation(fields: [orderId], references: [id])
+
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([sessionToken])
+  @@index([status, createdAt])
+  @@index([clientEmail])
+}
+
+enum DocAnalysisStatus {
+  UPLOADED
+  ANALYZING
+  ANALYZED
+  ANALYSIS_FAILED
+  QUOTE_GENERATED
+  PAYMENT_PENDING
+  PAID
+  IN_TRANSLATION
+  TRANSLATED
+  DELIVERED
 }
