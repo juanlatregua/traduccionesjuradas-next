@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import PresupuestoInstantaneoClient from "./PresupuestoInstantaneoClient";
 
 export const metadata: Metadata = {
-  title: "Presupuesto instantáneo con IA",
+  title: "Presupuesto instantáneo de traducción jurada",
   description:
-    "Sube tu documento y recibe un presupuesto de traducción jurada en segundos. Sin esperas, sin formularios. IA + traductor jurado oficial.",
+    "Sube tu documento y recibe un presupuesto de traducción jurada en segundos. Sin esperas, sin formularios. Precio cerrado al instante.",
 };
 
 export default function PresupuestoInstantaneoPage() {
@@ -28,7 +28,7 @@ export default function PresupuestoInstantaneoPage() {
           </span>
           <span className="flex items-center gap-1.5 rounded-full bg-cream px-3 py-1.5">
             <span className="h-2 w-2 rounded-full bg-bleu" />
-            Análisis con IA
+            Análisis automático
           </span>
           <span className="flex items-center gap-1.5 rounded-full bg-cream px-3 py-1.5">
             <span className="h-2 w-2 rounded-full bg-or" />
@@ -46,7 +46,7 @@ export default function PresupuestoInstantaneoPage() {
           {
             step: "1",
             title: "Sube tu documento",
-            desc: "PDF, foto o escaneo. Nuestra IA lo analiza al instante.",
+            desc: "PDF, foto o escaneo. Lo analizamos al instante.",
           },
           {
             step: "2",

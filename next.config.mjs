@@ -320,12 +320,12 @@ const nextConfig = {
       },
       {
         source: "/traduccion-jurada-urgente",
-        destination: "/presupuesto",
+        destination: "/presupuesto-instantaneo",
         permanent: true,
       },
       {
         source: "/traduccion-jurada-urgente/",
-        destination: "/presupuesto",
+        destination: "/presupuesto-instantaneo",
         permanent: true,
       },
       {
@@ -793,13 +793,18 @@ const nextConfig = {
       // ===============================
 
       {
+        source: "/presupuesto",
+        destination: "/presupuesto-instantaneo",
+        permanent: true,
+      },
+      {
         source: "/solicitar-presupuesto/",
-        destination: "/presupuesto",
+        destination: "/presupuesto-instantaneo",
         permanent: true,
       },
       {
         source: "/solicitar-presupuesto",
-        destination: "/presupuesto",
+        destination: "/presupuesto-instantaneo",
         permanent: true,
       },
 
@@ -819,12 +824,12 @@ const nextConfig = {
       },
       {
         source: "/carrito",
-        destination: "/presupuesto",
+        destination: "/presupuesto-instantaneo",
         permanent: true,
       },
       {
         source: "/carrito/",
-        destination: "/presupuesto",
+        destination: "/presupuesto-instantaneo",
         permanent: true,
       },
     ];

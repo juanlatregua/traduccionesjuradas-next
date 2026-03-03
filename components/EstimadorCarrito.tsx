@@ -332,8 +332,8 @@ export default function EstimadorCarrito({
           Estima tu presupuesto en segundos
         </h2>
         <p className="mt-1 text-xs text-graphite">
-          Precio orientativo con IVA incluido · el precio final se confirma
-          tras revisar el documento
+          Precio orientativo · el precio final se confirma
+          tras revisión del traductor
         </p>
 
         {/* Combinación */}
@@ -399,7 +399,6 @@ export default function EstimadorCarrito({
             <p className="text-sm font-semibold text-bleu">
               Documento estándar (~1 hoja):{" "}
               <span className="text-lg">{(Math.round(precioFijo * IVA * 100) / 100).toFixed(2)} €</span>
-              <span className="ml-1 text-xs font-normal text-graphite">IVA incl.</span>
             </p>
             <p className="mt-1 text-xs text-sepia">
               Precio cerrado para certificados, antecedentes y títulos de una hoja.

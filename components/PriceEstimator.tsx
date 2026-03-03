@@ -806,7 +806,7 @@ export default function PriceEstimator() {
             </>
           )}
           <Link
-            href="/presupuesto"
+            href="/presupuesto-instantaneo"
             className="inline-flex items-center gap-2 rounded-2xl bg-bleu px-4 py-2 font-semibold text-white shadow-sm hover:bg-bleu-dark"
           >
             Solicitar presupuesto personalizado

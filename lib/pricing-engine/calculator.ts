@@ -6,6 +6,8 @@ import {
   getMinimum,
   getComplexityMultiplier,
   URGENCY_MULTIPLIER,
+  MOROCCO_PRICING,
+  MOROCCO_PER_WORD_RATE,
 } from "./rules";
 
 export type Quote = {
@@ -71,14 +73,36 @@ function getEstimatedDays(
  * Calcula el presupuesto a partir del análisis IA
  */
 export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
-  const { document_type, language, document_metrics, complexity } = analysis;
+  const { document_type, language, document_metrics, complexity, country } = analysis;
 
   const rate = getRate(language.source);
   const minimum = getMinimum(document_type.specific_type);
   const complexityMult = getComplexityMultiplier(complexity.level);
 
-  const wordPrice = document_metrics.estimated_words * rate * complexityMult;
-  const basePrice = Math.max(wordPrice, minimum);
+  // Morocco special pricing: fixed price for 1-3 pages
+  const isMorocco = country?.origin === "MA";
+  const moroccoFixedPrice = isMorocco
+    ? MOROCCO_PRICING[document_metrics.pages]
+    : undefined;
+
+  let basePrice: number;
+  let wordPrice: number;
+  let effectiveRate = rate;
+
+  if (moroccoFixedPrice !== undefined) {
+    // Morocco docs with 1-3 pages: use fixed price
+    basePrice = moroccoFixedPrice;
+    wordPrice = moroccoFixedPrice;
+    effectiveRate = 0;
+  } else if (isMorocco) {
+    // Morocco docs with 4+ pages: use Morocco per-word rate
+    effectiveRate = MOROCCO_PER_WORD_RATE;
+    wordPrice = document_metrics.estimated_words * effectiveRate * complexityMult;
+    basePrice = Math.max(wordPrice, minimum);
+  } else {
+    wordPrice = document_metrics.estimated_words * rate * complexityMult;
+    basePrice = Math.max(wordPrice, minimum);
+  }
 
   const estimatedDays = getEstimatedDays(
     document_type.specific_type,
@@ -93,9 +117,9 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     estimatedDaysUrgent: estimatedDays.urgent,
     breakdown: {
       words: document_metrics.estimated_words,
-      ratePerWord: rate,
+      ratePerWord: effectiveRate,
       wordSubtotal: round2(wordPrice),
-      minimumApplied: wordPrice < minimum,
+      minimumApplied: !moroccoFixedPrice && wordPrice < minimum,
       minimumAmount: minimum,
       complexityMultiplier: complexityMult,
       ivaIncluded: true,

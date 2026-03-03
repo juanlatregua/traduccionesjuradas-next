@@ -50,7 +50,7 @@ export default function PagoCanceladoPage({
               Volver a calcular y pagar
             </Link>
           )}
-          <Link href="/presupuesto" className="font-semibold text-bleu underline-offset-2 hover:underline">
+          <Link href="/presupuesto-instantaneo" className="font-semibold text-bleu underline-offset-2 hover:underline">
             O pedir presupuesto cerrado
           </Link>
         </div>

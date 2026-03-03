@@ -159,7 +159,7 @@ export function AntecedentesMiniForm() {
           </p>
           <p className="text-[11px] text-graphite">
             Precio orientativo: lo confirmamos al revisar el documento. Para otros idiomas o casos especiales, usa el{" "}
-            <a href="/presupuesto" className="text-bleu underline">
+            <a href="/presupuesto-instantaneo" className="text-bleu underline">
               formulario completo
             </a>
             .

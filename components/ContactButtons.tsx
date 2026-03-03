@@ -10,7 +10,7 @@ export default function ContactButtons() {
   return (
     <div className="flex flex-wrap gap-3 text-sm">
       <Link
-        href="/presupuesto"
+        href="/presupuesto-instantaneo"
         className="inline-flex items-center gap-2 rounded-2xl bg-encre px-4 py-2 font-semibold text-white hover:bg-encre focus:outline-none focus:ring-2 focus:ring-bleu"
         aria-label="Ir al formulario de presupuesto"
       >

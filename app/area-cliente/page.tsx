@@ -111,7 +111,7 @@ export default async function AreaClientePage() {
             Cerrar sesión
           </a>
           <Link
-            href="/presupuesto"
+            href="/presupuesto-instantaneo"
             className="rounded-2xl bg-bleu px-4 py-2 font-semibold text-white hover:bg-bleu-dark"
           >
             Crear nuevo encargo
@@ -132,7 +132,7 @@ export default async function AreaClientePage() {
         {orders.length === 0 ? (
           <p className="mt-3 text-sm text-sepia">
             No tienes pedidos todavía.{" "}
-            <Link href="/presupuesto" className="font-semibold text-bleu hover:underline">
+            <Link href="/presupuesto-instantaneo" className="font-semibold text-bleu hover:underline">
               Solicita un presupuesto
             </Link>{" "}
             para empezar.

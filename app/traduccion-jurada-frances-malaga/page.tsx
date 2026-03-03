@@ -35,7 +35,7 @@ export default function TraduccionJuradaFrancesMalagaPage() {
         </p>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <Link
-            href="/presupuesto"
+            href="/presupuesto-instantaneo"
             className="rounded-2xl bg-bleu px-5 py-2 font-semibold text-white hover:bg-bleu-dark"
           >
             Pedir presupuesto
