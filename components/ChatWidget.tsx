@@ -16,7 +16,7 @@ const WELCOME_MESSAGE: Message = {
 };
 
 const QUICK_REPLIES = [
-  { label: "Precio orientativo", emoji: "💰" },
+  { label: "Precio cerrado", emoji: "💰" },
   { label: "Documentos necesarios", emoji: "📋" },
   { label: "Teletrabajo Marruecos", emoji: "🇲🇦" },
   { label: "Hablar por WhatsApp", emoji: "📱", isWhatsApp: true },

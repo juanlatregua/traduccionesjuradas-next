@@ -332,7 +332,7 @@ export default function EstimadorCarrito({
           Estima tu presupuesto en segundos
         </h2>
         <p className="mt-1 text-xs text-graphite">
-          Precio orientativo · el precio final se confirma
+          Precio cerrado · el precio final se confirma
           tras revisión del traductor
         </p>
 

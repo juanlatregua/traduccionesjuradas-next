@@ -42,9 +42,9 @@ export default function ComoFuncionaPage() {
           </h2>
           <p className="mt-2 text-sm text-sepia">
             Envíanos tu documento escaneado o en una foto nítida por email,
-            WhatsApp o a través del formulario de presupuesto. No hace falta el
-            original en papel para calcular el precio ni para empezar la
-            traducción.
+            WhatsApp o directamente desde nuestro presupuesto instantáneo. No
+            hace falta el original en papel para calcular el precio ni para
+            empezar la traducción.
           </p>
           <ul className="mt-2 space-y-1 list-disc pl-5 text-sm text-sepia">
             <li>
@@ -174,7 +174,7 @@ export default function ComoFuncionaPage() {
             href="/presupuesto-instantaneo"
             className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
-            Rellenar el formulario de presupuesto
+            Obtener presupuesto instantáneo
           </a>
           <a
             href={MAIL_LINK}

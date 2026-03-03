@@ -10,6 +10,7 @@ export const WORD_RATE_BY_LANG: Record<string, number> = {
   ca: 0.1,
   sv: 0.14,
   no: 0.14,
+  ro: 0.09,
 };
 
 export function getBaseLangFromPair(langOrPair: string) {

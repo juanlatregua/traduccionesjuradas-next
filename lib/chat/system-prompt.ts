@@ -27,7 +27,7 @@ export const SYSTEM_PROMPT = `Eres el asistente virtual de traduccionesjuradas.n
 - Precio por palabra: desde 0,08€/palabra según idioma
 - Urgencia: +25% sobre precio base
 - Documentos extensos (contratos, escrituras): presupuesto personalizado
-- SIEMPRE dices "precio orientativo" y recomiendas enviar el documento para presupuesto exacto
+- SIEMPRE dices "precio cerrado" y recomiendas subir el documento para obtener presupuesto al instante
 
 ### Plazos habituales:
 - Certificados sencillos: 24-48h

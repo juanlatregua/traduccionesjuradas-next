@@ -484,7 +484,7 @@ export default function PriceEstimator() {
         </div>
       )}
 
-      <h2 className="text-lg font-semibold text-encre">Calculadora rápida de precio orientativo</h2>
+      <h2 className="text-lg font-semibold text-encre">Calculadora rápida de precio cerrado</h2>
       <p className="mt-1 text-sepia">
         Elige una de las dos rutas: tarifa fija por documento o cálculo automático por archivo.
       </p>
@@ -707,7 +707,7 @@ export default function PriceEstimator() {
             <p className="mt-1 text-xs text-sepia">
               Base: {result.base} EUR
               {result.urgencyPct > 0 ? ` + urgencia ${result.urgencyPct}%` : ""}
-              {result.marginPct > 0 ? " (precio orientativo)" : ""}
+              {result.marginPct > 0 ? " (precio cerrado)" : ""}
             </p>
             {result.title && <p className="mt-1 text-xs text-sepia">Documento: {result.title}</p>}
             {result.source === "preset" && result.presetPagesLabel && (

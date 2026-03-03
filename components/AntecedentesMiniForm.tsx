@@ -68,7 +68,7 @@ export function AntecedentesMiniForm() {
           ))}
         </select>
         <div className="flex-1 text-encre">
-          <p className="text-xs uppercase tracking-wide text-bleu font-semibold">Precio orientativo</p>
+          <p className="text-xs uppercase tracking-wide text-bleu font-semibold">Precio cerrado</p>
           <p className="text-sm font-semibold">
             {pair.price} · {pair.plazo}
           </p>
@@ -158,7 +158,7 @@ export function AntecedentesMiniForm() {
             Usamos tus archivos solo para prepararte el presupuesto y confirmarte el pago/plazo. Se borran en 30 días o antes si lo pides.
           </p>
           <p className="text-[11px] text-graphite">
-            Precio orientativo: lo confirmamos al revisar el documento. Para otros idiomas o casos especiales, usa el{" "}
+            Precio cerrado: sube tu documento para confirmarlo al instante. Para otros idiomas o casos especiales, usa el{" "}
             <a href="/presupuesto-instantaneo" className="text-bleu underline">
               formulario completo
             </a>

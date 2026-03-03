@@ -1,7 +1,12 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
-import EstimadorCarrito from "@/components/EstimadorCarrito";
+
+const PresupuestoInstantaneoClient = dynamic(
+  () => import("@/app/presupuesto-instantaneo/PresupuestoInstantaneoClient"),
+  { ssr: false }
+);
 
 type DocHabitual = {
   titulo: string;
@@ -17,7 +22,7 @@ type FAQItem = {
 type Props = {
   idioma: string;
   idiomaSlug: string;
-  combinaciones: string[];
+  combinaciones?: string[];
   tituloH1: string;
   descripcion: string;
   documentosHabituales: DocHabitual[];
@@ -27,7 +32,6 @@ type Props = {
 export default function PaginaIdioma({
   idioma,
   idiomaSlug,
-  combinaciones,
   tituloH1,
   descripcion,
   documentosHabituales,
@@ -59,11 +63,20 @@ export default function PaginaIdioma({
       </h1>
       <p className="mt-3 text-base text-sepia">{descripcion}</p>
 
-      {/* 2. ESTIMADOR CARRITO */}
-      <EstimadorCarrito
-        idioma={idioma}
-        combinaciones={combinaciones}
-      />
+      {/* 2. PRESUPUESTO INSTANTÁNEO */}
+      <section className="mt-8">
+        <div className="rounded-xl border border-cream bg-card p-5 shadow-paper">
+          <h2 className="font-baskerville text-xl font-bold text-encre">
+            Presupuesto instantáneo de {idioma}
+          </h2>
+          <p className="mt-1 text-sm text-sepia">
+            Sube tu documento y recibe precio cerrado al instante.
+          </p>
+          <div className="mt-4">
+            <PresupuestoInstantaneoClient />
+          </div>
+        </div>
+      </section>
 
       {/* 3. DOCUMENTOS HABITUALES */}
       <section className="mt-10">

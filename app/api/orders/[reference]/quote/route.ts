@@ -236,6 +236,20 @@ export async function POST(req: Request, { params }: Params) {
             },
           },
         });
+        // SMS notification (fire & forget)
+        const { getOrderPhone, sendSMS, formatPhoneSpain } = await import("@/lib/sms");
+        const { smsPresupuestoListo } = await import("@/lib/sms-templates");
+        const phone = await getOrderPhone(order.id).catch(() => null);
+        if (phone) {
+          sendSMS({
+            to: formatPhoneSpain(phone),
+            body: smsPresupuestoListo({
+              ref: order.reference,
+              precio: (totalCents / 100).toFixed(2),
+              url: paymentUrl,
+            }),
+          }).catch((err) => console.error("[SMS]", err));
+        }
       } catch (sendErr: any) {
         emailWarning = "Presupuesto guardado, pero fallo el email al cliente.";
         await prisma.orderEvent

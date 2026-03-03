@@ -92,6 +92,15 @@ export const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     reversePair: "es-no",
     hasFixedPrices: false,
   },
+  rumano: {
+    slug: "rumano",
+    name: "rumano",
+    nameEn: "Romanian",
+    langCode: "ro",
+    defaultPair: "ro-es",
+    reversePair: "es-ro",
+    hasFixedPrices: false,
+  },
 };
 
 export type DocCategory = {

@@ -27,7 +27,7 @@ export default function TraductorJuradoAlemanPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de alemán?",
           answer:
-            "El precio orientativo de un certificado sencillo (Geburtsurkunde, Heiratsurkunde) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Enviamos presupuesto cerrado tras revisar el archivo.",
+            "Un certificado sencillo (Geburtsurkunde, Heiratsurkunde) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y recibe precio cerrado al instante.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de alemán?",

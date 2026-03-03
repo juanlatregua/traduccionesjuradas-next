@@ -17,7 +17,7 @@ export default function TraductorJuradoFrancesPage() {
       idiomaSlug="frances"
       combinaciones={["fr-es", "es-fr"]}
       tituloH1="Traducción jurada de francés para trámites oficiales en España y en países francófonos"
-      descripcion="La traducción jurada de francés es el formato que te piden cuando un documento en francés debe presentarse ante una administración, notaría, universidad o juzgado en España, o cuando un documento español se utiliza en Francia y otros países francófonos. Precio orientativo, plazo estimado, validez oficial y tipos de documentos más frecuentes. Todas las traducciones las firma un traductor jurado de francés acreditado por el MAEC, con entrega en PDF firmado digitalmente."
+      descripcion="La traducción jurada de francés es el formato que te piden cuando un documento en francés debe presentarse ante una administración, notaría, universidad o juzgado en España, o cuando un documento español se utiliza en Francia y otros países francófonos. Precio cerrado, plazo estimado, validez oficial y tipos de documentos más frecuentes. Todas las traducciones las firma un traductor jurado de francés acreditado por el MAEC, con entrega en PDF firmado digitalmente."
       faqItems={[
         {
           question: "¿Qué validez tiene una traducción jurada de francés en España?",
@@ -27,7 +27,7 @@ export default function TraductorJuradoFrancesPage() {
         {
           question: "¿Cuánto cuesta traducir un certificado en francés?",
           answer:
-            "El precio orientativo de un certificado sencillo (nacimiento, matrimonio) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Enviamos presupuesto cerrado tras revisar el archivo.",
+            "Un certificado sencillo (nacimiento, matrimonio) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y recibe precio cerrado al instante.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de francés?",

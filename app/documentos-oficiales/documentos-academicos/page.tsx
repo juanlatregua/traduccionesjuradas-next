@@ -35,7 +35,7 @@ export default function DocumentosAcademicosPage() {
           },
           {
             question: "¿Cómo envío el documento?",
-            answer: "Adjunta un PDF o foto clara desde el formulario de presupuesto o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y datos antes de confirmar precio y plazo.",
+            answer: "Adjunta un PDF o foto clara desde el presupuesto instantáneo o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y datos antes de confirmar precio y plazo.",
           },
         ]}
       />
@@ -72,7 +72,7 @@ export default function DocumentosAcademicosPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-                Precio orientativo
+                Precio cerrado
               </p>
               <p className="text-sm font-semibold text-encre">
                 25–35 € por página · plazo según páginas e idioma
@@ -213,7 +213,7 @@ export default function DocumentosAcademicosPage() {
             Es recomendable verificar siempre los requisitos del tribunal convocante y, en caso de duda,
             consultar nuestros{" "}
             <a href="/precios-traduccion-jurada" className="text-bleu hover:underline">
-                precios orientativos de traducción jurada
+                precios de traducción jurada
             </a>
             .
             </p>

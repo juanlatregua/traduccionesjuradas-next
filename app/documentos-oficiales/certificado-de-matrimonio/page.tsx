@@ -6,7 +6,7 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 export const metadata: Metadata = {
   title: "Traducción jurada certificado de matrimonio | Desde 40-75 €",
   description:
-    "Precio orientativo desde 40-75 € para traducir certificados de matrimonio. Entrega en PDF firmado, plazos rápidos según idioma. Incluye apostilla si aplica.",
+    "Desde 40-75 € para traducir certificados de matrimonio. Entrega en PDF firmado, plazos rápidos según idioma. Incluye apostilla si aplica.",
 };
 
 export default function CertificadoMatrimonioPage() {
@@ -35,7 +35,7 @@ export default function CertificadoMatrimonioPage() {
           },
           {
             question: "¿Cómo envío el certificado?",
-            answer: "Adjunta PDF o foto clara desde el formulario de presupuesto o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y apostilla antes de confirmar el precio.",
+            answer: "Adjunta PDF o foto clara desde el presupuesto instantáneo o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y apostilla antes de confirmar el precio.",
           },
         ]}
       />
@@ -72,7 +72,7 @@ export default function CertificadoMatrimonioPage() {
       </header>
 
       <section className="mt-8 space-y-3">
-        <h2 className="text-lg font-semibold text-encre">Precios orientativos y plazos</h2>
+        <h2 className="text-lg font-semibold text-encre">Precios y plazos</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
             { pair: "Español → Inglés", price: "50 €", plazo: "2 días" },

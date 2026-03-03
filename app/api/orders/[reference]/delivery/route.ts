@@ -163,6 +163,21 @@ export async function POST(req: Request, { params }: Params) {
           },
         })
         .catch((err) => console.error("[orders-delivery] delivery notification event failed", err));
+
+      // SMS notification (fire & forget)
+      const { getOrderPhone, sendSMS, formatPhoneSpain } = await import("@/lib/sms");
+      const { smsTraduccionLista } = await import("@/lib/sms-templates");
+      const phone = await getOrderPhone(order.id).catch(() => null);
+      if (phone) {
+        const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
+        sendSMS({
+          to: formatPhoneSpain(phone),
+          body: smsTraduccionLista({
+            ref: order.reference,
+            url: `${baseUrl}/area-cliente/pedido/${order.reference}`,
+          }),
+        }).catch((err) => console.error("[SMS]", err));
+      }
     }
 
     return NextResponse.json({

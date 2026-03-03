@@ -98,6 +98,26 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
         amountCents: order.amountCents,
         method: "STRIPE",
       }).catch((err) => console.error(`[${source}] payment confirmation email failed`, err));
+
+      // SMS notification (fire & forget)
+      const { getOrderPhone, sendSMS, formatPhoneSpain } = await import("@/lib/sms");
+      const { smsPagoConfirmado } = await import("@/lib/sms-templates");
+      const orderFull = await prisma.order.findUnique({
+        where: { reference },
+        select: { id: true, dueDate: true },
+      });
+      if (orderFull) {
+        const phone = await getOrderPhone(orderFull.id).catch(() => null);
+        if (phone) {
+          const plazo = orderFull.dueDate
+            ? orderFull.dueDate.toLocaleDateString("es-ES", { day: "numeric", month: "long" })
+            : "3-5 días laborables";
+          sendSMS({
+            to: formatPhoneSpain(phone),
+            body: smsPagoConfirmado({ ref: reference, plazo }),
+          }).catch((err) => console.error(`[${source}] SMS failed`, err));
+        }
+      }
     }
   } catch (err) {
     console.error(`[${source}] error processing payment`, err);

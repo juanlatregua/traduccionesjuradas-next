@@ -350,7 +350,7 @@ export default function LanguageOfferPanel({ config }: Props) {
                 ~{estimate.total.toFixed(2)} EUR
               </p>
               <p className="mt-1 text-xs text-bleu">
-                Precio orientativo basado en {wordCount} palabras.
+                Precio cerrado basado en {wordCount} palabras.
                 El precio definitivo se confirma tras revisar el documento.
               </p>
             </div>
