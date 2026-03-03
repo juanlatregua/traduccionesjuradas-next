@@ -9,18 +9,19 @@ export type SMSMessage = {
 };
 
 /**
- * Twilio auth: soporta API Key (TWILIO_API_KEY_SID + SECRET) o Auth Token.
+ * Twilio auth: prioriza Auth Token; fallback a API Key (TWILIO_API_KEY_SID + SECRET).
  */
 function getTwilioAuth(): { user: string; pass: string } {
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (authToken) {
+    return { user: process.env.TWILIO_ACCOUNT_SID!, pass: authToken };
+  }
   const apiKeySid = process.env.TWILIO_API_KEY_SID;
   const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
   if (apiKeySid && apiKeySecret) {
     return { user: apiKeySid, pass: apiKeySecret };
   }
-  return {
-    user: process.env.TWILIO_ACCOUNT_SID!,
-    pass: process.env.TWILIO_AUTH_TOKEN!,
-  };
+  return { user: process.env.TWILIO_ACCOUNT_SID!, pass: "" };
 }
 
 async function twilioSend(
