@@ -72,7 +72,7 @@ export default function DocumentosAcademicosPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-                Precio orientativo
+                Precio cerrado
               </p>
               <p className="text-sm font-semibold text-encre">
                 25–35 € por página · plazo según páginas e idioma
@@ -213,7 +213,7 @@ export default function DocumentosAcademicosPage() {
             Es recomendable verificar siempre los requisitos del tribunal convocante y, en caso de duda,
             consultar nuestros{" "}
             <a href="/precios-traduccion-jurada" className="text-bleu hover:underline">
-                precios orientativos de traducción jurada
+                precios de traducción jurada
             </a>
             .
             </p>

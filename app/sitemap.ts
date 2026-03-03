@@ -26,6 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/traductor-jurado-neerlandes",
     "/traductor-jurado-italiano",
     "/traductor-jurado-portugues",
+    "/traductor-jurado-rumano",
     "/traductor-jurado-catalan",
     "/traductor-jurado-sueco",
     "/traductor-jurado-noruego",

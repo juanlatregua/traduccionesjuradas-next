@@ -20,7 +20,7 @@ export default function AntecedentesPenalesPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       <SchemaProduct
         name="Traducción jurada de antecedentes penales"
-        description="Precio orientativo para traducir certificados de antecedentes penales con firma y sello de traductor jurado."
+        description="Precio cerrado para traducir certificados de antecedentes penales con firma y sello de traductor jurado."
         sku="antecedentes-penales"
         offers={[
           { price: "50.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
@@ -124,7 +124,7 @@ export default function AntecedentesPenalesPage() {
       {/* TARIFAS Y PLAZOS */}
       <section className="mt-10 rounded-2xl border border-cream bg-card p-5 text-sm text-encre shadow-sm">
         <h2 className="text-lg font-semibold text-encre">
-          Tarifas y plazos orientativos
+          Tarifas y plazos
         </h2>
         <p className="mt-2 text-sepia">
           Precios para certificados de antecedentes penales (PDF o foto legible). Incluyen firma y sello de traductor jurado.

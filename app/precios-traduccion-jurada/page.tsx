@@ -86,8 +86,8 @@ export default function PreciosTraduccionJuradaPage() {
               <strong>Idiomas más habituales</strong>: francés, alemán, inglés.
             </li>
             <li>
-              <strong>Precio orientativo</strong> por certificado breve suele
-              establecerse un precio cerrado.
+              <strong>Precio cerrado</strong> por certificado breve que
+              se confirma al analizar el documento.
             </li>
             <li>
               Si el certificado tiene varias páginas o anotaciones extensas,

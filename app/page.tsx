@@ -39,16 +39,16 @@ const HOME_FAQ_ITEMS = [
 ];
 
 const IDIOMAS = [
-  { href: "/traductor-jurado-frances", label: "Francés", flag: "/flags/fr.svg" },
-  { href: "/traductor-jurado-ingles", label: "Inglés", flag: "/flags/gb.svg" },
-  { href: "/traductor-jurado-aleman", label: "Alemán", flag: "/flags/de.svg" },
-  { href: "/traductor-jurado-neerlandes", label: "Neerlandés", flag: "/flags/nl.svg" },
-  { href: "/traductor-jurado-italiano", label: "Italiano", flag: "/flags/it.svg" },
-  { href: "/traductor-jurado-portugues", label: "Portugués", flag: "/flags/pt.svg" },
-  { href: "/traductor-jurado-rumano", label: "Rumano", flag: "/flags/ro.svg", isNew: true },
-  { href: "/traductor-jurado-catalan", label: "Catalán", flag: "/flags/ca.svg" },
-  { href: "/traductor-jurado-sueco", label: "Sueco", flag: "/flags/se.svg" },
-  { href: "/traductor-jurado-noruego", label: "Noruego", flag: "/flags/no.svg" },
+  { href: "/traductor-jurado-frances", label: "Francés", flag: "\u{1F1EB}\u{1F1F7}" },
+  { href: "/traductor-jurado-ingles", label: "Inglés", flag: "\u{1F1EC}\u{1F1E7}" },
+  { href: "/traductor-jurado-aleman", label: "Alemán", flag: "\u{1F1E9}\u{1F1EA}" },
+  { href: "/traductor-jurado-neerlandes", label: "Neerlandés", flag: "\u{1F1F3}\u{1F1F1}" },
+  { href: "/traductor-jurado-italiano", label: "Italiano", flag: "\u{1F1EE}\u{1F1F9}" },
+  { href: "/traductor-jurado-portugues", label: "Portugués", flag: "\u{1F1F5}\u{1F1F9}" },
+  { href: "/traductor-jurado-rumano", label: "Rumano", flag: "\u{1F1F7}\u{1F1F4}", isNew: true },
+  { href: "/traductor-jurado-catalan", label: "Catalán", flag: "\u{1F3F4}" },
+  { href: "/traductor-jurado-sueco", label: "Sueco", flag: "\u{1F1F8}\u{1F1EA}" },
+  { href: "/traductor-jurado-noruego", label: "Noruego", flag: "\u{1F1F3}\u{1F1F4}" },
 ];
 
 const DOCUMENTOS = [
@@ -244,12 +244,7 @@ export default function Home() {
                 href={lang.href}
                 className="group flex items-center gap-2 rounded-full border border-cream bg-card px-4 py-2 text-sm font-medium text-encre shadow-sm transition hover:border-bleu hover:shadow-paper"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={lang.flag}
-                  alt=""
-                  className="h-4 w-5 rounded-sm object-cover"
-                />
+                <span className="text-base" aria-hidden="true">{lang.flag}</span>
                 {lang.label}
                 {lang.isNew && (
                   <span className="rounded bg-or px-1.5 py-0.5 text-[9px] font-bold text-white">

@@ -246,6 +246,13 @@ export function Header() {
                       Portugués
                     </Link>
                     <Link
+                      href="/traductor-jurado-rumano"
+                      className="rounded-lg px-2 py-1 hover:bg-cream"
+                      onClick={closeMenu}
+                    >
+                      Rumano
+                    </Link>
+                    <Link
                       href="/traductor-jurado-catalan"
                       className="rounded-lg px-2 py-1 hover:bg-cream"
                       onClick={closeMenu}

@@ -501,7 +501,7 @@ export default function FrenchOfferPanel() {
       label: `${fileName} (${words} palabras)`,
       price,
       deadline: "Segun volumen",
-      detail: `Precio orientativo basado en ${words} palabras.`,
+      detail: `Precio cerrado basado en ${words} palabras.`,
       samplePdf: "",
       payDirect: true,
       pricingModel: "per-word",
@@ -1071,7 +1071,7 @@ export default function FrenchOfferPanel() {
                   <>
                     <p className="mt-1 text-xl font-bold text-bleu">{money(filePrice)}</p>
                     <p className="text-xs text-sepia">
-                      Precio orientativo basado en {words} palabras.
+                      Precio cerrado basado en {words} palabras.
                     </p>
                     <p className="text-xs text-sepia">Plazo: segun volumen.</p>
                   </>

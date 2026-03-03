@@ -27,7 +27,7 @@ export default function TraductorJuradoInglesPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de inglés?",
           answer:
-            "El precio orientativo de un certificado sencillo (birth certificate, marriage certificate) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Enviamos presupuesto cerrado tras revisar el archivo.",
+            "Un certificado sencillo (birth certificate, marriage certificate) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y recibe precio cerrado al instante.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de inglés?",
