@@ -165,12 +165,12 @@ export async function POST(req: Request, { params }: Params) {
         .catch((err) => console.error("[orders-delivery] delivery notification event failed", err));
 
       // SMS notification (fire & forget)
-      const { getOrderPhone, sendSMS, formatPhoneSpain } = await import("@/lib/sms");
+      const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
       const { smsTraduccionLista } = await import("@/lib/sms-templates");
       const phone = await getOrderPhone(order.id).catch(() => null);
       if (phone) {
         const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
-        sendSMS({
+        sendNotification({
           to: formatPhoneSpain(phone),
           body: smsTraduccionLista({
             ref: order.reference,

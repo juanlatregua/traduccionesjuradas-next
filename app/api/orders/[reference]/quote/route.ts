@@ -237,11 +237,11 @@ export async function POST(req: Request, { params }: Params) {
           },
         });
         // SMS notification (fire & forget)
-        const { getOrderPhone, sendSMS, formatPhoneSpain } = await import("@/lib/sms");
+        const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
         const { smsPresupuestoListo } = await import("@/lib/sms-templates");
         const phone = await getOrderPhone(order.id).catch(() => null);
         if (phone) {
-          sendSMS({
+          sendNotification({
             to: formatPhoneSpain(phone),
             body: smsPresupuestoListo({
               ref: order.reference,

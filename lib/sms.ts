@@ -1,56 +1,92 @@
-// lib/sms.ts — Abstracción SMS (Twilio o log en desarrollo)
+// lib/sms.ts — Abstracción SMS + WhatsApp via Twilio
 
 import { prisma } from "@/lib/prisma";
 
 export type SMSMessage = {
   to: string; // formato E.164: +34600123456
   body: string;
+  channel?: "sms" | "whatsapp";
 };
+
+/**
+ * Twilio auth: soporta API Key (TWILIO_API_KEY_SID + SECRET) o Auth Token.
+ */
+function getTwilioAuth(): { user: string; pass: string } {
+  const apiKeySid = process.env.TWILIO_API_KEY_SID;
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
+  if (apiKeySid && apiKeySecret) {
+    return { user: apiKeySid, pass: apiKeySecret };
+  }
+  return {
+    user: process.env.TWILIO_ACCOUNT_SID!,
+    pass: process.env.TWILIO_AUTH_TOKEN!,
+  };
+}
+
+async function twilioSend(
+  to: string,
+  from: string,
+  body: string
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID!;
+  const auth = getTwilioAuth();
+
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization:
+          "Basic " +
+          Buffer.from(`${auth.user}:${auth.pass}`).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ To: to, From: from, Body: body }),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("[Twilio error]", err);
+    return { ok: false, error: err };
+  }
+
+  const data = await res.json();
+  return { ok: true, id: data.sid };
+}
 
 export async function sendSMS(
   msg: SMSMessage
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   const provider = process.env.SMS_PROVIDER || "log";
+  const channel = msg.channel || "sms";
 
   if (provider === "log" || process.env.NODE_ENV === "development") {
-    console.log(`[SMS → ${msg.to}] ${msg.body}`);
+    console.log(`[${channel.toUpperCase()} → ${msg.to}] ${msg.body}`);
     return { ok: true, id: `dev-${Date.now()}` };
   }
 
   if (provider === "twilio") {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID!;
-    const authToken = process.env.TWILIO_AUTH_TOKEN!;
-    const from = process.env.TWILIO_FROM_NUMBER!;
-
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          Authorization:
-            "Basic " +
-            Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          To: msg.to,
-          From: from,
-          Body: msg.body,
-        }),
-      }
-    );
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("[SMS error]", err);
-      return { ok: false, error: err };
+    if (channel === "whatsapp") {
+      const waFrom = process.env.TWILIO_WHATSAPP_FROM;
+      if (!waFrom) return { ok: false, error: "TWILIO_WHATSAPP_FROM not set" };
+      return twilioSend(`whatsapp:${msg.to}`, waFrom, msg.body);
     }
-
-    const data = await res.json();
-    return { ok: true, id: data.sid };
+    const from = process.env.TWILIO_FROM_NUMBER!;
+    return twilioSend(msg.to, from, msg.body);
   }
 
   return { ok: false, error: `Unknown SMS provider: ${provider}` };
+}
+
+/**
+ * Envía por WhatsApp si hay número de WhatsApp configurado, si no por SMS.
+ */
+export async function sendNotification(
+  msg: Omit<SMSMessage, "channel">
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const hasWhatsApp = Boolean(process.env.TWILIO_WHATSAPP_FROM);
+  return sendSMS({ ...msg, channel: hasWhatsApp ? "whatsapp" : "sms" });
 }
 
 /**
