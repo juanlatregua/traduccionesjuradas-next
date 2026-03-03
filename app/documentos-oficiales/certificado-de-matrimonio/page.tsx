@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title: "Traducción jurada certificado de matrimonio | Desde 40-75 €",
@@ -17,6 +18,15 @@ export default function CertificadoMatrimonioPage() {
           { name: "Inicio", url: "https://traduccionesjuradas.net/" },
           { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
           { name: "Certificado de matrimonio", url: "https://traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
+        ]}
+      />
+      <SchemaProduct
+        name="Traducción jurada de certificado de matrimonio"
+        description="Traducción jurada oficial de certificados de matrimonio extranjeros. Entrega en PDF firmado en 24-48h."
+        sku="tj-certificado-matrimonio"
+        offers={[
+          { price: "40", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
+          { price: "75", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
         ]}
       />
       <SchemaFAQ

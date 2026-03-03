@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { WHATSAPP_LINK } from "@/lib/contact";
+import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title:
@@ -18,6 +19,15 @@ const mailLink =
 export default function CertificadoNacimientoPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaProduct
+        name="Traducción jurada de certificado de nacimiento"
+        description="Traducción jurada oficial de certificados de nacimiento extranjeros para trámites de extranjería, nacionalidad y registro civil en España."
+        sku="tj-certificado-nacimiento"
+        offers={[
+          { price: "35", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
+          { price: "75", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
+        ]}
+      />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">

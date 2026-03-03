@@ -2,6 +2,9 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
+import { SchemaProduct } from "@/components/SchemaProduct";
+import { getWordRateForLangOrPair } from "@/lib/pricing";
+import { LANGUAGE_CONFIGS } from "@/lib/language-config";
 
 const PresupuestoInstantaneoClient = dynamic(
   () => import("@/app/presupuesto-instantaneo/PresupuestoInstantaneoClient"),
@@ -22,6 +25,7 @@ type FAQItem = {
 type Props = {
   idioma: string;
   idiomaSlug: string;
+  langCode?: string;
   combinaciones?: string[];
   tituloH1: string;
   descripcion: string;
@@ -32,6 +36,7 @@ type Props = {
 export default function PaginaIdioma({
   idioma,
   idiomaSlug,
+  langCode,
   tituloH1,
   descripcion,
   documentosHabituales,
@@ -39,6 +44,13 @@ export default function PaginaIdioma({
 }: Props) {
   const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado-${idiomaSlug}`;
   const breadcrumbName = `Traductor jurado de ${idioma}`;
+
+  // Precios dinámicos para SchemaProduct
+  const lang = langCode || LANGUAGE_CONFIGS[idiomaSlug]?.langCode || idiomaSlug;
+  const rate = getWordRateForLangOrPair(lang);
+  const priceDoc = (300 * rate * 1.1).toFixed(2);  // certificado breve ~300 palabras
+  const priceStd = (800 * rate * 1.1).toFixed(2);  // documento estándar ~800 palabras
+  const priceExp = (2000 * rate * 1.1).toFixed(2); // expediente ~2000 palabras
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 lg:py-12">
@@ -52,6 +64,28 @@ export default function PaginaIdioma({
       <SchemaFAQ
         id={`faq-traductor-jurado-${idiomaSlug}`}
         items={faqItems}
+      />
+      <SchemaProduct
+        name={`Traducción jurada de ${idioma}`}
+        description={`Traducción jurada oficial de ${idioma} realizada por traductor jurado acreditado. Entrega en 24-48h. Válida para trámites oficiales en España y en el extranjero.`}
+        sku={`tj-${idiomaSlug}`}
+        offers={[
+          {
+            price: priceDoc,
+            priceCurrency: "EUR",
+            url: canonicalUrl,
+          },
+          {
+            price: priceStd,
+            priceCurrency: "EUR",
+            url: canonicalUrl,
+          },
+          {
+            price: priceExp,
+            priceCurrency: "EUR",
+            url: canonicalUrl,
+          },
+        ]}
       />
 
       {/* 1. HERO */}

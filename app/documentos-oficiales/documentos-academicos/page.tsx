@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
+import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title: "Títulos y DELF/DALF en francés | Traducción jurada académica",
@@ -17,6 +18,15 @@ export default function DocumentosAcademicosPage() {
           { name: "Inicio", url: "https://traduccionesjuradas.net/" },
           { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
           { name: "Documentos académicos", url: "https://traduccionesjuradas.net/documentos-oficiales/documentos-academicos" },
+        ]}
+      />
+      <SchemaProduct
+        name="Traducción jurada de documentos académicos"
+        description="Traducción jurada oficial de títulos universitarios, expedientes académicos, certificados DELF/DALF y diplomas para homologación en España."
+        sku="tj-documentos-academicos"
+        offers={[
+          { price: "25", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-academicos" },
+          { price: "35", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-academicos" },
         ]}
       />
       <SchemaFAQ
