@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession } from "@/lib/stripe";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -15,6 +16,22 @@ function generateOrderReference(): string {
 }
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+
+  // Rate limit: 10 pagos por IP por día
+  const rl = await checkRateLimit({
+    key: `doc-payment:${ip}`,
+    limit: 10,
+    windowMs: 24 * 60 * 60 * 1000,
+  });
+
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiados intentos de pago. Inténtalo más tarde." },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await req.json();
     const {

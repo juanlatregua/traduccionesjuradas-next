@@ -46,7 +46,7 @@ export default function PaymentFlow({
 }: Props) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bizum");
   const [orderReference, setOrderReference] = useState<string | null>(null);
-  const [step, setStep] = useState<"form" | "processing" | "error">("form");
+  const [step, setStep] = useState<"form" | "processing">("form");
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState(defaultName || "");
@@ -90,7 +90,7 @@ export default function PaymentFlow({
 
       if (!data.ok) {
         setError(data.error || "Error al procesar el pago.");
-        setStep("error");
+        setStep("form");
         return;
       }
 
@@ -107,7 +107,7 @@ export default function PaymentFlow({
       }
     } catch {
       setError("Error de conexión. Inténtalo de nuevo.");
-      setStep("error");
+      setStep("form");
     }
   };
 
