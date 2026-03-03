@@ -28,14 +28,14 @@ function withTracking(path: string, params?: Record<string, string | null | unde
 }
 
 export function getTrackedPresupuestoUrl(agent = "whatsapp") {
-  return withTracking("/presupuesto", { agent });
+  return withTracking("/presupuesto-instantaneo", { agent });
 }
 
 export function getTrackedConsultaUrl(reference?: string | null, agent = "whatsapp") {
-  return withTracking("/consulta", {
-    agent,
-    ...(reference ? { ref: reference } : {}),
-  });
+  return withTracking(
+    reference ? `/area-cliente/pedido/${reference}` : "/area-cliente",
+    { agent, ...(reference ? { ref: reference } : {}) }
+  );
 }
 
 export function getTrackedPaymentUrl(reference: string, agent = "whatsapp") {

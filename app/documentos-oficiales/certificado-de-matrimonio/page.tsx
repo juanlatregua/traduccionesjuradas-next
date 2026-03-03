@@ -35,7 +35,7 @@ export default function CertificadoMatrimonioPage() {
           },
           {
             question: "¿Cómo envío el certificado?",
-            answer: "Adjunta PDF o foto clara desde el formulario de presupuesto o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y apostilla antes de confirmar el precio.",
+            answer: "Adjunta PDF o foto clara desde el presupuesto instantáneo o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y apostilla antes de confirmar el precio.",
           },
         ]}
       />

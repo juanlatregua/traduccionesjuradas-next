@@ -55,7 +55,7 @@ export default function TeletrabajoMarruecosPage() {
             href="/presupuesto-instantaneo"
             className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
-            O rellenar el formulario de presupuesto
+            O calcular presupuesto instantáneo
           </Link>
         </div>
       </header>
@@ -396,7 +396,7 @@ export default function TeletrabajoMarruecosPage() {
             href="/presupuesto-instantaneo"
             className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
-            O rellenar el formulario de presupuesto
+            O calcular presupuesto instantáneo
           </Link>
         </div>
       </section>

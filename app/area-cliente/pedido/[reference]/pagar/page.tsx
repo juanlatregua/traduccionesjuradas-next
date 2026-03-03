@@ -465,7 +465,7 @@ export default function PagarPage() {
             Ver confirmación de pago
           </Link>
           <br />
-          <Link href="/consulta" className="mt-2 inline-block text-sm font-semibold text-bleu hover:underline">
+          <Link href="/area-cliente" className="mt-2 inline-block text-sm font-semibold text-bleu hover:underline">
             Consultar estado del pedido
           </Link>
         </section>
@@ -482,7 +482,7 @@ export default function PagarPage() {
             Tu pedido <span className="font-mono">{order.reference}</span> se está validando antes de habilitar el pago.
             Te avisaremos por email cuando esté listo.
           </p>
-          <Link href="/consulta" className="mt-4 inline-block text-sm font-semibold text-amber-800 underline">
+          <Link href="/area-cliente" className="mt-4 inline-block text-sm font-semibold text-amber-800 underline">
             Consultar estado del pedido
           </Link>
         </section>
@@ -510,7 +510,7 @@ export default function PagarPage() {
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
-              href="/consulta"
+              href="/area-cliente"
               className="rounded-2xl bg-bleu-dark px-5 py-2.5 text-sm font-semibold text-white hover:bg-bleu-dark"
             >
               Consultar estado del pedido

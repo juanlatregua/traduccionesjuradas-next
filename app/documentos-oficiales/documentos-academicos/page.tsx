@@ -35,7 +35,7 @@ export default function DocumentosAcademicosPage() {
           },
           {
             question: "¿Cómo envío el documento?",
-            answer: "Adjunta un PDF o foto clara desde el formulario de presupuesto o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y datos antes de confirmar precio y plazo.",
+            answer: "Adjunta un PDF o foto clara desde el presupuesto instantáneo o envíalo a hola@traduccionesjuradas.net. Revisamos sellos y datos antes de confirmar precio y plazo.",
           },
         ]}
       />

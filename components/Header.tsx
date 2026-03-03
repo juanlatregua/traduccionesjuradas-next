@@ -142,7 +142,7 @@ export function Header() {
           <Link href="/documentos-oficiales" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
             Documentos oficiales
           </Link>
-          <Link href="/consulta" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
+          <Link href="/area-cliente" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
             Consultar pedido
           </Link>
           <Link href="/area-cliente" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
@@ -367,7 +367,7 @@ export function Header() {
             Área cliente
           </Link>
 
-          <Link href="/consulta" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
+          <Link href="/area-cliente" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
             Consulta pedido
           </Link>
 
