@@ -132,8 +132,8 @@ export default function DocumentUploader({
         />
         <span className="text-xs text-graphite leading-relaxed">
           Consiento el tratamiento de mis documentos para generar un presupuesto
-          de traducción jurada. Los documentos se procesan mediante IA y se
-          eliminan automáticamente tras 30 días de la entrega.{" "}
+          de traducción jurada. Los documentos se eliminan automáticamente tras
+          30 días de la entrega.{" "}
           <a href="/privacidad" className="text-bleu underline" target="_blank">
             Ver política de privacidad
           </a>

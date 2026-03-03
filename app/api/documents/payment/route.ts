@@ -1,4 +1,4 @@
-// app/api/documents/payment/route.ts — Crear sesión Stripe o pedido Bizum/Transferencia para documento analizado
+// app/api/documents/payment/route.ts — Crear sesión Stripe o pedido Bizum/Transferencia para documento(s) analizado(s)
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -17,48 +17,105 @@ function generateOrderReference(): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { documentId, isUrgent, clientName, clientEmail, clientPhone, paymentMethod: rawPaymentMethod } = body;
-    const paymentMethod = rawPaymentMethod === "BIZUM" ? "BIZUM" : rawPaymentMethod === "TRANSFER" ? "TRANSFER" : "STRIPE";
+    const {
+      documentId,
+      documentIds: rawDocumentIds,
+      isUrgent,
+      clientName,
+      clientEmail,
+      clientPhone,
+      paymentMethod: rawPaymentMethod,
+    } = body;
+    const paymentMethod =
+      rawPaymentMethod === "BIZUM"
+        ? "BIZUM"
+        : rawPaymentMethod === "TRANSFER"
+        ? "TRANSFER"
+        : rawPaymentMethod === "PAYPAL"
+        ? "PAYPAL"
+        : "STRIPE";
 
-    if (!documentId || !clientName || !clientEmail) {
+    // Backward compat: accept single documentId or array documentIds
+    const documentIds: string[] = rawDocumentIds
+      ? rawDocumentIds
+      : documentId
+      ? [documentId]
+      : [];
+
+    if (documentIds.length === 0 || !clientName || !clientEmail) {
       return NextResponse.json(
-        { ok: false, error: "documentId, clientName y clientEmail son obligatorios." },
+        {
+          ok: false,
+          error:
+            "documentIds (o documentId), clientName y clientEmail son obligatorios.",
+        },
         { status: 400 }
       );
     }
 
-    // Fetch document analysis
-    const doc = await prisma.documentAnalysis.findUnique({
-      where: { id: documentId },
+    // Fetch all document analyses
+    const docs = await prisma.documentAnalysis.findMany({
+      where: { id: { in: documentIds } },
     });
 
-    if (!doc) {
+    if (docs.length !== documentIds.length) {
       return NextResponse.json(
-        { ok: false, error: "Documento no encontrado." },
+        { ok: false, error: "Uno o más documentos no encontrados." },
         { status: 404 }
       );
     }
 
-    if (!doc.quoteAmount) {
+    const missingQuote = docs.find((d) => !d.quoteAmount);
+    if (missingQuote) {
       return NextResponse.json(
-        { ok: false, error: "El documento aún no tiene presupuesto." },
+        { ok: false, error: "Uno o más documentos aún no tienen presupuesto." },
         { status: 400 }
       );
     }
 
-    // Calculate amount
-    const amount = isUrgent ? doc.quoteUrgent || doc.quoteAmount : doc.quoteAmount;
-    const amountCents = Math.round(amount * 100);
+    // Calculate combined amount
+    const totalAmount = docs.reduce((sum, doc) => {
+      const docAmount = isUrgent
+        ? doc.quoteUrgent || doc.quoteAmount!
+        : doc.quoteAmount!;
+      return sum + docAmount;
+    }, 0);
+    const amountCents = Math.round(totalAmount * 100);
 
     // Generate order reference
     const orderReference = generateOrderReference();
 
-    // Create order in DB
-    const docTypeLabel =
-      (doc.analysisJson as any)?.document_type?.specific_type_es || "Documento";
-    const langSource = doc.sourceLanguage || "?";
-    const langTarget = doc.targetLanguage || "es";
-    const title = `${docTypeLabel} (${langSource.toUpperCase()} → ${langTarget.toUpperCase()})`;
+    // Build title and metadata
+    let title: string;
+    let langPair: string;
+    let totalWords = 0;
+
+    if (docs.length === 1) {
+      const doc = docs[0];
+      const docTypeLabel =
+        (doc.analysisJson as any)?.document_type?.specific_type_es ||
+        "Documento";
+      const langSource = doc.sourceLanguage || "?";
+      const langTarget = doc.targetLanguage || "es";
+      title = `${docTypeLabel} (${langSource.toUpperCase()} → ${langTarget.toUpperCase()})`;
+      langPair = `${langSource}-${langTarget}`;
+      totalWords = doc.estimatedWords || 0;
+    } else {
+      title = `${docs.length} documentos para traducción jurada`;
+      // Use the most common lang pair
+      const langSource = docs[0].sourceLanguage || "?";
+      const langTarget = docs[0].targetLanguage || "es";
+      langPair = `${langSource}-${langTarget}`;
+      totalWords = docs.reduce((sum, d) => sum + (d.estimatedWords || 0), 0);
+    }
+
+    // Compute the longest due date across all docs
+    const maxDueMs = docs.reduce((max, doc) => {
+      const days = isUrgent
+        ? parseInt(doc.estimatedDaysUrgent || "1") || 1
+        : parseInt(doc.estimatedDays || "2") || 2;
+      return Math.max(max, days);
+    }, 0);
 
     const order = await prisma.order.create({
       data: {
@@ -67,21 +124,23 @@ export async function POST(req: Request) {
         clientName: clientName,
         source: "ia-presupuesto",
         title: title,
-        langPair: `${langSource}-${langTarget}`,
-        words: doc.estimatedWords || 0,
+        langPair: langPair,
+        words: totalWords,
         amountCents: amountCents,
         currency: "eur",
         status: "PENDING_PAYMENT",
         paymentStatus: "PENDING",
         paymentMethod: paymentMethod,
         deliveryState: "PRESUPUESTO",
-        dueDate: new Date(Date.now() + (isUrgent ? 24 : 48) * 60 * 60 * 1000),
+        dueDate: new Date(
+          Date.now() + maxDueMs * 24 * 60 * 60 * 1000
+        ),
       },
     });
 
-    // Link document to order + update client info
-    await prisma.documentAnalysis.update({
-      where: { id: documentId },
+    // Link all documents to the order + update client info
+    await prisma.documentAnalysis.updateMany({
+      where: { id: { in: documentIds } },
       data: {
         orderId: order.id,
         clientEmail: clientEmail,
@@ -91,8 +150,14 @@ export async function POST(req: Request) {
       },
     });
 
+    if (paymentMethod === "PAYPAL") {
+      return NextResponse.json({
+        ok: true,
+        orderReference: orderReference,
+      });
+    }
+
     if (paymentMethod === "BIZUM" || paymentMethod === "TRANSFER") {
-      // Manual payment: redirect to payment page for proof upload
       return NextResponse.json({
         ok: true,
         orderReference: orderReference,
@@ -101,7 +166,7 @@ export async function POST(req: Request) {
     }
 
     // Stripe: create checkout session
-    const idempotencyKey = `ia-doc-${documentId}-${orderReference}`;
+    const idempotencyKey = `ia-doc-${documentIds.join(",")}-${orderReference}`;
 
     const session = await createCheckoutSession({
       reference: orderReference,
@@ -121,13 +186,20 @@ export async function POST(req: Request) {
 
     if (err?.message?.includes("STRIPE_SECRET_KEY")) {
       return NextResponse.json(
-        { ok: false, error: "Pasarela de pago no configurada. Contacta con soporte." },
+        {
+          ok: false,
+          error:
+            "Pasarela de pago no configurada. Contacta con soporte.",
+        },
         { status: 503 }
       );
     }
 
     return NextResponse.json(
-      { ok: false, error: "Error al procesar el pago. Inténtalo de nuevo." },
+      {
+        ok: false,
+        error: "Error al procesar el pago. Inténtalo de nuevo.",
+      },
       { status: 500 }
     );
   }

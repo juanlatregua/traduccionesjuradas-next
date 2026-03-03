@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
@@ -17,6 +17,10 @@ const DocumentAnalysis = dynamic(
   () => import("@/components/ia/DocumentAnalysis"),
   { ssr: false }
 );
+const DocumentReview = dynamic(
+  () => import("@/components/ia/DocumentReview"),
+  { ssr: false }
+);
 const InstantQuote = dynamic(() => import("@/components/ia/InstantQuote"), {
   ssr: false,
 });
@@ -29,8 +33,9 @@ const OrderTracker = dynamic(() => import("@/components/ia/OrderTracker"), {
 
 type FlowStep =
   | "upload"
-  | "email-gate"
   | "analyzing"
+  | "doc-review"
+  | "email-gate"
   | "quote"
   | "payment"
   | "success"
@@ -42,12 +47,18 @@ type LeadData = {
   phone: string;
 };
 
+type DocumentEntry = {
+  id: string;
+  analysis: DocumentAnalysisResult;
+  quote: Quote;
+};
+
 export default function PresupuestoInstantaneoClient() {
   const [step, setStep] = useState<FlowStep>("upload");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [documentId, setDocumentId] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<DocumentAnalysisResult | null>(null);
-  const [quote, setQuote] = useState<Quote | null>(null);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
+  const currentDocIdRef = useRef<string | null>(null);
+  const [documents, setDocuments] = useState<DocumentEntry[]>([]);
   const [isUrgent, setIsUrgent] = useState(false);
   const [orderReference, setOrderReference] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -55,7 +66,8 @@ export default function PresupuestoInstantaneoClient() {
 
   const handleUploadComplete = useCallback(
     (docId: string, token: string) => {
-      setDocumentId(docId);
+      currentDocIdRef.current = docId;
+      setCurrentDocumentId(docId);
       setSessionToken(token);
       setStep("analyzing");
     },
@@ -64,12 +76,30 @@ export default function PresupuestoInstantaneoClient() {
 
   const handleAnalysisComplete = useCallback(
     (analysisResult: DocumentAnalysisResult, quoteResult: Quote) => {
-      setAnalysis(analysisResult);
-      setQuote(quoteResult);
-      setStep("email-gate");
+      const docId = currentDocIdRef.current;
+      if (!docId) return;
+      setDocuments((prev) => [
+        ...prev,
+        {
+          id: docId,
+          analysis: analysisResult,
+          quote: quoteResult,
+        },
+      ]);
+      setStep("doc-review");
     },
     []
   );
+
+  const handleAddAnother = useCallback(() => {
+    currentDocIdRef.current = null;
+    setCurrentDocumentId(null);
+    setStep("upload");
+  }, []);
+
+  const handleViewQuote = useCallback(() => {
+    setStep("email-gate");
+  }, []);
 
   const handleLeadComplete = useCallback((data: LeadData) => {
     setLeadData(data);
@@ -91,11 +121,34 @@ export default function PresupuestoInstantaneoClient() {
     setStep("success");
   }, []);
 
+  const handleTargetLanguageChange = useCallback(
+    (docIndex: number, target: string, targetName: string) => {
+      setDocuments((prev) =>
+        prev.map((doc, i) =>
+          i === docIndex
+            ? {
+                ...doc,
+                analysis: {
+                  ...doc.analysis,
+                  language: {
+                    ...doc.analysis.language,
+                    target,
+                    target_name: targetName,
+                  },
+                },
+              }
+            : doc
+        )
+      );
+    },
+    []
+  );
+
   const handleReset = useCallback(() => {
     setStep("upload");
-    setDocumentId(null);
-    setAnalysis(null);
-    setQuote(null);
+    currentDocIdRef.current = null;
+    setCurrentDocumentId(null);
+    setDocuments([]);
     setErrorMessage(null);
     setOrderReference(null);
     setLeadData(null);
@@ -104,6 +157,13 @@ export default function PresupuestoInstantaneoClient() {
   const whatsappFallback = `https://wa.me/34951333614?text=${encodeURIComponent(
     "Hola, he intentado usar el presupuesto instantáneo pero ha habido un problema. ¿Podéis ayudarme?"
   )}`;
+
+  const hasWarnings = documents.some((d) => d.analysis.warnings.length > 0);
+  const totalPrice = documents.reduce(
+    (sum, d) => sum + (isUrgent ? d.quote.urgentPrice : d.quote.basePrice),
+    0
+  );
+  const latestAnalysis = documents.length > 0 ? documents[documents.length - 1].analysis : null;
 
   return (
     <div className="space-y-6">
@@ -117,59 +177,48 @@ export default function PresupuestoInstantaneoClient() {
       )}
 
       {/* Step 2: Analyzing */}
-      {step === "analyzing" && documentId && (
+      {step === "analyzing" && currentDocumentId && (
         <DocumentAnalysis
-          documentId={documentId}
+          documentId={currentDocumentId}
           onAnalysisComplete={handleAnalysisComplete}
           onError={handleAnalysisError}
         />
       )}
 
-      {/* Step 3: Email gate (after seeing analysis) */}
-      {step === "email-gate" && documentId && (
-        <>
-          <DocumentAnalysis
-            documentId={documentId}
-            onAnalysisComplete={() => {}}
-            onError={() => {}}
-          />
-          <LeadGate
-            documentId={documentId}
-            onComplete={handleLeadComplete}
-          />
-        </>
+      {/* Step 3: Document review (add more or proceed) */}
+      {step === "doc-review" && documents.length > 0 && latestAnalysis && (
+        <DocumentReview
+          documents={documents}
+          currentAnalysis={latestAnalysis}
+          onAddAnother={handleAddAnother}
+          onViewQuote={handleViewQuote}
+          onTargetLanguageChange={handleTargetLanguageChange}
+        />
       )}
 
-      {/* Step 4: Quote */}
-      {step === "quote" && analysis && quote && documentId && (
-        <>
-          <DocumentAnalysis
-            documentId={documentId}
-            onAnalysisComplete={() => {}}
-            onError={() => {}}
-          />
-          <InstantQuote
-            quote={quote}
-            analysis={analysis}
-            documentId={documentId}
-            onPaymentStart={handlePaymentStart}
-            hasWarnings={analysis.warnings.length > 0}
-          />
-        </>
+      {/* Step 4: Email gate */}
+      {step === "email-gate" && documents.length > 0 && (
+        <LeadGate
+          documentId={documents[0].id}
+          onComplete={handleLeadComplete}
+        />
       )}
 
-      {/* Step 5: Payment */}
-      {step === "payment" && documentId && (
+      {/* Step 5: Quote */}
+      {step === "quote" && documents.length > 0 && (
+        <InstantQuote
+          documents={documents}
+          onPaymentStart={handlePaymentStart}
+          hasWarnings={hasWarnings}
+        />
+      )}
+
+      {/* Step 6: Payment */}
+      {step === "payment" && documents.length > 0 && (
         <PaymentFlow
-          documentId={documentId}
+          documentIds={documents.map((d) => d.id)}
           isUrgent={isUrgent}
-          amount={
-            quote
-              ? isUrgent
-                ? quote.urgentPrice
-                : quote.basePrice
-              : 0
-          }
+          amount={totalPrice}
           onSuccess={handlePaymentSuccess}
           onCancel={() => setStep("quote")}
           defaultName={leadData?.name}
@@ -178,16 +227,20 @@ export default function PresupuestoInstantaneoClient() {
         />
       )}
 
-      {/* Step 6: Success */}
+      {/* Step 7: Success */}
       {step === "success" && orderReference && (
         <OrderTracker
           orderReference={orderReference}
           currentStatus="PAID"
-          documentType={analysis?.document_type.specific_type_es}
+          documentType={
+            documents.length === 1
+              ? documents[0].analysis.document_type.specific_type_es
+              : `${documents.length} documentos`
+          }
           estimatedDelivery={
             isUrgent
-              ? quote?.estimatedDaysUrgent
-              : quote?.estimatedDaysStandard
+              ? documents[0]?.quote.estimatedDaysUrgent
+              : documents[0]?.quote.estimatedDaysStandard
           }
         />
       )}
@@ -223,15 +276,15 @@ export default function PresupuestoInstantaneoClient() {
         </div>
       )}
 
-      {/* Reset button (visible after analysis) */}
-      {["quote", "payment"].includes(step) && (
+      {/* Reset button (visible after review/quote/payment) */}
+      {["doc-review", "quote", "payment"].includes(step) && (
         <div className="text-center">
           <button
             onClick={handleReset}
             className="inline-flex items-center gap-1.5 text-sm text-graphite hover:text-bleu transition-colors"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            Analizar otro documento
+            Empezar de nuevo
           </button>
         </div>
       )}

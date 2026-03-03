@@ -36,6 +36,14 @@ export const VOLUME_DISCOUNTS = [
   { threshold: 10, discount: 0.15 }, // 10+ documentos: -15%
 ];
 
+// Tarifas especiales Marruecos (documentos árabes/franceses)
+export const MOROCCO_PRICING: Record<number, number> = {
+  1: 25,
+  2: 30,
+  3: 40,
+};
+export const MOROCCO_PER_WORD_RATE = 0.08;
+
 export function getMinimum(specificType: string): number {
   return MINIMUM_BY_TYPE[specificType] || DEFAULT_MINIMUM;
 }

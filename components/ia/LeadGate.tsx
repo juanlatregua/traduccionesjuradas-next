@@ -80,7 +80,7 @@ export default function LeadGate({ documentId, onComplete }: Props) {
             Tu documento está listo
           </h3>
           <p className="text-sm text-graphite">
-            Analizamos tu documento con IA y te enviamos el presupuesto detallado por email.
+            Introduce tus datos para ver el presupuesto detallado.
           </p>
         </div>
       </div>
