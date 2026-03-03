@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Presupuesto instantáneo de traducción jurada",
   description:
     "Sube tu documento y recibe un presupuesto de traducción jurada en segundos. Sin esperas, sin formularios. Precio cerrado al instante.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/presupuesto-instantaneo" },
 };
 
 export default function PresupuestoInstantaneoPage() {

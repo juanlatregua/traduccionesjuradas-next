@@ -8,11 +8,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/proceso",
     "/preguntas-frecuentes",
     "/precios-traduccion-jurada",
+    "/presupuesto-instantaneo",
     "/traducciones-juradas-baratas",
     "/traduccion-jurada-online",
     "/traduccion-jurada-frances-malaga",
+    "/traductores-jurados",
+    "/contacto",
+    "/marruecos",
     "/documentos-oficiales",
     "/documentos-oficiales/certificados-registro-civil",
+    "/documentos-oficiales/certificado-de-nacimiento",
+    "/documentos-oficiales/certificado-de-matrimonio",
     "/documentos-oficiales/antecedentes-penales",
     "/documentos-oficiales/documentos-academicos",
     "/documentos-oficiales/documentos-laborales",
@@ -30,6 +36,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/traductor-jurado-catalan",
     "/traductor-jurado-sueco",
     "/traductor-jurado-noruego",
+    "/aviso-legal",
+    "/privacidad",
+    "/politica-de-cookies",
   ];
 
   const now = new Date();

@@ -10,9 +10,9 @@ const mailLink =
   "mailto:hola@traduccionesjuradas.net?subject=Precios%20traducci%C3%B3n%20jurada";
 
 export const metadata: Metadata = {
-  title: "Precios de traducción jurada | Tarifas orientativas",
+  title: "Precios de traducción jurada | Precio cerrado al instante",
   description:
-    "Tarifas orientativas de traducción jurada según tipo de documento, idioma y volumen. Certificados breves, expedientes académicos, contratos, documentación mercantil y paquetes de documentos para trámites en España y en el extranjero.",
+    "Precios de traducción jurada según tipo de documento, idioma y volumen. Sube tu documento y recibe precio cerrado al instante. Certificados, expedientes académicos, contratos y documentación mercantil.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/precios-traduccion-jurada" },
 };
 
@@ -22,17 +22,17 @@ export default function PreciosTraduccionJuradaPage() {
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-          Precios orientativos
+          Precios de traducción jurada
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
-          Precios de traducción jurada: tarifas orientativas
+          Precios de traducción jurada: precio cerrado al instante
         </h1>
         <p className="mt-3 text-sm text-sepia sm:text-base">
           El precio de una traducción jurada depende del <strong>idioma</strong>,
           del <strong>tipo de documento</strong>, de la <strong>extensión</strong> y,
-          en algunos casos, de la <strong>urgencia</strong>. A continuación te
-          damos rangos orientativos para que te hagas una idea, pero siempre
-          confirmaremos el precio exacto al ver tus documentos.
+          en algunos casos, de la <strong>urgencia</strong>. Sube tu documento y
+          recibe un precio cerrado al instante, o consulta los rangos de referencia
+          a continuación.
         </p>
       </header>
 
@@ -64,9 +64,8 @@ export default function PreciosTraduccionJuradaPage() {
           </li>
         </ul>
         <p className="text-xs text-sepia">
-          Todos los precios que aparecen en esta página son <strong>orientativos</strong>.
-          Siempre te confirmaremos un precio cerrado una vez revisados tus
-          documentos.
+          Los rangos que aparecen en esta página son de referencia.
+          Sube tu documento para recibir un <strong>precio cerrado</strong> al instante.
         </p>
       </section>
 

@@ -43,6 +43,21 @@ export const metadata: Metadata = {
     shortcut: "/brand/favicon.svg",
     apple: "/brand/isotipo.svg",
   },
+  openGraph: {
+    type: "website",
+    locale: "es_ES",
+    siteName: "TraduccionesJuradas.net",
+    title: "Traducciones juradas oficiales online",
+    description:
+      "Traducción jurada oficial para trámites en España y en el extranjero. Precio cerrado al instante. Traductor jurado N.º 3850.",
+    url: "https://www.traduccionesjuradas.net",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Traducciones juradas oficiales online",
+    description:
+      "Traducción jurada oficial para trámites en España y en el extranjero. Precio cerrado al instante.",
+  },
 };
 
 export const viewport: Viewport = {
