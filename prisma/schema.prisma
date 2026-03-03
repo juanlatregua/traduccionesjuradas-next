@@ -137,7 +137,7 @@ model Order {
   paymentEvents OrderPaymentEvent[]
   billing  BillingData?
   shipping ShippingData?
-  documentAnalysis DocumentAnalysis?
+  documentAnalyses DocumentAnalysis[]
 
   @@index([clientEmail])
   @@index([createdAt])
@@ -454,7 +454,7 @@ model DocumentAnalysis {
   gdprConsentAt    DateTime?
 
   // Relación con Order (se crea al pagar)
-  orderId          String?                @unique
+  orderId          String?
   order            Order?                 @relation(fields: [orderId], references: [id])
 
   createdAt        DateTime               @default(now())

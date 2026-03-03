@@ -134,10 +134,7 @@ export function Header() {
           className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-xs sm:shadow-none sm:text-sepia`}
         >
           <Link href="/presupuesto-instantaneo" className="sm:hidden font-semibold text-or hover:text-or-light" onClick={closeMenu}>
-            Presupuesto instantáneo con IA
-          </Link>
-          <Link href="/presupuesto" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
-            Calcular y pedir presupuesto
+            Presupuesto instantáneo
           </Link>
           <Link href="/traductores-jurados" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
             Idiomas
@@ -377,16 +374,7 @@ export function Header() {
             className="w-full rounded-xl bg-or px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-or-light sm:w-auto sm:rounded-2xl sm:text-xs"
             onClick={closeMenu}
           >
-            Presupuesto IA
-          </Link>
-
-          {/* CTA PRESUPUESTO */}
-          <Link
-            href="/presupuesto"
-            className="w-full rounded-xl bg-bleu px-4 py-2 text-center text-sm font-semibold text-parchment shadow-sm hover:bg-bleu-dark sm:w-auto sm:rounded-2xl sm:text-xs"
-            onClick={closeMenu}
-          >
-            Solicitar presupuesto
+            Presupuesto instantáneo
           </Link>
         </nav>
       </div>

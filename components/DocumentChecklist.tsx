@@ -78,7 +78,7 @@ export function DocumentChecklist({ slug }: { slug?: string }) {
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link
-          href="/presupuesto"
+          href="/presupuesto-instantaneo"
           className="inline-flex items-center gap-2 rounded-2xl bg-bleu px-4 py-2 font-semibold text-parchment shadow-sm hover:bg-bleu-dark"
         >
           Pedir presupuesto para {category.title.toLowerCase()}

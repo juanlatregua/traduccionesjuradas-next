@@ -239,7 +239,7 @@ export default function DocumentosLaboralesPage() {
 
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
-            href="/presupuesto"
+            href="/presupuesto-instantaneo"
             className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
           >
             Solicitar presupuesto

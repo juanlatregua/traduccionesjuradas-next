@@ -138,10 +138,10 @@ export default function Home() {
               </Link>
 
               <Link
-                href="/presupuesto"
+                href="/presupuesto-instantaneo"
                 className="rounded-2xl border border-bleu px-4 py-2 text-sm font-medium text-bleu hover:bg-cream"
               >
-                Enviar documentos para presupuesto
+                Sube tu documento para presupuesto
               </Link>
 
               <a
@@ -182,12 +182,12 @@ export default function Home() {
                   </span>
                   <div>
                     <p className="font-semibold">
-                      Envíanos tus documentos para presupuesto
+                      Sube tu documento y recibe presupuesto al instante
                     </p>
                     <p className="text-cream/80">
-                      Adjunta una foto o escaneo por email o WhatsApp, o
-                      utiliza el formulario de presupuesto. Te respondemos con
-                      precio y plazo estimado.
+                      Adjunta una foto o escaneo en nuestra página de presupuesto
+                      instantáneo. Nuestra IA analiza el documento y te da precio
+                      y plazo en segundos.
                     </p>
                   </div>
                 </li>
@@ -277,10 +277,10 @@ export default function Home() {
               Ver documentos
             </Link>
             <Link
-              href="/presupuesto"
+              href="/presupuesto-instantaneo"
               className="rounded-xl border border-cream bg-cream px-3 py-2 font-medium text-sepia"
             >
-              Solicitar presupuesto
+              Presupuesto instantáneo
             </Link>
             <Link
               href="/consulta"
@@ -392,7 +392,7 @@ export default function Home() {
                   Ver más sobre {item.title} →
                 </Link>
                 <Link
-                  href="/presupuesto"
+                  href="/presupuesto-instantaneo"
                   className="inline-flex w-fit items-center gap-1 rounded-lg bg-bleu px-3 py-2 font-semibold text-parchment shadow-sm hover:bg-bleu-dark"
                 >
                   Pedir presupuesto para {item.title.toLowerCase()} →

@@ -52,7 +52,7 @@ export default function TeletrabajoMarruecosPage() {
             Enviar documentos por WhatsApp
           </a>
           <Link
-            href="/presupuesto"
+            href="/presupuesto-instantaneo"
             className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O rellenar el formulario de presupuesto
@@ -393,7 +393,7 @@ export default function TeletrabajoMarruecosPage() {
             Enviar fotos por WhatsApp
           </a>
           <Link
-            href="/presupuesto"
+            href="/presupuesto-instantaneo"
             className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
           >
             O rellenar el formulario de presupuesto

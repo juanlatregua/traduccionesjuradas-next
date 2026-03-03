@@ -157,7 +157,7 @@ export default function TraduccionesJuradasBaratas() {
 
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
-            href="/presupuesto"
+            href="/presupuesto-instantaneo"
             className="rounded-2xl bg-bleu px-5 py-2 text-sm font-semibold text-white hover:bg-bleu"
           >
             Pedir presupuesto
