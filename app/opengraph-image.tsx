@@ -20,56 +20,71 @@ export default function OgImage() {
           fontFamily: "system-ui, sans-serif",
         }}
       >
-        {/* Shield icon */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 80,
-            height: 80,
-            borderRadius: 20,
-            backgroundColor: "#0F6B66",
-            marginBottom: 24,
-            fontSize: 40,
-          }}
+        {/* Isotipo — escudo con documento y check */}
+        <svg
+          width="120"
+          height="120"
+          viewBox="0 0 200 200"
+          style={{ marginBottom: 28 }}
         >
-          <span style={{ color: "white" }}>&#10003;</span>
-        </div>
+          {/* Shield */}
+          <path
+            fill="#2A4A6B"
+            d="M100 18 C136 18 160 30 174 44 V98 C174 142 146 170 100 186 C54 170 26 142 26 98 V44 C40 30 64 18 100 18 Z"
+          />
+          {/* Paper */}
+          <path
+            fill="#FFFFFF"
+            d="M70 52 H122 L140 70 V126 C140 131 136 135 131 135 H70 C65 135 61 131 61 126 V61 C61 56 65 52 70 52 Z"
+          />
+          {/* Folded corner */}
+          <path fill="#E8DCC8" d="M122 52 V70 H140" />
+          {/* Lines */}
+          <line x1="76" y1="82" x2="122" y2="82" stroke="#1B2A41" strokeWidth="8" strokeLinecap="round" opacity="0.85" />
+          <line x1="76" y1="100" x2="122" y2="100" stroke="#1B2A41" strokeWidth="8" strokeLinecap="round" opacity="0.85" />
+          <line x1="76" y1="118" x2="108" y2="118" stroke="#1B2A41" strokeWidth="8" strokeLinecap="round" opacity="0.85" />
+          {/* Check badge */}
+          <circle fill="#0F6B66" cx="135" cy="124" r="26" />
+          <path d="M124 124 L132 132 L147 113" fill="none" stroke="#FFFFFF" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
 
         {/* Title */}
         <div
           style={{
-            fontSize: 52,
-            fontWeight: 700,
-            color: "#FFFFFF",
-            textAlign: "center",
-            lineHeight: 1.2,
+            display: "flex",
+            alignItems: "baseline",
+            gap: 8,
           }}
         >
-          TRADUCCIONES JURADAS
-        </div>
-        <div
-          style={{
-            fontSize: 52,
-            fontWeight: 700,
-            color: "#0F6B66",
-            textAlign: "center",
-            marginTop: 4,
-          }}
-        >
-          .net
+          <span
+            style={{
+              fontSize: 56,
+              fontWeight: 700,
+              color: "#FFFFFF",
+              letterSpacing: 1,
+            }}
+          >
+            TRADUCCIONES JURADAS
+          </span>
+          <span
+            style={{
+              fontSize: 44,
+              fontWeight: 600,
+              color: "#0F6B66",
+            }}
+          >
+            .net
+          </span>
         </div>
 
         {/* Separator */}
         <div
           style={{
-            width: 120,
-            height: 4,
-            backgroundColor: "#0F6B66",
-            borderRadius: 2,
-            marginTop: 28,
-            marginBottom: 28,
+            width: 400,
+            height: 3,
+            background: "linear-gradient(90deg, transparent, #0F6B66, transparent)",
+            marginTop: 24,
+            marginBottom: 24,
           }}
         />
 
@@ -79,7 +94,6 @@ export default function OgImage() {
             fontSize: 28,
             color: "#E8DCC8",
             textAlign: "center",
-            maxWidth: 800,
             lineHeight: 1.4,
           }}
         >
@@ -87,14 +101,14 @@ export default function OgImage() {
         </div>
         <div
           style={{
-            fontSize: 22,
+            fontSize: 20,
             color: "#E8DCC8",
-            opacity: 0.8,
+            opacity: 0.7,
             textAlign: "center",
-            marginTop: 12,
+            marginTop: 10,
           }}
         >
-          Precio cerrado al instante &middot; Traductor jurado N.º 3850
+          Precio cerrado al instante · Traductor jurado N.º 3850
         </div>
 
         {/* Bottom badges */}
@@ -102,7 +116,7 @@ export default function OgImage() {
           style={{
             display: "flex",
             gap: 16,
-            marginTop: 40,
+            marginTop: 36,
           }}
         >
           {["24-48h entrega", "10 idiomas", "+3.000 traducciones"].map(
@@ -110,9 +124,10 @@ export default function OgImage() {
               <div
                 key={badge}
                 style={{
-                  fontSize: 16,
+                  fontSize: 15,
                   color: "#FFFFFF",
-                  backgroundColor: "rgba(255,255,255,0.1)",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
                   borderRadius: 20,
                   padding: "8px 20px",
                 }}
