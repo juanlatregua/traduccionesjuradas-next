@@ -124,7 +124,7 @@ export default function CertificadoNacimientoPage() {
             distancia desde España, puedes ver un resumen de la documentación
             habitual en{" "}
             <Link
-              href="/teletrabajo/marruecos"
+              href="/teletrabajo"
               className="text-bleu underline"
             >
               documentos para teletrabajar en España (Marruecos)

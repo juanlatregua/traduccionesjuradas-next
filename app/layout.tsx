@@ -51,12 +51,21 @@ export const metadata: Metadata = {
     description:
       "Traducción jurada oficial para trámites en España y en el extranjero. Precio cerrado al instante. Traductor jurado N.º 3850.",
     url: "https://www.traduccionesjuradas.net",
+    images: [
+      {
+        url: "https://www.traduccionesjuradas.net/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "TraduccionesJuradas.net — Traducciones juradas oficiales online",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Traducciones juradas oficiales online",
     description:
       "Traducción jurada oficial para trámites en España y en el extranjero. Precio cerrado al instante.",
+    images: ["https://www.traduccionesjuradas.net/opengraph-image.png"],
   },
 };
 

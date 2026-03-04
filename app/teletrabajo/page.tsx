@@ -181,10 +181,10 @@ export default function TeletrabajoMarruecosPage() {
               </Link>{" "}
               y, en parte, de los{" "}
               <Link
-                href="/documentos-oficiales/documentos-fiscales"
+                href="/documentos-oficiales/documentos-mercantiles"
                 className="text-bleu underline"
               >
-                documentos fiscales
+                documentos fiscales y mercantiles
               </Link>
               .
             </p>
@@ -253,10 +253,10 @@ export default function TeletrabajoMarruecosPage() {
             <p className="mt-2 text-xs text-sepia">
               Todo esto se enmarca dentro de los{" "}
               <Link
-                href="/documentos-oficiales/documentos-migratorios"
+                href="/documentos-oficiales"
                 className="text-bleu underline"
               >
-                documentos migratorios
+                documentos oficiales
               </Link>
               .
             </p>
