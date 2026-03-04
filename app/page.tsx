@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 
 const PresupuestoInstantaneoClient = dynamic(
   () => import("@/app/presupuesto-instantaneo/PresupuestoInstantaneoClient"),
@@ -89,6 +90,10 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="min-h-screen bg-parchment text-sepia">
+      <SchemaBreadcrumbs
+        id="breadcrumbs-home"
+        items={[{ name: "Inicio", url: "https://www.traduccionesjuradas.net/" }]}
+      />
       <SchemaFAQ items={HOME_FAQ_ITEMS} id="schema-faq-home" />
 
       {/* ═══════════════ SECCIÓN 1: HERO + UPLOAD ═══════════════ */}
@@ -313,7 +318,13 @@ export default function Home() {
             ¿Tienes dudas sobre tu documento?
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm text-sepia">
-            Escríbenos y te orientamos sin compromiso sobre tu trámite.
+            Escríbenos y te orientamos sin compromiso sobre tu trámite.{" "}
+            <Link
+              href="/traductores-jurados"
+              className="text-bleu hover:underline"
+            >
+              Conoce a nuestro equipo
+            </Link>.
           </p>
           <div className="mt-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <a
