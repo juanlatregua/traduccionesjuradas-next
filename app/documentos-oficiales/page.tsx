@@ -9,6 +9,16 @@ export const metadata: Metadata = {
   description:
     "Listado actualizado de documentos oficiales que suelen requerir traducción jurada: certificados del Registro Civil, certificados de nacimiento, antecedentes penales, documentos académicos, laborales, jurídicos, mercantiles y documentación para teletrabajar en España.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Documentos+oficiales&subtitle=Tipos+de+documentos+que+requieren+traducci%C3%B3n+jurada",
+        width: 1200,
+        height: 630,
+        alt: "Documentos oficiales — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function DocumentosOficialesPage() {

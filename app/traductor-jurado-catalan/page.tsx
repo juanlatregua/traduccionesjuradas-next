@@ -8,6 +8,16 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-catalan",
   },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Traductor+jurado+de+catal%C3%A1n&subtitle=Traducci%C3%B3n+jurada+oficial+CA+%E2%86%94+ES",
+        width: 1200,
+        height: 630,
+        alt: "Traductor jurado de catalán — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function TraductorJuradoCatalanPage() {

@@ -6,6 +6,16 @@ export const metadata: Metadata = {
   description:
     "Sube tu documento y recibe un presupuesto de traducción jurada en segundos. Sin esperas, sin formularios. Precio cerrado al instante.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/presupuesto-instantaneo" },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Presupuesto+instant%C3%A1neo&subtitle=Sube+tu+documento+y+recibe+precio+cerrado+en+segundos",
+        width: 1200,
+        height: 630,
+        alt: "Presupuesto instantáneo de traducción jurada — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function PresupuestoInstantaneoPage() {

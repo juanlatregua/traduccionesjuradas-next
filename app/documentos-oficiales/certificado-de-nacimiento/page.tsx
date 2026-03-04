@@ -12,6 +12,16 @@ export const metadata: Metadata = {
   description:
   "Traducción jurada de certificados de nacimiento para trámites en España: extranjería, nacionalidad, matrimonio, menores, ONG y adopciones. Información práctica para documentos de Marruecos, Francia, Senegal, Costa de Marfil y otros países francófonos.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Traducci%C3%B3n+jurada+de+certificado+de+nacimiento&subtitle=Documentos+oficiales+%C2%B7+Extranjer%C3%ADa+y+nacionalidad",
+        width: 1200,
+        height: 630,
+        alt: "Traducción jurada de certificado de nacimiento — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 const whatsappLink = WHATSAPP_LINK;

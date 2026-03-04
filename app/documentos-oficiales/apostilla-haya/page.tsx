@@ -8,6 +8,16 @@ export const metadata: Metadata = {
   description:
     "Qué es la Apostilla de La Haya, qué documentos suelen requerirla y cómo se relaciona con la traducción jurada. Información práctica para certificados de nacimiento, matrimonio, antecedentes penales, documentos mercantiles y casos frecuentes de Marruecos, Francia y países francófonos.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/apostilla-haya" },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Apostilla+de+La+Haya&subtitle=Qu%C3%A9+es+y+cu%C3%A1ndo+se+exige+en+traducci%C3%B3n+jurada",
+        width: 1200,
+        height: 630,
+        alt: "Apostilla de La Haya y traducción jurada — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function ApostillaHayaPage() {

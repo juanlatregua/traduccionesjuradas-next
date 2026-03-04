@@ -9,6 +9,16 @@ export const metadata: Metadata = {
   description:
     "Descubre cómo funciona el proceso de la traducción jurada: envío de documentos, presupuesto cerrado, aceptación, traducción por traductores jurados oficiales y entrega en PDF firmado digitalmente o en papel.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/proceso" },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=C%C3%B3mo+funciona+la+traducci%C3%B3n+jurada&subtitle=Proceso+paso+a+paso%3A+env%C3%ADo%2C+presupuesto%2C+traducci%C3%B3n+y+entrega",
+        width: 1200,
+        height: 630,
+        alt: "Cómo funciona la traducción jurada — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function ComoFuncionaPage() {

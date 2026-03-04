@@ -10,6 +10,16 @@ export const metadata: Metadata = {
     canonical:
       "https://www.traduccionesjuradas.net/traductor-jurado-rumano",
   },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Traductor+jurado+de+rumano&subtitle=Traducci%C3%B3n+jurada+oficial+RO+%E2%86%94+ES",
+        width: 1200,
+        height: 630,
+        alt: "Traductor jurado de rumano — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function TraductorJuradoRumanoPage() {

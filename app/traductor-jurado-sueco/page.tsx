@@ -8,6 +8,16 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-sueco",
   },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Traductor+jurado+de+sueco&subtitle=Traducci%C3%B3n+jurada+oficial+SV+%E2%86%94+ES",
+        width: 1200,
+        height: 630,
+        alt: "Traductor jurado de sueco — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function TraductorJuradoSuecoPage() {

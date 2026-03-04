@@ -49,6 +49,7 @@ function getPriority(route: string): number {
   if (
     route === "/proceso" ||
     route === "/traductores-jurados" ||
+    route === "/acreditacion" ||
     route === "/contacto"
   ) {
     return 0.7;
@@ -80,6 +81,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/traduccion-jurada-online",
     "/traduccion-jurada-frances-malaga",
     "/traductores-jurados",
+    "/acreditacion",
     "/contacto",
     "/marruecos",
     "/documentos-oficiales",

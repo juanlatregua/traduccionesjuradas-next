@@ -10,6 +10,16 @@ export const metadata: Metadata = {
   description:
     "Traducción jurada de títulos, expedientes y certificados académicos para homologación y oposiciones. Soporte para DELF/DALF en francés y otros idiomas oficiales.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-academicos" },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Traducci%C3%B3n+jurada+de+documentos+acad%C3%A9micos&subtitle=T%C3%ADtulos%2C+expedientes+y+certificados+para+homologaci%C3%B3n",
+        width: 1200,
+        height: 630,
+        alt: "Traducción jurada de documentos académicos — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function DocumentosAcademicosPage() {

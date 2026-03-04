@@ -8,6 +8,16 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-portugues",
   },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Traductor+jurado+de+portugu%C3%A9s&subtitle=Traducci%C3%B3n+jurada+oficial+PT+%E2%86%94+ES",
+        width: 1200,
+        height: 630,
+        alt: "Traductor jurado de portugués — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function TraductorJuradoPortuguesPage() {

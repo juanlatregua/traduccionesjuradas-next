@@ -8,6 +8,16 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-aleman",
   },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Traductor+jurado+de+alem%C3%A1n&subtitle=Traducci%C3%B3n+jurada+oficial+DE+%E2%86%94+ES",
+        width: 1200,
+        height: 630,
+        alt: "Traductor jurado de alemán — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function TraductorJuradoAlemanPage() {

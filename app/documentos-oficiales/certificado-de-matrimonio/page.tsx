@@ -11,6 +11,16 @@ export const metadata: Metadata = {
   description:
     "Desde 40-75 € para traducir certificados de matrimonio. Entrega en PDF firmado, plazos rápidos según idioma. Incluye apostilla si aplica.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Traducci%C3%B3n+jurada+de+certificado+de+matrimonio&subtitle=Documentos+oficiales+%C2%B7+Desde+40-75+%E2%82%AC",
+        width: 1200,
+        height: 630,
+        alt: "Traducción jurada de certificado de matrimonio — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function CertificadoMatrimonioPage() {

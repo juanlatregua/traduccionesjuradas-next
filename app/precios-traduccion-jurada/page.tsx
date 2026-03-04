@@ -14,6 +14,16 @@ export const metadata: Metadata = {
   description:
     "Precios de traducción jurada según tipo de documento, idioma y volumen. Sube tu documento y recibe precio cerrado al instante. Certificados, expedientes académicos, contratos y documentación mercantil.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/precios-traduccion-jurada" },
+  openGraph: {
+    images: [
+      {
+        url: "/api/og?title=Precios+de+traducci%C3%B3n+jurada&subtitle=Precio+cerrado+al+instante+seg%C3%BAn+documento+e+idioma",
+        width: 1200,
+        height: 630,
+        alt: "Precios de traducción jurada — TraduccionesJuradas.net",
+      },
+    ],
+  },
 };
 
 export default function PreciosTraduccionJuradaPage() {
