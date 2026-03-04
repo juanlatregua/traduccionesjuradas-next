@@ -154,6 +154,9 @@ export function Header() {
           <Link href="/preguntas-frecuentes" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
             Preguntas frecuentes
           </Link>
+          <Link href="/blog" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
+            Blog
+          </Link>
 
           {/* CÓMO FUNCIONA */}
           <Link href="/proceso" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
@@ -357,6 +360,10 @@ export function Header() {
 
           <Link href="/preguntas-frecuentes" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
             Preguntas frecuentes
+          </Link>
+
+          <Link href="/blog" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
+            Blog
           </Link>
 
           <Link href="/precios-traduccion-jurada" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>

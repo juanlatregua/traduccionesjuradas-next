@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { posts } from "@/content";
 
 type ChangeFreq = "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
 
@@ -38,6 +39,11 @@ function getPriority(route: string): number {
     route === "/documentos-oficiales"
   ) {
     return 0.9;
+  }
+
+  // Blog pages
+  if (route.startsWith("/blog")) {
+    return 0.7;
   }
 
   // Document sub-pages and language pages
@@ -112,10 +118,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const now = new Date();
 
-  return routes.map((route) => ({
+  const staticEntries = routes.map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: now,
     changeFrequency: getChangeFrequency(route),
     priority: getPriority(route),
   }));
+
+  const blogEntries = posts
+    .filter((p) => p.published)
+    .map((post) => ({
+      url: `${baseUrl}/blog/${post.slugAsParams}`,
+      lastModified: new Date(post.date),
+      changeFrequency: "monthly" as ChangeFreq,
+      priority: 0.7,
+    }));
+
+  return [...staticEntries, blogEntries.length > 0 ? {
+    url: `${baseUrl}/blog`,
+    lastModified: now,
+    changeFrequency: "weekly" as ChangeFreq,
+    priority: 0.8,
+  } : null, ...blogEntries].filter(Boolean) as MetadataRoute.Sitemap;
 }
