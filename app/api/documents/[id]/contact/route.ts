@@ -1,8 +1,9 @@
-// app/api/documents/[id]/contact/route.ts — Guardar datos de contacto antes del análisis IA
+// app/api/documents/[id]/contact/route.ts — Guardar datos de contacto + enviar email con presupuesto
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 
 export const runtime = "nodejs";
 
@@ -48,7 +49,15 @@ export async function PATCH(
 
     const doc = await prisma.documentAnalysis.findUnique({
       where: { id },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        quoteAmount: true,
+        estimatedDays: true,
+        sourceLanguage: true,
+        targetLanguage: true,
+        analysisJson: true,
+      },
     });
 
     if (!doc) {
@@ -58,14 +67,36 @@ export async function PATCH(
       );
     }
 
+    const email = clientEmail.trim().toLowerCase();
+
     await prisma.documentAnalysis.update({
       where: { id },
       data: {
         clientName: clientName.trim(),
-        clientEmail: clientEmail.trim().toLowerCase(),
+        clientEmail: email,
         clientPhone: clientPhone?.trim() || null,
       },
     });
+
+    // Send quote email (non-blocking) if we have price data
+    if (doc.quoteAmount) {
+      const analysis = doc.analysisJson as any;
+      const documentType =
+        analysis?.document_type?.specific_type_es || "Documento";
+      const langSource = (doc.sourceLanguage || "?").toUpperCase();
+      const langTarget = (doc.targetLanguage || "es").toUpperCase();
+
+      sendQuoteFollowupEmail({
+        email,
+        name: clientName.trim(),
+        documentType,
+        price: doc.quoteAmount,
+        langPair: `${langSource} → ${langTarget}`,
+        estimatedDays: doc.estimatedDays || "2-5 días",
+      }).catch((err) =>
+        console.error("[documents/contact] quote email failed:", err)
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

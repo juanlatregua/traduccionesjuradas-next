@@ -75,7 +75,12 @@ function getEstimatedDays(
 export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
   const { document_type, language, document_metrics, complexity, country } = analysis;
 
-  const rate = getRate(language.source);
+  // Use the "foreign" language rate (non-Spanish side of the pair)
+  const foreignLang =
+    language.source === "es" && language.target && language.target !== "unknown"
+      ? language.target
+      : language.source;
+  const rate = getRate(foreignLang);
   const minimum = getMinimum(document_type.specific_type);
   const complexityMult = getComplexityMultiplier(complexity.level);
 

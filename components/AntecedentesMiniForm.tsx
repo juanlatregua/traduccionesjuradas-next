@@ -18,12 +18,17 @@ export function AntecedentesMiniForm() {
   const [toast, setToast] = useState<{ type: "ok" | "error"; msg: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [gdprConsent, setGdprConsent] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setToast(null);
     if (!email || !file) {
       setToast({ type: "error", msg: "Añade tu email y el documento para calcular." });
+      return;
+    }
+    if (!gdprConsent) {
+      setToast({ type: "error", msg: "Debes aceptar el tratamiento de datos para continuar." });
       return;
     }
     setLoading(true);
@@ -35,7 +40,7 @@ export function AntecedentesMiniForm() {
       fd.append("idiomaDestino", pair.id === "es-en" ? "inglés" : pair.id === "es-fr" ? "francés" : "español");
       fd.append("tipoDocumento", `Antecedentes penales (${pair.label})`);
       fd.append("plazo", pair.plazo);
-      fd.append("aceptaPrivacidad", "true");
+      fd.append("aceptaPrivacidad", gdprConsent ? "true" : "false");
       fd.append("files", file);
 
       const res = await fetch("/api/presupuesto", { method: "POST", body: fd });
@@ -137,9 +142,24 @@ export function AntecedentesMiniForm() {
             )}
           </div>
 
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={gdprConsent}
+              onChange={(e) => setGdprConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-graphite/40 text-bleu focus:ring-bleu"
+            />
+            <span className="text-[11px] text-graphite leading-relaxed">
+              Acepto el tratamiento de mis datos y documentos para recibir un presupuesto.{" "}
+              <a href="/privacidad" className="text-bleu underline" target="_blank">
+                Política de privacidad
+              </a>.
+            </span>
+          </label>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !gdprConsent}
             className="w-full rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Enviando..." : "Enviar y confirmar pago/plazo"}

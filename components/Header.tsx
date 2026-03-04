@@ -367,10 +367,6 @@ export function Header() {
             Área cliente
           </Link>
 
-          <Link href="/area-cliente" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
-            Consulta pedido
-          </Link>
-
           <Link href="/zona-traductor" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
             Zona traductor
           </Link>

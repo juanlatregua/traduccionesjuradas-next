@@ -14,6 +14,8 @@ type Props = {
   sessionToken: string | null;
   onSessionToken: (token: string) => void;
   disabled?: boolean;
+  gdprConsent?: boolean;
+  onGdprConsentChange?: (consent: boolean) => void;
 };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -24,14 +26,20 @@ export default function DocumentUploader({
   sessionToken,
   onSessionToken,
   disabled,
+  gdprConsent: externalGdprConsent,
+  onGdprConsentChange,
 }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
-  const [gdprConsent, setGdprConsent] = useState(false);
+  const [internalGdprConsent, setInternalGdprConsent] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+
+  // Use external consent if provided, otherwise use internal state
+  const gdprConsent = externalGdprConsent ?? internalGdprConsent;
+  const setGdprConsent = onGdprConsentChange ?? setInternalGdprConsent;
 
   const handleFile = useCallback(
     async (file: File) => {

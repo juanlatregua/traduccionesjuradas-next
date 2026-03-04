@@ -4,7 +4,8 @@ import { useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
-import { MessageCircle, RotateCcw } from "lucide-react";
+import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { MessageCircle, RotateCcw, Mail } from "lucide-react";
 
 const DocumentUploader = dynamic(
   () => import("@/components/ia/DocumentUploader"),
@@ -63,6 +64,9 @@ export default function PresupuestoInstantaneoClient() {
   const [orderReference, setOrderReference] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [leadData, setLeadData] = useState<LeadData | null>(null);
+  const [gdprConsent, setGdprConsent] = useState(false);
+  const [errorEmail, setErrorEmail] = useState("");
+  const [errorEmailSent, setErrorEmailSent] = useState(false);
 
   const handleUploadComplete = useCallback(
     (docId: string, token: string) => {
@@ -124,21 +128,22 @@ export default function PresupuestoInstantaneoClient() {
   const handleTargetLanguageChange = useCallback(
     (docIndex: number, target: string, targetName: string) => {
       setDocuments((prev) =>
-        prev.map((doc, i) =>
-          i === docIndex
-            ? {
-                ...doc,
-                analysis: {
-                  ...doc.analysis,
-                  language: {
-                    ...doc.analysis.language,
-                    target,
-                    target_name: targetName,
-                  },
-                },
-              }
-            : doc
-        )
+        prev.map((doc, i) => {
+          if (i !== docIndex) return doc;
+          const updatedAnalysis = {
+            ...doc.analysis,
+            language: {
+              ...doc.analysis.language,
+              target,
+              target_name: targetName,
+            },
+          };
+          return {
+            ...doc,
+            analysis: updatedAnalysis,
+            quote: calculatePrice(updatedAnalysis),
+          };
+        })
       );
     },
     []
@@ -152,6 +157,7 @@ export default function PresupuestoInstantaneoClient() {
     setErrorMessage(null);
     setOrderReference(null);
     setLeadData(null);
+    setGdprConsent(false);
   }, []);
 
   const whatsappFallback = `https://wa.me/34951333614?text=${encodeURIComponent(
@@ -173,6 +179,8 @@ export default function PresupuestoInstantaneoClient() {
           onUploadComplete={handleUploadComplete}
           sessionToken={sessionToken}
           onSessionToken={setSessionToken}
+          gdprConsent={gdprConsent}
+          onGdprConsentChange={setGdprConsent}
         />
       )}
 
@@ -255,6 +263,53 @@ export default function PresupuestoInstantaneoClient() {
             {errorMessage ||
               "Ha ocurrido un error inesperado."}
           </p>
+
+          {/* Captura de email en error */}
+          {!errorEmailSent ? (
+            <div className="mt-5 mx-auto max-w-sm">
+              <p className="text-xs text-graphite mb-2">
+                Déjanos tu email y te preparamos el presupuesto manualmente:
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (errorEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(errorEmail)) {
+                    fetch("/api/leads/error", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        email: errorEmail.trim(),
+                        documentId: currentDocumentId,
+                        error: errorMessage,
+                      }),
+                    }).catch(() => {});
+                    setErrorEmailSent(true);
+                  }
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  type="email"
+                  value={errorEmail}
+                  onChange={(e) => setErrorEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  className="flex-1 rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre placeholder:text-graphite/40 focus:border-bleu focus:ring-1 focus:ring-bleu/20 outline-none"
+                />
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 rounded-lg bg-bleu px-4 py-2 text-sm font-medium text-white hover:bg-bleu-dark transition-colors"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Enviar
+                </button>
+              </form>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm font-medium text-vert">
+              Recibido. Te contactaremos en breve.
+            </p>
+          )}
+
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <button
               onClick={handleReset}
