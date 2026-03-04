@@ -5,12 +5,13 @@ import { Loader2, Mail, Sparkles, AlertTriangle } from "lucide-react";
 
 type Props = {
   documentId: string;
+  documentIds?: string[];
   onComplete: (data: { name: string; email: string; phone: string }) => void;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function LeadGate({ documentId, onComplete }: Props) {
+export default function LeadGate({ documentId, documentIds, onComplete }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -40,20 +41,26 @@ export default function LeadGate({ documentId, onComplete }: Props) {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/documents/${documentId}/contact`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientName: name.trim(),
-          clientEmail: email.trim(),
-          clientPhone: phone.trim() || undefined,
-        }),
-      });
+      const allIds = documentIds && documentIds.length > 0 ? documentIds : [documentId];
+      const contactData = {
+        clientName: name.trim(),
+        clientEmail: email.trim(),
+        clientPhone: phone.trim() || undefined,
+      };
 
-      const data = await res.json();
+      const results = await Promise.all(
+        allIds.map((id) =>
+          fetch(`/api/documents/${id}/contact`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(contactData),
+          }).then((r) => r.json())
+        )
+      );
 
-      if (!data.ok) {
-        setError(data.error || "Error al guardar los datos.");
+      const failed = results.find((r) => !r.ok);
+      if (failed) {
+        setError(failed.error || "Error al guardar los datos.");
         setLoading(false);
         return;
       }

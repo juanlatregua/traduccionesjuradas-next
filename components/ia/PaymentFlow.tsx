@@ -195,16 +195,6 @@ export default function PaymentFlow({
         </div>
       )}
 
-      {/* PayPal */}
-      {paymentMethod === "paypal" && orderReference && (
-        <div className="mt-4">
-          <PayPalButton
-            reference={orderReference}
-            onSuccess={() => onSuccess(orderReference)}
-          />
-        </div>
-      )}
-
       {/* Contact form */}
       <form onSubmit={handleSubmit} className="mt-5 space-y-4">
         <p className="text-sm font-medium text-encre">Datos de contacto</p>
@@ -286,9 +276,20 @@ export default function PaymentFlow({
             {paymentMethod === "bizum" && <><Smartphone className="h-4 w-4" /> Confirmar y pagar por Bizum</>}
             {paymentMethod === "transfer" && <><Landmark className="h-4 w-4" /> Confirmar y pagar por transferencia</>}
             {paymentMethod === "paypal" && !orderReference && <><Wallet className="h-4 w-4" /> Continuar con PayPal</>}
-            {paymentMethod === "paypal" && orderReference && <><Wallet className="h-4 w-4" /> Usa el botón de PayPal arriba</>}
+            {paymentMethod === "paypal" && orderReference && <><Wallet className="h-4 w-4" /> Datos guardados</>}
           </button>
         </div>
+
+        {/* PayPal button — appears after order is created */}
+        {paymentMethod === "paypal" && orderReference && (
+          <div className="pt-2">
+            <p className="text-xs text-graphite mb-2 text-center">Completa el pago con PayPal:</p>
+            <PayPalButton
+              reference={orderReference}
+              onSuccess={() => onSuccess(orderReference)}
+            />
+          </div>
+        )}
       </form>
 
       <p className="mt-4 text-center text-[11px] text-graphite/60">

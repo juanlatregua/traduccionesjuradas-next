@@ -74,7 +74,7 @@ const REVIEWS = [
     date: "abril 2024",
   },
   {
-    author: "Pabola P.",
+    author: "Paula P.",
     text: "Mi hijo se iba a EEUU y necesitaba traducir muchos papeles. Perfecto y a muy buen precio.",
     date: "julio 2022",
   },

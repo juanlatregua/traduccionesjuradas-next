@@ -67,6 +67,7 @@ export default function PresupuestoInstantaneoClient() {
   const [gdprConsent, setGdprConsent] = useState(false);
   const [errorEmail, setErrorEmail] = useState("");
   const [errorEmailSent, setErrorEmailSent] = useState(false);
+  const [errorGdpr, setErrorGdpr] = useState(false);
 
   const handleUploadComplete = useCallback(
     (docId: string, token: string) => {
@@ -208,6 +209,7 @@ export default function PresupuestoInstantaneoClient() {
       {step === "email-gate" && documents.length > 0 && (
         <LeadGate
           documentId={documents[0].id}
+          documentIds={documents.map((d) => d.id)}
           onComplete={handleLeadComplete}
         />
       )}
@@ -273,7 +275,7 @@ export default function PresupuestoInstantaneoClient() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (errorEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(errorEmail)) {
+                  if (errorEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(errorEmail) && errorGdpr) {
                     fetch("/api/leads/error", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
@@ -286,22 +288,39 @@ export default function PresupuestoInstantaneoClient() {
                     setErrorEmailSent(true);
                   }
                 }}
-                className="flex gap-2"
+                className="space-y-2"
               >
-                <input
-                  type="email"
-                  value={errorEmail}
-                  onChange={(e) => setErrorEmail(e.target.value)}
-                  placeholder="tu@email.com"
-                  className="flex-1 rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre placeholder:text-graphite/40 focus:border-bleu focus:ring-1 focus:ring-bleu/20 outline-none"
-                />
-                <button
-                  type="submit"
-                  className="flex items-center gap-1.5 rounded-lg bg-bleu px-4 py-2 text-sm font-medium text-white hover:bg-bleu-dark transition-colors"
-                >
-                  <Mail className="h-3.5 w-3.5" />
-                  Enviar
-                </button>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={errorEmail}
+                    onChange={(e) => setErrorEmail(e.target.value)}
+                    placeholder="tu@email.com"
+                    className="flex-1 rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre placeholder:text-graphite/40 focus:border-bleu focus:ring-1 focus:ring-bleu/20 outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!errorGdpr}
+                    className="flex items-center gap-1.5 rounded-lg bg-bleu px-4 py-2 text-sm font-medium text-white hover:bg-bleu-dark transition-colors disabled:opacity-50"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    Enviar
+                  </button>
+                </div>
+                <label className="flex items-start gap-2 cursor-pointer select-none text-left">
+                  <input
+                    type="checkbox"
+                    checked={errorGdpr}
+                    onChange={(e) => setErrorGdpr(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-graphite/40 text-bleu focus:ring-bleu"
+                  />
+                  <span className="text-[11px] text-graphite leading-relaxed">
+                    Acepto la{" "}
+                    <a href="/privacidad" className="text-bleu underline" target="_blank" rel="noopener noreferrer">
+                      política de privacidad
+                    </a>
+                  </span>
+                </label>
               </form>
             </div>
           ) : (
