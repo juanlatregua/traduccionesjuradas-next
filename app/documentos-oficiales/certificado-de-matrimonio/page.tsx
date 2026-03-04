@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaProduct } from "@/components/SchemaProduct";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { RelatedDocuments } from "@/components/RelatedDocuments";
 
 export const metadata: Metadata = {
   title: "Traducción jurada certificado de matrimonio | Desde 40-75 €",
@@ -50,6 +52,11 @@ export default function CertificadoMatrimonioPage() {
           },
         ]}
       />
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Documentos oficiales", href: "/documentos-oficiales" },
+        { name: "Certificado de matrimonio", href: "/documentos-oficiales/certificado-de-matrimonio" },
+      ]} />
 
       <header className="max-w-3xl space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
@@ -113,6 +120,8 @@ export default function CertificadoMatrimonioPage() {
           <li>Tras confirmar, entregamos la traducción jurada en PDF firmado; en papel si lo necesitas.</li>
         </ol>
       </section>
+
+      <RelatedDocuments currentSlug="certificado-de-matrimonio" />
     </main>
   );
 }

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import { SchemaHowTo } from "@/components/SchemaHowTo";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "Cómo funciona la traducción jurada | Traductores jurados oficiales",
@@ -11,6 +14,28 @@ export const metadata: Metadata = {
 export default function ComoFuncionaPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaBreadcrumbs
+        id="breadcrumbs-proceso"
+        items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Cómo funciona", url: "https://www.traduccionesjuradas.net/proceso" },
+        ]}
+      />
+      <SchemaHowTo
+        name="Cómo funciona la traducción jurada"
+        description="Proceso paso a paso para solicitar una traducción jurada oficial: envío de documentos, presupuesto cerrado, traducción por traductor jurado y entrega en PDF firmado."
+        steps={[
+          { name: "Envío de los documentos", text: "Envía tu documento escaneado o en foto nítida por email, WhatsApp o desde el presupuesto instantáneo." },
+          { name: "Presupuesto cerrado", text: "Revisamos tus documentos y te indicamos precio exacto y plazo estimado de entrega." },
+          { name: "Traducción jurada oficial", text: "Un traductor jurado oficial del idioma correspondiente traduce y firma el documento con sello oficial." },
+          { name: "Entrega en PDF y/o papel", text: "Recibes la traducción jurada en PDF firmado digitalmente. También disponible en papel por mensajería." },
+          { name: "Legalización o apostilla", text: "Si el trámite lo exige, te orientamos sobre la apostilla o legalización de la traducción." },
+        ]}
+      />
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Cómo funciona", href: "/proceso" },
+      ]} />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">

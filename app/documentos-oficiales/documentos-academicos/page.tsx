@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaProduct } from "@/components/SchemaProduct";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { RelatedDocuments } from "@/components/RelatedDocuments";
 
 export const metadata: Metadata = {
   title: "Títulos y DELF/DALF en francés | Traducción jurada académica",
@@ -49,6 +51,11 @@ export default function DocumentosAcademicosPage() {
           },
         ]}
       />
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Documentos oficiales", href: "/documentos-oficiales" },
+        { name: "Documentos académicos", href: "/documentos-oficiales/documentos-academicos" },
+      ]} />
 
       {/* CABECERA */}
       <header className="max-w-3xl">
@@ -256,6 +263,8 @@ export default function DocumentosAcademicosPage() {
           </a>
         </div>
       </section>
+
+      <RelatedDocuments currentSlug="documentos-academicos" />
     </main>
   );
 }

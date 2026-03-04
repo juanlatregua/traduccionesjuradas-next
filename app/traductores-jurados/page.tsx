@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import { SchemaPerson } from "@/components/SchemaPerson";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "Equipo de traductores jurados oficiales | Quiénes somos",
@@ -12,6 +15,18 @@ export const metadata: Metadata = {
 export default function TraductoresJuradosPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaBreadcrumbs
+        id="breadcrumbs-traductores"
+        items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Traductores jurados", url: "https://www.traduccionesjuradas.net/traductores-jurados" },
+        ]}
+      />
+      <SchemaPerson />
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Traductores jurados", href: "/traductores-jurados" },
+      ]} />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">

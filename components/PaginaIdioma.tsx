@@ -1,10 +1,11 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaProduct } from "@/components/SchemaProduct";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
-import { LANGUAGE_CONFIGS } from "@/lib/language-config";
+import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 
 const PresupuestoInstantaneoClient = dynamic(
   () => import("@/app/presupuesto-instantaneo/PresupuestoInstantaneoClient"),
@@ -88,6 +89,11 @@ export default function PaginaIdioma({
         ]}
       />
 
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: `Traductor jurado de ${idioma}`, href: `/traductor-jurado-${idiomaSlug}` },
+      ]} />
+
       {/* 1. HERO */}
       <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
         Traductor jurado de {idioma}
@@ -133,6 +139,26 @@ export default function PaginaIdioma({
               </Link>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* 4. OTROS IDIOMAS */}
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-encre">
+          Traducción jurada en otros idiomas
+        </h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {Object.values(LANGUAGE_CONFIGS)
+            .filter((c: LanguageConfig) => c.slug !== idiomaSlug)
+            .map((c: LanguageConfig) => (
+              <Link
+                key={c.slug}
+                href={`/traductor-jurado-${c.slug}`}
+                className="rounded-full border border-cream bg-card px-3 py-1.5 text-xs font-medium text-encre hover:border-bleu hover:text-bleu transition-colors"
+              >
+                {c.name.charAt(0).toUpperCase() + c.name.slice(1)}
+              </Link>
+            ))}
         </div>
       </section>
     </main>

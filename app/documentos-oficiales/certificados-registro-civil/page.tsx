@@ -4,6 +4,8 @@ import { CivilMiniForm } from "@/components/CivilMiniForm";
 import { SchemaProduct } from "@/components/SchemaProduct";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { RelatedDocuments } from "@/components/RelatedDocuments";
 
 export const metadata: Metadata = {
   title:
@@ -59,6 +61,11 @@ export default function CertificadosRegistroCivilPage() {
           },
         ]}
       />
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Documentos oficiales", href: "/documentos-oficiales" },
+        { name: "Certificados del Registro Civil", href: "/documentos-oficiales/certificados-registro-civil" },
+      ]} />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
@@ -304,6 +311,8 @@ export default function CertificadosRegistroCivilPage() {
           </a>
         </div>
       </section>
+
+      <RelatedDocuments currentSlug="certificados-registro-civil" />
     </main>
   );
 }

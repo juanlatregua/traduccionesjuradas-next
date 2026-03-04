@@ -1,6 +1,8 @@
 // app/documentos-oficiales/documentos-juridicos/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { RelatedDocuments } from "@/components/RelatedDocuments";
 
 export const metadata: Metadata = {
   title:
@@ -13,6 +15,11 @@ export const metadata: Metadata = {
 export default function DocumentosJuridicosPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Documentos oficiales", href: "/documentos-oficiales" },
+        { name: "Documentos jurídicos", href: "/documentos-oficiales/documentos-juridicos" },
+      ]} />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
@@ -300,6 +307,8 @@ export default function DocumentosJuridicosPage() {
           </a>
         </div>
       </section>
+
+      <RelatedDocuments currentSlug="documentos-juridicos" />
     </main>
   );
 }

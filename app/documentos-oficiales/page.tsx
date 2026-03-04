@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
   title:
@@ -12,6 +14,17 @@ export const metadata: Metadata = {
 export default function DocumentosOficialesPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
+      <SchemaBreadcrumbs
+        id="breadcrumbs-documentos"
+        items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+        ]}
+      />
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Documentos oficiales", href: "/documentos-oficiales" },
+      ]} />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { SchemaLocalBusiness } from "@/components/SchemaLocalBusiness";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 
 export const metadata: Metadata = {
   title: "Contacto | Traducciones Juradas",
@@ -12,5 +14,17 @@ export default function ContactoLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <SchemaBreadcrumbs
+        id="breadcrumbs-contacto"
+        items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Contacto", url: "https://www.traduccionesjuradas.net/contacto" },
+        ]}
+      />
+      <SchemaLocalBusiness />
+      {children}
+    </>
+  );
 }

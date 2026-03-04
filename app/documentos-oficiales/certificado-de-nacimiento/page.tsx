@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaProduct } from "@/components/SchemaProduct";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { RelatedDocuments } from "@/components/RelatedDocuments";
 
 export const metadata: Metadata = {
   title:
@@ -28,6 +30,11 @@ export default function CertificadoNacimientoPage() {
           { price: "75", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
         ]}
       />
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Documentos oficiales", href: "/documentos-oficiales" },
+        { name: "Certificado de nacimiento", href: "/documentos-oficiales/certificado-de-nacimiento" },
+      ]} />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
@@ -254,6 +261,8 @@ export default function CertificadoNacimientoPage() {
           </a>
         </div>
       </section>
+
+      <RelatedDocuments currentSlug="certificado-de-nacimiento" />
     </main>
   );
 }

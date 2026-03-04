@@ -6,6 +6,8 @@ import { SchemaProduct } from "@/components/SchemaProduct";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { RelatedDocuments } from "@/components/RelatedDocuments";
 
 export const metadata: Metadata = {
   title:
@@ -61,6 +63,11 @@ export default function AntecedentesPenalesPage() {
           },
         ]}
       />
+      <Breadcrumbs items={[
+        { name: "Inicio", href: "/" },
+        { name: "Documentos oficiales", href: "/documentos-oficiales" },
+        { name: "Antecedentes penales", href: "/documentos-oficiales/antecedentes-penales" },
+      ]} />
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
@@ -329,6 +336,8 @@ export default function AntecedentesPenalesPage() {
           </a>
         </div>
       </section>
+
+      <RelatedDocuments currentSlug="antecedentes-penales" />
     </main>
   );
 }
