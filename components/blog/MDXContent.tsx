@@ -66,6 +66,32 @@ const components = {
       {...props}
     />
   ),
+  table: (props: React.HTMLAttributes<HTMLTableElement>) => (
+    <div className="mb-4 overflow-x-auto">
+      <table
+        className="w-full border-collapse text-sm text-sepia"
+        {...props}
+      />
+    </div>
+  ),
+  thead: (props: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead className="border-b-2 border-cream" {...props} />
+  ),
+  tbody: (props: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <tbody className="divide-y divide-cream/60" {...props} />
+  ),
+  tr: (props: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr className="hover:bg-cream/30" {...props} />
+  ),
+  th: (props: React.HTMLAttributes<HTMLTableCellElement>) => (
+    <th
+      className="px-3 py-2 text-left text-xs font-semibold text-encre"
+      {...props}
+    />
+  ),
+  td: (props: React.HTMLAttributes<HTMLTableCellElement>) => (
+    <td className="px-3 py-2 text-sm text-sepia" {...props} />
+  ),
 };
 
 interface MDXContentProps {
