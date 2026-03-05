@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import { posts } from "@/content";
 import { notFound } from "next/navigation";
 import { MDXContent } from "@/components/blog/MDXContent";
@@ -64,6 +65,35 @@ export default async function PostPage({ params }: Props) {
           { name: "Blog", href: "/blog" },
           { name: post.title, href: `/blog/${post.slugAsParams}` },
         ]}
+      />
+
+      <Script
+        id="schema-article"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: post.title,
+            description: post.description,
+            datePublished: post.date,
+            dateModified: post.date,
+            author: {
+              "@type": "Person",
+              name: "Juan Silva Moreno",
+              jobTitle: "Traductor Jurado",
+              url: "https://www.traduccionesjuradas.net/acreditacion",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "TraduccionesJuradas.net",
+              url: "https://www.traduccionesjuradas.net",
+            },
+            mainEntityOfPage: `https://www.traduccionesjuradas.net/blog/${post.slugAsParams}`,
+            keywords: post.keywords?.join(", "),
+          }),
+        }}
       />
 
       <article>

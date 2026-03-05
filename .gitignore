@@ -27,3 +27,7 @@ pnpm-debug.log*
 .vercel
 .env*.local
 twilio/
+
+# internal docs
+ANALISIS-NEGOCIO.md
+INVENTARIO-TECNICO.md
