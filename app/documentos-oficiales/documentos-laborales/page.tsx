@@ -1,6 +1,7 @@
 // app/documentos-oficiales/documentos-laborales/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
 
@@ -25,6 +26,13 @@ export const metadata: Metadata = {
 export default function DocumentosLaboralesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaBreadcrumbs
+        id="breadcrumbs-laborales"
+        items={[
+          { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Documentos laborales", url: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-laborales" },
+        ]}
+      />
       <Breadcrumbs items={[
         { name: "Inicio", href: "/" },
         { name: "Documentos oficiales", href: "/documentos-oficiales" },

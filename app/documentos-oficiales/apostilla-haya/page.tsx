@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
 
@@ -23,6 +24,13 @@ export const metadata: Metadata = {
 export default function ApostillaHayaPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaBreadcrumbs
+        id="breadcrumbs-apostilla"
+        items={[
+          { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Apostilla de La Haya", url: "https://www.traduccionesjuradas.net/documentos-oficiales/apostilla-haya" },
+        ]}
+      />
       <Breadcrumbs items={[
         { name: "Inicio", href: "/" },
         { name: "Documentos oficiales", href: "/documentos-oficiales" },

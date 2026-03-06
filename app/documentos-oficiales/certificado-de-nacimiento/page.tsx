@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaProduct } from "@/components/SchemaProduct";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
 
@@ -38,6 +39,13 @@ export default function CertificadoNacimientoPage() {
         offers={[
           { price: "35", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
           { price: "75", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
+        ]}
+      />
+      <SchemaBreadcrumbs
+        id="breadcrumbs-nacimiento"
+        items={[
+          { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Certificado de nacimiento", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
         ]}
       />
       <Breadcrumbs items={[
