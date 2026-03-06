@@ -5,6 +5,7 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaProduct } from "@/components/SchemaProduct";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
+import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title: "Traducción jurada certificado de matrimonio | Desde 40-75 €",
@@ -26,6 +27,12 @@ export const metadata: Metadata = {
 export default function CertificadoMatrimonioPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12 text-sm text-sepia">
+      <SchemaService
+        id="service-matrimonio"
+        serviceName="Traducción jurada de certificado de matrimonio"
+        serviceDescription="Traducción jurada oficial de certificados de matrimonio y actas matrimoniales extranjeras para inscripción en el Registro Civil, notarías y trámites de extranjería en España."
+        serviceUrl="https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio"
+      />
       <SchemaBreadcrumbs
         items={[
           { name: "Inicio", url: "https://traduccionesjuradas.net/" },

@@ -8,6 +8,7 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
+import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title:
@@ -40,6 +41,12 @@ export default function AntecedentesPenalesPage() {
           { price: "75.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
           { price: "40.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
         ]}
+      />
+      <SchemaService
+        id="service-antecedentes"
+        serviceName="Traducción jurada de antecedentes penales"
+        serviceDescription="Traducción jurada oficial de certificados de antecedentes penales y casier judiciaire para trámites de extranjería, nacionalidad y residencia en España."
+        serviceUrl="https://www.traduccionesjuradas.net/documentos-oficiales/antecedentes-penales"
       />
       <SchemaBreadcrumbs
         id="breadcrumbs-antecedentes"

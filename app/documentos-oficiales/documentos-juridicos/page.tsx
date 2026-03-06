@@ -2,8 +2,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
+import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title:
@@ -26,6 +28,20 @@ export const metadata: Metadata = {
 export default function DocumentosJuridicosPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaFAQ
+        id="faq-juridicos"
+        items={[
+          { question: "¿Se puede usar una sentencia de divorcio extranjera directamente en España?", answer: "Necesita traducción jurada al español y, en muchos casos, exequátur o reconocimiento judicial. La notaría o el juzgado te indicarán los requisitos exactos." },
+          { question: "¿Hace falta traducción jurada de las capitulaciones para comprar un piso en España?", answer: "Sí. Las notarías españolas exigen traducción jurada de las capitulaciones matrimoniales extranjeras para acreditar el régimen económico del matrimonio." },
+          { question: "¿Cuánto cuesta traducir una sentencia o un poder notarial?", answer: "Depende de la extensión del documento. Una sentencia breve parte de unos 60-80 €. Los poderes notariales breves, desde unos 50 €. Documentos extensos se presupuestan por palabras." },
+        ]}
+      />
+      <SchemaService
+        id="service-juridicos"
+        serviceName="Traducción jurada de documentos jurídicos"
+        serviceDescription="Traducción jurada oficial de sentencias, capitulaciones, testamentos, herencias, poderes notariales y resoluciones judiciales extranjeras para su uso en tribunales, notarías y registros en España."
+        serviceUrl="https://www.traduccionesjuradas.net/documentos-oficiales/documentos-juridicos"
+      />
       <SchemaBreadcrumbs
         id="breadcrumbs-juridicos"
         items={[

@@ -4,6 +4,7 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaProduct } from "@/components/SchemaProduct";
+import { SchemaService } from "@/components/SchemaService";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 
@@ -65,6 +66,12 @@ export default function PaginaIdioma({
       <SchemaFAQ
         id={`faq-traductor-jurado-${idiomaSlug}`}
         items={faqItems}
+      />
+      <SchemaService
+        id={`service-traductor-jurado-${idiomaSlug}`}
+        serviceName={`Traducción jurada de ${idioma}`}
+        serviceDescription={`Servicio de traducción jurada oficial de ${idioma} realizado por traductor jurado acreditado por el MAEC. Entrega online en PDF firmado digitalmente. Válida para trámites oficiales en España.`}
+        serviceUrl={canonicalUrl}
       />
       <SchemaProduct
         name={`Traducción jurada de ${idioma}`}

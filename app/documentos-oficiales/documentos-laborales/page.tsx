@@ -2,8 +2,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
+import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title:
@@ -26,6 +28,20 @@ export const metadata: Metadata = {
 export default function DocumentosLaboralesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaFAQ
+        id="faq-laborales"
+        items={[
+          { question: "¿Qué documentos laborales necesitan traducción jurada?", answer: "Los más habituales son contratos de trabajo, nóminas, certificados de empresa, vida laboral extranjera y documentos de Seguridad Social, cuando se presentan ante administraciones españolas." },
+          { question: "¿Se puede traducir de forma jurada una nómina extranjera?", answer: "Sí. Las nóminas extranjeras se traducen de forma jurada para presentarlas ante Extranjería, bancos, operaciones inmobiliarias o para acreditar ingresos en España." },
+          { question: "¿Qué documentos laborales se piden para teletrabajar en España?", answer: "Suelen pedir contrato de trabajo, tres últimas nóminas, certificado de empresa, autorización de teletrabajo y, en algunos casos, certificados mercantiles de la empresa extranjera." },
+        ]}
+      />
+      <SchemaService
+        id="service-laborales"
+        serviceName="Traducción jurada de documentos laborales"
+        serviceDescription="Traducción jurada oficial de contratos de trabajo, nóminas, certificados de empresa y documentos de Seguridad Social extranjeros para trámites de extranjería y teletrabajo en España."
+        serviceUrl="https://www.traduccionesjuradas.net/documentos-oficiales/documentos-laborales"
+      />
       <SchemaBreadcrumbs
         id="breadcrumbs-laborales"
         items={[

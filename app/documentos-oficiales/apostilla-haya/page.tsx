@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
+import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title: "Apostilla de La Haya y traducción jurada | Qué es y cuándo se exige",
@@ -24,6 +26,20 @@ export const metadata: Metadata = {
 export default function ApostillaHayaPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaFAQ
+        id="faq-apostilla"
+        items={[
+          { question: "¿Qué es la Apostilla de La Haya?", answer: "Es un certificado que confirma la autenticidad de firmas y cargos públicos de un documento para que sea válido en otro país firmante del Convenio de La Haya, sin necesidad de legalización consular." },
+          { question: "¿Se traduce también la apostilla junto con el documento?", answer: "Sí. La traducción jurada debe incluir el texto de la apostilla porque forma parte del documento que se va a presentar." },
+          { question: "¿Primero se apostilla y luego se traduce?", answer: "Sí, el orden habitual es: obtener el documento, solicitar la Apostilla de La Haya y después enviar el documento completo (con apostilla) al traductor jurado." },
+        ]}
+      />
+      <SchemaService
+        id="service-apostilla"
+        serviceName="Traducción jurada de documentos con Apostilla de La Haya"
+        serviceDescription="Traducción jurada oficial de documentos apostillados: certificados de nacimiento, matrimonio, antecedentes penales y documentos mercantiles con Apostilla de La Haya para su uso en España."
+        serviceUrl="https://www.traduccionesjuradas.net/documentos-oficiales/apostilla-haya"
+      />
       <SchemaBreadcrumbs
         id="breadcrumbs-apostilla"
         items={[

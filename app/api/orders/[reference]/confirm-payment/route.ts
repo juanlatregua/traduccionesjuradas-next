@@ -87,6 +87,26 @@ export async function POST(req: Request, { params }: Params) {
         amountCents: order.amountCents,
         method,
       }).catch((e) => console.error("[confirm-payment] email failed", e));
+
+      // SMS notification (fire & forget)
+      const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+      const { smsPagoConfirmado } = await import("@/lib/sms-templates");
+      const orderFull = await prisma.order.findUnique({
+        where: { reference: params.reference },
+        select: { id: true, dueDate: true },
+      });
+      if (orderFull) {
+        const phone = await getOrderPhone(orderFull.id).catch(() => null);
+        if (phone) {
+          const plazo = orderFull.dueDate
+            ? orderFull.dueDate.toLocaleDateString("es-ES", { day: "numeric", month: "long" })
+            : "3-5 días laborables";
+          sendNotification({
+            to: formatPhoneSpain(phone),
+            body: smsPagoConfirmado({ ref: params.reference, plazo }),
+          }).catch((err) => console.error("[confirm-payment] SMS failed", err));
+        }
+      }
     }
 
     return NextResponse.json({ ok: true });

@@ -4,8 +4,10 @@ import Link from "next/link";
 import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaProduct } from "@/components/SchemaProduct";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
+import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title:
@@ -40,6 +42,20 @@ export default function CertificadoNacimientoPage() {
           { price: "35", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
           { price: "75", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
         ]}
+      />
+      <SchemaFAQ
+        id="faq-nacimiento"
+        items={[
+          { question: "¿Cuánto cuesta la traducción jurada de un certificado de nacimiento?", answer: "Desde 35 € IVA incluido para certificados breves. El precio depende del idioma y la extensión del documento." },
+          { question: "¿Necesita apostilla el certificado de nacimiento para usarlo en España?", answer: "Depende del país emisor. Los certificados de países firmantes del Convenio de La Haya necesitan Apostilla. Para otros países se requiere legalización consular." },
+          { question: "¿En cuánto tiempo se entrega la traducción jurada del certificado de nacimiento?", answer: "Normalmente entre 24 y 72 horas laborables. Entrega en PDF firmado digitalmente." },
+        ]}
+      />
+      <SchemaService
+        id="service-nacimiento"
+        serviceName="Traducción jurada de certificado de nacimiento"
+        serviceDescription="Traducción jurada oficial de certificados de nacimiento extranjeros para trámites de extranjería, nacionalidad y registro civil en España."
+        serviceUrl="https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento"
       />
       <SchemaBreadcrumbs
         id="breadcrumbs-nacimiento"

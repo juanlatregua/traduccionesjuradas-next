@@ -6,6 +6,7 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
+import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title:
@@ -38,6 +39,12 @@ export default function CertificadosRegistroCivilPage() {
           { price: "75.00", priceCurrency: "EUR" },
           { price: "40.00", priceCurrency: "EUR" },
         ]}
+      />
+      <SchemaService
+        id="service-registro-civil"
+        serviceName="Traducción jurada de certificados del Registro Civil"
+        serviceDescription="Traducción jurada oficial de certificados del Registro Civil extranjeros (nacimiento, matrimonio, defunción, estado civil) para trámites de extranjería, nacionalidad y notarías en España."
+        serviceUrl="https://www.traduccionesjuradas.net/documentos-oficiales/certificados-registro-civil"
       />
       <SchemaBreadcrumbs
         id="breadcrumbs-registro-civil"

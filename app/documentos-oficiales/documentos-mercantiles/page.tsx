@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
+import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title:
@@ -25,6 +27,20 @@ export const metadata: Metadata = {
 export default function DocumentosMercantilesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaFAQ
+        id="faq-mercantiles"
+        items={[
+          { question: "¿Qué documentos mercantiles necesitan traducción jurada para España?", answer: "Los más habituales son escrituras de constitución, estatutos sociales, poderes notariales, certificados del Registro Mercantil, cuentas anuales y contratos mercantiles." },
+          { question: "¿Una empresa extranjera necesita traducir sus estatutos para operar en España?", answer: "Sí. Para abrir sucursal, filial o establecimiento permanente en España, las notarías y el Registro Mercantil exigen traducción jurada de los estatutos y la escritura de constitución." },
+          { question: "¿Hace falta apostilla en los documentos mercantiles?", answer: "Depende del país emisor y del trámite. En muchos casos, el Registre du Commerce o certificado de vigencia debe llevar Apostilla de La Haya. Lo más prudente es confirmarlo con la notaría o el registro español correspondiente." },
+        ]}
+      />
+      <SchemaService
+        id="service-mercantiles"
+        serviceName="Traducción jurada de documentos mercantiles"
+        serviceDescription="Traducción jurada oficial de escrituras, estatutos sociales, poderes, certificados del Registro Mercantil y documentación empresarial extranjera para operar en España."
+        serviceUrl="https://www.traduccionesjuradas.net/documentos-oficiales/documentos-mercantiles"
+      />
       <SchemaBreadcrumbs
         id="breadcrumbs-mercantiles"
         items={[
