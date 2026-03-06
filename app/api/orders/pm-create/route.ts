@@ -5,6 +5,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { sendOrderCreatedEmail } from "@/lib/email";
+import { buildSignedOrderUrl } from "@/lib/order-token";
 
 export const runtime = "nodejs";
 
@@ -45,17 +46,8 @@ function normalizeIdempotencyKey(raw?: string | null) {
 }
 
 function buildPaymentUrl(reference: string, channel: "whatsapp" | "email" | "web") {
-  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-  const url = new URL(`/area-cliente/pedido/${reference}/pagar`, baseUrl);
-  if (channel === "whatsapp") {
-    url.searchParams.set("src", "wa");
-  } else if (channel === "email") {
-    url.searchParams.set("src", "email");
-  } else {
-    url.searchParams.set("src", "web");
-  }
-  url.searchParams.set("agent", "pm");
-  return url.toString();
+  const src = channel === "whatsapp" ? "wa" : channel;
+  return buildSignedOrderUrl(reference, "pagar", { src, agent: "pm" });
 }
 
 function buildZonaTraductorUrl(reference: string) {

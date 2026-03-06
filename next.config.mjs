@@ -94,6 +94,20 @@ const nextConfig = {
         permanent: true,
       },
       // ===============================
+      // VESTIGIOS INTERNOS
+      // ===============================
+      {
+        source: "/documentos",
+        destination: "/documentos-oficiales",
+        permanent: true,
+      },
+      {
+        source: "/documentos/:path*",
+        destination: "/documentos-oficiales/:path*",
+        permanent: true,
+      },
+
+      // ===============================
       // DOCUMENTOS (WordPress → Next)
       // ===============================
             {

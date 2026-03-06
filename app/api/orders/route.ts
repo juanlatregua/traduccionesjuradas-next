@@ -194,9 +194,11 @@ export async function POST(req: Request) {
         },
       });
       if (existing) {
+        let orderToken: string | undefined;
+        try { orderToken = (await import("@/lib/order-token")).generateOrderToken(existing.reference); } catch {}
         return NextResponse.json({
           ok: true,
-          order: { id: existing.id, reference: existing.reference },
+          order: { id: existing.id, reference: existing.reference, token: orderToken },
           nextStep: "PAY_NOW",
           flowProfile: null,
           acquisitionSource: null,
@@ -494,8 +496,8 @@ export async function POST(req: Request) {
     }
 
     // Send emails (non-blocking)
-    const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
-    const paymentUrl = `${baseUrl}/area-cliente/pedido/${order.reference}/pagar`;
+    const { buildSignedOrderUrl } = await import("@/lib/order-token");
+    const paymentUrl = buildSignedOrderUrl(order.reference, "pagar");
     const pmEmail = getPmEmails()[0] || "juansilva@traduccionesjuradas.net";
 
     if (needsInternalReview) {
@@ -560,9 +562,12 @@ export async function POST(req: Request) {
       }).catch((e) => console.error("[orders] email to staff failed", e));
     }
 
+    let orderToken: string | undefined;
+    try { orderToken = (await import("@/lib/order-token")).generateOrderToken(order.reference); } catch {}
+
     return NextResponse.json({
       ok: true,
-      order: { id: order.id, reference: order.reference },
+      order: { id: order.id, reference: order.reference, token: orderToken },
       nextStep: needsInternalReview ? "WAIT_REVIEW" : "PAY_NOW",
       flowProfile,
       acquisitionSource: acquisition.source,

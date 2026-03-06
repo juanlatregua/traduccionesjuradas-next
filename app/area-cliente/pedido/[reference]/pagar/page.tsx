@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PayPalButton from "@/components/PayPalButton";
 import CopyField from "@/components/CopyField";
@@ -100,7 +100,9 @@ function isPdfDocument(doc: SourceDocument) {
 
 export default function PagarPage() {
   const params = useParams<{ reference: string }>();
+  const searchParams = useSearchParams();
   const reference = params.reference;
+  const orderToken = searchParams.get("token") || "";
 
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,7 +158,7 @@ export default function PagarPage() {
   useEffect(() => {
     fetch(`/api/orders/${reference}`)
       .then((r) => {
-        if (r.status === 401) return fetch(`/api/orders/${reference}/public`);
+        if (r.status === 401) return fetch(`/api/orders/${reference}/public?token=${encodeURIComponent(orderToken)}`);
         return r;
       })
       .then((r) => r.json())

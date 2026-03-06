@@ -53,6 +53,7 @@ export function middleware(req: NextRequest) {
     "/traductor-jurado-italiano",
     "/traductor-jurado-neerlandes",
     "/traductor-jurado-catalan",
+    "/traductor-jurado-rumano",
     "/traductor-jurado-sueco",
     "/traductor-jurado-noruego",
     "/traduccion-jurada-online",
@@ -72,26 +73,14 @@ export function middleware(req: NextRequest) {
     return redirectPermanent(req, "/traductor-jurado-frances");
   }
 
-  if (
-    pathLower === "/inicio" ||
-    pathLower.startsWith("/inicio/") ||
-    pathLower === "/agencia" ||
-    pathLower.startsWith("/agencia/")
-  ) {
-    return redirectPermanent(req, "/");
-  }
-
-  const isLegacyContactPage = /^\/contacto\/page\/\d+$/i.test(pathLower);
-  if (isLegacyContactPage) {
-    return redirectPermanent(req, "/contacto");
-  }
+  // /inicio, /agencia, /contacto/page/N y /categoria-producto/*
+  // se gestionan en next.config.mjs (se ejecuta antes del middleware)
 
   const startsWithLegacySlug =
     pathLower.startsWith("/traductor-jurado-") ||
     pathLower.startsWith("/traduccion-jurada-") ||
     pathLower.startsWith("/traductor-") ||
-    pathLower.startsWith("/traducciones-") ||
-    pathLower.startsWith("/categoria-producto/");
+    pathLower.startsWith("/traducciones-");
 
   if (startsWithLegacySlug && !isLanguagePillar) {
     return redirectPermanent(req, "/");

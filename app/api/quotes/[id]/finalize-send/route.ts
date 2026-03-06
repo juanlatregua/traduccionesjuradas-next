@@ -48,8 +48,9 @@ export async function POST(req: Request, { params }: Params) {
     });
     const primaryLinkedOrder = linkedOrders[0] || null;
 
+    const { buildSignedOrderUrl } = await import("@/lib/order-token");
     const payUrl = primaryLinkedOrder
-      ? `${baseUrl}/area-cliente/pedido/${primaryLinkedOrder.reference}/pagar`
+      ? buildSignedOrderUrl(primaryLinkedOrder.reference, "pagar")
       : `${baseUrl}/q/${quote.publicToken}`;
 
     const pdfBuffer = buildQuotePdfBuffer({

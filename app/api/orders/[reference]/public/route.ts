@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getWorkflowState } from "@/lib/workflow";
+import { verifyOrderToken } from "@/lib/order-token";
 
 export const runtime = "nodejs";
 
@@ -46,7 +47,16 @@ export async function GET(req: Request, { params }: Params) {
       );
     }
 
-    // TODO: Requerir token firmado por pedido para evitar acceso público solo por referencia.
+    const { searchParams } = new URL(req.url);
+    const token = searchParams.get("token");
+
+    if (!token || !verifyOrderToken(params.reference, token)) {
+      return NextResponse.json(
+        { ok: false, error: "Enlace no válido o caducado." },
+        { status: 401 },
+      );
+    }
+
     const order = await prisma.order.findUnique({
       where: { reference: params.reference },
       select: {

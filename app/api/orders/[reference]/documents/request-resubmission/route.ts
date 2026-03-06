@@ -35,8 +35,8 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
-    const uploadUrl = `${baseUrl}/area-cliente/pedido/${order.reference}/pagar`;
+    const { buildSignedOrderUrl } = await import("@/lib/order-token");
+    const uploadUrl = buildSignedOrderUrl(order.reference, "pagar");
 
     await sendDocumentResubmissionRequestEmail({
       toEmail: order.clientEmail,

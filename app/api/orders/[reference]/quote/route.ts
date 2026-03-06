@@ -206,8 +206,8 @@ export async function POST(req: Request, { params }: Params) {
         );
       }
 
-      const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
-      const paymentUrl = `${baseUrl}/area-cliente/pedido/${order.reference}/pagar`;
+      const { buildSignedOrderUrl } = await import("@/lib/order-token");
+      const paymentUrl = buildSignedOrderUrl(order.reference, "pagar");
 
       try {
         const emailResult = await sendOrderCreatedEmail({

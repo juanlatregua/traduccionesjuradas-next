@@ -169,12 +169,12 @@ export async function POST(req: Request, { params }: Params) {
       const { smsTraduccionLista } = await import("@/lib/sms-templates");
       const phone = await getOrderPhone(order.id).catch(() => null);
       if (phone) {
-        const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
+        const { buildSignedOrderUrl } = await import("@/lib/order-token");
         sendNotification({
           to: formatPhoneSpain(phone),
           body: smsTraduccionLista({
             ref: order.reference,
-            url: `${baseUrl}/area-cliente/pedido/${order.reference}`,
+            url: buildSignedOrderUrl(order.reference, "detalle"),
           }),
         }).catch((err) => console.error("[SMS]", err));
       }

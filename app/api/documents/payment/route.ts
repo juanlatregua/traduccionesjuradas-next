@@ -175,10 +175,15 @@ export async function POST(req: Request) {
     }
 
     if (paymentMethod === "BIZUM" || paymentMethod === "TRANSFER") {
+      const { generateOrderToken } = await import("@/lib/order-token");
+      let paymentUrl = `/area-cliente/pedido/${orderReference}/pagar`;
+      try {
+        paymentUrl += `?token=${generateOrderToken(orderReference)}`;
+      } catch { /* ORDER_TOKEN_SECRET not set */ }
       return NextResponse.json({
         ok: true,
         orderReference: orderReference,
-        paymentUrl: `/area-cliente/pedido/${orderReference}/pagar`,
+        paymentUrl,
       });
     }
 

@@ -171,6 +171,7 @@ export default function LanguageOfferPanel({ config }: Props) {
         throw new Error(data?.error || "No se pudo crear el pedido.");
       }
       const orderReference = data.order.reference as string;
+      const orderToken = (data.order.token as string) || "";
 
       if (file) {
         setNotice("Subiendo documento adjunto...");
@@ -189,6 +190,7 @@ export default function LanguageOfferPanel({ config }: Props) {
 
       setNotice("Pedido creado. Redirigiendo...");
       const params = new URLSearchParams();
+      if (orderToken) params.set("token", orderToken);
       if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
       if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
 

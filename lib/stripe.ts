@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { buildSignedOrderUrl } from "@/lib/order-token";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -44,7 +45,7 @@ export async function createCheckoutSession(params: {
         orderReference: params.reference,
       },
       success_url: `${baseUrl}/pago/exito?ref=${params.reference}`,
-      cancel_url: `${baseUrl}/area-cliente/pedido/${params.reference}/pagar`,
+      cancel_url: buildSignedOrderUrl(params.reference, "pagar"),
     },
     params.idempotencyKey
       ? {

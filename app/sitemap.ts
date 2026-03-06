@@ -74,53 +74,57 @@ function getPriority(route: string): number {
   return 0.7;
 }
 
+/**
+ * Fechas reales de última modificación por ruta (basadas en historial git).
+ * Actualizar manualmente cuando se modifique el contenido de una página.
+ */
+const LAST_MODIFIED: Record<string, string> = {
+  "/":                                              "2026-03-04",
+  "/proceso":                                       "2026-03-01",
+  "/preguntas-frecuentes":                          "2026-03-01",
+  "/precios-traduccion-jurada":                     "2026-03-04",
+  "/presupuesto-instantaneo":                       "2026-03-04",
+  "/traducciones-juradas-baratas":                  "2026-01-17",
+  "/traduccion-jurada-online":                      "2026-02-08",
+  "/traduccion-jurada-frances-malaga":              "2026-02-15",
+  "/traductores-jurados":                           "2026-03-04",
+  "/acreditacion":                                  "2026-03-04",
+  "/contacto":                                      "2026-01-29",
+  "/marruecos":                                     "2026-03-04",
+  "/documentos-oficiales":                          "2026-03-04",
+  "/documentos-oficiales/certificados-registro-civil": "2026-01-30",
+  "/documentos-oficiales/certificado-de-nacimiento":   "2026-03-04",
+  "/documentos-oficiales/certificado-de-matrimonio":   "2026-02-08",
+  "/documentos-oficiales/antecedentes-penales":        "2026-01-30",
+  "/documentos-oficiales/documentos-academicos":       "2026-01-30",
+  "/documentos-oficiales/documentos-laborales":        "2026-03-04",
+  "/documentos-oficiales/documentos-juridicos":        "2026-03-04",
+  "/documentos-oficiales/documentos-mercantiles":      "2026-03-04",
+  "/documentos-oficiales/apostilla-haya":              "2026-03-04",
+  "/teletrabajo":                                   "2026-03-04",
+  "/traductor-jurado-frances":                      "2026-03-04",
+  "/traductor-jurado-aleman":                       "2026-03-03",
+  "/traductor-jurado-ingles":                       "2026-03-03",
+  "/traductor-jurado-neerlandes":                   "2026-03-03",
+  "/traductor-jurado-italiano":                     "2026-03-03",
+  "/traductor-jurado-portugues":                    "2026-03-03",
+  "/traductor-jurado-rumano":                       "2026-03-03",
+  "/traductor-jurado-catalan":                      "2026-03-03",
+  "/traductor-jurado-sueco":                        "2026-03-03",
+  "/traductor-jurado-noruego":                      "2026-03-03",
+  "/aviso-legal":                                   "2026-01-28",
+  "/privacidad":                                    "2026-01-28",
+  "/politica-de-cookies":                           "2026-01-28",
+};
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://www.traduccionesjuradas.net";
 
-  const routes = [
-    "/",                          // home
-    "/proceso",
-    "/preguntas-frecuentes",
-    "/precios-traduccion-jurada",
-    "/presupuesto-instantaneo",
-    "/traducciones-juradas-baratas",
-    "/traduccion-jurada-online",
-    "/traduccion-jurada-frances-malaga",
-    "/traductores-jurados",
-    "/acreditacion",
-    "/contacto",
-    "/marruecos",
-    "/documentos-oficiales",
-    "/documentos-oficiales/certificados-registro-civil",
-    "/documentos-oficiales/certificado-de-nacimiento",
-    "/documentos-oficiales/certificado-de-matrimonio",
-    "/documentos-oficiales/antecedentes-penales",
-    "/documentos-oficiales/documentos-academicos",
-    "/documentos-oficiales/documentos-laborales",
-    "/documentos-oficiales/documentos-juridicos",
-    "/documentos-oficiales/documentos-mercantiles",
-    "/documentos-oficiales/apostilla-haya",
-    "/teletrabajo",
-    "/traductor-jurado-frances",
-    "/traductor-jurado-aleman",
-    "/traductor-jurado-ingles",
-    "/traductor-jurado-neerlandes",
-    "/traductor-jurado-italiano",
-    "/traductor-jurado-portugues",
-    "/traductor-jurado-rumano",
-    "/traductor-jurado-catalan",
-    "/traductor-jurado-sueco",
-    "/traductor-jurado-noruego",
-    "/aviso-legal",
-    "/privacidad",
-    "/politica-de-cookies",
-  ];
-
-  const now = new Date();
+  const routes = Object.keys(LAST_MODIFIED);
 
   const staticEntries = routes.map((route) => ({
     url: `${baseUrl}${route}`,
-    lastModified: now,
+    lastModified: new Date(LAST_MODIFIED[route]),
     changeFrequency: getChangeFrequency(route),
     priority: getPriority(route),
   }));
@@ -134,10 +138,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     }));
 
-  return [...staticEntries, blogEntries.length > 0 ? {
+  const blogIndex = blogEntries.length > 0 ? {
     url: `${baseUrl}/blog`,
-    lastModified: now,
+    lastModified: new Date(blogEntries[0].lastModified),
     changeFrequency: "weekly" as ChangeFreq,
     priority: 0.8,
-  } : null, ...blogEntries].filter(Boolean) as MetadataRoute.Sitemap;
+  } : null;
+
+  return [...staticEntries, blogIndex, ...blogEntries].filter(Boolean) as MetadataRoute.Sitemap;
 }

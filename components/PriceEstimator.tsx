@@ -445,6 +445,7 @@ export default function PriceEstimator() {
       try { window.localStorage.removeItem(CART_STORAGE_KEY); } catch {}
 
       const params = new URLSearchParams();
+      if (data.order.token) params.set("token", data.order.token);
       if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
       if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
       const qs = params.toString();

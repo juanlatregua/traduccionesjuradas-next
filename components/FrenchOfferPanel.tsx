@@ -658,6 +658,7 @@ export default function FrenchOfferPanel() {
       const containsWordCountItem = cart.some((item) => item.pricingModel === "per-word");
 
       let orderReference = pendingOrderReference;
+      let orderToken = "";
       if (!orderReference) {
         const idempotencyKey =
           createOrderIdempotencyRef.current ||
@@ -701,6 +702,7 @@ export default function FrenchOfferPanel() {
           throw new Error(data?.error || "No se pudo crear el pedido.");
         }
         orderReference = data.order.reference as string;
+        orderToken = (data.order.token as string) || "";
         setPendingOrderReference(orderReference);
       }
 
@@ -721,6 +723,7 @@ export default function FrenchOfferPanel() {
       }
 
       const params = new URLSearchParams();
+      if (orderToken) params.set("token", orderToken);
       if (tracking.sourceRaw) params.set("src", tracking.sourceRaw);
       if (tracking.sourceAgent) params.set("agent", tracking.sourceAgent);
       const qs = params.toString();

@@ -1,4 +1,5 @@
 import type { FinanceSnapshot } from "@/lib/finance";
+import { buildSignedOrderUrl } from "@/lib/order-token";
 
 export const ORDER_ACTION_STAGES = [
   "DRAFT",
@@ -74,8 +75,8 @@ function hasAnyEvent(order: OrderLike, types: string[]) {
 }
 
 export function buildOrderTrackedLinks(reference: string) {
+  const paymentUrl = buildSignedOrderUrl(reference, "pagar", { src: "wa", ref: reference });
   const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-  const paymentUrl = `${base}/area-cliente/pedido/${encodeURIComponent(reference)}/pagar?src=wa&ref=${encodeURIComponent(reference)}`;
   const statusUrl = `${base}/consulta?src=wa&ref=${encodeURIComponent(reference)}`;
   return { paymentUrl, statusUrl };
 }
