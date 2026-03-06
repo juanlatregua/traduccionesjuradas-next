@@ -28,11 +28,26 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
       "@type": "DefinedRegion",
       addressCountry: "ES",
     },
+    deliveryTime: {
+      "@type": "ShippingDeliveryTime",
+      handlingTime: {
+        "@type": "QuantitativeValue",
+        minValue: 1,
+        maxValue: 3,
+        unitCode: "DAY",
+      },
+      transitTime: {
+        "@type": "QuantitativeValue",
+        minValue: 0,
+        maxValue: 0,
+        unitCode: "DAY",
+      },
+    },
   };
 
   const returnPolicy = {
     "@type": "MerchantReturnPolicy",
-    returnPolicyCategory: "https://schema.org/NonRefundable",
+    returnPolicyCategory: "https://schema.org/MerchantReturnNotPermitted",
     name: "Servicio no reembolsable tras iniciar la traducción",
     applicableCountry: "ES",
   };
@@ -44,11 +59,16 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
     description,
     category: category || "Traducción jurada",
     sku: sku || undefined,
+    brand: {
+      "@type": "Brand",
+      name: "TraduccionesJuradas.net",
+    },
     image: ["https://traduccionesjuradas.net/brand/logo-horizontal.svg"],
     offers: offers.map((o) => ({
       "@type": "Offer",
       price: o.price,
       priceCurrency: o.priceCurrency,
+      priceValidUntil: `${new Date().getFullYear()}-12-31`,
       availability: o.availability || "https://schema.org/InStock",
       url: o.url,
       shippingDetails: o.shippingDetails || [shippingDetails],
