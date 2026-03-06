@@ -74,6 +74,32 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
       shippingDetails: o.shippingDetails || [shippingDetails],
       hasMerchantReturnPolicy: returnPolicy,
     })),
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.8",
+      bestRating: "5",
+      ratingCount: "43",
+    },
+    review: [
+      {
+        "@type": "Review",
+        author: { "@type": "Person", name: "Julio Roza" },
+        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
+        reviewBody: "Trato exquisito, trabajo óptimo.",
+      },
+      {
+        "@type": "Review",
+        author: { "@type": "Person", name: "Alejandro García Riesgo" },
+        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
+        reviewBody: "Muy rápidos y muy eficaces.",
+      },
+      {
+        "@type": "Review",
+        author: { "@type": "Person", name: "María López Torner" },
+        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
+        reviewBody: "Estoy realmente satisfecha con el encargo.",
+      },
+    ],
     provider: {
       "@type": "Organization",
       name: "TraduccionesJuradas.net",
