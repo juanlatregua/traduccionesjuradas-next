@@ -7,6 +7,13 @@ import { MDXContent } from "@/components/blog/MDXContent";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 
+const CATEGORY_LABELS: Record<string, string> = {
+  tramites: "Trámites",
+  paises: "Países",
+  faq: "Preguntas frecuentes",
+  profesion: "Profesión",
+};
+
 interface Props {
   params: Promise<{ slug: string }>;
 }
@@ -77,6 +84,7 @@ export default async function PostPage({ params }: Props) {
             "@type": "Article",
             headline: post.title,
             description: post.description,
+            image: [`https://www.traduccionesjuradas.net/api/og?title=${encodeURIComponent(post.title)}&subtitle=Blog+%E2%80%94+TraduccionesJuradas.net`],
             datePublished: post.date,
             dateModified: post.date,
             author: {
@@ -99,7 +107,7 @@ export default async function PostPage({ params }: Props) {
       <article>
         <header className="mb-8">
           <span className="inline-block rounded-full bg-bleu/10 px-2.5 py-0.5 text-[11px] font-semibold text-bleu">
-            {post.category}
+            {CATEGORY_LABELS[post.category] || post.category}
           </span>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
             {post.title}
