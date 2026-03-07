@@ -447,93 +447,8 @@ const nextConfig = {
       },
 
       // ===============================
-      // PÁGINAS ANTIGUAS DETECTADAS (403 EN WP)
+      // IDIOMAS ANTIGUOS (no son páginas de ciudad)
       // ===============================
-      {
-        source: "/traductor-jurado-barcelona",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-pontevedra",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-pontevedra/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-fuerteventura",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-fuerteventura/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-denia",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-denia/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-badalona",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-badalona/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-cuenca",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-cuenca/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-jerez",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-jerez/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-torrelodones",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-torrelodones/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-alcorcon",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-alcorcon/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
       {
         source: "/traductor-jurado-griego",
         destination: "/traductores-jurados",
@@ -542,96 +457,6 @@ const nextConfig = {
       {
         source: "/traductor-jurado-griego/",
         destination: "/traductores-jurados",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-madrid",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-madrid/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-zaragoza",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-zaragoza/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-altea",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-altea/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-sevilla",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-sevilla/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-alcobendas",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-alcobendas/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-fuengirola",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-fuengirola/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-getafe",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-getafe/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-moralzarzal",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-moralzarzal/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-pamplona",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-pamplona/",
-        destination: "/documentos-oficiales",
         permanent: true,
       },
       {
@@ -644,41 +469,8 @@ const nextConfig = {
         destination: "/documentos-oficiales/certificado-de-nacimiento",
         permanent: true,
       },
-      {
-        source: "/traductor-jurado-tenerife",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-gran-canaria",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-puerto-de-la-cruz",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-guadalajara",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-tenerife/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-gran-canaria/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-puerto-de-la-cruz/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
+      // Ciudades antiguas: /traductor-jurado-{ciudad} → gestionadas por middleware
+      // (redirige a /traductor-jurado/{ciudad} si existe, o a / si no)
 
       // ===============================
       // OTRAS PÁGINAS ANTIGUAS
@@ -772,41 +564,6 @@ const nextConfig = {
       // Endpoints WP legacy -> 410 gestionado por middleware
       {
         source: "/wp-content/uploads/2019/07/ORDEN-AEX-1971-2002.pdf",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-
-      // ===============================
-      // CIUDADES ANTIGUAS
-      // ===============================
-
-      {
-        source: "/traductor-jurado-palma-de-mallorca/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-palma-de-mallorca",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-calpe/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-calpe",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-teruel/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traductor-jurado-teruel",
         destination: "/documentos-oficiales",
         permanent: true,
       },

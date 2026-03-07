@@ -1,0 +1,265 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import Script from "next/script";
+import type { Metadata } from "next";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { CIUDADES, type Ciudad } from "@/src/data/ciudades";
+
+const ciudadBySlug = new Map<string, Ciudad>(
+  CIUDADES.map((c) => [c.slug, c])
+);
+
+export async function generateStaticParams() {
+  return CIUDADES.map((c) => ({ ciudad: c.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ciudad: string }>;
+}): Promise<Metadata> {
+  const { ciudad: slug } = await params;
+  const ciudad = ciudadBySlug.get(slug);
+  if (!ciudad) return {};
+
+  return {
+    title: `Traductor Jurado Oficial en ${ciudad.nombre} | traduccionesjuradas.net`,
+    description: `Traducción jurada online para ${ciudad.nombre}. Documentos oficiales para el Registro Civil, homologaciones, residencia y trámites legales. Validez oficial. Entrega 24-48h.`,
+    alternates: {
+      canonical: `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`,
+    },
+  };
+}
+
+const DOCUMENTOS_BASE = [
+  "Certificado de nacimiento",
+  "Certificado de matrimonio",
+  "Antecedentes penales",
+  "Título universitario y expediente académico",
+  "Permiso de residencia y NIE",
+  "Contrato de trabajo",
+  "Poderes notariales",
+  "Documentos mercantiles",
+];
+
+const DOCUMENTOS_MARRUECOS = [
+  "Documentos del Registro Civil de Marruecos",
+  "Acta de nacimiento marroquí",
+  "Certificado de soltería marroquí",
+];
+
+export default async function PaginaCiudad({
+  params,
+}: {
+  params: Promise<{ ciudad: string }>;
+}) {
+  const { ciudad: slug } = await params;
+  const ciudad = ciudadBySlug.get(slug);
+  if (!ciudad) notFound();
+
+  const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`;
+  const documentos = ciudad.altaInmigracionMarroqui
+    ? [...DOCUMENTOS_BASE, ...DOCUMENTOS_MARRUECOS]
+    : DOCUMENTOS_BASE;
+
+  const schemaData = {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    name: "Traductor Jurado de Francés — traduccionesjuradas.net",
+    url: "https://www.traduccionesjuradas.net",
+    serviceArea: {
+      "@type": "City",
+      name: ciudad.nombre,
+    },
+    areaServed: ciudad.nombre,
+  };
+
+  return (
+    <main className="mx-auto max-w-5xl px-4 py-10 lg:py-12">
+      <SchemaBreadcrumbs
+        id={`breadcrumbs-traductor-jurado-${ciudad.slug}`}
+        items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          {
+            name: `Traductor jurado en ${ciudad.nombre}`,
+            url: canonicalUrl,
+          },
+        ]}
+      />
+      <Script
+        id={`schema-city-${ciudad.slug}`}
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+      />
+
+      <Breadcrumbs
+        items={[
+          { name: "Inicio", href: "/" },
+          {
+            name: `Traductor jurado en ${ciudad.nombre}`,
+            href: `/traductor-jurado/${ciudad.slug}`,
+          },
+        ]}
+      />
+
+      {/* ═══════════════ SECCIÓN 1: HERO ═══════════════ */}
+      <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
+        Traductor jurado oficial
+      </p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre">
+        Traductor Jurado Oficial en {ciudad.nombre}
+      </h1>
+      <p className="mt-3 text-base text-sepia">
+        Servicio online con validez oficial ante cualquier organismo público en
+        España. Sin desplazamientos.
+      </p>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Link
+          href="/presupuesto-instantaneo"
+          className="rounded-lg bg-bleu px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-bleu/90 transition-colors"
+        >
+          Pedir presupuesto instantáneo
+        </Link>
+        <Link
+          href="/precios-traduccion-jurada"
+          className="rounded-lg border border-cream bg-card px-5 py-2.5 text-sm font-semibold text-encre shadow-sm hover:border-bleu hover:text-bleu transition-colors"
+        >
+          Ver precios
+        </Link>
+      </div>
+
+      {/* ═══════════════ SECCIÓN 2: INTRO LOCAL ═══════════════ */}
+      <section className="mt-10">
+        <div className="rounded-xl border border-cream bg-card p-5 shadow-paper">
+          <h2 className="font-baskerville text-xl font-bold text-encre">
+            Traducción jurada en {ciudad.nombre}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-sepia">
+            Si necesitas una traducción jurada en {ciudad.nombre}, nuestro
+            servicio online te permite enviar tus documentos desde{" "}
+            {ciudad.nombre} y recibirlos por email en 24-48 horas. La traducción
+            tiene plena validez oficial ante el Registro Civil, la
+            Administración General del Estado, universidades y cualquier
+            organismo público en España.
+          </p>
+          {ciudad.tieneConsulado && (
+            <p className="mt-3 text-sm leading-relaxed text-sepia">
+              En {ciudad.nombre} hay Consulado de Francia — si necesitas
+              presentar documentos en el consulado, nuestras traducciones juradas
+              al francés tienen validez oficial.
+            </p>
+          )}
+          {ciudad.altaInmigracionMarroqui && (
+            <p className="mt-3 text-sm leading-relaxed text-sepia">
+              En {ciudad.nombre} tramitamos frecuentemente documentos marroquíes:
+              partidas de nacimiento, certificados de matrimonio, antecedentes
+              penales y documentos del registro civil de Marruecos.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* ═══════════════ SECCIÓN 3: DOCUMENTOS FRECUENTES ═══════════════ */}
+      <section className="mt-10">
+        <h2 className="text-xl font-semibold text-encre">
+          Documentos que traducimos para clientes en {ciudad.nombre}
+        </h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {documentos.map((doc) => (
+            <div
+              key={doc}
+              className="flex items-start gap-2 rounded-doc border border-cream bg-card p-3 shadow-paper"
+            >
+              <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-bleu" />
+              <span className="text-sm text-encre">{doc}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══════════════ SECCIÓN 4: CÓMO FUNCIONA ═══════════════ */}
+      <section className="mt-10">
+        <h2 className="text-xl font-semibold text-encre">
+          Cómo funciona
+        </h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              step: "1",
+              title: "Sube tu documento",
+              desc: `Foto o PDF desde ${ciudad.nombre}`,
+            },
+            {
+              step: "2",
+              title: "Recibe presupuesto en minutos",
+              desc: "Precio exacto al instante",
+            },
+            {
+              step: "3",
+              title: "Recibe la traducción por email en 24-48h",
+              desc: "Con validez oficial en toda España",
+            },
+          ].map((item) => (
+            <div
+              key={item.step}
+              className="rounded-doc border border-cream bg-card p-4 shadow-paper text-center"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-bleu text-sm font-bold text-white">
+                {item.step}
+              </span>
+              <h3 className="mt-3 font-semibold text-encre">{item.title}</h3>
+              <p className="mt-1 text-sm text-sepia">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 text-center">
+          <Link
+            href="/presupuesto-instantaneo"
+            className="rounded-lg bg-bleu px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-bleu/90 transition-colors"
+          >
+            Empezar ahora
+          </Link>
+        </div>
+      </section>
+
+      {/* ═══════════════ SECCIÓN 5: TRUST SIGNALS ═══════════════ */}
+      <section className="mt-10">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            {
+              title: "Traductor Jurado acreditado por el MAEC",
+              desc: "Ministerio de Asuntos Exteriores, Unión Europea y Cooperación",
+            },
+            {
+              title: "Número de acreditación N.3850",
+              desc: "Registro oficial de Traductores-Intérpretes Jurados",
+            },
+            {
+              title: "Validez oficial en toda España",
+              desc: "Aceptada por el Registro Civil, universidades, juzgados y administración pública",
+            },
+            {
+              title: "Más de 10 años de experiencia",
+              desc: "Servicio profesional desde 2014",
+            },
+          ].map((badge) => (
+            <div
+              key={badge.title}
+              className="flex items-start gap-3 rounded-doc border border-cream bg-card p-4 shadow-paper"
+            >
+              <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-or" />
+              <div>
+                <p className="text-sm font-semibold text-encre">
+                  {badge.title}
+                </p>
+                <p className="mt-0.5 text-xs text-sepia">{badge.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}

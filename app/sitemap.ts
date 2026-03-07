@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { posts } from "@/content";
+import { CIUDADES } from "@/src/data/ciudades";
 
 type ChangeFreq = "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
 
@@ -145,5 +146,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   } : null;
 
-  return [...staticEntries, blogIndex, ...blogEntries].filter(Boolean) as MetadataRoute.Sitemap;
+  const cityEntries = CIUDADES.map((ciudad) => ({
+    url: `${baseUrl}/traductor-jurado/${ciudad.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as ChangeFreq,
+    priority: 0.7,
+  }));
+
+  return [...staticEntries, ...cityEntries, blogIndex, ...blogEntries].filter(Boolean) as MetadataRoute.Sitemap;
 }

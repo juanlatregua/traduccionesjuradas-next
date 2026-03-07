@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { CIUDADES } from "@/src/data/ciudades";
+
+const CITY_SLUGS = new Set(CIUDADES.map((c) => c.slug));
+
+// Old WP URLs used different slugs for some cities
+const LEGACY_CITY_MAP: Record<string, string> = {
+  "palma-de-mallorca": "palma",
+};
 
 function gone() {
   return new NextResponse("Gone", {
@@ -76,13 +84,25 @@ export function middleware(req: NextRequest) {
   // /inicio, /agencia, /contacto/page/N y /categoria-producto/*
   // se gestionan en next.config.mjs (se ejecuta antes del middleware)
 
+  // /traductor-jurado/[ciudad] are real Next.js pages — let them through
+  const isCityPage = pathLower.startsWith("/traductor-jurado/");
+
+  // Redirect old WP city URLs: /traductor-jurado-madrid → /traductor-jurado/madrid
+  if (pathLower.startsWith("/traductor-jurado-") && !isLanguagePillar) {
+    const suffix = pathLower.replace(/^\/traductor-jurado-/, "");
+    const mappedSlug = LEGACY_CITY_MAP[suffix] || suffix;
+    if (CITY_SLUGS.has(mappedSlug)) {
+      return redirectPermanent(req, `/traductor-jurado/${mappedSlug}`);
+    }
+  }
+
   const startsWithLegacySlug =
     pathLower.startsWith("/traductor-jurado-") ||
     pathLower.startsWith("/traduccion-jurada-") ||
     pathLower.startsWith("/traductor-") ||
     pathLower.startsWith("/traducciones-");
 
-  if (startsWithLegacySlug && !isLanguagePillar) {
+  if (startsWithLegacySlug && !isLanguagePillar && !isCityPage) {
     return redirectPermanent(req, "/");
   }
 
