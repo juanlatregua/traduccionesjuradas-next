@@ -87,9 +87,31 @@ const nextConfig = {
       // Legacy catch-all redirects removed — handled by middleware.ts
       // with proper allowlist (LANGUAGE_PILLARS) to avoid blocking
       // valid language pages like /traductor-jurado-ingles, etc.
+      // ===============================
+      // VESTIGIOS WP / CRAWL NOISE
+      // ===============================
       {
-        source: "/",
-        has: [{ type: "query", key: "action", value: "rest-nonce" }],
+        source: "/palabra",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/mapa-del-sitio",
+        destination: "/sitemap.xml",
+        permanent: true,
+      },
+      {
+        source: "/feed",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/feed/",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/wp-admin/admin-ajax.php",
         destination: "/",
         permanent: true,
       },

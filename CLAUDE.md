@@ -9,16 +9,17 @@ Web comercial + plataforma de gestión de pedidos de **traducción jurada** (fra
 
 ## Stack técnico
 
-- **Framework:** Next.js 14 (App Router) + TypeScript
-- **Estilos:** TailwindCSS con paleta personalizada (bleu, encre, sepia, cream, parchment)
-- **Base de datos:** Prisma + PostgreSQL (Prisma Postgres en Vercel)
-- **Blog:** Velite + MDX (`content/blog/*.mdx`) — 4 categorías: tramites, paises, faq, profesion
-- **Auth:** NextAuth (Google OAuth) — acceso staff controlado por `STAFF_EMAILS`
-- **Pagos:** Stripe (principal), Redsys, Bizum, transferencia. PayPal desactivado.
-- **Email:** SendGrid
+- **Framework:** Next.js 14.2.35 (App Router) + TypeScript 5.5.4
+- **Estilos:** TailwindCSS 3.4.10 con paleta personalizada (bleu, encre, sepia, cream, parchment)
+- **Base de datos:** Prisma 6.16.3 + PostgreSQL (Prisma Postgres en Vercel)
+- **Blog:** Velite 0.3.1 + MDX (`content/blog/*.mdx`) — 4 categorías: tramites, paises, faq, profesion
+- **Auth:** NextAuth 4.24.13 (Google OAuth) — acceso staff controlado por `STAFF_EMAILS`
+- **Pagos:** Stripe 20.3.1 (principal), Redsys (redsys-easy 5.3.2), Bizum, transferencia. PayPal desactivado.
+- **Email:** SendGrid (@sendgrid/mail 8.1.6)
 - **SMS/WhatsApp:** Twilio (fire-and-forget con logs)
-- **AI:** Anthropic Claude (análisis documentos + chat), Google Vision, OCR.space
-- **Almacenamiento:** Vercel Blob
+- **AI:** Anthropic Claude (@anthropic-ai/sdk 0.78.0, modelo claude-sonnet-4-20250514) — análisis documentos + chat
+- **Almacenamiento:** Vercel Blob (@vercel/blob 2.2.0)
+- **PDF:** jspdf 4.2.0, pdf-parse 1.1.1, mammoth 1.11.0
 
 ## Comandos esenciales
 
@@ -28,6 +29,7 @@ npm run build         # prisma generate + next build
 npm run test:unit     # tests unitarios (node --test)
 npm run test:e2e      # tests e2e
 npx tsc --noEmit --skipLibCheck  # type-check (hay errores preexistentes de Prisma/Velite/Anthropic que se ignoran)
+vercel --prod --yes   # deploy manual a producción
 ```
 
 ## Estructura del proyecto
@@ -36,19 +38,23 @@ npx tsc --noEmit --skipLibCheck  # type-check (hay errores preexistentes de Pris
 app/
 ├── page.tsx                          # Home
 ├── traductor-jurado-{idioma}/        # 10 páginas de idioma (usan PaginaIdioma component)
+├── traductor-jurado/[ciudad]/        # 50 páginas de ciudad (SEO local)
 ├── documentos-oficiales/             # Hub + 9 subpáginas de tipos de documento
-├── blog/                             # Listado + [slug] dinámico desde Velite
+├── blog/                             # Listado + [slug] dinámico desde Velite (10 artículos)
 ├── presupuesto-instantaneo/          # Formulario público principal (CTA)
 ├── (funnel)/                         # Flujo: start → upload → review → checkout → confirmation
 ├── area-cliente/                     # Zona cliente (pedido/[reference]/pagar)
 ├── admin/                            # Panel staff (quotes, gestión)
-├── api/                              # ~40 endpoints REST
-│   ├── orders/                       # CRUD pedidos + webhooks
+├── api/                              # ~45 endpoints REST
+│   ├── orders/                       # CRUD pedidos + webhooks + finanzas
 │   ├── payment/                      # Stripe, Redsys, PayPal
 │   ├── documents/                    # Upload + análisis IA
 │   ├── quotes/                       # Presupuestos formales
+│   ├── session/                      # Funnel de pedido
 │   └── cron/                         # Limpieza chat/documentos
 ├── contacto/, proceso/, acreditacion/, teletrabajo/, marruecos/
+├── q/[token]/                        # Acceso público presupuesto
+├── zona-traductor/                   # Panel traductor (OTP)
 └── pago/{exito,cancelado}/           # Post-pago
 components/
 ├── PaginaIdioma.tsx                  # Componente compartido para las 10 páginas de idioma
@@ -58,19 +64,24 @@ components/
 lib/
 ├── order-token.ts                    # HMAC-SHA256 para firmar URLs de pedidos
 ├── sms.ts + sms-templates.ts         # Twilio abstraction
-├── email.ts                          # SendGrid templates
+├── email.ts                          # SendGrid (16 tipos de email)
 ├── pricing.ts                        # Tarifas por idioma/par
-├── stripe.ts, redsys.ts             # Payment gateways
+├── stripe.ts, redsys.ts, paypal.ts  # Payment gateways
 ├── workflow.ts + workflow-server.ts   # Estado operativo de pedidos
+├── rate-limit.ts                     # Rate limiting por IP
 └── ai/                               # Prompts y análisis con Claude
+src/data/
+└── ciudades.ts                       # 50 ciudades para SEO local
 ```
 
 ## Seguridad — URLs de pedidos
 
 Las URLs públicas de pedidos llevan un **token HMAC-SHA256** firmado con `ORDER_TOKEN_SECRET`:
 - `lib/order-token.ts`: `generateOrderToken()`, `verifyOrderToken()`, `buildSignedOrderUrl()`
-- Verificado en `app/api/orders/[reference]/public/route.ts`
-- Generado en todos los endpoints que crean URLs de pago/detalle (~9 server files + 3 client components)
+- Verificado en `app/api/orders/[reference]/public/route.ts` (línea 53)
+- Si `ORDER_TOKEN_SECRET` no está configurado, `verifyOrderToken` devuelve `false` (sin bypass)
+- Rate limit: 120 req/10min por IP
+- Comparación timing-safe contra timing attacks
 
 ## SEO y Schema JSON-LD
 
@@ -86,19 +97,23 @@ Schemas adicionales por tipo de página:
 - **Blog articles:** Schema Article con image, author, publisher
 - **Proceso:** SchemaHowTo
 - **Traductores:** SchemaPerson
+- **Ciudades:** SchemaService + SchemaLocalBusiness
 
 ## Middleware y redirects
 
-- `middleware.ts`: gestiona rutas legacy de WordPress (allowlist en `VALID_LEGACY_PATHS`)
-- `next.config.mjs`: redirects 301 para rutas antiguas (/inicio, /agencia, /documentos, etc.)
+- `middleware.ts`: gestiona rutas legacy de WordPress (allowlist en `VALID_LEGACY_PATHS`), bloquea `?action=` con 404, 410 para endpoints WP (wp-json, wp-login, xmlrpc, feeds genéricos)
+- `next.config.mjs`: 100+ redirects 301 para rutas antiguas (/inicio, /agencia, /documentos, /palabra, /mapa-del-sitio, /feed, /wp-admin/admin-ajax.php, etc.)
 - No duplicar reglas entre ambos
+- Ciudades legacy (`/traductor-jurado-madrid`) → redirigen a `/traductor-jurado/madrid` via middleware
 
 ## Variables de entorno
 
-Documentadas en `.env.example` (~45 variables). Las críticas:
+Documentadas en `.env.example` (~80 variables). Las críticas:
 - `DATABASE_URL`, `NEXTAUTH_SECRET`, `ORDER_TOKEN_SECRET`
 - `SENDGRID_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
 - `ANTHROPIC_API_KEY`, `CRON_SECRET`
+
+Ver `PROYECTO.md` para listado completo por categoría.
 
 ## Convenciones
 
@@ -110,6 +125,8 @@ Documentadas en `.env.example` (~45 variables). Las críticas:
 - **Pagos:** todos los endpoints públicos de pago validan estado del pedido + rate limit por IP
 - **Blog:** frontmatter con title, description, date, category (enum), published, keywords
 - **Zsh:** al hacer `git add` de rutas con brackets, usar comillas: `git add "app/api/orders/[reference]/route.ts"`
+- **Deploy manual:** `vercel --prod --yes` desde la raíz del proyecto
+- **Documentación del proyecto:** `PROYECTO.md` (estado completo) y `EJECUTAR.md` (pendientes)
 
 ## Errores preexistentes en tsc
 
