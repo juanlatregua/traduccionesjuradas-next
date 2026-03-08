@@ -8,6 +8,7 @@ import {
   sendOrderReviewRoutingEmail,
   sendOrderUnderReviewClientEmail,
 } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { transitionWorkflowState } from "@/lib/workflow-server";
@@ -544,14 +545,16 @@ export async function POST(req: Request) {
         amountCents: body.amountCents,
       }).catch((e) => console.error("[orders] client review email failed", e));
     } else {
-      sendOrderCreatedEmail({
-        toEmail: clientEmail,
-        clientName,
-        reference: order.reference,
-        title: body.title,
-        amountCents: body.amountCents,
-        paymentUrl,
-      }).catch((e) => console.error("[orders] email to client failed", e));
+      sendEmailWithRetry(() =>
+        sendOrderCreatedEmail({
+          toEmail: clientEmail,
+          clientName,
+          reference: order.reference,
+          title: body.title || order.title,
+          amountCents: body.amountCents || order.amountCents,
+          paymentUrl,
+        })
+      ).catch((e) => console.error("[orders] email to client failed", e));
 
       sendNewOrderStaffEmail({
         reference: order.reference,

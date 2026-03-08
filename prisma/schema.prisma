@@ -457,12 +457,21 @@ model DocumentAnalysis {
   orderId          String?
   order            Order?                 @relation(fields: [orderId], references: [id])
 
+  reminderSentAt   DateTime?
+
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
   @@index([sessionToken])
   @@index([status, createdAt])
   @@index([clientEmail])
+}
+
+model FailedEmail {
+  id        String   @id @default(cuid())
+  error     String
+  attempt   Int
+  createdAt DateTime @default(now())
 }
 
 enum DocAnalysisStatus {

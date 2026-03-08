@@ -136,25 +136,32 @@ export default function PaymentFlow({
       </p>
 
       {/* Payment method tabs */}
-      <div className="mt-4 grid grid-cols-4 gap-1 rounded-lg bg-cream/60 p-1">
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-1 rounded-lg bg-cream/60 p-1">
         {([
-          { key: "bizum" as const, icon: Smartphone, label: "Bizum" },
-          { key: "card" as const, icon: CreditCard, label: "Tarjeta" },
-          { key: "transfer" as const, icon: Landmark, label: "Transfer." },
-          { key: "paypal" as const, icon: Wallet, label: "PayPal" },
-        ]).map(({ key, icon: Icon, label }) => (
+          { key: "bizum" as const, icon: Smartphone, label: "Bizum", labelShort: "" },
+          { key: "card" as const, icon: CreditCard, label: "Tarjeta", labelShort: "" },
+          { key: "transfer" as const, icon: Landmark, label: "Transferencia", labelShort: "Transfer." },
+          { key: "paypal" as const, icon: Wallet, label: "PayPal", labelShort: "" },
+        ]).map(({ key, icon: Icon, label, labelShort }) => (
           <button
             key={key}
             type="button"
             onClick={() => { setPaymentMethod(key); setError(null); setOrderReference(null); }}
-            className={`flex items-center justify-center gap-1 rounded-md px-1.5 py-2.5 text-xs font-medium transition-all ${
+            className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-2.5 text-xs font-medium transition-all ${
               paymentMethod === key
                 ? "bg-white text-bleu shadow-sm"
                 : "text-graphite hover:text-encre"
             }`}
           >
             <Icon className="h-4 w-4" />
-            {label}
+            {labelShort ? (
+              <>
+                <span className="sm:hidden">{labelShort}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </>
+            ) : (
+              label
+            )}
           </button>
         ))}
       </div>

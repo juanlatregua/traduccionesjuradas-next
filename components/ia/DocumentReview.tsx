@@ -71,6 +71,20 @@ const LANGUAGE_FLAGS: Record<string, string> = {
   no: "/flags/no.svg",
 };
 
+const LANGUAGE_ALT: Record<string, string> = {
+  fr: "Francés",
+  en: "Inglés",
+  de: "Alemán",
+  it: "Italiano",
+  pt: "Portugués",
+  nl: "Neerlandés",
+  ar: "Árabe",
+  es: "Español",
+  ca: "Catalán",
+  sv: "Sueco",
+  no: "Noruego",
+};
+
 export default function DocumentReview({
   documents,
   currentAnalysis,
@@ -116,7 +130,7 @@ export default function DocumentReview({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={LANGUAGE_FLAGS[currentAnalysis.language.source]}
-                  alt=""
+                  alt={LANGUAGE_ALT[currentAnalysis.language.source] || currentAnalysis.language.source_name}
                   className="h-4 w-5 rounded-sm object-cover"
                 />
               )}

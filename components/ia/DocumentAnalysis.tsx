@@ -51,6 +51,20 @@ const LANGUAGE_FLAGS: Record<string, string> = {
   no: "/flags/no.svg",
 };
 
+const LANGUAGE_ALT: Record<string, string> = {
+  fr: "Francés",
+  en: "Inglés",
+  de: "Alemán",
+  it: "Italiano",
+  pt: "Portugués",
+  nl: "Neerlandés",
+  ar: "Árabe",
+  es: "Español",
+  ca: "Catalán",
+  sv: "Sueco",
+  no: "Noruego",
+};
+
 const ANALYZING_MESSAGES = [
   "Identificando tipo de documento...",
   "Detectando idioma de origen...",
@@ -115,29 +129,50 @@ export default function DocumentAnalysis({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId]);
 
-  // ─── Analyzing state ───
+  // ─── Analyzing state — skeleton loader ───
   if (status === "analyzing") {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-xl border border-bleu/15 bg-card p-8 shadow-paper animate-fadeIn">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-full border-4 border-bleu/20 border-t-bleu animate-spin" />
-          <FileText className="absolute inset-0 m-auto h-6 w-6 text-bleu" />
-        </div>
-        <div className="text-center">
-          <p className="font-baskerville text-lg text-bleu">Analizando documento</p>
-          <p className="mt-1 text-sm text-graphite transition-all duration-300">
+      <div className="space-y-4 animate-fadeIn">
+        {/* Progress header */}
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-bleu/15 bg-card p-6 shadow-paper">
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full border-4 border-bleu/20 border-t-bleu animate-spin" />
+            <FileText className="absolute inset-0 m-auto h-5 w-5 text-bleu" />
+          </div>
+          <p className="text-sm font-medium text-bleu transition-all duration-300">
             {ANALYZING_MESSAGES[messageIndex]}
           </p>
-        </div>
-        <div className="w-full max-w-xs">
-          <div className="h-1.5 overflow-hidden rounded-full bg-bleu/10">
-            <div
-              className="h-full rounded-full bg-bleu transition-all duration-[2500ms] ease-linear"
-              style={{
-                width: `${((messageIndex + 1) / ANALYZING_MESSAGES.length) * 100}%`,
-              }}
-            />
+          <div className="w-full max-w-xs">
+            <div className="h-1.5 overflow-hidden rounded-full bg-bleu/10">
+              <div
+                className="h-full rounded-full bg-bleu transition-all duration-[2500ms] ease-linear"
+                style={{
+                  width: `${((messageIndex + 1) / ANALYZING_MESSAGES.length) * 100}%`,
+                }}
+              />
+            </div>
           </div>
+        </div>
+
+        {/* Skeleton that mimics the result structure */}
+        <div className="rounded-xl border border-bleu/15 bg-card p-6 shadow-paper animate-pulse">
+          <div className="flex items-start gap-4">
+            <div className="h-12 w-12 shrink-0 rounded-xl bg-sepia/20" />
+            <div className="flex-1 space-y-2">
+              <div className="h-6 w-3/4 rounded bg-sepia/20" />
+              <div className="h-4 w-1/3 rounded bg-sepia/15" />
+            </div>
+            <div className="h-7 w-16 rounded-full bg-sepia/15" />
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-1/3 rounded bg-sepia/15" />
+                <div className="h-4 w-2/3 rounded bg-sepia/20" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 h-10 w-1/2 rounded-lg bg-bleu/10" />
         </div>
       </div>
     );
@@ -204,7 +239,7 @@ export default function DocumentAnalysis({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={LANGUAGE_FLAGS[analysis.language.source]}
-                  alt=""
+                  alt={LANGUAGE_ALT[analysis.language.source] || analysis.language.source_name}
                   className="h-4 w-5 rounded-sm object-cover"
                 />
               )}
@@ -216,7 +251,7 @@ export default function DocumentAnalysis({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={LANGUAGE_FLAGS[analysis.language.target]}
-                  alt=""
+                  alt={LANGUAGE_ALT[analysis.language.target] || analysis.language.target_name}
                   className="h-4 w-5 rounded-sm object-cover"
                 />
               )}

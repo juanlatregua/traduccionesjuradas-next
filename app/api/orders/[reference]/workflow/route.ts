@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderCreatedEmail } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
 import { WORKFLOW_STATES, type WorkflowState } from "@/lib/workflow";
 import { requireStaffAccess } from "@/lib/staff-auth";
 
@@ -54,14 +55,16 @@ export async function POST(req: Request, { params }: Params) {
       if (order?.clientEmail) {
         const { buildSignedOrderUrl } = await import("@/lib/order-token");
         const paymentUrl = buildSignedOrderUrl(order.reference, "pagar");
-        sendOrderCreatedEmail({
-          toEmail: order.clientEmail,
-          clientName: order.clientName || undefined,
-          reference: order.reference,
-          title: order.title,
-          amountCents: order.amountCents,
-          paymentUrl,
-        }).catch((err) => console.error("[workflow-transition] client notify failed", err));
+        sendEmailWithRetry(() =>
+          sendOrderCreatedEmail({
+            toEmail: order.clientEmail,
+            clientName: order.clientName || undefined,
+            reference: order.reference,
+            title: order.title,
+            amountCents: order.amountCents,
+            paymentUrl,
+          })
+        ).catch((err) => console.error("[workflow-transition] client notify failed", err));
       }
 
       if (body.to === "PRESUPUESTO_ENVIADO") {

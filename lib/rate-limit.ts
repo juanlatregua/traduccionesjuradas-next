@@ -156,3 +156,19 @@ export async function checkRateLimit(params: RateLimitParams): Promise<RateLimit
   }
   return checkRateLimitMemory(params);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Global daily cap for AI analyses                                   */
+/* ------------------------------------------------------------------ */
+
+const DAILY_ANALYSIS_CAP = 200;
+const GLOBAL_CAP_KEY = "global:daily-analysis-cap";
+
+export async function checkGlobalAnalysisCap(): Promise<boolean> {
+  const result = await checkRateLimit({
+    key: GLOBAL_CAP_KEY,
+    limit: DAILY_ANALYSIS_CAP,
+    windowMs: 24 * 60 * 60 * 1000,
+  });
+  return result.ok;
+}

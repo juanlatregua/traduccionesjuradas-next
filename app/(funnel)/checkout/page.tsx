@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import CheckoutPaymentActions from "@/components/funnel/CheckoutPaymentActions";
+import { TrackEvent } from "@/components/TrackEvent";
 import { authOptions } from "@/lib/auth";
 import { getSessionOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -41,11 +42,14 @@ export default async function CheckoutPage() {
   }
 
   return (
-    <CheckoutPaymentActions
-      reference={session.reference}
-      totalCents={session.totalCents}
-      currency={session.currency}
-      authState={authEmail ? "AUTHENTICATED" : session.authState}
-    />
+    <>
+      <TrackEvent name="checkout_started" />
+      <CheckoutPaymentActions
+        reference={session.reference}
+        totalCents={session.totalCents}
+        currency={session.currency}
+        authState={authEmail ? "AUTHENTICATED" : session.authState}
+      />
+    </>
   );
 }

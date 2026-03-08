@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyRedsysNotification } from "@/lib/redsys";
 import { updateOrderPayment, markPaymentFailed, getOrderDetail } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
 import { isResponseCodeOk } from "redsys-easy";
 import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { prisma } from "@/lib/prisma";
@@ -64,13 +65,15 @@ export async function POST(req: Request) {
       // Notify client (non-blocking)
       const order = await getOrderDetail(orderReference);
       if (order?.clientEmail) {
-        sendPaymentConfirmedEmail({
-          toEmail: order.clientEmail,
-          reference: order.reference,
-          title: order.title,
-          amountCents: order.amountCents,
-          method: "REDSYS",
-        }).catch((e) => console.error("[redsys-notification] email failed", e));
+        sendEmailWithRetry(() =>
+          sendPaymentConfirmedEmail({
+            toEmail: order.clientEmail,
+            reference: order.reference,
+            title: order.title,
+            amountCents: order.amountCents,
+            method: "REDSYS",
+          })
+        ).catch((e) => console.error("[redsys-notification] email failed", e));
 
         // SMS notification (fire & forget)
         const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");

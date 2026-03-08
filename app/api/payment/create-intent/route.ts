@@ -4,6 +4,7 @@ import { getStripe } from "@/lib/stripe";
 import { getSessionIdFromRequest } from "@/lib/session";
 import { isStripeConfigured } from "@/lib/payment-config";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { computeSessionPricing } from "@/lib/session-pricing";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,29 @@ export async function POST(req: Request) {
       );
     }
 
+    // Recompute price server-side — never trust session-stored amount
+    const serverPricing = await computeSessionPricing(session.id);
+    if (serverPricing.totalCents <= 0) {
+      return NextResponse.json(
+        { ok: false, error: "Importe no valido para checkout." },
+        { status: 400 }
+      );
+    }
+    if (serverPricing.totalCents !== session.totalCents) {
+      console.error(
+        `[payment/create-intent] Price mismatch: server=${serverPricing.totalCents}, session=${session.totalCents}, ref=${session.reference}`
+      );
+      // Update session with correct price
+      await prisma.orderSession.update({
+        where: { id: session.id },
+        data: {
+          subtotalCents: serverPricing.subtotalCents,
+          vatCents: serverPricing.vatCents,
+          totalCents: serverPricing.totalCents,
+        },
+      });
+    }
+
     const stripe = getStripe();
     const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
     const checkout = await stripe.checkout.sessions.create(
@@ -70,7 +94,7 @@ export async function POST(req: Request) {
           {
             price_data: {
               currency: "eur",
-              unit_amount: session.totalCents,
+              unit_amount: serverPricing.totalCents,
               product_data: {
                 name: "Traduccion jurada",
                 description: `Referencia ${session.reference}`,

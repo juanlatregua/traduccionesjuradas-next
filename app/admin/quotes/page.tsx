@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPageAccess } from "@/lib/admin-page-access";
+import { AdminNav } from "@/components/AdminNav";
 import { decimalToNumber, QUOTE_STATUS_LABELS, type QuoteStatus } from "@/lib/quotes";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default async function AdminQuotesListPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
+      <AdminNav />
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>

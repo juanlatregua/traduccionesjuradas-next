@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/stripe";
 import { updateOrderPayment } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
 import { prisma } from "@/lib/prisma";
 import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 
@@ -91,13 +92,15 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
     });
 
     if (order?.clientEmail) {
-      sendPaymentConfirmedEmail({
-        toEmail: order.clientEmail,
-        reference,
-        title: order.title,
-        amountCents: order.amountCents,
-        method: "STRIPE",
-      }).catch((err) => console.error(`[${source}] payment confirmation email failed`, err));
+      sendEmailWithRetry(() =>
+        sendPaymentConfirmedEmail({
+          toEmail: order.clientEmail,
+          reference,
+          title: order.title,
+          amountCents: order.amountCents,
+          method: "STRIPE",
+        })
+      ).catch((err) => console.error(`[${source}] payment confirmation email failed`, err));
 
       // SMS notification (fire & forget)
       const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");

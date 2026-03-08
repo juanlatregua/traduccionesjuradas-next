@@ -235,12 +235,30 @@ export async function updateOrderPayment(
       return { changed: false as const, alreadyPaid: latest?.paymentStatus === "PAID", duplicate: true as const };
     }
 
-    if (order.paymentStatus === "PAID") {
+    // Atomic update: only updates if paymentStatus is not yet PAID
+    // Prevents race condition when two webhooks arrive simultaneously
+    const atomicResult = await tx.order.updateMany({
+      where: {
+        reference,
+        paymentStatus: { not: "PAID" },
+      },
+      data: {
+        paymentMethod: method,
+        externalPaymentId: providerEventId,
+        paymentStatus: "PAID",
+        status: "PAID",
+        paidAt: new Date(),
+      },
+    });
+
+    if (atomicResult.count === 0) {
+      // Another webhook already confirmed payment — idempotent response
+      console.log(`[updateOrderPayment] Order ${reference} already confirmed, skipping`);
       await tx.orderEvent.create({
         data: {
           orderId: order.id,
           type: "payment.duplicate_ignored",
-          message: "Intento de pago duplicado ignorado por idempotencia.",
+          message: "Intento de pago duplicado ignorado por verificación atómica.",
           payload: {
             method,
             providerEventId,
@@ -255,21 +273,9 @@ export async function updateOrderPayment(
       return { changed: false as const, alreadyPaid: true as const, duplicate: false as const };
     }
 
-    const updated = await tx.order.update({
-      where: { reference },
-      data: {
-        paymentMethod: method,
-        externalPaymentId: providerEventId,
-        paymentStatus: "PAID",
-        status: "PAID",
-        paidAt: new Date(),
-      },
-      select: { id: true },
-    });
-
     await tx.orderEvent.create({
       data: {
-        orderId: updated.id,
+        orderId: order.id,
         type: "payment.completed",
         message: `Pago confirmado via ${method}.`,
         payload: {

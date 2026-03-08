@@ -3,6 +3,8 @@ import { Inter, Merriweather } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Header } from "@/components/Header";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
@@ -143,6 +145,10 @@ export default function RootLayout({
 
         {/* ================= BANNER COOKIES ================= */}
         <CookieBanner />
+
+        {/* ================= ANALYTICS ================= */}
+        <Analytics />
+        <SpeedInsights />
 
         {/* ================= FOOTER — EL PIE DE FIRMA ================= */}
         <footer className="mt-16 bg-encre">

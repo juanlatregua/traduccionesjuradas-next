@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { TrackEvent } from "@/components/TrackEvent";
 import { getSessionOrRedirect } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
 
   return (
     <section className="rounded-3xl border border-cream bg-card p-5 shadow-sm sm:p-7">
+      <TrackEvent name="payment_completed" />
       {session.isPaid ? (
         <>
           <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Pago confirmado</p>

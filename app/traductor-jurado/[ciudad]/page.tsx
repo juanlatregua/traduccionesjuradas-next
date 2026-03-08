@@ -59,7 +59,12 @@ export default async function PaginaCiudad({
   if (!ciudad) notFound();
 
   const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`;
-  const documentos = ciudad.altaInmigracionMarroqui
+
+  // Use city-specific documents if available, otherwise fallback to generic list
+  const documentosCiudad = ciudad.documentosMasFrecuentes?.length
+    ? ciudad.documentosMasFrecuentes
+    : [];
+  const documentosGenericos = ciudad.altaInmigracionMarroqui
     ? [...DOCUMENTOS_BASE, ...DOCUMENTOS_MARRUECOS]
     : DOCUMENTOS_BASE;
 
@@ -144,7 +149,13 @@ export default async function PaginaCiudad({
             Administración General del Estado, universidades y cualquier
             organismo público en España.
           </p>
-          {ciudad.tieneConsulado && (
+          {/* City-specific unique paragraphs */}
+          {ciudad.datosUnicos?.map((dato, i) => (
+            <p key={i} className="mt-3 text-sm leading-relaxed text-sepia">
+              {dato}
+            </p>
+          ))}
+          {ciudad.tieneConsulado && !ciudad.consuladoFrances && (
             <p className="mt-3 text-sm leading-relaxed text-sepia">
               En {ciudad.nombre} hay Consulado de Francia — si necesitas
               presentar documentos en el consulado, nuestras traducciones juradas
@@ -161,13 +172,114 @@ export default async function PaginaCiudad({
         </div>
       </section>
 
+      {/* ═══════════════ SECCIÓN 2B: CONSULADO ═══════════════ */}
+      {ciudad.consuladoFrances && (
+        <section className="mt-6">
+          <div className="rounded-xl border border-bleu/20 bg-bleu/5 p-5">
+            <h3 className="font-baskerville text-lg font-bold text-bleu">
+              Consulado de Francia en {ciudad.nombre}
+            </h3>
+            <p className="mt-2 text-sm text-sepia">
+              Si necesitas presentar documentos traducidos ante el Consulado de
+              Francia en {ciudad.nombre}, nuestras traducciones juradas al
+              francés tienen plena validez oficial.
+            </p>
+            <div className="mt-3 space-y-1 text-sm text-encre">
+              <p>
+                <span className="font-semibold">Dirección:</span>{" "}
+                {ciudad.consuladoFrances.direccion}
+              </p>
+              <p>
+                <span className="font-semibold">Teléfono:</span>{" "}
+                <a
+                  href={`tel:${ciudad.consuladoFrances.telefono.replace(/\s/g, "")}`}
+                  className="text-bleu hover:underline"
+                >
+                  {ciudad.consuladoFrances.telefono}
+                </a>
+              </p>
+              <p>
+                <span className="font-semibold">Web:</span>{" "}
+                <a
+                  href={ciudad.consuladoFrances.web}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-bleu hover:underline"
+                >
+                  {ciudad.consuladoFrances.web.replace(/^https?:\/\//, "")}
+                </a>
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══════════════ SECCIÓN 2C: OFICINAS ÚTILES ═══════════════ */}
+      {(ciudad.registroCivil || ciudad.extranjeria) && (
+        <section className="mt-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {ciudad.registroCivil && (
+              <div className="rounded-xl border border-cream bg-card p-4 shadow-paper">
+                <h3 className="text-sm font-bold text-encre">
+                  Registro Civil
+                </h3>
+                <p className="mt-1 text-sm text-sepia">
+                  {ciudad.registroCivil.nombre}
+                </p>
+                <p className="text-xs text-graphite">
+                  {ciudad.registroCivil.direccion}
+                </p>
+              </div>
+            )}
+            {ciudad.extranjeria && (
+              <div className="rounded-xl border border-cream bg-card p-4 shadow-paper">
+                <h3 className="text-sm font-bold text-encre">
+                  Oficina de Extranjería
+                </h3>
+                <p className="mt-1 text-sm text-sepia">
+                  {ciudad.extranjeria.nombre}
+                </p>
+                <p className="text-xs text-graphite">
+                  {ciudad.extranjeria.direccion}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* ═══════════════ SECCIÓN 3: DOCUMENTOS FRECUENTES ═══════════════ */}
       <section className="mt-10">
         <h2 className="text-xl font-semibold text-encre">
           Documentos que traducimos para clientes en {ciudad.nombre}
         </h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {documentos.map((doc) => (
+
+        {/* City-specific documents first */}
+        {documentosCiudad.length > 0 && (
+          <>
+            <h3 className="mt-4 text-sm font-semibold uppercase tracking-wide text-bleu">
+              Los más solicitados en {ciudad.nombre}
+            </h3>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              {documentosCiudad.map((doc) => (
+                <div
+                  key={doc}
+                  className="flex items-start gap-2 rounded-doc border border-bleu/20 bg-bleu/5 p-3"
+                >
+                  <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-bleu" />
+                  <span className="text-sm font-medium text-encre">{doc}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Generic documents */}
+        <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-graphite">
+          Otros documentos habituales
+        </h3>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          {documentosGenericos.map((doc) => (
             <div
               key={doc}
               className="flex items-start gap-2 rounded-doc border border-cream bg-card p-3 shadow-paper"

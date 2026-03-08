@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
 import {
   addBusinessDays,
   formatEta,
@@ -142,11 +143,13 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     if (body.notifyClient && state === "TRADUCIDO" && translatedFileUrl) {
-      sendTranslationReadyEmail({
-        toEmail: order.clientEmail,
-        reference: order.reference,
-        downloadUrl: translatedFileUrl,
-      }).catch((e) => console.error("[orders-delivery] ready email failed", e));
+      sendEmailWithRetry(() =>
+        sendTranslationReadyEmail({
+          toEmail: order.clientEmail,
+          reference: order.reference,
+          downloadUrl: translatedFileUrl,
+        })
+      ).catch((e) => console.error("[orders-delivery] ready email failed", e));
 
       await prisma.orderEvent
         .create({

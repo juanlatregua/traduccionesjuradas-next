@@ -11,6 +11,12 @@ type Props = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function validateEmail(value: string): string {
+  if (!value) return "El email es obligatorio";
+  if (!EMAIL_RE.test(value)) return "Introduce un email válido";
+  return "";
+}
+
 export default function LeadGate({ documentId, documentIds, onComplete }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,6 +24,8 @@ export default function LeadGate({ documentId, documentIds, onComplete }: Props)
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,11 +130,27 @@ export default function LeadGate({ documentId, documentIds, onComplete }: Props)
             id="lead-email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (emailTouched) setEmailError(validateEmail(e.target.value));
+            }}
+            onBlur={() => {
+              setEmailTouched(true);
+              setEmailError(validateEmail(email));
+            }}
             placeholder="tu@email.com"
             required
-            className="w-full rounded-lg border border-graphite/20 bg-white px-4 py-2.5 text-sm text-encre placeholder:text-graphite/40 focus:border-bleu focus:ring-2 focus:ring-bleu/20 outline-none transition-colors"
+            className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-encre placeholder:text-graphite/40 focus:ring-2 outline-none transition-colors ${
+              emailError && emailTouched
+                ? "border-rouge focus:border-rouge focus:ring-rouge/20"
+                : "border-graphite/20 focus:border-bleu focus:ring-bleu/20"
+            }`}
           />
+          {emailError && emailTouched && (
+            <p className="text-rouge text-sm mt-1 flex items-center gap-1">
+              <AlertTriangle className="h-3.5 w-3.5" /> {emailError}
+            </p>
+          )}
         </div>
 
         <div>
@@ -172,8 +196,8 @@ export default function LeadGate({ documentId, documentIds, onComplete }: Props)
 
         <button
           type="submit"
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-or px-6 py-3.5 text-base font-semibold text-white shadow-md hover:bg-or-light transition-colors disabled:opacity-50"
+          disabled={loading || !!emailError || !consent || !email || !name}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-or px-6 py-3.5 text-base font-semibold text-white shadow-md hover:bg-or-light transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin" />

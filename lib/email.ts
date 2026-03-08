@@ -2,7 +2,7 @@
 import sgMail from "@sendgrid/mail";
 import fs from "fs";
 import path from "path";
-import { WHATSAPP_DISPLAY, buildWhatsAppLinkFromText } from "@/lib/contact";
+import { WHATSAPP_DISPLAY, buildWhatsAppLinkFromText, SITE_BASE_URL } from "@/lib/contact";
 
 export type PresupuestoPayload = {
   documentos: Array<{
@@ -1030,5 +1030,106 @@ https://www.traduccionesjuradas.net/zona-traductor`;
     subject,
     text,
     html,
+  });
+}
+
+export async function sendLeadReminderEmail(data: {
+  toEmail: string;
+  clientName?: string | null;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const name = data.clientName || "";
+  const presupuestoUrl = `${SITE_BASE_URL}/presupuesto-instantaneo`;
+  const subject = "Tu presupuesto de traduccion jurada sigue disponible";
+
+  const text = `Hola ${name},
+
+Hace unos dias subiste un documento para obtener un presupuesto de traduccion jurada y no llegaste a completar el pedido.
+
+Tu presupuesto sigue disponible. Puedes retomarlo en cualquier momento:
+${presupuestoUrl}
+
+Si tienes alguna duda, respondenos a este correo o escribenos por WhatsApp.
+
+Gracias,
+Equipo de TraduccionesJuradas.net`;
+
+  const html = `
+    <h2>Tu presupuesto sigue disponible</h2>
+    <p>Hola ${name},</p>
+    <p>Hace unos dias subiste un documento para obtener un presupuesto de traduccion jurada y no llegaste a completar el pedido.</p>
+    <p>Tu presupuesto sigue disponible. Puedes retomarlo en cualquier momento:</p>
+    <p><a href="${presupuestoUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Retomar presupuesto</a></p>
+    <p style="font-size:13px; color:#6b7280;">Si ya no lo necesitas, simplemente ignora este correo.</p>
+    <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
+  `;
+
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html: wrapClientEmailHtml(html),
+  });
+}
+
+export async function sendPaymentReminderEmail(data: {
+  toEmail: string;
+  reference: string;
+  title: string;
+  amountCents: number;
+  paymentUrl: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const amount = (data.amountCents / 100).toFixed(2);
+  const subject = `Pedido ${data.reference} pendiente de pago`;
+
+  const text = `Hola,
+
+Tu pedido ${data.reference} esta pendiente de pago.
+
+Concepto: ${data.title}
+Importe: ${amount} EUR
+
+Puedes completar el pago en: ${data.paymentUrl}
+
+Si ya has realizado el pago, ignora este mensaje.
+
+Gracias,
+Equipo de TraduccionesJuradas.net`;
+
+  const html = `
+    <h2>Pedido pendiente de pago</h2>
+    <p>Tu pedido <strong>${data.reference}</strong> esta pendiente de pago.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
+    </table>
+    <p><a href="${data.paymentUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Completar pago</a></p>
+    <p style="font-size:13px; color:#6b7280;">Si ya has realizado el pago, ignora este mensaje.</p>
+    <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
+  `;
+
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html: wrapClientEmailHtml(html),
   });
 }

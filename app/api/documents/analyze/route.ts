@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, checkGlobalAnalysisCap } from "@/lib/rate-limit";
 import { analyzeDocument, censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
@@ -12,6 +12,15 @@ export const maxDuration = 60; // Allow up to 60s for IA analysis
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
+
+  // Global daily cap: max 200 analyses/day across all users
+  const globalCapOk = await checkGlobalAnalysisCap();
+  if (!globalCapOk) {
+    return NextResponse.json(
+      { ok: false, error: "Servicio temporalmente no disponible. Inténtalo en unos minutos." },
+      { status: 429 }
+    );
+  }
 
   // Rate limit: 15 análisis por IP por día
   const rl = await checkRateLimit({
@@ -98,14 +107,19 @@ export async function POST(req: Request) {
     const fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
     const fileBase64 = fileBuffer.toString("base64");
 
-    // Call Claude API for analysis
+    // Call Claude API for analysis with timeout
     let analysis;
     try {
-      analysis = await analyzeDocument({
-        fileBase64,
-        mimeType: doc.mimeType,
-        fileName: doc.fileName,
-      });
+      analysis = await Promise.race([
+        analyzeDocument({
+          fileBase64,
+          mimeType: doc.mimeType,
+          fileName: doc.fileName,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 25s")), 25000)
+        ),
+      ]);
     } catch (err: any) {
       console.error("[documents/analyze] Claude error:", err.message);
       await prisma.documentAnalysis.update({
