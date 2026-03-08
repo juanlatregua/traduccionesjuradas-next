@@ -28,6 +28,12 @@ function redirectPermanent(req: NextRequest, destination: string) {
 
 export function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
+
+  // Block all ?action= query strings (WP legacy endpoints)
+  if (searchParams.get('action')) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
   const pathLower = normalizedPath.toLowerCase();
 
