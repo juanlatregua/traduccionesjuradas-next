@@ -9,6 +9,7 @@ import OrderFinancePanel from "./OrderFinancePanel";
 import OrderWorkflowPanel from "./OrderWorkflowPanel";
 import OrderDocumentsPanel from "./OrderDocumentsPanel";
 import OrderLifecyclePanel from "./OrderLifecyclePanel";
+import CollaboratorAssignmentPanel from "./CollaboratorAssignmentPanel";
 import CopyField from "./CopyField";
 import type { FinanceSnapshot } from "@/lib/finance";
 import { getWorkflowStateLabel } from "@/lib/workflow";
@@ -89,6 +90,22 @@ type Props = {
     paymentUrl: string;
     statusUrl: string;
   };
+  collaboratorAssignments: Array<{
+    id: string;
+    status: string;
+    collaboratorId: string;
+    quotedPriceCents: number | null;
+    quotedDeadline: string | null;
+    collaboratorNotes: string | null;
+    rejectionReason: string | null;
+    deliveredFileUrl: string | null;
+    deliveredFilename: string | null;
+    deliveredAt: string | null;
+    collaborator: {
+      fullName: string;
+      email: string;
+    };
+  }>;
   canonicalStage: OrderActionStage;
   gates: OrderGates;
   nextBestAction: NextBestAction;
@@ -165,6 +182,7 @@ export default function OrderActionPanel({
   artifacts,
   deliveryNotification,
   trackedLinks,
+  collaboratorAssignments,
   canonicalStage,
   gates,
   nextBestAction,
@@ -494,11 +512,20 @@ export default function OrderActionPanel({
               <OrderWorkflowPanel reference={reference} currentState={workflowState} />
             )}
             {tab === "asignar" && (
-              <AssignOrderForm
-                reference={reference}
-                currentAssignedTo={assignedTo}
-                currentDueDate={dueDate}
-              />
+              <div className="space-y-8">
+                <AssignOrderForm
+                  reference={reference}
+                  currentAssignedTo={assignedTo}
+                  currentDueDate={dueDate}
+                />
+                <div className="border-t border-slate-700/50 pt-6">
+                  <CollaboratorAssignmentPanel
+                    reference={reference}
+                    langPair={langPair}
+                    assignments={collaboratorAssignments}
+                  />
+                </div>
+              </div>
             )}
             {tab === "entrega" && <TranslatorDeliveryForm reference={reference} />}
             {tab === "notificar" && (

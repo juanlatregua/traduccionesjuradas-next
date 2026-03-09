@@ -32,14 +32,14 @@ export type PresupuestoPayload = {
   website?: string;
 };
 
-const NO_CLICK_TRACKING = {
+export const NO_CLICK_TRACKING = {
   clickTracking: { enable: false, enableText: false },
 };
 
 const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
 const BRAND_LOGO_URL = `${BRAND_HOME_URL}/brand/logo-horizontal.svg`;
 
-function wrapClientEmailHtml(content: string) {
+export function wrapClientEmailHtml(content: string) {
   return `
     <div style="background:#f8fafc; padding:24px 12px;">
       <div style="max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:22px;">

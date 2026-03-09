@@ -799,6 +799,22 @@ export default async function ZonaTraductorPage({
               artifacts={order.artifacts}
               deliveryNotification={order.deliveryNotification}
               trackedLinks={order.trackedLinks}
+              collaboratorAssignments={(order.collaboratorAssignments || []).map((a: any) => ({
+                id: a.id,
+                status: a.status,
+                collaboratorId: a.collaboratorId,
+                quotedPriceCents: a.quotedPriceCents,
+                quotedDeadline: a.quotedDeadline ? new Date(a.quotedDeadline).toISOString() : null,
+                collaboratorNotes: a.collaboratorNotes,
+                rejectionReason: a.rejectionReason,
+                deliveredFileUrl: a.deliveredFileUrl,
+                deliveredFilename: a.deliveredFilename,
+                deliveredAt: a.deliveredAt ? new Date(a.deliveredAt).toISOString() : null,
+                collaborator: {
+                  fullName: a.collaborator.fullName,
+                  email: a.collaborator.email,
+                },
+              }))}
               canonicalStage={order.canonicalStage}
               gates={order.gates}
               nextBestAction={order.nextBestAction}

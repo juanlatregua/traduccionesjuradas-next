@@ -138,6 +138,7 @@ model Order {
   billing  BillingData?
   shipping ShippingData?
   documentAnalyses DocumentAnalysis[]
+  collaboratorAssignments CollaboratorAssignment[]
 
   @@index([clientEmail])
   @@index([createdAt])
@@ -472,6 +473,68 @@ model FailedEmail {
   error     String
   attempt   Int
   createdAt DateTime @default(now())
+}
+
+enum CollaboratorSupplierType {
+  AUTONOMO
+  EMPRESA
+}
+
+enum AssignmentStatus {
+  REQUESTED
+  QUOTED
+  ACCEPTED
+  REJECTED
+  DELIVERED
+}
+
+model Collaborator {
+  id           String                   @id @default(cuid())
+  fullName     String
+  email        String                   @unique
+  phone        String?
+  languages    String[]
+  swornNumber  String?
+  nif          String?
+  address      String?
+  companyName  String?
+  supplierType CollaboratorSupplierType @default(AUTONOMO)
+  active       Boolean                  @default(true)
+  notes        String?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  assignments  CollaboratorAssignment[]
+
+  @@index([active])
+}
+
+model CollaboratorAssignment {
+  id                String           @id @default(cuid())
+  orderId           String
+  collaboratorId    String
+  status            AssignmentStatus @default(REQUESTED)
+  accessToken       String           @unique @default(uuid())
+  adminNotes        String?
+  quotedPriceCents  Int?
+  quotedDeadline    DateTime?
+  quotedAt          DateTime?
+  collaboratorNotes String?
+  acceptedAt        DateTime?
+  rejectedAt        DateTime?
+  rejectionReason   String?
+  deliveredFileUrl  String?
+  deliveredFileKey  String?
+  deliveredFilename String?
+  deliveredMimeType String?
+  deliveredAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  order             Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  collaborator      Collaborator     @relation(fields: [collaboratorId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, collaboratorId])
+  @@index([accessToken])
+  @@index([orderId, status])
 }
 
 enum DocAnalysisStatus {
