@@ -512,6 +512,7 @@ export default function OrderActionPanel({
                 statusLink={trackedLinks.statusUrl}
                 deliveryNotifiedAt={deliveryNotification?.sentAt || null}
                 deliveryNotifiedTo={deliveryNotification?.toEmail || null}
+                canonicalStage={canonicalStage}
               />
             )}
             {tab === "finanzas" && (

@@ -286,6 +286,12 @@ Descarga: ${data.downloadUrl}
 Si tienes cualquier duda, responde a este correo.
 `;
 
+  const reviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "";
+  const reviewBlock = reviewUrl
+    ? `<p style="margin-top:18px;">Si estas satisfecho con el servicio, nos ayudaria mucho tu valoracion en Google:</p>
+       <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Dejar valoracion en Google</a></p>`
+    : "";
+
   const html = `
     <h2>Tu traduccion jurada esta lista</h2>
     <p>Referencia: <strong>${data.reference}</strong></p>
@@ -293,6 +299,7 @@ Si tienes cualquier duda, responde a este correo.
     <p><a href="${data.downloadUrl}">${data.downloadUrl}</a></p>
     <p style="font-size:13px; color:#6b7280;">Tambien puedes consultar el estado en <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a>.</p>
     <p>Si necesitas factura o envio en papel, responde a este correo.</p>
+    ${reviewBlock}
   `;
 
   await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
@@ -1123,6 +1130,47 @@ Equipo de TraduccionesJuradas.net`;
     <p><a href="${data.paymentUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Completar pago</a></p>
     <p style="font-size:13px; color:#6b7280;">Si ya has realizado el pago, ignora este mensaje.</p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
+  `;
+
+  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+    to: data.toEmail,
+    from: { email: from, name: "Traducciones Juradas" },
+    subject,
+    text,
+    html: wrapClientEmailHtml(html),
+  });
+}
+
+export async function sendReviewRequestEmail(data: {
+  toEmail: string;
+  reference: string;
+  reviewUrl: string;
+}) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
+
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("Missing SENDGRID_FROM");
+
+  sgMail.setApiKey(apiKey);
+
+  const subject = `Tu opinion nos ayuda (${data.reference})`;
+  const text = `Hola,
+
+Gracias por confiar en TraduccionesJuradas.net para tu traduccion jurada.
+
+Si estas satisfecho con el servicio, nos ayudaria mucho tu valoracion en Google:
+${data.reviewUrl}
+
+Gracias por tu tiempo.
+Equipo de TraduccionesJuradas.net`;
+
+  const html = `
+    <h2>Tu opinion nos ayuda</h2>
+    <p>Gracias por confiar en TraduccionesJuradas.net para tu traduccion jurada.</p>
+    <p>Si estas satisfecho con el servicio, nos ayudaria mucho tu valoracion en Google:</p>
+    <p><a href="${data.reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Dejar valoracion en Google</a></p>
+    <p style="font-size:13px; color:#6b7280;">Gracias por tu tiempo.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
   await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,

@@ -15,6 +15,7 @@ type TranslatorNotifyFormProps = {
   statusLink?: string;
   deliveryNotifiedAt?: string | null;
   deliveryNotifiedTo?: string | null;
+  canonicalStage?: string;
 };
 
 export default function TranslatorNotifyForm({
@@ -27,6 +28,7 @@ export default function TranslatorNotifyForm({
   statusLink,
   deliveryNotifiedAt = null,
   deliveryNotifiedTo = null,
+  canonicalStage,
 }: TranslatorNotifyFormProps) {
   const [clientEmail, setClientEmail] = useState(defaultClientEmail);
   const [downloadUrl, setDownloadUrl] = useState(defaultDownloadUrl);
@@ -69,6 +71,18 @@ export default function TranslatorNotifyForm({
     statusUrl,
   });
 
+  const reviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "";
+  const showReviewButtons = (canonicalStage === "DELIVERED" || canonicalStage === "CLOSED") && reviewUrl;
+  const waReviewMessage = buildNotificationTemplate({
+    key: "wa_review_request",
+    reference,
+    paymentUrl,
+    statusUrl,
+    reviewUrl,
+  });
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+
   async function copyText(text: string, okMessage: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -77,6 +91,26 @@ export default function TranslatorNotifyForm({
       setCopyMessage("No se pudo copiar automaticamente. Copia manualmente el texto.");
     }
   }
+
+  const submitReviewRequest = async () => {
+    setReviewLoading(true);
+    setReviewMessage(null);
+    try {
+      const res = await fetch(`/api/orders/${reference}/review-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "No se pudo enviar.");
+      }
+      setReviewMessage("Solicitud de resena enviada al cliente.");
+    } catch (err: any) {
+      setReviewMessage(err?.message || "Error enviando solicitud de resena.");
+    } finally {
+      setReviewLoading(false);
+    }
+  };
 
   const submit = async () => {
     setLoading(true);
@@ -234,6 +268,34 @@ export default function TranslatorNotifyForm({
           </button>
         </div>
       </div>
+      {showReviewButtons && (
+        <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
+            Solicitud de resena Google
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            Solo visible en pedidos entregados o cerrados.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => copyText(waReviewMessage, "Mensaje de resena copiado.")}
+              className="rounded-lg border border-amber-500/40 px-3 py-2 text-left text-xs font-semibold text-amber-300 hover:bg-amber-500/10"
+            >
+              Copiar mensaje resena
+            </button>
+            <button
+              type="button"
+              onClick={submitReviewRequest}
+              disabled={reviewLoading}
+              className="rounded-lg bg-amber-600 px-3 py-2 text-left text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+            >
+              {reviewLoading ? "Enviando..." : "Enviar solicitud resena"}
+            </button>
+          </div>
+          {reviewMessage && <p className="mt-2 text-xs font-semibold text-slate-200">{reviewMessage}</p>}
+        </div>
+      )}
       {message && <p className="mt-2 text-xs font-semibold text-slate-200">{message}</p>}
       {copyMessage && <p className="mt-2 text-xs font-semibold text-emerald-300">{copyMessage}</p>}
     </div>

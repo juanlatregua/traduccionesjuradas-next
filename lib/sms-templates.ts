@@ -29,3 +29,7 @@ export function smsPagoConfirmado(data: {
 }): string {
   return `TraduccionesJuradas.net: Pago confirmado ${data.ref}. Entrega: ${data.plazo}. Te avisamos cuando este lista.`;
 }
+
+export function smsReviewRequest(data: { url: string }): string {
+  return `TraduccionesJuradas.net: Nos encantaria tu opinion. Dejanos una valoracion en Google: ${data.url}`;
+}

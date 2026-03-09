@@ -2,9 +2,11 @@ export type NotificationTemplateKey =
   | "wa_payment_request"
   | "wa_status_update"
   | "wa_delivery_ready"
+  | "wa_review_request"
   | "email_payment_request"
   | "email_status_update"
-  | "email_delivery_ready";
+  | "email_delivery_ready"
+  | "email_review_request";
 
 type BuildTemplateInput = {
   key: NotificationTemplateKey;
@@ -13,6 +15,7 @@ type BuildTemplateInput = {
   statusUrl: string;
   downloadUrl?: string;
   clientName?: string;
+  reviewUrl?: string;
 };
 
 function safeName(name?: string) {
@@ -40,6 +43,10 @@ export function buildNotificationTemplate(input: BuildTemplateInput) {
       return input.downloadUrl
         ? `Pedido ${input.reference}: traduccion jurada lista para descarga en ${input.downloadUrl}`
         : `Pedido ${input.reference}: traduccion jurada lista. Falta enlace de descarga final.`;
+    case "wa_review_request":
+      return `Hola ${name}, gracias por confiar en nosotros para tu traduccion jurada. Si el servicio te ha sido util, nos ayudaria mucho tu valoracion: ${input.reviewUrl || ""}`;
+    case "email_review_request":
+      return `Hola ${name}, gracias por confiar en TraduccionesJuradas.net. Si estas satisfecho con el servicio, nos ayudaria mucho tu valoracion en Google: ${input.reviewUrl || ""}`;
     default:
       return "";
   }
