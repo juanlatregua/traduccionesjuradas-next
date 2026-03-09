@@ -134,3 +134,35 @@ Estos errores aparecen siempre en `tsc --noEmit` y NO son problemas reales:
 - `@prisma/client` types → ejecutar `prisma generate` para resolverlos
 - `@anthropic-ai/sdk` module not found → types no instalados localmente
 - `@/content` module not found → generado por Velite en build
+
+## PROTOCOLO OBLIGATORIO — Verificación antes de proponer fixes
+
+1. **Siempre ejecutar `bash scripts/project-map.sh`** al inicio de cualquier sesión de audit o fixes. Nunca asumir rutas.
+
+2. **Verificar archivos antes de editarlos:**
+   ```bash
+   find . -path "*/api/*" -name "route.ts" | grep <término>
+   ```
+   Si el archivo no existe donde se supone → buscarlo.
+   Distinguir siempre entre "archivo a modificar" vs "archivo a crear".
+
+3. **Todo prompt de fixes debe incluir una sección "Rutas verificadas"** al inicio, con la lista de archivos confirmados con ✓.
+
+4. **Reglas de stack:**
+   - **UI:** TailwindCSS 3.4 con paleta personalizada (bleu, encre, sepia, cream, parchment). NO se usan CSS modules ni styled-components.
+   - **Almacenamiento de archivos:** Vercel Blob (`@vercel/blob`). NO se usa S3 ni Supabase Storage.
+   - **Auth:** NextAuth 4 con Google OAuth. Acceso staff controlado por `STAFF_EMAILS`. Traductores acceden via OTP (SMS).
+   - **Páginas admin:** Server Components con Prisma directamente (no API routes para lectura). Las acciones usan API routes.
+   - **Email:** SendGrid. NO se usa Resend ni Azure.
+   - **Pagos:** Stripe (principal) + Redsys. PayPal desactivado. Bizum/transferencia manual.
+   - **Deploy:** Vercel auto-deploy desde `main`. Deploy manual con `vercel --prod --yes`.
+   - **Blog:** Velite + MDX, NO CMS externo.
+   - **Base de datos:** Prisma 6 + PostgreSQL (Prisma Postgres en Vercel). NO Drizzle ni Supabase client.
+
+5. **Formato obligatorio de prompts de fixes:**
+   ```
+   ## Rutas verificadas (fecha)
+   ## BLOQUE 1 — ALTA
+   ## BLOQUE 2 — MEDIA
+   ## AL TERMINAR — build + checklist en dev
+   ```
