@@ -101,6 +101,7 @@ type Props = {
     deliveredFileUrl: string | null;
     deliveredFilename: string | null;
     deliveredAt: string | null;
+    adminNotes: string | null;
     collaborator: {
       fullName: string;
       email: string;

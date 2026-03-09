@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { acceptCollaboratorQuote, rejectCollaboratorQuote } from "@/lib/collaborators";
-import { sendAcceptanceToCollaborator } from "@/lib/collaborator-emails";
+import { acceptCollaboratorQuote, rejectCollaboratorQuote, getDocumentsFromOrder } from "@/lib/collaborators";
+import { sendAcceptanceToCollaborator, sendAssignmentToCollaborator, sendRejectionToCollaborator } from "@/lib/collaborator-emails";
 
 export const runtime = "nodejs";
 
 type Params = { params: { reference: string; id: string } };
 
 type ActionBody = {
-  action: "accept" | "reject";
+  action: "accept" | "reject" | "resend-email";
   reason?: string;
 };
 
@@ -21,8 +21,57 @@ export async function POST(req: Request, { params }: Params) {
 
   try {
     const body = (await req.json()) as ActionBody;
-    if (!["accept", "reject"].includes(body.action)) {
-      return NextResponse.json({ ok: false, error: "action debe ser 'accept' o 'reject'." }, { status: 400 });
+    if (!["accept", "reject", "resend-email"].includes(body.action)) {
+      return NextResponse.json({ ok: false, error: "action debe ser 'accept', 'reject' o 'resend-email'." }, { status: 400 });
+    }
+
+    if (body.action === "resend-email") {
+      const assignment = await prisma.collaboratorAssignment.findUnique({
+        where: { id: params.id },
+        include: {
+          collaborator: { select: { fullName: true, email: true } },
+          order: {
+            select: {
+              id: true,
+              reference: true,
+              title: true,
+              langPair: true,
+              events: {
+                where: { type: { in: ["presupuesto.submitted", "order.source_document_uploaded"] } },
+                orderBy: { createdAt: "desc" },
+                take: 20,
+              },
+            },
+          },
+        },
+      });
+      if (!assignment) {
+        return NextResponse.json({ ok: false, error: "Encargo no encontrado." }, { status: 404 });
+      }
+
+      const documents = getDocumentsFromOrder(assignment.order);
+
+      await sendAssignmentToCollaborator({
+        collaboratorName: assignment.collaborator.fullName,
+        collaboratorEmail: assignment.collaborator.email,
+        orderReference: assignment.order.reference,
+        orderTitle: assignment.order.title,
+        langPair: assignment.order.langPair,
+        accessToken: assignment.accessToken,
+        adminNotes: assignment.adminNotes,
+        documents,
+      });
+
+      await prisma.orderEvent.create({
+        data: {
+          orderId: assignment.order.id,
+          type: "collaborator.assignment.email_resent",
+          message: `Email de encargo reenviado a ${assignment.collaborator.fullName} (${assignment.collaborator.email}).`,
+          payload: { assignmentId: assignment.id, actorEmail: staff.email },
+        },
+      });
+
+      return NextResponse.json({ ok: true, message: "Email reenviado." });
     }
 
     if (body.action === "accept") {
@@ -106,6 +155,16 @@ export async function POST(req: Request, { params }: Params) {
 
     // Reject
     const assignment = await rejectCollaboratorQuote(params.id, body.reason);
+
+    // Send rejection email to collaborator
+    sendRejectionToCollaborator({
+      collaboratorName: assignment.collaborator.fullName,
+      collaboratorEmail: assignment.collaborator.email,
+      orderReference: assignment.order.reference,
+      reason: body.reason,
+    }).catch((err) => {
+      console.error("[collaborator-assignment] rejection email failed", err);
+    });
 
     await prisma.orderEvent.create({
       data: {

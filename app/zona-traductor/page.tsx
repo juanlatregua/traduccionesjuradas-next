@@ -810,6 +810,7 @@ export default async function ZonaTraductorPage({
                 deliveredFileUrl: a.deliveredFileUrl,
                 deliveredFilename: a.deliveredFilename,
                 deliveredAt: a.deliveredAt ? new Date(a.deliveredAt).toISOString() : null,
+                adminNotes: a.adminNotes,
                 collaborator: {
                   fullName: a.collaborator.fullName,
                   email: a.collaborator.email,

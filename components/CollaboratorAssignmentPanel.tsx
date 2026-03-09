@@ -22,6 +22,7 @@ type Assignment = {
   deliveredFileUrl: string | null;
   deliveredFilename: string | null;
   deliveredAt: string | null;
+  adminNotes: string | null;
   collaborator: {
     fullName: string;
     email: string;
@@ -126,6 +127,30 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
     }
   }
 
+  async function handleResendEmail(assignmentId: string) {
+    const confirmed = window.confirm("¿Reenviar el email de encargo al colaborador?");
+    if (!confirmed) return;
+    setActionLoading(assignmentId);
+    try {
+      const res = await fetch(`/api/orders/${reference}/collaborator-assignment/${assignmentId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resend-email" }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setError(data.error || "Error al reenviar email.");
+        return;
+      }
+      setError(null);
+      router.refresh();
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   async function handleAction(assignmentId: string, action: "accept" | "reject", reason?: string, priceCents?: number | null) {
     if (action === "accept") {
       const priceLabel = priceCents ? `${(priceCents / 100).toFixed(2)} €` : "precio desconocido";
@@ -183,6 +208,26 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                       {statusInfo.label}
                     </span>
                   </div>
+
+                  {a.adminNotes && (
+                    <div className="mt-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2">
+                      <span className="text-xs font-medium text-slate-400">Notas internas: </span>
+                      <span className="text-xs text-slate-300">{a.adminNotes}</span>
+                    </div>
+                  )}
+
+                  {a.status === "REQUESTED" && (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => handleResendEmail(a.id)}
+                        disabled={actionLoading === a.id}
+                        className="rounded-lg border border-blue-500/40 px-3 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-500/10 disabled:opacity-50"
+                      >
+                        {actionLoading === a.id ? "Reenviando..." : "Reenviar email"}
+                      </button>
+                    </div>
+                  )}
 
                   {a.status === "QUOTED" && a.quotedPriceCents !== null && (
                     <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">

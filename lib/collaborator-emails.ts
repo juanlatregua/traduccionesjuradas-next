@@ -150,6 +150,33 @@ export async function sendAcceptanceToCollaborator(payload: AcceptanceEmailPaylo
   });
 }
 
+type RejectionEmailPayload = {
+  collaboratorName: string;
+  collaboratorEmail: string;
+  orderReference: string;
+  reason?: string | null;
+};
+
+export async function sendRejectionToCollaborator(payload: RejectionEmailPayload) {
+  ensureApiKey();
+  const name = escapeHtml(payload.collaboratorName);
+  const ref = escapeHtml(payload.orderReference);
+  const html = `
+    <p>Hola ${name},</p>
+    <p>Lamentablemente no hemos podido aceptar tu presupuesto para el encargo <strong>${ref}</strong>.</p>
+    ${payload.reason ? `<p>Motivo: ${escapeHtml(payload.reason)}</p>` : ""}
+    <p>Gracias por tu tiempo. Te contactaremos para futuros encargos.</p>
+  `;
+
+  await sgMail.send({
+    to: payload.collaboratorEmail,
+    from: FROM_EMAIL,
+    subject: `Encargo ${payload.orderReference} — Presupuesto no aceptado`,
+    html: wrapClientEmailHtml(html),
+    trackingSettings: NO_CLICK_TRACKING,
+  });
+}
+
 type DeliveryNotificationPayload = {
   collaboratorName: string;
   orderReference: string;

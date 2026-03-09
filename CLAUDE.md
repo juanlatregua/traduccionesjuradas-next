@@ -166,3 +166,8 @@ Estos errores aparecen siempre en `tsc --noEmit` y NO son problemas reales:
    ## BLOQUE 2 — MEDIA
    ## AL TERMINAR — build + checklist en dev
    ```
+
+## Mejoras futuras — Módulo colaboradores
+
+- **Revisión de precio (#24):** Permitir al admin solicitar revisión de precio al colaborador en lugar de solo aceptar/rechazar. Requiere nuevo status `QUOTE_REVISION_REQUESTED` en enum `AssignmentStatus` (migración Prisma), botón en `CollaboratorAssignmentPanel.tsx`, email al colaborador, y que la página `/encargo/[token]` muestre el formulario de presupuesto de nuevo.
+- **Actualización de presupuesto (#25):** Permitir al colaborador modificar su presupuesto mientras esté en status `REQUESTED` o `QUOTE_REVISION_REQUESTED`. Requiere modificar `app/api/encargo/[token]/route.ts` para aceptar acción `quote` cuando el status lo permita, y notificar al admin del presupuesto actualizado.
