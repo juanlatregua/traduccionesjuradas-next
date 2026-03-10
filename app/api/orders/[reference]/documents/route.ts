@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
+import { requireStaffAccess } from "@/lib/staff-auth";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { validateGeneralUploadFile } from "@/lib/file-security";
 import { isBlobConfigured } from "@/lib/payment-config";
@@ -97,9 +98,10 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    const isStaff = !!sessionEmail && isStaffEmail(sessionEmail);
+    const staffAccess = await requireStaffAccess(req);
+    const isStaff = staffAccess.ok;
     const isAuthenticatedOwner = !!sessionEmail && sessionEmail === order.clientEmail.toLowerCase();
-    const isGuestOwner = !sessionEmail && !!clientEmailRaw && clientEmailRaw === order.clientEmail.toLowerCase();
+    const isGuestOwner = !sessionEmail && !isStaff && !!clientEmailRaw && clientEmailRaw === order.clientEmail.toLowerCase();
     if (!isStaff && !isAuthenticatedOwner && !isGuestOwner) {
       return NextResponse.json(
         {
@@ -142,7 +144,7 @@ export async function POST(req: Request, { params }: Params) {
       contentType: detectedMime || file.type || "application/octet-stream",
     });
     const uploadedAt = new Date().toISOString();
-    const uploadedBy = sessionEmail || clientEmailRaw || null;
+    const uploadedBy = (staffAccess.ok ? staffAccess.email : null) || sessionEmail || clientEmailRaw || null;
 
     await prisma.orderEvent.create({
       data: {
