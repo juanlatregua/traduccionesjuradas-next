@@ -4,12 +4,16 @@ import { useState } from "react";
 
 type Props = {
   token: string;
+  defaultPrice?: string;
+  defaultDeadline?: string;
+  defaultNotes?: string;
 };
 
-export default function CollaboratorQuoteForm({ token }: Props) {
-  const [price, setPrice] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [notes, setNotes] = useState("");
+export default function CollaboratorQuoteForm({ token, defaultPrice, defaultDeadline, defaultNotes }: Props) {
+  const isRevision = !!(defaultPrice || defaultDeadline || defaultNotes);
+  const [price, setPrice] = useState(defaultPrice || "");
+  const [deadline, setDeadline] = useState(defaultDeadline || "");
+  const [notes, setNotes] = useState(defaultNotes || "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -68,9 +72,13 @@ export default function CollaboratorQuoteForm({ token }: Props) {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-encre">Enviar presupuesto</h2>
+      <h2 className="text-lg font-semibold text-encre">
+        {isRevision ? "Enviar presupuesto revisado" : "Enviar presupuesto"}
+      </h2>
       <p className="mt-1 text-sm text-sepia">
-        Revisa los documentos e indica tu precio y plazo de entrega.
+        {isRevision
+          ? "Ajusta el precio o plazo y envía tu presupuesto actualizado."
+          : "Revisa los documentos e indica tu precio y plazo de entrega."}
       </p>
 
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">

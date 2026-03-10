@@ -107,6 +107,49 @@ export default async function EncargoPage({ params }: Props) {
             <CollaboratorQuoteForm token={params.token} />
           )}
 
+          {assignment.status === "QUOTE_REVISION_REQUESTED" && (
+            <div>
+              <div className="mb-4 rounded-xl border border-orange-200 bg-orange-50 px-6 py-5">
+                <p className="text-lg font-semibold text-orange-900">
+                  Revisión de presupuesto solicitada
+                </p>
+                {assignment.revisionReason && (
+                  <p className="mt-2 text-sm text-orange-700">
+                    <strong>Comentario:</strong> {assignment.revisionReason}
+                  </p>
+                )}
+                {assignment.quotedPriceCents !== null && (
+                  <p className="mt-2 text-sm text-orange-700">
+                    Tu presupuesto anterior fue de{" "}
+                    <strong>{((assignment.quotedPriceCents || 0) / 100).toFixed(2)} €</strong>
+                    {assignment.quotedDeadline && (
+                      <> con plazo{" "}
+                        <strong>
+                          {new Date(assignment.quotedDeadline).toLocaleDateString("es-ES")}
+                        </strong>
+                      </>
+                    )}
+                    . Por favor, envía un nuevo presupuesto ajustado.
+                  </p>
+                )}
+              </div>
+              <CollaboratorQuoteForm
+                token={params.token}
+                defaultPrice={
+                  assignment.quotedPriceCents
+                    ? ((assignment.quotedPriceCents) / 100).toFixed(2)
+                    : undefined
+                }
+                defaultDeadline={
+                  assignment.quotedDeadline
+                    ? new Date(assignment.quotedDeadline).toISOString().split("T")[0]
+                    : undefined
+                }
+                defaultNotes={assignment.collaboratorNotes || undefined}
+              />
+            </div>
+          )}
+
           {assignment.status === "QUOTED" && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-6 py-5 text-center">
               <p className="text-lg font-semibold text-blue-900">

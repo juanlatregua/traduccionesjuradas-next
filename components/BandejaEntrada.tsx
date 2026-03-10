@@ -67,6 +67,7 @@ export type BandejaOrder = {
     quotedDeadline: string | null;
     collaboratorNotes: string | null;
     rejectionReason: string | null;
+    revisionReason: string | null;
     deliveredFileUrl: string | null;
     deliveredFilename: string | null;
     deliveredAt: string | null;

@@ -88,7 +88,7 @@ export async function submitCollaboratorQuote(
   notes?: string
 ) {
   return prisma.collaboratorAssignment.update({
-    where: { accessToken: token, status: "REQUESTED" },
+    where: { accessToken: token, status: { in: ["REQUESTED", "QUOTE_REVISION_REQUESTED"] } },
     data: {
       status: "QUOTED",
       quotedPriceCents: priceCents,
@@ -99,6 +99,20 @@ export async function submitCollaboratorQuote(
     include: {
       collaborator: { select: { fullName: true, email: true } },
       order: { select: { reference: true, title: true } },
+    },
+  });
+}
+
+export async function requestQuoteRevision(assignmentId: string, reason?: string) {
+  return prisma.collaboratorAssignment.update({
+    where: { id: assignmentId, status: "QUOTED" },
+    data: {
+      status: "QUOTE_REVISION_REQUESTED",
+      revisionReason: reason || null,
+    },
+    include: {
+      collaborator: { select: { fullName: true, email: true } },
+      order: { select: { id: true, reference: true, title: true } },
     },
   });
 }

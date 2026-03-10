@@ -37,6 +37,7 @@ export async function GET(req: Request, { params }: Params) {
       quotedDeadline: assignment.quotedDeadline,
       collaboratorNotes: assignment.collaboratorNotes,
       rejectionReason: assignment.rejectionReason,
+      revisionReason: assignment.revisionReason,
       deliveredFilename: assignment.deliveredFilename,
       deliveredAt: assignment.deliveredAt,
     },
@@ -82,7 +83,7 @@ export async function POST(req: Request, { params }: Params) {
   const body = (await req.json()) as PostBody;
 
   if (body.action === "quote") {
-    if (assignment.status !== "REQUESTED") {
+    if (assignment.status !== "REQUESTED" && assignment.status !== "QUOTE_REVISION_REQUESTED") {
       return NextResponse.json({ ok: false, error: "Este encargo ya no acepta presupuestos." }, { status: 400 });
     }
     if (!body.priceCents || body.priceCents <= 0) {
@@ -171,6 +172,7 @@ export async function POST(req: Request, { params }: Params) {
     // Notify admin
     sendDeliveryNotificationToAdmin({
       collaboratorName: updated.collaborator.fullName,
+      collaboratorEmail: updated.collaborator.email,
       orderReference: updated.order.reference,
       filename: body.filename,
       fileUrl: body.fileUrl,

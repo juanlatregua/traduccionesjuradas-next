@@ -112,6 +112,46 @@ export async function sendQuoteNotificationToAdmin(payload: QuoteNotificationPay
   });
 }
 
+type RevisionRequestPayload = {
+  collaboratorName: string;
+  collaboratorEmail: string;
+  orderReference: string;
+  previousPriceCents: number;
+  reason?: string | null;
+  accessToken: string;
+};
+
+export async function sendRevisionRequestToCollaborator(payload: RevisionRequestPayload) {
+  ensureApiKey();
+  const encargoUrl = `${SITE_BASE_URL}/encargo/${payload.accessToken}`;
+  const priceFormatted = (payload.previousPriceCents / 100).toFixed(2);
+  const name = escapeHtml(payload.collaboratorName);
+  const ref = escapeHtml(payload.orderReference);
+  const html = `
+    <p>Hola ${name},</p>
+    <p>Hemos revisado tu presupuesto para el encargo <strong>${ref}</strong> y necesitamos que lo ajustes.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; color:#64748b;">Precio anterior</td><td style="font-weight:600;">${priceFormatted} €</td></tr>
+    </table>
+    ${payload.reason ? `<p><strong>Comentario:</strong> ${escapeHtml(payload.reason)}</p>` : ""}
+    <p>Por favor, revisa y envía un nuevo presupuesto a través del siguiente enlace:</p>
+    <p style="margin:16px 0;">
+      <a href="${encargoUrl}" style="display:inline-block; background:#d97706; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">
+        Revisar y enviar nuevo presupuesto
+      </a>
+    </p>
+    <p style="color:#94a3b8; font-size:13px;">Este enlace es personal e intransferible.</p>
+  `;
+
+  await sgMail.send({
+    to: payload.collaboratorEmail,
+    from: FROM_EMAIL,
+    subject: `Revisión de presupuesto solicitada (${ref})`,
+    html: wrapClientEmailHtml(html),
+    trackingSettings: NO_CLICK_TRACKING,
+  });
+}
+
 type AcceptanceEmailPayload = {
   collaboratorName: string;
   collaboratorEmail: string;
@@ -179,6 +219,7 @@ export async function sendRejectionToCollaborator(payload: RejectionEmailPayload
 
 type DeliveryNotificationPayload = {
   collaboratorName: string;
+  collaboratorEmail: string;
   orderReference: string;
   filename: string;
   fileUrl: string;
@@ -187,16 +228,24 @@ type DeliveryNotificationPayload = {
 export async function sendDeliveryNotificationToAdmin(payload: DeliveryNotificationPayload) {
   ensureApiKey();
   const name = escapeHtml(payload.collaboratorName);
+  const email = escapeHtml(payload.collaboratorEmail);
   const ref = escapeHtml(payload.orderReference);
   const filename = escapeHtml(payload.filename);
   const fileUrl = sanitizeUrl(payload.fileUrl);
+  const workspaceUrl = `${SITE_BASE_URL}/zona-traductor/workspace/${payload.orderReference}`;
+  const now = new Date().toLocaleString("es-ES", { timeZone: "Europe/Madrid" });
   const html = `
     <p><strong>${name}</strong> ha entregado la traducción del pedido <strong>${ref}</strong>.</p>
     <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; color:#64748b;">Colaborador</td><td>${name} (${email})</td></tr>
       <tr><td style="padding:4px 12px 4px 0; color:#64748b;">Archivo</td><td>${filename}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; color:#64748b;">Fecha</td><td>${now}</td></tr>
     </table>
-    <p>
-      <a href="${fileUrl}" style="display:inline-block; background:#2563eb; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">
+    <p style="margin:16px 0;">
+      <a href="${workspaceUrl}" style="display:inline-block; background:#16a34a; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">
+        Abrir workspace
+      </a>
+      <a href="${fileUrl}" style="display:inline-block; margin-left:8px; background:#2563eb; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">
         Descargar archivo
       </a>
     </p>
@@ -205,7 +254,7 @@ export async function sendDeliveryNotificationToAdmin(payload: DeliveryNotificat
   await sgMail.send({
     to: ADMIN_EMAIL,
     from: FROM_EMAIL,
-    subject: `${name} ha entregado la traducción de ${ref}`,
+    subject: `\u2705 ${name} ha entregado \u2014 ${ref}`,
     html: wrapClientEmailHtml(html),
     trackingSettings: NO_CLICK_TRACKING,
   });

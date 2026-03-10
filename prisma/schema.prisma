@@ -488,6 +488,7 @@ enum CollaboratorSupplierType {
 enum AssignmentStatus {
   REQUESTED
   QUOTED
+  QUOTE_REVISION_REQUESTED
   ACCEPTED
   REJECTED
   DELIVERED
@@ -527,6 +528,7 @@ model CollaboratorAssignment {
   acceptedAt        DateTime?
   rejectedAt        DateTime?
   rejectionReason   String?
+  revisionReason    String?
   deliveredFileUrl  String?
   deliveredFileKey  String?
   deliveredFilename String?

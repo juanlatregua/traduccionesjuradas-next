@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { acceptCollaboratorQuote, rejectCollaboratorQuote, getDocumentsFromOrder } from "@/lib/collaborators";
-import { sendAcceptanceToCollaborator, sendAssignmentToCollaborator, sendRejectionToCollaborator } from "@/lib/collaborator-emails";
+import { acceptCollaboratorQuote, rejectCollaboratorQuote, requestQuoteRevision, getDocumentsFromOrder } from "@/lib/collaborators";
+import { sendAcceptanceToCollaborator, sendAssignmentToCollaborator, sendRejectionToCollaborator, sendRevisionRequestToCollaborator } from "@/lib/collaborator-emails";
 
 export const runtime = "nodejs";
 
 type Params = { params: { reference: string; id: string } };
 
 type ActionBody = {
-  action: "accept" | "reject" | "resend-email";
+  action: "accept" | "reject" | "resend-email" | "request-revision";
   reason?: string;
 };
 
@@ -21,8 +21,8 @@ export async function POST(req: Request, { params }: Params) {
 
   try {
     const body = (await req.json()) as ActionBody;
-    if (!["accept", "reject", "resend-email"].includes(body.action)) {
-      return NextResponse.json({ ok: false, error: "action debe ser 'accept', 'reject' o 'resend-email'." }, { status: 400 });
+    if (!["accept", "reject", "resend-email", "request-revision"].includes(body.action)) {
+      return NextResponse.json({ ok: false, error: "action debe ser 'accept', 'reject', 'resend-email' o 'request-revision'." }, { status: 400 });
     }
 
     if (body.action === "resend-email") {
@@ -72,6 +72,36 @@ export async function POST(req: Request, { params }: Params) {
       });
 
       return NextResponse.json({ ok: true, message: "Email reenviado." });
+    }
+
+    if (body.action === "request-revision") {
+      const assignment = await requestQuoteRevision(params.id, body.reason);
+
+      sendRevisionRequestToCollaborator({
+        collaboratorName: assignment.collaborator.fullName,
+        collaboratorEmail: assignment.collaborator.email,
+        orderReference: assignment.order.reference,
+        previousPriceCents: assignment.quotedPriceCents || 0,
+        reason: body.reason,
+        accessToken: assignment.accessToken,
+      }).catch((err) => {
+        console.error("[collaborator-assignment] revision request email failed", err);
+      });
+
+      await prisma.orderEvent.create({
+        data: {
+          orderId: assignment.order.id,
+          type: "collaborator.quote.revision_requested",
+          message: `Revisión de presupuesto solicitada a ${assignment.collaborator.fullName}.`,
+          payload: {
+            assignmentId: assignment.id,
+            reason: body.reason || null,
+            actorEmail: staff.email,
+          },
+        },
+      });
+
+      return NextResponse.json({ ok: true, assignment });
     }
 
     if (body.action === "accept") {
