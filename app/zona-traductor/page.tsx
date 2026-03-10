@@ -17,6 +17,9 @@ import { getTrackedConsultaUrl, getTrackedPresupuestoUrl } from "@/lib/contact";
 import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
 import PMQuickCreatePanel from "@/components/PMQuickCreatePanel";
 import EstimationAccuracyCard from "@/components/EstimationAccuracyCard";
+import ZonaTraductorNav from "@/components/ZonaTraductorNav";
+import BandejaEntrada from "@/components/BandejaEntrada";
+import type { BandejaOrder } from "@/components/BandejaEntrada";
 import {
   buildOrderTrackedLinks,
   getDeliveryArtifactUrl,
@@ -24,6 +27,7 @@ import {
   getOrderActionStage,
   getOrderGates,
 } from "@/lib/order-actions";
+import { isDueSoon, isOverdue } from "@/lib/order-utils";
 
 export const metadata: Metadata = {
   title: "Zona traductor",
@@ -43,17 +47,6 @@ function formatDate(date: Date | null) {
   return new Date(date).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
-function isDueSoon(dueDate: Date | null) {
-  if (!dueDate) return false;
-  const now = new Date();
-  const diff = new Date(dueDate).getTime() - now.getTime();
-  return diff > 0 && diff < 2 * 24 * 60 * 60 * 1000;
-}
-
-function isOverdue(dueDate: Date | null) {
-  if (!dueDate) return false;
-  return new Date(dueDate).getTime() < Date.now();
-}
 
 function getAcquisitionSource(order: any): "WHATSAPP" | "WEB" {
   const events = order.events || [];
@@ -434,6 +427,7 @@ export default async function ZonaTraductorPage({
   searchParams,
 }: {
   searchParams: {
+    modo?: string;
     filtro?: string;
     q?: string;
     periodo?: string;
@@ -459,6 +453,8 @@ export default async function ZonaTraductorPage({
   if (!email) {
     redirect("/zona-traductor/verificar");
   }
+
+  const modo: "bandeja" | "control" = searchParams.modo === "control" ? "control" : "bandeja";
 
   const allOrders = await getAllOrdersForStaff();
   const allOrdersWithFinance = allOrders.map((o) => {
@@ -576,8 +572,84 @@ export default async function ZonaTraductorPage({
     )
     .slice(0, 6);
 
+  // Bandeja: compute actionable count and order data
+  const allActiveOrders = allOrdersWithFinance.filter((o) => !o.isArchived);
+  const pedidosAccionables = allActiveOrders.filter(
+    (o) =>
+      (o.paymentStatus === "PAID" && o.deliveryState !== "TRADUCIDO") ||
+      isOverdue(o.dueDate) ||
+      isDueSoon(o.dueDate)
+  ).length;
+
+  function toBandejaOrder(order: typeof allOrdersWithFinance[number]): BandejaOrder {
+    return {
+      reference: order.reference,
+      clientName: order.clientName,
+      clientEmail: order.clientEmail,
+      title: order.title,
+      langPair: order.langPair,
+      paymentStatus: order.paymentStatus,
+      deliveryState: order.deliveryState,
+      workflowState: order.workflowState,
+      isArchived: Boolean(order.isArchived),
+      acquisitionSource: order.acquisitionSource,
+      assignedTo: order.assignedTo,
+      dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null,
+      amountCents: order.amountCents,
+      paymentProofs: getPaymentProofs(order),
+      documents: getSubmittedDocuments(order),
+      quoteDraft: getQuoteDraft(order),
+      quoteAuditTrail: getQuoteAuditTrail(order),
+      financeSnapshot: order.financeSnapshot,
+      artifacts: order.artifacts,
+      deliveryNotification: order.deliveryNotification,
+      trackedLinks: order.trackedLinks,
+      collaboratorAssignments: (order.collaboratorAssignments || []).map((a: any) => ({
+        id: a.id,
+        status: a.status,
+        collaboratorId: a.collaboratorId,
+        quotedPriceCents: a.quotedPriceCents,
+        quotedDeadline: a.quotedDeadline ? new Date(a.quotedDeadline).toISOString() : null,
+        collaboratorNotes: a.collaboratorNotes,
+        rejectionReason: a.rejectionReason,
+        deliveredFileUrl: a.deliveredFileUrl,
+        deliveredFilename: a.deliveredFilename,
+        deliveredAt: a.deliveredAt ? new Date(a.deliveredAt).toISOString() : null,
+        adminNotes: a.adminNotes,
+        collaborator: {
+          fullName: a.collaborator.fullName,
+          email: a.collaborator.email,
+        },
+      })),
+      draftFileUrl: order.draftFileUrl,
+      draftFilename: order.draftFilename,
+      draftGeneratedAt: order.draftGeneratedAt ? new Date(order.draftGeneratedAt).toISOString() : null,
+      canonicalStage: order.canonicalStage,
+      gates: order.gates,
+      nextBestAction: order.nextBestAction,
+      overdue: isOverdue(order.dueDate),
+      dueSoon: isDueSoon(order.dueDate),
+    };
+  }
+
+  const bandejaOrders = allActiveOrders.map(toBandejaOrder);
+
+  // Bandeja mode
+  if (modo === "bandeja") {
+    return (
+      <div id="zona-traductor-root" className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800">
+        <ZonaTraductorNav modoActivo="bandeja" pedidosAccionables={pedidosAccionables} />
+        <AutoRefresh intervalMs={20000} idleMs={30000} />
+        <BandejaEntrada orders={bandejaOrders} staffEmail={email} />
+      </div>
+    );
+  }
+
+  // Control mode
   return (
-    <main id="zona-traductor-root" className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-10">
+    <div id="zona-traductor-root" className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800">
+      <ZonaTraductorNav modoActivo="control" pedidosAccionables={pedidosAccionables} />
+    <main className="px-4 py-10">
       <AutoRefresh intervalMs={20000} idleMs={30000} />
       <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Zona traductor</p>
@@ -858,5 +930,6 @@ export default async function ZonaTraductorPage({
         )}
       </section>
     </main>
+    </div>
   );
 }

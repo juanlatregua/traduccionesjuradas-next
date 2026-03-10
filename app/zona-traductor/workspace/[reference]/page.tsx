@@ -102,7 +102,7 @@ export default async function WorkspacePage({ params }: Params) {
         <div className="flex items-start justify-between">
           <div>
             <a
-              href="/zona-traductor"
+              href="/zona-traductor?modo=bandeja"
               className="text-xs font-semibold text-cyan-400 hover:underline"
             >
               ← Volver a zona traductor

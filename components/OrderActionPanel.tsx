@@ -11,6 +11,7 @@ import OrderDocumentsPanel from "./OrderDocumentsPanel";
 import OrderLifecyclePanel from "./OrderLifecyclePanel";
 import CollaboratorAssignmentPanel from "./CollaboratorAssignmentPanel";
 import DraftGeneratorButton from "./DraftGeneratorButton";
+import ConfirmPaymentButton from "./ConfirmPaymentButton";
 import CopyField from "./CopyField";
 import type { FinanceSnapshot } from "@/lib/finance";
 import { getWorkflowStateLabel } from "@/lib/workflow";
@@ -114,6 +115,9 @@ type Props = {
   canonicalStage: OrderActionStage;
   gates: OrderGates;
   nextBestAction: NextBestAction;
+  variant?: "default" | "card";
+  isOverdue?: boolean;
+  isDueSoon?: boolean;
 };
 
 function PaymentBadge({ status }: { status: string }) {
@@ -194,6 +198,9 @@ export default function OrderActionPanel({
   canonicalStage,
   gates,
   nextBestAction,
+  variant = "default",
+  isOverdue: overdue = false,
+  isDueSoon: dueSoon = false,
 }: Props) {
   const router = useRouter();
   const lastRefreshedTab = useRef<string | null>(null);
@@ -267,6 +274,197 @@ export default function OrderActionPanel({
     router.refresh();
   }, [open, tab, router]);
 
+  const showWorkspaceLink = paymentStatus === "PAID" || deliveryState === "EN_PROCESO";
+  const nbaIsWorkspace = nextBestAction.tab === "entrega" && showWorkspaceLink;
+  const borderColor = overdue
+    ? "border-l-4 border-l-red-500"
+    : dueSoon
+      ? "border-l-4 border-l-amber-500"
+      : deliveryState === "EN_PROCESO"
+        ? "border-l-4 border-l-blue-500"
+        : "";
+
+  if (variant === "card") {
+    return (
+      <div className={`rounded-2xl border border-slate-700 bg-slate-900/80 overflow-hidden ${borderColor} ${open ? "" : "hover:border-slate-600 hover:bg-slate-800/50 transition-colors"}`}>
+        {/* Card header */}
+        <div
+          className="cursor-pointer px-5 py-4"
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("a, button")) return;
+            setOpen(!open);
+          }}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-sm font-bold text-cyan-300">{reference}</span>
+            {langPair && <span className="text-xs text-slate-500">{langPair}</span>}
+            <PaymentBadge status={paymentStatus} />
+            <DeliveryBadge state={deliveryState} />
+          </div>
+          <p className="mt-1 truncate text-sm text-slate-300">{title}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+            <span>{clientEmail}</span>
+            <span className="font-medium text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span>
+            {dueDate && (
+              <span className={overdue ? "font-semibold text-red-400" : dueSoon ? "font-semibold text-amber-400" : ""}>
+                Entrega: {new Date(dueDate).toLocaleDateString("es-ES")}
+                {overdue && " (vencido)"}
+              </span>
+            )}
+            {assignedTo && <span className="text-amber-300/80">→ {assignedTo}</span>}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {showWorkspaceLink && (
+              <a
+                href={`/zona-traductor/workspace/${reference}`}
+                className="rounded-lg border border-indigo-500/40 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Workspace
+              </a>
+            )}
+            {!nbaIsWorkspace && nextBestAction.tab === "presupuesto" && (
+              <a
+                href={quickQuoteHref}
+                className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {nextBestAction.label}
+              </a>
+            )}
+            {!nbaIsWorkspace && nextBestAction.tab === "workflow" && paymentStatus === "PENDING" && (
+              <span onClick={(e) => e.stopPropagation()}>
+                <ConfirmPaymentButton reference={reference} />
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+              className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
+            >
+              {open ? "Ocultar" : "Ver detalle"}
+            </button>
+          </div>
+        </div>
+
+        {/* Expanded panel */}
+        {open && (
+          <div className="border-t border-slate-700">
+            {/* Reuse same expanded content as default variant */}
+            <div className="border-b border-slate-700/50 bg-slate-800/30 px-5 py-4">
+              <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
+                <p>Cliente: <span className="font-semibold text-slate-100">{clientEmail}</span></p>
+                <p>Referencia: <span className="font-mono font-semibold text-cyan-300">{reference}</span></p>
+                <p>Importe: <span className="font-semibold text-slate-100">{(amountCents / 100).toFixed(2)} EUR</span></p>
+                <p>Workflow: <span className="font-semibold text-slate-100">{getWorkflowStateLabel(workflowState)}</span></p>
+                <p>Canal: <span className="font-semibold text-slate-100">{acquisitionSource === "WHATSAPP" ? "WhatsApp" : "Web"}</span></p>
+                <p>Entrega prevista: <span className="font-semibold text-slate-100">{dueDate ? new Date(dueDate).toLocaleDateString("es-ES") : "—"}</span></p>
+                <p>Stage canonico: <StageBadge stage={canonicalStage} /></p>
+                <p>Conciliacion: <span className={["MATCHED", "RECONCILED"].includes(financeSnapshot.reconciliationStatus) ? "font-semibold text-emerald-300" : "font-semibold text-amber-300"}>{financeSnapshot.reconciliationStatus}</span></p>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <CopyField label="Referencia" value={reference} />
+                <CopyField label="Email cliente" value={clientEmail} mono={false} />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap border-b border-slate-700/50">
+              {tabs.map((t) => {
+                const isRecommended = t.key === nextBestAction.tab && tab !== t.key;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setTab(t.key)}
+                    className={`px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition-colors ${
+                      tab === t.key
+                        ? `${t.color} border-b-2 border-current bg-slate-800/40`
+                        : isRecommended
+                          ? "text-emerald-400 animate-pulse hover:text-emerald-300"
+                          : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    {t.label}
+                    {isRecommended && <span className="ml-1 text-[9px]">●</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="p-5">
+              {tab === "presupuesto" && (
+                <OrderDocumentsPanel reference={reference} workflowState={workflowState} amountCents={amountCents} documents={documents} quoteDraft={quoteDraft || null} quoteAuditTrail={quoteAuditTrail || []} />
+              )}
+              {tab === "documentos" && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">Documentos del cliente</p>
+                  {documents.length === 0 ? (
+                    <p className="text-sm text-slate-400">No hay documentos guardados en este pedido.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {documents.map((doc, idx) => (
+                        <li key={`${doc.name}-${idx}`} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-200">
+                          <p className="font-semibold text-slate-100">{doc.name}</p>
+                          <p className="text-xs text-slate-400">{doc.type || "application/octet-stream"}</p>
+                          {doc.url ? (
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10">Abrir documento</a>
+                          ) : (
+                            <p className="mt-2 text-xs text-slate-500">Sin URL registrada.</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {tab === "comprobante" && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Comprobante de pago</p>
+                  {paymentProofs.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-400">Aun no se ha subido comprobante.</p>
+                  ) : (
+                    <ul className="mt-3 space-y-2">
+                      {paymentProofs.map((proof, idx) => (
+                        <li key={`${proof.fileUrl}-${idx}`} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-200">
+                          <p className="font-semibold text-slate-100">{proof.fileName || "Comprobante"}</p>
+                          {proof.uploadedAt && <p className="text-xs text-slate-400">Subido: {new Date(proof.uploadedAt).toLocaleString("es-ES")}</p>}
+                          <a href={proof.fileUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10">Abrir comprobante</a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {tab === "workflow" && <OrderWorkflowPanel reference={reference} currentState={workflowState} />}
+              {tab === "asignar" && (
+                <div className="space-y-8">
+                  <AssignOrderForm reference={reference} currentAssignedTo={assignedTo} currentDueDate={dueDate} />
+                  <div className="border-t border-slate-700/50 pt-6">
+                    <CollaboratorAssignmentPanel reference={reference} langPair={langPair} assignments={collaboratorAssignments} />
+                  </div>
+                </div>
+              )}
+              {tab === "entrega" && (
+                <div className="space-y-6">
+                  {(paymentStatus === "PAID" || deliveryState === "EN_PROCESO" || draftFileUrl) && (
+                    <DraftGeneratorButton orderReference={reference} documents={documents} langPair={langPair} existingDraftUrl={draftFileUrl} existingDraftFilename={draftFilename} existingDraftGeneratedAt={draftGeneratedAt} />
+                  )}
+                  <TranslatorDeliveryForm reference={reference} />
+                </div>
+              )}
+              {tab === "notificar" && (
+                <TranslatorNotifyForm reference={reference} defaultClientEmail={clientEmail} acquisitionSource={acquisitionSource} defaultDownloadUrl={finalDownloadUrl || undefined} quotePreviewUrl={String(artifacts.quotePreviewFileUrl || "") || undefined} paymentLink={trackedLinks.paymentUrl} statusLink={trackedLinks.statusUrl} deliveryNotifiedAt={deliveryNotification?.sentAt || null} deliveryNotifiedTo={deliveryNotification?.toEmail || null} canonicalStage={canonicalStage} />
+              )}
+              {tab === "finanzas" && <OrderFinancePanel reference={reference} amountCents={amountCents} snapshot={financeSnapshot} />}
+              {tab === "control" && <OrderLifecyclePanel reference={reference} isArchived={isArchived} canonicalStage={canonicalStage} gates={gates} canClose={canClose} />}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // variant === "default" — original behavior
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/90 overflow-hidden">
       {/* Header - clickable to expand */}
