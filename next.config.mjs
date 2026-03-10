@@ -64,6 +64,23 @@ const nextConfig = {
         destination: "/traductor-jurado-frances",
         permanent: true,
       },
+      // Trailing-slash canonical for best-performing page
+      {
+        source: "/traducciones-juradas-baratas",
+        destination: "/traducciones-juradas-baratas/",
+        permanent: true,
+      },
+      // Removed city pages → home
+      { source: '/traductor-jurado/tenerife', destination: '/', permanent: true },
+      { source: '/traductor-jurado/zaragoza', destination: '/', permanent: true },
+      { source: '/traductor-jurado/figueres', destination: '/', permanent: true },
+      { source: '/traductor-jurado/cartagena', destination: '/', permanent: true },
+      { source: '/traductor-jurado/albacete', destination: '/', permanent: true },
+      { source: '/traductor-jurado/pamplona', destination: '/', permanent: true },
+      { source: '/traductor-jurado/denia', destination: '/', permanent: true },
+      { source: '/traductor-jurado/altea', destination: '/', permanent: true },
+      { source: '/traductor-jurado-japones', destination: '/', permanent: true },
+      { source: '/traductor-jurado-japones/', destination: '/', permanent: true },
       {
         source: "/contacto/page/:page(\\d+)",
         destination: "/contacto",
@@ -219,16 +236,6 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/traduccion-jurada-antecedentes-penales",
-        destination: "/documentos-oficiales/antecedentes-penales",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-antecedentes-penales/",
-        destination: "/documentos-oficiales/antecedentes-penales",
-        permanent: true,
-      },
-      {
         source: "/traduccion-jurada-de-certificado-empadronamiento",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -240,16 +247,6 @@ const nextConfig = {
       },
       {
         source: "/traduccion-jurada-de-certificado-840",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-de-escritura-notarial",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-de-escritura-notarial/",
         destination: "/documentos-oficiales",
         permanent: true,
       },
@@ -269,16 +266,6 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/traduccion-jurada-de-estatutos-sociales",
-        destination: "/documentos-oficiales/documentos-mercantiles",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-de-estatutos-sociales/",
-        destination: "/documentos-oficiales/documentos-mercantiles",
-        permanent: true,
-      },
-      {
         source: "/traduccion-jurada-certificado-matrimonio/",
         destination: "/documentos-oficiales",
         permanent: true,
@@ -286,26 +273,6 @@ const nextConfig = {
       {
         source: "/traduccion-jurada-certificado-matrimonio",
         destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-permiso-de-conducir",
-        destination: "/documentos-oficiales/documentos-laborales",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-permiso-de-conducir/",
-        destination: "/documentos-oficiales/documentos-laborales",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-de-certificado-de-seguridad-social",
-        destination: "/documentos-oficiales/documentos-laborales",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-de-certificado-de-seguridad-social/",
-        destination: "/documentos-oficiales/documentos-laborales",
         permanent: true,
       },
       {
@@ -381,16 +348,6 @@ const nextConfig = {
       {
         source: "/traduccion-jurada-de-licencia-de-conducir/",
         destination: "/documentos-oficiales/documentos-laborales",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-sentencia-judicial",
-        destination: "/documentos-oficiales/documentos-juridicos",
-        permanent: true,
-      },
-      {
-        source: "/traduccion-jurada-sentencia-judicial/",
-        destination: "/documentos-oficiales/documentos-juridicos",
         permanent: true,
       },
       {

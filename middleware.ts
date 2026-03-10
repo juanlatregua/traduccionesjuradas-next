@@ -74,11 +74,18 @@ export function middleware(req: NextRequest) {
     "/traduccion-jurada-frances-malaga",
     "/traducciones-juradas-baratas",
     "/traductores-jurados",
+    "/traduccion-jurada-permiso-de-conducir",
+    "/traduccion-jurada-antecedentes-penales",
+    "/traduccion-jurada-sentencia-judicial",
+    "/traduccion-jurada-de-escritura-notarial",
+    "/traduccion-jurada-de-estatutos-sociales",
+    "/traduccion-jurada-de-certificado-de-seguridad-social",
   ]);
   const isLanguagePillar = VALID_LEGACY_PATHS.has(pathLower);
   const isFrenchPillar = pathLower === "/traductor-jurado-frances";
   const isFrenchLegacy =
     !isFrenchPillar &&
+    !isLanguagePillar &&
     pathLower.includes("frances") &&
     !pathLower.startsWith("/api/") &&
     !pathLower.startsWith("/_next/");

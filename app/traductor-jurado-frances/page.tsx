@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title: "Traductor jurado de francés oficial | Precio y entrega 24-72h",
+  title: "Traductor Jurado de Franc\u00E9s \u00B7 Oficial MAEC n\u00BA 3850 \u00B7 Franc\u00E9s\u2194Espa\u00F1ol",
   description:
-    "Traducción jurada de francés para extranjería, estudios, notaría y empresa. Traductor jurado acreditado por MAEC, presupuesto cerrado y entrega online en PDF firmado.",
+    "Traductor jurado de franc\u00E9s oficial (MAEC n\u00BA 3850). Traducci\u00F3n jurada franc\u00E9s-espa\u00F1ol y espa\u00F1ol-franc\u00E9s. Documentos legales, antecedentes penales, t\u00EDtulos acad\u00E9micos. Desde 35\u20AC.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
   },

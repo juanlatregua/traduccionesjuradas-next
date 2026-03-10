@@ -158,34 +158,6 @@ export const CIUDADES: Ciudad[] = [
     ],
   },
 
-  {
-    slug: "zaragoza",
-    nombre: "Zaragoza",
-    provincia: "Zaragoza",
-    comunidad: "Aragón",
-    poblacion: 670000,
-    tieneConsulado: true,
-    consuladoFrances: {
-      direccion: "C/ Paseo de la Independencia 12, 50001 Zaragoza",
-      telefono: "+34 976 235 740",
-      web: "https://zaragoza.consulfrance.org",
-    },
-    registroCivil: {
-      nombre: "Registro Civil de Zaragoza",
-      direccion: "C/ Don Jaime I 18, 50003 Zaragoza",
-    },
-    datosUnicos: [
-      "Zaragoza es un polo logístico estratégico con empresas francesas como Stellantis (antigua Opel-PSA) que emplean a miles de trabajadores y generan documentación laboral bilingüe franco-española.",
-      "La proximidad de Zaragoza a la frontera francesa la convierte en punto de paso clave para empresas de transporte y logística que necesitan documentación aduanera y mercantil traducida.",
-      "La Universidad de Zaragoza tiene convenios activos con universidades de Toulouse, Pau y Burdeos, lo que genera una demanda sostenida de traducciones de títulos y expedientes académicos.",
-      "Zaragoza cuenta con una comunidad francesa estable vinculada al sector automovilístico e industrial, que precisa traducciones para trámites de residencia, contratos laborales y documentos familiares.",
-    ],
-    documentosMasFrecuentes: [
-      "Documentos laborales del sector automovilístico y logístico",
-      "Certificados académicos para convenios con universidades francesas",
-      "Documentos mercantiles para empresas de transporte transfronterizo",
-    ],
-  },
 
   {
     slug: "malaga",
@@ -425,22 +397,6 @@ export const CIUDADES: Ciudad[] = [
     ],
   },
 
-  {
-    slug: "tenerife",
-    nombre: "Santa Cruz de Tenerife",
-    provincia: "Santa Cruz de Tenerife",
-    comunidad: "Canarias",
-    poblacion: 220000,
-    datosUnicos: [
-      "Tenerife atrae a residentes franceses y belgas que se establecen en la isla por su clima y régimen fiscal favorable, generando demanda de traducciones de documentos de residencia y fiscalidad.",
-      "El sector turístico de Tenerife, con importante presencia de turoperadores franceses, necesita traducciones de contratos mercantiles, acuerdos hoteleros y documentación laboral.",
-    ],
-    documentosMasFrecuentes: [
-      "Documentos de residencia fiscal para ciudadanos franceses",
-      "Contratos inmobiliarios para compradores francófonos",
-      "Certificados de pensión y Seguridad Social extranjera",
-    ],
-  },
 
   {
     slug: "a-coruna",
@@ -493,22 +449,6 @@ export const CIUDADES: Ciudad[] = [
     ],
   },
 
-  {
-    slug: "pamplona",
-    nombre: "Pamplona",
-    provincia: "Navarra",
-    comunidad: "Navarra",
-    poblacion: 200000,
-    datosUnicos: [
-      "Pamplona tiene una vinculación histórica y económica con el sur de Francia — Aquitania y Occitania — que genera un flujo constante de documentación bilingüe para empresas y familias transfronterizas.",
-      "El sector automovilístico navarro, con Volkswagen Navarra, y las empresas del sector eólico con presencia francesa necesitan traducciones de documentación técnica y contratos.",
-    ],
-    documentosMasFrecuentes: [
-      "Documentos para empresas transfronterizas franco-navarras",
-      "Contratos laborales del sector industrial y automovilístico",
-      "Certificados de estado civil para familias con vínculos con Francia",
-    ],
-  },
 
   {
     slug: "santander",
@@ -562,22 +502,6 @@ export const CIUDADES: Ciudad[] = [
     ],
   },
 
-  {
-    slug: "albacete",
-    nombre: "Albacete",
-    provincia: "Albacete",
-    comunidad: "Castilla-La Mancha",
-    poblacion: 172000,
-    datosUnicos: [
-      "Albacete concentra trámites de extranjería para Castilla-La Mancha, con una importante comunidad de origen magrebí que necesita traducciones juradas de documentos francófonos.",
-      "El sector cuchillero de Albacete exporta a Francia, generando demanda de traducciones de certificaciones de producto, contratos comerciales y documentación aduanera.",
-    ],
-    documentosMasFrecuentes: [
-      "Documentos de registro civil para ciudadanos magrebíes",
-      "Certificaciones de producto para exportación",
-      "Documentos de extranjería y reagrupación familiar",
-    ],
-  },
 
   {
     slug: "castellon",
@@ -838,39 +762,7 @@ export const CIUDADES: Ciudad[] = [
     ],
   },
 
-  {
-    slug: "denia",
-    nombre: "Dénia",
-    provincia: "Alicante",
-    comunidad: "Comunidad Valenciana",
-    poblacion: 42000,
-    datosUnicos: [
-      "Dénia conecta con Ibiza y Baleares por ferry y tiene una importante comunidad de residentes franceses en la Marina Alta que necesitan traducciones para trámites de residencia, sanidad y fiscalidad.",
-      "El sector gastronómico de Dénia, Ciudad Creativa de la Gastronomía por la UNESCO, atrae a profesionales franceses de la restauración que necesitan documentación laboral traducida.",
-    ],
-    documentosMasFrecuentes: [
-      "Documentos de residencia para ciudadanos franceses",
-      "Contratos laborales del sector hostelero",
-      "Escrituras y documentos inmobiliarios",
-    ],
-  },
 
-  {
-    slug: "altea",
-    nombre: "Altea",
-    provincia: "Alicante",
-    comunidad: "Comunidad Valenciana",
-    poblacion: 22000,
-    datosUnicos: [
-      "Altea tiene una comunidad consolidada de residentes franceses y belgas atraídos por su casco antiguo y estilo de vida mediterráneo, que necesitan traducciones de documentos de residencia y propiedad.",
-      "La Facultad de Bellas Artes de Altea (UMH) recibe a artistas y profesores francófonos que necesitan traducciones de títulos y certificaciones profesionales.",
-    ],
-    documentosMasFrecuentes: [
-      "Escrituras de compraventa para residentes francófonos",
-      "Documentos de empadronamiento y residencia",
-      "Certificados académicos y profesionales artísticos",
-    ],
-  },
 
   {
     slug: "elche",
@@ -889,39 +781,6 @@ export const CIUDADES: Ciudad[] = [
     ],
   },
 
-  {
-    slug: "cartagena",
-    nombre: "Cartagena",
-    provincia: "Murcia",
-    comunidad: "Región de Murcia",
-    poblacion: 215000,
-    datosUnicos: [
-      "Cartagena tiene una base naval y un sector industrial con presencia de empresas francesas del sector de la defensa y la energía que requieren traducciones de documentación técnica.",
-      "El puerto de Cartagena gestiona tráfico comercial con puertos franceses del Mediterráneo, generando necesidad de traducciones de documentación aduanera y certificados marítimos.",
-    ],
-    documentosMasFrecuentes: [
-      "Documentos técnicos del sector industrial y de defensa",
-      "Certificados marítimos y documentación aduanera",
-      "Documentos de extranjería para trabajadores magrebíes",
-    ],
-  },
-
-  {
-    slug: "figueres",
-    nombre: "Figueres",
-    provincia: "Girona",
-    comunidad: "Cataluña",
-    poblacion: 46000,
-    datosUnicos: [
-      "Figueres está a 25 kilómetros de la frontera francesa y es paso obligado para miles de familias y empresas transfronterizas que necesitan documentos bilingües francés-español-catalán.",
-      "La proximidad de Figueres a Perpiñán y la Cataluña Norte francesa genera un flujo constante de documentos civiles, notariales y mercantiles que requieren traducción jurada.",
-    ],
-    documentosMasFrecuentes: [
-      "Documentos de estado civil para familias transfronterizas",
-      "Documentos notariales para herencias y propiedades",
-      "Contratos mercantiles para empresas franco-catalanas",
-    ],
-  },
 
   {
     slug: "terrassa",

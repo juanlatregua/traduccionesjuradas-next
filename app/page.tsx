@@ -81,9 +81,9 @@ const REVIEWS = [
 ];
 
 export const metadata: Metadata = {
-  title: "Traducción jurada oficial en España | Traductores jurados online",
+  title: "Traductor Jurado Oficial MAEC n\u00BA 3850 \u00B7 Franc\u00E9s, Ingl\u00E9s, Alem\u00E1n \u00B7 Desde 35\u20AC",
   description:
-    "Traducciones juradas realizadas por traductores jurados oficiales. Sube tu documento, recibe precio cerrado al instante y paga online. Entrega en PDF firmado digitalmente.",
+    "Traducciones juradas online por traductor jurado oficial MAEC. Franc\u00E9s, ingl\u00E9s, alem\u00E1n y 7 idiomas m\u00E1s. Presupuesto gratis en minutos, entrega en 24h. Desde 35\u20AC.",
   alternates: { canonical: "https://www.traduccionesjuradas.net" },
 };
 

@@ -4,9 +4,9 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 
 export const metadata: Metadata = {
-  title: "Traducción jurada online desde 40-75 € | PDF firmado en 24-72h",
+  title: "Traducci\u00F3n Jurada Online \u00B7 Traductor Jurado Oficial \u00B7 Entrega 24h",
   description:
-    "Adjunta tu documento y recibe la traducción jurada online en PDF firmado. Precios orientativos desde 40-75 € y respuesta en <30 minutos en horario. Entrega 24-72h según idioma.",
+    "Traducciones juradas online por traductor jurado oficial MAEC n\u00BA 3850. Sube tu documento, recibe presupuesto gratis al instante. PDF firmado en 24h. Desde 35\u20AC.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/traduccion-jurada-online" },
 };
 

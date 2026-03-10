@@ -3,9 +3,9 @@ import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
-  title: "Traducción jurada de francés en Málaga | Servicio local oficial",
+  title: "Traducci\u00F3n Jurada en M\u00E1laga \u00B7 Traductor Jurado Oficial \u00B7 Desde 35\u20AC",
   description:
-    "Servicio local de traducción jurada de francés en Málaga para trámites oficiales. Gestión online, validez legal y plazos habituales de 24-72h según documento.",
+    "Traductor jurado en M\u00E1laga acreditado MAEC n\u00BA 3850. Traducciones juradas de franc\u00E9s, ingl\u00E9s y alem\u00E1n. Presupuesto gratis, entrega 24h. Servicio presencial y online.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traduccion-jurada-frances-malaga",
   },
