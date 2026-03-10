@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 import DraftGeneratorButton from "@/components/DraftGeneratorButton";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
+import SourceDocumentUpload from "@/components/SourceDocumentUpload";
 
 export const metadata: Metadata = {
   title: "Workspace — Zona traductor",
@@ -198,6 +199,7 @@ export default async function WorkspacePage({ params }: Params) {
               ))}
             </ul>
           )}
+          <SourceDocumentUpload reference={order.reference} />
         </div>
 
         {/* Draft IA */}
