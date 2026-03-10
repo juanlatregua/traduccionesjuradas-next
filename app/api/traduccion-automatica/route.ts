@@ -235,6 +235,7 @@ export async function POST(req: Request) {
         draftFileUrl: blob.url,
         draftGeneratedAt: new Date(),
         draftFilename: filename,
+        draftContentJson: JSON.stringify(parsed),
       },
     });
 

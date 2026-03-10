@@ -132,6 +132,7 @@ model Order {
   draftFileUrl       String?
   draftGeneratedAt   DateTime?
   draftFilename      String?
+  draftContentJson   String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   paidAt             DateTime?
