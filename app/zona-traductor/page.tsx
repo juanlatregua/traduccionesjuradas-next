@@ -6,9 +6,9 @@ import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
 import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import { getAllOrdersForStaff } from "@/lib/orders";
-import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
 import ZonaTraductorFilters from "@/components/ZonaTraductorFilters";
 import OrderActionPanel from "@/components/OrderActionPanel";
+import OrderTableWithBulkActions from "@/components/OrderTableWithBulkActions";
 import TranslatorAgenda from "@/components/TranslatorAgenda";
 import AutoRefresh from "@/components/AutoRefresh";
 import { getFinanceSnapshot } from "@/lib/finance";
@@ -55,73 +55,12 @@ function isOverdue(dueDate: Date | null) {
   return new Date(dueDate).getTime() < Date.now();
 }
 
-function PaymentBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    PAID: { label: "Pagado", cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-    PENDING: { label: "Pendiente", cls: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
-    FAILED: { label: "Fallido", cls: "bg-red-500/20 text-red-400 border-red-500/30" },
-    REFUNDED: { label: "Reembolsado", cls: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
-  };
-  const info = map[status] || map.PENDING;
-  return (
-    <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${info.cls}`}>
-      {info.label}
-    </span>
-  );
-}
-
-function DeliveryBadge({ state }: { state: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    PRESUPUESTO: { label: "Presupuesto", cls: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
-    EN_PROCESO: { label: "En proceso", cls: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-    TRADUCIDO: { label: "Traducido", cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  };
-  const info = map[state] || map.PRESUPUESTO;
-  return (
-    <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${info.cls}`}>
-      {info.label}
-    </span>
-  );
-}
-
-function WorkflowBadge({ state }: { state: string }) {
-  const palette: Record<string, string> = {
-    BORRADOR: "bg-slate-500/20 text-slate-300 border-slate-500/30",
-    PENDIENTE_REVISION: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-    PRESUPUESTO_ENVIADO: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-    PENDIENTE_PAGO: "bg-orange-500/20 text-orange-300 border-orange-500/30",
-    JUSTIFICANTE_SUBIDO: "bg-violet-500/20 text-violet-300 border-violet-500/30",
-    PAGO_VALIDADO: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-    EN_TRADUCCION: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    TRADUCIDO_ENTREGADO: "bg-lime-500/20 text-lime-300 border-lime-500/30",
-    CERRADO: "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30",
-  };
-  const cls = palette[state] || palette.PENDIENTE_PAGO;
-  return (
-    <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
-      {getWorkflowStateLabel(state)}
-    </span>
-  );
-}
-
 function getAcquisitionSource(order: any): "WHATSAPP" | "WEB" {
   const events = order.events || [];
   if (events.some((e: any) => e.type === "wa.lead_received")) return "WHATSAPP";
   const acquisitionEvent = events.find((e: any) => e.type === "order.acquisition");
   const source = String((acquisitionEvent?.payload as any)?.source || "").toUpperCase();
   return source === "WHATSAPP" ? "WHATSAPP" : "WEB";
-}
-
-function ChannelBadge({ source }: { source: "WHATSAPP" | "WEB" }) {
-  const cls =
-    source === "WHATSAPP"
-      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-      : "border-slate-500/40 bg-slate-500/10 text-slate-300";
-  return (
-    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
-      {source === "WHATSAPP" ? "WhatsApp" : "Web"}
-    </span>
-  );
 }
 
 function getPaymentProofs(order: any) {
@@ -799,6 +738,9 @@ export default async function ZonaTraductorPage({
               artifacts={order.artifacts}
               deliveryNotification={order.deliveryNotification}
               trackedLinks={order.trackedLinks}
+              draftFileUrl={order.draftFileUrl}
+              draftFilename={order.draftFilename}
+              draftGeneratedAt={order.draftGeneratedAt ? new Date(order.draftGeneratedAt).toISOString() : null}
               collaboratorAssignments={(order.collaboratorAssignments || []).map((a: any) => ({
                 id: a.id,
                 status: a.status,
@@ -870,125 +812,49 @@ export default async function ZonaTraductorPage({
         {orders.length === 0 ? (
           <p className="mt-6 text-center text-sm text-slate-500">No hay pedidos con este filtro.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-700">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Ref.</th>
-                  <th className="px-4 py-3 font-semibold">Titulo</th>
-                  <th className="px-4 py-3 font-semibold">Importe</th>
-                  <th className="px-4 py-3 font-semibold">Pago</th>
-                  <th className="px-4 py-3 font-semibold">Canal</th>
-                  <th className="px-4 py-3 font-semibold">Workflow</th>
-                  <th className="px-4 py-3 font-semibold">Estado</th>
-                  <th className="px-4 py-3 font-semibold">Asignado</th>
-                  <th className="px-4 py-3 font-semibold">Entrega</th>
-                  <th className="px-4 py-3 font-semibold">Comprobante</th>
-                  <th className="px-4 py-3 font-semibold">Finanzas</th>
-                  <th className="px-4 py-3 font-semibold">Cliente</th>
-                  <th className="px-4 py-3 font-semibold">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/50">
-                {orders.map((order) => {
-                  const overdue = isOverdue(order.dueDate);
-                  const dueSoon = isDueSoon(order.dueDate);
-                  const paymentProofs = getPaymentProofs(order);
-                  const latestProof = paymentProofs[0];
-                  const financeRisk = hasFinancialRisk(order);
-                  const financialLabel = financeRisk ? "Riesgo" : "OK";
-                  const financeTitle = order.financeSnapshot.warnings.length
-                    ? order.financeSnapshot.warnings.join(" | ")
-                    : "Sin alertas financieras";
-                  return (
-                    <tr
-                      key={order.reference}
-                      className={`transition-colors hover:bg-slate-800/40 ${
-                        overdue ? "bg-red-500/5" : dueSoon ? "bg-amber-500/5" : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3 font-mono text-xs font-bold text-cyan-300">{order.reference}</td>
-                      <td className="max-w-[180px] truncate px-4 py-3 text-xs text-slate-300" title={order.title}>
-                        {order.title}
-                      </td>
-                      <td className="px-4 py-3 text-xs font-medium text-slate-200">{formatMoney(order.amountCents)}</td>
-                      <td className="px-4 py-3"><PaymentBadge status={order.paymentStatus} /></td>
-                      <td className="px-4 py-3"><ChannelBadge source={order.acquisitionSource} /></td>
-                      <td className="px-4 py-3"><WorkflowBadge state={order.workflowState} /></td>
-                      <td className="px-4 py-3"><DeliveryBadge state={order.deliveryState} /></td>
-                      <td className="px-4 py-3 text-xs text-slate-300">{order.assignedTo || <span className="text-slate-600">—</span>}</td>
-                      <td className="px-4 py-3">
-                        {order.dueDate ? (
-                          <span
-                            className={`text-xs font-semibold ${
-                              overdue ? "text-red-400" : dueSoon ? "text-amber-400" : "text-slate-300"
-                            }`}
-                          >
-                            {formatDate(order.dueDate)}
-                            {overdue && " !"}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-600">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {latestProof ? (
-                          <a
-                            href={latestProof.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex rounded-lg border border-cyan-500/40 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
-                          >
-                            Ver
-                          </a>
-                        ) : (
-                          <span className="text-xs text-slate-600">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3" title={financeTitle}>
-                        <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
-                            financeRisk
-                              ? "border-red-500/40 bg-red-500/10 text-red-300"
-                              : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                          }`}
-                        >
-                          {financialLabel}
-                        </span>
-                        <p className="mt-1 text-[10px] text-slate-400">
-                          {order.financeSnapshot.marginPct === null ? "Margen —" : `Margen ${order.financeSnapshot.marginPct}%`}
-                          {requiresMarginApproval(order) ? " · aprobar" : ""}
-                          {hasMonthlyBatchPending(order) ? " · lote vencido" : ""}
-                        </p>
-                      </td>
-                      <td className="max-w-[160px] truncate px-4 py-3 text-xs text-slate-400" title={order.clientEmail}>
-                        {order.clientEmail}
-                      </td>
-                      <td className="px-4 py-3">
-                        <a
-                          href={`/admin/quotes/new?${new URLSearchParams({
-                            customerEmail: order.clientEmail || "",
-                            customerName: order.clientName || "",
-                            lineDescription: order.title || "Traducción jurada",
-                            lineAmount: (Math.max(0, Number(order.amountCents || 0)) / 100).toFixed(2),
-                            langPair: order.langPair || "",
-                          }).toString()}`}
-                          className="mb-2 inline-flex rounded-lg border border-cyan-500/40 px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/10"
-                        >
-                          Presupuesto pro
-                        </a>
-                        <br />
-                        {order.paymentStatus === "PENDING" &&
-                          ["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(order.workflowState) && (
-                            <ConfirmPaymentButton reference={order.reference} />
-                          )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <OrderTableWithBulkActions
+            orders={orders.map((order) => {
+              const paymentProofs = getPaymentProofs(order);
+              const latestProof = paymentProofs[0];
+              const quickQuoteParams = new URLSearchParams({
+                customerEmail: order.clientEmail || "",
+                customerName: order.clientName || "",
+                lineDescription: order.title || "Traducción jurada",
+                lineAmount: (Math.max(0, Number(order.amountCents || 0)) / 100).toFixed(2),
+                langPair: order.langPair || "",
+              });
+              return {
+                reference: order.reference,
+                title: order.title,
+                amountCents: order.amountCents,
+                paymentStatus: order.paymentStatus,
+                deliveryState: order.deliveryState,
+                workflowState: order.workflowState,
+                workflowStateLabel: getWorkflowStateLabel(order.workflowState),
+                acquisitionSource: order.acquisitionSource,
+                assignedTo: order.assignedTo,
+                dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null,
+                dueSoon: isDueSoon(order.dueDate),
+                overdue: isOverdue(order.dueDate),
+                clientEmail: order.clientEmail,
+                clientName: order.clientName,
+                langPair: order.langPair,
+                latestProofUrl: latestProof ? latestProof.fileUrl : null,
+                financeRisk: hasFinancialRisk(order),
+                financeTitle: order.financeSnapshot.warnings.length
+                  ? order.financeSnapshot.warnings.join(" | ")
+                  : "Sin alertas financieras",
+                marginPct: order.financeSnapshot.marginPct,
+                requiresMarginApproval: requiresMarginApproval(order),
+                hasMonthlyBatchPending: hasMonthlyBatchPending(order),
+                quickQuoteHref: `/admin/quotes/new?${quickQuoteParams.toString()}`,
+                showConfirmPayment:
+                  order.paymentStatus === "PENDING" &&
+                  ["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(order.workflowState),
+                hasWorkspaceAccess: order.paymentStatus === "PAID" && !!order.assignedTo,
+              };
+            })}
+          />
         )}
       </section>
     </main>

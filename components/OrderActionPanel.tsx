@@ -10,6 +10,7 @@ import OrderWorkflowPanel from "./OrderWorkflowPanel";
 import OrderDocumentsPanel from "./OrderDocumentsPanel";
 import OrderLifecyclePanel from "./OrderLifecyclePanel";
 import CollaboratorAssignmentPanel from "./CollaboratorAssignmentPanel";
+import DraftGeneratorButton from "./DraftGeneratorButton";
 import CopyField from "./CopyField";
 import type { FinanceSnapshot } from "@/lib/finance";
 import { getWorkflowStateLabel } from "@/lib/workflow";
@@ -107,6 +108,9 @@ type Props = {
       email: string;
     };
   }>;
+  draftFileUrl?: string | null;
+  draftFilename?: string | null;
+  draftGeneratedAt?: string | null;
   canonicalStage: OrderActionStage;
   gates: OrderGates;
   nextBestAction: NextBestAction;
@@ -184,6 +188,9 @@ export default function OrderActionPanel({
   deliveryNotification,
   trackedLinks,
   collaboratorAssignments,
+  draftFileUrl,
+  draftFilename,
+  draftGeneratedAt,
   canonicalStage,
   gates,
   nextBestAction,
@@ -360,6 +367,14 @@ export default function OrderActionPanel({
                   Crear presupuesto con preview
                 </a>
               )}
+              {paymentStatus === "PAID" && assignedTo && (
+                <a
+                  href={`/zona-traductor/workspace/${reference}`}
+                  className="rounded-lg border border-indigo-500/40 px-3 py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/10"
+                >
+                  Abrir workspace
+                </a>
+              )}
             </div>
           </div>
 
@@ -528,7 +543,21 @@ export default function OrderActionPanel({
                 </div>
               </div>
             )}
-            {tab === "entrega" && <TranslatorDeliveryForm reference={reference} />}
+            {tab === "entrega" && (
+              <div className="space-y-6">
+                {(paymentStatus === "PAID" || deliveryState === "EN_PROCESO" || draftFileUrl) && (
+                  <DraftGeneratorButton
+                    orderReference={reference}
+                    documents={documents}
+                    langPair={langPair}
+                    existingDraftUrl={draftFileUrl}
+                    existingDraftFilename={draftFilename}
+                    existingDraftGeneratedAt={draftGeneratedAt}
+                  />
+                )}
+                <TranslatorDeliveryForm reference={reference} />
+              </div>
+            )}
             {tab === "notificar" && (
               <TranslatorNotifyForm
                 reference={reference}

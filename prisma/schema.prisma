@@ -128,6 +128,10 @@ model Order {
   assignedTo         String?
   dueDate            DateTime?
   quoteId            String?
+  draftFileKey       String?
+  draftFileUrl       String?
+  draftGeneratedAt   DateTime?
+  draftFilename      String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   paidAt             DateTime?
@@ -456,7 +460,7 @@ model DocumentAnalysis {
 
   // Relación con Order (se crea al pagar)
   orderId          String?
-  order            Order?                 @relation(fields: [orderId], references: [id])
+  order            Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   reminderSentAt   DateTime?
 
