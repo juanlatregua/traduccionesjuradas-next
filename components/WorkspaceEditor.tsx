@@ -18,9 +18,11 @@ type TranslationResult = {
   referencia_original: string | null;
   fecha_documento: string | null;
   codigo_verificacion: string | null;
+  url_verificacion?: string | null;
   firmantes: string[];
   secciones: TranslationSection[];
   notas_revisor: string[];
+  notas_traductor?: string;
 };
 
 type SectionState = {
@@ -88,11 +90,32 @@ export default function WorkspaceEditor({
     }));
   });
 
-  const [notasTraductor, setNotasTraductor] = useState("");
+  const [notasTraductor, setNotasTraductor] = useState(() => parsed?.notas_traductor || "");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [downloading, setDownloading] = useState(false);
   const saveTimer = useRef<NodeJS.Timeout | null>(null);
+  const notasTimer = useRef<NodeJS.Timeout | null>(null);
   const hasPendingChanges = secciones.some((s) => s.editado !== s.original);
+
+  // Cleanup timers on unmount + flush pending save
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (notasTimer.current) clearTimeout(notasTimer.current);
+    };
+  }, []);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasPendingChanges || saveStatus === "saving") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasPendingChanges, saveStatus]);
 
   // Assign reviewer notes to sections
   const notesBySection = useRef<Map<number, string[]>>(new Map());
@@ -107,7 +130,7 @@ export default function WorkspaceEditor({
     notesBySection.current = map;
   }, [parsed]);
 
-  const doSave = useCallback(async (sections: SectionState[]) => {
+  const doSave = useCallback(async (sections: SectionState[], notes?: string) => {
     if (!parsed) return;
     setSaveStatus("saving");
     try {
@@ -117,6 +140,7 @@ export default function WorkspaceEditor({
           ...s,
           contenido: sections[i]?.editado ?? s.contenido,
         })),
+        notas_traductor: notes ?? notasTraductor,
       };
       const res = await fetch(`/api/orders/${reference}/draft-content`, {
         method: "PATCH",
@@ -127,12 +151,14 @@ export default function WorkspaceEditor({
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), 2000);
       } else {
+        console.error("[WorkspaceEditor] autosave failed", res.status);
         setSaveStatus("error");
       }
-    } catch {
+    } catch (err) {
+      console.error("[WorkspaceEditor] autosave error", err);
       setSaveStatus("error");
     }
-  }, [parsed, reference]);
+  }, [parsed, reference, notasTraductor]);
 
   function updateSection(index: number, text: string) {
     setSecciones((prev) => {
@@ -146,6 +172,13 @@ export default function WorkspaceEditor({
     setSaveStatus("idle");
   }
 
+  function updateNotasTraductor(text: string) {
+    setNotasTraductor(text);
+    setSaveStatus("idle");
+    if (notasTimer.current) clearTimeout(notasTimer.current);
+    notasTimer.current = setTimeout(() => doSave(secciones, text), 3000);
+  }
+
   function toggleRevisada(index: number) {
     setSecciones((prev) => {
       const next = [...prev];
@@ -157,8 +190,16 @@ export default function WorkspaceEditor({
   const allRevisadas = secciones.length > 0 && secciones.every((s) => s.revisada);
   const revisadasCount = secciones.filter((s) => s.revisada).length;
 
+  function handleRegenerate() {
+    if (!window.confirm("¿Regenerar el borrador IA? Se perderán las ediciones actuales.")) return;
+    setParsed(null);
+    setSecciones([]);
+    setNotasTraductor("");
+    setSaveStatus("idle");
+  }
+
   async function handleDownload() {
-    if (!parsed) return;
+    if (!parsed || !Array.isArray(parsed.secciones) || parsed.secciones.length === 0) return;
     setDownloading(true);
     try {
       const updated: TranslationResult = {
@@ -167,6 +208,7 @@ export default function WorkspaceEditor({
           ...s,
           contenido: secciones[i]?.editado ?? s.contenido,
         })),
+        notas_traductor: notasTraductor || undefined,
       };
       const res = await fetch("/api/traduccion-automatica/download-docx", {
         method: "POST",
@@ -262,6 +304,21 @@ export default function WorkspaceEditor({
           {saveStatus === "error" && <span className="text-xs text-red-400">Error al guardar</span>}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRegenerate}
+            className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
+          >
+            Regenerar IA
+          </button>
+          <button
+            type="button"
+            onClick={() => doSave(secciones)}
+            disabled={saveStatus === "saving"}
+            className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700/50 disabled:opacity-50"
+          >
+            Guardar ahora
+          </button>
           <button
             type="button"
             onClick={handleDownload}
@@ -393,7 +450,7 @@ export default function WorkspaceEditor({
             <p className="mb-2 text-xs uppercase text-slate-500">Notas del traductor</p>
             <textarea
               value={notasTraductor}
-              onChange={(e) => setNotasTraductor(e.target.value)}
+              onChange={(e) => updateNotasTraductor(e.target.value)}
               placeholder="Observaciones, términos dudosos, aclaraciones para el cliente..."
               className="w-full rounded-xl border border-slate-700 bg-slate-800/60 p-3 text-sm text-slate-300 resize-none focus:border-slate-600 focus:outline-none focus:ring-0"
               rows={3}
