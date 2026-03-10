@@ -12,6 +12,7 @@ import OrderLifecyclePanel from "./OrderLifecyclePanel";
 import CollaboratorAssignmentPanel from "./CollaboratorAssignmentPanel";
 import DraftGeneratorButton from "./DraftGeneratorButton";
 import ConfirmPaymentButton from "./ConfirmPaymentButton";
+import SourceDocumentUpload from "./SourceDocumentUpload";
 import CopyField from "./CopyField";
 import type { FinanceSnapshot } from "@/lib/finance";
 import { getWorkflowStateLabel } from "@/lib/workflow";
@@ -415,6 +416,7 @@ export default function OrderActionPanel({
                       ))}
                     </ul>
                   )}
+                  <SourceDocumentUpload reference={reference} />
                 </div>
               )}
               {tab === "comprobante" && (
@@ -691,6 +693,7 @@ export default function OrderActionPanel({
                     ))}
                   </ul>
                 )}
+                <SourceDocumentUpload reference={reference} />
               </div>
             )}
             {tab === "comprobante" && (
