@@ -101,6 +101,7 @@ type Props = {
     quotedDeadline: string | null;
     collaboratorNotes: string | null;
     rejectionReason: string | null;
+    revisionReason: string | null;
     deliveredFileUrl: string | null;
     deliveredFilename: string | null;
     deliveredAt: string | null;
@@ -301,6 +302,11 @@ export default function OrderActionPanel({
             {langPair && <span className="text-xs text-slate-500">{langPair}</span>}
             <PaymentBadge status={paymentStatus} />
             <DeliveryBadge state={deliveryState} />
+            {collaboratorAssignments.some((a) => a.status === "DELIVERED" && a.deliveredFileUrl) && (
+              <span className="inline-block rounded-full border bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300 border-emerald-500/30">
+                Entrega pendiente
+              </span>
+            )}
           </div>
           <p className="mt-1 truncate text-sm text-slate-300">{title}</p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">

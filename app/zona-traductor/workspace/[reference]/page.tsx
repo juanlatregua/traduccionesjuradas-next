@@ -74,6 +74,12 @@ export default async function WorkspacePage({ params }: Params) {
     where: { reference: params.reference },
     include: {
       events: { orderBy: { createdAt: "desc" } },
+      collaboratorAssignments: {
+        where: { status: { in: ["ACCEPTED", "DELIVERED"] } },
+        include: { collaborator: { select: { fullName: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
   });
 
@@ -83,6 +89,14 @@ export default async function WorkspacePage({ params }: Params) {
 
   const workflowState = getWorkflowState(order);
   const documents = getSubmittedDocuments(order.events);
+
+  const activeAssignment = order.collaboratorAssignments?.[0] || null;
+  const collaboratorDelivery = activeAssignment?.deliveredFileUrl ? {
+    fileUrl: activeAssignment.deliveredFileUrl,
+    filename: activeAssignment.deliveredFilename || "Entrega colaborador",
+    deliveredAt: activeAssignment.deliveredAt?.toISOString() || null,
+    collaboratorName: activeAssignment.collaborator.fullName,
+  } : null;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-4 py-6">
@@ -148,6 +162,7 @@ export default async function WorkspacePage({ params }: Params) {
           draftFilename={order.draftFilename || null}
           draftGeneratedAt={order.draftGeneratedAt?.toISOString() || null}
           documents={documents}
+          collaboratorDelivery={collaboratorDelivery}
         />
 
         {/* Delivery controls */}

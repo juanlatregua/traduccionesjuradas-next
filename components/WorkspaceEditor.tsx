@@ -37,6 +37,13 @@ type SourceDoc = {
   type?: string;
 };
 
+type CollaboratorDelivery = {
+  fileUrl: string;
+  filename: string;
+  deliveredAt: string | null;
+  collaboratorName: string;
+};
+
 type Props = {
   reference: string;
   langPair: string | null;
@@ -45,7 +52,16 @@ type Props = {
   draftFilename: string | null;
   draftGeneratedAt: string | null;
   documents: SourceDoc[];
+  collaboratorDelivery?: CollaboratorDelivery | null;
 };
+
+function getFileType(filename: string): "pdf" | "docx" | "image" | "unknown" {
+  const ext = filename.split(".").pop()?.toLowerCase();
+  if (ext === "pdf") return "pdf";
+  if (ext === "doc" || ext === "docx") return "docx";
+  if (["jpg", "jpeg", "png", "webp"].includes(ext || "")) return "image";
+  return "unknown";
+}
 
 function calcRows(text: string): number {
   const lines = text.split("\n").length;
@@ -70,6 +86,7 @@ export default function WorkspaceEditor({
   draftFilename,
   draftGeneratedAt,
   documents,
+  collaboratorDelivery,
 }: Props) {
   const router = useRouter();
   const [parsed, setParsed] = useState<TranslationResult | null>(() => {
@@ -238,11 +255,16 @@ export default function WorkspaceEditor({
     }
   }
 
-  // Detect first document for viewer
+  // Detect first document for viewer (collaborator delivery takes priority)
+  const collabFileType = collaboratorDelivery ? getFileType(collaboratorDelivery.filename) : null;
   const firstDoc = documents.find((d) => d.url);
-  const docUrl = firstDoc?.url || null;
+  const docUrl = collaboratorDelivery?.fileUrl || firstDoc?.url || null;
   const docType = firstDoc?.type || firstDoc?.name?.toLowerCase() || "";
-  const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(docType) || docType.startsWith("image/");
+  const isImage = collaboratorDelivery
+    ? collabFileType === "image"
+    : /\.(jpg|jpeg|png|webp|gif)$/i.test(docType) || docType.startsWith("image/");
+  const isPdf = collaboratorDelivery ? collabFileType === "pdf" : true; // default iframe for non-collab
+  const isDocx = collaboratorDelivery ? collabFileType === "docx" : false;
 
   // If no draft content, show the generator
   if (!parsed) {
@@ -338,14 +360,49 @@ export default function WorkspaceEditor({
 
       {/* Two-column layout */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Left column: original document */}
+        {/* Left column: collaborator delivery (priority) or original document */}
         <div className="space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">Original</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
+            {collaboratorDelivery ? "Entrega colaborador" : "Original"}
+          </p>
+
+          {collaboratorDelivery && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+              Entrega de {collaboratorDelivery.collaboratorName}
+              {collaboratorDelivery.deliveredAt && (
+                <span className="ml-2 text-emerald-400/60">
+                  {new Date(collaboratorDelivery.deliveredAt).toLocaleDateString("es-ES")}
+                </span>
+              )}
+              <a
+                href={collaboratorDelivery.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-3 font-semibold underline"
+              >
+                Descargar
+              </a>
+            </div>
+          )}
+
           {docUrl ? (
-            isImage ? (
+            isDocx ? (
+              <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-8 text-center">
+                <p className="text-sm text-slate-300">Archivo Word: <strong>{collaboratorDelivery?.filename}</strong></p>
+                <p className="mt-2 text-xs text-slate-400">Los archivos Word no se pueden previsualizar. Descarga para revisar.</p>
+                <a
+                  href={docUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-block rounded-lg bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
+                >
+                  Descargar DOCX
+                </a>
+              </div>
+            ) : isImage ? (
               <img
                 src={docUrl}
-                alt="Documento original"
+                alt={collaboratorDelivery ? "Entrega colaborador" : "Documento original"}
                 className="w-full rounded-xl border border-slate-700"
               />
             ) : (
@@ -353,7 +410,7 @@ export default function WorkspaceEditor({
                 src={docUrl}
                 className="w-full rounded-xl border border-slate-700"
                 style={{ minHeight: "800px", height: "calc(100vh - 280px)" }}
-                title="Documento original"
+                title={collaboratorDelivery ? "Entrega colaborador" : "Documento original"}
               />
             )
           ) : (
@@ -364,8 +421,24 @@ export default function WorkspaceEditor({
               </div>
             </div>
           )}
-          {/* Document list below viewer */}
-          {documents.length > 1 && (
+
+          {/* Source documents list (always shown when collaborator delivery is displayed) */}
+          {collaboratorDelivery && documents.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Documentos originales</p>
+              {documents.map((doc, idx) => (
+                <div key={`${doc.name}-${idx}`} className="flex items-center justify-between text-xs text-slate-400">
+                  <span>{doc.name}</span>
+                  {doc.url && (
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Abrir</a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Document list below viewer (when no collaborator delivery) */}
+          {!collaboratorDelivery && documents.length > 1 && (
             <div className="space-y-1">
               {documents.map((doc, idx) => (
                 <div key={`${doc.name}-${idx}`} className="flex items-center justify-between text-xs text-slate-400">
