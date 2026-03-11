@@ -9,7 +9,7 @@ import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/w
 export async function handleStripeOrderWebhook(req: Request, source = "stripe_webhook") {
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
-    return NextResponse.json({ error: "Missing signature." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Missing signature." }, { status: 400 });
   }
 
   let event: any;
@@ -18,11 +18,11 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
     event = verifyWebhookSignature(body, signature);
   } catch (err: any) {
     console.error(`[${source}] signature verification failed`, err?.message);
-    return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Invalid signature." }, { status: 400 });
   }
 
   if (event.type !== "checkout.session.completed") {
-    return NextResponse.json({ received: true, ignored: true });
+    return NextResponse.json({ ok: true, ignored: true });
   }
 
   const session = event.data.object as any;
@@ -44,12 +44,12 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
       });
     } catch (err) {
       console.error(`[${source}] failed updating order session`, err);
-      return NextResponse.json({ error: "Order session update failed." }, { status: 500 });
+      return NextResponse.json({ ok: false, error: "Order session update failed." }, { status: 500 });
     }
   }
 
   if (!reference) {
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ ok: true });
   }
 
   try {
@@ -67,7 +67,7 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
       }
     );
     if (!paymentUpdate.changed) {
-      return NextResponse.json({ received: true, duplicate: true, alreadyPaid: paymentUpdate.alreadyPaid });
+      return NextResponse.json({ ok: true, duplicate: true, alreadyPaid: paymentUpdate.alreadyPaid });
     }
 
     await transitionWorkflowState({
@@ -124,8 +124,8 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
     }
   } catch (err) {
     console.error(`[${source}] error processing payment`, err);
-    return NextResponse.json({ error: "Processing error." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Processing error." }, { status: 500 });
   }
 
-  return NextResponse.json({ received: true });
+  return NextResponse.json({ ok: true });
 }

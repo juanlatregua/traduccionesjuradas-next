@@ -175,7 +175,7 @@ export async function POST(req: Request) {
     // Call Claude
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ ok: false, error: "ANTHROPIC_API_KEY no configurada." }, { status: 500 });
+      return NextResponse.json({ ok: false, error: "ANTHROPIC_API_KEY no configurada." }, { status: 503 });
     }
 
     const client = new Anthropic({ apiKey });

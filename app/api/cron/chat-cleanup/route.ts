@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   // Verify cron secret (Vercel Cron uses this header)
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const threshold = new Date();

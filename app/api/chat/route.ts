@@ -25,18 +25,18 @@ export async function POST(req: NextRequest) {
 
     // Validate messages
     if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
-      return Response.json({ error: "Messages required" }, { status: 400 });
+      return Response.json({ ok: false, error: "Messages required" }, { status: 400 });
     }
 
     // Sanitize & check last user message
     const lastMsg = rawMessages[rawMessages.length - 1];
     if (!lastMsg || lastMsg.role !== "user") {
-      return Response.json({ error: "Last message must be from user" }, { status: 400 });
+      return Response.json({ ok: false, error: "Last message must be from user" }, { status: 400 });
     }
 
     const sanitized = sanitizeMessage(lastMsg.content);
     if (!sanitized) {
-      return Response.json({ error: "Empty message" }, { status: 400 });
+      return Response.json({ ok: false, error: "Empty message" }, { status: 400 });
     }
 
     if (isPromptInjection(sanitized)) {
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
 
     if (!sessionLimit.ok) {
       return Response.json({
+        ok: false,
         error: "Has alcanzado el límite de mensajes. Para continuar, escríbenos por WhatsApp al +34 951 333 614.",
         referToWhatsApp: true,
       }, {
@@ -90,6 +91,7 @@ export async function POST(req: NextRequest) {
 
     if (!ipLimit.ok) {
       return Response.json({
+        ok: false,
         error: "Demasiadas solicitudes. Inténtalo más tarde o escríbenos por WhatsApp.",
         referToWhatsApp: true,
       }, {
@@ -189,7 +191,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[chat] Route error:", err);
     return Response.json(
-      { error: "Error interno del servidor" },
+      { ok: false, error: "Error interno del servidor" },
       { status: 500 }
     );
   }
