@@ -1233,7 +1233,7 @@ export default function FrenchOfferPanel() {
               className="mt-2 h-20 w-full rounded-xl border border-cream bg-white px-3 py-2 text-sm text-encre"
             />
             <p className="mt-1 text-[11px] text-graphite">
-              En francés estándar (rama A) el ETA base es de 2 días laborables sin contar el día del pago.
+              En francés estándar (rama A) el ETA base es de 1 día laborable sin contar el día del pago.
             </p>
           </div>
 

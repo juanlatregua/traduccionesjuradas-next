@@ -141,7 +141,7 @@ export async function assignDefaultFrenchEtaIfNeeded(options: {
       return { changed: false as const, dueDate: null };
     }
 
-    const dueDate = addBusinessDays(getMadridBusinessBaseDate(), 2, getHolidaySetFromEnv());
+    const dueDate = addBusinessDays(getMadridBusinessBaseDate(), 1, getHolidaySetFromEnv());
     await tx.order.update({
       where: { reference: options.reference },
       data: { dueDate },
@@ -151,12 +151,12 @@ export async function assignDefaultFrenchEtaIfNeeded(options: {
       data: {
         orderId: order.id,
         type: "delivery.eta_default_assigned",
-        message: "ETA estandar FR_A asignada: 2 dias laborables (sin contar dia de pago).",
+        message: "ETA estandar FR_A asignada: 1 dia laborable (sin contar dia de pago).",
         payload: {
           dueDate: dueDate.toISOString(),
           timezone: "Europe/Madrid",
           actorEmail: options.actorEmail || null,
-          businessDays: 2,
+          businessDays: 1,
         },
       },
     });

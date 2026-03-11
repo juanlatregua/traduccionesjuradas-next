@@ -1,5 +1,5 @@
 /**
- * Calcula la fecha estimada de entrega: 2 días laborables completos
+ * Calcula la fecha estimada de entrega: 1 día laborable completo
  * sin contar el día de contratación.
  * Sáb/dom no cuentan. Festivos no incluidos (simplificación).
  */
@@ -11,8 +11,8 @@ export function getEstimatedDeliveryDate(fromDate: Date = new Date()): Date {
   while (date.getDay() === 0 || date.getDay() === 6) {
     date.setDate(date.getDate() + 1);
   }
-  // Contar 2 días laborables completos
-  let daysLeft = 2;
+  // Contar 1 día laborable completo
+  let daysLeft = 1;
   while (daysLeft > 0) {
     date.setDate(date.getDate() + 1);
     if (date.getDay() !== 0 && date.getDay() !== 6) {
