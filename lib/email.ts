@@ -267,6 +267,7 @@ export async function sendTranslationReadyEmail(data: {
   toEmail: string;
   reference: string;
   downloadUrl: string;
+  statusUrl?: string;
 }) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
@@ -297,7 +298,7 @@ Si tienes cualquier duda, responde a este correo.
     <p>Referencia: <strong>${data.reference}</strong></p>
     <p>Puedes descargar tu archivo desde este enlace:</p>
     <p><a href="${data.downloadUrl}">${data.downloadUrl}</a></p>
-    <p style="font-size:13px; color:#6b7280;">Tambien puedes consultar el estado en <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a>.</p>
+    ${data.statusUrl ? `<p style="font-size:13px; color:#6b7280;">Tambien puedes <a href="${data.statusUrl}">ver el estado de tu pedido</a>.</p>` : `<p style="font-size:13px; color:#6b7280;">Tambien puedes consultar el estado en <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a>.</p>`}
     <p>Si necesitas factura o envio en papel, responde a este correo.</p>
     ${reviewBlock}
   `;
@@ -804,6 +805,7 @@ export async function sendTranslationEtaEmail(data: {
   toEmail: string;
   reference: string;
   etaDateLabel: string;
+  statusUrl?: string;
 }) {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
@@ -822,11 +824,16 @@ Fecha estimada de entrega: ${data.etaDateLabel}
 Te avisaremos en cuanto la traduccion este lista.
 `;
 
+  const statusLine = data.statusUrl
+    ? `<p style="font-size:13px; color:#6b7280;">Puedes <a href="${data.statusUrl}">consultar el estado de tu pedido</a> en cualquier momento.</p>`
+    : "";
+
   const html = `
     <h2>Tu traduccion esta en proceso</h2>
     <p>Pedido <strong>${data.reference}</strong>.</p>
     <p>Fecha estimada de entrega: <strong>${data.etaDateLabel}</strong>.</p>
     <p>Te avisaremos cuando el archivo final este disponible.</p>
+    ${statusLine}
   `;
 
   await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendTranslationReadyEmail } from "@/lib/email";
+import { buildSignedOrderUrl } from "@/lib/order-token";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
       toEmail: clientEmail,
       reference,
       downloadUrl,
+      statusUrl: buildSignedOrderUrl(reference, "estado"),
     });
 
     await prisma.orderEvent.create({

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
+import { buildSignedOrderUrl } from "@/lib/order-token";
 import {
   addBusinessDays,
   formatEta,
@@ -134,11 +135,14 @@ export async function POST(req: Request, { params }: Params) {
       eventMessage: `Estado de entrega actualizado a ${state}.${etaMessage}`.trim(),
     });
 
+    const statusUrl = buildSignedOrderUrl(order.reference, "estado");
+
     if (state === "EN_PROCESO" && etaDate) {
       sendTranslationEtaEmail({
         toEmail: order.clientEmail,
         reference: order.reference,
         etaDateLabel: formatEta(etaDate),
+        statusUrl,
       }).catch((e) => console.error("[orders-delivery] eta email failed", e));
     }
 
@@ -148,6 +152,7 @@ export async function POST(req: Request, { params }: Params) {
           toEmail: order.clientEmail,
           reference: order.reference,
           downloadUrl: translatedFileUrl,
+          statusUrl,
         })
       ).catch((e) => console.error("[orders-delivery] ready email failed", e));
 
@@ -172,12 +177,11 @@ export async function POST(req: Request, { params }: Params) {
       const { smsTraduccionLista } = await import("@/lib/sms-templates");
       const phone = await getOrderPhone(order.id).catch(() => null);
       if (phone) {
-        const { buildSignedOrderUrl } = await import("@/lib/order-token");
         sendNotification({
           to: formatPhoneSpain(phone),
           body: smsTraduccionLista({
             ref: order.reference,
-            url: buildSignedOrderUrl(order.reference, "detalle"),
+            url: buildSignedOrderUrl(order.reference, "estado"),
           }),
         }).catch((err) => console.error("[SMS]", err));
       }

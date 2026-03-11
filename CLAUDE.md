@@ -51,20 +51,30 @@ app/
 │   ├── documents/                    # Upload + análisis IA
 │   ├── quotes/                       # Presupuestos formales
 │   ├── session/                      # Funnel de pedido
+│   ├── encargo/[token]/              # API colaborador (quote, delivery, upload)
 │   └── cron/                         # Limpieza chat/documentos
 ├── contacto/, proceso/, acreditacion/, teletrabajo/, marruecos/
 ├── q/[token]/                        # Acceso público presupuesto
-├── zona-traductor/                   # Panel traductor (OTP)
+├── encargo/[token]/                  # Página pública del colaborador
+├── zona-traductor/                   # Panel traductor (OTP) — Bandeja + Control + Workspace
+│   └── workspace/[reference]/        # Editor dos columnas con entrega colaborador
 └── pago/{exito,cancelado}/           # Post-pago
 components/
 ├── PaginaIdioma.tsx                  # Componente compartido para las 10 páginas de idioma
 ├── Schema*.tsx                       # JSON-LD: BreadcrumbList, FAQPage, Product, Service, LocalBusiness, HowTo, Person
+├── CollaboratorAssignmentPanel.tsx    # Panel de asignaciones en OrderActionPanel
+├── CollaboratorQuoteForm.tsx          # Formulario presupuesto colaborador (con defaults para revisión)
+├── WorkspaceEditor.tsx                # Editor dos columnas (entrega colaborador + traducción)
+├── OrderActionPanel.tsx               # Panel de acciones por pedido (card/full)
+├── BandejaEntrada.tsx                 # Bandeja con filtros y grupos (urgente/a trabajar/en curso)
 ├── ia/                               # DocumentUploader, LeadGate, análisis IA
 └── blog/                             # MDXContent
 lib/
 ├── order-token.ts                    # HMAC-SHA256 para firmar URLs de pedidos
 ├── sms.ts + sms-templates.ts         # Twilio abstraction
 ├── email.ts                          # SendGrid (16 tipos de email)
+├── collaborators.ts                  # CRUD colaboradores + asignaciones + requestQuoteRevision
+├── collaborator-emails.ts            # 6 emails transaccionales del módulo colaborador
 ├── pricing.ts                        # Tarifas por idioma/par
 ├── stripe.ts, redsys.ts, paypal.ts  # Payment gateways
 ├── workflow.ts + workflow-server.ts   # Estado operativo de pedidos
@@ -128,12 +138,17 @@ Ver `PROYECTO.md` para listado completo por categoría.
 - **Deploy manual:** `vercel --prod --yes` desde la raíz del proyecto
 - **Documentación del proyecto:** `PROYECTO.md` (estado completo) y `EJECUTAR.md` (pendientes)
 
-## Errores preexistentes en tsc
+## Errores preexistentes
 
+### tsc
 Estos errores aparecen siempre en `tsc --noEmit` y NO son problemas reales:
 - `@prisma/client` types → ejecutar `prisma generate` para resolverlos
 - `@anthropic-ai/sdk` module not found → types no instalados localmente
 - `@/content` module not found → generado por Velite en build
+
+### Tests
+- `tests/unit/order-actions.test.ts` falla con `ERR_MODULE_NOT_FOUND` — preexistente, no bloquea
+- `tests/unit/collaborator-flow.test.ts` — 10 tests del módulo colaborador (todos pasan)
 
 ## PROTOCOLO OBLIGATORIO — Verificación antes de proponer fixes
 
@@ -167,7 +182,32 @@ Estos errores aparecen siempre en `tsc --noEmit` y NO son problemas reales:
    ## AL TERMINAR — build + checklist en dev
    ```
 
-## Mejoras futuras — Módulo colaboradores
+## Módulo colaboradores
 
-- **Revisión de precio (#24):** Permitir al admin solicitar revisión de precio al colaborador en lugar de solo aceptar/rechazar. Requiere nuevo status `QUOTE_REVISION_REQUESTED` en enum `AssignmentStatus` (migración Prisma), botón en `CollaboratorAssignmentPanel.tsx`, email al colaborador, y que la página `/encargo/[token]` muestre el formulario de presupuesto de nuevo.
-- **Actualización de presupuesto (#25):** Permitir al colaborador modificar su presupuesto mientras esté en status `REQUESTED` o `QUOTE_REVISION_REQUESTED`. Requiere modificar `app/api/encargo/[token]/route.ts` para aceptar acción `quote` cuando el status lo permita, y notificar al admin del presupuesto actualizado.
+Sistema de asignación de traducciones a colaboradores externos. Flujo completo con presupuesto, revisión de precio, aceptación, entrega y visualización en workspace.
+
+### Estado del flujo (`AssignmentStatus`)
+```
+REQUESTED → QUOTED → ACCEPTED → DELIVERED
+                  ↘ REJECTED (terminal)
+                  ↘ QUOTE_REVISION_REQUESTED → QUOTED (ciclo)
+```
+
+### Archivos clave
+- **Schema:** `prisma/schema.prisma` — modelo `CollaboratorAssignment` + enum `AssignmentStatus`
+- **Lógica:** `lib/collaborators.ts` — CRUD, `requestQuoteRevision()`, `submitCollaboratorQuote()`
+- **Emails:** `lib/collaborator-emails.ts` — 6 funciones (asignación, presupuesto, revisión, aceptación, rechazo, entrega)
+- **API admin:** `app/api/orders/[ref]/collaborator-assignment/[id]/route.ts` — acciones: accept, reject, request-revision, resend-email
+- **API colaborador:** `app/api/encargo/[token]/route.ts` — GET estado + POST quote/delivery
+- **Upload colaborador:** `app/api/encargo/[token]/upload/route.ts` — validación MIME, 20MB, malware scan
+- **UI admin:** `components/CollaboratorAssignmentPanel.tsx` — panel completo con botones por estado
+- **UI colaborador:** `app/encargo/[token]/page.tsx` — página pública por token (formulario quote / entrega)
+- **Workspace:** `app/zona-traductor/workspace/[reference]/page.tsx` — muestra entrega colaborador en columna izquierda
+
+### Workspace — entrega del colaborador
+La columna izquierda del workspace prioriza la entrega del colaborador sobre el documento original:
+1. Si hay `collaboratorDelivery` → muestra archivo del colaborador (PDF=iframe, DOCX=descarga, imagen=img)
+2. Si no → muestra documento original del cliente
+
+### Prisma — migraciones
+Shadow DB no funciona con Prisma Postgres → usar `prisma db push` + crear SQL manual en `prisma/migrations/`. El script `prisma-deploy-safe.mjs` maneja esto en producción.

@@ -39,6 +39,10 @@ const nextConfig = {
         source: "/q/:path*",
         headers: [noindexHeader],
       },
+      {
+        source: "/pedido/:path*",
+        headers: [noindexHeader],
+      },
     ];
   },
 

@@ -76,8 +76,7 @@ function hasAnyEvent(order: OrderLike, types: string[]) {
 
 export function buildOrderTrackedLinks(reference: string) {
   const paymentUrl = buildSignedOrderUrl(reference, "pagar", { src: "wa", ref: reference });
-  const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-  const statusUrl = `${base}/consulta?src=wa&ref=${encodeURIComponent(reference)}`;
+  const statusUrl = buildSignedOrderUrl(reference, "estado", { src: "wa" });
   return { paymentUrl, statusUrl };
 }
 

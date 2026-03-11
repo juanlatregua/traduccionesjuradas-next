@@ -34,12 +34,28 @@ export function verifyOrderToken(reference: string, token: string): boolean {
  */
 export function buildSignedOrderUrl(
   reference: string,
-  path: "pagar" | "detalle" = "pagar",
+  path: "pagar" | "detalle" | "estado" = "pagar",
   extraParams?: Record<string, string>,
 ): string {
   const base = (
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.traduccionesjuradas.net"
   ).replace(/\/$/, "");
+
+  if (path === "estado") {
+    const url = new URL(
+      `/pedido/${encodeURIComponent(reference)}`,
+      base,
+    );
+    if (SECRET) {
+      url.searchParams.set("token", generateOrderToken(reference));
+    }
+    if (extraParams) {
+      for (const [key, value] of Object.entries(extraParams)) {
+        url.searchParams.set(key, value);
+      }
+    }
+    return url.toString();
+  }
 
   const suffix = path === "pagar" ? "/pagar" : "";
   const url = new URL(
