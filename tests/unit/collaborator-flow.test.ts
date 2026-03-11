@@ -128,9 +128,9 @@ test("collaboratorDelivery is extracted correctly from assignment", () => {
 
   // No delivery
   const assignmentWithoutDelivery = {
-    deliveredFileUrl: null,
-    deliveredFilename: null,
-    deliveredAt: null,
+    deliveredFileUrl: null as string | null,
+    deliveredFilename: null as string | null,
+    deliveredAt: null as Date | null,
     collaborator: { fullName: "Juan García" },
   };
 

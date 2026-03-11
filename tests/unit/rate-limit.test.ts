@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
+// @ts-ignore — registerHooks is a newer Node API not yet in @types/node
 import { registerHooks } from "node:module";
 import { pathToFileURL } from "node:url";
 
 registerHooks({
-  resolve(specifier, context, nextResolve) {
+  resolve(specifier: string, context: unknown, nextResolve: Function) {
     if (specifier === "@/lib/prisma") {
       const prismaPath = pathToFileURL(path.resolve(process.cwd(), "lib/prisma.ts")).href;
       return nextResolve(prismaPath, context);
