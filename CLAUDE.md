@@ -1,213 +1,73 @@
-# CLAUDE.md — traduccionesjuradas-next
+# traduccionesjuradas-next
 
-## Qué es este proyecto
+## WHY
+Web comercial + plataforma de pedidos de **traducción jurada** (10 idiomas, foco francés↔español).
+Negocio real: HBTJ Consultores Lingüísticos S.L., Málaga — https://www.traduccionesjuradas.net
 
-Web comercial + plataforma de gestión de pedidos de **traducción jurada** (francés ↔ español como idioma principal, 10 idiomas en total). Negocio real de HBTJ Consultores Lingüísticos S.L., con sede en Málaga.
+## WHAT
+Next.js 14 App Router + TypeScript | Tailwind (bleu/encre/sepia/cream/parchment)
+Prisma 6 + PostgreSQL | NextAuth 4 (Google OAuth) + OTP (SMS) | Stripe + Redsys
+SendGrid | Twilio | Claude AI | Vercel Blob | Velite + MDX (blog)
 
-**URL producción:** https://www.traduccionesjuradas.net
-**Deploy:** Vercel (auto-deploy desde `main`)
+```
+app/                              # ~70 páginas + 77 API routes
+├── traductor-jurado-*/            # 10 idiomas (PaginaIdioma)
+├── traductor-jurado/[ciudad]/     # 50 ciudades SEO local
+├── documentos-oficiales/          # Hub + 9 tipos de documento
+├── blog/                          # 10 artículos MDX (tramites/paises/faq/profesion)
+├── (funnel)/                      # start → upload → review → checkout → confirmation
+├── zona-traductor/                # Bandeja + Workspace (acceso OTP)
+├── admin/                         # Orders + Quotes + Collaborators
+├── encargo/[token]/               # Página pública colaborador
+├── area-cliente/                  # Zona cliente
+└── api/                           # ~77 endpoints REST
+components/   # 74 componentes (Schema*, OrderAction*, Collaborator*, ia/*)
+lib/          # 66 módulos (orders, workflow, payments, email, sms, ai, pricing)
+prisma/       # 20 modelos, 15 enums — ver .claude/skills/prisma-patterns.md
+```
 
-## Stack técnico
-
-- **Framework:** Next.js 14.2.35 (App Router) + TypeScript 5.5.4
-- **Estilos:** TailwindCSS 3.4.10 con paleta personalizada (bleu, encre, sepia, cream, parchment)
-- **Base de datos:** Prisma 6.16.3 + PostgreSQL (Prisma Postgres en Vercel)
-- **Blog:** Velite 0.3.1 + MDX (`content/blog/*.mdx`) — 4 categorías: tramites, paises, faq, profesion
-- **Auth:** NextAuth 4.24.13 (Google OAuth) — acceso staff controlado por `STAFF_EMAILS`
-- **Pagos:** Stripe 20.3.1 (principal), Redsys (redsys-easy 5.3.2), Bizum, transferencia. PayPal desactivado.
-- **Email:** SendGrid (@sendgrid/mail 8.1.6)
-- **SMS/WhatsApp:** Twilio (fire-and-forget con logs)
-- **AI:** Anthropic Claude (@anthropic-ai/sdk 0.78.0, modelo claude-sonnet-4-20250514) — análisis documentos + chat
-- **Almacenamiento:** Vercel Blob (@vercel/blob 2.2.0)
-- **PDF:** jspdf 4.2.0, pdf-parse 1.1.1, mammoth 1.11.0
-
-## Comandos esenciales
-
+## HOW
 ```bash
-npm run dev           # desarrollo local
-npm run build         # prisma generate + next build
-npm run test:unit     # tests unitarios (node --test)
-npm run test:e2e      # tests e2e
-npx tsc --noEmit --skipLibCheck  # type-check (hay errores preexistentes de Prisma/Velite/Anthropic que se ignoran)
-vercel --prod --yes   # deploy manual a producción
+npm run dev                        # desarrollo local
+npm run build                      # prisma generate + next build
+npm run test:unit                  # tests unitarios (node --test)
+npx tsc --noEmit --skipLibCheck    # type-check
+vercel --prod --yes                # deploy manual a producción
+prisma db push                     # aplicar schema (NO migrate dev — shadow DB falla)
 ```
-
-## Estructura del proyecto
-
-```
-app/
-├── page.tsx                          # Home
-├── traductor-jurado-{idioma}/        # 10 páginas de idioma (usan PaginaIdioma component)
-├── traductor-jurado/[ciudad]/        # 50 páginas de ciudad (SEO local)
-├── documentos-oficiales/             # Hub + 9 subpáginas de tipos de documento
-├── blog/                             # Listado + [slug] dinámico desde Velite (10 artículos)
-├── presupuesto-instantaneo/          # Formulario público principal (CTA)
-├── (funnel)/                         # Flujo: start → upload → review → checkout → confirmation
-├── area-cliente/                     # Zona cliente (pedido/[reference]/pagar)
-├── admin/                            # Panel staff (quotes, gestión)
-├── api/                              # ~45 endpoints REST
-│   ├── orders/                       # CRUD pedidos + webhooks + finanzas
-│   ├── payment/                      # Stripe, Redsys, PayPal
-│   ├── documents/                    # Upload + análisis IA
-│   ├── quotes/                       # Presupuestos formales
-│   ├── session/                      # Funnel de pedido
-│   ├── encargo/[token]/              # API colaborador (quote, delivery, upload)
-│   └── cron/                         # Limpieza chat/documentos
-├── contacto/, proceso/, acreditacion/, teletrabajo/, marruecos/
-├── q/[token]/                        # Acceso público presupuesto
-├── encargo/[token]/                  # Página pública del colaborador
-├── zona-traductor/                   # Panel traductor (OTP) — Bandeja + Control + Workspace
-│   └── workspace/[reference]/        # Editor dos columnas con entrega colaborador
-└── pago/{exito,cancelado}/           # Post-pago
-components/
-├── PaginaIdioma.tsx                  # Componente compartido para las 10 páginas de idioma
-├── Schema*.tsx                       # JSON-LD: BreadcrumbList, FAQPage, Product, Service, LocalBusiness, HowTo, Person
-├── CollaboratorAssignmentPanel.tsx    # Panel de asignaciones en OrderActionPanel
-├── CollaboratorQuoteForm.tsx          # Formulario presupuesto colaborador (con defaults para revisión)
-├── WorkspaceEditor.tsx                # Editor dos columnas (entrega colaborador + traducción)
-├── OrderActionPanel.tsx               # Panel de acciones por pedido (card/full)
-├── BandejaEntrada.tsx                 # Bandeja con filtros y grupos (urgente/a trabajar/en curso)
-├── ia/                               # DocumentUploader, LeadGate, análisis IA
-└── blog/                             # MDXContent
-lib/
-├── order-token.ts                    # HMAC-SHA256 para firmar URLs de pedidos
-├── sms.ts + sms-templates.ts         # Twilio abstraction
-├── email.ts                          # SendGrid (16 tipos de email)
-├── collaborators.ts                  # CRUD colaboradores + asignaciones + requestQuoteRevision
-├── collaborator-emails.ts            # 6 emails transaccionales del módulo colaborador
-├── pricing.ts                        # Tarifas por idioma/par
-├── stripe.ts, redsys.ts, paypal.ts  # Payment gateways
-├── workflow.ts + workflow-server.ts   # Estado operativo de pedidos
-├── rate-limit.ts                     # Rate limiting por IP
-└── ai/                               # Prompts y análisis con Claude
-src/data/
-└── ciudades.ts                       # 50 ciudades para SEO local
-```
-
-## Seguridad — URLs de pedidos
-
-Las URLs públicas de pedidos llevan un **token HMAC-SHA256** firmado con `ORDER_TOKEN_SECRET`:
-- `lib/order-token.ts`: `generateOrderToken()`, `verifyOrderToken()`, `buildSignedOrderUrl()`
-- Verificado en `app/api/orders/[reference]/public/route.ts` (línea 53)
-- Si `ORDER_TOKEN_SECRET` no está configurado, `verifyOrderToken` devuelve `false` (sin bypass)
-- Rate limit: 120 req/10min por IP
-- Comparación timing-safe contra timing attacks
-
-## SEO y Schema JSON-LD
-
-Cada página pública tiene:
-- `metadata` con title, description y `alternates.canonical`
-- `SchemaBreadcrumbs` (BreadcrumbList)
-- OG image dinámica via `/api/og`
-
-Schemas adicionales por tipo de página:
-- **Home:** FAQPage, SchemaLocalBusiness (via layout)
-- **Idiomas** (PaginaIdioma): SchemaService + SchemaProduct + SchemaFAQ
-- **Documentos:** SchemaService + SchemaFAQ + SchemaProduct (en las que tienen precios)
-- **Blog articles:** Schema Article con image, author, publisher
-- **Proceso:** SchemaHowTo
-- **Traductores:** SchemaPerson
-- **Ciudades:** SchemaService + SchemaLocalBusiness
-
-## Middleware y redirects
-
-- `middleware.ts`: gestiona rutas legacy de WordPress (allowlist en `VALID_LEGACY_PATHS`), bloquea `?action=` con 404, 410 para endpoints WP (wp-json, wp-login, xmlrpc, feeds genéricos)
-- `next.config.mjs`: 100+ redirects 301 para rutas antiguas (/inicio, /agencia, /documentos, /palabra, /mapa-del-sitio, /feed, /wp-admin/admin-ajax.php, etc.)
-- No duplicar reglas entre ambos
-- Ciudades legacy (`/traductor-jurado-madrid`) → redirigen a `/traductor-jurado/madrid` via middleware
-
-## Variables de entorno
-
-Documentadas en `.env.example` (~80 variables). Las críticas:
-- `DATABASE_URL`, `NEXTAUTH_SECRET`, `ORDER_TOKEN_SECRET`
-- `SENDGRID_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
-- `ANTHROPIC_API_KEY`, `CRON_SECRET`
-
-Ver `PROYECTO.md` para listado completo por categoría.
 
 ## Convenciones
+- Código en inglés, UI/contenido en español
+- Commits: `fix:`, `feat:`, `feat(scope):`
+- SMS: fire-and-forget (`.catch(console.error)`), nunca bloquea respuesta
+- Pagos: validar estado pedido + rate limit en endpoints públicos
+- Zsh: comillas en rutas con brackets → `git add "app/api/orders/[reference]/route.ts"`
 
-- **Idioma del código:** TypeScript en inglés, contenido/UI en español
-- **Commits:** estilo convencional (`fix:`, `feat:`, `fix(seo):`)
-- **No sobreingeniería:** solo lo pedido, sin añadir docstrings/comments innecesarios
-- **Imports schema:** `import { SchemaX } from "@/components/SchemaX"`
-- **SMS:** fire-and-forget con `.catch(console.error)`, nunca bloquea la respuesta
-- **Pagos:** todos los endpoints públicos de pago validan estado del pedido + rate limit por IP
-- **Blog:** frontmatter con title, description, date, category (enum), published, keywords
-- **Zsh:** al hacer `git add` de rutas con brackets, usar comillas: `git add "app/api/orders/[reference]/route.ts"`
-- **Deploy manual:** `vercel --prod --yes` desde la raíz del proyecto
-- **Documentación del proyecto:** `PROYECTO.md` (estado completo) y `EJECUTAR.md` (pendientes)
+## Reglas inmutables
+- **Stack fijo:** Tailwind, Vercel Blob, NextAuth, SendGrid, Prisma+PG, Stripe+Redsys, Velite
+- **NO usar:** CSS modules, S3, Resend, Drizzle, Supabase, CMS externo
+- Admin pages: Server Components + Prisma directo (no API routes para lectura)
+- No sobreingeniería: solo lo pedido, sin docstrings/comments innecesarios
+- Deploy: Vercel auto-deploy desde `main`
+
+## Detalle por módulo
+→ `.claude/skills/prisma-patterns.md` · `.claude/skills/auth-patterns.md` · `.claude/skills/email-patterns.md`
+→ `.claude/skills/payments-patterns.md` · `.claude/skills/storage-patterns.md` · `.claude/skills/seo-patterns.md`
+→ `docs/architecture.md` · `docs/decisions/` (6 ADRs) · `docs/runbooks/` (setup, migraciones, deploy)
 
 ## Errores preexistentes
-
-### tsc
-Estos errores aparecen siempre en `tsc --noEmit` y NO son problemas reales:
-- `@prisma/client` types → ejecutar `prisma generate` para resolverlos
-- `@anthropic-ai/sdk` module not found → types no instalados localmente
-- `@/content` module not found → generado por Velite en build
-
-### Tests
-- `tests/unit/order-actions.test.ts` falla con `ERR_MODULE_NOT_FOUND` — preexistente, no bloquea
-- `tests/unit/collaborator-flow.test.ts` — 10 tests del módulo colaborador (todos pasan)
+- `tsc --noEmit`: errores de `@prisma/client` (→ `prisma generate`), `@anthropic-ai/sdk`, `@/content` (→ Velite en build)
+- `tests/unit/order-actions.test.ts`: falla con ERR_MODULE_NOT_FOUND — no es regresión
 
 ## PROTOCOLO OBLIGATORIO — Verificación antes de proponer fixes
 
-1. **Siempre ejecutar `bash scripts/project-map.sh`** al inicio de cualquier sesión de audit o fixes. Nunca asumir rutas.
-
-2. **Verificar archivos antes de editarlos:**
-   ```bash
-   find . -path "*/api/*" -name "route.ts" | grep <término>
-   ```
-   Si el archivo no existe donde se supone → buscarlo.
-   Distinguir siempre entre "archivo a modificar" vs "archivo a crear".
-
-3. **Todo prompt de fixes debe incluir una sección "Rutas verificadas"** al inicio, con la lista de archivos confirmados con ✓.
-
-4. **Reglas de stack:**
-   - **UI:** TailwindCSS 3.4 con paleta personalizada (bleu, encre, sepia, cream, parchment). NO se usan CSS modules ni styled-components.
-   - **Almacenamiento de archivos:** Vercel Blob (`@vercel/blob`). NO se usa S3 ni Supabase Storage.
-   - **Auth:** NextAuth 4 con Google OAuth. Acceso staff controlado por `STAFF_EMAILS`. Traductores acceden via OTP (SMS).
-   - **Páginas admin:** Server Components con Prisma directamente (no API routes para lectura). Las acciones usan API routes.
-   - **Email:** SendGrid. NO se usa Resend ni Azure.
-   - **Pagos:** Stripe (principal) + Redsys. PayPal desactivado. Bizum/transferencia manual.
-   - **Deploy:** Vercel auto-deploy desde `main`. Deploy manual con `vercel --prod --yes`.
-   - **Blog:** Velite + MDX, NO CMS externo.
-   - **Base de datos:** Prisma 6 + PostgreSQL (Prisma Postgres en Vercel). NO Drizzle ni Supabase client.
-
-5. **Formato obligatorio de prompts de fixes:**
+1. **Siempre ejecutar `bash scripts/project-map.sh`** al inicio de cualquier sesión de audit o fixes.
+2. **Verificar archivos antes de editarlos.** Si no existe donde se supone → buscarlo.
+3. **Todo prompt de fixes debe incluir "Rutas verificadas"** con ✓ al inicio.
+4. **Formato obligatorio:**
    ```
    ## Rutas verificadas (fecha)
    ## BLOQUE 1 — ALTA
    ## BLOQUE 2 — MEDIA
    ## AL TERMINAR — build + checklist en dev
    ```
-
-## Módulo colaboradores
-
-Sistema de asignación de traducciones a colaboradores externos. Flujo completo con presupuesto, revisión de precio, aceptación, entrega y visualización en workspace.
-
-### Estado del flujo (`AssignmentStatus`)
-```
-REQUESTED → QUOTED → ACCEPTED → DELIVERED
-                  ↘ REJECTED (terminal)
-                  ↘ QUOTE_REVISION_REQUESTED → QUOTED (ciclo)
-```
-
-### Archivos clave
-- **Schema:** `prisma/schema.prisma` — modelo `CollaboratorAssignment` + enum `AssignmentStatus`
-- **Lógica:** `lib/collaborators.ts` — CRUD, `requestQuoteRevision()`, `submitCollaboratorQuote()`
-- **Emails:** `lib/collaborator-emails.ts` — 6 funciones (asignación, presupuesto, revisión, aceptación, rechazo, entrega)
-- **API admin:** `app/api/orders/[ref]/collaborator-assignment/[id]/route.ts` — acciones: accept, reject, request-revision, resend-email
-- **API colaborador:** `app/api/encargo/[token]/route.ts` — GET estado + POST quote/delivery
-- **Upload colaborador:** `app/api/encargo/[token]/upload/route.ts` — validación MIME, 20MB, malware scan
-- **UI admin:** `components/CollaboratorAssignmentPanel.tsx` — panel completo con botones por estado
-- **UI colaborador:** `app/encargo/[token]/page.tsx` — página pública por token (formulario quote / entrega)
-- **Workspace:** `app/zona-traductor/workspace/[reference]/page.tsx` — muestra entrega colaborador en columna izquierda
-
-### Workspace — entrega del colaborador
-La columna izquierda del workspace prioriza la entrega del colaborador sobre el documento original:
-1. Si hay `collaboratorDelivery` → muestra archivo del colaborador (PDF=iframe, DOCX=descarga, imagen=img)
-2. Si no → muestra documento original del cliente
-
-### Prisma — migraciones
-Shadow DB no funciona con Prisma Postgres → usar `prisma db push` + crear SQL manual en `prisma/migrations/`. El script `prisma-deploy-safe.mjs` maneja esto en producción.
