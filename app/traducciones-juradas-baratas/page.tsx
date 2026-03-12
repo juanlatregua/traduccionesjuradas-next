@@ -55,7 +55,7 @@ export default function TraduccionesJuradasBaratas() {
         </p>
 
         <p className="mt-4 text-lg font-semibold text-encre">
-          💶 Precio mínimo orientativo: <strong>desde 40 € por documento</strong>.
+          💶 Precio mínimo orientativo: <strong>desde 35 € por documento</strong>.
         </p>
 
         <p className="mt-3 text-sepia">
