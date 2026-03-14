@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 
 type OrderRow = {
   id: string;
@@ -70,13 +72,61 @@ function Badge({ label, colorClass }: { label: string; colorClass: string }) {
 }
 
 export function AdminOrdersList() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedRefs, setSelectedRefs] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  function toggleRef(ref: string) {
+    setSelectedRefs((prev) => {
+      const next = new Set(prev);
+      if (next.has(ref)) next.delete(ref);
+      else next.add(ref);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (!data?.orders) return;
+    const allRefs = data.orders.map((o) => o.reference);
+    const allSelected = allRefs.every((r) => selectedRefs.has(r));
+    setSelectedRefs(allSelected ? new Set() : new Set(allRefs));
+  }
+
+  async function handleBulkDelete() {
+    const refs = Array.from(selectedRefs);
+    if (refs.length === 0) return;
+    const confirmed = window.confirm(
+      `¿Eliminar ${refs.length} pedido${refs.length > 1 ? "s" : ""} definitivamente?\n\nEsta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch("/api/orders/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ references: refs }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.ok) {
+        alert(result.error || "Error al eliminar pedidos.");
+        return;
+      }
+      setSelectedRefs(new Set());
+      fetchOrders(search, status, paymentStatus, page);
+      router.refresh();
+    } catch {
+      alert("Error de red al eliminar pedidos.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   const fetchOrders = useCallback(async (s: string, st: string, ps: string, p: number) => {
     setLoading(true);
@@ -111,7 +161,7 @@ export function AdminOrdersList() {
 
   return (
     <div className="mt-6">
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <input
           type="text"
           placeholder="Buscar por referencia, email o nombre..."
@@ -137,6 +187,16 @@ export function AdminOrdersList() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        {selectedRefs.size > 0 && (
+          <button
+            onClick={handleBulkDelete}
+            disabled={isDeleting}
+            className="flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Eliminar ({selectedRefs.size})
+          </button>
+        )}
       </div>
 
       {loading && !data ? (
@@ -149,6 +209,14 @@ export function AdminOrdersList() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-100 text-slate-600">
                 <tr>
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={data?.orders?.length ? data.orders.every((o) => selectedRefs.has(o.reference)) : false}
+                      onChange={toggleAll}
+                      className="h-4 w-4 rounded border-slate-300 text-bleu focus:ring-bleu"
+                    />
+                  </th>
                   <th className="px-4 py-3">Ref.</th>
                   <th className="px-4 py-3">Cliente</th>
                   <th className="px-4 py-3">Concepto</th>
@@ -165,7 +233,15 @@ export function AdminOrdersList() {
                     ? (order.events[0].payload as any)?.to
                     : null;
                   return (
-                    <tr key={order.id} className="border-t border-slate-100">
+                    <tr key={order.id} className={`border-t border-slate-100 ${selectedRefs.has(order.reference) ? "bg-red-50" : ""}`}>
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRefs.has(order.reference)}
+                          onChange={() => toggleRef(order.reference)}
+                          className="h-4 w-4 rounded border-slate-300 text-bleu focus:ring-bleu"
+                        />
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-emerald-700">
                         {order.reference}
                       </td>

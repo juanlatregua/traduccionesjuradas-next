@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Clock, Zap, CreditCard, MessageCircle, Check, FileText, File } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Clock, Zap, CreditCard, MessageCircle, Check, FileText, AlertCircle, Plus } from "lucide-react";
 import type { Quote } from "@/lib/pricing-engine/calculator";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
+import {
+  addBusinessDays,
+  getBusinessStart,
+  formatDeliveryDate,
+  isWeekendOrFridayEvening,
+} from "@/lib/delivery-date";
 
 type DocumentEntry = {
   id: string;
@@ -14,30 +20,41 @@ type DocumentEntry = {
 type Props = {
   documents: DocumentEntry[];
   onPaymentStart: (isUrgent: boolean) => void;
+  onAddAnother: () => void;
   hasWarnings: boolean;
 };
 
-function longestDeadline(
+function getLongestRange(
   documents: DocumentEntry[],
   mode: "standard" | "urgent"
-): string {
-  // Return the most conservative (longest) deadline
-  const deadlines = documents.map((d) =>
-    mode === "standard"
-      ? d.quote.estimatedDaysStandard
-      : d.quote.estimatedDaysUrgent
-  );
-  // Sort by the largest number found in the string
-  return deadlines.sort((a, b) => {
-    const numA = Math.max(...(a.match(/\d+/g) || ["0"]).map(Number));
-    const numB = Math.max(...(b.match(/\d+/g) || ["0"]).map(Number));
-    return numB - numA;
-  })[0];
+): { min: number; max: number } {
+  let min = 0;
+  let max = 0;
+  for (const d of documents) {
+    const b = d.quote.breakdown;
+    if (mode === "standard") {
+      if (b.standardDaysMin > min) min = b.standardDaysMin;
+      if (b.standardDaysMax > max) max = b.standardDaysMax;
+    } else {
+      if (b.urgentDaysMin > min) min = b.urgentDaysMin;
+      if (b.urgentDaysMax > max) max = b.urgentDaysMax;
+    }
+  }
+  return { min, max };
+}
+
+function formatDeliveryRange(min: number, max: number): string {
+  const start = getBusinessStart();
+  const fromDate = addBusinessDays(start, min);
+  const toDate = addBusinessDays(start, max);
+  if (min === max) return formatDeliveryDate(fromDate);
+  return `${formatDeliveryDate(fromDate)} – ${formatDeliveryDate(toDate)}`;
 }
 
 export default function InstantQuote({
   documents,
   onPaymentStart,
+  onAddAnother,
   hasWarnings,
 }: Props) {
   const [selectedMode, setSelectedMode] = useState<"standard" | "urgent">(
@@ -53,7 +70,12 @@ export default function InstantQuote({
   const baseForMode = selectedMode === "standard" ? totalBase : totalUrgent;
   const price = selectedMode === "standard" ? totalWithVat : urgentWithVat;
   const ivaAmount = Math.round((price - baseForMode) * 100) / 100;
-  const estimatedDays = longestDeadline(documents, selectedMode);
+  const range = getLongestRange(documents, selectedMode);
+  const deliveryLabel = useMemo(
+    () => formatDeliveryRange(range.min, range.max),
+    [range.min, range.max]
+  );
+  const showWeekendNotice = isWeekendOrFridayEvening();
 
   // For single doc, use its analysis for WhatsApp message
   const firstAnalysis = documents[0].analysis;
@@ -121,8 +143,17 @@ export default function InstantQuote({
           </p>
           <div className="mt-3 flex items-center justify-center gap-2 text-sm text-encre">
             <Clock className="h-4 w-4 text-bleu" />
-            Plazo: <strong>{estimatedDays}</strong>
+            Entrega: <strong className="capitalize">{deliveryLabel}</strong>
           </div>
+          {showWeekendNotice && (
+            <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-or">
+              <AlertCircle className="h-3.5 w-3.5" />
+              Los plazos cuentan a partir del lunes
+            </div>
+          )}
+          <p className="mt-1 text-center text-[11px] text-graphite/60">
+            Días laborables (lunes a viernes)
+          </p>
         </div>
 
         {/* Breakdown */}
@@ -174,6 +205,14 @@ export default function InstantQuote({
                   </span>
                 </div>
               )}
+              {documents[0].quote.breakdown.apostilleSurcharge > 0 && (
+                <div className="flex justify-between">
+                  <span>Apostilla de La Haya</span>
+                  <span className="font-medium text-encre">
+                    {documents[0].quote.breakdown.apostilleSurcharge.toFixed(2)}€
+                  </span>
+                </div>
+              )}
               {documents[0].quote.breakdown.complexityMultiplier > 1 && (
                 <div className="flex justify-between">
                   <span>Multiplicador complejidad</span>
@@ -206,6 +245,14 @@ export default function InstantQuote({
 
         {/* CTA Buttons */}
         <div className="mt-6 space-y-3">
+          <button
+            onClick={onAddAnother}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-bleu/30 px-6 py-3 text-sm font-medium text-bleu hover:border-bleu/50 hover:bg-bleu/5 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Añadir otro documento
+          </button>
+
           <button
             onClick={() => onPaymentStart(selectedMode === "urgent")}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-6 py-3.5 text-base font-semibold text-cream shadow-md hover:bg-bleu-dark transition-colors"

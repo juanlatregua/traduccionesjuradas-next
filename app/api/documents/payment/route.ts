@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession } from "@/lib/stripe";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { addBusinessDays, getBusinessStart } from "@/lib/delivery-date";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
       clientName,
       clientEmail,
       clientPhone,
+      clientNotes,
       paymentMethod: rawPaymentMethod,
     } = body;
     const paymentMethod =
@@ -109,36 +111,47 @@ export async function POST(req: Request) {
 
     if (docs.length === 1) {
       const doc = docs[0];
-      const docTypeLabel =
-        (doc.analysisJson as any)?.document_type?.specific_type_es ||
-        "Documento";
-      const langSource = doc.sourceLanguage || "?";
-      const langTarget = doc.targetLanguage || "es";
-      title = `${docTypeLabel} (${langSource.toUpperCase()} → ${langTarget.toUpperCase()})`;
-      langPair = `${langSource}-${langTarget}`;
+      const analysis = doc.analysisJson as any;
+      const docTypeLabel = analysis?.document_type?.specific_type_es || "Documento";
+      const langSourceName = analysis?.language?.source_name || doc.sourceLanguage?.toUpperCase() || "?";
+      const langTargetName = analysis?.language?.target_name || doc.targetLanguage?.toUpperCase() || "Español";
+      title = `${docTypeLabel} (${langSourceName} → ${langTargetName})`;
+      langPair = `${langSourceName} → ${langTargetName}`;
       totalWords = doc.estimatedWords || 0;
     } else {
       title = `${docs.length} documentos para traducción jurada`;
-      // Use the most common lang pair
-      const langSource = docs[0].sourceLanguage || "?";
-      const langTarget = docs[0].targetLanguage || "es";
-      langPair = `${langSource}-${langTarget}`;
+      const analysis = docs[0].analysisJson as any;
+      const langSourceName = analysis?.language?.source_name || docs[0].sourceLanguage?.toUpperCase() || "?";
+      const langTargetName = analysis?.language?.target_name || docs[0].targetLanguage?.toUpperCase() || "Español";
+      langPair = `${langSourceName} → ${langTargetName}`;
       totalWords = docs.reduce((sum, d) => sum + (d.estimatedWords || 0), 0);
     }
 
-    // Compute the longest due date across all docs
-    const maxDueMs = docs.reduce((max, doc) => {
-      const days = isUrgent
-        ? parseInt(doc.estimatedDaysUrgent || "1") || 1
-        : parseInt(doc.estimatedDays || "2") || 2;
+    // Compute the longest due date across all docs (business days)
+    const maxDueDays = docs.reduce((max, doc) => {
+      const breakdown = doc.quoteBreakdown as any;
+      let days: number;
+      if (breakdown?.standardDaysMax) {
+        days = isUrgent
+          ? (breakdown.urgentDaysMax || 1)
+          : breakdown.standardDaysMax;
+      } else {
+        // Fallback for docs analyzed before this change
+        days = isUrgent
+          ? parseInt(doc.estimatedDaysUrgent || "1") || 1
+          : parseInt(doc.estimatedDays || "2") || 2;
+      }
       return Math.max(max, days);
     }, 0);
+
+    const dueDate = addBusinessDays(getBusinessStart(), maxDueDays);
 
     const order = await prisma.order.create({
       data: {
         reference: orderReference,
         clientEmail: clientEmail,
         clientName: clientName,
+        clientNotes: clientNotes ? String(clientNotes).slice(0, 1000) : null,
         source: "ia-presupuesto",
         title: title,
         langPair: langPair,
@@ -149,9 +162,7 @@ export async function POST(req: Request) {
         paymentStatus: "PENDING",
         paymentMethod: paymentMethod,
         deliveryState: "PRESUPUESTO",
-        dueDate: new Date(
-          Date.now() + maxDueMs * 24 * 60 * 60 * 1000
-        ),
+        dueDate,
       },
     });
 

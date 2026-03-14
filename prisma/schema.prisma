@@ -103,6 +103,7 @@ model Order {
   idempotencyKey     String?        @unique
   clientEmail        String
   clientName         String?
+  clientNotes        String?
   source             String
   title              String
   langPair           String?

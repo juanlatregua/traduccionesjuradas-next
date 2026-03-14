@@ -151,6 +151,12 @@ export default async function WorkspacePage({ params }: Params) {
               Importe: <span className="font-semibold text-slate-100">{(order.amountCents / 100).toFixed(2)} EUR</span>
             </p>
           </div>
+          {order.clientNotes && (
+            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5">
+              <p className="text-xs font-semibold text-amber-300 mb-1">Observaciones del cliente:</p>
+              <p className="text-sm text-slate-200 whitespace-pre-line">{order.clientNotes}</p>
+            </div>
+          )}
         </div>
 
         {/* Two-column editor */}

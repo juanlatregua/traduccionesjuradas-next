@@ -25,6 +25,7 @@ type Props = {
   defaultName?: string;
   defaultEmail?: string;
   defaultPhone?: string;
+  clientNotes?: string;
 };
 
 function methodToApi(method: PaymentMethod): string {
@@ -43,6 +44,7 @@ export default function PaymentFlow({
   defaultName,
   defaultEmail,
   defaultPhone,
+  clientNotes,
 }: Props) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bizum");
   const [orderReference, setOrderReference] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export default function PaymentFlow({
           clientName: name.trim(),
           clientEmail: email.trim(),
           clientPhone: phone.trim() || undefined,
+          clientNotes: clientNotes || undefined,
           paymentMethod: methodToApi(paymentMethod),
         }),
       });

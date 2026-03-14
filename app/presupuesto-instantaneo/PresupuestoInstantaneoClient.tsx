@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import type { PendingDoc } from "@/components/ia/LeadGate";
 import { MessageCircle, RotateCcw, Mail } from "lucide-react";
 
 const DocumentUploader = dynamic(
@@ -46,6 +47,7 @@ type LeadData = {
   name: string;
   email: string;
   phone: string;
+  notes: string;
 };
 
 type DocumentEntry = {
@@ -106,6 +108,23 @@ export default function PresupuestoInstantaneoClient() {
     setStep("email-gate");
   }, []);
 
+  const handleMergePending = useCallback((pendingDocs: PendingDoc[]) => {
+    const entries: DocumentEntry[] = pendingDocs.map((doc) => ({
+      id: doc.id,
+      analysis: doc.analysisJson as DocumentAnalysisResult,
+      quote: {
+        basePrice: doc.basePrice,
+        urgentPrice: doc.urgentPrice,
+        totalPrice: Math.round(doc.basePrice * 1.21 * 100) / 100,
+        urgentTotalPrice: Math.round(doc.urgentPrice * 1.21 * 100) / 100,
+        estimatedDaysStandard: doc.estimatedDays || "3-5",
+        estimatedDaysUrgent: doc.estimatedDaysUrgent || "1-2",
+        breakdown: doc.quoteBreakdown as Quote["breakdown"],
+      } as Quote,
+    }));
+    setDocuments((prev) => [...prev, ...entries]);
+  }, []);
+
   const handleLeadComplete = useCallback((data: LeadData) => {
     setLeadData(data);
     setStep("quote");
@@ -114,6 +133,12 @@ export default function PresupuestoInstantaneoClient() {
   const handleAnalysisError = useCallback((error: string) => {
     setErrorMessage(error);
     setStep("error");
+  }, []);
+
+  const handleAddAnotherFromQuote = useCallback(() => {
+    currentDocIdRef.current = null;
+    setCurrentDocumentId(null);
+    setStep("upload");
   }, []);
 
   const handlePaymentStart = useCallback((urgent: boolean) => {
@@ -211,6 +236,7 @@ export default function PresupuestoInstantaneoClient() {
           documentId={documents[0].id}
           documentIds={documents.map((d) => d.id)}
           onComplete={handleLeadComplete}
+          onMergePending={handleMergePending}
         />
       )}
 
@@ -219,6 +245,7 @@ export default function PresupuestoInstantaneoClient() {
         <InstantQuote
           documents={documents}
           onPaymentStart={handlePaymentStart}
+          onAddAnother={handleAddAnotherFromQuote}
           hasWarnings={hasWarnings}
         />
       )}
@@ -234,6 +261,7 @@ export default function PresupuestoInstantaneoClient() {
           defaultName={leadData?.name}
           defaultEmail={leadData?.email}
           defaultPhone={leadData?.phone}
+          clientNotes={leadData?.notes}
         />
       )}
 
