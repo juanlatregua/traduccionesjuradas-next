@@ -2,9 +2,10 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { DOCUMENT_ANALYSIS_PROMPT } from "./prompts";
+import { countDocumentWords } from "./word-counter";
 
 const MODEL = "claude-sonnet-4-20250514";
-const MAX_TOKENS = 4096;
+const MAX_TOKENS = 8192;
 const TIMEOUT_MS = 30_000;
 
 export type DocumentAnalysisResult = {
@@ -30,6 +31,7 @@ export type DocumentAnalysisResult = {
   };
   document_metrics: {
     estimated_words: number;
+    extracted_text?: string;
     pages: number;
     has_tables: boolean;
     has_stamps_seals: boolean;
@@ -159,6 +161,15 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
     }
 
     const result = JSON.parse(jsonStr) as DocumentAnalysisResult;
+
+    // Override word count with local counter if extracted_text is available
+    if (result.document_metrics.extracted_text) {
+      const claudeWords = result.document_metrics.estimated_words;
+      const localWords = countDocumentWords(result.document_metrics.extracted_text);
+      console.log(`[analyzeDocument] Words: Claude=${claudeWords}, local=${localWords}`);
+      result.document_metrics.estimated_words = localWords;
+    }
+
     return result;
   } catch (err: any) {
     clearTimeout(timeout);

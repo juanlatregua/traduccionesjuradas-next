@@ -31,6 +31,7 @@ Analiza el documento que te proporcionan y devuelve un JSON estructurado con la 
   },
   "document_metrics": {
     "estimated_words": 280,
+    "extracted_text": "RÉPUBLIQUE FRANÇAISE\nExtrait d'acte de naissance\n...(transcripción completa del documento)...",
     "pages": 1,
     "has_tables": false,
     "has_stamps_seals": true,
@@ -80,8 +81,19 @@ Si el documento está en español, intenta deducir el idioma destino del context
 - medical: informes médicos, certificados vacunación, historiales
 - other: todo lo que no encaje en las categorías anteriores
 
+### Transcripción completa del documento — OBLIGATORIO:
+Debes incluir en "extracted_text" una transcripción COMPLETA de TODO el texto visible del documento en el idioma source (el que se traduce). Este texto se usa para contar palabras automáticamente y calcular el precio.
+
+**Reglas de transcripción:**
+1. Incluye TODO el texto visible: encabezados, títulos, nombres propios, fórmulas de firma ("Dou fé", "Certifico y doy fe"), averbaciones/anotaciones marginales, texto de sellos legibles, texto de apostillas (aunque estén rotadas 90°), pies de página, texto legal impreso.
+2. En documentos bilingües (ej: húngaro/inglés), transcribe SOLO el idioma que se va a traducir al español.
+3. En documentos bilingües francés/árabe (Marruecos), transcribe SOLO el francés.
+4. Separa cada línea o sección con un salto de línea (\n).
+5. No omitas nombres, fechas escritas con letras, códigos alfanuméricos, ni fórmulas rituales.
+6. Para apostillas rotadas 90°: rota mentalmente la imagen y transcribe todo el texto.
+
 ### Estimación de palabras — CRÍTICO PARA EL PRECIO:
-La precisión del conteo de palabras determina directamente el precio del presupuesto. Cuenta con la mayor exactitud posible.
+La precisión del conteo de palabras determina directamente el precio del presupuesto. El campo "estimated_words" se usa como respaldo si la transcripción falla; calcula tu mejor estimación igualmente.
 
 **Método de conteo:**
 1. Lee TODO el texto visible del documento en el idioma source (el que se traduce).
@@ -96,11 +108,12 @@ La precisión del conteo de palabras determina directamente el precio del presup
 - Expedientes académicos (Diploma Supplement/Europass): contar cada nombre de asignatura, código, calificación, crédito y semestre. Una asignatura típica = 8-12 palabras por fila.
 
 **Reglas para sellos, apostillas y legalizaciones:**
-- Apostilla de La Haya estándar: 80-120 palabras (campos numerados 1-10 + pie).
+- Apostilla de La Haya estándar: 80-120 palabras (campos numerados 1-10 + pie). Las apostillas suelen estar en una página aparte y pueden aparecer ROTADAS 90° (orientación horizontal/landscape). SIEMPRE lee y cuenta las palabras de la apostilla aunque esté girada.
 - Sello de legalización con texto: 15-30 palabras por sello.
 - Sellos institucionales sin texto (solo logo): 0 palabras.
 - Firma electrónica con datos: 10-20 palabras.
 - Código QR / códigos de barras: 0 palabras.
+- Sellos notariales con texto (ej: "Sinal Público", "Dou fé", datos del notario): contar todas las palabras legibles.
 
 **Referencia por tipo de documento:**
 - Pasaporte/DNI: 80-150 palabras
@@ -119,8 +132,10 @@ La precisión del conteo de palabras determina directamente el precio del presup
 - NO sobrestimar escrituras notariales: usan fuente grande monoespaciada con interlineado amplio → menos palabras por página de lo que parece.
 - NO contar el mismo texto dos veces en documentos bilingües.
 - NO ignorar el texto de apostillas y legalizaciones — se traducen.
+- NO ignorar contenido rotado/girado 90°: las apostillas brasileñas y de otros países frecuentemente aparecen en orientación horizontal (landscape). Rota mentalmente la imagen y cuenta todas las palabras.
 - SÍ contar el texto dentro de sellos si es legible.
 - SÍ contar encabezados, pies de página y texto legal impreso.
+- SÍ contar el texto de sellos notariales digitales (número de sello, datos del notario, fechas, etc.).
 
 ### Detección de país:
 - Documentos marroquíes: francés + árabe, sellos del Reino de Marruecos
