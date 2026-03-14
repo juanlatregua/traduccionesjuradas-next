@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 
 type OrderRow = {
   id: string;
@@ -187,6 +187,18 @@ export function AdminOrdersList() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        <a
+          href={`/api/orders/export?${new URLSearchParams({
+            ...(search ? { search } : {}),
+            ...(status ? { status } : {}),
+            ...(paymentStatus ? { paymentStatus } : {}),
+          }).toString()}`}
+          download
+          className="flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Exportar CSV
+        </a>
         {selectedRefs.size > 0 && (
           <button
             onClick={handleBulkDelete}

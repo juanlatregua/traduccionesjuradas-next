@@ -134,12 +134,12 @@ export default function DocumentAnalysis({
   // ─── Analyzing state — skeleton loader ───
   if (status === "analyzing") {
     return (
-      <div className="space-y-4 animate-fadeIn">
+      <div className="space-y-4 animate-fadeIn" role="status" aria-live="polite" aria-label="Estado del análisis">
         {/* Progress header */}
         <div className="flex flex-col items-center gap-3 rounded-xl border border-bleu/15 bg-card p-6 shadow-paper">
           <div className="relative">
-            <div className="h-12 w-12 rounded-full border-4 border-bleu/20 border-t-bleu animate-spin" />
-            <FileText className="absolute inset-0 m-auto h-5 w-5 text-bleu" />
+            <div className="h-12 w-12 rounded-full border-4 border-bleu/20 border-t-bleu animate-spin" aria-hidden="true" />
+            <FileText className="absolute inset-0 m-auto h-5 w-5 text-bleu" aria-hidden="true" />
           </div>
           <p className="text-sm font-medium text-bleu transition-all duration-300">
             {ANALYZING_MESSAGES[messageIndex]}

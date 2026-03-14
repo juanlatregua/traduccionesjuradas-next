@@ -224,7 +224,7 @@ export default function LeadGate({ documentId, documentIds, onComplete, onMergeP
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Juan García López"
+            placeholder="Tu nombre completo"
             required
             className="w-full rounded-lg border border-graphite/20 bg-white px-4 py-2.5 text-sm text-encre placeholder:text-graphite/40 focus:border-bleu focus:ring-2 focus:ring-bleu/20 outline-none transition-colors"
           />

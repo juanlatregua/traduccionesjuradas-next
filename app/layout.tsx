@@ -8,6 +8,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Header } from "@/components/Header";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import Link from "next/link";
 import { TrustStrip } from "@/components/TrustStrip";
 
@@ -145,6 +146,9 @@ export default function RootLayout({
 
         {/* ================= BANNER COOKIES ================= */}
         <CookieBanner />
+
+        {/* ================= OFFLINE BANNER ================= */}
+        <OfflineBanner />
 
         {/* ================= ANALYTICS ================= */}
         <Analytics />

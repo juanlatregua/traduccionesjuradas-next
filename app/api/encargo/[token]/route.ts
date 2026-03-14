@@ -25,6 +25,15 @@ export async function GET(req: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "Encargo no encontrado." }, { status: 404 });
   }
 
+  // Expire tokens for completed/rejected assignments older than 30 days
+  const EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
+  if (
+    ["DELIVERED", "REJECTED"].includes(assignment.status) &&
+    assignment.updatedAt < new Date(Date.now() - EXPIRY_MS)
+  ) {
+    return NextResponse.json({ ok: false, error: "Este enlace ha expirado." }, { status: 410 });
+  }
+
   const documents = getDocumentsFromOrder(assignment.order);
 
   return NextResponse.json({
