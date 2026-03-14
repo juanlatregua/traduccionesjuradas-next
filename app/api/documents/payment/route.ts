@@ -90,12 +90,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Calculate combined amount
+    // Calculate combined amount (base imponible × 1.21 IVA)
     const totalAmount = docs.reduce((sum, doc) => {
-      const docAmount = isUrgent
+      const docBase = isUrgent
         ? doc.quoteUrgent || doc.quoteAmount!
         : doc.quoteAmount!;
-      return sum + docAmount;
+      return sum + docBase * 1.21;
     }, 0);
     const amountCents = Math.round(totalAmount * 100);
 

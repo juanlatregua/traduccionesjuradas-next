@@ -69,13 +69,17 @@ export async function POST(req: Request) {
 
     if (doc.status === "ANALYZED" || doc.status === "QUOTE_GENERATED") {
       // Already analyzed — return cached result
+      const cachedBase = doc.quoteAmount;
+      const cachedUrgent = doc.quoteUrgent;
       return NextResponse.json({
         ok: true,
         analysis: doc.analysisJson,
-        quote: doc.quoteAmount
+        quote: cachedBase
           ? {
-              basePrice: doc.quoteAmount,
-              urgentPrice: doc.quoteUrgent,
+              basePrice: cachedBase,
+              urgentPrice: cachedUrgent,
+              totalPrice: Math.round(cachedBase * 1.21 * 100) / 100,
+              urgentTotalPrice: cachedUrgent ? Math.round(cachedUrgent * 1.21 * 100) / 100 : undefined,
               estimatedDaysStandard: doc.estimatedDays,
               estimatedDaysUrgent: doc.estimatedDaysUrgent,
               breakdown: doc.quoteBreakdown,
@@ -174,6 +178,7 @@ export async function POST(req: Request) {
         name: doc.clientName,
         documentType: analysis.document_type.specific_type_es,
         price: quote.basePrice,
+        totalPrice: quote.totalPrice,
         langPair: `${analysis.language.source_name} → ${analysis.language.target_name}`,
         estimatedDays: quote.estimatedDaysStandard,
       }).catch((err) => {

@@ -10,9 +10,13 @@ import {
   MOROCCO_PER_WORD_RATE,
 } from "./rules";
 
+export const VAT_RATE = 0.21;
+
 export type Quote = {
   basePrice: number;
   urgentPrice: number;
+  totalPrice: number;
+  urgentTotalPrice: number;
   estimatedDaysStandard: string;
   estimatedDaysUrgent: string;
   breakdown: {
@@ -22,7 +26,8 @@ export type Quote = {
     minimumApplied: boolean;
     minimumAmount: number;
     complexityMultiplier: number;
-    ivaIncluded: boolean;
+    ivaRate: number;
+    ivaAmount: number;
   };
 };
 
@@ -115,9 +120,14 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     document_metrics.estimated_words
   );
 
+  const roundedBase = round2(basePrice);
+  const roundedUrgent = round2(basePrice * URGENCY_MULTIPLIER);
+
   return {
-    basePrice: round2(basePrice),
-    urgentPrice: round2(basePrice * URGENCY_MULTIPLIER),
+    basePrice: roundedBase,
+    urgentPrice: roundedUrgent,
+    totalPrice: round2(roundedBase * (1 + VAT_RATE)),
+    urgentTotalPrice: round2(roundedUrgent * (1 + VAT_RATE)),
     estimatedDaysStandard: estimatedDays.standard,
     estimatedDaysUrgent: estimatedDays.urgent,
     breakdown: {
@@ -127,7 +137,8 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
       minimumApplied: !moroccoFixedPrice && wordPrice < minimum,
       minimumAmount: minimum,
       complexityMultiplier: complexityMult,
-      ivaIncluded: true,
+      ivaRate: VAT_RATE,
+      ivaAmount: round2(roundedBase * VAT_RATE),
     },
   };
 }

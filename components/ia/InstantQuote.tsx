@@ -47,8 +47,12 @@ export default function InstantQuote({
   const isMultiDoc = documents.length > 1;
   const totalBase = documents.reduce((sum, d) => sum + d.quote.basePrice, 0);
   const totalUrgent = documents.reduce((sum, d) => sum + d.quote.urgentPrice, 0);
+  const totalWithVat = documents.reduce((sum, d) => sum + d.quote.totalPrice, 0);
+  const urgentWithVat = documents.reduce((sum, d) => sum + d.quote.urgentTotalPrice, 0);
 
-  const price = selectedMode === "standard" ? totalBase : totalUrgent;
+  const baseForMode = selectedMode === "standard" ? totalBase : totalUrgent;
+  const price = selectedMode === "standard" ? totalWithVat : urgentWithVat;
+  const ivaAmount = Math.round((price - baseForMode) * 100) / 100;
   const estimatedDays = longestDeadline(documents, selectedMode);
 
   // For single doc, use its analysis for WhatsApp message
@@ -125,7 +129,7 @@ export default function InstantQuote({
         <div className="mt-5 space-y-2 rounded-lg bg-cream/40 p-3 text-xs text-graphite">
           {isMultiDoc ? (
             <>
-              {documents.map((doc, i) => (
+              {documents.map((doc) => (
                 <div key={doc.id} className="flex justify-between">
                   <span className="flex items-center gap-1.5 truncate pr-2">
                     <FileText className="h-3 w-3 shrink-0" />
@@ -133,12 +137,20 @@ export default function InstantQuote({
                   </span>
                   <span className="font-medium text-encre shrink-0">
                     {(selectedMode === "standard"
-                      ? doc.quote.basePrice
-                      : doc.quote.urgentPrice
+                      ? doc.quote.totalPrice
+                      : doc.quote.urgentTotalPrice
                     ).toFixed(2)}€
                   </span>
                 </div>
               ))}
+              <div className="flex justify-between border-t border-cream pt-2">
+                <span>Base imponible</span>
+                <span className="font-medium text-encre">{baseForMode.toFixed(2)}€</span>
+              </div>
+              <div className="flex justify-between">
+                <span>IVA (21%)</span>
+                <span className="font-medium text-encre">{ivaAmount.toFixed(2)}€</span>
+              </div>
               <div className="flex justify-between border-t border-cream pt-2 font-medium text-encre">
                 <span>Total</span>
                 <span>{price.toFixed(2)}€</span>
@@ -176,6 +188,18 @@ export default function InstantQuote({
                   <span className="font-medium">+25%</span>
                 </div>
               )}
+              <div className="flex justify-between border-t border-cream pt-2">
+                <span>Base imponible</span>
+                <span className="font-medium text-encre">{baseForMode.toFixed(2)}€</span>
+              </div>
+              <div className="flex justify-between">
+                <span>IVA (21%)</span>
+                <span className="font-medium text-encre">{ivaAmount.toFixed(2)}€</span>
+              </div>
+              <div className="flex justify-between font-medium text-encre">
+                <span>Total</span>
+                <span>{price.toFixed(2)}€</span>
+              </div>
             </>
           )}
         </div>

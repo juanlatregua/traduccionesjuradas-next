@@ -91,6 +91,7 @@ export async function PATCH(
         name: clientName.trim(),
         documentType,
         price: doc.quoteAmount,
+        totalPrice: Math.round(doc.quoteAmount * 1.21 * 100) / 100,
         langPair: `${langSource} → ${langTarget}`,
         estimatedDays: doc.estimatedDays || "2-5 días",
       }).catch((err) =>

@@ -36,6 +36,7 @@ export type QuoteFollowupData = {
   name: string;
   documentType: string;
   price: number;
+  totalPrice: number;
   langPair: string;
   estimatedDays: string;
 };
@@ -53,7 +54,8 @@ export async function sendQuoteFollowupEmail(data: QuoteFollowupData) {
 
   sgMail.setApiKey(apiKey);
 
-  const subject = `Tu presupuesto de traducción jurada — ${data.price.toFixed(2)} EUR`;
+  const ivaAmount = Math.round((data.totalPrice - data.price) * 100) / 100;
+  const subject = `Tu presupuesto de traducción jurada — ${data.totalPrice.toFixed(2)} EUR`;
 
   const text = `Hola ${data.name},
 
@@ -61,7 +63,9 @@ Hemos analizado tu documento y este es tu presupuesto:
 
 Tipo de documento: ${data.documentType}
 Combinación: ${data.langPair}
-Precio: ${data.price.toFixed(2)} EUR (IVA incluido)
+Base imponible: ${data.price.toFixed(2)} EUR
+IVA (21%): ${ivaAmount.toFixed(2)} EUR
+Total: ${data.totalPrice.toFixed(2)} EUR (IVA incluido)
 Plazo estimado: ${data.estimatedDays}
 
 Puedes continuar con tu pedido en:
@@ -93,7 +97,8 @@ Equipo de TraduccionesJuradas.net`;
     </table>
 
     <div style="text-align:center; margin:20px 0; padding:20px; background:#f0fdfa; border:1px solid #99f6e4; border-radius:12px;">
-      <p style="margin:0 0 4px 0; font-size:32px; font-weight:700; color:#0f766e;">${data.price.toFixed(2)} &euro;</p>
+      <p style="margin:0 0 4px 0; font-size:14px; color:#64748b;">Base imponible: ${data.price.toFixed(2)} &euro; &middot; IVA (21%): ${ivaAmount.toFixed(2)} &euro;</p>
+      <p style="margin:0 0 4px 0; font-size:32px; font-weight:700; color:#0f766e;">${data.totalPrice.toFixed(2)} &euro;</p>
       <p style="margin:0; font-size:13px; color:#64748b;">IVA incluido &middot; Precio cerrado</p>
     </div>
 

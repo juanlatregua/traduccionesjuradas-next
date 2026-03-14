@@ -68,6 +68,14 @@ Key = opay_{sha256(reference|provider|providerEventId)}
 
 Pagos manuales: `providerEventId = manual:{reference}:{method}`
 
+## IVA
+- `VAT_RATE = 0.21` exportado desde `lib/pricing-engine/calculator.ts`
+- DB (`quoteAmount`, `quoteUrgent`) almacena **base imponible** (sin IVA)
+- IVA se aplica al vuelo: `totalPrice = basePrice × 1.21`
+- `app/api/documents/payment/route.ts`: `amountCents = sum(docBase × 1.21) × 100`
+- `lib/invoice-pdf.ts`: reverse-engineer base from `amountCents / 1.21`, aplica 21%
+- No aplica exención art. 20.1.26 LIVA (empresa es SL, no autónomo persona física)
+
 ## Validación pre-pago
 1. Pedido existe
 2. `paymentStatus !== PAID`

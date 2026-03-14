@@ -28,7 +28,7 @@
 |---------|-------------|---------|
 | `sendPresupuestoEmail()` | Staff | Formulario de presupuesto enviado |
 | `sendPresupuestoConfirmationEmail()` | Cliente | Confirmación tras enviar formulario |
-| `sendQuoteFollowupEmail()` | Cliente | Análisis IA completado |
+| `sendQuoteFollowupEmail()` | Cliente | Análisis IA completado (requiere `price` + `totalPrice`) |
 
 ### Pedidos (4)
 | Función | Destinatario | Trigger |

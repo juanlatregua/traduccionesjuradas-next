@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 
 // === From lib/pricing-engine/languages.ts ===
 const PER_WORD_RATE: Record<string, number> = {
-  fr: 0.08, en: 0.08, de: 0.10, nl: 0.10, it: 0.09, pt: 0.09,
+  fr: 0.08, en: 0.08, de: 0.10, nl: 0.10, it: 0.09, pt: 0.12,
   ca: 0.08, sv: 0.12, no: 0.12, ar: 0.10, ro: 0.09,
 };
 const DEFAULT_RATE = 0.10;
@@ -29,6 +29,7 @@ function getComplexityMultiplier(l: string) { return COMPLEXITY_MULTIPLIER[l] ||
 function getVolumeDiscount(c: number) { let d = 0; for (const t of VOLUME_DISCOUNTS) { if (c >= t.threshold) d = t.discount; } return d; }
 
 // === From lib/pricing-engine/calculator.ts (simplified) ===
+const VAT_RATE = 0.21;
 function round2(n: number) { return Math.round(n * 100) / 100; }
 function calculatePrice(analysis: any) {
   const { document_type, language, document_metrics, complexity } = analysis;
@@ -52,12 +53,17 @@ function calculatePrice(analysis: any) {
     days = { standard: "2-5 días", urgent: "24-48h" };
   }
 
+  const roundedBase = round2(basePrice);
+  const roundedUrgent = round2(basePrice * URGENCY_MULTIPLIER);
+
   return {
-    basePrice: round2(basePrice),
-    urgentPrice: round2(basePrice * URGENCY_MULTIPLIER),
+    basePrice: roundedBase,
+    urgentPrice: roundedUrgent,
+    totalPrice: round2(roundedBase * (1 + VAT_RATE)),
+    urgentTotalPrice: round2(roundedUrgent * (1 + VAT_RATE)),
     estimatedDaysStandard: days.standard,
     estimatedDaysUrgent: days.urgent,
-    breakdown: { words: document_metrics.estimated_words, ratePerWord: rate, wordSubtotal: round2(wordPrice), minimumApplied: wordPrice < minimum, minimumAmount: minimum, complexityMultiplier: complexityMult, ivaIncluded: true },
+    breakdown: { words: document_metrics.estimated_words, ratePerWord: rate, wordSubtotal: round2(wordPrice), minimumApplied: wordPrice < minimum, minimumAmount: minimum, complexityMultiplier: complexityMult, ivaRate: VAT_RATE, ivaAmount: round2(roundedBase * VAT_RATE) },
   };
 }
 
@@ -151,4 +157,35 @@ test("título académico corto: 48-72h", () => {
     document_metrics: { ...baseAnalysis.document_metrics, estimated_words: 200, pages: 1 },
   });
   assert.equal(q.estimatedDaysStandard, "48-72h");
+});
+
+test("totalPrice = basePrice × 1.21 (certificado FR)", () => {
+  const q = calculatePrice(baseAnalysis);
+  assert.equal(q.totalPrice, round2(q.basePrice * 1.21));
+  assert.equal(q.totalPrice, 50.82); // 42 × 1.21
+});
+
+test("urgentTotalPrice = urgentPrice × 1.21", () => {
+  const q = calculatePrice(baseAnalysis);
+  assert.equal(q.urgentTotalPrice, round2(q.urgentPrice * 1.21));
+  assert.equal(q.urgentTotalPrice, 63.53); // 52.5 × 1.21
+});
+
+test("breakdown incluye ivaRate e ivaAmount", () => {
+  const q = calculatePrice(baseAnalysis);
+  assert.equal(q.breakdown.ivaRate, 0.21);
+  assert.equal(q.breakdown.ivaAmount, round2(q.basePrice * 0.21));
+  assert.equal(q.breakdown.ivaAmount, 8.82); // 42 × 0.21
+});
+
+test("caso validación: 1276 palabras PT → base 153.12, total 185.28", () => {
+  const q = calculatePrice({
+    ...baseAnalysis,
+    language: { source: "pt", source_name: "Portugués", target: "es", target_name: "Español", confidence: 0.98 },
+    document_type: { ...baseAnalysis.document_type, specific_type: "contract" },
+    document_metrics: { ...baseAnalysis.document_metrics, estimated_words: 1276, pages: 3 },
+  });
+  assert.equal(q.basePrice, 153.12); // 1276 × 0.12
+  assert.equal(q.breakdown.ivaAmount, 32.16); // 153.12 × 0.21
+  assert.equal(q.totalPrice, 185.28); // 153.12 × 1.21
 });

@@ -122,11 +122,10 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.text("Importe", pageWidth - margin - 2, y, { align: "right" });
   y += 8;
 
-  // Line item
-  const baseAmount = data.amountCents / 100;
-  const iva = 0; // Traducciones juradas están exentas de IVA (art. 20.1.26 LIVA)
-  const ivaAmount = baseAmount * iva;
-  const total = baseAmount + ivaAmount;
+  // Line item — amountCents already includes 21% IVA
+  const total = data.amountCents / 100;
+  const baseAmount = Math.round((total / 1.21) * 100) / 100;
+  const ivaAmount = Math.round((total - baseAmount) * 100) / 100;
 
   doc.setFont("helvetica", "normal");
   const conceptLines = doc.splitTextToSize(data.title, contentWidth - 40);
@@ -152,7 +151,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.text(`${baseAmount.toFixed(2)} EUR`, pageWidth - margin - 2, y, { align: "right" });
   y += 5;
 
-  doc.text("IVA (0% - exento art. 20.1.26 LIVA):", margin + contentWidth / 2, y);
+  doc.text("IVA (21%):", margin + contentWidth / 2, y);
   doc.text(`${ivaAmount.toFixed(2)} EUR`, pageWidth - margin - 2, y, { align: "right" });
   y += 5;
 
@@ -166,12 +165,6 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
-  doc.text(
-    "Operacion exenta de IVA conforme al articulo 20.Uno.26 de la Ley 37/1992 del Impuesto sobre el Valor Anadido.",
-    margin,
-    y
-  );
-  y += 4;
   doc.text(`Referencia pedido: ${data.reference}`, margin, y);
 
   // Return as Buffer
