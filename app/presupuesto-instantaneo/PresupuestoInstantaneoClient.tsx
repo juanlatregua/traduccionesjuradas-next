@@ -292,10 +292,13 @@ export default function PresupuestoInstantaneoClient() {
               >
                 <div className="flex gap-2">
                   <input
+                    id="error-fallback-email"
+                    name="email"
                     type="email"
                     value={errorEmail}
                     onChange={(e) => setErrorEmail(e.target.value)}
                     placeholder="tu@email.com"
+                    autoComplete="email"
                     className="flex-1 rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre placeholder:text-graphite/40 focus:border-bleu focus:ring-1 focus:ring-bleu/20 outline-none"
                   />
                   <button
