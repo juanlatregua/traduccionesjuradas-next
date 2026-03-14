@@ -6,7 +6,7 @@ export const PER_WORD_RATE: Record<string, number> = {
   de: 0.10, // Alemán
   nl: 0.10, // Neerlandés
   it: 0.09, // Italiano
-  pt: 0.09, // Portugués
+  pt: 0.12, // Portugués
   ca: 0.08, // Catalán
   sv: 0.12, // Sueco
   no: 0.12, // Noruego
