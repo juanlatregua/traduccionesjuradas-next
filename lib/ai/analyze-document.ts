@@ -147,6 +147,12 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
 
     clearTimeout(timeout);
 
+    // Check for truncated response (max_tokens hit)
+    if (response.stop_reason === "max_tokens") {
+      console.error("[analyzeDocument] Response truncated (max_tokens). Usage:", JSON.stringify(response.usage));
+      throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");
+    }
+
     // Extract text from response
     const textContent = response.content.find((block) => block.type === "text");
     if (!textContent || textContent.type !== "text") {
@@ -160,7 +166,13 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
       jsonStr = jsonMatch[1].trim();
     }
 
-    const result = JSON.parse(jsonStr) as DocumentAnalysisResult;
+    let result: DocumentAnalysisResult;
+    try {
+      result = JSON.parse(jsonStr) as DocumentAnalysisResult;
+    } catch (parseErr: any) {
+      console.error("[analyzeDocument] JSON parse failed. First 500 chars:", jsonStr.slice(0, 500));
+      throw new Error(`JSON_PARSE: ${parseErr.message}`);
+    }
 
     // Override word count with local counter if extracted_text is available
     if (result.document_metrics.extracted_text) {

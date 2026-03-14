@@ -125,7 +125,10 @@ export async function POST(req: Request) {
         ),
       ]);
     } catch (err: any) {
-      console.error("[documents/analyze] Claude error:", err.message);
+      const errorDetail = err.status
+        ? `API ${err.status}: ${err.error?.error?.message || err.message}`
+        : err.message;
+      console.error("[documents/analyze] Claude error:", errorDetail, "| mimeType:", doc.mimeType, "| fileSize:", doc.fileSize);
       await prisma.documentAnalysis.update({
         where: { id: documentId },
         data: { status: "ANALYSIS_FAILED" },
@@ -135,6 +138,7 @@ export async function POST(req: Request) {
           ok: false,
           error: "No hemos podido analizar el documento. Puedes contactarnos por WhatsApp para una respuesta rápida.",
           whatsappUrl: "https://wa.me/34951333614",
+          _debug: errorDetail,
         },
         { status: 422 }
       );

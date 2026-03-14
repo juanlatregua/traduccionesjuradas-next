@@ -108,6 +108,8 @@ export default function DocumentAnalysis({
 
         if (!data.ok) {
           setStatus("error");
+          const debugInfo = data._debug ? ` [${data._debug}]` : "";
+          console.error("[DocumentAnalysis] Error:", data.error, debugInfo);
           onError(data.error || "Error al analizar el documento.");
           return;
         }
