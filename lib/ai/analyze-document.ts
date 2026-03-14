@@ -6,7 +6,7 @@ import { countDocumentWords } from "./word-counter";
 
 const MODEL = "claude-sonnet-4-20250514";
 const MAX_TOKENS = 8192;
-const TIMEOUT_MS = 30_000;
+const TIMEOUT_MS = 55_000;
 
 export type DocumentAnalysisResult = {
   document_type: {

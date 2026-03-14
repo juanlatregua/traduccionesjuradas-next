@@ -121,7 +121,7 @@ export async function POST(req: Request) {
           fileName: doc.fileName,
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 25s")), 25000)
+          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 55s")), 55000)
         ),
       ]);
     } catch (err: any) {
