@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp, checkGlobalAnalysisCap } from "@/lib/rate-limit";
 import { analyzeDocument, censorExtractedNames } from "@/lib/ai/analyze-document";
-import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 
 export const runtime = "nodejs";
@@ -78,8 +78,8 @@ export async function POST(req: Request) {
           ? {
               basePrice: cachedBase,
               urgentPrice: cachedUrgent,
-              totalPrice: Math.round(cachedBase * 1.21 * 100) / 100,
-              urgentTotalPrice: cachedUrgent ? Math.round(cachedUrgent * 1.21 * 100) / 100 : undefined,
+              totalPrice: Math.round(cachedBase * (1 + VAT_RATE) * 100) / 100,
+              urgentTotalPrice: cachedUrgent ? Math.round(cachedUrgent * (1 + VAT_RATE) * 100) / 100 : undefined,
               estimatedDaysStandard: doc.estimatedDays,
               estimatedDaysUrgent: doc.estimatedDaysUrgent,
               breakdown: doc.quoteBreakdown,
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
           fileName: doc.fileName,
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 90s")), 90000)
+          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 95s")), 95000)
         ),
       ]);
     } catch (err: any) {

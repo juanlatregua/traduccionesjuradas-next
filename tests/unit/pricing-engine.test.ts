@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 // === From lib/pricing-engine/languages.ts ===
 const PER_WORD_RATE: Record<string, number> = {
   fr: 0.08, en: 0.08, de: 0.10, nl: 0.10, it: 0.09, pt: 0.12,
-  ca: 0.08, sv: 0.12, no: 0.12, ar: 0.10, ro: 0.09,
+  ca: 0.08, sv: 0.14, no: 0.12, ar: 0.10, ro: 0.09,
 };
 const DEFAULT_RATE = 0.10;
 function getRate(langCode: string) { return PER_WORD_RATE[langCode] || DEFAULT_RATE; }

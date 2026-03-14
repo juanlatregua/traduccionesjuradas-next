@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
@@ -70,6 +70,46 @@ export default function PresupuestoInstantaneoClient() {
   const [errorEmail, setErrorEmail] = useState("");
   const [errorEmailSent, setErrorEmailSent] = useState(false);
   const [errorGdpr, setErrorGdpr] = useState(false);
+  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
+
+  // Restore state from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("funnel_state");
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      // Only restore if saved less than 30 min ago
+      if (parsed.savedAt && Date.now() - parsed.savedAt > 30 * 60 * 1000) {
+        sessionStorage.removeItem("funnel_state");
+        return;
+      }
+      if (parsed.leadData) setLeadData(parsed.leadData);
+      if (parsed.documents?.length) setDocuments(parsed.documents);
+      if (parsed.gdprConsent) setGdprConsent(true);
+      // Restore step — but if files were uploaded, go back to appropriate step
+      const savedStep = parsed.currentStep as FlowStep;
+      if (savedStep && savedStep !== "upload" && savedStep !== "analyzing") {
+        setStep(savedStep);
+        setRestoredFromStorage(true);
+      }
+    } catch {}
+  }, []);
+
+  // Save state to sessionStorage on relevant changes
+  useEffect(() => {
+    if (step === "upload" && !documents.length && !leadData) return;
+    if (step === "success") {
+      sessionStorage.removeItem("funnel_state");
+      return;
+    }
+    sessionStorage.setItem("funnel_state", JSON.stringify({
+      leadData,
+      currentStep: step,
+      documents,
+      gdprConsent,
+      savedAt: Date.now(),
+    }));
+  }, [leadData, step, documents, gdprConsent]);
 
   const handleUploadComplete = useCallback(
     (docId: string, token: string) => {
@@ -147,6 +187,7 @@ export default function PresupuestoInstantaneoClient() {
   }, []);
 
   const handlePaymentSuccess = useCallback((ref: string) => {
+    sessionStorage.removeItem("funnel_state");
     setOrderReference(ref);
     setStep("success");
   }, []);
@@ -176,6 +217,7 @@ export default function PresupuestoInstantaneoClient() {
   );
 
   const handleReset = useCallback(() => {
+    sessionStorage.removeItem("funnel_state");
     setStep("upload");
     currentDocIdRef.current = null;
     setCurrentDocumentId(null);
@@ -184,6 +226,7 @@ export default function PresupuestoInstantaneoClient() {
     setOrderReference(null);
     setLeadData(null);
     setGdprConsent(false);
+    setRestoredFromStorage(false);
   }, []);
 
   const whatsappFallback = `https://wa.me/34951333614?text=${encodeURIComponent(
@@ -199,6 +242,18 @@ export default function PresupuestoInstantaneoClient() {
 
   return (
     <div className="space-y-6">
+      {restoredFromStorage && step !== "success" && (
+        <div className="rounded-lg border border-bleu/20 bg-bleu/5 px-4 py-3 text-sm text-encre">
+          Hemos recuperado tus datos. Si habías subido un documento, solo necesitas subirlo de nuevo.
+          <button
+            onClick={() => setRestoredFromStorage(false)}
+            className="ml-2 text-xs font-medium text-bleu hover:underline"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       {/* Step 1: Upload */}
       {step === "upload" && (
         <DocumentUploader

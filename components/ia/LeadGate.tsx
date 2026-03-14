@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Mail, Sparkles, AlertTriangle, FileText, Plus, ArrowRight } from "lucide-react";
+import { VAT_RATE } from "@/lib/pricing-engine/calculator";
 
 export type PendingDoc = {
   id: string;
@@ -168,7 +169,7 @@ export default function LeadGate({ documentId, documentIds, onComplete, onMergeP
                 </span>
               </div>
               <span className="text-sm text-graphite">
-                {doc.sourceName} → {doc.targetName} · {(doc.basePrice * 1.21).toFixed(2)}€
+                {doc.sourceName} → {doc.targetName} · {(doc.basePrice * (1 + VAT_RATE)).toFixed(2)}€
               </span>
             </div>
           ))}

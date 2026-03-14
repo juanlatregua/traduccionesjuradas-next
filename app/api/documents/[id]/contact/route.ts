@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 
 export const runtime = "nodejs";
@@ -91,7 +92,7 @@ export async function PATCH(
         name: clientName.trim(),
         documentType,
         price: doc.quoteAmount,
-        totalPrice: Math.round(doc.quoteAmount * 1.21 * 100) / 100,
+        totalPrice: Math.round(doc.quoteAmount * (1 + VAT_RATE) * 100) / 100,
         langPair: `${langSource} → ${langTarget}`,
         estimatedDays: doc.estimatedDays || "2-5 días",
       }).catch((err) =>

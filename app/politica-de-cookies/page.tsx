@@ -16,7 +16,7 @@ export default function CookiesPage() {
       </h1>
 
       <p className="mt-4">
-        Esta política de cookies fue actualizada por última vez el <strong>25 de marzo de 2025</strong>
+        Esta política de cookies fue actualizada por última vez el <strong>14 de marzo de 2026</strong>
         y se aplica a los ciudadanos y residentes legales permanentes del Espacio Económico Europeo
         y Suiza.
       </p>
@@ -71,20 +71,15 @@ export default function CookiesPage() {
       <h2 className="mt-8 text-xl font-semibold">6. Cookies usadas</h2>
 
       <ul className="mt-4 space-y-2 list-disc pl-5">
-        <li><strong>Yandex Metrica</strong> – Estadísticas, Funcional</li>
-        <li><strong>WooCommerce</strong> – Funcional</li>
-        <li><strong>WordPress</strong> – Funcional</li>
-        <li><strong>Automattic</strong> – Estadísticas</li>
-        <li><strong>Burst Statistics</strong> – Estadísticas (anónimas)</li>
-        <li><strong>Google reCAPTCHA</strong> – Funcional</li>
-        <li><strong>Complianz</strong> – Funcional</li>
-        <li><strong>Jetpack</strong> – Estadísticas</li>
-        <li><strong>PHP</strong> – Funcional</li>
-        <li><strong>Join.chat</strong> – Funcional</li>
-        <li><strong>Sourcebuster JS</strong> – Estadísticas</li>
-        <li><strong>Google Fonts</strong> – Propósito pendiente de investigación</li>
-        <li><strong>Google Maps</strong> – Propósito pendiente de investigación</li>
-        <li><strong>Varios</strong> – Estadísticas</li>
+        <li><strong>Vercel Analytics</strong> – Estadísticas (anónimas, sin cookies persistentes)</li>
+        <li><strong>Vercel Speed Insights</strong> – Rendimiento (anónimo)</li>
+        <li><strong>Google Analytics</strong> – Estadísticas</li>
+        <li><strong>Stripe</strong> – Funcional (procesamiento de pagos con tarjeta)</li>
+        <li><strong>PayPal</strong> – Funcional (procesamiento de pagos)</li>
+        <li><strong>SendGrid</strong> – Funcional (envío de correos transaccionales)</li>
+        <li><strong>Twilio</strong> – Funcional (envío de SMS de verificación)</li>
+        <li><strong>NextAuth.js</strong> – Funcional (autenticación y sesión de usuario)</li>
+        <li><strong>Google Fonts</strong> – Funcional (tipografías web)</li>
       </ul>
 
       <h2 className="mt-8 text-xl font-semibold">7. Consentimiento</h2>
@@ -134,7 +129,7 @@ export default function CookiesPage() {
       </p>
 
       <p className="mt-8 text-xs text-graphite">
-        Esta política de cookies se ha sincronizado con cookiedatabase.org el 25 de marzo de 2025.
+        Última actualización: 14 de marzo de 2026.
       </p>
 
     </main>

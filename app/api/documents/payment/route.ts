@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession } from "@/lib/stripe";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { addBusinessDays, getBusinessStart } from "@/lib/delivery-date";
 import crypto from "node:crypto";
 
@@ -92,12 +93,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Calculate combined amount (base imponible × 1.21 IVA)
+    // Calculate combined amount (base imponible + IVA)
     const totalAmount = docs.reduce((sum, doc) => {
       const docBase = isUrgent
         ? doc.quoteUrgent || doc.quoteAmount!
         : doc.quoteAmount!;
-      return sum + docBase * 1.21;
+      return sum + docBase * (1 + VAT_RATE);
     }, 0);
     const amountCents = Math.round(totalAmount * 100);
 

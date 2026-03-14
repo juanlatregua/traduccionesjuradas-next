@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { capturePayPalOrder } from "@/lib/paypal";
 import { getOrderDetail, getOrderPublic, updateOrderPayment } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { getWorkflowState } from "@/lib/workflow";
@@ -113,13 +114,15 @@ export async function POST(req: Request) {
       const amountCents = fullOrder?.amountCents || order.amountCents;
 
       if (toEmail) {
-      sendPaymentConfirmedEmail({
-        toEmail,
-        reference: order.reference,
-        title,
-        amountCents,
-        method: "PAYPAL",
-      }).catch((e) => console.error("[paypal-capture] email failed", e));
+        sendEmailWithRetry(() =>
+          sendPaymentConfirmedEmail({
+            toEmail,
+            reference: order.reference,
+            title,
+            amountCents,
+            method: "PAYPAL",
+          })
+        ).catch((e) => console.error("[paypal-capture] email failed", e));
       }
 
       return NextResponse.json({ ok: true, status: "COMPLETED" });

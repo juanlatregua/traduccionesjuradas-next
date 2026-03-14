@@ -7,7 +7,6 @@ import {
   getComplexityMultiplier,
   URGENCY_MULTIPLIER,
   MOROCCO_PRICING,
-  MOROCCO_PER_WORD_RATE,
   APOSTILLE_SURCHARGE,
 } from "./rules";
 
@@ -132,26 +131,21 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
   // Apostille surcharge: 25€ fixed when document has apostille
   const apostilleSurcharge = requirements?.has_apostille ? APOSTILLE_SURCHARGE : 0;
 
-  // Morocco special pricing: fixed price for 1-3 pages
+  // Morocco special pricing: always fixed price by page count
   const isMorocco = country?.origin === "MA";
+  const moroccoMaxPage = Math.max(...Object.keys(MOROCCO_PRICING).map(Number));
   const moroccoFixedPrice = isMorocco
-    ? MOROCCO_PRICING[document_metrics.pages]
+    ? MOROCCO_PRICING[Math.min(document_metrics.pages, moroccoMaxPage)] ?? MOROCCO_PRICING[moroccoMaxPage]
     : undefined;
 
   let basePrice: number;
   let wordPrice: number;
   let effectiveRate = rate;
 
-  if (moroccoFixedPrice !== undefined) {
-    // Morocco docs with 1-3 pages: use fixed price
+  if (isMorocco && moroccoFixedPrice !== undefined) {
     basePrice = moroccoFixedPrice + apostilleSurcharge;
     wordPrice = moroccoFixedPrice;
     effectiveRate = 0;
-  } else if (isMorocco) {
-    // Morocco docs with 4+ pages: use Morocco per-word rate
-    effectiveRate = MOROCCO_PER_WORD_RATE;
-    wordPrice = document_metrics.estimated_words * effectiveRate * complexityMult;
-    basePrice = Math.max(wordPrice, minimum) + apostilleSurcharge;
   } else {
     wordPrice = document_metrics.estimated_words * rate * complexityMult;
     basePrice = Math.max(wordPrice, minimum) + apostilleSurcharge;
