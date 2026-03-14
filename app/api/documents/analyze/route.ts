@@ -8,7 +8,7 @@ import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // Allow up to 60s for IA analysis
+export const maxDuration = 120; // Allow up to 120s for IA analysis (PDFs pesados)
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
           fileName: doc.fileName,
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 55s")), 55000)
+          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 90s")), 90000)
         ),
       ]);
     } catch (err: any) {
@@ -185,6 +185,7 @@ export async function POST(req: Request) {
         totalPrice: quote.totalPrice,
         langPair: `${analysis.language.source_name} → ${analysis.language.target_name}`,
         estimatedDays: quote.estimatedDaysStandard,
+        apostilleSurcharge: quote.breakdown.apostilleSurcharge || undefined,
       }).catch((err) => {
         console.error("[documents/analyze] Follow-up email error:", err.message);
       });

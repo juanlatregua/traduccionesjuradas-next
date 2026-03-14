@@ -97,8 +97,17 @@ function getSubmittedDocuments(order: any) {
       };
     });
 
+  // Documents from IA analysis (presupuesto instantáneo)
+  const iaDocFiles = (order.documentAnalyses || []).map((da: any) => ({
+    name: String(da.fileName || "Documento"),
+    type: String(da.mimeType || "application/octet-stream"),
+    size: Number(da.fileSize || 0),
+    url: da.fileUrl ? String(da.fileUrl) : undefined,
+    uploadedAt: da.createdAt?.toISOString?.() || undefined,
+  }));
+
   const seen = new Set<string>();
-  return [...sourceUploadFiles, ...submittedFiles]
+  return [...sourceUploadFiles, ...submittedFiles, ...iaDocFiles]
     .filter((doc) => {
       const url = doc.url || "";
       if (!url) return true;

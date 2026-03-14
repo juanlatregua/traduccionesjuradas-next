@@ -40,17 +40,23 @@ function calculatePrice(analysis: any) {
   const basePrice = Math.max(wordPrice, minimum);
 
   const st = document_type.specific_type;
-  let days: { standard: string; urgent: string };
+  function pluralDias(min: number, max: number): string {
+    if (min === max) return `${min} día${min === 1 ? "" : "s"} laborable${min === 1 ? "" : "s"}`;
+    return `${min}-${max} días laborables`;
+  }
+  let days: { standard: string; urgent: string; standardMin: number; standardMax: number; urgentMin: number; urgentMax: number };
   if (["birth_certificate","marriage_certificate","death_certificate","criminal_record","passport","id_card"].includes(st)) {
-    days = { standard: "24-48h", urgent: "12-24h" };
+    days = { standard: pluralDias(1, 2), urgent: pluralDias(1, 1), standardMin: 1, standardMax: 2, urgentMin: 1, urgentMax: 1 };
   } else if (["degree","transcript"].includes(st)) {
-    days = document_metrics.pages <= 2 ? { standard: "48-72h", urgent: "24h" } : { standard: "3-5 días", urgent: "48h" };
+    days = document_metrics.pages <= 2
+      ? { standard: pluralDias(2, 3), urgent: pluralDias(1, 1), standardMin: 2, standardMax: 3, urgentMin: 1, urgentMax: 1 }
+      : { standard: pluralDias(3, 5), urgent: pluralDias(2, 2), standardMin: 3, standardMax: 5, urgentMin: 2, urgentMax: 2 };
   } else if (document_metrics.estimated_words > 2000) {
-    days = { standard: "5-10 días", urgent: "3-5 días" };
+    days = { standard: pluralDias(5, 10), urgent: pluralDias(3, 5), standardMin: 5, standardMax: 10, urgentMin: 3, urgentMax: 5 };
   } else if (document_metrics.pages > 5) {
-    days = { standard: "5-7 días", urgent: "3-4 días" };
+    days = { standard: pluralDias(5, 7), urgent: pluralDias(3, 4), standardMin: 5, standardMax: 7, urgentMin: 3, urgentMax: 4 };
   } else {
-    days = { standard: "2-5 días", urgent: "24-48h" };
+    days = { standard: pluralDias(2, 5), urgent: pluralDias(1, 2), standardMin: 2, standardMax: 5, urgentMin: 1, urgentMax: 2 };
   }
 
   const roundedBase = round2(basePrice);
@@ -63,7 +69,7 @@ function calculatePrice(analysis: any) {
     urgentTotalPrice: round2(roundedUrgent * (1 + VAT_RATE)),
     estimatedDaysStandard: days.standard,
     estimatedDaysUrgent: days.urgent,
-    breakdown: { words: document_metrics.estimated_words, ratePerWord: rate, wordSubtotal: round2(wordPrice), minimumApplied: wordPrice < minimum, minimumAmount: minimum, complexityMultiplier: complexityMult, ivaRate: VAT_RATE, ivaAmount: round2(roundedBase * VAT_RATE) },
+    breakdown: { words: document_metrics.estimated_words, ratePerWord: rate, wordSubtotal: round2(wordPrice), minimumApplied: wordPrice < minimum, minimumAmount: minimum, complexityMultiplier: complexityMult, ivaRate: VAT_RATE, ivaAmount: round2(roundedBase * VAT_RATE), standardDaysMin: days.standardMin, standardDaysMax: days.standardMax, urgentDaysMin: days.urgentMin, urgentDaysMax: days.urgentMax },
   };
 }
 
@@ -116,10 +122,14 @@ test("precio urgente +25%", () => {
   assert.equal(q.urgentPrice, 52.5);
 });
 
-test("plazo certificado: 24-48h estándar, 12-24h urgente", () => {
+test("plazo certificado: 1-2 días laborables estándar, 1 día laborable urgente", () => {
   const q = calculatePrice(baseAnalysis);
-  assert.equal(q.estimatedDaysStandard, "24-48h");
-  assert.equal(q.estimatedDaysUrgent, "12-24h");
+  assert.equal(q.estimatedDaysStandard, "1-2 días laborables");
+  assert.equal(q.estimatedDaysUrgent, "1 día laborable");
+  assert.equal(q.breakdown.standardDaysMin, 1);
+  assert.equal(q.breakdown.standardDaysMax, 2);
+  assert.equal(q.breakdown.urgentDaysMin, 1);
+  assert.equal(q.breakdown.urgentDaysMax, 1);
 });
 
 test("contrato largo usa precio por palabra", () => {
@@ -141,22 +151,26 @@ test("complejidad complex multiplica x1.2", () => {
   assert.equal(q.basePrice, 96); // 1000 * 0.08 * 1.2
 });
 
-test("documento extenso: 5-10 días", () => {
+test("documento extenso: 5-10 días laborables", () => {
   const q = calculatePrice({
     ...baseAnalysis,
     document_type: { ...baseAnalysis.document_type, specific_type: "contract" },
     document_metrics: { ...baseAnalysis.document_metrics, estimated_words: 3000, pages: 8 },
   });
-  assert.equal(q.estimatedDaysStandard, "5-10 días");
+  assert.equal(q.estimatedDaysStandard, "5-10 días laborables");
+  assert.equal(q.breakdown.standardDaysMin, 5);
+  assert.equal(q.breakdown.standardDaysMax, 10);
 });
 
-test("título académico corto: 48-72h", () => {
+test("título académico corto: 2-3 días laborables", () => {
   const q = calculatePrice({
     ...baseAnalysis,
     document_type: { ...baseAnalysis.document_type, specific_type: "degree" },
     document_metrics: { ...baseAnalysis.document_metrics, estimated_words: 200, pages: 1 },
   });
-  assert.equal(q.estimatedDaysStandard, "48-72h");
+  assert.equal(q.estimatedDaysStandard, "2-3 días laborables");
+  assert.equal(q.breakdown.standardDaysMin, 2);
+  assert.equal(q.breakdown.standardDaysMax, 3);
 });
 
 test("totalPrice = basePrice × 1.21 (certificado FR)", () => {

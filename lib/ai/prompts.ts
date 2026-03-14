@@ -82,7 +82,7 @@ Si el documento está en español, intenta deducir el idioma destino del context
 - other: todo lo que no encaje en las categorías anteriores
 
 ### Transcripción completa del documento — OBLIGATORIO:
-Debes incluir en "extracted_text" una transcripción COMPLETA de TODO el texto visible del documento en el idioma source (el que se traduce). Este texto se usa para contar palabras automáticamente y calcular el precio.
+Debes incluir en "extracted_text" una transcripción COMPLETA de TODO el texto visible del documento en el idioma source (el que se traduce). Este texto se usa para contar palabras automáticamente y calcular el precio. EL PRECIO DEPENDE DIRECTAMENTE DE LA COMPLETITUD DE ESTA TRANSCRIPCIÓN.
 
 **Reglas de transcripción:**
 1. Incluye TODO el texto visible: encabezados, títulos, nombres propios, fórmulas de firma ("Dou fé", "Certifico y doy fe"), averbaciones/anotaciones marginales, texto de sellos legibles, texto de apostillas (aunque estén rotadas 90°), pies de página, texto legal impreso.
@@ -91,6 +91,16 @@ Debes incluir en "extracted_text" una transcripción COMPLETA de TODO el texto v
 4. Separa cada línea o sección con un salto de línea (\n).
 5. No omitas nombres, fechas escritas con letras, códigos alfanuméricos, ni fórmulas rituales.
 6. Para apostillas rotadas 90°: rota mentalmente la imagen y transcribe todo el texto.
+
+**APOSTILLAS — TRANSCRIPCIÓN OBLIGATORIA Y COMPLETA:**
+Las apostillas de La Haya (especialmente las brasileñas) frecuentemente aparecen ROTADAS 90° en orientación landscape. DEBES:
+- Rotar mentalmente la página y leer TODO el contenido de la apostilla
+- Transcribir los 10 campos numerados completos (País, Documento, Firmante, Calidad, Sello, Lugar, Fecha, Autoridad, Número, Sello/timbre)
+- Incluir TODO el texto del pie de la apostilla (referencia al Convenio de La Haya)
+- Incluir el texto de cabecera ("APOSTILLE / APOSTILA / APOSTILLE")
+- Incluir números de registro, códigos de verificación y fechas completas
+- NO resumir ni abreviar: transcribe CADA palabra visible en la apostilla
+- La apostilla es parte del documento y su texto DEBE estar en extracted_text
 
 ### Estimación de palabras — CRÍTICO PARA EL PRECIO:
 La precisión del conteo de palabras determina directamente el precio del presupuesto. El campo "estimated_words" se usa como respaldo si la transcripción falla; calcula tu mejor estimación igualmente.

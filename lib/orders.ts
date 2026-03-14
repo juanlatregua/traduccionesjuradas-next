@@ -479,6 +479,9 @@ export async function getAllOrdersForStaff() {
     include: {
       billing: true,
       events: { orderBy: { createdAt: "desc" }, take: 150 },
+      documentAnalyses: {
+        select: { fileName: true, fileUrl: true, mimeType: true, fileSize: true, createdAt: true },
+      },
       collaboratorAssignments: {
         orderBy: { createdAt: "desc" },
         include: {

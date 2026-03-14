@@ -39,6 +39,7 @@ export type QuoteFollowupData = {
   totalPrice: number;
   langPair: string;
   estimatedDays: string;
+  apostilleSurcharge?: number;
 };
 
 /**
@@ -57,13 +58,17 @@ export async function sendQuoteFollowupEmail(data: QuoteFollowupData) {
   const ivaAmount = Math.round((data.totalPrice - data.price) * 100) / 100;
   const subject = `Tu presupuesto de traducción jurada — ${data.totalPrice.toFixed(2)} EUR`;
 
+  const apostilleText = data.apostilleSurcharge
+    ? `\nIncluye suplemento apostilla de La Haya: ${data.apostilleSurcharge.toFixed(2)} EUR`
+    : "";
+
   const text = `Hola ${data.name},
 
 Hemos analizado tu documento y este es tu presupuesto:
 
 Tipo de documento: ${data.documentType}
 Combinación: ${data.langPair}
-Base imponible: ${data.price.toFixed(2)} EUR
+Base imponible: ${data.price.toFixed(2)} EUR${apostilleText}
 IVA (21%): ${ivaAmount.toFixed(2)} EUR
 Total: ${data.totalPrice.toFixed(2)} EUR (IVA incluido)
 Plazo estimado: ${data.estimatedDays}
@@ -94,6 +99,10 @@ Equipo de TraduccionesJuradas.net`;
         <td style="padding:8px 12px; font-weight:600; border:1px solid #e2e8f0;">Plazo estimado</td>
         <td style="padding:8px 12px; border:1px solid #e2e8f0;">${data.estimatedDays}</td>
       </tr>
+      ${data.apostilleSurcharge ? `<tr>
+        <td style="padding:8px 12px; font-weight:600; border:1px solid #e2e8f0;">Apostilla de La Haya</td>
+        <td style="padding:8px 12px; border:1px solid #e2e8f0;">${data.apostilleSurcharge.toFixed(2)} &euro; (incluido)</td>
+      </tr>` : ""}
     </table>
 
     <div style="text-align:center; margin:20px 0; padding:20px; background:#f0fdfa; border:1px solid #99f6e4; border-radius:12px;">

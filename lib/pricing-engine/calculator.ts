@@ -8,6 +8,7 @@ import {
   URGENCY_MULTIPLIER,
   MOROCCO_PRICING,
   MOROCCO_PER_WORD_RATE,
+  APOSTILLE_SURCHARGE,
 } from "./rules";
 
 export const VAT_RATE = 0.21;
@@ -26,8 +27,13 @@ export type Quote = {
     minimumApplied: boolean;
     minimumAmount: number;
     complexityMultiplier: number;
+    apostilleSurcharge: number;
     ivaRate: number;
     ivaAmount: number;
+    standardDaysMin: number;
+    standardDaysMax: number;
+    urgentDaysMin: number;
+    urgentDaysMax: number;
   };
 };
 
@@ -35,11 +41,25 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+type EstimatedDays = {
+  standard: string;
+  urgent: string;
+  standardMin: number;
+  standardMax: number;
+  urgentMin: number;
+  urgentMax: number;
+};
+
+function pluralDias(min: number, max: number): string {
+  if (min === max) return `${min} día${min === 1 ? "" : "s"} laborable${min === 1 ? "" : "s"}`;
+  return `${min}-${max} días laborables`;
+}
+
 function getEstimatedDays(
   specificType: string,
   pages: number,
   estimatedWords: number
-): { standard: string; urgent: string } {
+): EstimatedDays {
   // Certificados sencillos
   if (
     [
@@ -51,34 +71,54 @@ function getEstimatedDays(
       "id_card",
     ].includes(specificType)
   ) {
-    return { standard: "24-48h", urgent: "12-24h" };
+    return {
+      standard: pluralDias(1, 2), urgent: pluralDias(1, 1),
+      standardMin: 1, standardMax: 2, urgentMin: 1, urgentMax: 1,
+    };
   }
 
   // Documentos académicos
   if (["degree", "transcript"].includes(specificType)) {
-    if (pages <= 2) return { standard: "48-72h", urgent: "24h" };
-    return { standard: "3-5 días", urgent: "48h" };
+    if (pages <= 2) {
+      return {
+        standard: pluralDias(2, 3), urgent: pluralDias(1, 1),
+        standardMin: 2, standardMax: 3, urgentMin: 1, urgentMax: 1,
+      };
+    }
+    return {
+      standard: pluralDias(3, 5), urgent: pluralDias(2, 2),
+      standardMin: 3, standardMax: 5, urgentMin: 2, urgentMax: 2,
+    };
   }
 
   // Documentos legales/financieros extensos
   if (estimatedWords > 2000) {
-    return { standard: "5-10 días", urgent: "3-5 días" };
+    return {
+      standard: pluralDias(5, 10), urgent: pluralDias(3, 5),
+      standardMin: 5, standardMax: 10, urgentMin: 3, urgentMax: 5,
+    };
   }
 
   // Paquetes (múltiples documentos)
   if (pages > 5) {
-    return { standard: "5-7 días", urgent: "3-4 días" };
+    return {
+      standard: pluralDias(5, 7), urgent: pluralDias(3, 4),
+      standardMin: 5, standardMax: 7, urgentMin: 3, urgentMax: 4,
+    };
   }
 
   // Default
-  return { standard: "2-5 días", urgent: "24-48h" };
+  return {
+    standard: pluralDias(2, 5), urgent: pluralDias(1, 2),
+    standardMin: 2, standardMax: 5, urgentMin: 1, urgentMax: 2,
+  };
 }
 
 /**
  * Calcula el presupuesto a partir del análisis IA
  */
 export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
-  const { document_type, language, document_metrics, complexity, country } = analysis;
+  const { document_type, language, document_metrics, complexity, country, requirements } = analysis;
 
   // Use the "foreign" language rate (non-Spanish side of the pair)
   const foreignLang =
@@ -88,6 +128,9 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
   const rate = getRate(foreignLang);
   const minimum = getMinimum(document_type.specific_type);
   const complexityMult = getComplexityMultiplier(complexity.level);
+
+  // Apostille surcharge: 25€ fixed when document has apostille
+  const apostilleSurcharge = requirements?.has_apostille ? APOSTILLE_SURCHARGE : 0;
 
   // Morocco special pricing: fixed price for 1-3 pages
   const isMorocco = country?.origin === "MA";
@@ -101,17 +144,17 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
 
   if (moroccoFixedPrice !== undefined) {
     // Morocco docs with 1-3 pages: use fixed price
-    basePrice = moroccoFixedPrice;
+    basePrice = moroccoFixedPrice + apostilleSurcharge;
     wordPrice = moroccoFixedPrice;
     effectiveRate = 0;
   } else if (isMorocco) {
     // Morocco docs with 4+ pages: use Morocco per-word rate
     effectiveRate = MOROCCO_PER_WORD_RATE;
     wordPrice = document_metrics.estimated_words * effectiveRate * complexityMult;
-    basePrice = Math.max(wordPrice, minimum);
+    basePrice = Math.max(wordPrice, minimum) + apostilleSurcharge;
   } else {
     wordPrice = document_metrics.estimated_words * rate * complexityMult;
-    basePrice = Math.max(wordPrice, minimum);
+    basePrice = Math.max(wordPrice, minimum) + apostilleSurcharge;
   }
 
   const estimatedDays = getEstimatedDays(
@@ -137,8 +180,13 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
       minimumApplied: !moroccoFixedPrice && wordPrice < minimum,
       minimumAmount: minimum,
       complexityMultiplier: complexityMult,
+      apostilleSurcharge,
       ivaRate: VAT_RATE,
       ivaAmount: round2(roundedBase * VAT_RATE),
+      standardDaysMin: estimatedDays.standardMin,
+      standardDaysMax: estimatedDays.standardMax,
+      urgentDaysMin: estimatedDays.urgentMin,
+      urgentDaysMax: estimatedDays.urgentMax,
     },
   };
 }

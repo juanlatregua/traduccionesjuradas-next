@@ -44,6 +44,8 @@ export const MOROCCO_PRICING: Record<number, number> = {
 };
 export const MOROCCO_PER_WORD_RATE = 0.08;
 
+export const APOSTILLE_SURCHARGE = 25;
+
 export function getMinimum(specificType: string): number {
   return MINIMUM_BY_TYPE[specificType] || DEFAULT_MINIMUM;
 }
