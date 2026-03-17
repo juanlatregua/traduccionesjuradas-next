@@ -1,11 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Favicon Traducciones Juradas">
-  <path fill="#1B2A41" d="M32 4
-    C44 4 52 8 57 13
-    V32
-    C57 46 48 55 32 60
-    C16 55 7 46 7 32
-    V13
-    C12 8 20 4 32 4 Z"/>
-  <circle fill="#0F6B66" cx="44" cy="40" r="10"/>
-  <path d="M39 40 L42 43 L49 35" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Favicon traduccionesjuradas.net — 64x64 -->
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="#B8922A"/>
+  <!-- Franja .net -->
+  <path d="M0,48 L64,48 L64,64 Q64,64 50,64 L14,64 Q0,64 0,64 Z"
+    fill="rgba(0,0,0,0.18)"/>
+  <text x="32" y="61" text-anchor="middle"
+    font-family="-apple-system, sans-serif"
+    font-size="10" font-weight="800" fill="white">.net</text>
+  <!-- Barra T -->
+  <line x1="10" y1="14" x2="40" y2="14" stroke="white"   stroke-width="7" stroke-linecap="round"/>
+  <!-- Palo T -->
+  <line x1="18" y1="14" x2="18" y2="42" stroke="white"   stroke-width="7" stroke-linecap="round"/>
+  <!-- Barra J -->
+  <line x1="18" y1="42" x2="40" y2="42" stroke="#3D6FA8" stroke-width="7" stroke-linecap="round"/>
+  <!-- Arco J -->
+  <path d="M40,14 Q56,14 56,28 Q56,42 40,42"
+    fill="none" stroke="#3D6FA8" stroke-width="7" stroke-linecap="round"/>
+  <!-- Punto -->
+  <circle cx="18" cy="28" r="4.5" fill="#B8922A"/>
+  <circle cx="18" cy="28" r="2.8" fill="white"/>
 </svg>

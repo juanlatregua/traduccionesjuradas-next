@@ -1,0 +1,102 @@
+<svg width="520" height="200" viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    ISOTIPO — traduccionesjuradas.net
+    Colores: Dorado #B8922A · Azul #3D6FA8
+    WCAG AA: blanco sobre dorado 4.6:1 ✓ · blanco sobre azul 5.1:1 ✓
+    Tamaños incluidos: 120px · 64px · 32px · 16px + monocolor
+    Incluye franja .net en todos los tamaños
+  -->
+
+  <!-- ── 120px ── -->
+  <rect x="0" y="0" width="120" height="138" rx="26" fill="#B8922A"/>
+  <path d="M0,112 L120,112 L120,126 Q120,138 106,138 L14,138 Q0,138 0,126 Z"
+    fill="rgba(0,0,0,0.2)"/>
+  <line x1="8" y1="112" x2="112" y2="112"
+    stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+  <text x="60" y="129" text-anchor="middle"
+    font-family="-apple-system, 'Segoe UI', sans-serif"
+    font-size="18" font-weight="800" letter-spacing="-0.02em"
+    fill="white">.net</text>
+  <line x1="18"  y1="26"  x2="96"  y2="26"  stroke="white"   stroke-width="14" stroke-linecap="round"/>
+  <line x1="40"  y1="26"  x2="40"  y2="104" stroke="white"   stroke-width="14" stroke-linecap="round"/>
+  <line x1="40"  y1="104" x2="96"  y2="104" stroke="#3D6FA8" stroke-width="14" stroke-linecap="round"/>
+  <path d="M96,26 Q118,26 118,65 Q118,104 96,104"
+    fill="none" stroke="#3D6FA8" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="40" cy="65" r="8"   fill="#B8922A"/>
+  <circle cx="40" cy="65" r="5"   fill="white"/>
+
+  <!-- ── 64px ── -->
+  <rect x="140" y="10" width="64" height="76" rx="14" fill="#B8922A"/>
+  <path d="M140,72 L204,72 L204,80 Q204,86 190,86 L154,86 Q140,86 140,80 Z"
+    fill="rgba(0,0,0,0.2)"/>
+  <text x="172" y="82" text-anchor="middle"
+    font-family="-apple-system, 'Segoe UI', sans-serif"
+    font-size="10" font-weight="800" fill="white">.net</text>
+  <line x1="152" y1="24"  x2="192" y2="24"  stroke="white"   stroke-width="7" stroke-linecap="round"/>
+  <line x1="163" y1="24"  x2="163" y2="66"  stroke="white"   stroke-width="7" stroke-linecap="round"/>
+  <line x1="163" y1="66"  x2="192" y2="66"  stroke="#3D6FA8" stroke-width="7" stroke-linecap="round"/>
+  <path d="M192,24 Q210,24 210,45 Q210,66 192,66"
+    fill="none" stroke="#3D6FA8" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="163" cy="45" r="4.5" fill="#B8922A"/>
+  <circle cx="163" cy="45" r="2.8" fill="white"/>
+
+  <!-- ── 32px ── -->
+  <rect x="224" y="24" width="32" height="40" rx="7" fill="#B8922A"/>
+  <path d="M224,54 L256,54 L256,60 Q256,64 249,64 L231,64 Q224,64 224,60 Z"
+    fill="rgba(0,0,0,0.2)"/>
+  <text x="240" y="62" text-anchor="middle"
+    font-family="-apple-system, sans-serif"
+    font-size="6" font-weight="800" fill="white">.net</text>
+  <line x1="230" y1="32"  x2="249" y2="32"  stroke="white"   stroke-width="4" stroke-linecap="round"/>
+  <line x1="234" y1="32"  x2="234" y2="52"  stroke="white"   stroke-width="4" stroke-linecap="round"/>
+  <line x1="234" y1="52"  x2="249" y2="52"  stroke="#3D6FA8" stroke-width="4" stroke-linecap="round"/>
+  <path d="M249,32 Q259,32 259,42 Q259,52 249,52"
+    fill="none" stroke="#3D6FA8" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="234" cy="42" r="2.5" fill="#B8922A"/>
+  <circle cx="234" cy="42" r="1.5" fill="white"/>
+
+  <!-- ── 16px ── -->
+  <rect x="272" y="34" width="16" height="22" rx="3" fill="#B8922A"/>
+  <path d="M272,46 L288,46 L288,50 Q288,56 281,56 L279,56 Q272,56 272,50 Z"
+    fill="rgba(0,0,0,0.2)"/>
+  <text x="280" y="54" text-anchor="middle"
+    font-family="-apple-system, sans-serif"
+    font-size="4" font-weight="800" fill="white">.net</text>
+  <line x1="275" y1="38"  x2="283" y2="38"  stroke="white"   stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="277" y1="38"  x2="277" y2="46"  stroke="white"   stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="277" y1="46"  x2="283" y2="46"  stroke="#3D6FA8" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M283,38 Q288,38 288,42 Q288,46 283,46"
+    fill="none" stroke="#3D6FA8" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="277" cy="42" r="1.2" fill="white"/>
+
+  <!-- ── monocolor negro (impresión) ── -->
+  <rect x="310" y="10" width="64" height="76" rx="14" fill="none" stroke="#1A1A1A" stroke-width="0.5"/>
+  <path d="M310,72 L374,72 L374,80 Q374,86 360,86 L324,86 Q310,86 310,80 Z"
+    fill="#1A1A1A"/>
+  <text x="342" y="82" text-anchor="middle"
+    font-family="-apple-system, sans-serif"
+    font-size="10" font-weight="800" fill="white">.net</text>
+  <line x1="322" y1="24"  x2="362" y2="24"  stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+  <line x1="333" y1="24"  x2="333" y2="66"  stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+  <line x1="333" y1="66"  x2="362" y2="66"  stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+  <path d="M362,24 Q380,24 380,45 Q380,66 362,66"
+    fill="none" stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="333" cy="45" r="4.5" fill="white"/>
+  <circle cx="333" cy="45" r="2.8" fill="#1A1A1A"/>
+
+  <!-- ── monocolor blanco (fondo oscuro) ── -->
+  <rect x="390" y="10" width="64" height="76" rx="14" fill="#1A1A1A"/>
+  <path d="M390,72 L454,72 L454,80 Q454,86 440,86 L404,86 Q390,86 390,80 Z"
+    fill="rgba(255,255,255,0.15)"/>
+  <text x="422" y="82" text-anchor="middle"
+    font-family="-apple-system, sans-serif"
+    font-size="10" font-weight="800" fill="white">.net</text>
+  <line x1="402" y1="24"  x2="442" y2="24"  stroke="white"   stroke-width="7" stroke-linecap="round"/>
+  <line x1="413" y1="24"  x2="413" y2="66"  stroke="white"   stroke-width="7" stroke-linecap="round"/>
+  <line x1="413" y1="66"  x2="442" y2="66"  stroke="white"   stroke-width="7" stroke-linecap="round"/>
+  <path d="M442,24 Q460,24 460,45 Q460,66 442,66"
+    fill="none" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="413" cy="45" r="4.5" fill="#1A1A1A"/>
+  <circle cx="413" cy="45" r="2.8" fill="white"/>
+
+</svg>

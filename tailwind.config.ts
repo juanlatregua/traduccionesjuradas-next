@@ -8,20 +8,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        parchment: "#FDFBF7",
-        cream: "#F5F0E8",
-        card: "#FFFEF9",
-        encre: "#1C1917",
-        sepia: "#44403C",
-        graphite: "#78716C",
+        parchment: "#F7F1E6",
+        cream: "#F0EBE0",
+        card: "#FDFAF4",
+        encre: "#1A2E4A",
+        sepia: "#3D3630",
+        graphite: "#7A6E66",
         bleu: {
-          DEFAULT: "#1E3A5F",
-          dark: "#162D4A",
-          light: "#2A4D7A",
+          DEFAULT: "#1A2E4A",
+          dark: "#0F1E30",
+          light: "#3D6FA8",
         },
         or: {
-          DEFAULT: "#B8860B",
-          light: "#D4A017",
+          DEFAULT: "#B8922A",
+          light: "#F0E2B8",
+          dark: "#8A6A1A",
         },
         rouge: "#8B2500",
         vert: "#2D5016",

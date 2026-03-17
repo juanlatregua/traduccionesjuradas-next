@@ -100,7 +100,7 @@ export default function Home() {
       <section id="hero" className="border-b border-cream bg-parchment">
         <div className="mx-auto max-w-5xl px-4 pt-10 pb-8 text-center sm:pt-14">
           {/* Eyebrow */}
-          <span className="inline-flex items-center gap-2 rounded-full border border-or/10 bg-or/5 px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-or">
+          <span className="inline-flex items-center gap-2 rounded-full bg-or px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white">
             Traductor jurado N.3850 · MAEC
           </span>
 
@@ -173,7 +173,7 @@ export default function Home() {
             {REVIEWS.map((r) => (
               <div
                 key={r.author}
-                className="rounded-doc bg-card p-5 text-left shadow-paper"
+                className="rounded-doc border-t-[3px] border-t-or bg-card p-5 text-left shadow-paper"
               >
                 <p className="text-sm text-sepia">
                   <span className="text-or">&ldquo;</span>
@@ -237,7 +237,7 @@ export default function Home() {
             ].map((s) => (
               <div key={s.step} className="relative text-center">
                 <div
-                  className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${s.color} text-xl font-bold text-white shadow-md`}
+                  className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${s.color} text-xl font-bold ${s.color === "bg-or" ? "text-encre" : "text-white"} shadow-md`}
                 >
                   {s.step}
                 </div>
@@ -263,12 +263,12 @@ export default function Home() {
               <Link
                 key={lang.href}
                 href={lang.href}
-                className="group flex items-center gap-2 rounded-full border border-cream bg-card px-4 py-2 text-sm font-medium text-encre shadow-sm transition hover:border-bleu hover:shadow-paper"
+                className="group flex items-center gap-2 rounded-full border border-or bg-or-light/60 px-4 py-2 text-sm font-medium text-or-dark shadow-sm transition hover:bg-or-light hover:border-or-dark hover:shadow-paper"
               >
                 <span className="text-base" aria-hidden="true">{lang.flag}</span>
                 {lang.label}
                 {lang.isNew && (
-                  <span className="rounded bg-or px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  <span className="rounded bg-or px-1.5 py-0.5 text-[9px] font-bold text-encre">
                     NUEVO
                   </span>
                 )}
@@ -288,7 +288,7 @@ export default function Home() {
               <Link
                 key={doc.href}
                 href={doc.href}
-                className="rounded-full border border-cream bg-card px-4 py-2 text-sm font-medium text-encre shadow-sm transition hover:border-bleu hover:shadow-paper"
+                className="rounded-full border border-or bg-or-light/60 px-4 py-2 text-sm font-medium text-or-dark shadow-sm transition hover:bg-or-light hover:border-or-dark hover:shadow-paper"
               >
                 {doc.label}
               </Link>

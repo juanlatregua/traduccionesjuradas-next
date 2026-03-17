@@ -326,7 +326,7 @@ export default function LeadGate({ documentId, documentIds, onComplete, onMergeP
         <button
           type="submit"
           disabled={loading || !!emailError || !consent || !email || !name}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-or px-6 py-3.5 text-base font-semibold text-white shadow-md hover:bg-or-light transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-or px-6 py-3.5 text-base font-semibold text-encre shadow-md hover:bg-or-dark transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin" />

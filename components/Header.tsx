@@ -24,7 +24,7 @@ function Logo() {
         priority
       />
       <div className="leading-tight sm:hidden">
-        <span className="block text-sm font-semibold text-encre">Traducciones Juradas</span>
+        <span className="block text-sm font-semibold text-sepia">Traducciones Juradas</span>
       </div>
     </div>
   );
@@ -73,7 +73,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 overflow-visible border-b border-cream bg-card/90 backdrop-blur">
+    <header className="sticky top-0 z-40 overflow-visible border-b-2 border-or bg-parchment/90 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:flex sm:items-center sm:gap-6">
         <div className="flex items-center justify-between gap-3 sm:flex sm:flex-1 sm:items-center">
           {/* LOGO */}
@@ -131,9 +131,9 @@ export function Header() {
         {/* NAV */}
         <nav
           id="primary-navigation"
-          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-xs sm:shadow-none sm:text-sepia`}
+          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-sm sm:shadow-none sm:text-sepia`}
         >
-          <Link href="/presupuesto-instantaneo" className="sm:hidden font-semibold text-or hover:text-or-light" onClick={closeMenu}>
+          <Link href="/presupuesto-instantaneo" className="sm:hidden font-bold text-or hover:text-or-dark" onClick={closeMenu}>
             Presupuesto instantáneo
           </Link>
           <Link href="/traductores-jurados" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
@@ -349,7 +349,7 @@ export function Header() {
                 Ver listado completo en{" "}
                 <Link
                   href="/documentos-oficiales"
-                  className="font-semibold text-bleu hover:underline"
+                  className="font-semibold text-bleu-light hover:underline"
                 >
                   Documentos oficiales
                 </Link>
@@ -381,7 +381,7 @@ export function Header() {
           {/* CTA PRESUPUESTO INSTANTÁNEO */}
           <Link
             href="/presupuesto-instantaneo"
-            className="w-full rounded-xl bg-or px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-or-light sm:w-auto sm:rounded-2xl sm:text-xs"
+            className="w-full rounded-xl bg-or px-4 py-2 text-center text-sm font-semibold text-encre shadow-sm hover:bg-or-dark hover:text-white sm:w-auto sm:rounded-2xl"
             onClick={closeMenu}
           >
             Presupuesto instantáneo

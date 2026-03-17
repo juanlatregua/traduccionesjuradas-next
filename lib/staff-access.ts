@@ -6,7 +6,7 @@ const DEFAULT_STAFF_EMAILS = [
 
 const DEFAULT_PM_EMAILS = ["juansilva@traduccionesjuradas.net", "juasilva@traduccionesjuradas.net"];
 const DEFAULT_COLLABORATOR_EMAILS = ["juan@gestremor.com"];
-const DEFAULT_ADMIN_EMAILS = ["hola@traduccionesjuradas.net"];
+const DEFAULT_ADMIN_EMAILS = ["hola@traduccionesjuradas.net", "juansilva@traduccionesjuradas.net", "juasilva@traduccionesjuradas.net"];
 
 function normalize(value: string) {
   return value.trim().toLowerCase();

@@ -75,7 +75,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1E3A5F",
+  themeColor: "#B8922A",
 };
 
 export default function RootLayout({
@@ -164,9 +164,8 @@ export default function RootLayout({
                 <p className="font-baskerville text-lg font-bold text-parchment">
                   traduccionesjuradas.net
                 </p>
-                <p className="text-sm text-cream/80">
-                  Traducciones juradas oficiales online, válidas en España y en el
-                  extranjero.
+                <p className="text-xs tracking-[0.15em] text-cream/80">
+                  traducción oficial certificada · españa
                 </p>
                 <div className="space-y-1 text-xs text-cream/60">
                   <p>HBTJ Consultores Lingüísticos S.L.</p>

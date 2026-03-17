@@ -1,37 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Isotipo Traducciones Juradas">
-  <title>Traducciones Juradas — Isotipo</title>
-  <defs>
-    <style>
-      .navy { fill: #1B2A41; }
-      .teal { fill: #0F6B66; }
-      .line { stroke: #1B2A41; stroke-width: 8; stroke-linecap: round; opacity: .85; }
-      .paper { fill: #FFFFFF; }
-      .cut { fill: #FFFFFF; opacity: .95; }
-    </style>
-  </defs>
-
-  <!-- Shield -->
-  <path class="navy" d="M100 18
-    C136 18 160 30 174 44
-    V98
-    C174 142 146 170 100 186
-    C54 170 26 142 26 98
-    V44
-    C40 30 64 18 100 18 Z" />
-
-  <!-- Paper with folded corner -->
-  <path class="paper" d="M70 52 H122 L140 70 V126
-    C140 131 136 135 131 135 H70
-    C65 135 61 131 61 126 V61
-    C61 56 65 52 70 52 Z" />
-  <path class="cut" d="M122 52 V70 H140" />
-
-  <!-- Paper lines -->
-  <line class="line" x1="76" y1="82" x2="122" y2="82"/>
-  <line class="line" x1="76" y1="100" x2="122" y2="100"/>
-  <line class="line" x1="76" y1="118" x2="108" y2="118"/>
-
-  <!-- Check (badge) -->
-  <circle class="teal" cx="135" cy="124" r="26"/>
-  <path d="M124 124 L132 132 L147 113" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+<svg width="120" height="138" viewBox="0 0 120 138" xmlns="http://www.w3.org/2000/svg">
+  <!-- Isotipo traduccionesjuradas.net — 120px -->
+  <rect x="0" y="0" width="120" height="138" rx="26" fill="#B8922A"/>
+  <path d="M0,112 L120,112 L120,126 Q120,138 106,138 L14,138 Q0,138 0,126 Z"
+    fill="rgba(0,0,0,0.2)"/>
+  <line x1="8" y1="112" x2="112" y2="112"
+    stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+  <text x="60" y="129" text-anchor="middle"
+    font-family="-apple-system, 'Segoe UI', sans-serif"
+    font-size="18" font-weight="800" letter-spacing="-0.02em"
+    fill="white">.net</text>
+  <line x1="18"  y1="26"  x2="96"  y2="26"  stroke="white"   stroke-width="14" stroke-linecap="round"/>
+  <line x1="40"  y1="26"  x2="40"  y2="104" stroke="white"   stroke-width="14" stroke-linecap="round"/>
+  <line x1="40"  y1="104" x2="96"  y2="104" stroke="#3D6FA8" stroke-width="14" stroke-linecap="round"/>
+  <path d="M96,26 Q118,26 118,65 Q118,104 96,104"
+    fill="none" stroke="#3D6FA8" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="40" cy="65" r="8"   fill="#B8922A"/>
+  <circle cx="40" cy="65" r="5"   fill="white"/>
 </svg>

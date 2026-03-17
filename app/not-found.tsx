@@ -37,7 +37,7 @@ export default function NotFound() {
           </Link>
           <Link
             href="/presupuesto-instantaneo"
-            className="rounded-2xl bg-or px-5 py-2.5 text-sm font-semibold text-white hover:bg-or/90"
+            className="rounded-2xl bg-or px-5 py-2.5 text-sm font-semibold text-encre hover:bg-or-dark"
           >
             Presupuesto instantáneo
           </Link>
