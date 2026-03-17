@@ -29,6 +29,14 @@ export default async function VerificarZonaTraductorPage() {
     redirect("/zona-traductor");
   }
 
+  // Dev bypass: redirect to auto-verify route
+  if (process.env.NODE_ENV === "development") {
+    const devEmail = sessionEmail && isStaffEmail(sessionEmail)
+      ? sessionEmail
+      : "juansilva@traduccionesjuradas.net";
+    redirect(`/api/traductor/dev-bypass?email=${encodeURIComponent(devEmail)}`);
+  }
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <StaffOtpGate initialEmail={sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : ""} />

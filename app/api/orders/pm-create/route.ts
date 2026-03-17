@@ -17,7 +17,7 @@ type Body = {
   pagesLabel?: string;
   amountCents?: number;
   amountEur?: number;
-  sourceChannel?: "whatsapp" | "email" | "web";
+  sourceChannel?: "whatsapp" | "email" | "web" | "telefono";
   urgencyNotes?: string;
   sendEmail?: boolean;
   idempotencyKey?: string;
@@ -27,6 +27,7 @@ function normalizeChannel(raw?: string | null) {
   const value = String(raw || "").trim().toLowerCase();
   if (value === "whatsapp" || value === "wa") return "whatsapp" as const;
   if (value === "email") return "email" as const;
+  if (value === "telefono" || value === "phone" || value === "tel") return "telefono" as const;
   return "web" as const;
 }
 
@@ -45,8 +46,8 @@ function normalizeIdempotencyKey(raw?: string | null) {
   return value.slice(0, 140);
 }
 
-function buildPaymentUrl(reference: string, channel: "whatsapp" | "email" | "web") {
-  const src = channel === "whatsapp" ? "wa" : channel;
+function buildPaymentUrl(reference: string, channel: "whatsapp" | "email" | "web" | "telefono") {
+  const src = channel === "whatsapp" ? "wa" : channel === "telefono" ? "tel" : channel;
   return buildSignedOrderUrl(reference, "pagar", { src, agent: "pm" });
 }
 
@@ -186,7 +187,7 @@ export async function POST(req: Request) {
       idempotencyKey: idempotencyKey || undefined,
     });
 
-    const acquisitionSource = channel === "whatsapp" ? "WHATSAPP" : "WEB";
+    const acquisitionSource = channel === "whatsapp" ? "WHATSAPP" : channel === "telefono" ? "TELEFONO" : "WEB";
     await prisma.orderEvent.create({
       data: {
         orderId: order.id,

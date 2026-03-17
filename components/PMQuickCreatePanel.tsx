@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-type Channel = "whatsapp" | "email" | "web";
+type Channel = "whatsapp" | "email" | "web" | "telefono";
 
 type CreatedQuickOrder = {
   reference: string;
@@ -37,8 +37,11 @@ export default function PMQuickCreatePanel() {
   const [channel, setChannel] = useState<Channel>("whatsapp");
   const [urgencyNotes, setUrgencyNotes] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const sourceFileRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedQuickOrder | null>(null);
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -130,8 +133,33 @@ export default function PMQuickCreatePanel() {
         emailSubject: data.emailSubject ? String(data.emailSubject) : null,
         emailMessageId: data.emailMessageId ? String(data.emailMessageId) : null,
       });
+      // Upload source document if provided
+      if (sourceFile && reference) {
+        setUploadingDoc(true);
+        try {
+          const formData = new FormData();
+          formData.append("file", sourceFile);
+          const docRes = await fetch(`/api/orders/${reference}/documents`, {
+            method: "POST",
+            body: formData,
+          });
+          const docData = await docRes.json();
+          if (!docRes.ok || !docData.ok) {
+            setMessage(`Pedido creado, pero error al subir documento: ${docData.error || "Error desconocido"}`);
+            setUploadingDoc(false);
+            return;
+          }
+        } catch {
+          setMessage("Pedido creado, pero error de red al subir documento.");
+          setUploadingDoc(false);
+          return;
+        }
+        setUploadingDoc(false);
+      }
+
       const warning = data.warning ? ` ${String(data.warning)}` : "";
-      setMessage(`Pedido creado y listo para pago.${warning}`);
+      const docMsg = sourceFile ? " Documento fuente adjuntado." : "";
+      setMessage(`Pedido creado y listo para pago.${docMsg}${warning}`);
     } catch (err: any) {
       setMessage(err?.message || "No se pudo crear el pedido.");
     } finally {
@@ -203,6 +231,7 @@ export default function PMQuickCreatePanel() {
         >
           <option value="whatsapp">Origen WhatsApp</option>
           <option value="email">Origen Email</option>
+          <option value="telefono">Origen Teléfono</option>
           <option value="web">Origen Web</option>
         </select>
       </div>
@@ -224,6 +253,38 @@ export default function PMQuickCreatePanel() {
         />
       </div>
 
+      {/* Source document upload */}
+      <div className="mt-3 rounded-xl border border-dashed border-slate-600 bg-slate-950/50 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">
+          Documento original (opcional)
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Adjunta el PDF/imagen del documento a traducir. Se subirá al crear el pedido.
+        </p>
+        <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-teal-500/40 px-3 py-2 text-xs font-semibold text-teal-300 hover:bg-teal-500/10">
+          {sourceFile ? sourceFile.name : "Seleccionar archivo"}
+          <input
+            ref={sourceFileRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+            onChange={(e) => setSourceFile(e.target.files?.[0] || null)}
+            className="hidden"
+          />
+        </label>
+        {sourceFile && (
+          <button
+            type="button"
+            onClick={() => {
+              setSourceFile(null);
+              if (sourceFileRef.current) sourceFileRef.current.value = "";
+            }}
+            className="ml-2 text-xs text-slate-400 hover:text-red-300"
+          >
+            Quitar
+          </button>
+        )}
+      </div>
+
       <label className="mt-3 inline-flex items-center gap-2 text-xs text-slate-300">
         <input
           type="checkbox"
@@ -241,7 +302,7 @@ export default function PMQuickCreatePanel() {
           disabled={loading}
           className="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600 disabled:opacity-60"
         >
-          {loading ? "Creando..." : "Crear pedido y habilitar pago"}
+          {loading && !uploadingDoc ? "Creando..." : uploadingDoc ? "Subiendo documento..." : "Crear pedido y habilitar pago"}
         </button>
         {created?.paymentUrl && (
           <>
@@ -284,6 +345,12 @@ export default function PMQuickCreatePanel() {
           )}
 
           <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={`/zona-traductor/workspace/${created.reference}`}
+              className="rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white hover:bg-emerald-500"
+            >
+              Ir al workspace
+            </a>
             <a
               href={created.zonaTraductorPath}
               className="rounded-lg border border-slate-600 px-3 py-1.5 font-semibold text-slate-200 hover:bg-slate-800"
