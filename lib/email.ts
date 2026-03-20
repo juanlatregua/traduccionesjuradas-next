@@ -1,8 +1,9 @@
 // lib/email.ts
-import sgMail from "@sendgrid/mail";
 import fs from "fs";
 import path from "path";
 import { WHATSAPP_DISPLAY, buildWhatsAppLinkFromText, SITE_BASE_URL } from "@/lib/contact";
+import { sendMail } from "@/lib/azure-mail";
+import type { MailAttachment } from "@/lib/azure-mail";
 
 export type PresupuestoPayload = {
   documentos: Array<{
@@ -32,10 +33,6 @@ export type PresupuestoPayload = {
   website?: string;
 };
 
-export const NO_CLICK_TRACKING = {
-  clickTracking: { enable: false, enableText: false },
-};
-
 const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
 const BRAND_LOGO_URL = `${BRAND_HOME_URL}/brand/logo-horizontal.svg`;
 
@@ -63,48 +60,11 @@ export function wrapClientEmailHtml(content: string) {
 }
 
 export async function sendPresupuestoEmail(payload: PresupuestoPayload) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
   const to = process.env.PRESUPUESTO_TO;
   if (!to) throw new Error("Missing PRESUPUESTO_TO");
 
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const total = payload.documentos.reduce((s, d) => s + d.precioEstimado, 0).toFixed(2);
   const subject = `Solicitud estimador ${payload.referencia} — ${payload.contacto.email}`;
-
-  const docsRows = payload.documentos
-    .map(
-      (d, i) =>
-        `${i + 1}. ${d.tipoLabel} | ${d.combinacion} | ~${d.palabras} pal. | ~${d.precioEstimado.toFixed(2)} EUR`
-    )
-    .join("\n");
-
-  const text = `Ref: ${payload.referencia}
-Email: ${payload.contacto.email}
-Teléfono: ${payload.contacto.telefono || "-"}
-Fecha límite: ${payload.contacto.fechaLimite || "-"}
-Idioma: ${payload.metadata.idioma}
-Página: ${payload.metadata.paginaOrigen}
-
-Documentos:
-${docsRows}
-
-Total estimado: ~${total} EUR
-
-Notas: ${payload.contacto.notas || "-"}
-${payload.quoteId ? `\nRevisar presupuesto: https://www.traduccionesjuradas.net/admin/quotes/${payload.quoteId}` : ""}
-${payload.orderReference ? `Zona traductor: https://www.traduccionesjuradas.net/zona-traductor` : ""}
-`;
-
-  const baseUrl = "https://www.traduccionesjuradas.net";
-  const quoteLink = payload.quoteId
-    ? `<p><a href="${baseUrl}/admin/quotes/${payload.quoteId}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Revisar presupuesto y enviar</a></p>`
-    : `<p><a href="${baseUrl}/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona operativa</a></p>`;
 
   const docsHtmlRows = payload.documentos
     .map(
@@ -112,6 +72,11 @@ ${payload.orderReference ? `Zona traductor: https://www.traduccionesjuradas.net/
         `<tr><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.tipoLabel}</td><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.combinacion}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.palabras}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.precioEstimado.toFixed(2)} EUR</td></tr>`
     )
     .join("");
+
+  const baseUrl = "https://www.traduccionesjuradas.net";
+  const quoteLink = payload.quoteId
+    ? `<p><a href="${baseUrl}/admin/quotes/${payload.quoteId}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Revisar presupuesto y enviar</a></p>`
+    : `<p><a href="${baseUrl}/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona operativa</a></p>`;
 
   const html = `
     <h2>Solicitud desde estimador — ${payload.referencia}</h2>
@@ -128,36 +93,29 @@ ${payload.orderReference ? `Zona traductor: https://www.traduccionesjuradas.net/
     ${quoteLink}
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to,
-    from: { email: from, name: "Traducciones Juradas" },
     replyTo: payload.contacto.email,
     subject,
-    text,
     html,
   });
 }
 
 export async function sendPresupuestoConfirmationEmail(payload: PresupuestoPayload) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
   const toUser = payload.contacto.email;
   if (!toUser) return;
   const bccInternal = process.env.PRESUPUESTO_TO;
-
-  sgMail.setApiKey(apiKey);
 
   const subject = `Solicitud ${payload.referencia} recibida — Traducciones Juradas`;
   const total = payload.documentos.reduce((s, d) => s + d.precioEstimado, 0).toFixed(2);
   const whatsapp = buildWhatsAppLinkFromText("Hola necesito un presupuesto");
 
-  const docsText = payload.documentos
-    .map((d, i) => `  ${i + 1}. ${d.tipoLabel} (${d.combinacion}) — ~${d.palabras} palabras — ~${d.precioEstimado.toFixed(2)} EUR`)
-    .join("\n");
+  const docsHtmlRows = payload.documentos
+    .map(
+      (d) =>
+        `<tr><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.tipoLabel}</td><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.combinacion}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.palabras}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.precioEstimado.toFixed(2)} EUR</td></tr>`
+    )
+    .join("");
 
   const signatureHtml = `
     <p style="margin:12px 0 4px 0;"><strong>Juan Silva Moreno</strong><br/>
@@ -168,31 +126,6 @@ export async function sendPresupuestoConfirmationEmail(payload: PresupuestoPaylo
     <p style="font-size:12px; color:#6b7280; margin:8px 0 0 0;"><strong>NOTA LEGAL</strong> – Este documento se dirige exclusivamente a su destinatario y puede contener información confidencial sometida a secreto profesional. Si no es el destinatario autorizado, su uso o divulgación está prohibido; por favor comuníquelo y destrúyalo. Las comunicaciones por email pueden ser modificadas o interceptadas; el remitente no asume responsabilidad por errores u omisiones.</p>
     <p style="font-size:12px; color:#6b7280; margin:6px 0 0 0;"><strong>Protección de datos:</strong> Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingüísticos S.L. para gestionar su encargo y comunicaciones. Puede ejercer derechos de acceso, rectificación, supresión y oposición en Calle Esperanto, 9 · 29007 Málaga o en <a href="mailto:hola@traduccionesjuradas.net">hola@traduccionesjuradas.net</a>.</p>
   `;
-
-  const text = `Hola,
-
-Hemos recibido tu solicitud de traducción jurada (ref. ${payload.referencia}).
-
-Documentos solicitados:
-${docsText}
-
-Total estimado: ~${total} EUR (IVA incluido · precio final tras revisión)
-
-Puedes consultar el estado de tu solicitud en cualquier momento en:
-https://www.traduccionesjuradas.net/consulta
-
-Atendemos de 09:00 a 19:00 CET y solemos responder en menos de 2 horas laborables.
-Si es urgente, escríbenos por WhatsApp: ${whatsapp}
-
-Gracias,
-Equipo de TraduccionesJuradas.net`;
-
-  const docsHtmlRows = payload.documentos
-    .map(
-      (d) =>
-        `<tr><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.tipoLabel}</td><td style="padding:4px 8px; border:1px solid #e2e8f0;">${d.combinacion}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.palabras}</td><td style="padding:4px 8px; border:1px solid #e2e8f0; text-align:right;">~${d.precioEstimado.toFixed(2)} EUR</td></tr>`
-    )
-    .join("");
 
   const html = `
     <div style="margin-bottom:12px;">
@@ -217,49 +150,43 @@ Equipo de TraduccionesJuradas.net`;
     ${signatureHtml}
   `;
 
-  // Inline attachments (opcional si existen en /public)
-  const attachments: any[] = [];
+  // Inline attachments
+  const attachments: MailAttachment[] = [];
   const logoPath = path.join(process.cwd(), "public", "brand", "logo-horizontal.svg");
   const sealPath = path.join(process.cwd(), "public", "sello-ministerio.jpg");
 
   try {
     const logoContent = fs.readFileSync(logoPath).toString("base64");
     attachments.push({
-      filename: "logo-horizontal.svg",
-      type: "image/svg+xml",
-      content: logoContent,
-      disposition: "inline",
-      content_id: "logo-tj",
+      name: "logo-horizontal.svg",
+      contentType: "image/svg+xml",
+      contentBytes: logoContent,
+      isInline: true,
+      contentId: "logo-tj",
     });
-  } catch (e) {
-    // opcional: si no existe, no adjuntamos
+  } catch (_e) {
+    // optional
   }
 
   try {
     const sealContent = fs.readFileSync(sealPath).toString("base64");
     attachments.push({
-      filename: "sello-ministerio.jpg",
-      type: "image/jpeg",
-      content: sealContent,
-      disposition: "inline",
-      content_id: "sello-ministerio",
+      name: "sello-ministerio.jpg",
+      contentType: "image/jpeg",
+      contentBytes: sealContent,
+      isInline: true,
+      contentId: "sello-ministerio",
     });
-  } catch (e) {
-    // opcional
+  } catch (_e) {
+    // optional
   }
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
-    from: { email: from, name: "Traducciones Juradas" },
-    personalizations: [
-      {
-        to: [{ email: toUser }],
-        ...(bccInternal ? { bcc: [{ email: bccInternal }] } : {}),
-      },
-    ],
+  await sendMail({
+    to: toUser,
+    bcc: bccInternal ? [bccInternal] : undefined,
     subject,
-    text,
     html,
-    attachments,
+    attachments: attachments.length > 0 ? attachments : undefined,
   });
 }
 
@@ -269,23 +196,7 @@ export async function sendTranslationReadyEmail(data: {
   downloadUrl: string;
   statusUrl?: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const subject = `Tu traduccion jurada esta lista (${data.reference})`;
-  const text = `Hola,
-
-Tu traduccion jurada ya esta disponible.
-Referencia: ${data.reference}
-Descarga: ${data.downloadUrl}
-
-Si tienes cualquier duda, responde a este correo.
-`;
 
   const reviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "";
   const reviewBlock = reviewUrl
@@ -303,11 +214,9 @@ Si tienes cualquier duda, responde a este correo.
     ${reviewBlock}
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -327,35 +236,11 @@ export async function sendInvoiceRequestEmail(data: {
     email: string;
   };
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
   const to = process.env.PRESUPUESTO_TO;
   if (!to) throw new Error("Missing PRESUPUESTO_TO");
 
-  sgMail.setApiKey(apiKey);
-
   const amount = (data.amountCents / 100).toFixed(2);
   const subject = `Solicitud de factura - ${data.reference}`;
-
-  const text = `Solicitud de factura para pedido ${data.reference}
-
-Pedido: ${data.title}
-Importe: ${amount} EUR
-Cliente: ${data.clientEmail}
-
-Datos fiscales:
-- Nombre fiscal: ${data.billing.fiscalName}
-- NIF/CIF: ${data.billing.nif}
-- Direccion: ${data.billing.address}
-- Ciudad: ${data.billing.city}
-- Codigo postal: ${data.billing.postalCode}
-- Pais: ${data.billing.country}
-- Email factura: ${data.billing.email}
-`;
 
   const html = `
     <h2>Solicitud de factura</h2>
@@ -374,13 +259,7 @@ Datos fiscales:
     </ul>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
-    to,
-    from: { email: from, name: "Traducciones Juradas" },
-    subject,
-    text,
-    html,
-  });
+  await sendMail({ to, subject, html });
 }
 
 export async function sendOrderCreatedEmail(data: {
@@ -391,32 +270,9 @@ export async function sendOrderCreatedEmail(data: {
   amountCents: number;
   paymentUrl: string;
 }): Promise<{ messageId: string | null; subject: string }> {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const amount = (data.amountCents / 100).toFixed(2);
   const name = data.clientName || "";
   const subject = `Pedido ${data.reference} creado - Traducciones Juradas`;
-
-  const text = `Hola ${name},
-
-Hemos registrado tu pedido correctamente.
-
-Referencia: ${data.reference}
-Concepto: ${data.title}
-Importe: ${amount} EUR
-
-Puedes realizar el pago en: ${data.paymentUrl}
-
-Si ya has cerrado la ventana, puedes consultar el estado de tu pedido en: https://www.traduccionesjuradas.net/consulta
-
-Gracias,
-Equipo de TraduccionesJuradas.net`;
 
   const html = `
     <h2>Pedido registrado</h2>
@@ -432,23 +288,14 @@ Equipo de TraduccionesJuradas.net`;
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
-  const sendResponse = (await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
-  })) as any;
+  });
 
-  const response = Array.isArray(sendResponse) ? sendResponse[0] : sendResponse;
-  const headerValue =
-    response?.headers?.["x-message-id"] ||
-    response?.headers?.["X-Message-Id"] ||
-    response?.headers?.get?.("x-message-id") ||
-    null;
-  const messageId = headerValue ? String(headerValue) : null;
-
-  return { messageId, subject };
+  // Graph API does not return a message ID
+  return { messageId: null, subject };
 }
 
 export async function sendPaymentConfirmedEmail(data: {
@@ -458,14 +305,6 @@ export async function sendPaymentConfirmedEmail(data: {
   amountCents: number;
   method: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const amount = (data.amountCents / 100).toFixed(2);
   const methodLabels: Record<string, string> = {
     REDSYS: "Tarjeta bancaria",
@@ -476,22 +315,6 @@ export async function sendPaymentConfirmedEmail(data: {
   };
   const methodLabel = methodLabels[data.method] || data.method;
   const subject = `Pago confirmado - Pedido ${data.reference}`;
-
-  const text = `Hola,
-
-Hemos recibido tu pago correctamente.
-
-Referencia: ${data.reference}
-Concepto: ${data.title}
-Importe: ${amount} EUR
-Metodo: ${methodLabel}
-
-Puedes seguir el estado de tu pedido en: https://www.traduccionesjuradas.net/consulta
-
-Te avisaremos cuando tu traduccion este lista.
-
-Gracias,
-Equipo de TraduccionesJuradas.net`;
 
   const html = `
     <h2>Pago confirmado</h2>
@@ -508,11 +331,9 @@ Equipo de TraduccionesJuradas.net`;
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -524,29 +345,11 @@ export async function sendNewOrderStaffEmail(data: {
   clientEmail: string;
   langPair?: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
   const to = process.env.PRESUPUESTO_TO;
   if (!to) throw new Error("Missing PRESUPUESTO_TO");
 
-  sgMail.setApiKey(apiKey);
-
   const amount = (data.amountCents / 100).toFixed(2);
   const subject = `Nuevo pedido ${data.reference} - ${amount} EUR`;
-
-  const text = `Nuevo pedido creado desde la web.
-
-Referencia: ${data.reference}
-Concepto: ${data.title}
-Idiomas: ${data.langPair || "-"}
-Importe: ${amount} EUR
-Cliente: ${data.clientEmail}
-
-Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
 
   const html = `
     <h2>Nuevo pedido</h2>
@@ -560,13 +363,7 @@ Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
     <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
-    to,
-    from: { email: from, name: "Traducciones Juradas" },
-    subject,
-    text,
-    html,
-  });
+  await sendMail({ to, subject, html });
 }
 
 export async function sendOrderReviewRoutingEmail(data: {
@@ -582,18 +379,10 @@ export async function sendOrderReviewRoutingEmail(data: {
   reviewReason?: string | null;
   quoteId?: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
   const toRecipients = data.reviewers.filter(Boolean);
   if (toRecipients.length === 0) {
     throw new Error("Missing review recipients");
   }
-
-  sgMail.setApiKey(apiKey);
 
   const amount = (data.amountCents / 100).toFixed(2);
   const baseUrl = "https://www.traduccionesjuradas.net";
@@ -605,22 +394,6 @@ export async function sendOrderReviewRoutingEmail(data: {
     ? `${baseUrl}/admin/quotes/${data.quoteId}`
     : `${baseUrl}/zona-traductor`;
   const ctaLabel = hasQuote ? "Revisar presupuesto y enviar" : "Abrir zona operativa";
-  const quoteNotice = hasQuote
-    ? "\nSe ha generado un presupuesto automatico. Revisalo y haz clic en Enviar.\n"
-    : "";
-  const text = `Pedido en revision interna.
-
-Referencia: ${data.reference}
-Cliente: ${data.clientEmail}
-Concepto: ${data.title}
-Idiomas: ${data.langPair || "-"}
-Importe estimado: ${amount} EUR
-Flujo: ${data.flowProfile}
-Motivo: ${data.reviewReason || "Revision operativa previa al cobro"}
-Observaciones urgencia: ${data.urgencyNotes || "—"}
-${quoteNotice}
-Revisar en:
-${ctaUrl}`;
 
   const quoteHtml = hasQuote
     ? `<p style="margin:12px 0; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; font-size:14px; color:#065f46;">Se ha generado un presupuesto automatico. Revisalo y haz clic en <strong>Enviar</strong>.</p>`
@@ -641,16 +414,10 @@ ${ctaUrl}`;
     <p><a href="${ctaUrl}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">${ctaLabel}</a></p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
-    from: { email: from, name: "Traducciones Juradas" },
-    personalizations: [
-      {
-        to: toRecipients.map((email) => ({ email })),
-        ...(data.pmEmail ? { cc: [{ email: data.pmEmail }] } : {}),
-      },
-    ],
+  await sendMail({
+    to: toRecipients,
+    cc: data.pmEmail ? [data.pmEmail] : undefined,
     subject,
-    text,
     html,
   });
 }
@@ -662,29 +429,9 @@ export async function sendOrderUnderReviewClientEmail(data: {
   title: string;
   amountCents: number;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const amount = (data.amountCents / 100).toFixed(2);
   const subject = `Pedido ${data.reference} en revisión interna`;
   const name = data.clientName || "";
-  const text = `Hola ${name},
-
-Hemos recibido tu pedido y está en revisión interna antes de habilitar el pago.
-
-Referencia: ${data.reference}
-Concepto: ${data.title}
-Importe estimado: ${amount} EUR
-
-Te avisaremos por email en cuanto esté listo para pago.
-También puedes consultar el estado en:
-https://www.traduccionesjuradas.net/consulta
-`;
 
   const html = `
     <h2>Pedido recibido</h2>
@@ -699,11 +446,9 @@ https://www.traduccionesjuradas.net/consulta
     <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -716,30 +461,11 @@ export async function sendPaymentProofUploadedStaffEmail(data: {
   proofUrl: string;
   fileName?: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
   const to = process.env.PRESUPUESTO_TO;
   if (!to) throw new Error("Missing PRESUPUESTO_TO");
 
-  sgMail.setApiKey(apiKey);
-
   const amount = (data.amountCents / 100).toFixed(2);
   const subject = `Comprobante subido - ${data.reference}`;
-
-  const text = `El cliente ha subido un comprobante de pago.
-
-Referencia: ${data.reference}
-Concepto: ${data.title}
-Importe: ${amount} EUR
-Cliente: ${data.clientEmail}
-Archivo: ${data.fileName || "comprobante"}
-URL: ${data.proofUrl}
-
-Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
 
   const html = `
     <h2>Comprobante de pago recibido</h2>
@@ -754,36 +480,14 @@ Ver en zona traductor: https://www.traduccionesjuradas.net/zona-traductor`;
     <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
-    to,
-    from: { email: from, name: "Traducciones Juradas" },
-    subject,
-    text,
-    html,
-  });
+  await sendMail({ to, subject, html });
 }
 
 export async function sendPaymentProofReceivedClientEmail(data: {
   toEmail: string;
   reference: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const subject = `Comprobante recibido - Pedido ${data.reference}`;
-  const text = `Hola,
-
-Hemos recibido tu comprobante de pago para el pedido ${data.reference}.
-Nuestro equipo lo revisara y confirmara el pago en breve.
-
-Puedes consultar el estado en:
-https://www.traduccionesjuradas.net/consulta
-`;
 
   const html = `
     <h2>Comprobante recibido</h2>
@@ -792,11 +496,9 @@ https://www.traduccionesjuradas.net/consulta
     <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -807,22 +509,7 @@ export async function sendTranslationEtaEmail(data: {
   etaDateLabel: string;
   statusUrl?: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const subject = `Traduccion en curso - ETA ${data.reference}`;
-  const text = `Hola,
-
-Tu pedido ${data.reference} ya esta en proceso de traduccion.
-Fecha estimada de entrega: ${data.etaDateLabel}
-
-Te avisaremos en cuanto la traduccion este lista.
-`;
 
   const statusLine = data.statusUrl
     ? `<p style="font-size:13px; color:#6b7280;">Puedes <a href="${data.statusUrl}">consultar el estado de tu pedido</a> en cualquier momento.</p>`
@@ -836,11 +523,9 @@ Te avisaremos en cuanto la traduccion este lista.
     ${statusLine}
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -852,14 +537,6 @@ export async function sendTranslationStartedAssignedEmail(data: {
   translatorSwornNumber?: string | null;
   etaDateLabel?: string | null;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const translatorLabel = data.translatorSwornNumber
     ? `${data.translatorName} (Nº ${data.translatorSwornNumber})`
     : data.translatorName;
@@ -868,15 +545,6 @@ export async function sendTranslationStartedAssignedEmail(data: {
     : "La fecha estimada de entrega se confirmara en breve.";
 
   const subject = `Tu traduccion ya esta en proceso (${data.reference})`;
-  const text = `Hola,
-
-Tu pedido ${data.reference} ya esta en proceso de traduccion.
-Tu traductor jurado asignado es ${translatorLabel}.
-${etaLine}
-
-Puedes consultar el estado en:
-https://www.traduccionesjuradas.net/consulta
-`;
 
   const html = `
     <h2>Tu traduccion ya esta en proceso</h2>
@@ -886,11 +554,9 @@ https://www.traduccionesjuradas.net/consulta
     <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -901,31 +567,12 @@ export async function sendDocumentResubmissionRequestEmail(data: {
   reason?: string | null;
   uploadUrl: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const reason = (data.reason || "").trim();
   const reasonLine = reason
     ? `Motivo detectado por revision: ${reason}`
     : "Motivo detectado por revision: el archivo no es suficientemente legible para traducir con seguridad.";
 
   const subject = `Necesitamos reenviar el documento - Pedido ${data.reference}`;
-  const text = `Hola,
-
-Para continuar con tu pedido ${data.reference}, necesitamos que vuelvas a subir el documento original con mejor calidad.
-${reasonLine}
-
-Sube el nuevo archivo aqui:
-${data.uploadUrl}
-
-Formatos recomendados: PDF o imagen nitida (JPG/PNG), con todo el texto visible.
-Gracias.
-`;
 
   const html = `
     <h2>Necesitamos que reenvies el documento</h2>
@@ -941,29 +588,15 @@ Gracias.
     </p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
 
 export async function sendStaffOtpEmail(data: { toEmail: string; code: string }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const subject = "Codigo de acceso - Zona traductor";
-  const text = `Tu codigo de acceso es: ${data.code}
-
-Caduca en 10 minutos.
-Si no has solicitado este acceso, ignora este mensaje.`;
 
   const html = `
     <h2>Codigo de acceso</h2>
@@ -972,11 +605,9 @@ Si no has solicitado este acceso, ignora este mensaje.`;
     <p>Caduca en 10 minutos.</p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html,
   });
 }
@@ -990,16 +621,8 @@ export async function sendProjectManagerFinanceUpdateEmail(data: {
   invoiceNumber?: string | null;
   totalCents?: number | null;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
   const to = process.env.PM_NOTIFICATION_TO || process.env.PRESUPUESTO_TO;
   if (!to) throw new Error("Missing PM_NOTIFICATION_TO or PRESUPUESTO_TO");
-
-  sgMail.setApiKey(apiKey);
 
   const amount = Number.isFinite(Number(data.totalCents))
     ? `${(Number(data.totalCents) / 100).toFixed(2)} EUR`
@@ -1010,18 +633,6 @@ export async function sendProjectManagerFinanceUpdateEmail(data: {
     data.billingMode === "MONTHLY_BATCH" ? "Lote mensual" : data.billingMode === "PER_ORDER" ? "Por pedido" : "N/D";
 
   const subject = `Pago proveedor confirmado - ${data.reference}`;
-  const text = `Se ha marcado como PAGADA la factura del proveedor.
-
-Pedido: ${data.reference}
-Cliente: ${data.clientEmail}
-Proveedor: ${data.supplierName || "N/D"}
-Tipo proveedor: ${supplierTypeLabel}
-Modalidad factura: ${billingModeLabel}
-Factura: ${data.invoiceNumber || "N/D"}
-Importe factura: ${amount}
-
-Revisar en zona traductor:
-https://www.traduccionesjuradas.net/zona-traductor`;
 
   const html = `
     <h2>Pago a proveedor confirmado</h2>
@@ -1038,42 +649,16 @@ https://www.traduccionesjuradas.net/zona-traductor`;
     <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona traductor</a></p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
-    to,
-    from: { email: from, name: "Traducciones Juradas" },
-    subject,
-    text,
-    html,
-  });
+  await sendMail({ to, subject, html });
 }
 
 export async function sendLeadReminderEmail(data: {
   toEmail: string;
   clientName?: string | null;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const name = data.clientName || "";
   const presupuestoUrl = `${SITE_BASE_URL}/presupuesto-instantaneo`;
   const subject = "Tu presupuesto de traduccion jurada sigue disponible";
-
-  const text = `Hola ${name},
-
-Hace unos dias subiste un documento para obtener un presupuesto de traduccion jurada y no llegaste a completar el pedido.
-
-Tu presupuesto sigue disponible. Puedes retomarlo en cualquier momento:
-${presupuestoUrl}
-
-Si tienes alguna duda, respondenos a este correo o escribenos por WhatsApp.
-
-Gracias,
-Equipo de TraduccionesJuradas.net`;
 
   const html = `
     <h2>Tu presupuesto sigue disponible</h2>
@@ -1085,11 +670,9 @@ Equipo de TraduccionesJuradas.net`;
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -1101,30 +684,8 @@ export async function sendPaymentReminderEmail(data: {
   amountCents: number;
   paymentUrl: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const amount = (data.amountCents / 100).toFixed(2);
   const subject = `Pedido ${data.reference} pendiente de pago`;
-
-  const text = `Hola,
-
-Tu pedido ${data.reference} esta pendiente de pago.
-
-Concepto: ${data.title}
-Importe: ${amount} EUR
-
-Puedes completar el pago en: ${data.paymentUrl}
-
-Si ya has realizado el pago, ignora este mensaje.
-
-Gracias,
-Equipo de TraduccionesJuradas.net`;
 
   const html = `
     <h2>Pedido pendiente de pago</h2>
@@ -1139,11 +700,9 @@ Equipo de TraduccionesJuradas.net`;
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -1153,24 +712,7 @@ export async function sendReviewRequestEmail(data: {
   reference: string;
   reviewUrl: string;
 }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const subject = `Tu opinion nos ayuda (${data.reference})`;
-  const text = `Hola,
-
-Gracias por confiar en TraduccionesJuradas.net para tu traduccion jurada.
-
-Si estas satisfecho con el servicio, nos ayudaria mucho tu valoracion en Google:
-${data.reviewUrl}
-
-Gracias por tu tiempo.
-Equipo de TraduccionesJuradas.net`;
 
   const html = `
     <h2>Tu opinion nos ayuda</h2>
@@ -1180,11 +722,9 @@ Equipo de TraduccionesJuradas.net`;
     <p style="font-size:13px; color:#6b7280;">Gracias por tu tiempo.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
-  await sgMail.send({ trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.toEmail,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html: wrapClientEmailHtml(html),
   });
 }

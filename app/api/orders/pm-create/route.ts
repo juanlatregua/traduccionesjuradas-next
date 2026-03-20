@@ -289,7 +289,7 @@ export async function POST(req: Request) {
               subject: emailResult.subject,
               paymentUrl,
               sentAt: new Date().toISOString(),
-              provider: "sendgrid",
+              provider: "graph",
               providerMessageId: emailResult.messageId,
             },
           },

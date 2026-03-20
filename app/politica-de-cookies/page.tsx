@@ -76,7 +76,7 @@ export default function CookiesPage() {
         <li><strong>Google Analytics</strong> – Estadísticas</li>
         <li><strong>Stripe</strong> – Funcional (procesamiento de pagos con tarjeta)</li>
         <li><strong>PayPal</strong> – Funcional (procesamiento de pagos)</li>
-        <li><strong>SendGrid</strong> – Funcional (envío de correos transaccionales)</li>
+        <li><strong>Microsoft Graph</strong> – Funcional (envío de correos transaccionales)</li>
         <li><strong>Twilio</strong> – Funcional (envío de SMS de verificación)</li>
         <li><strong>NextAuth.js</strong> – Funcional (autenticación y sesión de usuario)</li>
         <li><strong>Google Fonts</strong> – Funcional (tipografías web)</li>

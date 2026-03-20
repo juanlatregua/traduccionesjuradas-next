@@ -16,8 +16,8 @@
 │                      API Routes (~77)                       │
 │  /orders  /payment  /documents  /quotes  /encargo  /cron    │
 ├──────┬──────┬──────┬──────┬──────┬──────┬───────────────────┤
-│Prisma│Stripe│Redsys│S.Grid│Twilio│Claude│  Vercel Blob      │
-│  +   │      │      │      │      │  AI  │  (storage)        │
+│Prisma│Stripe│Redsys│Graph │Twilio│Claude│  Vercel Blob      │
+│  +   │      │      │(mail)│      │  AI  │  (storage)        │
 │ PG   │      │      │      │      │      │                   │
 └──────┴──────┴──────┴──────┴──────┴──────┴───────────────────┘
 ```
@@ -125,7 +125,7 @@
 ### External Services
 - **Stripe** — pagos con tarjeta (checkout sessions + webhooks)
 - **Redsys** — pagos con tarjeta española (form redirect + notification)
-- **SendGrid** — todos los emails transaccionales
+- **Microsoft Graph API** — todos los emails transaccionales (Azure AD OAuth2)
 - **Twilio** — SMS/WhatsApp (fire-and-forget)
 - **Claude AI** — análisis de documentos + chat
 - **Vercel Blob** — almacenamiento de archivos

@@ -68,7 +68,7 @@ export async function POST(req: Request, { params }: Params) {
     });
 
     // Send email to translator
-    const skipDev = process.env.SENDGRID_SKIP_DEV === "true" && process.env.NODE_ENV === "development";
+    const skipDev = process.env.EMAIL_SKIP_DEV === "true" && process.env.NODE_ENV === "development";
     if (!skipDev) {
       await sendInvoiceRequestEmail({
         reference: order.reference,

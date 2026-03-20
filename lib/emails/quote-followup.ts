@@ -1,9 +1,5 @@
 // lib/emails/quote-followup.ts — Email follow-up tras presupuesto IA
-import sgMail from "@sendgrid/mail";
-
-const NO_CLICK_TRACKING = {
-  clickTracking: { enable: false, enableText: false },
-};
+import { sendMail } from "@/lib/azure-mail";
 
 const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
 const BRAND_LOGO_URL = `${BRAND_HOME_URL}/brand/logo-horizontal.svg`;
@@ -42,44 +38,9 @@ export type QuoteFollowupData = {
   apostilleSurcharge?: number;
 };
 
-/**
- * Sends a branded follow-up email after an IA quote is generated.
- * Called from the analyze endpoint so the user has a record of their quote.
- */
 export async function sendQuoteFollowupEmail(data: QuoteFollowupData) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("Missing SENDGRID_API_KEY");
-
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("Missing SENDGRID_FROM");
-
-  sgMail.setApiKey(apiKey);
-
   const ivaAmount = Math.round((data.totalPrice - data.price) * 100) / 100;
   const subject = `Tu presupuesto de traducción jurada — ${data.totalPrice.toFixed(2)} EUR`;
-
-  const apostilleText = data.apostilleSurcharge
-    ? `\nIncluye suplemento apostilla de La Haya: ${data.apostilleSurcharge.toFixed(2)} EUR`
-    : "";
-
-  const text = `Hola ${data.name},
-
-Hemos analizado tu documento y este es tu presupuesto:
-
-Tipo de documento: ${data.documentType}
-Combinación: ${data.langPair}
-Base imponible: ${data.price.toFixed(2)} EUR${apostilleText}
-IVA (21%): ${ivaAmount.toFixed(2)} EUR
-Total: ${data.totalPrice.toFixed(2)} EUR (IVA incluido)
-Plazo estimado: ${data.estimatedDays}
-
-Puedes continuar con tu pedido en:
-${BRAND_HOME_URL}/presupuesto-instantaneo
-
-Si tienes cualquier duda, responde a este correo o escríbenos por WhatsApp al 951 333 614.
-
-Gracias,
-Equipo de TraduccionesJuradas.net`;
 
   const html = wrapHtml(`
     <h2 style="margin:0 0 8px 0; font-size:20px; color:#0f172a;">Tu presupuesto está listo</h2>
@@ -125,12 +86,9 @@ Equipo de TraduccionesJuradas.net`;
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `);
 
-  await sgMail.send({
-    trackingSettings: NO_CLICK_TRACKING,
+  await sendMail({
     to: data.email,
-    from: { email: from, name: "Traducciones Juradas" },
     subject,
-    text,
     html,
   });
 }

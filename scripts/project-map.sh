@@ -44,7 +44,7 @@ echo ""
 
 # 7. Stack (key dependencies from package.json)
 echo "--- 7. STACK (package.json) ---"
-DEPS=("next" "react" "typescript" "tailwindcss" "prisma" "@prisma/client" "drizzle-orm" "stripe" "redsys-easy" "@sendgrid/mail" "resend" "twilio" "@vercel/blob" "@supabase/supabase-js" "@anthropic-ai/sdk" "next-auth" "velite" "jspdf" "pdf-parse" "@paypal/checkout-server-sdk")
+DEPS=("next" "react" "typescript" "tailwindcss" "prisma" "@prisma/client" "drizzle-orm" "stripe" "redsys-easy" "resend" "twilio" "@vercel/blob" "@supabase/supabase-js" "@anthropic-ai/sdk" "next-auth" "velite" "jspdf" "pdf-parse" "@paypal/checkout-server-sdk")
 for dep in "${DEPS[@]}"; do
   ver=$(node -e "try{const p=require('$ROOT/package.json');const v=(p.dependencies||{})['$dep']||(p.devDependencies||{})['$dep'];if(v)console.log(v);else process.exit(1)}catch{process.exit(1)}" 2>/dev/null) && echo "  $dep: $ver" || true
 done

@@ -1,8 +1,7 @@
-import sgMail from "@sendgrid/mail";
-import { wrapClientEmailHtml, NO_CLICK_TRACKING } from "@/lib/email";
+import { wrapClientEmailHtml } from "@/lib/email";
 import { SITE_BASE_URL } from "@/lib/contact";
+import { sendMail } from "@/lib/azure-mail";
 
-const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || "info@traduccionesjuradas.net";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
 function escapeHtml(str: string): string {
@@ -20,11 +19,6 @@ function sanitizeUrl(url: string): string {
   return "#";
 }
 
-function ensureApiKey() {
-  const key = process.env.SENDGRID_API_KEY;
-  if (key) sgMail.setApiKey(key);
-}
-
 type AssignmentEmailPayload = {
   collaboratorName: string;
   collaboratorEmail: string;
@@ -37,7 +31,6 @@ type AssignmentEmailPayload = {
 };
 
 export async function sendAssignmentToCollaborator(payload: AssignmentEmailPayload) {
-  ensureApiKey();
   const encargoUrl = `${SITE_BASE_URL}/encargo/${payload.accessToken}`;
   const name = escapeHtml(payload.collaboratorName);
   const ref = escapeHtml(payload.orderReference);
@@ -67,12 +60,10 @@ export async function sendAssignmentToCollaborator(payload: AssignmentEmailPaylo
     <p style="color:#94a3b8; font-size:13px;">Este enlace es personal e intransferible.</p>
   `;
 
-  await sgMail.send({
+  await sendMail({
     to: payload.collaboratorEmail,
-    from: FROM_EMAIL,
     subject: `Nuevo encargo de traducción jurada (${ref})`,
     html: wrapClientEmailHtml(html),
-    trackingSettings: NO_CLICK_TRACKING,
   });
 }
 
@@ -87,7 +78,6 @@ type QuoteNotificationPayload = {
 };
 
 export async function sendQuoteNotificationToAdmin(payload: QuoteNotificationPayload) {
-  ensureApiKey();
   const priceFormatted = (payload.priceCents / 100).toFixed(2);
   const name = escapeHtml(payload.collaboratorName);
   const ref = escapeHtml(payload.orderReference);
@@ -103,12 +93,10 @@ export async function sendQuoteNotificationToAdmin(payload: QuoteNotificationPay
     <p>Accede a la zona de traductor para aceptar o rechazar.</p>
   `;
 
-  await sgMail.send({
+  await sendMail({
     to: ADMIN_EMAIL,
-    from: FROM_EMAIL,
     subject: `Presupuesto de ${name} para ${ref}: ${priceFormatted}€`,
     html: wrapClientEmailHtml(html),
-    trackingSettings: NO_CLICK_TRACKING,
   });
 }
 
@@ -122,7 +110,6 @@ type RevisionRequestPayload = {
 };
 
 export async function sendRevisionRequestToCollaborator(payload: RevisionRequestPayload) {
-  ensureApiKey();
   const encargoUrl = `${SITE_BASE_URL}/encargo/${payload.accessToken}`;
   const priceFormatted = (payload.previousPriceCents / 100).toFixed(2);
   const name = escapeHtml(payload.collaboratorName);
@@ -143,12 +130,10 @@ export async function sendRevisionRequestToCollaborator(payload: RevisionRequest
     <p style="color:#94a3b8; font-size:13px;">Este enlace es personal e intransferible.</p>
   `;
 
-  await sgMail.send({
+  await sendMail({
     to: payload.collaboratorEmail,
-    from: FROM_EMAIL,
     subject: `Revisión de presupuesto solicitada (${ref})`,
     html: wrapClientEmailHtml(html),
-    trackingSettings: NO_CLICK_TRACKING,
   });
 }
 
@@ -161,7 +146,6 @@ type AcceptanceEmailPayload = {
 };
 
 export async function sendAcceptanceToCollaborator(payload: AcceptanceEmailPayload) {
-  ensureApiKey();
   const encargoUrl = `${SITE_BASE_URL}/encargo/${payload.accessToken}`;
   const priceFormatted = (payload.priceCents / 100).toFixed(2);
   const name = escapeHtml(payload.collaboratorName);
@@ -181,12 +165,10 @@ export async function sendAcceptanceToCollaborator(payload: AcceptanceEmailPaylo
     <p style="color:#94a3b8; font-size:13px;">Este enlace es personal e intransferible.</p>
   `;
 
-  await sgMail.send({
+  await sendMail({
     to: payload.collaboratorEmail,
-    from: FROM_EMAIL,
     subject: `Encargo aceptado (${payload.orderReference})`,
     html: wrapClientEmailHtml(html),
-    trackingSettings: NO_CLICK_TRACKING,
   });
 }
 
@@ -198,7 +180,6 @@ type RejectionEmailPayload = {
 };
 
 export async function sendRejectionToCollaborator(payload: RejectionEmailPayload) {
-  ensureApiKey();
   const name = escapeHtml(payload.collaboratorName);
   const ref = escapeHtml(payload.orderReference);
   const html = `
@@ -208,12 +189,10 @@ export async function sendRejectionToCollaborator(payload: RejectionEmailPayload
     <p>Gracias por tu tiempo. Te contactaremos para futuros encargos.</p>
   `;
 
-  await sgMail.send({
+  await sendMail({
     to: payload.collaboratorEmail,
-    from: FROM_EMAIL,
     subject: `Encargo ${payload.orderReference} — Presupuesto no aceptado`,
     html: wrapClientEmailHtml(html),
-    trackingSettings: NO_CLICK_TRACKING,
   });
 }
 
@@ -226,7 +205,6 @@ type DeliveryNotificationPayload = {
 };
 
 export async function sendDeliveryNotificationToAdmin(payload: DeliveryNotificationPayload) {
-  ensureApiKey();
   const name = escapeHtml(payload.collaboratorName);
   const email = escapeHtml(payload.collaboratorEmail);
   const ref = escapeHtml(payload.orderReference);
@@ -251,11 +229,9 @@ export async function sendDeliveryNotificationToAdmin(payload: DeliveryNotificat
     </p>
   `;
 
-  await sgMail.send({
+  await sendMail({
     to: ADMIN_EMAIL,
-    from: FROM_EMAIL,
     subject: `\u2705 ${name} ha entregado \u2014 ${ref}`,
     html: wrapClientEmailHtml(html),
-    trackingSettings: NO_CLICK_TRACKING,
   });
 }

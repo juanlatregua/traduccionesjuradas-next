@@ -1,15 +1,15 @@
-# 004 — SendGrid como proveedor de email
+# 004 — ~~SendGrid como proveedor de email~~ SUPERSEDED
 
-## Contexto
+**Estado: SUPERSEDED** — Reemplazado por Microsoft Graph API (marzo 2026).
+
+## Contexto original
 Se necesitaba un servicio de email transaccional fiable para ~24 tipos de email (confirmaciones, notificaciones, OTP, colaboradores).
 
-## Decisión
+## Decisión original
 SendGrid (@sendgrid/mail 8.1.6) con templates HTML inline (no sistema de plantillas externo).
 
-## Consecuencias
-- **Positivo:** API simple, alta deliverabilidad, buen free tier
-- **Positivo:** Templates inline permiten control total sobre diseño sin dependencia externa
-- **Positivo:** Click tracking deshabilitado globalmente (privacidad)
-- **Negativo:** Templates hardcoded en funciones TypeScript — cambiar diseño requiere deploy
-- **Negativo:** Sin gestión de bounces/complaints via webhook (TODO)
-- **Negativo:** `lib/email.ts` ha crecido a 1191 líneas — candidato a refactor
+## Superseded por
+Microsoft Graph API via Azure AD (OAuth2 client_credentials). Misma app registration que mitraductorjurado.
+- `lib/azure-mail.ts` — cliente Graph con token cache en memoria
+- Sin dependencia npm adicional (raw fetch)
+- Env vars: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `EMAIL_FROM`

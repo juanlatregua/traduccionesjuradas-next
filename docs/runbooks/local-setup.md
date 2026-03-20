@@ -3,7 +3,7 @@
 ## Requisitos
 - Node.js 18+ (recomendado 20 LTS)
 - PostgreSQL local o acceso a Prisma Postgres
-- Cuentas: Google Cloud (OAuth), SendGrid, Stripe (test mode)
+- Cuentas: Google Cloud (OAuth), Azure AD (email), Stripe (test mode)
 
 ## Pasos
 

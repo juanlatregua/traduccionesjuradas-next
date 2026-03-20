@@ -38,7 +38,7 @@ STAFF_EMAILS     → isStaffEmail()       — staff genérico (+ defaults hardco
 → email + "Enviar código" → POST /api/traductor/send-code
   - Valida staff email, rate limit 6/10min
   - Genera código 6 dígitos, cookie staff_otp_pending (10 min)
-  - Envía código por email (SendGrid)
+  - Envía código por email (Microsoft Graph)
 → código + "Validar" → POST /api/traductor/verify-code
   - Rate limit 12/10min
   - Valida código vs pending token

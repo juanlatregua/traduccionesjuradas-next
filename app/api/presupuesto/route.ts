@@ -354,14 +354,12 @@ export async function POST(req: Request) {
       quoteId: autoQuoteId || undefined,
     };
 
-    const skipSend = process.env.SENDGRID_SKIP_DEV === "true";
-    const missingEnv =
-      !process.env.SENDGRID_API_KEY ||
-      !process.env.SENDGRID_FROM ||
-      !process.env.PRESUPUESTO_TO;
+    const skipSend = process.env.EMAIL_SKIP_DEV === "true";
+    const { isEmailConfigured } = await import("@/lib/azure-mail");
+    const missingEnv = !isEmailConfigured() || !process.env.PRESUPUESTO_TO;
 
     if (skipSend) {
-      console.warn("[/api/presupuesto] Envío de email omitido por SENDGRID_SKIP_DEV=true");
+      console.warn("[/api/presupuesto] Envío de email omitido por EMAIL_SKIP_DEV=true");
       logPresupuesto({
         status: "ok",
         referencia,
@@ -370,7 +368,7 @@ export async function POST(req: Request) {
         route: "api/presupuesto",
         userEmail: email,
         timestamp: new Date().toISOString(),
-        error: "SKIP_DEV",
+        error: "EMAIL_SKIP_DEV",
       });
       return NextResponse.json({
         ok: true,
@@ -380,7 +378,7 @@ export async function POST(req: Request) {
     }
 
     if (missingEnv && process.env.NODE_ENV !== "production") {
-      console.warn("[/api/presupuesto] Envío omitido: faltan env SENDGRID_* / PRESUPUESTO_TO");
+      console.warn("[/api/presupuesto] Envío omitido: faltan env Azure/PRESUPUESTO_TO");
       logPresupuesto({
         status: "ok",
         referencia,
@@ -389,7 +387,7 @@ export async function POST(req: Request) {
         route: "api/presupuesto",
         userEmail: email,
         timestamp: new Date().toISOString(),
-        error: "Faltan env SENDGRID (pedido creado en BD)",
+        error: "Faltan env email (pedido creado en BD)",
       });
       return NextResponse.json({
         ok: true,

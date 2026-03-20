@@ -13,5 +13,5 @@ Dos tipos de usuario: clientes (área-cliente) y staff/traductores (zona-traduct
 - **Positivo:** Doble verificación para staff (OAuth + OTP) mitiga riesgos
 - **Positivo:** Gestión de roles sin RBAC complejo (listas de email en ENV)
 - **Negativo:** Cambiar de provider requiere re-implementar auth
-- **Negativo:** OTP por email depende de SendGrid — si falla, staff no puede acceder
+- **Negativo:** OTP por email depende de Microsoft Graph — si falla, staff no puede acceder
 - **Negativo:** No hay recuperación automática si un email sale de la lista ENV

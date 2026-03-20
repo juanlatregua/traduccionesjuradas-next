@@ -36,7 +36,7 @@ Flujo:
 ## Variables de entorno en Vercel
 - Configuradas en Vercel Dashboard → Settings → Environment Variables
 - ~80 variables (ver `.env.example` para listado completo)
-- Críticas: `DATABASE_URL`, `NEXTAUTH_SECRET`, `STRIPE_SECRET_KEY`, `SENDGRID_API_KEY`
+- Críticas: `DATABASE_URL`, `NEXTAUTH_SECRET`, `STRIPE_SECRET_KEY`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
 
 ## Rollback
 Vercel mantiene deployments anteriores. Para rollback:

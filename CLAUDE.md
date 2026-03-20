@@ -7,7 +7,7 @@ Negocio real: HBTJ Consultores Lingüísticos S.L., Málaga — https://www.trad
 ## WHAT
 Next.js 14 App Router + TypeScript | Tailwind (bleu/encre/sepia/cream/parchment)
 Prisma 6 + PostgreSQL | NextAuth 4 (Google OAuth) + OTP (SMS) | Stripe + Redsys
-SendGrid | Twilio | Claude AI | Vercel Blob | Velite + MDX (blog)
+Microsoft Graph (email) | Twilio | Claude AI | Vercel Blob | Velite + MDX (blog)
 
 ```
 app/                              # ~70 páginas + 77 API routes
@@ -44,8 +44,8 @@ prisma db push                     # aplicar schema (NO migrate dev — shadow D
 - Zsh: comillas en rutas con brackets → `git add "app/api/orders/[reference]/route.ts"`
 
 ## Reglas inmutables
-- **Stack fijo:** Tailwind, Vercel Blob, NextAuth, SendGrid, Prisma+PG, Stripe+Redsys, Velite
-- **NO usar:** CSS modules, S3, Resend, Drizzle, Supabase, CMS externo
+- **Stack fijo:** Tailwind, Vercel Blob, NextAuth, Microsoft Graph (email), Prisma+PG, Stripe+Redsys, Velite
+- **NO usar:** CSS modules, S3, Resend, SendGrid, Drizzle, Supabase, CMS externo
 - Admin pages: Server Components + Prisma directo (no API routes para lectura)
 - No sobreingeniería: solo lo pedido, sin docstrings/comments innecesarios
 - Deploy: Vercel auto-deploy desde `main`

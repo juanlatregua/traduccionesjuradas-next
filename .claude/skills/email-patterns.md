@@ -1,15 +1,18 @@
-# Email — SendGrid, templates y retry
+# Email — Microsoft Graph API
 
-## Proveedor: SendGrid (@sendgrid/mail 8.1.6)
+## Proveedor: Microsoft Graph API (Azure AD OAuth2)
 
 **Variables de entorno:**
-- `SENDGRID_API_KEY` — autenticación API
-- `SENDGRID_FROM` — dirección remitente por defecto
+- `AZURE_TENANT_ID` — Azure AD tenant
+- `AZURE_CLIENT_ID` — App registration client ID
+- `AZURE_CLIENT_SECRET` — App registration secret
+- `EMAIL_FROM` — dirección remitente (default `hola@traduccionesjuradas.net`)
 - `PRESUPUESTO_TO` — email staff para notificaciones internas
 - `PM_NOTIFICATION_TO` — email PM para finanzas (opcional)
 
 ## Archivos clave
-- `lib/email.ts` — 18 funciones de email (1191 líneas)
+- `lib/azure-mail.ts` — cliente Graph: `sendMail()`, `isEmailConfigured()`, token cache
+- `lib/email.ts` — 18 funciones de email (emails del negocio)
 - `lib/collaborator-emails.ts` — 6 emails del módulo colaborador
 - `lib/email-retry.ts` — retry con backoff exponencial (2s, 4s, 8s; max 3 intentos)
 - `lib/quote-email.ts` — envío de emails de presupuestos formales
@@ -19,7 +22,6 @@
 `wrapClientEmailHtml(content)` — HTML wrapper reutilizable con:
 - Logo SVG inline, estilos consistentes (Slate palette)
 - Footer con contacto (email, teléfono, horario)
-- Click tracking deshabilitado (`NO_CLICK_TRACKING`)
 
 ## Emails por categoría
 
@@ -74,23 +76,29 @@
 
 1. Añadir función en `lib/email.ts` (o `collaborator-emails.ts` si es del módulo colaborador)
 2. Usar `wrapClientEmailHtml()` para emails a cliente
-3. Aplicar `NO_CLICK_TRACKING` en `trackingSettings`
-4. Escapar contenido de usuario con `escapeHtml()`
-5. URLs: sanitizar con `sanitizeUrl()` (debe empezar con http/https)
-6. Para emails críticos: usar `sendEmailWithRetry()` del `lib/email-retry.ts`
-7. En caso de fallo final, se crea registro en tabla `FailedEmail`
+3. Escapar contenido de usuario con `escapeHtml()`
+4. URLs: sanitizar con `sanitizeUrl()` (debe empezar con http/https)
+5. Para emails críticos: usar `sendEmailWithRetry()` del `lib/email-retry.ts`
+6. En caso de fallo final, se crea registro en tabla `FailedEmail`
 
 ## Patrón de llamada
 ```typescript
-import sgMail from "@sendgrid/mail";
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+import { sendMail } from "@/lib/azure-mail";
 
-await sgMail.send({
-  to: email,
-  from: { email: process.env.SENDGRID_FROM!, name: "Traducciones Juradas" },
+await sendMail({
+  to: email,                     // string o string[]
   subject: "...",
   html: wrapClientEmailHtml(content),
-  trackingSettings: NO_CLICK_TRACKING,
+  // Opcionales:
+  cc: ["cc@example.com"],
+  bcc: ["bcc@example.com"],
+  replyTo: "reply@example.com",
+  attachments: [{
+    name: "file.pdf",
+    contentType: "application/pdf",
+    contentBytes: base64String,
+    isInline: false,
+  }],
 });
 ```
 
