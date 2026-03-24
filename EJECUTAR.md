@@ -1,6 +1,6 @@
 # EJECUTAR — Pendientes reales
 
-> Actualizado 2026-03-12
+> Actualizado 2026-03-24
 
 ---
 
@@ -27,9 +27,9 @@ Google Search Console confirma que las URLs legacy devuelven 301 correctamente (
 
 ---
 
-## 3. SEO Audit — ✅ Completado (2026-03-12)
+## 3. SEO Audit — ✅ Completado (2026-03-12 + 2026-03-24)
 
-Todas las acciones de `EJECUTAR-SEO.md` implementadas:
+Todas las acciones de `EJECUTAR-SEO.md` implementadas + auditoría GSC completa:
 
 | Acción | Estado |
 |---|---|
@@ -45,6 +45,16 @@ Todas las acciones de `EJECUTAR-SEO.md` implementadas:
 | 6 páginas dedicadas de documentos | ✅ (ya existían con contenido específico) |
 | Legacy URLs (categoria-producto, contacto/page) | ✅ |
 | Precio body 40€→35€ en /traducciones-juradas-baratas | ✅ (2026-03-12) |
+| **Trailing slash: eliminar skipTrailingSlashRedirect** | ✅ (2026-03-24) |
+| **Redirect loop /traducciones-juradas-baratas eliminado** | ✅ (2026-03-24) |
+| **Middleware: ?route= en paths no-root → 301** | ✅ (2026-03-24) |
+| **Internal link /marruecos → /traductor-jurado-frances** | ✅ (2026-03-24) |
+| **Auditoría GSC completa (190+ URLs)** | ✅ (2026-03-24) |
+
+### GSC pendiente (Juan — cuando renueve cuota):
+- ⬜ Validar corrección en: 5xx (54), redirects (33), canonical (5)
+- ⬜ Solicitar indexación manual de ciudades prioritarias (madrid, barcelona, valencia, sevilla, malaga, bilbao)
+- ⬜ 58 páginas "descubiertas sin indexar" — se resolverá con crawl budget liberado
 
 ---
 

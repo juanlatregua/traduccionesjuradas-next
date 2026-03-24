@@ -94,6 +94,26 @@ import { SchemaService } from "@/components/SchemaService"
 import { SchemaProduct } from "@/components/SchemaProduct"
 ```
 
+## Trailing slash
+- `skipTrailingSlashRedirect` **eliminado** (marzo 2026) — Next.js redirige `/page/` → `/page` (308)
+- **Canonicals siempre sin trailing slash** — alineados con el redirect automático
+- **NO añadir redirects que agreguen trailing slash** → crea loops con el comportamiento por defecto
+- Client components (`"use client"`) no pueden exportar metadata → usar `layout.tsx` del directorio (ej: `/contacto`)
+
+## Middleware: legacy URLs
+- `?route=` query params en cualquier path → 301 al path limpio (strip params)
+- `?route=` en root/index.php → 410 Gone
+- `?action=` → 404
+- WordPress endpoints (wp-json, wp-admin, wp-login, xmlrpc, wp-content/plugins) → 410 Gone
+- `/traductor-jurado-{ciudad}` (formato WP) → middleware redirige a `/traductor-jurado/{slug}` o `/`
+- `VALID_LEGACY_PATHS` en middleware protege páginas de idiomas y documentos del catch-all redirect
+
+## Sitemap
+- `app/sitemap.ts` — generado dinámicamente, 95 URLs
+- Incluye: estáticas (LAST_MODIFIED), blog (posts Velite), ciudades (CIUDADES)
+- Prioridades: 1.0 home, 0.9 servicios, 0.8 idiomas/documentos, 0.7 blog/info, 0.3 legal
+- Actualizar `LAST_MODIFIED` manualmente cuando se modifique contenido
+
 ## Reglas
 - Toda página pública **debe** tener `canonical` y `SchemaBreadcrumbs`
 - Páginas con precios **deben** tener `SchemaProduct`
