@@ -10,7 +10,6 @@ if (!process.env.VELITE_STARTED && (isDev || isBuild)) {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  skipTrailingSlashRedirect: true,
 
   async headers() {
     const noindexHeader = {
@@ -68,12 +67,8 @@ const nextConfig = {
         destination: "/traductor-jurado-frances",
         permanent: true,
       },
-      // Trailing-slash canonical for best-performing page
-      {
-        source: "/traducciones-juradas-baratas",
-        destination: "/traducciones-juradas-baratas/",
-        permanent: true,
-      },
+      // Trailing-slash redirect removed — skipTrailingSlashRedirect disabled,
+      // Next.js now handles /page/ → /page automatically
       // Removed city pages → home
       { source: '/traductor-jurado/tenerife', destination: '/', permanent: true },
       { source: '/traductor-jurado/zaragoza', destination: '/', permanent: true },

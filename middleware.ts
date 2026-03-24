@@ -43,9 +43,11 @@ export function middleware(req: NextRequest) {
   const isXmlRpc = pathLower === "/xmlrpc.php";
   const isWpPluginEndpoint = /^\/wp-content\/plugins\/[^/]+\/endpoint\.php$/i.test(pathLower);
   const isFeed = pathLower === "/feed" || pathLower.endsWith("/feed");
-  const hasLegacyRouteQuery =
+  const hasLegacyRouteQueryRoot =
     searchParams.has("route") &&
     (pathLower === "/" || pathLower === "/index.php" || pathLower.endsWith("/index.php"));
+  const hasLegacyRouteQueryOther =
+    searchParams.has("route") && !hasLegacyRouteQueryRoot;
 
   if (
     isWpJson ||
@@ -54,9 +56,14 @@ export function middleware(req: NextRequest) {
     isXmlRpc ||
     isWpPluginEndpoint ||
     isFeed ||
-    hasLegacyRouteQuery
+    hasLegacyRouteQueryRoot
   ) {
     return gone();
+  }
+
+  // Legacy ?route= on real pages (e.g. /documentos-oficiales?route=...) → strip query params
+  if (hasLegacyRouteQueryOther) {
+    return redirectPermanent(req, normalizedPath);
   }
 
   const VALID_LEGACY_PATHS = new Set([
