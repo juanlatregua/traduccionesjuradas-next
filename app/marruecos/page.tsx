@@ -24,7 +24,14 @@ export default function MarruecosPage() {
           Te ayudamos a preparar tus documentos marroquíes para que sean
           aceptados en España: traducción jurada oficial, información sobre
           apostilla y asesoramiento básico sobre qué suele pedir Extranjería,
-          notarías, bancos y otros organismos.
+          notarías, bancos y otros organismos. La mayoría de estos documentos
+          están en francés —{" "}
+          <Link
+            href="/traductor-jurado-frances"
+            className="font-semibold text-bleu hover:underline"
+          >
+            somos especialistas en traducción jurada de francés
+          </Link>.
         </p>
       </header>
 
