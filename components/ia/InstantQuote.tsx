@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Clock, Zap, CreditCard, MessageCircle, Check, FileText, AlertCircle, Plus } from "lucide-react";
 import type { Quote } from "@/lib/pricing-engine/calculator";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
@@ -61,6 +61,17 @@ export default function InstantQuote({
     "standard"
   );
 
+  const URGENT_LANGS = new Set(["fr", "en"]);
+  const canBeUrgent = documents.every(
+    (d) =>
+      URGENT_LANGS.has(d.analysis.language.source) ||
+      URGENT_LANGS.has(d.analysis.language.target)
+  );
+
+  useEffect(() => {
+    if (!canBeUrgent && selectedMode === "urgent") setSelectedMode("standard");
+  }, [canBeUrgent, selectedMode]);
+
   const isMultiDoc = documents.length > 1;
   const totalBase = documents.reduce((sum, d) => sum + d.quote.basePrice, 0);
   const totalUrgent = documents.reduce((sum, d) => sum + d.quote.urgentPrice, 0);
@@ -104,33 +115,40 @@ export default function InstantQuote({
         </div>
 
         {/* Mode selector */}
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-cream/60 p-1">
-          <button
-            onClick={() => setSelectedMode("standard")}
-            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all ${
-              selectedMode === "standard"
-                ? "bg-white text-bleu shadow-sm"
-                : "text-graphite hover:text-encre"
-            }`}
-          >
-            <Clock className="h-4 w-4" />
-            Estándar
-          </button>
-          <button
-            onClick={() => setSelectedMode("urgent")}
-            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all ${
-              selectedMode === "urgent"
-                ? "bg-white text-rouge shadow-sm"
-                : "text-graphite hover:text-encre"
-            }`}
-          >
-            <Zap className="h-4 w-4" />
-            Urgente
-            <span className="rounded bg-rouge/10 px-1.5 py-0.5 text-[10px] font-bold text-rouge">
-              +25%
-            </span>
-          </button>
-        </div>
+        {canBeUrgent ? (
+          <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-cream/60 p-1">
+            <button
+              onClick={() => setSelectedMode("standard")}
+              className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all ${
+                selectedMode === "standard"
+                  ? "bg-white text-bleu shadow-sm"
+                  : "text-graphite hover:text-encre"
+              }`}
+            >
+              <Clock className="h-4 w-4" />
+              Estándar
+            </button>
+            <button
+              onClick={() => setSelectedMode("urgent")}
+              className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all ${
+                selectedMode === "urgent"
+                  ? "bg-white text-rouge shadow-sm"
+                  : "text-graphite hover:text-encre"
+              }`}
+            >
+              <Zap className="h-4 w-4" />
+              Urgente
+              <span className="rounded bg-rouge/10 px-1.5 py-0.5 text-[10px] font-bold text-rouge">
+                +25%
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center gap-2 rounded-lg bg-cream/60 px-3 py-2.5 text-sm text-graphite">
+            <Clock className="h-4 w-4 text-bleu" />
+            Plazo estándar
+          </div>
+        )}
 
         {/* Price display */}
         <div className="mt-6 text-center">

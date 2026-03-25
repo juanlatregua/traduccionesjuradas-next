@@ -75,7 +75,7 @@ export default function PaginaIdioma({
       />
       <SchemaProduct
         name={`Traducción jurada de ${idioma}`}
-        description={`Traducción jurada oficial de ${idioma} realizada por traductor jurado acreditado. Entrega en 24-48h. Válida para trámites oficiales en España y en el extranjero.`}
+        description={`Traducción jurada oficial de ${idioma} realizada por traductor jurado acreditado. ${idiomaSlug === "frances" || idiomaSlug === "ingles" ? "Entrega en 24-48h." : "Entrega en 3-5 días laborables."} Válida para trámites oficiales en España y en el extranjero.`}
         sku={`tj-${idiomaSlug}`}
         offers={[
           {

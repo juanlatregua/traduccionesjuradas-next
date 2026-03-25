@@ -40,7 +40,7 @@ export default function TraductorJuradoRumanoPage() {
           question:
             "¿Cuánto tarda una traducción jurada de rumano a español?",
           answer:
-            "El plazo estándar es de 3 a 5 días laborables. Ofrecemos servicio urgente con entrega en 24-48 horas con suplemento del 25 %.",
+            "El plazo estándar es de 3 a 5 días laborables, según la extensión del documento.",
         },
         {
           question:
