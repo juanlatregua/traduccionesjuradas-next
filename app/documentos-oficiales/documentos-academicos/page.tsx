@@ -34,9 +34,9 @@ export default function DocumentosAcademicosPage() {
       />
       <SchemaBreadcrumbs
         items={[
-          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
-          { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
-          { name: "Documentos académicos", url: "https://traduccionesjuradas.net/documentos-oficiales/documentos-academicos" },
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Documentos académicos", url: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-academicos" },
         ]}
       />
       <SchemaProduct
@@ -252,6 +252,27 @@ export default function DocumentosAcademicosPage() {
             .
             </p>
 
+        </div>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica sobre documentos académicos
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Vigencia</p>
+            <p className="mt-1">Los títulos universitarios <strong>no caducan</strong>. Sin embargo, certificaciones como <strong>TCF y TEF caducan a los 2 años</strong>; el DELF/DALF son válidos de por vida.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Apostilla</p>
+            <p className="mt-1">Para homologar un título extranjero ante el <strong>Ministerio de Universidades</strong>, suele exigirse la Apostilla de La Haya sobre el título original antes de la traducción jurada.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Homologación</p>
+            <p className="mt-1">La traducción jurada es un requisito previo a la <strong>homologación</strong> o <strong>equivalencia</strong> de títulos. El Ministerio exige traducción jurada + apostilla + título original.</p>
+          </div>
         </div>
       </section>
 

@@ -51,9 +51,9 @@ export default function AntecedentesPenalesPage() {
       <SchemaBreadcrumbs
         id="breadcrumbs-antecedentes"
         items={[
-          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
-          { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
-          { name: "Antecedentes penales", url: "https://traduccionesjuradas.net/documentos-oficiales/antecedentes-penales" },
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Antecedentes penales", url: "https://www.traduccionesjuradas.net/documentos-oficiales/antecedentes-penales" },
         ]}
       />
       <SchemaFAQ
@@ -258,6 +258,27 @@ export default function AntecedentesPenalesPage() {
           certificado) dependen siempre de la autoridad que tramita tu
           expediente en España.
         </p>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica: dónde obtener el certificado de antecedentes penales
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">España</p>
+            <p className="mt-1">Se solicita en la <strong>Sede Electrónica del Ministerio de Justicia</strong> con certificado digital o Cl@ve. También presencialmente en las Gerencias Territoriales.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Marruecos</p>
+            <p className="mt-1">El <em>casier judiciaire</em> se solicita en el <strong>Parquet</strong> (Fiscalía) del tribunal de primera instancia del lugar de nacimiento o residencia.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Francia</p>
+            <p className="mt-1">El <em>Bulletin n° 3</em> se solicita en el <strong>Casier Judiciaire National</strong> de Nantes, de forma gratuita y online. Vigencia típica: <strong>3 a 6 meses</strong>.</p>
+          </div>
+        </div>
       </section>
 
       {/* RELACIÓN CON TELETRABAJO Y MARRUECOS */}

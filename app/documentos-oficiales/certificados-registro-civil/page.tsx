@@ -49,9 +49,9 @@ export default function CertificadosRegistroCivilPage() {
       <SchemaBreadcrumbs
         id="breadcrumbs-registro-civil"
         items={[
-          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
-          { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
-          { name: "Certificados del Registro Civil", url: "https://traduccionesjuradas.net/documentos-oficiales/certificados-registro-civil" },
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Certificados del Registro Civil", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificados-registro-civil" },
         ]}
       />
       <SchemaFAQ
@@ -179,15 +179,14 @@ export default function CertificadosRegistroCivilPage() {
               Traducción jurada de certificado de nacimiento
             </Link>
           </li>
-          {/* Cuando tengas páginas de matrimonio/defunción, puedes descomentar o añadir enlaces aquí */}
-          {/* <li>
+          <li>
             <Link
               href="/documentos-oficiales/certificado-de-matrimonio"
               className="font-semibold text-bleu hover:underline"
             >
-              Certificado de matrimonio
+              Traducción jurada de certificado de matrimonio
             </Link>
-          </li> */}
+          </li>
         </ul>
       </section>
 
@@ -247,6 +246,27 @@ export default function CertificadosRegistroCivilPage() {
             siempre los requisitos en el consulado español o en la oficina de
             Extranjería que tramita el expediente.
           </p>
+        </div>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica: dónde obtener certificados del Registro Civil
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">España</p>
+            <p className="mt-1">Se pueden solicitar en el <strong>Registro Civil</strong> presencialmente o a través de la <strong>Sede Judicial Electrónica</strong> con certificado digital o Cl@ve.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Formatos</p>
+            <p className="mt-1"><strong>Extracto</strong> (resumen de datos principales), <strong>copia literal</strong> (íntegra, con notas marginales) y <strong>certificado plurilingüe</strong> (Convenio de Viena, válido sin traducción en algunos países).</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Vigencia</p>
+            <p className="mt-1">Para la mayoría de trámites se exigen certificados con menos de <strong>3 a 6 meses</strong> de antigüedad. El plurilingüe no caduca, pero la administración puede pedir uno reciente.</p>
+          </div>
         </div>
       </section>
 

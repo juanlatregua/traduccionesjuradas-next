@@ -5,6 +5,7 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
 import { SchemaService } from "@/components/SchemaService";
+import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title:
@@ -27,6 +28,15 @@ export const metadata: Metadata = {
 export default function DocumentosMercantilesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaProduct
+        name="Traducción jurada de documentos mercantiles"
+        description="Traducción jurada oficial de escrituras, estatutos sociales, poderes, certificados del Registro Mercantil y documentación empresarial para operar en España."
+        sku="documentos-mercantiles"
+        offers={[
+          { price: "65.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { price: "95.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+        ]}
+      />
       <SchemaFAQ
         id="faq-mercantiles"
         items={[
@@ -44,6 +54,7 @@ export default function DocumentosMercantilesPage() {
       <SchemaBreadcrumbs
         id="breadcrumbs-mercantiles"
         items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
           { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
           { name: "Documentos mercantiles", url: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-mercantiles" },
         ]}
@@ -149,6 +160,20 @@ export default function DocumentosMercantilesPage() {
         </ul>
       </section>
 
+      {/* CTA INTERMEDIO */}
+      <section className="mt-8 rounded-xl border border-bleu/20 bg-bleu/5 p-5 text-sm">
+        <p className="font-semibold text-encre">¿Tienes documentos mercantiles para traducir?</p>
+        <p className="mt-1 text-sepia">Sube tus escrituras, estatutos o certificados y recibe precio cerrado al instante.</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link href="/presupuesto-instantaneo" className="rounded-xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu/90">
+            Pedir presupuesto
+          </Link>
+          <a href="mailto:hola@traduccionesjuradas.net?subject=Documentos%20mercantiles%20-%20Presupuesto" className="text-xs font-medium text-bleu hover:underline">
+            Enviar por email
+          </a>
+        </div>
+      </section>
+
       {/* ENFOQUE MARRUECOS / FRANCÓFONOS */}
       <section className="mt-10 space-y-4 rounded-2xl border border-cream bg-parchment p-5 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
@@ -191,6 +216,27 @@ export default function DocumentosMercantilesPage() {
           siempre los requisitos en la notaría, banco o administración española
           que tramita el caso.
         </p>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica sobre documentos mercantiles
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Vigencia</p>
+            <p className="mt-1">Los certificados del Registro Mercantil suelen tener una validez de <strong>3 meses</strong>. Pasado ese plazo, notarías y registros pueden rechazarlos.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Dónde obtenerlos</p>
+            <p className="mt-1"><strong>España:</strong> Registro Mercantil provincial. <strong>Marruecos:</strong> Tribunal de Commerce. <strong>Francia:</strong> Greffe du Tribunal de Commerce o Infogreffe.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Apostilla</p>
+            <p className="mt-1">Los certificados del <em>Registre du Commerce</em> y documentos notariales mercantiles suelen requerir <strong>Apostilla de La Haya</strong> para usarse en España.</p>
+          </div>
+        </div>
       </section>
 
       {/* RELACIÓN CON TELETRABAJO */}

@@ -6,6 +6,7 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
 import { SchemaService } from "@/components/SchemaService";
+import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title:
@@ -28,6 +29,15 @@ export const metadata: Metadata = {
 export default function DocumentosJuridicosPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaProduct
+        name="Traducción jurada de documentos jurídicos"
+        description="Traducción jurada oficial de sentencias, capitulaciones, testamentos, poderes notariales y resoluciones judiciales para tribunales y notarías en España."
+        sku="documentos-juridicos"
+        offers={[
+          { price: "60.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { price: "90.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+        ]}
+      />
       <SchemaFAQ
         id="faq-juridicos"
         items={[
@@ -45,6 +55,7 @@ export default function DocumentosJuridicosPage() {
       <SchemaBreadcrumbs
         id="breadcrumbs-juridicos"
         items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
           { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
           { name: "Documentos jurídicos", url: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-juridicos" },
         ]}
@@ -151,6 +162,20 @@ export default function DocumentosJuridicosPage() {
         </p>
       </section>
 
+      {/* CTA INTERMEDIO */}
+      <section className="mt-8 rounded-xl border border-bleu/20 bg-bleu/5 p-5 text-sm">
+        <p className="font-semibold text-encre">¿Tienes un documento jurídico para traducir?</p>
+        <p className="mt-1 text-sepia">Sube tu sentencia, capitulaciones o poder y recibe precio cerrado al instante.</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link href="/presupuesto-instantaneo" className="rounded-xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu/90">
+            Pedir presupuesto
+          </Link>
+          <a href="mailto:hola@traduccionesjuradas.net?subject=Documentos%20jur%C3%ADdicos%20-%20Presupuesto" className="text-xs font-medium text-bleu hover:underline">
+            Enviar por email
+          </a>
+        </div>
+      </section>
+
       {/* HERENCIAS Y SUCESIONES */}
       <section className="mt-10 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
@@ -228,6 +253,27 @@ export default function DocumentosJuridicosPage() {
           legalización antes de la traducción jurada. Conviene confirmarlo con
           la notaría, el juzgado o el consulado correspondiente.
         </p>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica sobre documentos jurídicos extranjeros
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Poderes notariales</p>
+            <p className="mt-1">Algunos poderes tienen <strong>fecha de caducidad</strong>. Antes de traducir, verifica que el poder siga vigente para evitar rechazos en notaría.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Sentencias de divorcio</p>
+            <p className="mt-1">Las sentencias extranjeras de divorcio suelen necesitar <strong>exequátur</strong> (reconocimiento judicial) para surtir efecto en España, además de la traducción jurada.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Apostilla</p>
+            <p className="mt-1">Los documentos notariales extranjeros generalmente requieren <strong>Apostilla de La Haya</strong> o legalización consular antes de traducirse para España.</p>
+          </div>
+        </div>
       </section>
 
       {/* RELACIÓN CON OTRAS PÁGINAS */}

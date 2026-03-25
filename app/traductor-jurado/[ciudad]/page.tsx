@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { CIUDADES, type Ciudad } from "@/src/data/ciudades";
+import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 
 const ciudadBySlug = new Map<string, Ciudad>(
   CIUDADES.map((c) => [c.slug, c])
@@ -369,6 +370,27 @@ export default async function PaginaCiudad({
                 <p className="mt-0.5 text-xs text-sepia">{badge.desc}</p>
               </div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══════════════ SECCIÓN 6: IDIOMAS DISPONIBLES ═══════════════ */}
+      <section className="mt-10">
+        <h2 className="text-xl font-semibold text-encre">
+          Idiomas disponibles
+        </h2>
+        <p className="mt-2 text-sm text-sepia">
+          Ofrecemos traducción jurada online en {ciudad.nombre} en los siguientes idiomas:
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {Object.values(LANGUAGE_CONFIGS).map((lang: LanguageConfig) => (
+            <Link
+              key={lang.slug}
+              href={`/traductor-jurado-${lang.slug}`}
+              className="rounded-full border border-cream bg-card px-3 py-1.5 text-xs font-medium text-encre hover:border-bleu hover:text-bleu transition-colors"
+            >
+              {lang.name.charAt(0).toUpperCase() + lang.name.slice(1)}
+            </Link>
           ))}
         </div>
       </section>

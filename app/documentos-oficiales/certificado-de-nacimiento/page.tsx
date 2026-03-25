@@ -60,6 +60,7 @@ export default function CertificadoNacimientoPage() {
       <SchemaBreadcrumbs
         id="breadcrumbs-nacimiento"
         items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
           { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
           { name: "Certificado de nacimiento", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-nacimiento" },
         ]}
@@ -126,6 +127,20 @@ export default function CertificadoNacimientoPage() {
           </Link>
           .
         </p>
+      </section>
+
+      {/* CTA INTERMEDIO */}
+      <section className="mt-8 rounded-xl border border-bleu/20 bg-bleu/5 p-5 text-sm">
+        <p className="font-semibold text-encre">¿Tienes un certificado de nacimiento para traducir?</p>
+        <p className="mt-1 text-sepia">Sube tu documento y recibe precio cerrado al instante.</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link href="/presupuesto-instantaneo" className="rounded-xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu/90">
+            Pedir presupuesto
+          </Link>
+          <a href={mailLink} className="text-xs font-medium text-bleu hover:underline">
+            Enviar por email
+          </a>
+        </div>
       </section>
 
       {/* PAISES Y APOSTILLA */}
@@ -234,6 +249,27 @@ export default function CertificadoNacimientoPage() {
           documentos relacionados (autorizaciones parentales, informes médicos,
           decisiones judiciales, etc.).
         </p>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica sobre el certificado de nacimiento
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Vigencia</p>
+            <p className="mt-1">La administración española suele exigir certificados con menos de <strong>3 a 6 meses</strong> de antigüedad, dependiendo del trámite.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Dónde obtenerlo</p>
+            <p className="mt-1"><strong>España:</strong> Registro Civil (presencial o Sede Judicial Electrónica). <strong>Marruecos:</strong> commune/municipio. <strong>Francia:</strong> mairie del lugar de nacimiento.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Formatos habituales</p>
+            <p className="mt-1"><strong>Extracto</strong> (resumen), <strong>copia literal</strong> (íntegra) y <strong>certificado plurilingüe</strong> (convenio de Viena). Para traducción jurada suele pedirse el literal.</p>
+          </div>
+        </div>
       </section>
 
       {/* FORMATO Y ENVÍO */}

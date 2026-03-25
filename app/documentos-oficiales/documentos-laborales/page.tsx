@@ -6,6 +6,7 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
 import { SchemaService } from "@/components/SchemaService";
+import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title:
@@ -28,6 +29,15 @@ export const metadata: Metadata = {
 export default function DocumentosLaboralesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaProduct
+        name="Traducción jurada de documentos laborales"
+        description="Traducción jurada oficial de contratos de trabajo, nóminas, certificados de empresa y documentos de Seguridad Social para trámites en España."
+        sku="documentos-laborales"
+        offers={[
+          { price: "50.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { price: "75.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+        ]}
+      />
       <SchemaFAQ
         id="faq-laborales"
         items={[
@@ -45,6 +55,7 @@ export default function DocumentosLaboralesPage() {
       <SchemaBreadcrumbs
         id="breadcrumbs-laborales"
         items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
           { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
           { name: "Documentos laborales", url: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-laborales" },
         ]}
@@ -110,6 +121,20 @@ export default function DocumentosLaboralesPage() {
             bonus, comisiones y otros justificantes de ingresos.
           </p>
         </div>
+
+        {/* CTA INTERMEDIO */}
+        <section className="rounded-xl border border-bleu/20 bg-bleu/5 p-5">
+          <p className="font-semibold text-encre">¿Tienes documentos laborales para traducir?</p>
+          <p className="mt-1 text-sepia">Sube tu nómina, contrato o certificado y recibe precio cerrado al instante.</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link href="/presupuesto-instantaneo" className="rounded-xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu/90">
+              Pedir presupuesto
+            </Link>
+            <a href="mailto:hola@traduccionesjuradas.net?subject=Presupuesto%20documentos%20laborales%20y%20teletrabajo" className="text-xs font-medium text-bleu hover:underline">
+              Enviar por email
+            </a>
+          </div>
+        </section>
 
         {/* Certificados de empresa */}
         <div>
@@ -256,6 +281,27 @@ export default function DocumentosLaboralesPage() {
             conjunto de documentación para que tu expediente esté completo y
             listo para presentar.
           </p>
+        </div>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica sobre documentos laborales
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Vigencia de nóminas</p>
+            <p className="mt-1">Extranjería suele pedir las <strong>3 últimas nóminas</strong>, con menos de <strong>3 meses</strong> de antigüedad. Verifica siempre con tu oficina de Extranjería.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Vida laboral</p>
+            <p className="mt-1">El informe de vida laboral debe ser <strong>reciente</strong> (a menudo menos de 3 meses). En España se obtiene en la Sede Electrónica de la Seguridad Social.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Apostilla</p>
+            <p className="mt-1">Documentos de la Seguridad Social extranjera pueden requerir <strong>Apostilla de La Haya</strong> o legalización consular para presentarse en España.</p>
+          </div>
         </div>
       </section>
 

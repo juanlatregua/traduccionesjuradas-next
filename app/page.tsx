@@ -327,6 +327,64 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ═══════════════ SECCIÓN 5B: GUÍAS Y RECURSOS ═══════════════ */}
+      <section className="bg-parchment py-14">
+        <div className="mx-auto max-w-5xl px-4">
+          <h2 className="text-center font-baskerville text-2xl font-bold text-encre sm:text-3xl">
+            Guías y recursos
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-center text-sm text-sepia">
+            Artículos prácticos sobre traducción jurada, trámites y documentación oficial en España.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {[
+              {
+                href: "/blog/documentos-marroquies-guia-completa",
+                title: "Documentos marroquíes: guía completa",
+                desc: "Qué documentos necesitas traducir de Marruecos y cómo preparar tu expediente.",
+              },
+              {
+                href: "/blog/diferencia-traduccion-jurada-oficial-simple",
+                title: "Traducción jurada vs. traducción simple",
+                desc: "Cuándo necesitas una traducción jurada y cuándo basta con una traducción simple.",
+              },
+              {
+                href: "/blog/traduccion-jurada-antecedentes-penales",
+                title: "Traducción jurada de antecedentes penales",
+                desc: "Todo sobre la traducción del certificado de antecedentes penales y el casier judiciaire.",
+              },
+              {
+                href: "/blog/apostilla-haya-que-es",
+                title: "¿Qué es la Apostilla de La Haya?",
+                desc: "Qué es, cuándo se exige y cómo se combina con la traducción jurada.",
+              },
+            ].map((post) => (
+              <Link
+                key={post.href}
+                href={post.href}
+                className="group rounded-xl border border-cream bg-card p-5 shadow-paper transition hover:border-bleu hover:shadow-md"
+              >
+                <h3 className="font-semibold text-encre group-hover:text-bleu transition-colors">
+                  {post.title}
+                </h3>
+                <p className="mt-1 text-sm text-sepia">{post.desc}</p>
+                <span className="mt-2 inline-block text-xs font-semibold text-bleu">
+                  Leer más →
+                </span>
+              </Link>
+            ))}
+          </div>
+          <div className="mt-6 text-center">
+            <Link
+              href="/blog"
+              className="text-sm font-semibold text-bleu hover:underline"
+            >
+              Ver todos los artículos →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ═══════════════ SECCIÓN 6: CTA FINAL ═══════════════ */}
       <section className="bg-cream py-14">
         <div className="mx-auto max-w-5xl px-4 text-center">

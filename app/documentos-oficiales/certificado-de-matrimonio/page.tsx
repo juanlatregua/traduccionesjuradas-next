@@ -35,9 +35,9 @@ export default function CertificadoMatrimonioPage() {
       />
       <SchemaBreadcrumbs
         items={[
-          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
-          { name: "Documentos oficiales", url: "https://traduccionesjuradas.net/documentos-oficiales" },
-          { name: "Certificado de matrimonio", url: "https://traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
+          { name: "Certificado de matrimonio", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
         ]}
       />
       <SchemaProduct
@@ -106,7 +106,41 @@ export default function CertificadoMatrimonioPage() {
         </div>
       </header>
 
-      <section className="mt-8 space-y-3">
+      {/* USOS HABITUALES */}
+      <section className="mt-8 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          ¿Para qué trámites se pide la traducción del certificado de matrimonio?
+        </h2>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>Inscripción del matrimonio en el <strong>Registro Civil español</strong>.</li>
+          <li>Expedientes de <strong>extranjería</strong>: residencia, reagrupación familiar, tarjeta de familiar de comunitario.</li>
+          <li>Trámites de <strong>nacionalidad española</strong> por residencia o matrimonio.</li>
+          <li>Compraventa de inmuebles en España (las notarías exigen acreditar el <strong>régimen económico matrimonial</strong>).</li>
+          <li>Herencias y sucesiones internacionales.</li>
+          <li>Trámites ante consulados y embajadas.</li>
+        </ul>
+        <p>
+          En la mayoría de estos procedimientos se exige que el certificado
+          sea reciente (normalmente menos de 3 o 6 meses) y, si procede,
+          debidamente apostillado antes de la traducción jurada.
+        </p>
+      </section>
+
+      {/* CTA INTERMEDIO */}
+      <section className="mt-8 rounded-xl border border-bleu/20 bg-bleu/5 p-5 text-sm">
+        <p className="font-semibold text-encre">¿Tienes un certificado de matrimonio para traducir?</p>
+        <p className="mt-1 text-sepia">Sube tu documento y recibe precio cerrado al instante.</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link href="/presupuesto-instantaneo" className="rounded-xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu/90">
+            Pedir presupuesto
+          </Link>
+          <a href="mailto:hola@traduccionesjuradas.net?subject=Certificado%20de%20matrimonio%20-%20Presupuesto" className="text-xs font-medium text-bleu hover:underline">
+            Enviar por email
+          </a>
+        </div>
+      </section>
+
+      <section className="mt-8 space-y-3 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">Precios y plazos</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
@@ -136,6 +170,91 @@ export default function CertificadoMatrimonioPage() {
           <li>Te respondemos con precio cerrado y plazo estimado.</li>
           <li>Tras confirmar, entregamos la traducción jurada en PDF firmado; en papel si lo necesitas.</li>
         </ol>
+      </section>
+
+      {/* APOSTILLA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Certificado de matrimonio y Apostilla de La Haya
+        </h2>
+        <p>
+          Si el certificado de matrimonio se va a presentar en España y procede de un país
+          firmante del Convenio de La Haya, normalmente debe llevar la{" "}
+          <Link href="/documentos-oficiales/apostilla-haya" className="text-bleu underline">
+            Apostilla de La Haya
+          </Link>
+          . La traducción jurada debe incluir tanto el certificado como la página de la apostilla.
+        </p>
+        <p>
+          Si el país emisor no aplica la apostilla, se utilizan otros sistemas de
+          legalización (legalización consular, sellos ministeriales, etc.). Conviene
+          confirmarlo siempre con la administración que tramita el expediente.
+        </p>
+      </section>
+
+      {/* MARRUECOS Y FRANCIA */}
+      <section className="mt-10 space-y-4 rounded-2xl border border-cream bg-parchment p-5 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Certificados de matrimonio de Marruecos y Francia
+        </h2>
+        <p>
+          Trabajamos con frecuencia con certificados de matrimonio procedentes de{" "}
+          <strong>Marruecos</strong> (<em>Acte de Mariage</em>) y <strong>Francia</strong>{" "}
+          (<em>Extrait d&apos;Acte de Mariage</em>), que suelen necesitar apostilla cuando se
+          presentan en España para inscripciones en el Registro Civil, operaciones
+          inmobiliarias o trámites de extranjería.
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>En Marruecos suelen exigirse certificados recientes (menos de 3 meses).</li>
+          <li>La traducción jurada incluye el acta de matrimonio y la apostilla.</li>
+        </ul>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica sobre el certificado de matrimonio
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Vigencia</p>
+            <p className="mt-1">Generalmente se pide un certificado con menos de <strong>3 a 6 meses</strong> de antigüedad, según el trámite y la administración.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Dónde obtenerlo</p>
+            <p className="mt-1"><strong>España:</strong> Registro Civil (presencial o Sede Judicial Electrónica). <strong>Francia:</strong> mairie donde se celebró el matrimonio. <strong>Marruecos:</strong> tribunal de familia o commune.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Formatos</p>
+            <p className="mt-1"><strong>Acta literal</strong> (copia íntegra) o <strong>extracto</strong> (resumen). Para trámites en España, las notarías suelen preferir el acta literal.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA FINAL */}
+      <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
+        <h2 className="text-lg font-semibold text-bleu">
+          ¿Necesitas traducir tu certificado de matrimonio?
+        </h2>
+        <p className="mt-1 text-encre">
+          Envíanos tu certificado (y la apostilla, si la tiene) en PDF o foto
+          clara y te responderemos con un presupuesto cerrado y un plazo
+          estimado de entrega.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link
+            href="/presupuesto-instantaneo"
+            className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
+          >
+            Solicitar presupuesto
+          </Link>
+          <a
+            href="mailto:hola@traduccionesjuradas.net?subject=Certificado%20de%20matrimonio%20-%20Presupuesto"
+            className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
+          >
+            O enviar directamente el documento por email
+          </a>
+        </div>
       </section>
 
       <RelatedDocuments currentSlug="certificado-de-matrimonio" />

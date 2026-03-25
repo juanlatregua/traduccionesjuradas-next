@@ -119,6 +119,31 @@ export default function RootLayout({
             "Traducción jurada de inglés",
             "Traducción jurada de documentos oficiales",
           ],
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: "5.0",
+            bestRating: "5",
+            ratingCount: "19",
+          },
+        })}
+      </Script>
+
+      {/* SCHEMA ORG / WEBSITE + SEARCH ACTION */}
+      <Script
+        id="schema-website"
+        type="application/ld+json"
+        strategy="afterInteractive"
+      >
+        {JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "TraduccionesJuradas.net",
+          url: "https://www.traduccionesjuradas.net",
+          potentialAction: {
+            "@type": "SearchAction",
+            target: "https://www.traduccionesjuradas.net/blog?q={search_term_string}",
+            "query-input": "required name=search_term_string",
+          },
         })}
       </Script>
 

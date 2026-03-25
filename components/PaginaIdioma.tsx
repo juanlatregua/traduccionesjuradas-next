@@ -168,6 +168,31 @@ export default function PaginaIdioma({
             ))}
         </div>
       </section>
+
+      {/* 5. CIUDADES PRINCIPALES */}
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-encre">
+          Traductor jurado de {idioma} en las principales ciudades
+        </h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            { slug: "madrid", name: "Madrid" },
+            { slug: "barcelona", name: "Barcelona" },
+            { slug: "valencia", name: "Valencia" },
+            { slug: "sevilla", name: "Sevilla" },
+            { slug: "malaga", name: "Málaga" },
+            { slug: "bilbao", name: "Bilbao" },
+          ].map((city) => (
+            <Link
+              key={city.slug}
+              href={`/traductor-jurado/${city.slug}`}
+              className="rounded-full border border-cream bg-card px-3 py-1.5 text-xs font-medium text-encre hover:border-bleu hover:text-bleu transition-colors"
+            >
+              {city.name}
+            </Link>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

@@ -5,6 +5,7 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RelatedDocuments } from "@/components/RelatedDocuments";
 import { SchemaService } from "@/components/SchemaService";
+import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title: "Apostilla de La Haya y traducción jurada | Qué es y cuándo se exige",
@@ -26,6 +27,15 @@ export const metadata: Metadata = {
 export default function ApostillaHayaPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaProduct
+        name="Traducción jurada de documentos con Apostilla de La Haya"
+        description="Traducción jurada oficial de documentos apostillados para su uso en España. Incluye traducción del texto de la apostilla."
+        sku="apostilla-haya"
+        offers={[
+          { price: "55.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { price: "80.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+        ]}
+      />
       <SchemaFAQ
         id="faq-apostilla"
         items={[
@@ -43,6 +53,7 @@ export default function ApostillaHayaPage() {
       <SchemaBreadcrumbs
         id="breadcrumbs-apostilla"
         items={[
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
           { name: "Documentos oficiales", url: "https://www.traduccionesjuradas.net/documentos-oficiales" },
           { name: "Apostilla de La Haya", url: "https://www.traduccionesjuradas.net/documentos-oficiales/apostilla-haya" },
         ]}
@@ -161,6 +172,20 @@ export default function ApostillaHayaPage() {
         </p>
       </section>
 
+      {/* CTA INTERMEDIO */}
+      <section className="mt-8 rounded-xl border border-bleu/20 bg-bleu/5 p-5 text-sm">
+        <p className="font-semibold text-encre">¿Tienes documentos con apostilla para traducir?</p>
+        <p className="mt-1 text-sepia">Sube tu documento y recibe precio cerrado al instante.</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link href="/presupuesto-instantaneo" className="rounded-xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu/90">
+            Pedir presupuesto
+          </Link>
+          <a href="mailto:hola@traduccionesjuradas.net?subject=Apostilla%20de%20La%20Haya%20-%20Presupuesto" className="text-xs font-medium text-bleu hover:underline">
+            Enviar por email
+          </a>
+        </div>
+      </section>
+
       {/* PAISES FRANCÓFONOS / MARRUECOS */}
       <section className="mt-10 space-y-4 rounded-2xl border border-cream bg-parchment p-5 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
@@ -196,6 +221,27 @@ export default function ApostillaHayaPage() {
           español, en la oficina de Extranjería o en la notaría que va a usar el
           documento.
         </p>
+      </section>
+
+      {/* INFORMACIÓN PRÁCTICA */}
+      <section className="mt-10 space-y-4 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Información práctica: cómo obtener la apostilla en España
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Dónde solicitarla</p>
+            <p className="mt-1">Documentos judiciales y del Registro Civil: <strong>Tribunal Superior de Justicia</strong> (TSJ) de tu comunidad. Documentos notariales: <strong>Colegio Notarial</strong>. También puedes solicitar algunas apostillas en el portal del <strong>Ministerio de Justicia</strong>.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Plazo y coste</p>
+            <p className="mt-1">En España, la apostilla suele tardar entre <strong>1 y 5 días hábiles</strong> según el organismo. El coste es variable; en muchos casos es gratuita o tiene una tasa reducida.</p>
+          </div>
+          <div className="rounded-xl border border-cream bg-parchment p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Trámite online</p>
+            <p className="mt-1">El Ministerio de Justicia permite solicitar la apostilla electrónica para algunos documentos a través de su sede electrónica. El resultado es un código QR verificable.</p>
+          </div>
+        </div>
       </section>
 
       {/* CUANDO NO HAY APOSTILLA */}

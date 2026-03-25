@@ -128,6 +128,43 @@ export default async function PostPage({ params }: Props) {
           <MDXContent code={post.body} />
         </div>
 
+        {/* POSTS RELACIONADOS */}
+        {(() => {
+          const related = posts
+            .filter((p) => p.published && p.slugAsParams !== slug)
+            .sort((a, b) => {
+              const aMatch = a.category === post.category ? 1 : 0;
+              const bMatch = b.category === post.category ? 1 : 0;
+              if (bMatch !== aMatch) return bMatch - aMatch;
+              return new Date(b.date).getTime() - new Date(a.date).getTime();
+            })
+            .slice(0, 3);
+          if (related.length === 0) return null;
+          return (
+            <section className="mt-12">
+              <h2 className="text-lg font-semibold text-encre">
+                También te puede interesar
+              </h2>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                {related.map((r) => (
+                  <Link
+                    key={r.slugAsParams}
+                    href={`/blog/${r.slugAsParams}`}
+                    className="group rounded-xl border border-cream bg-card p-4 shadow-sm transition hover:border-bleu hover:shadow-md"
+                  >
+                    <span className="inline-block rounded-full bg-bleu/10 px-2 py-0.5 text-[10px] font-semibold text-bleu">
+                      {CATEGORY_LABELS[r.category] || r.category}
+                    </span>
+                    <h3 className="mt-2 text-sm font-semibold text-encre group-hover:text-bleu transition-colors">
+                      {r.title}
+                    </h3>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          );
+        })()}
+
         {/* CTA */}
         <section className="mt-12 rounded-2xl border border-cream bg-cream/70 p-6 text-sm">
           <h2 className="text-lg font-semibold text-bleu">
