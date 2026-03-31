@@ -196,6 +196,51 @@ export async function sendRejectionToCollaborator(payload: RejectionEmailPayload
   });
 }
 
+type AutoAssignQuoteRequestPayload = {
+  collaboratorName: string;
+  collaboratorEmail: string;
+  orderReference: string;
+  orderTitle: string;
+  langPair: string | null;
+  accessToken: string;
+  documents: Array<{ name: string; url: string }>;
+};
+
+export async function sendFriendlyQuoteRequest(payload: AutoAssignQuoteRequestPayload) {
+  const encargoUrl = `${SITE_BASE_URL}/encargo/${payload.accessToken}`;
+  const firstName = escapeHtml(payload.collaboratorName.split(" ")[0]);
+  const ref = escapeHtml(payload.orderReference);
+  const title = escapeHtml(payload.orderTitle);
+  const lang = payload.langPair ? escapeHtml(payload.langPair) : null;
+  const docList = payload.documents
+    .map((d) => `<li><a href="${sanitizeUrl(d.url)}" style="color:#2563eb;">${escapeHtml(d.name)}</a></li>`)
+    .join("");
+
+  const html = `
+    <p>¡Hola ${firstName}!</p>
+    <p>Te paso un encargo nuevo${lang ? ` de <strong>${lang}</strong>` : ""}:</p>
+    <ul style="margin:8px 0;">
+      <li><strong>Ref:</strong> ${ref}</li>
+      <li><strong>Descripción:</strong> ${title}</li>
+    </ul>
+    ${docList ? `<p>Documentos del cliente:</p><ul>${docList}</ul>` : ""}
+    <p>¿Me puedes decir <strong>precio y plazo</strong>? Puedes responder a este email o usar el enlace de abajo.</p>
+    <p style="margin:16px 0;">
+      <a href="${encargoUrl}" style="display:inline-block; background:#2563eb; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">
+        Ver encargo y enviar presupuesto
+      </a>
+    </p>
+    <p>¡Gracias!</p>
+  `;
+
+  await sendMail({
+    to: payload.collaboratorEmail,
+    replyTo: ADMIN_EMAIL,
+    subject: `Nuevo encargo ${lang || ""} (${ref})`,
+    html: wrapClientEmailHtml(html),
+  });
+}
+
 type DeliveryNotificationPayload = {
   collaboratorName: string;
   collaboratorEmail: string;

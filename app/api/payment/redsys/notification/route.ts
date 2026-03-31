@@ -4,7 +4,7 @@ import { updateOrderPayment, markPaymentFailed, getOrderDetail } from "@/lib/ord
 import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { isResponseCodeOk } from "redsys-easy";
-import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -60,6 +60,11 @@ export async function POST(req: Request) {
         reference: orderReference,
         actorEmail: "redsys_notification",
       }).catch((err) => console.error("[redsys-notification] default FR ETA assignment failed", err));
+
+      await autoAssignCollaboratorIfNeeded({
+        reference: orderReference,
+        actorEmail: "redsys_notification",
+      }).catch((err) => console.error("[redsys-notification] auto collaborator assignment failed", err));
       console.info(`[redsys-notification] payment OK for ${orderReference}`);
 
       // Notify client (non-blocking)

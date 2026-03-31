@@ -4,7 +4,7 @@ import { updateOrderPayment } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { prisma } from "@/lib/prisma";
-import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 
 export async function handleStripeOrderWebhook(req: Request, source = "stripe_webhook") {
   const signature = req.headers.get("stripe-signature");
@@ -81,6 +81,11 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
       reference,
       actorEmail: source,
     }).catch((err) => console.error(`[${source}] default FR ETA assignment failed`, err));
+
+    await autoAssignCollaboratorIfNeeded({
+      reference,
+      actorEmail: source,
+    }).catch((err) => console.error(`[${source}] auto collaborator assignment failed`, err));
 
     const order = await prisma.order.findUnique({
       where: { reference },

@@ -8,6 +8,8 @@ import {
   isFrenchPair,
   type WorkflowState,
 } from "@/lib/workflow";
+import { getDocumentsFromOrder } from "@/lib/collaborators";
+import { sendFriendlyQuoteRequest } from "@/lib/collaborator-emails";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 
 type TransitionOptions = {
@@ -163,4 +165,89 @@ export async function assignDefaultFrenchEtaIfNeeded(options: {
 
     return { changed: true as const, dueDate };
   });
+}
+
+const AUTO_ASSIGN_LANGUAGES = new Set(["en", "de", "pt", "it"]);
+
+function isAutoAssignPair(langPair?: string | null): boolean {
+  const normalized = String(langPair || "").trim().toLowerCase();
+  const [from, to] = normalized.split("-");
+  return AUTO_ASSIGN_LANGUAGES.has(from) || AUTO_ASSIGN_LANGUAGES.has(to);
+}
+
+export async function autoAssignCollaboratorIfNeeded(options: {
+  reference: string;
+  actorEmail?: string | null;
+}): Promise<{ changed: boolean }> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { reference: options.reference },
+      select: {
+        id: true,
+        langPair: true,
+        title: true,
+        events: {
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: { type: true, payload: true, createdAt: true },
+        },
+      },
+    });
+
+    if (!order || isFrenchPair(order.langPair) || !isAutoAssignPair(order.langPair)) {
+      return { changed: false };
+    }
+
+    const collaboratorEmail = process.env.DEFAULT_COLLABORATOR_EMAIL || "juan@gestremor.com";
+    const collaborator = await prisma.collaborator.findUnique({
+      where: { email: collaboratorEmail },
+    });
+
+    if (!collaborator || !collaborator.active) {
+      console.warn(`[auto-assign] collaborator ${collaboratorEmail} not found or inactive`);
+      return { changed: false };
+    }
+
+    const existing = await prisma.collaboratorAssignment.findUnique({
+      where: { orderId_collaboratorId: { orderId: order.id, collaboratorId: collaborator.id } },
+    });
+    if (existing) {
+      return { changed: false };
+    }
+
+    const assignment = await prisma.collaboratorAssignment.create({
+      data: { orderId: order.id, collaboratorId: collaborator.id },
+    });
+
+    const documents = getDocumentsFromOrder(order);
+
+    await sendFriendlyQuoteRequest({
+      collaboratorName: collaborator.fullName,
+      collaboratorEmail: collaborator.email,
+      orderReference: options.reference,
+      orderTitle: order.title,
+      langPair: order.langPair,
+      accessToken: assignment.accessToken,
+      documents,
+    });
+
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "collaborator.auto_assigned",
+        message: `Colaborador ${collaborator.fullName} asignado automáticamente (${order.langPair}).`,
+        payload: {
+          collaboratorId: collaborator.id,
+          collaboratorEmail: collaborator.email,
+          langPair: order.langPair,
+          actorEmail: options.actorEmail || null,
+        },
+      },
+    });
+
+    return { changed: true };
+  } catch (err) {
+    console.error("[auto-assign] failed", err);
+    return { changed: false };
+  }
 }

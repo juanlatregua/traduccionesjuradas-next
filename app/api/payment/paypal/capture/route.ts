@@ -4,7 +4,7 @@ import { getOrderDetail, getOrderPublic, updateOrderPayment } from "@/lib/orders
 import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { getWorkflowState } from "@/lib/workflow";
 import { isPayPalConfigured } from "@/lib/payment-config";
 import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
@@ -106,6 +106,11 @@ export async function POST(req: Request) {
         reference: body.reference,
         actorEmail: "paypal_capture",
       }).catch((err) => console.error("[paypal-capture] default FR ETA assignment failed", err));
+
+      await autoAssignCollaboratorIfNeeded({
+        reference: body.reference,
+        actorEmail: "paypal_capture",
+      }).catch((err) => console.error("[paypal-capture] auto collaborator assignment failed", err));
 
       // Notify client (non-blocking)
       const fullOrder = await getOrderDetail(body.reference);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { confirmManualPayment, getOrderDetail } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
-import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { prisma } from "@/lib/prisma";
 import { getWorkflowState } from "@/lib/workflow";
 import { requireStaffAccess } from "@/lib/staff-auth";
@@ -75,6 +75,13 @@ export async function POST(req: Request, { params }: Params) {
       actorEmail,
     }).catch((err) => {
       console.error("[confirm-payment] default FR ETA assignment failed", err);
+    });
+
+    await autoAssignCollaboratorIfNeeded({
+      reference: params.reference,
+      actorEmail,
+    }).catch((err) => {
+      console.error("[confirm-payment] auto collaborator assignment failed", err);
     });
 
     // Notify client (non-blocking)

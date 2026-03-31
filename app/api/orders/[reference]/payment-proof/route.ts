@@ -14,7 +14,7 @@ import {
 import { updateOrderPayment } from "@/lib/orders";
 import { validatePaymentProofFile } from "@/lib/file-security";
 import { getWorkflowState } from "@/lib/workflow";
-import { assignDefaultFrenchEtaIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
 
@@ -224,6 +224,13 @@ export async function POST(req: Request, { params }: Params) {
         actorEmail: sessionEmail || clientEmailRaw || "guest",
       }).catch((err) => {
         console.error("[payment-proof] default FR ETA assignment failed", err);
+      });
+
+      await autoAssignCollaboratorIfNeeded({
+        reference: order.reference,
+        actorEmail: sessionEmail || clientEmailRaw || "guest",
+      }).catch((err) => {
+        console.error("[payment-proof] auto collaborator assignment failed", err);
       });
     }
 
