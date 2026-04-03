@@ -109,20 +109,34 @@ export async function POST(req: Request) {
     }
 
     const fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
-    const fileBase64 = fileBuffer.toString("base64");
 
-    // Extract page count for PDFs
+    // For PDFs: extract page count and truncate large docs to first 3 pages
     let pageCount: number | undefined;
+    let analyzeBuffer = fileBuffer;
     if (doc.mimeType === "application/pdf") {
       try {
-        const pdfParse = require("pdf-parse");
-        const pdfData = await pdfParse(fileBuffer, { max: 0 });
-        pageCount = pdfData.numpages;
+        const { PDFDocument } = require("pdf-lib");
+        const pdfDoc = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
+        pageCount = pdfDoc.getPageCount();
         console.log(`[documents/analyze] PDF pages: ${pageCount}`);
-      } catch {
-        // pdf-parse failed — proceed without page count
+
+        // Truncate to first 3 pages for large documents
+        if (pageCount && pageCount > 5) {
+          const truncated = await PDFDocument.create();
+          const pagesToCopy = Math.min(3, pageCount);
+          const copied = await truncated.copyPages(pdfDoc, Array.from({ length: pagesToCopy }, (_, i) => i));
+          copied.forEach((page: any) => truncated.addPage(page));
+          const truncatedBytes = await truncated.save();
+          analyzeBuffer = Buffer.from(truncatedBytes);
+          console.log(`[documents/analyze] Truncated ${pageCount} pages → ${pagesToCopy} for analysis (${(analyzeBuffer.length / 1024 / 1024).toFixed(1)}MB)`);
+        }
+      } catch (err) {
+        console.error("[documents/analyze] pdf-lib error:", err);
+        // proceed with full buffer
       }
     }
+
+    const fileBase64 = analyzeBuffer.toString("base64");
 
     // Call Claude API for analysis with timeout
     let analysis;
@@ -135,7 +149,7 @@ export async function POST(req: Request) {
           pageCount,
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 95s")), 95000)
+          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 115s")), 115000)
         ),
       ]);
     } catch (err: any) {

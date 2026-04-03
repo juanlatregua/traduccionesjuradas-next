@@ -71,6 +71,7 @@ export default function PresupuestoInstantaneoClient() {
   const [errorEmailSent, setErrorEmailSent] = useState(false);
   const [errorGdpr, setErrorGdpr] = useState(false);
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
+  const [currentFileSize, setCurrentFileSize] = useState(0);
 
   // Restore state from sessionStorage on mount
   useEffect(() => {
@@ -112,10 +113,11 @@ export default function PresupuestoInstantaneoClient() {
   }, [leadData, step, documents, gdprConsent]);
 
   const handleUploadComplete = useCallback(
-    (docId: string, token: string) => {
+    (docId: string, token: string, fileSize?: number) => {
       currentDocIdRef.current = docId;
       setCurrentDocumentId(docId);
       setSessionToken(token);
+      setCurrentFileSize(fileSize || 0);
       setStep("analyzing");
     },
     []
@@ -269,6 +271,7 @@ export default function PresupuestoInstantaneoClient() {
       {step === "analyzing" && currentDocumentId && (
         <DocumentAnalysis
           documentId={currentDocumentId}
+          fileSize={currentFileSize}
           onAnalysisComplete={handleAnalysisComplete}
           onError={handleAnalysisError}
         />

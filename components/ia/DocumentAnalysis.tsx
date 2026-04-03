@@ -21,6 +21,7 @@ import type { Quote } from "@/lib/pricing-engine/calculator";
 
 type Props = {
   documentId: string;
+  fileSize?: number;
   onAnalysisComplete: (analysis: DocumentAnalysisResult, quote: Quote) => void;
   onError: (error: string) => void;
 };
@@ -73,8 +74,20 @@ const ANALYZING_MESSAGES = [
   "Calculando presupuesto...",
 ];
 
+const ANALYZING_MESSAGES_LARGE = [
+  "Documento extenso detectado...",
+  "Analizando primeras páginas...",
+  "Identificando tipo de documento...",
+  "Detectando idioma de origen...",
+  "Extrayendo datos clave...",
+  "Estimando palabras por página...",
+  "Extrapolando al total de páginas...",
+  "Calculando presupuesto orientativo...",
+];
+
 export default function DocumentAnalysis({
   documentId,
+  fileSize,
   onAnalysisComplete,
   onError,
 }: Props) {
@@ -82,14 +95,18 @@ export default function DocumentAnalysis({
   const [analysis, setAnalysis] = useState<DocumentAnalysisResult | null>(null);
   const [messageIndex, setMessageIndex] = useState(0);
 
+  // Heuristic: files > 3MB are likely large multi-page docs
+  const isLikelyLarge = (fileSize || 0) > 3 * 1024 * 1024;
+  const messages = isLikelyLarge ? ANALYZING_MESSAGES_LARGE : ANALYZING_MESSAGES;
+
   // Rotate analyzing messages
   useEffect(() => {
     if (status !== "analyzing") return;
     const interval = setInterval(() => {
-      setMessageIndex((i) => (i + 1) % ANALYZING_MESSAGES.length);
-    }, 2500);
+      setMessageIndex((i) => (i + 1) % messages.length);
+    }, isLikelyLarge ? 3500 : 2500);
     return () => clearInterval(interval);
-  }, [status]);
+  }, [status, messages.length, isLikelyLarge]);
 
   // Call analyze API
   useEffect(() => {
@@ -142,14 +159,19 @@ export default function DocumentAnalysis({
             <FileText className="absolute inset-0 m-auto h-5 w-5 text-bleu" aria-hidden="true" />
           </div>
           <p className="text-sm font-medium text-bleu transition-all duration-300">
-            {ANALYZING_MESSAGES[messageIndex]}
+            {messages[messageIndex]}
           </p>
+          {isLikelyLarge && (
+            <p className="text-xs text-graphite">
+              Documento extenso — el análisis puede tardar hasta 1 minuto
+            </p>
+          )}
           <div className="w-full max-w-xs">
             <div className="h-1.5 overflow-hidden rounded-full bg-bleu/10">
               <div
                 className="h-full rounded-full bg-bleu transition-all duration-[2500ms] ease-linear"
                 style={{
-                  width: `${((messageIndex + 1) / ANALYZING_MESSAGES.length) * 100}%`,
+                  width: `${((messageIndex + 1) / messages.length) * 100}%`,
                 }}
               />
             </div>
