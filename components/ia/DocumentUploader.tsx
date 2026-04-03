@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { Upload, Camera, FileText, X, Loader2 } from "lucide-react";
 
 type UploadedFile = {
@@ -64,16 +65,27 @@ export default function DocumentUploader({
       setUploading(true);
 
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("gdprConsent", "true");
-        if (sessionToken) {
-          formData.append("sessionToken", sessionToken);
-        }
+        // 1. Upload directly to Vercel Blob (bypasses 4.5MB serverless limit)
+        const safeName = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
+        const pathname = `ia-documents/${Date.now()}-${safeName}`;
+        const blob = await upload(pathname, file, {
+          access: "public",
+          handleUploadUrl: "/api/documents/upload",
+          clientPayload: JSON.stringify({ gdprConsent: true, sessionToken }),
+        });
 
-        const res = await fetch("/api/documents/upload", {
+        // 2. Register document in DB
+        const res = await fetch("/api/documents/register", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            blobUrl: blob.url,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            sessionToken,
+            gdprConsent: true,
+          }),
         });
 
         const data = await res.json();
