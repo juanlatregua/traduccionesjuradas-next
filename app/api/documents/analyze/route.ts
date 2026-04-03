@@ -111,6 +111,19 @@ export async function POST(req: Request) {
     const fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
     const fileBase64 = fileBuffer.toString("base64");
 
+    // Extract page count for PDFs
+    let pageCount: number | undefined;
+    if (doc.mimeType === "application/pdf") {
+      try {
+        const pdfParse = require("pdf-parse");
+        const pdfData = await pdfParse(fileBuffer, { max: 0 });
+        pageCount = pdfData.numpages;
+        console.log(`[documents/analyze] PDF pages: ${pageCount}`);
+      } catch {
+        // pdf-parse failed — proceed without page count
+      }
+    }
+
     // Call Claude API for analysis with timeout
     let analysis;
     try {
@@ -119,6 +132,7 @@ export async function POST(req: Request) {
           fileBase64,
           mimeType: doc.mimeType,
           fileName: doc.fileName,
+          pageCount,
         }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 95s")), 95000)

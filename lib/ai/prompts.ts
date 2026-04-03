@@ -173,3 +173,15 @@ La precisión del conteo de palabras determina directamente el precio del presup
 - En documentos compuestos (expedientes notariales con anexos), identifica cada sub-documento en las notes
 - Siempre responde en JSON válido, sin texto adicional
 `;
+
+export const LARGE_DOCUMENT_ADDENDUM = `INSTRUCCIONES ESPECIALES PARA DOCUMENTO EXTENSO:
+Este es un documento largo. Para optimizar el análisis:
+1. Clasifica el documento normalmente (tipo, idioma, país, complejidad) analizando las primeras páginas.
+2. NO transcribas todo el documento en "extracted_text". En su lugar:
+   - Transcribe solo las 2-3 primeras páginas completas en "extracted_text".
+   - Cuenta las palabras de esas páginas transcriptas.
+   - Hojea el resto del documento para comprobar si el formato es similar.
+   - Calcula "estimated_words" extrapolando: (palabras de páginas transcriptas / páginas transcriptas) × total de páginas.
+   - Si hay páginas con formato distinto (tablas, índices, páginas casi vacías), ajusta la estimación.
+3. En "extracted_data.notes", indica: "Documento extenso (N páginas). Estimación basada en muestreo de las primeras páginas."
+4. Añade un warning: "Documento extenso — el presupuesto es orientativo y se confirmará tras revisión."`;

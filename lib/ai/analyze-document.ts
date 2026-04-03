@@ -1,12 +1,14 @@
 // lib/ai/analyze-document.ts — Análisis de documentos con Claude API (visión)
 
 import Anthropic from "@anthropic-ai/sdk";
-import { DOCUMENT_ANALYSIS_PROMPT } from "./prompts";
+import { DOCUMENT_ANALYSIS_PROMPT, LARGE_DOCUMENT_ADDENDUM } from "./prompts";
 import { countDocumentWords } from "./word-counter";
 
 const MODEL = "claude-sonnet-4-20250514";
-const MAX_TOKENS = 8192;
-const TIMEOUT_MS = 90_000;
+const MAX_TOKENS = 16_384;
+const MAX_TOKENS_LARGE = 8_192;
+const LARGE_DOC_THRESHOLD = 5; // pages
+const TIMEOUT_MS = 110_000;
 
 export type DocumentAnalysisResult = {
   document_type: {
@@ -64,7 +66,8 @@ type AnalyzeInput = {
   fileBase64: string;
   mimeType: string;
   fileName: string;
-  ocrText?: string; // Texto OCR previo si existe
+  ocrText?: string;
+  pageCount?: number;
 };
 
 function getMediaType(
@@ -115,10 +118,15 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
     });
   }
 
+  const isLargeDoc = (input.pageCount || 0) > LARGE_DOC_THRESHOLD;
+
   // Add OCR text if available (helps with scanned documents)
   let textPrompt = `Analiza este documento (${input.fileName}) y devuelve el JSON de análisis.`;
   if (input.ocrText) {
     textPrompt += `\n\nTexto OCR extraído previamente (puede tener errores):\n${input.ocrText.slice(0, 3000)}`;
+  }
+  if (isLargeDoc) {
+    textPrompt += `\n\nEste documento tiene ${input.pageCount} páginas. ` + LARGE_DOCUMENT_ADDENDUM;
   }
 
   contentBlocks.push({
@@ -133,7 +141,7 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
     const response = await client.messages.create(
       {
         model: MODEL,
-        max_tokens: MAX_TOKENS,
+        max_tokens: isLargeDoc ? MAX_TOKENS_LARGE : MAX_TOKENS,
         system: DOCUMENT_ANALYSIS_PROMPT,
         messages: [
           {
