@@ -186,8 +186,26 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
     if (result.document_metrics.extracted_text) {
       const claudeWords = result.document_metrics.estimated_words;
       const localWords = countDocumentWords(result.document_metrics.extracted_text);
-      console.log(`[analyzeDocument] Words: Claude=${claudeWords}, local=${localWords}`);
-      result.document_metrics.estimated_words = localWords;
+      const totalPages = input.pageCount || result.document_metrics.pages || 1;
+      console.log(`[analyzeDocument] Words: Claude=${claudeWords}, local=${localWords}, pages=${totalPages}`);
+
+      if (isLargeDoc && totalPages > LARGE_DOC_THRESHOLD) {
+        // Document was truncated — extracted_text only covers first pages.
+        // Use local word count as sample and extrapolate to total pages.
+        const analyzedPages = Math.min(3, totalPages);
+        const wordsPerPage = localWords / analyzedPages;
+        const extrapolated = Math.round(wordsPerPage * totalPages);
+        // Use the higher of Claude's extrapolation and our own
+        result.document_metrics.estimated_words = Math.max(claudeWords, extrapolated);
+        console.log(`[analyzeDocument] Large doc: ${localWords} words in ${analyzedPages} pages → extrapolated ${extrapolated}, Claude said ${claudeWords}, using ${result.document_metrics.estimated_words}`);
+      } else {
+        result.document_metrics.estimated_words = localWords;
+      }
+    }
+
+    // Ensure page count reflects the real document, not the truncated version
+    if (input.pageCount && input.pageCount > result.document_metrics.pages) {
+      result.document_metrics.pages = input.pageCount;
     }
 
     return result;

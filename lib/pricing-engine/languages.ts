@@ -2,14 +2,14 @@
 
 export const PER_WORD_RATE: Record<string, number> = {
   fr: 0.08, // Francés (especialidad, tarifa base)
-  en: 0.08, // Inglés
-  de: 0.10, // Alemán
-  nl: 0.10, // Neerlandés
-  it: 0.09, // Italiano
+  en: 0.11, // Inglés
+  de: 0.12, // Alemán
+  nl: 0.14, // Neerlandés
+  it: 0.12, // Italiano
   pt: 0.12, // Portugués
   ca: 0.08, // Catalán
   sv: 0.14, // Sueco
-  no: 0.12, // Noruego
+  no: 0.14, // Noruego
   ar: 0.10, // Árabe
   ro: 0.09, // Rumano
 };
