@@ -142,7 +142,13 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
       {
         model: MODEL,
         max_tokens: isLargeDoc ? MAX_TOKENS_LARGE : MAX_TOKENS,
-        system: DOCUMENT_ANALYSIS_PROMPT,
+        system: [
+          {
+            type: "text",
+            text: DOCUMENT_ANALYSIS_PROMPT,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
         messages: [
           {
             role: "user",
@@ -199,7 +205,10 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
         result.document_metrics.estimated_words = Math.max(claudeWords, extrapolated);
         console.log(`[analyzeDocument] Large doc: ${localWords} words in ${analyzedPages} pages → extrapolated ${extrapolated}, Claude said ${claudeWords}, using ${result.document_metrics.estimated_words}`);
       } else {
-        result.document_metrics.estimated_words = localWords;
+        // Use the higher of both: Claude's extracted_text is sometimes a
+        // partial sample (especially for non-Latin scripts like Arabic),
+        // so trusting the local count alone can underestimate.
+        result.document_metrics.estimated_words = Math.max(localWords, claudeWords);
       }
     }
 

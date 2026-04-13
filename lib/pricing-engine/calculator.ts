@@ -5,9 +5,9 @@ import { getRate } from "./languages";
 import {
   getMinimum,
   getComplexityMultiplier,
+  getApostilleSurcharge,
   URGENCY_MULTIPLIER,
   MOROCCO_PRICING,
-  APOSTILLE_SURCHARGE,
 } from "./rules";
 
 export const VAT_RATE = 0.21;
@@ -125,14 +125,14 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
       ? language.target
       : language.source;
   const rate = getRate(foreignLang);
-  const minimum = getMinimum(document_type.specific_type);
+  const minimum = getMinimum(document_type.specific_type, foreignLang);
   const complexityMult = getComplexityMultiplier(complexity.level);
 
-  // Apostille surcharge: 25€ fixed when document has apostille
-  const apostilleSurcharge = requirements?.has_apostille ? APOSTILLE_SURCHARGE : 0;
+  // Apostille surcharge: fijo según idioma (árabe 10€, resto 25€)
+  const apostilleSurcharge = requirements?.has_apostille ? getApostilleSurcharge(foreignLang) : 0;
 
-  // Morocco special pricing: always fixed price by page count
-  const isMorocco = country?.origin === "MA";
+  // Morocco special pricing: solo aplica a francés (no árabe)
+  const isMorocco = country?.origin === "MA" && foreignLang !== "ar";
   const moroccoMaxPage = Math.max(...Object.keys(MOROCCO_PRICING).map(Number));
   const moroccoFixedPrice = isMorocco
     ? MOROCCO_PRICING[Math.min(document_metrics.pages, moroccoMaxPage)] ?? MOROCCO_PRICING[moroccoMaxPage]

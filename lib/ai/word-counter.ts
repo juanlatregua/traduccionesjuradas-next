@@ -15,19 +15,15 @@ export function countDocumentWords(text: string): number {
   const tokens = text.split(/\s+/).filter(Boolean);
 
   return tokens.filter((token) => {
-    // Strip leading/trailing punctuation and symbols to inspect core content
-    // Uses explicit Latin ranges (À-ÿ) + ordinal indicators (ª º) to avoid
-    // Unicode property escapes that require es2015+ target
-    const core = token.replace(
-      /^[^a-zA-Z\xAA\xBA\xC0-\xFF0-9]+|[^a-zA-Z\xAA\xBA\xC0-\xFF0-9]+$/g,
-      "",
-    );
+    // Strip leading/trailing punctuation to inspect core content.
+    // Uses \p{L} (any Unicode letter) + \p{N} (any Unicode number) so that
+    // non-Latin scripts (Arabic, Cyrillic, CJK, Hebrew, etc.) are counted.
+    const core = token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
     if (!core) return false;
 
     // Exclude tokens that are purely numeric (digits + separators, no letters)
-    // Matches: "019570", "01", "1995", "41.113", "019.345.676-01", "6.015/73"
-    // Does NOT match: "MG-5.234.891", "A-155", "1ª", "3ème", "nº", "Art.45"
     if (/^[\d.,/:;\-–—]+$/.test(core)) return false;
+    if (!/\p{L}/u.test(core)) return false;
 
     return true;
   }).length;
