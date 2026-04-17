@@ -59,7 +59,7 @@ export default function FlowMicroBanner() {
             className="flex w-full items-center justify-between gap-2 text-left text-xs font-medium text-bleu"
           >
             <span>
-              <span className="text-graphite">Paso 1 de 4 — </span>
+              <span className="text-sepia">Paso 1 de 4 — </span>
               <span className="font-semibold text-bleu" aria-current="step">
                 Escaneo
               </span>
@@ -99,7 +99,7 @@ function StepItem({
 }) {
   const content = (
     <span
-      className={`${step.current ? "font-semibold text-bleu" : "text-graphite"}`}
+      className={`${step.current ? "font-semibold text-bleu" : "text-sepia"}`}
       title={step.tooltip}
     >
       {step.label}

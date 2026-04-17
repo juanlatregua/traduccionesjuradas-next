@@ -83,7 +83,7 @@ export default function ComoEscanearBienPage() {
           <h1 className="font-baskerville text-3xl sm:text-4xl md:text-5xl font-bold text-bleu leading-tight">
             {TITLE}
           </h1>
-          <p className="mt-4 text-base sm:text-lg text-graphite max-w-2xl mx-auto">
+          <p className="mt-4 text-base sm:text-lg text-sepia max-w-2xl mx-auto">
             <strong className="text-sepia">2 minutos.</strong> Para que el
             presupuesto sea instantáneo y la traducción jurada te llegue en PDF
             firmado electrónicamente, válido ante registros y administraciones.
@@ -175,7 +175,7 @@ function TarjetaIPhone() {
           automáticas no pueden leer el texto.
         </p>
       </div>
-      <p className="text-xs text-graphite">
+      <p className="text-xs text-sepia">
         Alternativa válida: Microsoft Lens.
       </p>
     </Card>
@@ -204,7 +204,7 @@ function TarjetaAndroid() {
         <li>Pulsa «Guardar». El PDF queda con texto buscable incluido.</li>
         <li>Descárgalo y súbelo a nuestra web.</li>
       </ol>
-      <p className="text-xs text-graphite">
+      <p className="text-xs text-sepia">
         Alternativa válida: Samsung Notes o la app nativa Samsung Scan.
       </p>
     </Card>
