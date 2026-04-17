@@ -249,6 +249,18 @@ export default function DocumentUploader({
         </div>
       )}
 
+      {!uploadedFile && (
+        <p className="text-center text-xs text-graphite">
+          ¿No sabes cómo escanear bien?{" "}
+          <a
+            href="/como-escanear-bien"
+            className="text-bleu underline underline-offset-2 hover:text-bleu-light"
+          >
+            Ver guía de 2 minutos
+          </a>
+        </p>
+      )}
+
       {/* Uploaded file preview */}
       {uploadedFile && (
         <div className="flex items-center gap-4 rounded-xl border border-bleu/20 bg-card p-4 shadow-paper">
