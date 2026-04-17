@@ -94,6 +94,7 @@ export default function RootLayout({
         {JSON.stringify({
           "@context": "https://schema.org",
           "@type": "ProfessionalService",
+          "@id": "https://www.traduccionesjuradas.net/#organization",
           name: "TraduccionesJuradas.net",
           url: "https://www.traduccionesjuradas.net",
           description:
@@ -113,12 +114,102 @@ export default function RootLayout({
             streetAddress: "Calle Esperanto, 9",
             postalCode: "29007",
           },
-          serviceType: [
-            "Traducción jurada de francés",
-            "Traducción jurada de alemán",
-            "Traducción jurada de inglés",
-            "Traducción jurada de documentos oficiales",
-          ],
+          hasOfferCatalog: {
+            "@type": "OfferCatalog",
+            name: "Traducciones juradas por idioma",
+            itemListElement: [
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de francés",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de inglés",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-ingles",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de alemán",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-aleman",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de portugués",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-portugues",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de italiano",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-italiano",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de neerlandés",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-neerlandes",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de catalán",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-catalan",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de rumano",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-rumano",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de sueco",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-sueco",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+              {
+                "@type": "Offer",
+                itemOffered: {
+                  "@type": "Service",
+                  name: "Traducción jurada de noruego",
+                  url: "https://www.traduccionesjuradas.net/traductor-jurado-noruego",
+                  provider: { "@id": "https://www.traduccionesjuradas.net/#organization" },
+                },
+              },
+            ],
+          },
           aggregateRating: {
             "@type": "AggregateRating",
             ratingValue: "5.0",
