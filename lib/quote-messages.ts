@@ -42,6 +42,7 @@ Puede revisarlo y realizar el pago de forma segura aquí: ${data.payUrl}
 Formas de pago: Bizum / Transferencia / PayPal.
 Si ha seleccionado envío en papel, los gastos de envío son 12 € + IVA (incluidos en el total).
 Una vez confirmado el pago, comenzaremos la traducción de inmediato.
+Si el PDF que nos envió no era totalmente legible, aquí le explicamos cómo escanear mejor la próxima vez: https://www.traduccionesjuradas.net/como-escanear-bien
 Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
 
   return { subject, body };

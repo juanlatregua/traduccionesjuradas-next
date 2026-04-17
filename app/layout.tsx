@@ -249,6 +249,12 @@ export default function RootLayout({
                     Preguntas frecuentes
                   </Link>
                   <Link
+                    href="/como-escanear-bien"
+                    className="hover:text-or transition-colors"
+                  >
+                    Cómo escanear bien
+                  </Link>
+                  <Link
                     href="/traductor-jurado-frances"
                     className="hover:text-or transition-colors"
                   >
