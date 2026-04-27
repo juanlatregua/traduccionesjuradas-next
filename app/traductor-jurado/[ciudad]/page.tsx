@@ -24,9 +24,10 @@ export async function generateMetadata({
   const ciudad = ciudadBySlug.get(slug);
   if (!ciudad) return {};
 
+  const consuladoNote = ciudad.tieneConsulado ? " · Consulado de Francia" : "";
   return {
-    title: `Traductor Jurado Oficial en ${ciudad.nombre} | traduccionesjuradas.net`,
-    description: `Traducción jurada online para ${ciudad.nombre}. Documentos oficiales para el Registro Civil, homologaciones, residencia y trámites legales. Validez oficial. Entrega 24-48h.`,
+    title: `Traductor Jurado en ${ciudad.nombre} (${ciudad.provincia})${consuladoNote} · MAEC`,
+    description: `Traductor jurado oficial para ${ciudad.nombre}, ${ciudad.provincia}. Traducción jurada online con validez ante Registro Civil, Extranjería y Consulado. Entrega en 24-48h, sin desplazamientos. Desde 35€.`,
     alternates: {
       canonical: `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`,
     },
