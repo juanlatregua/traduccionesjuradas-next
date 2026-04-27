@@ -212,9 +212,9 @@ export default function RootLayout({
           },
           aggregateRating: {
             "@type": "AggregateRating",
-            ratingValue: "5.0",
+            ratingValue: "4.8",
             bestRating: "5",
-            ratingCount: "23",
+            ratingCount: "46",
           },
         })}
       </Script>

@@ -76,9 +76,9 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
     })),
     aggregateRating: {
       "@type": "AggregateRating",
-      ratingValue: "5.0",
+      ratingValue: "4.8",
       bestRating: "5",
-      ratingCount: "23",
+      ratingCount: "46",
     },
     review: [
       {
