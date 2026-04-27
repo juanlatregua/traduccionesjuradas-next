@@ -171,7 +171,7 @@ export default function Home() {
             </span>
             <span className="flex items-center gap-1">
               <span className="text-or">★</span>
-              5.0 Google · 23 reseñas
+              4.8 Google · 46 reseñas
             </span>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function Home() {
           <div className="text-center">
             <p className="text-2xl font-bold text-or">★★★★★</p>
             <p className="mt-1 text-sm font-semibold text-encre">
-              5,0 en Google · 23 reseñas
+              4,8 en Google · 46 reseñas
             </p>
           </div>
 
