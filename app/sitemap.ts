@@ -122,6 +122,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/aviso-legal":                                   "2026-01-28",
   "/privacidad":                                    "2026-01-28",
   "/politica-de-cookies":                           "2026-01-28",
+  "/devoluciones":                                  "2026-04-27",
 };
 
 export default function sitemap(): MetadataRoute.Sitemap {

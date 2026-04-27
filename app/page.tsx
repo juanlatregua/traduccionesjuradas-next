@@ -82,19 +82,19 @@ const CIUDADES_TOP = [
 
 const REVIEWS = [
   {
-    author: "Lucía G.",
-    text: "Todo el trámite fue muy rápido y sencillo. En menos de una semana ya tenía los documentos traducidos y certificados.",
-    date: "mayo 2024",
+    author: "Yassine E.",
+    text: "Buen trabajo, bien hecho.",
+    date: "abril 2026",
+  },
+  {
+    author: "Anais A.",
+    text: "Excelente servicio, rapidez y respuesta.",
+    date: "marzo 2026",
   },
   {
     author: "Pedro V.",
     text: "Necesitábamos con urgencia una traducción jurada del francés y el servicio fue fantástico. Muy profesionales.",
     date: "abril 2024",
-  },
-  {
-    author: "Paula P.",
-    text: "Mi hijo se iba a EEUU y necesitaba traducir muchos papeles. Perfecto y a muy buen precio.",
-    date: "julio 2022",
   },
 ];
 
