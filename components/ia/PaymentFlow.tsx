@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, CreditCard, AlertTriangle, Smartphone, Landmark, Wallet } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, CreditCard, AlertTriangle, Smartphone, Landmark, Wallet, CheckCircle2, Mail } from "lucide-react";
 import CopyField from "@/components/CopyField";
 import PayPalButton from "@/components/PayPalButton";
 
@@ -48,8 +48,22 @@ export default function PaymentFlow({
 }: Props) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bizum");
   const [orderReference, setOrderReference] = useState<string | null>(null);
-  const [step, setStep] = useState<"form" | "processing">("form");
+  const [step, setStep] = useState<"form" | "processing" | "created">("form");
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  const [reused, setReused] = useState(false);
+  const [redirectIn, setRedirectIn] = useState(3);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-redirect countdown when step === "created" and redirectUrl present
+  useEffect(() => {
+    if (step !== "created" || !redirectUrl) return;
+    if (redirectIn <= 0) {
+      window.location.href = redirectUrl;
+      return;
+    }
+    const t = setTimeout(() => setRedirectIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [step, redirectUrl, redirectIn]);
 
   const [name, setName] = useState(defaultName || "");
   const [email, setEmail] = useState(defaultEmail || "");
@@ -101,10 +115,15 @@ export default function PaymentFlow({
         setOrderReference(data.orderReference);
         setStep("form");
         return;
-      } else if (isManual && data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-      } else if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      }
+
+      const target = data.paymentUrl || data.checkoutUrl;
+      if (target && data.orderReference) {
+        setOrderReference(data.orderReference);
+        setRedirectUrl(target);
+        setReused(!!data.reused);
+        setRedirectIn(3);
+        setStep("created");
       } else {
         onSuccess(data.orderReference);
       }
@@ -124,6 +143,42 @@ export default function PaymentFlow({
             : "Preparando pasarela de pago..."}
         </p>
         <p className="text-sm text-graphite">No cierres esta página.</p>
+      </div>
+    );
+  }
+
+  if (step === "created" && orderReference && redirectUrl) {
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-xl border border-vert/30 bg-card p-8 shadow-paper animate-fadeIn">
+        <CheckCircle2 className="h-12 w-12 text-vert" />
+        <p className="font-baskerville text-xl text-encre text-center">
+          {reused ? "Recuperamos tu pedido pendiente" : "Pedido creado correctamente"}
+        </p>
+
+        <div className="w-full rounded-lg border border-cream bg-cream/40 px-4 py-3 text-center">
+          <p className="text-xs uppercase tracking-wide text-graphite">Referencia</p>
+          <p className="mt-1 font-mono text-lg font-bold text-bleu">{orderReference}</p>
+        </div>
+
+        <div className="flex items-start gap-2 text-sm text-sepia">
+          <Mail className="h-4 w-4 mt-0.5 shrink-0 text-bleu" />
+          <p>
+            Te hemos enviado los datos del pedido por email a <strong>{email}</strong>.
+            Si no llega, revisa la carpeta de spam.
+          </p>
+        </div>
+
+        <div className="w-full flex flex-col gap-2 pt-2">
+          <a
+            href={redirectUrl}
+            className="flex items-center justify-center gap-2 rounded-lg bg-bleu px-6 py-2.5 text-sm font-semibold text-cream shadow-md hover:bg-bleu-dark transition-colors"
+          >
+            Ir al pago ahora
+          </a>
+          <p className="text-center text-xs text-graphite">
+            Te redirigimos automáticamente en {redirectIn}s…
+          </p>
+        </div>
       </div>
     );
   }
