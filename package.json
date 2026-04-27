@@ -12,7 +12,9 @@
     "test:unit": "node --test --experimental-strip-types tests/unit/**/*.test.ts",
     "test:e2e": "node --test --experimental-strip-types tests/e2e/**/*.test.ts",
     "postinstall": "prisma generate",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "gsc:report": "node scripts/gsc-report.mjs",
+    "gsc:inspect": "node scripts/gsc-inspect-urls.mjs"
   },
   "browserslist": {
     "production": [

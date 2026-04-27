@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title: "Traductor jurado de italiano | Traducciones juradas italiano-español",
+  title: "Traductor Jurado de Italiano · Traducción Oficial Italiano↔Español · MAEC",
   description:
-    "Traducciones juradas de italiano a español y de español a italiano realizadas por traductores jurados. Válidas para trámites en España, Italia y otros países de la UE.",
+    "Traductor jurado de italiano acreditado MAEC. Traducción jurada italiano-español y español-italiano: certificati di nascita, casellario giudiziale, diplomi, contratti. Precio cerrado al instante, entrega en PDF firmado. Desde 35€.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-italiano",
   },

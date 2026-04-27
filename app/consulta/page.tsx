@@ -1,5 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import GuestOrderLookup from "@/components/GuestOrderLookup";
+
+export const metadata: Metadata = {
+  title: "Consultar estado de pedido",
+  description: "Consulta el estado de tu pedido de traducción jurada con tu referencia y email.",
+  robots: { index: false, follow: false },
+};
 
 export default function ConsultaPage() {
   return (

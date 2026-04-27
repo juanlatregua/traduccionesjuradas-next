@@ -4,10 +4,10 @@ import type { Metadata } from "next";
 import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
-  title: "Traducciones Juradas Baratas \u00B7 Desde 35\u20AC \u00B7 Traductor Oficial MAEC",
+  title: "Traducciones Juradas Baratas Online \u00B7 Desde 35\u20AC \u00B7 Sin Intermediarios \u00B7 MAEC",
   description:
-    "Traducciones juradas baratas y oficiales. Traductor jurado online barato acreditado MAEC. Precio desde 35\u20AC por documento, sin intermediarios. Presupuesto gratis en minutos.",
-  alternates: { canonical: "https://www.traduccionesjuradas.net/traducciones-juradas-baratas/" },
+    "Traducciones juradas baratas con validez oficial. Traductor jurado MAEC, sin agencias intermediarias: pagas el trabajo del traductor, no comisiones. Desde 35\u20AC por certificado. Presupuesto cerrado al instante.",
+  alternates: { canonical: "https://www.traduccionesjuradas.net/traducciones-juradas-baratas" },
 };
 
 export default function TraduccionesJuradasBaratas() {

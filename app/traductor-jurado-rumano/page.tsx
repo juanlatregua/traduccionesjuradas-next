@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title:
-    "Traductor jurado de rumano | Traducción jurada rumano-español",
+  title: "Traductor Jurado de Rumano · Traducción Oficial Rumano↔Español · MAEC",
   description:
-    "Traducción jurada oficial de rumano a español y español a rumano. Traductor jurado MAEC. Precio cerrado al instante, entrega en PDF firmado. Desde 35€.",
+    "Traductor jurado de rumano acreditado MAEC. Traducción jurada rumano-español y español-rumano: certificate de naștere, cazier judiciar, diplome, contracte. Precio cerrado al instante, entrega en PDF firmado. Desde 35€.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traductor-jurado-rumano",

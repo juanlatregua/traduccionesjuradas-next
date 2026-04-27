@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title:
-    "Traductor jurado de neerlandés | Traducciones juradas neerlandés-español",
+  title: "Traductor Jurado de Neerlandés · Traducción Oficial Holandés↔Español · MAEC",
   description:
-    "Traducciones juradas de neerlandés a español y de español a neerlandés realizadas por traductores jurados. Válidas para trámites en España, Países Bajos y Bélgica.",
+    "Traductor jurado de neerlandés (holandés) acreditado MAEC. Traducción jurada neerlandés-español y español-neerlandés: geboorteakte, strafblad, diploma's, contracten. Válida en España, Países Bajos y Bélgica. Precio cerrado al instante. Desde 35€.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-neerlandes",
   },

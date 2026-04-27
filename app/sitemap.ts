@@ -152,9 +152,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   } : null;
 
+  const citiesLastModified = new Date("2026-03-04");
   const cityEntries = CIUDADES.map((ciudad) => ({
     url: `${baseUrl}/traductor-jurado/${ciudad.slug}`,
-    lastModified: new Date(),
+    lastModified: citiesLastModified,
     changeFrequency: "monthly" as ChangeFreq,
     priority: 0.7,
   }));
