@@ -6,7 +6,10 @@ import { createCheckoutSession } from "@/lib/stripe";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { addBusinessDays, getBusinessStart } from "@/lib/delivery-date";
+import { sendOrderCreatedEmail } from "@/lib/email";
 import crypto from "node:crypto";
+
+const PUBLIC_BASE_URL = "https://www.traduccionesjuradas.net";
 
 export const runtime = "nodejs";
 
@@ -198,6 +201,49 @@ export async function POST(req: Request) {
       },
     });
 
+    // Compute paymentUrl per method (used for both response + email)
+    let paymentUrl: string | null = null;
+    let checkoutUrl: string | null = null;
+
+    if (paymentMethod === "STRIPE") {
+      const idempotencyKey = `ia-doc-${documentIds.join(",")}-${reference}`;
+      const session = await createCheckoutSession({
+        reference: reference,
+        amountCents: amountCents,
+        title: `Traducción jurada: ${title}`,
+        customerEmail: clientEmail,
+        idempotencyKey: idempotencyKey,
+      });
+      checkoutUrl = session.url;
+    } else if (paymentMethod === "BIZUM" || paymentMethod === "TRANSFER") {
+      const { generateOrderToken } = await import("@/lib/order-token");
+      let url = `/area-cliente/pedido/${reference}/pagar`;
+      try {
+        url += `?token=${generateOrderToken(reference)}`;
+      } catch { /* ORDER_TOKEN_SECRET not set */ }
+      paymentUrl = url;
+    }
+
+    // Email de confirmación al cliente (fire-and-forget, solo en creación nueva)
+    if (!reused) {
+      const emailUrl = checkoutUrl
+        ? checkoutUrl
+        : paymentUrl
+        ? `${PUBLIC_BASE_URL}${paymentUrl}`
+        : `${PUBLIC_BASE_URL}/area-cliente/pedido/${reference}/pagar`;
+
+      sendOrderCreatedEmail({
+        toEmail: clientEmail,
+        clientName: clientName,
+        reference,
+        title,
+        amountCents,
+        paymentUrl: emailUrl,
+      }).catch((err) =>
+        console.error("[documents/payment] order-created-email failed", err)
+      );
+    }
+
     if (paymentMethod === "PAYPAL") {
       return NextResponse.json({
         ok: true,
@@ -207,11 +253,6 @@ export async function POST(req: Request) {
     }
 
     if (paymentMethod === "BIZUM" || paymentMethod === "TRANSFER") {
-      const { generateOrderToken } = await import("@/lib/order-token");
-      let paymentUrl = `/area-cliente/pedido/${reference}/pagar`;
-      try {
-        paymentUrl += `?token=${generateOrderToken(reference)}`;
-      } catch { /* ORDER_TOKEN_SECRET not set */ }
       return NextResponse.json({
         ok: true,
         orderReference: reference,
@@ -220,20 +261,9 @@ export async function POST(req: Request) {
       });
     }
 
-    // Stripe: create checkout session
-    const idempotencyKey = `ia-doc-${documentIds.join(",")}-${reference}`;
-
-    const session = await createCheckoutSession({
-      reference: reference,
-      amountCents: amountCents,
-      title: `Traducción jurada: ${title}`,
-      customerEmail: clientEmail,
-      idempotencyKey: idempotencyKey,
-    });
-
     return NextResponse.json({
       ok: true,
-      checkoutUrl: session.url,
+      checkoutUrl,
       orderReference: reference,
       reused,
     });
