@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title: "Traductor jurado de portugués | Traducciones juradas portugués-español",
+  title: "Traductor Jurado de Portugués · Traducción Oficial Portugués↔Español · MAEC",
   description:
-    "Traducciones juradas de portugués a español y de español a portugués realizadas por traductores jurados. Válidas para trámites en España, Portugal y Brasil.",
+    "Traductor jurado de portugués acreditado MAEC. Traducción jurada portugués-español y español-portugués: certidões, antecedentes criminais, diplomas, contratos. Válida en España, Portugal y Brasil. Precio cerrado al instante. Desde 35€.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-portugues",
   },

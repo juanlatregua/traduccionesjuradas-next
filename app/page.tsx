@@ -62,21 +62,39 @@ const DOCUMENTOS = [
   { href: "/documentos-oficiales/documentos-mercantiles", label: "Empresariales" },
 ];
 
+const CIUDADES_TOP = [
+  { slug: "madrid", label: "Madrid" },
+  { slug: "barcelona", label: "Barcelona" },
+  { slug: "valencia", label: "Valencia" },
+  { slug: "sevilla", label: "Sevilla" },
+  { slug: "malaga", label: "Málaga" },
+  { slug: "bilbao", label: "Bilbao" },
+  { slug: "zaragoza", label: "Zaragoza" },
+  { slug: "murcia", label: "Murcia" },
+  { slug: "palma", label: "Palma" },
+  { slug: "las-palmas", label: "Las Palmas" },
+  { slug: "alicante", label: "Alicante" },
+  { slug: "granada", label: "Granada" },
+  { slug: "marbella", label: "Marbella" },
+  { slug: "vigo", label: "Vigo" },
+  { slug: "santander", label: "Santander" },
+];
+
 const REVIEWS = [
   {
-    author: "Lucía G.",
-    text: "Todo el trámite fue muy rápido y sencillo. En menos de una semana ya tenía los documentos traducidos y certificados.",
-    date: "mayo 2024",
+    author: "Yassine E.",
+    text: "Buen trabajo, bien hecho.",
+    date: "abril 2026",
+  },
+  {
+    author: "Anais A.",
+    text: "Excelente servicio, rapidez y respuesta.",
+    date: "marzo 2026",
   },
   {
     author: "Pedro V.",
     text: "Necesitábamos con urgencia una traducción jurada del francés y el servicio fue fantástico. Muy profesionales.",
     date: "abril 2024",
-  },
-  {
-    author: "Paula P.",
-    text: "Mi hijo se iba a EEUU y necesitaba traducir muchos papeles. Perfecto y a muy buen precio.",
-    date: "julio 2022",
   },
 ];
 
@@ -297,6 +315,30 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ═══════════════ SECCIÓN 4B: COBERTURA NACIONAL ═══════════════ */}
+      <section className="bg-parchment py-14">
+        <div className="mx-auto max-w-5xl px-4">
+          <h2 className="text-center font-baskerville text-2xl font-bold text-encre sm:text-3xl">
+            Servicio en toda España
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-center text-sm text-sepia">
+            Trabajamos online con clientes de cualquier ciudad. Información local
+            sobre Registro Civil, Extranjería y consulados:
+          </p>
+          <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-2">
+            {CIUDADES_TOP.map((c) => (
+              <Link
+                key={c.slug}
+                href={`/traductor-jurado/${c.slug}`}
+                className="rounded-full border border-cream bg-card px-3 py-1.5 text-xs font-medium text-encre shadow-sm transition hover:border-bleu hover:text-bleu hover:shadow-paper"
+              >
+                Traductor jurado en {c.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ═══════════════ SECCIÓN 5: NICHO MARRUECOS ═══════════════ */}
       <section className="bg-parchment py-14">
         <div className="mx-auto max-w-5xl px-4">
@@ -315,12 +357,23 @@ export default function Home() {
                   matrimonio y documentos del Registro Civil marroquí. Más de 500
                   documentos traducidos.
                 </p>
-                <Link
-                  href="/traductor-jurado-frances"
-                  className="mt-3 inline-block text-sm font-semibold text-bleu hover:underline"
-                >
-                  Ver traducciones francés-español →
-                </Link>
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+                  <Link href="/marruecos" className="text-bleu hover:underline">
+                    Documentos marroquíes →
+                  </Link>
+                  <Link
+                    href="/blog/documentos-marroquies-guia-completa"
+                    className="text-bleu hover:underline"
+                  >
+                    Guía completa 2026 →
+                  </Link>
+                  <Link
+                    href="/traductor-jurado-frances"
+                    className="text-bleu hover:underline"
+                  >
+                    Francés-español →
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
