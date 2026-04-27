@@ -8,6 +8,7 @@ import {
   getApostilleSurcharge,
   URGENCY_MULTIPLIER,
   MOROCCO_PRICING,
+  FRENCH_CRIMINAL_RECORD_PRICE,
 } from "./rules";
 
 export const VAT_RATE = 0.21;
@@ -138,14 +139,28 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     ? MOROCCO_PRICING[Math.min(document_metrics.pages, moroccoMaxPage)] ?? MOROCCO_PRICING[moroccoMaxPage]
     : undefined;
 
+  // Penales franceses con formulario multilingüe UE (Bulletin n°3 de ~5 páginas):
+  // el anexo distorsiona el conteo. La versión de 1 carilla sigue el cálculo normal.
+  const isFrenchCriminalRecord =
+    document_type.specific_type === "criminal_record" &&
+    foreignLang === "fr" &&
+    document_metrics.pages >= 3;
+
   let basePrice: number;
   let wordPrice: number;
   let effectiveRate = rate;
+  let fixedPriceApplied = false;
 
-  if (isMorocco && moroccoFixedPrice !== undefined) {
+  if (isFrenchCriminalRecord) {
+    basePrice = FRENCH_CRIMINAL_RECORD_PRICE + apostilleSurcharge;
+    wordPrice = FRENCH_CRIMINAL_RECORD_PRICE;
+    effectiveRate = 0;
+    fixedPriceApplied = true;
+  } else if (isMorocco && moroccoFixedPrice !== undefined) {
     basePrice = moroccoFixedPrice + apostilleSurcharge;
     wordPrice = moroccoFixedPrice;
     effectiveRate = 0;
+    fixedPriceApplied = true;
   } else {
     wordPrice = document_metrics.estimated_words * rate * complexityMult;
     basePrice = Math.max(wordPrice, minimum) + apostilleSurcharge;
@@ -171,7 +186,7 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
       words: document_metrics.estimated_words,
       ratePerWord: effectiveRate,
       wordSubtotal: round2(wordPrice),
-      minimumApplied: !moroccoFixedPrice && wordPrice < minimum,
+      minimumApplied: !fixedPriceApplied && wordPrice < minimum,
       minimumAmount: minimum,
       complexityMultiplier: complexityMult,
       apostilleSurcharge,
