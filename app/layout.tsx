@@ -214,7 +214,7 @@ export default function RootLayout({
             "@type": "AggregateRating",
             ratingValue: "5.0",
             bestRating: "5",
-            ratingCount: "19",
+            ratingCount: "23",
           },
         })}
       </Script>
@@ -332,6 +332,12 @@ export default function RootLayout({
                     className="hover:text-or transition-colors"
                   >
                     Cookies
+                  </Link>
+                  <Link
+                    href="/devoluciones"
+                    className="hover:text-or transition-colors"
+                  >
+                    Devoluciones
                   </Link>
                   <Link
                     href="/preguntas-frecuentes"
