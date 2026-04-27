@@ -147,25 +147,44 @@ export async function POST(req: Request) {
 
     const dueDate = addBusinessDays(getBusinessStart(), maxDueDays);
 
-    const order = await prisma.order.create({
-      data: {
-        reference: orderReference,
+    // Dedupe: si ya existe pedido pendiente del mismo cliente con mismo título,
+    // importe y método en últimos 30 min, reutilizar en vez de crear duplicado.
+    const recent = await prisma.order.findFirst({
+      where: {
         clientEmail: clientEmail,
-        clientName: clientName,
-        clientNotes: clientNotes ? String(clientNotes).slice(0, 1000) : null,
-        source: "ia-presupuesto",
         title: title,
-        langPair: langPair,
-        words: totalWords,
         amountCents: amountCents,
-        currency: "eur",
-        status: "PENDING_PAYMENT",
-        paymentStatus: "PENDING",
         paymentMethod: paymentMethod,
-        deliveryState: "PRESUPUESTO",
-        dueDate,
+        status: "PENDING_PAYMENT",
+        createdAt: { gte: new Date(Date.now() - 30 * 60_000) },
       },
+      orderBy: { createdAt: "desc" },
     });
+
+    const order = recent
+      ? recent
+      : await prisma.order.create({
+          data: {
+            reference: orderReference,
+            clientEmail: clientEmail,
+            clientName: clientName,
+            clientNotes: clientNotes ? String(clientNotes).slice(0, 1000) : null,
+            source: "ia-presupuesto",
+            title: title,
+            langPair: langPair,
+            words: totalWords,
+            amountCents: amountCents,
+            currency: "eur",
+            status: "PENDING_PAYMENT",
+            paymentStatus: "PENDING",
+            paymentMethod: paymentMethod,
+            deliveryState: "PRESUPUESTO",
+            dueDate,
+          },
+        });
+
+    const reference = order.reference;
+    const reused = !!recent;
 
     // Link all documents to the order + update client info
     await prisma.documentAnalysis.updateMany({
@@ -182,28 +201,30 @@ export async function POST(req: Request) {
     if (paymentMethod === "PAYPAL") {
       return NextResponse.json({
         ok: true,
-        orderReference: orderReference,
+        orderReference: reference,
+        reused,
       });
     }
 
     if (paymentMethod === "BIZUM" || paymentMethod === "TRANSFER") {
       const { generateOrderToken } = await import("@/lib/order-token");
-      let paymentUrl = `/area-cliente/pedido/${orderReference}/pagar`;
+      let paymentUrl = `/area-cliente/pedido/${reference}/pagar`;
       try {
-        paymentUrl += `?token=${generateOrderToken(orderReference)}`;
+        paymentUrl += `?token=${generateOrderToken(reference)}`;
       } catch { /* ORDER_TOKEN_SECRET not set */ }
       return NextResponse.json({
         ok: true,
-        orderReference: orderReference,
+        orderReference: reference,
         paymentUrl,
+        reused,
       });
     }
 
     // Stripe: create checkout session
-    const idempotencyKey = `ia-doc-${documentIds.join(",")}-${orderReference}`;
+    const idempotencyKey = `ia-doc-${documentIds.join(",")}-${reference}`;
 
     const session = await createCheckoutSession({
-      reference: orderReference,
+      reference: reference,
       amountCents: amountCents,
       title: `Traducción jurada: ${title}`,
       customerEmail: clientEmail,
@@ -213,7 +234,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       checkoutUrl: session.url,
-      orderReference: orderReference,
+      orderReference: reference,
+      reused,
     });
   } catch (err: any) {
     console.error("[documents/payment]", err);
