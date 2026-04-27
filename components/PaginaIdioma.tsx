@@ -6,6 +6,7 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaProduct } from "@/components/SchemaProduct";
 import { SchemaService } from "@/components/SchemaService";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
+import { MINIMUM_BY_LANGUAGE, DEFAULT_MINIMUM } from "@/lib/pricing-engine/rules";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 
 const PresupuestoInstantaneoClient = dynamic(
@@ -47,12 +48,13 @@ export default function PaginaIdioma({
   const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado-${idiomaSlug}`;
   const breadcrumbName = `Traductor jurado de ${idioma}`;
 
-  // Precios dinámicos para SchemaProduct
+  // Precios dinámicos para SchemaProduct (aplicando mínimo del idioma)
   const lang = langCode || LANGUAGE_CONFIGS[idiomaSlug]?.langCode || idiomaSlug;
   const rate = getWordRateForLangOrPair(lang);
-  const priceDoc = (300 * rate * 1.1).toFixed(2);  // certificado breve ~300 palabras
-  const priceStd = (800 * rate * 1.1).toFixed(2);  // documento estándar ~800 palabras
-  const priceExp = (2000 * rate * 1.1).toFixed(2); // expediente ~2000 palabras
+  const minPrice = MINIMUM_BY_LANGUAGE[lang] ?? DEFAULT_MINIMUM;
+  const priceDoc = Math.max(300 * rate * 1.1, minPrice).toFixed(2);  // certificado breve ~300 palabras
+  const priceStd = Math.max(800 * rate * 1.1, minPrice).toFixed(2);  // documento estándar ~800 palabras
+  const priceExp = Math.max(2000 * rate * 1.1, minPrice).toFixed(2); // expediente ~2000 palabras
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 lg:py-12">
