@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaPerson } from "@/components/SchemaPerson";
@@ -23,6 +24,34 @@ export default function TraductoresJuradosPage() {
         ]}
       />
       <SchemaPerson />
+      <Script
+        id="schema-profilepage-juan"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.traduccionesjuradas.net/traductores-jurados#profile",
+            url: "https://www.traduccionesjuradas.net/traductores-jurados",
+            name: "Juan Silva Moreno — Traductor jurado de francés (MAEC nº 3850)",
+            description:
+              "Página de perfil del traductor jurado Juan Silva Moreno (MAEC nº 3850), nombrado por el Ministerio de Asuntos Exteriores de España. Especializado en traducción jurada de francés y coordinador del equipo HBTJ Consultores Lingüísticos.",
+            mainEntity: {
+              "@type": "Person",
+              "@id": "https://www.traduccionesjuradas.net/traductores-jurados#juan-silva",
+            },
+            dateCreated: "2026-01-01",
+            dateModified: "2026-04-29",
+            inLanguage: "es-ES",
+            isPartOf: {
+              "@type": "WebSite",
+              url: "https://www.traduccionesjuradas.net",
+              name: "TraduccionesJuradas.net",
+            },
+          }),
+        }}
+      />
       <Breadcrumbs items={[
         { name: "Inicio", href: "/" },
         { name: "Traductores jurados", href: "/traductores-jurados" },
