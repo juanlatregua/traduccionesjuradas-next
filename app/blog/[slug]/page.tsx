@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { MDXContent } from "@/components/blog/MDXContent";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { AuthorByline } from "@/components/AuthorByline";
 
 const CATEGORY_LABELS: Record<string, string> = {
   tramites: "Trámites",
@@ -86,17 +87,31 @@ export default async function PostPage({ params }: Props) {
             description: post.description,
             image: [`https://www.traduccionesjuradas.net/api/og?title=${encodeURIComponent(post.title)}&subtitle=Blog+%E2%80%94+TraduccionesJuradas.net`],
             datePublished: post.date,
-            dateModified: post.date,
+            dateModified: post.dateModified || post.date,
+            inLanguage: "es-ES",
+            articleSection: CATEGORY_LABELS[post.category] || post.category,
+            wordCount: (post as { metadata?: { wordCount?: number } }).metadata?.wordCount,
             author: {
               "@type": "Person",
+              "@id": "https://www.traduccionesjuradas.net/traductores-jurados#juan-silva",
               name: "Juan Silva Moreno",
-              jobTitle: "Traductor Jurado",
-              url: "https://www.traduccionesjuradas.net/acreditacion",
+              jobTitle: "Traductor-intérprete jurado de francés",
+              url: "https://www.traduccionesjuradas.net/traductores-jurados",
+              identifier: {
+                "@type": "PropertyValue",
+                propertyID: "MAEC Spain — Traductor-intérprete jurado",
+                value: "3850",
+              },
             },
             publisher: {
               "@type": "Organization",
+              "@id": "https://www.traduccionesjuradas.net/#organization",
               name: "TraduccionesJuradas.net",
               url: "https://www.traduccionesjuradas.net",
+              logo: {
+                "@type": "ImageObject",
+                url: "https://www.traduccionesjuradas.net/brand/logo-horizontal.svg",
+              },
             },
             mainEntityOfPage: `https://www.traduccionesjuradas.net/blog/${post.slugAsParams}`,
             keywords: post.keywords?.join(", "),
@@ -115,13 +130,11 @@ export default async function PostPage({ params }: Props) {
           <p className="mt-3 text-sm text-sepia sm:text-base">
             {post.description}
           </p>
-          <time className="mt-2 block text-xs text-graphite">
-            {new Date(post.date).toLocaleDateString("es-ES", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </time>
+          <AuthorByline
+            date={post.date}
+            dateModified={post.dateModified}
+            readingTime={(post as { metadata?: { readingTime?: number } }).metadata?.readingTime}
+          />
         </header>
 
         <div className="prose-tj">

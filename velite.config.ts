@@ -10,11 +10,13 @@ const posts = defineCollection({
       title: s.string().max(120),
       description: s.string().max(300),
       date: s.isodate(),
+      dateModified: s.isodate().optional(),
       slug: s.path(),
       published: s.boolean().default(true),
       category: s.enum(['tramites', 'paises', 'faq', 'profesion']),
       keywords: s.array(s.string()).optional(),
       body: s.mdx(),
+      metadata: s.metadata(),
     })
     .transform((data) => ({
       ...data,
