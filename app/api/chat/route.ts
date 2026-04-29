@@ -112,11 +112,19 @@ export async function POST(req: NextRequest) {
     // Detect language from the last user message
     const detectedLanguage = detectLanguage(sanitized);
 
-    // Stream from Anthropic
+    // Stream from Anthropic — system prompt is large + stable, mark for cache hit.
+    // First call writes the cache (5 min TTL), subsequent calls within window
+    // hit the cache → ~80% lower latency on TTFT and ~90% lower input cost.
     const stream = anthropic.messages.stream({
       model: "claude-sonnet-4-20250514",
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: [
+        {
+          type: "text",
+          text: SYSTEM_PROMPT,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       messages,
     });
 
