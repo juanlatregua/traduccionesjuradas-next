@@ -2,6 +2,7 @@
 // E-E-A-T: shows real authority (MAEC nº 3850) above the fold of every blog post.
 
 import Link from "next/link";
+import Image from "next/image";
 
 type Props = {
   date: string | Date;
@@ -17,9 +18,15 @@ export function AuthorByline({ date, dateModified, readingTime }: Props) {
 
   return (
     <div className="mt-6 flex items-start gap-3 rounded-xl border border-cream bg-card px-4 py-3 text-sm shadow-sm">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bleu/10 text-base font-semibold text-bleu">
-        JS
-      </div>
+      <Link href="/traductores-jurados" className="shrink-0">
+        <Image
+          src="/team/juan-silva.jpg"
+          alt="Juan Silva Moreno — traductor-intérprete jurado de francés MAEC nº 3850"
+          width={48}
+          height={48}
+          className="h-12 w-12 rounded-full object-cover border border-cream shadow-sm"
+        />
+      </Link>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-encre">
           <Link
