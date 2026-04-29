@@ -5,10 +5,12 @@ import dynamic from "next/dynamic";
 import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaPerson } from "@/components/SchemaPerson";
+import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 
 const PresupuestoInstantaneoClient = dynamic(
   () => import("@/app/presupuesto-instantaneo/PresupuestoInstantaneoClient"),
-  { ssr: false }
+  { ssr: false, loading: () => <UploadHeroPlaceholder /> }
 );
 
 const HOME_FAQ_ITEMS = [
@@ -99,9 +101,11 @@ const REVIEWS = [
 ];
 
 export const metadata: Metadata = {
-  title: "Traductor Jurado Oficial MAEC n\u00BA 3850 \u00B7 Franc\u00E9s, Ingl\u00E9s, Alem\u00E1n \u00B7 Desde 35\u20AC",
+  title: {
+    absolute: "Traducci\u00F3n jurada oficial \u00B7 MAEC n\u00BA 3850 \u00B7 Desde 35\u20AC",
+  },
   description:
-    "Traducciones juradas online por traductor jurado oficial MAEC. Franc\u00E9s, ingl\u00E9s, alem\u00E1n y 7 idiomas m\u00E1s. Presupuesto gratis en minutos, entrega en 24h. Desde 35\u20AC.",
+    "Traductor jurado oficial MAEC n\u00BA 3850. Franc\u00E9s, ingl\u00E9s, alem\u00E1n y 7 idiomas m\u00E1s. Sube tu documento y recibe presupuesto cerrado en 60 segundos. Entrega 24-72h. Desde 35\u20AC.",
   alternates: { canonical: "https://www.traduccionesjuradas.net" },
 };
 
@@ -112,6 +116,7 @@ export default function Home() {
         id="breadcrumbs-home"
         items={[{ name: "Inicio", url: "https://www.traduccionesjuradas.net/" }]}
       />
+      <SchemaPerson id="schema-person-home" />
       <SchemaFAQ items={HOME_FAQ_ITEMS} id="schema-faq-home" />
 
       {/* ═══════════════ SECCIÓN 1: HERO + UPLOAD ═══════════════ */}

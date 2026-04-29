@@ -114,8 +114,21 @@ import { SchemaProduct } from "@/components/SchemaProduct"
 - Prioridades: 1.0 home, 0.9 servicios, 0.8 idiomas/documentos, 0.7 blog/info, 0.3 legal
 - Actualizar `LAST_MODIFIED` manualmente cuando se modifique contenido
 
+## Internal linking (desplegado 25 marzo 2026)
+- **Blog**: posts relacionados (hasta 3) al final de cada artículo, ordenados por categoría coincidente + fecha
+- **Home**: sección "Guías y recursos" con 4 posts destacados + enlace a /blog
+- **Ciudades** (`/traductor-jurado/[ciudad]`): sección "Idiomas disponibles" con pills a las 10 páginas de idioma
+- **Idiomas** (`PaginaIdioma.tsx`): sección "Ciudades principales" con pills a 6 ciudades (madrid, barcelona, valencia, sevilla, malaga, bilbao)
+- **Documentos oficiales** (9 páginas): secciones de info práctica con enlaces internos a páginas relacionadas y blog
+- **Breadcrumbs documentos**: URLs corregidas a `www.traduccionesjuradas.net` (antes sin www)
+
+## Schema global (layout.tsx)
+- `ProfessionalService` (Organization) con `aggregateRating`: 5.0 / 19 reseñas — **actualizar ratingCount cuando haya más reseñas**
+- `WebSite` con `SearchAction` apuntando a `/blog?q={search_term_string}`
+
 ## Reglas
 - Toda página pública **debe** tener `canonical` y `SchemaBreadcrumbs`
 - Páginas con precios **deben** tener `SchemaProduct`
 - No añadir schemas que no apliquen — Google penaliza markup irrelevante
 - Los precios en schemas deben coincidir con los mostrados en UI
+- **AggregateRating**: actualizar `ratingCount` en layout.tsx cuando haya nuevas reseñas en Google

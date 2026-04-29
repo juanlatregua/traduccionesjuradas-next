@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
+import { SchemaPerson } from "@/components/SchemaPerson";
 
 export const metadata: Metadata = {
   title: "Traductor Jurado de Franc\u00E9s \u00B7 Oficial MAEC n\u00BA 3850 \u00B7 Franc\u00E9s\u2194Espa\u00F1ol",
@@ -22,7 +23,9 @@ export const metadata: Metadata = {
 
 export default function TraductorJuradoFrancesPage() {
   return (
-    <PaginaIdioma
+    <>
+      <SchemaPerson id="schema-person-frances" />
+      <PaginaIdioma
       idioma="francés"
       idiomaSlug="frances"
       combinaciones={["fr-es", "es-fr"]}
@@ -82,5 +85,6 @@ export default function TraductorJuradoFrancesPage() {
         },
       ]}
     />
+    </>
   );
 }

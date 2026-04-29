@@ -114,6 +114,7 @@ type Props = {
   draftFileUrl?: string | null;
   draftFilename?: string | null;
   draftGeneratedAt?: string | null;
+  createdAt?: string | null;
   canonicalStage: OrderActionStage;
   gates: OrderGates;
   nextBestAction: NextBestAction;
@@ -197,6 +198,7 @@ export default function OrderActionPanel({
   draftFileUrl,
   draftFilename,
   draftGeneratedAt,
+  createdAt,
   canonicalStage,
   gates,
   nextBestAction,
@@ -312,6 +314,12 @@ export default function OrderActionPanel({
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
             <span>{clientEmail}</span>
             <span className="font-medium text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span>
+            {createdAt && (
+              <span>{new Date(createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
+            )}
+            <span className={acquisitionSource === "WHATSAPP" ? "font-semibold text-emerald-400" : "text-slate-500"}>
+              {acquisitionSource === "WHATSAPP" ? "WA" : "Web"}
+            </span>
             {dueDate && (
               <span className={overdue ? "font-semibold text-red-400" : dueSoon ? "font-semibold text-amber-400" : ""}>
                 Entrega: {new Date(dueDate).toLocaleDateString("es-ES")}
@@ -683,7 +691,7 @@ export default function OrderActionPanel({
                       >
                         <p className="font-semibold text-slate-100">{doc.name}</p>
                         <p className="text-xs text-slate-400">{doc.type || "application/octet-stream"}</p>
-                        {doc.url ? (
+                        {doc.url && doc.url.startsWith("http") ? (
                           <a
                             href={doc.url}
                             target="_blank"
@@ -693,7 +701,7 @@ export default function OrderActionPanel({
                             Abrir documento
                           </a>
                         ) : (
-                          <p className="mt-2 text-xs text-slate-500">Sin URL registrada.</p>
+                          <p className="mt-2 text-xs text-slate-500">{doc.url?.includes("DELETED") ? "Eliminado (GDPR)" : "Sin URL registrada."}</p>
                         )}
                       </li>
                     ))}

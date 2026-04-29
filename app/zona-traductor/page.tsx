@@ -602,6 +602,7 @@ export default async function ZonaTraductorPage({
       workflowState: order.workflowState,
       isArchived: Boolean(order.isArchived),
       acquisitionSource: order.acquisitionSource,
+      createdAt: order.createdAt.toISOString(),
       assignedTo: order.assignedTo,
       dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null,
       amountCents: order.amountCents,

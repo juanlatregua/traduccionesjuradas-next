@@ -16,6 +16,7 @@ export type BandejaOrder = {
   workflowState: string;
   isArchived: boolean;
   acquisitionSource: "WHATSAPP" | "WEB";
+  createdAt: string;
   assignedTo: string | null;
   dueDate: string | null;
   amountCents: number;
@@ -253,6 +254,7 @@ export default function BandejaEntrada({ orders, staffEmail }: Props) {
                     draftFileUrl={order.draftFileUrl}
                     draftFilename={order.draftFilename}
                     draftGeneratedAt={order.draftGeneratedAt}
+                    createdAt={order.createdAt}
                     canonicalStage={order.canonicalStage}
                     gates={order.gates}
                     nextBestAction={order.nextBestAction}

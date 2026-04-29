@@ -7,7 +7,7 @@ export function TrustStrip() {
         <span>MAEC</span>
         <span aria-hidden="true">·</span>
         <span className="inline-flex items-center gap-1">
-          5,0 <span className="text-or" aria-hidden="true">★</span> Google
+          4,8 <span className="text-or" aria-hidden="true">★</span> 46 reseñas Google
         </span>
         <span aria-hidden="true">·</span>
         <span>Entrega 24-72 h</span>

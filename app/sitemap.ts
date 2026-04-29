@@ -80,7 +80,7 @@ function getPriority(route: string): number {
  * Actualizar manualmente cuando se modifique el contenido de una página.
  */
 const LAST_MODIFIED: Record<string, string> = {
-  "/":                                              "2026-03-04",
+  "/":                                              "2026-04-29",
   "/proceso":                                       "2026-03-01",
   "/preguntas-frecuentes":                          "2026-03-01",
   "/precios-traduccion-jurada":                     "2026-03-04",
@@ -88,7 +88,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/traducciones-juradas-baratas":                  "2026-01-17",
   "/traduccion-jurada-online":                      "2026-02-08",
   "/traduccion-jurada-frances-malaga":              "2026-02-15",
-  "/traductores-jurados":                           "2026-03-04",
+  "/traductores-jurados":                           "2026-04-29",
   "/acreditacion":                                  "2026-03-04",
   "/contacto":                                      "2026-01-29",
   "/marruecos":                                     "2026-03-04",
@@ -109,7 +109,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/traduccion-jurada-de-estatutos-sociales":        "2026-03-10",
   "/traduccion-jurada-de-certificado-de-seguridad-social": "2026-03-10",
   "/teletrabajo":                                   "2026-03-04",
-  "/traductor-jurado-frances":                      "2026-03-04",
+  "/traductor-jurado-frances":                      "2026-04-29",
   "/traductor-jurado-aleman":                       "2026-03-03",
   "/traductor-jurado-ingles":                       "2026-03-03",
   "/traductor-jurado-neerlandes":                   "2026-03-03",

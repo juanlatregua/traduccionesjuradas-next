@@ -5,13 +5,14 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaProduct } from "@/components/SchemaProduct";
 import { SchemaService } from "@/components/SchemaService";
+import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { MINIMUM_BY_LANGUAGE, DEFAULT_MINIMUM } from "@/lib/pricing-engine/rules";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 
 const PresupuestoInstantaneoClient = dynamic(
   () => import("@/app/presupuesto-instantaneo/PresupuestoInstantaneoClient"),
-  { ssr: false }
+  { ssr: false, loading: () => <UploadHeroPlaceholder /> }
 );
 
 type DocHabitual = {
