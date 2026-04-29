@@ -88,6 +88,12 @@ export const SYSTEM_PROMPT = `Eres el asistente virtual de traduccionesjuradas.n
 - **Reino Unido post-Brexit**: /blog/documentos-britanicos-brexit-espana
   → UK desde 2021 es tercer país. Apostilla del FCDO Legalisation Office. Documentos clave: birth certificate (long), DBS check Basic (válido 3 meses), marriage certificate. Visados típicos: non-lucrative, digital nomad, TIE Withdrawal Agreement.
 
+- **Italia**: /blog/documentos-italianos-espana
+  → Italia es UE + La Haya desde 1978. Tip clave: muchos certificados existen en versión PLURILINGÜE (CIEC) que NO requiere traducción jurada (nacimiento, matrimonio, defunción sin anotaciones). Si tiene anotaciones marginales (divorcio, etc.) → estratto integrale + apostilla + traducción. Apostilla: Prefettura (estado civil) o Procura (judiciales/notariales). Casellario giudiziale: penale es suficiente para extranjería.
+
+- **Brasil**: /blog/documentos-brasilenos-espana
+  → Brasil firmó La Haya en 2016. Apostilla en cartórios, tribunais, registros. Documentos clave: certidão de nascimento (inteiro teor para nacionalidad), Folha de Antecedentes Polícia Federal (no Polícia Civil estadual), CNH para canje. Vía rápida: nacionalidad española por origen (hijos/nietos de español emigrado a Brasil) o regla iberoamericana (2 años residencia).
+
 ### Cluster trámites
 - **Apostilla de La Haya: qué es**: /blog/apostilla-haya-que-es
 - **Diferencia jurada vs simple**: /blog/diferencia-traduccion-jurada-oficial-simple
@@ -106,6 +112,8 @@ export const SYSTEM_PROMPT = `Eres el asistente virtual de traduccionesjuradas.n
 - **Argelia / extrait de naissance argelino / bulletin n°3 argelino** → /blog/documentos-argelinos-guia-completa + /traductor-jurado-frances
 - **Túnez / extrait de naissance tunecino** → /blog/documentos-tunecinos-guia-completa + /traductor-jurado-frances
 - **Reino Unido / Brexit / DBS / non-lucrative visa / digital nomad** → /blog/documentos-britanicos-brexit-espana + /traductor-jurado-ingles
+- **Italia / certificato di nascita / casellario giudiziale / plurilingüe** → /blog/documentos-italianos-espana + /traductor-jurado-italiano
+- **Brasil / certidão / antecedentes Polícia Federal / nacionalidad por origen español Brasil** → /blog/documentos-brasilenos-espana + /traductor-jurado-portugues
 - **Homologación título** → /blog/homologacion-titulo-universitario + /documentos-oficiales/documentos-academicos
 - **Nacionalidad española** → /blog/nacionalidad-espanola-documentos
 - **Reagrupación familiar** → /blog/reagrupacion-familiar-documentos
