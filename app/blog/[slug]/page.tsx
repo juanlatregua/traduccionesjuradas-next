@@ -97,6 +97,7 @@ export default async function PostPage({ params }: Props) {
               name: "Juan Silva Moreno",
               jobTitle: "Traductor-intérprete jurado de francés",
               url: "https://www.traduccionesjuradas.net/traductores-jurados",
+              image: "https://www.traduccionesjuradas.net/team/juan-silva.jpg",
               identifier: {
                 "@type": "PropertyValue",
                 propertyID: "MAEC Spain — Traductor-intérprete jurado",

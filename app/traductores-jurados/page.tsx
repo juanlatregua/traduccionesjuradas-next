@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import Link from "next/link";
+import Image from "next/image";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
@@ -41,6 +42,7 @@ export default function TraductoresJuradosPage() {
               "@type": "Person",
               "@id": "https://www.traduccionesjuradas.net/traductores-jurados#juan-silva",
             },
+            image: "https://www.traduccionesjuradas.net/team/juan-silva.jpg",
             dateCreated: "2026-01-01",
             dateModified: "2026-04-29",
             inLanguage: "es-ES",
@@ -78,16 +80,33 @@ export default function TraductoresJuradosPage() {
         <h2 className="text-lg font-semibold text-encre">
           ¿Quién está detrás de traduccionesjuradas.net?
         </h2>
-        <p>
-          El proyecto está impulsado por Juan Silva Moreno, traductor jurado
-          de francés (n.º 3850, Ministerio de Asuntos Exteriores), con
-          amplia experiencia en traducción jurada de documentos para extranjería,
-          Registro Civil, universidades, notarías y procedimientos judiciales.
-          Con los años, hemos creado una red de colaboradores traductores
-          jurados de otros idiomas (alemán, inglés, neerlandés, italiano,
-          portugués, catalán, sueco, noruego…) para poder dar respuesta a
-          expedientes más complejos.
-        </p>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+          <div className="shrink-0 self-center sm:self-start">
+            <Image
+              src="/team/juan-silva.jpg"
+              alt="Juan Silva Moreno — traductor-intérprete jurado de francés MAEC nº 3850"
+              width={200}
+              height={244}
+              priority
+              className="w-40 h-auto rounded-2xl object-cover border border-cream shadow-paper sm:w-48"
+            />
+            <p className="mt-2 text-center text-[11px] text-graphite sm:text-left">
+              Juan Silva Moreno
+              <br />
+              <span className="font-semibold text-or-dark">Traductor jurado nº 3850 — MAEC</span>
+            </p>
+          </div>
+          <p className="flex-1">
+            El proyecto está impulsado por Juan Silva Moreno, traductor jurado
+            de francés (n.º 3850, Ministerio de Asuntos Exteriores), con
+            amplia experiencia en traducción jurada de documentos para extranjería,
+            Registro Civil, universidades, notarías y procedimientos judiciales.
+            Con los años, hemos creado una red de colaboradores traductores
+            jurados de otros idiomas (alemán, inglés, neerlandés, italiano,
+            portugués, catalán, sueco, noruego…) para poder dar respuesta a
+            expedientes más complejos.
+          </p>
+        </div>
         {/* Tarjeta E-E-A-T */}
         <div className="my-6 rounded-2xl border border-cream bg-cream/60 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-bleu">

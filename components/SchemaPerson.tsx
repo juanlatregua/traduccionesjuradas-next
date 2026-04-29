@@ -10,6 +10,7 @@ export function SchemaPerson({ id }: Props) {
     name: "Juan Silva Moreno",
     givenName: "Juan",
     familyName: "Silva Moreno",
+    image: "https://www.traduccionesjuradas.net/team/juan-silva.jpg",
     jobTitle: "Traductor-intérprete jurado de francés",
     description:
       "Traductor-intérprete jurado de francés nombrado por el Ministerio de Asuntos Exteriores de España (MAEC nº 3850). Especializado en documentación civil, académica, jurídica y mercantil entre francés y español.",
