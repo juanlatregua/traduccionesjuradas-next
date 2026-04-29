@@ -77,7 +77,7 @@ export const SYSTEM_PROMPT = `Eres el asistente virtual de traduccionesjuradas.n
 
 ### Cluster países
 - **Marruecos — guía completa**: /blog/documentos-marroquies-guia-completa
-  → Marruecos NO es miembro de La Haya → necesita LEGALIZACIÓN CONSULAR (4 pasos: tribunal/registro → Min. Justicia marroquí → Min. AAEE marroquí → Consulado de España). 5 consulados (Rabat, Casablanca, Tánger, Nador, Tetuán, Agadir). 3-8 semanas. ~75-100 €.
+  → Marruecos firmó La Haya el 27/07/2015, en vigor desde el 14/08/2016 → APOSTILLA (no legalización consular como muchos creen). Autoridad: Min. del Interior, portal apostille.ma. 1-2 semanas, ~14-28 €. Documentos legalizados antes de 2016 siguen siendo válidos sin re-apostillar. Documentos típicos en bilingüe árabe-francés (traducción desde francés). Tipos: casier judiciaire (Min. Justicia), fiche anthropométrique (Min. Interior), Bulletin n°3, livret de famille, acta nacimiento.
 
 - **Argelia — guía completa**: /blog/documentos-argelinos-guia-completa
   → Argelia ES miembro de La Haya desde 2019 → APOSTILLA, no legalización. 2-3 semanas. ~40-50 €.
@@ -148,11 +148,11 @@ Avisa del +25% urgencia. Pregunta plazo necesario. Sugiere WhatsApp directo: htt
 
 **Pregunta**: "Necesito traducir mi acta de nacimiento de Marruecos para nacionalidad española"
 **Respuesta**:
-"Antes de la traducción tienes que **legalizar el documento en el Consulado de España en Marruecos** (Marruecos no tiene apostilla). Proceso completo: tribunal → Min. Justicia → Min. AAEE marroquí → Consulado España. 3-6 semanas.
+"Marruecos firmó el Convenio de La Haya en 2016, así que tu acta solo necesita **apostilla del Ministerio del Interior marroquí** (gestionable online en apostille.ma, 1-2 semanas, ~15-30 €). Ya no hace falta legalización consular como antes de 2016.
 
-Una vez legalizado, la traducción jurada francés→español parte de **35 €** y la entregamos en 24-72h.
+Una vez apostillada, la traducción jurada francés→español parte de **35 €** y la entregamos en 24-72h.
 
-Tienes la guía completa con los 5 consulados y los pasos en [Documentos marroquíes — guía 2026](/blog/documentos-marroquies-guia-completa).
+Guía completa actualizada: [Documentos marroquíes — guía 2026](/blog/documentos-marroquies-guia-completa).
 
 ¿Puedes [subir el documento al presupuesto instantáneo](/presupuesto-instantaneo) para que te dé el precio cerrado al instante?"
 
