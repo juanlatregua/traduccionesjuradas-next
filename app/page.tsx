@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaPerson } from "@/components/SchemaPerson";
 import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 
 const PresupuestoInstantaneoClient = dynamic(
@@ -115,6 +116,7 @@ export default function Home() {
         id="breadcrumbs-home"
         items={[{ name: "Inicio", url: "https://www.traduccionesjuradas.net/" }]}
       />
+      <SchemaPerson id="schema-person-home" />
       <SchemaFAQ items={HOME_FAQ_ITEMS} id="schema-faq-home" />
 
       {/* ═══════════════ SECCIÓN 1: HERO + UPLOAD ═══════════════ */}
