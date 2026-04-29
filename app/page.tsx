@@ -6,6 +6,7 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
+import { SchemaHowTo } from "@/components/SchemaHowTo";
 import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 
 const PresupuestoInstantaneoClient = dynamic(
@@ -118,6 +119,25 @@ export default function Home() {
       />
       <SchemaPerson id="schema-person-home" />
       <SchemaFAQ items={HOME_FAQ_ITEMS} id="schema-faq-home" />
+      <SchemaHowTo
+        id="schema-howto-home"
+        name="Cómo pedir una traducción jurada online"
+        description="Sube tu documento, recibe presupuesto cerrado al instante y paga online. Recibirás la traducción jurada firmada digitalmente por traductor jurado oficial MAEC nº 3850 en 24-72 horas."
+        steps={[
+          {
+            name: "Sube tu documento",
+            text: "Arrastra el PDF o haz una foto con el móvil. Aceptamos PDF, JPG, PNG, HEIC y TIFF de hasta 20 MB.",
+          },
+          {
+            name: "Recibe precio cerrado al instante",
+            text: "Analizamos automáticamente el documento (idioma, tipo, extensión) y te mostramos el precio final, sin sorpresas.",
+          },
+          {
+            name: "Paga y recibe tu traducción",
+            text: "Pagas online con tarjeta o transferencia. Recibes en 24-72 horas la traducción jurada en PDF firmado digitalmente, válida ante administraciones y notarías de toda España.",
+          },
+        ]}
+      />
 
       {/* ═══════════════ SECCIÓN 1: HERO + UPLOAD ═══════════════ */}
       <section id="hero" className="border-b border-cream bg-parchment">
