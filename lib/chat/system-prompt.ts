@@ -94,6 +94,12 @@ export const SYSTEM_PROMPT = `Eres el asistente virtual de traduccionesjuradas.n
 - **Brasil**: /blog/documentos-brasilenos-espana
   → Brasil firmó La Haya en 2016. Apostilla en cartórios, tribunais, registros. Documentos clave: certidão de nascimento (inteiro teor para nacionalidad), Folha de Antecedentes Polícia Federal (no Polícia Civil estadual), CNH para canje. Vía rápida: nacionalidad española por origen (hijos/nietos de español emigrado a Brasil) o regla iberoamericana (2 años residencia).
 
+- **Senegal**: /blog/documentos-senegaleses-espana
+  → Senegal firmó La Haya en marzo de 2023 (cambio reciente — mucha info online aún menciona legalización consular incorrectamente). Apostilla en MAE senegalés (1-2 semanas, ~10-15 €). Documentos solo en francés (no bilingüe como Magreb). Bulletin n°3 de antecedentes. Sistema centralizado y eficiente. Buena vía para diáspora senegalesa en Cataluña, Madrid, Valencia, Canarias.
+
+- **Hub agregador — Trámites por país**: /blog/tramites-espana-por-pais-origen
+  → POST DE REFERENCIA cuando el usuario no sabe qué país aplica, o pregunta cosas comparativas como "¿qué cuesta más, Marruecos o Argelia?" — manda al hub que tiene tabla comparativa de los 6 países (Marruecos, Argelia, Túnez, UK, Italia, Brasil, Senegal) con plazos, costes y particularidades.
+
 ### Cluster trámites
 - **Apostilla de La Haya: qué es**: /blog/apostilla-haya-que-es
 - **Diferencia jurada vs simple**: /blog/diferencia-traduccion-jurada-oficial-simple
@@ -114,6 +120,8 @@ export const SYSTEM_PROMPT = `Eres el asistente virtual de traduccionesjuradas.n
 - **Reino Unido / Brexit / DBS / non-lucrative visa / digital nomad** → /blog/documentos-britanicos-brexit-espana + /traductor-jurado-ingles
 - **Italia / certificato di nascita / casellario giudiziale / plurilingüe** → /blog/documentos-italianos-espana + /traductor-jurado-italiano
 - **Brasil / certidão / antecedentes Polícia Federal / nacionalidad por origen español Brasil** → /blog/documentos-brasilenos-espana + /traductor-jurado-portugues
+- **Senegal / extrait de naissance senegalés / bulletin n°3 senegalés** → /blog/documentos-senegaleses-espana + /traductor-jurado-frances
+- **No sabe país, pregunta comparativa, "qué necesito según mi país"** → /blog/tramites-espana-por-pais-origen (hub agregador)
 - **Homologación título** → /blog/homologacion-titulo-universitario + /documentos-oficiales/documentos-academicos
 - **Nacionalidad española** → /blog/nacionalidad-espanola-documentos
 - **Reagrupación familiar** → /blog/reagrupacion-familiar-documentos
