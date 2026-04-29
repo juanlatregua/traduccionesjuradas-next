@@ -290,7 +290,7 @@ export default function OrderDocumentsPanel({
                     {doc.uploadedAt ? ` · ${new Date(doc.uploadedAt).toLocaleString("es-ES")}` : ""}
                   </p>
                 </div>
-                {doc.url ? (
+                {doc.url && doc.url.startsWith("http") ? (
                   <a
                     href={doc.url}
                     target="_blank"
@@ -300,7 +300,7 @@ export default function OrderDocumentsPanel({
                     Abrir documento
                   </a>
                 ) : (
-                  <span className="text-[11px] text-slate-500">Sin enlace (registro antiguo)</span>
+                  <span className="text-[11px] text-slate-500">{doc.url?.includes("DELETED") ? "Eliminado (GDPR)" : "Sin enlace"}</span>
                 )}
               </li>
             ))}
