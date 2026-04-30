@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/admin/quotes", label: "Presupuestos" },
   { href: "/admin/orders", label: "Pedidos" },
   { href: "/admin/collaborators", label: "Colaboradores" },
+  { href: "/admin/chat", label: "Chat AI" },
 ] as const;
 
 export function AdminNav() {
