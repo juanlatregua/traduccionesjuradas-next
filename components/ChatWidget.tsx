@@ -4,10 +4,21 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { WHATSAPP_LINK } from "@/lib/contact";
 import { RichMessage } from "@/lib/chat/format-response";
 
+type Attachment = {
+  fileName: string;
+  mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+  base64: string;
+  previewUrl: string;
+};
+
 type Message = {
   role: "user" | "assistant";
   content: string;
+  attachments?: Attachment[];
 };
+
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
@@ -26,6 +37,23 @@ const MAX_MESSAGES = 20;
 const SESSION_KEY = "chatbot_session";
 const MESSAGES_KEY = "chatbot_messages";
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("FileReader returned non-string"));
+        return;
+      }
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -42,6 +70,9 @@ export default function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   // Persist sessionId
   useEffect(() => {
@@ -64,10 +95,15 @@ export default function ChatWidget() {
     }
   }, []);
 
-  // Save messages to sessionStorage
+  // Save messages to sessionStorage (strip attachments — base64 too large + blob URLs don't survive reload)
   useEffect(() => {
     if (messages.length > 1) {
-      sessionStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+      const slim = messages.map(({ role, content }) => ({ role, content }));
+      try {
+        sessionStorage.setItem(MESSAGES_KEY, JSON.stringify(slim));
+      } catch {
+        // quota exceeded — drop silently
+      }
     }
   }, [messages]);
 
@@ -133,8 +169,10 @@ export default function ChatWidget() {
   }, []);
 
   const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text.trim() || isStreaming) return;
+    async (text: string, attachments: Attachment[] = []) => {
+      const trimmedText = text.trim();
+      if (!trimmedText && attachments.length === 0) return;
+      if (isStreaming) return;
 
       if (userMessageCount >= MAX_MESSAGES || rateLimited) {
         setRateLimited(true);
@@ -142,16 +180,43 @@ export default function ChatWidget() {
       }
 
       setShowQuickReplies(false);
-      const userMsg: Message = { role: "user", content: text.trim() };
+      const userMsg: Message = {
+        role: "user",
+        content: trimmedText,
+        attachments: attachments.length > 0 ? attachments : undefined,
+      };
       const updatedMessages = [...messages, userMsg];
       setMessages(updatedMessages);
       setInput("");
+      setPendingAttachments([]);
+      setAttachmentError(null);
       setIsStreaming(true);
 
       // Only send user/assistant messages (skip the welcome message for API)
       const apiMessages = updatedMessages
-        .filter((_, i) => i > 0) // skip welcome
-        .map((m) => ({ role: m.role, content: m.content }));
+        .filter((_, i) => i > 0)
+        .map((m) => {
+          if (m.role === "user" && m.attachments && m.attachments.length > 0) {
+            const blocks: Array<
+              | { type: "text"; text: string }
+              | {
+                  type: "image";
+                  source: { type: "base64"; media_type: string; data: string };
+                  fileName?: string;
+                }
+            > = [];
+            for (const att of m.attachments) {
+              blocks.push({
+                type: "image",
+                source: { type: "base64", media_type: att.mediaType, data: att.base64 },
+                fileName: att.fileName,
+              });
+            }
+            if (m.content) blocks.push({ type: "text", text: m.content });
+            return { role: m.role, content: blocks };
+          }
+          return { role: m.role, content: m.content };
+        });
 
       try {
         const res = await fetch("/api/chat", {
@@ -240,7 +305,7 @@ export default function ChatWidget() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(input);
+    sendMessage(input, pendingAttachments);
   };
 
   const handleQuickReply = (reply: (typeof QUICK_REPLIES)[number]) => {
@@ -255,7 +320,45 @@ export default function ChatWidget() {
     setMessages([WELCOME_MESSAGE]);
     setShowQuickReplies(true);
     setRateLimited(false);
+    setPendingAttachments([]);
+    setAttachmentError(null);
     sessionStorage.removeItem(MESSAGES_KEY);
+  };
+
+  const handleFileSelect = useCallback(async (file: File) => {
+    setAttachmentError(null);
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setAttachmentError("Formato no permitido. Usa JPG, PNG o WEBP.");
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setAttachmentError("Imagen demasiado grande (máximo 5 MB).");
+      return;
+    }
+    try {
+      const base64 = await fileToBase64(file);
+      const previewUrl = URL.createObjectURL(file);
+      setPendingAttachments((prev) => [
+        ...prev,
+        {
+          fileName: file.name,
+          mediaType: file.type as Attachment["mediaType"],
+          base64,
+          previewUrl,
+        },
+      ]);
+    } catch (err) {
+      console.error("[ChatWidget] File read error:", err);
+      setAttachmentError("No se pudo leer el archivo.");
+    }
+  }, []);
+
+  const removeAttachment = (index: number) => {
+    setPendingAttachments((prev) => {
+      const att = prev[index];
+      if (att) URL.revokeObjectURL(att.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const panelVisible = isOpen || isClosing;
@@ -373,6 +476,19 @@ export default function ChatWidget() {
                       : "rounded-[4px_12px_12px_12px] border-l-[3px] border-or bg-cream text-sepia"
                   }`}
                 >
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {msg.attachments.map((att, ai) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={ai}
+                          src={att.previewUrl}
+                          alt={att.fileName}
+                          className="h-20 w-20 rounded-md object-cover ring-1 ring-white/40"
+                        />
+                      ))}
+                    </div>
+                  )}
                   {msg.role === "assistant" ? (
                     <RichMessage content={msg.content} />
                   ) : (
@@ -445,8 +561,60 @@ export default function ChatWidget() {
           {!rateLimited && (
             <form
               onSubmit={handleSubmit}
-              className="flex items-end gap-2 border-t border-cream bg-card px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-2"
+              className="flex flex-col gap-2 border-t border-cream bg-card px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-2"
             >
+              {pendingAttachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {pendingAttachments.map((att, i) => (
+                    <div
+                      key={i}
+                      className="relative h-14 w-14 overflow-hidden rounded-md ring-1 ring-bleu/20"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={att.previewUrl}
+                        alt={att.fileName}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(i)}
+                        aria-label={`Quitar ${att.fileName}`}
+                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-graphite/80 text-[10px] leading-none text-white hover:bg-graphite"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attachmentError && (
+                <p className="text-xs text-red-600">{attachmentError}</p>
+              )}
+              <div className="flex items-end gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Adjuntar imagen"
+                disabled={isStreaming || pendingAttachments.length >= 3}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-cream/50 bg-parchment text-bleu transition-colors hover:bg-cream/50 disabled:opacity-40"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                </svg>
+              </button>
               <textarea
                 ref={inputRef}
                 value={input}
@@ -472,7 +640,7 @@ export default function ChatWidget() {
               />
               <button
                 type="submit"
-                disabled={isStreaming || !input.trim()}
+                disabled={isStreaming || (!input.trim() && pendingAttachments.length === 0)}
                 aria-label="Enviar mensaje"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bleu text-parchment transition-colors hover:bg-bleu-dark disabled:opacity-40"
               >
@@ -480,6 +648,7 @@ export default function ChatWidget() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                 </svg>
               </button>
+              </div>
             </form>
           )}
         </div>

@@ -7,11 +7,35 @@ import { sanitizeMessage, isPromptInjection } from "@/lib/chat/sanitize";
 import { detectLanguage } from "@/lib/chat/detect-language";
 import { CHAT_TOOLS, executeToolCall } from "@/lib/chat/tools";
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type ImageBlock = {
+  type: "image";
+  source: {
+    type: "base64";
+    media_type: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+    data: string;
+  };
+  fileName?: string;
+};
+
+type TextBlock = { type: "text"; text: string };
+
+type ContentBlock = TextBlock | ImageBlock;
+
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string | ContentBlock[];
+};
 
 const anthropic = new Anthropic();
 const MAX_TOOL_ITERATIONS = 5;
 const MODEL = "claude-sonnet-4-20250514";
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES: ImageBlock["source"]["media_type"][] = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
 
 async function hashIp(ip: string): Promise<string> {
   const data = new TextEncoder().encode(ip);
@@ -35,12 +59,31 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: false, error: "Last message must be from user" }, { status: 400 });
     }
 
-    const sanitized = sanitizeMessage(lastMsg.content);
-    if (!sanitized) {
+    const lastText = extractText(lastMsg.content);
+    const lastImages = extractImages(lastMsg.content);
+
+    for (const img of lastImages) {
+      if (!ALLOWED_IMAGE_TYPES.includes(img.source.media_type)) {
+        return Response.json(
+          { ok: false, error: "Tipo de imagen no permitido. Usa JPG, PNG o WEBP." },
+          { status: 400 },
+        );
+      }
+      const approxBytes = Math.floor((img.source.data.length * 3) / 4);
+      if (approxBytes > MAX_IMAGE_BYTES) {
+        return Response.json(
+          { ok: false, error: "Imagen demasiado grande (máximo 5 MB)." },
+          { status: 400 },
+        );
+      }
+    }
+
+    const sanitized = sanitizeMessage(lastText);
+    if (!sanitized && lastImages.length === 0) {
       return Response.json({ ok: false, error: "Empty message" }, { status: 400 });
     }
 
-    if (isPromptInjection(sanitized)) {
+    if (sanitized && isPromptInjection(sanitized)) {
       const rejectionMsg = "No puedo procesar esa solicitud. ¿En qué puedo ayudarte con traducciones juradas?";
       const enc = new TextEncoder();
       const rejectionStream = new ReadableStream({
@@ -102,17 +145,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const messages: ChatMessage[] = rawMessages.map((m) => ({
-      role: m.role,
-      content: sanitizeMessage(m.content),
-    }));
+    const messages: ChatMessage[] = rawMessages.map((m) => sanitizeChatMessage(m));
 
     const detectedLanguage = detectLanguage(sanitized);
 
     const apiMessages: Anthropic.MessageParam[] = messages.map((m) => ({
       role: m.role,
-      content: m.content,
+      content: toApiContent(m.content),
     }));
+
+    const messagesForDb: { role: "user" | "assistant"; content: string }[] = messages.map(
+      (m) => ({ role: m.role, content: contentToText(m.content) }),
+    );
 
     let fullVisibleResponse = "";
     const encoder = new TextEncoder();
@@ -185,7 +229,7 @@ export async function POST(req: NextRequest) {
 
           const detectedIntent = detectIntent(sanitized);
           const savedMessages = [
-            ...messages,
+            ...messagesForDb,
             { role: "assistant" as const, content: fullVisibleResponse },
           ];
 
@@ -237,6 +281,75 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+function extractText(content: ChatMessage["content"]): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((b): b is TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n");
+}
+
+function extractImages(content: ChatMessage["content"]): ImageBlock[] {
+  if (typeof content === "string") return [];
+  return content.filter((b): b is ImageBlock => b.type === "image");
+}
+
+function sanitizeChatMessage(m: ChatMessage): ChatMessage {
+  if (typeof m.content === "string") {
+    return { role: m.role, content: sanitizeMessage(m.content) };
+  }
+  const blocks: ContentBlock[] = m.content
+    .map((b): ContentBlock | null => {
+      if (b.type === "text") return { type: "text", text: sanitizeMessage(b.text) };
+      if (b.type === "image") {
+        if (!ALLOWED_IMAGE_TYPES.includes(b.source.media_type)) return null;
+        return {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: b.source.media_type,
+            data: b.source.data,
+          },
+          fileName: b.fileName,
+        };
+      }
+      return null;
+    })
+    .filter((b): b is ContentBlock => b !== null);
+  return { role: m.role, content: blocks };
+}
+
+function toApiContent(
+  content: ChatMessage["content"],
+): string | Anthropic.Messages.ContentBlockParam[] {
+  if (typeof content === "string") return content;
+  return content.map((b) => {
+    if (b.type === "image") {
+      return {
+        type: "image" as const,
+        source: {
+          type: "base64" as const,
+          media_type: b.source.media_type,
+          data: b.source.data,
+        },
+      };
+    }
+    return { type: "text" as const, text: b.text };
+  });
+}
+
+function contentToText(content: ChatMessage["content"]): string {
+  if (typeof content === "string") return content;
+  return content
+    .map((b) => {
+      if (b.type === "text") return b.text;
+      const name = b.fileName ?? "imagen adjunta";
+      return `[imagen: ${name}]`;
+    })
+    .join(" ")
+    .trim();
 }
 
 function detectIntent(text: string): string {
