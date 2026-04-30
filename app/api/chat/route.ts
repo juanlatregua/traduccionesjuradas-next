@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -158,6 +159,19 @@ export async function POST(req: NextRequest) {
       (m) => ({ role: m.role, content: contentToText(m.content) }),
     );
 
+    const hasAttachment = messages.some(
+      (m) => m.role === "user" && extractImages(m.content).length > 0,
+    );
+
+    type ToolCallLog = {
+      name: string;
+      durationMs: number;
+      iteration: number;
+      hadError: boolean;
+      input: unknown;
+    };
+    const toolCallLog: ToolCallLog[] = [];
+
     let fullVisibleResponse = "";
     const encoder = new TextEncoder();
 
@@ -200,8 +214,16 @@ export async function POST(req: NextRequest) {
             const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
             for (const block of final.content) {
               if (block.type !== "tool_use") continue;
+              const startedAt = Date.now();
               try {
                 const result = await executeToolCall(block.name, block.input);
+                toolCallLog.push({
+                  name: block.name,
+                  durationMs: Date.now() - startedAt,
+                  iteration: iter,
+                  hadError: false,
+                  input: block.input,
+                });
                 toolResults.push({
                   type: "tool_result",
                   tool_use_id: block.id,
@@ -209,6 +231,13 @@ export async function POST(req: NextRequest) {
                 });
               } catch (err) {
                 console.error(`[chat] Tool ${block.name} error:`, err);
+                toolCallLog.push({
+                  name: block.name,
+                  durationMs: Date.now() - startedAt,
+                  iteration: iter,
+                  hadError: true,
+                  input: block.input,
+                });
                 toolResults.push({
                   type: "tool_result",
                   tool_use_id: block.id,
@@ -233,6 +262,20 @@ export async function POST(req: NextRequest) {
             { role: "assistant" as const, content: fullVisibleResponse },
           ];
 
+          let priorToolCalls: ToolCallLog[] = [];
+          try {
+            const existing = await prisma.chatSession.findUnique({
+              where: { sessionId },
+              select: { toolCalls: true },
+            });
+            if (Array.isArray(existing?.toolCalls)) {
+              priorToolCalls = existing.toolCalls as unknown as ToolCallLog[];
+            }
+          } catch {
+            // ignore — fall through to create path
+          }
+          const mergedToolCalls = [...priorToolCalls, ...toolCallLog];
+
           await prisma.chatSession
             .upsert({
               where: { sessionId },
@@ -243,12 +286,16 @@ export async function POST(req: NextRequest) {
                 detectedIntent,
                 ipHash,
                 messageCount: savedMessages.length,
+                toolCalls: toolCallLog as unknown as Prisma.InputJsonValue,
+                hasAttachment,
               },
               update: {
                 messages: savedMessages,
                 detectedLanguage,
                 detectedIntent,
                 messageCount: savedMessages.length,
+                toolCalls: mergedToolCalls as unknown as Prisma.InputJsonValue,
+                hasAttachment: hasAttachment ? true : undefined,
                 updatedAt: new Date(),
               },
             })

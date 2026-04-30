@@ -23,7 +23,7 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
   content:
-    "¡Hola! Soy el asistente de traduccionesjuradas.net. ¿En qué puedo ayudarte?\n\nPuedo orientarte sobre:\n• Precio de tu traducción jurada\n• Plazos de entrega\n• Documentos necesarios para tu trámite\n• Paquete teletrabajo Marruecos → España",
+    "¡Hola! Soy el asistente de traduccionesjuradas.net. ¿En qué puedo ayudarte?\n\nPuedo orientarte sobre:\n• Precio de tu traducción jurada\n• Plazos de entrega\n• Documentos necesarios para tu trámite\n• Paquete teletrabajo Marruecos → España\n\n📎 Tip: puedes adjuntar una foto de tu documento y te digo al instante el precio orientativo. ¿No sabes cómo escanear bien? [Mira esta guía rápida](/como-escanear-bien).",
 };
 
 const QUICK_REPLIES = [
