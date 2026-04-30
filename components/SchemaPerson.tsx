@@ -1,4 +1,3 @@
-import Script from "next/script";
 
 type Props = { id?: string };
 
@@ -42,11 +41,6 @@ export function SchemaPerson({ id }: Props) {
     ],
   };
   return (
-    <Script
-      id={id || "schema-person"}
-      type="application/ld+json"
-      strategy="afterInteractive"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }

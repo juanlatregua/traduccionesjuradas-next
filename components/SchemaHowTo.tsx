@@ -1,4 +1,3 @@
-import Script from "next/script";
 
 type Step = { name: string; text: string };
 
@@ -23,11 +22,6 @@ export function SchemaHowTo({ name, description, steps, id }: Props) {
     })),
   };
   return (
-    <Script
-      id={id || "schema-howto"}
-      type="application/ld+json"
-      strategy="afterInteractive"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }

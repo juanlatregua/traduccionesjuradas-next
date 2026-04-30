@@ -1,4 +1,3 @@
-import Script from "next/script";
 
 type QA = { question: string; answer: string };
 
@@ -15,11 +14,6 @@ export function SchemaFAQ({ items, id }: Props) {
     })),
   };
   return (
-    <Script
-      id={id || "schema-faq"}
-      type="application/ld+json"
-      strategy="afterInteractive"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }

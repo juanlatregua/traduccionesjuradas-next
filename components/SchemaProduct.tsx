@@ -1,4 +1,3 @@
-import Script from "next/script";
 
 type Offer = {
   price: string;
@@ -120,10 +119,8 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
   };
 
   return (
-    <Script
-      id={`schema-product-${sku || name.toLowerCase().replace(/\s+/g, "-")}`}
+    <script
       type="application/ld+json"
-      strategy="afterInteractive"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
     />
   );
