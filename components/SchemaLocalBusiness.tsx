@@ -1,4 +1,3 @@
-import Script from "next/script";
 
 type Props = { id?: string };
 
@@ -36,11 +35,6 @@ export function SchemaLocalBusiness({ id }: Props) {
     ],
   };
   return (
-    <Script
-      id={id || "schema-local-business"}
-      type="application/ld+json"
-      strategy="afterInteractive"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }

@@ -1,4 +1,3 @@
-import Script from "next/script";
 
 type Crumb = { name: string; url: string };
 
@@ -16,11 +15,6 @@ export function SchemaBreadcrumbs({ items, id }: Props) {
     })),
   };
   return (
-    <Script
-      id={id || "schema-breadcrumbs"}
-      type="application/ld+json"
-      strategy="afterInteractive"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
