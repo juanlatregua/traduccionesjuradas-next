@@ -7,6 +7,12 @@ import type { Quote } from "@/lib/pricing-engine/calculator";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import type { PendingDoc } from "@/components/ia/LeadGate";
 import { MessageCircle, RotateCcw, Mail } from "lucide-react";
+import {
+  getRecentOrders,
+  saveCompletedOrder,
+  removeOrder,
+  type StoredOrder,
+} from "@/lib/order-tracker-storage";
 
 const DocumentUploader = dynamic(
   () => import("@/components/ia/DocumentUploader"),
@@ -72,6 +78,11 @@ export default function PresupuestoInstantaneoClient() {
   const [errorGdpr, setErrorGdpr] = useState(false);
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
   const [currentFileSize, setCurrentFileSize] = useState(0);
+  const [recentOrders, setRecentOrders] = useState<StoredOrder[]>([]);
+
+  useEffect(() => {
+    setRecentOrders(getRecentOrders());
+  }, []);
 
   // Restore state from sessionStorage on mount
   useEffect(() => {
@@ -188,10 +199,34 @@ export default function PresupuestoInstantaneoClient() {
     setStep("payment");
   }, []);
 
-  const handlePaymentSuccess = useCallback((ref: string) => {
-    sessionStorage.removeItem("funnel_state");
-    setOrderReference(ref);
-    setStep("success");
+  const handlePaymentSuccess = useCallback(
+    (ref: string) => {
+      sessionStorage.removeItem("funnel_state");
+      const docType =
+        documents.length === 1
+          ? documents[0].analysis.document_type.specific_type_es
+          : documents.length > 1
+            ? `${documents.length} documentos`
+            : undefined;
+      const eta = isUrgent
+        ? documents[0]?.quote.estimatedDaysUrgent
+        : documents[0]?.quote.estimatedDaysStandard;
+      saveCompletedOrder({
+        reference: ref,
+        documentType: docType,
+        estimatedDelivery: eta,
+        status: "PAID",
+      });
+      setRecentOrders(getRecentOrders());
+      setOrderReference(ref);
+      setStep("success");
+    },
+    [documents, isUrgent],
+  );
+
+  const handleDismissRecentOrder = useCallback((ref: string) => {
+    removeOrder(ref);
+    setRecentOrders(getRecentOrders());
   }, []);
 
   const handleTargetLanguageChange = useCallback(
@@ -242,8 +277,59 @@ export default function PresupuestoInstantaneoClient() {
   );
   const latestAnalysis = documents.length > 0 ? documents[documents.length - 1].analysis : null;
 
+  // On the success screen the active order also appears in recentOrders
+  // — hide that single entry from the recent panel to avoid duplication.
+  const recentToShow = recentOrders.filter(
+    (o) => !(step === "success" && o.reference === orderReference),
+  );
+
   return (
     <div className="space-y-6">
+      {recentToShow.length > 0 && step === "upload" && (
+        <section className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <h3 className="font-baskerville text-lg text-encre">Tus pedidos recientes</h3>
+            <span className="text-xs text-graphite/60">
+              Guardados en este navegador
+            </span>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {recentToShow.map((o) => (
+              <li
+                key={o.reference}
+                className="flex items-center justify-between gap-3 rounded-lg border border-graphite/10 bg-cream px-4 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-encre">{o.reference}</p>
+                  {o.documentType && (
+                    <p className="truncate text-xs text-graphite">{o.documentType}</p>
+                  )}
+                  {o.estimatedDelivery && (
+                    <p className="text-xs text-bleu">Entrega: {o.estimatedDelivery}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/area-cliente/pedido/${o.reference}`}
+                    className="rounded-lg bg-bleu px-3 py-1.5 text-xs font-semibold text-white hover:bg-bleu/90"
+                  >
+                    Ver pedido
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleDismissRecentOrder(o.reference)}
+                    aria-label={`Quitar ${o.reference} de la lista`}
+                    className="text-xs text-graphite/60 hover:text-graphite"
+                  >
+                    ×
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {restoredFromStorage && step !== "success" && (
         <div className="rounded-lg border border-bleu/20 bg-bleu/5 px-4 py-3 text-sm text-encre">
           Hemos recuperado tus datos. Si habías subido un documento, solo necesitas subirlo de nuevo.
