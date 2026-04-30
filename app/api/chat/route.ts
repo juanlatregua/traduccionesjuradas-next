@@ -5,10 +5,13 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { SYSTEM_PROMPT } from "@/lib/chat/system-prompt";
 import { sanitizeMessage, isPromptInjection } from "@/lib/chat/sanitize";
 import { detectLanguage } from "@/lib/chat/detect-language";
+import { CHAT_TOOLS, executeToolCall } from "@/lib/chat/tools";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const anthropic = new Anthropic();
+const MAX_TOOL_ITERATIONS = 5;
+const MODEL = "claude-sonnet-4-20250514";
 
 async function hashIp(ip: string): Promise<string> {
   const data = new TextEncoder().encode(ip);
@@ -23,12 +26,10 @@ export async function POST(req: NextRequest) {
     const rawMessages: ChatMessage[] = body.messages ?? [];
     const sessionId: string = body.sessionId ?? crypto.randomUUID();
 
-    // Validate messages
     if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
       return Response.json({ ok: false, error: "Messages required" }, { status: 400 });
     }
 
-    // Sanitize & check last user message
     const lastMsg = rawMessages[rawMessages.length - 1];
     if (!lastMsg || lastMsg.role !== "user") {
       return Response.json({ ok: false, error: "Last message must be from user" }, { status: 400 });
@@ -40,7 +41,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (isPromptInjection(sanitized)) {
-      // Return friendly response as SSE stream (not a 400 error)
       const rejectionMsg = "No puedo procesar esa solicitud. ¿En qué puedo ayudarte con traducciones juradas?";
       const enc = new TextEncoder();
       const rejectionStream = new ReadableStream({
@@ -59,14 +59,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Rate limits
     const clientIp = getClientIp(req);
     const ipHash = await hashIp(clientIp);
 
     const sessionLimit = await checkRateLimit({
       key: `chat:session:${sessionId}`,
       limit: 20,
-      windowMs: 3_600_000, // 1 hour
+      windowMs: 3_600_000,
     });
 
     if (!sessionLimit.ok) {
@@ -86,7 +85,7 @@ export async function POST(req: NextRequest) {
     const ipLimit = await checkRateLimit({
       key: `chat:ip:${ipHash}`,
       limit: 100,
-      windowMs: 86_400_000, // 24 hours
+      windowMs: 86_400_000,
     });
 
     if (!ipLimit.ok) {
@@ -103,84 +102,119 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Build sanitized messages for API
     const messages: ChatMessage[] = rawMessages.map((m) => ({
       role: m.role,
       content: sanitizeMessage(m.content),
     }));
 
-    // Detect language from the last user message
     const detectedLanguage = detectLanguage(sanitized);
 
-    // Stream from Anthropic — system prompt is large + stable, mark for cache hit.
-    // First call writes the cache (5 min TTL), subsequent calls within window
-    // hit the cache → ~80% lower latency on TTFT and ~90% lower input cost.
-    const stream = anthropic.messages.stream({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      system: [
-        {
-          type: "text",
-          text: SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages,
-    });
+    const apiMessages: Anthropic.MessageParam[] = messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
 
-    let fullResponse = "";
+    let fullVisibleResponse = "";
     const encoder = new TextEncoder();
 
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          for await (const event of stream) {
-            if (
-              event.type === "content_block_delta" &&
-              event.delta.type === "text_delta"
-            ) {
-              const text = event.delta.text;
-              fullResponse += text;
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+          for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+            const stream = anthropic.messages.stream({
+              model: MODEL,
+              max_tokens: 1024,
+              system: [
+                {
+                  type: "text",
+                  text: SYSTEM_PROMPT,
+                  cache_control: { type: "ephemeral" },
+                },
+              ],
+              tools: CHAT_TOOLS,
+              messages: apiMessages,
+            });
+
+            for await (const event of stream) {
+              if (
+                event.type === "content_block_delta" &&
+                event.delta.type === "text_delta"
+              ) {
+                const text = event.delta.text;
+                fullVisibleResponse += text;
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ text })}\n\n`),
+                );
+              }
             }
+
+            const final = await stream.finalMessage();
+            apiMessages.push({ role: "assistant", content: final.content });
+
+            if (final.stop_reason !== "tool_use") break;
+
+            const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+            for (const block of final.content) {
+              if (block.type !== "tool_use") continue;
+              try {
+                const result = await executeToolCall(block.name, block.input);
+                toolResults.push({
+                  type: "tool_result",
+                  tool_use_id: block.id,
+                  content: JSON.stringify(result),
+                });
+              } catch (err) {
+                console.error(`[chat] Tool ${block.name} error:`, err);
+                toolResults.push({
+                  type: "tool_result",
+                  tool_use_id: block.id,
+                  content: JSON.stringify({
+                    error: err instanceof Error ? err.message : "Tool execution failed",
+                  }),
+                  is_error: true,
+                });
+              }
+            }
+
+            if (toolResults.length === 0) break;
+            apiMessages.push({ role: "user", content: toolResults });
           }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
 
-          // Save to DB after streaming completes
-          const allMessages = [
+          const detectedIntent = detectIntent(sanitized);
+          const savedMessages = [
             ...messages,
-            { role: "assistant" as const, content: fullResponse },
+            { role: "assistant" as const, content: fullVisibleResponse },
           ];
 
-          // Detect intent from the full conversation
-          const detectedIntent = detectIntent(sanitized);
-
-          await prisma.chatSession.upsert({
-            where: { sessionId },
-            create: {
-              sessionId,
-              messages: allMessages,
-              detectedLanguage,
-              detectedIntent,
-              ipHash,
-              messageCount: allMessages.length,
-            },
-            update: {
-              messages: allMessages,
-              detectedLanguage,
-              detectedIntent,
-              messageCount: allMessages.length,
-              updatedAt: new Date(),
-            },
-          }).catch((err: unknown) => {
-            console.error("[chat] DB save error:", err);
-          });
+          await prisma.chatSession
+            .upsert({
+              where: { sessionId },
+              create: {
+                sessionId,
+                messages: savedMessages,
+                detectedLanguage,
+                detectedIntent,
+                ipHash,
+                messageCount: savedMessages.length,
+              },
+              update: {
+                messages: savedMessages,
+                detectedLanguage,
+                detectedIntent,
+                messageCount: savedMessages.length,
+                updatedAt: new Date(),
+              },
+            })
+            .catch((err: unknown) => {
+              console.error("[chat] DB save error:", err);
+            });
         } catch (err) {
           console.error("[chat] Stream error:", err);
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ error: "Error generando respuesta" })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify({ error: "Error generando respuesta" })}\n\n`),
           );
           controller.close();
         }
@@ -200,7 +234,7 @@ export async function POST(req: NextRequest) {
     console.error("[chat] Route error:", err);
     return Response.json(
       { ok: false, error: "Error interno del servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
