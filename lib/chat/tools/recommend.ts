@@ -101,6 +101,14 @@ const HUB_URL = "/blog/tramites-espana-por-pais-origen";
 const QUOTE_URL = "/presupuesto-instantaneo";
 const WHATSAPP_URL = "https://wa.me/34951333614";
 
+const UTM_PARAMS = "utm_source=chat&utm_medium=bot&utm_campaign=recommend_path";
+
+function withUtm(url: string): string {
+  if (!url.startsWith("/")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}${UTM_PARAMS}`;
+}
+
 export function recommendPath(input: RecommendPathInput): RecommendPathOutput {
   const country = input.country?.trim().toUpperCase();
   const countryInfo = country ? COUNTRY_MAP[country] : undefined;
@@ -110,11 +118,11 @@ export function recommendPath(input: RecommendPathInput): RecommendPathOutput {
 
   if (input.intent === "compare" || (!countryInfo && !langPage && !docPage)) {
     return {
-      primary_url: HUB_URL,
-      blog_url: HUB_URL,
+      primary_url: withUtm(HUB_URL),
+      blog_url: withUtm(HUB_URL),
       ctas: [
-        { label: "Hub trámites por país", url: HUB_URL, priority: 1 },
-        { label: "Presupuesto instantáneo", url: QUOTE_URL, priority: 2 },
+        { label: "Hub trámites por país", url: withUtm(HUB_URL), priority: 1 },
+        { label: "Presupuesto instantáneo", url: withUtm(QUOTE_URL), priority: 2 },
       ],
       reasoning:
         input.intent === "compare"
@@ -132,7 +140,7 @@ export function recommendPath(input: RecommendPathInput): RecommendPathOutput {
   if (countryInfo) {
     ctas.push({
       label: `Guía ${country}`,
-      url: countryInfo.blog,
+      url: withUtm(countryInfo.blog),
       priority: ctas.length + 1,
     });
   }
@@ -140,7 +148,7 @@ export function recommendPath(input: RecommendPathInput): RecommendPathOutput {
   if (langPage && language) {
     ctas.push({
       label: `Traductor jurado de ${language}`,
-      url: langPage,
+      url: withUtm(langPage),
       priority: ctas.length + 1,
     });
   }
@@ -148,18 +156,18 @@ export function recommendPath(input: RecommendPathInput): RecommendPathOutput {
   if (docPage) {
     ctas.push({
       label: "Tipo de documento",
-      url: docPage,
+      url: withUtm(docPage),
       priority: ctas.length + 1,
     });
   }
 
   ctas.push({
     label: "Presupuesto instantáneo",
-    url: QUOTE_URL,
+    url: withUtm(QUOTE_URL),
     priority: ctas.length + 1,
   });
 
-  const primary = ctas[0]?.url ?? QUOTE_URL;
+  const primary = ctas[0]?.url ?? withUtm(QUOTE_URL);
 
   const reasoningParts: string[] = [];
   if (countryInfo) reasoningParts.push(countryInfo.note);
@@ -169,9 +177,9 @@ export function recommendPath(input: RecommendPathInput): RecommendPathOutput {
 
   return {
     primary_url: primary,
-    blog_url: countryInfo?.blog,
-    language_page: langPage,
-    document_type_page: docPage,
+    blog_url: countryInfo ? withUtm(countryInfo.blog) : undefined,
+    language_page: langPage ? withUtm(langPage) : undefined,
+    document_type_page: docPage ? withUtm(docPage) : undefined,
     ctas,
     reasoning: reasoningParts.join(" "),
   };

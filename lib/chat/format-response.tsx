@@ -7,6 +7,7 @@ type MessagePart =
   | { type: "phone"; number: string; display: string }
   | { type: "link"; url: string; display: string };
 
+const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g;
 const WHATSAPP_PATTERN = /(?:WhatsApp|whatsapp|Whatsapp)(?:\s*(?:al|:))?\s*(\+?\d[\d\s]+\d)/g;
 const PHONE_PATTERN = /(?<!\d)(\+34\s*\d{3}\s*\d{3}\s*\d{3})(?!\d)/g;
 const PRICE_PATTERN = /(\d+(?:[.,]\d+)?\s*€(?:\s*(?:IVA incluido|\/palabra|\/página))?)/g;
@@ -19,10 +20,21 @@ export function parseMessageParts(text: string): MessagePart[] {
   type Match = { start: number; end: number; part: MessagePart };
   const matches: Match[] = [];
 
-  // WhatsApp mentions
+  // Markdown links [text](url) — parse BEFORE other patterns so they take priority
   let m: RegExpExecArray | null;
+  const mdLinkRegex = new RegExp(MARKDOWN_LINK_PATTERN.source, "g");
+  while ((m = mdLinkRegex.exec(text)) !== null) {
+    matches.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      part: { type: "link", url: m[2], display: m[1] },
+    });
+  }
+
+  // WhatsApp mentions (skip if inside a markdown link match already)
   const waRegex = new RegExp(WHATSAPP_PATTERN.source, "g");
   while ((m = waRegex.exec(text)) !== null) {
+    if (matches.some((x) => m!.index >= x.start && m!.index < x.end)) continue;
     matches.push({
       start: m.index,
       end: m.index + m[0].length,
@@ -140,18 +152,20 @@ export function RichMessage({ content }: { content: string }) {
               </a>
             );
 
-          case "link":
+          case "link": {
+            const isInternal = part.url.startsWith("/");
             return (
               <a
                 key={i}
                 href={part.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={isInternal ? undefined : "_blank"}
+                rel={isInternal ? undefined : "noopener noreferrer"}
                 className="font-medium text-bleu underline decoration-bleu/30 hover:decoration-bleu break-all"
               >
                 {part.display}
               </a>
             );
+          }
         }
       })}
     </>

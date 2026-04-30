@@ -7,11 +7,13 @@ import assert from "node:assert/strict";
 import { recommendPath } from "../../lib/chat/tools/recommend.ts";
 import { verifyTranslatorCredentials } from "../../lib/chat/tools/verify.ts";
 
-test("recommend_path: Marruecos → guía + página francés", () => {
+const UTM = "utm_source=chat&utm_medium=bot&utm_campaign=recommend_path";
+
+test("recommend_path: Marruecos → guía + página francés (con UTM)", () => {
   const out = recommendPath({ country: "MA" });
-  assert.equal(out.blog_url, "/blog/documentos-marroquies-guia-completa");
-  assert.equal(out.language_page, "/traductor-jurado-frances");
-  assert.equal(out.primary_url, "/blog/documentos-marroquies-guia-completa");
+  assert.equal(out.blog_url, `/blog/documentos-marroquies-guia-completa?${UTM}`);
+  assert.equal(out.language_page, `/traductor-jurado-frances?${UTM}`);
+  assert.equal(out.primary_url, `/blog/documentos-marroquies-guia-completa?${UTM}`);
   assert.match(out.reasoning, /apostilla.*2016/i);
 });
 
@@ -19,7 +21,7 @@ test("recommend_path: UK alias y GB devuelven el mismo blog", () => {
   const a = recommendPath({ country: "UK" });
   const b = recommendPath({ country: "GB" });
   assert.equal(a.blog_url, b.blog_url);
-  assert.equal(a.blog_url, "/blog/documentos-britanicos-brexit-espana");
+  assert.match(a.blog_url ?? "", /documentos-britanicos-brexit-espana/);
 });
 
 test("recommend_path: Argelia menciona la fecha de entrada en vigor", () => {
@@ -29,22 +31,31 @@ test("recommend_path: Argelia menciona la fecha de entrada en vigor", () => {
 
 test("recommend_path: intent=compare devuelve el hub agregador", () => {
   const out = recommendPath({ intent: "compare" });
-  assert.equal(out.primary_url, "/blog/tramites-espana-por-pais-origen");
+  assert.match(out.primary_url, /tramites-espana-por-pais-origen/);
+  assert.match(out.primary_url, /utm_source=chat/);
 });
 
 test("recommend_path: sin contexto cae al hub", () => {
   const out = recommendPath({});
-  assert.equal(out.primary_url, "/blog/tramites-espana-por-pais-origen");
+  assert.match(out.primary_url, /tramites-espana-por-pais-origen/);
 });
 
-test("recommend_path: intent=urgent añade WhatsApp como primera CTA", () => {
+test("recommend_path: intent=urgent añade WhatsApp como primera CTA (sin UTM en URL externa)", () => {
   const out = recommendPath({ country: "MA", intent: "urgent" });
   assert.equal(out.ctas[0]?.url, "https://wa.me/34951333614");
 });
 
-test("recommend_path: tipo de documento devuelve página /documentos-oficiales", () => {
+test("recommend_path: tipo de documento devuelve página /documentos-oficiales con UTM", () => {
   const out = recommendPath({ language: "fr", document_type: "criminal_record" });
-  assert.equal(out.document_type_page, "/documentos-oficiales/antecedentes-penales");
+  assert.match(out.document_type_page ?? "", /^\/documentos-oficiales\/antecedentes-penales\?utm_/);
+});
+
+test("recommend_path: UTM solo en URLs internas (no en wa.me)", () => {
+  const out = recommendPath({ country: "MA", intent: "urgent" });
+  const internal = out.ctas.filter((c) => c.url.startsWith("/"));
+  const external = out.ctas.filter((c) => !c.url.startsWith("/"));
+  for (const c of internal) assert.match(c.url, /utm_source=chat/);
+  for (const c of external) assert.doesNotMatch(c.url, /utm_source/);
 });
 
 test("verify_translator_credentials: nº 3850 → verified=true con datos de Juan Silva", () => {

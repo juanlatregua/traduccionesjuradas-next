@@ -408,6 +408,8 @@ model ChatSession {
   userEmail          String?
   ipHash             String?
   messageCount       Int      @default(0)
+  toolCalls          Json     @default("[]")
+  hasAttachment      Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
