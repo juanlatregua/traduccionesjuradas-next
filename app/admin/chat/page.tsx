@@ -41,7 +41,9 @@ export default async function AdminChatStatsPage() {
     sessions30d,
     sessionsWithAttachment7d,
     sessionsWithToolCalls7d,
+    sessionsWithError7d,
     recentSessions,
+    recentErrors,
   ] = await Promise.all([
     prisma.chatSession.count(),
     prisma.chatSession.count({ where: { createdAt: { gte: since7d } } }),
@@ -55,6 +57,9 @@ export default async function AdminChatStatsPage() {
         NOT: { toolCalls: { equals: [] } },
       },
     }),
+    prisma.chatSession.count({
+      where: { updatedAt: { gte: since7d }, errorCount: { gt: 0 } },
+    }),
     prisma.chatSession.findMany({
       orderBy: { updatedAt: "desc" },
       take: 30,
@@ -66,7 +71,19 @@ export default async function AdminChatStatsPage() {
         messageCount: true,
         toolCalls: true,
         hasAttachment: true,
+        errorCount: true,
         createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.chatSession.findMany({
+      where: { errorCount: { gt: 0 } },
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+      select: {
+        sessionId: true,
+        lastError: true,
+        errorCount: true,
         updatedAt: true,
       },
     }),
@@ -100,6 +117,10 @@ export default async function AdminChatStatsPage() {
       label: "Tool use rate 7d",
       value: pct(sessionsWithToolCalls7d, sessions7d),
     },
+    {
+      label: "Errores 7d",
+      value: pct(sessionsWithError7d, sessions7d),
+    },
   ];
 
   return (
@@ -118,7 +139,7 @@ export default async function AdminChatStatsPage() {
         </div>
 
         {/* Stats */}
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {stats.map((s) => (
             <div
               key={s.label}
@@ -164,6 +185,47 @@ export default async function AdminChatStatsPage() {
             </table>
           )}
         </div>
+
+        {/* Recent errors */}
+        {recentErrors.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-rose-700">
+              Errores recientes
+            </h2>
+            <table className="mt-3 w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase text-slate-500">
+                  <th className="py-2">Hace</th>
+                  <th className="py-2">Sesión</th>
+                  <th className="py-2">Veces</th>
+                  <th className="py-2">Mensaje</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentErrors.map((s) => {
+                  const err = s.lastError as
+                    | { message?: string; name?: string; at?: string }
+                    | null;
+                  return (
+                    <tr key={s.sessionId} className="border-b border-slate-100">
+                      <td className="py-2 text-xs text-slate-500">
+                        {timeAgo(s.updatedAt)}
+                      </td>
+                      <td className="py-2 font-mono text-xs text-slate-600">
+                        {s.sessionId.slice(0, 8)}
+                      </td>
+                      <td className="py-2 font-semibold">{s.errorCount}</td>
+                      <td className="py-2 text-xs text-slate-700">
+                        <span className="font-mono">{err?.name ?? "?"}</span>
+                        {err?.message ? `: ${err.message}` : ""}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Recent sessions */}
         <div className="mt-8">

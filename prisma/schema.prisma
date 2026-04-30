@@ -410,6 +410,8 @@ model ChatSession {
   messageCount       Int      @default(0)
   toolCalls          Json     @default("[]")
   hasAttachment      Boolean  @default(false)
+  lastError          Json?
+  errorCount         Int      @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

@@ -308,6 +308,37 @@ export async function POST(req: NextRequest) {
             encoder.encode(`data: ${JSON.stringify({ error: "Error generando respuesta" })}\n\n`),
           );
           controller.close();
+
+          const errorPayload = {
+            message: err instanceof Error ? err.message : String(err),
+            name: err instanceof Error ? err.name : "UnknownError",
+            stack: err instanceof Error ? err.stack?.split("\n").slice(0, 5).join("\n") : undefined,
+            at: new Date().toISOString(),
+          };
+          await prisma.chatSession
+            .upsert({
+              where: { sessionId },
+              create: {
+                sessionId,
+                messages: messagesForDb,
+                detectedLanguage,
+                ipHash,
+                messageCount: messagesForDb.length,
+                hasAttachment,
+                toolCalls: toolCallLog as unknown as Prisma.InputJsonValue,
+                lastError: errorPayload as unknown as Prisma.InputJsonValue,
+                errorCount: 1,
+              },
+              update: {
+                lastError: errorPayload as unknown as Prisma.InputJsonValue,
+                errorCount: { increment: 1 },
+                hasAttachment: hasAttachment ? true : undefined,
+                updatedAt: new Date(),
+              },
+            })
+            .catch((dbErr: unknown) => {
+              console.error("[chat] Error persistence failed:", dbErr);
+            });
         }
       },
     });
