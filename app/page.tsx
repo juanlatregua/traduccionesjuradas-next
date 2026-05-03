@@ -323,6 +323,105 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ═══════════════ SECCIÓN 3.5: SERVICIOS DESTACADOS (4 cards) ═══════════════ */}
+      <section className="bg-parchment py-14">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="text-center font-baskerville text-2xl font-bold text-encre sm:text-3xl">
+            Nuestros servicios
+          </h2>
+          <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-sepia">
+            Especializados en los trámites con más volumen de traducción jurada
+            en España.
+          </p>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Card 1 — Regularización 2026 (destacada) */}
+            <Link
+              href="/regularizacion-2026"
+              className="group relative flex flex-col overflow-hidden rounded-2xl border-2 border-bleu bg-gradient-to-br from-bleu/10 to-or/10 p-5 shadow-sm transition hover:shadow-md"
+            >
+              <span className="absolute right-3 top-3 rounded-full bg-or px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                Plazo 30-jun
+              </span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-bleu text-white">
+                <span className="text-xl font-bold">!</span>
+              </div>
+              <h3 className="mt-3 font-baskerville text-base font-bold text-encre">
+                Regularización extraordinaria 2026
+              </h3>
+              <p className="mt-1 flex-1 text-xs text-sepia">
+                Documentos francófonos: Marruecos, Senegal, Mali, Costa de
+                Marfil, Guinea, Camerún. Antecedentes y actas civiles a{" "}
+                <strong>25 €/doc</strong>, entrega 24h.
+              </p>
+              <p className="mt-3 text-xs font-semibold text-bleu group-hover:underline">
+                Ver guía →
+              </p>
+            </Link>
+
+            {/* Card 2 — Antecedentes penales */}
+            <Link
+              href="/traduccion-jurada-antecedentes-penales"
+              className="group flex flex-col rounded-2xl border border-cream bg-card p-5 shadow-sm transition hover:border-bleu hover:shadow-md"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-bleu/10 text-bleu">
+                <span className="text-2xl">📜</span>
+              </div>
+              <h3 className="mt-3 font-baskerville text-base font-bold text-encre">
+                Antecedentes penales
+              </h3>
+              <p className="mt-1 flex-1 text-xs text-sepia">
+                Casier judiciaire francés, marroquí, senegalés, británico DBS.
+                Apostilla incluida en la traducción. Desde 40 €.
+              </p>
+              <p className="mt-3 text-xs font-semibold text-bleu group-hover:underline">
+                Ver detalle →
+              </p>
+            </Link>
+
+            {/* Card 3 — Reagrupación familiar / Residencia */}
+            <Link
+              href="/blog/reagrupacion-familiar-documentos"
+              className="group flex flex-col rounded-2xl border border-cream bg-card p-5 shadow-sm transition hover:border-bleu hover:shadow-md"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-bleu/10 text-bleu">
+                <span className="text-2xl">👨‍👩‍👧</span>
+              </div>
+              <h3 className="mt-3 font-baskerville text-base font-bold text-encre">
+                Reagrupación familiar
+              </h3>
+              <p className="mt-1 flex-1 text-xs text-sepia">
+                Actas de nacimiento, matrimonio, libro de familia. Para
+                tramitar reagrupación, residencia o nacionalidad española.
+              </p>
+              <p className="mt-3 text-xs font-semibold text-bleu group-hover:underline">
+                Ver guía →
+              </p>
+            </Link>
+
+            {/* Card 4 — Documentos académicos */}
+            <Link
+              href="/blog/homologacion-titulo-universitario"
+              className="group flex flex-col rounded-2xl border border-cream bg-card p-5 shadow-sm transition hover:border-bleu hover:shadow-md"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-bleu/10 text-bleu">
+                <span className="text-2xl">🎓</span>
+              </div>
+              <h3 className="mt-3 font-baskerville text-base font-bold text-encre">
+                Homologación de títulos
+              </h3>
+              <p className="mt-1 flex-1 text-xs text-sepia">
+                Diplomas universitarios, expedientes académicos, certificados
+                profesionales. Para Ministerio de Universidades o empleo.
+              </p>
+              <p className="mt-3 text-xs font-semibold text-bleu group-hover:underline">
+                Ver guía →
+              </p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ═══════════════ SECCIÓN 4: IDIOMAS + DOCUMENTOS ═══════════════ */}
       <section className="bg-cream py-14">
         <div className="mx-auto max-w-5xl px-4">
