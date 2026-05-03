@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { getQuoteEstimate, type QuoteEstimateInput } from "./quote";
 import { recommendPath, type RecommendPathInput } from "./recommend";
 import { verifyTranslatorCredentials, type VerifyTranslatorInput } from "./verify";
+import { recommendArraigoPack, type RecommendArraigoPackInput } from "./arraigo";
 
 export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
@@ -95,6 +96,71 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "recommend_arraigo_pack",
+    description:
+      "Asesora sobre la regularización extraordinaria 2026 (RD 316/2026, plazo improrrogable 30-jun-2026). Llámala cuando el usuario mencione 'regularización', 'arraigo', 'sin papeles', 'tramitar papeles', 'extranjería' o un país francófono africano (Marruecos, Senegal, Mali, Costa de Marfil, Guinea, Camerún) en contexto de residencia. Devuelve elegibilidad, vía aplicable (DA 21ª arraigo extraordinario o DA 20ª protección internacional), documentos requeridos del país de origen, si necesita Apostilla o legalización consular, presupuesto a 25 €/doc, plazo de entrega 24h, métodos de pago y URLs canónicas (página país + flujo de pedido). NO improvises elegibilidad ni precios — usa siempre esta tool.",
+    input_schema: {
+      type: "object",
+      properties: {
+        country_of_origin: {
+          type: "string",
+          description:
+            "Código ISO 3166-1 alpha-2 del país de origen del solicitante. Páginas país disponibles: MA, SN, CI, ML, GN, CM. Otros francófonos sin página propia: BF, TG, BJ, CD, MR, DZ, TN.",
+        },
+        figura: {
+          type: "string",
+          enum: [
+            "arraigo_extraordinario",
+            "proteccion_internacional",
+            "social",
+            "sociolaboral",
+            "familiar",
+            "formacion",
+            "segunda_oportunidad",
+            "unknown",
+          ],
+          description:
+            "Vía de regularización. 'arraigo_extraordinario' = DA 21ª RD 316/2026. 'proteccion_internacional' = DA 20ª RD 316/2026.",
+        },
+        presence_before_2026_01_01: {
+          type: "boolean",
+          description:
+            "True si el usuario está en España de forma continuada antes del 01-01-2026 (requisito DA 21ª).",
+        },
+        employment_90_days: {
+          type: "boolean",
+          description:
+            "True si acredita relación laboral de al menos 90 días en los 12 meses anteriores (requisito DA 21ª).",
+        },
+        has_minor_children: {
+          type: "boolean",
+          description:
+            "True si convive con menores a cargo (familia con menores, requisito DA 21ª).",
+        },
+        vulnerability: {
+          type: "boolean",
+          description:
+            "True si tiene situación de vulnerabilidad acreditada por servicios sociales (requisito DA 21ª).",
+        },
+        protection_application_before_2026_01_01: {
+          type: "boolean",
+          description:
+            "True si presentó solicitud de protección internacional antes del 01-01-2026 (requisito DA 20ª).",
+        },
+        residence_5_months: {
+          type: "boolean",
+          description:
+            "True si lleva al menos 5 meses de residencia continuada en España (requisito DA 20ª).",
+        },
+        has_marriage: {
+          type: "boolean",
+          description:
+            "True si invoca matrimonio en el expediente (añade acta de matrimonio a la lista de documentos).",
+        },
+      },
+    },
+  },
+  {
     name: "verify_translator_credentials",
     description:
       "Verifica las credenciales de un traductor jurado. Úsala cuando el usuario pregunte si Juan Silva es real, si el servicio es de fiar, cómo verificar a un traductor, o pida validar a alguien por nombre o número MAEC. Si coincide con Juan Silva (nº 3850, francés, 2009), devuelve sus datos oficiales. Para otros, devuelve la URL del listado oficial del MAEC e instrucciones de validación.",
@@ -125,9 +191,16 @@ export async function executeToolCall(
       return recommendPath(input as RecommendPathInput);
     case "verify_translator_credentials":
       return verifyTranslatorCredentials(input as VerifyTranslatorInput);
+    case "recommend_arraigo_pack":
+      return recommendArraigoPack(input as RecommendArraigoPackInput);
     default:
       return { error: `Unknown tool: ${name}` };
   }
 }
 
-export { getQuoteEstimate, recommendPath, verifyTranslatorCredentials };
+export {
+  getQuoteEstimate,
+  recommendPath,
+  verifyTranslatorCredentials,
+  recommendArraigoPack,
+};
