@@ -249,6 +249,25 @@ export default function RootLayout({
         <Header />
         <TrustStrip />
 
+        {/* ================= STRIP REGULARIZACIÓN 2026 (time-bound, plazo 30-jun-2026) ================= */}
+        <div className="border-b border-bleu/20 bg-bleu/5">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-xs text-encre sm:text-sm">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-bleu">
+              <span className="inline-block h-2 w-2 rounded-full bg-bleu" />
+              Regularización extraordinaria 2026
+            </span>
+            <span className="text-sepia">
+              Plazo improrrogable <strong>30-jun-2026</strong> · 25 €/doc · entrega 24h
+            </span>
+            <Link
+              href="/regularizacion-2026"
+              className="font-semibold text-bleu underline-offset-2 hover:underline"
+            >
+              Ver guía →
+            </Link>
+          </div>
+        </div>
+
         {/* ================= CONTENIDO ================= */}
         <main id="main-content">
           {children}
@@ -356,6 +375,12 @@ export default function RootLayout({
                     className="hover:text-or transition-colors"
                   >
                     Traductor jurado de francés
+                  </Link>
+                  <Link
+                    href="/regularizacion-2026"
+                    className="font-semibold text-or hover:text-cream transition-colors"
+                  >
+                    Regularización 2026 · 25 €/doc
                   </Link>
                 </div>
               </div>

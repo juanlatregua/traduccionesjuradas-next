@@ -159,17 +159,34 @@ export default function Home() {
             Sin esperas, sin intermediarios.
           </p>
 
-          {/* Banner discreto regularización 2026 */}
-          <p className="mx-auto mt-3 max-w-xl text-xs text-sepia">
-            ¿Tramitas la regularización extraordinaria 2026? Plazo hasta el
-            30-jun.{" "}
-            <Link
-              href="/regularizacion-2026"
-              className="font-semibold text-bleu hover:underline"
-            >
-              Documentos francófonos →
-            </Link>
-          </p>
+          {/* Tarjeta destacada regularización 2026 */}
+          <Link
+            href="/regularizacion-2026"
+            className="group mx-auto mt-6 block max-w-2xl rounded-2xl border-2 border-bleu/40 bg-gradient-to-br from-bleu/5 to-or/5 p-4 text-left shadow-sm transition hover:border-bleu hover:shadow-md sm:p-5"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-bleu text-white">
+                <span className="text-xl font-bold">!</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-or">
+                  Plazo improrrogable · 30 de junio de 2026
+                </p>
+                <p className="mt-1 text-base font-bold text-encre sm:text-lg">
+                  Regularización extraordinaria 2026
+                </p>
+                <p className="mt-1 text-xs text-sepia sm:text-sm">
+                  Traducción jurada de antecedentes penales y documentos
+                  francófonos (Marruecos, Senegal, Mali, Costa de Marfil, Guinea,
+                  Camerún) por <strong>25 €/doc</strong>, entrega 24h. Pago con
+                  Bizum, tarjeta o transferencia.
+                </p>
+                <p className="mt-2 text-xs font-semibold text-bleu group-hover:underline">
+                  Ver guía completa →
+                </p>
+              </div>
+            </div>
+          </Link>
 
           {/* Flujo completo IA */}
           <div className="mx-auto mt-10 max-w-xl">
