@@ -9,7 +9,8 @@ function getChangeFrequency(route: string): ChangeFreq {
   if (
     route === "/" ||
     route === "/presupuesto-instantaneo" ||
-    route === "/precios-traduccion-jurada"
+    route === "/precios-traduccion-jurada" ||
+    route.startsWith("/regularizacion-2026")
   ) {
     return "weekly";
   }
@@ -37,9 +38,15 @@ function getPriority(route: string): number {
   if (
     route === "/presupuesto-instantaneo" ||
     route === "/precios-traduccion-jurada" ||
-    route === "/documentos-oficiales"
+    route === "/documentos-oficiales" ||
+    route === "/regularizacion-2026"
   ) {
     return 0.9;
+  }
+
+  // Regularización 2026 sub-pages (time-bound, high value)
+  if (route.startsWith("/regularizacion-2026/")) {
+    return 0.85;
   }
 
   // Blog pages
@@ -123,6 +130,13 @@ const LAST_MODIFIED: Record<string, string> = {
   "/privacidad":                                    "2026-01-28",
   "/politica-de-cookies":                           "2026-01-28",
   "/devoluciones":                                  "2026-04-27",
+  "/regularizacion-2026":                           "2026-05-03",
+  "/regularizacion-2026/marruecos":                 "2026-05-03",
+  "/regularizacion-2026/senegal":                   "2026-05-03",
+  "/regularizacion-2026/costa-de-marfil":           "2026-05-03",
+  "/regularizacion-2026/mali":                      "2026-05-03",
+  "/regularizacion-2026/guinea":                    "2026-05-03",
+  "/regularizacion-2026/camerun":                   "2026-05-03",
 };
 
 export default function sitemap(): MetadataRoute.Sitemap {

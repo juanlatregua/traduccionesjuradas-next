@@ -66,6 +66,23 @@ export default function TraduccionJuradaAntecedentesPenalesPage() {
       />
       <SchemaFAQ id="faq-antecedentes-penales" items={FAQ_ITEMS} />
 
+      <div className="mb-6 rounded-2xl border border-bleu/30 bg-bleu/5 p-4 text-sm text-encre">
+        <p className="font-semibold text-bleu">
+          Regularización extraordinaria 2026 abierta hasta el 30 de junio
+        </p>
+        <p className="mt-1 text-sepia">
+          Si tramitas la regularización (RD 316/2026), el certificado de
+          antecedentes penales del país de origen es uno de los documentos
+          centrales del expediente:{" "}
+          <Link
+            href="/regularizacion-2026"
+            className="font-semibold text-bleu hover:underline"
+          >
+            ver guía completa →
+          </Link>
+        </p>
+      </div>
+
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           Antecedentes penales

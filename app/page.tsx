@@ -153,10 +153,22 @@ export default function Home() {
             <em className="text-or not-italic">en 60 segundos</em>
           </h1>
 
-          {/* Subtítulo */}
+        {/* Subtítulo */}
           <p className="mx-auto mt-4 max-w-md text-base text-sepia sm:text-lg">
             Sube tu documento, recibe precio cerrado al instante y paga online.
             Sin esperas, sin intermediarios.
+          </p>
+
+          {/* Banner discreto regularización 2026 */}
+          <p className="mx-auto mt-3 max-w-xl text-xs text-sepia">
+            ¿Tramitas la regularización extraordinaria 2026? Plazo hasta el
+            30-jun.{" "}
+            <Link
+              href="/regularizacion-2026"
+              className="font-semibold text-bleu hover:underline"
+            >
+              Documentos francófonos →
+            </Link>
           </p>
 
           {/* Flujo completo IA */}

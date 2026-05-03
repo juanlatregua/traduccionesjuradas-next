@@ -12,6 +12,23 @@ export const metadata: Metadata = {
 export default function MarruecosPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      {/* BANNER REGULARIZACIÓN 2026 */}
+      <div className="mb-6 rounded-2xl border border-bleu/30 bg-bleu/5 p-4 text-sm text-encre">
+        <p className="font-semibold text-bleu">
+          ¿Tramitas la regularización extraordinaria 2026?
+        </p>
+        <p className="mt-1 text-sepia">
+          Plazo improrrogable hasta el 30 de junio (RD 316/2026). Tenemos página
+          específica con los documentos marroquíes, apostilla y plazos:{" "}
+          <Link
+            href="/regularizacion-2026/marruecos"
+            className="font-semibold text-bleu hover:underline"
+          >
+            ver guía Marruecos →
+          </Link>
+        </p>
+      </div>
+
       {/* CABECERA */}
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
