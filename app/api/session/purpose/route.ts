@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionIdFromRequest } from "@/lib/session";
 import { serializeOrderSession } from "@/lib/session-dto";
+import { computeSessionPricing } from "@/lib/session-pricing";
 
 export const runtime = "nodejs";
 
@@ -23,11 +24,21 @@ export async function POST(req: Request) {
   }
 
   try {
-    const session = await prisma.orderSession.update({
+    await prisma.orderSession.update({
       where: { id: sessionId },
       data: {
         purpose: String(body.purpose || "").trim() || null,
         step: "UPLOAD",
+      },
+    });
+
+    const pricing = await computeSessionPricing(sessionId);
+    const session = await prisma.orderSession.update({
+      where: { id: sessionId },
+      data: {
+        subtotalCents: pricing.subtotalCents,
+        vatCents: pricing.vatCents,
+        totalCents: pricing.totalCents,
       },
       include: { docs: { orderBy: { createdAt: "desc" } } },
     });
