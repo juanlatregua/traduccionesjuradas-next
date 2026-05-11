@@ -1,11 +1,14 @@
 "use client";
 
-import { WHATSAPP_LINK } from "@/lib/contact";
+import { usePathname } from "next/navigation";
+import { buildPresupuestoWhatsAppLink, detectLangFromPathname } from "@/lib/contact";
 
 export default function WhatsAppFloat() {
+  const pathname = usePathname();
+  const href = buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname) });
   return (
     <a
-      href={WHATSAPP_LINK}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Contactar por WhatsApp"

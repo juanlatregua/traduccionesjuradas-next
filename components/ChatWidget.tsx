@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { WHATSAPP_LINK } from "@/lib/contact";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { usePathname } from "next/navigation";
+import { buildPresupuestoWhatsAppLink, detectLangFromPathname } from "@/lib/contact";
 import { RichMessage } from "@/lib/chat/format-response";
 
 type Attachment = {
@@ -66,6 +67,11 @@ export default function ChatWidget() {
   });
   const [showQuickReplies, setShowQuickReplies] = useState(true);
   const [rateLimited, setRateLimited] = useState(false);
+  const pathname = usePathname();
+  const whatsappLink = useMemo(
+    () => buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname) }),
+    [pathname],
+  );
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -310,7 +316,7 @@ export default function ChatWidget() {
 
   const handleQuickReply = (reply: (typeof QUICK_REPLIES)[number]) => {
     if (reply.isWhatsApp) {
-      window.open(WHATSAPP_LINK, "_blank", "noopener,noreferrer");
+      window.open(whatsappLink, "_blank", "noopener,noreferrer");
       return;
     }
     sendMessage(reply.label);
@@ -536,7 +542,7 @@ export default function ChatWidget() {
                   recomiendo escribirnos por WhatsApp:
                 </p>
                 <a
-                  href={WHATSAPP_LINK}
+                  href={whatsappLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#20bd5a]"

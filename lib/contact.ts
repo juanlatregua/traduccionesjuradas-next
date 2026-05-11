@@ -50,10 +50,63 @@ export function buildWhatsAppLinkFromText(text: string) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
 }
 
-const WHATSAPP_MESSAGE =
-  "Hola, quiero pedir un presupuesto de traduccion jurada. Idioma origen: / Idioma destino: / Tipo de documento: / Email de contacto:";
+const LANG_NAMES: Record<string, string> = {
+  fr: "francés",
+  en: "inglés",
+  de: "alemán",
+  it: "italiano",
+  pt: "portugués",
+  ro: "rumano",
+  ca: "catalán",
+  nl: "neerlandés",
+  no: "noruego",
+  sv: "sueco",
+  ar: "árabe",
+  es: "español",
+};
 
-export const WHATSAPP_LINK = buildWhatsAppLinkFromText(WHATSAPP_MESSAGE);
+export function formatLangName(code?: string | null) {
+  if (!code) return "";
+  return LANG_NAMES[code.toLowerCase()] || code;
+}
+
+export function buildPresupuestoMessage(opts?: { lang?: string | null }) {
+  const langName = formatLangName(opts?.lang);
+  const combinacion = langName ? `${langName} ↔ español` : "";
+  return [
+    "Hola, quiero pedir un presupuesto de traducción jurada.",
+    `• Combinación de idiomas: ${combinacion}`,
+    "• Tipo de documento: ",
+    "• Email de contacto: ",
+  ].join("\n");
+}
+
+export function buildPresupuestoWhatsAppLink(opts?: { lang?: string | null }) {
+  return buildWhatsAppLinkFromText(buildPresupuestoMessage(opts));
+}
+
+const LANG_PATH_REGEX = /^\/traductor-jurado-([a-z]+)/i;
+const LANG_SLUG_TO_CODE: Record<string, string> = {
+  frances: "fr",
+  ingles: "en",
+  aleman: "de",
+  italiano: "it",
+  portugues: "pt",
+  rumano: "ro",
+  catalan: "ca",
+  neerlandes: "nl",
+  noruego: "no",
+  sueco: "sv",
+};
+
+export function detectLangFromPathname(pathname?: string | null): string | null {
+  if (!pathname) return null;
+  const match = pathname.match(LANG_PATH_REGEX);
+  if (!match) return null;
+  return LANG_SLUG_TO_CODE[match[1].toLowerCase()] || null;
+}
+
+export const WHATSAPP_LINK = buildPresupuestoWhatsAppLink();
 
 export const EMAIL = "hola@traduccionesjuradas.net";
 const SUBJECT = "Presupuesto traducción jurada";
