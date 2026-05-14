@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { PaymentMethod } from "@prisma/client";
+import type { OrderDocument, OrderSession, PaymentMethod } from "@prisma/client";
 import crypto from "node:crypto";
 import {
   buildManualPaymentProviderEventId,
@@ -88,6 +88,71 @@ export async function createOrder(input: CreateOrderInput) {
     }
   }
   throw new Error("No se pudo generar una referencia de pedido unica.");
+}
+
+/* ------------------------------------------------------------------ */
+/*  Create from funnel session                                         */
+/* ------------------------------------------------------------------ */
+
+type CreateOrderFromSessionInput = {
+  session: OrderSession;
+  docs: OrderDocument[];
+  clientEmail: string;
+  clientName?: string | null;
+};
+
+function buildFunnelOrderTitle(docs: OrderDocument[], purpose: string | null) {
+  const count = docs.length;
+  const docLabel = count === 1 ? "documento" : "documentos";
+  const purposeLabel = purpose === "REGULARIZACION_2026" ? " (regularización 2026)" : "";
+  return `Traducción jurada · ${count} ${docLabel}${purposeLabel}`;
+}
+
+function buildFunnelLangPair(docs: OrderDocument[]) {
+  const first = docs.find((doc) => doc.sourceLang);
+  if (!first?.sourceLang) return null;
+  const target = first.targetLang || "es";
+  return `${first.sourceLang}->${target}`;
+}
+
+export async function createOrderFromSession(input: CreateOrderFromSessionInput) {
+  const { session, docs, clientEmail, clientName } = input;
+  const reference = session.reference;
+  const existing = await prisma.order.findUnique({ where: { reference } });
+  if (existing) {
+    return existing;
+  }
+  try {
+    return await prisma.order.create({
+      data: {
+        reference,
+        clientEmail,
+        clientName: clientName || null,
+        source: "funnel",
+        title: buildFunnelOrderTitle(docs, session.purpose),
+        langPair: buildFunnelLangPair(docs),
+        amountCents: session.totalCents,
+        currency: (session.currency || "eur").toLowerCase(),
+        events: {
+          create: {
+            type: "order.created",
+            message: "Pedido creado desde funnel.",
+            payload: {
+              sessionId: session.id,
+              purpose: session.purpose,
+              docCount: docs.length,
+            },
+          },
+        },
+      },
+    });
+  } catch (err: any) {
+    if (err?.code === "P2002") {
+      const fallback = await prisma.order.findUnique({ where: { reference } });
+      if (fallback) return fallback;
+    }
+    throw err;
+  }
 }
 
 /* ------------------------------------------------------------------ */

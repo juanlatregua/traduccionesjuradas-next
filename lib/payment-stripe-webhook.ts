@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/stripe";
-import { updateOrderPayment } from "@/lib/orders";
+import { createOrderFromSession, updateOrderPayment } from "@/lib/orders";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { prisma } from "@/lib/prisma";
@@ -27,9 +27,14 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
 
   const session = event.data.object as any;
   const orderSessionId = String(session?.metadata?.orderSessionId || "").trim();
-  const reference = String(session?.metadata?.orderReference || "").trim();
+  let reference = String(session?.metadata?.orderReference || "").trim();
   const stripeSessionId = String(session?.id || "").trim();
   const stripePaymentIntentId = String(session?.payment_intent || "").trim();
+  const stripeCustomerEmail =
+    String(session?.customer_details?.email || session?.customer_email || "")
+      .trim()
+      .toLowerCase() || null;
+  const stripeCustomerName = String(session?.customer_details?.name || "").trim() || null;
 
   if (orderSessionId) {
     try {
@@ -45,6 +50,34 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
     } catch (err) {
       console.error(`[${source}] failed updating order session`, err);
       return NextResponse.json({ ok: false, error: "Order session update failed." }, { status: 500 });
+    }
+
+    if (!reference) {
+      try {
+        const sessionRecord = await prisma.orderSession.findUnique({
+          where: { id: orderSessionId },
+          include: { docs: { orderBy: { createdAt: "asc" } } },
+        });
+        if (sessionRecord) {
+          const clientEmail =
+            sessionRecord.userId?.trim().toLowerCase() || stripeCustomerEmail;
+          if (clientEmail) {
+            const createdOrder = await createOrderFromSession({
+              session: sessionRecord,
+              docs: sessionRecord.docs,
+              clientEmail,
+              clientName: stripeCustomerName,
+            });
+            reference = createdOrder.reference;
+          } else {
+            console.error(
+              `[${source}] no client email available for session ${orderSessionId} — Order not created`
+            );
+          }
+        }
+      } catch (err) {
+        console.error(`[${source}] failed creating order from session`, err);
+      }
     }
   }
 
