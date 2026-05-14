@@ -326,6 +326,13 @@ export default function RegularizacionCostaDeMarfilPage() {
         </Link>
         {" · "}
         <Link
+          href="/blog/documentos-marfilenos-espana"
+          className="font-semibold text-bleu hover:underline"
+        >
+          Documentos marfileños — guía completa
+        </Link>
+        {" · "}
+        <Link
           href="/traduccion-jurada-antecedentes-penales"
           className="font-semibold text-bleu hover:underline"
         >
