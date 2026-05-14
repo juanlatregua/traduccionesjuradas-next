@@ -8,17 +8,49 @@ if (!SECRET) {
   );
 }
 
+type GenerateOptions = {
+  /** Si se pasa, el token incluye exp y caduca tras ttlSeconds. Sin esto, token legacy sin caducidad. */
+  ttlSeconds?: number;
+};
+
+function hmacHex(message: string): string {
+  return createHmac("sha256", SECRET).update(message).digest("hex");
+}
+
+function safeEqualHex(a: string, b: string): boolean {
+  try {
+    const ab = Buffer.from(a, "hex");
+    const bb = Buffer.from(b, "hex");
+    if (ab.length !== bb.length) return false;
+    return timingSafeEqual(ab, bb);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Genera un token HMAC-SHA256 para una referencia de pedido.
- * El token NO caduca (válido mientras el pedido exista).
+ *
+ * - Sin options: token legacy `<hmac>` SIN caducidad (válido mientras el pedido exista).
+ * - Con `ttlSeconds`: token nuevo `<expUnix>.<hmac>` que caduca tras N segundos.
+ *
+ * El verifier acepta ambos formatos. Default sigue siendo legacy para no
+ * romper enlaces de emails ya enviados; usa ttlSeconds caller-by-caller
+ * cuando convenga (p. ej. enlaces de pago temporales, reset flows).
  */
-export function generateOrderToken(reference: string): string {
+export function generateOrderToken(reference: string, options?: GenerateOptions): string {
   if (!SECRET) throw new Error("ORDER_TOKEN_SECRET is not set");
-  return createHmac("sha256", SECRET).update(reference).digest("hex");
+  const ttl = options?.ttlSeconds;
+  if (typeof ttl === "number" && ttl > 0) {
+    const exp = Math.floor(Date.now() / 1000) + Math.floor(ttl);
+    return `${exp}.${hmacHex(`${reference}|${exp}`)}`;
+  }
+  return hmacHex(reference);
 }
 
 /**
  * Verifica que el token recibido sea válido para esa referencia.
+ * Acepta tanto formato legacy `<hmac>` como nuevo `<exp>.<hmac>`.
  * Usa comparación en tiempo constante para evitar timing attacks.
  */
 export function verifyOrderToken(reference: string, token: string): boolean {
@@ -29,15 +61,19 @@ export function verifyOrderToken(reference: string, token: string): boolean {
     );
     return false;
   }
-  const expected = generateOrderToken(reference);
-  try {
-    return timingSafeEqual(
-      Buffer.from(expected, "hex"),
-      Buffer.from(token, "hex"),
-    );
-  } catch {
-    return false;
+  if (!token) return false;
+
+  const dotIdx = token.indexOf(".");
+  if (dotIdx > 0) {
+    const expStr = token.slice(0, dotIdx);
+    const tokenHmac = token.slice(dotIdx + 1);
+    const exp = Number(expStr);
+    if (!Number.isFinite(exp) || exp <= 0) return false;
+    if (Math.floor(Date.now() / 1000) > exp) return false;
+    return safeEqualHex(hmacHex(`${reference}|${exp}`), tokenHmac);
   }
+
+  return safeEqualHex(hmacHex(reference), token);
 }
 
 /**
