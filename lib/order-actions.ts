@@ -1,5 +1,5 @@
-import type { FinanceSnapshot } from "@/lib/finance";
-import { buildSignedOrderUrl } from "@/lib/order-token";
+import type { FinanceSnapshot } from "./finance.ts";
+import { buildSignedOrderUrl } from "./order-token.ts";
 
 export const ORDER_ACTION_STAGES = [
   "DRAFT",

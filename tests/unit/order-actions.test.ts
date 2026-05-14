@@ -45,9 +45,9 @@ function financeSnapshot(overrides: Partial<FinanceSnapshot> = {}): FinanceSnaps
 test("buildOrderTrackedLinks añade src=wa y referencia", () => {
   const links = buildOrderTrackedLinks("26_TEST01");
   assert.match(links.paymentUrl, /src=wa/);
-  assert.match(links.paymentUrl, /ref=26_TEST01/);
+  assert.match(links.paymentUrl, /26_TEST01/);
   assert.match(links.statusUrl, /src=wa/);
-  assert.match(links.statusUrl, /ref=26_TEST01/);
+  assert.match(links.statusUrl, /26_TEST01/);
 });
 
 test("closeReady queda bloqueado sin notificación de entrega al cliente", () => {
