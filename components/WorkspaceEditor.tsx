@@ -400,6 +400,7 @@ export default function WorkspaceEditor({
                 </a>
               </div>
             ) : isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element -- admin viewer for client-uploaded images, not LCP-sensitive
               <img
                 src={docUrl}
                 alt={collaboratorDelivery ? "Entrega colaborador" : "Documento original"}

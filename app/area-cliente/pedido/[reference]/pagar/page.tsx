@@ -174,7 +174,7 @@ export default function PagarPage() {
       })
       .catch(() => setError("Error de conexion."))
       .finally(() => setLoading(false));
-  }, [reference]);
+  }, [reference, orderToken]);
 
   useEffect(() => {
     if (tab !== "bizum" && tab !== "transferencia" && tab !== "paypal") {
