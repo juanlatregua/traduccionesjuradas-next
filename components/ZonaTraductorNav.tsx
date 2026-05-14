@@ -17,7 +17,7 @@ export default function ZonaTraductorNav({ modoActivo, pedidosAccionables }: Pro
       <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-700 bg-slate-900/95 px-4 py-2 backdrop-blur sm:px-6">
         <div className="flex items-center gap-1">
           <Link
-            href="/zona-traductor?modo=bandeja"
+            href="/zona-traductor"
             className={`relative rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
               modoActivo === "bandeja"
                 ? "border-b-2 border-b-cyan-400 text-white"
@@ -32,7 +32,7 @@ export default function ZonaTraductorNav({ modoActivo, pedidosAccionables }: Pro
             )}
           </Link>
           <Link
-            href="/zona-traductor?modo=control"
+            href="/zona-traductor/control"
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
               modoActivo === "control"
                 ? "border-b-2 border-b-cyan-400 text-white"

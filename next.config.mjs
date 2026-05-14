@@ -57,6 +57,12 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/zona-traductor",
+        has: [{ type: "query", key: "modo", value: "control" }],
+        destination: "/zona-traductor/control",
+        permanent: false,
+      },
+      {
         source: "/:path*",
         has: [{ type: "host", value: "traduccionesjuradas.net" }],
         destination: "https://www.traduccionesjuradas.net/:path*",
