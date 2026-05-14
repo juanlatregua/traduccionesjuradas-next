@@ -96,8 +96,8 @@ test("cadena completa LANG_REVIEW es valida paso a paso", () => {
 
 // ─── getWordRateForLangOrPair para idiomas del funnel ───
 
-test("tarifa ingles es 0.10", () => {
-  assert.equal(getWordRateForLangOrPair("en-es"), 0.1);
+test("tarifa ingles es 0.11", () => {
+  assert.equal(getWordRateForLangOrPair("en-es"), 0.11);
 });
 
 test("tarifa aleman es 0.12", () => {
@@ -112,8 +112,8 @@ test("tarifa italiano es 0.12", () => {
   assert.equal(getWordRateForLangOrPair("it-es"), 0.12);
 });
 
-test("tarifa catalan es 0.10", () => {
-  assert.equal(getWordRateForLangOrPair("ca-es"), 0.1);
+test("tarifa catalan es 0.08", () => {
+  assert.equal(getWordRateForLangOrPair("ca-es"), 0.08);
 });
 
 test("tarifa frances es 0.08", () => {
@@ -136,13 +136,13 @@ test("auto-quote totals para 500 palabras ingles", () => {
     deliveryType: "DIGITAL_PDF",
   });
 
-  assert.equal(totals.subtotal, 50); // 500 * 0.10
+  assert.equal(totals.subtotal, 55); // 500 * 0.11
   assert.equal(totals.shippingAmount, 0);
   assert.equal(totals.discountAmount, 0);
-  assert.equal(totals.vatAmount, 10.5); // 50 * 0.21
-  assert.equal(totals.total, 60.5);
+  assert.equal(totals.vatAmount, 11.55); // 55 * 0.21
+  assert.equal(totals.total, 66.55);
   assert.equal(totals.lines.length, 1);
-  assert.equal(totals.lines[0].lineTotal, 50);
+  assert.equal(totals.lines[0].lineTotal, 55);
 });
 
 test("auto-quote totals para 1000 palabras aleman", () => {
