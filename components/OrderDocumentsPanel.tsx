@@ -118,9 +118,6 @@ export default function OrderDocumentsPanel({
   const [rows, setRows] = useState<QuoteRow[]>(initialRows);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [sourceFile, setSourceFile] = useState<File | null>(null);
-  const [sourceUploading, setSourceUploading] = useState(false);
-  const [sourceMessage, setSourceMessage] = useState<string | null>(null);
   const [resubmissionReason, setResubmissionReason] = useState("");
   const [resubmissionLoading, setResubmissionLoading] = useState(false);
   const [resubmissionMessage, setResubmissionMessage] = useState<string | null>(null);
@@ -152,30 +149,6 @@ export default function OrderDocumentsPanel({
     setRows((prev) => prev.filter((_, idx) => idx !== index));
   }
 
-  async function uploadSourceDocument() {
-    if (!sourceFile) return;
-    setSourceUploading(true);
-    setSourceMessage(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", sourceFile);
-      const res = await fetch(`/api/orders/${reference}/documents`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "No se pudo subir el documento.");
-      }
-      setSourceMessage("Documento fuente subido correctamente.");
-      setSourceFile(null);
-      setTimeout(() => window.location.reload(), 700);
-    } catch (err: any) {
-      setSourceMessage(err?.message || "No se pudo subir el documento.");
-    } finally {
-      setSourceUploading(false);
-    }
-  }
 
   async function saveQuote(sendToClient: boolean) {
     setMessage(null);
@@ -306,33 +279,6 @@ export default function OrderDocumentsPanel({
             ))}
           </ul>
         )}
-
-        <div className="mt-4 rounded-lg border border-slate-700 bg-slate-900/70 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-300">
-            Subir documento fuente
-          </p>
-          <p className="mt-1 text-[11px] text-slate-400">
-            Si el pedido llegó sin adjunto (p. ej. flujo de calculadora), puedes cargar aquí el archivo original.
-          </p>
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.txt"
-            onChange={(e) => {
-              setSourceFile(e.target.files?.[0] || null);
-              setSourceMessage(null);
-            }}
-            className="mt-3 block w-full text-xs text-slate-300 file:mr-2 file:rounded-lg file:border-0 file:bg-cyan-600/20 file:px-3 file:py-1.5 file:font-semibold file:text-cyan-200 hover:file:bg-cyan-600/30"
-          />
-          <button
-            type="button"
-            onClick={uploadSourceDocument}
-            disabled={!sourceFile || sourceUploading}
-            className="mt-3 rounded-lg bg-cyan-700 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-600 disabled:opacity-60"
-          >
-            {sourceUploading ? "Subiendo..." : "Subir documento"}
-          </button>
-          {sourceMessage && <p className="mt-2 text-xs font-semibold text-slate-200">{sourceMessage}</p>}
-        </div>
 
         <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
