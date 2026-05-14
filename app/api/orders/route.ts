@@ -21,6 +21,7 @@ import {
   generateQuoteToken,
 } from "@/lib/quotes";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
+import { generateOrderToken } from "@/lib/order-token";
 
 export const runtime = "nodejs";
 
@@ -196,7 +197,11 @@ export async function POST(req: Request) {
       });
       if (existing) {
         let orderToken: string | undefined;
-        try { orderToken = (await import("@/lib/order-token")).generateOrderToken(existing.reference); } catch {}
+        try {
+          orderToken = generateOrderToken(existing.reference);
+        } catch (err) {
+          console.error("[orders] failed generating order token for idempotent reply", existing.reference, err);
+        }
         return NextResponse.json({
           ok: true,
           order: { id: existing.id, reference: existing.reference, token: orderToken },
@@ -566,7 +571,11 @@ export async function POST(req: Request) {
     }
 
     let orderToken: string | undefined;
-    try { orderToken = (await import("@/lib/order-token")).generateOrderToken(order.reference); } catch {}
+    try {
+      orderToken = generateOrderToken(order.reference);
+    } catch (err) {
+      console.error("[orders] failed generating order token", order.reference, err);
+    }
 
     return NextResponse.json({
       ok: true,
