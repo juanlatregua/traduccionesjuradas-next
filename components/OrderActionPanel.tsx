@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AssignOrderForm from "./AssignOrderForm";
-import TranslatorDeliveryForm from "./TranslatorDeliveryForm";
 import TranslatorNotifyForm from "./TranslatorNotifyForm";
 import OrderFinancePanel from "./OrderFinancePanel";
 import OrderWorkflowPanel from "./OrderWorkflowPanel";
@@ -465,7 +464,20 @@ export default function OrderActionPanel({
                   {(paymentStatus === "PAID" || deliveryState === "EN_PROCESO" || draftFileUrl) && (
                     <DraftGeneratorButton orderReference={reference} documents={documents} langPair={langPair} existingDraftUrl={draftFileUrl} existingDraftFilename={draftFilename} existingDraftGeneratedAt={draftGeneratedAt} />
                   )}
-                  <TranslatorDeliveryForm reference={reference} />
+                  <a
+                  href={`/zona-traductor/workspace/${reference}`}
+                  className="block rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 hover:bg-indigo-500/10 transition-colors"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
+                    Estado de entrega
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-100">
+                    Abrir Workspace de traducción →
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Editor lado a lado, draft IA, marcar entrega y notificar cliente.
+                  </p>
+                </a>
                 </div>
               )}
               {tab === "notificar" && (
@@ -770,7 +782,20 @@ export default function OrderActionPanel({
                     existingDraftGeneratedAt={draftGeneratedAt}
                   />
                 )}
-                <TranslatorDeliveryForm reference={reference} />
+                <a
+                  href={`/zona-traductor/workspace/${reference}`}
+                  className="block rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 hover:bg-indigo-500/10 transition-colors"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
+                    Estado de entrega
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-100">
+                    Abrir Workspace de traducción →
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Editor lado a lado, draft IA, marcar entrega y notificar cliente.
+                  </p>
+                </a>
               </div>
             )}
             {tab === "notificar" && (
