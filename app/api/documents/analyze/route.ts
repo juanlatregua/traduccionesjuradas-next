@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp, checkGlobalAnalysisCap } from "@/lib/rate-limit";
 import { analyzeDocument, censorExtractedNames } from "@/lib/ai/analyze-document";
+import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
+import { buildDiagnosis } from "@/lib/diagnosis";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 
 export const runtime = "nodejs";
@@ -71,6 +73,15 @@ export async function POST(req: Request) {
       // Already analyzed — return cached result
       const cachedBase = doc.quoteAmount;
       const cachedUrgent = doc.quoteUrgent;
+      let cachedDiagnosis = null;
+      if (doc.analysisJson) {
+        try {
+          const cachedAnalysis = doc.analysisJson as unknown as DocumentAnalysisResult;
+          cachedDiagnosis = buildDiagnosis(cachedAnalysis, calculatePrice(cachedAnalysis));
+        } catch (err: any) {
+          console.error("[documents/analyze] diagnosis (cached) error:", err?.message);
+        }
+      }
       return NextResponse.json({
         ok: true,
         analysis: doc.analysisJson,
@@ -85,6 +96,7 @@ export async function POST(req: Request) {
               breakdown: doc.quoteBreakdown,
             }
           : null,
+        diagnosis: cachedDiagnosis,
         cached: true,
       });
     }
@@ -139,6 +151,7 @@ export async function POST(req: Request) {
     const fileBase64 = analyzeBuffer.toString("base64");
 
     // Call Claude API for analysis with timeout
+    const analysisStart = Date.now();
     let analysis;
     try {
       analysis = await Promise.race([
@@ -172,8 +185,17 @@ export async function POST(req: Request) {
       );
     }
 
+    // Measure real analysis time — Fase 1 quiere validar el "10 s" del plan.
+    const analysisMs = Date.now() - analysisStart;
+    console.log(
+      `[documents/analyze] analysisMs=${analysisMs} pages=${analysis.document_metrics.pages} type=${analysis.document_type.specific_type}`
+    );
+
     // Calculate price
     const quote = calculatePrice(analysis);
+
+    // Build the full diagnosis (tipo · ¿necesita jurada? · precio · plazo · validez)
+    const diagnosis = buildDiagnosis(analysis, quote);
 
     // Censor names for GDPR
     const censoredNames = censorExtractedNames(analysis.extracted_data.names || []);
@@ -223,6 +245,8 @@ export async function POST(req: Request) {
       ok: true,
       analysis,
       quote,
+      diagnosis,
+      analysisMs,
       cached: false,
     });
   } catch (err: any) {
