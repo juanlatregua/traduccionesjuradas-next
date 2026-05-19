@@ -20,25 +20,41 @@ function priceForPurpose(purpose: string | null | undefined): number {
   return DEFAULT_DOC_PRICE_CENTS;
 }
 
-function computeFromCount(docCount: number, perDocCents: number): SessionPricingSnapshot {
-  const subtotalCents = Math.max(0, docCount) * perDocCents;
-  const vatCents = Math.round(subtotalCents * DEFAULT_VAT_RATE);
-  const totalCents = subtotalCents + vatCents;
+function snapshotFromSubtotal(subtotalCents: number): SessionPricingSnapshot {
+  const subtotal = Math.max(0, Math.round(subtotalCents));
+  const vatCents = Math.round(subtotal * DEFAULT_VAT_RATE);
   return {
-    subtotalCents,
+    subtotalCents: subtotal,
     vatCents,
-    totalCents,
+    totalCents: subtotal + vatCents,
     currency: "EUR",
   };
 }
 
+function computeFromCount(docCount: number, perDocCents: number): SessionPricingSnapshot {
+  return snapshotFromSubtotal(Math.max(0, docCount) * perDocCents);
+}
+
 export async function computeSessionPricing(sessionId: string): Promise<SessionPricingSnapshot> {
-  const [session, count] = await Promise.all([
+  const [session, docs] = await Promise.all([
     prisma.orderSession.findUnique({
       where: { id: sessionId },
       select: { purpose: true },
     }),
-    prisma.orderDocument.count({ where: { sessionId } }),
+    prisma.orderDocument.findMany({
+      where: { sessionId },
+      select: { quotedCents: true },
+    }),
   ]);
-  return computeFromCount(count, priceForPurpose(session?.purpose));
+
+  // Sesiones de la puerta (v2): cada documento trae su precio del
+  // pricing-engine. Si todos lo tienen, el subtotal es la suma.
+  if (docs.length > 0 && docs.every((d) => d.quotedCents != null)) {
+    return snapshotFromSubtotal(
+      docs.reduce((sum, d) => sum + (d.quotedCents || 0), 0)
+    );
+  }
+
+  // Funnel viejo /start: precio plano por documento.
+  return computeFromCount(docs.length, priceForPurpose(session?.purpose));
 }

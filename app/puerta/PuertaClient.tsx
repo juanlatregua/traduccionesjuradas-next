@@ -6,7 +6,14 @@
 
 import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { CalendarClock, Plus, RotateCcw, MessageCircle } from "lucide-react";
+import {
+  CalendarClock,
+  Plus,
+  RotateCcw,
+  MessageCircle,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
@@ -43,7 +50,7 @@ function parseDateInput(value: string): Date | null {
   return new Date(y, m - 1, d);
 }
 
-export default function PuertaClient() {
+export default function PuertaClient({ purpose }: { purpose: string | null }) {
   const [step, setStep] = useState<Step>("entry");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
@@ -53,6 +60,8 @@ export default function PuertaClient() {
   const [currentFileSize, setCurrentFileSize] = useState(0);
   const [currentFileName, setCurrentFileName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const neededBy = parseDateInput(neededByInput);
   const todayInput = new Date().toISOString().split("T")[0];
@@ -131,7 +140,39 @@ export default function PuertaClient() {
     []
   );
 
+  // El puente: crea la OrderSession checkout-ready y redirige al checkout.
+  const handleCheckout = useCallback(async () => {
+    setCheckingOut(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/puerta/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purpose: purpose || undefined,
+          documents: documents.map((d) => ({
+            id: d.id,
+            targetLanguage: d.analysis.language.target,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setCheckoutError(data.error || "No se pudo continuar al pago.");
+        setCheckingOut(false);
+        return;
+      }
+      window.location.href = "/checkout";
+    } catch {
+      setCheckoutError("Error de conexión. Inténtalo de nuevo.");
+      setCheckingOut(false);
+    }
+  }, [documents, purpose]);
+
   const total = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
+  const pendingTargetLanguage = documents.some(
+    (d) => d.diagnosis.delivery.hours === null
+  );
 
   return (
     <div className="space-y-6">
@@ -240,18 +281,28 @@ export default function PuertaClient() {
             </button>
           </div>
 
-          {/* Pago — se conecta en el Bloque 1.3 */}
-          <div className="rounded-xl border border-bleu/15 bg-card p-5 text-center shadow-paper">
+          {/* Puente al checkout */}
+          <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
             <button
               type="button"
-              disabled
-              className="w-full rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white opacity-50"
+              onClick={handleCheckout}
+              disabled={checkingOut || pendingTargetLanguage}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
             >
-              Continuar al pago
+              {checkingOut && <Loader2 className="h-4 w-4 animate-spin" />}
+              {checkingOut ? "Preparando el pago…" : "Continuar al pago"}
             </button>
-            <p className="mt-2 text-xs text-graphite">
-              Pago disponible próximamente.
-            </p>
+            {pendingTargetLanguage && (
+              <p className="mt-2 text-center text-xs text-graphite">
+                Indica el idioma de destino de cada documento para continuar.
+              </p>
+            )}
+            {checkoutError && (
+              <p className="mt-2 flex items-start justify-center gap-1.5 text-center text-xs text-rouge">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {checkoutError}
+              </p>
+            )}
           </div>
         </div>
       )}

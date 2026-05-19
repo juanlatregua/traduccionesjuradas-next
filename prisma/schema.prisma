@@ -398,6 +398,7 @@ model OrderDocument {
   detectedType String?
   sourceLang   String?
   targetLang   String?      @default("es")
+  quotedCents  Int?
   createdAt    DateTime     @default(now())
 
   @@index([sessionId, createdAt])

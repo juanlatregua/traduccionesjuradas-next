@@ -115,6 +115,23 @@ El diagnóstico muestra **ambas** validez:
 
 La puerta acepta varios documentos de golpe (drop múltiple), un diagnóstico por documento.
 
+### Precio (decidido 2026-05-19)
+
+El precio de la puerta es **el del `pricing-engine`**: por palabra × tarifa de
+idioma, con mínimos por tipo, apostilla y casos fijos (Marruecos, penales
+franceses). El precio plano 40 €/doc del funnel `/start` **no aplica** a la
+puerta y se retira con el Bloque 1.4.
+
+**Excepción — campaña regularización 2026:** un documento **en francés** dentro
+de una sesión con `purpose = REGULARIZACION_2026` se cobra a **25 €/doc** plano
+(precio de campaña del arraigo extraordinario). Un documento no francés de esa
+misma sesión va al `pricing-engine` normal. El diagnóstico puede mostrar el
+precio del engine; el precio de campaña se aplica y se ve **en el checkout**.
+
+El puente (`/api/puerta/checkout`, Bloque 1.3) persiste el precio por documento
+en `OrderDocument.quotedCents`; `computeSessionPricing` lo respeta cuando todos
+los documentos lo tienen, y recae en el plano solo para el funnel viejo.
+
 ## Desglose semana a semana
 
 | Bloque | Sem. | Qué se hace | Entregable |

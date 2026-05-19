@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
+import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 import PuertaClient from "./PuertaClient";
+
+// Presets de campaña activables por query param (?p=…).
+const PURPOSE_PRESETS: Record<string, string> = {
+  "regularizacion-2026": PURPOSE_REGULARIZACION_2026,
+};
 
 // Ruta nueva del funnel v2 (Bloque 1.2). En construcción: noindex hasta que
 // el Bloque 1.4 la convierta en la canónica y redirija los enlaces entrantes.
@@ -10,7 +16,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function PuertaPage() {
+export default function PuertaPage({
+  searchParams,
+}: {
+  searchParams?: { p?: string };
+}) {
+  const presetKey = searchParams?.p?.toLowerCase().trim();
+  const purpose = (presetKey && PURPOSE_PRESETS[presetKey]) || null;
+
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
       <div className="mb-10 text-center">
@@ -23,7 +36,7 @@ export default function PuertaPage() {
         </p>
       </div>
 
-      <PuertaClient />
+      <PuertaClient purpose={purpose} />
     </section>
   );
 }
