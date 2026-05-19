@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildDiagnosis, getDeliveryHours } from "../../lib/diagnosis.ts";
+import {
+  buildDiagnosis,
+  getDeliveryHours,
+  estimateDeliveryDate,
+  meetsDeadline,
+} from "../../lib/diagnosis.ts";
 
 // diagnosis.ts solo tiene un import runtime relativo (pricing-engine/languages),
 // así que se puede importar el módulo real sin reproducir la lógica.
@@ -116,4 +121,34 @@ test("tipo: se traslada el tipo específico y la etiqueta en español", () => {
   assert.equal(d.type.specificType, "birth_certificate");
   assert.equal(d.type.label, "Certificado de nacimiento");
   assert.equal(d.type.category, "civil_registry");
+});
+
+// ─── estimateDeliveryDate / meetsDeadline ───
+// 2026-06-01 es lunes; 2026-06-05 es viernes.
+const MON = new Date(2026, 5, 1);
+const FRI = new Date(2026, 5, 5);
+
+function ymd(d: Date) {
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+test("estimateDeliveryDate: 24/48/72 h → 1/2/3 días laborables", () => {
+  assert.equal(ymd(estimateDeliveryDate(24, MON)), "2026-6-2");
+  assert.equal(ymd(estimateDeliveryDate(48, MON)), "2026-6-3");
+  assert.equal(ymd(estimateDeliveryDate(72, MON)), "2026-6-4");
+});
+
+test("estimateDeliveryDate: salta el fin de semana", () => {
+  // viernes + 1 día laborable → lunes
+  assert.equal(ymd(estimateDeliveryDate(24, FRI)), "2026-6-8");
+});
+
+test("meetsDeadline: llega si la fecha del cliente es >= entrega estimada", () => {
+  assert.equal(meetsDeadline(24, new Date(2026, 5, 2), MON), true);
+  assert.equal(meetsDeadline(24, new Date(2026, 5, 10), MON), true);
+});
+
+test("meetsDeadline: no llega si la fecha del cliente es anterior", () => {
+  assert.equal(meetsDeadline(24, new Date(2026, 5, 1), MON), false);
+  assert.equal(meetsDeadline(72, new Date(2026, 5, 2), MON), false);
 });
