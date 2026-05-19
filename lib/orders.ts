@@ -5,6 +5,7 @@ import {
   buildManualPaymentProviderEventId,
   registerOrderPaymentEvent,
 } from "@/lib/order-payment-idempotency";
+import { inferFlowProfile } from "@/lib/workflow";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -123,6 +124,8 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
     return existing;
   }
   try {
+    const langPair = buildFunnelLangPair(docs);
+    const flowProfile = inferFlowProfile({ langPair });
     return await prisma.order.create({
       data: {
         reference,
@@ -130,19 +133,29 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
         clientName: clientName || null,
         source: "funnel",
         title: buildFunnelOrderTitle(docs, session.purpose),
-        langPair: buildFunnelLangPair(docs),
+        langPair,
         amountCents: session.totalCents,
         currency: (session.currency || "eur").toLowerCase(),
         events: {
-          create: {
-            type: "order.created",
-            message: "Pedido creado desde funnel.",
-            payload: {
-              sessionId: session.id,
-              purpose: session.purpose,
-              docCount: docs.length,
+          create: [
+            {
+              type: "order.created",
+              message: "Pedido creado desde funnel.",
+              payload: {
+                sessionId: session.id,
+                purpose: session.purpose,
+                docCount: docs.length,
+              },
             },
-          },
+            {
+              type: "order.flow_profile",
+              message: `Perfil de flujo detectado: ${flowProfile}.`,
+              payload: {
+                profile: flowProfile,
+                source: "funnel",
+              },
+            },
+          ],
         },
       },
     });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/stripe";
 import { createOrderFromSession, updateOrderPayment } from "@/lib/orders";
-import { sendPaymentConfirmedEmail } from "@/lib/email";
+import { sendPaymentConfirmedEmail, sendNewOrderStaffEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { prisma } from "@/lib/prisma";
 import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
@@ -126,8 +126,22 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
         clientEmail: true,
         title: true,
         amountCents: true,
+        source: true,
+        langPair: true,
       },
     });
+
+    if (order?.source === "funnel") {
+      sendEmailWithRetry(() =>
+        sendNewOrderStaffEmail({
+          reference,
+          title: order.title,
+          amountCents: order.amountCents,
+          clientEmail: order.clientEmail,
+          langPair: order.langPair || undefined,
+        })
+      ).catch((err) => console.error(`[${source}] staff new-order email failed`, err));
+    }
 
     if (order?.clientEmail) {
       sendEmailWithRetry(() =>
