@@ -62,10 +62,49 @@ Retirar el funnel `OrderSession` es de bajo riesgo precisamente porque ya nadie 
 | Francés · más de 2 páginas | 48 h |
 | Alemán, inglés, portugués, italiano | 48 h |
 | Árabe | 72 h (3 días) |
+| Neerlandés, sueco, noruego, catalán, rumano | 72 h (gestión manual) |
 
 El plazo es determinista por (idioma, nº de páginas). La pregunta de fecha límite
 se hace **antes** del diagnóstico; el diagnóstico muestra el plazo calculado y si
 cumple la fecha que pide el cliente.
+
+### Sin tier de urgencia (decidido 2026-05-19)
+
+La tabla anterior es ya tan rápida (24-72 h) que absorbe lo que hasta ahora era
+el tier "urgente". **Se elimina el toggle Estándar/Urgente y el recargo +25 %**:
+el plazo de la tabla es el único, determinista y mostrado en el diagnóstico.
+Esto encaja con la cuenta atrás del Bloque 1.4 ("paga antes de las X y la tienes
+mañana"), que asume un plazo único. Reintroducir un tier urgente, si algún día
+interesa, queda como decisión aparte con datos de conversión en mano.
+
+Impacto: el toggle de `components/ia/InstantQuote.tsx` y los campos `urgentPrice`
+/ `estimatedDaysUrgent` del `Quote` se retiran cuando se reconstruya la UI
+(Bloques 1.2 / 1.4). El motor (`pricing-engine`) los sigue calculando de momento
+para no romper la UI viva; el diagnóstico nuevo ya no los usa.
+
+### ¿Necesita jurada? (decidido 2026-05-19)
+
+Para un documento oficial la respuesta es **siempre "Sí"**. El valor del campo
+no es el sí/no, sino la **frase de validez según la dirección** de la traducción:
+
+- **Documento extranjero → español** (inbound): jurada del MAEC, plena validez
+  ante cualquier organismo oficial en España.
+- **Documento español → idioma extranjero** (outbound): la hace un traductor
+  jurado del MAEC; gracias a los acuerdos de reconocimiento es válida ante las
+  autoridades del país de destino, sin necesidad de otro traductor allí.
+
+Sin lógica condicional en el prompt de Claude: el motor deriva la dirección de
+`language.source` y elige la frase.
+
+### Validez en el diagnóstico (decidido 2026-05-19)
+
+El diagnóstico muestra **ambas** validez:
+
+- **La traducción jurada no caduca** — mensaje fijo, válida indefinidamente.
+- **El documento original sí puede caducar** — caducidad orientativa por tipo
+  (p. ej. antecedentes penales: ~3 meses; actas literales: recientes 3-6 meses).
+  Dato sensible (YMYL): redacción con matiz y remisión siempre al organismo de
+  destino. La tabla por tipo vive en `lib/diagnosis.ts`.
 
 ### Idioma de salida
 
