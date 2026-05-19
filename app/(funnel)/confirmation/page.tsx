@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TrackEvent } from "@/components/TrackEvent";
 import { getSessionOrRedirect } from "@/lib/session";
+import { recordFunnelStep } from "@/lib/funnel-analytics";
 
 export const metadata: Metadata = {
   title: "Confirmación de pago | Traducción jurada",
@@ -22,6 +23,8 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
   if (!session.isPaid && !hasCompletedMarker) {
     redirect("/checkout");
   }
+
+  await recordFunnelStep(session, "confirmation");
 
   return (
     <section className="rounded-3xl border border-cream bg-card p-5 shadow-sm sm:p-7">

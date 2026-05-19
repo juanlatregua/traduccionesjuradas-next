@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import UploadDocumentForm from "@/components/funnel/UploadDocumentForm";
 import { getSessionOrRedirect } from "@/lib/session";
+import { recordFunnelStep } from "@/lib/funnel-analytics";
 
 export const metadata: Metadata = {
   title: "Subir documento original | Traducción jurada",
@@ -15,6 +16,7 @@ type UploadPageProps = {
 
 export default async function UploadPage({ searchParams }: UploadPageProps) {
   const session = await getSessionOrRedirect("UPLOAD");
+  await recordFunnelStep(session, "upload");
   return <UploadDocumentForm docs={session.docs} reason={searchParams?.reason || null} />;
 }
 

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import ReviewActions from "@/components/funnel/ReviewActions";
 import { getSessionOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { recordFunnelStep } from "@/lib/funnel-analytics";
 import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 
 export const metadata: Metadata = {
@@ -27,6 +28,8 @@ export default async function ReviewPage() {
     });
     redirect("/upload?reason=missing_doc");
   }
+
+  await recordFunnelStep(session, "review");
 
   const isRegularizacion2026 = session.purpose === PURPOSE_REGULARIZACION_2026;
 

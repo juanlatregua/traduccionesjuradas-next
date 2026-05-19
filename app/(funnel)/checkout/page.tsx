@@ -6,6 +6,7 @@ import { TrackEvent } from "@/components/TrackEvent";
 import { authOptions } from "@/lib/auth";
 import { getSessionOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { recordFunnelStep } from "@/lib/funnel-analytics";
 import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 
 export const metadata: Metadata = {
@@ -29,6 +30,8 @@ export default async function CheckoutPage() {
     });
     redirect("/review");
   }
+
+  await recordFunnelStep(session, "checkout");
 
   const auth = await getServerSession(authOptions);
   const authEmail = auth?.user?.email?.trim().toLowerCase() || null;

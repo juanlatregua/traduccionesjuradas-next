@@ -351,6 +351,18 @@ model StripeEventLog {
   @@index([quoteId, processedAt])
 }
 
+model FunnelEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  reference String
+  step      String
+  createdAt DateTime @default(now())
+  metadata  Json?
+
+  @@unique([sessionId, step])
+  @@index([step, createdAt])
+}
+
 model OrderSession {
   id            String      @id @default(cuid())
   createdAt     DateTime    @default(now())
