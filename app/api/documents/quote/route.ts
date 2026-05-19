@@ -3,6 +3,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
+import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { buildDiagnosis } from "@/lib/diagnosis";
 
 export const runtime = "nodejs";
 
@@ -57,5 +60,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Documento no encontrado." }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, document: doc });
+  let diagnosis = null;
+  if (doc.analysisJson) {
+    try {
+      const analysis = doc.analysisJson as unknown as DocumentAnalysisResult;
+      diagnosis = buildDiagnosis(analysis, calculatePrice(analysis));
+    } catch (err: any) {
+      console.error("[documents/quote] diagnosis error:", err?.message);
+    }
+  }
+
+  return NextResponse.json({ ok: true, document: doc, diagnosis });
 }
