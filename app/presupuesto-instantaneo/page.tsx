@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
-import PresupuestoInstantaneoClient from "./PresupuestoInstantaneoClient";
+import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
+import PuertaClient from "./PuertaClient";
+
+// Presets de campaña activables por query param (?p=…).
+const PURPOSE_PRESETS: Record<string, string> = {
+  "regularizacion-2026": PURPOSE_REGULARIZACION_2026,
+};
 
 export const metadata: Metadata = {
   title: "Presupuesto instantáneo de traducción jurada",
   description:
-    "Sube tu documento y recibe un presupuesto de traducción jurada en segundos. Sin esperas, sin formularios. Precio cerrado al instante.",
-  alternates: { canonical: "https://www.traduccionesjuradas.net/presupuesto-instantaneo" },
+    "Sube tu documento y, en segundos, te decimos qué es, si necesita traducción jurada, cuánto cuesta, en cuánto tiempo y con qué validez. Precio cerrado al instante.",
+  alternates: {
+    canonical: "https://www.traduccionesjuradas.net/presupuesto-instantaneo",
+  },
   openGraph: {
     images: [
       {
@@ -18,20 +26,25 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PresupuestoInstantaneoPage() {
+export default function PresupuestoInstantaneoPage({
+  searchParams,
+}: {
+  searchParams?: { p?: string };
+}) {
+  const presetKey = searchParams?.p?.toLowerCase().trim();
+  const purpose = (presetKey && PURPOSE_PRESETS[presetKey]) || null;
+
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
-      {/* Hero */}
-      <div className="text-center mb-10">
-        <h1 className="font-baskerville text-3xl sm:text-4xl font-bold text-bleu leading-tight">
+      <div className="mb-10 text-center">
+        <h1 className="font-baskerville text-3xl font-bold leading-tight text-bleu sm:text-4xl">
           Presupuesto instantáneo
         </h1>
-        <p className="mt-3 text-lg text-graphite max-w-xl mx-auto">
-          Sube tu documento y recibe el precio de tu traducción jurada en
-          segundos. Sin esperar respuesta manual, disponible 24/7.
+        <p className="mx-auto mt-3 max-w-xl text-lg text-graphite">
+          Suelta tu documento y, en segundos, te decimos qué es, si necesita
+          traducción jurada, cuánto cuesta, en cuánto tiempo y con qué validez.
         </p>
 
-        {/* Trust badges */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-graphite">
           <span className="flex items-center gap-1.5 rounded-full bg-cream px-3 py-1.5">
             <span className="h-2 w-2 rounded-full bg-vert" />
@@ -48,42 +61,7 @@ export default function PresupuestoInstantaneoPage() {
         </div>
       </div>
 
-      {/* Client component with the full flow */}
-      <PresupuestoInstantaneoClient />
-
-      {/* How it works */}
-      <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {[
-          {
-            step: "1",
-            title: "Sube tu documento",
-            desc: "PDF, foto o escaneo. Lo analizamos al instante.",
-          },
-          {
-            step: "2",
-            title: "Recibe el precio",
-            desc: "Presupuesto cerrado en segundos. Sin sorpresas ni letra pequeña.",
-          },
-          {
-            step: "3",
-            title: "Paga y recibe",
-            desc: "Traducción jurada oficial firmada en 24-48h por email.",
-          },
-        ].map((item) => (
-          <div
-            key={item.step}
-            className="text-center rounded-xl border border-bleu/10 bg-card p-6"
-          >
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-bleu text-cream font-baskerville text-lg font-bold">
-              {item.step}
-            </div>
-            <h3 className="mt-3 font-baskerville text-lg text-encre">
-              {item.title}
-            </h3>
-            <p className="mt-1 text-sm text-graphite">{item.desc}</p>
-          </div>
-        ))}
-      </div>
+      <PuertaClient purpose={purpose} />
     </section>
   );
 }

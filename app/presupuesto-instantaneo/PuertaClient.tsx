@@ -1,8 +1,8 @@
 "use client";
 
-// app/puerta/PuertaClient.tsx — La puerta (v2 · Fase 1 · Bloque 1.2)
-// Entrada de documentos + fecha límite → diagnóstico completo. Sin pago:
-// el puente al checkout es el Bloque 1.3.
+// app/presupuesto-instantaneo/PuertaClient.tsx — La puerta (v2 · Fase 1)
+// Entrada de documentos + fecha límite → diagnóstico completo → puente al
+// checkout. Es el funnel canónico desde el Bloque 1.4.
 
 import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
@@ -19,6 +19,7 @@ import type { Quote } from "@/lib/pricing-engine/calculator";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { buildDiagnosis, type Diagnosis } from "@/lib/diagnosis";
 import DiagnosisCard from "@/components/puerta/DiagnosisCard";
+import DeadlineCountdown from "@/components/puerta/DeadlineCountdown";
 
 const DocumentUploader = dynamic(
   () => import("@/components/ia/DocumentUploader"),
@@ -179,6 +180,8 @@ export default function PuertaClient({ purpose }: { purpose: string | null }) {
       {/* ─── Entrada ─── */}
       {step === "entry" && (
         <>
+          {documents.length === 0 && <DeadlineCountdown />}
+
           {documents.length === 0 && (
             <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
               <label

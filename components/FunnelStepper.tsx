@@ -3,9 +3,7 @@
 import { usePathname } from "next/navigation";
 
 const STEPS = [
-  { href: "/start", label: "Contexto" },
-  { href: "/upload", label: "Documento" },
-  { href: "/review", label: "Revisión" },
+  { href: "/presupuesto-instantaneo", label: "Diagnóstico" },
   { href: "/checkout", label: "Pago" },
   { href: "/confirmation", label: "Confirmación" },
 ];
@@ -20,7 +18,7 @@ export default function FunnelStepper() {
   return (
     <ol
       aria-label="Progreso del pedido"
-      className="mt-4 grid grid-cols-5 gap-2 overflow-x-auto text-center text-[11px] font-semibold"
+      className="mt-4 grid grid-cols-3 gap-2 overflow-x-auto text-center text-[11px] font-semibold"
     >
       {STEPS.map((step, index) => {
         const active = index <= activeIndex;
