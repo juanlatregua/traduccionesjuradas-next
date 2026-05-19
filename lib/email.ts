@@ -707,6 +707,79 @@ export async function sendPaymentReminderEmail(data: {
   });
 }
 
+function alertRecipient() {
+  return process.env.ALERT_EMAIL || process.env.PRESUPUESTO_TO || "";
+}
+
+export async function sendPaymentReconciliationAlertEmail(data: {
+  discrepancies: Array<{
+    reference: string | null;
+    clientEmail: string | null;
+    amount: string;
+    stripeSessionId: string;
+    createdAt: string;
+  }>;
+}) {
+  const to = alertRecipient();
+  if (!to) throw new Error("Missing ALERT_EMAIL / PRESUPUESTO_TO");
+
+  const count = data.discrepancies.length;
+  const subject = `[Alerta] ${count} pago(s) en Stripe sin pedido en la BD`;
+
+  const rows = data.discrepancies
+    .map(
+      (d) => `
+      <tr>
+        <td style="padding:4px 12px 4px 0;">${d.reference || "(sin referencia)"}</td>
+        <td style="padding:4px 12px 4px 0;">${d.clientEmail || "-"}</td>
+        <td style="padding:4px 12px 4px 0;">${d.amount}</td>
+        <td style="padding:4px 12px 4px 0;">${d.createdAt}</td>
+        <td style="padding:4px 12px 4px 0; font-family:monospace; font-size:12px;">${d.stripeSessionId}</td>
+      </tr>`,
+    )
+    .join("");
+
+  const html = `
+    <h2>Pagos cobrados sin pedido reconciliado</h2>
+    <p>El cron de reconciliacion ha detectado ${count} pago(s) confirmado(s) en Stripe sin un pedido en estado PAID en la base de datos. Revisa cada uno:</p>
+    <table style="border-collapse:collapse; margin:12px 0; font-size:14px;">
+      <tr style="text-align:left; border-bottom:1px solid #e2e8f0;">
+        <th style="padding:4px 12px 4px 0;">Referencia</th>
+        <th style="padding:4px 12px 4px 0;">Cliente</th>
+        <th style="padding:4px 12px 4px 0;">Importe</th>
+        <th style="padding:4px 12px 4px 0;">Fecha</th>
+        <th style="padding:4px 12px 4px 0;">Stripe session</th>
+      </tr>
+      ${rows}
+    </table>
+    <p style="font-size:13px; color:#6b7280;">Si esto se repite, revisa que el endpoint de webhook de Stripe apunte a /api/payment/stripe/webhook.</p>
+  `;
+
+  await sendMail({ to, subject, html });
+}
+
+export async function sendWebhookFailureAlertEmail(data: {
+  reason: string;
+  detail?: string;
+  source?: string;
+}) {
+  const to = alertRecipient();
+  if (!to) throw new Error("Missing ALERT_EMAIL / PRESUPUESTO_TO");
+
+  const subject = `[Alerta] Fallo en el webhook de pago de Stripe`;
+  const html = `
+    <h2>El webhook de pago ha fallado</h2>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Motivo</td><td>${data.reason}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Origen</td><td>${data.source || "-"}</td></tr>
+      ${data.detail ? `<tr><td style="padding:4px 12px 4px 0; font-weight:600;">Detalle</td><td>${data.detail}</td></tr>` : ""}
+    </table>
+    <p style="font-size:13px; color:#6b7280;">Un pago puede haber quedado sin procesar. El cron de reconciliacion lo detectara igualmente, pero conviene revisarlo cuanto antes.</p>
+  `;
+
+  await sendMail({ to, subject, html });
+}
+
 export async function sendReviewRequestEmail(data: {
   toEmail: string;
   reference: string;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/stripe";
 import { createOrderFromSession, updateOrderPayment } from "@/lib/orders";
-import { sendPaymentConfirmedEmail, sendNewOrderStaffEmail } from "@/lib/email";
+import { sendPaymentConfirmedEmail, sendNewOrderStaffEmail, sendWebhookFailureAlertEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { prisma } from "@/lib/prisma";
 import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
@@ -18,6 +18,11 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
     event = verifyWebhookSignature(body, signature);
   } catch (err: any) {
     console.error(`[${source}] signature verification failed`, err?.message);
+    await sendWebhookFailureAlertEmail({
+      reason: "Verificacion de firma fallida",
+      detail: err?.message,
+      source,
+    }).catch((e) => console.error(`[${source}] alert email failed`, e));
     return NextResponse.json({ ok: false, error: "Invalid signature." }, { status: 400 });
   }
 
@@ -49,6 +54,11 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
       });
     } catch (err) {
       console.error(`[${source}] failed updating order session`, err);
+      await sendWebhookFailureAlertEmail({
+        reason: "Fallo al actualizar la order session",
+        detail: (err as any)?.message,
+        source,
+      }).catch((e) => console.error(`[${source}] alert email failed`, e));
       return NextResponse.json({ ok: false, error: "Order session update failed." }, { status: 500 });
     }
 
@@ -176,6 +186,11 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
     }
   } catch (err) {
     console.error(`[${source}] error processing payment`, err);
+    await sendWebhookFailureAlertEmail({
+      reason: "Error procesando el pago",
+      detail: `${reference ? `Pedido ${reference}. ` : ""}${(err as any)?.message || ""}`,
+      source,
+    }).catch((e) => console.error(`[${source}] alert email failed`, e));
     return NextResponse.json({ ok: false, error: "Processing error." }, { status: 500 });
   }
 

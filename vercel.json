@@ -25,6 +25,10 @@
     {
       "path": "/api/cron/fix-stuck-analyses",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/payment-reconciliation",
+      "schedule": "0 8 * * *"
     }
   ]
 }
