@@ -11,7 +11,12 @@ type UploadedFile = {
 };
 
 type Props = {
-  onUploadComplete: (documentId: string, sessionToken: string, fileSize?: number) => void;
+  onUploadComplete: (
+    documentId: string,
+    sessionToken: string,
+    fileSize?: number,
+    fileName?: string
+  ) => void;
   sessionToken: string | null;
   onSessionToken: (token: string) => void;
   disabled?: boolean;
@@ -104,7 +109,7 @@ export default function DocumentUploader({
           onSessionToken(data.sessionToken);
         }
 
-        onUploadComplete(data.documentId, data.sessionToken, file.size);
+        onUploadComplete(data.documentId, data.sessionToken, file.size, file.name);
       } catch {
         setError("Error de conexión. Inténtalo de nuevo.");
         setUploadedFile(null);

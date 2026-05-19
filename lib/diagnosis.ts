@@ -150,3 +150,41 @@ export function buildDiagnosis(
     },
   };
 }
+
+// ── Fecha de entrega y cumplimiento del plazo del cliente ───────────
+// La puerta pregunta "¿para cuándo lo necesitas?" y el diagnóstico
+// confirma si el plazo determinista llega a esa fecha.
+
+// Suma N días laborables (lunes-viernes) a una fecha.
+function addBusinessDays(from: Date, days: number): Date {
+  const result = new Date(from);
+  let added = 0;
+  while (added < days) {
+    result.setDate(result.getDate() + 1);
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) added += 1;
+  }
+  return result;
+}
+
+// Estima la fecha de entrega a partir del plazo en horas.
+// 24 h → 1 día laborable · 48 h → 2 · 72 h → 3.
+export function estimateDeliveryDate(
+  deliveryHours: number,
+  from: Date = new Date()
+): Date {
+  return addBusinessDays(from, Math.max(1, Math.ceil(deliveryHours / 24)));
+}
+
+// ¿La entrega estimada llega a la fecha que pide el cliente?
+// Compara por día natural: la hora del día es irrelevante para el cliente.
+export function meetsDeadline(
+  deliveryHours: number,
+  neededBy: Date,
+  from: Date = new Date()
+): boolean {
+  const estimate = estimateDeliveryDate(deliveryHours, from);
+  const estDay = Date.UTC(estimate.getFullYear(), estimate.getMonth(), estimate.getDate());
+  const needDay = Date.UTC(neededBy.getFullYear(), neededBy.getMonth(), neededBy.getDate());
+  return estDay <= needDay;
+}
