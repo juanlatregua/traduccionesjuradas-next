@@ -1,19 +1,34 @@
 # v2 · Fase 1 — La puerta · Plan detallado
 
-**Fecha:** 2026-05-19 · **Estado:** aprobado · **Ventana:** semanas 3-7 (~2 jun – 5 jul 2026)
-**Depende de:** brief en `docs/v2-brief.md` · línea base de conversión de la Fase 0
+**Fecha:** 2026-05-19 · **Estado:** aprobado · **Ventana:** semanas 3-7
+**Depende de:** brief en `docs/v2-brief.md`. La línea base **ya existe** en el histórico — no hay espera.
 
 ---
+
+## Hallazgo que da forma a esta fase (2026-05-19)
+
+El minado de la BD reveló que hay **dos funnels**, y el que importa no es el que parecía:
+
+- El funnel `OrderSession` (`/start → upload → review → checkout`) está **muerto**: 3 sesiones en 30 días.
+- El funnel **real** es `/presupuesto-instantaneo → DocumentAnalysis → Order`: **~72 análisis/mes**.
+- Conversión real de ese funnel: de **78 documentos analizados en 90 días, 1 generó pedido y 0 llegaron a pago**.
+
+Es decir: ~72 personas al mes suben un documento, reciben un precio en segundos… y se van.
+El presupuesto instantáneo es hoy un callejón sin salida. **Eso es exactamente lo que arregla
+la Fase 1** — y por eso es la prioridad, no un lujo.
 
 ## Decisión de arquitectura: Opción A
 
 El análisis-IA **es** la entrada del funnel. El documento deja de ser un paso
-intermedio y pasa a ser el input. El funnel baja de 5 pantallas a 2 + confirmación.
+intermedio y pasa a ser el input.
 
 El motor de análisis ya existe y es potente: `lib/ai-document.ts`, `app/api/estimador`,
 la página `/presupuesto-instantaneo` y el modelo `DocumentAnalysis` (tipo, categoría,
 idiomas, palabras, complejidad, confianza, precio normal/urgente, plazo). La Fase 1
-**no construye IA** — recablea y reencuadra lo que hay para convertirlo en la puerta.
+**no construye IA** — recablea y reencuadra lo que hay para convertirlo en la puerta,
+y le añade lo único que hoy le falta: una salida hacia el pago.
+
+Retirar el funnel `OrderSession` es de bajo riesgo precisamente porque ya nadie lo usa.
 
 ## El recorrido nuevo
 
@@ -86,7 +101,12 @@ La puerta acepta varios documentos de golpe (drop múltiple), un diagnóstico po
 - **Idiomas no automatizados** (árabe, inglés → colaborador) — precio cerrado igualmente si la confianza es alta; "presupuesto a confirmar" solo si la confianza es baja.
 - **Documentos que la IA no analiza bien** (baja confianza o fallo) — degradar con elegancia a un camino de presupuesto manual; nunca un callejón sin salida.
 
-## Métrica
+## Métrica y línea base
 
-La estrella es **% de visitantes que llegan a pago**. La línea base de la Fase 0
-(`/admin/funnel`) es el punto de partida; la Fase 1 se valida comparando contra ella.
+La estrella es **% de personas que, tras recibir el presupuesto instantáneo, acaban pagando**.
+
+La línea base **ya existe** en el histórico — no hubo que esperar a recoger datos: de
+~78 documentos analizados en los últimos 90 días, 1 generó pedido y **0 llegaron a pago**.
+El presupuesto instantáneo convierte hoy a pago **≈ 0 %**. Cualquier cosa que la Fase 1
+mueva por encima de cero es ganancia neta. La vista `/admin/funnel` mide este recorrido
+en vivo (ventanas de 7/30/90 días) para validar el progreso.
