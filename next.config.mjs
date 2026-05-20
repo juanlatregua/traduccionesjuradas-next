@@ -45,6 +45,22 @@ const nextConfig = {
     ];
   },
 
+  async rewrites() {
+    // Bloque /uge-ce/* delegado a un proyecto Vercel independiente
+    // (repo: juanlatregua/traduccionesjuradas-uge, basePath /uge-ce).
+    // El proxy se hace server-side: el usuario nunca ve la URL de Vercel.
+    return [
+      {
+        source: "/uge-ce",
+        destination: "https://traduccionesjuradas-uge.vercel.app/uge-ce",
+      },
+      {
+        source: "/uge-ce/:path*",
+        destination: "https://traduccionesjuradas-uge.vercel.app/uge-ce/:path*",
+      },
+    ];
+  },
+
   async redirects() {
     return [
       {
