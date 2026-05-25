@@ -23,9 +23,9 @@ function pct(n: number, base: number) {
   return `${((n / base) * 100).toFixed(1)} %`;
 }
 
-async function funnelForWindow(days: number) {
+async function funnelForWindow(days: number, source?: string) {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const base = { createdAt: { gte: since } };
+  const base = { createdAt: { gte: since }, ...(source ? { source } : {}) };
   const [analizado, presupuesto, lead, pedido, pagado] = await Promise.all([
     prisma.documentAnalysis.count({ where: base }),
     prisma.documentAnalysis.count({
@@ -99,10 +99,12 @@ function FunnelTable({
 export default async function AdminFunnelPage() {
   await requireAdminPageAccess("/admin/funnel");
 
-  const [w7, w30, w90] = await Promise.all([
+  const [w7, w30, w90, ugece30, regu30] = await Promise.all([
     funnelForWindow(7),
     funnelForWindow(30),
     funnelForWindow(90),
+    funnelForWindow(30, "uge-ce"),
+    funnelForWindow(30, "regularizacion-2026"),
   ]);
 
   return (
@@ -124,6 +126,23 @@ export default async function AdminFunnelPage() {
         <FunnelTable title="Ultimos 7 dias" data={w7} />
         <FunnelTable title="Ultimos 30 dias" data={w30} />
         <FunnelTable title="Ultimos 90 dias" data={w90} />
+      </div>
+
+      <div className="mt-10 mb-6">
+        <h2 className="text-lg font-bold tracking-tight text-slate-900">
+          Por origen (ultimos 30 dias)
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Atribucion por el preset ?p= con el que llego el lead (handoff del bloque
+          uge-ce, campana de regularizacion). Nota: &laquo;pedido&raquo; y
+          &laquo;pagado&raquo; dependen del enlace DocumentAnalysis&rarr;Order, que la
+          puerta nueva aun no fija &mdash; fiarse de analizado / presupuesto / lead.
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <FunnelTable title="uge-ce (teletrabajo)" data={ugece30} />
+        <FunnelTable title="regularizacion 2026" data={regu30} />
       </div>
     </main>
   );

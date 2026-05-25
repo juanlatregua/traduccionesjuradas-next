@@ -53,7 +53,13 @@ function parseDateInput(value: string): Date | null {
   return new Date(y, m - 1, d);
 }
 
-export default function PuertaClient({ purpose }: { purpose: string | null }) {
+export default function PuertaClient({
+  purpose,
+  source,
+}: {
+  purpose: string | null;
+  source?: string | null;
+}) {
   const [step, setStep] = useState<Step>("entry");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
@@ -221,6 +227,7 @@ export default function PuertaClient({ purpose }: { purpose: string | null }) {
             onSessionToken={setSessionToken}
             gdprConsent={gdprConsent}
             onGdprConsentChange={setGdprConsent}
+            source={source}
           />
         </>
       )}

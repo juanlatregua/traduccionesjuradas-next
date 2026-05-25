@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 import PuertaClient from "./PuertaClient";
 
-// Presets de campaña activables por query param (?p=…).
+// Presets de pricing activables por query param (?p=…). Solo regularización
+// aplica precio de campaña; el resto van al pricing-engine normal.
 const PURPOSE_PRESETS: Record<string, string> = {
   "regularizacion-2026": PURPOSE_REGULARIZACION_2026,
 };
+
+// Orígenes de captación válidos (atribución del funnel). No tocan el precio;
+// solo etiquetan de dónde llega el lead (p. ej. el handoff del bloque uge-ce).
+const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce"]);
 
 export const metadata: Metadata = {
   title: "Presupuesto instantáneo de traducción jurada",
@@ -33,6 +38,7 @@ export default function PresupuestoInstantaneoPage({
 }) {
   const presetKey = searchParams?.p?.toLowerCase().trim();
   const purpose = (presetKey && PURPOSE_PRESETS[presetKey]) || null;
+  const source = (presetKey && KNOWN_SOURCES.has(presetKey) && presetKey) || null;
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
@@ -61,7 +67,7 @@ export default function PresupuestoInstantaneoPage({
         </div>
       </div>
 
-      <PuertaClient purpose={purpose} />
+      <PuertaClient purpose={purpose} source={source} />
     </section>
   );
 }

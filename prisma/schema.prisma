@@ -471,6 +471,9 @@ model DocumentAnalysis {
   // Estado
   status           DocAnalysisStatus      @default(UPLOADED)
 
+  // Origen de captación (preset ?p=… de la puerta: uge-ce, regularizacion-2026)
+  source           String?
+
   // Cliente (anónimo hasta que paga)
   sessionToken     String?
   clientEmail      String?
