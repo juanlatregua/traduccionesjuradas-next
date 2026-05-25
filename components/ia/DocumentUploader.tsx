@@ -22,6 +22,7 @@ type Props = {
   disabled?: boolean;
   gdprConsent?: boolean;
   onGdprConsentChange?: (consent: boolean) => void;
+  source?: string | null;
 };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -34,6 +35,7 @@ export default function DocumentUploader({
   disabled,
   gdprConsent: externalGdprConsent,
   onGdprConsentChange,
+  source,
 }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -90,6 +92,7 @@ export default function DocumentUploader({
             mimeType: file.type,
             sessionToken,
             gdprConsent: true,
+            source,
           }),
         });
 
@@ -117,7 +120,7 @@ export default function DocumentUploader({
         setUploading(false);
       }
     },
-    [gdprConsent, sessionToken, onSessionToken, onUploadComplete]
+    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source]
   );
 
   const handleDrop = useCallback(

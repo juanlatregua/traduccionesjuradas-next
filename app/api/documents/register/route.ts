@@ -27,8 +27,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { blobUrl, fileName, fileSize, mimeType, sessionToken, gdprConsent } =
+    const { blobUrl, fileName, fileSize, mimeType, sessionToken, gdprConsent, source } =
       await req.json();
+
+    // Origen de captación (atribución del funnel). Whitelist para no guardar basura.
+    const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce"]);
+    const normalizedSource =
+      typeof source === "string" && KNOWN_SOURCES.has(source) ? source : null;
 
     if (!blobUrl || !fileName) {
       return NextResponse.json(
@@ -53,6 +58,7 @@ export async function POST(req: Request) {
         fileSize: fileSize || 0,
         mimeType: mimeType || "application/octet-stream",
         sessionToken: token,
+        source: normalizedSource,
         ipHash: hashIp(ip),
         gdprConsent: true,
         gdprConsentAt: new Date(),
