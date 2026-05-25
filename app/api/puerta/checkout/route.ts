@@ -125,11 +125,22 @@ export async function POST(req: Request) {
       );
     }
 
+    // El penal francés con anexo UE (Bulletin n°3, ~5 páginas) tiene precio
+    // fijo propio en el pricing-engine (61,98 € → 75 € c/IVA): el anexo
+    // multilingüe es trabajo real que el plano de campaña no cubre. Mismo
+    // criterio que lib/pricing-engine/calculator.ts (isFrenchCriminalRecord).
+    const isFrenchCriminalRecord =
+      analysis.document_type.specific_type === "criminal_record" &&
+      foreignLang === "fr" &&
+      (analysis.document_metrics?.pages ?? 0) >= 3;
+
     let quotedCents: number;
     try {
       const quote = calculatePrice(analysis);
       quotedCents =
-        purpose === PURPOSE_REGULARIZACION_2026 && foreignLang === "fr"
+        purpose === PURPOSE_REGULARIZACION_2026 &&
+        foreignLang === "fr" &&
+        !isFrenchCriminalRecord
           ? REGULARIZACION_FR_DOC_CENTS
           : Math.round(quote.basePrice * 100);
     } catch (err: any) {
