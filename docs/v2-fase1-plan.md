@@ -132,6 +132,14 @@ El puente (`/api/puerta/checkout`, Bloque 1.3) persiste el precio por documento
 en `OrderDocument.quotedCents`; `computeSessionPricing` lo respeta cuando todos
 los documentos lo tienen, y recae en el plano solo para el funnel viejo.
 
+### Colapso del funnel y URL canónica (decidido 2026-05-19)
+
+La puerta es definitiva en **`/presupuesto-instantaneo`** (URL ya indexada).
+`/start`, `/upload`, `/review` y `/puerta` redirigen 301 ahí; sus páginas se
+retiran. El `FunnelStepper` pasa a 3 pasos (Diagnóstico → Pago → Confirmación).
+La **cuenta atrás** usa corte a las **18:00 (hora de Madrid)**: "pídela antes de
+las 18:00 y la ponemos en marcha hoy".
+
 ## Desglose semana a semana
 
 | Bloque | Sem. | Qué se hace | Entregable |

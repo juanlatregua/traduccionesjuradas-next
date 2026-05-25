@@ -112,6 +112,11 @@ const nextConfig = {
       { source: '/traductor-jurado/calahorra', destination: '/', permanent: true },
       { source: '/traductor-jurado-japones', destination: '/', permanent: true },
       { source: '/traductor-jurado-japones/', destination: '/', permanent: true },
+      // v2 Fase 1 (Bloque 1.4): el funnel viejo colapsa en la puerta.
+      { source: '/start', destination: '/presupuesto-instantaneo', permanent: true },
+      { source: '/upload', destination: '/presupuesto-instantaneo', permanent: true },
+      { source: '/review', destination: '/presupuesto-instantaneo', permanent: true },
+      { source: '/puerta', destination: '/presupuesto-instantaneo', permanent: true },
       {
         source: "/contacto/page/:page(\\d+)",
         destination: "/contacto",

@@ -98,11 +98,11 @@ export async function enforceStep(session: NonNullable<SessionWithDocs>, routeSt
 export async function getSessionOrRedirect(routeStep?: SessionStep) {
   const sessionId = getSessionIdFromCookie();
   if (!sessionId) {
-    redirect("/start");
+    redirect("/presupuesto-instantaneo");
   }
   const session = await getSessionById(sessionId);
   if (!session) {
-    redirect("/start");
+    redirect("/presupuesto-instantaneo");
   }
   if (routeStep) {
     await enforceStep(session, routeStep);

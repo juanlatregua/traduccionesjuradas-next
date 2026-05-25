@@ -9,8 +9,8 @@ import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 
-const PresupuestoInstantaneoClient = dynamic(
-  () => import("@/app/presupuesto-instantaneo/PresupuestoInstantaneoClient"),
+const PuertaClient = dynamic(
+  () => import("@/app/presupuesto-instantaneo/PuertaClient"),
   { ssr: false, loading: () => <UploadHeroPlaceholder /> }
 );
 
@@ -190,7 +190,7 @@ export default function Home() {
 
           {/* Flujo completo IA */}
           <div className="mx-auto mt-10 max-w-xl">
-            <PresupuestoInstantaneoClient />
+            <PuertaClient purpose={null} />
           </div>
 
           {/* WhatsApp alternativo */}

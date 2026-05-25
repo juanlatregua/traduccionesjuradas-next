@@ -135,7 +135,7 @@ Llama a \`recommend_arraigo_pack\` con \`country_of_origin\` (ISO-2) y los flags
 1. Plazo improrrogable: 30-jun-2026.
 2. Tarifa especial: **25 €/documento**, entrega 24h, pago con Bizum/tarjeta/transferencia.
 3. Documentos exactos del país de origen + si necesita Apostilla o legalización consular.
-4. CTA a la página país (si existe) + CTA al flujo de pedido \`/start?p=regularizacion-2026\`.
+4. CTA a la página país (si existe) + CTA al flujo de pedido \`/presupuesto-instantaneo?p=regularizacion-2026\`.
 NO improvises elegibilidad ni precios. NO menciones Bizum si la tool no devuelve "bizum" en \`payment_methods\`.
 
 ## FORMATO DE RESPUESTA

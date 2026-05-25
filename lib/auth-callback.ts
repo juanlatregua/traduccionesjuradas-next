@@ -1,9 +1,7 @@
 const SAFE_CALLBACK_PREFIXES = [
   "/area-cliente",
   "/zona-traductor",
-  "/start",
-  "/upload",
-  "/review",
+  "/presupuesto-instantaneo",
   "/checkout",
   "/confirmation",
   "/traductor-jurado-frances",

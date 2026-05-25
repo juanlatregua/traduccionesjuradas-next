@@ -188,7 +188,7 @@ export function recommendArraigoPack(input: RecommendArraigoPackInput) {
   }
   ctas.push({
     label: "Iniciar pedido con tarifa 25 €/doc",
-    url: withUtm("/start?p=regularizacion-2026"),
+    url: withUtm("/presupuesto-instantaneo?p=regularizacion-2026"),
   });
 
   return {
