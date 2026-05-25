@@ -63,12 +63,12 @@ Tiempo observado: ________
 ## 5 · Preset regularización 2026 (25 €/doc FR)
 
 - [ ] Abre https://www.traduccionesjuradas.net/presupuesto-instantaneo?p=regularizacion-2026
-- [ ] Sube un **penal/acta en francés**
-- [ ] Llega al diagnóstico (puede mostrar el precio del **engine**, p. ej. ~75 € para penal FR — esto es lo esperado por el plan)
-- [ ] "Continuar al pago" → en **/checkout** el documento FR se cobra a **25 €** (pre-IVA) plano
+- [ ] Sube un **documento FR corto** (p. ej. acta de 1 página) → en **/checkout** se cobra a **25 €** (pre-IVA) plano
+- [ ] **Penal francés con anexo UE** (Bulletin n°3, ~5 páginas) → diagnóstico **75 € c/IVA** y checkout **75 €** (NO 25 €): el anexo multilingüe es trabajo real, mantiene su precio fijo
 - [ ] (Opcional) En la misma sesión añade un documento **no-FR**: ese va al precio del **engine**, no a 25 €
 
-> ⚠️ Decisión abierta: hoy el diagnóstico muestra el precio del engine y el 25 € se ve solo en checkout. Si quieres que el diagnóstico ya muestre 25 € cuando aplica, dímelo y lo cambio.
+> Regla: el 25 € de campaña aplica a documentos FR estándar de la regularización, **excepto** el penal francés con anexo UE (≥3 páginas), que conserva su 75 €.
+> ⚠️ Decisión abierta: hoy el diagnóstico muestra el precio del engine y el 25 € se ve solo en checkout (para el penal FR el diagnóstico ya muestra el 75 € correcto). Si quieres que el diagnóstico muestre el 25 € cuando aplica, dímelo.
 
 ---
 
