@@ -100,6 +100,7 @@ type CreateOrderFromSessionInput = {
   docs: OrderDocument[];
   clientEmail: string;
   clientName?: string | null;
+  clientPhone?: string | null;
 };
 
 function buildFunnelOrderTitle(docs: OrderDocument[], purpose: string | null) {
@@ -117,7 +118,7 @@ function buildFunnelLangPair(docs: OrderDocument[]) {
 }
 
 export async function createOrderFromSession(input: CreateOrderFromSessionInput) {
-  const { session, docs, clientEmail, clientName } = input;
+  const { session, docs, clientEmail, clientName, clientPhone } = input;
   const reference = session.reference;
   const existing = await prisma.order.findUnique({ where: { reference } });
   if (existing) {
@@ -131,6 +132,7 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
         reference,
         clientEmail,
         clientName: clientName || null,
+        clientPhone: clientPhone || null,
         source: "funnel",
         title: buildFunnelOrderTitle(docs, session.purpose),
         langPair,

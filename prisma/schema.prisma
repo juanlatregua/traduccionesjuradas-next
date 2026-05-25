@@ -103,6 +103,7 @@ model Order {
   idempotencyKey     String?        @unique
   clientEmail        String
   clientName         String?
+  clientPhone        String?
   clientNotes        String?
   source             String
   title              String
@@ -371,6 +372,8 @@ model OrderSession {
   purpose       String?
   authState     AuthState   @default(GUEST)
   userId        String?
+  clientEmail   String?
+  clientPhone   String?
   subtotalCents Int         @default(0)
   vatCents      Int         @default(0)
   totalCents    Int         @default(0)
