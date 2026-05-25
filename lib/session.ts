@@ -52,6 +52,8 @@ export async function createSessionRecord(params?: {
   step?: SessionStep;
   authState?: AuthState;
   userId?: string | null;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
 }) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     try {
@@ -62,6 +64,8 @@ export async function createSessionRecord(params?: {
           step: params?.step || "UPLOAD",
           authState: params?.authState || "GUEST",
           userId: params?.userId || null,
+          clientEmail: params?.clientEmail || null,
+          clientPhone: params?.clientPhone || null,
         },
         include: {
           docs: true,

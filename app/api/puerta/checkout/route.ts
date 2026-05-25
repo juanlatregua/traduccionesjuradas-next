@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { documents?: DocInput[]; purpose?: string };
+  let body: { documents?: DocInput[]; purpose?: string; email?: string; phone?: string };
   try {
     body = await req.json();
   } catch {
@@ -69,6 +69,22 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: "No hay documentos para el pedido." },
       { status: 400 }
+    );
+  }
+
+  // Contacto obligatorio: lo necesitamos para email + SMS/WhatsApp del pedido.
+  const email = (body.email || "").trim().toLowerCase();
+  const phone = (body.phone || "").trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return NextResponse.json(
+      { ok: false, error: "Indica un email válido." },
+      { status: 422 }
+    );
+  }
+  if (phone.replace(/\D/g, "").length < 7) {
+    return NextResponse.json(
+      { ok: false, error: "Indica un teléfono válido." },
+      { status: 422 }
     );
   }
 
@@ -155,7 +171,19 @@ export async function POST(req: Request) {
   }
 
   // Crear la sesión y sus documentos.
-  const session = await createSessionRecord({ purpose, step: "UPLOAD" });
+  const session = await createSessionRecord({
+    purpose,
+    step: "UPLOAD",
+    clientEmail: email,
+    clientPhone: phone,
+  });
+
+  // Reflejar el contacto en los DocumentAnalysis (alimenta el stage "lead"
+  // de /admin/funnel y deja rastro junto al análisis).
+  await prisma.documentAnalysis.updateMany({
+    where: { id: { in: ids } },
+    data: { clientEmail: email, clientPhone: phone },
+  });
 
   await prisma.orderDocument.createMany({
     data: prepared.map(({ rec, analysis, quotedCents }) => ({

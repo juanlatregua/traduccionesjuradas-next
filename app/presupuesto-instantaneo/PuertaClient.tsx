@@ -13,6 +13,8 @@ import {
   MessageCircle,
   Loader2,
   AlertTriangle,
+  Mail,
+  Phone,
 } from "lucide-react";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
@@ -63,6 +65,12 @@ export default function PuertaClient({ purpose }: { purpose: string | null }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const contactValid =
+    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) &&
+    phone.replace(/\D/g, "").length >= 7;
 
   const neededBy = parseDateInput(neededByInput);
   const todayInput = new Date().toISOString().split("T")[0];
@@ -151,6 +159,8 @@ export default function PuertaClient({ purpose }: { purpose: string | null }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           purpose: purpose || undefined,
+          email: email.trim(),
+          phone: phone.trim(),
           documents: documents.map((d) => ({
             id: d.id,
             targetLanguage: d.analysis.language.target,
@@ -286,11 +296,44 @@ export default function PuertaClient({ purpose }: { purpose: string | null }) {
 
           {/* Puente al checkout */}
           <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
+            <p className="text-sm font-semibold text-encre">
+              ¿Dónde te avisamos cuando esté lista?
+            </p>
+            <p className="mt-1 text-xs text-graphite">
+              Te enviamos la confirmación y el aviso de entrega por email y
+              WhatsApp.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-2 rounded-lg border border-graphite/20 bg-white px-3 py-2 focus-within:border-bleu focus-within:ring-1 focus-within:ring-bleu/20">
+                <Mail className="h-4 w-4 shrink-0 text-bleu" />
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-transparent text-sm text-encre outline-none"
+                />
+              </label>
+              <label className="flex items-center gap-2 rounded-lg border border-graphite/20 bg-white px-3 py-2 focus-within:border-bleu focus-within:ring-1 focus-within:ring-bleu/20">
+                <Phone className="h-4 w-4 shrink-0 text-bleu" />
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="Teléfono"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-transparent text-sm text-encre outline-none"
+                />
+              </label>
+            </div>
             <button
               type="button"
               onClick={handleCheckout}
-              disabled={checkingOut || pendingTargetLanguage}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
+              disabled={checkingOut || pendingTargetLanguage || !contactValid}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
             >
               {checkingOut && <Loader2 className="h-4 w-4 animate-spin" />}
               {checkingOut ? "Preparando el pago…" : "Continuar al pago"}
@@ -298,6 +341,11 @@ export default function PuertaClient({ purpose }: { purpose: string | null }) {
             {pendingTargetLanguage && (
               <p className="mt-2 text-center text-xs text-graphite">
                 Indica el idioma de destino de cada documento para continuar.
+              </p>
+            )}
+            {!pendingTargetLanguage && !contactValid && (
+              <p className="mt-2 text-center text-xs text-graphite">
+                Indica tu email y teléfono para continuar.
               </p>
             )}
             {checkoutError && (

@@ -40,6 +40,7 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
       .trim()
       .toLowerCase() || null;
   const stripeCustomerName = String(session?.customer_details?.name || "").trim() || null;
+  const stripeCustomerPhone = String(session?.customer_details?.phone || "").trim() || null;
 
   if (orderSessionId) {
     try {
@@ -70,13 +71,16 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
         });
         if (sessionRecord) {
           const clientEmail =
-            sessionRecord.userId?.trim().toLowerCase() || stripeCustomerEmail;
+            sessionRecord.clientEmail?.trim().toLowerCase() ||
+            sessionRecord.userId?.trim().toLowerCase() ||
+            stripeCustomerEmail;
           if (clientEmail) {
             const createdOrder = await createOrderFromSession({
               session: sessionRecord,
               docs: sessionRecord.docs,
               clientEmail,
               clientName: stripeCustomerName,
+              clientPhone: sessionRecord.clientPhone || stripeCustomerPhone,
             });
             reference = createdOrder.reference;
           } else {

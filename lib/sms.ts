@@ -92,9 +92,16 @@ export async function sendNotification(
 
 /**
  * Look up the client phone for an order.
- * Phone lives on DocumentAnalysis (IA flow) — Order itself doesn't store phone.
+ * Phone lives on Order.clientPhone (captured at the puerta). Fallback to
+ * DocumentAnalysis.clientPhone for older orders that predate that capture.
  */
 export async function getOrderPhone(orderId: string): Promise<string | null> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { clientPhone: true },
+  });
+  if (order?.clientPhone) return order.clientPhone;
+
   const doc = await prisma.documentAnalysis.findFirst({
     where: { orderId, clientPhone: { not: null } },
     select: { clientPhone: true },
