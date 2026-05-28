@@ -83,6 +83,7 @@ export async function POST(req: Request) {
         // SMS notification (fire & forget)
         const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
         const { smsPagoConfirmado } = await import("@/lib/sms-templates");
+        const { buildSignedOrderUrl } = await import("@/lib/order-token");
         const orderFull = await prisma.order.findUnique({
           where: { reference: orderReference },
           select: { id: true, dueDate: true },
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
               : "3-5 días laborables";
             sendNotification({
               to: formatPhoneSpain(phone),
-              body: smsPagoConfirmado({ ref: orderReference, plazo }),
+              body: smsPagoConfirmado({ ref: orderReference, plazo, url: buildSignedOrderUrl(orderReference, "estado") }),
             }).catch((err) => console.error("[redsys-notification] SMS failed", err));
           }
         }

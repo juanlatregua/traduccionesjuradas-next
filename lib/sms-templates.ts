@@ -26,12 +26,13 @@ export function smsRecordatorioPago(data: {
 export function smsPagoConfirmado(data: {
   ref: string;
   plazo: string;
+  url: string;
 }): string {
-  return `TraduccionesJuradas.net: Pago confirmado ${data.ref}. Entrega: ${data.plazo}. Te avisamos cuando este lista.`;
+  return `TraduccionesJuradas.net: Pago confirmado ${data.ref}. Entrega: ${data.plazo}. Sigue el estado: ${data.url}`;
 }
 
-export function smsEnProceso(data: { ref: string }): string {
-  return `TraduccionesJuradas.net: Tu traduccion ${data.ref} ya esta en proceso. Te avisamos en cuanto este lista.`;
+export function smsEnProceso(data: { ref: string; url: string }): string {
+  return `TraduccionesJuradas.net: Tu traduccion ${data.ref} ya esta en proceso. Sigue el estado: ${data.url}`;
 }
 
 export function smsReviewRequest(data: { url: string }): string {

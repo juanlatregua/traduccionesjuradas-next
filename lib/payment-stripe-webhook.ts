@@ -171,6 +171,7 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
       // SMS notification (fire & forget)
       const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
       const { smsPagoConfirmado } = await import("@/lib/sms-templates");
+      const { buildSignedOrderUrl } = await import("@/lib/order-token");
       const orderFull = await prisma.order.findUnique({
         where: { reference },
         select: { id: true, dueDate: true },
@@ -183,7 +184,7 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
             : "3-5 días laborables";
           sendNotification({
             to: formatPhoneSpain(phone),
-            body: smsPagoConfirmado({ ref: reference, plazo }),
+            body: smsPagoConfirmado({ ref: reference, plazo, url: buildSignedOrderUrl(reference, "estado") }),
           }).catch((err) => console.error(`[${source}] SMS failed`, err));
         }
       }
