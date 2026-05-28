@@ -60,6 +60,30 @@ export default function TeletrabajoMarruecosPage() {
         </div>
       </header>
 
+      {/* PUENTE: pre-diagnóstico UGE-CE */}
+      <section className="mt-8 rounded-3xl border border-bleu/20 bg-bleu/5 p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
+          Antes de reunir documentos
+        </p>
+        <h2 className="mt-2 text-lg font-semibold text-encre sm:text-xl">
+          Comprueba la viabilidad de tu expediente en 2 minutos
+        </h2>
+        <p className="mt-2 text-sm text-sepia">
+          El teletrabajo desde España se tramita por la <strong>UGE-CE</strong>{" "}
+          (Unidad de Grandes Empresas y Colectivos Estratégicos, Ley 14/2013).
+          Antes de reunir y traducir nada, pasa tu caso por nuestro{" "}
+          <strong>pre-diagnóstico gratuito</strong>: te dice si el expediente es
+          viable, detecta los patrones de denegación más frecuentes y te prepara
+          la <strong>lista exacta de documentos a traducir</strong>.
+        </p>
+        <a
+          href="/uge-ce/es/chat"
+          className="mt-4 inline-block rounded-2xl bg-bleu px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-bleu-dark"
+        >
+          Hacer el diagnóstico UGE-CE
+        </a>
+      </section>
+
       {/* SECCIÓN 2: DOCUMENTOS QUE DEBEN TRADUCIRSE */}
       <section className="mt-12">
         <h2 className="text-xl font-semibold text-encre sm:text-2xl">
