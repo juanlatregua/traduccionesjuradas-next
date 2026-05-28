@@ -70,10 +70,13 @@ el recorrido esencial post-pago. Presupuesto, recordatorio y reseña **siguen po
 - **Opt-in**: el cliente da su número en la puerta para recibir avisos del pedido → es
   opt-in funcional. Añadir microcopy explícito ("te avisamos por WhatsApp del estado").
 - **Coste**: WhatsApp factura por conversación (24 h). 3 hitos por pedido ≈ controlable.
-- **Número (decidido 2026-05-25):** el WhatsApp Business reusa el **número de atención
-  +34 951 333 614**. El cliente ve un número conocido y puede responder al mismo sitio.
-  Implica registrarlo como sender de WhatsApp en Twilio (y no usarlo en paralelo en una
-  app de WhatsApp personal/Business del móvil, que entraría en conflicto).
+- **Número (REVISADO 2026-05-28):** número **DEDICADO +34 616 547 161**, NO el de atención.
+  El +34 951 333 614 es el WhatsApp humano de Juan; convertirlo a la API lo inutilizaría como
+  app y desviaría las respuestas de clientes a un webhook. El 616 547 161 está libre y se trae
+  a Twilio (no hay que comprarlo). Solo necesita un móvil para recibir el código de verificación
+  una vez; luego vive en la nube (NO instalar WhatsApp en él). Trade-off: el cliente ve un número
+  distinto → mitigar con display name verificado ("Traducciones Juradas") + microcopy
+  "no respondas aquí, escríbenos al 951 333 614".
 
 ## Desglose por bloques
 
@@ -81,12 +84,24 @@ el recorrido esencial post-pago. Presupuesto, recordatorio y reseña **siguen po
 |---|---|---|
 | **2.1 · Setup WhatsApp Business** | Alta del sender en Twilio + verificación Meta. Redactar y **enviar a aprobar** las 3 plantillas utility (pago/proceso/lista). Setear `TWILIO_WHATSAPP_FROM`. *Gating externo: aprobación Meta tarda días.* | Canal WhatsApp activo + plantillas aprobadas |
 | **2.2 · Envío por plantilla** | Migrar el envío WhatsApp de `sendNotification` a la Content API (Content SID + variables), con SMS de fallback intacto. Mapa lógico hito→(WA template, SMS fn). | Los hitos existentes salen por WhatsApp cuando hay número |
-| **2.3 · Hito "en proceso"** | Disparar notificación en la transición a `EN_PROCESO` (en `lib/workflow-server.ts` o donde se cambie deliveryState). Plantilla `en_proceso`. | Los 3 hitos del brief completos |
-| **2.4 · Estado en vivo** | Deep-link a `/pedido/[reference]` en cada mensaje; pulir esa página para que muestre el hito actual (pago → en proceso → lista) con timeline claro. | El cliente ve el estado sin preguntar |
+| **2.3 · Hito "en proceso"** ✅ HECHO (#83) | Disparo de notificación al asignar traductor (transición a `EN_PROCESO`, en la ruta de assign). Plantilla `smsEnProceso`. Sale por SMS hoy. | Los 3 hitos del brief completos |
+| **2.4 · Estado en vivo** ✅ HECHO (#84) | La página `/pedido/[reference]` ya estaba construida (stepper + tarjetas + timeline); añadido el deep-link a ella en `smsPagoConfirmado` y `smsEnProceso` (ya lo tenía `smsTraduccionLista`). | El cliente ve el estado sin preguntar |
 | **2.5 · QA + lanzamiento** | Probar los 3 hitos end-to-end con un número real, en WhatsApp y en fallback SMS. Verificar coste y entrega. Desplegar. | Fase 2 en producción |
 
 ## Riesgos
 
+- **🚫 BLOQUEO ACTIVO (2026-05-28): restricción de comercio de Meta.** Al intentar el alta del
+  sender en Twilio, el portfolio comercial **TraduccionesJuradas.net** sale restringido ("no
+  cumple la Política de comercio de WhatsApp") → bloquea crear la WABA/sender y añadir método de
+  pago. Es falso positivo (traducción jurada no encaja en ninguna categoría prohibida; la web ya
+  tiene /privacidad, /aviso-legal, /contacto). **Acción: apelar en
+  `business.facebook.com/accountquality` → "Solicitar revisión" + completar el perfil de empresa.
+  Lo resuelve Meta en días. Hasta que se levante, NO se puede avanzar el alta.** El "no puedo
+  añadir método de pago" es síntoma de esto, no la causa (y vía Twilio el cobro va por Twilio).
+- **⚠️ Regla dura — `TWILIO_WHATSAPP_FROM`:** NO setear hasta tener sender real registrado + las
+  3 plantillas approved + 2.2 (Content API) desplegado. Un número de WhatsApp no registrado
+  devuelve Twilio **63007** y, sin fallback, se tragaba TODOS los avisos en silencio (incidente
+  detectado y resuelto 2026-05-28; ya hay fallback WA→SMS en `sendNotification`, PR #82).
 - **Aprobación de plantillas por Meta (2.1) es el gating real** — es externo y puede
   tardar días/semana. Arrancar 2.1 cuanto antes; 2.2-2.4 se pueden codear en paralelo
   contra plantillas en estado "pending".
@@ -100,15 +115,20 @@ el recorrido esencial post-pago. Presupuesto, recordatorio y reseña **siguen po
 - **Reducción de mensajes entrantes de soporte** tipo "¿cómo va lo mío?" — el objetivo
   del brief (menos soporte). Comparar contra el baseline de consultas a Juan.
 
-## Decisiones (2026-05-25)
+## Decisiones
 
-1. **Número WhatsApp:** el de atención **+34 951 333 614** (no dedicado).
-2. **Alcance:** solo los **3 hitos del núcleo** (pago → en proceso → lista).
-3. **Idioma:** por ahora **ES** (el idioma del visitante llega en Fase 3).
+1. **Número WhatsApp (REVISADO 2026-05-28):** número **dedicado +34 616 547 161**. Antes
+   (2026-05-25) se pensó reusar el de atención +34 951 333 614 — descartado porque es el
+   WhatsApp humano de Juan y la API lo inutilizaría como app.
+2. **Alcance (2026-05-25):** solo los **3 hitos del núcleo** (pago → en proceso → lista).
+3. **Idioma (2026-05-25):** por ahora **ES** (el idioma del visitante llega en Fase 3).
 
 ## Primer paso (cuando se arranque la fase)
 
-Bloque **2.1** es el camino crítico por la aprobación de Meta. Acción concreta de Juan:
-dar de alta +34 951 333 614 como sender WhatsApp en Twilio y enviar a aprobar las 3
-plantillas utility (`pago_confirmado`, `en_proceso`, `traduccion_lista`). Mientras Meta
-aprueba, se codean 2.2-2.4 contra plantillas en estado pending.
+Bloque **2.1** es el camino crítico. **Ahora mismo BLOQUEADO por la restricción de comercio
+de Meta (ver Riesgos) → primero apelar.** Una vez levantada: dar de alta **+34 616 547 161**
+como sender WhatsApp en Twilio (conectar el portfolio Meta TraduccionesJuradas.net), verificar
+el número con el código, fijar display name "Traducciones Juradas", y enviar a aprobar las 3
+plantillas utility (`pago_confirmado`, `en_proceso`, `traduccion_lista`). **2.3 y 2.4 ya están
+hechas** (#83 y #84); **2.2 (Content API)** se codea cuando haya plantillas approved + Content
+SIDs, y recién entonces se re-pone `TWILIO_WHATSAPP_FROM=616547161`.
