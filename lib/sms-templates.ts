@@ -30,6 +30,10 @@ export function smsPagoConfirmado(data: {
   return `TraduccionesJuradas.net: Pago confirmado ${data.ref}. Entrega: ${data.plazo}. Te avisamos cuando este lista.`;
 }
 
+export function smsEnProceso(data: { ref: string }): string {
+  return `TraduccionesJuradas.net: Tu traduccion ${data.ref} ya esta en proceso. Te avisamos en cuanto este lista.`;
+}
+
 export function smsReviewRequest(data: { url: string }): string {
   return `TraduccionesJuradas.net: Nos encantaria tu opinion. Dejanos una valoracion en Google: ${data.url}`;
 }
