@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import SiteSearch from "@/components/SiteSearch";
+import type { SearchEntry } from "@/lib/search/match";
 
 function Logo() {
   return (
@@ -30,7 +32,7 @@ function Logo() {
   );
 }
 
-export function Header() {
+export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [translatorDropdownOpen, setTranslatorDropdownOpen] = useState(false);
   const [docsDropdownOpen, setDocsDropdownOpen] = useState(false);
@@ -80,6 +82,11 @@ export function Header() {
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <Logo />
           </Link>
+
+          {/* BUSCADOR (lupa + ⌘K) */}
+          <div className="ml-2 sm:ml-4">
+            <SiteSearch index={searchIndex} />
+          </div>
 
           <div className="ml-auto flex items-center gap-2 sm:hidden">
             <Link
