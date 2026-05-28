@@ -4,6 +4,7 @@ import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import { getRate } from "./languages";
 import {
   getMinimum,
+  getPageMinimum,
   getComplexityMultiplier,
   getApostilleSurcharge,
   URGENCY_MULTIPLIER,
@@ -126,7 +127,12 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
       ? language.target
       : language.source;
   const rate = getRate(foreignLang);
-  const minimum = getMinimum(document_type.specific_type, foreignLang);
+  // El suelo efectivo es el mayor de: mínimo por tipo, mínimo por idioma y
+  // suelo por página (40 €/pág, salvo certificados simples exentos).
+  const minimum = Math.max(
+    getMinimum(document_type.specific_type, foreignLang),
+    getPageMinimum(document_type.specific_type, document_metrics.pages)
+  );
   const complexityMult = getComplexityMultiplier(complexity.level);
 
   // Apostille surcharge: fijo según idioma (árabe 10€, resto 25€)
