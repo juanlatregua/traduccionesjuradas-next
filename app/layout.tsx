@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Header } from "@/components/Header";
+import { SITE_SEARCH_INDEX } from "@/lib/search/site-index";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import Link from "next/link";
@@ -232,7 +233,7 @@ export default function RootLayout({
           url: "https://www.traduccionesjuradas.net",
           potentialAction: {
             "@type": "SearchAction",
-            target: "https://www.traduccionesjuradas.net/blog?q={search_term_string}",
+            target: "https://www.traduccionesjuradas.net/buscar?q={search_term_string}",
             "query-input": "required name=search_term_string",
           },
         })}
@@ -246,7 +247,7 @@ export default function RootLayout({
           Saltar al contenido
         </a>
 
-        <Header />
+        <Header searchIndex={SITE_SEARCH_INDEX} />
         <TrustStrip />
 
         {/* ================= STRIP REGULARIZACIÓN 2026 (time-bound, plazo 30-jun-2026) ================= */}
