@@ -89,6 +89,16 @@ export async function POST(req: Request, { params }: Params) {
       }).catch((err) => {
         console.error("[orders-assign] notification event failed", err);
       });
+
+      const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+      const { smsEnProceso } = await import("@/lib/sms-templates");
+      const phone = await getOrderPhone(orderBefore.id).catch(() => null);
+      if (phone) {
+        sendNotification({
+          to: formatPhoneSpain(phone),
+          body: smsEnProceso({ ref: orderBefore.reference }),
+        }).catch((err) => console.error("[SMS]", err));
+      }
     }
 
     return NextResponse.json({ ok: true });
