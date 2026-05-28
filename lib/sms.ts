@@ -87,7 +87,14 @@ export async function sendNotification(
   msg: Omit<SMSMessage, "channel">
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   const hasWhatsApp = Boolean(process.env.TWILIO_WHATSAPP_FROM);
-  return sendSMS({ ...msg, channel: hasWhatsApp ? "whatsapp" : "sms" });
+  if (hasWhatsApp) {
+    const wa = await sendSMS({ ...msg, channel: "whatsapp" });
+    if (wa.ok) return wa;
+    console.error(
+      `[sendNotification] WhatsApp fallo (${wa.error}); reintentando por SMS`
+    );
+  }
+  return sendSMS({ ...msg, channel: "sms" });
 }
 
 /**
