@@ -179,10 +179,16 @@ export async function POST(req: Request) {
   });
 
   // Reflejar el contacto en los DocumentAnalysis (alimenta el stage "lead"
-  // de /admin/funnel y deja rastro junto al análisis).
+  // de /admin/funnel) y estampar la referencia de la sesión: cuando el pago
+  // cree el Order (reference == session.reference), createOrderFromSession
+  // fijará orderId en estos análisis y cerrará el funnel (pedido/pagado).
   await prisma.documentAnalysis.updateMany({
     where: { id: { in: ids } },
-    data: { clientEmail: email, clientPhone: phone },
+    data: {
+      clientEmail: email,
+      clientPhone: phone,
+      orderReference: session.reference,
+    },
   });
 
   await prisma.orderDocument.createMany({

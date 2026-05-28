@@ -122,12 +122,13 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
   const reference = session.reference;
   const existing = await prisma.order.findUnique({ where: { reference } });
   if (existing) {
+    await linkDocumentAnalysesToOrder(reference, existing.id);
     return existing;
   }
   try {
     const langPair = buildFunnelLangPair(docs);
     const flowProfile = inferFlowProfile({ langPair });
-    return await prisma.order.create({
+    const order = await prisma.order.create({
       data: {
         reference,
         clientEmail,
@@ -161,12 +162,31 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
         },
       },
     });
+    await linkDocumentAnalysesToOrder(reference, order.id);
+    return order;
   } catch (err: any) {
     if (err?.code === "P2002") {
       const fallback = await prisma.order.findUnique({ where: { reference } });
-      if (fallback) return fallback;
+      if (fallback) {
+        await linkDocumentAnalysesToOrder(reference, fallback.id);
+        return fallback;
+      }
     }
     throw err;
+  }
+}
+
+// Cierra el círculo del funnel de la puerta: los DocumentAnalysis estampados
+// con esta referencia en /api/puerta/checkout pasan a apuntar al Order, de modo
+// que /admin/funnel cuenta bien los stages pedido/pagado. Idempotente.
+async function linkDocumentAnalysesToOrder(reference: string, orderId: string) {
+  try {
+    await prisma.documentAnalysis.updateMany({
+      where: { orderReference: reference, orderId: null },
+      data: { orderId },
+    });
+  } catch (err) {
+    console.error("[createOrderFromSession] link DocumentAnalysis failed", err);
   }
 }
 

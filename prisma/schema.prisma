@@ -486,6 +486,10 @@ model DocumentAnalysis {
   // Relación con Order (se crea al pagar)
   orderId          String?
   order            Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  // Referencia de la OrderSession de la puerta (== Order.reference). Soft-link
+  // estampado en /api/puerta/checkout; createOrderFromSession lo usa para fijar
+  // orderId cuando el Order nace en el webhook de pago.
+  orderReference   String?
 
   reminderSentAt   DateTime?
 
@@ -495,6 +499,7 @@ model DocumentAnalysis {
   @@index([sessionToken])
   @@index([status, createdAt])
   @@index([clientEmail])
+  @@index([orderReference])
 }
 
 model FailedEmail {
