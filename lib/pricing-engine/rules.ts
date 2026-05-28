@@ -48,6 +48,30 @@ export const APOSTILLE_SURCHARGE_BY_LANGUAGE: Record<string, number> = {
   ar: 15,
 };
 
+// Suelo por página: dos páginas pesan aunque el conteo por palabra se quede
+// corto. Se aplica como un mínimo más (max con los mínimos por tipo/idioma).
+// Se cuenta un máximo de 2 páginas (tope 80 €) para no disparar documentos
+// largos y dispersos: a partir de ahí ya manda el cálculo por palabra. Los
+// certificados simples de 1 página quedan exentos (tienen su mínimo propio).
+export const PAGE_MINIMUM_PER_PAGE = 40;
+export const PAGE_MINIMUM_MAX_PAGES = 2;
+
+const PAGE_MINIMUM_EXEMPT_TYPES = new Set([
+  "birth_certificate",
+  "marriage_certificate",
+  "death_certificate",
+  "criminal_record",
+  "passport",
+  "id_card",
+  "apostille",
+]);
+
+export function getPageMinimum(specificType: string, pages: number): number {
+  if (PAGE_MINIMUM_EXEMPT_TYPES.has(specificType)) return 0;
+  const billablePages = Math.min(PAGE_MINIMUM_MAX_PAGES, Math.max(1, Math.floor(pages || 1)));
+  return PAGE_MINIMUM_PER_PAGE * billablePages;
+}
+
 export const URGENCY_MULTIPLIER = 1.25; // +25%
 
 export const COMPLEXITY_MULTIPLIER: Record<string, number> = {

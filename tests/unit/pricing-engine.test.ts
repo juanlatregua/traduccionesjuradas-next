@@ -28,13 +28,24 @@ function getMinimum(t: string) { return MINIMUM_BY_TYPE[t] || 42; }
 function getComplexityMultiplier(l: string) { return COMPLEXITY_MULTIPLIER[l] || 1.0; }
 function getVolumeDiscount(c: number) { let d = 0; for (const t of VOLUME_DISCOUNTS) { if (c >= t.threshold) d = t.discount; } return d; }
 
+const PAGE_MINIMUM_PER_PAGE = 40;
+const PAGE_MINIMUM_MAX_PAGES = 2;
+const PAGE_MINIMUM_EXEMPT = new Set(["birth_certificate","marriage_certificate","death_certificate","criminal_record","passport","id_card","apostille"]);
+function getPageMinimum(t: string, pages: number) {
+  if (PAGE_MINIMUM_EXEMPT.has(t)) return 0;
+  return PAGE_MINIMUM_PER_PAGE * Math.min(PAGE_MINIMUM_MAX_PAGES, Math.max(1, Math.floor(pages || 1)));
+}
+
 // === From lib/pricing-engine/calculator.ts (simplified) ===
 const VAT_RATE = 0.21;
 function round2(n: number) { return Math.round(n * 100) / 100; }
 function calculatePrice(analysis: any) {
   const { document_type, language, document_metrics, complexity } = analysis;
   const rate = getRate(language.source);
-  const minimum = getMinimum(document_type.specific_type);
+  const minimum = Math.max(
+    getMinimum(document_type.specific_type),
+    getPageMinimum(document_type.specific_type, document_metrics.pages)
+  );
   const complexityMult = getComplexityMultiplier(complexity.level);
   const wordPrice = document_metrics.estimated_words * rate * complexityMult;
   const basePrice = Math.max(wordPrice, minimum);
@@ -190,6 +201,47 @@ test("breakdown incluye ivaRate e ivaAmount", () => {
   assert.equal(q.breakdown.ivaRate, 0.21);
   assert.equal(q.breakdown.ivaAmount, round2(q.basePrice * 0.21));
   assert.equal(q.breakdown.ivaAmount, 8.82); // 42 × 0.21
+});
+
+test("suelo por página: transcript 2 págs aplica 80€ (40×2) aunque el por-palabra sea menor", () => {
+  const q = calculatePrice({
+    ...baseAnalysis,
+    document_type: { ...baseAnalysis.document_type, category: "academic", specific_type: "transcript" },
+    document_metrics: { ...baseAnalysis.document_metrics, estimated_words: 485, pages: 2 },
+  });
+  assert.equal(q.basePrice, 80);
+  assert.equal(q.totalPrice, 96.8);
+  assert.equal(q.breakdown.minimumApplied, true);
+  assert.equal(q.breakdown.minimumAmount, 80);
+});
+
+test("suelo por página estable ante el conteo: transcript 2 págs = 80€ a 435/485/520 palabras", () => {
+  for (const w of [435, 485, 520]) {
+    const q = calculatePrice({
+      ...baseAnalysis,
+      document_type: { ...baseAnalysis.document_type, specific_type: "transcript" },
+      document_metrics: { ...baseAnalysis.document_metrics, estimated_words: w, pages: 2 },
+    });
+    assert.equal(q.basePrice, 80, `con ${w} palabras`);
+  }
+});
+
+test("certificado simple exento del suelo por página: nacimiento 2 págs sigue en 42€", () => {
+  const q = calculatePrice({
+    ...baseAnalysis,
+    document_metrics: { ...baseAnalysis.document_metrics, estimated_words: 200, pages: 2 },
+  });
+  assert.equal(q.basePrice, 42);
+});
+
+test("suelo topado a 2 págs: documento largo manda el por-palabra, no 40×N", () => {
+  const q = calculatePrice({
+    ...baseAnalysis,
+    document_type: { ...baseAnalysis.document_type, specific_type: "other" },
+    document_metrics: { ...baseAnalysis.document_metrics, estimated_words: 3900, pages: 13 },
+  });
+  assert.equal(q.basePrice, 312); // 3900 × 0.08; el suelo topado a 80 no muerde
+  assert.equal(q.breakdown.minimumApplied, false);
 });
 
 test("caso validación: 1276 palabras PT → base 153.12, total 185.28", () => {
