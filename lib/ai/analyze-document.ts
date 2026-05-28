@@ -9,6 +9,12 @@ const MAX_TOKENS = 16_384;
 const MAX_TOKENS_LARGE = 8_192;
 const LARGE_DOC_THRESHOLD = 5; // pages
 const TIMEOUT_MS = 110_000;
+// El SDK reintenta solo en 408/409/429 y >=500 (incluye 529 overloaded) con
+// backoff exponencial + jitter, respetando la cabecera retry-after. Subimos de
+// los 2 por defecto para sobrevivir a blips transitorios de la API que antes se
+// mostraban al cliente como fallo definitivo. El AbortController (TIMEOUT_MS)
+// sigue siendo el tope duro del tiempo total, reintentos incluidos.
+const MAX_RETRIES = 4;
 
 export type DocumentAnalysisResult = {
   document_type: {
@@ -91,7 +97,7 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
     throw new Error("ANTHROPIC_API_KEY no configurada.");
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: MAX_RETRIES });
   const mediaType = getMediaType(input.mimeType);
 
   // Build content blocks
