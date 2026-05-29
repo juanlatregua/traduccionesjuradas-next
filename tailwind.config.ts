@@ -13,7 +13,7 @@ const config: Config = {
         card: "#FDFAF4",
         encre: "#1A2E4A",
         sepia: "#3D3630",
-        graphite: "#7A6E66",
+        graphite: "#5F564E",
         bleu: {
           DEFAULT: "#1A2E4A",
           dark: "#0F1E30",
