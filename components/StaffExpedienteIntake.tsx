@@ -73,9 +73,10 @@ type Props = {
   // Expediente entrante ya subido por el cliente: se analizan por documentId.
   initialDocs?: { documentId: string; fileName: string }[];
   initialCustomer?: { name?: string; email?: string; phone?: string };
+  expedienteRef?: string | null;
 };
 
-export default function StaffExpedienteIntake({ initialDocs, initialCustomer }: Props = {}) {
+export default function StaffExpedienteIntake({ initialDocs, initialCustomer, expedienteRef }: Props = {}) {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [customerName, setCustomerName] = useState(initialCustomer?.name || "");
   const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || "");
@@ -268,6 +269,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer }: 
           sourceLang,
           targetLang,
           deliveryType: "DIGITAL_PDF",
+          expedienteRef: expedienteRef || undefined,
           discountType: discountPct > 0 ? "PERCENT" : "NONE",
           discountValue: discountPct,
           vatRate: 0.21,
@@ -287,7 +289,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer }: 
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, expedienteRef]);
 
   return (
     <div className="space-y-6 text-slate-200">

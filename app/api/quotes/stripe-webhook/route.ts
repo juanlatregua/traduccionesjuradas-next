@@ -87,7 +87,8 @@ export async function POST(req: Request) {
         total: true,
         sourceLang: true,
         targetLang: true,
-        lines: { select: { id: true } },
+        expedienteRef: true,
+        lines: { select: { description: true, unitPrice: true } },
       },
     });
     if (!quote) {
@@ -202,50 +203,29 @@ export async function POST(req: Request) {
     // auto-asignación de colaborador, emails). No rompe el webhook si falla:
     // el Quote ya quedó PAID.
     try {
-      const { createOrderShellFromQuote, updateOrderPayment } = await import("@/lib/orders");
-      const {
-        transitionWorkflowState,
-        assignDefaultFrenchEtaIfNeeded,
-        autoAssignCollaboratorIfNeeded,
-      } = await import("@/lib/workflow-server");
-
-      const order = await createOrderShellFromQuote({
-        quoteId: quote.id,
-        quoteNumber: quote.quoteNumber,
-        clientEmail: quote.customerEmail,
-        clientName: quote.customerName,
-        clientPhone: quote.customerPhone,
-        sourceLang: quote.sourceLang,
-        targetLang: quote.targetLang,
-        totalEur: amountRaw > 0 ? amountRaw : decimalToNumber(quote.total),
-        currency,
-        documentCount: quote.lines.length,
+      const { runQuoteToOrderBridge } = await import("@/lib/quote-to-order");
+      await runQuoteToOrderBridge({
+        quote: {
+          id: quote.id,
+          quoteNumber: quote.quoteNumber,
+          customerEmail: quote.customerEmail,
+          customerName: quote.customerName,
+          customerPhone: quote.customerPhone,
+          sourceLang: quote.sourceLang,
+          targetLang: quote.targetLang,
+          totalEur: amountRaw > 0 ? amountRaw : decimalToNumber(quote.total),
+          currency,
+          expedienteRef: quote.expedienteRef,
+          lines: quote.lines.map((l) => ({
+            description: l.description,
+            unitPrice: decimalToNumber(l.unitPrice),
+          })),
+        },
+        provider: "STRIPE",
+        providerEventId: stripePaymentIntentId || stripeSessionId || `quote:${quote.id}`,
+        source: "quote_webhook",
+        payload: { stripeEventId: String(event.id || ""), quoteId: quote.id },
       });
-
-      const paymentUpdate = await updateOrderPayment(
-        order.reference,
-        "STRIPE",
-        stripePaymentIntentId || stripeSessionId || `quote:${quote.id}`,
-        {
-          source: "quote_webhook",
-          payload: { stripeEventId: String(event.id || ""), quoteId: quote.id },
-        }
-      );
-
-      if (paymentUpdate.changed) {
-        await transitionWorkflowState({
-          reference: order.reference,
-          to: "PAGO_VALIDADO",
-          actorEmail: "quote_webhook",
-          reason: "Pago de presupuesto validado por webhook Stripe.",
-        }).catch((e) => console.error("[quotes:webhook] workflow transition failed", e));
-        await assignDefaultFrenchEtaIfNeeded({ reference: order.reference, actorEmail: "quote_webhook" }).catch(
-          (e) => console.error("[quotes:webhook] FR ETA failed", e)
-        );
-        await autoAssignCollaboratorIfNeeded({ reference: order.reference, actorEmail: "quote_webhook" }).catch(
-          (e) => console.error("[quotes:webhook] auto collaborator failed", e)
-        );
-      }
     } catch (bridgeErr) {
       console.error("[quotes:webhook] quote→order bridge failed", bridgeErr);
     }

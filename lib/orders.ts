@@ -205,7 +205,55 @@ type CreateOrderFromQuoteInput = {
   totalEur: number;
   currency?: string | null;
   documentCount: number;
+  expedienteRef?: string | null;
+  lines?: { description: string; unitPrice: number }[];
 };
+
+// Puebla OrderDocumentItem para que un pedido grande sea gestionable documento a
+// documento. Si el presupuesto vino de un expediente del cliente, usa los
+// DocumentAnalysis (ricos: tipo/idioma/palabras/archivo) y los enlaza al pedido;
+// si no, cae a las líneas del presupuesto.
+async function populateOrderItemsFromQuote(orderId: string, input: CreateOrderFromQuoteInput) {
+  try {
+    if (input.expedienteRef) {
+      const docs = await prisma.documentAnalysis.findMany({
+        where: { sessionToken: `exp:${input.expedienteRef}` },
+        orderBy: { createdAt: "asc" },
+      });
+      if (docs.length > 0) {
+        await prisma.orderDocumentItem.createMany({
+          data: docs.map((d) => ({
+            orderId,
+            fileName: d.fileName,
+            fileUrl: d.fileUrl,
+            documentType: d.documentType,
+            sourceLang: d.sourceLanguage,
+            targetLang: d.targetLanguage,
+            words: d.estimatedWords,
+            quotedCents: d.quoteAmount != null ? Math.round(d.quoteAmount * 100) : null,
+          })),
+        });
+        // Enlaza los DocumentAnalysis del expediente al pedido (workspace los ve).
+        await prisma.documentAnalysis.updateMany({
+          where: { sessionToken: `exp:${input.expedienteRef}`, orderId: null },
+          data: { orderId },
+        });
+        return;
+      }
+    }
+    if (input.lines && input.lines.length > 0) {
+      await prisma.orderDocumentItem.createMany({
+        data: input.lines.map((l) => ({
+          orderId,
+          fileName: l.description,
+          quotedCents: Math.round((l.unitPrice || 0) * 100),
+        })),
+      });
+    }
+  } catch (err) {
+    console.error("[populateOrderItemsFromQuote] failed", err);
+  }
+}
 
 // Crea el Order de producción a partir de un presupuesto pagado. Idempotente
 // por quoteId: si ya existe el Order de ese Quote, lo devuelve sin duplicar.
@@ -223,7 +271,7 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const reference = await generateOrderReference();
     try {
-      return await prisma.order.create({
+      const order = await prisma.order.create({
         data: {
           reference,
           quoteId: input.quoteId,
@@ -251,6 +299,8 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
           },
         },
       });
+      await populateOrderItemsFromQuote(order.id, input);
+      return order;
     } catch (err: any) {
       if (err?.code === "P2002") {
         const fallback = await prisma.order.findFirst({ where: { quoteId: input.quoteId } });

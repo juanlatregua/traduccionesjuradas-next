@@ -53,7 +53,7 @@ export default async function ZonaTraductorPresupuestoPage({
           </p>
         </header>
 
-        <StaffExpedienteIntake initialDocs={initialDocs} initialCustomer={initialCustomer} />
+        <StaffExpedienteIntake initialDocs={initialDocs} initialCustomer={initialCustomer} expedienteRef={expRef} />
       </div>
     </div>
   );

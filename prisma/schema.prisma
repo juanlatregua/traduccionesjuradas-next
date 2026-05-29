@@ -146,10 +146,60 @@ model Order {
   shipping ShippingData?
   documentAnalyses DocumentAnalysis[]
   collaboratorAssignments CollaboratorAssignment[]
+  documentItems    OrderDocumentItem[]
+  clientInvoice    ClientInvoice?
 
   @@index([clientEmail])
   @@index([createdAt])
   @@index([paymentStatus, status])
+}
+
+// Documentos individuales de un pedido (expediente). Poblado por el puente
+// Quote→Pedido a partir del expediente del cliente o de las líneas del
+// presupuesto. Permite ver/seguir un pedido grande documento a documento.
+// Aditivo: no altera el flujo de entrega monolítico existente.
+model OrderDocumentItem {
+  id               String    @id @default(cuid())
+  orderId          String
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fileName         String
+  fileUrl          String?
+  documentType     String?
+  sourceLang       String?
+  targetLang       String?
+  words            Int?
+  quotedCents      Int?
+  prodStatus       String    @default("PENDING") // PENDING | IN_TRANSLATION | DELIVERED
+  assignedTo       String?
+  deliveredFileUrl String?
+  deliveredAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([orderId])
+}
+
+// Factura emitida al cliente con numeración fiscal secuencial y persistencia.
+// Sustituye el "F-{ref}" generado al vuelo (sin valor legal).
+model ClientInvoice {
+  id         String   @id @default(cuid())
+  number     String   @unique // FAC-AAAA-NNNNN, secuencial por año
+  orderId    String   @unique
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  issuedAt   DateTime @default(now())
+  fiscalName String
+  nif        String
+  address    String
+  city       String
+  postalCode String
+  country    String   @default("España")
+  email      String
+  baseCents  Int
+  vatRate    Float    @default(0.21)
+  vatCents   Int
+  totalCents Int
+  createdAt  DateTime @default(now())
+
+  @@index([issuedAt])
 }
 
 model OrderEvent {
@@ -259,6 +309,7 @@ model Quote {
   total          Decimal           @default(0) @db.Decimal(12, 2)
   adminCreatedBy String?
   adminSentBy    String?
+  expedienteRef  String?           // ref del expediente entrante (exp:REF) que originó el presupuesto
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 

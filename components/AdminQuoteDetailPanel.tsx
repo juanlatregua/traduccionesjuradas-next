@@ -72,6 +72,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [loadingResend, setLoadingResend] = useState(false);
   const [loadingDeliver, setLoadingDeliver] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(false);
+  const [loadingPaid, setLoadingPaid] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [whatsText, setWhatsText] = useState<string>("");
   const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string; body: string } | null>(null);
@@ -171,6 +172,29 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
+  async function markPaidManual() {
+    const method = window.confirm("¿Pago por BIZUM? (Aceptar = Bizum · Cancelar = Transferencia)")
+      ? "BIZUM"
+      : "TRANSFER";
+    setLoadingPaid(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}/mark-paid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo registrar el pago.");
+      setMessage(`Pago ${method} registrado. Pedido de producción creado.`);
+      await reloadQuote();
+    } catch (err: any) {
+      setMessage(err?.message || "No se pudo registrar el pago.");
+    } finally {
+      setLoadingPaid(false);
+    }
+  }
+
   async function copyText(value: string, okMessage: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -241,6 +265,14 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
             className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
           >
             {loadingResend ? "Reenviando..." : "Reenviar email"}
+          </button>
+          <button
+            type="button"
+            onClick={markPaidManual}
+            disabled={loadingPaid}
+            className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+          >
+            {loadingPaid ? "Registrando..." : "Marcar pagado (Bizum/transfer)"}
           </button>
           <button
             type="button"

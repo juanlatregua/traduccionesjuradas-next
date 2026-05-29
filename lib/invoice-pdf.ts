@@ -9,6 +9,8 @@ type InvoiceData = {
   words?: number | null;
   paidAt?: Date | null;
   createdAt: Date;
+  invoiceNumber?: string; // numeración fiscal secuencial (ClientInvoice)
+  issuedAt?: Date | null;
   billing: {
     fiscalName: string;
     nif: string;
@@ -55,9 +57,9 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   y += 12;
 
   // Invoice number & date
-  const invoiceDate = data.paidAt || data.createdAt;
+  const invoiceDate = data.issuedAt || data.paidAt || data.createdAt;
   const dateStr = invoiceDate.toISOString().slice(0, 10);
-  const invoiceNumber = `F-${data.reference.replace("_", "-")}`;
+  const invoiceNumber = data.invoiceNumber || `F-${data.reference.replace("_", "-")}`;
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
