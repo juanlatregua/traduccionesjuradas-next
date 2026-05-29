@@ -22,6 +22,7 @@ import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { buildDiagnosis, type Diagnosis } from "@/lib/diagnosis";
 import DiagnosisCard from "@/components/puerta/DiagnosisCard";
 import DeadlineCountdown from "@/components/puerta/DeadlineCountdown";
+import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
 
 const DocumentUploader = dynamic(
   () => import("@/components/ia/DocumentUploader"),
@@ -42,10 +43,6 @@ type DocEntry = {
   diagnosis: Diagnosis;
 };
 
-const WHATSAPP = `https://wa.me/34951333614?text=${encodeURIComponent(
-  "Hola, tengo una duda sobre un presupuesto de traducción jurada."
-)}`;
-
 function parseDateInput(value: string): Date | null {
   if (!value) return null;
   const [y, m, d] = value.split("-").map(Number);
@@ -56,10 +53,14 @@ function parseDateInput(value: string): Date | null {
 export default function PuertaClient({
   purpose,
   source,
+  lang = "es",
 }: {
   purpose: string | null;
   source?: string | null;
+  lang?: PuertaLang;
 }) {
+  const t = puertaT[lang];
+  const waUrl = `https://wa.me/34951333614?text=${encodeURIComponent(t.whatsappPrefill)}`;
   const [step, setStep] = useState<Step>("entry");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
@@ -175,16 +176,16 @@ export default function PuertaClient({
       });
       const data = await res.json();
       if (!data.ok) {
-        setCheckoutError(data.error || "No se pudo continuar al pago.");
+        setCheckoutError(data.error || t.checkoutErrorDefault);
         setCheckingOut(false);
         return;
       }
       window.location.href = "/checkout";
     } catch {
-      setCheckoutError("Error de conexión. Inténtalo de nuevo.");
+      setCheckoutError(t.checkoutErrorDefault);
       setCheckingOut(false);
     }
-  }, [documents, purpose]);
+  }, [documents, purpose, email, phone, t]);
 
   const total = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
   const pendingTargetLanguage = documents.some(
@@ -196,7 +197,7 @@ export default function PuertaClient({
       {/* ─── Entrada ─── */}
       {step === "entry" && (
         <>
-          {documents.length === 0 && <DeadlineCountdown />}
+          {documents.length === 0 && <DeadlineCountdown lang={lang} />}
 
           {documents.length === 0 && (
             <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
@@ -205,11 +206,9 @@ export default function PuertaClient({
                 className="flex items-center gap-2 text-sm font-semibold text-encre"
               >
                 <CalendarClock className="h-4 w-4 text-bleu" />
-                ¿Para cuándo lo necesitas?
+                {t.neededByLabel}
               </label>
-              <p className="mt-1 text-xs text-graphite">
-                Opcional. Nos ayuda a confirmarte si el plazo llega a tu fecha.
-              </p>
+              <p className="mt-1 text-xs text-graphite">{t.neededByHelp}</p>
               <input
                 id="needed-by"
                 type="date"
@@ -228,6 +227,7 @@ export default function PuertaClient({
             gdprConsent={gdprConsent}
             onGdprConsentChange={setGdprConsent}
             source={source}
+            lang={lang}
           />
         </>
       )}
@@ -247,9 +247,9 @@ export default function PuertaClient({
         <div className="space-y-5">
           {neededBy && (
             <p className="text-sm text-graphite">
-              Lo necesitas para el{" "}
+              {t.neededForPrefix}{" "}
               <span className="font-medium text-encre">
-                {neededBy.toLocaleDateString("es-ES", {
+                {neededBy.toLocaleDateString(t.locale, {
                   day: "numeric",
                   month: "long",
                 })}
@@ -265,8 +265,9 @@ export default function PuertaClient({
               fileName={doc.fileName}
               confidence={doc.analysis.document_type.confidence}
               neededBy={neededBy}
-              onPickTargetLanguage={(lang, name) =>
-                handlePickTargetLanguage(doc.id, lang, name)
+              lang={lang}
+              onPickTargetLanguage={(code, name) =>
+                handlePickTargetLanguage(doc.id, code, name)
               }
             />
           ))}
@@ -274,7 +275,7 @@ export default function PuertaClient({
           {documents.length > 1 && (
             <div className="flex items-center justify-between rounded-xl border border-bleu/15 bg-cream px-5 py-4">
               <span className="text-sm font-medium text-encre">
-                Total ({documents.length} documentos)
+                {t.totalLabel(documents.length)}
               </span>
               <span className="font-baskerville text-2xl font-bold text-bleu">
                 {total.toFixed(2)} €
@@ -289,7 +290,7 @@ export default function PuertaClient({
               className="inline-flex items-center gap-1.5 rounded-lg border border-bleu/20 px-4 py-2.5 text-sm font-medium text-bleu transition-colors hover:bg-bleu/5"
             >
               <Plus className="h-4 w-4" />
-              Añadir otro documento
+              {t.addAnother}
             </button>
             <button
               type="button"
@@ -297,19 +298,14 @@ export default function PuertaClient({
               className="inline-flex items-center gap-1.5 text-sm text-graphite transition-colors hover:text-bleu"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Empezar de nuevo
+              {t.startOver}
             </button>
           </div>
 
           {/* Puente al checkout */}
           <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
-            <p className="text-sm font-semibold text-encre">
-              ¿Dónde te avisamos cuando esté lista?
-            </p>
-            <p className="mt-1 text-xs text-graphite">
-              Te enviamos la confirmación y el aviso de entrega por email y
-              WhatsApp.
-            </p>
+            <p className="text-sm font-semibold text-encre">{t.contactTitle}</p>
+            <p className="mt-1 text-xs text-graphite">{t.contactHelp}</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="flex items-center gap-2 rounded-lg border border-graphite/20 bg-white px-3 py-2 focus-within:border-bleu focus-within:ring-1 focus-within:ring-bleu/20">
                 <Mail className="h-4 w-4 shrink-0 text-bleu" />
@@ -317,7 +313,7 @@ export default function PuertaClient({
                   type="email"
                   inputMode="email"
                   autoComplete="email"
-                  placeholder="tu@email.com"
+                  placeholder={t.emailPlaceholder}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-transparent text-sm text-encre outline-none"
@@ -329,7 +325,7 @@ export default function PuertaClient({
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
-                  placeholder="Teléfono"
+                  placeholder={t.phonePlaceholder}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full bg-transparent text-sm text-encre outline-none"
@@ -343,17 +339,13 @@ export default function PuertaClient({
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
             >
               {checkingOut && <Loader2 className="h-4 w-4 animate-spin" />}
-              {checkingOut ? "Preparando el pago…" : "Continuar al pago"}
+              {checkingOut ? t.preparingPay : t.continuePay}
             </button>
             {pendingTargetLanguage && (
-              <p className="mt-2 text-center text-xs text-graphite">
-                Indica el idioma de destino de cada documento para continuar.
-              </p>
+              <p className="mt-2 text-center text-xs text-graphite">{t.hintTargetLang}</p>
             )}
             {!pendingTargetLanguage && !contactValid && (
-              <p className="mt-2 text-center text-xs text-graphite">
-                Indica tu email y teléfono para continuar.
-              </p>
+              <p className="mt-2 text-center text-xs text-graphite">{t.hintContact}</p>
             )}
             {checkoutError && (
               <p className="mt-2 flex items-start justify-center gap-1.5 text-center text-xs text-rouge">
@@ -368,11 +360,9 @@ export default function PuertaClient({
       {/* ─── Error ─── */}
       {step === "error" && (
         <div className="rounded-xl border border-rouge/20 bg-card p-6 text-center shadow-paper">
-          <p className="font-baskerville text-xl text-rouge">
-            No hemos podido analizar el documento
-          </p>
+          <p className="font-baskerville text-xl text-rouge">{t.errorTitle}</p>
           <p className="mt-2 text-sm text-graphite">
-            {errorMessage || "Ha ocurrido un error inesperado."}
+            {errorMessage || t.errorDefault}
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <button
@@ -381,16 +371,16 @@ export default function PuertaClient({
               className="inline-flex items-center gap-2 rounded-lg border border-bleu/20 px-5 py-2.5 text-sm font-medium text-bleu transition-colors hover:bg-bleu/5"
             >
               <RotateCcw className="h-4 w-4" />
-              Intentar de nuevo
+              {t.retry}
             </button>
             <a
-              href={WHATSAPP}
+              href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg bg-vert px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-vert/90"
             >
               <MessageCircle className="h-4 w-4" />
-              Contactar por WhatsApp
+              {t.contactWhatsApp}
             </a>
           </div>
         </div>

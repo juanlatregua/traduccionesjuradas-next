@@ -16,15 +16,7 @@ import {
 } from "lucide-react";
 import type { Diagnosis } from "@/lib/diagnosis";
 import { estimateDeliveryDate, meetsDeadline } from "@/lib/diagnosis";
-
-const TARGET_LANGUAGES = [
-  { code: "fr", name: "Francés" },
-  { code: "en", name: "Inglés" },
-  { code: "de", name: "Alemán" },
-  { code: "it", name: "Italiano" },
-  { code: "pt", name: "Portugués" },
-  { code: "ar", name: "Árabe" },
-];
+import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
 
 // Confianza por debajo de este umbral → precio orientativo, no cerrado.
 const CONFIDENCE_THRESHOLD = 0.7;
@@ -34,11 +26,12 @@ type Props = {
   fileName: string;
   confidence: number;
   neededBy: Date | null;
+  lang?: PuertaLang;
   onPickTargetLanguage: (lang: string, name: string) => void;
 };
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("es-ES", {
+function formatDate(date: Date, locale: string): string {
+  return date.toLocaleDateString(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -75,7 +68,9 @@ export default function DiagnosisCard({
   confidence,
   neededBy,
   onPickTargetLanguage,
+  lang = "es",
 }: Props) {
+  const t = puertaT[lang];
   const lowConfidence = confidence < CONFIDENCE_THRESHOLD;
   const { delivery } = diagnosis;
   const needsTargetLanguage = delivery.hours === null;
@@ -105,25 +100,22 @@ export default function DiagnosisCard({
 
       <div className="mt-5">
         {/* 1 · ¿Necesita jurada? */}
-        <Row icon={ShieldCheck} label="¿Necesita traducción jurada?">
+        <Row icon={ShieldCheck} label={t.qSworn}>
           {diagnosis.sworn.statement}
         </Row>
 
         {/* 2 · Precio */}
-        <Row icon={Wallet} label="Precio">
+        <Row icon={Wallet} label={t.qPrice}>
           {needsTargetLanguage ? (
-            <p className="text-graphite">
-              Indícanos abajo el idioma de destino y calculamos el precio.
-            </p>
+            <p className="text-graphite">{t.pricePending}</p>
           ) : lowConfidence ? (
             <div>
               <p className="text-base font-semibold text-encre">
-                {diagnosis.price.total.toFixed(2)} € (orientativo)
+                {diagnosis.price.total.toFixed(2)} € {t.orientativoSuffix}
               </p>
               <p className="mt-1 flex items-start gap-1.5 text-xs text-or-dark">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-or" />
-                No hemos podido leer el documento con seguridad. Confirmaremos
-                el precio final antes de empezar.
+                {t.lowConfNote}
               </p>
             </div>
           ) : (
@@ -131,27 +123,25 @@ export default function DiagnosisCard({
               <span className="font-baskerville text-2xl font-bold text-bleu">
                 {diagnosis.price.total.toFixed(2)} €
               </span>{" "}
-              <span className="text-xs text-graphite">IVA incluido</span>
+              <span className="text-xs text-graphite">{t.ivaIncl}</span>
             </p>
           )}
         </Row>
 
         {/* 3 · Plazo */}
-        <Row icon={Clock} label="Plazo de entrega">
+        <Row icon={Clock} label={t.qDelivery}>
           {needsTargetLanguage ? (
             <div>
-              <p className="text-graphite">
-                Tu documento está en español. ¿A qué idioma lo necesitas?
-              </p>
+              <p className="text-graphite">{t.spanishDocAsk}</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {TARGET_LANGUAGES.map((lang) => (
+                {t.targetLanguages.map((tl) => (
                   <button
-                    key={lang.code}
+                    key={tl.code}
                     type="button"
-                    onClick={() => onPickTargetLanguage(lang.code, lang.name)}
+                    onClick={() => onPickTargetLanguage(tl.code, tl.name)}
                     className="rounded-lg border border-bleu/20 px-3 py-1.5 text-xs font-medium text-bleu transition-colors hover:bg-bleu/5"
                   >
-                    {lang.name}
+                    {tl.name}
                   </button>
                 ))}
               </div>
@@ -161,19 +151,19 @@ export default function DiagnosisCard({
               <p className="font-medium text-encre">{delivery.label}</p>
               {deliveryDate && (
                 <p className="text-xs text-graphite">
-                  Entrega estimada: {formatDate(deliveryDate)} ({delivery.note})
+                  {t.deliveryEstimated} {formatDate(deliveryDate, t.locale)} ({delivery.note})
                 </p>
               )}
               {onTime === true && (
                 <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-vert">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Llega a la fecha que necesitas
+                  {t.onTimeYes}
                 </p>
               )}
               {onTime === false && (
                 <p className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-rouge">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Tu fecha es muy ajustada. Escríbenos y vemos cómo acelerarlo.
+                  {t.onTimeNo}
                 </p>
               )}
             </div>
@@ -181,7 +171,7 @@ export default function DiagnosisCard({
         </Row>
 
         {/* 4 · Validez */}
-        <Row icon={BadgeCheck} label="Validez">
+        <Row icon={BadgeCheck} label={t.qValidity}>
           <p>{diagnosis.validity.swornTranslation}</p>
           {diagnosis.validity.originalDocument && (
             <p className="mt-1.5 flex items-start gap-1.5 text-xs text-graphite">

@@ -378,6 +378,13 @@ export default function RootLayout({
                     Subir expediente (4+ docs)
                   </Link>
                   <Link
+                    href="/traduction-assermentee"
+                    className="hover:text-or transition-colors"
+                    hrefLang="fr"
+                  >
+                    Traduction assermentée (FR)
+                  </Link>
+                  <Link
                     href="/traductor-jurado-frances"
                     className="hover:text-or transition-colors"
                   >
