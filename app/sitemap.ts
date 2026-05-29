@@ -96,6 +96,8 @@ const LAST_MODIFIED: Record<string, string> = {
   "/presupuesto-instantaneo":                       "2026-03-04",
   "/expediente":                                    "2026-05-29",
   "/traduction-assermentee":                        "2026-05-29",
+  "/fr/acheter-bien-immobilier-espagne":            "2026-05-29",
+  "/fr/declaration-non-resident-espagne":           "2026-05-29",
   "/traducciones-juradas-baratas":                  "2026-01-17",
   "/traduccion-jurada-online":                      "2026-02-08",
   "/traduccion-jurada-frances-malaga":              "2026-02-15",

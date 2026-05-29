@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import PuertaClient from "@/app/presupuesto-instantaneo/PuertaClient";
 
 export const metadata: Metadata = {
   title: "Traduction assermentée français-espagnol en 60 secondes",
   description:
-    "Traduction assermentée officielle (traducteur assermenté MAEC nº 3850). Déposez votre document, recevez prix et délai au instant, payez en ligne. Spécialiste français ↔ espagnol.",
+    "Traduction assermentée officielle (traducteur assermenté MAEC nº 3850). Déposez votre document, recevez prix et délai immédiatement, payez en ligne. Spécialiste français ↔ espagnol.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/traduction-assermentee" },
   openGraph: {
     title: "Traduction assermentée français-espagnol",
     description:
-      "Prix fermé et délai au instant. Traducteur assermenté officiel (MAEC nº 3850) pour vos démarches en Espagne et en France.",
+      "Prix fermé et délai immédiats. Traducteur assermenté officiel (MAEC nº 3850) pour vos démarches en Espagne et en France.",
     locale: "fr_FR",
     url: "https://www.traduccionesjuradas.net/traduction-assermentee",
   },
@@ -34,7 +35,7 @@ export default function TraductionAssermenteePage() {
             <em className="text-or not-italic">en 60 secondes</em>
           </h1>
           <p className="mx-auto mt-4 max-w-md text-base text-sepia sm:text-lg">
-            Déposez votre document, recevez le prix fermé et le délai au instant, et payez en ligne.
+            Déposez votre document, recevez le prix fermé et le délai immédiatement, et payez en ligne.
             Spécialiste <strong>français ↔ espagnol</strong>.
           </p>
 
@@ -62,6 +63,27 @@ export default function TraductionAssermenteePage() {
             Une question ?{" "}
             <a href="https://wa.me/34951333614" className="text-bleu underline">Écrivez-nous sur WhatsApp</a>.
           </p>
+        </div>
+      </section>
+
+      {/* Cas fréquents (FR) */}
+      <section className="bg-parchment py-12">
+        <div className="mx-auto max-w-4xl px-4">
+          <h2 className="text-center font-baskerville text-2xl font-bold text-encre">Cas fréquents des clients français</h2>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <Link href="/fr/acheter-bien-immobilier-espagne" className="group rounded-2xl border border-cream bg-card p-6 shadow-paper transition hover:border-bleu hover:shadow-md">
+              <span className="text-2xl" aria-hidden="true">🏠</span>
+              <h3 className="mt-3 font-baskerville text-lg font-bold text-encre">Acheter un bien en Espagne</h3>
+              <p className="mt-1 text-sm text-sepia">NIE, prêt, notaire : quels documents faire traduire (acte de mariage, revenus, procuration…).</p>
+              <p className="mt-3 text-sm font-semibold text-bleu group-hover:underline">Voir le guide →</p>
+            </Link>
+            <Link href="/fr/declaration-non-resident-espagne" className="group rounded-2xl border border-cream bg-card p-6 shadow-paper transition hover:border-bleu hover:shadow-md">
+              <span className="text-2xl" aria-hidden="true">🧾</span>
+              <h3 className="mt-3 font-baskerville text-lg font-bold text-encre">Déclaration de non-résident (modèle 210)</h3>
+              <p className="mt-1 text-sm text-sepia">IRNR, revenu imputé, location, convention France-Espagne et justificatifs à traduire.</p>
+              <p className="mt-3 text-sm font-semibold text-bleu group-hover:underline">Voir le guide →</p>
+            </Link>
+          </div>
         </div>
       </section>
     </main>

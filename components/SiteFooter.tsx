@@ -31,10 +31,11 @@ export default function SiteFooter() {
               <p className="font-baskerville text-sm font-bold text-parchment">Liens</p>
               <div className="flex flex-col gap-2 text-sm text-cream/85">
                 <Link href="/traduction-assermentee" className="hover:text-or" hrefLang="fr">Devis en ligne</Link>
+                <Link href="/fr/acheter-bien-immobilier-espagne" className="hover:text-or" hrefLang="fr">Acheter un bien en Espagne</Link>
+                <Link href="/fr/declaration-non-resident-espagne" className="hover:text-or" hrefLang="fr">Déclaration de non-résident</Link>
                 <a href="https://wa.me/34951333614" className="hover:text-or" target="_blank" rel="noopener noreferrer">WhatsApp</a>
                 <Link href="/area-cliente" className="hover:text-or">Espace client</Link>
                 <Link href="/aviso-legal" className="hover:text-or">Mentions légales</Link>
-                <Link href="/privacidad" className="hover:text-or">Confidentialité</Link>
               </div>
             </div>
           </div>
