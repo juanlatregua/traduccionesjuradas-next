@@ -193,6 +193,20 @@ export default function Home() {
             <PuertaClient purpose={null} />
           </div>
 
+          {/* Expediente — igualado a la zona de subida, justo debajo */}
+          <div className="mx-auto mt-3 max-w-xl">
+            <Link
+              href="/expediente"
+              className="flex items-center justify-between gap-3 rounded-xl border border-bleu/30 bg-bleu/5 px-4 py-3 text-left transition hover:border-bleu hover:bg-bleu/10"
+            >
+              <span className="flex items-center gap-2 text-sm text-encre">
+                <span className="text-lg" aria-hidden="true">🗂️</span>
+                <span>¿Varios documentos? Súbelos como <strong>expediente</strong> (4+) con un solo presupuesto.</span>
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-bleu">Subir →</span>
+            </Link>
+          </div>
+
           {/* WhatsApp alternativo */}
           <p className="mt-4 text-xs text-graphite">
             ¿Prefieres que te ayudemos?{" "}
@@ -334,31 +348,7 @@ export default function Home() {
             en España.
           </p>
 
-          {/* Banner — expediente de varios documentos (entrada destacada) */}
-          <Link
-            href="/expediente"
-            className="group mt-8 flex flex-col items-start justify-between gap-4 rounded-2xl border-2 border-bleu/30 bg-gradient-to-br from-bleu/[0.08] to-or/[0.08] p-6 transition hover:border-bleu hover:shadow-md sm:flex-row sm:items-center"
-          >
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-bleu text-white">
-                <span className="text-2xl">🗂️</span>
-              </div>
-              <div>
-                <h3 className="font-baskerville text-lg font-bold text-encre">
-                  ¿Tienes un expediente de 4 o más documentos?
-                </h3>
-                <p className="mt-1 text-sm text-sepia">
-                  Súbelos todos juntos —de una o varias personas, en uno o varios idiomas— y te preparamos un
-                  presupuesto único con descuento por volumen.
-                </p>
-              </div>
-            </div>
-            <span className="shrink-0 rounded-xl bg-bleu px-5 py-2.5 text-sm font-semibold text-white group-hover:bg-bleu-light">
-              Subir expediente →
-            </span>
-          </Link>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Card 1 — Regularización 2026 (destacada) */}
             <Link
               href="/regularizacion-2026"
