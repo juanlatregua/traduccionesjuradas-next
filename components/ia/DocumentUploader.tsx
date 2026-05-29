@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { Upload, Camera, FileText, X, Loader2 } from "lucide-react";
+import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
 
 type UploadedFile = {
   file: File;
@@ -23,6 +24,7 @@ type Props = {
   gdprConsent?: boolean;
   onGdprConsentChange?: (consent: boolean) => void;
   source?: string | null;
+  lang?: PuertaLang;
 };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -36,7 +38,9 @@ export default function DocumentUploader({
   gdprConsent: externalGdprConsent,
   onGdprConsentChange,
   source,
+  lang = "es",
 }: Props) {
+  const t = puertaT[lang];
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,12 +58,12 @@ export default function DocumentUploader({
       setError(null);
 
       if (file.size > MAX_FILE_SIZE) {
-        setError("El archivo es demasiado grande. Máximo 20 MB.");
+        setError(t.errTooLarge);
         return;
       }
 
       if (!gdprConsent) {
-        setError("Debes aceptar el tratamiento de datos para continuar.");
+        setError(t.errGdpr);
         return;
       }
 
@@ -99,7 +103,7 @@ export default function DocumentUploader({
         const data = await res.json();
 
         if (!data.ok) {
-          setError(data.error || "Error al subir el archivo.");
+          setError(data.error || t.errUpload);
           setUploadedFile(null);
           return;
         }
@@ -114,13 +118,13 @@ export default function DocumentUploader({
 
         onUploadComplete(data.documentId, data.sessionToken, file.size, file.name);
       } catch {
-        setError("Error de conexión. Inténtalo de nuevo.");
+        setError(t.errConn);
         setUploadedFile(null);
       } finally {
         setUploading(false);
       }
     },
-    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source]
+    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t]
   );
 
   const handleDrop = useCallback(
@@ -159,11 +163,9 @@ export default function DocumentUploader({
           className="mt-1 h-4 w-4 rounded border-graphite/40 text-bleu focus:ring-bleu"
         />
         <span className="text-xs text-graphite leading-relaxed">
-          Consiento el tratamiento de mis documentos para generar un presupuesto
-          de traducción jurada. Los documentos se eliminan automáticamente tras
-          30 días de la entrega.{" "}
+          {t.gdprConsent}{" "}
           <a href="/privacidad" className="text-bleu underline" target="_blank">
-            Ver política de privacidad
+            {t.gdprPrivacyLink}
           </a>
           .
         </span>
@@ -191,7 +193,7 @@ export default function DocumentUploader({
           onClick={() => inputRef.current?.click()}
           role="button"
           tabIndex={0}
-          aria-label="Arrastra tu documento aquí o haz clic para seleccionar"
+          aria-label={t.ariaDrop}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
           }}
@@ -200,12 +202,8 @@ export default function DocumentUploader({
             <Upload className="h-5 w-5 text-bleu" />
           </div>
           <div className="text-center">
-            <p className="font-baskerville text-base text-bleu">
-              Arrastra tu documento aquí
-            </p>
-            <p className="mt-0.5 text-xs text-graphite">
-              PDF, foto o escaneo &middot; Máx. 20 MB
-            </p>
+            <p className="font-baskerville text-base text-bleu">{t.dropTitle}</p>
+            <p className="mt-0.5 text-xs text-graphite">{t.dropHint}</p>
           </div>
 
           {/* Buttons row */}
@@ -219,7 +217,7 @@ export default function DocumentUploader({
               className="rounded-lg border border-bleu/20 bg-white px-4 py-2 text-sm font-medium text-bleu shadow-sm hover:bg-bleu/5 transition-colors"
             >
               <FileText className="mr-2 inline h-4 w-4" />
-              Seleccionar archivo
+              {t.selectFile}
             </button>
 
             {/* Camera button — only shown on mobile via CSS */}
@@ -232,7 +230,7 @@ export default function DocumentUploader({
               className="rounded-lg border border-bleu/20 bg-white px-4 py-2 text-sm font-medium text-bleu shadow-sm hover:bg-bleu/5 transition-colors sm:hidden"
             >
               <Camera className="mr-2 inline h-4 w-4" />
-              Tomar foto
+              {t.takePhoto}
             </button>
           </div>
 
@@ -259,12 +257,12 @@ export default function DocumentUploader({
 
       {!uploadedFile && (
         <p className="text-center text-xs text-graphite">
-          ¿No sabes cómo escanear bien?{" "}
+          {t.scanGuidePre}{" "}
           <a
             href="/como-escanear-bien"
             className="text-bleu underline underline-offset-2 hover:text-bleu-light"
           >
-            Ver guía de 2 minutos
+            {t.scanGuideLink}
           </a>
         </p>
       )}
@@ -294,7 +292,7 @@ export default function DocumentUploader({
             {uploading && (
               <div className="mt-2 flex items-center gap-2 text-sm text-bleu">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Subiendo documento...
+                {t.uploading}
               </div>
             )}
           </div>

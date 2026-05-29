@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { buildPresupuestoWhatsAppLink, detectLangFromPathname } from "@/lib/contact";
+import { isFrenchPath } from "@/lib/i18n/use-ui-lang";
 import { RichMessage } from "@/lib/chat/format-response";
 
 type Attachment = {
@@ -21,18 +22,37 @@ type Message = {
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-const WELCOME_MESSAGE: Message = {
-  role: "assistant",
-  content:
-    "¡Hola! Soy el asistente de traduccionesjuradas.net. ¿En qué puedo ayudarte?\n\nPuedo orientarte sobre:\n• Precio de tu traducción jurada\n• Plazos de entrega\n• Documentos necesarios para tu trámite\n• Paquete teletrabajo Marruecos → España\n\n📎 Tip: puedes adjuntar una foto de tu documento y te digo al instante el precio orientativo. ¿No sabes cómo escanear bien? [Mira esta guía rápida](/como-escanear-bien).",
-};
+function welcomeMessage(lang: "es" | "fr"): Message {
+  if (lang === "fr") {
+    return {
+      role: "assistant",
+      content:
+        "Bonjour ! Je suis l'assistant de traduccionesjuradas.net. Comment puis-je vous aider ?\n\nJe peux vous orienter sur :\n• Le prix de votre traduction assermentée\n• Les délais de livraison\n• Les documents nécessaires pour votre démarche (achat immobilier, déclaration de non-résident…)\n\n📎 Astuce : joignez une photo de votre document et je vous donne le prix indicatif au instant.",
+    };
+  }
+  return {
+    role: "assistant",
+    content:
+      "¡Hola! Soy el asistente de traduccionesjuradas.net. ¿En qué puedo ayudarte?\n\nPuedo orientarte sobre:\n• Precio de tu traducción jurada\n• Plazos de entrega\n• Documentos necesarios para tu trámite\n• Paquete teletrabajo Marruecos → España\n\n📎 Tip: puedes adjuntar una foto de tu documento y te digo al instante el precio orientativo. ¿No sabes cómo escanear bien? [Mira esta guía rápida](/como-escanear-bien).",
+  };
+}
 
-const QUICK_REPLIES = [
-  { label: "Precio cerrado", emoji: "💰" },
-  { label: "Documentos necesarios", emoji: "📋" },
-  { label: "Teletrabajo Marruecos", emoji: "🇲🇦" },
-  { label: "Hablar por WhatsApp", emoji: "📱", isWhatsApp: true },
-];
+function quickReplies(lang: "es" | "fr") {
+  if (lang === "fr") {
+    return [
+      { label: "Prix", emoji: "💰" },
+      { label: "Acheter un bien en Espagne", emoji: "🏠" },
+      { label: "Déclaration non-résident", emoji: "🧾" },
+      { label: "Parler sur WhatsApp", emoji: "📱", isWhatsApp: true },
+    ];
+  }
+  return [
+    { label: "Precio cerrado", emoji: "💰" },
+    { label: "Documentos necesarios", emoji: "📋" },
+    { label: "Teletrabajo Marruecos", emoji: "🇲🇦" },
+    { label: "Hablar por WhatsApp", emoji: "📱", isWhatsApp: true },
+  ];
+}
 
 const MAX_MESSAGES = 20;
 const SESSION_KEY = "chatbot_session";
@@ -56,9 +76,11 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function ChatWidget() {
+  const pathname = usePathname();
+  const uiLang: "es" | "fr" = isFrenchPath(pathname) ? "fr" : "es";
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>(() => [welcomeMessage(uiLang)]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId] = useState(() => {
@@ -67,7 +89,7 @@ export default function ChatWidget() {
   });
   const [showQuickReplies, setShowQuickReplies] = useState(true);
   const [rateLimited, setRateLimited] = useState(false);
-  const pathname = usePathname();
+  const QR = quickReplies(uiLang);
   const whatsappLink = useMemo(
     () => buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname) }),
     [pathname],
@@ -237,7 +259,7 @@ export default function ChatWidget() {
             setRateLimited(true);
           }
           const errorText =
-            err.error || "Lo siento, ha ocurrido un error. Inténtalo de nuevo.";
+            err.error || (uiLang === "fr" ? "Désolé, une erreur s'est produite. Réessayez." : "Lo siento, ha ocurrido un error. Inténtalo de nuevo.");
           setMessages((prev) => [
             ...prev,
             { role: "assistant", content: errorText },
@@ -299,7 +321,7 @@ export default function ChatWidget() {
           {
             role: "assistant",
             content:
-              "Lo siento, ha ocurrido un error de conexión. Inténtalo de nuevo o escríbenos por WhatsApp.",
+              uiLang === "fr" ? "Désolé, erreur de connexion. Réessayez ou écrivez-nous sur WhatsApp." : "Lo siento, ha ocurrido un error de conexión. Inténtalo de nuevo o escríbenos por WhatsApp.",
           },
         ]);
       } finally {
@@ -314,7 +336,7 @@ export default function ChatWidget() {
     sendMessage(input, pendingAttachments);
   };
 
-  const handleQuickReply = (reply: (typeof QUICK_REPLIES)[number]) => {
+  const handleQuickReply = (reply: { label: string; emoji: string; isWhatsApp?: boolean }) => {
     if (reply.isWhatsApp) {
       window.open(whatsappLink, "_blank", "noopener,noreferrer");
       return;
@@ -323,7 +345,7 @@ export default function ChatWidget() {
   };
 
   const clearConversation = () => {
-    setMessages([WELCOME_MESSAGE]);
+    setMessages([welcomeMessage(uiLang)]);
     setShowQuickReplies(true);
     setRateLimited(false);
     setPendingAttachments([]);
@@ -380,7 +402,7 @@ export default function ChatWidget() {
             setIsOpen(true);
           }
         }}
-        aria-label={isOpen ? "Cerrar asistente" : "Abrir asistente virtual"}
+        aria-label={isOpen ? (uiLang === "fr" ? "Fermer l'assistant" : "Cerrar asistente") : (uiLang === "fr" ? "Ouvrir l'assistant virtuel" : "Abrir asistente virtual")}
         className={`fixed bottom-6 right-6 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-bleu text-parchment shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl ${
           isOpen ? "scale-0 opacity-0 pointer-events-none" : "scale-100 opacity-100"
         }`}
@@ -521,7 +543,7 @@ export default function ChatWidget() {
             {/* Quick replies */}
             {showQuickReplies && (
               <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Respuestas rápidas">
-                {QUICK_REPLIES.map((reply, i) => (
+                {QR.map((reply, i) => (
                   <button
                     key={reply.label}
                     onClick={() => handleQuickReply(reply)}
@@ -638,7 +660,7 @@ export default function ChatWidget() {
                     if (inputRef.current) inputRef.current.style.height = "auto";
                   }
                 }}
-                placeholder="Escribe tu consulta..."
+                placeholder={uiLang === "fr" ? "Écrivez votre question..." : "Escribe tu consulta..."}
                 rows={1}
                 disabled={isStreaming}
                 aria-label="Mensaje"

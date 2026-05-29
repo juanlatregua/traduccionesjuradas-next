@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
+import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
 
 const CUTOFF_HOUR = 18; // 18:00, hora de Madrid
 
@@ -45,7 +46,8 @@ function formatRemaining(seconds: number): string {
   return `${s} s`;
 }
 
-export default function DeadlineCountdown() {
+export default function DeadlineCountdown({ lang = "es" }: { lang?: PuertaLang }) {
+  const t = puertaT[lang];
   const [time, setTime] = useState<MadridTime | null>(null);
 
   useEffect(() => {
@@ -74,19 +76,9 @@ export default function DeadlineCountdown() {
         aria-hidden="true"
       />
       {beforeCutoff ? (
-        <p>
-          Pídela antes de las <strong>18:00</strong> y la ponemos en marcha hoy
-          mismo — quedan{" "}
-          <strong className="tabular-nums text-vert">
-            {formatRemaining(remaining)}
-          </strong>
-          .
-        </p>
+        <p>{t.cutoffBefore(formatRemaining(remaining))}</p>
       ) : (
-        <p>
-          La pondremos en marcha el próximo día laborable. El diagnóstico te
-          confirma la fecha de entrega exacta.
-        </p>
+        <p>{t.cutoffAfter}</p>
       )}
     </div>
   );
