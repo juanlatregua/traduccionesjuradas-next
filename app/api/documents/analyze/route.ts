@@ -3,8 +3,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp, checkGlobalAnalysisCap } from "@/lib/rate-limit";
-import { analyzeDocument, censorExtractedNames } from "@/lib/ai/analyze-document";
+import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
+import { runDocumentAnalysis } from "@/lib/ai/run-analysis";
+import { requireStaffAccess } from "@/lib/staff-auth";
 import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { buildDiagnosis } from "@/lib/diagnosis";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
@@ -15,26 +17,34 @@ export const maxDuration = 120; // Allow up to 120s for IA analysis (PDFs pesado
 export async function POST(req: Request) {
   const ip = getClientIp(req);
 
-  // Global daily cap: max 200 analyses/day across all users
-  const globalCapOk = await checkGlobalAnalysisCap();
-  if (!globalCapOk) {
-    return NextResponse.json(
-      { ok: false, error: "Servicio temporalmente no disponible. Inténtalo en unos minutos." },
-      { status: 429 }
-    );
-  }
+  // El staff autenticado (zona-traductor / admin) procesa expedientes enteros
+  // (p.ej. 16 docs de una vez), así que queda exento de los topes pensados
+  // para tráfico público anónimo. Ver /api/zona-traductor/expediente/analyze.
+  const staff = await requireStaffAccess(req);
+  const isStaff = staff.ok;
 
-  // Rate limit: 15 análisis por IP por día
-  const rl = await checkRateLimit({
-    key: `doc-analyze:${ip}`,
-    limit: 15,
-    windowMs: 24 * 60 * 60 * 1000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { ok: false, error: "Has superado el límite diario de análisis. Inténtalo mañana." },
-      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
-    );
+  if (!isStaff) {
+    // Global daily cap: max 200 analyses/day across all users
+    const globalCapOk = await checkGlobalAnalysisCap();
+    if (!globalCapOk) {
+      return NextResponse.json(
+        { ok: false, error: "Servicio temporalmente no disponible. Inténtalo en unos minutos." },
+        { status: 429 }
+      );
+    }
+
+    // Rate limit: 15 análisis por IP por día
+    const rl = await checkRateLimit({
+      key: `doc-analyze:${ip}`,
+      limit: 15,
+      windowMs: 24 * 60 * 60 * 1000,
+    });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { ok: false, error: "Has superado el límite diario de análisis. Inténtalo mañana." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+      );
+    }
   }
 
   try {
@@ -55,7 +65,7 @@ export async function POST(req: Request) {
     }
 
     // Rate limit por email: 10 análisis por email por día
-    if (doc.clientEmail) {
+    if (doc.clientEmail && !isStaff) {
       const rlEmail = await checkRateLimit({
         key: `doc-analyze:email:${doc.clientEmail}`,
         limit: 10,
@@ -122,49 +132,22 @@ export async function POST(req: Request) {
 
     const fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
 
-    // For PDFs: extract page count and truncate large docs to first 3 pages
-    let pageCount: number | undefined;
-    let analyzeBuffer = fileBuffer;
-    if (doc.mimeType === "application/pdf") {
-      try {
-        const { PDFDocument } = require("pdf-lib");
-        const pdfDoc = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
-        pageCount = pdfDoc.getPageCount();
-        console.log(`[documents/analyze] PDF pages: ${pageCount}`);
-
-        // Truncate to first 3 pages for large documents
-        if (pageCount && pageCount > 5) {
-          const truncated = await PDFDocument.create();
-          const pagesToCopy = Math.min(3, pageCount);
-          const copied = await truncated.copyPages(pdfDoc, Array.from({ length: pagesToCopy }, (_, i) => i));
-          copied.forEach((page: any) => truncated.addPage(page));
-          const truncatedBytes = await truncated.save();
-          analyzeBuffer = Buffer.from(truncatedBytes);
-          console.log(`[documents/analyze] Truncated ${pageCount} pages → ${pagesToCopy} for analysis (${(analyzeBuffer.length / 1024 / 1024).toFixed(1)}MB)`);
-        }
-      } catch (err) {
-        console.error("[documents/analyze] pdf-lib error:", err);
-        // proceed with full buffer
-      }
-    }
-
-    const fileBase64 = analyzeBuffer.toString("base64");
-
-    // Call Claude API for analysis with timeout
+    // Runner por capas: PDF con capa de texto → Haiku sobre texto (barato);
+    // escaneo/imagen → Sonnet visión. Trunca PDFs largos internamente.
     const analysisStart = Date.now();
     let analysis;
     try {
-      analysis = await Promise.race([
-        analyzeDocument({
-          fileBase64,
+      const run = await Promise.race([
+        runDocumentAnalysis({
+          buffer: fileBuffer,
           mimeType: doc.mimeType,
           fileName: doc.fileName,
-          pageCount,
         }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 115s")), 115000)
         ),
       ]);
+      analysis = run.analysis;
     } catch (err: any) {
       const errorDetail = err.status
         ? `API ${err.status}: ${err.error?.error?.message || err.message}`

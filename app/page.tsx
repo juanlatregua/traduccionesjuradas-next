@@ -419,6 +419,30 @@ export default function Home() {
               </p>
             </Link>
           </div>
+
+          {/* Banner — expediente de varios documentos */}
+          <Link
+            href="/expediente"
+            className="group mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-bleu/20 bg-gradient-to-br from-bleu/[0.06] to-or/[0.06] p-6 transition hover:border-bleu hover:shadow-md sm:flex-row sm:items-center"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-bleu text-white">
+                <span className="text-2xl">🗂️</span>
+              </div>
+              <div>
+                <h3 className="font-baskerville text-lg font-bold text-encre">
+                  ¿Tienes un expediente de 4 o más documentos?
+                </h3>
+                <p className="mt-1 text-sm text-sepia">
+                  Súbelos todos juntos —de una o varias personas, en uno o varios idiomas— y te preparamos un
+                  presupuesto único con descuento por volumen.
+                </p>
+              </div>
+            </div>
+            <span className="shrink-0 rounded-xl bg-bleu px-5 py-2.5 text-sm font-semibold text-white group-hover:bg-bleu-light">
+              Subir expediente →
+            </span>
+          </Link>
         </div>
       </section>
 

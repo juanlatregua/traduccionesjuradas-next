@@ -5,6 +5,10 @@ import { DOCUMENT_ANALYSIS_PROMPT, LARGE_DOCUMENT_ADDENDUM } from "./prompts";
 import { countDocumentWords } from "./word-counter";
 
 const MODEL = "claude-sonnet-4-20250514";
+// Camino barato: PDFs con capa de texto se clasifican con Haiku sobre el texto
+// extraído (sin imagen). ~15× más barato que Sonnet visión y sin tokens de
+// imagen. Ver lib/ai/extract-text.ts y lib/ai/run-analysis.ts.
+const TEXT_MODEL = "claude-haiku-4-5-20251001";
 const MAX_TOKENS = 16_384;
 const MAX_TOKENS_LARGE = 8_192;
 const LARGE_DOC_THRESHOLD = 5; // pages
@@ -89,6 +93,112 @@ function getMediaType(
     "application/pdf": "application/pdf",
   };
   return map[mimeType] || "image/jpeg";
+}
+
+// Claude a veces envuelve el JSON en bloques ```json. Extrae y parsea.
+function parseModelJson(rawText: string, tag: string): DocumentAnalysisResult {
+  let jsonStr = rawText.trim();
+  const jsonMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+  if (jsonMatch) {
+    jsonStr = jsonMatch[1].trim();
+  }
+  try {
+    return JSON.parse(jsonStr) as DocumentAnalysisResult;
+  } catch (parseErr: any) {
+    console.error(`[${tag}] JSON parse failed. First 500 chars:`, jsonStr.slice(0, 500));
+    throw new Error(`JSON_PARSE: ${parseErr.message}`);
+  }
+}
+
+/**
+ * Camino BARATO: clasifica un documento a partir de su TEXTO ya extraído
+ * (PDFs digitales con capa de texto). Usa Haiku, sin imagen → mucho menos
+ * coste de tokens. El conteo de palabras es local sobre el texto completo
+ * (autoritativo), así que no depende de que el modelo cuente bien.
+ */
+export async function analyzeDocumentText(input: {
+  text: string;
+  fileName: string;
+  pageCount?: number;
+}): Promise<DocumentAnalysisResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY no configurada.");
+  }
+
+  const client = new Anthropic({ apiKey, maxRetries: MAX_RETRIES });
+
+  // Acotamos el texto enviado al modelo para limitar tokens; el conteo de
+  // palabras lo hacemos sobre el texto COMPLETO aparte.
+  const promptText = input.text.slice(0, 24_000);
+  const localWords = countDocumentWords(input.text);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await client.messages.create(
+      {
+        model: TEXT_MODEL,
+        max_tokens: MAX_TOKENS_LARGE,
+        system: [
+          {
+            type: "text",
+            text: DOCUMENT_ANALYSIS_PROMPT,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  `Analiza este documento (${input.fileName}) a partir del TEXTO extraído de su PDF y devuelve el JSON de análisis. ` +
+                  `El documento tiene ${input.pageCount || "?"} página(s). ` +
+                  `No incluyas extracted_text en la respuesta (ya disponemos del texto).\n\n--- TEXTO DEL DOCUMENTO ---\n${promptText}`,
+              },
+            ],
+          },
+        ],
+      },
+      { signal: controller.signal }
+    );
+
+    clearTimeout(timeout);
+
+    if (response.stop_reason === "max_tokens") {
+      console.error("[analyzeDocumentText] Response truncated (max_tokens). Usage:", JSON.stringify(response.usage));
+      throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");
+    }
+
+    const textContent = response.content.find((block) => block.type === "text");
+    if (!textContent || textContent.type !== "text") {
+      throw new Error("Claude no devolvió texto en la respuesta.");
+    }
+
+    const result = parseModelJson(textContent.text, "analyzeDocumentText");
+
+    // Conteo local sobre texto completo = autoritativo (cogemos el mayor por
+    // si el modelo estimó más alto en algún caso límite).
+    const claudeWords = result.document_metrics?.estimated_words || 0;
+    result.document_metrics.estimated_words = Math.max(localWords, claudeWords);
+    if (input.pageCount) {
+      result.document_metrics.pages = input.pageCount;
+    }
+    console.log(
+      `[analyzeDocumentText] Haiku/text: local=${localWords}, Claude=${claudeWords}, pages=${result.document_metrics.pages}, type=${result.document_type.specific_type}`
+    );
+
+    return result;
+  } catch (err: any) {
+    clearTimeout(timeout);
+    if (err.name === "AbortError") {
+      throw new Error("El análisis del documento ha excedido el tiempo límite.");
+    }
+    throw err;
+  }
 }
 
 export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnalysisResult> {
@@ -180,19 +290,7 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
     }
 
     // Parse JSON (Claude might wrap it in ```json blocks)
-    let jsonStr = textContent.text.trim();
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
-    }
-
-    let result: DocumentAnalysisResult;
-    try {
-      result = JSON.parse(jsonStr) as DocumentAnalysisResult;
-    } catch (parseErr: any) {
-      console.error("[analyzeDocument] JSON parse failed. First 500 chars:", jsonStr.slice(0, 500));
-      throw new Error(`JSON_PARSE: ${parseErr.message}`);
-    }
+    const result = parseModelJson(textContent.text, "analyzeDocument");
 
     // Override word count with local counter if extracted_text is available
     if (result.document_metrics.extracted_text) {

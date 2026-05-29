@@ -191,6 +191,79 @@ async function linkDocumentAnalysesToOrder(reference: string, orderId: string) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Create from paid Quote  (keystone: presupuesto → pedido)           */
+/* ------------------------------------------------------------------ */
+
+type CreateOrderFromQuoteInput = {
+  quoteId: string;
+  quoteNumber: string;
+  clientEmail: string;
+  clientName?: string | null;
+  clientPhone?: string | null;
+  sourceLang?: string | null;
+  targetLang?: string | null;
+  totalEur: number;
+  currency?: string | null;
+  documentCount: number;
+};
+
+// Crea el Order de producción a partir de un presupuesto pagado. Idempotente
+// por quoteId: si ya existe el Order de ese Quote, lo devuelve sin duplicar.
+// NO marca el pago ni dispara la cascada (eso lo hace el webhook con
+// updateOrderPayment + workflow), solo crea el "cascarón" del pedido.
+export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput) {
+  const existing = await prisma.order.findFirst({ where: { quoteId: input.quoteId } });
+  if (existing) return existing;
+
+  const langPair =
+    input.sourceLang && input.targetLang ? `${input.sourceLang}->${input.targetLang}` : null;
+  const flowProfile = inferFlowProfile({ langPair });
+  const docLabel = input.documentCount === 1 ? "documento" : "documentos";
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const reference = await generateOrderReference();
+    try {
+      return await prisma.order.create({
+        data: {
+          reference,
+          quoteId: input.quoteId,
+          clientEmail: input.clientEmail,
+          clientName: input.clientName || null,
+          clientPhone: input.clientPhone || null,
+          source: "quote",
+          title: `Traducción jurada · ${input.documentCount} ${docLabel} (presupuesto ${input.quoteNumber})`,
+          langPair,
+          amountCents: Math.round((input.totalEur || 0) * 100),
+          currency: (input.currency || "eur").toLowerCase(),
+          events: {
+            create: [
+              {
+                type: "order.created",
+                message: "Pedido creado desde presupuesto pagado.",
+                payload: { quoteId: input.quoteId, quoteNumber: input.quoteNumber, docCount: input.documentCount },
+              },
+              {
+                type: "order.flow_profile",
+                message: `Perfil de flujo detectado: ${flowProfile}.`,
+                payload: { profile: flowProfile, source: "quote" },
+              },
+            ],
+          },
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === "P2002") {
+        const fallback = await prisma.order.findFirst({ where: { quoteId: input.quoteId } });
+        if (fallback) return fallback;
+        continue; // colisión de reference → reintentar
+      }
+      throw err;
+    }
+  }
+  throw new Error("No se pudo crear el pedido desde el presupuesto.");
+}
+
+/* ------------------------------------------------------------------ */
 /*  Read                                                               */
 /* ------------------------------------------------------------------ */
 
