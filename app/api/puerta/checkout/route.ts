@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { documents?: DocInput[]; purpose?: string; email?: string; phone?: string };
+  let body: { documents?: DocInput[]; purpose?: string; email?: string; phone?: string; sessionToken?: string };
   try {
     body = await req.json();
   } catch {
@@ -69,6 +69,18 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: "No hay documentos para el pedido." },
       { status: 400 }
+    );
+  }
+
+  // Ownership: solo se pueden llevar a checkout los documentos subidos en esta
+  // misma sesión (sessionToken, UUID no enumerable que register devolvió). Sin
+  // esto un atacante podría adjuntar análisis ajenos a su pedido (fuga del
+  // fileUrl del documento del otro cliente) y pisar su email/teléfono de lead.
+  const sessionToken = (body.sessionToken || "").trim();
+  if (!sessionToken) {
+    return NextResponse.json(
+      { ok: false, error: "Sesión no válida. Vuelve a empezar." },
+      { status: 422 }
     );
   }
 
@@ -91,10 +103,10 @@ export async function POST(req: Request) {
   const purpose =
     body.purpose === PURPOSE_REGULARIZACION_2026 ? PURPOSE_REGULARIZACION_2026 : null;
 
-  // Cargar los análisis y validarlos.
+  // Cargar los análisis y validarlos (scoped al sessionToken de quien sube).
   const ids = inputs.map((d) => d.id);
   const records = await prisma.documentAnalysis.findMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, sessionToken },
   });
   if (records.length !== ids.length) {
     return NextResponse.json(

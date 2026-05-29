@@ -168,6 +168,7 @@ export default function PuertaClient({
           purpose: purpose || undefined,
           email: email.trim(),
           phone: phone.trim(),
+          sessionToken,
           documents: documents.map((d) => ({
             id: d.id,
             targetLanguage: d.analysis.language.target,
@@ -236,6 +237,7 @@ export default function PuertaClient({
       {step === "analyzing" && currentDocId && (
         <DocumentAnalysis
           documentId={currentDocId}
+          sessionToken={sessionToken}
           fileSize={currentFileSize}
           onAnalysisComplete={handleAnalysisComplete}
           onError={handleError}
