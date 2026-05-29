@@ -306,13 +306,30 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">WhatsApp listo para copiar</p>
             <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-900">{whatsText}</p>
-            <button
-              type="button"
-              onClick={() => copyText(whatsText, "Texto de WhatsApp copiado.")}
-              className="mt-3 rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-            >
-              Copiar texto WhatsApp
-            </button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(() => {
+                const digits = String(quote.customerPhone || "").replace(/\D/g, "");
+                const phone = digits ? (digits.length === 9 ? `34${digits}` : digits) : "";
+                if (!phone) return null;
+                return (
+                  <a
+                    href={`https://wa.me/${phone}?text=${encodeURIComponent(whatsText)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+                  >
+                    Enviar por WhatsApp al cliente
+                  </a>
+                );
+              })()}
+              <button
+                type="button"
+                onClick={() => copyText(whatsText, "Texto de WhatsApp copiado.")}
+                className="rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+              >
+                Copiar texto WhatsApp
+              </button>
+            </div>
           </div>
         )}
       </div>
