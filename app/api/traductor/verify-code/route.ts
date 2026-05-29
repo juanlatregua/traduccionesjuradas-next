@@ -57,7 +57,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Codigo incorrecto." }, { status: 400 });
     }
 
-    const verifiedToken = createVerifiedOtpToken(pending.email, 8 * 60 * 60 * 1000);
+    // Sesión persistente: 60 días en dispositivo de confianza. Sigue siendo
+    // fuerte (token firmado HMAC, httpOnly, secure, SameSite=lax) — el OTP solo
+    // se pide en el primer acceso del dispositivo o al caducar/cerrar sesión.
+    const SESSION_MS = 60 * 24 * 60 * 60 * 1000;
+    const verifiedToken = createVerifiedOtpToken(pending.email, SESSION_MS);
     const response = NextResponse.json({ ok: true });
     response.cookies.set({
       name: STAFF_OTP_VERIFIED_COOKIE,
@@ -66,7 +70,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 8 * 60 * 60,
+      maxAge: SESSION_MS / 1000,
     });
     response.cookies.set({
       name: STAFF_OTP_PENDING_COOKIE,
