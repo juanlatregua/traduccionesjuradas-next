@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import ZonaTraductorNav from "@/components/ZonaTraductorNav";
+import InvoiceIssuePanel from "@/components/InvoiceIssuePanel";
+import { suggestNextInvoiceNumber } from "@/lib/client-invoice";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Facturas emitidas",
@@ -41,6 +43,7 @@ export default async function ZonaTraductorFacturasPage({
   );
 
   const exportHref = `/api/admin/invoices/export${year ? `?year=${year}` : ""}`;
+  const suggested = await suggestNextInvoiceNumber();
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -61,6 +64,10 @@ export default async function ZonaTraductorFacturasPage({
           </a>
         </div>
 
+        <div className="mt-6">
+          <InvoiceIssuePanel suggested={suggested} />
+        </div>
+
         {invoices.length === 0 ? (
           <p className="mt-10 text-slate-500">No hay facturas emitidas todavía.</p>
         ) : (
@@ -76,6 +83,7 @@ export default async function ZonaTraductorFacturasPage({
                   <th className="px-4 py-2 text-right">Base</th>
                   <th className="px-4 py-2 text-right">IVA</th>
                   <th className="px-4 py-2 text-right">Total</th>
+                  <th className="px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -91,6 +99,16 @@ export default async function ZonaTraductorFacturasPage({
                     <td className="px-4 py-3 text-right tabular-nums">{eur(inv.baseCents)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{eur(inv.vatCents)}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-semibold">{eur(inv.totalCents)}</td>
+                    <td className="px-4 py-3 text-right">
+                      {inv.order?.reference ? (
+                        <a
+                          href={`/api/orders/${inv.order.reference}/invoice-pdf`}
+                          className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800"
+                        >
+                          PDF
+                        </a>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -102,6 +120,7 @@ export default async function ZonaTraductorFacturasPage({
                   <td className="px-4 py-3 text-right tabular-nums">{eur(totals.base)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{eur(totals.vat)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{eur(totals.total)}</td>
+                  <td className="px-4 py-3"></td>
                 </tr>
               </tfoot>
             </table>
