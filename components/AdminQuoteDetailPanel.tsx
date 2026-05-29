@@ -73,6 +73,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [loadingDeliver, setLoadingDeliver] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(false);
   const [loadingPaid, setLoadingPaid] = useState(false);
+  const [payMethod, setPayMethod] = useState<"BIZUM" | "STRIPE" | "TRANSFER">("BIZUM");
   const [message, setMessage] = useState<string | null>(null);
   const [whatsText, setWhatsText] = useState<string>("");
   const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string; body: string } | null>(null);
@@ -82,6 +83,19 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     const baseUrl = (typeof window !== "undefined" && window.location.origin) || "https://www.traduccionesjuradas.net";
     return `${baseUrl}/q/${quote.publicToken}`;
   }, [quote.publicToken]);
+
+  // Mensaje para el cliente según método de pago (WhatsApp). Bizum por defecto.
+  const waMsg = useMemo(() => {
+    const greet = `Hola ${quote.customerName || ""},`.replace(/ ,$/, ",");
+    const concept = `${greet} tu presupuesto ${quote.quoteNumber} de traducción jurada: ${formatMoney(quote.total)} (IVA incl.).`;
+    if (payMethod === "BIZUM") {
+      return `${concept} Puedes pagarlo por Bizum al 607 356 273 (TraduccionesJuradas). Avísame cuando lo hagas y empiezo. ¡Gracias!`;
+    }
+    if (payMethod === "TRANSFER") {
+      return `${concept} Por transferencia: IBAN ES66 0182 3370 67 0201616991 (BBVA), titular HBTJ Consultores Lingüísticos S.L. Avísame cuando la hagas. ¡Gracias!`;
+    }
+    return `${concept} Paga con tarjeta de forma segura aquí: ${payUrl}`;
+  }, [payMethod, quote.customerName, quote.quoteNumber, quote.total, payUrl]);
 
   async function reloadQuote() {
     const res = await fetch(`/api/quotes/${quote.id}`, { cache: "no-store" });
@@ -304,15 +318,50 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
 
         {whatsText && (
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">WhatsApp listo para copiar</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-900">{whatsText}</p>
-            <button
-              type="button"
-              onClick={() => copyText(whatsText, "Texto de WhatsApp copiado.")}
-              className="mt-3 rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-            >
-              Copiar texto WhatsApp
-            </button>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Mensaje para el cliente</p>
+              <div className="flex gap-1" role="group" aria-label="Método de pago">
+                {(["BIZUM", "STRIPE", "TRANSFER"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPayMethod(m)}
+                    className={`rounded-md px-2 py-1 text-[11px] font-semibold ${
+                      payMethod === m
+                        ? "bg-emerald-600 text-white"
+                        : "border border-emerald-500/40 text-emerald-800 hover:bg-emerald-100"
+                    }`}
+                  >
+                    {m === "BIZUM" ? "Bizum" : m === "STRIPE" ? "Tarjeta (link)" : "Transferencia"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-900">{waMsg}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(() => {
+                const digits = String(quote.customerPhone || "").replace(/\D/g, "");
+                const phone = digits ? (digits.length === 9 ? `34${digits}` : digits) : "";
+                if (!phone) return null;
+                return (
+                  <a
+                    href={`https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+                  >
+                    Enviar por WhatsApp al cliente
+                  </a>
+                );
+              })()}
+              <button
+                type="button"
+                onClick={() => copyText(waMsg, "Mensaje copiado.")}
+                className="rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+              >
+                Copiar mensaje
+              </button>
+            </div>
           </div>
         )}
       </div>
