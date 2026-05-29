@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SiteSearch from "@/components/SiteSearch";
+import HeaderFr from "@/components/HeaderFr";
+import { useUiLang } from "@/lib/i18n/use-ui-lang";
 import type { SearchEntry } from "@/lib/search/match";
 
 function Logo() {
@@ -33,6 +35,7 @@ function Logo() {
 }
 
 export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
+  const uiLang = useUiLang();
   const [menuOpen, setMenuOpen] = useState(false);
   const [translatorDropdownOpen, setTranslatorDropdownOpen] = useState(false);
   const [docsDropdownOpen, setDocsDropdownOpen] = useState(false);
@@ -73,6 +76,10 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
     setMenuOpen(false);
     closeAllDropdowns();
   };
+
+  if (uiLang === "fr") {
+    return <HeaderFr searchIndex={searchIndex} />;
+  }
 
   return (
     <header className="sticky top-0 z-40 overflow-visible border-b-2 border-or bg-parchment/90 backdrop-blur">

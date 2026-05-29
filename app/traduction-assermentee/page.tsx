@@ -24,7 +24,7 @@ const STEPS = [
 export default function TraductionAssermenteePage() {
   return (
     <main className="min-h-screen bg-parchment">
-      <section className="border-b border-cream bg-parchment">
+      <section id="hero-fr" className="border-b border-cream bg-parchment">
         <div className="mx-auto max-w-3xl px-4 pt-10 pb-8 text-center sm:pt-14">
           <span className="inline-flex items-center gap-2 rounded-full bg-or px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white">
             Traducteur assermenté nº 3850 · MAEC

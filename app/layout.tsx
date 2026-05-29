@@ -7,11 +7,11 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Header } from "@/components/Header";
+import SiteFooter from "@/components/SiteFooter";
+import SiteTopBars from "@/components/SiteTopBars";
 import { SITE_SEARCH_INDEX } from "@/lib/search/site-index";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import Link from "next/link";
-import { TrustStrip } from "@/components/TrustStrip";
 
 const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
   ssr: false,
@@ -248,26 +248,7 @@ export default function RootLayout({
         </a>
 
         <Header searchIndex={SITE_SEARCH_INDEX} />
-        <TrustStrip />
-
-        {/* ================= STRIP REGULARIZACIÓN 2026 (time-bound, plazo 30-jun-2026) ================= */}
-        <div className="border-b border-bleu/20 bg-bleu/5">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-xs text-encre sm:text-sm">
-            <span className="inline-flex items-center gap-1.5 font-semibold text-bleu">
-              <span className="inline-block h-2 w-2 rounded-full bg-bleu" />
-              Regularización extraordinaria 2026
-            </span>
-            <span className="text-sepia">
-              Plazo improrrogable <strong>30-jun-2026</strong> · 25 €/doc · entrega 24h
-            </span>
-            <Link
-              href="/regularizacion-2026"
-              className="font-semibold text-bleu underline-offset-2 hover:underline"
-            >
-              Ver guía →
-            </Link>
-          </div>
-        </div>
+        <SiteTopBars />
 
         {/* ================= CONTENIDO ================= */}
         <main id="main-content">
@@ -290,150 +271,8 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights />
 
-        {/* ================= FOOTER — EL PIE DE FIRMA ================= */}
-        <footer className="mt-16 bg-encre">
-          <div className="mx-auto max-w-6xl px-4 py-12">
-            {/* Columnas */}
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Col 1 — Datos empresa */}
-              <div className="space-y-3">
-                <p className="font-baskerville text-lg font-bold text-parchment">
-                  traduccionesjuradas.net
-                </p>
-                <p className="text-xs tracking-[0.15em] text-cream/80">
-                  traducción oficial certificada · españa
-                </p>
-                <div className="space-y-1 text-xs text-cream/80">
-                  <p>HBTJ Consultores Lingüísticos S.L.</p>
-                  <p>Calle Esperanto, 9 · 29007 Málaga</p>
-                </div>
-                <div className="space-y-1 text-sm text-cream/80">
-                  <p>
-                    Email:{" "}
-                    <a
-                      href="mailto:hola@traduccionesjuradas.net"
-                      className="text-cream hover:text-or transition-colors"
-                    >
-                      hola@traduccionesjuradas.net
-                    </a>
-                  </p>
-                  <p>
-                    Tel:{" "}
-                    <a
-                      href="tel:+34951333614"
-                      className="text-cream hover:text-or transition-colors"
-                    >
-                      951 333 614
-                    </a>
-                  </p>
-                </div>
-              </div>
-
-              {/* Col 2 — Links */}
-              <div className="space-y-3">
-                <p className="font-baskerville text-sm font-bold text-parchment">
-                  Enlaces
-                </p>
-                <div className="flex flex-col gap-2 text-sm text-cream/85">
-                  <Link
-                    href="/aviso-legal"
-                    className="hover:text-or transition-colors"
-                  >
-                    Aviso legal
-                  </Link>
-                  <Link
-                    href="/privacidad"
-                    className="hover:text-or transition-colors"
-                  >
-                    Privacidad
-                  </Link>
-                  <Link
-                    href="/politica-de-cookies"
-                    className="hover:text-or transition-colors"
-                  >
-                    Cookies
-                  </Link>
-                  <Link
-                    href="/devoluciones"
-                    className="hover:text-or transition-colors"
-                  >
-                    Devoluciones
-                  </Link>
-                  <Link
-                    href="/preguntas-frecuentes"
-                    className="hover:text-or transition-colors"
-                  >
-                    Preguntas frecuentes
-                  </Link>
-                  <Link
-                    href="/como-escanear-bien"
-                    className="hover:text-or transition-colors"
-                  >
-                    Cómo escanear bien
-                  </Link>
-                  <Link
-                    href="/expediente"
-                    className="font-semibold text-cream hover:text-or transition-colors"
-                  >
-                    Subir expediente (4+ docs)
-                  </Link>
-                  <Link
-                    href="/traduction-assermentee"
-                    className="hover:text-or transition-colors"
-                    hrefLang="fr"
-                  >
-                    Traduction assermentée (FR)
-                  </Link>
-                  <Link
-                    href="/traductor-jurado-frances"
-                    className="hover:text-or transition-colors"
-                  >
-                    Traductor jurado de francés
-                  </Link>
-                  <Link
-                    href="/regularizacion-2026"
-                    className="font-semibold text-or hover:text-cream transition-colors"
-                  >
-                    Regularización 2026 · 25 €/doc
-                  </Link>
-                </div>
-              </div>
-
-              {/* Col 3 — Webs + Firma */}
-              <div className="space-y-3 sm:col-span-2 lg:col-span-1">
-                <p className="font-baskerville text-sm font-bold text-parchment">
-                  Nuestras webs
-                </p>
-                <div className="flex flex-col gap-2 text-sm text-cream/85">
-                  <a
-                    href="https://www.traduccionesjuradas.net"
-                    className="hover:text-or transition-colors"
-                  >
-                    traduccionesjuradas.net
-                  </a>
-                  <a
-                    href="https://www.holabonjour.es"
-                    className="hover:text-or transition-colors"
-                  >
-                    holabonjour.es
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Separador */}
-            <div className="mt-10 border-t border-cream/10 pt-8">
-              {/* Firma manuscrita */}
-              <p className="font-caveat text-2xl text-cream/90 animate-inkWrite">
-                Juan Antonio Silva Moreno · Traductor jurado N.º 3850
-              </p>
-              <p className="mt-2 text-xs text-cream/70">
-                © {new Date().getFullYear()} HBTJ Consultores Lingüísticos S.L.
-                · Todos los derechos reservados
-              </p>
-            </div>
-          </div>
-        </footer>
+        {/* ================= FOOTER — EL PIE DE FIRMA (bilingüe) ================= */}
+        <SiteFooter />
       </body>
     </html>
   );

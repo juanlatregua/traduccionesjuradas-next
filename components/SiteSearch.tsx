@@ -10,7 +10,31 @@ import { searchSite, groupResults, type SearchEntry } from "@/lib/search/match";
 
 const MAX_RESULTS = 18;
 
-export default function SiteSearch({ index }: { index: SearchEntry[] }) {
+const SS = {
+  es: {
+    trigger: "Buscar…",
+    aria: "Buscar en la web",
+    inputAria: "Buscar páginas, idiomas, ciudades o documentos",
+    placeholder: "Busca idioma, ciudad, documento, guía…",
+    empty: "Escribe para buscar en toda la web: idiomas, ciudades, documentos y guías.",
+    noResults: (q: string) => `Sin resultados para «${q}». Prueba con otra palabra o`,
+    seeAll: (q: string) => `Ver todos los resultados para «${q}»`,
+    wa: "escríbenos por WhatsApp",
+  },
+  fr: {
+    trigger: "Rechercher…",
+    aria: "Rechercher sur le site",
+    inputAria: "Rechercher pages, langues, villes ou documents",
+    placeholder: "Cherchez langue, ville, document, guide…",
+    empty: "Tapez pour rechercher sur tout le site : langues, villes, documents et guides.",
+    noResults: (q: string) => `Aucun résultat pour « ${q} ». Essayez un autre mot ou`,
+    seeAll: (q: string) => `Voir tous les résultats pour « ${q} »`,
+    wa: "écrivez-nous sur WhatsApp",
+  },
+} as const;
+
+export default function SiteSearch({ index, lang = "es" }: { index: SearchEntry[]; lang?: "es" | "fr" }) {
+  const s = SS[lang];
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -100,11 +124,11 @@ export default function SiteSearch({ index }: { index: SearchEntry[] }) {
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Buscar en la web"
+        aria-label={s.aria}
         className="inline-flex h-10 items-center gap-2 rounded-xl border border-bleu/40 bg-bleu/5 px-3 font-medium text-bleu shadow-sm transition-colors hover:border-bleu hover:bg-bleu/10 sm:min-w-[180px]"
       >
         <Search className="h-4 w-4 text-bleu" aria-hidden="true" />
-        <span className="text-sm text-bleu">Buscar…</span>
+        <span className="text-sm text-bleu">{s.trigger}</span>
         <kbd className="ml-auto hidden rounded border border-bleu/30 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-bleu lg:inline">
           ⌘K
         </kbd>
@@ -118,7 +142,7 @@ export default function SiteSearch({ index }: { index: SearchEntry[] }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Buscar en la web"
+            aria-label={s.aria}
             className="w-full max-w-xl overflow-hidden rounded-2xl border border-cream bg-card shadow-2xl"
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -134,8 +158,8 @@ export default function SiteSearch({ index }: { index: SearchEntry[] }) {
                 aria-activedescendant={
                   results.length > 0 ? `search-opt-${active}` : undefined
                 }
-                aria-label="Buscar páginas, idiomas, ciudades o documentos"
-                placeholder="Busca idioma, ciudad, documento, guía…"
+                aria-label={s.inputAria}
+                placeholder={s.placeholder}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -154,24 +178,21 @@ export default function SiteSearch({ index }: { index: SearchEntry[] }) {
               ref={listRef}
               id="search-results"
               role="listbox"
-              aria-label="Resultados de búsqueda"
+              aria-label={s.inputAria}
               className="max-h-[55vh] overflow-y-auto p-2"
             >
               {query.trim() === "" && (
-                <p className="px-3 py-6 text-center text-sm text-graphite">
-                  Escribe para buscar en toda la web: idiomas, ciudades,
-                  documentos, precios, guías…
-                </p>
+                <p className="px-3 py-6 text-center text-sm text-graphite">{s.empty}</p>
               )}
 
               {query.trim() !== "" && results.length === 0 && (
                 <p className="px-3 py-6 text-center text-sm text-graphite">
-                  Sin resultados para «{query}». Prueba con otra palabra o{" "}
+                  {s.noResults(query)}{" "}
                   <a
                     href="https://wa.me/34951333614"
                     className="font-semibold text-bleu hover:underline"
                   >
-                    escríbenos por WhatsApp
+                    {s.wa}
                   </a>
                   .
                 </p>
@@ -218,7 +239,7 @@ export default function SiteSearch({ index }: { index: SearchEntry[] }) {
                   onClick={() => go(`/buscar?q=${encodeURIComponent(query.trim())}`)}
                   className="mt-1 w-full rounded-lg px-3 py-2 text-center text-xs font-medium text-bleu hover:bg-cream"
                 >
-                  Ver todos los resultados para «{query.trim()}»
+                  {s.seeAll(query.trim())}
                 </button>
               )}
             </div>
