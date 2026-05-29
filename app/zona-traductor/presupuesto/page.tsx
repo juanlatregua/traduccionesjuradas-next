@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
+import QuickQuotePanel from "@/components/QuickQuotePanel";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto de expediente",
@@ -52,6 +53,8 @@ export default async function ZonaTraductorPresupuestoPage({
               : "Suelta los documentos del cliente. Se extraen tipo, idioma, palabras y precio automáticamente (los PDFs con texto van por la vía barata). Revisa y genera el presupuesto."}
           </p>
         </header>
+
+        {!expRef && <QuickQuotePanel />}
 
         <StaffExpedienteIntake initialDocs={initialDocs} initialCustomer={initialCustomer} expedienteRef={expRef} />
       </div>
