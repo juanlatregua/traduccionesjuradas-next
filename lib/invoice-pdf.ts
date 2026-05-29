@@ -1,5 +1,14 @@
-// lib/invoice-pdf.ts
+// lib/invoice-pdf.ts — Factura PDF con la plantilla de HBTJ (estilo 24_014),
+// logo de la web recreado en vectores (jsPDF no rasteriza SVG) y presentación
+// mejorada: banda dorada de marca, caja de número, datos del cliente, tabla con
+// par de idiomas, resumen Base/IVA/TOTAL y pie con datos bancarios.
 import { jsPDF } from "jspdf";
+
+type InvoiceLine = {
+  description: string;
+  detail?: string;
+  amountCents: number;
+};
 
 type InvoiceData = {
   reference: string;
@@ -9,8 +18,9 @@ type InvoiceData = {
   words?: number | null;
   paidAt?: Date | null;
   createdAt: Date;
-  invoiceNumber?: string; // numeración fiscal secuencial (ClientInvoice)
+  invoiceNumber?: string;
   issuedAt?: Date | null;
+  lines?: InvoiceLine[];
   billing: {
     fiscalName: string;
     nif: string;
@@ -23,153 +33,247 @@ type InvoiceData = {
 };
 
 const EMITTER = {
-  name: "HBTJ Consultores Linguisticos S.L.",
+  name: "HBTJ Consultores Lingüísticos S.L",
   cif: "B93712784",
-  address: "Calle Esperanto, 9",
-  city: "29007 Malaga",
-  country: "Espana",
-  email: "hola@traduccionesjuradas.net",
-  phone: "+34 951 333 614",
+  address: "C/ Esperanto, 9",
+  city: "29007 Málaga",
+  bic: "BBVAESMM",
+  iban: "ES66 0182 3370 67 0201616991",
 };
+
+// Paleta marca web
+const GOLD: [number, number, number] = [184, 146, 42]; // #B8922A
+const GOLD_DARK: [number, number, number] = [150, 117, 30];
+const BLUE: [number, number, number] = [61, 111, 168]; // #3D6FA8
+const INK: [number, number, number] = [17, 32, 46];
+const GREY: [number, number, number] = [110, 122, 133];
+const TABLE_BG: [number, number, number] = [225, 230, 245];
+const LINE_GREY: [number, number, number] = [206, 211, 220];
+
+const LANG: Record<string, string> = {
+  es: "español", fr: "francés", en: "inglés", de: "alemán", it: "italiano",
+  pt: "portugués", ca: "catalán", nl: "neerlandés", sv: "sueco", no: "noruego",
+  ar: "árabe", ro: "rumano",
+};
+
+function langLabel(pair?: string | null): string {
+  if (!pair) return "";
+  const parts = pair.split(/->|—|-|→/).map((p) => p.trim().toLowerCase()).filter(Boolean);
+  if (parts.length === 2) return `${LANG[parts[0]] || parts[0]}-${LANG[parts[1]] || parts[1]}`;
+  return pair;
+}
+
+function eur(cents: number): string {
+  const n = (cents / 100).toFixed(2);
+  const [int, dec] = n.split(".");
+  const withDots = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${withDots},${dec} €`;
+}
+
+// Recreación vectorial del logo (banner dorado + monograma TJ + wordmark + .net).
+function drawLogo(doc: jsPDF, x: number, y: number, w: number) {
+  const s = w / 600; // escala desde el viewBox 600x200
+  const h = 200 * s;
+  const px = (u: number) => x + u * s;
+  const py = (u: number) => y + u * s;
+
+  // Banner dorado
+  doc.setFillColor(...GOLD);
+  doc.roundedRect(x, y, w, h, 18 * s, 18 * s, "F");
+  // Franja .net inferior (un tono más oscuro)
+  doc.setFillColor(...GOLD_DARK);
+  doc.rect(x, py(160), w, h - 160 * s, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13 * s * 2.0);
+  doc.text(".net", px(300), py(188), { align: "center" });
+
+  // Monograma TJ
+  doc.setLineCap("round");
+  doc.setLineWidth(16 * s);
+  doc.setDrawColor(255, 255, 255);
+  doc.line(px(40), py(36), px(160), py(36)); // barra T
+  doc.line(px(76), py(36), px(76), py(142)); // tallo T
+  doc.setDrawColor(...BLUE);
+  doc.line(px(76), py(142), px(160), py(142)); // base azul
+  // Arco D (bezier cúbico relativo)
+  doc.lines([[70 * s, 0, 70 * s, 106 * s, 0, 106 * s]], px(160), py(36), [1, 1], "S", false);
+  doc.setFillColor(...GOLD);
+  doc.circle(px(76), py(89), 9 * s, "F");
+  doc.setFillColor(255, 255, 255);
+  doc.circle(px(76), py(89), 5.5 * s, "F");
+
+  // Wordmark
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(30 * s * 2.0);
+  doc.text("TRADUCCIONES", px(256), py(74));
+  doc.text("JURADAS", px(256), py(110));
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11 * s * 2.0);
+  doc.setTextColor(255, 255, 255);
+  doc.text("traducción oficial certificada · españa", px(257), py(140));
+}
 
 export function generateInvoicePdf(data: InvoiceData): Buffer {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const pageWidth = 210;
-  const pageHeight = 297;
-  const margin = 20;
-  const contentWidth = pageWidth - margin * 2;
-  let y = 20;
+  const pageW = 210;
+  const margin = 16;
+  const contentW = pageW - margin * 2;
 
-  // Force white page background to avoid dark-mode viewers showing black canvas.
   doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, pageWidth, pageHeight, "F");
+  doc.rect(0, 0, pageW, 297, "F");
 
-  // Header
-  doc.setFontSize(20);
+  // ── Cabecera: logo + emisor ───────────────────────────────
+  drawLogo(doc, margin, 14, 66);
+  let y = 46;
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(0, 0, 0);
-  doc.text("FACTURA", margin, y);
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 100, 100);
-  doc.text("traduccionesjuradas.net", pageWidth - margin, y, { align: "right" });
-  y += 12;
-
-  // Invoice number & date
-  const invoiceDate = data.issuedAt || data.paidAt || data.createdAt;
-  const dateStr = invoiceDate.toISOString().slice(0, 10);
-  const invoiceNumber = data.invoiceNumber || `F-${data.reference.replace("_", "-")}`;
-
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(10);
-  doc.text(`N. factura: ${invoiceNumber}`, margin, y);
-  doc.text(`Fecha: ${dateStr}`, pageWidth - margin, y, { align: "right" });
-  y += 10;
-
-  // Divider
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 8;
-
-  // Two columns: emitter & client
-  const colWidth = contentWidth / 2 - 5;
-
-  // Emitter
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text("EMISOR", margin, y);
-  doc.text("CLIENTE", margin + colWidth + 10, y);
-  y += 5;
-
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...GOLD_DARK);
   doc.text(EMITTER.name, margin, y);
-  doc.text(data.billing.fiscalName, margin + colWidth + 10, y);
-  y += 4.5;
-
   doc.setFont("helvetica", "normal");
-  doc.text(`CIF: ${EMITTER.cif}`, margin, y);
-  doc.text(`NIF/CIF: ${data.billing.nif}`, margin + colWidth + 10, y);
-  y += 4.5;
+  doc.setFontSize(8);
+  doc.setTextColor(...GREY);
+  doc.text(`CIF: ${EMITTER.cif}`, margin, (y += 4.5));
+  doc.text(EMITTER.address, margin, (y += 4.5));
+  doc.text(EMITTER.city, margin, (y += 4.5));
 
-  doc.text(EMITTER.address, margin, y);
-  doc.text(data.billing.address, margin + colWidth + 10, y);
-  y += 4.5;
-
-  doc.text(EMITTER.city, margin, y);
-  doc.text(`${data.billing.postalCode} ${data.billing.city}`, margin + colWidth + 10, y);
-  y += 4.5;
-
-  doc.text(EMITTER.email, margin, y);
-  doc.text(data.billing.country, margin + colWidth + 10, y);
-  y += 4.5;
-
-  doc.text(EMITTER.phone, margin, y);
-  doc.text(data.billing.email, margin + colWidth + 10, y);
-  y += 10;
-
-  // Divider
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 8;
-
-  // Table header
-  doc.setFillColor(245, 245, 245);
-  doc.rect(margin, y - 4, contentWidth, 8, "F");
-
-  doc.setFontSize(9);
+  // ── Caja número de factura (arriba derecha) ───────────────
+  const boxX = 120;
+  const boxW = pageW - margin - boxX;
+  doc.setDrawColor(...INK);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(boxX, 16, boxW, 15, 1.5, 1.5, "S");
+  doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold");
-  doc.text("Concepto", margin + 2, y);
-  doc.text("Importe", pageWidth - margin - 2, y, { align: "right" });
-  y += 8;
+  doc.setFontSize(13);
+  doc.text("FACTURA", boxX + 5, 25.5);
+  doc.setFontSize(15);
+  doc.text(data.invoiceNumber || `F-${data.reference}`, pageW - margin - 5, 25.5, { align: "right" });
 
-  // Line item — amountCents already includes 21% IVA
-  const total = data.amountCents / 100;
-  const baseAmount = Math.round((total / 1.21) * 100) / 100;
-  const ivaAmount = Math.round((total - baseAmount) * 100) / 100;
-
+  // ── Caja cliente ──────────────────────────────────────────
+  const cliY = 35;
   doc.setFont("helvetica", "normal");
-  const conceptLines = doc.splitTextToSize(data.title, contentWidth - 40);
-  doc.text(conceptLines, margin + 2, y);
-  doc.text(`${baseAmount.toFixed(2)} EUR`, pageWidth - margin - 2, y, { align: "right" });
-  y += conceptLines.length * 4.5 + 2;
-
-  if (data.langPair) {
-    doc.setTextColor(100, 100, 100);
-    doc.setFontSize(8);
-    doc.text(`Idiomas: ${data.langPair}${data.words ? ` · ${data.words} palabras` : ""}`, margin + 2, y);
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(9);
-    y += 6;
+  doc.setFontSize(8.5);
+  const rawCli = [
+    data.billing.fiscalName,
+    data.billing.nif ? `NIF/CIF: ${data.billing.nif}` : "",
+    data.billing.address,
+    [data.billing.postalCode, data.billing.city].filter(Boolean).join(" "),
+    data.billing.country,
+  ].filter(Boolean);
+  const cliWrapped: string[] = rawCli.flatMap((l) => doc.splitTextToSize(l, boxW - 10) as string[]);
+  const cliH = 9 + cliWrapped.length * 4.3;
+  doc.setDrawColor(...INK);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(boxX, cliY, boxW, cliH, 1.5, 1.5, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BLUE);
+  doc.text("Cliente:", boxX + 5, cliY + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...INK);
+  let cy = cliY + 11;
+  for (const l of cliWrapped) {
+    doc.text(l, boxX + 5, cy);
+    cy += 4.3;
   }
 
-  // Totals
-  y += 4;
-  doc.line(margin + contentWidth / 2, y, pageWidth - margin, y);
-  y += 6;
-
-  doc.text("Base imponible:", margin + contentWidth / 2, y);
-  doc.text(`${baseAmount.toFixed(2)} EUR`, pageWidth - margin - 2, y, { align: "right" });
-  y += 5;
-
-  doc.text("IVA (21%):", margin + contentWidth / 2, y);
-  doc.text(`${ivaAmount.toFixed(2)} EUR`, pageWidth - margin - 2, y, { align: "right" });
-  y += 5;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("TOTAL:", margin + contentWidth / 2, y);
-  doc.text(`${total.toFixed(2)} EUR`, pageWidth - margin - 2, y, { align: "right" });
-  y += 15;
-
-  // Footer note
+  // ── Fecha ─────────────────────────────────────────────────
+  const dateStr = (data.issuedAt || data.paidAt || data.createdAt).toLocaleDateString("es-ES", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Referencia pedido: ${data.reference}`, margin, y);
+  doc.setFontSize(9);
+  doc.setTextColor(...INK);
+  doc.text(`Fecha: ${dateStr}`, margin, 66);
 
-  // Return as Buffer
-  const arrayBuffer = doc.output("arraybuffer");
-  return Buffer.from(arrayBuffer);
+  // ── Tabla ─────────────────────────────────────────────────
+  let ty = Math.max(74, cliY + cliH + 8);
+  const cDesc = margin;
+  const cLangW = 44;
+  const cImpW = 30;
+  const cImp = pageW - margin; // borde derecho (texto align right)
+  const cLang = pageW - margin - cImpW - cLangW; // x inicio col idioma
+
+  // Cabecera tabla (banda dorada)
+  doc.setFillColor(...GOLD);
+  doc.rect(cDesc, ty, contentW, 9, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text("Descripción (nº de páginas/palabras por documento)", cDesc + 2, ty + 5.6);
+  doc.setFontSize(8);
+  if (data.langPair) doc.text(langLabel(data.langPair), cLang + cLangW / 2, ty + 5.6, { align: "center" });
+  doc.text("Importe", cImp - 2, ty + 5.6, { align: "right" });
+  ty += 9;
+
+  // Cuerpo
+  const lines: InvoiceLine[] =
+    data.lines && data.lines.length > 0
+      ? data.lines
+      : [{ description: data.title, amountCents: Math.round(data.amountCents / 1.21) }];
+
+  const bodyTop = ty;
+  doc.setTextColor(...INK);
+  for (const line of lines) {
+    doc.setFillColor(...TABLE_BG);
+    const rowH = line.detail ? 11 : 8;
+    doc.rect(cDesc, ty, contentW, rowH, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(doc.splitTextToSize(line.description, cLang - cDesc - 4), cDesc + 2, ty + 5.5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(eur(line.amountCents), cImp - 2, ty + 5.5, { align: "right" });
+    if (line.detail) {
+      doc.setFontSize(7.5);
+      doc.setTextColor(...GREY);
+      doc.text(line.detail, cDesc + 2, ty + 9.5);
+      doc.setTextColor(...INK);
+    }
+    ty += rowH;
+  }
+  // Borde del cuerpo
+  doc.setDrawColor(...LINE_GREY);
+  doc.setLineWidth(0.3);
+  doc.rect(cDesc, bodyTop, contentW, ty - bodyTop, "S");
+
+  // ── Resumen Base / IVA / TOTAL ────────────────────────────
+  const base = Math.round(data.amountCents / 1.21);
+  const vat = data.amountCents - base;
+  ty += 3;
+  const sumLabelX = cLang;
+  const drawSum = (label: string, value: string, bold = false, big = false) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(big ? 11 : 9);
+    doc.setTextColor(...(bold ? INK : GREY));
+    doc.text(label, sumLabelX, ty);
+    doc.setTextColor(...INK);
+    doc.text(value, cImp - 2, ty, { align: "right" });
+    ty += big ? 7 : 5.2;
+  };
+  drawSum("Base imponible", eur(base));
+  drawSum("IVA 21%", eur(vat));
+  ty += 1.5;
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.5);
+  doc.line(sumLabelX, ty - 4, cImp, ty - 4);
+  drawSum("TOTAL", eur(data.amountCents), true, true);
+
+  // ── Pie: datos bancarios (banda azul) ─────────────────────
+  const footY = 270;
+  doc.setFillColor(...BLUE);
+  doc.roundedRect(margin, footY, contentW, 16, 2, 2, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.text("BIC/SWIFT", margin + 5, footY + 6);
+  doc.text("CUENTA BANCARIA / Bank account", margin + 5, footY + 11.5);
+  doc.setFont("helvetica", "normal");
+  doc.text(EMITTER.bic, margin + 60, footY + 6);
+  doc.text(EMITTER.iban, margin + 60, footY + 11.5);
+
+  const ab = doc.output("arraybuffer");
+  return Buffer.from(ab);
 }

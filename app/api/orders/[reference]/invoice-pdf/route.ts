@@ -5,6 +5,7 @@ import { getOrderDetail } from "@/lib/orders";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
 import { getOrCreateClientInvoice } from "@/lib/client-invoice";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -58,6 +59,23 @@ export async function GET(req: Request, { params }: Params) {
       billing,
     });
 
+    // Líneas del expediente, si las hay (precio sin IVA por documento).
+    const items = await prisma.orderDocumentItem.findMany({
+      where: { orderId: order.id },
+      orderBy: { createdAt: "asc" },
+    });
+    const lines = items
+      .filter((it) => it.quotedCents != null && it.quotedCents > 0)
+      .map((it) => {
+        const dir = it.sourceLang && it.targetLang ? `${it.sourceLang}-${it.targetLang}` : "";
+        const meta = [it.words ? `${it.words} palabras` : "", dir].filter(Boolean).join(" · ");
+        return {
+          description: it.documentType || it.fileName,
+          detail: meta || undefined,
+          amountCents: Math.round((it.quotedCents as number) / 1.21),
+        };
+      });
+
     const pdfBuffer = generateInvoicePdf({
       reference: order.reference,
       title: order.title,
@@ -68,6 +86,7 @@ export async function GET(req: Request, { params }: Params) {
       createdAt: order.createdAt,
       invoiceNumber: invoice.number,
       issuedAt: invoice.issuedAt,
+      lines: lines.length > 0 ? lines : undefined,
       billing,
     });
 
