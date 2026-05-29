@@ -19,6 +19,7 @@ type Data = {
   reference: string;
   client: string;
   clientEmail: string | null;
+  clientPhone: string | null;
   langPair: string;
   amountCents: number;
   paymentStatus: string;
@@ -177,6 +178,22 @@ export default function ProjectCockpit({ data }: { data: Data }) {
                 Avanzar → {data.moves[0].label}
               </button>
             )}
+            {data.paymentStatus !== "PAID" && (() => {
+              const digits = String(data.clientPhone || "").replace(/\D/g, "");
+              const phone = digits ? (digits.length === 9 ? `34${digits}` : digits) : "";
+              const text = `Hola ${data.client}, tu pedido ${data.reference}: ${eur(data.amountCents)} (IVA incl.). Puedes pagarlo por Bizum al 607 356 273 (TraduccionesJuradas). Avísame cuando lo hagas y empiezo. ¡Gracias!`;
+              if (!phone) return null;
+              return (
+                <a
+                  href={`https://wa.me/${phone}?text=${encodeURIComponent(text)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500"
+                >
+                  Cobrar por WhatsApp (Bizum)
+                </a>
+              );
+            })()}
             <a href={`/zona-traductor/workspace/${data.reference}`} className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800">Editor de traducción</a>
             {data.invoice ? (
               <a href={`/api/orders/${data.reference}/invoice-pdf`} className="rounded-lg border border-emerald-600 px-3 py-1.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-600/20">🧾 {data.invoice.number} (PDF)</a>
