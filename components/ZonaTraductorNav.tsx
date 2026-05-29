@@ -5,7 +5,7 @@ import Link from "next/link";
 import PMQuickCreatePanel from "./PMQuickCreatePanel";
 
 type Props = {
-  modoActivo: "bandeja" | "control" | "presupuesto" | "expedientes";
+  modoActivo: "bandeja" | "control" | "presupuesto" | "expedientes" | "facturas";
   pedidosAccionables: number;
 };
 
@@ -60,6 +60,16 @@ export default function ZonaTraductorNav({ modoActivo, pedidosAccionables }: Pro
             }`}
           >
             Presupuesto
+          </Link>
+          <Link
+            href="/zona-traductor/facturas"
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              modoActivo === "facturas"
+                ? "border-b-2 border-b-cyan-400 text-white"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Facturas
           </Link>
         </div>
 
