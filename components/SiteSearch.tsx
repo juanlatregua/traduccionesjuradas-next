@@ -101,11 +101,11 @@ export default function SiteSearch({ index }: { index: SearchEntry[] }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Buscar en la web"
-        className="inline-flex h-9 items-center gap-2 rounded-xl border border-cream bg-card px-2.5 text-sepia shadow-sm transition-colors hover:border-bleu sm:px-3"
+        className="inline-flex h-10 items-center gap-2 rounded-xl border border-bleu/40 bg-bleu/5 px-3 font-medium text-bleu shadow-sm transition-colors hover:border-bleu hover:bg-bleu/10 sm:min-w-[180px]"
       >
         <Search className="h-4 w-4 text-bleu" aria-hidden="true" />
-        <span className="hidden text-sm text-graphite sm:inline">Buscar</span>
-        <kbd className="hidden rounded border border-cream bg-parchment px-1.5 py-0.5 text-[10px] font-semibold text-graphite lg:inline">
+        <span className="text-sm text-bleu">Buscar…</span>
+        <kbd className="ml-auto hidden rounded border border-bleu/30 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-bleu lg:inline">
           ⌘K
         </kbd>
       </button>

@@ -37,6 +37,7 @@ function getPriority(route: string): number {
   // Service pages
   if (
     route === "/presupuesto-instantaneo" ||
+    route === "/expediente" ||
     route === "/precios-traduccion-jurada" ||
     route === "/documentos-oficiales" ||
     route === "/regularizacion-2026"
@@ -92,6 +93,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/preguntas-frecuentes":                          "2026-03-01",
   "/precios-traduccion-jurada":                     "2026-03-04",
   "/presupuesto-instantaneo":                       "2026-03-04",
+  "/expediente":                                    "2026-05-29",
   "/traducciones-juradas-baratas":                  "2026-01-17",
   "/traduccion-jurada-online":                      "2026-02-08",
   "/traduccion-jurada-frances-malaga":              "2026-02-15",

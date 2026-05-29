@@ -143,6 +143,9 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
           <Link href="/presupuesto-instantaneo" className="sm:hidden font-bold text-or hover:text-or-dark" onClick={closeMenu}>
             Presupuesto instantáneo
           </Link>
+          <Link href="/expediente" className="sm:hidden font-semibold text-bleu hover:text-bleu-light" onClick={closeMenu}>
+            Subir expediente (4+ docs)
+          </Link>
           <Link href="/traductores-jurados" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
             Idiomas
           </Link>
@@ -383,6 +386,15 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
 
           <Link href="/zona-traductor" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
             Zona traductor
+          </Link>
+
+          {/* CTA EXPEDIENTE (varios documentos) — solo desktop, junto al CTA principal */}
+          <Link
+            href="/expediente"
+            className="hidden rounded-2xl border border-bleu px-4 py-2 text-center text-sm font-semibold text-bleu hover:bg-bleu hover:text-white sm:inline-block"
+            onClick={closeMenu}
+          >
+            Subir expediente
           </Link>
 
           {/* CTA PRESUPUESTO INSTANTÁNEO */}

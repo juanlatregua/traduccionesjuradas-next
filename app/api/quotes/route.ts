@@ -68,6 +68,10 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
+    const expedienteRef =
+      typeof body.expedienteRef === "string" && body.expedienteRef.trim()
+        ? body.expedienteRef.trim().slice(0, 40)
+        : null;
     const parsed = parseCreateQuoteInput(body);
     if (!parsed.ok) {
       return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 });
@@ -135,6 +139,7 @@ export async function POST(req: Request) {
           vatAmount: totals.vatAmount,
           total: totals.total,
           adminCreatedBy: access.email,
+          expedienteRef,
           lines: {
             create: totals.lines.map((line) => ({
               description: line.description,

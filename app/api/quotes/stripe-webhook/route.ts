@@ -85,6 +85,10 @@ export async function POST(req: Request) {
         customerPhone: true,
         deliveryType: true,
         total: true,
+        sourceLang: true,
+        targetLang: true,
+        expedienteRef: true,
+        lines: { select: { description: true, unitPrice: true } },
       },
     });
     if (!quote) {
@@ -193,6 +197,38 @@ export async function POST(req: Request) {
         },
       });
     });
+
+    // KEYSTONE: presupuesto pagado → crear el Pedido de producción + cascada
+    // (mismo flujo que el funnel: workflow PAGO_VALIDADO, ETA francés,
+    // auto-asignación de colaborador, emails). No rompe el webhook si falla:
+    // el Quote ya quedó PAID.
+    try {
+      const { runQuoteToOrderBridge } = await import("@/lib/quote-to-order");
+      await runQuoteToOrderBridge({
+        quote: {
+          id: quote.id,
+          quoteNumber: quote.quoteNumber,
+          customerEmail: quote.customerEmail,
+          customerName: quote.customerName,
+          customerPhone: quote.customerPhone,
+          sourceLang: quote.sourceLang,
+          targetLang: quote.targetLang,
+          totalEur: amountRaw > 0 ? amountRaw : decimalToNumber(quote.total),
+          currency,
+          expedienteRef: quote.expedienteRef,
+          lines: quote.lines.map((l) => ({
+            description: l.description,
+            unitPrice: decimalToNumber(l.unitPrice),
+          })),
+        },
+        provider: "STRIPE",
+        providerEventId: stripePaymentIntentId || stripeSessionId || `quote:${quote.id}`,
+        source: "quote_webhook",
+        payload: { stripeEventId: String(event.id || ""), quoteId: quote.id },
+      });
+    } catch (bridgeErr) {
+      console.error("[quotes:webhook] quote→order bridge failed", bridgeErr);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

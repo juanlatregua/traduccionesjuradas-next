@@ -1,0 +1,482 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
+import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
+
+// Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
+// barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
+
+type DocStatus = "uploading" | "analyzing" | "done" | "error";
+
+type DocRow = {
+  localId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  status: DocStatus;
+  error?: string;
+  include: boolean;
+  // datos extraídos
+  documentTypeEs?: string;
+  sourceLang?: string;
+  sourceName?: string;
+  targetLang?: string;
+  targetName?: string;
+  words?: number;
+  pages?: number;
+  mode?: "text" | "vision";
+  unitPrice: number; // editable, pre-IVA
+};
+
+const LANGS: { code: string; name: string }[] = [
+  { code: "es", name: "Español" },
+  { code: "fr", name: "Francés" },
+  { code: "en", name: "Inglés" },
+  { code: "de", name: "Alemán" },
+  { code: "it", name: "Italiano" },
+  { code: "pt", name: "Portugués" },
+  { code: "ca", name: "Catalán" },
+  { code: "nl", name: "Neerlandés" },
+  { code: "sv", name: "Sueco" },
+  { code: "no", name: "Noruego" },
+  { code: "ar", name: "Árabe" },
+  { code: "ro", name: "Rumano" },
+];
+
+const CONCURRENCY = 3;
+const ACCEPTED = ".pdf,.jpg,.jpeg,.png,.heic,.tiff,.tif,.webp";
+
+function suggestVolumeDiscountPct(count: number): number {
+  if (count >= 10) return 15;
+  if (count >= 5) return 10;
+  if (count >= 3) return 5;
+  return 0;
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+async function runPool<T>(items: T[], worker: (item: T) => Promise<void>, limit: number) {
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      await worker(items[idx]);
+    }
+  });
+  await Promise.all(runners);
+}
+
+type Props = {
+  // Expediente entrante ya subido por el cliente: se analizan por documentId.
+  initialDocs?: { documentId: string; fileName: string }[];
+  initialCustomer?: { name?: string; email?: string; phone?: string };
+  expedienteRef?: string | null;
+};
+
+export default function StaffExpedienteIntake({ initialDocs, initialCustomer, expedienteRef }: Props = {}) {
+  const [docs, setDocs] = useState<DocRow[]>([]);
+  const [customerName, setCustomerName] = useState(initialCustomer?.name || "");
+  const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || "");
+  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone || "");
+  const [sourceLang, setSourceLang] = useState("");
+  const [targetLang, setTargetLang] = useState("");
+  const [discountPct, setDiscountPct] = useState(0);
+  const [discountTouched, setDiscountTouched] = useState(false);
+  const [validityDays, setValidityDays] = useState(15);
+  const [notesLegal, setNotesLegal] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const patch = useCallback((localId: string, data: Partial<DocRow>) => {
+    setDocs((prev) => prev.map((d) => (d.localId === localId ? { ...d, ...data } : d)));
+  }, []);
+
+  const processFile = useCallback(
+    async (row: DocRow, file: File) => {
+      try {
+        const safeName = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
+        const blob = await upload(`expedientes/${Date.now()}-${safeName}`, file, {
+          access: "public",
+          handleUploadUrl: "/api/documents/upload",
+          clientPayload: JSON.stringify({ gdprConsent: true }),
+        });
+
+        patch(row.localId, { status: "analyzing" });
+
+        const res = await fetch("/api/zona-traductor/expediente/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            blobUrl: blob.url,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type || "application/pdf",
+          }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          patch(row.localId, { status: "error", error: data.error || "Error al analizar." });
+          return;
+        }
+        const d = data.document;
+        patch(row.localId, {
+          status: "done",
+          documentTypeEs: d.documentTypeEs,
+          sourceLang: d.sourceLang,
+          sourceName: d.sourceName,
+          targetLang: d.targetLang,
+          targetName: d.targetName,
+          words: d.words,
+          pages: d.pages,
+          mode: data.mode,
+          unitPrice: Number(d.basePrice) || 0,
+        });
+        // Sugerir dirección global desde el primer documento analizado.
+        setSourceLang((cur) => cur || d.sourceLang || "");
+        setTargetLang((cur) => cur || d.targetLang || "");
+      } catch (err: any) {
+        patch(row.localId, { status: "error", error: "Error de conexión." });
+      }
+    },
+    [patch]
+  );
+
+  const handleFiles = useCallback(
+    async (fileList: FileList) => {
+      const files = Array.from(fileList);
+      if (!files.length) return;
+      const rows: DocRow[] = files.map((f) => ({
+        localId: uid(),
+        fileName: f.name,
+        fileSize: f.size,
+        mimeType: f.type,
+        status: "uploading",
+        include: true,
+        unitPrice: 0,
+      }));
+      setDocs((prev) => [...prev, ...rows]);
+      if (!discountTouched) {
+        setDiscountPct(suggestVolumeDiscountPct(docs.length + rows.length));
+      }
+      const pairs = rows.map((row, i) => ({ row, file: files[i] }));
+      await runPool(pairs, ({ row, file }) => processFile(row, file), CONCURRENCY);
+      // Re-sugerir descuento por volumen con los documentos finalizados.
+      if (!discountTouched) {
+        setDocs((cur) => {
+          const includedDone = cur.filter((d) => d.include && d.status === "done").length;
+          setDiscountPct(suggestVolumeDiscountPct(includedDone));
+          return cur;
+        });
+      }
+    },
+    [docs.length, discountTouched, processFile]
+  );
+
+  // Preload: expediente entrante ya subido por el cliente → analizar por id.
+  useEffect(() => {
+    if (!initialDocs || initialDocs.length === 0) return;
+    setDocs(
+      initialDocs.map((d) => ({
+        localId: d.documentId,
+        fileName: d.fileName,
+        fileSize: 0,
+        mimeType: "application/pdf",
+        status: "analyzing" as DocStatus,
+        include: true,
+        unitPrice: 0,
+      }))
+    );
+    const analyzeExisting = async (d: { documentId: string }) => {
+      try {
+        const res = await fetch("/api/zona-traductor/expediente/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ documentId: d.documentId }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          patch(d.documentId, { status: "error", error: data.error || "Error al analizar." });
+          return;
+        }
+        const doc = data.document;
+        patch(d.documentId, {
+          status: "done",
+          documentTypeEs: doc.documentTypeEs,
+          sourceLang: doc.sourceLang,
+          sourceName: doc.sourceName,
+          targetLang: doc.targetLang,
+          targetName: doc.targetName,
+          words: doc.words,
+          pages: doc.pages,
+          mode: data.mode,
+          unitPrice: Number(doc.basePrice) || 0,
+        });
+        setSourceLang((cur) => cur || doc.sourceLang || "");
+        setTargetLang((cur) => cur || doc.targetLang || "");
+      } catch {
+        patch(d.documentId, { status: "error", error: "Error de conexión." });
+      }
+    };
+    runPool(initialDocs, analyzeExisting, CONCURRENCY);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const includedDocs = docs.filter((d) => d.include && d.status === "done");
+  const subtotal = useMemo(
+    () => includedDocs.reduce((s, d) => s + (d.unitPrice || 0), 0),
+    [includedDocs]
+  );
+  const discountAmount = Math.min(subtotal, (subtotal * discountPct) / 100);
+  const taxable = Math.max(0, subtotal - discountAmount);
+  const vat = taxable * 0.21;
+  const total = taxable + vat;
+
+  const busy = docs.some((d) => d.status === "uploading" || d.status === "analyzing");
+  const canSubmit =
+    !submitting &&
+    !busy &&
+    includedDocs.length > 0 &&
+    customerName.trim() &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail) &&
+    sourceLang &&
+    targetLang;
+
+  const handleSubmit = useCallback(async () => {
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      const lines = includedDocs.map((d) => {
+        const dir =
+          d.sourceLang && d.targetLang ? ` (${d.sourceName || d.sourceLang}→${d.targetName || d.targetLang}` : " (";
+        const meta = `${d.words ? `${d.words} palabras` : ""}${d.pages && d.pages > 1 ? `, ${d.pages} págs` : ""}`;
+        return {
+          description: `${d.documentTypeEs || d.fileName}${dir}${meta ? `, ${meta}` : ""})`.replace("(,", "("),
+          quantity: 1,
+          unitPrice: d.unitPrice,
+        };
+      });
+      const res = await fetch("/api/quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone.trim() || undefined,
+          sourceLang,
+          targetLang,
+          deliveryType: "DIGITAL_PDF",
+          expedienteRef: expedienteRef || undefined,
+          discountType: discountPct > 0 ? "PERCENT" : "NONE",
+          discountValue: discountPct,
+          vatRate: 0.21,
+          validityDays,
+          notesLegal: notesLegal.trim() || undefined,
+          lines,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setSubmitError(data.error || "No se pudo crear el presupuesto.");
+        setSubmitting(false);
+        return;
+      }
+      window.location.href = `/admin/quotes/${data.quote.id}`;
+    } catch {
+      setSubmitError("Error de conexión al crear el presupuesto.");
+      setSubmitting(false);
+    }
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, expedienteRef]);
+
+  return (
+    <div className="space-y-6 text-slate-200">
+      {/* Dropzone */}
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files);
+        }}
+        onClick={() => inputRef.current?.click()}
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-cyan-700/50 bg-slate-900/50 px-6 py-10 transition-colors hover:border-cyan-500"
+        role="button"
+        tabIndex={0}
+      >
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/10">
+          <Upload className="h-6 w-6 text-cyan-400" />
+        </div>
+        <p className="font-semibold text-white">Arrastra los documentos del expediente</p>
+        <p className="text-sm text-slate-400">PDF, foto o escaneo · varios a la vez · máx. 20 MB c/u</p>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={ACCEPTED}
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files?.length) handleFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {/* Tabla de documentos */}
+      {docs.length > 0 && (
+        <div className="overflow-x-auto rounded-xl border border-slate-700">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+              <tr>
+                <th className="px-3 py-2"></th>
+                <th className="px-3 py-2">Documento</th>
+                <th className="px-3 py-2">Tipo</th>
+                <th className="px-3 py-2">Dirección</th>
+                <th className="px-3 py-2 text-right">Palabras</th>
+                <th className="px-3 py-2 text-right">Precio (sin IVA)</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {docs.map((d) => (
+                <tr key={d.localId} className={d.include ? "" : "opacity-40"}>
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={d.include}
+                      disabled={d.status !== "done"}
+                      onChange={(e) => patch(d.localId, { include: e.target.checked })}
+                      className="h-4 w-4 rounded border-slate-600"
+                    />
+                  </td>
+                  <td className="max-w-[220px] px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+                      <span className="truncate" title={d.fileName}>{d.fileName}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2">
+                    {d.status === "uploading" && (
+                      <span className="flex items-center gap-1 text-slate-400"><Loader2 className="h-3 w-3 animate-spin" /> Subiendo…</span>
+                    )}
+                    {d.status === "analyzing" && (
+                      <span className="flex items-center gap-1 text-cyan-400"><Loader2 className="h-3 w-3 animate-spin" /> Analizando…</span>
+                    )}
+                    {d.status === "error" && (
+                      <span className="flex items-center gap-1 text-amber-400" title={d.error}><AlertTriangle className="h-3 w-3" /> Error</span>
+                    )}
+                    {d.status === "done" && (
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        {d.documentTypeEs}
+                        {d.mode === "text" && (
+                          <span className="ml-1 rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Analizado por texto (barato)">texto</span>
+                        )}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-slate-300">
+                    {d.status === "done" ? `${(d.sourceLang || "?").toUpperCase()}→${(d.targetLang || "?").toUpperCase()}` : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-300">
+                    {d.status === "done" ? d.words ?? "—" : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    {d.status === "done" ? (
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={d.unitPrice}
+                        onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value) })}
+                        className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                      />
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setDocs((prev) => prev.filter((x) => x.localId !== d.localId))}
+                      className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                      aria-label="Quitar"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Datos del cliente + presupuesto */}
+      {docs.length > 0 && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+            <h3 className="text-sm font-semibold text-white">Cliente</h3>
+            <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Nombre del cliente" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+            <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+            <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Teléfono (opcional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+            <h3 className="text-sm font-semibold text-white">Presupuesto</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-xs text-slate-400">
+                Idioma origen
+                <select className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200" value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
+                  <option value="">—</option>
+                  {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+                </select>
+              </label>
+              <label className="text-xs text-slate-400">
+                Idioma destino
+                <select className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200" value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
+                  <option value="">—</option>
+                  {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+                </select>
+              </label>
+              <label className="text-xs text-slate-400">
+                Descuento volumen (%)
+                <input type="number" min={0} max={100} value={discountPct} onChange={(e) => { setDiscountTouched(true); setDiscountPct(Number(e.target.value)); }} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+              </label>
+              <label className="text-xs text-slate-400">
+                Validez (días)
+                <input type="number" min={1} value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+              </label>
+            </div>
+            {sourceLang && targetLang && docs.some((d) => d.status === "done" && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
+              <p className="text-xs text-amber-400">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Totales + acción */}
+      {includedDocs.length > 0 && (
+        <div className="flex flex-col items-end gap-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+          <div className="w-full max-w-xs space-y-1 text-sm">
+            <div className="flex justify-between text-slate-400"><span>Subtotal</span><span className="tabular-nums">{subtotal.toFixed(2)} €</span></div>
+            {discountPct > 0 && <div className="flex justify-between text-emerald-400"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>}
+            <div className="flex justify-between text-slate-400"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
+            <div className="flex justify-between border-t border-slate-700 pt-1 text-base font-semibold text-white"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
+          </div>
+          {submitError && <p className="text-sm text-amber-400">{submitError}</p>}
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={handleSubmit}
+            className="rounded-xl bg-cyan-600 px-5 py-2.5 font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {submitting ? "Creando…" : `Generar presupuesto (${includedDocs.length} doc${includedDocs.length > 1 ? "s" : ""})`}
+          </button>
+          <p className="text-xs text-slate-500">Se crea como borrador en /admin/quotes para revisar y enviar.</p>
+        </div>
+      )}
+    </div>
+  );
+}

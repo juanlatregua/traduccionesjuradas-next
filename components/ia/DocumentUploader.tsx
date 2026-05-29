@@ -179,8 +179,8 @@ export default function DocumentUploader({
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
           className={`
-            relative flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed
-            px-6 py-12 transition-all duration-200 cursor-pointer
+            relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed
+            px-6 py-6 transition-all duration-200 cursor-pointer
             ${
               dragOver
                 ? "border-bleu bg-bleu/[0.04] scale-[1.01]"
@@ -196,20 +196,20 @@ export default function DocumentUploader({
             if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
           }}
         >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-bleu/10">
-            <Upload className="h-7 w-7 text-bleu" />
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-bleu/10">
+            <Upload className="h-5 w-5 text-bleu" />
           </div>
           <div className="text-center">
-            <p className="font-baskerville text-lg text-bleu">
+            <p className="font-baskerville text-base text-bleu">
               Arrastra tu documento aquí
             </p>
-            <p className="mt-1 text-sm text-graphite">
+            <p className="mt-0.5 text-xs text-graphite">
               PDF, foto o escaneo &middot; Máx. 20 MB
             </p>
           </div>
 
           {/* Buttons row */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
             <button
               type="button"
               onClick={(e) => {

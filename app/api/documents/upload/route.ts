@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { isBlobConfigured } from "@/lib/payment-config";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -23,17 +24,23 @@ const ALLOWED_TYPES = [
 export async function POST(req: Request) {
   const ip = getClientIp(req);
 
-  // Rate limit: 15 subidas por IP por día
-  const rl = await checkRateLimit({
-    key: `doc-upload:${ip}`,
-    limit: 15,
-    windowMs: 24 * 60 * 60 * 1000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { ok: false, error: "Has superado el límite diario de subidas. Inténtalo mañana." },
-      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
-    );
+  // El staff (zona-traductor) sube expedientes enteros → exento del tope
+  // público de subidas.
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    // Rate limit: 40 subidas por IP por día (un expediente público puede traer
+    // 16+ archivos; el gate RGPD sigue activo en onBeforeGenerateToken).
+    const rl = await checkRateLimit({
+      key: `doc-upload:${ip}`,
+      limit: 40,
+      windowMs: 24 * 60 * 60 * 1000,
+    });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { ok: false, error: "Has superado el límite diario de subidas. Inténtalo mañana." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+      );
+    }
   }
 
   if (!isBlobConfigured()) {

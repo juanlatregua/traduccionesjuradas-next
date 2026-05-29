@@ -193,6 +193,20 @@ export default function Home() {
             <PuertaClient purpose={null} />
           </div>
 
+          {/* Expediente — igualado a la zona de subida, justo debajo */}
+          <div className="mx-auto mt-3 max-w-xl">
+            <Link
+              href="/expediente"
+              className="flex items-center justify-between gap-3 rounded-xl border border-bleu/30 bg-bleu/5 px-4 py-3 text-left transition hover:border-bleu hover:bg-bleu/10"
+            >
+              <span className="flex items-center gap-2 text-sm text-encre">
+                <span className="text-lg" aria-hidden="true">🗂️</span>
+                <span>¿Varios documentos? Súbelos como <strong>expediente</strong> (4+) con un solo presupuesto.</span>
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-bleu">Subir →</span>
+            </Link>
+          </div>
+
           {/* WhatsApp alternativo */}
           <p className="mt-4 text-xs text-graphite">
             ¿Prefieres que te ayudemos?{" "}

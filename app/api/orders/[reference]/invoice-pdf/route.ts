@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOrderDetail } from "@/lib/orders";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
+import { getOrCreateClientInvoice } from "@/lib/client-invoice";
 
 export const runtime = "nodejs";
 
@@ -34,6 +35,22 @@ export async function GET(_req: Request, { params }: Params) {
       );
     }
 
+    // Emite (o recupera) la factura con numeración fiscal secuencial persistida.
+    const billing = {
+      fiscalName: order.billing.fiscalName,
+      nif: order.billing.nif,
+      address: order.billing.address,
+      city: order.billing.city,
+      postalCode: order.billing.postalCode,
+      country: order.billing.country,
+      email: order.billing.email,
+    };
+    const invoice = await getOrCreateClientInvoice({
+      orderId: order.id,
+      amountCents: order.amountCents,
+      billing,
+    });
+
     const pdfBuffer = generateInvoicePdf({
       reference: order.reference,
       title: order.title,
@@ -42,18 +59,12 @@ export async function GET(_req: Request, { params }: Params) {
       words: order.words,
       paidAt: order.paidAt,
       createdAt: order.createdAt,
-      billing: {
-        fiscalName: order.billing.fiscalName,
-        nif: order.billing.nif,
-        address: order.billing.address,
-        city: order.billing.city,
-        postalCode: order.billing.postalCode,
-        country: order.billing.country,
-        email: order.billing.email,
-      },
+      invoiceNumber: invoice.number,
+      issuedAt: invoice.issuedAt,
+      billing,
     });
 
-    const filename = `factura-${order.reference}.pdf`;
+    const filename = `${invoice.number}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
