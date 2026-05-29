@@ -4,19 +4,26 @@ import { authOptions } from "@/lib/auth";
 import { getOrderDetail } from "@/lib/orders";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
 import { getOrCreateClientInvoice } from "@/lib/client-invoice";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
 type Params = { params: { reference: string } };
 
-export async function GET(_req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
+export async function GET(req: Request, { params }: Params) {
+  // El staff (zona) puede ver/descargar cualquier factura; el cliente solo la suya.
+  const staff = await requireStaffAccess(req);
+  let scopedEmail: string | undefined;
+  if (!staff.ok) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ ok: false, error: "Sesion requerida." }, { status: 401 });
+    }
+    scopedEmail = session.user.email;
   }
 
   try {
-    const order = await getOrderDetail(params.reference, session.user.email);
+    const order = await getOrderDetail(params.reference, scopedEmail);
     if (!order) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
