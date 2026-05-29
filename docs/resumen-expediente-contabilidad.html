@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Resumen — Expediente + Contabilidad · traduccionesjuradas.net</title>
+<style>
+  :root{
+    --bleu:#1f3a5f; --bleu2:#2d5a87; --encre:#11202e; --cream:#f4efe6;
+    --parchment:#faf7f1; --green:#0f7a4f; --greenbg:#e7f5ee; --amber:#9a6a00;
+    --amberbg:#fbf3df; --line:#e3ddd0; --ink:#33414d; --muted:#6b7682;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchment);color:var(--encre);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:40px 20px 80px}
+  header.top{border-bottom:3px solid var(--bleu);padding-bottom:20px;margin-bottom:8px}
+  .kicker{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bleu2)}
+  h1{font-size:30px;margin:6px 0 4px;color:var(--encre)}
+  .sub{color:var(--muted);font-size:14px}
+  .promise{background:var(--bleu);color:#fff;border-radius:14px;padding:18px 22px;margin:24px 0}
+  .promise b{color:#ffe6a8}
+  h2{font-size:21px;margin:38px 0 6px;display:flex;align-items:center;gap:10px}
+  h2 .dot{width:12px;height:12px;border-radius:50%}
+  .dot.g{background:var(--green)} .dot.a{background:var(--amber)} .dot.b{background:var(--bleu2)}
+  .lead{color:var(--ink);margin:2px 0 18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:12px 0;
+    box-shadow:0 1px 2px rgba(17,32,46,.04)}
+  .card h3{margin:0 0 6px;font-size:17px}
+  .card p{margin:6px 0;color:var(--ink)}
+  .badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:3px 9px;border-radius:999px;vertical-align:middle;margin-left:8px}
+  .b-done{background:var(--greenbg);color:var(--green)}
+  .b-park{background:var(--amberbg);color:var(--amber)}
+  .why{font-size:14px;color:var(--muted);border-left:3px solid var(--line);padding-left:12px;margin-top:8px}
+  .why b{color:var(--ink)}
+  code{background:var(--cream);border:1px solid var(--line);border-radius:6px;padding:1px 6px;
+    font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .grid{display:grid;gap:12px}
+  .sql{background:#0f1b27;color:#d6e4f0;border-radius:12px;padding:16px 18px;overflow:auto;
+    font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+  .sql .add{color:#7ee0a8}
+  .links a{display:inline-block;background:var(--bleu);color:#fff;text-decoration:none;font-weight:600;
+    padding:9px 16px;border-radius:10px;margin:6px 8px 0 0;font-size:14px}
+  .links a.ghost{background:#fff;color:var(--bleu);border:1px solid var(--bleu)}
+  table{border-collapse:collapse;width:100%;margin-top:10px;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+  th{background:var(--cream);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  footer{margin-top:50px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:13px}
+  .flow{font:14px/1.7 ui-monospace,Menlo,Consolas,monospace;background:#fff;border:1px solid var(--line);
+    border-radius:12px;padding:16px 18px;color:var(--ink);overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="kicker">traduccionesjuradas.net · sesión 29-may-2026</div>
+    <h1>Expedientes grandes + contabilidad</h1>
+    <div class="sub">Qué se ha hecho, qué se ha aparcado y por qué — alineado con el plan v2.</div>
+  </header>
+
+  <div class="promise">
+    Promesa v2: <b>el cliente sabe en 10&nbsp;s si lo necesita, cuánto cuesta y cuándo lo tiene; desde que paga
+    hasta que descarga, no vuelve a preguntar nada.</b><br>
+    Regla que he seguido: <b>solo entra lo que sirve a esa promesa o a la fiabilidad, y no abre un segundo frente
+    que arriesgue el 1-sept.</b>
+  </div>
+
+  <!-- ───────────── EL PROBLEMA ───────────── -->
+  <h2><span class="dot b"></span>El problema que resolvíamos</h2>
+  <p class="lead">
+    Un expediente real (16 PDFs: nóminas, IRPF, modelo 390, escrituras, partida de nacimiento, de varias personas
+    y en dos direcciones de idioma) <b>no entraba por la web</b>: subida de uno en uno, el rate-limit mataba el
+    documento nº16, sin precio agregado y sin estructura. Y en el fondo del ciclo había agujeros fiscales y de
+    producción sin cablear.
+  </p>
+
+  <!-- ───────────── HECHO ───────────── -->
+  <h2><span class="dot g"></span>Hecho y desplegado en preview <span class="badge b-done">PR&nbsp;#86</span></h2>
+  <p class="lead">Todo additivo y aislado: no toca el funnel actual ni el modelo de pedido central.</p>
+
+  <div class="grid">
+
+    <div class="card">
+      <h3>1 · Pipeline de análisis por capas <span class="badge b-done">tokens</span></h3>
+      <p>Los PDF con capa de texto (IRPF, nóminas, modelo 390, escrituras…) se clasifican con <b>Haiku sobre texto</b>,
+      sin enviar la imagen. Solo los escaneos van por <b>Sonnet/visión</b>. ~15× más barato por documento.</p>
+      <div class="why"><b>Encaja v2:</b> objetivo «menos coste/trabajo». Invisible al cliente, abarata el diagnóstico.</div>
+    </div>
+
+    <div class="card">
+      <h3>2 · Intake público de expediente <span class="badge b-done">más pedidos</span></h3>
+      <p>Banner en la home → <code>/expediente</code>: el cliente arrastra todos los documentos de golpe, deja sus
+      datos y recibe un <b>email de acuse con enlace de consulta</b> (<code>/expediente/[token]</code>). A ti te llega
+      un aviso. El expediente aterriza en <code>/zona-traductor/expedientes</code>.</p>
+      <div class="why"><b>Encaja v2:</b> es la extensión de «la puerta» (Fase&nbsp;1) para el caso que hoy rebota.
+      Captura clientes de dossier grande que antes se perdían.</div>
+    </div>
+
+    <div class="card">
+      <h3>3 · Presupuesto de expediente (staff) <span class="badge b-done">menos trabajo</span></h3>
+      <p><code>/zona-traductor/presupuesto</code>: con <code>?exp=REF</code> precarga los documentos del cliente, los
+      analiza con el pipeline barato, tabla editable (tipo · dirección · palabras · precio) y
+      <b>descuento por volumen</b> → genera el presupuesto en un paso.</p>
+      <div class="why"><b>Encaja v2:</b> automatiza el presupuesto de un pedido grande que antes era manual y por email.</div>
+    </div>
+
+    <div class="card">
+      <h3>4 · Keystone: presupuesto pagado → pedido <span class="badge b-done">fiabilidad</span></h3>
+      <p>Cuando el cliente paga un presupuesto, ahora se <b>crea automáticamente el pedido de producción</b> con la
+      cascada completa (workflow validado, ETA francés, auto-asignación de colaborador, emails). Antes el pago no
+      generaba pedido — el mismo tipo de agujero negro que originó v2.</p>
+      <div class="why"><b>Encaja v2:</b> es fiabilidad pura (Fase&nbsp;0). Era el hueco central de la auditoría.</div>
+    </div>
+
+    <div class="card">
+      <h3>5 · Factura fiscal numerada <span class="badge b-done">brecha legal</span></h3>
+      <p>Modelo <code>ClientInvoice</code> con <b>numeración secuencial <code>FAC-AAAA-NNNNN</code></b>, persistencia y
+      desglose de IVA congelado. Sustituye al <code>F-{ref}</code> que se generaba al vuelo y no tenía validez fiscal.</p>
+      <div class="why"><b>Encaja v2:</b> additivo y aislado; cierra una brecha legal real de hoy sin tocar el funnel.</div>
+    </div>
+
+    <div class="card">
+      <h3>6 · Documentos del pedido + arrastre del expediente <span class="badge b-done">proyectos grandes</span></h3>
+      <p>Modelo <code>OrderDocumentItem</code>: el pedido guarda sus documentos uno a uno. El keystone copia los
+      documentos del expediente al pedido <b>y enlaza los <code>DocumentAnalysis</code> reales</b> (el traductor ve los
+      archivos). Cadena completa <code>?exp=REF → Quote.expedienteRef → pedido</code>.</p>
+      <div class="why"><b>Encaja v2:</b> additivo; hace gestionable un pedido grande sin cambiar el flujo de entrega.</div>
+    </div>
+
+    <div class="card">
+      <h3>7 · Pago manual de presupuesto (Bizum/transferencia) <span class="badge b-done">menos soporte</span></h3>
+      <p>Endpoint + botón en el panel admin para marcar un presupuesto como pagado fuera de Stripe. Registra el pago y
+      dispara el mismo puente presupuesto→pedido. Completa el ciclo del expediente (muchos pagan por transferencia).</p>
+      <div class="why"><b>Encaja v2:</b> quita trabajo manual; reusa el puente, sin duplicar lógica.</div>
+    </div>
+
+  </div>
+
+  <!-- ───────────── FLUJO ───────────── -->
+  <h2><span class="dot b"></span>El flujo completo, de punta a punta</h2>
+  <div class="flow">
+Home (banner) → /expediente  ──subida múltiple──▶  email acuse al cliente + aviso a ti
+      │
+      ▼
+/zona-traductor/expedientes  ──"Preparar presupuesto"──▶  /zona-traductor/presupuesto?exp=REF
+      │  (análisis barato + descuento volumen)
+      ▼
+Presupuesto enviado  ──/q/[token]──▶  cliente paga (Stripe)  ó  tú marcas pagado (Bizum/transfer)
+      │
+      ▼
+KEYSTONE: se crea el Pedido + documentos + colaborador + ETA   →   factura fiscal numerada al descargar
+  </div>
+
+  <!-- ───────────── MIGRACIÓN ───────────── -->
+  <h2><span class="dot g"></span>Migración aplicada — additiva, cero riesgo de datos</h2>
+  <p class="lead">Aplicada a la BD de prod (<code>prisma db push</code>) y registrada en el historial. La web de
+  producción (<code>main</code>) la ignora hasta el merge.</p>
+  <div class="sql">
+<span class="add">ALTER TABLE "Quote" ADD COLUMN "expedienteRef" TEXT;</span>            -- columna nullable
+<span class="add">CREATE TABLE "OrderDocumentItem" ( … );</span>                       -- tabla nueva
+<span class="add">CREATE TABLE "ClientInvoice" ( … );</span>                          -- tabla nueva
++ índices y claves foráneas.   <b>Ningún DROP. Ningún cambio destructivo.</b>
+  </div>
+
+  <!-- ───────────── APARCADO ───────────── -->
+  <h2><span class="dot a"></span>Aparcado a propósito — fuera de v2</h2>
+  <p class="lead">Esto <b>sí iba contra el plan</b>: abre un segundo frente, toca el modelo de pedido central y pisa el
+  terreno de TraduCAT. Queda diseñado en <code>docs/v2-expediente-contabilidad-plan.md</code> (Fase&nbsp;C) para
+  después del 1-sept o para TraduCAT.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Modelo «Proyecto» separado y multi-colaborador <span class="badge b-park">aparcado</span></h3>
+      <p>Repartir un expediente EN→ES + ES→EN entre varios colaboradores, con asignación por documento.</p>
+      <div class="why"><b>Por qué fuera:</b> cambia el constraint de asignación y la lógica de auto-asignación de la
+      que depende el funnel. Riesgo en plena v2. Es producción → terreno de <b>TraduCAT</b>.</div>
+    </div>
+    <div class="card">
+      <h3>Entrega progresiva por documento <span class="badge b-park">aparcado</span></h3>
+      <p>Entregar/cerrar documento a documento en vez de un único archivo final por pedido.</p>
+      <div class="why"><b>Por qué fuera:</b> reescribe el flujo de entrega y las transiciones de estado actuales.
+      Los datos ya están en <code>OrderDocumentItem</code>; el flujo se hará cuando toque, sin prisa.</div>
+    </div>
+    <div class="card">
+      <h3>Contabilidad de gestión / export para gestoría <span class="badge b-park">aparcado</span></h3>
+      <p>Informes consultables de IVA/IRPF por periodo, márgenes por mes, facturación de proveedor por lote.</p>
+      <div class="why"><b>Por qué fuera:</b> es ERP interno, no sirve a la promesa client-facing de v2. La factura al
+      cliente (lo legalmente urgente) sí se hizo; el resto es post-v2.</div>
+    </div>
+    <div class="card">
+      <h3>Panel por-documento en el workspace del traductor <span class="badge b-park">follow corto</span></h3>
+      <p>Pintar la lista de <code>OrderDocumentItem</code> con estado y progreso N/M en el workspace.</p>
+      <div class="why"><b>Por qué fuera (por ahora):</b> los datos ya se guardan; falta solo la UI. Es un follow
+      pequeño, sin migración — se hace en cuanto digas.</div>
+    </div>
+  </div>
+
+  <!-- ───────────── PROBAR ───────────── -->
+  <h2><span class="dot b"></span>Cómo probarlo</h2>
+  <table>
+    <tr><th>Rol</th><th>Ruta</th><th>Qué ver</th></tr>
+    <tr><td>Cliente</td><td><code>/expediente</code></td><td>Subir varios PDFs + acuse por email</td></tr>
+    <tr><td>Cliente</td><td><code>/expediente/[token]</code></td><td>Consulta del estado del expediente</td></tr>
+    <tr><td>Staff</td><td><code>/zona-traductor/expedientes</code></td><td>Bandeja de expedientes entrantes</td></tr>
+    <tr><td>Staff</td><td><code>/zona-traductor/presupuesto?exp=REF</code></td><td>Análisis + presupuesto en un paso</td></tr>
+    <tr><td>Staff</td><td><code>/admin/quotes/[id]</code></td><td>Botón «Marcar pagado (Bizum/transfer)»</td></tr>
+  </table>
+  <div class="links">
+    <a href="https://traduccionesjuradas-93prqjlqj-juan-silvas-projects-6692e201.vercel.app">Abrir preview</a>
+    <a class="ghost" href="https://github.com/juanlatregua/traduccionesjuradas-next/pull/86">Ver PR&nbsp;#86</a>
+  </div>
+
+  <footer>
+    Generado el 29-may-2026 · Rama <code>feat/expediente-presupuesto-contabilidad</code> ·
+    Build verde, tsc limpio, migración additiva aplicada y registrada.
+  </footer>
+
+</div>
+</body>
+</html>

@@ -303,7 +303,7 @@ export default function RootLayout({
                 <p className="text-xs tracking-[0.15em] text-cream/80">
                   traducción oficial certificada · españa
                 </p>
-                <div className="space-y-1 text-xs text-cream/60">
+                <div className="space-y-1 text-xs text-cream/80">
                   <p>HBTJ Consultores Lingüísticos S.L.</p>
                   <p>Calle Esperanto, 9 · 29007 Málaga</p>
                 </div>
@@ -334,7 +334,7 @@ export default function RootLayout({
                 <p className="font-baskerville text-sm font-bold text-parchment">
                   Enlaces
                 </p>
-                <div className="flex flex-col gap-2 text-sm text-cream/70">
+                <div className="flex flex-col gap-2 text-sm text-cream/85">
                   <Link
                     href="/aviso-legal"
                     className="hover:text-or transition-colors"
@@ -372,6 +372,12 @@ export default function RootLayout({
                     Cómo escanear bien
                   </Link>
                   <Link
+                    href="/expediente"
+                    className="font-semibold text-cream hover:text-or transition-colors"
+                  >
+                    Subir expediente (4+ docs)
+                  </Link>
+                  <Link
                     href="/traductor-jurado-frances"
                     className="hover:text-or transition-colors"
                   >
@@ -391,7 +397,7 @@ export default function RootLayout({
                 <p className="font-baskerville text-sm font-bold text-parchment">
                   Nuestras webs
                 </p>
-                <div className="flex flex-col gap-2 text-sm text-cream/70">
+                <div className="flex flex-col gap-2 text-sm text-cream/85">
                   <a
                     href="https://www.traduccionesjuradas.net"
                     className="hover:text-or transition-colors"
@@ -414,7 +420,7 @@ export default function RootLayout({
               <p className="font-caveat text-2xl text-cream/90 animate-inkWrite">
                 Juan Antonio Silva Moreno · Traductor jurado N.º 3850
               </p>
-              <p className="mt-2 text-xs text-cream/40">
+              <p className="mt-2 text-xs text-cream/70">
                 © {new Date().getFullYear()} HBTJ Consultores Lingüísticos S.L.
                 · Todos los derechos reservados
               </p>
