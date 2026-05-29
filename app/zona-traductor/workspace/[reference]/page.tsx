@@ -114,6 +114,12 @@ export default async function WorkspacePage({ params }: Params) {
               Workspace: <span className="font-mono text-cyan-300">{order.reference}</span>
             </h1>
             <p className="mt-1 text-sm text-slate-300">{order.title}</p>
+            <a
+              href={`/zona-traductor/proyecto/${order.reference}`}
+              className="mt-2 inline-block rounded-lg border border-cyan-700 bg-cyan-600/15 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-600/30"
+            >
+              📋 Vista de proyecto (cockpit)
+            </a>
           </div>
         </div>
 

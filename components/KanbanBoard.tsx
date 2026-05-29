@@ -195,7 +195,7 @@ export default function KanbanBoard({ lanes, initialCards }: { lanes: Lane[]; in
                         {c.invoiceNumber && <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">🧾 {c.invoiceNumber}</span>}
                       </div>
                       <div className="mt-2 flex items-center justify-between gap-2">
-                        <a href={`/zona-traductor/workspace/${c.reference}`} className="text-[11px] text-cyan-400 hover:text-cyan-300">Abrir</a>
+                        <a href={`/zona-traductor/proyecto/${c.reference}`} className="text-[11px] text-cyan-400 hover:text-cyan-300">Abrir</a>
                         {next && (
                           <button
                             type="button"
