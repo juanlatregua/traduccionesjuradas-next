@@ -134,9 +134,9 @@ export default async function AdminFunnelPage() {
         </h2>
         <p className="mt-1 text-sm text-slate-500">
           Atribucion por el preset ?p= con el que llego el lead (handoff del bloque
-          uge-ce, campana de regularizacion). Nota: &laquo;pedido&raquo; y
-          &laquo;pagado&raquo; dependen del enlace DocumentAnalysis&rarr;Order, que la
-          puerta nueva aun no fija &mdash; fiarse de analizado / presupuesto / lead.
+          uge-ce, campana de regularizacion). El enlace DocumentAnalysis&rarr;Order
+          ya se fija en checkout (orderReference) y al crear el Order, asi que
+          &laquo;pedido&raquo; y &laquo;pagado&raquo; cuentan tambien la puerta nueva.
         </p>
       </div>
 
