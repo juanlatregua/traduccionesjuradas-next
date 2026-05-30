@@ -8,6 +8,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import SiteSearch from "@/components/SiteSearch";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import type { SearchEntry } from "@/lib/search/match";
 
 const NAV = [
@@ -50,6 +51,7 @@ export default function HeaderFr({ searchIndex }: { searchIndex: SearchEntry[] }
             >
               WhatsApp
             </a>
+            <LanguageSwitcher />
             <Link
               href="#hero-fr"
               className="rounded-2xl bg-or px-4 py-2 font-semibold text-encre shadow-sm hover:bg-or-dark hover:text-white"
@@ -58,13 +60,18 @@ export default function HeaderFr({ searchIndex }: { searchIndex: SearchEntry[] }
             </Link>
           </nav>
 
+          {/* Switcher idioma → ES (visible en móvil; en desktop va en el nav) */}
+          <span className="ml-auto lg:hidden">
+            <LanguageSwitcher />
+          </span>
+
           {/* Toggle móvil */}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
             aria-expanded={open}
-            className="ml-auto inline-flex items-center justify-center rounded-xl border border-cream p-2 text-sepia lg:hidden"
+            className="ml-2 inline-flex items-center justify-center rounded-xl border border-cream p-2 text-sepia lg:hidden"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>

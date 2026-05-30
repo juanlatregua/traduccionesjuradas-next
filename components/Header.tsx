@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import SiteSearch from "@/components/SiteSearch";
 import HeaderFr from "@/components/HeaderFr";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useUiLang } from "@/lib/i18n/use-ui-lang";
 import type { SearchEntry } from "@/lib/search/match";
 
@@ -96,6 +97,7 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2 sm:hidden">
+            <LanguageSwitcher />
             <Link
               href="/area-cliente"
               aria-label="Área cliente"
@@ -403,6 +405,11 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
           >
             Subir expediente
           </Link>
+
+          {/* Switcher de idioma → versión francesa (solo desktop; en móvil va arriba) */}
+          <span className="hidden sm:block">
+            <LanguageSwitcher />
+          </span>
 
           {/* CTA PRESUPUESTO INSTANTÁNEO */}
           <Link
