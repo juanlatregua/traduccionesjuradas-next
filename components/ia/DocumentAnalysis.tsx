@@ -21,6 +21,7 @@ import type { Quote } from "@/lib/pricing-engine/calculator";
 
 type Props = {
   documentId: string;
+  sessionToken: string | null;
   fileSize?: number;
   onAnalysisComplete: (analysis: DocumentAnalysisResult, quote: Quote) => void;
   onError: (error: string) => void;
@@ -87,6 +88,7 @@ const ANALYZING_MESSAGES_LARGE = [
 
 export default function DocumentAnalysis({
   documentId,
+  sessionToken,
   fileSize,
   onAnalysisComplete,
   onError,
@@ -117,7 +119,7 @@ export default function DocumentAnalysis({
         const res = await fetch("/api/documents/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documentId }),
+          body: JSON.stringify({ documentId, sessionToken }),
         });
 
         if (cancelled) return;

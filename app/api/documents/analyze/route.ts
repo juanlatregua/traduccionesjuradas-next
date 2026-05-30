@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { documentId } = body;
+    const { documentId, sessionToken } = body;
 
     if (!documentId) {
       return NextResponse.json({ ok: false, error: "documentId requerido." }, { status: 400 });
@@ -61,6 +61,14 @@ export async function POST(req: Request) {
     });
 
     if (!doc) {
+      return NextResponse.json({ ok: false, error: "Documento no encontrado." }, { status: 404 });
+    }
+
+    // Ownership: el documento solo es accesible para quien lo subió (su
+    // sessionToken, UUID no enumerable que register devolvió al cliente). El
+    // staff autenticado queda exento (procesa expedientes ajenos). Sin esto,
+    // cualquiera con un documentId leería el análisis (nombres/fechas) de otro.
+    if (!isStaff && (!sessionToken || doc.sessionToken !== sessionToken)) {
       return NextResponse.json({ ok: false, error: "Documento no encontrado." }, { status: 404 });
     }
 
