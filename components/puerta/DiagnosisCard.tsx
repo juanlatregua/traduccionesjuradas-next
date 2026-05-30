@@ -181,6 +181,19 @@ export default function DiagnosisCard({
           )}
         </Row>
       </div>
+
+      {/* Pie de credencial MAEC (genérico, sutil): autoridad en el momento de
+          decisión sin competir con el CTA ni sacar al usuario del flujo (abre
+          la acreditación en pestaña nueva). */}
+      <a
+        href="/acreditacion"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex items-start gap-1.5 rounded text-xs text-graphite transition-colors hover:text-bleu focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu"
+      >
+        <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-or-dark" aria-hidden="true" />
+        <span>{puertaT[lang].maecCredential}</span>
+      </a>
     </div>
   );
 }

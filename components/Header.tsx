@@ -1,12 +1,33 @@
 "use client";
 
+// components/Header.tsx — Header ÚNICO, bilingüe (es|fr). Sustituye al par
+// Header/HeaderFr divergente: la navegación vive en lib/i18n/nav.ts y este
+// componente la renderiza en el idioma de la ruta (useUiLang). Los desplegables
+// (idiomas, documentos) y su a11y (teclado/foco/Escape) son idénticos en ambos.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SiteSearch from "@/components/SiteSearch";
-import HeaderFr from "@/components/HeaderFr";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useUiLang } from "@/lib/i18n/use-ui-lang";
+import {
+  t,
+  TRANSLATOR_DROPDOWN,
+  DOCS_DROPDOWN,
+  NAV_PROCESO,
+  NAV_PRECIOS,
+  NAV_FAQ,
+  NAV_BLOG,
+  NAV_AREA,
+  NAV_ZONA,
+  NAV_EXPEDIENTE,
+  NAV_CTA,
+  NAV_UI,
+  type NavDropdown,
+  type NavLang,
+} from "@/lib/i18n/nav";
+import { LOCALE_HOME } from "@/lib/i18n/locales";
 import type { SearchEntry } from "@/lib/search/match";
 
 function Logo() {
@@ -35,389 +56,226 @@ function Logo() {
   );
 }
 
+/** Desplegable de escritorio dirigido por config, bilingüe y accesible. */
+function Dropdown({
+  dd,
+  lang,
+  id,
+  open,
+  onToggle,
+  onClose,
+}: {
+  dd: NavDropdown;
+  lang: NavLang;
+  id: string;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  return (
+    <div className="relative hidden sm:block">
+      <button
+        ref={btnRef}
+        type="button"
+        className="flex items-center gap-1 rounded-md px-1 py-1 hover:text-bleu focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu focus-visible:ring-offset-2"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+          if (e.key === "Escape") onClose();
+        }}
+      >
+        <span>{t(dd.label, lang)}</span>
+        <span className="text-[10px]" aria-hidden="true">▼</span>
+      </button>
+
+      {/* Panel: se monta solo al abrir → no deja foco-trampa al estar cerrado */}
+      {open && (
+        <div
+          id={id}
+          className={`absolute ${dd.align === "left" ? "left-0" : "right-0"} top-full z-50 mt-1 w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-cream bg-card p-3 text-xs text-sepia shadow-lg`}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              onClose();
+              btnRef.current?.focus();
+            }
+          }}
+        >
+          {dd.groups.map((g, gi) => (
+            <div key={gi} className={gi > 0 ? "mt-3" : ""}>
+              <p className="mb-2 text-[11px] font-semibold text-graphite">{t(g.heading, lang)}</p>
+              <div className={g.cols === 2 ? "grid grid-cols-2 gap-1 text-[11px]" : "space-y-1"}>
+                {g.items.map((it) => (
+                  <Link
+                    key={it.href + t(it.label, lang)}
+                    href={it.href}
+                    className="block rounded-lg px-2 py-1 hover:bg-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu"
+                    onClick={onClose}
+                  >
+                    {t(it.label, lang)}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+          {dd.foot && (
+            <p className="mt-3 text-[11px] text-graphite">
+              {t(dd.foot.text, lang)}{" "}
+              <Link href={dd.foot.href} className="font-semibold text-bleu-light hover:underline" onClick={onClose}>
+                {t(dd.foot.linkLabel, lang)}
+              </Link>
+              .
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
-  const uiLang = useUiLang();
+  const lang = useUiLang() as NavLang;
   const [menuOpen, setMenuOpen] = useState(false);
-  const [translatorDropdownOpen, setTranslatorDropdownOpen] = useState(false);
-  const [docsDropdownOpen, setDocsDropdownOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<null | "translator" | "docs">(null);
+  const navRef = useRef<HTMLElement>(null);
 
-  const translatorRef = useRef<HTMLDivElement>(null);
-  const docsRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdowns on Escape or outside click
-  const closeAllDropdowns = useCallback(() => {
-    setTranslatorDropdownOpen(false);
-    setDocsDropdownOpen(false);
-  }, []);
+  const closeDropdowns = useCallback(() => setOpenDropdown(null), []);
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    closeDropdowns();
+  }, [closeDropdowns]);
 
   useEffect(() => {
-    function handleKeydown(e: KeyboardEvent) {
+    function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setMenuOpen(false);
-        closeAllDropdowns();
+        setOpenDropdown(null);
       }
     }
-    function handleClickOutside(e: MouseEvent) {
-      if (translatorRef.current && !translatorRef.current.contains(e.target as Node)) {
-        setTranslatorDropdownOpen(false);
-      }
-      if (docsRef.current && !docsRef.current.contains(e.target as Node)) {
-        setDocsDropdownOpen(false);
+    function onClick(e: MouseEvent) {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
       }
     }
-    window.addEventListener("keydown", handleKeydown);
-    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClick);
     return () => {
-      window.removeEventListener("keydown", handleKeydown);
-      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClick);
     };
-  }, [closeAllDropdowns]);
+  }, []);
 
-  const closeMenu = () => {
-    setMenuOpen(false);
-    closeAllDropdowns();
-  };
+  const homeHref = LOCALE_HOME[lang];
+  const ctaHref = NAV_CTA.href[lang];
 
-  if (uiLang === "fr") {
-    return <HeaderFr searchIndex={searchIndex} />;
-  }
+  // Enlaces simples (desktop): cómo funciona + (dropdowns) + precios/blog/faq
+  const simpleAfter = [NAV_PRECIOS, NAV_FAQ, NAV_BLOG, NAV_AREA, NAV_ZONA];
+  // Enlaces planos para el menú móvil
+  const mobileLinks = [NAV_PROCESO, NAV_PRECIOS, NAV_FAQ, NAV_BLOG, NAV_AREA, NAV_ZONA];
 
   return (
     <header className="sticky top-0 z-40 overflow-visible border-b-2 border-or bg-parchment/90 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:flex sm:items-center sm:gap-6">
         <div className="flex items-center justify-between gap-3 sm:flex sm:flex-1 sm:items-center">
-          {/* LOGO */}
-          <Link href="/" className="flex shrink-0 items-center gap-2">
+          <Link href={homeHref} className="flex shrink-0 items-center gap-2" aria-label={t(NAV_UI.brandAria, lang)}>
             <Logo />
           </Link>
 
-          {/* BUSCADOR (lupa + ⌘K) */}
           <div className="ml-2 sm:ml-4">
-            <SiteSearch index={searchIndex} />
+            <SiteSearch index={searchIndex} lang={lang} />
           </div>
 
           <div className="ml-auto flex items-center gap-2 sm:hidden">
             <LanguageSwitcher />
-            <Link
-              href="/area-cliente"
-              aria-label="Área cliente"
-              className="inline-flex h-9 items-center rounded-xl border border-cream px-2 text-[11px] font-semibold text-sepia shadow-sm"
+            <button
+              type="button"
+              aria-label={menuOpen ? t(NAV_UI.closeMenu, lang) : t(NAV_UI.openMenu, lang)}
+              aria-expanded={menuOpen}
+              aria-controls="primary-navigation"
+              onClick={() => setMenuOpen((p) => !p)}
+              className="inline-flex h-11 min-h-[44px] items-center gap-2 rounded-xl border border-cream px-3 text-xs font-semibold text-sepia shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu"
             >
-              Cliente
-            </Link>
-            <Link
-              href="/zona-traductor"
-              aria-label="Zona traductor"
-              className="inline-flex h-9 items-center rounded-xl border border-cream px-2 text-[11px] font-semibold text-sepia shadow-sm"
-            >
-              Traductor
-            </Link>
+              {menuOpen ? t(NAV_UI.close, lang) : t(NAV_UI.menu, lang)}
+            </button>
           </div>
-
-          {/* TOGGLE MOBILE */}
-          <button
-            type="button"
-            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-            aria-expanded={menuOpen}
-            aria-controls="primary-navigation"
-            onClick={() => setMenuOpen((prev) => !prev)}
-            className="inline-flex items-center gap-2 rounded-xl border border-cream px-3 py-2 text-xs font-semibold text-sepia shadow-sm sm:hidden"
-          >
-            <span className="relative flex h-4 w-4 flex-col items-center justify-center" aria-hidden="true">
-              <span
-                className={`absolute block h-[2px] w-4 bg-sepia transition-transform duration-200 ${
-                  menuOpen ? "rotate-45" : "-translate-y-[5px]"
-                }`}
-              />
-              <span
-                className={`absolute block h-[2px] w-4 bg-sepia transition-opacity duration-200 ${
-                  menuOpen ? "opacity-0" : "opacity-100"
-                }`}
-              />
-              <span
-                className={`absolute block h-[2px] w-4 bg-sepia transition-transform duration-200 ${
-                  menuOpen ? "-rotate-45" : "translate-y-[5px]"
-                }`}
-              />
-            </span>
-            {menuOpen ? "Cerrar" : "Menú"}
-          </button>
         </div>
 
-        {/* NAV */}
         <nav
           id="primary-navigation"
-          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-sm sm:shadow-none sm:text-sepia`}
+          ref={navRef}
+          aria-label={t(NAV_UI.navAria, lang)}
+          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none`}
         >
-          <Link href="/presupuesto-instantaneo" className="sm:hidden font-bold text-or hover:text-or-dark" onClick={closeMenu}>
-            Presupuesto instantáneo
+          {/* CTA + hubs (móvil) */}
+          <Link href={ctaHref} className="sm:hidden font-bold text-or hover:text-or-dark" onClick={closeMenu}>
+            {t(NAV_CTA.label, lang)}
           </Link>
-          <Link href="/expediente" className="sm:hidden font-semibold text-bleu hover:text-bleu-light" onClick={closeMenu}>
-            Subir expediente (4+ docs)
+          <Link href={NAV_EXPEDIENTE.href} className="sm:hidden font-semibold text-bleu hover:text-bleu-light" onClick={closeMenu}>
+            {t(NAV_EXPEDIENTE.label, lang)}
           </Link>
-          <Link href="/traductores-jurados" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
-            Idiomas
+          <Link href={TRANSLATOR_DROPDOWN.foot!.href} className="sm:hidden hover:text-bleu" onClick={closeMenu}>
+            {t(TRANSLATOR_DROPDOWN.label, lang)}
           </Link>
-          <Link href="/documentos-oficiales" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
-            Documentos oficiales
+          <Link href={DOCS_DROPDOWN.foot!.href} className="sm:hidden hover:text-bleu" onClick={closeMenu}>
+            {t(DOCS_DROPDOWN.label, lang)}
           </Link>
-          <Link href="/area-cliente" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
-            Consultar pedido
-          </Link>
-          <Link href="/area-cliente" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
-            Área cliente
-          </Link>
-          <Link href="/zona-traductor" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
-            Zona traductor
-          </Link>
-          <Link href="/preguntas-frecuentes" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
-            Preguntas frecuentes
-          </Link>
-          <Link href="/blog" className="sm:hidden hover:text-bleu" onClick={closeMenu}>
-            Blog
+          {mobileLinks.map((it) => (
+            <Link key={"m" + it.href} href={it.href} className="sm:hidden hover:text-bleu" onClick={closeMenu}>
+              {t(it.label, lang)}
+            </Link>
+          ))}
+
+          {/* DESKTOP */}
+          <Link href={NAV_PROCESO.href} className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
+            {t(NAV_PROCESO.label, lang)}
           </Link>
 
-          {/* CÓMO FUNCIONA */}
-          <Link href="/proceso" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
-            Cómo funciona
-          </Link>
+          <Dropdown
+            dd={TRANSLATOR_DROPDOWN}
+            lang={lang}
+            id="dd-translator"
+            open={openDropdown === "translator"}
+            onToggle={() => setOpenDropdown((p) => (p === "translator" ? null : "translator"))}
+            onClose={closeDropdowns}
+          />
+          <Dropdown
+            dd={DOCS_DROPDOWN}
+            lang={lang}
+            id="dd-docs"
+            open={openDropdown === "docs"}
+            onToggle={() => setOpenDropdown((p) => (p === "docs" ? null : "docs"))}
+            onClose={closeDropdowns}
+          />
 
-          {/* ===== TRADUCTOR JURADO (DESPLEGABLE) ===== */}
-          <div className="relative hidden sm:block" ref={translatorRef}>
-            <button
-              type="button"
-              className="flex items-center gap-1 hover:text-bleu focus:outline-none focus-visible:text-bleu"
-              aria-haspopup="true"
-              aria-expanded={translatorDropdownOpen}
-              onClick={() => {
-                setTranslatorDropdownOpen((prev) => !prev);
-                setDocsDropdownOpen(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setTranslatorDropdownOpen((prev) => !prev);
-                  setDocsDropdownOpen(false);
-                }
-              }}
-            >
-              <span>Traductor jurado</span>
-              <span className="text-[10px]">▼</span>
-            </button>
+          {simpleAfter.map((it) => (
+            <Link key={"d" + it.href} href={it.href} className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
+              {t(it.label, lang)}
+            </Link>
+          ))}
 
-            <div
-              className={`absolute right-0 top-full w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-cream bg-card p-3 text-xs text-sepia shadow-lg transition ${
-                translatorDropdownOpen
-                  ? "pointer-events-auto opacity-100"
-                  : "pointer-events-none opacity-0"
-              }`}
-            >
-              {/* Idiomas principales */}
-              <p className="mb-2 text-[11px] font-semibold text-graphite">
-                Idiomas principales
-              </p>
-
-              <div className="space-y-1">
-                <Link
-                  href="/traductor-jurado-frances"
-                  className="block rounded-lg px-2 py-1 hover:bg-cream"
-                  onClick={closeMenu}
-                >
-                  Traductor jurado de francés
-                </Link>
-                <Link
-                  href="/traductor-jurado-aleman"
-                  className="block rounded-lg px-2 py-1 hover:bg-cream"
-                  onClick={closeMenu}
-                >
-                  Traductor jurado de alemán
-                </Link>
-                <Link
-                  href="/traductor-jurado-ingles"
-                  className="block rounded-lg px-2 py-1 hover:bg-cream"
-                  onClick={closeMenu}
-                >
-                  Traductor jurado de inglés
-                </Link>
-              </div>
-
-              {/* Otros idiomas */}
-              <p className="mt-3 text-[11px] font-semibold text-graphite">
-                Otros idiomas
-              </p>
-              <div className="mt-1 grid grid-cols-2 gap-1 text-[11px]">
-                <Link
-                  href="/traductor-jurado-neerlandes"
-                      className="rounded-lg px-2 py-1 hover:bg-cream"
-                      onClick={closeMenu}
-                    >
-                      Neerlandés
-                    </Link>
-                    <Link
-                      href="/traductor-jurado-italiano"
-                      className="rounded-lg px-2 py-1 hover:bg-cream"
-                      onClick={closeMenu}
-                    >
-                      Italiano
-                    </Link>
-                    <Link
-                      href="/traductor-jurado-portugues"
-                      className="rounded-lg px-2 py-1 hover:bg-cream"
-                      onClick={closeMenu}
-                    >
-                      Portugués
-                    </Link>
-                    <Link
-                      href="/traductor-jurado-rumano"
-                      className="rounded-lg px-2 py-1 hover:bg-cream"
-                      onClick={closeMenu}
-                    >
-                      Rumano
-                    </Link>
-                    <Link
-                      href="/traductor-jurado-catalan"
-                      className="rounded-lg px-2 py-1 hover:bg-cream"
-                      onClick={closeMenu}
-                    >
-                      Catalán
-                    </Link>
-                    <Link
-                      href="/traductor-jurado-sueco"
-                      className="rounded-lg px-2 py-1 hover:bg-cream"
-                      onClick={closeMenu}
-                    >
-                      Sueco
-                    </Link>
-                    <Link
-                      href="/traductor-jurado-noruego"
-                      className="rounded-lg px-2 py-1 hover:bg-cream"
-                      onClick={closeMenu}
-                    >
-                      Noruego
-                    </Link>
-                  </div>
-            </div>
-          </div>
-
-          {/* ===== DOCUMENTOS OFICIALES (DESPLEGABLE) ===== */}
-          <div className="relative hidden sm:block" ref={docsRef}>
-            <button
-              type="button"
-              className="flex items-center gap-1 hover:text-bleu focus:outline-none focus-visible:text-bleu"
-              aria-haspopup="true"
-              aria-expanded={docsDropdownOpen}
-              onClick={() => {
-                setDocsDropdownOpen((prev) => !prev);
-                setTranslatorDropdownOpen(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setDocsDropdownOpen((prev) => !prev);
-                  setTranslatorDropdownOpen(false);
-                }
-              }}
-            >
-              <span>Documentos oficiales</span>
-              <span className="text-[10px]">▼</span>
-            </button>
-
-            <div
-              className={`absolute left-0 top-full w-72 max-h-[60vh] overflow-y-auto rounded-2xl border border-cream bg-card p-3 text-xs text-sepia shadow-lg transition ${
-                docsDropdownOpen
-                  ? "pointer-events-auto opacity-100"
-                  : "pointer-events-none opacity-0"
-              }`}
-            >
-              <p className="mb-2 text-[11px] font-semibold text-graphite">
-                Más consultados
-              </p>
-
-              <div className="space-y-1">
-                <Link
-                  href="/documentos-oficiales/certificados-registro-civil"
-                  className="block rounded-lg px-2 py-1 hover:bg-cream"
-                  onClick={closeMenu}
-                >
-                  Certificados del Registro Civil
-                </Link>
-                <Link
-                  href="/documentos-oficiales/antecedentes-penales"
-                  className="block rounded-lg px-2 py-1 hover:bg-cream"
-                  onClick={closeMenu}
-                >
-                  Antecedentes penales
-                </Link>
-                <Link
-                  href="/teletrabajo"
-                  className="block rounded-lg px-2 py-1 hover:bg-cream"
-                  onClick={closeMenu}
-                >
-                  Documentos para teletrabajar en España
-                </Link>
-                <Link
-                  href="/documentos-oficiales/documentos-mercantiles"
-                  className="block rounded-lg px-2 py-1 hover:bg-cream"
-                  onClick={closeMenu}
-                >
-                  Documentos mercantiles y empresariales
-                </Link>
-              </div>
-
-              <p className="mt-3 text-[11px] text-graphite">
-                Ver listado completo en{" "}
-                <Link
-                  href="/documentos-oficiales"
-                  className="font-semibold text-bleu-light hover:underline"
-                >
-                  Documentos oficiales
-                </Link>
-                .
-              </p>
-            </div>
-          </div>
-
-          <Link href="/preguntas-frecuentes" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
-            Preguntas frecuentes
-          </Link>
-
-          <Link href="/blog" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
-            Blog
-          </Link>
-
-          <Link href="/precios-traduccion-jurada" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
-            Precios
-          </Link>
-
-          <Link href="/area-cliente" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
-            Área cliente
-          </Link>
-
-          <Link href="/zona-traductor" className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
-            Zona traductor
-          </Link>
-
-          {/* CTA EXPEDIENTE (varios documentos) — solo desktop, junto al CTA principal */}
           <Link
-            href="/expediente"
+            href={NAV_EXPEDIENTE.href}
             className="hidden rounded-2xl border border-bleu px-4 py-2 text-center text-sm font-semibold text-bleu hover:bg-bleu hover:text-white sm:inline-block"
             onClick={closeMenu}
           >
-            Subir expediente
+            {t(NAV_EXPEDIENTE.label, lang)}
           </Link>
 
-          {/* Switcher de idioma → versión francesa (solo desktop; en móvil va arriba) */}
           <span className="hidden sm:block">
             <LanguageSwitcher />
           </span>
 
-          {/* CTA PRESUPUESTO INSTANTÁNEO */}
           <Link
-            href="/presupuesto-instantaneo"
+            href={ctaHref}
             className="w-full rounded-xl bg-or px-4 py-2 text-center text-sm font-semibold text-encre shadow-sm hover:bg-or-dark hover:text-white sm:w-auto sm:rounded-2xl"
             onClick={closeMenu}
           >
-            Presupuesto instantáneo
+            {t(NAV_CTA.label, lang)}
           </Link>
         </nav>
       </div>

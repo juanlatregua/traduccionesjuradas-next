@@ -1,19 +1,20 @@
 "use client";
 
-// Detección de idioma del marco (header/footer/lupa) por ruta. Las rutas FR
-// usan el marco francés; el resto, el español. Extensible añadiendo prefijos.
+// Detección del idioma del marco (header/footer/lupa/puerta) por ruta.
+// La fuente de verdad (prefijos → idioma) vive en locales.ts; aquí solo se
+// resuelve el pathname actual. Añadir un idioma = añadirlo en locales.ts.
 
 import { usePathname } from "next/navigation";
+import { localeFromPath, type Locale } from "@/lib/i18n/locales";
 
-export type UiLang = "es" | "fr";
-
-export const FRENCH_PREFIXES = ["/traduction-assermentee", "/fr"];
-
-export function isFrenchPath(pathname: string | null | undefined): boolean {
-  if (!pathname) return false;
-  return FRENCH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
+export type UiLang = Locale;
 
 export function useUiLang(): UiLang {
-  return isFrenchPath(usePathname()) ? "fr" : "es";
+  return localeFromPath(usePathname());
+}
+
+// Compat: algunos sitios aún preguntan "¿es francés?". Se mantiene apoyado en
+// la fuente única para no duplicar la lista de prefijos.
+export function isFrenchPath(pathname: string | null | undefined): boolean {
+  return localeFromPath(pathname) === "fr";
 }

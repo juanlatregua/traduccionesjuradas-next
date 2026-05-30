@@ -8,14 +8,20 @@
 
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
+import type { Locale } from "@/lib/i18n/locales";
 
 // inbound  = documento extranjero → español (uso en España)
 // outbound = documento español → idioma extranjero (uso en el país de destino)
 export type TranslationDirection = "inbound" | "outbound";
 
 // Idioma del diagnóstico que ve el cliente. El contenido (no solo las
-// etiquetas) se traduce: un francófono vive la promesa entera en su idioma.
-export type DiagnosisLang = "es" | "fr";
+// etiquetas) se traduce: cada cliente vive la promesa entera en su idioma.
+//
+// Regla de dos niveles: el nº 3850 es la acreditación FRANCESA de Juan; da
+// autoridad en es/fr pero sería impreciso en en/de/pt (otro documento lo jura
+// el traductor acreditado correspondiente). Por eso en en/de/pt la autoridad es
+// genérica: "acreditado/nombrado por el MAEC", sin número.
+export type DiagnosisLang = Locale;
 
 export type Diagnosis = {
   type: {
@@ -58,15 +64,19 @@ export function getDeliveryHours(foreignLang: string, pages: number): number {
   return 72;
 }
 
+const DELIVERY_LABELS: Record<DiagnosisLang, { h24: string; h48: string; h72: string }> = {
+  es: { h24: "24 horas", h48: "48 horas (2 días laborables)", h72: "72 horas (3 días laborables)" },
+  fr: { h24: "24 heures", h48: "48 heures (2 jours ouvrés)", h72: "72 heures (3 jours ouvrés)" },
+  en: { h24: "24 hours", h48: "48 hours (2 business days)", h72: "72 hours (3 business days)" },
+  de: { h24: "24 Stunden", h48: "48 Stunden (2 Werktage)", h72: "72 Stunden (3 Werktage)" },
+  pt: { h24: "24 horas", h48: "48 horas (2 dias úteis)", h72: "72 horas (3 dias úteis)" },
+};
+
 function deliveryLabel(hours: number, lang: DiagnosisLang): string {
-  if (lang === "fr") {
-    if (hours <= 24) return "24 heures";
-    if (hours <= 48) return "48 heures (2 jours ouvrés)";
-    return "72 heures (3 jours ouvrés)";
-  }
-  if (hours <= 24) return "24 horas";
-  if (hours <= 48) return "48 horas (2 días laborables)";
-  return "72 horas (3 días laborables)";
+  const l = DELIVERY_LABELS[lang];
+  if (hours <= 24) return l.h24;
+  if (hours <= 48) return l.h48;
+  return l.h72;
 }
 
 // ── Idioma extranjero del par ───────────────────────────────────────
@@ -86,17 +96,31 @@ function resolveForeignLang(language: DocumentAnalysisResult["language"]): strin
 // Siempre sí para documentos oficiales. El valor añadido es la frase de
 // validez según la dirección de la traducción.
 
+const SWORN_STATEMENT: Record<DiagnosisLang, { inbound: string; outbound: string }> = {
+  es: {
+    inbound: "Sí. La firma y sella un traductor jurado nombrado por el MAEC (nº 3850); tiene plena validez ante cualquier organismo oficial en España.",
+    outbound: "Sí. La realiza un traductor jurado nombrado por el MAEC (nº 3850); gracias a los acuerdos de reconocimiento, es válida ante las autoridades del país de destino sin necesidad de contratar otro traductor allí.",
+  },
+  fr: {
+    inbound: "Oui. Elle est signée et cachetée par un traducteur assermenté nommé par le MAEC (n° 3850) ; elle a pleine validité devant toute administration officielle en Espagne.",
+    outbound: "Oui. Elle est réalisée par un traducteur assermenté nommé par le MAEC (n° 3850) ; grâce aux accords de reconnaissance, elle est valable devant les autorités du pays de destination sans devoir engager un autre traducteur sur place.",
+  },
+  en: {
+    inbound: "Yes. It's signed and stamped by a sworn translator appointed by Spain's Ministry of Foreign Affairs (MAEC); it is fully valid before any official body in Spain.",
+    outbound: "Yes. It's produced by a sworn translator appointed by Spain's Ministry of Foreign Affairs (MAEC); thanks to recognition agreements, it is valid before the authorities of the destination country without needing to hire another translator there.",
+  },
+  de: {
+    inbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer unterschrieben und gestempelt; sie ist vor jeder Behörde in Spanien voll gültig.",
+    outbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer angefertigt; dank der Anerkennungsabkommen ist sie bei den Behörden des Ziellandes gültig, ohne dass Sie dort einen weiteren Übersetzer beauftragen müssen.",
+  },
+  pt: {
+    inbound: "Sim. É assinada e carimbada por um tradutor ajuramentado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); tem plena validade perante qualquer organismo oficial em Espanha.",
+    outbound: "Sim. É realizada por um tradutor ajuramentado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); graças aos acordos de reconhecimento, é válida perante as autoridades do país de destino sem necessidade de contratar outro tradutor lá.",
+  },
+};
+
 function swornStatement(direction: TranslationDirection, lang: DiagnosisLang): string {
-  if (lang === "fr") {
-    if (direction === "inbound") {
-      return "Oui. Elle est signée et cachetée par un traducteur assermenté nommé par le MAEC (n° 3850) ; elle a pleine validité devant toute administration officielle en Espagne.";
-    }
-    return "Oui. Elle est réalisée par un traducteur assermenté nommé par le MAEC (n° 3850) ; grâce aux accords de reconnaissance, elle est valable devant les autorités du pays de destination sans devoir engager un autre traducteur sur place.";
-  }
-  if (direction === "inbound") {
-    return "Sí. La firma y sella un traductor jurado nombrado por el MAEC (nº 3850); tiene plena validez ante cualquier organismo oficial en España.";
-  }
-  return "Sí. La realiza un traductor jurado nombrado por el MAEC (nº 3850); gracias a los acuerdos de reconocimiento, es válida ante las autoridades del país de destino sin necesidad de contratar otro traductor allí.";
+  return SWORN_STATEMENT[lang][direction];
 }
 
 // ── Validez ─────────────────────────────────────────────────────────
@@ -104,65 +128,155 @@ function swornStatement(direction: TranslationDirection, lang: DiagnosisLang): s
 // un plazo de aceptación: dato sensible (YMYL), mensajes con matiz y
 // remisión al organismo.
 
+const SWORN_VALIDITY: Record<DiagnosisLang, string> = {
+  es: "La traducción jurada no caduca: una vez emitida, firmada y sellada, su validez es indefinida.",
+  fr: "La traduction assermentée n'expire pas : une fois émise, signée et cachetée, sa validité est illimitée.",
+  en: "A sworn translation doesn't expire: once issued, signed and stamped, its validity is unlimited.",
+  de: "Eine beglaubigte Übersetzung verfällt nicht: einmal ausgestellt, unterschrieben und gestempelt, ist sie unbegrenzt gültig.",
+  pt: "A tradução certificada não caduca: uma vez emitida, assinada e carimbada, a sua validade é indefinida.",
+};
+
 function swornValidity(lang: DiagnosisLang): string {
-  if (lang === "fr") {
-    return "La traduction assermentée n'expire pas : une fois émise, signée et cachetée, sa validité est illimitée.";
-  }
-  return "La traducción jurada no caduca: una vez emitida, firmada y sellada, su validez es indefinida.";
+  return SWORN_VALIDITY[lang];
 }
 
+const ORIGINAL_VALIDITY: Record<DiagnosisLang, { criminalRecord: string; civilCertificate: string }> = {
+  es: {
+    criminalRecord: "El certificado de antecedentes penales suele aceptarse con una antigüedad máxima de 3 meses. Confirma el plazo que te exige el organismo de destino.",
+    civilCertificate: "El acta en sí no caduca, pero muchos trámites piden un certificado literal reciente (emitido en los últimos 3-6 meses).",
+  },
+  fr: {
+    criminalRecord: "Le casier judiciaire est généralement accepté avec une ancienneté maximale de 3 mois. Vérifiez le délai exigé par l'organisme de destination.",
+    civilCertificate: "L'acte en lui-même n'expire pas, mais de nombreuses démarches exigent un acte récent (délivré au cours des 3 à 6 derniers mois).",
+  },
+  en: {
+    criminalRecord: "A criminal record certificate is usually accepted if issued within the last 3 months. Check the time limit required by the destination body.",
+    civilCertificate: "The certificate itself doesn't expire, but many procedures require a recent full certificate (issued within the last 3–6 months).",
+  },
+  de: {
+    criminalRecord: "Ein Führungszeugnis wird in der Regel mit einem Höchstalter von 3 Monaten akzeptiert. Prüfen Sie die von der Zielbehörde geforderte Frist.",
+    civilCertificate: "Die Urkunde selbst verfällt nicht, aber viele Verfahren verlangen eine aktuelle vollständige Urkunde (in den letzten 3–6 Monaten ausgestellt).",
+  },
+  pt: {
+    criminalRecord: "A certidão de antecedentes criminais costuma ser aceite com uma antiguidade máxima de 3 meses. Confirme o prazo exigido pelo organismo de destino.",
+    civilCertificate: "A certidão em si não caduca, mas muitos processos exigem uma certidão de cópia integral recente (emitida nos últimos 3-6 meses).",
+  },
+};
+
 function originalDocumentValidity(specificType: string, lang: DiagnosisLang): string | null {
-  if (lang === "fr") {
-    switch (specificType) {
-      case "criminal_record":
-        return "Le casier judiciaire est généralement accepté avec une ancienneté maximale de 3 mois. Vérifiez le délai exigé par l'organisme de destination.";
-      case "birth_certificate":
-      case "marriage_certificate":
-      case "death_certificate":
-        return "L'acte en lui-même n'expire pas, mais de nombreuses démarches exigent un acte récent (délivré au cours des 3 à 6 derniers mois).";
-      default:
-        return null;
-    }
-  }
+  const v = ORIGINAL_VALIDITY[lang];
   switch (specificType) {
     case "criminal_record":
-      return "El certificado de antecedentes penales suele aceptarse con una antigüedad máxima de 3 meses. Confirma el plazo que te exige el organismo de destino.";
+      return v.criminalRecord;
     case "birth_certificate":
     case "marriage_certificate":
     case "death_certificate":
-      return "El acta en sí no caduca, pero muchos trámites piden un certificado literal reciente (emitido en los últimos 3-6 meses).";
+      return v.civilCertificate;
     default:
       return null;
   }
 }
 
-// ── Etiqueta del tipo de documento en FR ────────────────────────────
-// El análisis IA solo devuelve `specific_type_es`; este mapa traduce los tipos
-// oficiales frecuentes. Fallback a la etiqueta española si el tipo no está
-// mapeado (mejor un nombre que un hueco).
-const FR_TYPE_LABELS: Record<string, string> = {
-  birth_certificate: "Acte de naissance",
-  marriage_certificate: "Acte de mariage",
-  death_certificate: "Acte de décès",
-  criminal_record: "Casier judiciaire",
-  divorce_decree: "Jugement de divorce",
-  power_of_attorney: "Procuration",
-  transcript: "Relevé de notes",
-  degree: "Diplôme",
-  medical_report: "Rapport médical",
-  tax_return: "Déclaration fiscale",
-  contract: "Contrat",
-  company_registration: "Immatriculation de société",
-  payslip: "Bulletin de salaire",
-  id_card: "Carte d'identité",
-  passport: "Passeport",
-  apostille: "Apostille",
+// ── Etiqueta del tipo de documento por idioma ───────────────────────
+// El análisis IA solo devuelve `specific_type_es`; estos mapas traducen los
+// tipos oficiales frecuentes. Fallback a la etiqueta española si el tipo no
+// está mapeado (mejor un nombre que un hueco).
+const TYPE_LABELS: Record<DiagnosisLang, Record<string, string>> = {
+  es: {},
+  fr: {
+    birth_certificate: "Acte de naissance",
+    marriage_certificate: "Acte de mariage",
+    death_certificate: "Acte de décès",
+    criminal_record: "Casier judiciaire",
+    divorce_decree: "Jugement de divorce",
+    power_of_attorney: "Procuration",
+    transcript: "Relevé de notes",
+    degree: "Diplôme",
+    medical_report: "Rapport médical",
+    tax_return: "Déclaration fiscale",
+    contract: "Contrat",
+    company_registration: "Immatriculation de société",
+    payslip: "Bulletin de salaire",
+    id_card: "Carte d'identité",
+    passport: "Passeport",
+    apostille: "Apostille",
+  },
+  en: {
+    birth_certificate: "Birth certificate",
+    marriage_certificate: "Marriage certificate",
+    death_certificate: "Death certificate",
+    criminal_record: "Criminal record certificate",
+    divorce_decree: "Divorce decree",
+    power_of_attorney: "Power of attorney",
+    transcript: "Academic transcript",
+    degree: "Degree certificate",
+    medical_report: "Medical report",
+    tax_return: "Tax return",
+    contract: "Contract",
+    company_registration: "Company registration",
+    payslip: "Payslip",
+    id_card: "ID card",
+    passport: "Passport",
+    apostille: "Apostille",
+  },
+  de: {
+    birth_certificate: "Geburtsurkunde",
+    marriage_certificate: "Heiratsurkunde",
+    death_certificate: "Sterbeurkunde",
+    criminal_record: "Führungszeugnis",
+    divorce_decree: "Scheidungsurteil",
+    power_of_attorney: "Vollmacht",
+    transcript: "Notenübersicht",
+    degree: "Hochschulabschluss",
+    medical_report: "Ärztlicher Bericht",
+    tax_return: "Steuererklärung",
+    contract: "Vertrag",
+    company_registration: "Handelsregisterauszug",
+    payslip: "Gehaltsabrechnung",
+    id_card: "Personalausweis",
+    passport: "Reisepass",
+    apostille: "Apostille",
+  },
+  pt: {
+    birth_certificate: "Certidão de nascimento",
+    marriage_certificate: "Certidão de casamento",
+    death_certificate: "Certidão de óbito",
+    criminal_record: "Certidão de antecedentes criminais",
+    divorce_decree: "Sentença de divórcio",
+    power_of_attorney: "Procuração",
+    transcript: "Histórico escolar",
+    degree: "Diploma",
+    medical_report: "Relatório médico",
+    tax_return: "Declaração fiscal",
+    contract: "Contrato",
+    company_registration: "Registo comercial",
+    payslip: "Recibo de vencimento",
+    id_card: "Cartão de cidadão",
+    passport: "Passaporte",
+    apostille: "Apostila",
+  },
 };
 
 function typeLabel(specificType: string, specificTypeEs: string, lang: DiagnosisLang): string {
-  if (lang === "fr") return FR_TYPE_LABELS[specificType] || specificTypeEs;
-  return specificTypeEs;
+  return TYPE_LABELS[lang][specificType] || specificTypeEs;
 }
+
+// ── Plazo pendiente / nota de entrega por idioma ────────────────────
+const PENDING_LABEL: Record<DiagnosisLang, string> = {
+  es: "Plazo pendiente: indícanos el idioma de destino.",
+  fr: "Délai à confirmer : indiquez-nous la langue de destination.",
+  en: "Delivery time pending: tell us the target language.",
+  de: "Lieferzeit ausstehend: Geben Sie uns die Zielsprache an.",
+  pt: "Prazo pendente: indique-nos o idioma de destino.",
+};
+
+const DELIVERY_NOTE: Record<DiagnosisLang, string> = {
+  es: "a partir de la confirmación del pago, en horario laborable",
+  fr: "à compter de la confirmation du paiement, en horaire ouvré",
+  en: "from payment confirmation, during business hours",
+  de: "ab Zahlungsbestätigung, während der Geschäftszeiten",
+  pt: "a partir da confirmação do pagamento, em horário útil",
+};
 
 // ── Construcción del diagnóstico ────────────────────────────────────
 
@@ -180,15 +294,6 @@ export function buildDiagnosis(
   const hours = foreignLang
     ? getDeliveryHours(foreignLang, document_metrics.pages || 1)
     : null;
-
-  const pendingLabel =
-    lang === "fr"
-      ? "Délai à confirmer : indiquez-nous la langue de destination."
-      : "Plazo pendiente: indícanos el idioma de destino.";
-  const deliveryNote =
-    lang === "fr"
-      ? "à compter de la confirmation du paiement, en horaire ouvré"
-      : "a partir de la confirmación del pago, en horario laborable";
 
   return {
     type: {
@@ -208,8 +313,8 @@ export function buildDiagnosis(
     },
     delivery: {
       hours,
-      label: hours ? deliveryLabel(hours, lang) : pendingLabel,
-      note: deliveryNote,
+      label: hours ? deliveryLabel(hours, lang) : PENDING_LABEL[lang],
+      note: DELIVERY_NOTE[lang],
     },
     validity: {
       swornTranslation: swornValidity(lang),
