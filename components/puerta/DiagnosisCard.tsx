@@ -181,6 +181,20 @@ export default function DiagnosisCard({
           )}
         </Row>
       </div>
+
+      {/* Pie de credencial MAEC (genérico, válido para todos los idiomas) —
+          la autoridad en el momento de decisión, sin encasillar en francés. */}
+      <a
+        href="/acreditacion"
+        className="mt-5 flex items-center gap-2.5 rounded-lg border border-or/30 bg-or/5 px-3 py-2.5 text-xs text-sepia transition-colors hover:bg-or/10"
+      >
+        <ShieldCheck className="h-4 w-4 shrink-0 text-or-dark" aria-hidden="true" />
+        <span>
+          {lang === "fr"
+            ? "Réalisée par un traducteur assermenté accrédité par le MAEC — validité officielle en Espagne."
+            : "La firma un traductor jurado acreditado por el MAEC — validez oficial en toda España."}
+        </span>
+      </a>
     </div>
   );
 }

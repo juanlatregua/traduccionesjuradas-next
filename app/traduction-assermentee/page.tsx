@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PuertaClient from "@/app/presupuesto-instantaneo/PuertaClient";
+import { SelloMinisterio } from "@/components/SelloMinisterio";
 
 export const metadata: Metadata = {
   title: "Traduction assermentée français-espagnol en 60 secondes",
@@ -24,10 +25,13 @@ const STEPS = [
 
 export default function TraductionAssermenteePage() {
   return (
-    <main className="min-h-screen bg-parchment">
+    <div className="min-h-screen bg-parchment">
       <section id="hero-fr" className="border-b border-cream bg-parchment">
         <div className="mx-auto max-w-3xl px-4 pt-10 pb-8 text-center sm:pt-14">
-          <span className="inline-flex items-center gap-2 rounded-full bg-or px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white">
+          <div className="flex justify-center">
+            <SelloMinisterio size="sm" />
+          </div>
+          <span className="mt-4 inline-flex items-center gap-2 rounded-full bg-or px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-encre">
             Traducteur assermenté nº 3850 · MAEC
           </span>
           <h1 className="mx-auto mt-5 max-w-2xl font-baskerville text-3xl font-bold tracking-tight text-encre sm:text-4xl">
@@ -86,6 +90,6 @@ export default function TraductionAssermenteePage() {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

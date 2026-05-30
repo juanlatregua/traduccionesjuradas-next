@@ -143,7 +143,7 @@ export default function Home() {
       <section id="hero" className="border-b border-cream bg-parchment">
         <div className="mx-auto max-w-5xl px-4 pt-10 pb-8 text-center sm:pt-14">
           {/* Eyebrow */}
-          <span className="inline-flex items-center gap-2 rounded-full bg-or px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white">
+          <span className="inline-flex items-center gap-2 rounded-full bg-or px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-encre">
             Traductor jurado N.3850 · MAEC
           </span>
 
@@ -354,7 +354,7 @@ export default function Home() {
               href="/regularizacion-2026"
               className="group relative flex flex-col overflow-hidden rounded-2xl border-2 border-bleu bg-gradient-to-br from-bleu/10 to-or/10 p-5 shadow-sm transition hover:shadow-md"
             >
-              <span className="absolute right-3 top-3 rounded-full bg-or px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+              <span className="absolute right-3 top-3 rounded-full bg-or px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-encre">
                 Plazo 30-jun
               </span>
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-bleu text-white">
