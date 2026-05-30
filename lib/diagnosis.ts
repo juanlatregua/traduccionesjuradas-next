@@ -159,7 +159,7 @@ const ORIGINAL_VALIDITY: Record<DiagnosisLang, { criminalRecord: string; civilCe
   },
   pt: {
     criminalRecord: "A certidão de antecedentes criminais costuma ser aceite com uma antiguidade máxima de 3 meses. Confirme o prazo exigido pelo organismo de destino.",
-    civilCertificate: "A certidão em si não caduca, mas muitos trâmites pedem uma certidão de cópia integral recente (emitida nos últimos 3-6 meses).",
+    civilCertificate: "A certidão em si não caduca, mas muitos processos exigem uma certidão de cópia integral recente (emitida nos últimos 3-6 meses).",
   },
 };
 

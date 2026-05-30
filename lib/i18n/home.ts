@@ -101,7 +101,7 @@ export const HOME: HomeStrings = {
     ),
     credit: tr(
       "Traductores jurados acreditados por el MAEC · PDF firmado con validez oficial. Especialistas en francés (Juan Silva, nº 3850).",
-      "Traducteurs assermentés accrédités par le MAEC · PDF signé ayant valeur officielle. Spécialistes du français (Juan Silva, nº 3850).",
+      "Traducteurs assermentés accrédités par le MAEC · PDF signé ayant valeur officielle. Spécialistes du français (Juan Silva, n° 3850).",
       "Sworn translators accredited by Spain's Ministry of Foreign Affairs (MAEC) · officially valid signed PDF.",
       "Vom spanischen Außenministerium (MAEC) ermächtigte vereidigte Übersetzer · amtlich gültiges, signiertes PDF.",
       "Tradutores ajuramentados acreditados pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC) · PDF assinado com validade oficial."
@@ -138,7 +138,7 @@ export const HOME: HomeStrings = {
     ),
     role: tr(
       "Juan Silva · Traductor jurado de francés · MAEC nº 3850 · HBTJ Consultores Lingüísticos S.L.",
-      "Juan Silva · Traducteur assermenté de français · MAEC nº 3850 · HBTJ Consultores Lingüísticos S.L.",
+      "Juan Silva · Traducteur assermenté de français · MAEC n° 3850 · HBTJ Consultores Lingüísticos S.L.",
       "Juan Silva · Founder · Sworn translator accredited by the MAEC · HBTJ Consultores Lingüísticos S.L.",
       "Juan Silva · Gründer · Vom MAEC ermächtigter Übersetzer · HBTJ Consultores Lingüísticos S.L.",
       "Juan Silva · Fundador · Tradutor ajuramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L."

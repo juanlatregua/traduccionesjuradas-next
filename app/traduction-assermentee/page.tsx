@@ -11,12 +11,12 @@ import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/l
 export const metadata: Metadata = {
   title: "Traduction assermentée français-espagnol en 60 secondes",
   description:
-    "Traduction assermentée officielle (traducteur assermenté MAEC nº 3850). Déposez votre document, recevez prix et délai immédiatement, payez en ligne. Spécialiste français ↔ espagnol.",
+    "Traduction assermentée officielle (traducteur assermenté MAEC n° 3850). Déposez votre document, recevez prix et délai immédiatement, payez en ligne. Spécialiste français ↔ espagnol.",
   alternates: { canonical: LOCALE_ABS.fr, languages: HREFLANG_ALTERNATES },
   openGraph: {
     title: "Traduction assermentée français-espagnol",
     description:
-      "Prix fermé et délai immédiats. Traducteur assermenté officiel (MAEC nº 3850) pour vos démarches en Espagne et en France.",
+      "Prix fermé et délai immédiats. Traducteur assermenté officiel (MAEC n° 3850) pour vos démarches en Espagne et en France.",
     locale: "fr_FR",
     url: LOCALE_ABS.fr,
   },

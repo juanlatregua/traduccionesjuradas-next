@@ -72,7 +72,7 @@ export const UTILIDADES: Utilidad[] = [
   {
     key: "requerimiento",
     icon: "help",
-    title: tr("Entiende tu requerimiento", "Comprenez votre demande", "Understand your official letter", "Verstehen Sie Ihre behördliche Aufforderung", "Entenda a sua notificação"),
+    title: tr("Entiende tu requerimiento", "Comprenez votre courrier officiel", "Understand your official letter", "Verstehen Sie Ihre behördliche Aufforderung", "Entenda a sua notificação"),
     desc: tr(
       "¿Tienes un papel oficial y no entiendes qué te piden? Súbelo y te lo explicamos en claro.",
       "Un document officiel et vous ne comprenez pas ce qu'on vous demande ? Déposez-le, on vous l'explique clairement.",
