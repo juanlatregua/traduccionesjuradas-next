@@ -6,6 +6,7 @@ import {
   getFlowProfile,
   getWorkflowState,
   isFrenchPair,
+  milestoneSmsFor,
   type WorkflowState,
 } from "@/lib/workflow";
 import { getDocumentsFromOrder } from "@/lib/collaborators";
@@ -52,8 +53,75 @@ function messageForTransition(from: WorkflowState, to: WorkflowState, reason?: s
   return `${base} Motivo: ${reason}.`;
 }
 
+/**
+ * Avisa al cliente por SMS cuando el pedido cruza un hito visible (Fase 2).
+ * Vive aqui, en la transicion central, para que TODO camino que mueva el
+ * estado (Kanban /workflow, cockpit, /assign, /delivery, cascada de pago)
+ * dispare el aviso — antes solo lo hacia /assign (hito en proceso) y /delivery
+ * con un checkbox manual (hito lista), asi que mover la tarjeta en el Kanban
+ * dejaba al cliente sin noticia.
+ *
+ * - EN_TRADUCCION  -> "tu traduccion ya esta en proceso"
+ * - TRADUCIDO_ENTREGADO -> "esta lista, descargala" (solo si hay entregable:
+ *   el caller /delivery pasa payload.delivered; el Kanban se valida por
+ *   Order.translatedFileUrl, para no prometer descarga sin fichero).
+ *
+ * Fire-and-forget: corre fuera de la transaccion y nunca bloquea ni rompe el
+ * cambio de estado. Solo se invoca cuando la transicion ocurre de verdad
+ * (changed=true), asi que cada hito avisa una vez.
+ */
+async function notifyClientMilestone(
+  reference: string,
+  to: WorkflowState,
+  payload?: Record<string, unknown>
+) {
+  if (to !== "EN_TRADUCCION" && to !== "TRADUCIDO_ENTREGADO") return;
+  try {
+    const order = await prisma.order.findUnique({
+      where: { reference },
+      select: { id: true, translatedFileUrl: true },
+    });
+    if (!order) return;
+
+    const milestone = milestoneSmsFor(to, {
+      delivered: payload?.delivered === true,
+      translatedFileUrl: order.translatedFileUrl,
+    });
+    if (!milestone) return; // marcado entregado sin fichero: no prometer descarga
+
+    const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+    const phone = await getOrderPhone(order.id);
+    if (!phone) {
+      console.warn(
+        `[workflow] hito ${to} en ${reference} sin telefono del cliente — no se envia SMS`
+      );
+      return;
+    }
+
+    const { smsEnProceso, smsTraduccionLista } = await import("@/lib/sms-templates");
+    const { buildSignedOrderUrl } = await import("@/lib/order-token");
+    const url = buildSignedOrderUrl(reference, "estado");
+    const body =
+      milestone === "en_proceso"
+        ? smsEnProceso({ ref: reference, url })
+        : smsTraduccionLista({ ref: reference, url });
+
+    const result = await sendNotification({ to: formatPhoneSpain(phone), body });
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "notification.milestone_sms.sent",
+        message: `Aviso de hito ${to} enviado por SMS al cliente.`,
+        payload: { milestone: to, channel: "SMS", ok: result.ok },
+      },
+    });
+  } catch (err) {
+    console.error("[workflow] milestone SMS failed", err);
+  }
+}
+
 export async function transitionWorkflowState(options: TransitionOptions): Promise<TransitionResult> {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { reference: options.reference },
       select: {
@@ -109,6 +177,13 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
 
     return { changed: true, from, to };
   });
+
+  // Aviso de hito al cliente: fuera de la transaccion, fire-and-forget.
+  if (result.changed) {
+    void notifyClientMilestone(options.reference, result.to, options.payload);
+  }
+
+  return result;
 }
 
 export async function assignDefaultFrenchEtaIfNeeded(options: {
@@ -243,6 +318,18 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           actorEmail: options.actorEmail || null,
         },
       },
+    });
+
+    // El pedido queda en manos del colaborador = en proceso. Cruzar a
+    // EN_TRADUCCION dispara el hito "en proceso" por SMS (notifyClientMilestone)
+    // para EN/DE/PT/IT, que antes no recibian aviso al auto-asignarse al pago.
+    await transitionWorkflowState({
+      reference: options.reference,
+      to: "EN_TRADUCCION",
+      actorEmail: options.actorEmail || null,
+      reason: `Colaborador ${collaborator.fullName} auto-asignado: traduccion en proceso.`,
+    }).catch((err) => {
+      console.error("[auto-assign] transition to EN_TRADUCCION failed", err);
     });
 
     return { changed: true };

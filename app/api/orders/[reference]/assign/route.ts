@@ -89,20 +89,8 @@ export async function POST(req: Request, { params }: Params) {
       }).catch((err) => {
         console.error("[orders-assign] notification event failed", err);
       });
-
-      const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
-      const { smsEnProceso } = await import("@/lib/sms-templates");
-      const { buildSignedOrderUrl } = await import("@/lib/order-token");
-      const phone = await getOrderPhone(orderBefore.id).catch(() => null);
-      if (phone) {
-        sendNotification({
-          to: formatPhoneSpain(phone),
-          body: smsEnProceso({
-            ref: orderBefore.reference,
-            url: buildSignedOrderUrl(orderBefore.reference, "estado"),
-          }),
-        }).catch((err) => console.error("[SMS]", err));
-      }
+      // El SMS "en proceso" lo dispara transitionWorkflowState al cruzar a
+      // EN_TRADUCCION (ver arriba) — centralizado para cubrir tambien Kanban.
     }
 
     return NextResponse.json({ ok: true });
