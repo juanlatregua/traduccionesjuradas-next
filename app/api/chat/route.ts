@@ -432,6 +432,15 @@ function contentToText(content: ChatMessage["content"]): string {
 
 function detectIntent(text: string): string {
   const lower = text.toLowerCase();
+  // Métrica estrella v2 #3: "¿dónde está mi pedido?". Cuantifica cuánta gente
+  // pregunta por el estado (el acompañamiento de Fase 2 busca reducirlo).
+  if (
+    /d[oó]nde\s+est[aá]|estado\s+(de\s+)?(mi\s+)?(pedido|traducci[oó]n|encargo)|seguimiento|mi\s+pedido|cu[aá]ndo\s+(llega|estar[aá]|recibo|lo\s+tengo)|n[uú]mero\s+de\s+pedido|o[uù]\s+en\s+est|suivi|statut\s+de|ma\s+commande|where('?s| is)\s+my\s+order|order\s+status|track/i.test(
+      lower
+    )
+  ) {
+    return "order_status";
+  }
   if (/presupuesto|precio|cost|cuánto|combien|how\s*much|tarifa/i.test(lower)) {
     return "presupuesto";
   }
