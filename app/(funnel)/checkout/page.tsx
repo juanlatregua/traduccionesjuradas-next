@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { recordFunnelStep } from "@/lib/funnel-analytics";
 import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 import { funnelT, type FunnelLang } from "@/lib/i18n/funnel";
+import { resolveLocale } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: "Pago seguro | Traducción jurada",
@@ -47,7 +48,7 @@ export default async function CheckoutPage() {
   }
 
   const isRegularizacion2026 = session.purpose === PURPOSE_REGULARIZACION_2026;
-  const lang: FunnelLang = session.clientLocale === "fr" ? "fr" : "es";
+  const lang: FunnelLang = resolveLocale(session.clientLocale);
   const t = funnelT[lang].checkout;
 
   return (

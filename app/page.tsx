@@ -1,40 +1,14 @@
 // app/page.tsx — Home v2 "banco de utilidades" (ES). Cuerpo en <HomeV2 lang>,
-// lang-aware y reutilizable (el FR vive en /traduction-assermentee con el mismo
-// componente). Aquí se conservan metadata + datos estructurados (SEO).
+// lang-aware y reutilizable (FR/EN/DE/PT viven en sus rutas con el mismo
+// componente). Aquí se conservan metadata + datos estructurados (SEO/AEO).
 import type { Metadata } from "next";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
-
-const HOME_FAQ_ITEMS = [
-  {
-    question: "¿Qué es una traducción jurada?",
-    answer:
-      "Una traducción jurada es una traducción realizada y firmada por un traductor jurado acreditado, que añade su sello y una declaración de veracidad. Tiene validez oficial ante administraciones, juzgados, notarías, universidades y otros organismos.",
-  },
-  {
-    question: "¿Cuánto tarda una traducción jurada?",
-    answer:
-      "El plazo habitual para una traducción jurada sencilla es de 24 a 72 horas laborables. En el caso de documentos extensos o varios idiomas, el plazo se ajusta al volumen.",
-  },
-  {
-    question: "¿La traducción jurada se entrega en papel o en PDF?",
-    answer:
-      "Cada vez más organismos aceptan la traducción jurada en PDF firmado digitalmente. Nosotros solemos entregar en PDF firmado y, si lo necesitas, también podemos enviarte el original en papel por mensajería.",
-  },
-  {
-    question: "¿Cuánto cuesta una traducción jurada?",
-    answer:
-      "El precio depende del tipo de documento, el idioma, la extensión y la urgencia. Trabajamos con tarifas ajustadas y te indicamos siempre un precio cerrado antes de empezar.",
-  },
-  {
-    question: "¿Hacéis traducciones juradas urgentes?",
-    answer:
-      "En muchos casos podemos ofrecer traducción jurada urgente, dependiendo del volumen y del idioma. Indícalo al pedir presupuesto para revisar la disponibilidad.",
-  },
-];
+import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
+import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: {
@@ -43,11 +17,8 @@ export const metadata: Metadata = {
   description:
     "Traducción jurada oficial en 10 idiomas, 100% online. Sube tu documento y recibe presupuesto cerrado en 60 segundos. Entrega 24-72h. Traductores jurados acreditados por el MAEC. Desde 35€.",
   alternates: {
-    canonical: "https://www.traduccionesjuradas.net",
-    languages: {
-      "es-ES": "https://www.traduccionesjuradas.net",
-      "fr-FR": "https://www.traduccionesjuradas.net/traduction-assermentee",
-    },
+    canonical: LOCALE_ABS.es,
+    languages: HREFLANG_ALTERNATES,
   },
 };
 
@@ -56,28 +27,15 @@ export default function Home() {
     <div className="min-h-screen bg-parchment text-sepia">
       <SchemaBreadcrumbs
         id="breadcrumbs-home"
-        items={[{ name: "Inicio", url: "https://www.traduccionesjuradas.net/" }]}
+        items={[{ name: LOCALE_HOME_LABEL.es, url: "https://www.traduccionesjuradas.net/" }]}
       />
       <SchemaPerson id="schema-person-home" />
-      <SchemaFAQ items={HOME_FAQ_ITEMS} id="schema-faq-home" />
+      <SchemaFAQ items={HOME_FAQ.es} id="schema-faq-home" />
       <SchemaHowTo
         id="schema-howto-home"
-        name="Cómo pedir una traducción jurada online"
-        description="Sube tu documento, recibe presupuesto cerrado al instante y paga online. Recibirás la traducción jurada firmada digitalmente por traductor jurado acreditado por el MAEC en 24-72 horas."
-        steps={[
-          {
-            name: "Sube tu documento",
-            text: "Arrastra el PDF o haz una foto con el móvil. Aceptamos PDF, JPG, PNG, HEIC y TIFF de hasta 20 MB.",
-          },
-          {
-            name: "Recibe precio cerrado al instante",
-            text: "Analizamos automáticamente el documento (idioma, tipo, extensión) y te mostramos el precio final, sin sorpresas.",
-          },
-          {
-            name: "Paga y recibe tu traducción",
-            text: "Pagas online con tarjeta o transferencia. Recibes en 24-72 horas la traducción jurada en PDF firmado digitalmente, válida ante administraciones y notarías de toda España.",
-          },
-        ]}
+        name={HOME_HOWTO.es.name}
+        description={HOME_HOWTO.es.description}
+        steps={HOME_HOWTO.es.steps}
       />
 
       <HomeV2 lang="es" />

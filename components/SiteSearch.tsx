@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, CornerDownLeft } from "lucide-react";
 import { searchSite, groupResults, type SearchEntry } from "@/lib/search/match";
+import type { Locale } from "@/lib/i18n/locales";
 
 const MAX_RESULTS = 18;
 
@@ -31,9 +32,39 @@ const SS = {
     seeAll: (q: string) => `Voir tous les résultats pour « ${q} »`,
     wa: "écrivez-nous sur WhatsApp",
   },
+  en: {
+    trigger: "Search…",
+    aria: "Search the site",
+    inputAria: "Search pages, languages, cities or documents",
+    placeholder: "Search language, city, document, guide…",
+    empty: "Type to search the whole site: languages, cities, documents and guides.",
+    noResults: (q: string) => `No results for “${q}”. Try another word or`,
+    seeAll: (q: string) => `See all results for “${q}”`,
+    wa: "write to us on WhatsApp",
+  },
+  de: {
+    trigger: "Suchen…",
+    aria: "Auf der Website suchen",
+    inputAria: "Seiten, Sprachen, Städte oder Dokumente suchen",
+    placeholder: "Sprache, Stadt, Dokument, Leitfaden suchen…",
+    empty: "Tippen Sie, um die ganze Website zu durchsuchen: Sprachen, Städte, Dokumente und Leitfäden.",
+    noResults: (q: string) => `Keine Ergebnisse für „${q}“. Versuchen Sie ein anderes Wort oder`,
+    seeAll: (q: string) => `Alle Ergebnisse für „${q}“ ansehen`,
+    wa: "schreiben Sie uns auf WhatsApp",
+  },
+  pt: {
+    trigger: "Pesquisar…",
+    aria: "Pesquisar no site",
+    inputAria: "Pesquisar páginas, idiomas, cidades ou documentos",
+    placeholder: "Pesquise idioma, cidade, documento, guia…",
+    empty: "Escreva para pesquisar em todo o site: idiomas, cidades, documentos e guias.",
+    noResults: (q: string) => `Sem resultados para «${q}». Tente outra palavra ou`,
+    seeAll: (q: string) => `Ver todos os resultados para «${q}»`,
+    wa: "escreva-nos pelo WhatsApp",
+  },
 } as const;
 
-export default function SiteSearch({ index, lang = "es" }: { index: SearchEntry[]; lang?: "es" | "fr" }) {
+export default function SiteSearch({ index, lang = "es" }: { index: SearchEntry[]; lang?: Locale }) {
   const s = SS[lang];
   const router = useRouter();
   const [open, setOpen] = useState(false);

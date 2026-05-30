@@ -149,7 +149,7 @@ export default function HomeV2({ lang }: { lang: HomeLang }) {
                 <h3 className="font-baskerville text-lg font-bold text-encre">{g.title[lang]}</h3>
                 <p className="mt-1 flex-1 text-sm text-sepia">{g.desc[lang]}</p>
                 <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-bleu group-hover:underline">
-                  {lang === "fr" ? "Lire le guide" : "Leer guía"}
+                  {h.guides.read[lang]}
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </span>
               </Link>

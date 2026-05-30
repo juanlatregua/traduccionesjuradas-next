@@ -192,11 +192,7 @@ export default function DiagnosisCard({
         className="mt-4 inline-flex items-start gap-1.5 rounded text-xs text-graphite transition-colors hover:text-bleu focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu"
       >
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-or-dark" aria-hidden="true" />
-        <span>
-          {lang === "fr"
-            ? "Réalisée par un traducteur assermenté accrédité par le MAEC — validité officielle."
-            : "La firma un traductor jurado acreditado por el MAEC — validez oficial."}
-        </span>
+        <span>{puertaT[lang].maecCredential}</span>
       </a>
     </div>
   );

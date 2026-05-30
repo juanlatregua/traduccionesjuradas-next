@@ -5,6 +5,7 @@ import { TrackEvent } from "@/components/TrackEvent";
 import { getSessionOrRedirect } from "@/lib/session";
 import { recordFunnelStep } from "@/lib/funnel-analytics";
 import { funnelT } from "@/lib/i18n/funnel";
+import { resolveLocale } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: "Confirmación de pago | Traducción jurada",
@@ -27,7 +28,7 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
 
   await recordFunnelStep(session, "confirmation");
 
-  const t = funnelT[session.clientLocale === "fr" ? "fr" : "es"].confirmation;
+  const t = funnelT[resolveLocale(session.clientLocale)].confirmation;
 
   return (
     <section className="rounded-3xl border border-cream bg-card p-5 shadow-sm sm:p-7">

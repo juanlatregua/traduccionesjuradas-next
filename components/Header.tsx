@@ -23,9 +23,11 @@ import {
   NAV_ZONA,
   NAV_EXPEDIENTE,
   NAV_CTA,
+  NAV_UI,
   type NavDropdown,
   type NavLang,
 } from "@/lib/i18n/nav";
+import { LOCALE_HOME } from "@/lib/i18n/locales";
 import type { SearchEntry } from "@/lib/search/match";
 
 function Logo() {
@@ -168,7 +170,7 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
     };
   }, []);
 
-  const homeHref = lang === "fr" ? "/traduction-assermentee" : "/";
+  const homeHref = LOCALE_HOME[lang];
   const ctaHref = NAV_CTA.href[lang];
 
   // Enlaces simples (desktop): cómo funciona + (dropdowns) + precios/blog/faq
@@ -180,7 +182,7 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
     <header className="sticky top-0 z-40 overflow-visible border-b-2 border-or bg-parchment/90 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:flex sm:items-center sm:gap-6">
         <div className="flex items-center justify-between gap-3 sm:flex sm:flex-1 sm:items-center">
-          <Link href={homeHref} className="flex shrink-0 items-center gap-2" aria-label={lang === "fr" ? "Traductions assermentées — accueil" : "Traducciones Juradas — inicio"}>
+          <Link href={homeHref} className="flex shrink-0 items-center gap-2" aria-label={t(NAV_UI.brandAria, lang)}>
             <Logo />
           </Link>
 
@@ -192,13 +194,13 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
             <LanguageSwitcher />
             <button
               type="button"
-              aria-label={menuOpen ? (lang === "fr" ? "Fermer le menu" : "Cerrar menú") : (lang === "fr" ? "Ouvrir le menu" : "Abrir menú")}
+              aria-label={menuOpen ? t(NAV_UI.closeMenu, lang) : t(NAV_UI.openMenu, lang)}
               aria-expanded={menuOpen}
               aria-controls="primary-navigation"
               onClick={() => setMenuOpen((p) => !p)}
               className="inline-flex h-11 min-h-[44px] items-center gap-2 rounded-xl border border-cream px-3 text-xs font-semibold text-sepia shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu"
             >
-              {menuOpen ? (lang === "fr" ? "Fermer" : "Cerrar") : (lang === "fr" ? "Menu" : "Menú")}
+              {menuOpen ? t(NAV_UI.close, lang) : t(NAV_UI.menu, lang)}
             </button>
           </div>
         </div>
@@ -206,7 +208,7 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
         <nav
           id="primary-navigation"
           ref={navRef}
-          aria-label={lang === "fr" ? "Navigation principale" : "Navegación principal"}
+          aria-label={t(NAV_UI.navAria, lang)}
           className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none`}
         >
           {/* CTA + hubs (móvil) */}

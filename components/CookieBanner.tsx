@@ -22,6 +22,30 @@ const CB = {
     onlyNeeded: "Uniquement nécessaires",
     accept: "Accepter",
   },
+  en: {
+    text: "We use technical cookies for the website to work properly and, where applicable, anonymous usage analytics tools. You can find more information in our",
+    privacy: "privacy policy",
+    and: "and in our",
+    cookies: "cookie policy",
+    onlyNeeded: "Only essential",
+    accept: "Accept",
+  },
+  de: {
+    text: "Wir verwenden technische Cookies für das ordnungsgemäße Funktionieren der Website und gegebenenfalls Tools zur anonymen Nutzungsanalyse. Weitere Informationen finden Sie in unserer",
+    privacy: "Datenschutzerklärung",
+    and: "und in der",
+    cookies: "Cookie-Richtlinie",
+    onlyNeeded: "Nur notwendige",
+    accept: "Akzeptieren",
+  },
+  pt: {
+    text: "Utilizamos cookies técnicos para o correto funcionamento do site e, quando aplicável, ferramentas de análise anónima de utilização. Pode obter mais informação na nossa",
+    privacy: "política de privacidade",
+    and: "e na",
+    cookies: "política de cookies",
+    onlyNeeded: "Apenas necessárias",
+    accept: "Aceitar",
+  },
 } as const;
 
 export function CookieBanner() {

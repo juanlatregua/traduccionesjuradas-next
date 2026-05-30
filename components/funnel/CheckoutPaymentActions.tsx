@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import CopyField from "@/components/CopyField";
 import { funnelT, type FunnelLang } from "@/lib/i18n/funnel";
+import { LOCALE_INTL } from "@/lib/i18n/locales";
 
 type CheckoutPaymentActionsProps = {
   reference: string;
@@ -43,7 +44,7 @@ export default function CheckoutPaymentActions({
   const [toast, setToast] = useState<string | null>(null);
 
   const amountLabel = useMemo(
-    () => money(totalCents, currency, lang === "fr" ? "fr-FR" : "es-ES"),
+    () => money(totalCents, currency, LOCALE_INTL[lang]),
     [currency, totalCents, lang]
   );
 
@@ -131,11 +132,7 @@ export default function CheckoutPaymentActions({
       {/* Línea de confianza en el momento del pago (audit E-E-A-T) */}
       <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-cream bg-parchment px-4 py-3 text-xs text-graphite">
         <svg className="mt-0.5 h-4 w-4 shrink-0 text-vert" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <span>
-          {lang === "fr"
-            ? "Paiement sécurisé · facture avec TVA · traducteur assermenté accrédité par le MAEC · HBTJ Consultores Lingüísticos S.L."
-            : "Pago seguro · factura con IVA · traductor jurado acreditado por el MAEC · HBTJ Consultores Lingüísticos S.L."}
-        </span>
+        <span>{t.trust}</span>
       </div>
 
       {error && <p className="mt-3 text-sm font-semibold text-red-700">{error}</p>}

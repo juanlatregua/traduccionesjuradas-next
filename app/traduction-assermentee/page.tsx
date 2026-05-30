@@ -1,30 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
+import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaPerson } from "@/components/SchemaPerson";
+import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
+import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
+import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: "Traduction assermentée français-espagnol en 60 secondes",
   description:
     "Traduction assermentée officielle (traducteur assermenté MAEC nº 3850). Déposez votre document, recevez prix et délai immédiatement, payez en ligne. Spécialiste français ↔ espagnol.",
-  alternates: {
-    canonical: "https://www.traduccionesjuradas.net/traduction-assermentee",
-    languages: {
-      "es-ES": "https://www.traduccionesjuradas.net",
-      "fr-FR": "https://www.traduccionesjuradas.net/traduction-assermentee",
-    },
-  },
+  alternates: { canonical: LOCALE_ABS.fr, languages: HREFLANG_ALTERNATES },
   openGraph: {
     title: "Traduction assermentée français-espagnol",
     description:
       "Prix fermé et délai immédiats. Traducteur assermenté officiel (MAEC nº 3850) pour vos démarches en Espagne et en France.",
     locale: "fr_FR",
-    url: "https://www.traduccionesjuradas.net/traduction-assermentee",
+    url: LOCALE_ABS.fr,
   },
 };
 
 export default function TraductionAssermenteePage() {
   return (
     <div className="min-h-screen bg-parchment">
+      <SchemaBreadcrumbs id="breadcrumbs-home-fr" items={[{ name: LOCALE_HOME_LABEL.fr, url: LOCALE_ABS.fr }]} />
+      <SchemaPerson id="schema-person-home-fr" />
+      <SchemaFAQ items={HOME_FAQ.fr} id="schema-faq-home-fr" />
+      <SchemaHowTo id="schema-howto-home-fr" name={HOME_HOWTO.fr.name} description={HOME_HOWTO.fr.description} steps={HOME_HOWTO.fr.steps} />
+
       {/* Home v2 "banque d'utilités" en français (mismo componente que el ES) */}
       <HomeV2 lang="fr" />
 

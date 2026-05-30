@@ -5,6 +5,7 @@ import type { AuthState, SessionStep } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateReference } from "@/lib/reference";
 import { canAccess, routeForStep } from "@/lib/step";
+import { resolveLocale, type Locale } from "@/lib/i18n/locales";
 
 export const TJ_SESSION_COOKIE = "tj_session";
 
@@ -15,17 +16,17 @@ export function getSessionIdFromCookie() {
 }
 
 /**
- * Idioma del cliente (es|fr) de la sesión activa, leído de la cookie. Lo usa
- * el layout del funnel, que no carga la sesión completa. Default "es".
+ * Idioma del cliente de la sesión activa (es·fr·en·de·pt), leído de la cookie.
+ * Lo usa el layout del funnel, que no carga la sesión completa. Default "es".
  */
-export async function getSessionLocale(): Promise<"es" | "fr"> {
+export async function getSessionLocale(): Promise<Locale> {
   const sessionId = getSessionIdFromCookie();
   if (!sessionId) return "es";
   const session = await prisma.orderSession.findUnique({
     where: { id: sessionId },
     select: { clientLocale: true },
   });
-  return session?.clientLocale === "fr" ? "fr" : "es";
+  return resolveLocale(session?.clientLocale);
 }
 
 export function getSessionIdFromRequest(req: Request) {
