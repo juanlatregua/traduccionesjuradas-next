@@ -95,7 +95,7 @@ export const NAV_FAQ: NavItem = { label: { es: "Preguntas frecuentes", fr: "FAQ"
 export const NAV_BLOG: NavItem = { label: { es: "Blog", fr: "Blog" }, href: "/blog" };
 export const NAV_AREA: NavItem = { label: { es: "Área cliente", fr: "Espace client" }, href: "/area-cliente" };
 export const NAV_ZONA: NavItem = { label: { es: "Zona traductor", fr: "Espace traducteur" }, href: "/zona-traductor" };
-export const NAV_EXPEDIENTE: NavItem = { label: { es: "Subir expediente", fr: "Déposer un dossier" }, href: "/expediente" };
+export const NAV_EXPEDIENTE: NavItem = { label: { es: "Subir expediente", fr: "Plusieurs documents" }, href: "/expediente" };
 
 // CTA principal: la puerta. En FR, su puerta canónica es /traduction-assermentee.
 export const NAV_CTA = {

@@ -46,7 +46,7 @@ export default function BancoUtilidades({ lang, puertaHref }: { lang: UtilLang; 
   const puerta = puertaHref ?? (lang === "fr" ? "/traduction-assermentee#hero-fr" : "#hero");
 
   return (
-    <section className="border-y border-cream bg-card py-14">
+    <section id="utilidades" className="border-y border-cream bg-card py-14">
       <div className="mx-auto max-w-6xl px-4">
         <h2 className="text-center font-baskerville text-2xl font-bold text-encre sm:text-3xl">
           {t.heading}
