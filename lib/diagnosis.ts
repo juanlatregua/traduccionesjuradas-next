@@ -13,6 +13,10 @@ import type { Quote } from "@/lib/pricing-engine/calculator";
 // outbound = documento español → idioma extranjero (uso en el país de destino)
 export type TranslationDirection = "inbound" | "outbound";
 
+// Idioma del diagnóstico que ve el cliente. El contenido (no solo las
+// etiquetas) se traduce: un francófono vive la promesa entera en su idioma.
+export type DiagnosisLang = "es" | "fr";
+
 export type Diagnosis = {
   type: {
     specificType: string;
@@ -54,7 +58,12 @@ export function getDeliveryHours(foreignLang: string, pages: number): number {
   return 72;
 }
 
-function deliveryLabel(hours: number): string {
+function deliveryLabel(hours: number, lang: DiagnosisLang): string {
+  if (lang === "fr") {
+    if (hours <= 24) return "24 heures";
+    if (hours <= 48) return "48 heures (2 jours ouvrés)";
+    return "72 heures (3 jours ouvrés)";
+  }
   if (hours <= 24) return "24 horas";
   if (hours <= 48) return "48 horas (2 días laborables)";
   return "72 horas (3 días laborables)";
@@ -77,7 +86,13 @@ function resolveForeignLang(language: DocumentAnalysisResult["language"]): strin
 // Siempre sí para documentos oficiales. El valor añadido es la frase de
 // validez según la dirección de la traducción.
 
-function swornStatement(direction: TranslationDirection): string {
+function swornStatement(direction: TranslationDirection, lang: DiagnosisLang): string {
+  if (lang === "fr") {
+    if (direction === "inbound") {
+      return "Oui. Elle est signée et cachetée par un traducteur assermenté nommé par le MAEC (n° 3850) ; elle a pleine validité devant toute administration officielle en Espagne.";
+    }
+    return "Oui. Elle est réalisée par un traducteur assermenté nommé par le MAEC (n° 3850) ; grâce aux accords de reconnaissance, elle est valable devant les autorités du pays de destination sans devoir engager un autre traducteur sur place.";
+  }
   if (direction === "inbound") {
     return "Sí. La firma y sella un traductor jurado nombrado por el MAEC (nº 3850); tiene plena validez ante cualquier organismo oficial en España.";
   }
@@ -89,10 +104,26 @@ function swornStatement(direction: TranslationDirection): string {
 // un plazo de aceptación: dato sensible (YMYL), mensajes con matiz y
 // remisión al organismo.
 
-const SWORN_VALIDITY =
-  "La traducción jurada no caduca: una vez emitida, firmada y sellada, su validez es indefinida.";
+function swornValidity(lang: DiagnosisLang): string {
+  if (lang === "fr") {
+    return "La traduction assermentée n'expire pas : une fois émise, signée et cachetée, sa validité est illimitée.";
+  }
+  return "La traducción jurada no caduca: una vez emitida, firmada y sellada, su validez es indefinida.";
+}
 
-function originalDocumentValidity(specificType: string): string | null {
+function originalDocumentValidity(specificType: string, lang: DiagnosisLang): string | null {
+  if (lang === "fr") {
+    switch (specificType) {
+      case "criminal_record":
+        return "Le casier judiciaire est généralement accepté avec une ancienneté maximale de 3 mois. Vérifiez le délai exigé par l'organisme de destination.";
+      case "birth_certificate":
+      case "marriage_certificate":
+      case "death_certificate":
+        return "L'acte en lui-même n'expire pas, mais de nombreuses démarches exigent un acte récent (délivré au cours des 3 à 6 derniers mois).";
+      default:
+        return null;
+    }
+  }
   switch (specificType) {
     case "criminal_record":
       return "El certificado de antecedentes penales suele aceptarse con una antigüedad máxima de 3 meses. Confirma el plazo que te exige el organismo de destino.";
@@ -109,7 +140,8 @@ function originalDocumentValidity(specificType: string): string | null {
 
 export function buildDiagnosis(
   analysis: DocumentAnalysisResult,
-  quote: Quote
+  quote: Quote,
+  lang: DiagnosisLang = "es"
 ): Diagnosis {
   const { document_type, language, document_metrics } = analysis;
 
@@ -121,6 +153,15 @@ export function buildDiagnosis(
     ? getDeliveryHours(foreignLang, document_metrics.pages || 1)
     : null;
 
+  const pendingLabel =
+    lang === "fr"
+      ? "Délai à confirmer : indiquez-nous la langue de destination."
+      : "Plazo pendiente: indícanos el idioma de destino.";
+  const deliveryNote =
+    lang === "fr"
+      ? "à compter de la confirmation du paiement, en horaire ouvré"
+      : "a partir de la confirmación del pago, en horario laborable";
+
   return {
     type: {
       specificType: document_type.specific_type,
@@ -130,7 +171,7 @@ export function buildDiagnosis(
     sworn: {
       required: true,
       direction,
-      statement: swornStatement(direction),
+      statement: swornStatement(direction, lang),
     },
     price: {
       base: quote.basePrice,
@@ -139,14 +180,12 @@ export function buildDiagnosis(
     },
     delivery: {
       hours,
-      label: hours
-        ? deliveryLabel(hours)
-        : "Plazo pendiente: indícanos el idioma de destino.",
-      note: "a partir de la confirmación del pago, en horario laborable",
+      label: hours ? deliveryLabel(hours, lang) : pendingLabel,
+      note: deliveryNote,
     },
     validity: {
-      swornTranslation: SWORN_VALIDITY,
-      originalDocument: originalDocumentValidity(document_type.specific_type),
+      swornTranslation: swornValidity(lang),
+      originalDocument: originalDocumentValidity(document_type.specific_type, lang),
     },
   };
 }

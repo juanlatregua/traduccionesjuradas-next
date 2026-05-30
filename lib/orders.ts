@@ -134,6 +134,7 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
         clientEmail,
         clientName: clientName || null,
         clientPhone: clientPhone || null,
+        clientLocale: session.clientLocale || "es",
         source: "funnel",
         title: buildFunnelOrderTitle(docs, session.purpose),
         langPair,

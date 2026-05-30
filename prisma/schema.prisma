@@ -104,6 +104,7 @@ model Order {
   clientEmail        String
   clientName         String?
   clientPhone        String?
+  clientLocale       String?        @default("es") // idioma del cliente (es|fr) para SMS/email/UI
   clientNotes        String?
   source             String
   title              String
@@ -425,6 +426,7 @@ model OrderSession {
   userId        String?
   clientEmail   String?
   clientPhone   String?
+  clientLocale  String?     @default("es") // idioma del cliente (es|fr) capturado en la puerta
   subtotalCents Int         @default(0)
   vatCents      Int         @default(0)
   totalCents    Int         @default(0)

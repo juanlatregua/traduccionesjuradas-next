@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { TrackEvent } from "@/components/TrackEvent";
 import { getSessionOrRedirect } from "@/lib/session";
 import { recordFunnelStep } from "@/lib/funnel-analytics";
+import { funnelT } from "@/lib/i18n/funnel";
 
 export const metadata: Metadata = {
   title: "Confirmación de pago | Traducción jurada",
@@ -26,38 +27,35 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
 
   await recordFunnelStep(session, "confirmation");
 
+  const t = funnelT[session.clientLocale === "fr" ? "fr" : "es"].confirmation;
+
   return (
     <section className="rounded-3xl border border-cream bg-card p-5 shadow-sm sm:p-7">
       <TrackEvent name="payment_completed" />
       {session.isPaid ? (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Pago confirmado</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-bleu">{t.paidEyebrow}</p>
           <h2 className="mt-2 text-xl font-bold tracking-tight text-encre sm:text-2xl">
-            Pedido recibido correctamente
+            {t.paidTitle}
           </h2>
-          <p className="mt-2 text-sm text-sepia">
-            Referencia <span className="font-mono font-semibold">{session.reference}</span>. Te notificaremos los
-            siguientes hitos en el área cliente.
-          </p>
+          <p className="mt-2 text-sm text-sepia">{t.paidBody(session.reference)}</p>
         </>
       ) : (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Verificación en curso</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{t.pendingEyebrow}</p>
           <h2 className="mt-2 text-xl font-bold tracking-tight text-encre sm:text-2xl">
-            Estamos validando tu pago
+            {t.pendingTitle}
           </h2>
-          <p className="mt-2 text-sm text-sepia">
-            Hemos recibido la vuelta del checkout y estamos esperando confirmación final del proveedor.
-          </p>
+          <p className="mt-2 text-sm text-sepia">{t.pendingBody}</p>
         </>
       )}
 
       <div className="mt-5 flex flex-wrap gap-3 text-sm">
         <Link href="/checkout" className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream">
-          Volver a checkout
+          {t.backToCheckout}
         </Link>
         <Link href="/area-cliente" className="rounded-2xl bg-bleu px-4 py-2 font-semibold text-white hover:bg-bleu-dark">
-          Ir a área cliente
+          {t.toClientArea}
         </Link>
       </div>
     </section>
