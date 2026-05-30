@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import CopyField from "@/components/CopyField";
+import { funnelT, type FunnelLang } from "@/lib/i18n/funnel";
 
 type CheckoutPaymentActionsProps = {
   reference: string;
   totalCents: number;
   currency: string;
   authState: "GUEST" | "AUTHENTICATED";
+  lang?: FunnelLang;
 };
 
 const MANUAL = {
@@ -20,8 +22,8 @@ const MANUAL = {
   paypalAccount: process.env.NEXT_PUBLIC_PAYPAL_ACCOUNT || "hola@traduccionesjuradas.net",
 };
 
-function money(cents: number, currency = "EUR") {
-  return new Intl.NumberFormat("es-ES", {
+function money(cents: number, currency = "EUR", locale = "es-ES") {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     maximumFractionDigits: 2,
@@ -33,15 +35,20 @@ export default function CheckoutPaymentActions({
   totalCents,
   currency,
   authState,
+  lang = "es",
 }: CheckoutPaymentActionsProps) {
+  const t = funnelT[lang].pay;
   const [loadingCard, setLoadingCard] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const amountLabel = useMemo(() => money(totalCents, currency), [currency, totalCents]);
+  const amountLabel = useMemo(
+    () => money(totalCents, currency, lang === "fr" ? "fr-FR" : "es-ES"),
+    [currency, totalCents, lang]
+  );
 
   const onCopy = (label: string) => {
-    setToast(`Copiado: ${label}`);
+    setToast(t.copied(label));
     setTimeout(() => setToast(null), 1600);
   };
 
@@ -52,29 +59,29 @@ export default function CheckoutPaymentActions({
       const res = await fetch("/api/payment/create-intent", { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data?.ok || !data?.url) {
-        throw new Error(data?.error || "No se pudo iniciar pago con tarjeta.");
+        throw new Error(data?.error || t.cardError);
       }
       window.location.assign(String(data.url));
     } catch (err: any) {
-      setError(err?.message || "No se pudo iniciar pago con tarjeta.");
+      setError(err?.message || t.cardError);
       setLoadingCard(false);
     }
   };
 
   return (
     <section className="rounded-3xl border border-cream bg-white p-5 shadow-sm sm:p-7">
-      <h2 className="text-lg font-semibold text-encre">Paso 4. Pago</h2>
+      <h2 className="text-lg font-semibold text-encre">{t.heading}</h2>
       <p className="mt-2 text-sm text-sepia">
-        Referencia: <span className="font-mono font-semibold">{reference}</span> · Total:{" "}
+        {t.referenceLabel}: <span className="font-mono font-semibold">{reference}</span> · {t.totalLabel}:{" "}
         <span className="font-semibold">{amountLabel}</span>
       </p>
 
       <div className="mt-4 rounded-xl border border-cream bg-parchment p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-sepia">Acceso</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-sepia">{t.accessLabel}</p>
         <p className="mt-1 text-sm text-sepia">
-          Estado actual:{" "}
+          {t.currentStatus}:{" "}
           <span className="font-semibold">
-            {authState === "AUTHENTICATED" ? "Autenticado con Google" : "Invitado"}
+            {authState === "AUTHENTICATED" ? t.authedGoogle : t.guest}
           </span>
         </p>
         {authState !== "AUTHENTICATED" && (
@@ -82,29 +89,29 @@ export default function CheckoutPaymentActions({
             href={`/acceso?callbackUrl=${encodeURIComponent("/checkout")}`}
             className="mt-2 inline-flex rounded-xl border border-cream px-3 py-1.5 text-xs font-semibold text-sepia hover:bg-white"
           >
-            Continuar con Google
+            {t.continueGoogle}
           </Link>
         )}
       </div>
 
       <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-        <p className="text-sm font-semibold text-blue-900">Tarjeta de crédito o débito</p>
+        <p className="text-sm font-semibold text-blue-900">{t.cardTitle}</p>
         <button
           type="button"
           onClick={payByCard}
           disabled={loadingCard}
           className="mt-3 rounded-2xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
         >
-          {loadingCard ? "Redirigiendo..." : "Pagar con tarjeta"}
+          {loadingCard ? t.redirecting : t.payByCard}
         </button>
       </div>
 
       <div className="mt-5 space-y-3 rounded-2xl border border-cream bg-parchment p-4">
-        <p className="text-sm font-semibold text-encre">Transferencia, Bizum o PayPal</p>
-        <CopyField label="Beneficiario" value={MANUAL.beneficiary} mono={false} onCopied={onCopy} />
+        <p className="text-sm font-semibold text-encre">{t.manualTitle}</p>
+        <CopyField label={t.beneficiary} value={MANUAL.beneficiary} mono={false} onCopied={onCopy} />
         <CopyField label="IBAN" value={MANUAL.iban} onCopied={onCopy} />
         <CopyField label="BIC/SWIFT" value={MANUAL.bic} onCopied={onCopy} />
-        <CopyField label="Concepto" value={reference} onCopied={onCopy} />
+        <CopyField label={t.concept} value={reference} onCopied={onCopy} />
         <CopyField label="Bizum" value={MANUAL.bizum} onCopied={onCopy} />
         {MANUAL.paypalLink ? (
           <CopyField
@@ -118,9 +125,7 @@ export default function CheckoutPaymentActions({
         ) : (
           <CopyField label="PayPal cuenta" value={MANUAL.paypalAccount} onCopied={onCopy} />
         )}
-        <p className="text-xs text-sepia">
-          Los métodos manuales no marcan pago automático inmediato. Se revisan y se notifican en el área cliente.
-        </p>
+        <p className="text-xs text-sepia">{t.manualNote}</p>
       </div>
 
       {error && <p className="mt-3 text-sm font-semibold text-red-700">{error}</p>}

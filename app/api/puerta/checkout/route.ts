@@ -57,12 +57,16 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { documents?: DocInput[]; purpose?: string; email?: string; phone?: string; sessionToken?: string };
+  let body: { documents?: DocInput[]; purpose?: string; email?: string; phone?: string; sessionToken?: string; lang?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, error: "Cuerpo inválido." }, { status: 400 });
   }
+
+  // Idioma del cliente capturado en la puerta (es|fr). Persiste en la sesión
+  // para que checkout/confirmación, SMS y email salgan en su idioma.
+  const clientLocale = body.lang === "fr" ? "fr" : "es";
 
   const inputs = Array.isArray(body.documents) ? body.documents : [];
   if (inputs.length === 0) {
@@ -188,6 +192,7 @@ export async function POST(req: Request) {
     step: "UPLOAD",
     clientEmail: email,
     clientPhone: phone,
+    clientLocale,
   });
 
   // Reflejar el contacto en los DocumentAnalysis (alimenta el stage "lead"

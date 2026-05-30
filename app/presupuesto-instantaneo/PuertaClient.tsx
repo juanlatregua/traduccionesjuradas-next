@@ -103,12 +103,12 @@ export default function PuertaClient({
           fileName: currentFileName,
           analysis,
           quote,
-          diagnosis: buildDiagnosis(analysis, quote),
+          diagnosis: buildDiagnosis(analysis, quote, lang),
         },
       ]);
       setStep("diagnosis");
     },
-    [currentDocId, currentFileName]
+    [currentDocId, currentFileName, lang]
   );
 
   const handleError = useCallback((error: string) => {
@@ -148,12 +148,12 @@ export default function PuertaClient({
             ...doc,
             analysis,
             quote,
-            diagnosis: buildDiagnosis(analysis, quote),
+            diagnosis: buildDiagnosis(analysis, quote, lang),
           };
         })
       );
     },
-    []
+    [lang]
   );
 
   // El puente: crea la OrderSession checkout-ready y redirige al checkout.
@@ -169,6 +169,7 @@ export default function PuertaClient({
           email: email.trim(),
           phone: phone.trim(),
           sessionToken,
+          lang,
           documents: documents.map((d) => ({
             id: d.id,
             targetLanguage: d.analysis.language.target,
@@ -186,7 +187,7 @@ export default function PuertaClient({
       setCheckoutError(t.checkoutErrorDefault);
       setCheckingOut(false);
     }
-  }, [documents, purpose, email, phone, t]);
+  }, [documents, purpose, email, phone, lang, sessionToken, t]);
 
   const total = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
   const pendingTargetLanguage = documents.some(

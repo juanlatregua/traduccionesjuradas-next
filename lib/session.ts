@@ -14,6 +14,20 @@ export function getSessionIdFromCookie() {
   return cookies().get(TJ_SESSION_COOKIE)?.value || null;
 }
 
+/**
+ * Idioma del cliente (es|fr) de la sesión activa, leído de la cookie. Lo usa
+ * el layout del funnel, que no carga la sesión completa. Default "es".
+ */
+export async function getSessionLocale(): Promise<"es" | "fr"> {
+  const sessionId = getSessionIdFromCookie();
+  if (!sessionId) return "es";
+  const session = await prisma.orderSession.findUnique({
+    where: { id: sessionId },
+    select: { clientLocale: true },
+  });
+  return session?.clientLocale === "fr" ? "fr" : "es";
+}
+
 export function getSessionIdFromRequest(req: Request) {
   const cookieHeader = req.headers.get("cookie") || "";
   const token = cookieHeader
@@ -54,6 +68,7 @@ export async function createSessionRecord(params?: {
   userId?: string | null;
   clientEmail?: string | null;
   clientPhone?: string | null;
+  clientLocale?: string | null;
 }) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     try {
@@ -66,6 +81,7 @@ export async function createSessionRecord(params?: {
           userId: params?.userId || null,
           clientEmail: params?.clientEmail || null,
           clientPhone: params?.clientPhone || null,
+          clientLocale: params?.clientLocale || "es",
         },
         include: {
           docs: true,
