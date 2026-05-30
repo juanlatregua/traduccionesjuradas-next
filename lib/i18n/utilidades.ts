@@ -48,9 +48,9 @@ export const utilidadesT: Record<UtilLang, { heading: string; sub: string; bridg
   },
   pt: {
     heading: "O que pode fazer aqui",
-    sub: "Seis ferramentas. Todas terminam onde precisa: uma tradução juramentada com validade oficial.",
-    bridge: "Seja qual for a ferramenta que use, para ter validade perante a administração precisa de uma tradução juramentada — e tem-na aqui em 10 segundos.",
-    bridgeCta: "Pedir a minha tradução juramentada",
+    sub: "Seis ferramentas. Todas terminam onde precisa: uma tradução certificada com validade oficial.",
+    bridge: "Seja qual for a ferramenta que use, para ter validade perante a administração precisa de uma tradução certificada — e tem-na aqui em 10 segundos.",
+    bridgeCta: "Pedir a minha tradução certificada",
   },
 };
 
@@ -64,7 +64,7 @@ export const UTILIDADES: Utilidad[] = [
       "Déposez-le et sachez aussitôt ce que c'est, s'il faut une assermentée, le prix et le délai.",
       "Upload it and instantly know what it is, whether it needs a sworn translation, the price and the delivery date.",
       "Laden Sie es hoch und erfahren Sie sofort, was es ist, ob eine beglaubigte Übersetzung nötig ist, den Preis und den Liefertermin.",
-      "Envie-o e saiba na hora o que é, se exige tradução juramentada, quanto custa e quando o tem."
+      "Envie-o e saiba na hora o que é, se exige tradução certificada, quanto custa e quando o tem."
     ),
     cta: tr("Empezar arriba", "Commencer en haut", "Start above", "Oben starten", "Começar acima"),
     href: "PUERTA",
@@ -100,13 +100,13 @@ export const UTILIDADES: Utilidad[] = [
   {
     key: "verifica",
     icon: "shield",
-    title: tr("Verifica un traductor jurado", "Vérifiez un traducteur assermenté", "Verify a sworn translator", "Einen vereidigten Übersetzer prüfen", "Verifique um tradutor juramentado"),
+    title: tr("Verifica un traductor jurado", "Vérifiez un traducteur assermenté", "Verify a sworn translator", "Einen vereidigten Übersetzer prüfen", "Verifique um tradutor ajuramentado"),
     desc: tr(
       "Acreditación oficial ante el MAEC y validez legal de tus traducciones.",
       "Accréditation officielle auprès du MAEC et validité légale de vos traductions.",
       "Official accreditation with the MAEC and the legal validity of your translations.",
       "Offizielle Akkreditierung beim MAEC und rechtliche Gültigkeit Ihrer Übersetzungen.",
-      "Acreditação oficial perante o MAEC e validade legal das suas traduções."
+      "Acreditação oficial junto do MAEC e validade legal das suas traduções."
     ),
     cta: tr("Ver acreditación", "Voir l'accréditation", "See accreditation", "Akkreditierung ansehen", "Ver acreditação"),
     href: "/acreditacion",

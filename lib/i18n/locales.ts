@@ -27,7 +27,7 @@ export const LOCALE_HOME: Record<Locale, string> = {
   fr: "/traduction-assermentee",
   en: "/sworn-translation",
   de: "/beglaubigte-uebersetzung",
-  pt: "/traducao-juramentada",
+  pt: "/traducao-certificada",
 };
 
 /** Etiqueta corta (selector) y nombre nativo (aria/menú). */
@@ -47,7 +47,7 @@ export const LOCALE_PREFIXES: { prefix: string; locale: Locale }[] = [
   { prefix: "/fr", locale: "fr" },
   { prefix: "/sworn-translation", locale: "en" },
   { prefix: "/beglaubigte-uebersetzung", locale: "de" },
-  { prefix: "/traducao-juramentada", locale: "pt" },
+  { prefix: "/traducao-certificada", locale: "pt" },
 ];
 
 export function localeFromPath(pathname: string | null | undefined): Locale {

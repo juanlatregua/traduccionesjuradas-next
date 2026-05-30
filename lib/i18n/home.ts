@@ -36,7 +36,7 @@ export const HOME: HomeStrings = {
       "Banque d'utilités · traduction assermentée",
       "Toolkit · sworn translation",
       "Werkzeugkasten · beglaubigte Übersetzung",
-      "Caixa de ferramentas · tradução juramentada"
+      "Caixa de ferramentas · tradução certificada"
     ),
     h1pre: tr(
       "Sube tu documento y sabes qué, cuánto y cuándo",
@@ -61,7 +61,7 @@ export const HOME: HomeStrings = {
           "on vous dit s'il faut une assermentée et avec quelle validité.",
           "we tell you whether it needs a sworn translation and with what validity.",
           "wir sagen Ihnen, ob eine beglaubigte Übersetzung nötig ist und mit welcher Gültigkeit.",
-          "dizemos-lhe se exige tradução juramentada e com que validade."
+          "dizemos-lhe se exige tradução certificada e com que validade."
         ),
       },
       {
@@ -79,8 +79,8 @@ export const HOME: HomeStrings = {
         t: tr(
           "entrega en 24–72 h. Del pago a la descarga, no preguntas nada más.",
           "livraison en 24–72 h. Du paiement au téléchargement, vous ne demandez plus rien.",
-          "delivery in 24–72 h. From payment to download, you won't ask anything else.",
-          "Lieferung in 24–72 Std. Von der Zahlung bis zum Download fragen Sie nichts mehr.",
+          "delivery in 24–72 h. From payment to download, there's nothing more for you to do.",
+          "Lieferung in 24–72 Std. Von der Zahlung bis zum Download müssen Sie sich um nichts weiter kümmern.",
           "entrega em 24–72 h. Do pagamento ao download, não pergunta mais nada."
         ),
       },
@@ -101,10 +101,10 @@ export const HOME: HomeStrings = {
     ),
     credit: tr(
       "Traductores jurados acreditados por el MAEC · PDF firmado con validez oficial. Especialistas en francés (Juan Silva, nº 3850).",
-      "Traducteurs assermentés accrédités par le MAEC · PDF signé à validité officielle. Spécialistes du français (Juan Silva, nº 3850).",
+      "Traducteurs assermentés accrédités par le MAEC · PDF signé ayant valeur officielle. Spécialistes du français (Juan Silva, nº 3850).",
       "Sworn translators accredited by Spain's Ministry of Foreign Affairs (MAEC) · officially valid signed PDF.",
       "Vom spanischen Außenministerium (MAEC) ermächtigte vereidigte Übersetzer · amtlich gültiges, signiertes PDF.",
-      "Tradutores juramentados acreditados pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC) · PDF assinado com validade oficial."
+      "Tradutores ajuramentados acreditados pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC) · PDF assinado com validade oficial."
     ),
   },
   catalog: {
@@ -132,16 +132,16 @@ export const HOME: HomeStrings = {
     quote: tr(
       "Detrás de cada jurada hay un nombre y un número de acreditación. El mío. Por eso no recibes un formulario frío, sino la certeza de que tu documento tendrá validez oficial.",
       "Derrière chaque traduction assermentée, il y a un nom et un numéro d'accréditation. Le mien. Vous ne recevez pas un formulaire froid, mais la certitude que votre document aura une validité officielle.",
-      "Behind every sworn translation there's a name and an accreditation. That's why you don't get a cold form, but the certainty that your document will be officially valid.",
-      "Hinter jeder beglaubigten Übersetzung stehen ein Name und eine Akkreditierung. Deshalb erhalten Sie kein kaltes Formular, sondern die Gewissheit, dass Ihr Dokument amtlich gültig ist.",
-      "Por trás de cada tradução juramentada há um nome e uma acreditação. Por isso não recebe um formulário frio, mas a certeza de que o seu documento terá validade oficial."
+      "Behind every sworn translation there's a name and an accreditation number. Mine. That's why you don't get a cold form, but the certainty that your document will be officially valid.",
+      "Hinter jeder beglaubigten Übersetzung stehen ein Name und eine Akkreditierungsnummer. Meine. Deshalb erhalten Sie kein kaltes Formular, sondern die Gewissheit, dass Ihr Dokument amtlich gültig ist.",
+      "Por trás de cada tradução certificada há um nome e um número de acreditação. O meu. Por isso não recebe um formulário frio, mas a certeza de que o seu documento terá validade oficial."
     ),
     role: tr(
       "Juan Silva · Traductor jurado de francés · MAEC nº 3850 · HBTJ Consultores Lingüísticos S.L.",
       "Juan Silva · Traducteur assermenté de français · MAEC nº 3850 · HBTJ Consultores Lingüísticos S.L.",
       "Juan Silva · Founder · Sworn translator accredited by the MAEC · HBTJ Consultores Lingüísticos S.L.",
       "Juan Silva · Gründer · Vom MAEC ermächtigter Übersetzer · HBTJ Consultores Lingüísticos S.L.",
-      "Juan Silva · Fundador · Tradutor juramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L."
+      "Juan Silva · Fundador · Tradutor ajuramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L."
     ),
   },
   reviews: {
@@ -160,7 +160,7 @@ export const HOME: HomeStrings = {
           "Nous avions besoin en urgence d'une traduction assermentée du français et le service a été formidable. Très professionnels.",
           "We urgently needed a sworn translation from French and the service was fantastic. Very professional.",
           "Wir brauchten dringend eine beglaubigte Übersetzung aus dem Französischen und der Service war fantastisch. Sehr professionell.",
-          "Precisávamos com urgência de uma tradução juramentada do francês e o serviço foi fantástico. Muito profissionais."
+          "Precisávamos com urgência de uma tradução certificada do francês e o serviço foi fantástico. Muito profissionais."
         ),
         who: "Pedro V.",
         date: tr("abril 2024", "avril 2024", "April 2024", "April 2024", "abril de 2024"),
@@ -237,7 +237,7 @@ export const HOME: HomeStrings = {
           "Quels documents vous faut-il et lesquels doivent être traduits.",
           "Which documents you need and which require a sworn translation.",
           "Welche Dokumente Sie brauchen und welche eine beglaubigte Übersetzung erfordern.",
-          "Que documentos precisa e quais exigem tradução juramentada."
+          "Que documentos precisa e quais exigem tradução certificada."
         ),
         href: "/blog/reagrupacion-familiar-documentos",
       },
@@ -248,14 +248,14 @@ export const HOME: HomeStrings = {
       "Tu documento. Diagnóstico en 10 s. Jurada en 24–72 h.",
       "Votre document. Diagnostic en 10 s. Assermentée en 24–72 h.",
       "Your document. Diagnosis in 10 s. Sworn translation in 24–72 h.",
-      "Ihr Dokument. Diagnose in 10 Sek. Beglaubigte Übersetzung in 24–72 Std.",
-      "O seu documento. Diagnóstico em 10 s. Tradução juramentada em 24–72 h."
+      "Ihr Dokument. Diagnose in 10 Sekunden. Beglaubigte Übersetzung in 24–72 Std.",
+      "O seu documento. Diagnóstico em 10 s. Tradução certificada em 24–72 h."
     ),
     p: tr(
       "Sube tu documento y deja de adivinar. Te decimos qué necesitas, cuánto cuesta y cuándo lo tienes — y desde el pago hasta la descarga no vuelves a preguntar nada.",
       "Déposez votre document et arrêtez de deviner. On vous dit ce qu'il vous faut, le prix et le délai — et du paiement au téléchargement, vous ne demandez plus rien.",
-      "Upload your document and stop guessing. We tell you what you need, the price and the delivery date — and from payment to download you won't ask anything again.",
-      "Laden Sie Ihr Dokument hoch und hören Sie auf zu raten. Wir sagen Ihnen, was Sie brauchen, den Preis und den Liefertermin — und von der Zahlung bis zum Download fragen Sie nichts mehr.",
+      "Upload your document and stop guessing. We tell you what you need, the price and the delivery date — and from payment to download, there's nothing more for you to do.",
+      "Laden Sie Ihr Dokument hoch und hören Sie auf zu raten. Wir sagen Ihnen, was Sie brauchen, den Preis und den Liefertermin — und von der Zahlung bis zum Download müssen Sie sich um nichts weiter kümmern.",
       "Envie o seu documento e deixe de adivinhar. Dizemos-lhe o que precisa, quanto custa e quando o tem — e do pagamento ao download não volta a perguntar nada."
     ),
     primary: tr("Subir y diagnosticar", "Déposer et diagnostiquer", "Upload and diagnose", "Hochladen und diagnostizieren", "Enviar e diagnosticar"),

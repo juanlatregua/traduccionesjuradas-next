@@ -35,14 +35,14 @@ const fullLabel = (n: LangName): Tr =>
     `Traducteur assermenté de ${n.fr}`,
     `Sworn translator for ${n.en}`,
     `Vereidigter Übersetzer für ${n.de}`,
-    `Tradutor juramentado de ${n.pt}`
+    `Tradutor ajuramentado de ${n.pt}`
   );
 
 const LANG_LINK = (slug: string, n: LangName): NavItem => ({ label: fullLabel(n), href: `/traductor-jurado-${slug}` });
 const LANG_SHORT = (slug: string, n: LangName): NavItem => ({ label: tr(n.es, n.fr, n.en, n.de, n.pt), href: `/traductor-jurado-${slug}` });
 
 export const TRANSLATOR_DROPDOWN: NavDropdown = {
-  label: tr("Traductor jurado", "Traducteur assermenté", "Sworn translator", "Vereidigter Übersetzer", "Tradutor juramentado"),
+  label: tr("Traductor jurado", "Traducteur assermenté", "Sworn translator", "Vereidigter Übersetzer", "Tradutor ajuramentado"),
   align: "right",
   groups: [
     {
@@ -70,7 +70,7 @@ export const TRANSLATOR_DROPDOWN: NavDropdown = {
   ],
   foot: {
     text: tr("Ver todos los idiomas", "Voir toutes les langues", "See all languages", "Alle Sprachen ansehen", "Ver todos os idiomas"),
-    linkLabel: tr("Traductores jurados", "Traducteurs assermentés", "Sworn translators", "Vereidigte Übersetzer", "Tradutores juramentados"),
+    linkLabel: tr("Traductores jurados", "Traducteurs assermentés", "Sworn translators", "Vereidigte Übersetzer", "Tradutores ajuramentados"),
     href: "/traductores-jurados",
   },
 };

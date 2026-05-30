@@ -107,15 +107,15 @@ const SWORN_STATEMENT: Record<DiagnosisLang, { inbound: string; outbound: string
   },
   en: {
     inbound: "Yes. It's signed and stamped by a sworn translator appointed by Spain's Ministry of Foreign Affairs (MAEC); it is fully valid before any official body in Spain.",
-    outbound: "Yes. It's produced by a sworn translator appointed by Spain's Ministry of Foreign Affairs (MAEC); thanks to recognition agreements, it is valid before the authorities of the destination country without hiring another translator there.",
+    outbound: "Yes. It's produced by a sworn translator appointed by Spain's Ministry of Foreign Affairs (MAEC); thanks to recognition agreements, it is valid before the authorities of the destination country without needing to hire another translator there.",
   },
   de: {
     inbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer unterschrieben und gestempelt; sie ist vor jeder Behörde in Spanien voll gültig.",
-    outbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer angefertigt; dank Anerkennungsabkommen ist sie bei den Behörden des Ziellandes gültig, ohne dort einen weiteren Übersetzer beauftragen zu müssen.",
+    outbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer angefertigt; dank der Anerkennungsabkommen ist sie bei den Behörden des Ziellandes gültig, ohne dass Sie dort einen weiteren Übersetzer beauftragen müssen.",
   },
   pt: {
-    inbound: "Sim. É assinada e carimbada por um tradutor juramentado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); tem plena validade perante qualquer organismo oficial em Espanha.",
-    outbound: "Sim. É realizada por um tradutor juramentado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); graças aos acordos de reconhecimento, é válida perante as autoridades do país de destino sem necessidade de contratar outro tradutor lá.",
+    inbound: "Sim. É assinada e carimbada por um tradutor ajuramentado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); tem plena validade perante qualquer organismo oficial em Espanha.",
+    outbound: "Sim. É realizada por um tradutor ajuramentado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); graças aos acordos de reconhecimento, é válida perante as autoridades do país de destino sem necessidade de contratar outro tradutor lá.",
   },
 };
 
@@ -133,7 +133,7 @@ const SWORN_VALIDITY: Record<DiagnosisLang, string> = {
   fr: "La traduction assermentée n'expire pas : une fois émise, signée et cachetée, sa validité est illimitée.",
   en: "A sworn translation doesn't expire: once issued, signed and stamped, its validity is unlimited.",
   de: "Eine beglaubigte Übersetzung verfällt nicht: einmal ausgestellt, unterschrieben und gestempelt, ist sie unbegrenzt gültig.",
-  pt: "A tradução juramentada não caduca: uma vez emitida, assinada e carimbada, a sua validade é indefinida.",
+  pt: "A tradução certificada não caduca: uma vez emitida, assinada e carimbada, a sua validade é indefinida.",
 };
 
 function swornValidity(lang: DiagnosisLang): string {

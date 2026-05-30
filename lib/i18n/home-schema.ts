@@ -19,7 +19,7 @@ export const HOME_FAQ: Record<Locale, FaqItem[]> = {
     { question: "¿Hacéis traducciones juradas urgentes?", answer: "En muchos casos podemos ofrecer traducción jurada urgente, dependiendo del volumen y del idioma. Indícalo al pedir presupuesto para revisar la disponibilidad." },
   ],
   fr: [
-    { question: "Qu'est-ce qu'une traduction assermentée ?", answer: "Une traduction assermentée est réalisée et signée par un traducteur assermenté agréé, qui y appose son cachet et une déclaration de conformité. Elle a une validité officielle devant les administrations, tribunaux, notaires, universités et autres organismes." },
+    { question: "Qu'est-ce qu'une traduction assermentée ?", answer: "Une traduction assermentée est réalisée et signée par un traducteur assermenté accrédité, qui y appose son cachet et une déclaration de fidélité de la traduction. Elle a une validité officielle devant les administrations, tribunaux, notaires, universités et autres organismes." },
     { question: "Combien de temps prend une traduction assermentée ?", answer: "Le délai habituel pour une traduction assermentée simple est de 24 à 72 heures ouvrées. Pour des documents volumineux ou plusieurs langues, le délai s'ajuste au volume." },
     { question: "La traduction assermentée est-elle livrée sur papier ou en PDF ?", answer: "De plus en plus d'organismes acceptent la traduction assermentée en PDF signé numériquement. Nous livrons généralement en PDF signé et, si besoin, nous pouvons aussi vous envoyer l'original papier par courrier." },
     { question: "Combien coûte une traduction assermentée ?", answer: "Le prix dépend du type de document, de la langue, de la longueur et de l'urgence. Nous appliquons des tarifs ajustés et vous indiquons toujours un prix ferme avant de commencer." },
@@ -34,17 +34,17 @@ export const HOME_FAQ: Record<Locale, FaqItem[]> = {
   ],
   de: [
     { question: "Was ist eine beglaubigte Übersetzung?", answer: "Eine beglaubigte Übersetzung wird von einem ermächtigten vereidigten Übersetzer angefertigt und unterschrieben, der seinen Stempel und eine Richtigkeitserklärung hinzufügt. Sie ist vor Behörden, Gerichten, Notaren, Universitäten und anderen Stellen amtlich gültig." },
-    { question: "Wie lange dauert eine beglaubigte Übersetzung?", answer: "Die übliche Bearbeitungszeit für eine einfache beglaubigte Übersetzung beträgt 24 bis 72 Werktagsstunden. Bei umfangreichen Dokumenten oder mehreren Sprachen richtet sich die Frist nach dem Umfang." },
+    { question: "Wie lange dauert eine beglaubigte Übersetzung?", answer: "Die übliche Bearbeitungszeit für eine einfache beglaubigte Übersetzung beträgt 24 bis 72 Stunden (an Werktagen). Bei umfangreichen Dokumenten oder mehreren Sprachen richtet sich die Frist nach dem Umfang." },
     { question: "Wird die beglaubigte Übersetzung auf Papier oder als PDF geliefert?", answer: "Immer mehr Stellen akzeptieren die beglaubigte Übersetzung als digital signiertes PDF. Wir liefern in der Regel ein signiertes PDF und senden Ihnen bei Bedarf auch das Papieroriginal per Kurier." },
     { question: "Was kostet eine beglaubigte Übersetzung?", answer: "Der Preis hängt von Dokumentart, Sprache, Umfang und Dringlichkeit ab. Wir arbeiten mit fairen Tarifen und nennen Ihnen immer einen Festpreis, bevor wir beginnen." },
     { question: "Bieten Sie eilige beglaubigte Übersetzungen an?", answer: "In vielen Fällen können wir eine eilige beglaubigte Übersetzung anbieten, je nach Umfang und Sprache. Geben Sie dies bei Ihrer Angebotsanfrage an, damit wir die Verfügbarkeit prüfen." },
   ],
   pt: [
-    { question: "O que é uma tradução juramentada?", answer: "Uma tradução juramentada é realizada e assinada por um tradutor juramentado acreditado, que acrescenta o seu carimbo e uma declaração de fidelidade. Tem validade oficial perante administrações, tribunais, notários, universidades e outros organismos." },
-    { question: "Quanto tempo demora uma tradução juramentada?", answer: "O prazo habitual para uma tradução juramentada simples é de 24 a 72 horas úteis. No caso de documentos extensos ou vários idiomas, o prazo ajusta-se ao volume." },
-    { question: "A tradução juramentada é entregue em papel ou em PDF?", answer: "Cada vez mais organismos aceitam a tradução juramentada em PDF assinado digitalmente. Normalmente entregamos em PDF assinado e, se precisar, também podemos enviar o original em papel por correio." },
-    { question: "Quanto custa uma tradução juramentada?", answer: "O preço depende do tipo de documento, do idioma, da extensão e da urgência. Trabalhamos com tarifas ajustadas e indicamos sempre um preço fechado antes de começar." },
-    { question: "Fazem traduções juramentadas urgentes?", answer: "Em muitos casos podemos oferecer tradução juramentada urgente, consoante o volume e o idioma. Indique-o ao pedir orçamento para verificarmos a disponibilidade." },
+    { question: "O que é uma tradução certificada?", answer: "Uma tradução certificada é realizada e assinada por um tradutor ajuramentado acreditado, que acrescenta o seu carimbo e uma declaração de fidelidade. Tem validade oficial perante administrações, tribunais, notários, universidades e outros organismos." },
+    { question: "Quanto tempo demora uma tradução certificada?", answer: "O prazo habitual para uma tradução certificada simples é de 24 a 72 horas úteis. No caso de documentos extensos ou vários idiomas, o prazo ajusta-se ao volume." },
+    { question: "A tradução certificada é entregue em papel ou em PDF?", answer: "Cada vez mais organismos aceitam a tradução certificada em PDF assinado digitalmente. Normalmente entregamos em PDF assinado e, se precisar, também podemos enviar o original em papel por correio." },
+    { question: "Quanto custa uma tradução certificada?", answer: "O preço depende do tipo de documento, do idioma, da extensão e da urgência. Trabalhamos com tarifas ajustadas e indicamos sempre um preço fechado antes de começar." },
+    { question: "Fazem traduções certificadas urgentes?", answer: "Em muitos casos podemos oferecer tradução certificada urgente, consoante o volume e o idioma. Indique-o ao pedir orçamento para verificarmos a disponibilidade." },
   ],
 };
 
@@ -69,7 +69,7 @@ export const HOME_HOWTO: Record<Locale, HowTo> = {
   },
   en: {
     name: "How to order a sworn translation online",
-    description: "Upload your document, get a fixed quote instantly and pay online. You'll receive the sworn translation digitally signed by a translator accredited by the MAEC within 24–72 hours.",
+    description: "Upload your document, get a fixed quote instantly and pay online. You'll receive the sworn translation digitally signed by a sworn translator accredited by the MAEC within 24–72 hours.",
     steps: [
       { name: "Upload your document", text: "Drag the PDF or take a photo with your phone. We accept PDF, JPG, PNG, HEIC and TIFF up to 20 MB." },
       { name: "Get a fixed price instantly", text: "We automatically analyse the document (language, type, length) and show you the final price, no surprises." },
@@ -86,12 +86,12 @@ export const HOME_HOWTO: Record<Locale, HowTo> = {
     ],
   },
   pt: {
-    name: "Como pedir uma tradução juramentada online",
-    description: "Envie o seu documento, receba um orçamento fechado de imediato e pague online. Receberá a tradução juramentada assinada digitalmente por um tradutor acreditado pelo MAEC em 24–72 horas.",
+    name: "Como pedir uma tradução certificada online",
+    description: "Envie o seu documento, receba um orçamento fechado de imediato e pague online. Receberá a tradução certificada assinada digitalmente por um tradutor acreditado pelo MAEC em 24–72 horas.",
     steps: [
       { name: "Envie o seu documento", text: "Arraste o PDF ou tire uma foto com o telemóvel. Aceitamos PDF, JPG, PNG, HEIC e TIFF até 20 MB." },
       { name: "Receba um preço fechado de imediato", text: "Analisamos automaticamente o documento (idioma, tipo, extensão) e mostramos-lhe o preço final, sem surpresas." },
-      { name: "Pague e receba a sua tradução", text: "Paga online com cartão ou transferência. Em 24–72 horas recebe a tradução juramentada em PDF assinado digitalmente, válida perante administrações e notários de toda a Espanha." },
+      { name: "Pague e receba a sua tradução", text: "Paga online com cartão ou transferência. Em 24–72 horas recebe a tradução certificada em PDF assinado digitalmente, válida perante administrações e notários de toda a Espanha." },
     ],
   },
 };

@@ -212,13 +212,13 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
   },
   pt: {
     layout: {
-      eyebrow: "Encomenda de tradução juramentada",
+      eyebrow: "Encomenda de tradução certificada",
       title: "Processo oficial guiado",
       subtitle: "Conclua os passos por ordem. O sistema conserva a sua sessão e evita pagamentos sem documento original.",
     },
     checkout: {
       regularizacionTitle: "Tarifa especial regularização 2026 · 25 € / documento",
-      regularizacionBody: "Prazo do processo: 30 de junho de 2026 (RD 316/2026). Entrega da tradução juramentada em PDF assinado digitalmente, 24h. Métodos de pagamento: Bizum, cartão, PayPal ou transferência.",
+      regularizacionBody: "Prazo do processo: 30 de junho de 2026 (RD 316/2026). Entrega da tradução certificada em PDF assinado digitalmente, 24h. Métodos de pagamento: Bizum, cartão, PayPal ou transferência.",
     },
     confirmation: {
       paidEyebrow: "Pagamento confirmado",
@@ -247,7 +247,7 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       beneficiary: "Beneficiário",
       concept: "Descrição",
       manualNote: "Os métodos manuais não marcam pagamento automático imediato. São verificados e notificados por SMS e email.",
-      trust: "Pagamento seguro · fatura com IVA · tradutor juramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L.",
+      trust: "Pagamento seguro · fatura com IVA · tradutor ajuramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L.",
       copied: (label) => `Copiado: ${label}`,
     },
   },
