@@ -7,6 +7,7 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
+import BancoUtilidades from "@/components/BancoUtilidades";
 import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 
 const PuertaClient = dynamic(
@@ -244,6 +245,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ═══════════════ SECCIÓN 1.5: BANCO DE UTILIDADES ═══════════════ */}
+      <BancoUtilidades lang="es" />
 
       {/* ═══════════════ SECCIÓN 2: RESEÑAS GOOGLE ═══════════════ */}
       <section className="bg-cream py-14">

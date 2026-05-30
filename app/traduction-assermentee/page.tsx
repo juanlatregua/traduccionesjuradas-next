@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PuertaClient from "@/app/presupuesto-instantaneo/PuertaClient";
 import { SelloMinisterio } from "@/components/SelloMinisterio";
+import BancoUtilidades from "@/components/BancoUtilidades";
 
 export const metadata: Metadata = {
   title: "Traduction assermentée français-espagnol en 60 secondes",
@@ -45,6 +46,8 @@ export default function TraductionAssermenteePage() {
           </div>
         </div>
       </section>
+
+      <BancoUtilidades lang="fr" />
 
       <section className="bg-cream py-12">
         <div className="mx-auto max-w-4xl px-4">
