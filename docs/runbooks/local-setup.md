@@ -53,6 +53,5 @@ stripe listen --forward-to http://localhost:3000/api/payment/stripe/webhook
 ```
 
 ## Notas
-- El test `order-actions.test.ts` falla con ERR_MODULE_NOT_FOUND — es preexistente, ignorar
 - `tsc --noEmit` mostrará errores de @prisma/client y @anthropic-ai/sdk — ejecutar `prisma generate` para los primeros; los de Anthropic son por tipos no instalados localmente
 - Velite genera contenido en build — los imports `@/content` fallan en tsc pero funcionan en `next build`

@@ -57,7 +57,6 @@ prisma db push                     # aplicar schema (NO migrate dev — shadow D
 
 ## Errores preexistentes
 - `tsc --noEmit`: errores de `@prisma/client` (→ `prisma generate`), `@anthropic-ai/sdk`, `@/content` (→ Velite en build)
-- `tests/unit/order-actions.test.ts`: falla con ERR_MODULE_NOT_FOUND — no es regresión
 
 ## PROTOCOLO OBLIGATORIO — Verificación antes de proponer fixes
 
