@@ -113,6 +113,9 @@ export async function POST(req: Request, { params }: Params) {
         to: nextWorkflowState,
         actorEmail,
         reason: state === "TRADUCIDO" ? "Entrega final completada." : "Inicio de traduccion.",
+        // delivered:true deja que el notificador central dispare el hito "lista"
+        // aunque el fichero se persista justo despues de esta transicion.
+        payload: state === "TRADUCIDO" ? { delivered: true } : undefined,
       });
     } catch (transitionErr: any) {
       return NextResponse.json(
@@ -171,20 +174,9 @@ export async function POST(req: Request, { params }: Params) {
           },
         })
         .catch((err) => console.error("[orders-delivery] delivery notification event failed", err));
-
-      // SMS notification (fire & forget)
-      const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
-      const { smsTraduccionLista } = await import("@/lib/sms-templates");
-      const phone = await getOrderPhone(order.id).catch(() => null);
-      if (phone) {
-        sendNotification({
-          to: formatPhoneSpain(phone),
-          body: smsTraduccionLista({
-            ref: order.reference,
-            url: buildSignedOrderUrl(order.reference, "estado"),
-          }),
-        }).catch((err) => console.error("[SMS]", err));
-      }
+      // El SMS "traduccion lista" lo dispara transitionWorkflowState al cruzar a
+      // TRADUCIDO_ENTREGADO (payload.delivered) — centralizado para cubrir tambien
+      // el Kanban y no depender de este checkbox manual.
     }
 
     return NextResponse.json({

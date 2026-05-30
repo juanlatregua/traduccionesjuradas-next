@@ -116,6 +116,26 @@ export function requiresInternalReview(profile: FlowProfile) {
   return profile === "FR_B" || profile === "LANG_REVIEW";
 }
 
+/**
+ * Decide qué SMS de hito corresponde a una transición de workflow (o ninguno).
+ * Puro, para que cualquier camino que mueva el estado (Kanban, /assign,
+ * /delivery, auto-asignación) avise al cliente desde un solo sitio. El hito
+ * "lista" exige un entregable real (el caller /delivery lo señala con
+ * `delivered`; el Kanban se valida por `translatedFileUrl` ya persistido) para
+ * no prometer una descarga que no existe.
+ */
+export function milestoneSmsFor(
+  to: WorkflowState,
+  opts: { delivered?: boolean; translatedFileUrl?: string | null }
+): "en_proceso" | "lista" | null {
+  if (to === "EN_TRADUCCION") return "en_proceso";
+  if (to === "TRADUCIDO_ENTREGADO") {
+    const hasDeliverable = opts.delivered === true || Boolean(opts.translatedFileUrl);
+    return hasDeliverable ? "lista" : null;
+  }
+  return null;
+}
+
 export function getWorkflowStateLabel(state: WorkflowState | string) {
   const labels: Record<WorkflowState, string> = {
     BORRADOR: "Borrador",
