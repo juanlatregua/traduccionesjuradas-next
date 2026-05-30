@@ -558,6 +558,7 @@ export async function POST(req: Request) {
           title: body.title || order.title,
           amountCents: body.amountCents || order.amountCents,
           paymentUrl,
+          lang: order.clientLocale === "fr" ? "fr" : "es",
         })
       ).catch((e) => console.error("[orders] email to client failed", e));
 

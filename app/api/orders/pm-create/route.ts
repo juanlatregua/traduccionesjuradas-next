@@ -275,6 +275,7 @@ export async function POST(req: Request) {
           title,
           amountCents,
           paymentUrl,
+          lang: order.clientLocale === "fr" ? "fr" : "es",
         });
         emailMessageId = emailResult.messageId;
         emailSubject = emailResult.subject;

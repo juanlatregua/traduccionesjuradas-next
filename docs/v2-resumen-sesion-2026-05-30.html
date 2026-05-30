@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>v2 · traduccionesjuradas.net — Resumen 30 may 2026</title>
+<style>
+  :root{
+    --bleu:#1A2E4A; --bleu-dark:#0F1E30; --encre:#1A2E4A; --sepia:#3D3630;
+    --or:#B8922A; --vert:#0f766e; --cream:#FBF7EF; --parchment:#F4EEE1;
+    --card:#FFFFFF; --line:#E7DECB; --graphite:#5F564E; --rouge:#9b2c2c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--sepia);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    line-height:1.55;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 80px}
+  header.top{border-bottom:3px solid var(--or);padding-bottom:20px;margin-bottom:8px}
+  .eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--or);font-weight:700}
+  h1{font-family:Georgia,"Times New Roman",serif;color:var(--encre);font-size:30px;margin:8px 0 6px;line-height:1.15}
+  .sub{color:var(--graphite);font-size:15px}
+  .meta{margin-top:10px;font-size:13px;color:var(--graphite)}
+  .badge{display:inline-block;background:var(--vert);color:#fff;border-radius:999px;
+    padding:2px 12px;font-size:12px;font-weight:700;letter-spacing:.02em}
+  h2{font-family:Georgia,serif;color:var(--encre);font-size:22px;margin:38px 0 4px;
+    display:flex;align-items:center;gap:10px}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+    border-radius:50%;background:var(--bleu);color:#fff;font-size:14px;font-family:sans-serif;font-weight:700}
+  .lead{color:var(--graphite);margin:0 0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:12px 0;
+    box-shadow:0 1px 2px rgba(26,46,74,.04)}
+  .card h3{margin:0 0 6px;color:var(--encre);font-size:16px}
+  .card p{margin:0;font-size:14.5px}
+  .grid{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:680px){.grid.two{grid-template-columns:1fr 1fr}}
+  .pain{border-left:4px solid var(--rouge)}
+  .win{border-left:4px solid var(--vert)}
+  .next{border-left:4px solid var(--or)}
+  table{width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:14px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--parchment);color:var(--encre);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  tr:last-child td{border-bottom:0}
+  td code, .mono{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12.5px;background:var(--parchment);
+    padding:1px 5px;border-radius:5px;color:var(--bleu)}
+  .pr{font-weight:700;color:var(--vert);white-space:nowrap}
+  .stats{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .stat{flex:1 1 140px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;text-align:center}
+  .stat b{display:block;font-size:24px;color:var(--bleu);font-family:Georgia,serif}
+  .stat span{font-size:12px;color:var(--graphite)}
+  ul.clean{margin:6px 0 0;padding-left:18px}
+  ul.clean li{margin:5px 0;font-size:14.5px}
+  .flow{font-size:14px;color:var(--encre);background:var(--parchment);border-radius:10px;padding:10px 14px;margin:10px 0;
+    font-weight:600}
+  .flow .arrow{color:var(--or);font-weight:700}
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--graphite)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;margin-right:4px}
+  .t-now{background:#e6f4f1;color:var(--vert)} .t-next{background:#fbf0d8;color:#8a6d16} .t-future{background:#eee;color:#555}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow">traduccionesjuradas.net · v2</div>
+    <h1>De auditoría a producción: la puerta, segura, multilingüe y medida</h1>
+    <div class="sub">Resumen de la sesión del 30 de mayo de 2026 — 7 PRs, todas desplegadas.</div>
+    <div class="meta"><span class="badge">EN PRODUCCIÓN</span> &nbsp; Cadena C → A → B → D completa · 173 tests verdes · migración aplicada</div>
+  </header>
+
+  <p class="lead">La promesa de v2 en una frase: <em>«el cliente sabe en 10&nbsp;segundos si lo necesita,
+  cuánto cuesta y cuándo lo tiene — y desde que paga hasta que descarga, no vuelve a preguntar nada.»</em>
+  Esta sesión la acercó de verdad, y para el francófono la cerró de extremo a extremo.</p>
+
+  <!-- ANTES -->
+  <h2><span class="n">1</span> De dónde veníamos</h2>
+  <p class="lead">v2 nació de un susto: el webhook de Stripe estuvo roto 2,5 meses — pagos cobrados sin pedido,
+  y nadie se enteraba. El problema de fondo no era el bug, era que <strong>la web podía fallar en silencio</strong>.
+  Una auditoría de 8 áreas (50 brechas verificadas contra el código) destapó las que más dolían:</p>
+
+  <div class="grid two">
+    <div class="card pain">
+      <h3>🇫🇷 El francófono recaía al español</h3>
+      <p>La puerta en francés servía la landing y las etiquetas, pero el contenido del diagnóstico,
+      el checkout, la confirmación, el SMS y el email salían en español — justo en el momento de pagar.</p>
+    </div>
+    <div class="card pain">
+      <h3>🔔 Los avisos de hito no disparaban</h3>
+      <p>El traductor movía la tarjeta en el Kanban y el cliente no recibía nada: el SMS «en proceso»
+      solo salía desde un panel admin que nadie usa en el día a día.</p>
+    </div>
+    <div class="card pain">
+      <h3>🔓 Fuga de datos de documentos</h3>
+      <p>Varios endpoints públicos resolvían documentos por <code>id</code>/email sin comprobar propiedad:
+      exponían nombres y fechas extraídos de documentos oficiales y URLs de traducciones entregadas.</p>
+    </div>
+    <div class="card pain">
+      <h3>📊 Sin números para demostrar la mejora</h3>
+      <p>Las 4 métricas estrella no vivían en una pantalla y no había línea base. Imposible probar que v2
+      mejora algo, que era el porqué del proyecto.</p>
+    </div>
+  </div>
+
+  <!-- LO CONSEGUIDO -->
+  <h2><span class="n">2</span> Lo conseguido</h2>
+  <p class="lead">Siete PRs, todas verificadas (tsc 0 · build verde) y desplegadas a producción, en cuatro bloques:</p>
+
+  <table>
+    <tr><th>Bloque</th><th>PR</th><th>Qué cerró</th></tr>
+    <tr><td><strong>C · Seguridad</strong></td><td class="pr">#94</td>
+      <td>IDOR de la puerta cerrado (scoping por <code>sessionToken</code>) y <strong>borrado el funnel legacy huérfano</strong> — 15 ficheros muertos fuera del árbol.</td></tr>
+    <tr><td><strong>A · Avisos</strong></td><td class="pr">#95</td>
+      <td>SMS de hito centralizado en la transición del workflow: dispara desde el Kanban, el cockpit y para los idiomas auto-asignados.</td></tr>
+    <tr><td><strong>B1 · Francés</strong></td><td class="pr">#96</td>
+      <td>Diagnóstico + checkout + confirmación en FR. Nuevo <code>clientLocale</code> (migración aditiva aplicada a prod) como señal de idioma.</td></tr>
+    <tr><td><strong>D · Métricas</strong></td><td class="pr">#97</td>
+      <td>Las 4 métricas estrella en <code>/admin/metricas</code> + línea base congelada + intención «¿dónde está mi pedido?» instrumentada en el chat.</td></tr>
+    <tr><td><strong>B2 · SMS FR</strong></td><td class="pr">#98</td>
+      <td>Los 3 hitos post-pago (pago → en proceso → lista) por SMS en francés según <code>clientLocale</code>.</td></tr>
+    <tr><td><strong>B2b · Email FR</strong></td><td class="pr">#99</td>
+      <td>Los 5 emails transaccionales post-pago en francés, cableados en los 5 caminos de pago + entrega + asignación.</td></tr>
+    <tr><td><strong>Cabos + cableado</strong></td><td class="pr">#100 +</td>
+      <td>SMS de hito-1 en PayPal · nombre del tipo de documento del diagnóstico en FR · notas fantasma de tests borradas.</td></tr>
+  </table>
+
+  <div class="card win" style="margin-top:16px">
+    <h3>🇫🇷 El francófono ya vive la promesa entera en su idioma</h3>
+    <div class="flow">landing <span class="arrow">→</span> diagnóstico <span class="arrow">→</span> checkout
+      <span class="arrow">→</span> confirmación <span class="arrow">→</span> pago
+      <span class="arrow">→</span> SMS <span class="arrow">→</span> email</div>
+    <p>Era la jugada «nueva era» para el nicho francés del negocio. Está cerrada de punta a punta.</p>
+  </div>
+
+  <div class="grid two">
+    <div class="card win"><h3>🔕 Se acabó el fallo en silencio</h3>
+      <p>Alerta del webhook + cron de reconciliación + avisos de hito que disparan desde el flujo real.
+      El cliente sabe en todo momento dónde está su pedido.</p></div>
+    <div class="card win"><h3>📈 v2 ahora es medible</h3>
+      <p>Las 4 métricas en una pantalla, con línea base para comparar pre/post. Y por fin se cuenta
+      cuánta gente pregunta «¿dónde está mi pedido?».</p></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>7</b><span>PRs en producción</span></div>
+    <div class="stat"><b>173</b><span>tests verdes</span></div>
+    <div class="stat"><b>0</b><span>errores de tipos</span></div>
+    <div class="stat"><b>15</b><span>ficheros muertos eliminados</span></div>
+  </div>
+
+  <!-- QUÉ CONSTRUIR -->
+  <h2><span class="n">3</span> Qué podemos construir</h2>
+  <p class="lead">Con los cimientos puestos (puerta segura, multilingüe, medida), esto es lo que abre el camino:</p>
+
+  <div class="card next">
+    <h3><span class="tag t-now">PULIDO</span> Rematar lo que ya está casi</h3>
+    <ul class="clean">
+      <li><strong>Árabe en la puerta</strong> — la 3.ª lengua del brief (landing + diagnóstico + soporte RTL). La arquitectura i18n ya está lista; falta el contenido y el modelado <code>ar</code>.</li>
+      <li><strong>Snapshot persistido de métricas</strong> — hoy la línea base es una ventana fija; un modelo <code>MetricsSnapshot</code> permitiría «congelar» valores en una fecha exacta.</li>
+      <li><strong>Capturar el idioma en los flujos de presupuesto/PM</strong> — para que esos emails también salgan en FR cuando el cliente lo es.</li>
+    </ul>
+  </div>
+
+  <div class="card next">
+    <h3><span class="tag t-now">FIABILIDAD</span> Que nada vuelva a fallar en silencio</h3>
+    <ul class="clean">
+      <li><strong>Dead-man's-switch de crons</strong> — alerta si un cron deja de ejecutarse (hoy nadie se enteraría).</li>
+      <li><strong>Monitor «el webhook dejó de llegar»</strong> — la causa raíz exacta del incidente original: un check externo que avise si Stripe deja de llamar.</li>
+      <li><strong>Sello visual MAEC en la tarjeta de diagnóstico</strong> — transmitir la autoridad (nº 3850) en el momento del «lo sé en 10 segundos».</li>
+    </ul>
+  </div>
+
+  <div class="card next">
+    <h3><span class="tag t-next">v2.1</span> El asistente que cierra el pedido</h3>
+    <ul class="clean">
+      <li><strong>Chatbot agéntico</strong> que no solo orienta, sino que toma el documento, diagnostica y lleva al pago dentro de la conversación (el <em>tool use</em> ya existe en el bot).</li>
+      <li><strong>RAG sobre la biblioteca jurídica FR-ES</strong> — respuestas verificadas sobre apostilla, La Haya, trámites por país.</li>
+    </ul>
+  </div>
+
+  <div class="card next">
+    <h3><span class="tag t-future">v3 + ecosistema</span> El compañero de trámite</h3>
+    <ul class="clean">
+      <li><strong>Guía del trámite completo</strong> — no solo la traducción: qué documentos, en qué orden, ante qué organismo, con qué plazos.</li>
+      <li><strong>Puente pedido web → TraduCAT</strong> — que un pedido pagado aterrice en el motor de producción sin copiar nada a mano.</li>
+    </ul>
+  </div>
+
+  <footer>
+    HBTJ Consultores Lingüísticos S.L. · Málaga · traduccionesjuradas.net ·
+    Traductor jurado de francés MAEC nº 3850 — Juan Silva.<br/>
+    Documento generado el 30 may 2026 como resumen de sesión. Detalle técnico en <code>CONTEXT.md</code> y en los PRs #94–#100.
+  </footer>
+
+</div>
+</body>
+</html>

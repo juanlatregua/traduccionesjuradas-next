@@ -97,6 +97,7 @@ export async function POST(req: Request, { params }: Params) {
         title: true,
         clientEmail: true,
         clientName: true,
+        clientLocale: true,
         amountCents: true,
         paymentStatus: true,
         deliveryState: true,
@@ -217,6 +218,7 @@ export async function POST(req: Request, { params }: Params) {
           title: order.title,
           amountCents: totalCents,
           paymentUrl,
+          lang: order.clientLocale === "fr" ? "fr" : "es",
         });
         await prisma.orderEvent.create({
           data: {
