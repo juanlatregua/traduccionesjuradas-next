@@ -131,6 +131,26 @@ export async function POST(req: Request) {
         ).catch((e) => console.error("[paypal-capture] email failed", e));
       }
 
+      // SMS de hito "pago confirmado" (fire & forget) — igual que Stripe/Redsys.
+      if (fullOrder) {
+        const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+        const { smsPagoConfirmado, formatDeliveryPlazo } = await import("@/lib/sms-templates");
+        const { buildSignedOrderUrl } = await import("@/lib/order-token");
+        const phone = await getOrderPhone(fullOrder.id).catch(() => null);
+        if (phone) {
+          const lang = fullOrder.clientLocale === "fr" ? "fr" : "es";
+          sendNotification({
+            to: formatPhoneSpain(phone),
+            body: smsPagoConfirmado({
+              ref: order.reference,
+              plazo: formatDeliveryPlazo(fullOrder.dueDate, lang),
+              url: buildSignedOrderUrl(order.reference, "estado"),
+              lang,
+            }),
+          }).catch((err) => console.error("[paypal-capture] SMS failed", err));
+        }
+      }
+
       return NextResponse.json({ ok: true, status: "COMPLETED" });
     }
 
