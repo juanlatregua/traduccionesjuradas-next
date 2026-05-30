@@ -195,10 +195,29 @@ export async function sendTranslationReadyEmail(data: {
   reference: string;
   downloadUrl: string;
   statusUrl?: string;
+  lang?: "es" | "fr";
 }) {
-  const subject = `Tu traduccion jurada esta lista (${data.reference})`;
-
+  const fr = data.lang === "fr";
   const reviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "";
+
+  if (fr) {
+    const reviewBlock = reviewUrl
+      ? `<p style="margin-top:18px;">Si vous êtes satisfait du service, votre avis sur Google nous aiderait beaucoup :</p>
+         <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Laisser un avis sur Google</a></p>`
+      : "";
+    const html = `
+      <h2>Votre traduction assermentée est prête</h2>
+      <p>Référence : <strong>${data.reference}</strong></p>
+      <p>Vous pouvez télécharger votre fichier via ce lien :</p>
+      <p><a href="${data.downloadUrl}">${data.downloadUrl}</a></p>
+      ${data.statusUrl ? `<p style="font-size:13px; color:#6b7280;">Vous pouvez aussi <a href="${data.statusUrl}">suivre l'état de votre commande</a>.</p>` : `<p style="font-size:13px; color:#6b7280;">Vous pouvez aussi consulter l'état sur <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a>.</p>`}
+      <p>Si vous avez besoin d'une facture ou d'un envoi papier, répondez à cet e-mail.</p>
+      ${reviewBlock}
+    `;
+    await sendMail({ to: data.toEmail, subject: `Votre traduction assermentée est prête (${data.reference})`, html: wrapClientEmailHtml(html) });
+    return;
+  }
+
   const reviewBlock = reviewUrl
     ? `<p style="margin-top:18px;">Si estas satisfecho con el servicio, nos ayudaria mucho tu valoracion en Google:</p>
        <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Dejar valoracion en Google</a></p>`
@@ -216,7 +235,7 @@ export async function sendTranslationReadyEmail(data: {
 
   await sendMail({
     to: data.toEmail,
-    subject,
+    subject: `Tu traduccion jurada esta lista (${data.reference})`,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -269,12 +288,31 @@ export async function sendOrderCreatedEmail(data: {
   title: string;
   amountCents: number;
   paymentUrl: string;
+  lang?: "es" | "fr";
 }): Promise<{ messageId: string | null; subject: string }> {
   const amount = (data.amountCents / 100).toFixed(2);
   const name = data.clientName || "";
-  const subject = `Pedido ${data.reference} creado - Traducciones Juradas`;
+  const fr = data.lang === "fr";
 
-  const html = `
+  const subject = fr
+    ? `Commande ${data.reference} enregistrée - Traductions Assermentées`
+    : `Pedido ${data.reference} creado - Traducciones Juradas`;
+
+  const html = fr
+    ? `
+    <h2>Commande enregistrée</h2>
+    <p>Bonjour ${name},</p>
+    <p>Nous avons bien enregistré votre commande. Voici le récapitulatif :</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Référence</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Objet</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Montant</td><td>${amount} EUR</td></tr>
+    </table>
+    <p><a href="${data.paymentUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Procéder au paiement</a></p>
+    <p style="font-size:13px; color:#6b7280;">Vous pouvez aussi consulter l'état de votre commande sur <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a> avec votre référence et votre e-mail.</p>
+    <p>Merci de votre confiance.<br/>L'équipe de traduccionesjuradas.net</p>
+  `
+    : `
     <h2>Pedido registrado</h2>
     <p>Hola ${name},</p>
     <p>Hemos registrado tu pedido correctamente. Aqui tienes el resumen:</p>
@@ -304,17 +342,34 @@ export async function sendPaymentConfirmedEmail(data: {
   title: string;
   amountCents: number;
   method: string;
+  lang?: "es" | "fr";
 }) {
   const amount = (data.amountCents / 100).toFixed(2);
-  const methodLabels: Record<string, string> = {
-    REDSYS: "Tarjeta bancaria",
-    PAYPAL: "PayPal",
-    BIZUM: "Bizum",
-    TRANSFER: "Transferencia bancaria",
-    STRIPE: "Tarjeta (Stripe)",
+  const fr = data.lang === "fr";
+  const methodLabels: Record<string, Record<string, string>> = {
+    es: { REDSYS: "Tarjeta bancaria", PAYPAL: "PayPal", BIZUM: "Bizum", TRANSFER: "Transferencia bancaria", STRIPE: "Tarjeta (Stripe)" },
+    fr: { REDSYS: "Carte bancaire", PAYPAL: "PayPal", BIZUM: "Bizum", TRANSFER: "Virement bancaire", STRIPE: "Carte (Stripe)" },
   };
-  const methodLabel = methodLabels[data.method] || data.method;
-  const subject = `Pago confirmado - Pedido ${data.reference}`;
+  const methodLabel = methodLabels[fr ? "fr" : "es"][data.method] || data.method;
+
+  if (fr) {
+    const html = `
+      <h2>Paiement confirmé</h2>
+      <p>Nous avons bien reçu votre paiement.</p>
+      <table style="border-collapse:collapse; margin:12px 0;">
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Référence</td><td>${data.reference}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Objet</td><td>${data.title}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Montant</td><td>${amount} EUR</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Mode de paiement</td><td>${methodLabel}</td></tr>
+      </table>
+      <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Suivre l'état de ma commande</a></p>
+      <p style="font-size:13px; color:#6b7280;">Utilisez votre référence <strong>${data.reference}</strong> et votre e-mail pour suivre l'état.</p>
+      <p>Nous vous préviendrons dès que votre traduction sera prête.</p>
+      <p>Merci de votre confiance.<br/>L'équipe de traduccionesjuradas.net</p>
+    `;
+    await sendMail({ to: data.toEmail, subject: `Paiement confirmé - Commande ${data.reference}`, html: wrapClientEmailHtml(html) });
+    return;
+  }
 
   const html = `
     <h2>Pago confirmado</h2>
@@ -333,7 +388,7 @@ export async function sendPaymentConfirmedEmail(data: {
 
   await sendMail({
     to: data.toEmail,
-    subject,
+    subject: `Pago confirmado - Pedido ${data.reference}`,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -508,8 +563,24 @@ export async function sendTranslationEtaEmail(data: {
   reference: string;
   etaDateLabel: string;
   statusUrl?: string;
+  lang?: "es" | "fr";
 }) {
-  const subject = `Traduccion en curso - ETA ${data.reference}`;
+  const fr = data.lang === "fr";
+
+  if (fr) {
+    const statusLine = data.statusUrl
+      ? `<p style="font-size:13px; color:#6b7280;">Vous pouvez <a href="${data.statusUrl}">suivre l'état de votre commande</a> à tout moment.</p>`
+      : "";
+    const html = `
+      <h2>Votre traduction est en cours</h2>
+      <p>Commande <strong>${data.reference}</strong>.</p>
+      <p>Date de livraison estimée : <strong>${data.etaDateLabel}</strong>.</p>
+      <p>Nous vous préviendrons dès que le fichier final sera disponible.</p>
+      ${statusLine}
+    `;
+    await sendMail({ to: data.toEmail, subject: `Traduction en cours - livraison estimée ${data.reference}`, html: wrapClientEmailHtml(html) });
+    return;
+  }
 
   const statusLine = data.statusUrl
     ? `<p style="font-size:13px; color:#6b7280;">Puedes <a href="${data.statusUrl}">consultar el estado de tu pedido</a> en cualquier momento.</p>`
@@ -525,7 +596,7 @@ export async function sendTranslationEtaEmail(data: {
 
   await sendMail({
     to: data.toEmail,
-    subject,
+    subject: `Traduccion en curso - ETA ${data.reference}`,
     html: wrapClientEmailHtml(html),
   });
 }
@@ -536,15 +607,34 @@ export async function sendTranslationStartedAssignedEmail(data: {
   translatorName: string;
   translatorSwornNumber?: string | null;
   etaDateLabel?: string | null;
+  lang?: "es" | "fr";
 }) {
+  const fr = data.lang === "fr";
+
+  if (fr) {
+    const translatorLabel = data.translatorSwornNumber
+      ? `${data.translatorName} (n° ${data.translatorSwornNumber})`
+      : data.translatorName;
+    const etaLine = data.etaDateLabel
+      ? `Date de livraison estimée : ${data.etaDateLabel}`
+      : "La date de livraison estimée sera confirmée sous peu.";
+    const html = `
+      <h2>Votre traduction est en cours</h2>
+      <p>Commande <strong>${data.reference}</strong>.</p>
+      <p>Votre traducteur assermenté assigné est <strong>${translatorLabel}</strong>.</p>
+      <p>${etaLine}</p>
+      <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Suivre l'état</a></p>
+    `;
+    await sendMail({ to: data.toEmail, subject: `Votre traduction est en cours (${data.reference})`, html: wrapClientEmailHtml(html) });
+    return;
+  }
+
   const translatorLabel = data.translatorSwornNumber
     ? `${data.translatorName} (Nº ${data.translatorSwornNumber})`
     : data.translatorName;
   const etaLine = data.etaDateLabel
     ? `Fecha estimada de entrega: ${data.etaDateLabel}`
     : "La fecha estimada de entrega se confirmara en breve.";
-
-  const subject = `Tu traduccion ya esta en proceso (${data.reference})`;
 
   const html = `
     <h2>Tu traduccion ya esta en proceso</h2>
@@ -556,7 +646,7 @@ export async function sendTranslationStartedAssignedEmail(data: {
 
   await sendMail({
     to: data.toEmail,
-    subject,
+    subject: `Tu traduccion ya esta en proceso (${data.reference})`,
     html: wrapClientEmailHtml(html),
   });
 }

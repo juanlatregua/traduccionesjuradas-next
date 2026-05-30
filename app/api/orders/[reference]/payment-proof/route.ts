@@ -47,6 +47,7 @@ export async function POST(req: Request, { params }: Params) {
         reference: true,
         paymentStatus: true,
         clientEmail: true,
+        clientLocale: true,
         title: true,
         amountCents: true,
         events: {
@@ -251,6 +252,7 @@ export async function POST(req: Request, { params }: Params) {
         title: order.title,
         amountCents: order.amountCents,
         method: paymentMethod,
+        lang: order.clientLocale === "fr" ? "fr" : "es",
       }).catch((e) => console.error("[payment-proof] client payment confirmation email failed", e));
     }
 

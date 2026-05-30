@@ -64,12 +64,14 @@ export async function POST(req: Request, { params }: Params) {
       (orderBefore.assignedTo || "") !== assignedTo;
 
     if (shouldNotifyClient) {
+      const assignLang = orderBefore.clientLocale === "fr" ? "fr" : "es";
       await sendTranslationStartedAssignedEmail({
         toEmail: orderBefore.clientEmail,
         reference: orderBefore.reference,
         translatorName: assignedTo!,
         translatorSwornNumber: translatorProfile?.swornNumber || null,
-        etaDateLabel: dueDate ? dueDate.toLocaleDateString("es-ES") : null,
+        etaDateLabel: dueDate ? dueDate.toLocaleDateString(assignLang === "fr" ? "fr-FR" : "es-ES") : null,
+        lang: assignLang,
       }).catch((err) => {
         console.error("[orders-assign] client assign email failed", err);
       });

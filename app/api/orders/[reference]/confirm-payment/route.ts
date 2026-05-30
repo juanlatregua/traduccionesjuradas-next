@@ -93,6 +93,7 @@ export async function POST(req: Request, { params }: Params) {
         title: order.title,
         amountCents: order.amountCents,
         method,
+        lang: order.clientLocale === "fr" ? "fr" : "es",
       }).catch((e) => console.error("[confirm-payment] email failed", e));
 
       // SMS notification (fire & forget)
