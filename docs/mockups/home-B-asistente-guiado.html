@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traducciones Juradas · Asistente — HBTJ, Málaga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --encre:#1A2E4A; --bleu-dark:#0F1E30; --bleu-light:#3D6FA8;
+    --sepia:#3D3630; --graphite:#5F564E;
+    --parchment:#F7F1E6; --cream:#F0EBE0; --card:#FDFAF4;
+    --or:#B8922A; --or-dark:#8A6A1A; --or-light:#F0E2B8;
+    --vert:#0f766e; --blanco:#FFFFFF;
+    --serif:"Libre Baskerville",Georgia,"Times New Roman",serif;
+    --sans:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --hand:"Caveat",cursive;
+    --shadow-paper:2px 3px 8px rgba(28,25,23,.08),-1px -1px 4px rgba(28,25,23,.03);
+    --shadow-hover:4px 6px 16px rgba(28,25,23,.12),-2px -2px 8px rgba(28,25,23,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--sans);
+    color:var(--sepia);
+    background:var(--parchment);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:var(--serif);color:var(--encre);line-height:1.18;font-weight:700}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  /* focus visible AA */
+  a:focus-visible,button:focus-visible,.branch:focus-visible,.util:focus-visible,[tabindex]:focus-visible{
+    outline:3px solid var(--or-dark);
+    outline-offset:3px;
+    border-radius:8px;
+  }
+  /* ---------- TOP BAR ---------- */
+  .topbar{background:var(--bleu-dark);color:#EFE9DC;font-size:.82rem}
+  .topbar .wrap{display:flex;justify-content:space-between;align-items:center;min-height:38px;gap:12px;flex-wrap:wrap}
+  .topbar a{display:inline-flex;align-items:center;gap:6px;color:#EFE9DC;opacity:.92}
+  .topbar a:hover{opacity:1}
+  .topbar .badge-line{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+  .topbar svg{width:15px;height:15px}
+  /* ---------- HEADER / NAV ---------- */
+  header.site{position:sticky;top:0;z-index:40;background:rgba(247,241,230,.92);backdrop-filter:blur(8px);border-bottom:1px solid #E4D9C5}
+  .nav{display:flex;align-items:center;justify-content:space-between;min-height:64px;gap:16px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:42px;height:42px;flex:none}
+  .brand-txt{display:flex;flex-direction:column;line-height:1.05}
+  .brand-name{font-family:var(--serif);font-weight:700;font-size:1.12rem;color:var(--encre)}
+  .brand-sub{font-size:.72rem;color:var(--graphite);letter-spacing:.02em}
+  .navlinks{display:flex;align-items:center;gap:4px}
+  .navlinks a{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:10px 12px;min-height:44px;border-radius:8px;
+    font-weight:600;font-size:.92rem;color:var(--encre);
+  }
+  .navlinks a:hover{background:var(--cream)}
+  .navlinks svg{width:18px;height:18px;color:var(--bleu-light)}
+  .nav-cta{
+    background:var(--or);color:var(--encre)!important;font-weight:700;
+    padding:11px 18px!important;border-radius:8px;
+    box-shadow:0 1px 0 #9c7c23;
+  }
+  .nav-cta:hover{background:#c79e34!important}
+  .hamb{display:none;background:none;border:1px solid #D9CDB6;border-radius:8px;width:46px;height:46px;align-items:center;justify-content:center;cursor:pointer;color:var(--encre)}
+  .hamb svg{width:24px;height:24px}
+  /* ---------- HERO / ASISTENTE ---------- */
+  .hero{position:relative;overflow:hidden;padding:54px 0 28px}
+  .hero::before{
+    content:"";position:absolute;inset:0;z-index:0;
+    background:
+      radial-gradient(900px 380px at 80% -8%,rgba(61,111,168,.10),transparent 60%),
+      radial-gradient(700px 320px at 5% 0%,rgba(184,146,42,.08),transparent 60%);
+  }
+  .hero .wrap{position:relative;z-index:1}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:9px;
+    background:var(--card);border:1px solid #E4D9C5;border-radius:999px;
+    padding:7px 15px;font-size:.82rem;font-weight:600;color:var(--encre);
+    box-shadow:var(--shadow-paper);margin-bottom:22px;
+  }
+  .eyebrow svg{width:16px;height:16px;color:var(--or-dark)}
+  .hero h1{font-size:clamp(2rem,5.4vw,3.15rem);max-width:18ch;margin-bottom:14px}
+  .hero h1 .hand{font-family:var(--hand);color:var(--or-dark);font-weight:600;font-size:1.05em}
+  .hero p.lead{font-size:1.12rem;color:var(--graphite);max-width:46ch;margin-bottom:30px}
+  /* tres ramas-asistente */
+  .branches{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+  .branch{
+    display:flex;flex-direction:column;gap:10px;text-align:left;
+    background:var(--card);border:1px solid #E7DCC8;border-radius:14px;
+    padding:20px 18px;min-height:64px;cursor:pointer;width:100%;
+    box-shadow:var(--shadow-paper);transition:transform .15s,box-shadow .15s,border-color .15s;
+    font-family:var(--sans);
+  }
+  .branch:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover);border-color:var(--or)}
+  .branch .ic{
+    width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    background:var(--encre);color:var(--or-light);flex:none;
+  }
+  .branch.flag .ic{background:var(--or);color:var(--encre)}
+  .branch .ic svg{width:26px;height:26px}
+  .branch .b-tag{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--or-dark)}
+  .branch.flag .b-tag{color:var(--or-dark)}
+  .branch .b-title{font-family:var(--serif);font-weight:700;font-size:1.12rem;color:var(--encre);line-height:1.2}
+  .branch .b-desc{font-size:.9rem;color:var(--graphite)}
+  .branch .b-go{display:inline-flex;align-items:center;gap:6px;margin-top:auto;font-weight:700;font-size:.9rem;color:var(--bleu-light)}
+  .branch .b-go svg{width:16px;height:16px;transition:transform .15s}
+  .branch:hover .b-go svg{transform:translateX(3px)}
+  /* panel guiado (progressive disclosure) */
+  .panel{
+    display:none;margin-top:14px;background:var(--blanco);border:1px solid #E4D9C5;border-radius:14px;
+    box-shadow:var(--shadow-paper);overflow:hidden;
+  }
+  .panel.open{display:block;animation:slideDown .35s ease}
+  @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+  .panel-inner{padding:22px 22px 24px}
+  .panel-step{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;color:var(--or-dark);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+  .panel h3{font-size:1.25rem;margin-bottom:6px}
+  .panel p{color:var(--graphite);margin-bottom:16px;max-width:54ch}
+  .panel-actions{display:flex;flex-wrap:wrap;gap:12px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    min-height:48px;padding:12px 22px;border-radius:10px;font-weight:700;font-size:1rem;
+    cursor:pointer;border:none;font-family:var(--sans);transition:background .15s,transform .12s;
+  }
+  .btn svg{width:18px;height:18px}
+  .btn-primary{background:var(--or);color:var(--encre);box-shadow:0 1px 0 #9c7c23}
+  .btn-primary:hover{background:#c79e34;transform:translateY(-1px)}
+  .btn-ink{background:var(--encre);color:#F4EEDF}
+  .btn-ink:hover{background:var(--bleu-dark);transform:translateY(-1px)}
+  .btn-ghost{background:transparent;color:var(--encre);border:1.5px solid #C9BCA2}
+  .btn-ghost:hover{background:var(--cream)}
+  .panel-close{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--graphite);font-weight:600;cursor:pointer;padding:10px 4px;min-height:44px;font-family:var(--sans);font-size:.9rem}
+  .panel-close:hover{color:var(--encre)}
+  /* promesa bajo el asistente */
+  .promise{display:flex;align-items:flex-start;gap:12px;margin-top:22px;padding:16px 18px;background:var(--cream);border-left:4px solid var(--or);border-radius:0 12px 12px 0}
+  .promise svg{width:22px;height:22px;color:var(--or-dark);flex:none;margin-top:2px}
+  .promise b{color:var(--encre)}
+  .promise span{font-size:.96rem;color:var(--sepia)}
+  /* ---------- FRANJA CONFIANZA ---------- */
+  .trust{background:var(--encre);color:#E9E2D2;padding:18px 0}
+  .trust .wrap{display:flex;align-items:center;justify-content:center;gap:26px 38px;flex-wrap:wrap;text-align:center}
+  .trust-item{display:inline-flex;align-items:center;gap:10px;font-size:.92rem;font-weight:600}
+  .trust-item svg{width:20px;height:20px;color:var(--or-light)}
+  .trust-item .num{font-family:var(--serif);font-size:1.3rem;color:#fff;font-weight:700}
+  .trust .sep{width:1px;height:26px;background:rgba(255,255,255,.18)}
+  /* ---------- UTILIDADES ---------- */
+  .section{padding:58px 0}
+  .sec-head{text-align:center;max-width:60ch;margin:0 auto 36px}
+  .sec-head .kick{display:inline-flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--or-dark);margin-bottom:12px}
+  .sec-head .kick svg{width:16px;height:16px}
+  .sec-head h2{font-size:clamp(1.6rem,3.6vw,2.2rem);margin-bottom:10px}
+  .sec-head p{color:var(--graphite);font-size:1.05rem}
+  .utils{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .util{
+    display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;
+    background:var(--card);border:1px solid #E7DCC8;border-radius:14px;padding:22px 20px;
+    box-shadow:var(--shadow-paper);transition:transform .15s,box-shadow .15s,border-color .15s;
+    cursor:pointer;font-family:var(--sans);position:relative;
+  }
+  .util:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover);border-color:var(--bleu-light)}
+  .util .uic{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--cream);color:var(--encre);margin-bottom:6px}
+  .util .uic svg{width:24px;height:24px}
+  .util.gratis .uic{background:var(--or-light);color:var(--or-dark)}
+  .util h3{font-size:1.14rem}
+  .util p{color:var(--graphite);font-size:.95rem}
+  .util .ulink{margin-top:auto;display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.92rem;color:var(--bleu-light);padding-top:10px}
+  .util .ulink svg{width:15px;height:15px;transition:transform .15s}
+  .util:hover .ulink svg{transform:translateX(3px)}
+  .pill{position:absolute;top:16px;right:16px;font-size:.68rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:var(--or);color:var(--encre);padding:4px 9px;border-radius:999px}
+  .pill.free{background:var(--vert);color:#fff}
+  /* ---------- JURADA / DESEMBOCA ---------- */
+  .converge{background:linear-gradient(180deg,var(--cream),var(--parchment))}
+  .converge .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+  .converge h2{font-size:clamp(1.6rem,3.6vw,2.25rem);margin-bottom:14px}
+  .converge p{color:var(--graphite);font-size:1.06rem;margin-bottom:22px;max-width:46ch}
+  .steps{display:flex;flex-direction:column;gap:14px;margin-bottom:26px}
+  .step{display:flex;gap:14px;align-items:flex-start}
+  .step .n{width:34px;height:34px;flex:none;border-radius:50%;background:var(--encre);color:var(--or-light);font-family:var(--serif);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:1rem}
+  .step b{color:var(--encre);display:block}
+  .step span{font-size:.95rem;color:var(--graphite)}
+  /* tarjeta sello / Juan */
+  .seal-card{background:var(--blanco);border:1px solid #E4D9C5;border-radius:18px;padding:28px;box-shadow:var(--shadow-paper);text-align:center}
+  .seal-badge{margin:0 auto 16px;width:128px;height:128px}
+  .seal-card .who{font-family:var(--serif);font-weight:700;font-size:1.2rem;color:var(--encre)}
+  .seal-card .role{font-size:.92rem;color:var(--graphite);margin-bottom:14px}
+  .seal-card .quote{font-family:var(--hand);font-size:1.45rem;color:var(--encre);line-height:1.3;margin-bottom:6px}
+  .stars{display:inline-flex;gap:3px;margin-top:8px}
+  .stars svg{width:18px;height:18px;color:var(--or)}
+  .seal-card .rev{font-size:.85rem;color:var(--graphite);margin-top:6px}
+  /* ---------- FAQ AEO ---------- */
+  .faq{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .qa{background:var(--card);border:1px solid #E7DCC8;border-radius:12px;padding:18px 20px;box-shadow:var(--shadow-paper)}
+  .qa h3{font-size:1.04rem;margin-bottom:6px;display:flex;gap:8px;align-items:flex-start}
+  .qa h3 svg{width:18px;height:18px;color:var(--or-dark);flex:none;margin-top:3px}
+  .qa p{font-size:.94rem;color:var(--graphite)}
+  /* ---------- CTA FINAL ---------- */
+  .finalcta{background:var(--encre);color:#EFE9DC;text-align:center;padding:56px 0}
+  .finalcta h2{color:#fff;font-size:clamp(1.7rem,4vw,2.4rem);margin-bottom:12px}
+  .finalcta p{color:#C8D0DC;font-size:1.08rem;max-width:48ch;margin:0 auto 26px}
+  .finalcta .actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .finalcta .mini{margin-top:18px;font-size:.86rem;color:#A9B4C2;display:inline-flex;gap:8px;align-items:center}
+  .finalcta .mini svg{width:16px;height:16px;color:var(--or-light)}
+  /* ---------- FOOTER ---------- */
+  footer.site{background:var(--bleu-dark);color:#B9C2CF;padding:40px 0 28px;font-size:.9rem}
+  .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:28px;margin-bottom:28px}
+  footer.site h4{color:#EDE6D6;font-family:var(--serif);font-size:1rem;margin-bottom:12px}
+  footer.site ul{list-style:none}
+  footer.site li{margin-bottom:8px}
+  footer.site a:hover{color:#fff}
+  .foot-brand{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+  .foot-brand svg{width:34px;height:34px}
+  .foot-brand b{color:#EDE6D6;font-family:var(--serif);font-size:1.05rem}
+  .foot-bottom{border-top:1px solid rgba(255,255,255,.12);padding-top:18px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;font-size:.82rem;color:#8C97A6}
+  /* ---------- RESPONSIVE ---------- */
+  @media(max-width:860px){
+    .converge .wrap{grid-template-columns:1fr}
+    .foot-grid{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:720px){
+    .navlinks{display:none}
+    .hamb{display:flex}
+    .navlinks.mobile-open{
+      display:flex;flex-direction:column;align-items:stretch;
+      position:absolute;top:64px;left:0;right:0;background:var(--card);
+      border-bottom:1px solid #E4D9C5;padding:10px 16px 16px;gap:4px;box-shadow:var(--shadow-hover);
+    }
+    .navlinks.mobile-open a{justify-content:flex-start}
+    .branches{grid-template-columns:1fr}
+    .utils{grid-template-columns:1fr}
+    .faq{grid-template-columns:1fr}
+    .trust .sep{display:none}
+  }
+  @media(max-width:480px){
+    .hero{padding:34px 0 22px}
+    .hero h1{font-size:1.85rem}
+    .hero p.lead{font-size:1.02rem}
+    .section{padding:42px 0}
+    .branch{padding:18px 16px}
+    .panel-actions{flex-direction:column}
+    .panel-actions .btn{width:100%}
+    .finalcta .actions{flex-direction:column}
+    .finalcta .actions .btn{width:100%}
+  }
+  .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="wrap">
+    <span class="badge-line">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+      Traductor jurado de francés · MAEC nº 3850
+    </span>
+    <span style="display:inline-flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <a href="tel:+34000000000"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Málaga · atención directa</a>
+      <a href="#asistente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>10 idiomas · foco FR↔ES</a>
+    </span>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="site">
+  <div class="wrap">
+    <nav class="nav" aria-label="Principal">
+      <a href="#top" class="brand" aria-label="Traducciones Juradas HBTJ, inicio">
+        <!-- escudo-sello mark -->
+        <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M24 3 6 9v12c0 11 8 18 18 24 10-6 18-13 18-24V9L24 3z" fill="#1A2E4A"/>
+          <path d="M24 7 10 11.7V21c0 9 6.5 15.2 14 20 7.5-4.8 14-11 14-20v-9.3L24 7z" fill="none" stroke="#B8922A" stroke-width="1.4"/>
+          <path d="m17 24 4.5 4.5L32 18" fill="none" stroke="#F0E2B8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="brand-txt">
+          <span class="brand-name">Traducciones Juradas</span>
+          <span class="brand-sub">HBTJ Consultores · Málaga</span>
+        </span>
+      </a>
+      <button class="hamb" id="hamb" aria-label="Abrir menú" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="navlinks" id="navlinks">
+        <a href="#utilidades"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Utilidades</a>
+        <a href="#idiomas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Idiomas</a>
+        <a href="#documentos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Documentos</a>
+        <a href="#guias"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Guías</a>
+        <a href="#asistente" class="nav-cta">Empezar ahora</a>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<!-- HERO ASISTENTE -->
+<main id="top">
+<section class="hero" id="asistente">
+  <div class="wrap">
+    <span class="eyebrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/></svg>
+      Asistente de traducción jurada · te acompaño paso a paso
+    </span>
+    <h1>Dime qué tienes y te digo <span class="hand">qué, cuánto y cuándo</span> — en 10 segundos.</h1>
+    <p class="lead">No tienes que saber el nombre del trámite. Elige por dónde empiezas y el asistente te lleva justo a lo que necesitas.</p>
+
+    <!-- 3 ramas -->
+    <div class="branches" role="group" aria-label="¿Qué tienes ahora mismo?">
+      <button class="branch" data-panel="p1" aria-expanded="false" aria-controls="p1">
+        <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg></span>
+        <span class="b-tag">Tengo un documento</span>
+        <span class="b-title">…que necesito traducir</span>
+        <span class="b-desc">Súbelo y sabrás el precio y el plazo al instante.</span>
+        <span class="b-go">Diagnosticar <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+
+      <button class="branch flag" data-panel="p2" aria-expanded="false" aria-controls="p2">
+        <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M11 8v3M11 14h.01"/></svg></span>
+        <span class="b-tag">Tengo un requerimiento</span>
+        <span class="b-title">…y no entiendo qué me piden</span>
+        <span class="b-desc">Pega o sube el papel y te lo traduzco a humano: qué piden y cómo cumplirlo.</span>
+        <span class="b-go">Entender el papel <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+
+      <button class="branch" data-panel="p3" aria-expanded="false" aria-controls="p3">
+        <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.2 7.8 13.4 13.4 7.8 16.2 10.6 10.6 16.2 7.8"/></svg></span>
+        <span class="b-tag">Tengo una duda</span>
+        <span class="b-title">…sobre mi trámite</span>
+        <span class="b-desc">Arraigo, nacionalidad u homologación: te doy la checklist exacta.</span>
+        <span class="b-go">Ver qué necesito <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+    </div>
+
+    <!-- PANELES PROGRESSIVE DISCLOSURE -->
+    <div class="panel" id="p1" role="region" aria-label="Diagnosticar documento">
+      <div class="panel-inner">
+        <span class="panel-step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg>Paso 1 de 3 · Diagnóstico</span>
+        <h3>Sube tu documento y deja que lo lea</h3>
+        <p>Aceptamos PDF, JPG o foto del móvil. Detecto idioma, cuento palabras y te devuelvo <b>precio cerrado y fecha de entrega</b> antes de que pagues nada. Sin compromiso.</p>
+        <div class="panel-actions">
+          <a class="btn btn-primary" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>Subir documento</a>
+          <a class="btn btn-ghost" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>Ver precio sin subir nada</a>
+          <button class="panel-close" data-close="p1">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="p2" role="region" aria-label="Lector de requerimientos">
+      <div class="panel-inner">
+        <span class="panel-step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg>Lector de requerimientos</span>
+        <h3>Pega ese texto que no entiendes</h3>
+        <p>¿Una carta de la administración, un email del consulado, un requisito en otro idioma? Pégalo o súbelo. Te explico <b>en cristiano qué te piden, por qué y qué tienes que entregar</b> — y si necesita traducción jurada, te la preparo aquí mismo.</p>
+        <div class="panel-actions">
+          <a class="btn btn-primary" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Pegar / subir el papel</a>
+          <a class="btn btn-ink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Ver un ejemplo</a>
+          <button class="panel-close" data-close="p2">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="p3" role="region" aria-label="Checklist de trámite">
+      <div class="panel-inner">
+        <span class="panel-step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg>Tu trámite, paso a paso</span>
+        <h3>¿Para qué trámite es?</h3>
+        <p>Elige y te doy la <b>lista exacta de documentos</b> que pide la administración, cuáles necesitan traducción jurada y cuáles apostilla. Sin sorpresas en ventanilla.</p>
+        <div class="panel-actions">
+          <a class="btn btn-ghost" href="#">Arraigo</a>
+          <a class="btn btn-ghost" href="#">Nacionalidad</a>
+          <a class="btn btn-ghost" href="#">Homologación de título</a>
+          <button class="panel-close" data-close="p3">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROMESA -->
+    <div class="promise">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span><b>Nuestra promesa:</b> sabes en 10 s si lo necesitas, cuánto cuesta y cuándo lo tienes. Y desde el pago hasta la descarga, no vuelves a preguntar nada.</span>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- FRANJA CONFIANZA -->
+<section class="trust" aria-label="Garantías">
+  <div class="wrap">
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Sello oficial <span class="num">MAEC nº 3850</span></span>
+    <span class="sep"></span>
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">24–48 h</span> de media</span>
+    <span class="sep"></span>
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20v14H2z"/><path d="M8 21h8M12 17v4"/></svg>Validez ante toda la Administración</span>
+    <span class="sep"></span>
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-6 0v4M5 9h14l1 12H4z"/></svg>Pago seguro · entrega digital y en papel</span>
+  </div>
+</section>
+
+<!-- UTILIDADES -->
+<section class="section" id="utilidades">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Todo lo que puedo resolverte</span>
+      <h2>Utilidades del asistente</h2>
+      <p>Cada herramienta te quita una duda. Y todas terminan en lo mismo: si necesitas validez oficial, la jurada la tienes aquí en 10 s.</p>
+    </div>
+
+    <div class="utils">
+      <button class="util" data-go="#asistente">
+        <span class="uic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg></span>
+        <h3>Diagnostica tu documento</h3>
+        <p>Súbelo y sabe al instante qué es, cuánto cuesta y cuándo lo tienes.</p>
+        <span class="ulink">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+
+      <button class="util" data-go="#asistente">
+        <span class="pill">Nuevo</span>
+        <span class="uic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v3M11 14h.01"/></svg></span>
+        <h3>Entiende tu requerimiento</h3>
+        <p>«Tengo este papel y no sé qué me piden.» Te lo explico claro.</p>
+        <span class="ulink">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+
+      <button class="util gratis" data-go="#">
+        <span class="pill free">Gratis</span>
+        <span class="uic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg></span>
+        <h3>Traduce para entender</h3>
+        <p>Traducción de cortesía para saber qué dice. Sin validez, pero sin coste.</p>
+        <span class="ulink">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+
+      <button class="util" data-go="#asistente">
+        <span class="uic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.2 7.8 13.4 13.4 7.8 16.2 10.6 10.6 16.2 7.8"/></svg></span>
+        <h3>Qué necesito para mi trámite</h3>
+        <p>Checklist exacta para arraigo, nacionalidad u homologación.</p>
+        <span class="ulink">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+
+      <button class="util" data-go="#">
+        <span class="uic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <h3>Verifica un traductor jurado</h3>
+        <p>Comprueba si está en el registro oficial del MAEC. Tu garantía.</p>
+        <span class="ulink">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+
+      <button class="util" data-go="#guias">
+        <span class="uic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        <h3>Guías por país y documento</h3>
+        <p>Apostilla, Convenio de La Haya y trámites por país, explicados.</p>
+        <span class="ulink">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- CONVERGE A LA JURADA + SELLO / JUAN -->
+<section class="section converge" id="documentos">
+  <div class="wrap">
+    <div>
+      <span class="kick" style="display:inline-flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--or-dark);margin-bottom:12px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Cómo acaba todo</span>
+      <h2>Y para que tenga validez oficial… la jurada, en 4 pasos.</h2>
+      <p>Da igual por dónde entres: el camino termina en una traducción jurada lista para presentar, firmada y sellada.</p>
+      <div class="steps">
+        <div class="step"><span class="n">1</span><span><b>Diagnóstico</b><span>Subes el documento o pegas el texto. Sabes precio y plazo.</span></span></div>
+        <div class="step"><span class="n">2</span><span><b>Pago seguro</b><span>Confirmas con tarjeta. Ves el sello MAEC y a quién contratas.</span></span></div>
+        <div class="step"><span class="n">3</span><span><b>Traducción jurada</b><span>Juan traduce, firma y sella. Te avisamos en cada paso.</span></span></div>
+        <div class="step"><span class="n">4</span><span><b>Descarga y papel</b><span>PDF firmado al instante y copia en papel si la necesitas.</span></span></div>
+      </div>
+      <a class="btn btn-primary" href="#asistente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Empezar mi traducción jurada</a>
+    </div>
+
+    <aside class="seal-card" id="idiomas">
+      <!-- SELLO BADGE GRANDE -->
+      <svg class="seal-badge" viewBox="0 0 128 128" role="img" aria-label="Sello de Traductor Jurado MAEC número 3850">
+        <circle cx="64" cy="64" r="60" fill="#1A2E4A"/>
+        <circle cx="64" cy="64" r="60" fill="none" stroke="#B8922A" stroke-width="2"/>
+        <circle cx="64" cy="64" r="50" fill="none" stroke="#B8922A" stroke-width="1" stroke-dasharray="2 4"/>
+        <path id="arcTop" d="M64 22 a42 42 0 0 1 0 84" fill="none"/>
+        <text fill="#F0E2B8" font-family="Libre Baskerville, Georgia, serif" font-size="8.4" letter-spacing="2">
+          <textPath href="#arcTop" startOffset="2%">TRADUCTOR · JURADO</textPath>
+        </text>
+        <path id="arcBot" d="M64 106 a42 42 0 0 1 0 -84" fill="none"/>
+        <text fill="#F0E2B8" font-family="Libre Baskerville, Georgia, serif" font-size="8.4" letter-spacing="2">
+          <textPath href="#arcBot" startOffset="6%">MAEC · ESPAÑA</textPath>
+        </text>
+        <path d="M50 60 l9 9 19-22" fill="none" stroke="#B8922A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="64" y="86" text-anchor="middle" fill="#FFFFFF" font-family="Libre Baskerville, Georgia, serif" font-weight="700" font-size="13">Nº 3850</text>
+      </svg>
+      <div class="who">Juan Silva</div>
+      <div class="role">Traductor-Intérprete Jurado de francés · MAEC nº 3850</div>
+      <div class="quote">«Tu documento, tratado como si fuera el mío.»</div>
+      <div class="stars" aria-label="Valoración 5 sobre 5">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.9 21l1.2-6.8-5-4.9 6.9-1z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.9 21l1.2-6.8-5-4.9 6.9-1z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.9 21l1.2-6.8-5-4.9 6.9-1z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.9 21l1.2-6.8-5-4.9 6.9-1z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.9 21l1.2-6.8-5-4.9 6.9-1z"/></svg>
+      </div>
+      <div class="rev">+500 traducciones juradas · clientes en toda España</div>
+    </aside>
+  </div>
+</section>
+
+<!-- FAQ AEO -->
+<section class="section" id="guias">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>Lo que más preguntan</span>
+      <h2>Dudas resueltas en una frase</h2>
+      <p>Respuestas claras, citables y verificadas — para ti y para los buscadores.</p>
+    </div>
+    <div class="faq">
+      <div class="qa"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>¿Qué es una traducción jurada?</h3><p>Una traducción oficial firmada y sellada por un Traductor-Intérprete Jurado nombrado por el MAEC, con plena validez legal ante la Administración.</p></div>
+      <div class="qa"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>¿Cuánto tarda?</h3><p>Lo habitual es 24–48 h. Al subir el documento ves la fecha exacta de entrega antes de pagar.</p></div>
+      <div class="qa"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>¿Cuánto cuesta?</h3><p>Depende del documento y el número de palabras. El asistente te da un precio cerrado en segundos, sin sorpresas.</p></div>
+      <div class="qa"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>¿Necesito también apostilla?</h3><p>A veces sí, según el país y el trámite. En la rama «duda de trámite» te indico si tu caso la requiere.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="finalcta">
+  <div class="wrap">
+    <h2>¿Empezamos? Tú dime qué tienes.</h2>
+    <p>En 10 segundos sabrás qué necesitas, cuánto cuesta y cuándo lo tienes. Sin compromiso.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="#asistente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>Subir un documento</a>
+      <a class="btn btn-ink" href="#asistente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>No entiendo un papel</a>
+    </div>
+    <div class="mini"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>Traductor jurado oficial MAEC nº 3850 · pago seguro · sin compromiso</div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="site">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3 6 9v12c0 11 8 18 18 24 10-6 18-13 18-24V9L24 3z" fill="#0F1E30" stroke="#B8922A" stroke-width="1.4"/><path d="m17 24 4.5 4.5L32 18" fill="none" stroke="#F0E2B8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <b>Traducciones Juradas</b>
+        </div>
+        <p style="max-width:30ch">HBTJ Consultores Lingüísticos S.L. — Málaga. Traducción jurada oficial en 10 idiomas, con foco en francés↔español.</p>
+        <p style="margin-top:10px;font-weight:600;color:#D7CDB8">MAEC nº 3850 · Juan Silva</p>
+      </div>
+      <div>
+        <h4>Utilidades</h4>
+        <ul>
+          <li><a href="#asistente">Diagnostica tu documento</a></li>
+          <li><a href="#asistente">Entiende tu requerimiento</a></li>
+          <li><a href="#">Traduce para entender</a></li>
+          <li><a href="#">Verifica un traductor</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Idiomas y docs</h4>
+        <ul>
+          <li><a href="#idiomas">Francés ↔ Español</a></li>
+          <li><a href="#idiomas">Los 10 idiomas</a></li>
+          <li><a href="#documentos">Documentos oficiales</a></li>
+          <li><a href="#guias">Guías por país</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Contacto</h4>
+        <ul>
+          <li><a href="tel:+34000000000">Teléfono · Málaga</a></li>
+          <li><a href="#">WhatsApp</a></li>
+          <li><a href="#">Email</a></li>
+          <li><a href="#">Área cliente</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 HBTJ Consultores Lingüísticos S.L. · Todos los derechos reservados.</span>
+      <span style="display:inline-flex;gap:16px"><a href="#">Aviso legal</a><a href="#">Privacidad</a><a href="#">Cookies</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Menú móvil
+  var hamb=document.getElementById('hamb'),nav=document.getElementById('navlinks');
+  hamb.addEventListener('click',function(){
+    var open=nav.classList.toggle('mobile-open');
+    hamb.setAttribute('aria-expanded',open?'true':'false');
+  });
+  nav.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){nav.classList.remove('mobile-open');hamb.setAttribute('aria-expanded','false');});});
+
+  // Ramas → progressive disclosure
+  var branches=document.querySelectorAll('.branch');
+  branches.forEach(function(b){
+    b.addEventListener('click',function(){
+      var id=b.getAttribute('data-panel');
+      var panel=document.getElementById(id);
+      var isOpen=panel.classList.contains('open');
+      // cerrar todos
+      document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('open');});
+      branches.forEach(function(x){x.setAttribute('aria-expanded','false');});
+      if(!isOpen){
+        panel.classList.add('open');
+        b.setAttribute('aria-expanded','true');
+        panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+      }
+    });
+  });
+  document.querySelectorAll('.panel-close').forEach(function(c){
+    c.addEventListener('click',function(){
+      var id=c.getAttribute('data-close');
+      document.getElementById(id).classList.remove('open');
+      document.querySelector('.branch[data-panel="'+id+'"]').setAttribute('aria-expanded','false');
+    });
+  });
+
+  // Utilidades → scroll
+  document.querySelectorAll('.util').forEach(function(u){
+    u.addEventListener('click',function(){
+      var go=u.getAttribute('data-go');
+      if(go&&go.charAt(0)==='#'){var t=document.querySelector(go);if(t)t.scrollIntoView({behavior:'smooth'});}
+    });
+  });
+</script>
+</body>
+</html>
