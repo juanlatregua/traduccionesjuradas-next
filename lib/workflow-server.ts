@@ -79,7 +79,7 @@ async function notifyClientMilestone(
   try {
     const order = await prisma.order.findUnique({
       where: { reference },
-      select: { id: true, translatedFileUrl: true },
+      select: { id: true, translatedFileUrl: true, clientLocale: true },
     });
     if (!order) return;
 
@@ -100,11 +100,12 @@ async function notifyClientMilestone(
 
     const { smsEnProceso, smsTraduccionLista } = await import("@/lib/sms-templates");
     const { buildSignedOrderUrl } = await import("@/lib/order-token");
+    const lang = order.clientLocale === "fr" ? "fr" : "es";
     const url = buildSignedOrderUrl(reference, "estado");
     const body =
       milestone === "en_proceso"
-        ? smsEnProceso({ ref: reference, url })
-        : smsTraduccionLista({ ref: reference, url });
+        ? smsEnProceso({ ref: reference, url, lang })
+        : smsTraduccionLista({ ref: reference, url, lang });
 
     const result = await sendNotification({ to: formatPhoneSpain(phone), body });
     await prisma.orderEvent.create({

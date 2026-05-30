@@ -1,4 +1,19 @@
 // lib/sms-templates.ts — Plantillas SMS (max ~160 chars para 1 SMS)
+//
+// Los 3 hitos núcleo (pago → en proceso → lista) salen en el idioma del cliente
+// (Order.clientLocale, capturado en la puerta): el francófono recibe el aviso
+// post-pago en francés, no en español.
+
+export type SmsLang = "es" | "fr";
+
+/** Plazo de entrega localizado para el SMS de pago confirmado. */
+export function formatDeliveryPlazo(dueDate: Date | null | undefined, lang: SmsLang = "es"): string {
+  if (!dueDate) return lang === "fr" ? "3-5 jours ouvrés" : "3-5 días laborables";
+  return dueDate.toLocaleDateString(lang === "fr" ? "fr-FR" : "es-ES", {
+    day: "numeric",
+    month: "long",
+  });
+}
 
 export function smsPresupuestoListo(data: {
   ref: string;
@@ -11,7 +26,11 @@ export function smsPresupuestoListo(data: {
 export function smsTraduccionLista(data: {
   ref: string;
   url: string;
+  lang?: SmsLang;
 }): string {
+  if (data.lang === "fr") {
+    return `TraduccionesJuradas.net: Votre traduction ${data.ref} est prête. Téléchargez-la : ${data.url}`;
+  }
   return `TraduccionesJuradas.net: Tu traduccion ${data.ref} esta lista. Descargala: ${data.url}`;
 }
 
@@ -27,11 +46,18 @@ export function smsPagoConfirmado(data: {
   ref: string;
   plazo: string;
   url: string;
+  lang?: SmsLang;
 }): string {
+  if (data.lang === "fr") {
+    return `TraduccionesJuradas.net: Paiement confirmé ${data.ref}. Livraison : ${data.plazo}. Suivez l'état : ${data.url}`;
+  }
   return `TraduccionesJuradas.net: Pago confirmado ${data.ref}. Entrega: ${data.plazo}. Sigue el estado: ${data.url}`;
 }
 
-export function smsEnProceso(data: { ref: string; url: string }): string {
+export function smsEnProceso(data: { ref: string; url: string; lang?: SmsLang }): string {
+  if (data.lang === "fr") {
+    return `TraduccionesJuradas.net: Votre traduction ${data.ref} est en cours. Suivez l'état : ${data.url}`;
+  }
   return `TraduccionesJuradas.net: Tu traduccion ${data.ref} ya esta en proceso. Sigue el estado: ${data.url}`;
 }
 

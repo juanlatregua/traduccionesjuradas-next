@@ -84,19 +84,18 @@ export async function POST(req: Request) {
         const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
         const { smsPagoConfirmado } = await import("@/lib/sms-templates");
         const { buildSignedOrderUrl } = await import("@/lib/order-token");
+        const { formatDeliveryPlazo } = await import("@/lib/sms-templates");
         const orderFull = await prisma.order.findUnique({
           where: { reference: orderReference },
-          select: { id: true, dueDate: true },
+          select: { id: true, dueDate: true, clientLocale: true },
         });
         if (orderFull) {
           const phone = await getOrderPhone(orderFull.id).catch(() => null);
           if (phone) {
-            const plazo = orderFull.dueDate
-              ? orderFull.dueDate.toLocaleDateString("es-ES", { day: "numeric", month: "long" })
-              : "3-5 días laborables";
+            const lang = orderFull.clientLocale === "fr" ? "fr" : "es";
             sendNotification({
               to: formatPhoneSpain(phone),
-              body: smsPagoConfirmado({ ref: orderReference, plazo, url: buildSignedOrderUrl(orderReference, "estado") }),
+              body: smsPagoConfirmado({ ref: orderReference, plazo: formatDeliveryPlazo(orderFull.dueDate, lang), url: buildSignedOrderUrl(orderReference, "estado"), lang }),
             }).catch((err) => console.error("[redsys-notification] SMS failed", err));
           }
         }
