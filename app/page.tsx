@@ -144,13 +144,13 @@ export default function Home() {
         <div className="mx-auto max-w-5xl px-4 pt-10 pb-8 text-center sm:pt-14">
           {/* Eyebrow */}
           <span className="inline-flex items-center gap-2 rounded-full bg-or px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-encre">
-            Traductor jurado N.3850 · MAEC
+            Traductor jurado acreditado · MAEC
           </span>
 
           {/* H1 */}
           <h1 className="mx-auto mt-5 max-w-2xl font-baskerville text-3xl font-bold tracking-tight text-encre sm:text-4xl lg:text-[42px] lg:leading-tight">
             Tu traducción jurada oficial{" "}
-            <em className="text-or not-italic">en 60 segundos</em>
+            <em className="text-or-dark not-italic">en 60 segundos</em>
           </h1>
 
         {/* Subtítulo */}
@@ -169,7 +169,7 @@ export default function Home() {
                 <span className="text-xl font-bold">!</span>
               </div>
               <div className="flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-or">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-or-dark">
                   Plazo improrrogable · 30 de junio de 2026
                 </p>
                 <p className="mt-1 text-base font-bold text-encre sm:text-lg">
@@ -227,7 +227,7 @@ export default function Home() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-graphite">
             <span className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-or" />
-              N.3850 MAEC
+              Acreditado por el MAEC
             </span>
             <span className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-vert" />

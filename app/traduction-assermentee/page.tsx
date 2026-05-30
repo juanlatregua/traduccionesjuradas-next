@@ -29,14 +29,11 @@ export default function TraductionAssermenteePage() {
       <section id="hero-fr" className="border-b border-cream bg-parchment">
         <div className="mx-auto max-w-3xl px-4 pt-10 pb-8 text-center sm:pt-14">
           <div className="flex justify-center">
-            <SelloMinisterio size="sm" />
+            <SelloMinisterio className="!h-28 !w-28" />
           </div>
-          <span className="mt-4 inline-flex items-center gap-2 rounded-full bg-or px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-encre">
-            Traducteur assermenté nº 3850 · MAEC
-          </span>
           <h1 className="mx-auto mt-5 max-w-2xl font-baskerville text-3xl font-bold tracking-tight text-encre sm:text-4xl">
             Votre traduction assermentée officielle{" "}
-            <em className="text-or not-italic">en 60 secondes</em>
+            <em className="text-or-dark not-italic">en 60 secondes</em>
           </h1>
           <p className="mx-auto mt-4 max-w-md text-base text-sepia sm:text-lg">
             Déposez votre document, recevez le prix fermé et le délai immédiatement, et payez en ligne.

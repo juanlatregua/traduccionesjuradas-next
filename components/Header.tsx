@@ -77,7 +77,6 @@ function Dropdown({
         ref={btnRef}
         type="button"
         className="flex items-center gap-1 rounded-md px-1 py-1 hover:text-bleu focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu focus-visible:ring-offset-2"
-        aria-haspopup="true"
         aria-expanded={open}
         aria-controls={id}
         onClick={onToggle}
@@ -181,7 +180,7 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
     <header className="sticky top-0 z-40 overflow-visible border-b-2 border-or bg-parchment/90 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:flex sm:items-center sm:gap-6">
         <div className="flex items-center justify-between gap-3 sm:flex sm:flex-1 sm:items-center">
-          <Link href={homeHref} className="flex shrink-0 items-center gap-2" aria-label="Traducciones Juradas — inicio">
+          <Link href={homeHref} className="flex shrink-0 items-center gap-2" aria-label={lang === "fr" ? "Traductions assermentées — accueil" : "Traducciones Juradas — inicio"}>
             <Logo />
           </Link>
 
@@ -193,13 +192,13 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
             <LanguageSwitcher />
             <button
               type="button"
-              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-label={menuOpen ? (lang === "fr" ? "Fermer le menu" : "Cerrar menú") : (lang === "fr" ? "Ouvrir le menu" : "Abrir menú")}
               aria-expanded={menuOpen}
               aria-controls="primary-navigation"
               onClick={() => setMenuOpen((p) => !p)}
               className="inline-flex h-11 min-h-[44px] items-center gap-2 rounded-xl border border-cream px-3 text-xs font-semibold text-sepia shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu"
             >
-              {menuOpen ? "Cerrar" : "Menú"}
+              {menuOpen ? (lang === "fr" ? "Fermer" : "Cerrar") : (lang === "fr" ? "Menu" : "Menú")}
             </button>
           </div>
         </div>
@@ -208,7 +207,7 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
           id="primary-navigation"
           ref={navRef}
           aria-label={lang === "fr" ? "Navigation principale" : "Navegación principal"}
-          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none`}
+          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none`}
         >
           {/* CTA + hubs (móvil) */}
           <Link href={ctaHref} className="sm:hidden font-bold text-or hover:text-or-dark" onClick={closeMenu}>

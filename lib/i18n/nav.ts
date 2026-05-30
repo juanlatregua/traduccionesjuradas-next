@@ -100,5 +100,7 @@ export const NAV_EXPEDIENTE: NavItem = { label: { es: "Subir expediente", fr: "D
 // CTA principal: la puerta. En FR, su puerta canónica es /traduction-assermentee.
 export const NAV_CTA = {
   label: { es: "Presupuesto instantáneo", fr: "Devis instantané" },
-  href: { es: "/presupuesto-instantaneo", fr: "/traduction-assermentee" } as Record<NavLang, string>,
+  // En FR apunta al ancla del formulario del héroe (en la landing FR hace scroll
+  // al form; desde /fr/* es navegación a la puerta). Sin #hero-fr sería inerte.
+  href: { es: "/presupuesto-instantaneo", fr: "/traduction-assermentee#hero-fr" } as Record<NavLang, string>,
 };
