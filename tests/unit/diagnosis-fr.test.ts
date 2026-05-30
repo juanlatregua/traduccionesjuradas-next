@@ -19,6 +19,7 @@ const quote = { basePrice: 42, totalPrice: 50.82 } as any;
 
 test("diagnóstico FR: contenido (no solo etiquetas) en francés", () => {
   const d = buildDiagnosis(fixture("fr", "es"), quote, "fr");
+  assert.equal(d.type.label, "Casier judiciaire"); // tipo traducido, no specific_type_es
   assert.match(d.sworn.statement, /assermenté/);
   assert.match(d.validity.swornTranslation, /n'expire pas/);
   assert.match(d.validity.originalDocument || "", /casier judiciaire/);

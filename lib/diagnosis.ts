@@ -136,6 +136,34 @@ function originalDocumentValidity(specificType: string, lang: DiagnosisLang): st
   }
 }
 
+// ── Etiqueta del tipo de documento en FR ────────────────────────────
+// El análisis IA solo devuelve `specific_type_es`; este mapa traduce los tipos
+// oficiales frecuentes. Fallback a la etiqueta española si el tipo no está
+// mapeado (mejor un nombre que un hueco).
+const FR_TYPE_LABELS: Record<string, string> = {
+  birth_certificate: "Acte de naissance",
+  marriage_certificate: "Acte de mariage",
+  death_certificate: "Acte de décès",
+  criminal_record: "Casier judiciaire",
+  divorce_decree: "Jugement de divorce",
+  power_of_attorney: "Procuration",
+  transcript: "Relevé de notes",
+  degree: "Diplôme",
+  medical_report: "Rapport médical",
+  tax_return: "Déclaration fiscale",
+  contract: "Contrat",
+  company_registration: "Immatriculation de société",
+  payslip: "Bulletin de salaire",
+  id_card: "Carte d'identité",
+  passport: "Passeport",
+  apostille: "Apostille",
+};
+
+function typeLabel(specificType: string, specificTypeEs: string, lang: DiagnosisLang): string {
+  if (lang === "fr") return FR_TYPE_LABELS[specificType] || specificTypeEs;
+  return specificTypeEs;
+}
+
 // ── Construcción del diagnóstico ────────────────────────────────────
 
 export function buildDiagnosis(
@@ -165,7 +193,7 @@ export function buildDiagnosis(
   return {
     type: {
       specificType: document_type.specific_type,
-      label: document_type.specific_type_es,
+      label: typeLabel(document_type.specific_type, document_type.specific_type_es, lang),
       category: document_type.category,
     },
     sworn: {

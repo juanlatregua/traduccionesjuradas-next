@@ -50,6 +50,7 @@ export async function POST(req: Request, { params }: Params) {
           amountCents: true,
           clientEmail: true,
           clientName: true,
+          clientLocale: true,
         },
       });
       if (order?.clientEmail) {
@@ -63,6 +64,7 @@ export async function POST(req: Request, { params }: Params) {
             title: order.title,
             amountCents: order.amountCents,
             paymentUrl,
+            lang: order.clientLocale === "fr" ? "fr" : "es",
           })
         ).catch((err) => console.error("[workflow-transition] client notify failed", err));
       }
