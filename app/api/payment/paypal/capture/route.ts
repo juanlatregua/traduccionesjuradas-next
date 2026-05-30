@@ -126,6 +126,7 @@ export async function POST(req: Request) {
             title,
             amountCents,
             method: "PAYPAL",
+            lang: fullOrder?.clientLocale === "fr" ? "fr" : "es",
           })
         ).catch((e) => console.error("[paypal-capture] email failed", e));
       }

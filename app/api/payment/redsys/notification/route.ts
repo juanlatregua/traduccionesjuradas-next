@@ -77,6 +77,7 @@ export async function POST(req: Request) {
             title: order.title,
             amountCents: order.amountCents,
             method: "REDSYS",
+            lang: order.clientLocale === "fr" ? "fr" : "es",
           })
         ).catch((e) => console.error("[redsys-notification] email failed", e));
 

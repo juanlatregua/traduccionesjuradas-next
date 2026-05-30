@@ -142,6 +142,7 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
         amountCents: true,
         source: true,
         langPair: true,
+        clientLocale: true,
       },
     });
 
@@ -165,6 +166,7 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
           title: order.title,
           amountCents: order.amountCents,
           method: "STRIPE",
+          lang: order.clientLocale === "fr" ? "fr" : "es",
         })
       ).catch((err) => console.error(`[${source}] payment confirmation email failed`, err));
 

@@ -139,6 +139,7 @@ export async function POST(req: Request, { params }: Params) {
     });
 
     const statusUrl = buildSignedOrderUrl(order.reference, "estado");
+    const deliveryLang = order.clientLocale === "fr" ? "fr" : "es";
 
     if (state === "EN_PROCESO" && etaDate) {
       sendTranslationEtaEmail({
@@ -146,6 +147,7 @@ export async function POST(req: Request, { params }: Params) {
         reference: order.reference,
         etaDateLabel: formatEta(etaDate),
         statusUrl,
+        lang: deliveryLang,
       }).catch((e) => console.error("[orders-delivery] eta email failed", e));
     }
 
@@ -155,6 +157,7 @@ export async function POST(req: Request, { params }: Params) {
           toEmail: order.clientEmail,
           reference: order.reference,
           downloadUrl: translatedFileUrl,
+          lang: deliveryLang,
           statusUrl,
         })
       ).catch((e) => console.error("[orders-delivery] ready email failed", e));
