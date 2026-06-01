@@ -20,9 +20,18 @@ export async function POST(req: Request) {
   } catch {
     /* opcional */
   }
-  const rows = Array.isArray(body.rows) ? body.rows : [];
-  if (rows.length === 0) return NextResponse.json({ ok: false, error: "No hay movimientos." }, { status: 400 });
-  if (rows.length > MAX_ROWS) return NextResponse.json({ ok: false, error: `Máximo ${MAX_ROWS} movimientos.` }, { status: 400 });
+  const raw = Array.isArray(body.rows) ? body.rows : [];
+  if (raw.length > MAX_ROWS) return NextResponse.json({ ok: false, error: `Máximo ${MAX_ROWS} movimientos.` }, { status: 400 });
+  // Sanear: descartar filas sin fecha parseable o sin importe; coaccionar números.
+  const rows: BankTxn[] = raw
+    .map((r: any) => ({
+      bookingDate: String(r?.bookingDate || ""),
+      description: String(r?.description || ""),
+      amountCents: Math.round(Number(r?.amountCents)),
+      balanceCents: Number.isFinite(Number(r?.balanceCents)) && r?.balanceCents != null ? Math.round(Number(r.balanceCents)) : null,
+    }))
+    .filter((r) => r.bookingDate && !isNaN(new Date(r.bookingDate).getTime()) && Number.isFinite(r.amountCents) && r.amountCents !== 0);
+  if (rows.length === 0) return NextResponse.json({ ok: false, error: "No hay movimientos válidos." }, { status: 400 });
 
   const [invoices, orders, expenses, decisions] = await Promise.all([
     prisma.clientInvoice.findMany({

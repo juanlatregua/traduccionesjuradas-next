@@ -80,7 +80,7 @@ export function parseBankCsv(text: string, mapping?: ColumnMapping): { txns: Ban
       bookingDate: date.toISOString(),
       description: (cells[map.description] || "").trim(),
       amountCents,
-      balanceCents: map.balance !== undefined ? toCents(cells[map.balance] || "") : null,
+      balanceCents: map.balance !== undefined && (cells[map.balance] || "").trim() ? toCents(cells[map.balance]) : null,
     });
   }
   return { txns, skipped };

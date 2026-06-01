@@ -63,7 +63,7 @@ export function parseDateFlexible(s: string): Date | null {
     const d = Number(m[1]);
     const mo = Number(m[2]);
     const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
-    const dt = new Date(Date.UTC(y, mo - 1, d));
+    const dt = new Date(Date.UTC(y, mo - 1, d, 12)); // mediodía UTC: el día no se desplaza al mostrar
     return isNaN(dt.getTime()) ? null : dt;
   }
   const dt = new Date(t);

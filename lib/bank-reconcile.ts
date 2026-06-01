@@ -73,8 +73,14 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
     balanceCheck: { ok: true, message: "" },
   };
 
+  const seen = new Map<string, number>();
   for (const txn of txns) {
-    const lineHash = computeLineHash(txn);
+    const base = computeLineHash(txn);
+    const occ = seen.get(base) || 0;
+    seen.set(base, occ + 1);
+    // Líneas idénticas (mismo día+importe+concepto) → hash distinto por ocurrencia,
+    // para que una decisión no se aplique por error a todas.
+    const lineHash = occ === 0 ? base : `${base}:${occ}`;
     const t = new Date(txn.bookingDate).getTime();
     const desc = normDesc(txn.description);
     if (txn.amountCents > 0) res.totals.bankIn += txn.amountCents;
@@ -88,6 +94,12 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
         continue;
       }
       if (dec.status === "MATCHED_MANUAL") {
+        // Consumir el objetivo para que no se auto-empareje otra vez.
+        if (dec.matchedId) {
+          if (dec.matchedType === "invoice") usedInvoice.add(dec.matchedId);
+          else if (dec.matchedType === "order") usedOrder.add(dec.matchedId);
+          else if (dec.matchedType === "expense") usedExpense.add(dec.matchedId);
+        }
         res.matched.push({ txn, lineHash, kind: dec.matchedType || "manual", targetId: dec.matchedId || "", label: "Emparejado a mano", diffCents: 0, flags: ["manual"] });
         if (txn.amountCents > 0) res.totals.matchedIn += txn.amountCents;
         else res.totals.matchedOut += -txn.amountCents;
@@ -134,7 +146,15 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
         .sort((a, b) => a.diff - b.diff || Math.abs(t - a.od) - Math.abs(t - b.od));
 
       if (orderCands.length >= 1) {
-        // si hay >1, igual marcamos el mejor como candidato a facturar (no consume factura, solo sugiere)
+        // Empate entre pedigos igual de buenos → ambiguo (no auto-elegir en silencio).
+        if (orderCands.length > 1 && orderCands[0].diff === orderCands[1].diff) {
+          res.ambiguous.push({
+            txn,
+            lineHash,
+            candidates: orderCands.slice(0, 5).map((c) => ({ type: "order", id: c.o.reference, label: `Pedido ${c.o.reference}${c.o.clientName ? ` · ${c.o.clientName}` : ""}`, diffCents: c.diff })),
+          });
+          continue;
+        }
         const best = orderCands[0];
         usedOrder.add(best.o.reference);
         res.incomeNoInvoice.push({
@@ -160,10 +180,15 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
         res.internal.push({ txn, lineHash, label: "Interno / traspaso" });
         continue;
       }
-      // Devolución: cargo que casa con un pedido reembolsado.
+      // Devolución: cargo que casa con un pedido reembolsado (con ventana y consumo).
       const refundOrder = snap.orders.find(
-        (o) => o.paymentStatus === "REFUNDED" && within(abs, o.amountCents, TOLERANCE_CENTS)
+        (o) =>
+          o.paymentStatus === "REFUNDED" &&
+          !usedOrder.has(o.reference) &&
+          within(abs, o.amountCents, TOLERANCE_CENTS) &&
+          Math.abs(t - new Date(o.paidAt || o.createdAt).getTime()) <= WINDOW_EXPENSE
       );
+      if (refundOrder) usedOrder.add(refundOrder.reference);
       if (refundOrder || REFUND_RE.test(desc)) {
         res.internal.push({ txn, lineHash, label: "Devolución" });
         continue;
@@ -200,18 +225,20 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
   return res;
 }
 
-// "Que no falte nada": si hay columna saldo, cada saldo debe ser el anterior + importe.
+// "Que no falte nada": si hay columna saldo, cada saldo encadena con el anterior.
+// Se valida en el ORDEN DEL FICHERO (los bancos exportan ordenado), probando tanto
+// ascendente (antiguo→nuevo) como descendente (nuevo→antiguo) para no dar falsos
+// positivos con extractos en cualquier sentido o con varios movimientos el mismo día.
 function checkBalance(txns: BankTxn[]): { ok: boolean; message: string } {
   const withBal = txns.filter((t) => typeof t.balanceCents === "number");
   if (withBal.length < 2 || withBal.length !== txns.length) {
     return { ok: true, message: "Sin columna de saldo: no se puede verificar continuidad." };
   }
-  const sorted = [...txns].sort((a, b) => new Date(a.bookingDate).getTime() - new Date(b.bookingDate).getTime());
-  for (let i = 1; i < sorted.length; i++) {
-    const expected = (sorted[i - 1].balanceCents as number) + sorted[i].amountCents;
-    if (Math.abs(expected - (sorted[i].balanceCents as number)) > 1) {
-      return { ok: false, message: `Salto de saldo el ${sorted[i].bookingDate.slice(0, 10)}: faltan movimientos o el orden no es cronológico.` };
-    }
-  }
-  return { ok: true, message: "Saldos continuos: el extracto está completo." };
+  const bal = (i: number) => txns[i].balanceCents as number;
+  // asc (antiguo→nuevo): saldo[i] = saldo[i-1] + importe[i].
+  const asc = txns.every((t, i) => i === 0 || Math.abs(bal(i - 1) + t.amountCents - bal(i)) <= 1);
+  // desc (nuevo→antiguo): saldo[i] = saldo[i-1] − importe[i-1].
+  const desc = txns.every((t, i) => i === 0 || Math.abs(bal(i - 1) - txns[i - 1].amountCents - bal(i)) <= 1);
+  if (asc || desc) return { ok: true, message: "Saldos continuos: el extracto está completo." };
+  return { ok: false, message: "Salto de saldo: faltan movimientos o el orden no es cronológico." };
 }

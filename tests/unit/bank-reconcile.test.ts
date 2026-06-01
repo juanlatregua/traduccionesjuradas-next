@@ -145,6 +145,49 @@ test("checksum de saldo detecta huecos", () => {
   assert.equal(broken.balanceCheck.ok, false);
 });
 
+test("checksum de saldo acepta extracto en orden descendente (nuevo→antiguo)", () => {
+  const r = reconcile(
+    [
+      { bookingDate: "2026-05-11T00:00:00.000Z", description: "b", amountCents: -500, balanceCents: 10500 },
+      { bookingDate: "2026-05-10T00:00:00.000Z", description: "a", amountCents: 1000, balanceCents: 11000 },
+    ],
+    emptySnap()
+  );
+  assert.equal(r.balanceCheck.ok, true);
+});
+
+test("dos pedidos igual de buenos → ambiguo (no auto-elige)", () => {
+  const snap = emptySnap();
+  snap.orders.push({ reference: "TJ-A", amountCents: 5000, paidAt: "2026-05-10T00:00:00.000Z", createdAt: "2026-05-10T00:00:00.000Z", clientName: "A", paymentStatus: "PAID" });
+  snap.orders.push({ reference: "TJ-B", amountCents: 5000, paidAt: "2026-05-10T00:00:00.000Z", createdAt: "2026-05-10T00:00:00.000Z", clientName: "B", paymentStatus: "PAID" });
+  const r = reconcile([{ bookingDate: "2026-05-10T00:00:00.000Z", description: "Ingreso", amountCents: 5000 }], snap);
+  assert.equal(r.ambiguous.length, 1);
+  assert.equal(r.incomeNoInvoice.length, 0);
+});
+
+test("MATCHED_MANUAL consume el objetivo (no se auto-empareja otra vez)", () => {
+  const snap = emptySnap();
+  snap.invoices.push({ id: "i1", number: "26_001", totalCents: 10000, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "A", nif: null });
+  const txnManual = { bookingDate: "2026-05-09T00:00:00.000Z", description: "Cobro raro", amountCents: 9999 };
+  snap.decisions.push({ lineHash: computeLineHash(txnManual), status: "MATCHED_MANUAL", matchedType: "invoice", matchedId: "i1", note: null });
+  const r = reconcile([txnManual, { bookingDate: "2026-05-10T00:00:00.000Z", description: "Ingreso", amountCents: 10000 }], snap);
+  assert.equal(r.matched.length, 1); // solo el manual
+  assert.equal(r.unmatchedIncome.length, 1); // el real no roba la factura ya consumida
+});
+
+test("líneas idénticas reciben lineHash distinto (decisión no se aplica a todas)", () => {
+  const r = reconcile(
+    [
+      { bookingDate: "2026-05-10T00:00:00.000Z", description: "Comision", amountCents: -300 },
+      { bookingDate: "2026-05-10T00:00:00.000Z", description: "Comision", amountCents: -300 },
+    ],
+    emptySnap()
+  );
+  const hashes = r.chargeNoExpense.map((x: any) => x.lineHash);
+  assert.equal(hashes.length, 2);
+  assert.notEqual(hashes[0], hashes[1]);
+});
+
 test("TOLERANCE_CENTS dentro de rango", () => {
   assert.ok(TOLERANCE_CENTS >= 100 && TOLERANCE_CENTS <= 500);
 });

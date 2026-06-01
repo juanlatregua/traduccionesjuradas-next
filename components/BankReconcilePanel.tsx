@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { previewBankCsv, parseBankCsv, type BankTxn, type ColumnMapping } from "@/lib/bank-parse";
+import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 
 // Conciliación bancaria: sube el extracto (CSV), mapea columnas, cuadra contra
 // facturas/pedidos/gastos. Las acciones reutilizan #2 (facturar) y #5 (gasto).
@@ -14,7 +15,7 @@ function eur(c: number) {
   return `${(c / 100).toFixed(2)} €`;
 }
 function fdate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100";
@@ -26,6 +27,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
   const [mapping, setMapping] = useState<ColumnMapping | null>(null);
   const [amountMode, setAmountMode] = useState<"single" | "debitcredit">("single");
   const [result, setResult] = useState<ReconResult | null>(null);
+  const [brand, setBrand] = useState("traduccionesjuradas");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -131,8 +133,11 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
     }
   }
 
-  async function registrarGasto(txn: Txn) {
+  async function registrarGasto(txn: Txn, vatRate: number) {
     const abs = -txn.amountCents;
+    // El importe del cargo es el TOTAL pagado. Si lleva IVA, la base = total/(1+iva);
+    // si es exento (0%), la base es el total (mayoría de comisiones/SS/seguros).
+    const baseCents = vatRate > 0 ? Math.round(abs / (1 + vatRate)) : abs;
     setBusy(true);
     try {
       const res = await fetch("/api/expenses", {
@@ -141,8 +146,9 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
         body: JSON.stringify({
           date: txn.bookingDate.slice(0, 10),
           concept: txn.description || "Gasto bancario",
-          baseCents: Math.round(abs / 1.21),
-          vatRate: 0.21,
+          baseCents,
+          vatRate,
+          brand,
           notes: "Desde conciliación bancaria",
         }),
       });
@@ -161,7 +167,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
       const res = await fetch("/api/bank/decision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lineHash, status, ...extra }),
+        body: JSON.stringify({ lineHash, status, brand, ...extra }),
       });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo guardar la decisión.");
@@ -189,6 +195,15 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
             Sube el extracto de tu banco (BBVA) en CSV. Cruzo cada <strong>ingreso</strong> con facturas/pedidos y cada{" "}
             <strong>cargo</strong> con gastos, y te marco lo que no cuadra. No se guarda el extracto, solo tus decisiones.
           </p>
+
+          <label className="mt-3 block text-xs text-slate-400">
+            Marca / actividad de esta cuenta (para gastos y decisiones)
+            <select className={`mt-1 block w-64 ${FIELD}`} value={brand} onChange={(e) => setBrand(e.target.value)}>
+              {BRAND_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-slate-300" />
@@ -261,16 +276,13 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
               </Section>
 
               <Section title={`Cargos sin gasto (${result.chargeNoExpense.length}) → registrar gasto (#5)`} color="rose">
-                {result.chargeNoExpense.map((it: any, i: number) => (
-                  <Row key={i} txn={it.txn}>
-                    {canIssue && (
-                      <button type="button" disabled={busy} onClick={() => registrarGasto(it.txn)} className="rounded bg-cyan-600 px-2 py-1 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
-                        Registrar gasto (21%)
-                      </button>
-                    )}
-                    {canIssue && <IgnoreBtn onClick={() => decide(it.lineHash, "IGNORED", { note: "no es gasto" })} />}
-                  </Row>
-                ))}
+                {result.chargeNoExpense.map((it: any, i: number) =>
+                  canIssue ? (
+                    <ChargeRow key={i} txn={it.txn} busy={busy} onRegister={registrarGasto} onIgnore={() => decide(it.lineHash, "IGNORED", { note: "no es gasto" })} />
+                  ) : (
+                    <Row key={i} txn={it.txn} />
+                  )
+                )}
               </Section>
 
               <Section title={`Ambiguos (${result.ambiguous.length}) → elige`} color="amber">
@@ -298,7 +310,13 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                 <summary className="cursor-pointer">Cuadrados, internos e ignorados ({result.matched.length + result.internal.length + result.ignored.length})</summary>
                 <div className="mt-2 space-y-2">
                   {result.matched.map((it: any, i: number) => <Row key={"m" + i} txn={it.txn} extra={`✓ ${it.label}`} />)}
-                  {result.internal.map((it: any, i: number) => <Row key={"in" + i} txn={it.txn} extra={it.label} />)}
+                  {result.internal.map((it: any, i: number) =>
+                    canIssue && it.txn.amountCents < 0 ? (
+                      <ChargeRow key={"in" + i} txn={it.txn} busy={busy} onRegister={registrarGasto} onIgnore={() => decide(it.lineHash, "IGNORED", { note: it.label })} />
+                    ) : (
+                      <Row key={"in" + i} txn={it.txn} extra={it.label} />
+                    )
+                  )}
                   {result.ignored.map((it: any, i: number) => (
                     <Row key={"ig" + i} txn={it.txn} extra={`ignorado${it.note ? `: ${it.note}` : ""}`}>
                       {canIssue && (
@@ -339,6 +357,24 @@ function Row({ txn, extra, children }: { txn: BankTxn; extra?: string; children?
       {extra && <span className="text-slate-400">{extra}</span>}
       {children}
     </div>
+  );
+}
+
+function ChargeRow({ txn, busy, onRegister, onIgnore }: { txn: BankTxn; busy: boolean; onRegister: (txn: BankTxn, vatRate: number) => void; onIgnore: () => void }) {
+  const [vat, setVat] = useState(0);
+  return (
+    <Row txn={txn}>
+      <select value={vat} onChange={(e) => setVat(Number(e.target.value))} className="rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[11px] text-slate-100">
+        <option value={0}>IVA 0% / exento</option>
+        <option value={0.21}>IVA 21%</option>
+        <option value={0.1}>IVA 10%</option>
+        <option value={0.04}>IVA 4%</option>
+      </select>
+      <button type="button" disabled={busy} onClick={() => onRegister(txn, vat)} className="rounded bg-cyan-600 px-2 py-1 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
+        Registrar gasto
+      </button>
+      <IgnoreBtn onClick={onIgnore} />
+    </Row>
   );
 }
 
