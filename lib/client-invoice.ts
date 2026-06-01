@@ -2,12 +2,25 @@
 // Formato real de HBTJ: contador anual compartido (presupuestos + facturas),
 // p.ej. 26_014. La web auto-sugiere el siguiente según lo que tenga en BD, pero
 // el número es EDITABLE/manual porque el contador maestro lo lleva Juan (Excel).
+//
+// Dos caminos conviven:
+//  - Pedido pagado (auto): el importe es el TOTAL con IVA del pedido → base = total/(1+iva).
+//  - Factura manual/libre (borrador): el staff teclea LÍNEAS con su base (sin IVA),
+//    elige el IVA, edita libremente y al EMITIR se le asigna el número y se congela.
 
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
+import {
+  clampVatRate,
+  computeLineTotals,
+  isValidInvoiceNumber,
+  normalizeLines,
+  totalsFromGross,
+  type InvoiceLine,
+} from "@/lib/invoice-math";
 
-export function isValidInvoiceNumber(n: string): boolean {
-  return /^\d{2}_\d{3,}$/.test(n.trim());
-}
+// Re-exporta la API pública que ya consumían otros módulos.
+export { clampVatRate, computeLineTotals, isValidInvoiceNumber, type InvoiceLine };
 
 function yy(): string {
   return String(new Date().getFullYear() % 100).padStart(2, "0");
@@ -23,7 +36,7 @@ export async function suggestNextInvoiceNumber(): Promise<string> {
   });
   let max = 0;
   for (const r of rows) {
-    const m = r.number.match(/^(\d{2})_(\d+)$/);
+    const m = r.number?.match(/^(\d{2})_(\d+)$/);
     if (m) max = Math.max(max, Number(m[2]));
   }
   return `${prefix}${String(max + 1).padStart(3, "0")}`;
@@ -39,14 +52,9 @@ type BillingSnapshot = {
   email: string;
 };
 
-function vatBreakdown(totalCents: number) {
-  const base = Math.round(totalCents / 1.21);
-  return { base, vat: totalCents - base };
-}
-
-// Emite o actualiza la factura de un pedido. number opcional: si no se pasa, se
-// auto-sugiere; si se pasa, se valida formato y unicidad (puede editarse el de
-// una factura ya emitida). Idempotente por orderId.
+// ── Camino pedido pagado: emite/actualiza factura ya numerada (ISSUED) ──────────
+// number opcional: si no se pasa, se auto-sugiere; si se pasa, se valida formato y
+// unicidad. Idempotente por orderId.
 export async function issueOrUpdateInvoice(input: {
   orderId: string;
   amountCents: number;
@@ -67,9 +75,10 @@ export async function issueOrUpdateInvoice(input: {
     throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
   }
 
-  const { base, vat } = vatBreakdown(input.amountCents);
+  const { baseCents, vatCents, totalCents } = totalsFromGross(input.amountCents, 0.21);
   const data = {
     number: finalNumber,
+    status: "ISSUED",
     fiscalName: input.billing.fiscalName,
     nif: input.billing.nif,
     address: input.billing.address,
@@ -77,15 +86,15 @@ export async function issueOrUpdateInvoice(input: {
     postalCode: input.billing.postalCode,
     country: input.billing.country,
     email: input.billing.email,
-    baseCents: base,
+    baseCents,
     vatRate: 0.21,
-    vatCents: vat,
-    totalCents: input.amountCents,
+    vatCents,
+    totalCents,
   };
 
   return prisma.clientInvoice.upsert({
     where: { orderId: input.orderId },
-    create: { orderId: input.orderId, ...data },
+    create: { orderId: input.orderId, issuedAt: new Date(), ...data },
     update: data,
   });
 }
@@ -99,4 +108,104 @@ export async function getOrCreateClientInvoice(input: {
   const existing = await prisma.clientInvoice.findUnique({ where: { orderId: input.orderId } });
   if (existing) return existing;
   return issueOrUpdateInvoice(input);
+}
+
+// ── Camino manual/libre: borrador editable, sin número hasta emitir ─────────────
+export type DraftInvoiceInput = {
+  clientName?: string | null;
+  fiscalName: string;
+  nif?: string | null;
+  address?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+  email?: string | null;
+  concept?: string | null;
+  langPair?: string | null;
+  lines: InvoiceLine[];
+  vatRate: number;
+  orderId?: string | null;
+};
+
+// Campos comunes de un borrador (sin orderId: lo gestiona cada caller para no
+// pisar el vínculo en una edición que no lo toca).
+function draftData(input: DraftInvoiceInput) {
+  const lines = normalizeLines(input.lines);
+  const vatRate = clampVatRate(input.vatRate);
+  const { baseCents, vatCents, totalCents } = computeLineTotals(lines, vatRate);
+  return {
+    lines,
+    data: {
+      clientName: input.clientName?.trim() || null,
+      fiscalName: String(input.fiscalName || "").trim(),
+      nif: input.nif?.trim() || null,
+      address: input.address?.trim() || null,
+      city: input.city?.trim() || null,
+      postalCode: input.postalCode?.trim() || null,
+      country: input.country?.trim() || "España",
+      email: input.email?.trim() || null,
+      concept: input.concept?.trim() || null,
+      langPair: input.langPair?.trim() || null,
+      lineItemsJson: lines as unknown as Prisma.InputJsonValue,
+      baseCents,
+      vatRate,
+      vatCents,
+      totalCents,
+    },
+  };
+}
+
+export async function createDraftInvoice(input: DraftInvoiceInput) {
+  if (!String(input.fiscalName || "").trim()) {
+    throw new Error("Falta el nombre fiscal del cliente.");
+  }
+  const { data } = draftData(input);
+  return prisma.clientInvoice.create({
+    data: { status: "DRAFT", orderId: input.orderId || null, ...data },
+  });
+}
+
+export async function updateDraftInvoice(id: string, input: DraftInvoiceInput) {
+  const existing = await prisma.clientInvoice.findUnique({ where: { id } });
+  if (!existing) throw new Error("Factura no encontrada.");
+  if (existing.status !== "DRAFT") {
+    throw new Error("Una factura emitida no se modifica. Bórrala o emite una nueva.");
+  }
+  if (!String(input.fiscalName || "").trim()) {
+    throw new Error("Falta el nombre fiscal del cliente.");
+  }
+  const { data } = draftData(input);
+  // Solo tocar el vínculo de pedido si se pasa explícitamente (undefined = no cambiar).
+  const orderPatch = input.orderId !== undefined ? { orderId: input.orderId } : {};
+  return prisma.clientInvoice.update({ where: { id }, data: { ...data, ...orderPatch } });
+}
+
+// Asigna el número fiscal y congela la factura. Idempotente si ya está emitida.
+export async function issueInvoice(id: string, opts?: { number?: string | null }) {
+  const inv = await prisma.clientInvoice.findUnique({ where: { id } });
+  if (!inv) throw new Error("Factura no encontrada.");
+  if (inv.status === "ISSUED") return inv;
+  if (!inv.fiscalName?.trim()) throw new Error("Falta el nombre fiscal del cliente.");
+  if (inv.totalCents <= 0) throw new Error("La factura no tiene importe. Añade al menos una línea.");
+
+  const finalNumber = (opts?.number || "").trim() || (await suggestNextInvoiceNumber());
+  if (!isValidInvoiceNumber(finalNumber)) {
+    throw new Error("Número de factura inválido. Formato: AA_NNN (p.ej. 26_018).");
+  }
+  const clash = await prisma.clientInvoice.findUnique({
+    where: { number: finalNumber },
+    select: { id: true },
+  });
+  if (clash && clash.id !== id) {
+    throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
+  }
+
+  return prisma.clientInvoice.update({
+    where: { id },
+    data: { number: finalNumber, status: "ISSUED", issuedAt: new Date() },
+  });
+}
+
+export async function deleteInvoice(id: string) {
+  return prisma.clientInvoice.delete({ where: { id } });
 }

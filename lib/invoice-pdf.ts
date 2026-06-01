@@ -11,9 +11,13 @@ type InvoiceLine = {
 };
 
 type InvoiceData = {
-  reference: string;
+  reference?: string;
   title: string;
   amountCents: number;
+  baseCents?: number;
+  vatCents?: number;
+  vatRate?: number; // fracción (0.21). Si se omite, se asume 21%.
+  draft?: boolean; // marca de agua PROFORMA y oculta el número
   langPair?: string | null;
   words?: number | null;
   paidAt?: Date | null;
@@ -147,9 +151,10 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("FACTURA", boxX + 5, 25.5);
+  doc.text(data.draft ? "PROFORMA" : "FACTURA", boxX + 5, 25.5);
   doc.setFontSize(15);
-  doc.text(data.invoiceNumber || `F-${data.reference}`, pageW - margin - 5, 25.5, { align: "right" });
+  const numberLabel = data.invoiceNumber || (data.draft ? "BORRADOR" : data.reference ? `F-${data.reference}` : "—");
+  doc.text(numberLabel, pageW - margin - 5, 25.5, { align: "right" });
 
   // ── Caja cliente ──────────────────────────────────────────
   const cliY = 35;
@@ -240,8 +245,10 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.rect(cDesc, bodyTop, contentW, ty - bodyTop, "S");
 
   // ── Resumen Base / IVA / TOTAL ────────────────────────────
-  const base = Math.round(data.amountCents / 1.21);
-  const vat = data.amountCents - base;
+  const vatRate = data.vatRate ?? 0.21;
+  const base = data.baseCents ?? Math.round(data.amountCents / (1 + vatRate));
+  const vat = data.vatCents ?? data.amountCents - base;
+  const vatPct = Math.round(vatRate * 100);
   ty += 3;
   const sumLabelX = cLang;
   const drawSum = (label: string, value: string, bold = false, big = false) => {
@@ -254,7 +261,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     ty += big ? 7 : 5.2;
   };
   drawSum("Base imponible", eur(base));
-  drawSum("IVA 21%", eur(vat));
+  drawSum(vatPct === 0 ? "IVA (exento/0%)" : `IVA ${vatPct}%`, eur(vat));
   ty += 1.5;
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.5);
@@ -273,6 +280,16 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setFont("helvetica", "normal");
   doc.text(EMITTER.bic, margin + 60, footY + 6);
   doc.text(EMITTER.iban, margin + 60, footY + 11.5);
+
+  // ── Marca de agua de borrador (proforma, sin valor fiscal) ────────────
+  if (data.draft) {
+    doc.setTextColor(214, 219, 228);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(60);
+    doc.text("BORRADOR", 105, 165, { align: "center", angle: 32 });
+    doc.setFontSize(11);
+    doc.text("Proforma · sin valor como factura", 105, 178, { align: "center", angle: 32 });
+  }
 
   const ab = doc.output("arraybuffer");
   return Buffer.from(ab);

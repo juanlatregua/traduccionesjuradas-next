@@ -182,25 +182,32 @@ model OrderDocumentItem {
 // Factura emitida al cliente con numeración fiscal secuencial y persistencia.
 // Sustituye el "F-{ref}" generado al vuelo (sin valor legal).
 model ClientInvoice {
-  id         String   @id @default(cuid())
-  number     String   @unique // FAC-AAAA-NNNNN, secuencial por año
-  orderId    String   @unique
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  issuedAt   DateTime @default(now())
-  fiscalName String
-  nif        String
-  address    String
-  city       String
-  postalCode String
-  country    String   @default("España")
-  email      String
-  baseCents  Int
-  vatRate    Float    @default(0.21)
-  vatCents   Int
-  totalCents Int
-  createdAt  DateTime @default(now())
+  id            String    @id @default(cuid())
+  number        String?   @unique // AA_NNN secuencial; null mientras es BORRADOR
+  status        String    @default("DRAFT") // DRAFT | ISSUED
+  orderId       String?   @unique // null = factura libre (sin pedido)
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  issuedAt      DateTime? // se sella al emitir
+  clientName    String? // nombre comercial / referencia interna (opcional)
+  fiscalName    String
+  nif           String?
+  address       String?
+  city          String?
+  postalCode    String?
+  country       String    @default("España")
+  email         String?
+  concept       String? // título general para el PDF (opcional)
+  langPair      String?
+  lineItemsJson Json? // [{ description, detail?, amountCents }] (base sin IVA)
+  baseCents     Int
+  vatRate       Float     @default(0.21)
+  vatCents      Int
+  totalCents    Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
 
   @@index([issuedAt])
+  @@index([status])
 }
 
 model OrderEvent {

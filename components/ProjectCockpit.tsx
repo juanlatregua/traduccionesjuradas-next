@@ -32,7 +32,7 @@ type Data = {
   supplierCostCents: number;
   marginCents: number;
   marginPct: number | null;
-  invoice: { number: string; totalCents: number } | null;
+  invoice: { number: string | null; totalCents: number } | null;
   quote: { quoteNumber: string; publicToken: string; status: string } | null;
   items: Item[];
   timeline: { type: string; message: string | null; at: string }[];
@@ -196,7 +196,7 @@ export default function ProjectCockpit({ data }: { data: Data }) {
             })()}
             <a href={`/zona-traductor/workspace/${data.reference}`} className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800">Editor de traducción</a>
             {data.invoice ? (
-              <a href={`/api/orders/${data.reference}/invoice-pdf`} className="rounded-lg border border-emerald-600 px-3 py-1.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-600/20">🧾 {data.invoice.number} (PDF)</a>
+              <a href={`/api/orders/${data.reference}/invoice-pdf`} className="rounded-lg border border-emerald-600 px-3 py-1.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-600/20">🧾 {data.invoice.number || "Borrador"} (PDF)</a>
             ) : (
               <button type="button" onClick={emitInvoice} disabled={busy} className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50">Emitir factura</button>
             )}

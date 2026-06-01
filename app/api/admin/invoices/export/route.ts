@@ -26,10 +26,12 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const year = url.searchParams.get("year");
+  // Solo facturas EMITIDAS (los borradores no van a la gestoría). Filtro por año
+  // sobre el prefijo del número AA_NNN (p.ej. 2026 → "26_").
   const where =
     year && /^\d{4}$/.test(year)
-      ? { number: { startsWith: `FAC-${year}-` } }
-      : undefined;
+      ? { status: "ISSUED", number: { startsWith: `${year.slice(2)}_` } }
+      : { status: "ISSUED" };
 
   const invoices = await prisma.clientInvoice.findMany({
     where,
@@ -52,16 +54,16 @@ export async function GET(req: Request) {
 
   const rows = invoices.map((inv) =>
     [
-      inv.number,
-      inv.issuedAt.toISOString().slice(0, 10),
+      inv.number || "",
+      (inv.issuedAt || inv.createdAt).toISOString().slice(0, 10),
       inv.order?.reference || "",
       inv.fiscalName,
-      inv.nif,
+      inv.nif || "",
       eur(inv.baseCents),
       String(Math.round(inv.vatRate * 100)),
       eur(inv.vatCents),
       eur(inv.totalCents),
-      inv.email,
+      inv.email || "",
     ]
       .map(csvCell)
       .join(";")
