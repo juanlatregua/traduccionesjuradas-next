@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 
 // Gestor de facturas de la zona-traductor: crear borrador (libre o desde un
 // pedido), editar líneas/IVA, emitir (asigna AA_NNN) y borrar. Las líneas se
@@ -12,8 +13,10 @@ export type InvoiceRow = {
   id: string;
   number: string | null;
   status: string; // DRAFT | ISSUED
+  brand: string;
   orderReference: string | null;
   clientName: string | null;
+  poNumber: string | null;
   fiscalName: string;
   nif: string | null;
   address: string | null;
@@ -43,8 +46,13 @@ function eur(cents: number) {
   return `${(cents / 100).toFixed(2)} €`;
 }
 
+function brandLabel(key: string) {
+  return BRAND_OPTIONS.find((o) => o.value === key)?.label || key;
+}
+
 function emptyForm() {
   return {
+    brand: "traduccionesjuradas",
     orderReference: "",
     clientName: "",
     fiscalName: "",
@@ -55,6 +63,7 @@ function emptyForm() {
     country: "España",
     email: "",
     concept: "",
+    poNumber: "",
     langPair: "",
     vatRate: 0.21,
     lines: [{ description: "", detail: "", amount: "" }] as Line[],
@@ -95,16 +104,26 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
     setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }));
   }
 
-  function startCreate() {
+  function startCreate(brand?: string) {
     setEditingId(null);
-    setForm(emptyForm());
+    const f = emptyForm();
+    if (brand && BRAND_OPTIONS.some((o) => o.value === brand)) f.brand = brand;
+    setForm(f);
     setMsg(null);
     setOpen(true);
   }
 
+  // Deep-link desde Contabilidad: ?nueva=holabonjour abre el creador en esa marca.
+  useEffect(() => {
+    const nueva = new URLSearchParams(window.location.search).get("nueva");
+    if (nueva) startCreate(nueva);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function startEdit(row: InvoiceRow) {
     setEditingId(row.id);
     setForm({
+      brand: row.brand || "traduccionesjuradas",
       orderReference: row.orderReference || "",
       clientName: row.clientName || "",
       fiscalName: row.fiscalName || "",
@@ -115,6 +134,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
       country: row.country || "España",
       email: row.email || "",
       concept: row.concept || "",
+      poNumber: row.poNumber || "",
       langPair: row.langPair || "",
       vatRate: row.vatRate,
       lines:
@@ -171,6 +191,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
 
   function payload() {
     return {
+      brand: form.brand,
       orderReference: form.orderReference.trim() || null,
       clientName: form.clientName.trim() || null,
       fiscalName: form.fiscalName.trim(),
@@ -181,6 +202,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
       country: form.country.trim() || "España",
       email: form.email.trim() || null,
       concept: form.concept.trim() || null,
+      poNumber: form.poNumber.trim() || null,
       langPair: form.langPair.trim() || null,
       vatRate: form.vatRate,
       lines: form.lines
@@ -276,7 +298,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
         </p>
         <button
           type="button"
-          onClick={startCreate}
+          onClick={() => startCreate()}
           className="shrink-0 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
         >
           + Nueva factura
@@ -290,6 +312,20 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
             <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-400 hover:text-slate-200">
               Cerrar
             </button>
+          </div>
+
+          {/* Marca / actividad emisora (numeración compartida) */}
+          <div className="mt-3">
+            <label className="text-xs text-slate-400">
+              Marca / actividad
+              <select className={`mt-1 block w-64 ${FIELD}`} value={form.brand} onChange={(e) => set("brand", e.target.value)}>
+                {BRAND_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {/* Vínculo opcional con un pedido */}
@@ -323,6 +359,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
             <input className={FIELD} placeholder="C.P." value={form.postalCode} onChange={(e) => set("postalCode", e.target.value)} />
             <input className={FIELD} placeholder="País" value={form.country} onChange={(e) => set("country", e.target.value)} />
             <input className={FIELD} placeholder="Concepto / título (opcional)" value={form.concept} onChange={(e) => set("concept", e.target.value)} />
+            <input className={FIELD} placeholder="Purchase Order / Nº pedido cliente" value={form.poNumber} onChange={(e) => set("poNumber", e.target.value)} />
             <input className={FIELD} placeholder="Par idiomas (p.ej. fr-es)" value={form.langPair} onChange={(e) => set("langPair", e.target.value)} />
           </div>
 
@@ -480,7 +517,14 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
                       {new Date(date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
                     </td>
                     <td className="px-4 py-3 font-mono text-slate-300">{inv.orderReference || "—"}</td>
-                    <td className="px-4 py-3">{inv.fiscalName}</td>
+                    <td className="px-4 py-3">
+                      {inv.fiscalName}
+                      {inv.brand !== "traduccionesjuradas" && (
+                        <span className="ml-2 rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-fuchsia-200">
+                          {brandLabel(inv.brand)}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right tabular-nums">{eur(inv.baseCents)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{eur(inv.vatCents)}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-semibold">{eur(inv.totalCents)}</td>

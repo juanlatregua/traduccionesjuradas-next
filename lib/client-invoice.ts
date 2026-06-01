@@ -112,6 +112,7 @@ export async function getOrCreateClientInvoice(input: {
 
 // ── Camino manual/libre: borrador editable, sin número hasta emitir ─────────────
 export type DraftInvoiceInput = {
+  brand?: string | null;
   clientName?: string | null;
   fiscalName: string;
   nif?: string | null;
@@ -121,6 +122,7 @@ export type DraftInvoiceInput = {
   country?: string | null;
   email?: string | null;
   concept?: string | null;
+  poNumber?: string | null;
   langPair?: string | null;
   lines: InvoiceLine[];
   vatRate: number;
@@ -136,6 +138,7 @@ function draftData(input: DraftInvoiceInput) {
   return {
     lines,
     data: {
+      brand: input.brand?.trim() || "traduccionesjuradas",
       clientName: input.clientName?.trim() || null,
       fiscalName: String(input.fiscalName || "").trim(),
       nif: input.nif?.trim() || null,
@@ -145,6 +148,7 @@ function draftData(input: DraftInvoiceInput) {
       country: input.country?.trim() || "España",
       email: input.email?.trim() || null,
       concept: input.concept?.trim() || null,
+      poNumber: input.poNumber?.trim() || null,
       langPair: input.langPair?.trim() || null,
       lineItemsJson: lines as unknown as Prisma.InputJsonValue,
       baseCents,

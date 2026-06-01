@@ -185,6 +185,7 @@ model ClientInvoice {
   id            String    @id @default(cuid())
   number        String?   @unique // AA_NNN secuencial; null mientras es BORRADOR
   status        String    @default("DRAFT") // DRAFT | ISSUED
+  brand         String    @default("traduccionesjuradas") // marca/actividad emisora (numeración compartida)
   orderId       String?   @unique // null = factura libre (sin pedido)
   order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   issuedAt      DateTime? // se sella al emitir
@@ -197,6 +198,7 @@ model ClientInvoice {
   country       String    @default("España")
   email         String?
   concept       String? // título general para el PDF (opcional)
+  poNumber      String? // Purchase Order / nº de pedido del cliente (p.ej. Oracle)
   langPair      String?
   lineItemsJson Json? // [{ description, detail?, amountCents }] (base sin IVA)
   baseCents     Int

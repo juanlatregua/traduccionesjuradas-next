@@ -69,11 +69,21 @@ export default async function ZonaTraductorContabilidadPage() {
     <div className="min-h-screen bg-slate-950">
       <ZonaTraductorNav modoActivo="contabilidad" pedidosAccionables={accionables} />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <h1 className="text-2xl font-semibold text-white">Contabilidad general</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Ingresos, gastos y resultado por año, trimestre o mes. Facturación e IVA para el modelo 303/390; resultado a
-          partir de los pedidos cobrados y sus costes. Descarga el CSV para la gestoría.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-white">Contabilidad general</h1>
+            <p className="mt-1 text-sm text-slate-400">
+              Ingresos, gastos y resultado por año, trimestre o mes. Facturación e IVA para el modelo 303/390; resultado a
+              partir de los pedidos cobrados y sus costes. Descarga el CSV para la gestoría.
+            </p>
+          </div>
+          <a
+            href="/zona-traductor/facturas?nueva=holabonjour"
+            className="shrink-0 rounded-lg border border-fuchsia-600 px-4 py-2 text-sm font-semibold text-fuchsia-200 hover:bg-fuchsia-900/30"
+          >
+            + Factura de otra actividad
+          </a>
+        </div>
         <ContabilidadClient invoices={invoices} orders={orders} />
       </div>
     </div>

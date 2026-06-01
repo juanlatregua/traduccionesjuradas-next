@@ -1,15 +1,30 @@
 // app/api/invoices/[id]/pdf/route.ts
 // STAFF: PDF de una factura por id. Borrador → marca de agua PROFORMA.
 
+import { promises as fs } from "fs";
+import path from "path";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
+import { getBrand } from "@/lib/invoice-brands";
 import type { InvoiceLine } from "@/lib/client-invoice";
 
 export const runtime = "nodejs";
 
 type Params = { params: { id: string } };
+
+// Carga el logo de marca (PNG) como data URL si el archivo existe.
+async function loadBrandLogo(brandKey: string): Promise<string | undefined> {
+  const brand = getBrand(brandKey);
+  if (brand.logo.kind !== "image") return undefined;
+  try {
+    const buf = await fs.readFile(path.join(process.cwd(), brand.logo.path));
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch {
+    return undefined; // sin archivo → el PDF usa el wordmark de respaldo
+  }
+}
 
 export async function GET(req: Request, { params }: Params) {
   const access = await requireStaffAccess(req);
@@ -25,6 +40,8 @@ export async function GET(req: Request, { params }: Params) {
     ? (invoice.lineItemsJson as unknown as InvoiceLine[])
     : undefined;
 
+  const logoDataUrl = await loadBrandLogo(invoice.brand);
+
   try {
     const pdfBuffer = generateInvoicePdf({
       reference: invoice.order?.reference,
@@ -33,6 +50,9 @@ export async function GET(req: Request, { params }: Params) {
       baseCents: invoice.baseCents,
       vatCents: invoice.vatCents,
       vatRate: invoice.vatRate,
+      brand: invoice.brand,
+      logoDataUrl,
+      poNumber: invoice.poNumber,
       draft: invoice.status !== "ISSUED",
       langPair: invoice.langPair,
       createdAt: invoice.createdAt,
