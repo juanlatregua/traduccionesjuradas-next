@@ -10,13 +10,16 @@ type Row = {
   clientName: string | null;
   clientEmail: string;
   title: string;
-  amountCents: number;
-  baseCents: number;
+  orderAmountCents: number;
+  bookableAmountCents: number;
+  bookableBaseCents: number;
   paidAt: string | null;
   createdAt: string;
   hasBilling: boolean;
   hasNif: boolean;
+  hasFiscalName: boolean;
   draftInvoiceId: string | null;
+  amountMismatch: boolean;
   sinFechaCobro: boolean;
 };
 
@@ -33,7 +36,7 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
   const [msg, setMsg] = useState<string | null>(null);
   const [result, setResult] = useState<{ issued: Outcome[]; failed: Outcome[] } | null>(null);
 
-  const issuable = (r: Row) => r.hasNif; // sin NIF no se factura
+  const issuable = (r: Row) => r.hasNif && r.hasFiscalName; // sin NIF ni nombre fiscal no se factura
 
   function toggle(ref: string) {
     setSel((s) => {
@@ -86,7 +89,8 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
         <div>
           <h2 className="text-sm font-semibold text-white">Pedidos cobrados sin factura emitida</h2>
           <p className="mt-1 text-xs text-slate-400">
-            {rows.length} pedido(s) · {eur(totalAmountCents)} cobrados sin factura. Emítelas para que cuenten como ingreso del libro.
+            {rows.length} pedido(s) · {eur(totalAmountCents)} a facturar. Emítelas para que cuenten como ingreso del libro.
+            {rows.length >= 1000 && <span className="text-amber-300"> (mostrando los primeros 1000)</span>}
           </p>
         </div>
         {canIssue ? (
@@ -113,7 +117,8 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
 
       <p className="mt-2 text-[11px] text-slate-500">
         Fecha de cobro: factura con la fecha real del pago. Los pedidos de un trimestre ya presentado (antes de abril 2026) se
-        fechan hoy automáticamente. Sin NIF no se puede facturar (rellena los datos fiscales del pedido).
+        fechan hoy automáticamente. Sin NIF/nombre fiscal no se puede facturar (rellena los datos fiscales del pedido). Si un
+        pedido ya tiene borrador, se factura con sus líneas: el importe «a facturar» es el del borrador (se avisa si difiere del cobrado).
       </p>
 
       <div className="mt-3 overflow-x-auto rounded-lg border border-slate-700">
@@ -128,7 +133,7 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
               <th className="px-3 py-2">Pedido</th>
               <th className="px-3 py-2">Cliente</th>
               <th className="px-3 py-2">Cobrado</th>
-              <th className="px-3 py-2 text-right">Total</th>
+              <th className="px-3 py-2 text-right">A facturar</th>
               <th className="px-3 py-2 text-right">Base</th>
               <th className="px-3 py-2">Avisos</th>
             </tr>
@@ -144,12 +149,17 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
                 <td className="px-3 py-2 text-slate-400">
                   {r.paidAt ? new Date(r.paidAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{eur(r.amountCents)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-400">{eur(r.baseCents)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {eur(r.bookableAmountCents)}
+                  {r.amountMismatch && <div className="text-[10px] text-amber-300">cobrado: {eur(r.orderAmountCents)}</div>}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-400">{eur(r.bookableBaseCents)}</td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-1">
                     {!r.hasNif && <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-200">sin NIF</span>}
+                    {!r.hasFiscalName && <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-200">sin nombre fiscal</span>}
                     {r.draftInvoiceId && <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-200">tiene borrador</span>}
+                    {r.amountMismatch && <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-200">borrador ≠ cobrado</span>}
                     {r.sinFechaCobro && <span className="rounded bg-slate-500/20 px-1.5 py-0.5 text-[10px] text-slate-300">sin fecha de cobro</span>}
                   </div>
                 </td>

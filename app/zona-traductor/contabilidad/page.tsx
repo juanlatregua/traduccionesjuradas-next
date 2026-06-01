@@ -29,9 +29,9 @@ export default async function ZonaTraductorContabilidadPage() {
       take: 3000,
     }),
     prisma.expense.findMany({ orderBy: { date: "desc" }, take: 3000 }),
-    listPaidUnbilledOrders({ base: "paid" }),
+    listPaidUnbilledOrders(),
   ]);
-  const unbilledTotal = unbilled.reduce((s, r) => s + r.amountCents, 0);
+  const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
 
   const invoices: AcInvoice[] = rawInvoices.map((i) => ({
     id: i.id,

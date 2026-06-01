@@ -5,8 +5,9 @@
 import { prisma } from "@/lib/prisma";
 import { issueInvoice, issueOrUpdateInvoice, suggestNextInvoiceNumber } from "@/lib/client-invoice";
 
-// Fin del último trimestre de IVA ya presentado: no se retro-fecha antes de aquí.
-// T1 2026 presentado → primer día facturable = 1-abr-2026. Editable por env.
+// Primera fecha facturable = fin del último trimestre de IVA presentado + 1 día.
+// T1 2026 presentado → 1-abr-2026. Si un cobro cae ANTES, no se retro-fecha (se
+// factura con fecha de hoy para no tocar un periodo ya liquidado). Editable por env.
 export const LAST_303_CLOSE = new Date(process.env.LAST_303_CLOSE || "2026-04-01T00:00:00.000Z");
 
 export type PaidUnbilledOrder = {
@@ -14,13 +15,16 @@ export type PaidUnbilledOrder = {
   clientName: string | null;
   clientEmail: string;
   title: string;
-  amountCents: number; // total con IVA
-  baseCents: number; // base sugerida (amount/1.21)
+  orderAmountCents: number; // lo realmente cobrado (total con IVA)
+  bookableAmountCents: number; // lo que se contabilizará (total del borrador si lo hay, si no el del pedido)
+  bookableBaseCents: number;
   paidAt: string | null; // ISO
   createdAt: string;
   hasBilling: boolean;
   hasNif: boolean;
+  hasFiscalName: boolean;
   draftInvoiceId: string | null;
+  amountMismatch: boolean; // el borrador vinculado factura un importe distinto al cobrado
   sinFechaCobro: boolean;
 };
 
@@ -30,9 +34,10 @@ export type BatchIssueResult = {
   number?: string;
   error?: string;
   dateAdjusted?: boolean; // se forzó a hoy (trimestre cerrado o sin fecha de cobro)
+  skipped?: "already_issued";
 };
 
-export async function listPaidUnbilledOrders(opts?: { base?: "paid" | "created" }): Promise<PaidUnbilledOrder[]> {
+export async function listPaidUnbilledOrders(): Promise<PaidUnbilledOrder[]> {
   const orders = await prisma.order.findMany({
     where: {
       paymentStatus: "PAID",
@@ -48,26 +53,34 @@ export async function listPaidUnbilledOrders(opts?: { base?: "paid" | "created" 
       paidAt: true,
       createdAt: true,
       billing: { select: { nif: true, fiscalName: true } },
-      clientInvoice: { select: { id: true, status: true } },
+      clientInvoice: { select: { id: true, status: true, totalCents: true, baseCents: true } },
     },
     orderBy: { paidAt: "desc" },
     take: 1000,
   });
 
-  return orders.map((o) => ({
-    reference: o.reference,
-    clientName: o.clientName,
-    clientEmail: o.clientEmail,
-    title: o.title,
-    amountCents: o.amountCents,
-    baseCents: Math.round(o.amountCents / 1.21),
-    paidAt: o.paidAt ? o.paidAt.toISOString() : null,
-    createdAt: o.createdAt.toISOString(),
-    hasBilling: !!o.billing,
-    hasNif: !!(o.billing?.nif && o.billing.nif.trim()),
-    draftInvoiceId: o.clientInvoice?.status === "DRAFT" ? o.clientInvoice.id : null,
-    sinFechaCobro: !o.paidAt,
-  }));
+  return orders.map((o) => {
+    const draft = o.clientInvoice?.status === "DRAFT" ? o.clientInvoice : null;
+    const bookableAmountCents = draft ? draft.totalCents : o.amountCents;
+    const bookableBaseCents = draft ? draft.baseCents : Math.round(o.amountCents / 1.21);
+    return {
+      reference: o.reference,
+      clientName: o.clientName,
+      clientEmail: o.clientEmail,
+      title: o.title,
+      orderAmountCents: o.amountCents,
+      bookableAmountCents,
+      bookableBaseCents,
+      paidAt: o.paidAt ? o.paidAt.toISOString() : null,
+      createdAt: o.createdAt.toISOString(),
+      hasBilling: !!o.billing,
+      hasNif: !!(o.billing?.nif && o.billing.nif.trim()),
+      hasFiscalName: !!(o.billing?.fiscalName && o.billing.fiscalName.trim()),
+      draftInvoiceId: draft ? o.clientInvoice!.id : null,
+      amountMismatch: !!draft && draft.totalCents !== o.amountCents,
+      sinFechaCobro: !o.paidAt,
+    };
+  });
 }
 
 type OrderForIssue = {
@@ -78,9 +91,10 @@ type OrderForIssue = {
 };
 
 async function issueWithRetry(order: OrderForIssue, explicitNumber: string | undefined, issuedAt: Date): Promise<string | null> {
+  const forYear = issuedAt.getFullYear();
   let lastErr: any;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const number = (explicitNumber || "").trim() || (await suggestNextInvoiceNumber());
+    const number = (explicitNumber || "").trim() || (await suggestNextInvoiceNumber(forYear));
     try {
       const inv = order.draftInvoiceId
         ? await issueInvoice(order.draftInvoiceId, { number, issuedAt, origin: "reconcile_batch" })
@@ -95,11 +109,18 @@ async function issueWithRetry(order: OrderForIssue, explicitNumber: string | und
       return inv.number ?? null;
     } catch (err: any) {
       lastErr = err;
-      // Si el número es manual o el error no es de colisión, no reintentar.
-      if (explicitNumber || !/ya está en uso/i.test(err?.message || "")) throw err;
+      // Solo reintentar si fue colisión de número AUTO (no manual).
+      if (explicitNumber || err?.code !== "INVOICE_NUMBER_TAKEN") throw err;
     }
   }
   throw lastErr;
+}
+
+// Resuelve la fecha de emisión efectiva de una referencia (y si se ajustó a hoy).
+function effectiveIssuedAt(paidAt: Date | null, dateMode: "paid" | "today"): { date: Date; adjusted: boolean } {
+  if (dateMode === "today" || !paidAt) return { date: new Date(), adjusted: dateMode === "paid" };
+  if (paidAt < LAST_303_CLOSE) return { date: new Date(), adjusted: true }; // trimestre ya presentado
+  return { date: paidAt, adjusted: false };
 }
 
 export async function issueInvoicesForOrders(input: {
@@ -110,8 +131,20 @@ export async function issueInvoicesForOrders(input: {
   const issued: BatchIssueResult[] = [];
   const failed: BatchIssueResult[] = [];
 
+  // Pre-pase: fecha efectiva por referencia para ordenar el lote por fecha y que
+  // los números crecientes correspondan a fechas crecientes (Art. 6 RD 1619/2012).
+  const dates = await prisma.order.findMany({
+    where: { reference: { in: input.references } },
+    select: { reference: true, paidAt: true },
+  });
+  const eff = new Map<string, { date: Date; adjusted: boolean }>();
+  for (const d of dates) eff.set(d.reference, effectiveIssuedAt(d.paidAt, input.dateMode));
+  const sortedRefs = [...input.references].sort(
+    (a, b) => (eff.get(a)?.date.getTime() ?? 0) - (eff.get(b)?.date.getTime() ?? 0)
+  );
+
   // Secuencial a propósito: la numeración fiscal no admite carreras.
-  for (const reference of input.references) {
+  for (const reference of sortedRefs) {
     try {
       const order = await prisma.order.findUnique({
         where: { reference },
@@ -119,7 +152,6 @@ export async function issueInvoicesForOrders(input: {
           id: true,
           amountCents: true,
           paymentStatus: true,
-          paidAt: true,
           billing: true,
           clientInvoice: { select: { id: true, status: true } },
         },
@@ -127,34 +159,23 @@ export async function issueInvoicesForOrders(input: {
       if (!order) throw new Error("Pedido no encontrado.");
       if (order.paymentStatus !== "PAID") throw new Error("El pedido no está cobrado.");
       if (order.clientInvoice?.status === "ISSUED") {
-        issued.push({ reference, ok: true, number: undefined });
+        issued.push({ reference, ok: true, skipped: "already_issued" });
         continue;
       }
       const b = order.billing;
       if (!b || !b.nif?.trim() || !b.fiscalName?.trim()) {
-        throw new Error("Faltan datos fiscales (NIF). Rellénalos en el pedido antes de facturar.");
+        throw new Error("Faltan datos fiscales (NIF y nombre). Rellénalos en el pedido antes de facturar.");
       }
 
-      // Fecha de emisión + salvaguarda de trimestre cerrado.
-      let issuedAt: Date;
-      let dateAdjusted = false;
-      if (input.dateMode === "today" || !order.paidAt) {
-        issuedAt = new Date();
-        if (input.dateMode === "paid") dateAdjusted = true; // querían 'paid' pero no hay fecha
-      } else if (order.paidAt < LAST_303_CLOSE) {
-        issuedAt = new Date(); // trimestre ya presentado → factura del periodo actual
-        dateAdjusted = true;
-      } else {
-        issuedAt = order.paidAt;
-      }
+      const { date: issuedAt, adjusted: dateAdjusted } = eff.get(reference) ?? effectiveIssuedAt(null, input.dateMode);
 
       const number = await issueWithRetry(
         {
           id: order.id,
           amountCents: order.amountCents,
           billing: {
-            fiscalName: b.fiscalName || "",
-            nif: b.nif || "",
+            fiscalName: b.fiscalName,
+            nif: b.nif,
             address: b.address || "",
             city: b.city || "",
             postalCode: b.postalCode || "",

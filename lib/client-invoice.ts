@@ -22,14 +22,20 @@ import {
 // Re-exporta la API pública que ya consumían otros módulos.
 export { clampVatRate, computeLineTotals, isValidInvoiceNumber, type InvoiceLine };
 
-function yy(): string {
-  return String(new Date().getFullYear() % 100).padStart(2, "0");
+function yy(forYear?: number): string {
+  return String((forYear ?? new Date().getFullYear()) % 100).padStart(2, "0");
+}
+
+// Error de colisión de número, detectable por código (no por el texto del mensaje).
+function numberTakenError(n: string) {
+  return Object.assign(new Error(`El número ${n} ya está en uso por otra factura.`), { code: "INVOICE_NUMBER_TAKEN" });
 }
 
 // Sugerencia: mayor secuencia conocida en BD para el año + 1. OJO: no conoce los
 // números que Juan haya asignado a mano en el Excel → es solo un punto de partida.
-export async function suggestNextInvoiceNumber(): Promise<string> {
-  const prefix = `${yy()}_`;
+// forYear: año de la serie (= año de la fecha de emisión); por defecto el actual.
+export async function suggestNextInvoiceNumber(forYear?: number): Promise<string> {
+  const prefix = `${yy(forYear)}_`;
   const rows = await prisma.clientInvoice.findMany({
     where: { number: { startsWith: prefix } },
     select: { number: true },
@@ -74,7 +80,7 @@ export async function issueOrUpdateInvoice(input: {
     select: { orderId: true },
   });
   if (clash && clash.orderId !== input.orderId) {
-    throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
+    throw numberTakenError(finalNumber);
   }
 
   const { baseCents, vatCents, totalCents } = totalsFromGross(input.amountCents, 0.21);
@@ -112,7 +118,7 @@ export async function issueOrUpdateInvoice(input: {
   } catch (err: any) {
     // Colisión de número @unique desde el propio upsert (carrera con otra emisión).
     if (err?.code === "P2002") {
-      throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
+      throw numberTakenError(finalNumber);
     }
     throw err;
   }
@@ -221,7 +227,7 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
     select: { id: true },
   });
   if (clash && clash.id !== id) {
-    throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
+    throw numberTakenError(finalNumber);
   }
 
   try {
@@ -235,7 +241,7 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
       },
     });
   } catch (err: any) {
-    if (err?.code === "P2002") throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
+    if (err?.code === "P2002") throw numberTakenError(finalNumber);
     throw err;
   }
 }

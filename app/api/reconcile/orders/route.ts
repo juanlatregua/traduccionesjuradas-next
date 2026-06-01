@@ -9,8 +9,7 @@ export async function GET(req: Request) {
   const access = await requireStaffAccess(req);
   if (!access.ok) return NextResponse.json({ ok: false, error: access.error }, { status: 403 });
 
-  const base = new URL(req.url).searchParams.get("base") === "created" ? "created" : "paid";
-  const rows = await listPaidUnbilledOrders({ base });
-  const totalAmountCents = rows.reduce((s, r) => s + r.amountCents, 0);
+  const rows = await listPaidUnbilledOrders();
+  const totalAmountCents = rows.reduce((s, r) => s + r.bookableAmountCents, 0);
   return NextResponse.json({ ok: true, rows, count: rows.length, totalAmountCents });
 }
