@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { norm, detectDelimiter, splitCsvLine, toCents, mapColumns } from "@/lib/csv";
 
 // Importa facturas históricas desde un CSV (exportado de Excel). Parseo en
 // cliente, previsualización y confirmación. Crea facturas EMITIDAS en la
@@ -22,43 +23,6 @@ type Row = {
 
 const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100";
 
-function norm(s: string) {
-  return s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-}
-
-function detectDelimiter(line: string) {
-  return (line.match(/;/g)?.length || 0) >= (line.match(/,/g)?.length || 0) ? ";" : ",";
-}
-
-function splitCsvLine(line: string, delim: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQ && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else inQ = !inQ;
-    } else if (c === delim && !inQ) {
-      out.push(cur);
-      cur = "";
-    } else cur += c;
-  }
-  out.push(cur);
-  return out.map((s) => s.trim());
-}
-
-function toCents(raw: string): number {
-  let s = String(raw || "").replace(/[€\s]/g, "");
-  if (!s) return 0;
-  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
-  else if (s.includes(",")) s = s.replace(",", ".");
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? Math.round(n * 100) : 0;
-}
-
 const COLS: Record<string, string[]> = {
   number: ["numero", "numero factura", "n factura", "nº", "n", "num", "factura"],
   date: ["fecha", "fecha emision", "fecha factura"],
@@ -71,23 +35,12 @@ const COLS: Record<string, string[]> = {
   brand: ["marca", "actividad"],
 };
 
-function mapHeader(headers: string[]): Record<string, number> {
-  const idx: Record<string, number> = {};
-  headers.forEach((h, i) => {
-    const n = norm(h);
-    for (const [key, names] of Object.entries(COLS)) {
-      if (idx[key] === undefined && names.includes(n)) idx[key] = i;
-    }
-  });
-  return idx;
-}
-
 function parseCsv(text: string): { rows: Row[]; headerError?: string } {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length < 2) return { rows: [], headerError: "El CSV necesita una cabecera y al menos una fila." };
   const delim = detectDelimiter(lines[0]);
   const headers = splitCsvLine(lines[0], delim);
-  const idx = mapHeader(headers);
+  const idx = mapColumns(headers, COLS);
   if (idx.number === undefined || idx.date === undefined) {
     return { rows: [], headerError: "Faltan columnas obligatorias: 'número' y 'fecha'." };
   }

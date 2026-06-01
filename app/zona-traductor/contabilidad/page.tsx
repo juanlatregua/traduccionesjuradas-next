@@ -8,6 +8,7 @@ import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense } from "@/components/ContabilidadClient";
 import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 import ReconcilePanel from "@/components/ReconcilePanel";
+import BankReconcilePanel from "@/components/BankReconcilePanel";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Contabilidad general",
@@ -88,6 +89,7 @@ export default async function ZonaTraductorContabilidadPage() {
         </div>
         <ReconcilePanel rows={unbilled} totalAmountCents={unbilledTotal} canIssue={canIssue} />
         <ContabilidadClient invoices={invoices} orders={orders} expenses={expenses} />
+        <BankReconcilePanel canIssue={canIssue} />
         <ImportInvoicesPanel />
       </div>
     </div>

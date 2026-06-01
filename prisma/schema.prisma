@@ -234,6 +234,24 @@ model Expense {
   @@index([date])
 }
 
+// Decisiones del staff sobre líneas del extracto bancario. NO almacena el extracto
+// crudo (sin importe, concepto, contraparte ni saldo) → privacidad por diseño y sin
+// "libro de caja" paralelo sumable. lineHash = SHA-256(fecha|importe|concepto-norm)
+// recalculado en cada subida y cruzado contra esta tabla.
+model BankDecision {
+  id          String   @id @default(cuid())
+  brand       String   @default("traduccionesjuradas")
+  lineHash    String   @unique
+  status      String // IGNORED | MATCHED_MANUAL
+  matchedType String? // invoice | order | expense (solo si MATCHED_MANUAL)
+  matchedId   String?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([brand])
+}
+
 model OrderEvent {
   id        String   @id @default(cuid())
   orderId   String
