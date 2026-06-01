@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
+import { getStaffRole } from "@/lib/staff-access";
+import { listPaidUnbilledOrders } from "@/lib/reconcile-invoices";
 import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense } from "@/components/ContabilidadClient";
 import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
+import ReconcilePanel from "@/components/ReconcilePanel";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Contabilidad general",
@@ -12,11 +15,13 @@ export const metadata: Metadata = {
 };
 
 export default async function ZonaTraductorContabilidadPage() {
-  await authZonaTraductorOrRedirect();
+  const staffEmail = await authZonaTraductorOrRedirect();
+  const role = getStaffRole(staffEmail);
+  const canIssue = role === "ADMIN" || role === "PM";
   const bandeja = await loadBandejaState().catch(() => null);
   const accionables = bandeja?.pedidosAccionables ?? 0;
 
-  const [rawInvoices, rawOrders, rawExpenses] = await Promise.all([
+  const [rawInvoices, rawOrders, rawExpenses, unbilled] = await Promise.all([
     prisma.clientInvoice.findMany({ where: { status: "ISSUED" }, orderBy: { issuedAt: "desc" }, take: 3000 }),
     prisma.order.findMany({
       where: { paymentStatus: "PAID" },
@@ -24,7 +29,9 @@ export default async function ZonaTraductorContabilidadPage() {
       take: 3000,
     }),
     prisma.expense.findMany({ orderBy: { date: "desc" }, take: 3000 }),
+    listPaidUnbilledOrders({ base: "paid" }),
   ]);
+  const unbilledTotal = unbilled.reduce((s, r) => s + r.amountCents, 0);
 
   const invoices: AcInvoice[] = rawInvoices.map((i) => ({
     id: i.id,
@@ -79,6 +86,7 @@ export default async function ZonaTraductorContabilidadPage() {
             + Factura de otra actividad
           </a>
         </div>
+        <ReconcilePanel rows={unbilled} totalAmountCents={unbilledTotal} canIssue={canIssue} />
         <ContabilidadClient invoices={invoices} orders={orders} expenses={expenses} />
         <ImportInvoicesPanel />
       </div>

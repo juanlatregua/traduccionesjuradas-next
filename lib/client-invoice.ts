@@ -60,6 +60,8 @@ export async function issueOrUpdateInvoice(input: {
   amountCents: number;
   billing: BillingSnapshot;
   number?: string | null;
+  issuedAt?: Date | null; // fecha de emisión (p.ej. la del cobro); por defecto ahora
+  origin?: string | null; // auditoría del origen
 }) {
   const finalNumber = (input.number || "").trim() || (await suggestNextInvoiceNumber());
   if (!isValidInvoiceNumber(finalNumber)) {
@@ -90,13 +92,30 @@ export async function issueOrUpdateInvoice(input: {
     vatRate: 0.21,
     vatCents,
     totalCents,
+    // origin solo se fija si se pasa explícito (no pisar el de una factura ya creada)
+    ...(input.origin ? { origin: input.origin } : {}),
+    // issuedAt en update solo si se pasa explícito (no re-sellar una emitida)
+    ...(input.issuedAt ? { issuedAt: input.issuedAt } : {}),
   };
 
-  return prisma.clientInvoice.upsert({
-    where: { orderId: input.orderId },
-    create: { orderId: input.orderId, issuedAt: new Date(), ...data },
-    update: data,
-  });
+  try {
+    return await prisma.clientInvoice.upsert({
+      where: { orderId: input.orderId },
+      create: {
+        orderId: input.orderId,
+        issuedAt: input.issuedAt ?? new Date(),
+        origin: input.origin ?? "manual",
+        ...data,
+      },
+      update: data,
+    });
+  } catch (err: any) {
+    // Colisión de número @unique desde el propio upsert (carrera con otra emisión).
+    if (err?.code === "P2002") {
+      throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
+    }
+    throw err;
+  }
 }
 
 // Camino cliente: emite la factura si no existe (número auto AA_NNN). Idempotente.
@@ -107,7 +126,7 @@ export async function getOrCreateClientInvoice(input: {
 }) {
   const existing = await prisma.clientInvoice.findUnique({ where: { orderId: input.orderId } });
   if (existing) return existing;
-  return issueOrUpdateInvoice(input);
+  return issueOrUpdateInvoice({ ...input, origin: "lazy_pdf" });
 }
 
 // ── Camino manual/libre: borrador editable, sin número hasta emitir ─────────────
@@ -185,7 +204,8 @@ export async function updateDraftInvoice(id: string, input: DraftInvoiceInput) {
 }
 
 // Asigna el número fiscal y congela la factura. Idempotente si ya está emitida.
-export async function issueInvoice(id: string, opts?: { number?: string | null }) {
+// issuedAt opcional: para sellar con la fecha del cobro (conciliación), no hoy.
+export async function issueInvoice(id: string, opts?: { number?: string | null; issuedAt?: Date | null; origin?: string | null }) {
   const inv = await prisma.clientInvoice.findUnique({ where: { id } });
   if (!inv) throw new Error("Factura no encontrada.");
   if (inv.status === "ISSUED") return inv;
@@ -204,10 +224,20 @@ export async function issueInvoice(id: string, opts?: { number?: string | null }
     throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
   }
 
-  return prisma.clientInvoice.update({
-    where: { id },
-    data: { number: finalNumber, status: "ISSUED", issuedAt: new Date() },
-  });
+  try {
+    return await prisma.clientInvoice.update({
+      where: { id },
+      data: {
+        number: finalNumber,
+        status: "ISSUED",
+        issuedAt: opts?.issuedAt ?? new Date(),
+        ...(opts?.origin ? { origin: opts.origin } : {}),
+      },
+    });
+  } catch (err: any) {
+    if (err?.code === "P2002") throw new Error(`El número ${finalNumber} ya está en uso por otra factura.`);
+    throw err;
+  }
 }
 
 export async function deleteInvoice(id: string) {

@@ -185,6 +185,7 @@ model ClientInvoice {
   id            String    @id @default(cuid())
   number        String?   @unique // AA_NNN secuencial; null mientras es BORRADOR
   status        String    @default("DRAFT") // DRAFT | ISSUED
+  origin        String? // auditoría: lazy_pdf | reconcile_batch | manual | import | draft
   brand         String    @default("traduccionesjuradas") // marca/actividad emisora (numeración compartida)
   orderId       String?   @unique // null = factura libre (sin pedido)
   order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
