@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
@@ -26,12 +27,30 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const year = url.searchParams.get("year");
-  // Solo facturas EMITIDAS (los borradores no van a la gestoría). Filtro por año
-  // sobre el prefijo del número AA_NNN (p.ej. 2026 → "26_").
-  const where =
-    year && /^\d{4}$/.test(year)
-      ? { status: "ISSUED", number: { startsWith: `${year.slice(2)}_` } }
-      : { status: "ISSUED" };
+  const q = url.searchParams.get("q"); // 1..4
+  const m = url.searchParams.get("m"); // 1..12
+
+  // Solo facturas EMITIDAS (los borradores no van a la gestoría). Filtro por
+  // periodo contable sobre la fecha de EMISIÓN (issuedAt).
+  const where: Prisma.ClientInvoiceWhereInput = { status: "ISSUED" };
+  let periodTag = "";
+  if (year && /^\d{4}$/.test(year)) {
+    const y = Number(year);
+    let startMonth = 0;
+    let endMonth = 12;
+    if (q && /^[1-4]$/.test(q)) {
+      startMonth = (Number(q) - 1) * 3;
+      endMonth = startMonth + 3;
+      periodTag = `-${year}-T${q}`;
+    } else if (m && /^([1-9]|1[0-2])$/.test(m)) {
+      startMonth = Number(m) - 1;
+      endMonth = startMonth + 1;
+      periodTag = `-${year}-${String(Number(m)).padStart(2, "0")}`;
+    } else {
+      periodTag = `-${year}`;
+    }
+    where.issuedAt = { gte: new Date(Date.UTC(y, startMonth, 1)), lt: new Date(Date.UTC(y, endMonth, 1)) };
+  }
 
   const invoices = await prisma.clientInvoice.findMany({
     where,
@@ -70,7 +89,7 @@ export async function GET(req: Request) {
   );
 
   const csv = "﻿" + [header, ...rows].join("\r\n"); // BOM para Excel
-  const filename = `facturas${year ? `-${year}` : ""}.csv`;
+  const filename = `facturas${periodTag}.csv`;
 
   return new NextResponse(csv, {
     status: 200,

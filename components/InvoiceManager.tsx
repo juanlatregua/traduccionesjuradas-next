@@ -70,6 +70,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
   const [form, setForm] = useState(emptyForm());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [issueNumber, setIssueNumber] = useState(suggested);
 
   const totals = useMemo(() => {
     const base = form.lines.reduce((s, l) => {
@@ -218,9 +219,14 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
     }
   }
 
-  async function issue(id: string) {
-    const number = window.prompt(`Número fiscal a asignar (formato AA_NNN):`, suggested);
-    if (number === null) return;
+  async function issue(id: string, num?: string) {
+    let number = num;
+    if (number === undefined) {
+      // Emitir desde la fila de la tabla (sin el formulario abierto): pide el número.
+      const p = window.prompt(`Número fiscal a asignar (formato AA_NNN):`, suggested);
+      if (p === null) return;
+      number = p;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -387,7 +393,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap items-end gap-2">
             <button
               type="button"
               onClick={save}
@@ -406,9 +412,18 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
                 >
                   Vista previa proforma
                 </a>
+                <label className="text-xs text-slate-400">
+                  Nº factura
+                  <input
+                    className={`mt-1 block w-28 ${FIELD} font-mono`}
+                    value={issueNumber}
+                    onChange={(e) => setIssueNumber(e.target.value)}
+                    placeholder={suggested}
+                  />
+                </label>
                 <button
                   type="button"
-                  onClick={() => issue(editingId)}
+                  onClick={() => issue(editingId, issueNumber)}
                   disabled={busy}
                   className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
                 >

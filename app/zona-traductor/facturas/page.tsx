@@ -68,10 +68,10 @@ export default async function ZonaTraductorFacturasPage() {
             </p>
           </div>
           <a
-            href="/api/admin/invoices/export"
-            className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
+            href="/zona-traductor/contabilidad"
+            className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
           >
-            Descargar CSV (gestoría)
+            Ir a Contabilidad →
           </a>
         </div>
 
