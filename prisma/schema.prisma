@@ -212,6 +212,27 @@ model ClientInvoice {
   @@index([status])
 }
 
+// Gasto manual del libro de contabilidad (IVA soportado). No ligado a pedidos:
+// el traductor lo introduce a mano o lo importa. Fuente principal de gastos.
+model Expense {
+  id          String   @id @default(cuid())
+  date        DateTime // fecha del gasto/factura recibida
+  brand       String   @default("traduccionesjuradas")
+  supplier    String? // proveedor
+  supplierNif String?
+  concept     String
+  category    String? // p.ej. software, suministros, colaborador, cuota
+  baseCents   Int
+  vatRate     Float    @default(0.21)
+  vatCents    Int // IVA soportado (deducible)
+  totalCents  Int
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([date])
+}
+
 model OrderEvent {
   id        String   @id @default(cuid())
   orderId   String

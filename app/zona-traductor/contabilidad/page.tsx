@@ -3,7 +3,8 @@ import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traduc
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
 import ZonaTraductorNav from "@/components/ZonaTraductorNav";
-import ContabilidadClient, { type AcInvoice, type AcOrder } from "@/components/ContabilidadClient";
+import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense } from "@/components/ContabilidadClient";
+import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Contabilidad general",
@@ -15,25 +16,14 @@ export default async function ZonaTraductorContabilidadPage() {
   const bandeja = await loadBandejaState().catch(() => null);
   const accionables = bandeja?.pedidosAccionables ?? 0;
 
-  const [rawInvoices, rawOrders] = await Promise.all([
-    prisma.clientInvoice.findMany({
-      where: { status: "ISSUED" },
-      orderBy: { issuedAt: "desc" },
-      take: 2000,
-    }),
+  const [rawInvoices, rawOrders, rawExpenses] = await Promise.all([
+    prisma.clientInvoice.findMany({ where: { status: "ISSUED" }, orderBy: { issuedAt: "desc" }, take: 3000 }),
     prisma.order.findMany({
       where: { paymentStatus: "PAID" },
-      select: {
-        reference: true,
-        title: true,
-        amountCents: true,
-        paymentStatus: true,
-        paidAt: true,
-        createdAt: true,
-        events: { select: { type: true, payload: true, createdAt: true } },
-      },
-      take: 2000,
+      select: { reference: true, paidAt: true, createdAt: true, amountCents: true, paymentStatus: true, events: { select: { type: true, payload: true, createdAt: true } } },
+      take: 3000,
     }),
+    prisma.expense.findMany({ orderBy: { date: "desc" }, take: 3000 }),
   ]);
 
   const invoices: AcInvoice[] = rawInvoices.map((i) => ({
@@ -49,21 +39,26 @@ export default async function ZonaTraductorContabilidadPage() {
 
   const orders: AcOrder[] = rawOrders.map((o) => {
     const snap = getFinanceSnapshot(o);
-    const supplier = snap.marginSupplierCostCents ?? 0;
-    const gateway = snap.marginGatewayFeeCents ?? 0;
-    const other = snap.marginOtherCostCents ?? 0;
+    const cost = (snap.marginSupplierCostCents ?? 0) + (snap.marginGatewayFeeCents ?? 0) + (snap.marginOtherCostCents ?? 0);
     return {
       reference: o.reference,
-      title: o.title,
       date: (o.paidAt ?? o.createdAt).toISOString(),
-      revenueBaseCents: Math.round(o.amountCents / 1.21),
-      supplierCostCents: supplier,
-      gatewayFeeCents: gateway,
-      otherCostCents: other,
-      totalCostCents: supplier + gateway + other,
+      totalCostCents: cost,
       costRecorded: snap.marginCents !== null,
     };
   });
+
+  const expenses: AcExpense[] = rawExpenses.map((e) => ({
+    id: e.id,
+    date: e.date.toISOString(),
+    concept: e.concept,
+    supplier: e.supplier,
+    category: e.category,
+    brand: e.brand,
+    baseCents: e.baseCents,
+    vatCents: e.vatCents,
+    totalCents: e.totalCents,
+  }));
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -73,8 +68,8 @@ export default async function ZonaTraductorContabilidadPage() {
           <div>
             <h1 className="text-2xl font-semibold text-white">Contabilidad general</h1>
             <p className="mt-1 text-sm text-slate-400">
-              Ingresos, gastos y resultado por año, trimestre o mes. Facturación e IVA para el modelo 303/390; resultado a
-              partir de los pedidos cobrados y sus costes. Descarga el CSV para la gestoría.
+              Ingresos, gastos, IVA y resultado por año, trimestre o mes (modelo 303/390). Registra gastos a mano o importa
+              tu histórico desde Excel.
             </p>
           </div>
           <a
@@ -84,7 +79,8 @@ export default async function ZonaTraductorContabilidadPage() {
             + Factura de otra actividad
           </a>
         </div>
-        <ContabilidadClient invoices={invoices} orders={orders} />
+        <ContabilidadClient invoices={invoices} orders={orders} expenses={expenses} />
+        <ImportInvoicesPanel />
       </div>
     </div>
   );

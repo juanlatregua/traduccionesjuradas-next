@@ -213,3 +213,53 @@ export async function issueInvoice(id: string, opts?: { number?: string | null }
 export async function deleteInvoice(id: string) {
   return prisma.clientInvoice.delete({ where: { id } });
 }
+
+// Importación: crea una factura ya EMITIDA a partir de un registro histórico
+// (Excel/CSV). Valida número y unicidad; no genera número automático.
+export type ImportInvoiceRow = {
+  number: string;
+  date: string; // fecha de emisión
+  fiscalName: string;
+  nif?: string | null;
+  baseCents: number;
+  vatCents: number;
+  totalCents?: number;
+  concept?: string | null;
+  brand?: string | null;
+};
+
+export async function importIssuedInvoice(row: ImportInvoiceRow) {
+  const number = String(row.number || "").trim();
+  if (!isValidInvoiceNumber(number)) {
+    throw new Error(`Número inválido "${number}" (formato AA_NNN).`);
+  }
+  const exists = await prisma.clientInvoice.findUnique({ where: { number }, select: { id: true } });
+  if (exists) throw new Error(`El número ${number} ya existe.`);
+
+  const issuedAt = new Date(row.date);
+  if (isNaN(issuedAt.getTime())) throw new Error(`Fecha inválida en ${number}.`);
+
+  const base = Math.max(0, Math.round(Number(row.baseCents) || 0));
+  const vat = Math.max(0, Math.round(Number(row.vatCents) || 0));
+  const total = row.totalCents ? Math.round(row.totalCents) : base + vat;
+  const vatRate = base > 0 ? Math.round((vat / base) * 100) / 100 : 0.21;
+  const concept = row.concept?.trim() || null;
+
+  return prisma.clientInvoice.create({
+    data: {
+      number,
+      status: "ISSUED",
+      brand: row.brand?.trim() || "traduccionesjuradas",
+      issuedAt,
+      fiscalName: String(row.fiscalName || "").trim() || "—",
+      nif: row.nif?.trim() || null,
+      country: "España",
+      concept,
+      lineItemsJson: concept ? ([{ description: concept, amountCents: base }] as unknown as Prisma.InputJsonValue) : undefined,
+      baseCents: base,
+      vatRate,
+      vatCents: vat,
+      totalCents: total,
+    },
+  });
+}
