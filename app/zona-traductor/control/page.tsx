@@ -74,7 +74,7 @@ export default async function ZonaTraductorControlPage({
   } = state;
 
   return (
-    <div id="zona-traductor-root" className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800">
+    <div className="min-h-screen bg-slate-950">
       <ZonaTraductorNav modoActivo="control" pedidosAccionables={pedidosAccionables} />
       <main className="px-4 py-10">
         <AutoRefresh intervalMs={20000} idleMs={30000} />

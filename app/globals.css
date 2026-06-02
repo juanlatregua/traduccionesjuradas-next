@@ -160,3 +160,26 @@ body[data-chat-open="true"] .whatsapp-float {
 #zona-traductor-root.zona-theme-light table thead {
   background-color: #e2e8f0 !important;
 }
+
+/* ============================================
+   ZONA TRADUCTOR — paleta OSCURA por defecto, más cómoda
+   Canon de UI oscura: evitar el negro casi puro (#020617) y la halación del
+   blanco puro (#fff). Fondo gris azulado, superficies elevadas por luminancia,
+   texto off-white. Solo en modo oscuro (sin .zona-theme-light); el tema claro
+   de arriba gana por especificidad.
+   ============================================ */
+#zona-traductor-root:not(.zona-theme-light) {
+  background-color: #111a2b;
+}
+#zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-950"] {
+  background-color: #111a2b !important; /* fondo de página */
+}
+#zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-900"] {
+  background-color: #1b2536 !important; /* tarjetas, inputs, nav (elevado) */
+}
+#zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-800"] {
+  background-color: #243044 !important; /* cabeceras de tabla, chips (más elevado) */
+}
+#zona-traductor-root:not(.zona-theme-light) [class*="text-white"] {
+  color: #eaf0f7 !important; /* off-white: sin vibración del #fff */
+}
