@@ -192,6 +192,39 @@ export default function ContabilidadClient({
     }
   }
 
+  async function extractFromFile() {
+    if (!gastoFile) {
+      setMsg("Selecciona primero el archivo de la factura del proveedor.");
+      return;
+    }
+    setBusy(true);
+    setMsg("Extrayendo datos de la factura con IA…");
+    try {
+      const fd = new FormData();
+      fd.append("file", gastoFile);
+      const res = await fetch("/api/expenses/extract", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo extraer.");
+      const x = d.data || {};
+      setGasto((g) => ({
+        ...g,
+        date: x.date || g.date,
+        concept: x.concept || g.concept,
+        supplier: x.supplier || g.supplier,
+        supplierNif: x.supplierNif || g.supplierNif,
+        supplierInvoiceNumber: x.supplierInvoiceNumber || g.supplierInvoiceNumber,
+        base: x.baseEur != null ? String(x.baseEur) : g.base,
+        vatRate: x.vatRate != null ? Number(x.vatRate) : g.vatRate,
+        irpfPct: x.irpfRate != null ? Number(x.irpfRate) : g.irpfPct,
+      }));
+      setMsg("Datos extraídos de la factura. Revísalos y completa lo que falte antes de guardar.");
+    } catch (e: any) {
+      setMsg(e?.message || "Error al extraer.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function delExpense(id: string) {
     if (!window.confirm("¿Borrar este gasto?")) return;
     setBusy(true);
@@ -306,9 +339,17 @@ export default function ContabilidadClient({
               <input type="checkbox" checked={gasto.ivaDeducible} onChange={(e) => setGasto({ ...gasto, ivaDeducible: e.target.checked })} /> IVA deducible
             </label>
             <label className="text-xs text-slate-400">
-              Justificante (PDF/imagen)
+              Factura del proveedor (PDF/imagen)
               <input type="file" accept=".pdf,image/*" className="mt-1 block w-full text-xs text-slate-300" onChange={(e) => setGastoFile(e.target.files?.[0] || null)} />
             </label>
+            <button
+              type="button"
+              onClick={extractFromFile}
+              disabled={busy || !gastoFile}
+              className="self-end rounded-lg border border-fuchsia-600 px-3 py-2 text-xs font-semibold text-fuchsia-200 hover:bg-fuchsia-900/30 disabled:opacity-50"
+            >
+              ✨ Extraer datos (IA)
+            </button>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-slate-400">
