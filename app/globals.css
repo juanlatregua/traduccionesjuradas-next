@@ -161,6 +161,25 @@ body[data-chat-open="true"] .whatsapp-float {
   background-color: #e2e8f0 !important;
 }
 
+/* Tema claro: los acentos (cian/verde/ámbar/rosa/fucsia en variantes 200-300) están
+   pensados para fondo oscuro y sobre blanco quedan ilegibles. Se oscurecen a tono 700
+   para mantener contraste AA. (No tocan el tema oscuro: van scopeados a .zona-theme-light.) */
+#zona-traductor-root.zona-theme-light [class*="text-cyan-"] {
+  color: #0e7490 !important;
+}
+#zona-traductor-root.zona-theme-light [class*="text-emerald-"] {
+  color: #047857 !important;
+}
+#zona-traductor-root.zona-theme-light [class*="text-amber-"] {
+  color: #b45309 !important;
+}
+#zona-traductor-root.zona-theme-light [class*="text-rose-"] {
+  color: #be123c !important;
+}
+#zona-traductor-root.zona-theme-light [class*="text-fuchsia-"] {
+  color: #a21caf !important;
+}
+
 /* ============================================
    ZONA TRADUCTOR — paleta OSCURA por defecto, más cómoda
    Canon de UI oscura: evitar el negro casi puro (#020617) y la halación del
