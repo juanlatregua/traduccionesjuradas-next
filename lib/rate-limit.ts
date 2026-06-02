@@ -172,3 +172,18 @@ export async function checkGlobalAnalysisCap(): Promise<boolean> {
   });
   return result.ok;
 }
+
+// Lector de requerimientos (gratuito): cap diario PROPIO, aislado del
+// diagnóstico de pago, para que un pico del lector no agote la conversión.
+// Arranque conservador (50/día); se sube si funciona.
+const REQUIREMENTS_DAILY_CAP = 50;
+const REQUIREMENTS_CAP_KEY = "global:daily-requirements-cap";
+
+export async function checkRequirementsCap(): Promise<boolean> {
+  const result = await checkRateLimit({
+    key: REQUIREMENTS_CAP_KEY,
+    limit: REQUIREMENTS_DAILY_CAP,
+    windowMs: 24 * 60 * 60 * 1000,
+  });
+  return result.ok;
+}

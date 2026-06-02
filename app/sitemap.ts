@@ -143,6 +143,12 @@ const LAST_MODIFIED: Record<string, string> = {
   "/regularizacion-2026/mali":                      "2026-05-03",
   "/regularizacion-2026/guinea":                    "2026-05-03",
   "/regularizacion-2026/camerun":                   "2026-05-03",
+  // Lector de requerimientos (utilidad flagship v2), slugs híbridos por idioma.
+  "/que-traducciones-necesito":                     "2026-06-02",
+  "/quelles-traductions-pour-ma-demarche":          "2026-06-02",
+  "/official-letter-reader":                        "2026-06-02",
+  "/behoerdenbrief-leser":                          "2026-06-02",
+  "/leitor-de-notificacoes":                        "2026-06-02",
 };
 
 export default function sitemap(): MetadataRoute.Sitemap {

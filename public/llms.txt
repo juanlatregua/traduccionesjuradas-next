@@ -1,0 +1,30 @@
+# TraduccionesJuradas.net
+
+> Traducción jurada oficial en España (HBTJ Consultores Lingüísticos S.L., Málaga). Traductores acreditados por el Ministerio de Asuntos Exteriores (MAEC). 10 idiomas, 100% online, foco francés↔español. Sitio en 5 idiomas: ES, FR, EN, DE, PT.
+
+## Utilidades gratuitas con IA
+
+### Lector de requerimientos
+Herramienta gratuita: el usuario sube la carta o notificación de una administración y la IA le explica, en su idioma, qué documentos le piden, cuáles parecen necesitar traducción jurada, qué legalización (apostilla / legalización consular) podría aplicar y qué plazo menciona la carta. Es orientativa, no asesoramiento jurídico; recomienda verificar siempre con el organismo competente.
+Régimen de legalización (tabla HCCH) verificado el: 2026-06-02. Fuente: https://www.hcch.net/en/instruments/conventions/status-table/?cid=41
+- ES: https://www.traduccionesjuradas.net/que-traducciones-necesito
+- FR: https://www.traduccionesjuradas.net/quelles-traductions-pour-ma-demarche
+- EN: https://www.traduccionesjuradas.net/official-letter-reader
+- DE: https://www.traduccionesjuradas.net/behoerdenbrief-leser
+- PT: https://www.traduccionesjuradas.net/leitor-de-notificacoes
+
+### Diagnóstico de documento + presupuesto instantáneo
+El usuario sube un documento y obtiene al instante qué es, si requiere traducción jurada, el precio cerrado y el plazo de entrega.
+- ES: https://www.traduccionesjuradas.net/
+- FR: https://www.traduccionesjuradas.net/traduction-assermentee
+- EN: https://www.traduccionesjuradas.net/sworn-translation
+- DE: https://www.traduccionesjuradas.net/beglaubigte-uebersetzung
+- PT: https://www.traduccionesjuradas.net/traducao-certificada
+
+## Contenido de referencia
+- Documentos oficiales por tipo: https://www.traduccionesjuradas.net/documentos-oficiales
+- Guías por país y trámite (apostilla, Convenio de La Haya): https://www.traduccionesjuradas.net/blog
+- Acreditación del traductor jurado (MAEC): https://www.traduccionesjuradas.net/acreditacion
+
+## Nota
+La información sobre apostilla, legalización y exigencia de traducción jurada es orientativa y puede variar por país y organismo. Verifica siempre con la administración correspondiente.

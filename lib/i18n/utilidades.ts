@@ -15,7 +15,7 @@ export type Utilidad = {
   title: Tr;
   desc: Tr;
   cta: Tr;
-  /** Ruta fija, o "PUERTA" para resolver al ancla de la puerta del idioma. */
+  /** Ruta fija, "PUERTA" (ancla de la puerta del idioma) o "LECTOR" (lector de requerimientos del idioma). */
   href: string;
 };
 
@@ -81,7 +81,7 @@ export const UTILIDADES: Utilidad[] = [
       "Tem um documento oficial e não percebe o que lhe pedem? Envie-o e explicamos-lhe com clareza."
     ),
     cta: tr("Aclarar mi caso", "Clarifier mon cas", "Clarify my case", "Meinen Fall klären", "Esclarecer o meu caso"),
-    href: "PUERTA",
+    href: "LECTOR",
   },
   {
     key: "tramite",

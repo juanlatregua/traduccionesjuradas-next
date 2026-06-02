@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       await req.json();
 
     // Origen de captación (atribución del funnel). Whitelist para no guardar basura.
-    const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce"]);
+    const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lector"]);
     const normalizedSource =
       typeof source === "string" && KNOWN_SOURCES.has(source) ? source : null;
 

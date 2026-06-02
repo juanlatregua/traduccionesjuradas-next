@@ -6,6 +6,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { UTILIDADES, utilidadesT, type UtilLang } from "@/lib/i18n/utilidades";
+import { LECTOR_HOME } from "@/lib/i18n/locales";
 
 const ICONS: Record<string, ReactNode> = {
   scan: (
@@ -55,7 +56,8 @@ export default function BancoUtilidades({ lang, puertaHref }: { lang: UtilLang; 
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {UTILIDADES.map((u) => {
-            const href = u.href === "PUERTA" ? puerta : u.href;
+            const href =
+              u.href === "PUERTA" ? puerta : u.href === "LECTOR" ? LECTOR_HOME[lang] : u.href;
             return (
               <Link
                 key={u.key}
