@@ -1,11 +1,31 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { validateGeneralUploadFile } from "@/lib/file-security";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { isBlobConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
+
+// Borra un blob (p.ej. justificante huérfano si falló el guardado del gasto).
+export async function DELETE(req: Request) {
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
+  let body: { url?: string } = {};
+  try {
+    body = await req.json();
+  } catch {
+    /* opcional */
+  }
+  const url = String(body.url || "").trim();
+  if (!url) return NextResponse.json({ ok: false, error: "Falta url." }, { status: 400 });
+  try {
+    await del(url);
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return NextResponse.json({ ok: false, error: err?.message || "No se pudo borrar." }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   const staff = await requireStaffAccess(req);

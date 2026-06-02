@@ -97,16 +97,22 @@ export async function generateDraftForPeriod(templateId: string, opts?: { period
   if (!tpl) throw new Error("Plantilla no encontrada.");
   const period = opts?.period || periodKey();
 
-  // Idempotencia: si ya se generó este periodo y el borrador sigue vivo, no duplicar.
+  // Idempotencia: si ya se generó este periodo, no duplicar (force regenera el borrador).
   if (tpl.lastGeneratedPeriod === period && tpl.lastGeneratedInvoiceId) {
     const existing = await prisma.clientInvoice.findUnique({
       where: { id: tpl.lastGeneratedInvoiceId },
       select: { id: true, status: true },
     });
     if (existing) {
-      if (!opts?.force || existing.status === "DRAFT") {
-        return { created: false, invoiceId: existing.id, reason: "Ya existe la factura de este periodo." };
+      if (existing.status === "ISSUED") {
+        return { created: false, invoiceId: existing.id, reason: "Ya hay una factura EMITIDA de este periodo." };
       }
+      // Existe un BORRADOR de este periodo.
+      if (!opts?.force) {
+        return { created: false, invoiceId: existing.id, reason: "Ya existe un borrador de este periodo." };
+      }
+      // force: borrar el borrador viejo y regenerar con la plantilla actual.
+      await prisma.clientInvoice.delete({ where: { id: existing.id } }).catch(() => {});
     }
   }
 

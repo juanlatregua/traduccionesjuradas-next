@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { BRAND_OPTIONS } from "@/lib/invoice-brands";
-import { computeExpenseTotals } from "@/lib/expense-math"; // puro, sin Prisma
+import { computeExpenseTotals, clampIrpfPct } from "@/lib/expense-math"; // puro, sin Prisma
+
+const ALLOWED_VAT = [0, 0.04, 0.1, 0.21];
+function snapVat(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0.21;
+  const f = n > 1 ? n / 100 : n;
+  return ALLOWED_VAT.reduce((best, a) => (Math.abs(a - f) < Math.abs(best - f) ? a : best), 0.21);
+}
 
 // Contabilidad general por periodo (año / trimestre / mes):
 //  - Facturación e IVA repercutido: facturas EMITIDAS (modelo 303/390).
@@ -66,9 +74,9 @@ export default function ContabilidadClient({
 }) {
   const years = useMemo(() => {
     const ys = new Set<number>();
-    invoices.forEach((i) => ys.add(new Date(i.issuedAt).getFullYear()));
-    orders.forEach((o) => ys.add(new Date(o.date).getFullYear()));
-    expenses.forEach((e) => ys.add(new Date(e.date).getFullYear()));
+    invoices.forEach((i) => ys.add(new Date(i.issuedAt).getUTCFullYear()));
+    orders.forEach((o) => ys.add(new Date(o.date).getUTCFullYear()));
+    expenses.forEach((e) => ys.add(new Date(e.date).getUTCFullYear()));
     return Array.from(ys).sort((a, b) => b - a);
   }, [invoices, orders, expenses]);
 
@@ -78,10 +86,10 @@ export default function ContabilidadClient({
   const inPeriod = useMemo(() => {
     return (iso: string) => {
       const d = new Date(iso);
-      if (fYear !== "all" && d.getFullYear() !== Number(fYear)) return false;
+      if (fYear !== "all" && d.getUTCFullYear() !== Number(fYear)) return false;
       if (fPeriod === "all") return true;
-      if (fPeriod.startsWith("q")) return Q_MONTHS[fPeriod].includes(d.getMonth());
-      if (fPeriod.startsWith("m")) return d.getMonth() === Number(fPeriod.slice(1)) - 1;
+      if (fPeriod.startsWith("q")) return Q_MONTHS[fPeriod].includes(d.getUTCMonth());
+      if (fPeriod.startsWith("m")) return d.getUTCMonth() === Number(fPeriod.slice(1)) - 1;
       return true;
     };
   }, [fYear, fPeriod]);
@@ -115,14 +123,16 @@ export default function ContabilidadClient({
   const ivaLiquidar = inv.vat - exp.deducibleVat; // soportado deducible, no todo
   const resultado = inv.base - exp.base;
 
-  const csvHref = useMemo(() => {
+  const qsPeriod = useMemo(() => {
     const p = new URLSearchParams();
     if (fYear !== "all") p.set("year", fYear);
     if (fPeriod.startsWith("q")) p.set("q", fPeriod.slice(1));
     if (fPeriod.startsWith("m")) p.set("m", fPeriod.slice(1));
     const qs = p.toString();
-    return `/api/admin/invoices/export${qs ? `?${qs}` : ""}`;
+    return qs ? `?${qs}` : "";
   }, [fYear, fPeriod]);
+  const csvHref = `/api/admin/invoices/export${qsPeriod}`;
+  const expensesCsvHref = `/api/admin/expenses/export${qsPeriod}`;
 
   // ── Alta rápida de gasto ──────────────────────────────────
   const [showExp, setShowExp] = useState(false);
@@ -147,9 +157,10 @@ export default function ContabilidadClient({
     }
     setBusy(true);
     setMsg(null);
+    // Fuera del try para poder limpiar el blob si el guardado falla después de subirlo.
+    let attachmentUrl: string | null = null;
     try {
       // Subir el justificante SOLO al guardar (para no dejar blobs huérfanos).
-      let attachmentUrl: string | null = null;
       let attachmentKey: string | null = null;
       let attachmentName: string | null = null;
       if (gastoFile) {
@@ -187,6 +198,10 @@ export default function ContabilidadClient({
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo guardar.");
       window.location.reload();
     } catch (e: any) {
+      // Si subimos el justificante pero el gasto no se guardó, borra el blob huérfano.
+      if (attachmentUrl) {
+        fetch("/api/upload", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: attachmentUrl }) }).catch(() => {});
+      }
       setMsg(e?.message || "Error al guardar el gasto.");
       setBusy(false);
     }
@@ -206,6 +221,20 @@ export default function ContabilidadClient({
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo extraer.");
       const x = d.data || {};
+      // Normalizar los valores de la IA a las opciones válidas + avisar de rarezas.
+      const vatRate = x.vatRate != null ? snapVat(x.vatRate) : gasto.vatRate;
+      const irpfPct = x.irpfRate != null ? clampIrpfPct(x.irpfRate) : gasto.irpfPct;
+      const base = x.baseEur != null ? String(x.baseEur) : gasto.base;
+      let warn = "";
+      if (x.irpfRate && clampIrpfPct(x.irpfRate) === 0) {
+        warn += " Retención no estándar (¿19% de alquiler? eso es modelo 115, aparte): revísala a mano.";
+      }
+      if (x.totalEur != null && base) {
+        const calc = computeExpenseTotals(Math.round(parseFloat(base.replace(",", ".")) * 100) || 0, vatRate, irpfPct);
+        if (Math.abs(Math.round(x.totalEur * 100) - calc.totalCents) > 2) {
+          warn += ` El total de la factura (${x.totalEur} €) no cuadra con base+IVA: revisa el tipo o la base.`;
+        }
+      }
       setGasto((g) => ({
         ...g,
         date: x.date || g.date,
@@ -213,11 +242,11 @@ export default function ContabilidadClient({
         supplier: x.supplier || g.supplier,
         supplierNif: x.supplierNif || g.supplierNif,
         supplierInvoiceNumber: x.supplierInvoiceNumber || g.supplierInvoiceNumber,
-        base: x.baseEur != null ? String(x.baseEur) : g.base,
-        vatRate: x.vatRate != null ? Number(x.vatRate) : g.vatRate,
-        irpfPct: x.irpfRate != null ? Number(x.irpfRate) : g.irpfPct,
+        base,
+        vatRate,
+        irpfPct,
       }));
-      setMsg("Datos extraídos de la factura. Revísalos y completa lo que falte antes de guardar.");
+      setMsg("Datos extraídos. Revísalos y completa lo que falte antes de guardar." + warn);
     } catch (e: any) {
       setMsg(e?.message || "Error al extraer.");
     } finally {
@@ -269,9 +298,14 @@ export default function ContabilidadClient({
             ))}
           </select>
         </label>
-        <a href={csvHref} className="ml-auto rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500">
-          Descargar CSV (gestoría)
-        </a>
+        <div className="ml-auto flex gap-2">
+          <a href={csvHref} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500">
+            CSV facturas
+          </a>
+          <a href={expensesCsvHref} className="rounded-lg border border-cyan-600 px-4 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-900/30">
+            CSV gastos
+          </a>
+        </div>
       </div>
 
       {/* Resumen del periodo */}
