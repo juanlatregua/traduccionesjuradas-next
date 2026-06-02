@@ -92,27 +92,27 @@ export const FAQ_LECTOR: Record<Locale, FaqItem[]> = {
   ],
   fr: [
     {
-      question: "Comment savoir quelles traductions il me faut pour ma démarche en Espagne ?",
+      question: "Comment savoir quelles traductions il me faut pour ma démarche en Espagne ?",
       answer:
-        "Déposez le courrier que l'administration vous a envoyé. L'outil le lit et vous indique, dans votre langue, quels documents on vous demande et lesquels semblent nécessiter une traduction assermentée. C'est gratuit et indicatif : confirmez toujours les exigences auprès de l'organisme.",
+        "Déposez le courrier que l'administration vous a envoyé. L'outil le lit et vous indique, dans votre langue, quels documents on vous demande et lesquels semblent nécessiter une traduction assermentée. C'est gratuit et indicatif : confirmez toujours les exigences auprès de l'organisme.",
     },
     {
-      question: "Quels documents faut-il traduire pour faire homologuer un diplôme étranger en Espagne ?",
+      question: "Quels documents faut-il traduire pour faire homologuer un diplôme étranger en Espagne ?",
       answer:
         "On traduit généralement le diplôme et, selon le cas, le relevé de notes. Si le document est dans une autre langue, une traduction assermentée vers l'espagnol est souvent exigée. L'apostille ou la légalisation de l'original dépend du pays émetteur. Vérifiez auprès du ministère compétent.",
     },
     {
-      question: "Quand une démarche d'immigration (NIE, résidence) exige-t-elle une traduction assermentée ?",
+      question: "Quand une démarche d'immigration (NIE, résidence) exige-t-elle une traduction assermentée ?",
       answer:
         "Les documents publics étrangers rédigés dans une autre langue doivent normalement être présentés avec une traduction assermentée vers l'espagnol. La notification l'indique souvent. Déposez votre courrier et nous vous signalons les documents concernés d'après son texte ; confirmez auprès du bureau des étrangers.",
     },
     {
-      question: "Un acte de naissance ou un casier judiciaire étranger doit-il être apostillé en plus d'être traduit ?",
+      question: "Un acte de naissance ou un casier judiciaire étranger doit-il être apostillé en plus d'être traduit ?",
       answer:
-        "Souvent les deux sont nécessaires : l'apostille ou la légalisation sur le document original et, à part, la traduction assermentée. Apostille ou légalisation consulaire dépend de l'appartenance du pays à la Convention de La Haye. Il y a des exceptions : confirmez toujours auprès de l'organisme émetteur et destinataire.",
+        "Souvent les deux sont nécessaires : l'apostille ou la légalisation sur le document original et, à part, la traduction assermentée. Apostille ou légalisation consulaire dépend de l'appartenance du pays à la Convention de La Haye. Il y a des exceptions : confirmez toujours auprès de l'organisme émetteur et destinataire.",
     },
     {
-      question: "Combien coûte le lecteur et remplace-t-il l'appréciation de l'organisme ?",
+      question: "Combien coûte le lecteur et remplace-t-il l'appréciation de l'organisme ?",
       answer:
         "Le lecteur est gratuit. C'est une aide d'orientation fondée uniquement sur le texte de votre courrier ; il peut contenir des erreurs et ne constitue pas un conseil juridique ni ne remplace la décision de l'administration. Vérifiez les exigences auprès de l'organisme compétent.",
     },

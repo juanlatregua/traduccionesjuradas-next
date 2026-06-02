@@ -18,10 +18,10 @@ export default function LectorPage({ lang }: { lang: Locale }) {
     <main className="bg-parchment">
       {/* Hero */}
       <section className="mx-auto max-w-3xl px-4 pt-12 pb-6 text-center sm:pt-16">
-        <h1 className="font-baskerville text-3xl font-bold leading-tight text-encre sm:text-4xl">
+        <h1 className="text-balance font-baskerville text-3xl font-bold leading-tight text-encre sm:text-4xl">
           {t.h1}
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-base text-sepia sm:text-lg">{t.heroSub}</p>
+        <p className="mx-auto mt-4 max-w-2xl text-pretty text-base text-sepia sm:text-lg">{t.heroSub}</p>
       </section>
 
       {/* Widget */}
