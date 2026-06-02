@@ -84,7 +84,7 @@ export async function GET(req: Request, { params }: Params) {
       words: order.words,
       paidAt: order.paidAt,
       createdAt: order.createdAt,
-      invoiceNumber: invoice.number,
+      invoiceNumber: invoice.number ?? undefined,
       issuedAt: invoice.issuedAt,
       lines: lines.length > 0 ? lines : undefined,
       billing,

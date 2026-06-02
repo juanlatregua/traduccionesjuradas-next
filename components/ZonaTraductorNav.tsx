@@ -4,7 +4,7 @@ import { useRef } from "react";
 import Link from "next/link";
 import PMQuickCreatePanel from "./PMQuickCreatePanel";
 
-type ModoActivo = "bandeja" | "control" | "presupuesto" | "expedientes" | "facturas" | "tablero";
+type ModoActivo = "bandeja" | "control" | "presupuesto" | "expedientes" | "facturas" | "recurrentes" | "contabilidad" | "tablero";
 
 type Props = {
   modoActivo: ModoActivo;
@@ -18,6 +18,8 @@ const TABS: { href: string; label: string; key: ModoActivo }[] = [
   { href: "/zona-traductor/expedientes", label: "Expedientes", key: "expedientes" },
   { href: "/zona-traductor/presupuesto", label: "Presupuesto", key: "presupuesto" },
   { href: "/zona-traductor/facturas", label: "Facturas", key: "facturas" },
+  { href: "/zona-traductor/recurrentes", label: "Recurrentes", key: "recurrentes" },
+  { href: "/zona-traductor/contabilidad", label: "Contabilidad", key: "contabilidad" },
 ];
 
 export default function ZonaTraductorNav({ modoActivo, pedidosAccionables }: Props) {

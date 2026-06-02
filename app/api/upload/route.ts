@@ -1,11 +1,31 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { validateGeneralUploadFile } from "@/lib/file-security";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { isBlobConfigured } from "@/lib/payment-config";
 
 export const runtime = "nodejs";
+
+// Borra un blob (p.ej. justificante huérfano si falló el guardado del gasto).
+export async function DELETE(req: Request) {
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
+  let body: { url?: string } = {};
+  try {
+    body = await req.json();
+  } catch {
+    /* opcional */
+  }
+  const url = String(body.url || "").trim();
+  if (!url) return NextResponse.json({ ok: false, error: "Falta url." }, { status: 400 });
+  try {
+    await del(url);
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return NextResponse.json({ ok: false, error: err?.message || "No se pudo borrar." }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   const staff = await requireStaffAccess(req);
@@ -31,6 +51,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const reference = formData.get("reference") as string | null;
+    const prefixField = formData.get("prefix") as string | null;
 
     if (!file) {
       return NextResponse.json({ ok: false, error: "Archivo requerido." }, { status: 400 });
@@ -59,7 +80,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Archivo demasiado grande (max 10 MB)." }, { status: 400 });
     }
 
-    const prefix = reference ? `orders/${reference}` : "uploads";
+    const prefix = reference ? `orders/${reference}` : prefixField === "expenses" ? "expenses" : "uploads";
     const pathname = `${prefix}/${Date.now()}-${validation.safeName}`;
 
     if (!isBlobConfigured()) {

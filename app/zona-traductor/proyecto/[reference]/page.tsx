@@ -64,7 +64,9 @@ export default async function ProyectoCockpitPage({ params }: { params: { refere
     supplierCostCents,
     marginCents,
     marginPct,
-    invoice: order.clientInvoice,
+    invoice: order.clientInvoice
+      ? { number: order.clientInvoice.number, totalCents: order.clientInvoice.totalCents }
+      : null,
     quote: order.quote,
     items: order.documentItems.map((d) => ({
       id: d.id,

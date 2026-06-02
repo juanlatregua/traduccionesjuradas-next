@@ -182,25 +182,114 @@ model OrderDocumentItem {
 // Factura emitida al cliente con numeración fiscal secuencial y persistencia.
 // Sustituye el "F-{ref}" generado al vuelo (sin valor legal).
 model ClientInvoice {
-  id         String   @id @default(cuid())
-  number     String   @unique // FAC-AAAA-NNNNN, secuencial por año
-  orderId    String   @unique
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  issuedAt   DateTime @default(now())
-  fiscalName String
-  nif        String
-  address    String
-  city       String
-  postalCode String
-  country    String   @default("España")
-  email      String
-  baseCents  Int
-  vatRate    Float    @default(0.21)
-  vatCents   Int
-  totalCents Int
-  createdAt  DateTime @default(now())
+  id            String    @id @default(cuid())
+  number        String?   @unique // AA_NNN secuencial; null mientras es BORRADOR
+  status        String    @default("DRAFT") // DRAFT | ISSUED
+  origin        String? // auditoría: lazy_pdf | reconcile_batch | manual | import | draft
+  brand         String    @default("traduccionesjuradas") // marca/actividad emisora (numeración compartida)
+  orderId       String?   @unique // null = factura libre (sin pedido)
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  issuedAt      DateTime? // se sella al emitir
+  clientName    String? // nombre comercial / referencia interna (opcional)
+  fiscalName    String
+  nif           String?
+  address       String?
+  city          String?
+  postalCode    String?
+  country       String    @default("España")
+  email         String?
+  concept       String? // título general para el PDF (opcional)
+  poNumber      String? // Purchase Order / nº de pedido del cliente (p.ej. Oracle)
+  langPair      String?
+  lineItemsJson Json? // [{ description, detail?, amountCents }] (base sin IVA)
+  baseCents     Int
+  vatRate       Float     @default(0.21)
+  vatCents      Int
+  totalCents    Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
 
   @@index([issuedAt])
+  @@index([status])
+}
+
+// Gasto manual del libro de contabilidad (IVA soportado). No ligado a pedidos:
+// el traductor lo introduce a mano o lo importa. Fuente principal de gastos.
+model Expense {
+  id                    String   @id @default(cuid())
+  date                  DateTime // fecha del gasto/factura recibida
+  brand                 String   @default("traduccionesjuradas")
+  supplier              String? // proveedor
+  supplierNif           String?
+  supplierInvoiceNumber String? // nº de factura del proveedor (libro de recibidas)
+  concept               String
+  category              String? // p.ej. software, suministros, colaborador, cuota
+  baseCents             Int
+  vatRate               Float    @default(0.21)
+  vatCents              Int // IVA soportado
+  ivaDeducible          Boolean  @default(true) // false = no deducible (atenciones, comidas… art. 96 LIVA)
+  irpfRetentionPct      Float    @default(0) // retención IRPF de colaboradores (modelo 111/190)
+  irpfCents             Int      @default(0)
+  totalCents            Int // base + IVA (importe de la factura)
+  payableCents          Int? // base + IVA − IRPF (lo que se transfiere al proveedor)
+  attachmentUrl         String? // justificante (Vercel Blob)
+  attachmentKey         String?
+  attachmentName        String?
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+
+  @@index([date])
+  @@index([supplierNif])
+}
+
+// Decisiones del staff sobre líneas del extracto bancario. NO almacena el extracto
+// crudo (sin importe, concepto, contraparte ni saldo) → privacidad por diseño y sin
+// "libro de caja" paralelo sumable. lineHash = SHA-256(fecha|importe|concepto-norm)
+// recalculado en cada subida y cruzado contra esta tabla.
+// Plantilla de factura recurrente (p.ej. la cuota mensual de clases de Oracle).
+// El cron genera un BORRADOR cada mes; nunca emite (la numeración correlativa y el
+// sellado son acto manual). lastGeneratedPeriod evita duplicar el mismo mes.
+model RecurringInvoice {
+  id                     String   @id @default(cuid())
+  label                  String
+  active                 Boolean  @default(true)
+  brand                  String   @default("traduccionesjuradas")
+  clientName             String?
+  fiscalName             String
+  nif                    String?
+  address                String?
+  city                   String?
+  postalCode             String?
+  country                String   @default("España")
+  email                  String?
+  conceptTemplate        String? // admite {MES} {AÑO} {MES_AÑO}
+  poNumber               String?
+  langPair               String?
+  lineItemsJson          Json? // [{ description, detail?, amountCents }] (base sin IVA)
+  vatRate                Float    @default(0.21)
+  dayOfMonth             Int      @default(1)
+  lastGeneratedPeriod    String? // "YYYY-MM"
+  lastGeneratedInvoiceId String?
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @default(now()) @updatedAt
+
+  @@index([active])
+}
+
+model BankDecision {
+  id          String   @id @default(cuid())
+  brand       String   @default("traduccionesjuradas")
+  lineHash    String   @unique
+  status      String // IGNORED | MATCHED_MANUAL
+  matchedType String? // invoice | order | expense (solo si MATCHED_MANUAL)
+  matchedId   String?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([brand])
 }
 
 model OrderEvent {

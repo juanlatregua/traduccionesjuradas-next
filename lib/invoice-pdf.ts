@@ -3,6 +3,7 @@
 // mejorada: banda dorada de marca, caja de número, datos del cliente, tabla con
 // par de idiomas, resumen Base/IVA/TOTAL y pie con datos bancarios.
 import { jsPDF } from "jspdf";
+import { getBrand } from "@/lib/invoice-brands";
 
 type InvoiceLine = {
   description: string;
@@ -11,9 +12,16 @@ type InvoiceLine = {
 };
 
 type InvoiceData = {
-  reference: string;
+  reference?: string;
   title: string;
   amountCents: number;
+  baseCents?: number;
+  vatCents?: number;
+  vatRate?: number; // fracción (0.21). Si se omite, se asume 21%.
+  draft?: boolean; // marca de agua PROFORMA y oculta el número
+  brand?: string; // marca/actividad emisora (traduccionesjuradas | holabonjour)
+  logoDataUrl?: string; // PNG en data URL para marcas con logo de imagen
+  poNumber?: string | null; // Purchase Order / nº de pedido del cliente
   langPair?: string | null;
   words?: number | null;
   paidAt?: Date | null;
@@ -32,14 +40,22 @@ type InvoiceData = {
   };
 };
 
-const EMITTER = {
-  name: "HBTJ Consultores Lingüísticos S.L",
-  cif: "B93712784",
-  address: "C/ Esperanto, 9",
-  city: "29007 Málaga",
-  bic: "BBVAESMM",
-  iban: "ES66 0182 3370 67 0201616991",
-};
+// Respaldo si falta el PNG del logo de Hola Bonjour: wordmark en sus colores.
+function drawHolaBonjourWordmark(doc: jsPDF, x: number, y: number) {
+  doc.setFont("helvetica", "bolditalic");
+  doc.setFontSize(20);
+  doc.setTextColor(46, 90, 172); // azul
+  doc.text("Hola", x, y);
+  doc.setTextColor(229, 23, 107); // magenta
+  doc.text("Bonjour", x, y + 8.5);
+  doc.setDrawColor(229, 23, 107);
+  doc.setLineWidth(0.5);
+  doc.line(x, y + 11.5, x + 46, y + 11.5);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(46, 90, 172);
+  doc.text("LENGUA Y CULTURA FRANCESA", x, y + 15);
+}
 
 // Paleta marca web
 const GOLD: [number, number, number] = [184, 146, 42]; // #B8922A
@@ -124,19 +140,30 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, pageW, 297, "F");
 
-  // ── Cabecera: logo + emisor ───────────────────────────────
-  drawLogo(doc, margin, 14, 66);
+  // ── Cabecera: logo + emisor (según marca) ─────────────────
+  const brand = getBrand(data.brand);
+  if (brand.logo.kind === "image" && data.logoDataUrl) {
+    try {
+      doc.addImage(data.logoDataUrl, "PNG", margin, 10, brand.logo.widthMm, brand.logo.heightMm);
+    } catch {
+      drawHolaBonjourWordmark(doc, margin, 16);
+    }
+  } else if (brand.logo.kind === "image") {
+    drawHolaBonjourWordmark(doc, margin, 16);
+  } else {
+    drawLogo(doc, margin, 14, 66);
+  }
   let y = 46;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(...GOLD_DARK);
-  doc.text(EMITTER.name, margin, y);
+  doc.text(brand.emitterName, margin, y);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...GREY);
-  doc.text(`CIF: ${EMITTER.cif}`, margin, (y += 4.5));
-  doc.text(EMITTER.address, margin, (y += 4.5));
-  doc.text(EMITTER.city, margin, (y += 4.5));
+  doc.text(`CIF: ${brand.cif}`, margin, (y += 4.5));
+  doc.text(brand.address, margin, (y += 4.5));
+  doc.text(brand.city, margin, (y += 4.5));
 
   // ── Caja número de factura (arriba derecha) ───────────────
   const boxX = 120;
@@ -147,9 +174,10 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("FACTURA", boxX + 5, 25.5);
+  doc.text(data.draft ? "PROFORMA" : "FACTURA", boxX + 5, 25.5);
   doc.setFontSize(15);
-  doc.text(data.invoiceNumber || `F-${data.reference}`, pageW - margin - 5, 25.5, { align: "right" });
+  const numberLabel = data.invoiceNumber || (data.draft ? "BORRADOR" : data.reference ? `F-${data.reference}` : "—");
+  doc.text(numberLabel, pageW - margin - 5, 25.5, { align: "right" });
 
   // ── Caja cliente ──────────────────────────────────────────
   const cliY = 35;
@@ -211,8 +239,12 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   // Cuerpo
   const lines: InvoiceLine[] =
     data.lines && data.lines.length > 0
-      ? data.lines
+      ? data.lines.map((l) => ({ ...l }))
       : [{ description: data.title, amountCents: Math.round(data.amountCents / 1.21) }];
+  if (data.poNumber && lines[0]) {
+    const po = `Purchase Order / Nº de pedido ${data.poNumber}`;
+    lines[0].detail = lines[0].detail ? `${lines[0].detail} · ${po}` : po;
+  }
 
   const bodyTop = ty;
   doc.setTextColor(...INK);
@@ -240,8 +272,10 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.rect(cDesc, bodyTop, contentW, ty - bodyTop, "S");
 
   // ── Resumen Base / IVA / TOTAL ────────────────────────────
-  const base = Math.round(data.amountCents / 1.21);
-  const vat = data.amountCents - base;
+  const vatRate = data.vatRate ?? 0.21;
+  const base = data.baseCents ?? Math.round(data.amountCents / (1 + vatRate));
+  const vat = data.vatCents ?? data.amountCents - base;
+  const vatPct = Math.round(vatRate * 100);
   ty += 3;
   const sumLabelX = cLang;
   const drawSum = (label: string, value: string, bold = false, big = false) => {
@@ -254,7 +288,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     ty += big ? 7 : 5.2;
   };
   drawSum("Base imponible", eur(base));
-  drawSum("IVA 21%", eur(vat));
+  drawSum(vatPct === 0 ? "IVA (exento/0%)" : `IVA ${vatPct}%`, eur(vat));
   ty += 1.5;
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.5);
@@ -271,8 +305,18 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.text("BIC/SWIFT", margin + 5, footY + 6);
   doc.text("CUENTA BANCARIA / Bank account", margin + 5, footY + 11.5);
   doc.setFont("helvetica", "normal");
-  doc.text(EMITTER.bic, margin + 60, footY + 6);
-  doc.text(EMITTER.iban, margin + 60, footY + 11.5);
+  doc.text(brand.bic, margin + 60, footY + 6);
+  doc.text(brand.iban, margin + 60, footY + 11.5);
+
+  // ── Marca de agua de borrador (proforma, sin valor fiscal) ────────────
+  if (data.draft) {
+    doc.setTextColor(214, 219, 228);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(60);
+    doc.text("BORRADOR", 105, 165, { align: "center", angle: 32 });
+    doc.setFontSize(11);
+    doc.text("Proforma · sin valor como factura", 105, 178, { align: "center", angle: 32 });
+  }
 
   const ab = doc.output("arraybuffer");
   return Buffer.from(ab);
