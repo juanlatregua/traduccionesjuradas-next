@@ -61,11 +61,17 @@ export default async function ZonaTraductorContabilidadPage() {
     date: e.date.toISOString(),
     concept: e.concept,
     supplier: e.supplier,
+    supplierInvoiceNumber: e.supplierInvoiceNumber,
     category: e.category,
     brand: e.brand,
     baseCents: e.baseCents,
     vatCents: e.vatCents,
+    ivaDeducible: e.ivaDeducible,
+    irpfCents: e.irpfCents,
     totalCents: e.totalCents,
+    payableCents: e.payableCents ?? e.totalCents,
+    attachmentUrl: e.attachmentUrl,
+    attachmentName: e.attachmentName,
   }));
 
   return (

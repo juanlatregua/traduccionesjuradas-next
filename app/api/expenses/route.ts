@@ -27,10 +27,16 @@ export async function POST(req: Request) {
       brand: body.brand,
       supplier: body.supplier,
       supplierNif: body.supplierNif,
+      supplierInvoiceNumber: body.supplierInvoiceNumber,
       concept: String(body.concept),
       category: body.category,
       baseCents: Number(body.baseCents) || 0,
       vatRate: body.vatRate ?? 0.21,
+      ivaDeducible: body.ivaDeducible,
+      irpfRetentionPct: body.irpfRetentionPct,
+      attachmentUrl: body.attachmentUrl,
+      attachmentKey: body.attachmentKey,
+      attachmentName: body.attachmentName,
       notes: body.notes,
     });
     return NextResponse.json({ ok: true, expense });

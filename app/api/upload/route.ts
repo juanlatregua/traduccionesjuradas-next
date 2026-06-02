@@ -31,6 +31,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const reference = formData.get("reference") as string | null;
+    const prefixField = formData.get("prefix") as string | null;
 
     if (!file) {
       return NextResponse.json({ ok: false, error: "Archivo requerido." }, { status: 400 });
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Archivo demasiado grande (max 10 MB)." }, { status: 400 });
     }
 
-    const prefix = reference ? `orders/${reference}` : "uploads";
+    const prefix = reference ? `orders/${reference}` : prefixField === "expenses" ? "expenses" : "uploads";
     const pathname = `${prefix}/${Date.now()}-${validation.safeName}`;
 
     if (!isBlobConfigured()) {

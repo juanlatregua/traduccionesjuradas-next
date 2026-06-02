@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { BRAND_OPTIONS } from "@/lib/invoice-brands";
+import { computeExpenseTotals } from "@/lib/expense-math"; // puro, sin Prisma
 
 // Contabilidad general por periodo (año / trimestre / mes):
 //  - Facturación e IVA repercutido: facturas EMITIDAS (modelo 303/390).
@@ -32,11 +33,17 @@ export type AcExpense = {
   date: string;
   concept: string;
   supplier: string | null;
+  supplierInvoiceNumber: string | null;
   category: string | null;
   brand: string;
   baseCents: number;
   vatCents: number;
+  ivaDeducible: boolean;
+  irpfCents: number;
   totalCents: number;
+  payableCents: number;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
 };
 
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -87,7 +94,16 @@ export default function ContabilidadClient({
 
   const exp = useMemo(() => {
     const rows = expenses.filter((e) => inPeriod(e.date));
-    const s = rows.reduce((a, e) => ({ base: a.base + e.baseCents, vat: a.vat + e.vatCents, total: a.total + e.totalCents }), { base: 0, vat: 0, total: 0 });
+    const s = rows.reduce(
+      (a, e) => ({
+        base: a.base + e.baseCents,
+        vat: a.vat + e.vatCents,
+        deducibleVat: a.deducibleVat + (e.ivaDeducible ? e.vatCents : 0), // solo el IVA deducible va al 303
+        irpf: a.irpf + e.irpfCents,
+        total: a.total + e.totalCents,
+      }),
+      { base: 0, vat: 0, deducibleVat: 0, irpf: 0, total: 0 }
+    );
     return { rows, ...s };
   }, [expenses, inPeriod]);
 
@@ -96,7 +112,7 @@ export default function ContabilidadClient({
     return rows.reduce((a, o) => a + o.totalCostCents, 0);
   }, [orders, inPeriod]);
 
-  const ivaLiquidar = inv.vat - exp.vat;
+  const ivaLiquidar = inv.vat - exp.deducibleVat; // soportado deducible, no todo
   const resultado = inv.base - exp.base;
 
   const csvHref = useMemo(() => {
@@ -112,16 +128,41 @@ export default function ContabilidadClient({
   const [showExp, setShowExp] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [gasto, setGasto] = useState({ date: "", concept: "", supplier: "", category: "", brand: "traduccionesjuradas", base: "", vatRate: 0.21 });
+  const [gasto, setGasto] = useState({ date: "", concept: "", supplier: "", supplierNif: "", supplierInvoiceNumber: "", category: "", brand: "traduccionesjuradas", base: "", vatRate: 0.21, irpfPct: 0, ivaDeducible: true });
+  const [gastoFile, setGastoFile] = useState<File | null>(null);
+
+  const gastoCalc = useMemo(() => {
+    const base = Math.round((parseFloat(gasto.base.replace(",", ".")) || 0) * 100);
+    return computeExpenseTotals(base, gasto.vatRate, gasto.irpfPct);
+  }, [gasto.base, gasto.vatRate, gasto.irpfPct]);
 
   async function addExpense() {
     if (!gasto.date || !gasto.concept.trim()) {
       setMsg("Indica al menos fecha y concepto del gasto.");
       return;
     }
+    if (gasto.irpfPct > 0 && !gasto.supplierNif.trim()) {
+      setMsg("La retención de IRPF exige el NIF del proveedor.");
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
+      // Subir el justificante SOLO al guardar (para no dejar blobs huérfanos).
+      let attachmentUrl: string | null = null;
+      let attachmentKey: string | null = null;
+      let attachmentName: string | null = null;
+      if (gastoFile) {
+        const fd = new FormData();
+        fd.append("file", gastoFile);
+        fd.append("prefix", "expenses");
+        const up = await fetch("/api/upload", { method: "POST", body: fd });
+        const ud = await up.json();
+        if (!up.ok || !ud.ok) throw new Error(ud.error || "No se pudo subir el justificante.");
+        attachmentUrl = ud.url;
+        attachmentKey = ud.pathname || null;
+        attachmentName = gastoFile.name;
+      }
       const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,10 +170,17 @@ export default function ContabilidadClient({
           date: gasto.date,
           concept: gasto.concept.trim(),
           supplier: gasto.supplier.trim() || null,
+          supplierNif: gasto.supplierNif.trim() || null,
+          supplierInvoiceNumber: gasto.supplierInvoiceNumber.trim() || null,
           category: gasto.category.trim() || null,
           brand: gasto.brand,
           baseCents: Math.round((parseFloat(gasto.base.replace(",", ".")) || 0) * 100),
           vatRate: gasto.vatRate,
+          ivaDeducible: gasto.ivaDeducible,
+          irpfRetentionPct: gasto.irpfPct,
+          attachmentUrl,
+          attachmentKey,
+          attachmentName,
         }),
       });
       const data = await res.json();
@@ -140,7 +188,6 @@ export default function ContabilidadClient({
       window.location.reload();
     } catch (e: any) {
       setMsg(e?.message || "Error al guardar el gasto.");
-    } finally {
       setBusy(false);
     }
   }
@@ -235,6 +282,8 @@ export default function ContabilidadClient({
             <input type="date" className={FIELD} value={gasto.date} onChange={(e) => setGasto({ ...gasto, date: e.target.value })} />
             <input className={`${FIELD} sm:col-span-2`} placeholder="Concepto *" value={gasto.concept} onChange={(e) => setGasto({ ...gasto, concept: e.target.value })} />
             <input className={FIELD} placeholder="Proveedor" value={gasto.supplier} onChange={(e) => setGasto({ ...gasto, supplier: e.target.value })} />
+            <input className={FIELD} placeholder="NIF proveedor" value={gasto.supplierNif} onChange={(e) => setGasto({ ...gasto, supplierNif: e.target.value })} />
+            <input className={FIELD} placeholder="Nº factura proveedor" value={gasto.supplierInvoiceNumber} onChange={(e) => setGasto({ ...gasto, supplierInvoiceNumber: e.target.value })} />
             <input className={FIELD} placeholder="Categoría (software, cuota…)" value={gasto.category} onChange={(e) => setGasto({ ...gasto, category: e.target.value })} />
             <select className={FIELD} value={gasto.brand} onChange={(e) => setGasto({ ...gasto, brand: e.target.value })}>
               {BRAND_OPTIONS.map((o) => (
@@ -248,6 +297,25 @@ export default function ContabilidadClient({
               <option value={0.04}>IVA 4%</option>
               <option value={0}>IVA 0% / exento</option>
             </select>
+            <select className={FIELD} value={gasto.irpfPct} onChange={(e) => setGasto({ ...gasto, irpfPct: Number(e.target.value) })}>
+              <option value={0}>Sin IRPF</option>
+              <option value={0.15}>IRPF 15%</option>
+              <option value={0.07}>IRPF 7% (nuevo autónomo)</option>
+            </select>
+            <label className="flex items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" checked={gasto.ivaDeducible} onChange={(e) => setGasto({ ...gasto, ivaDeducible: e.target.checked })} /> IVA deducible
+            </label>
+            <label className="text-xs text-slate-400">
+              Justificante (PDF/imagen)
+              <input type="file" accept=".pdf,image/*" className="mt-1 block w-full text-xs text-slate-300" onChange={(e) => setGastoFile(e.target.files?.[0] || null)} />
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-slate-400">
+              Base <b className="tabular-nums text-slate-200">{eur(gastoCalc.baseCents)}</b> · IVA <b className="tabular-nums text-slate-200">{eur(gastoCalc.vatCents)}</b>
+              {gastoCalc.irpfCents > 0 && <> · IRPF −<b className="tabular-nums text-amber-300">{eur(gastoCalc.irpfCents)}</b></>}
+              {" · "}Factura <b className="tabular-nums text-slate-200">{eur(gastoCalc.totalCents)}</b> · A pagar <b className="tabular-nums text-white">{eur(gastoCalc.payableCents)}</b>
+            </div>
             <button type="button" onClick={addExpense} disabled={busy} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
               {busy ? "Guardando…" : "Guardar gasto"}
             </button>
@@ -263,25 +331,41 @@ export default function ContabilidadClient({
           <table className="w-full text-sm text-slate-200">
             <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
               <tr>
-                <th className="px-4 py-2">Fecha</th>
-                <th className="px-4 py-2">Concepto</th>
-                <th className="px-4 py-2">Proveedor</th>
-                <th className="px-4 py-2 text-right">Base</th>
-                <th className="px-4 py-2 text-right">IVA</th>
-                <th className="px-4 py-2 text-right">Total</th>
-                <th className="px-4 py-2"></th>
+                <th className="px-3 py-2">Fecha</th>
+                <th className="px-3 py-2">Concepto</th>
+                <th className="px-3 py-2">Proveedor</th>
+                <th className="px-3 py-2">Nº fact.</th>
+                <th className="px-3 py-2 text-right">Base</th>
+                <th className="px-3 py-2 text-right">IVA</th>
+                <th className="px-3 py-2 text-right">IRPF</th>
+                <th className="px-3 py-2 text-right">A pagar</th>
+                <th className="px-3 py-2">Justif.</th>
+                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
               {exp.rows.map((e) => (
                 <tr key={e.id}>
-                  <td className="px-4 py-3 text-slate-400">{new Date(e.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</td>
-                  <td className="px-4 py-3">{e.concept}{e.category && <span className="ml-2 text-[10px] text-slate-500">{e.category}</span>}</td>
-                  <td className="px-4 py-3 text-slate-400">{e.supplier || "—"}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{eur(e.baseCents)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{eur(e.vatCents)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-semibold">{eur(e.totalCents)}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3 py-3 text-slate-400">{new Date(e.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</td>
+                  <td className="px-3 py-3">
+                    {e.concept}
+                    {e.category && <span className="ml-2 text-[10px] text-slate-500">{e.category}</span>}
+                    {!e.ivaDeducible && <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-200">IVA no deducible</span>}
+                  </td>
+                  <td className="px-3 py-3 text-slate-400">{e.supplier || "—"}</td>
+                  <td className="px-3 py-3 font-mono text-slate-400">{e.supplierInvoiceNumber || "—"}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{eur(e.baseCents)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{eur(e.vatCents)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{e.irpfCents ? `−${eur(e.irpfCents)}` : "—"}</td>
+                  <td className="px-3 py-3 text-right tabular-nums font-semibold">{eur(e.payableCents)}</td>
+                  <td className="px-3 py-3">
+                    {e.attachmentUrl ? (
+                      <a href={e.attachmentUrl} target="_blank" rel="noreferrer" className="text-cyan-300 hover:text-cyan-200">ver</a>
+                    ) : (
+                      <span className="text-slate-600">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-right">
                     <button type="button" onClick={() => delExpense(e.id)} disabled={busy} className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50">
                       Borrar
                     </button>
@@ -289,6 +373,14 @@ export default function ContabilidadClient({
                 </tr>
               ))}
             </tbody>
+            <tfoot className="border-t-2 border-slate-700 bg-slate-800/40 text-xs font-semibold text-white">
+              <tr>
+                <td className="px-3 py-2" colSpan={6}>IRPF retenido del periodo (→ modelo 111): {eur(exp.irpf)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{eur(exp.irpf)}</td>
+                <td className="px-3 py-2"></td>
+                <td className="px-3 py-2" colSpan={2}></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}

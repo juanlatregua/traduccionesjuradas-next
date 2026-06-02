@@ -1,16 +1,23 @@
-// lib/expenses.ts — Gastos manuales del libro de contabilidad (IVA soportado).
+// lib/expenses.ts — Gastos manuales del libro de contabilidad (IVA soportado + IRPF).
 import { prisma } from "@/lib/prisma";
 import { clampVatRate } from "@/lib/invoice-math";
+import { clampIrpfPct, computeExpenseTotals } from "@/lib/expense-math";
 
 export type ExpenseInput = {
   date: string; // ISO o yyyy-mm-dd
   brand?: string | null;
   supplier?: string | null;
   supplierNif?: string | null;
+  supplierInvoiceNumber?: string | null;
   concept: string;
   category?: string | null;
   baseCents: number;
   vatRate: number;
+  ivaDeducible?: boolean;
+  irpfRetentionPct?: number;
+  attachmentUrl?: string | null;
+  attachmentKey?: string | null;
+  attachmentName?: string | null;
   notes?: string | null;
 };
 
@@ -23,19 +30,31 @@ function parseDate(s: string): Date {
 function buildData(input: ExpenseInput) {
   if (!String(input.concept || "").trim()) throw new Error("Falta el concepto del gasto.");
   const vatRate = clampVatRate(input.vatRate);
-  const base = Math.max(0, Math.round(Number(input.baseCents) || 0));
-  const vat = Math.round(base * vatRate);
+  const irpfPct = clampIrpfPct(input.irpfRetentionPct);
+  const supplierNif = input.supplierNif?.trim() || null;
+  if (irpfPct > 0 && !supplierNif) {
+    throw new Error("La retención de IRPF exige el NIF del proveedor (modelo 190).");
+  }
+  const { baseCents, vatCents, irpfCents, totalCents, payableCents } = computeExpenseTotals(input.baseCents, vatRate, irpfPct);
   return {
     date: parseDate(input.date),
     brand: input.brand?.trim() || "traduccionesjuradas",
     supplier: input.supplier?.trim() || null,
-    supplierNif: input.supplierNif?.trim() || null,
+    supplierNif,
+    supplierInvoiceNumber: input.supplierInvoiceNumber?.trim() || null,
     concept: input.concept.trim(),
     category: input.category?.trim() || null,
-    baseCents: base,
+    baseCents,
     vatRate,
-    vatCents: vat,
-    totalCents: base + vat,
+    vatCents,
+    ivaDeducible: input.ivaDeducible ?? true,
+    irpfRetentionPct: irpfPct,
+    irpfCents,
+    totalCents,
+    payableCents,
+    attachmentUrl: input.attachmentUrl?.trim() || null,
+    attachmentKey: input.attachmentKey?.trim() || null,
+    attachmentName: input.attachmentName?.trim() || null,
     notes: input.notes?.trim() || null,
   };
 }
