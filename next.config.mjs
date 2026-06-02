@@ -153,16 +153,8 @@ const nextConfig = {
         destination: "/sitemap.xml",
         permanent: true,
       },
-      {
-        source: "/feed",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/feed/",
-        destination: "/",
-        permanent: true,
-      },
+      // /feed y /feed/ → 410 (RSS de WordPress muerto): se gestiona en
+      // middleware.ts (isFeed → gone()). No redirigir a "/" (era ruido de equity).
       {
         source: "/wp-admin/admin-ajax.php",
         destination: "/",
@@ -576,12 +568,8 @@ const nextConfig = {
         permanent: true,
       },
 
-      // Endpoints WP legacy -> 410 gestionado por middleware
-      {
-        source: "/wp-content/uploads/2019/07/ORDEN-AEX-1971-2002.pdf",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
+      // (ORDEN-AEX-1971-2002.pdf ya tiene su 301 → /documentos-oficiales más
+      // arriba, con y sin barra; duplicado redundante eliminado)
 
       // ===============================
       // PRESUPUESTO
