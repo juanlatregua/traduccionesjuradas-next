@@ -144,6 +144,23 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
     y += 5;
   }
 
+  // Pago por transferencia / Bizum como alternativa al enlace online. En el
+  // presupuesto se ofrecen las dos cuentas (BBVA principal + Openbank 2ª opción).
+  y += 2;
+  if (y > 255) {
+    doc.addPage();
+    y = 18;
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Pago por transferencia o Bizum (opcional):", 14, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.text("BBVA · BIC BBVAESMM · IBAN ES66 0182 3370 67 0201616991", 14, y, { maxWidth: 180 });
+  y += 4.5;
+  doc.text("Openbank (2ª opción) · BIC OPENESMM · IBAN ES33 0073 0100 5207 9242 5264 · Bizum 607356273", 14, y, { maxWidth: 180 });
+  y += 5;
+
   if (data.isDraft) {
     doc.setTextColor(220, 20, 60);
     doc.setFont("helvetica", "bold");
