@@ -14,6 +14,7 @@ type Body = {
   references?: string[];
   dateMode?: "paid" | "today";
   numbersByReference?: Record<string, string>;
+  simplified?: boolean;
 };
 
 export async function POST(req: Request) {
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   const dateMode: "paid" | "today" = body.dateMode === "today" ? "today" : "paid";
 
   try {
-    const { issued, failed } = await issueInvoicesForOrders({ references, dateMode, numbersByReference: body.numbersByReference });
+    const { issued, failed } = await issueInvoicesForOrders({ references, dateMode, numbersByReference: body.numbersByReference, simplified: !!body.simplified });
     return NextResponse.json({ ok: true, issuedCount: issued.length, failedCount: failed.length, issued, failed });
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: err?.message || "No se pudo emitir el lote." }, { status: 500 });

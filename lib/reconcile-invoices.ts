@@ -90,14 +90,14 @@ type OrderForIssue = {
   draftInvoiceId: string | null;
 };
 
-async function issueWithRetry(order: OrderForIssue, explicitNumber: string | undefined, issuedAt: Date): Promise<string | null> {
+async function issueWithRetry(order: OrderForIssue, explicitNumber: string | undefined, issuedAt: Date, simplified: boolean): Promise<string | null> {
   const forYear = issuedAt.getFullYear();
   let lastErr: any;
   for (let attempt = 0; attempt < 3; attempt++) {
     const number = (explicitNumber || "").trim() || (await suggestNextInvoiceNumber(forYear));
     try {
       const inv = order.draftInvoiceId
-        ? await issueInvoice(order.draftInvoiceId, { number, issuedAt, origin: "reconcile_batch" })
+        ? await issueInvoice(order.draftInvoiceId, { number, issuedAt, origin: "reconcile_batch", simplified })
         : await issueOrUpdateInvoice({
             orderId: order.id,
             amountCents: order.amountCents,
@@ -105,6 +105,7 @@ async function issueWithRetry(order: OrderForIssue, explicitNumber: string | und
             number,
             issuedAt,
             origin: "reconcile_batch",
+            simplified,
           });
       return inv.number ?? null;
     } catch (err: any) {
@@ -123,10 +124,14 @@ function effectiveIssuedAt(paidAt: Date | null, dateMode: "paid" | "today"): { d
   return { date: paidAt, adjusted: false };
 }
 
+// Importe máximo de una factura simplificada (IVA incluido): 400€ (RD 1619/2012).
+const SIMPLIFIED_MAX_CENTS = 40000;
+
 export async function issueInvoicesForOrders(input: {
   references: string[];
   dateMode: "paid" | "today";
   numbersByReference?: Record<string, string>;
+  simplified?: boolean; // factura simplificada: ≤400€, sin exigir NIF (consumidor final)
 }): Promise<{ issued: BatchIssueResult[]; failed: BatchIssueResult[] }> {
   const issued: BatchIssueResult[] = [];
   const failed: BatchIssueResult[] = [];
@@ -151,9 +156,10 @@ export async function issueInvoicesForOrders(input: {
         select: {
           id: true,
           amountCents: true,
+          clientName: true,
           paymentStatus: true,
           billing: true,
-          clientInvoice: { select: { id: true, status: true } },
+          clientInvoice: { select: { id: true, status: true, totalCents: true } },
         },
       });
       if (!order) throw new Error("Pedido no encontrado.");
@@ -163,8 +169,37 @@ export async function issueInvoicesForOrders(input: {
         continue;
       }
       const b = order.billing;
-      if (!b || !b.nif?.trim() || !b.fiscalName?.trim()) {
-        throw new Error("Faltan datos fiscales (NIF y nombre). Rellénalos en el pedido antes de facturar.");
+      const draft = order.clientInvoice?.status === "DRAFT" ? order.clientInvoice : null;
+      const bookableCents = draft ? draft.totalCents : order.amountCents;
+
+      let billing: { fiscalName: string; nif: string; address: string; city: string; postalCode: string; country: string; email: string };
+      if (input.simplified) {
+        // Factura simplificada: ≤400€, sin exigir NIF/nombre (consumidor final, RD 1619/2012).
+        if (bookableCents > SIMPLIFIED_MAX_CENTS) {
+          throw new Error("Importe >400€: requiere factura completa con NIF, no simplificada.");
+        }
+        billing = {
+          fiscalName: b?.fiscalName?.trim() || order.clientName?.trim() || "Cliente",
+          nif: b?.nif?.trim() || "",
+          address: b?.address || "",
+          city: b?.city || "",
+          postalCode: b?.postalCode || "",
+          country: b?.country || "España",
+          email: b?.email || "",
+        };
+      } else {
+        if (!b || !b.nif?.trim() || !b.fiscalName?.trim()) {
+          throw new Error("Faltan datos fiscales (NIF y nombre). Rellénalos, o emite como factura simplificada si es ≤400€.");
+        }
+        billing = {
+          fiscalName: b.fiscalName,
+          nif: b.nif,
+          address: b.address || "",
+          city: b.city || "",
+          postalCode: b.postalCode || "",
+          country: b.country || "España",
+          email: b.email || "",
+        };
       }
 
       const { date: issuedAt, adjusted: dateAdjusted } = eff.get(reference) ?? effectiveIssuedAt(null, input.dateMode);
@@ -173,19 +208,12 @@ export async function issueInvoicesForOrders(input: {
         {
           id: order.id,
           amountCents: order.amountCents,
-          billing: {
-            fiscalName: b.fiscalName,
-            nif: b.nif,
-            address: b.address || "",
-            city: b.city || "",
-            postalCode: b.postalCode || "",
-            country: b.country || "España",
-            email: b.email || "",
-          },
-          draftInvoiceId: order.clientInvoice?.status === "DRAFT" ? order.clientInvoice.id : null,
+          billing,
+          draftInvoiceId: draft ? order.clientInvoice!.id : null,
         },
         input.numbersByReference?.[reference],
-        issuedAt
+        issuedAt,
+        !!input.simplified
       );
       issued.push({ reference, ok: true, number: number ?? undefined, dateAdjusted });
     } catch (err: any) {
