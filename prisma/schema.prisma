@@ -238,6 +238,37 @@ model Expense {
 // crudo (sin importe, concepto, contraparte ni saldo) → privacidad por diseño y sin
 // "libro de caja" paralelo sumable. lineHash = SHA-256(fecha|importe|concepto-norm)
 // recalculado en cada subida y cruzado contra esta tabla.
+// Plantilla de factura recurrente (p.ej. la cuota mensual de clases de Oracle).
+// El cron genera un BORRADOR cada mes; nunca emite (la numeración correlativa y el
+// sellado son acto manual). lastGeneratedPeriod evita duplicar el mismo mes.
+model RecurringInvoice {
+  id                     String   @id @default(cuid())
+  label                  String
+  active                 Boolean  @default(true)
+  brand                  String   @default("traduccionesjuradas")
+  clientName             String?
+  fiscalName             String
+  nif                    String?
+  address                String?
+  city                   String?
+  postalCode             String?
+  country                String   @default("España")
+  email                  String?
+  conceptTemplate        String? // admite {MES} {AÑO} {MES_AÑO}
+  poNumber               String?
+  langPair               String?
+  lineItemsJson          Json? // [{ description, detail?, amountCents }] (base sin IVA)
+  vatRate                Float    @default(0.21)
+  dayOfMonth             Int      @default(1)
+  lastGeneratedPeriod    String? // "YYYY-MM"
+  lastGeneratedInvoiceId String?
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @default(now()) @updatedAt
+
+  @@index([active])
+}
+
 model BankDecision {
   id          String   @id @default(cuid())
   brand       String   @default("traduccionesjuradas")
