@@ -32,11 +32,20 @@ function eur(c: number) {
 export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { rows: Row[]; totalAmountCents: number; canIssue: boolean }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [dateMode, setDateMode] = useState<"paid" | "today">("paid");
+  const [tipo, setTipo] = useState<"completa" | "simplificada">("completa");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [result, setResult] = useState<{ issued: Outcome[]; failed: Outcome[] } | null>(null);
 
-  const issuable = (r: Row) => r.hasNif && r.hasFiscalName; // sin NIF ni nombre fiscal no se factura
+  // Completa: exige NIF + nombre fiscal. Simplificada (≤400€, consumidor final, RD
+  // 1619/2012): no exige NIF; solo importes ≤400€.
+  const issuable = (r: Row) =>
+    tipo === "simplificada" ? r.bookableAmountCents <= 40000 : r.hasNif && r.hasFiscalName;
+
+  function changeTipo(t: "completa" | "simplificada") {
+    setTipo(t);
+    setSel(new Set()); // la elegibilidad cambia → limpiar selección
+  }
 
   function toggle(ref: string) {
     setSel((s) => {
@@ -59,7 +68,7 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
       const res = await fetch("/api/reconcile/orders/issue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ references, dateMode }),
+        body: JSON.stringify({ references, dateMode, simplified: tipo === "simplificada" }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo emitir.");
@@ -95,6 +104,10 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
         </div>
         {canIssue ? (
           <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex overflow-hidden rounded-lg border border-slate-600 text-xs">
+              <button type="button" onClick={() => changeTipo("completa")} className={`px-2.5 py-1 font-semibold ${tipo === "completa" ? "bg-slate-700 text-white" : "text-slate-300"}`}>Completa</button>
+              <button type="button" onClick={() => changeTipo("simplificada")} className={`px-2.5 py-1 font-semibold ${tipo === "simplificada" ? "bg-slate-700 text-white" : "text-slate-300"}`}>Simplificada ≤400€</button>
+            </span>
             <label className="flex items-center gap-1 text-xs text-slate-300">
               <input type="radio" checked={dateMode === "paid"} onChange={() => setDateMode("paid")} /> Fecha de cobro
             </label>
@@ -117,8 +130,8 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
 
       <p className="mt-2 text-[11px] text-slate-500">
         Fecha de cobro: factura con la fecha real del pago. Los pedidos de un trimestre ya presentado (antes de abril 2026) se
-        fechan hoy automáticamente. Sin NIF/nombre fiscal no se puede facturar (rellena los datos fiscales del pedido). Si un
-        pedido ya tiene borrador, se factura con sus líneas: el importe «a facturar» es el del borrador (se avisa si difiere del cobrado).
+        fechan hoy automáticamente. <strong>Completa</strong>: exige NIF y nombre fiscal. <strong>Simplificada</strong> (≤400€, consumidor
+        final): no exige NIF — ideal para ventas web a particulares. Si un pedido ya tiene borrador, se factura con sus líneas.
       </p>
 
       <div className="mt-3 overflow-x-auto rounded-lg border border-slate-700">

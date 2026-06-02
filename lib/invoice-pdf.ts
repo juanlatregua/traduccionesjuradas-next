@@ -19,6 +19,7 @@ type InvoiceData = {
   vatCents?: number;
   vatRate?: number; // fracción (0.21). Si se omite, se asume 21%.
   draft?: boolean; // marca de agua PROFORMA y oculta el número
+  simplified?: boolean; // factura simplificada (RD 1619/2012)
   brand?: string; // marca/actividad emisora (traduccionesjuradas | holabonjour)
   logoDataUrl?: string; // PNG en data URL para marcas con logo de imagen
   poNumber?: string | null; // Purchase Order / nº de pedido del cliente
@@ -132,7 +133,7 @@ function drawLogo(doc: jsPDF, x: number, y: number, w: number) {
 }
 
 export function generateInvoicePdf(data: InvoiceData): Buffer {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const pageW = 210;
   const margin = 16;
   const contentW = pageW - margin * 2;
@@ -173,8 +174,9 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.roundedRect(boxX, 16, boxW, 15, 1.5, 1.5, "S");
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text(data.draft ? "PROFORMA" : "FACTURA", boxX + 5, 25.5);
+  const isSimpl = !!data.simplified && !data.draft;
+  doc.setFontSize(isSimpl ? 10 : 13);
+  doc.text(data.draft ? "PROFORMA" : isSimpl ? "FACTURA SIMPLIFICADA" : "FACTURA", boxX + 5, 25.5);
   doc.setFontSize(15);
   const numberLabel = data.invoiceNumber || (data.draft ? "BORRADOR" : data.reference ? `F-${data.reference}` : "—");
   doc.text(numberLabel, pageW - margin - 5, 25.5, { align: "right" });

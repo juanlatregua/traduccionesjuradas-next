@@ -169,17 +169,22 @@ body[data-chat-open="true"] .whatsapp-float {
    de arriba gana por especificidad.
    ============================================ */
 #zona-traductor-root:not(.zona-theme-light) {
-  background-color: #111a2b;
+  background-color: #1e2530;
 }
 #zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-950"] {
-  background-color: #111a2b !important; /* fondo de página */
+  background-color: #1e2530 !important; /* fondo de página: carbón neutro, fuera del pozo */
 }
 #zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-900"] {
-  background-color: #1b2536 !important; /* tarjetas, inputs, nav (elevado) */
+  background-color: #2a323d !important; /* tarjetas, inputs, nav (elevado) */
 }
 #zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-800"] {
-  background-color: #243044 !important; /* cabeceras de tabla, chips (más elevado) */
+  background-color: #363f4c !important; /* cabeceras de tabla, chips (más elevado) */
 }
 #zona-traductor-root:not(.zona-theme-light) [class*="text-white"] {
-  color: #eaf0f7 !important; /* off-white: sin vibración del #fff */
+  color: #edf1f6 !important; /* off-white: sin vibración del #fff */
+}
+/* Bordes un punto más suaves para que no "corten" sobre el carbón. */
+#zona-traductor-root:not(.zona-theme-light) [class*="border-slate-700"],
+#zona-traductor-root:not(.zona-theme-light) [class*="border-slate-800"] {
+  border-color: #3c4654 !important;
 }

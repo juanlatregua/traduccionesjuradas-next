@@ -68,6 +68,7 @@ export async function issueOrUpdateInvoice(input: {
   number?: string | null;
   issuedAt?: Date | null; // fecha de emisión (p.ej. la del cobro); por defecto ahora
   origin?: string | null; // auditoría del origen
+  simplified?: boolean; // factura simplificada (≤400€, sin NIF)
 }) {
   const finalNumber = (input.number || "").trim() || (await suggestNextInvoiceNumber());
   if (!isValidInvoiceNumber(finalNumber)) {
@@ -102,6 +103,7 @@ export async function issueOrUpdateInvoice(input: {
     ...(input.origin ? { origin: input.origin } : {}),
     // issuedAt en update solo si se pasa explícito (no re-sellar una emitida)
     ...(input.issuedAt ? { issuedAt: input.issuedAt } : {}),
+    ...(input.simplified !== undefined ? { simplified: input.simplified } : {}),
   };
 
   try {
@@ -111,6 +113,7 @@ export async function issueOrUpdateInvoice(input: {
         orderId: input.orderId,
         issuedAt: input.issuedAt ?? new Date(),
         origin: input.origin ?? "manual",
+        simplified: input.simplified ?? false,
         ...data,
       },
       update: data,
@@ -211,7 +214,7 @@ export async function updateDraftInvoice(id: string, input: DraftInvoiceInput) {
 
 // Asigna el número fiscal y congela la factura. Idempotente si ya está emitida.
 // issuedAt opcional: para sellar con la fecha del cobro (conciliación), no hoy.
-export async function issueInvoice(id: string, opts?: { number?: string | null; issuedAt?: Date | null; origin?: string | null }) {
+export async function issueInvoice(id: string, opts?: { number?: string | null; issuedAt?: Date | null; origin?: string | null; simplified?: boolean }) {
   const inv = await prisma.clientInvoice.findUnique({ where: { id } });
   if (!inv) throw new Error("Factura no encontrada.");
   if (inv.status === "ISSUED") return inv;
@@ -238,6 +241,7 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
         status: "ISSUED",
         issuedAt: opts?.issuedAt ?? new Date(),
         ...(opts?.origin ? { origin: opts.origin } : {}),
+        ...(opts?.simplified !== undefined ? { simplified: opts.simplified } : {}),
       },
     });
   } catch (err: any) {
