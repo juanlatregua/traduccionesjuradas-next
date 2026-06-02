@@ -19,7 +19,7 @@ const FIELDS = {
   // ── Meta / hero ────────────────────────────────────────────────
   metaTitle: tr(
     "¿Qué traducciones necesitas para tu trámite? · Lector de cartas oficiales",
-    "Quelles traductions pour votre démarche ? · Lecteur de courriers officiels",
+    "Quelles traductions pour votre démarche ? · Lecteur de courriers officiels",
     "Official Letter Reader — what translations do you need?",
     "Behördenbrief-Leser — welche Übersetzungen brauchen Sie?",
     "Leitor de notificações — que traduções precisa?"
@@ -33,7 +33,7 @@ const FIELDS = {
   ),
   h1: tr(
     "¿Qué te pide este papel oficial?",
-    "Que vous demande ce courrier officiel ?",
+    "Que vous demande ce courrier officiel ?",
     "What is this official letter asking for?",
     "Was verlangt dieser Behördenbrief?",
     "O que lhe pede esta notificação oficial?"
@@ -100,7 +100,7 @@ const FIELDS = {
   // ── Resultado ──────────────────────────────────────────────────
   bannerYmyl: tr(
     "Esta lectura se basa únicamente en el texto de tu carta. Puede haber requisitos que el organismo no detalle por escrito. No es asesoramiento jurídico: confirma siempre con el organismo.",
-    "Cette lecture se fonde uniquement sur le texte de votre courrier. Il peut exister des exigences que l'administration ne détaille pas par écrit. Ce n'est pas un conseil juridique : confirmez toujours auprès de l'organisme.",
+    "Cette lecture se fonde uniquement sur le texte de votre courrier. Il peut exister des exigences que l'administration ne détaille pas par écrit. Ce n'est pas un conseil juridique : confirmez toujours auprès de l'organisme.",
     "This reading is based only on the text of your letter. There may be requirements the authority doesn't spell out. This is not legal advice: always confirm with the authority.",
     "Diese Auswertung beruht ausschließlich auf dem Text Ihres Schreibens. Es kann Anforderungen geben, die die Behörde nicht schriftlich nennt. Dies ist keine Rechtsberatung: Bestätigen Sie immer bei der Behörde.",
     "Esta leitura baseia-se apenas no texto da sua carta. Pode haver requisitos que o organismo não detalhe por escrito. Não é aconselhamento jurídico: confirme sempre com o organismo."
@@ -154,7 +154,7 @@ const FIELDS = {
   ),
   evidenceLabel: tr(
     "Lo que dice tu carta:",
-    "Ce que dit votre courrier :",
+    "Ce que dit votre courrier :",
     "What your letter says:",
     "Was Ihr Schreiben sagt:",
     "O que diz a sua carta:"
@@ -183,7 +183,7 @@ const FIELDS = {
   ),
   legVerify: tr(
     "Legalización: verifícala",
-    "Légalisation : à vérifier",
+    "Légalisation : à vérifier",
     "Legalisation: verify",
     "Legalisation: prüfen",
     "Legalização: verifique"
@@ -228,7 +228,7 @@ const FIELDS = {
   ),
   leftOutLabel: tr(
     "Esto también te lo piden, pero no es una traducción que hagamos nosotros:",
-    "On vous demande aussi ceci, mais ce n'est pas une traduction que nous réalisons :",
+    "On vous demande aussi ceci, mais ce n'est pas une traduction que nous réalisons :",
     "You're also asked for this, but it's not a translation we handle:",
     "Dies wird ebenfalls verlangt, ist aber keine Übersetzung, die wir anbieten:",
     "Também lhe pedem isto, mas não é uma tradução que façamos:"
