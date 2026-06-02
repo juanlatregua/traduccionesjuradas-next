@@ -30,6 +30,18 @@ export const LOCALE_HOME: Record<Locale, string> = {
   pt: "/traducao-certificada",
 };
 
+/**
+ * Lector de requerimientos (utilidad flagship v2). Slugs HÍBRIDOS: ES y FR
+ * (nichos fuertes) por intención de búsqueda; EN/DE/PT descriptivos.
+ */
+export const LECTOR_HOME: Record<Locale, string> = {
+  es: "/que-traducciones-necesito",
+  fr: "/quelles-traductions-pour-ma-demarche",
+  en: "/official-letter-reader",
+  de: "/behoerdenbrief-leser",
+  pt: "/leitor-de-notificacoes",
+};
+
 /** Etiqueta corta (selector) y nombre nativo (aria/menú). */
 export const LOCALE_LABEL: Record<Locale, string> = { es: "ES", fr: "FR", en: "EN", de: "DE", pt: "PT" };
 export const LOCALE_NATIVE: Record<Locale, string> = {
@@ -48,6 +60,11 @@ export const LOCALE_PREFIXES: { prefix: string; locale: Locale }[] = [
   { prefix: "/sworn-translation", locale: "en" },
   { prefix: "/beglaubigte-uebersetzung", locale: "de" },
   { prefix: "/traducao-certificada", locale: "pt" },
+  // Lector de requerimientos (header/footer en el idioma correcto)
+  { prefix: LECTOR_HOME.fr, locale: "fr" },
+  { prefix: LECTOR_HOME.en, locale: "en" },
+  { prefix: LECTOR_HOME.de, locale: "de" },
+  { prefix: LECTOR_HOME.pt, locale: "pt" },
 ];
 
 export function localeFromPath(pathname: string | null | undefined): Locale {
@@ -76,6 +93,25 @@ export const HREFLANG_ALTERNATES: Record<string, string> = {
   "de-DE": LOCALE_ABS.de,
   "pt-PT": LOCALE_ABS.pt,
   "x-default": SITE_URL,
+};
+
+/** URL absoluta del lector de requerimientos por idioma. */
+export const LECTOR_ABS: Record<Locale, string> = {
+  es: `${SITE_URL}${LECTOR_HOME.es}`,
+  fr: `${SITE_URL}${LECTOR_HOME.fr}`,
+  en: `${SITE_URL}${LECTOR_HOME.en}`,
+  de: `${SITE_URL}${LECTOR_HOME.de}`,
+  pt: `${SITE_URL}${LECTOR_HOME.pt}`,
+};
+
+/** hreflang propio del cluster del lector (NO reutilizar el de los homes). */
+export const HREFLANG_LECTOR: Record<string, string> = {
+  "es-ES": LECTOR_ABS.es,
+  "fr-FR": LECTOR_ABS.fr,
+  "en-GB": LECTOR_ABS.en,
+  "de-DE": LECTOR_ABS.de,
+  "pt-PT": LECTOR_ABS.pt,
+  "x-default": LECTOR_ABS.es,
 };
 
 /** Locale BCP-47 para Intl (formato de moneda/fecha). */

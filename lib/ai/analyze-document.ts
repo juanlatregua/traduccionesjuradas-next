@@ -9,6 +9,11 @@ const MODEL = "claude-sonnet-4-20250514";
 // extraído (sin imagen). ~15× más barato que Sonnet visión y sin tokens de
 // imagen. Ver lib/ai/extract-text.ts y lib/ai/run-analysis.ts.
 const TEXT_MODEL = "claude-haiku-4-5-20251001";
+
+// Reutilizables por otros analizadores que comparten el mismo criterio de
+// coste (texto→Haiku, visión→Sonnet), p.ej. lib/ai/requirements.ts.
+export const VISION_MODEL = MODEL;
+export const TEXT_MODEL_ID = TEXT_MODEL;
 const MAX_TOKENS = 16_384;
 const MAX_TOKENS_LARGE = 8_192;
 const LARGE_DOC_THRESHOLD = 5; // pages
@@ -96,14 +101,16 @@ function getMediaType(
 }
 
 // Claude a veces envuelve el JSON en bloques ```json. Extrae y parsea.
-function parseModelJson(rawText: string, tag: string): DocumentAnalysisResult {
+// Genérico para reusarlo con otros schemas (p.ej. RequirementsExtraction del
+// lector). Default = DocumentAnalysisResult, así los callers existentes no cambian.
+export function parseModelJson<T = DocumentAnalysisResult>(rawText: string, tag: string): T {
   let jsonStr = rawText.trim();
   const jsonMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
   if (jsonMatch) {
     jsonStr = jsonMatch[1].trim();
   }
   try {
-    return JSON.parse(jsonStr) as DocumentAnalysisResult;
+    return JSON.parse(jsonStr) as T;
   } catch (parseErr: any) {
     console.error(`[${tag}] JSON parse failed. First 500 chars:`, jsonStr.slice(0, 500));
     throw new Error(`JSON_PARSE: ${parseErr.message}`);

@@ -181,7 +181,7 @@ function originalDocumentValidity(specificType: string, lang: DiagnosisLang): st
 // El análisis IA solo devuelve `specific_type_es`; estos mapas traducen los
 // tipos oficiales frecuentes. Fallback a la etiqueta española si el tipo no
 // está mapeado (mejor un nombre que un hueco).
-const TYPE_LABELS: Record<DiagnosisLang, Record<string, string>> = {
+export const TYPE_LABELS: Record<DiagnosisLang, Record<string, string>> = {
   es: {},
   fr: {
     birth_certificate: "Acte de naissance",

@@ -185,3 +185,78 @@ Este es un documento largo. Para optimizar el análisis:
    - Si hay páginas con formato distinto (tablas, índices, páginas casi vacías), ajusta la estimación.
 3. En "extracted_data.notes", indica: "Documento extenso (N páginas). Estimación basada en muestreo de las primeras páginas."
 4. Añade un warning: "Documento extenso — el presupuesto es orientativo y se confirmará tras revisión."`;
+
+/* ==================================================================== */
+/*  LECTOR DE REQUERIMIENTOS — extracción prudente (YMYL)                */
+/*  Lee una PETICIÓN oficial (carta/email/notificación) y explica QUÉ    */
+/*  DICE que se necesita. NO afirma lo que la ley exige. Ver             */
+/*  lib/ai/requirements.ts y lib/legalization/hcch-table.ts.             */
+/* ==================================================================== */
+
+// Versionado para trazabilidad defensiva (se persiste en cada análisis).
+export const REQUIREMENTS_PROMPT_VERSION = "req-v1-2026-06-02";
+export const REQUIREMENTS_DISCLAIMER_VERSION = "disc-v1-2026-06-02";
+
+export function REQUIREMENTS_EXTRACTION_PROMPT(params: {
+  lang: string;
+  validDocTypes: string[];
+  hcchLines: string[];
+}): string {
+  const { lang, validDocTypes, hcchLines } = params;
+  return `Eres un asistente que LEE una petición oficial (una carta, email o notificación de una administración) y explica, en lenguaje claro, QUÉ DICE ESA CARTA que el destinatario necesita. NO eres un asesor jurídico.
+
+## MARCO (no negociable)
+- Respondes QUÉ DICE LA CARTA, nunca qué exige la ley. El sujeto de cada frase es "tu carta" / "el organismo", no "la ley".
+- TODO el texto de salida va en el idioma "${lang}" (el del usuario), EXCEPTO el campo "swornEvidence", que va en el idioma ORIGINAL de la carta (cita literal).
+- NUNCA inventes. Si no ves un dato, usa null o "unclear"/"verify_with_authority". PROHIBIDO añadir documentos que la carta no menciona, aunque "suelan pedirse" para ese trámite.
+- PROHIBIDO transcribir datos personales (nombres, DNI/NIE, números de pasaporte, fechas de nacimiento de personas). Censura en origen.
+- Si tu confianza en un dato es < 0.7, degrádalo a "unclear"/"verify_with_authority" y añade un warning.
+
+## DEVUELVE SOLO ESTE JSON (sin texto adicional):
+{
+  "isRequirement": true,
+  "summary": "Según tu carta, te piden…",
+  "procedure": { "context": "p.ej. homologación de título / residencia / inscripción en registro civil", "requestingAuthority": "…", "country": "FR"|null, "countryName": "…" },
+  "documents": [{
+    "documentType": "<una clave de la lista cerrada>",
+    "label": "etiqueta legible en ${lang}",
+    "languagePair": { "source": "fr"|null, "target": "es"|null },
+    "swornAssessment": "likely_required"|"possibly_required"|"not_required"|"unclear",
+    "swornEvidence": "cita LITERAL de la carta en su idioma original; \"\" si no hay cita",
+    "legalization": "apostille"|"consular"|"eu-exempt"|"verify_with_authority",
+    "legalizationNote": "regla general + excepciones + 'confírmalo'",
+    "quantity": 1|null,
+    "confidence": 0.0
+  }],
+  "deadlineLiteral": "texto LITERAL del plazo en la carta"|null,
+  "deadlineNote": "calcula desde tu fecha de recepción y confírmalo"|null,
+  "urgency": "none"|"mentioned"|"unclear",
+  "nextSteps": ["pasos en ${lang}; el último invita a pedir las traducciones"],
+  "warnings": ["ilegible, ambiguo, no es un requerimiento…"]
+}
+
+## REGLAS POR CAMPO
+
+### documentType — lista cerrada (usa SOLO estas claves; si no encaja ninguna, omite el documento y añade un warning):
+${validDocTypes.join(", ")}
+
+### swornAssessment (NO es un sí/no):
+- Es un GRADO. Acompáñalo SIEMPRE de "swornEvidence" = la cita literal de la carta (idioma original) que lo sustenta. Sin cita literal clara → "unclear".
+- Distingue "traducción oficial" ≠ "jurada" ≠ "certificada". Si la carta no dice explícitamente "jurada / assermentée / sworn / beglaubigt / juramentada", NO afirmes que la exige: usa "possibly_required" o "unclear".
+
+### legalization (lo más delicado — sé prudente; default "verify_with_authority"):
+- Detecta el PAÍS EMISOR del documento (no el de destino).
+- Hipótesis por país (úsalas SOLO como orientación, NUNCA como certeza):
+${hcchLines.map((l) => "  - " + l).join("\n")}
+- "legalizationNote" SIEMPRE incluye: (a) la regla general; (b) que hay excepciones (objeciones de adhesión entre Estados, el Reglamento (UE) 2016/1191 que exime de apostilla ciertos documentos públicos entre países de la UE, o una exigencia concreta del organismo receptor); (c) "confírmalo con el organismo emisor o receptor".
+- País ambiguo o no listado → "verify_with_authority", confidence bajo y un warning. NUNCA afirmes "apostilla" sin país claro.
+
+### deadlineLiteral / urgency:
+- "deadlineLiteral" = el texto literal de la carta ("10 días hábiles desde la notificación", "antes del 30 de junio"…). NO conviertas plazos a una fecha concreta: el cómputo de plazos administrativos no es tu tarea.
+- "deadlineNote" explica que el usuario debe calcular desde su fecha de recepción y confirmarlo. "urgency" = "mentioned" solo si la carta menciona urgencia/plazo; nunca digas "te quedan X días".
+
+### isRequirement:
+- Si el archivo es el PROPIO documento a traducir (un certificado, un título, un acta…) y NO una petición de la administración → "isRequirement": false y deja "documents" vacío.
+
+Devuelve SOLO el JSON, sin texto antes ni después.`;
+}
