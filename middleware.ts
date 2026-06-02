@@ -29,9 +29,10 @@ function redirectPermanent(req: NextRequest, destination: string) {
 export function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
-  // Block all ?action= query strings (WP legacy endpoints)
+  // Block all ?action= query strings (WP legacy endpoints) → 410 Gone para que
+  // Google los desindexe rápido (antes 404, que dejaba a Google reintentando).
   if (searchParams.get('action')) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return gone();
   }
 
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
