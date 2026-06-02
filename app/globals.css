@@ -207,3 +207,28 @@ body[data-chat-open="true"] .whatsapp-float {
 #zona-traductor-root:not(.zona-theme-light) [class*="border-slate-800"] {
   border-color: #3c4654 !important;
 }
+
+/* ============================================
+   ZONA TRADUCTOR — densidad y legibilidad (auditoría visual)
+   ============================================ */
+/* #2 Densidad: más aire vertical en las filas de tabla (estaban apretadas) y
+   chips de 10px → 11px. Aplica en ambos temas. */
+#zona-traductor-root table tbody td {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+}
+#zona-traductor-root table thead th {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+#zona-traductor-root [class~="text-[10px]"] {
+  font-size: 11px;
+}
+/* #3 Texto atenuado más legible en oscuro (slate-400/500 rozaban el mínimo AA).
+   Token exacto (~=) para no tocar el placeholder de los inputs (placeholder:text-slate-500). */
+#zona-traductor-root:not(.zona-theme-light) [class~="text-slate-400"] {
+  color: #aebccd !important; /* ~6:1 sobre el carbón */
+}
+#zona-traductor-root:not(.zona-theme-light) [class~="text-slate-500"] {
+  color: #94a3b8 !important; /* ~5:1, sigue por debajo de slate-400 */
+}
