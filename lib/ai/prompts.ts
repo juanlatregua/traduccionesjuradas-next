@@ -194,7 +194,7 @@ Este es un documento largo. Para optimizar el análisis:
 /* ==================================================================== */
 
 // Versionado para trazabilidad defensiva (se persiste en cada análisis).
-export const REQUIREMENTS_PROMPT_VERSION = "req-v1-2026-06-02";
+export const REQUIREMENTS_PROMPT_VERSION = "req-v2-2026-06-03";
 export const REQUIREMENTS_DISCLAIMER_VERSION = "disc-v1-2026-06-02";
 
 export function REQUIREMENTS_EXTRACTION_PROMPT(params: {
@@ -207,7 +207,7 @@ export function REQUIREMENTS_EXTRACTION_PROMPT(params: {
 
 ## MARCO (no negociable)
 - Respondes QUÉ DICE LA CARTA, nunca qué exige la ley. El sujeto de cada frase es "tu carta" / "el organismo", no "la ley".
-- TODO el texto de salida va en el idioma "${lang}" (el del usuario), EXCEPTO el campo "swornEvidence", que va en el idioma ORIGINAL de la carta (cita literal).
+- IDIOMA DE SALIDA = "${lang}". SEA CUAL SEA el idioma en que esté escrita la carta (aunque sea distinto de "${lang}"), TODO el texto que generes va en "${lang}": summary, labels, notas, nextSteps, warnings, etc. NUNCA copies el idioma de la carta. ÚNICA excepción: "swornEvidence", que es una cita LITERAL y va en el idioma ORIGINAL de la carta.
 - NUNCA inventes. Si no ves un dato, usa null o "unclear"/"verify_with_authority". PROHIBIDO añadir documentos que la carta no menciona, aunque "suelan pedirse" para ese trámite.
 - PROHIBIDO transcribir datos personales (nombres, DNI/NIE, números de pasaporte, fechas de nacimiento de personas). Censura en origen.
 - Si tu confianza en un dato es < 0.7, degrádalo a "unclear"/"verify_with_authority" y añade un warning.
@@ -242,7 +242,11 @@ ${validDocTypes.join(", ")}
 
 ### swornAssessment (NO es un sí/no):
 - Es un GRADO. Acompáñalo SIEMPRE de "swornEvidence" = la cita literal de la carta (idioma original) que lo sustenta. Sin cita literal clara → "unclear".
-- Distingue "traducción oficial" ≠ "jurada" ≠ "certificada". Si la carta no dice explícitamente "jurada / assermentée / sworn / beglaubigt / juramentada", NO afirmes que la exige: usa "possibly_required" o "unclear".
+- Distingue "traducción oficial" ≠ "jurada" ≠ "certificada". REGLA DURA por la literalidad de la carta:
+  - La carta dice explícitamente "jurada / assermentée / sworn / beglaubigt / juramentada" → "likely_required".
+  - La carta pide traducción pero con OTRA palabra ("oficial / certificada / certifiée / official / certified") SIN decir "jurada" → "possibly_required" (NUNCA "not_required" ni "likely_required": no afirmas que la exige, pero tampoco descartas que esa "oficial" sea de facto jurada).
+  - La carta pide el documento pero NO menciona traducción alguna → "unclear".
+  - "not_required" SOLO si la carta dice expresamente que NO hace falta traducción jurada/oficial. En la duda, sube la prudencia hacia "possibly_required"/"unclear", nunca hacia "not_required".
 
 ### legalization (lo más delicado — sé prudente; default "verify_with_authority"):
 - Detecta el PAÍS EMISOR del documento (no el de destino).

@@ -75,6 +75,14 @@ const MAX_TEXT_CHARS = 24_000;
 // que entiende la puerta (TYPE_LABELS / diagnosis).
 const VALID_DOC_TYPES = Object.keys(TYPE_LABELS.fr);
 
+const LANG_NAMES: Record<string, string> = {
+  es: "español",
+  fr: "francés (français)",
+  en: "inglés (English)",
+  de: "alemán (Deutsch)",
+  pt: "portugués (português)",
+};
+
 function buildHcchLines(): string[] {
   const regimeWord: Record<string, string> = {
     apostille: "apostilla (Convenio de La Haya)",
@@ -148,12 +156,21 @@ export async function analyzeRequirement(input: {
     const model = useText ? TEXT_MODEL_ID : VISION_MODEL;
     const userContent: Anthropic.ContentBlockParam[] = [];
 
+    // Recordatorio de idioma en el propio mensaje (no solo en el system): los
+    // modelos pequeños tienden a copiar el idioma de la carta si no se repite
+    // aquí. swornEvidence sigue siendo la única excepción (cita literal).
+    const langName = LANG_NAMES[input.lang] || input.lang;
+    const langDirective =
+      `\n\nIMPORTANTE: redacta TODA tu respuesta en ${langName} (código "${input.lang}"), ` +
+      `aunque la carta esté en otro idioma. Única excepción: "swornEvidence" va en el idioma original de la carta.`;
+
     if (useText) {
       userContent.push({
         type: "text",
         text:
-          `Lee esta petición oficial (${input.fileName}) a partir del TEXTO extraído de su PDF y devuelve el JSON.\n\n` +
-          `--- TEXTO DE LA CARTA ---\n${extractedText.slice(0, MAX_TEXT_CHARS)}`,
+          `Lee esta petición oficial (${input.fileName}) a partir del TEXTO extraído de su PDF y devuelve el JSON.` +
+          langDirective +
+          `\n\n--- TEXTO DE LA CARTA ---\n${extractedText.slice(0, MAX_TEXT_CHARS)}`,
       });
     } else {
       if (mediaType === "application/pdf") {
@@ -177,7 +194,7 @@ export async function analyzeRequirement(input: {
       }
       userContent.push({
         type: "text",
-        text: `Lee esta petición oficial (${input.fileName}) y devuelve el JSON.`,
+        text: `Lee esta petición oficial (${input.fileName}) y devuelve el JSON.` + langDirective,
       });
     }
 
