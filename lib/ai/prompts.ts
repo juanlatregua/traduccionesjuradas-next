@@ -167,6 +167,8 @@ La precisión del conteo de palabras determina directamente el precio del presup
 - Si no puedes identificar algo con confianza > 0.7, pon "unknown" y añade un warning
 - NUNCA inventes datos que no veas en el documento
 - Si el documento tiene varias páginas, analiza TODAS
+- **IDIOMAS QUE OFRECEMOS** (auto-presupuesto): español, francés, inglés, alemán, neerlandés, italiano, portugués, catalán, sueco, noruego, rumano y árabe. Si el documento NO está en ninguno de estos (p. ej. ruso, ucraniano, polaco, chino, japonés), AÑADE OBLIGATORIAMENTE el warning "El documento parece estar en un idioma que no ofrecemos actualmente" y refleja el idioma real en "source" (no fuerces uno que ofrecemos).
+- **Cirílico — distingue ruso de ucraniano** (error frecuente): ucraniano usa і, ї, є, ґ; ruso usa ы, э, ъ y NO tiene і/ї/є/ґ. Ante la duda en cirílico, baja la confianza y añade warning. (Ni ruso ni ucraniano se ofrecen.)
 - Si hay texto en árabe, indica que es bilingüe árabe/francés (común en documentos marroquíes). El idioma source debe ser "fr" (francés), que es el que se traduce; el árabe es institucional/decorativo
 - Las apostillas se cuentan como parte del documento al que acompañan, no como documento separado
 - Las legalizaciones notariales (sellos, firmas de greffier) son parte del documento, no documentos independientes

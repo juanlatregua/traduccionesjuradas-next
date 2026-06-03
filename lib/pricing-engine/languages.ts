@@ -16,6 +16,21 @@ export const PER_WORD_RATE: Record<string, number> = {
 
 export const DEFAULT_RATE = 0.10;
 
+// Fuente ÚNICA de verdad de los idiomas extranjeros que el negocio auto-tarifica
+// (== claves de PER_WORD_RATE). Cualquier idioma fuera de aquí (p.ej. ruso "ru",
+// ucraniano "uk", chino, japonés) NO debe recibir precio instantáneo ni checkout:
+// se enruta a presupuesto manual. getRate() conserva el fallback DEFAULT_RATE
+// para callers internos, pero el GATE de negocio vive en los bordes (diagnosis +
+// checkout) usando isAutoPriceable. Ver incidente TJ-20260602-NJ42 (doc ruso
+// malclasificado como "uk" y cobrado por el fallback silencioso).
+export const AUTO_PRICEABLE_FOREIGN = new Set(Object.keys(PER_WORD_RATE));
+
+export function isAutoPriceable(lang: string | null | undefined): boolean {
+  if (!lang) return false;
+  const c = lang.toLowerCase();
+  return c === "es" || AUTO_PRICEABLE_FOREIGN.has(c);
+}
+
 export const LANGUAGE_NAMES: Record<string, string> = {
   fr: "Francés",
   en: "Inglés",

@@ -11,14 +11,15 @@ import {
   PURPOSE_REGULARIZACION_2026,
 } from "@/lib/session-pricing";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable } from "@/lib/pricing-engine/languages";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 
 export const runtime = "nodejs";
 
-// Idiomas válidos como destino (mismo conjunto que el pricing-engine).
-const KNOWN_LANGUAGES = new Set([
-  "fr", "en", "de", "nl", "it", "pt", "ca", "sv", "no", "ar", "ro",
-]);
+const WHATSAPP_URL = "https://wa.me/34951333614";
+
+// Idiomas válidos como destino (== claves de PER_WORD_RATE, fuente única).
+const KNOWN_LANGUAGES = AUTO_PRICEABLE_FOREIGN;
 
 // Precio de campaña del arraigo extraordinario: 25 € pre-IVA por documento,
 // solo para documentos en francés dentro de una sesión de regularización 2026.
@@ -153,6 +154,23 @@ export async function POST(req: Request) {
     if (!foreignLang) {
       return NextResponse.json(
         { ok: false, error: "Indica el idioma de destino de cada documento." },
+        { status: 422 }
+      );
+    }
+
+    // GATE DURO: idioma fuera del set auto-tarificable (p.ej. ruso, ucraniano)
+    // NO crea OrderSession ni llega a Stripe. Defensa en profundidad: aunque el
+    // diagnóstico/frontend fallen, ningún idioma no soportado se cobra.
+    // Incidente TJ-20260602-NJ42 (ruso malclasificado "uk", cobrado 50,82€).
+    if (!isAutoPriceable(foreignLang)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          unsupported: true,
+          error:
+            "Por ahora no ofrecemos traducción jurada automática en este idioma. Escríbenos por WhatsApp y te preparamos un presupuesto a medida.",
+          whatsappUrl: WHATSAPP_URL,
+        },
         { status: 422 }
       );
     }

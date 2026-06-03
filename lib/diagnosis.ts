@@ -8,6 +8,7 @@
 
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
+import { isAutoPriceable } from "@/lib/pricing-engine/languages";
 import type { Locale } from "@/lib/i18n/locales";
 
 // inbound  = documento extranjero → español (uso en España)
@@ -48,6 +49,9 @@ export type Diagnosis = {
     swornTranslation: string;
     originalDocument: string | null;
   };
+  // false = idioma fuera del set auto-tarificable (ruso, ucraniano, etc.): no se
+  // muestra precio instantáneo ni se permite checkout; se enruta a manual.
+  autoPriceable: boolean;
 };
 
 // ── Plazo de entrega ────────────────────────────────────────────────
@@ -290,10 +294,14 @@ export function buildDiagnosis(
   const direction: TranslationDirection =
     language.source === "es" ? "outbound" : "inbound";
   const foreignLang = resolveForeignLang(language);
+  const autoPriceable = isAutoPriceable(foreignLang);
 
-  const hours = foreignLang
-    ? getDeliveryHours(foreignLang, document_metrics.pages || 1)
-    : null;
+  // Sin plazo determinista para idiomas no auto-tarificables: no anunciamos
+  // "72h" de un idioma que se gestiona manualmente (o que no ofrecemos).
+  const hours =
+    foreignLang && autoPriceable
+      ? getDeliveryHours(foreignLang, document_metrics.pages || 1)
+      : null;
 
   return {
     type: {
@@ -320,6 +328,7 @@ export function buildDiagnosis(
       swornTranslation: swornValidity(lang),
       originalDocument: originalDocumentValidity(document_type.specific_type, lang),
     },
+    autoPriceable,
   };
 }
 
