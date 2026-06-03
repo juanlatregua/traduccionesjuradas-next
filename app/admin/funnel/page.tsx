@@ -1,54 +1,16 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
 import { requireAdminPageAccess } from "@/lib/admin-page-access";
 import { AdminNav } from "@/components/AdminNav";
+import { FUNNEL_STAGES as STAGES, funnelForWindow, type StageKey } from "@/lib/funnel-digest";
 
 export const metadata: Metadata = {
   title: "Admin · Funnel",
   robots: { index: false, follow: false },
 };
 
-const STAGES = [
-  { key: "analizado", label: "Documento analizado" },
-  { key: "presupuesto", label: "Presupuesto generado" },
-  { key: "lead", label: "Email capturado (lead)" },
-  { key: "pedido", label: "Pedido creado" },
-  { key: "pagado", label: "Pedido pagado" },
-] as const;
-
-type StageKey = (typeof STAGES)[number]["key"];
-
 function pct(n: number, base: number) {
   if (base <= 0) return "—";
   return `${((n / base) * 100).toFixed(1)} %`;
-}
-
-async function funnelForWindow(days: number, source?: string) {
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const base = { createdAt: { gte: since }, ...(source ? { source } : {}) };
-  const [analizado, presupuesto, lead, pedido, pagado] = await Promise.all([
-    prisma.documentAnalysis.count({ where: base }),
-    prisma.documentAnalysis.count({
-      where: { ...base, quoteAmount: { not: null } },
-    }),
-    prisma.documentAnalysis.count({
-      where: { ...base, clientEmail: { not: null } },
-    }),
-    prisma.documentAnalysis.count({
-      where: { ...base, orderId: { not: null } },
-    }),
-    prisma.documentAnalysis.count({
-      where: { ...base, order: { is: { paymentStatus: "PAID" } } },
-    }),
-  ]);
-  const counts: Record<StageKey, number> = {
-    analizado,
-    presupuesto,
-    lead,
-    pedido,
-    pagado,
-  };
-  return counts;
 }
 
 function FunnelTable({

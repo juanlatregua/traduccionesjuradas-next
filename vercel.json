@@ -3,6 +3,10 @@
   "redirects": [],
   "crons": [
     {
+      "path": "/api/cron/staff-digest",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/quotes/reminders",
       "schedule": "0 9 * * *"
     },

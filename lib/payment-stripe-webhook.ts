@@ -146,7 +146,10 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
       },
     });
 
-    if (order?.source === "funnel") {
+    // Aviso a staff en TODO pedido pagado (antes solo source==='funnel', lo que
+    // dejaba sin aviso otras vías). Fire-and-forget con retry → FailedEmail si
+    // agota reintentos (lo reporta el digest diario, que sirve de heartbeat).
+    if (order) {
       sendEmailWithRetry(() =>
         sendNewOrderStaffEmail({
           reference,

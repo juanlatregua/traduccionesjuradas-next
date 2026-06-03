@@ -4,6 +4,8 @@
 // (workflow PAGO_VALIDADO, ETA francés, auto-asignación de colaborador).
 
 import { createOrderShellFromQuote, updateOrderPayment } from "@/lib/orders";
+import { sendNewOrderStaffEmail } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
 import type { PaymentMethod } from "@prisma/client";
 
 export type QuoteForBridge = {
@@ -64,6 +66,21 @@ export async function runQuoteToOrderBridge(input: {
     await autoAssignCollaboratorIfNeeded({ reference: order.reference, actorEmail: input.source }).catch((e) =>
       console.error("[quote-to-order] auto collaborator failed", e)
     );
+
+    // Aviso a staff — antes los pedidos vía presupuesto NO avisaban a nadie.
+    // Mismo email que el funnel (a PRESUPUESTO_TO). Fire-and-forget con retry;
+    // si agota reintentos persiste en FailedEmail (lo reporta el digest diario).
+    const langPair =
+      [quote.sourceLang, quote.targetLang].filter(Boolean).join("→") || undefined;
+    sendEmailWithRetry(() =>
+      sendNewOrderStaffEmail({
+        reference: order.reference,
+        title: `Presupuesto ${quote.quoteNumber}`,
+        amountCents: Math.round(quote.totalEur * 100),
+        clientEmail: quote.customerEmail,
+        langPair,
+      })
+    ).catch((e) => console.error("[quote-to-order] staff new-order email failed", e));
   }
 
   return order;
