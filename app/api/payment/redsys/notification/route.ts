@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyRedsysNotification } from "@/lib/redsys";
 import { updateOrderPayment, markPaymentFailed, getOrderDetail } from "@/lib/orders";
-import { sendPaymentConfirmedEmail } from "@/lib/email";
+import { sendPaymentConfirmedEmail, sendNewOrderStaffEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { isResponseCodeOk } from "redsys-easy";
 import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
@@ -69,6 +69,20 @@ export async function POST(req: Request) {
 
       // Notify client (non-blocking)
       const order = await getOrderDetail(orderReference);
+
+      // Aviso a staff — toda vía de pago debe avisar (antes Redsys no lo hacía).
+      if (order) {
+        sendEmailWithRetry(() =>
+          sendNewOrderStaffEmail({
+            reference: order.reference,
+            title: order.title,
+            amountCents: order.amountCents,
+            clientEmail: order.clientEmail,
+            langPair: order.langPair || undefined,
+          })
+        ).catch((e) => console.error("[redsys-notification] staff new-order email failed", e));
+      }
+
       if (order?.clientEmail) {
         sendEmailWithRetry(() =>
           sendPaymentConfirmedEmail({

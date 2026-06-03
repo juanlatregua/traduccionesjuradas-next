@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createExpedienteRef, createExpedienteToken } from "@/lib/expediente-token";
 import { sendExpedienteReceiptEmail, sendExpedienteStaffEmail } from "@/lib/emails/expediente";
+import { sendEmailWithRetry } from "@/lib/email-retry";
 
 export const runtime = "nodejs";
 
@@ -95,13 +96,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "No se pudo registrar el expediente." }, { status: 500 });
   }
 
-  // Emails fire-and-forget (no bloquean la respuesta).
-  sendExpedienteReceiptEmail({ clientEmail, clientName, ref, token, documentCount: clean.length }).catch((e) =>
-    console.error("[expediente/submit] receipt email error:", e?.message)
-  );
-  sendExpedienteStaffEmail({ ref, clientName, clientEmail, clientPhone, documentCount: clean.length, notes }).catch((e) =>
-    console.error("[expediente/submit] staff email error:", e?.message)
-  );
+  // Emails fire-and-forget (no bloquean la respuesta) con retry: si agotan
+  // reintentos persisten en FailedEmail y el digest diario los reporta.
+  sendEmailWithRetry(() =>
+    sendExpedienteReceiptEmail({ clientEmail, clientName, ref, token, documentCount: clean.length })
+  ).catch((e) => console.error("[expediente/submit] receipt email error:", e?.message));
+  sendEmailWithRetry(() =>
+    sendExpedienteStaffEmail({ ref, clientName, clientEmail, clientPhone, documentCount: clean.length, notes })
+  ).catch((e) => console.error("[expediente/submit] staff email error:", e?.message));
 
   return NextResponse.json({ ok: true, ref, token });
 }

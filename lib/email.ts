@@ -798,7 +798,19 @@ export async function sendPaymentReminderEmail(data: {
 }
 
 function alertRecipient() {
-  return process.env.ALERT_EMAIL || process.env.PRESUPUESTO_TO || "";
+  const to =
+    process.env.ALERT_EMAIL ||
+    process.env.PRESUPUESTO_TO ||
+    process.env.EMAIL_FROM ||
+    "";
+  if (!to) {
+    // Nunca debe quedar sin destino: una alerta perdida en silencio fue parte
+    // del incidente del webhook roto 2,5 meses. Si esto se loguea, faltan envs.
+    console.error(
+      "[alertRecipient] CRÍTICO: no hay ALERT_EMAIL / PRESUPUESTO_TO / EMAIL_FROM — la alerta se perderá."
+    );
+  }
+  return to;
 }
 
 export async function sendPaymentReconciliationAlertEmail(data: {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { capturePayPalOrder } from "@/lib/paypal";
 import { getOrderDetail, getOrderPublic, updateOrderPayment } from "@/lib/orders";
-import { sendPaymentConfirmedEmail } from "@/lib/email";
+import { sendPaymentConfirmedEmail, sendNewOrderStaffEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
@@ -117,6 +117,17 @@ export async function POST(req: Request) {
       const toEmail = fullOrder?.clientEmail;
       const title = fullOrder?.title || order.title;
       const amountCents = fullOrder?.amountCents || order.amountCents;
+
+      // Aviso a staff — toda vía de pago debe avisar (antes PayPal no lo hacía).
+      sendEmailWithRetry(() =>
+        sendNewOrderStaffEmail({
+          reference: order.reference,
+          title,
+          amountCents,
+          clientEmail: toEmail || "",
+          langPair: fullOrder?.langPair || undefined,
+        })
+      ).catch((e) => console.error("[paypal-capture] staff new-order email failed", e));
 
       if (toEmail) {
         sendEmailWithRetry(() =>
