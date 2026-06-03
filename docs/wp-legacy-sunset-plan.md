@@ -12,6 +12,37 @@ All facts verified. The refutation holds on every disputed point. I now have eve
 
 > Base de verdad re-verificada en este repo a fecha de hoy. La **refutación adversaria gana en los 4 puntos** y queda incorporada como hechos. El veredicto original aporta el marco y la clasificación por equity; donde chocan, manda la refutación porque coincide con el código.
 
+---
+
+## ⚠ ACTUALIZACIÓN 2026-06-03 — DATOS GSC VERIFICADOS INVIERTEN LA ESTRATEGIA DE FUSIÓN
+
+Obtenidos por API (`scripts/gsc-thin-check.mjs` + `scripts/gsc-queries.mjs`, ventana 90d, Search Analytics + URL Inspection). **Decisión de Juan: canibalizar o cualquier cosa que implique retroceso NO interesa.** El plan original (abajo) asumía que las 6 thin eran páginas basura a redirigir hacia `/documentos-oficiales/*`. Los datos lo desmienten:
+
+| Thin | Impr (90d) | Pos | Indexada | Referring | Canónico destino (pos) | Veredicto |
+|---|---|---|---|---|---|---|
+| `estatutos-sociales` | **280** | 13.8 | Sí | 1 | mercantiles (33.7) | **Canibalización real; la thin GANA** |
+| `antecedentes-penales` | 111 | 46 | Sí | **4** | antecedentes (0 impr) | Canónico no rankea; no redirigir a página muerta |
+| `sentencia-judicial` | 175 (**2 clics**) | 40 | Sí | 2 | juridicos (19.5, no rankea "sentencias") | Thin es la fuerte; no tocar |
+| `seguridad-social` | 36 | **11.3** | Sí | 2 | laborales (21.8) | Pág 1; sin overlap de queries; no tocar |
+| `permiso-de-conducir` | 11 | 13.6 | Sí | 1 | laborales (21.8) | Canibaliz. leve; valor mínimo; mapping raro |
+| `escritura-notarial` | **0** | — | **No (unknown)** | 0 | juridicos | **Único cero puro → fusión segura** |
+
+**Canibalización real (query a query) SOLO en 2 sitios:**
+- `estatutos ↔ mercantiles` (FUERTE): comparten "traducción jurada estatutos sociales", "traducción de estatutos de sociedad", "traducción jurada de estatutos", "…estatutos" — y la thin gana en TODAS (pos 13-14 vs 46-65). Redirigir thin→canónico = tirar pos 13 a pos 46 = **retroceso**. El canónico tiene además sus propias queries (registros mercantiles, cuentas anuales) que la thin no toca.
+- `permiso ↔ laborales` (leve): "licencia de conducir", "permiso de conducción". Volumen ínfimo.
+- El resto NO canibaliza: `antecedentes`-canónico rankea para 0 queries; `sentencia` thin dueña de "traducción de sentencias judiciales" (82 impr) que el canónico no toca; `segsocial` sin solapamiento.
+
+**Dirección corregida (no-regresión) — sustituye a A.1/Prioridad-1 para 5 de las 6:**
+1. **NO redirigir las 5 con equity.** Redirigir cualquiera de ellas hacia su "canónico" las haría perder posición (varias rankean MEJOR que el destino).
+2. **Resolver `estatutos↔mercantiles` por canonical + enlazado, no por borrado:** `mercantiles` = hub de documentos comerciales/registros (que ya owns), `estatutos` = página especialista que ya gana "estatutos". Cross-link jerárquico, sin redirect. Quitar de `mercantiles` el targeting primario de "estatutos sociales".
+3. **Enriquecer-en-sitio estilo v2** (SchemaService/FAQ, AEO) SIN cambiar URL las de pág 1-2 (`estatutos`, `segsocial`, `sentencia`) — mismo tratamiento que Prioridad 2 reservaba a `/baratas`. Desde pos 11-14 hay margen de subir a clics.
+4. **Única fusión 301 segura: `escritura-notarial` → `documentos-juridicos`** (0/0/0, no rankea para nada; housekeeping puro). Mantener trampa de orden (A.2).
+5. `permiso` y `antecedentes`: decisión fina aparte (bajo riesgo, baja prioridad). `antecedentes` con 4 referring → si se enriquece, hacerlo en sitio.
+
+> El bloque (a)/(b)/(d.1) de abajo queda como **histórico**: su premisa de equity ~nulo era incorrecta para 5 de 6. La higiene 410 (Fase 1, hecha) y `escritura-notarial` siguen válidas.
+
+---
+
 ## Hechos confirmados en código (no asumir lo del inventario)
 
 | Afirmación | Estado real verificado | Fuente |

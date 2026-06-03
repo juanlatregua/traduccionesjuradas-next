@@ -54,7 +54,7 @@ const CURATED: SearchEntry[] = [
   { title: "Documentos para teletrabajar en España", path: "/teletrabajo", group: "Documentos", keywords: "teletrabajo nómada digital UGE-CE autorización" },
   { title: "Traducción jurada online", path: "/traduccion-jurada-online", group: "Información", keywords: "online a distancia internet" },
   { title: "Traducciones juradas baratas", path: "/traducciones-juradas-baratas", group: "Información", keywords: "barato económico precio bajo" },
-  { title: "Traducción jurada de escritura notarial", path: "/traduccion-jurada-de-escritura-notarial", group: "Documentos", keywords: "notario escritura poder" },
+  { title: "Traducción jurada de escritura notarial", path: "/documentos-oficiales/documentos-juridicos", group: "Documentos", keywords: "notario escritura poder compraventa" },
   { title: "Traducción jurada de sentencia judicial", path: "/traduccion-jurada-sentencia-judicial", group: "Documentos", keywords: "sentencia juzgado divorcio" },
   { title: "Traducción jurada de permiso de conducir", path: "/traduccion-jurada-permiso-de-conducir", group: "Documentos", keywords: "carnet conducir canje dgt" },
   { title: "Traducción jurada de estatutos sociales", path: "/traduccion-jurada-de-estatutos-sociales", group: "Documentos", keywords: "estatutos sociedad empresa mercantil" },

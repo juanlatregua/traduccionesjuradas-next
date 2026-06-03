@@ -9,9 +9,9 @@ import { SchemaProduct } from "@/components/SchemaProduct";
 
 export const metadata: Metadata = {
   title:
-    "Traducción jurada de documentos mercantiles y empresariales | Registro Mercantil, estatutos y poderes",
+    "Traducción jurada de documentos mercantiles y empresariales | Registro Mercantil, poderes y cuentas anuales",
   description:
-    "Traducción jurada de documentos mercantiles y empresariales para usarlos en España: escrituras, estatutos sociales, poderes, certificados del Registro Mercantil, cuentas anuales, acuerdos societarios y documentación de empresas extranjeras (incluidas empresas de Marruecos).",
+    "Traducción jurada de documentos mercantiles para usarlos en España: escrituras de constitución, poderes notariales, certificados del Registro Mercantil (Registre du Commerce), cuentas anuales, acuerdos societarios y documentación de empresas extranjeras (incluidas empresas de Marruecos).",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/documentos-mercantiles" },
   openGraph: {
     images: [
@@ -90,9 +90,21 @@ export default function DocumentosMercantilesPage() {
             <strong>Escrituras de constitución</strong> de sociedades.
           </li>
           <li>
-            <strong>Estatutos sociales</strong> y modificaciones posteriores
-            (ampliaciones de capital, cambios de administrador, objeto social,
-            domicilio, etc.).
+            <Link
+              href="/traduccion-jurada-de-estatutos-sociales"
+              className="font-semibold text-bleu hover:underline"
+            >
+              Estatutos sociales
+            </Link>{" "}
+            y modificaciones posteriores (ampliaciones de capital, cambios de
+            administrador, objeto social, domicilio, etc.) — ver la{" "}
+            <Link
+              href="/traduccion-jurada-de-estatutos-sociales"
+              className="font-medium text-bleu hover:underline"
+            >
+              guía específica de traducción jurada de estatutos
+            </Link>
+            .
           </li>
           <li>
             <strong>Poderes notariales</strong> generales y especiales:

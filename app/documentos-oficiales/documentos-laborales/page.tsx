@@ -169,6 +169,16 @@ export default function DocumentosLaboralesPage() {
             <li>Prestaciones por desempleo, incapacidad o maternidad.</li>
             <li>Documentos para jubilación o pensiones.</li>
           </ul>
+          <p className="mt-2 text-sm text-sepia">
+            Ver la guía específica de{" "}
+            <Link
+              href="/traduccion-jurada-de-certificado-de-seguridad-social"
+              className="font-semibold text-bleu hover:underline"
+            >
+              traducción jurada de certificados de la Seguridad Social
+            </Link>
+            .
+          </p>
         </div>
 
         {/* Finalización de relación laboral */}

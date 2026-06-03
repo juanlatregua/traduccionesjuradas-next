@@ -110,13 +110,23 @@ export default function DocumentosJuridicosPage() {
             herencias, juicios, etc.).
           </li>
           <li>
+            <strong>Escrituras notariales</strong> — escrituras de compraventa
+            de inmuebles, constitución y otros actos otorgados ante notario
+            extranjero.
+          </li>
+          <li>
             <strong>Actas notariales</strong>, declaraciones juradas y otros
             documentos otorgados ante notario.
           </li>
           <li>
-            <strong>Sentencias y autos judiciales</strong> en materia civil,
-            mercantil, laboral o penal, cuando es necesario acreditarlos en
-            otro país.
+            <Link
+              href="/traduccion-jurada-sentencia-judicial"
+              className="font-semibold text-bleu hover:underline"
+            >
+              Sentencias y autos judiciales
+            </Link>{" "}
+            en materia civil, mercantil, laboral o penal, cuando es necesario
+            acreditarlos en otro país.
           </li>
         </ul>
         <p>

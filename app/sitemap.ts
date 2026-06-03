@@ -118,7 +118,6 @@ const LAST_MODIFIED: Record<string, string> = {
   "/traduccion-jurada-permiso-de-conducir":          "2026-03-10",
   "/traduccion-jurada-antecedentes-penales":         "2026-03-10",
   "/traduccion-jurada-sentencia-judicial":           "2026-03-10",
-  "/traduccion-jurada-de-escritura-notarial":        "2026-03-10",
   "/traduccion-jurada-de-estatutos-sociales":        "2026-03-10",
   "/traduccion-jurada-de-certificado-de-seguridad-social": "2026-03-10",
   "/teletrabajo":                                   "2026-03-04",

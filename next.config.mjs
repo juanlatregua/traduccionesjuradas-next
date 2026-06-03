@@ -293,6 +293,20 @@ const nextConfig = {
         destination: "/documentos-oficiales/documentos-mercantiles",
         permanent: true,
       },
+      // Sunset WP fase 2 — escritura-notarial (0 impr, unknown to Google, 0
+      // referring) fusionada en documentos-juridicos (que ya cubre escrituras,
+      // poderes, testamentos, capitulaciones). El slug se mantiene en
+      // VALID_LEGACY_PATHS hasta verificar el 301 (trampa de orden del plan).
+      {
+        source: "/traduccion-jurada-de-escritura-notarial",
+        destination: "/documentos-oficiales/documentos-juridicos",
+        permanent: true,
+      },
+      {
+        source: "/traduccion-jurada-de-escritura-notarial/",
+        destination: "/documentos-oficiales/documentos-juridicos",
+        permanent: true,
+      },
       {
         source: "/traduccion-jurada-certificado-matrimonio/",
         destination: "/documentos-oficiales",
