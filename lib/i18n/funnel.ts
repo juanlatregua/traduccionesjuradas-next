@@ -41,6 +41,9 @@ type FunnelDict = {
     concept: string;
     manualNote: string;
     trust: string;
+    phoneLabel: string;
+    phonePlaceholder: string;
+    phoneHint: string;
     copied: (label: string) => string;
   };
 };
@@ -84,6 +87,9 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       concept: "Concepto",
       manualNote: "Los métodos manuales no marcan pago automático inmediato. Se revisan y se notifican por SMS y email.",
       trust: "Pago seguro · factura con IVA · traductor jurado acreditado por el MAEC · HBTJ Consultores Lingüísticos S.L.",
+      phoneLabel: "Móvil (opcional)",
+      phonePlaceholder: "+34 600 000 000",
+      phoneHint: "Te avisamos por SMS del estado de tu pedido. Si no lo dejas, te escribiremos por email.",
       copied: (label) => `Copiado: ${label}`,
     },
   },
@@ -125,6 +131,9 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       concept: "Motif",
       manualNote: "Les moyens manuels ne valident pas le paiement immédiatement. Ils sont vérifiés et confirmés par SMS et e-mail.",
       trust: "Paiement sécurisé · facture avec TVA · traducteur assermenté accrédité par le MAEC · HBTJ Consultores Lingüísticos S.L.",
+      phoneLabel: "Mobile (facultatif)",
+      phonePlaceholder: "+34 600 000 000",
+      phoneHint: "Nous vous tenons informé par SMS de l'état de votre commande. Sinon, par e-mail.",
       copied: (label) => `Copié : ${label}`,
     },
   },
@@ -166,6 +175,9 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       concept: "Reference",
       manualNote: "Manual methods don't mark payment automatically. They're reviewed and confirmed by SMS and email.",
       trust: "Secure payment · invoice with VAT · sworn translator accredited by the MAEC · HBTJ Consultores Lingüísticos S.L.",
+      phoneLabel: "Mobile (optional)",
+      phonePlaceholder: "+34 600 000 000",
+      phoneHint: "We'll text you updates on your order status. Otherwise, we'll email you.",
       copied: (label) => `Copied: ${label}`,
     },
   },
@@ -207,6 +219,9 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       concept: "Verwendungszweck",
       manualNote: "Manuelle Methoden markieren die Zahlung nicht automatisch. Sie werden geprüft und per SMS und E-Mail bestätigt.",
       trust: "Sichere Zahlung · Rechnung mit MwSt. · vom MAEC ermächtigter vereidigter Übersetzer · HBTJ Consultores Lingüísticos S.L.",
+      phoneLabel: "Handynummer (optional)",
+      phonePlaceholder: "+34 600 000 000",
+      phoneHint: "Wir informieren Sie per SMS über den Status Ihrer Bestellung. Andernfalls per E-Mail.",
       copied: (label) => `Kopiert: ${label}`,
     },
   },
@@ -248,6 +263,9 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       concept: "Descrição",
       manualNote: "Os métodos manuais não marcam pagamento automático imediato. São verificados e notificados por SMS e email.",
       trust: "Pagamento seguro · fatura com IVA · tradutor ajuramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L.",
+      phoneLabel: "Telemóvel (opcional)",
+      phonePlaceholder: "+34 600 000 000",
+      phoneHint: "Avisamos-lhe por SMS do estado da sua encomenda. Caso contrário, por email.",
       copied: (label) => `Copiado: ${label}`,
     },
   },

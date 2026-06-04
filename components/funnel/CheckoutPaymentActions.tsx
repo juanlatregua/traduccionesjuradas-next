@@ -42,6 +42,7 @@ export default function CheckoutPaymentActions({
   const [loadingCard, setLoadingCard] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
 
   const amountLabel = useMemo(
     () => money(totalCents, currency, LOCALE_INTL[lang]),
@@ -53,10 +54,25 @@ export default function CheckoutPaymentActions({
     setTimeout(() => setToast(null), 1600);
   };
 
+  // Persiste el móvil en la sesión (onBlur y antes de pagar). Opcional y no
+  // bloqueante: si falla, el pedido sigue su curso y el aviso irá por email.
+  const savePhone = async () => {
+    try {
+      await fetch("/api/payment/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim() }),
+      });
+    } catch {
+      /* opcional: sin teléfono el cliente recibe los avisos por email */
+    }
+  };
+
   const payByCard = async () => {
     setLoadingCard(true);
     setError(null);
     try {
+      if (phone.trim()) await savePhone();
       const res = await fetch("/api/payment/create-intent", { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data?.ok || !data?.url) {
@@ -93,6 +109,24 @@ export default function CheckoutPaymentActions({
             {t.continueGoogle}
           </Link>
         )}
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-cream bg-parchment p-4">
+        <label htmlFor="checkout-phone" className="text-sm font-semibold text-encre">
+          {t.phoneLabel}
+        </label>
+        <input
+          id="checkout-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          onBlur={savePhone}
+          placeholder={t.phonePlaceholder}
+          className="mt-2 w-full rounded-xl border border-cream bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu"
+        />
+        <p className="mt-1.5 text-xs text-sepia">{t.phoneHint}</p>
       </div>
 
       <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
