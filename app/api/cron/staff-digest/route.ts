@@ -5,7 +5,8 @@ import { wrapClientEmailHtml } from "@/lib/email";
 
 export const runtime = "nodejs";
 
-/* Cron diario (9:00 Madrid): resumen de actividad a staff — pedidos pagados,
+/* Cron diario 07:00 UTC (≈09:00 Madrid en verano CEST / 08:00 en invierno;
+   Vercel ejecuta los crons en UTC): resumen de actividad a staff — pedidos pagados,
    embudo de intentos, idiomas y emails fallidos en 24 h. Sirve de heartbeat:
    si Juan deja de recibirlo, algo de la automatización se ha parado. */
 
