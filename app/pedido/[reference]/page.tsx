@@ -4,9 +4,8 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { verifyOrderToken, buildSignedOrderUrl } from "@/lib/order-token";
 import { getWorkflowState, type WorkflowState } from "@/lib/workflow";
-import { getPaymentStateLabel } from "@/lib/client-area";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { WHATSAPP_LINK, EMAIL } from "@/lib/contact";
+import { EMAIL } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Estado de tu pedido — Traducciones Juradas",
@@ -16,6 +15,145 @@ export const metadata: Metadata = {
 type Props = {
   params: { reference: string };
   searchParams: { token?: string };
+};
+
+type Lang = "es" | "fr";
+
+/* ------------------------------------------------------------------ */
+/*  i18n — el cliente francófono recibe el SMS en francés (lib/sms-     */
+/*  templates) y al pinchar el enlace aterriza aquí: la página sigue    */
+/*  su idioma (Order.clientLocale), no lo deja en español.              */
+/* ------------------------------------------------------------------ */
+
+type Strings = {
+  steps: string[];
+  rateLimited: string;
+  tracking: string;
+  title: string;
+  reference: string;
+  createdOn: string;
+  cardBudget: string;
+  cardPayment: string;
+  cardTranslation: string;
+  estimatedDelivery: string;
+  pay: { PAID: string; FAILED: string; REFUNDED: string; PENDING: string };
+  delivery: { delivered: string; inProgress: string; done: string; pending: string };
+  pendingPaymentBanner: string;
+  payNow: string;
+  proofBanner: string;
+  inProgressBanner: string;
+  readyBanner: string;
+  download: string;
+  history: string;
+  timeline: {
+    created: string;
+    paid: string;
+    proof: string;
+    started: string;
+    delivered: string;
+    closed: string;
+    deliveryNotif: string;
+  };
+  doubts: string;
+  contactUs: string;
+  whatsappText: (ref: string) => string;
+  mailSubject: (ref: string) => string;
+};
+
+const STRINGS: Record<Lang, Strings> = {
+  es: {
+    steps: ["Presupuesto", "Pago", "En traducción", "Entregado", "Cerrado"],
+    rateLimited:
+      "Has superado el límite de consultas. Espera unos minutos e inténtalo de nuevo.",
+    tracking: "Seguimiento de pedido",
+    title: "Estado de tu pedido",
+    reference: "Referencia",
+    createdOn: "Creado el",
+    cardBudget: "Presupuesto",
+    cardPayment: "Pago",
+    cardTranslation: "Traducción",
+    estimatedDelivery: "Entrega estimada",
+    pay: {
+      PAID: "Pagado",
+      FAILED: "Fallido",
+      REFUNDED: "Reembolsado",
+      PENDING: "Pendiente de pago",
+    },
+    delivery: {
+      delivered: "Traducción entregada",
+      inProgress: "En proceso",
+      done: "Completado",
+      pending: "Pendiente",
+    },
+    pendingPaymentBanner: "Tu pedido está pendiente de pago.",
+    payNow: "Pagar ahora",
+    proofBanner: "Hemos recibido tu comprobante de pago. Estamos verificándolo.",
+    inProgressBanner: "Tu traducción está en proceso. Entrega estimada:",
+    readyBanner: "Tu traducción está lista.",
+    download: "Descargar traducción",
+    history: "Historial",
+    timeline: {
+      created: "Pedido creado",
+      paid: "Pago confirmado",
+      proof: "Justificante de pago recibido",
+      started: "Traducción iniciada",
+      delivered: "Traducción entregada",
+      closed: "Pedido cerrado",
+      deliveryNotif: "Notificación de entrega enviada",
+    },
+    doubts: "¿Tienes alguna duda?",
+    contactUs: "Contacta con nosotros indicando tu referencia",
+    whatsappText: (ref: string) =>
+      `Hola, tengo una consulta sobre mi pedido ${ref}.`,
+    mailSubject: (ref: string) => `Consulta pedido ${ref}`,
+  },
+  fr: {
+    steps: ["Devis", "Paiement", "En traduction", "Livré", "Clôturé"],
+    rateLimited:
+      "Vous avez dépassé la limite de consultations. Patientez quelques minutes et réessayez.",
+    tracking: "Suivi de votre commande",
+    title: "État de votre commande",
+    reference: "Référence",
+    createdOn: "Créée le",
+    cardBudget: "Devis",
+    cardPayment: "Paiement",
+    cardTranslation: "Traduction",
+    estimatedDelivery: "Livraison estimée",
+    pay: {
+      PAID: "Payé",
+      FAILED: "Échoué",
+      REFUNDED: "Remboursé",
+      PENDING: "En attente de paiement",
+    },
+    delivery: {
+      delivered: "Traduction livrée",
+      inProgress: "En cours",
+      done: "Terminé",
+      pending: "En attente",
+    },
+    pendingPaymentBanner: "Votre commande est en attente de paiement.",
+    payNow: "Payer maintenant",
+    proofBanner:
+      "Nous avons reçu votre justificatif de paiement. Nous le vérifions.",
+    inProgressBanner: "Votre traduction est en cours. Livraison estimée :",
+    readyBanner: "Votre traduction est prête.",
+    download: "Télécharger la traduction",
+    history: "Historique",
+    timeline: {
+      created: "Commande créée",
+      paid: "Paiement confirmé",
+      proof: "Justificatif de paiement reçu",
+      started: "Traduction commencée",
+      delivered: "Traduction livrée",
+      closed: "Commande clôturée",
+      deliveryNotif: "Notification de livraison envoyée",
+    },
+    doubts: "Une question ?",
+    contactUs: "Contactez-nous en indiquant votre référence",
+    whatsappText: (ref: string) =>
+      `Bonjour, j'ai une question concernant ma commande ${ref}.`,
+    mailSubject: (ref: string) => `Question commande ${ref}`,
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -28,14 +166,6 @@ function resolveIp() {
   if (forwarded) return forwarded.split(",")[0].trim();
   return h.get("x-real-ip") || "unknown";
 }
-
-const CLIENT_STEPS = [
-  "Presupuesto",
-  "Pago",
-  "En traducción",
-  "Entregado",
-  "Cerrado",
-] as const;
 
 function workflowToStep(state: WorkflowState): number {
   switch (state) {
@@ -56,9 +186,9 @@ function workflowToStep(state: WorkflowState): number {
   }
 }
 
-function formatDate(d: Date | string | null | undefined) {
+function formatDate(d: Date | string | null | undefined, lang: Lang) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-ES", {
+  return new Date(d).toLocaleDateString(lang === "fr" ? "fr-FR" : "es-ES", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -70,17 +200,24 @@ function formatMoney(cents: number | null | undefined) {
   return `${(cents / 100).toFixed(2)} €`;
 }
 
-function getDeliveryLabel(state: WorkflowState) {
+function paymentLabelFor(status: string, t: Strings) {
+  if (status === "PAID") return t.pay.PAID;
+  if (status === "FAILED") return t.pay.FAILED;
+  if (status === "REFUNDED") return t.pay.REFUNDED;
+  return t.pay.PENDING;
+}
+
+function getDeliveryLabel(state: WorkflowState, t: Strings) {
   switch (state) {
     case "TRADUCIDO_ENTREGADO":
-      return "Traducción entregada";
+      return t.delivery.delivered;
     case "EN_TRADUCCION":
     case "PAGO_VALIDADO":
-      return "En proceso";
+      return t.delivery.inProgress;
     case "CERRADO":
-      return "Completado";
+      return t.delivery.done;
     default:
-      return "Pendiente";
+      return t.delivery.pending;
   }
 }
 
@@ -95,14 +232,14 @@ function buildTimeline(
     paidAt: Date | null;
     events: Array<{ type: string; payload: unknown; createdAt: Date }>;
   },
-  workflowState: WorkflowState,
+  t: Strings,
 ): TimelineEntry[] {
   const entries: TimelineEntry[] = [];
 
-  entries.push({ label: "Pedido creado", date: order.createdAt });
+  entries.push({ label: t.timeline.created, date: order.createdAt });
 
   if (order.paidAt) {
-    entries.push({ label: "Pago confirmado", date: order.paidAt });
+    entries.push({ label: t.timeline.paid, date: order.paidAt });
   }
 
   const proofEvent = order.events.find(
@@ -110,7 +247,7 @@ function buildTimeline(
   );
   if (proofEvent && !order.paidAt) {
     entries.push({
-      label: "Justificante de pago recibido",
+      label: t.timeline.proof,
       date: proofEvent.createdAt,
     });
   }
@@ -122,13 +259,13 @@ function buildTimeline(
     if (!payload) continue;
     const to = String(payload.to || "");
     if (to === "EN_TRADUCCION") {
-      entries.push({ label: "Traducción iniciada", date: event.createdAt });
+      entries.push({ label: t.timeline.started, date: event.createdAt });
     }
     if (to === "TRADUCIDO_ENTREGADO") {
-      entries.push({ label: "Traducción entregada", date: event.createdAt });
+      entries.push({ label: t.timeline.delivered, date: event.createdAt });
     }
     if (to === "CERRADO") {
-      entries.push({ label: "Pedido cerrado", date: event.createdAt });
+      entries.push({ label: t.timeline.closed, date: event.createdAt });
     }
   }
 
@@ -137,7 +274,7 @@ function buildTimeline(
   );
   if (deliveryNotif) {
     entries.push({
-      label: "Notificación de entrega enviada",
+      label: t.timeline.deliveryNotif,
       date: deliveryNotif.createdAt,
     });
   }
@@ -170,8 +307,7 @@ export default async function PedidoPortalPage({
     return (
       <main className="min-h-screen bg-parchment px-4 py-10">
         <section className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
-          Has superado el límite de consultas. Espera unos minutos e inténtalo
-          de nuevo.
+          {STRINGS.es.rateLimited}
         </section>
       </main>
     );
@@ -194,6 +330,7 @@ export default async function PedidoPortalPage({
       paymentStatus: true,
       status: true,
       deliveryState: true,
+      clientLocale: true,
       dueDate: true,
       finalDeliveryFileUrl: true,
       translatedFileUrl: true,
@@ -221,6 +358,9 @@ export default async function PedidoPortalPage({
     notFound();
   }
 
+  const lang: Lang = order.clientLocale === "fr" ? "fr" : "es";
+  const t = STRINGS[lang];
+
   const workflowState = getWorkflowState({
     paymentStatus: order.paymentStatus || "",
     deliveryState: order.deliveryState,
@@ -228,9 +368,9 @@ export default async function PedidoPortalPage({
   });
 
   const currentStep = workflowToStep(workflowState);
-  const paymentLabel = getPaymentStateLabel(order.paymentStatus || "");
-  const deliveryLabel = getDeliveryLabel(workflowState);
-  const timeline = buildTimeline(order, workflowState);
+  const paymentLabel = paymentLabelFor(order.paymentStatus || "", t);
+  const deliveryLabel = getDeliveryLabel(workflowState, t);
+  const timeline = buildTimeline(order, t);
 
   // Delivery file URL
   const deliveryFileUrl =
@@ -241,8 +381,7 @@ export default async function PedidoPortalPage({
   const paymentUrl = buildSignedOrderUrl(reference, "pagar");
 
   // WhatsApp link with reference pre-filled
-  const whatsappText = `Hola, tengo una consulta sobre mi pedido ${reference}.`;
-  const whatsappUrl = `https://wa.me/34951333614?text=${encodeURIComponent(whatsappText)}`;
+  const whatsappUrl = `https://wa.me/34951333614?text=${encodeURIComponent(t.whatsappText(reference))}`;
 
   return (
     <main className="min-h-screen bg-parchment px-4 py-8">
@@ -250,14 +389,12 @@ export default async function PedidoPortalPage({
         {/* Header */}
         <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-            Seguimiento de pedido
+            {t.tracking}
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-encre">
-            Estado de tu pedido
-          </h1>
+          <h1 className="mt-1 text-2xl font-bold text-encre">{t.title}</h1>
           <p className="mt-1 text-sm text-sepia">
-            Referencia: <strong>{order.reference}</strong> · Creado el{" "}
-            {formatDate(order.createdAt)}
+            {t.reference}: <strong>{order.reference}</strong> · {t.createdOn}{" "}
+            {formatDate(order.createdAt, lang)}
           </p>
           {order.title && (
             <p className="mt-0.5 text-sm text-sepia">{order.title}</p>
@@ -267,7 +404,7 @@ export default async function PedidoPortalPage({
         {/* Stepper */}
         <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between gap-1 overflow-x-auto">
-            {CLIENT_STEPS.map((label, i) => {
+            {t.steps.map((label, i) => {
               const isActive = i === currentStep;
               const isDone = i < currentStep;
               return (
@@ -305,7 +442,7 @@ export default async function PedidoPortalPage({
           {/* Presupuesto */}
           <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-sepia">
-              Presupuesto
+              {t.cardBudget}
             </p>
             <p className="mt-2 text-xl font-bold text-encre">
               {formatMoney(order.amountCents)}
@@ -320,12 +457,12 @@ export default async function PedidoPortalPage({
           {/* Pago */}
           <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-sepia">
-              Pago
+              {t.cardPayment}
             </p>
             <p className="mt-2 text-xl font-bold text-encre">{paymentLabel}</p>
             {order.paidAt && (
               <p className="mt-1 text-xs text-sepia">
-                {formatDate(order.paidAt)}
+                {formatDate(order.paidAt, lang)}
               </p>
             )}
           </div>
@@ -333,14 +470,14 @@ export default async function PedidoPortalPage({
           {/* Traducción */}
           <div className="rounded-2xl border border-cream bg-card p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-sepia">
-              Traducción
+              {t.cardTranslation}
             </p>
             <p className="mt-2 text-xl font-bold text-encre">
               {deliveryLabel}
             </p>
             {workflowState === "EN_TRADUCCION" && order.dueDate && (
               <p className="mt-1 text-xs text-sepia">
-                Entrega estimada: {formatDate(order.dueDate)}
+                {t.estimatedDelivery}: {formatDate(order.dueDate, lang)}
               </p>
             )}
           </div>
@@ -355,13 +492,13 @@ export default async function PedidoPortalPage({
             {workflowState === "PENDIENTE_PAGO" && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-medium text-amber-900">
-                  Tu pedido está pendiente de pago.
+                  {t.pendingPaymentBanner}
                 </p>
                 <a
                   href={paymentUrl}
                   className="mt-3 inline-block rounded-lg bg-bleu px-5 py-2.5 text-sm font-semibold text-white hover:bg-bleu/90"
                 >
-                  Pagar ahora
+                  {t.payNow}
                 </a>
               </div>
             )}
@@ -369,7 +506,7 @@ export default async function PedidoPortalPage({
             {workflowState === "JUSTIFICANTE_SUBIDO" && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
                 <p className="text-sm font-medium text-blue-900">
-                  Hemos recibido tu comprobante de pago. Estamos verificándolo.
+                  {t.proofBanner}
                 </p>
               </div>
             )}
@@ -377,8 +514,8 @@ export default async function PedidoPortalPage({
             {workflowState === "EN_TRADUCCION" && order.dueDate && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
                 <p className="text-sm font-medium text-blue-900">
-                  Tu traducción está en proceso. Entrega estimada:{" "}
-                  <strong>{formatDate(order.dueDate)}</strong>.
+                  {t.inProgressBanner}{" "}
+                  <strong>{formatDate(order.dueDate, lang)}</strong>.
                 </p>
               </div>
             )}
@@ -386,7 +523,7 @@ export default async function PedidoPortalPage({
             {workflowState === "TRADUCIDO_ENTREGADO" && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                 <p className="text-sm font-medium text-emerald-900">
-                  Tu traducción está lista.
+                  {t.readyBanner}
                 </p>
                 {deliveryFileUrl && (
                   <a
@@ -395,7 +532,7 @@ export default async function PedidoPortalPage({
                     rel="noopener noreferrer"
                     className="mt-3 inline-block rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
                   >
-                    Descargar traducción
+                    {t.download}
                   </a>
                 )}
               </div>
@@ -407,7 +544,7 @@ export default async function PedidoPortalPage({
         {timeline.length > 0 && (
           <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-sepia">
-              Historial
+              {t.history}
             </h2>
             <ol className="mt-4 space-y-3 border-l-2 border-cream pl-4">
               {timeline.map((entry, i) => (
@@ -416,7 +553,7 @@ export default async function PedidoPortalPage({
                   <p className="text-sm font-medium text-encre">
                     {entry.label}
                   </p>
-                  <p className="text-xs text-sepia">{formatDate(entry.date)}</p>
+                  <p className="text-xs text-sepia">{formatDate(entry.date, lang)}</p>
                 </li>
               ))}
             </ol>
@@ -426,11 +563,10 @@ export default async function PedidoPortalPage({
         {/* Contact */}
         <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-sepia">
-            ¿Tienes alguna duda?
+            {t.doubts}
           </h2>
           <p className="mt-2 text-sm text-sepia">
-            Contacta con nosotros indicando tu referencia{" "}
-            <strong>{order.reference}</strong>.
+            {t.contactUs} <strong>{order.reference}</strong>.
           </p>
           <div className="mt-3 flex flex-wrap gap-3">
             <a
@@ -442,7 +578,7 @@ export default async function PedidoPortalPage({
               WhatsApp
             </a>
             <a
-              href={`mailto:${EMAIL}?subject=${encodeURIComponent(`Consulta pedido ${order.reference}`)}`}
+              href={`mailto:${EMAIL}?subject=${encodeURIComponent(t.mailSubject(order.reference))}`}
               className="inline-flex items-center gap-2 rounded-lg border border-bleu/30 bg-cream px-4 py-2 text-sm font-medium text-bleu hover:bg-bleu/10"
             >
               Email
