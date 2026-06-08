@@ -84,7 +84,7 @@ export default function CollaboratorQuoteForm({ token, defaultPrice, defaultDead
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <div>
           <label htmlFor="price" className="block text-sm font-medium text-encre">
-            Precio (€)
+            Precio (€, sin IVA)
           </label>
           <input
             id="price"

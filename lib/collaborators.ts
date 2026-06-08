@@ -123,6 +123,7 @@ export async function acceptCollaboratorQuote(assignmentId: string) {
     data: {
       status: "ACCEPTED",
       acceptedAt: new Date(),
+      isWinning: true,
     },
     include: {
       collaborator: {
@@ -139,6 +140,10 @@ export async function acceptCollaboratorQuote(assignmentId: string) {
           reference: true,
           title: true,
           amountCents: true,
+          paymentStatus: true,
+          marginPct: true,
+          dueDate: true,
+          langPair: true,
         },
       },
     },

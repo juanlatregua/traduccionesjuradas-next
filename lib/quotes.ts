@@ -21,6 +21,32 @@ export type QuoteStatus =
 export const PAPER_SHIPPING_BASE_EUR = 12;
 export const DEFAULT_VAT_RATE = 0.21;
 
+// Margen de HBTJ sobre el coste del colaborador (decisión Juan 2026-06-08).
+export const DEFAULT_COLLABORATOR_MARGIN_PCT = 25;
+
+/**
+ * Precio final al cliente a partir del coste (sin IVA) que cotiza el colaborador.
+ * Aplica el margen de HBTJ y luego el IVA: coste × (1 + margen) × (1 + IVA).
+ */
+export function customerPriceFromSupplierCost(
+  supplierCostCents: number,
+  marginPct: number = DEFAULT_COLLABORATOR_MARGIN_PCT,
+  vatRate: number = DEFAULT_VAT_RATE
+) {
+  const cost = Math.max(0, Math.round(Number(supplierCostCents) || 0));
+  const safeMargin = Number.isFinite(marginPct) ? Math.max(0, marginPct) : DEFAULT_COLLABORATOR_MARGIN_PCT;
+  const safeVat = Number.isFinite(vatRate) ? Math.max(0, vatRate) : DEFAULT_VAT_RATE;
+  const withMargin = cost * (1 + safeMargin / 100);
+  return Math.round(withMargin * (1 + safeVat));
+}
+
+/** Importe neto (sin IVA) a partir de un importe bruto con IVA incluido. */
+export function netFromGross(grossCents: number, vatRate: number = DEFAULT_VAT_RATE) {
+  const gross = Math.max(0, Math.round(Number(grossCents) || 0));
+  const safeVat = Number.isFinite(vatRate) ? Math.max(0, vatRate) : DEFAULT_VAT_RATE;
+  return Math.round(gross / (1 + safeVat));
+}
+
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   DRAFT: "Borrador",
   SENT: "Enviado",
