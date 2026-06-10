@@ -116,6 +116,34 @@ export async function getOrderPhone(orderId: string): Promise<string | null> {
   return doc?.clientPhone || null;
 }
 
+/**
+ * Aviso INMEDIATO al staff (Juan) cuando entra un pago. Push directo por SMS:
+ * no depende del email (pasivo, se mezcla con el resto del correo) ni del digest
+ * diario (pierde un día). Canal SMS forzado — no usa WhatsApp para no depender
+ * de plantillas business-initiated. Fire-and-forget: nunca bloquea el webhook.
+ */
+export async function sendStaffNewOrderSMS(data: {
+  reference: string;
+  amountCents: number;
+  langPair?: string | null;
+  via: string;
+}): Promise<void> {
+  const staff = process.env.STAFF_PHONE;
+  if (!staff) {
+    console.error(
+      `[staff-sms] STAFF_PHONE no configurado — aviso de pago ${data.reference} no enviado`
+    );
+    return;
+  }
+  const amount = (data.amountCents / 100).toFixed(2);
+  const lang = data.langPair ? ` ${data.langPair}` : "";
+  const body = `PAGO ${amount} EUR - pedido ${data.reference}${lang} (${data.via}). Tramitar: traduccionesjuradas.net/zona-traductor`;
+  const res = await sendSMS({ to: formatPhoneSpain(staff), body, channel: "sms" });
+  if (!res.ok) {
+    console.error(`[staff-sms] fallo enviando aviso de pago ${data.reference}`, res.error);
+  }
+}
+
 export function formatPhoneSpain(phone: string): string {
   let clean = phone.replace(/[\s\-().]/g, "");
   if (clean.startsWith("00")) clean = "+" + clean.slice(2);

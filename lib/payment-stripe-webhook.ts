@@ -159,6 +159,19 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
           langPair: order.langPair || undefined,
         })
       ).catch((err) => console.error(`[${source}] staff new-order email failed`, err));
+
+      // Push directo al staff por SMS — el email se mezcla con el correo y se
+      // pierde un día hasta el digest. Fire-and-forget.
+      void import("@/lib/sms")
+        .then(({ sendStaffNewOrderSMS }) =>
+          sendStaffNewOrderSMS({
+            reference,
+            amountCents: order.amountCents,
+            langPair: order.langPair,
+            via: "Stripe",
+          })
+        )
+        .catch((err) => console.error(`[${source}] staff payment SMS failed`, err));
     }
 
     if (order?.clientEmail) {
