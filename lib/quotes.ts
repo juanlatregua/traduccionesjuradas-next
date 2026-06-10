@@ -242,3 +242,58 @@ export function normalizeQuoteStatus(value: unknown): QuoteStatus {
   const all: QuoteStatus[] = ["DRAFT", "SENT", "OPENED", "ACCEPTED", "PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED"];
   return all.includes(raw as QuoteStatus) ? (raw as QuoteStatus) : "DRAFT";
 }
+
+// === Fase 2: cotización competitiva multi-colaborador ===
+
+// Idiomas excluidos del flujo de cotización competitiva (regla de negocio).
+export const QUOTE_EXCLUDED_LANGS = new Set(["uk"]);
+
+// Idioma francés → asignación directa a Juan Silva (no se saca a concurso).
+const FRENCH_LANGS = new Set(["fr"]);
+
+// Extrae el idioma origen de un par ("en-es" → "en", "fr → es" → "fr").
+export function getSourceLang(langPair?: string | null): string | null {
+  const normalized = String(langPair || "").trim().toLowerCase();
+  if (!normalized) return null;
+  const separators = ["→", "->", "-", "–", ">"];
+  for (const sep of separators) {
+    if (normalized.includes(sep)) {
+      const part = normalized.split(sep)[0].trim();
+      if (part.length >= 2 && part.length <= 3) return part;
+    }
+  }
+  if (normalized.length >= 2 && normalized.length <= 3) return normalized;
+  return null;
+}
+
+export function isQuoteExcludedLang(lang?: string | null): boolean {
+  const normalized = String(lang || "").trim().toLowerCase();
+  return QUOTE_EXCLUDED_LANGS.has(normalized);
+}
+
+export function isFrenchSourceLang(lang?: string | null): boolean {
+  const normalized = String(lang || "").trim().toLowerCase();
+  return FRENCH_LANGS.has(normalized);
+}
+
+export type SuggestedBidInput = {
+  id: string;
+  status: string;
+  quotedPriceCents: number | null;
+  quotedDeadline: Date | string | null;
+};
+
+// Sugiere la mejor oferta entre las QUOTED: menor precio, luego menor plazo.
+// Devuelve el id sugerido o null si no hay ofertas válidas.
+export function pickSuggestedBid(assignments: SuggestedBidInput[]): string | null {
+  const candidates = assignments
+    .filter((a) => a.status === "QUOTED" && typeof a.quotedPriceCents === "number" && a.quotedPriceCents > 0)
+    .sort((a, b) => {
+      const priceDiff = (a.quotedPriceCents as number) - (b.quotedPriceCents as number);
+      if (priceDiff !== 0) return priceDiff;
+      const aDeadline = a.quotedDeadline ? new Date(a.quotedDeadline).getTime() : Number.POSITIVE_INFINITY;
+      const bDeadline = b.quotedDeadline ? new Date(b.quotedDeadline).getTime() : Number.POSITIVE_INFINITY;
+      return aDeadline - bDeadline;
+    });
+  return candidates.length > 0 ? candidates[0].id : null;
+}

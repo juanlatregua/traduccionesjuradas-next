@@ -1,4 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma, PrismaClient } from "@prisma/client";
+import {
+  customerPriceFromSupplierCost,
+  netFromGross,
+  DEFAULT_COLLABORATOR_MARGIN_PCT,
+} from "@/lib/quotes";
+
+type PrismaTxClient = PrismaClient | Prisma.TransactionClient;
 
 export async function getActiveCollaborators() {
   return prisma.collaborator.findMany({
@@ -188,6 +196,129 @@ export async function submitCollaboratorDelivery(
     include: {
       collaborator: { select: { fullName: true, email: true } },
       order: { select: { reference: true, title: true } },
+    },
+  });
+}
+
+// Side-effects financieros tras aceptar un presupuesto de colaborador.
+// Factorizado para que el `accept` directo y la selección competitiva
+// (select-bid) generen EXACTAMENTE los mismos OrderEvent y el mismo cálculo
+// de precio sin duplicarlo. El colaborador cotiza SIN IVA (supplierCostCents);
+// el precio al cliente se deriva con margen + IVA (Fase 1).
+export async function applyAcceptedQuoteSideEffects(
+  db: PrismaTxClient,
+  params: {
+    order: {
+      id: string;
+      amountCents: number;
+      paymentStatus: string | null;
+      marginPct: number | null;
+    };
+    assignmentId: string;
+    supplierCostCents: number;
+    quotedDeadline?: Date | string | null;
+    collaborator: {
+      fullName: string;
+      companyName: string | null;
+      supplierType: string;
+    };
+    actorEmail: string | null;
+    isWinning?: boolean;
+  }
+) {
+  const { order, assignmentId, supplierCostCents, quotedDeadline, collaborator, actorEmail } = params;
+  const marginPct = order.marginPct ?? DEFAULT_COLLABORATOR_MARGIN_PCT;
+  const alreadyCharged = order.paymentStatus === "PAID";
+
+  // Flujo competitivo (aún sin cobrar): el precio al cliente se deriva del coste.
+  // Pedido ya pagado (flujo antiguo): se respeta el importe cobrado, solo se registra el coste.
+  const customerPriceCents = alreadyCharged
+    ? order.amountCents
+    : customerPriceFromSupplierCost(supplierCostCents, marginPct);
+
+  // Acceptance audit event
+  await db.orderEvent.create({
+    data: {
+      orderId: order.id,
+      type: "collaborator.quote.accepted",
+      message: `Presupuesto de ${collaborator.fullName} aceptado: ${(supplierCostCents / 100).toFixed(2)}€.`,
+      payload: {
+        assignmentId,
+        priceCents: supplierCostCents,
+        actorEmail,
+        isWinning: params.isWinning ?? false,
+      },
+    },
+  });
+
+  // Precio al cliente, coste y plazo (Fase 1)
+  await db.order.update({
+    where: { id: order.id },
+    data: {
+      supplierCostCents,
+      marginPct,
+      ...(alreadyCharged ? {} : { amountCents: customerPriceCents }),
+      ...(quotedDeadline ? { dueDate: new Date(quotedDeadline) } : {}),
+    },
+  });
+
+  await db.orderEvent.create({
+    data: {
+      orderId: order.id,
+      type: "order.pricing.calculated",
+      message: `Precio cliente ${(customerPriceCents / 100).toFixed(2)}€ = coste ${(supplierCostCents / 100).toFixed(2)}€ × (1+${marginPct}%) + IVA${alreadyCharged ? " · pedido ya pagado, importe no modificado" : ""}.`,
+      payload: {
+        supplierCostCents,
+        marginPct,
+        customerPriceCents,
+        alreadyCharged,
+        dueDate: quotedDeadline ? new Date(quotedDeadline).toISOString() : null,
+        actorEmail,
+      },
+    },
+  });
+
+  // Finance integration: create supplier invoice event (coste sin IVA)
+  const supplierName = collaborator.companyName || collaborator.fullName;
+  const isAutonomo = collaborator.supplierType === "AUTONOMO";
+
+  await db.orderEvent.create({
+    data: {
+      orderId: order.id,
+      type: "finance.supplier_invoice.updated",
+      message: `Factura proveedor auto-generada: ${supplierName} - ${(supplierCostCents / 100).toFixed(2)}€.`,
+      payload: {
+        supplierName,
+        supplierType: collaborator.supplierType,
+        totalCents: supplierCostCents,
+        status: "PENDING_REQUEST",
+        irpfRetentionPct: isAutonomo ? 15 : 0,
+      },
+    },
+  });
+
+  // Snapshot de margen — comparar SIEMPRE neto de IVA (ingreso sin IVA vs coste sin IVA).
+  // El IVA es repercutido (no es margen).
+  const revenueNetCents = netFromGross(customerPriceCents);
+  const marginCents = revenueNetCents - supplierCostCents;
+  if (marginCents < 0) {
+    console.warn(
+      `[MARGEN NEGATIVO] Assignment ${assignmentId}: coste ${supplierCostCents}¢ > ingreso neto ${revenueNetCents}¢`
+    );
+  }
+
+  await db.orderEvent.create({
+    data: {
+      orderId: order.id,
+      type: "finance.margin.snapshot",
+      message: `Snapshot de margen: ingreso neto ${(revenueNetCents / 100).toFixed(2)}€ − coste ${(supplierCostCents / 100).toFixed(2)}€ = ${(marginCents / 100).toFixed(2)}€.`,
+      payload: {
+        supplierCostCents,
+        revenueCents: revenueNetCents,
+        grossRevenueCents: customerPriceCents,
+        marginCents,
+        marginBasis: "net_of_vat",
+      },
     },
   });
 }

@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { acceptCollaboratorQuote, rejectCollaboratorQuote, requestQuoteRevision, getDocumentsFromOrder } from "@/lib/collaborators";
+import { acceptCollaboratorQuote, rejectCollaboratorQuote, requestQuoteRevision, getDocumentsFromOrder, applyAcceptedQuoteSideEffects } from "@/lib/collaborators";
 import { sendAcceptanceToCollaborator, sendAssignmentToCollaborator, sendRejectionToCollaborator, sendRevisionRequestToCollaborator } from "@/lib/collaborator-emails";
-import { customerPriceFromSupplierCost, netFromGross, DEFAULT_COLLABORATOR_MARGIN_PCT } from "@/lib/quotes";
 
 export const runtime = "nodejs";
 
@@ -127,100 +126,20 @@ export async function POST(req: Request, { params }: Params) {
         console.error("[collaborator-assignment] acceptance email failed", err);
       });
 
-      // Audit event
-      await prisma.orderEvent.create({
-        data: {
-          orderId: assignment.order.id,
-          type: "collaborator.quote.accepted",
-          message: `Presupuesto de ${assignment.collaborator.fullName} aceptado: ${(priceCents / 100).toFixed(2)}€.`,
-          payload: {
-            assignmentId: assignment.id,
-            priceCents,
-            actorEmail: staff.email,
-          },
+      // Audit + pricing (margen+IVA) + finanzas — compartido con select-bid de Fase 2.
+      await applyAcceptedQuoteSideEffects(prisma, {
+        order: {
+          id: assignment.order.id,
+          amountCents: assignment.order.amountCents,
+          paymentStatus: assignment.order.paymentStatus,
+          marginPct: assignment.order.marginPct,
         },
-      });
-
-      // --- Precio al cliente, coste y plazo (Fase 1) ---
-      const order = assignment.order;
-      const supplierCostCents = priceCents; // el colaborador cotiza SIN IVA
-      const marginPct = order.marginPct ?? DEFAULT_COLLABORATOR_MARGIN_PCT;
-      const alreadyCharged = order.paymentStatus === "PAID";
-
-      // Flujo competitivo (aún sin cobrar): el precio al cliente se deriva del coste.
-      // Pedido ya pagado (flujo antiguo): se respeta el importe cobrado, solo se registra el coste.
-      const customerPriceCents = alreadyCharged
-        ? order.amountCents
-        : customerPriceFromSupplierCost(supplierCostCents, marginPct);
-
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          supplierCostCents,
-          marginPct,
-          ...(alreadyCharged ? {} : { amountCents: customerPriceCents }),
-          ...(assignment.quotedDeadline ? { dueDate: assignment.quotedDeadline } : {}),
-        },
-      });
-
-      await prisma.orderEvent.create({
-        data: {
-          orderId: order.id,
-          type: "order.pricing.calculated",
-          message: `Precio cliente ${(customerPriceCents / 100).toFixed(2)}€ = coste ${(supplierCostCents / 100).toFixed(2)}€ × (1+${marginPct}%) + IVA${alreadyCharged ? " · pedido ya pagado, importe no modificado" : ""}.`,
-          payload: {
-            supplierCostCents,
-            marginPct,
-            customerPriceCents,
-            alreadyCharged,
-            dueDate: assignment.quotedDeadline || null,
-            actorEmail: staff.email,
-          },
-        },
-      });
-
-      // Finance integration: create supplier invoice event (coste sin IVA)
-      const supplierName = assignment.collaborator.companyName || assignment.collaborator.fullName;
-      const isAutonomo = assignment.collaborator.supplierType === "AUTONOMO";
-
-      await prisma.orderEvent.create({
-        data: {
-          orderId: order.id,
-          type: "finance.supplier_invoice.updated",
-          message: `Factura proveedor auto-generada: ${supplierName} - ${(supplierCostCents / 100).toFixed(2)}€.`,
-          payload: {
-            supplierName,
-            supplierType: assignment.collaborator.supplierType,
-            totalCents: supplierCostCents,
-            status: "PENDING_REQUEST",
-            irpfRetentionPct: isAutonomo ? 15 : 0,
-          },
-        },
-      });
-
-      // Snapshot de margen — comparar SIEMPRE neto de IVA (ingreso sin IVA vs coste sin IVA).
-      // El IVA es repercutido (no es margen): antes se comparaba ingreso CON IVA contra coste SIN IVA.
-      const revenueNetCents = netFromGross(customerPriceCents);
-      const marginCents = revenueNetCents - supplierCostCents;
-      if (marginCents < 0) {
-        console.warn(
-          `[MARGEN NEGATIVO] Assignment ${assignment.id}: coste ${supplierCostCents}¢ > ingreso neto ${revenueNetCents}¢`
-        );
-      }
-
-      await prisma.orderEvent.create({
-        data: {
-          orderId: order.id,
-          type: "finance.margin.snapshot",
-          message: `Snapshot de margen: ingreso neto ${(revenueNetCents / 100).toFixed(2)}€ − coste ${(supplierCostCents / 100).toFixed(2)}€ = ${(marginCents / 100).toFixed(2)}€.`,
-          payload: {
-            supplierCostCents,
-            revenueCents: revenueNetCents,
-            grossRevenueCents: customerPriceCents,
-            marginCents,
-            marginBasis: "net_of_vat",
-          },
-        },
+        assignmentId: assignment.id,
+        supplierCostCents: priceCents, // el colaborador cotiza SIN IVA
+        quotedDeadline: assignment.quotedDeadline,
+        collaborator: assignment.collaborator,
+        actorEmail: staff.email,
+        isWinning: true,
       });
 
       return NextResponse.json({ ok: true, assignment });
