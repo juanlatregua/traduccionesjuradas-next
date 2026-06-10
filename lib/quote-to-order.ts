@@ -81,6 +81,17 @@ export async function runQuoteToOrderBridge(input: {
         langPair,
       })
     ).catch((e) => console.error("[quote-to-order] staff new-order email failed", e));
+
+    void import("@/lib/sms")
+      .then(({ sendStaffNewOrderSMS }) =>
+        sendStaffNewOrderSMS({
+          reference: order.reference,
+          amountCents: Math.round(quote.totalEur * 100),
+          langPair,
+          via: "Presupuesto",
+        })
+      )
+      .catch((e) => console.error("[quote-to-order] staff payment SMS failed", e));
   }
 
   return order;
