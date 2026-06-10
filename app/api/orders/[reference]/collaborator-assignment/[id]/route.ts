@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { acceptCollaboratorQuote, rejectCollaboratorQuote, requestQuoteRevision, getDocumentsFromOrder } from "@/lib/collaborators";
+import { acceptCollaboratorQuote, rejectCollaboratorQuote, requestQuoteRevision, getDocumentsFromOrder, applyAcceptedQuoteSideEffects } from "@/lib/collaborators";
 import { sendAcceptanceToCollaborator, sendAssignmentToCollaborator, sendRejectionToCollaborator, sendRevisionRequestToCollaborator } from "@/lib/collaborator-emails";
 
 export const runtime = "nodejs";
@@ -126,58 +126,20 @@ export async function POST(req: Request, { params }: Params) {
         console.error("[collaborator-assignment] acceptance email failed", err);
       });
 
-      // Audit event
-      await prisma.orderEvent.create({
-        data: {
-          orderId: assignment.order.id,
-          type: "collaborator.quote.accepted",
-          message: `Presupuesto de ${assignment.collaborator.fullName} aceptado: ${(priceCents / 100).toFixed(2)}€.`,
-          payload: {
-            assignmentId: assignment.id,
-            priceCents,
-            actorEmail: staff.email,
-          },
+      // Audit + pricing (margen+IVA) + finanzas — compartido con select-bid de Fase 2.
+      await applyAcceptedQuoteSideEffects(prisma, {
+        order: {
+          id: assignment.order.id,
+          amountCents: assignment.order.amountCents,
+          paymentStatus: assignment.order.paymentStatus,
+          marginPct: assignment.order.marginPct,
         },
-      });
-
-      // Finance integration: create supplier invoice event
-      const supplierName = assignment.collaborator.companyName || assignment.collaborator.fullName;
-      const isAutonomo = assignment.collaborator.supplierType === "AUTONOMO";
-
-      await prisma.orderEvent.create({
-        data: {
-          orderId: assignment.order.id,
-          type: "finance.supplier_invoice.updated",
-          message: `Factura proveedor auto-generada: ${supplierName} - ${(priceCents / 100).toFixed(2)}€.`,
-          payload: {
-            supplierName,
-            supplierType: assignment.collaborator.supplierType,
-            totalCents: priceCents,
-            status: "PENDING_REQUEST",
-            irpfRetentionPct: isAutonomo ? 15 : 0,
-          },
-        },
-      });
-
-      // Finance margin snapshot + negative margin warning
-      const revenueCents = assignment.order.amountCents;
-      const margin = revenueCents - priceCents;
-      if (margin < 0) {
-        console.warn(
-          `[MARGEN NEGATIVO] Assignment ${assignment.id}: coste ${priceCents}¢ > ingreso ${revenueCents}¢`
-        );
-      }
-
-      await prisma.orderEvent.create({
-        data: {
-          orderId: assignment.order.id,
-          type: "finance.margin.snapshot",
-          message: `Snapshot de margen: coste ${(priceCents / 100).toFixed(2)}€ vs ingreso ${(revenueCents / 100).toFixed(2)}€.`,
-          payload: {
-            supplierCostCents: priceCents,
-            revenueCents,
-          },
-        },
+        assignmentId: assignment.id,
+        supplierCostCents: priceCents, // el colaborador cotiza SIN IVA
+        quotedDeadline: assignment.quotedDeadline,
+        collaborator: assignment.collaborator,
+        actorEmail: staff.email,
+        isWinning: true,
       });
 
       return NextResponse.json({ ok: true, assignment });

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujo cotización multi-colaborador — pasos y qué falta</title>
+<style>
+  :root{
+    --bleu:#1f3a5f; --encre:#22303f; --sepia:#7a6e5d; --cream:#f7f3ea;
+    --parchment:#efe7d6; --line:#d9cfb8;
+    --ok:#1e7d4f; --ok-bg:#e6f4ec;
+    --partial:#b5781b; --partial-bg:#fbf1de;
+    --todo:#a5371f; --todo-bg:#fbe7e1;
+    --ink:#26313c; --muted:#6b7682;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--cream);color:var(--ink);line-height:1.5;}
+  .wrap{max-width:1100px;margin:0 auto;padding:32px 24px 80px;}
+  header.hero{border-bottom:3px solid var(--bleu);padding-bottom:18px;margin-bottom:8px;}
+  h1{font-size:28px;margin:0 0 6px;color:var(--bleu);letter-spacing:-.3px;}
+  .sub{color:var(--muted);font-size:14px;}
+  h2{font-size:20px;color:var(--encre);margin:38px 0 14px;border-left:5px solid var(--bleu);padding-left:12px;}
+  h3{font-size:15px;margin:0 0 4px;}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 4px;}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+        padding:5px 11px;border-radius:999px;border:1px solid transparent;}
+  .pill.ok{background:var(--ok-bg);color:var(--ok);border-color:#bfe3cd;}
+  .pill.partial{background:var(--partial-bg);color:var(--partial);border-color:#ecd6a8;}
+  .pill.todo{background:var(--todo-bg);color:var(--todo);border-color:#f0c4b6;}
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0 6px;}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;}
+  .stat .n{font-size:30px;font-weight:800;line-height:1;}
+  .stat .l{font-size:12.5px;color:var(--muted);margin-top:6px;}
+  .stat.ok .n{color:var(--ok)} .stat.partial .n{color:var(--partial)} .stat.todo .n{color:var(--todo)}
+
+  ol.flow{list-style:none;margin:0;padding:0;position:relative;}
+  ol.flow::before{content:"";position:absolute;left:19px;top:8px;bottom:8px;width:2px;background:var(--line);}
+  li.step{position:relative;padding:0 0 16px 56px;}
+  .dot{position:absolute;left:8px;top:2px;width:26px;height:26px;border-radius:50%;background:#fff;
+       border:2px solid var(--bleu);color:var(--bleu);font-weight:700;font-size:13px;
+       display:flex;align-items:center;justify-content:center;z-index:1;}
+  .card{background:#fff;border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .card.ok{border-left-color:var(--ok)} .card.partial{border-left-color:var(--partial)} .card.todo{border-left-color:var(--todo)}
+  .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .meta{font-size:12.5px;color:var(--muted);margin:4px 0 8px;}
+  .meta b{color:var(--encre);font-weight:600;}
+  .lines{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;font-size:13px;}
+  .lines .ex{color:var(--ok);} .lines .mi{color:var(--todo);}
+  .lines .lbl{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:2px;}
+  code{background:var(--parchment);padding:1px 5px;border-radius:4px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12px;color:#3a2f1c;}
+  @media(max-width:720px){.summary{grid-template-columns:1fr}.lines{grid-template-columns:1fr}}
+
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px;}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{background:var(--parchment);color:var(--encre);font-size:12px;text-transform:uppercase;letter-spacing:.4px;}
+  tr:last-child td{border-bottom:none;}
+  td code{white-space:nowrap;}
+
+  .phases{display:grid;gap:12px;}
+  .phase{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;gap:14px;align-items:flex-start;}
+  .phase .badge{flex:0 0 auto;width:34px;height:34px;border-radius:8px;background:var(--bleu);color:#fff;font-weight:800;
+                display:flex;align-items:center;justify-content:center;font-size:15px;}
+  .phase.opt .badge{background:var(--sepia);}
+  .phase h3{font-size:15px;color:var(--bleu);}
+  .phase p{margin:4px 0 0;font-size:13px;color:var(--ink);}
+  .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;margin-left:8px;vertical-align:middle;}
+  .tag.v{background:var(--ok-bg);color:var(--ok);} .tag.r{background:var(--todo-bg);color:var(--todo);}
+
+  .note{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13.5px;}
+  .note.warn{border-left:5px solid var(--partial);background:var(--partial-bg);}
+  .decisions{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .decisions .d{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:13px;}
+  .decisions .d b{color:var(--bleu);display:block;font-size:12px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;}
+  @media(max-width:720px){.decisions{grid-template-columns:1fr}}
+  footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>Flujo de captación → cotización multi-colaborador → entrega</h1>
+    <div class="sub">traduccionesjuradas.net · plan para verificar · 8 jun 2026 · ~70&nbsp;% de la maquinaria ya existe</div>
+  </header>
+
+  <div class="legend">
+    <span class="pill ok">✅ Ya existe</span>
+    <span class="pill partial">⚠️ Parcial · falta encadenar</span>
+    <span class="pill todo">🔧 Falta montar</span>
+  </div>
+
+  <div class="summary">
+    <div class="stat ok"><div class="n">2</div><div class="l">pasos completos hoy</div></div>
+    <div class="stat partial"><div class="n">5</div><div class="l">parciales (piezas sueltas)</div></div>
+    <div class="stat todo"><div class="n">5</div><div class="l">por montar</div></div>
+  </div>
+
+  <h2>El flujo, paso a paso</h2>
+  <ol class="flow">
+
+    <li class="step"><div class="dot">1</div>
+      <div class="card partial">
+        <div class="top"><h3>Llega el documento (intake)</h3><span class="pill partial">⚠️ Parcial</span></div>
+        <div class="meta"><b>Actor:</b> Cliente · <b>Canal:</b> Email / WhatsApp / alta manual</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span>Alta manual sin funnel: <code>/api/orders/pm-create</code> (<code>createOrder source='file'</code>) + subida a Vercel Blob.</div>
+          <div class="mi"><span class="lbl">Falta</span>Webhooks entrantes de email (Graph) y WhatsApp (Twilio) para que entre solo. → Fase 5.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">2</div>
+      <div class="card todo">
+        <div class="top"><h3>Detección de idioma y enrutado</h3><span class="pill todo">🔧 Falta</span></div>
+        <div class="meta"><b>Actor:</b> Sistema · <b>Canal:</b> Interno</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span><code>getCollaboratorsByLanguage(lang)</code> lista candidatos por idioma.</div>
+          <div class="mi"><span class="lbl">Falta</span>Lógica: <b>FR → Juan Silva directo</b> (dar de alta su <code>Collaborator</code>); resto → lanzar solicitud. Hoy FR solo recibe ETA.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">3</div>
+      <div class="card todo">
+        <div class="top"><h3>Solicitud de presupuesto (broadcast)</h3><span class="pill todo">🔧 Falta</span></div>
+        <div class="meta"><b>Actor:</b> Sistema · <b>Canal:</b> Email + SMS al colaborador</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span>Crear 1 asignación + email tokenizado: <code>createAssignment</code> + <code>sendFriendlyQuoteRequest</code>.</div>
+          <div class="mi"><span class="lbl">Falta</span><code>POST /api/orders/[ref]/quote-request-batch</code>: pedir a los <b>N colaboradores</b> del idioma a la vez.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">4</div>
+      <div class="card ok">
+        <div class="top"><h3>El colaborador cotiza precio + plazo</h3><span class="pill ok">✅ Ya existe</span></div>
+        <div class="meta"><b>Actor:</b> Colaborador · <b>Canal:</b> Página <code>/encargo/[token]</code></div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span><code>POST /api/encargo/[token]</code> <code>action=quote</code> → <code>submitCollaboratorQuote</code> (precio sin IVA + plazo), estado <code>QUOTED</code>, avisa al admin.</div>
+          <div class="mi"><span class="lbl">Matiz</span>Definir la convención: el precio que teclea es <b>sin IVA</b> (lo asumimos).</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">5</div>
+      <div class="card todo">
+        <div class="top"><h3>Selección de la mejor oferta (híbrida)</h3><span class="pill todo">🔧 Falta</span></div>
+        <div class="meta"><b>Actor:</b> Sistema sugiere · Juan confirma · <b>Canal:</b> Admin</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span>Aceptar/rechazar/revisar bids: <code>acceptCollaboratorQuote</code> / <code>rejectCollaboratorQuote</code>.</div>
+          <div class="mi"><span class="lbl">Falta</span>Score precio+plazo, tabla comparativa en el panel y <code>select-bid</code> transaccional (marca ganadora, rechaza el resto).</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">6</div>
+      <div class="card todo">
+        <div class="top"><h3>Cálculo del precio al cliente</h3><span class="pill todo">🔧 Falta · hay bug</span></div>
+        <div class="meta"><b>Actor:</b> Sistema · <b>Canal:</b> Interno</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span>IVA 21&nbsp;% (<code>DEFAULT_VAT_RATE</code>) y snapshot de margen (<code>lib/finance.ts</code>).</div>
+          <div class="mi"><span class="lbl">Falta + BUG</span><code>precio = round(coste × 1,25 × 1,21)</code>. Hoy el margen compara coste <b>sin</b> IVA vs precio <b>con</b> IVA → margen negativo. → Fase 1.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">7</div>
+      <div class="card todo">
+        <div class="top"><h3>Presupuesto al cliente</h3><span class="pill todo">🔧 Falta</span></div>
+        <div class="meta"><b>Actor:</b> Sistema · <b>Canal:</b> Email + SMS en el idioma del cliente</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span>Infra de email/SMS multilingüe + <code>Order.clientLocale</code> (es/fr).</div>
+          <div class="mi"><span class="lbl">Falta</span><code>POST /api/orders/[ref]/send-quote-to-client</code> con precio final, plazo y <b>link de pago</b>.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">8</div>
+      <div class="card partial">
+        <div class="top"><h3>El cliente confirma pagando</h3><span class="pill partial">⚠️ Parcial</span></div>
+        <div class="meta"><b>Actor:</b> Cliente · <b>Canal:</b> Link de pago (el pago = el OK)</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span><code>createCheckoutSession</code> (<code>lib/stripe.ts</code>) + webhook <code>/api/payment/stripe/webhook</code>.</div>
+          <div class="mi"><span class="lbl">Falta</span>Encadenarlo: pago → notifica al colaborador ganador → pasa a <code>EN_TRADUCCION</code>. Y un <b>guard</b> para no re-asignar colaborador.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">9</div>
+      <div class="card partial">
+        <div class="top"><h3>Cálculo y fijación del plazo</h3><span class="pill partial">⚠️ Parcial</span></div>
+        <div class="meta"><b>Actor:</b> Sistema · <b>Canal:</b> Interno + SMS "en proceso" al cliente</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span><code>addBusinessDays</code> (días laborables/festivos) y <code>Order.dueDate</code>; hito SMS "en proceso".</div>
+          <div class="mi"><span class="lbl">Falta</span>Fijar <code>dueDate = quotedDeadline</code> (+buffer envío papel) al seleccionar. → Fase 1.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">10</div>
+      <div class="card todo">
+        <div class="top"><h3>Recordatorio el día de cumplimiento</h3><span class="pill todo">🔧 Falta</span></div>
+        <div class="meta"><b>Actor:</b> Sistema (cron) · <b>Canal:</b> SMS + email al colaborador</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span>Patrón de cron autenticado (<code>staff-digest</code>) replicable.</div>
+          <div class="mi"><span class="lbl">Falta</span><code>/api/cron/delivery-reminders</code>: asignaciones <code>ACCEPTED</code> con <code>dueDate==hoy</code> sin entrega → avisa al colaborador para subir.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">11</div>
+      <div class="card partial">
+        <div class="top"><h3>El colaborador sube la traducción</h3><span class="pill partial">⚠️ Parcial</span></div>
+        <div class="meta"><b>Actor:</b> Colaborador · <b>Canal:</b> Página <code>/encargo/[token]</code></div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span><code>action=delivery</code> → <code>submitCollaboratorDelivery</code> (<code>DELIVERED</code>, guarda el archivo), avisa al admin.</div>
+          <div class="mi"><span class="lbl">Falta</span>Copiar el archivo a <code>Order.finalDeliveryFileUrl</code> y transicionar a <code>TRADUCIDO_ENTREGADO</code>. → Fase 4.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step"><div class="dot">12</div>
+      <div class="card partial">
+        <div class="top"><h3>Entrega al cliente</h3><span class="pill partial">⚠️ Parcial</span></div>
+        <div class="meta"><b>Actor:</b> Juan / Sistema · <b>Canal:</b> Email + SMS al cliente</div>
+        <div class="lines">
+          <div class="ex"><span class="lbl">Ya existe</span><code>sendTranslationReadyEmail</code> (bilingüe es/fr) + hito SMS "lista".</div>
+          <div class="mi"><span class="lbl">Falta</span>Disparar la transición y el aviso desde la entrega del colaborador (paso 11). → Fase 4.</div>
+        </div>
+      </div>
+    </li>
+
+  </ol>
+
+  <h2>Decisiones tomadas (8 jun 2026)</h2>
+  <div class="decisions">
+    <div class="d"><b>El 25 %</b>Margen de HBTJ sobre el coste, <b>cobro único</b> (confirmado, no anticipo). <code>precio = coste × 1,25 × 1,21</code>.</div>
+    <div class="d"><b>Confirmación</b>El cliente <b>confirma pagando</b> — no hay botón "aceptar" separado.</div>
+    <div class="d"><b>Selección</b>Híbrida: el sistema sugiere la mejor por precio+plazo, <b>Juan confirma</b>.</div>
+    <div class="d"><b>Intake</b>Las 3 vías: manual (ya existe) primero, luego webhook WhatsApp y email.</div>
+    <div class="d"><b>FR / Juan Silva</b>Colaborador formal; FR genera asignación auto-aceptada.</div>
+    <div class="d"><b>Sin sobreingeniería</b>Sin modelos nuevos (basta <code>CollaboratorAssignment</code>); sin "OK final" extra del colaborador.</div>
+  </div>
+
+  <div class="note" style="margin-top:14px;border-left:5px solid var(--ok);background:var(--ok-bg);">
+    <b>✅ Precio confirmado (8 jun 2026):</b> <b>margen del 25&nbsp;%</b> sobre el coste del colaborador, en un <b>cobro único</b> (no anticipo). <code>precio cliente = round(coste × 1,25 × 1,21)</code>. Fase 1 desbloqueada.
+  </div>
+
+  <h2>Cambios de base de datos (aditivos · <code>prisma db push</code>)</h2>
+  <table>
+    <tr><th>Modelo</th><th>Campos nuevos</th><th>Para qué</th></tr>
+    <tr><td><code>CollaboratorAssignment</code></td><td><code>isWinning</code>, <code>score?</code></td><td>Marcar la oferta ganadora entre N bids y guardar el score precio+plazo.</td></tr>
+    <tr><td><code>Order</code></td><td><code>supplierCostCents?</code>, <code>marginPct? (=25)</code>, <code>quoteState?</code>, <code>intakeChannel?</code></td><td>Desglose coste/margen, sub-estado de cotización y canal de entrada.</td></tr>
+    <tr><td><code>OrderEvent</code></td><td>(sin schema) tipos nuevos</td><td><code>quote_request_batch</code>, <code>pricing.calculated</code>, <code>delivery_reminder_sent</code>.</td></tr>
+  </table>
+  <p class="meta">Todo nullable o con default → no rompe filas existentes. Nada de <code>migrate dev</code> (la shadow DB falla en este repo).</p>
+
+  <h2>Endpoints y crons nuevos</h2>
+  <table>
+    <tr><th>Tipo</th><th>Ruta</th><th>Función</th></tr>
+    <tr><td>API</td><td><code>POST /api/orders/[ref]/quote-request-batch</code></td><td>Pide presupuesto a los N colaboradores del idioma.</td></tr>
+    <tr><td>API</td><td><code>POST /api/orders/[ref]/select-bid</code></td><td>Elige ganadora (transaccional), calcula precio cliente, fija plazo.</td></tr>
+    <tr><td>API</td><td><code>POST /api/orders/[ref]/send-quote-to-client</code></td><td>Manda presupuesto + link de pago al cliente en su idioma.</td></tr>
+    <tr><td>Cron</td><td><code>/api/cron/delivery-reminders</code></td><td>Día de cumplimiento: avisa al colaborador para subir.</td></tr>
+    <tr><td>API</td><td><code>POST /api/webhooks/whatsapp-inbound</code> · <code>…/email-inbound</code></td><td>Intake entrante automático (Fase 5).</td></tr>
+  </table>
+
+  <h2>Roadmap por fases</h2>
+  <div class="phases">
+    <div class="phase"><div class="badge">1</div><div>
+      <h3>Math IVA + margen + plazo <span class="tag v">mayor valor · menor riesgo</span></h3>
+      <p>Corrige el bug del margen, fija <code>dueDate</code> desde el plazo del colaborador, añade los campos aditivos. No toca el intake. <b>Empezar por aquí.</b></p>
+    </div></div>
+    <div class="phase"><div class="badge">2</div><div>
+      <h3>Broadcast multi-colaborador + selección híbrida</h3>
+      <p>Pedir a los N colaboradores, dar de alta a Juan Silva (FR), tabla comparativa y <code>select-bid</code>.</p>
+    </div></div>
+    <div class="phase"><div class="badge">3</div><div>
+      <h3>Presupuesto al cliente + pago = confirmación</h3>
+      <p>Enviar el presupuesto con link de pago; el pago dispara la traducción. Guard anti re-asignación.</p>
+    </div></div>
+    <div class="phase"><div class="badge">4</div><div>
+      <h3>Cron recordatorio + entrega al cliente</h3>
+      <p>Aviso el día de cumplimiento; al subir, copia al pedido y avisa al cliente.</p>
+    </div></div>
+    <div class="phase opt"><div class="badge">5</div><div>
+      <h3>Intake entrante automático <span class="tag r">mayor riesgo · opcional</span></h3>
+      <p>Webhooks de email y WhatsApp (este último supeditado a rehabilitar el sender). Respetar el gate de idioma (no ru/uk).</p>
+    </div></div>
+  </div>
+
+  <footer>
+    Generado desde el plan <code>docs/flujo-cotizacion-multicolaborador-plan.md</code> · workflow de mapeo (6 agentes) + diseño + revisión adversarial contra el código real.
+    Estados verificados contra el repo a 8 jun 2026; confírmalos antes de implementar.
+  </footer>
+
+</div>
+</body>
+</html>

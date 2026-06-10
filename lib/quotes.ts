@@ -21,6 +21,32 @@ export type QuoteStatus =
 export const PAPER_SHIPPING_BASE_EUR = 12;
 export const DEFAULT_VAT_RATE = 0.21;
 
+// Margen de HBTJ sobre el coste del colaborador (decisión Juan 2026-06-08).
+export const DEFAULT_COLLABORATOR_MARGIN_PCT = 25;
+
+/**
+ * Precio final al cliente a partir del coste (sin IVA) que cotiza el colaborador.
+ * Aplica el margen de HBTJ y luego el IVA: coste × (1 + margen) × (1 + IVA).
+ */
+export function customerPriceFromSupplierCost(
+  supplierCostCents: number,
+  marginPct: number = DEFAULT_COLLABORATOR_MARGIN_PCT,
+  vatRate: number = DEFAULT_VAT_RATE
+) {
+  const cost = Math.max(0, Math.round(Number(supplierCostCents) || 0));
+  const safeMargin = Number.isFinite(marginPct) ? Math.max(0, marginPct) : DEFAULT_COLLABORATOR_MARGIN_PCT;
+  const safeVat = Number.isFinite(vatRate) ? Math.max(0, vatRate) : DEFAULT_VAT_RATE;
+  const withMargin = cost * (1 + safeMargin / 100);
+  return Math.round(withMargin * (1 + safeVat));
+}
+
+/** Importe neto (sin IVA) a partir de un importe bruto con IVA incluido. */
+export function netFromGross(grossCents: number, vatRate: number = DEFAULT_VAT_RATE) {
+  const gross = Math.max(0, Math.round(Number(grossCents) || 0));
+  const safeVat = Number.isFinite(vatRate) ? Math.max(0, vatRate) : DEFAULT_VAT_RATE;
+  return Math.round(gross / (1 + safeVat));
+}
+
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   DRAFT: "Borrador",
   SENT: "Enviado",
@@ -215,4 +241,59 @@ export function normalizeQuoteStatus(value: unknown): QuoteStatus {
   const raw = String(value || "").trim().toUpperCase();
   const all: QuoteStatus[] = ["DRAFT", "SENT", "OPENED", "ACCEPTED", "PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED"];
   return all.includes(raw as QuoteStatus) ? (raw as QuoteStatus) : "DRAFT";
+}
+
+// === Fase 2: cotización competitiva multi-colaborador ===
+
+// Idiomas excluidos del flujo de cotización competitiva (regla de negocio).
+export const QUOTE_EXCLUDED_LANGS = new Set(["uk"]);
+
+// Idioma francés → asignación directa a Juan Silva (no se saca a concurso).
+const FRENCH_LANGS = new Set(["fr"]);
+
+// Extrae el idioma origen de un par ("en-es" → "en", "fr → es" → "fr").
+export function getSourceLang(langPair?: string | null): string | null {
+  const normalized = String(langPair || "").trim().toLowerCase();
+  if (!normalized) return null;
+  const separators = ["→", "->", "-", "–", ">"];
+  for (const sep of separators) {
+    if (normalized.includes(sep)) {
+      const part = normalized.split(sep)[0].trim();
+      if (part.length >= 2 && part.length <= 3) return part;
+    }
+  }
+  if (normalized.length >= 2 && normalized.length <= 3) return normalized;
+  return null;
+}
+
+export function isQuoteExcludedLang(lang?: string | null): boolean {
+  const normalized = String(lang || "").trim().toLowerCase();
+  return QUOTE_EXCLUDED_LANGS.has(normalized);
+}
+
+export function isFrenchSourceLang(lang?: string | null): boolean {
+  const normalized = String(lang || "").trim().toLowerCase();
+  return FRENCH_LANGS.has(normalized);
+}
+
+export type SuggestedBidInput = {
+  id: string;
+  status: string;
+  quotedPriceCents: number | null;
+  quotedDeadline: Date | string | null;
+};
+
+// Sugiere la mejor oferta entre las QUOTED: menor precio, luego menor plazo.
+// Devuelve el id sugerido o null si no hay ofertas válidas.
+export function pickSuggestedBid(assignments: SuggestedBidInput[]): string | null {
+  const candidates = assignments
+    .filter((a) => a.status === "QUOTED" && typeof a.quotedPriceCents === "number" && a.quotedPriceCents > 0)
+    .sort((a, b) => {
+      const priceDiff = (a.quotedPriceCents as number) - (b.quotedPriceCents as number);
+      if (priceDiff !== 0) return priceDiff;
+      const aDeadline = a.quotedDeadline ? new Date(a.quotedDeadline).getTime() : Number.POSITIVE_INFINITY;
+      const bDeadline = b.quotedDeadline ? new Date(b.quotedDeadline).getTime() : Number.POSITIVE_INFINITY;
+      return aDeadline - bDeadline;
+    });
+  return candidates.length > 0 ? candidates[0].id : null;
 }

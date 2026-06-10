@@ -71,6 +71,9 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [revisionReason, setRevisionReason] = useState("");
   const [revisingId, setRevisingId] = useState<string | null>(null);
+  const [selectingBidId, setSelectingBidId] = useState<string | null>(null);
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [broadcastMsg, setBroadcastMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -98,6 +101,36 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       });
     return () => controller.abort();
   }, [langPair]);
+
+  async function handleBroadcast() {
+    setBroadcastMsg(null);
+    setError(null);
+    if (!window.confirm("Solicitar presupuesto a TODOS los colaboradores activos del idioma del pedido (FR se asigna directo a Juan Silva). ¿Continuar?")) {
+      return;
+    }
+    setBroadcasting(true);
+    try {
+      const res = await fetch(`/api/orders/${reference}/quote-request-batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setError(data.error || "Error al solicitar cotizaciones.");
+        return;
+      }
+      setBroadcastMsg(
+        data.direct
+          ? "FR asignado directo a Juan Silva (sin concurso)."
+          : `Cotización solicitada a ${data.notified?.length ?? 0} colaborador(es).`
+      );
+      router.refresh();
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setBroadcasting(false);
+    }
+  }
 
   async function handleSendAssignment(e: React.FormEvent) {
     e.preventDefault();
@@ -208,8 +241,98 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
     }
   }
 
+  async function handleSelectBid(assignmentId: string, priceCents: number | null) {
+    const priceLabel = priceCents ? `${(priceCents / 100).toFixed(2)} €` : "precio desconocido";
+    const confirmed = window.confirm(
+      `¿Elegir esta oferta (${priceLabel})?\nSe aceptará esta y se rechazarán el resto de presupuestos del pedido.`
+    );
+    if (!confirmed) return;
+    setSelectingBidId(assignmentId);
+    try {
+      const res = await fetch(`/api/orders/${reference}/select-bid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignmentId }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setError(data.error || "Error al elegir la oferta.");
+        return;
+      }
+      setError(null);
+      router.refresh();
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setSelectingBidId(null);
+    }
+  }
+
+  // Fase 2: ofertas en concurso (QUOTED), ordenadas por precio y plazo.
+  const quotedBids = assignments
+    .filter((a) => a.status === "QUOTED" && a.quotedPriceCents !== null && a.quotedPriceCents > 0)
+    .sort((a, b) => {
+      const priceDiff = (a.quotedPriceCents as number) - (b.quotedPriceCents as number);
+      if (priceDiff !== 0) return priceDiff;
+      const aD = a.quotedDeadline ? new Date(a.quotedDeadline).getTime() : Infinity;
+      const bD = b.quotedDeadline ? new Date(b.quotedDeadline).getTime() : Infinity;
+      return aD - bD;
+    });
+  const suggestedBidId = quotedBids.length > 0 ? quotedBids[0].id : null;
+
   return (
     <div className="space-y-6">
+      {/* Fase 2: comparativa de ofertas en concurso */}
+      {quotedBids.length > 1 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            Ofertas en concurso ({quotedBids.length})
+          </p>
+          <div className="mt-3 space-y-2">
+            {quotedBids.map((a) => {
+              const isSuggested = a.id === suggestedBidId;
+              return (
+                <div
+                  key={`bid-${a.id}`}
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${
+                    isSuggested
+                      ? "border-emerald-500/50 bg-emerald-500/10"
+                      : "border-slate-700 bg-slate-950/70"
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-slate-100">
+                      {a.collaborator.fullName}
+                      {isSuggested && (
+                        <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300">
+                          Sugerida
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {a.quotedPriceCents !== null && (
+                        <strong className="text-slate-200">{(a.quotedPriceCents / 100).toFixed(2)} €</strong>
+                      )}
+                      {a.quotedDeadline && (
+                        <> · Plazo {new Date(a.quotedDeadline).toLocaleDateString("es-ES")}</>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectBid(a.id, a.quotedPriceCents)}
+                    disabled={selectingBidId !== null}
+                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    {selectingBidId === a.id ? "Procesando..." : "Elegir y calcular precio"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Existing assignments */}
       {assignments.length > 0 && (
         <div>
@@ -420,6 +543,29 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
           </div>
         </div>
       )}
+
+      {/* Fase 2: broadcast competitivo — pedir presupuesto a todos los del idioma */}
+      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+          Solicitar cotización a colaboradores
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Envía la petición de presupuesto a todos los colaboradores activos del idioma del pedido a la vez. El francés se asigna directo a Juan Silva.
+        </p>
+        {broadcastMsg && (
+          <p role="status" className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+            {broadcastMsg}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={handleBroadcast}
+          disabled={broadcasting}
+          className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+        >
+          {broadcasting ? "Solicitando..." : "Solicitar cotización a todos"}
+        </button>
+      </div>
 
       {/* New assignment form */}
       <div>

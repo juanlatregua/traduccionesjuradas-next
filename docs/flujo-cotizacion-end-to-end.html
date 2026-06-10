@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujo cotización multi-colaborador — end to end</title>
+<style>
+  :root{
+    --bleu:#1f3a5f; --encre:#22303f; --sepia:#7a6e5d; --cream:#f7f3ea;
+    --parchment:#efe7d6; --line:#d9cfb8; --ink:#26313c; --muted:#6b7682;
+    /* actores */
+    --cli:#2563a8; --cli-bg:#e7f0fa;
+    --sys:#5b4a86; --sys-bg:#efeaf7;
+    --col:#1e7d4f; --col-bg:#e6f4ec;
+    --juan:#b5781b; --juan-bg:#fbf1de;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--cream);color:var(--ink);line-height:1.5;}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 22px 80px;}
+  header.hero{border-bottom:3px solid var(--bleu);padding-bottom:16px;margin-bottom:10px;}
+  h1{font-size:27px;margin:0 0 6px;color:var(--bleu);letter-spacing:-.3px;}
+  .sub{color:var(--muted);font-size:14px;}
+
+  .actors{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 26px;}
+  .akey{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;padding:5px 12px;border-radius:999px;border:1px solid transparent;}
+  .akey .swatch{width:11px;height:11px;border-radius:50%;}
+  .akey.cli{background:var(--cli-bg);color:var(--cli);} .akey.cli .swatch{background:var(--cli);}
+  .akey.sys{background:var(--sys-bg);color:var(--sys);} .akey.sys .swatch{background:var(--sys);}
+  .akey.col{background:var(--col-bg);color:var(--col);} .akey.col .swatch{background:var(--col);}
+  .akey.juan{background:var(--juan-bg);color:var(--juan);} .akey.juan .swatch{background:var(--juan);}
+
+  ol.flow{list-style:none;margin:0;padding:0;position:relative;}
+  ol.flow::before{content:"";position:absolute;left:21px;top:10px;bottom:34px;width:2px;background:var(--line);}
+  li.node{position:relative;padding:0 0 14px 58px;}
+  .num{position:absolute;left:8px;top:0;width:28px;height:28px;border-radius:50%;background:#fff;font-weight:700;font-size:13px;
+       display:flex;align-items:center;justify-content:center;z-index:1;border:2px solid var(--line);color:var(--encre);}
+  .card{background:#fff;border:1px solid var(--line);border-left:5px solid var(--line);border-radius:11px;padding:12px 15px;}
+  .card.cli{border-left-color:var(--cli)} .num.cli{border-color:var(--cli);color:var(--cli)}
+  .card.sys{border-left-color:var(--sys)} .num.sys{border-color:var(--sys);color:var(--sys)}
+  .card.col{border-left-color:var(--col)} .num.col{border-color:var(--col);color:var(--col)}
+  .card.juan{border-left-color:var(--juan)} .num.juan{border-color:var(--juan);color:var(--juan)}
+  .card .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .card h3{font-size:15.5px;margin:0;color:var(--encre);}
+  .who{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+  .who.cli{color:var(--cli)} .who.sys{color:var(--sys)} .who.col{color:var(--col)} .who.juan{color:var(--juan)}
+  .card p{margin:6px 0 0;font-size:13.5px;}
+  .chips{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{font-size:11.5px;font-weight:600;background:var(--parchment);color:#4a3f2a;padding:3px 9px;border-radius:6px;}
+  .chip.ph{background:#eef1f4;color:var(--bleu);}
+  code{background:var(--parchment);padding:1px 5px;border-radius:4px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12px;color:#3a2f1c;}
+
+  /* branch */
+  .branch{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+  .lane{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:13px;background:#fcfaf4;}
+  .lane b{display:block;margin-bottom:3px;}
+  .lane.fr b{color:var(--juan)} .lane.other b{color:var(--col)}
+  @media(max-width:640px){.branch{grid-template-columns:1fr}}
+
+  /* money */
+  .money{background:linear-gradient(180deg,#fffdf8,#fbf4e4);border:1.5px solid #e7d3a6;border-radius:12px;padding:16px 18px;margin-top:10px;}
+  .money .formula{font-size:17px;font-weight:800;color:var(--bleu);letter-spacing:-.2px;}
+  .money .ex{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;}
+  .money .step{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-weight:600;}
+  .money .arrow{color:var(--sepia);font-weight:800;}
+  .money .final{background:var(--col);color:#fff;border-color:var(--col);}
+  .money .note{margin-top:9px;font-size:12.5px;color:var(--muted);}
+
+  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);}
+  .endcap{position:relative;padding-left:58px;margin-top:2px;}
+  .endcap .dot{position:absolute;left:14px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--col);border:3px solid var(--col-bg);}
+  .endcap span{font-weight:700;color:var(--col);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>Cómo fluye un encargo, de principio a fin</h1>
+    <div class="sub">traduccionesjuradas.net · captación → cotización entre colaboradores → entrega · 8 jun 2026</div>
+  </header>
+
+  <div class="actors">
+    <span class="akey cli"><span class="swatch"></span>Cliente</span>
+    <span class="akey sys"><span class="swatch"></span>Sistema (la web)</span>
+    <span class="akey col"><span class="swatch"></span>Colaborador</span>
+    <span class="akey juan"><span class="swatch"></span>Juan (tú)</span>
+  </div>
+
+  <ol class="flow">
+
+    <li class="node"><div class="num cli">1</div>
+      <div class="card cli">
+        <div class="head"><h3>Llega un documento</h3><span class="who cli">Cliente</span></div>
+        <p>El cliente manda su documento. Suele entrar por <b>email</b> o <b>WhatsApp</b>; también por la web. El pedido se crea en el sistema.</p>
+        <div class="chips"><span class="chip">📧 Email</span><span class="chip">💬 WhatsApp</span><span class="chip">🌐 Web</span><span class="chip ph">Hoy: alta manual · Fase 5: automático</span></div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num sys">2</div>
+      <div class="card sys">
+        <div class="head"><h3>El sistema mira el idioma y enruta</h3><span class="who sys">Sistema</span></div>
+        <p>Según el idioma del documento, el encargo toma uno de dos caminos:</p>
+        <div class="branch">
+          <div class="lane fr"><b>Francés →</b> directo a <b>Juan Silva</b> (tú). Asignación aceptada de entrada, sin pedir presupuesto fuera.</div>
+          <div class="lane other"><b>Resto de idiomas →</b> se pide presupuesto a los colaboradores que cubren ese idioma (p. ej. inglés → Juan Amor).</div>
+        </div>
+        <div class="chips"><span class="chip ph">Fase 2</span></div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num col">3</div>
+      <div class="card col">
+        <div class="head"><h3>El colaborador cotiza</h3><span class="who col">Colaborador</span></div>
+        <p>Recibe un enlace privado, abre la página del encargo, ve el documento y responde <b>precio (sin IVA)</b> y <b>plazo</b>. Pueden cotizar varios a la vez.</p>
+        <div class="chips"><span class="chip">🔗 Página /encargo</span><span class="chip">📧 + SMS aviso</span><span class="chip ph">Ya existe ✅</span></div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num juan">4</div>
+      <div class="card juan">
+        <div class="head"><h3>Se elige la mejor oferta</h3><span class="who juan">Sistema sugiere · Juan confirma</span></div>
+        <p>El sistema ordena las ofertas por <b>precio y plazo</b> y propone la mejor. <b>Tú das el OK</b> a la ganadora; el resto se descarta.</p>
+        <div class="chips"><span class="chip">🏆 Híbrido</span><span class="chip ph">Fase 2</span></div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num sys">5</div>
+      <div class="card sys">
+        <div class="head"><h3>El sistema calcula el precio al cliente</h3><span class="who sys">Sistema</span></div>
+        <p>Sobre el coste del colaborador se aplica tu <b>margen del 25 %</b> y luego el <b>IVA (21 %)</b>. Se fija también la <b>fecha de entrega</b>.</p>
+        <div class="money">
+          <div class="formula">precio cliente = coste × 1,25 × 1,21</div>
+          <div class="ex">
+            <span class="step">coste 100&nbsp;€</span>
+            <span class="arrow">→</span>
+            <span class="step">+25&nbsp;% margen = 125&nbsp;€</span>
+            <span class="arrow">→</span>
+            <span class="step">+21&nbsp;% IVA</span>
+            <span class="arrow">→</span>
+            <span class="step final">151,25&nbsp;€</span>
+          </div>
+          <div class="note">Cobro único. El colaborador siempre cotiza sin IVA. <b>(Fase 1 — ya implementada ✅)</b></div>
+        </div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num sys">6</div>
+      <div class="card sys">
+        <div class="head"><h3>Se envía el presupuesto al cliente</h3><span class="who sys">Sistema</span></div>
+        <p>El cliente recibe precio final, plazo y un <b>enlace de pago</b>, en su propio idioma (español o francés).</p>
+        <div class="chips"><span class="chip">📧 Email</span><span class="chip">💬 SMS / WhatsApp</span><span class="chip ph">Fase 3</span></div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num cli">7</div>
+      <div class="card cli">
+        <div class="head"><h3>El cliente confirma pagando</h3><span class="who cli">Cliente</span></div>
+        <p>No hay un "aceptar" aparte: <b>el pago es la confirmación</b>. Al pagar, el encargo pasa a <b>en traducción</b> y el cliente recibe un aviso de que ya está en marcha.</p>
+        <div class="chips"><span class="chip">💳 Pago</span><span class="chip">💬 SMS "en proceso"</span><span class="chip ph">Fase 3</span></div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num sys">8</div>
+      <div class="card sys">
+        <div class="head"><h3>Aviso el día de la entrega</h3><span class="who sys">Sistema</span></div>
+        <p>Llegada la fecha de cumplimiento, el sistema <b>recuerda al colaborador</b> que suba la traducción.</p>
+        <div class="chips"><span class="chip">⏰ Cron diario</span><span class="chip">📧 + SMS al colaborador</span><span class="chip ph">Fase 4</span></div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num col">9</div>
+      <div class="card col">
+        <div class="head"><h3>El colaborador sube la traducción</h3><span class="who col">Colaborador</span></div>
+        <p>Sube el documento traducido desde la misma página del encargo. Queda guardado en el pedido.</p>
+        <div class="chips"><span class="chip">🔗 Página /encargo</span><span class="chip ph">Ya existe ✅</span></div>
+      </div>
+    </li>
+
+    <li class="node"><div class="num sys">10</div>
+      <div class="card sys">
+        <div class="head"><h3>Se entrega al cliente</h3><span class="who sys">Sistema</span></div>
+        <p>El cliente recibe la traducción lista (email bilingüe + aviso). El documento queda archivado en el sistema.</p>
+        <div class="chips"><span class="chip">📧 Email</span><span class="chip">💬 SMS "lista"</span><span class="chip ph">Fase 4</span></div>
+      </div>
+    </li>
+
+  </ol>
+
+  <div class="endcap"><div class="dot"></div><span>Encargo cerrado · cliente con su traducción · todo trazado en el sistema</span></div>
+
+  <footer>
+    Camino feliz de principio a fin. Detalle técnico y estado de cada pieza en
+    <code>docs/flujo-cotizacion-multicolaborador.html</code> · plan en <code>docs/flujo-cotizacion-multicolaborador-plan.md</code>.<br>
+    Fase&nbsp;1 (precio + margen 25&nbsp;% + plazo) implementada. Fases&nbsp;2-5 pendientes.
+  </footer>
+
+</div>
+</body>
+</html>

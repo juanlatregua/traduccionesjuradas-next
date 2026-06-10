@@ -145,6 +145,17 @@ export async function POST(req: Request, { params }: Params) {
       console.error("[encargo] admin quote notification failed", err);
     });
 
+    // SMS push al staff con enlace al panel para adjudicar (el email es pasivo).
+    void import("@/lib/sms")
+      .then(({ sendStaffQuoteSMS }) =>
+        sendStaffQuoteSMS({
+          reference: updated.order.reference,
+          collaboratorName: updated.collaborator.fullName,
+          priceCents: body.priceCents as number,
+        })
+      )
+      .catch((err) => console.error("[encargo] staff quote SMS failed", err));
+
     return NextResponse.json({ ok: true });
   }
 

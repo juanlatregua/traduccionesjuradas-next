@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cómo entra un encargo — intake</title>
+<style>
+  :root{
+    --bleu:#1f3a5f; --encre:#22303f; --sepia:#7a6e5d; --cream:#f7f3ea;
+    --parchment:#efe7d6; --line:#d9cfb8; --ink:#26313c; --muted:#6b7682;
+    --auto:#1e7d4f; --auto-bg:#e6f4ec;
+    --manual:#b5781b; --manual-bg:#fbf1de;
+    --soon:#7a5ea8; --soon-bg:#efeaf7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--cream);color:var(--ink);line-height:1.5;}
+  .wrap{max-width:960px;margin:0 auto;padding:32px 22px 80px;}
+  header.hero{border-bottom:3px solid var(--bleu);padding-bottom:16px;margin-bottom:8px;}
+  h1{font-size:27px;margin:0 0 6px;color:var(--bleu);letter-spacing:-.3px;}
+  .sub{color:var(--muted);font-size:14px;}
+  h2{font-size:19px;color:var(--encre);margin:34px 0 14px;border-left:5px solid var(--bleu);padding-left:12px;}
+  code{background:var(--parchment);padding:1px 5px;border-radius:4px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12px;color:#3a2f1c;}
+
+  .doors{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .door{background:#fff;border:1px solid var(--line);border-top:4px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .door.auto{border-top-color:var(--auto)} .door.manual{border-top-color:var(--manual)}
+  .door .tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:6px;}
+  .tag.auto{background:var(--auto-bg);color:var(--auto)} .tag.manual{background:var(--manual-bg);color:var(--manual)}
+  .door h3{font-size:15.5px;margin:8px 0 4px;color:var(--encre);}
+  .door p{margin:0;font-size:13px;color:var(--ink);}
+  .door .who{font-size:12px;color:var(--muted);margin-top:6px;}
+  .door.star{box-shadow:0 0 0 2px var(--manual) inset;}
+  @media(max-width:640px){.doors{grid-template-columns:1fr}}
+
+  .howto{background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px 20px 18px;}
+  .loc{display:flex;align-items:center;gap:8px;font-size:13px;background:var(--manual-bg);color:#5a3e10;border-radius:10px;padding:9px 13px;margin:16px 0 6px;font-weight:600;}
+  ol.steps{counter-reset:s;list-style:none;margin:0;padding:0;}
+  ol.steps li{position:relative;padding:11px 0 11px 44px;border-bottom:1px dashed var(--line);font-size:14px;}
+  ol.steps li:last-child{border-bottom:none;}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:4px;top:10px;width:26px;height:26px;border-radius:50%;
+    background:var(--bleu);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;}
+  ol.steps b{color:var(--encre);}
+  .fields{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+  .f{font-size:11.5px;background:var(--parchment);color:#4a3f2a;padding:2px 8px;border-radius:6px;font-weight:600;}
+  .f.req{background:#f6e0d8;color:#8a3318;}
+
+  .note{border-radius:12px;padding:14px 16px;font-size:13.5px;margin-top:14px;}
+  .note.warn{background:var(--manual-bg);border:1px solid #ecd6a8;border-left:5px solid var(--manual);}
+  .note.soon{background:var(--soon-bg);border:1px solid #d8cdee;border-left:5px solid var(--soon);}
+  .note b{color:var(--encre);}
+  .pricebox{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  .pcase{flex:1;min-width:240px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;}
+  .pcase h4{margin:0 0 4px;font-size:13.5px;}
+  .pcase.ok h4{color:var(--auto)} .pcase.gap h4{color:var(--manual)}
+
+  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>Cómo entra un encargo en el sistema</h1>
+    <div class="sub">traduccionesjuradas.net · las puertas de entrada + el paso a paso para WhatsApp / teléfono / email · 8 jun 2026</div>
+  </header>
+
+  <h2>Las 4 puertas de entrada (hoy)</h2>
+  <div class="doors">
+    <div class="door auto">
+      <span class="tag auto">Automático</span>
+      <h3>🌐 Funnel / puerta web</h3>
+      <p>El cliente sube su documento en la web y paga. El pedido se crea solo (webhook). <code>source=funnel</code></p>
+      <div class="who">Lo hace el cliente · sin que tú toques nada</div>
+    </div>
+    <div class="door auto">
+      <span class="tag auto">Automático</span>
+      <h3>🧮 Estimador / presupuesto web</h3>
+      <p>El cliente pide presupuesto desde la web. Crea pedido y te avisa. <code>source=estimador</code></p>
+      <div class="who">Lo hace el cliente · te llega aviso</div>
+    </div>
+    <div class="door manual">
+      <span class="tag manual">Tú</span>
+      <h3>🧾 Presupuesto formal</h3>
+      <p>Creas un presupuesto con líneas en <code>/admin/quotes/new</code>, lo envías y al pagar se vuelve pedido.</p>
+      <div class="who">Lo haces tú · para presupuestos detallados</div>
+    </div>
+    <div class="door manual star">
+      <span class="tag manual">Tú · ESTA es la tuya</span>
+      <h3>⚡ Alta rápida PM</h3>
+      <p>Metes el lead a mano y mandas enlace de pago. <b>Pensada para WhatsApp / teléfono / email.</b> <code>pm-create</code></p>
+      <div class="who">Lo haces tú · en <b>Zona Traductor → Control</b></div>
+    </div>
+  </div>
+
+  <h2>Te llega por WhatsApp, teléfono o email → así lo metes</h2>
+  <div class="howto">
+    <div class="loc">📍 Zona Traductor → Control → panel <b>“Alta rápida PM”</b></div>
+    <ol class="steps">
+      <li><b>Abres el panel</b> “Alta rápida PM” (subtítulo: <em>“leads que entran directos a juansilva@traduccionesjuradas.net o por WhatsApp”</em>).</li>
+      <li><b>Rellenas los datos del cliente y el servicio:</b>
+        <div class="fields">
+          <span class="f req">Email cliente *</span><span class="f">Nombre</span><span class="f req">Título / servicio *</span>
+          <span class="f req">Importe € *</span><span class="f">Idiomas (fr-es…)</span><span class="f">Alcance / páginas</span><span class="f">Notas urgencia</span>
+        </div>
+      </li>
+      <li><b>Eliges el origen:</b> <span class="f">WhatsApp</span> <span class="f">Email</span> <span class="f">Teléfono</span> <span class="f">Web</span> — para que quede registrado por dónde llegó.</li>
+      <li><b>Adjuntas el documento</b> que te mandó: descargas el PDF/foto del email o del WhatsApp y lo subes en “Documento original”.</li>
+      <li><b>(Opcional)</b> dejas marcado <b>“Enviar email automático al cliente con enlace de pago”</b>.</li>
+      <li><b>“Crear pedido y habilitar pago”</b> → obtienes la <b>referencia</b>, el <b>enlace de pago</b> (copiar/abrir) y acceso al <b>workspace</b>.</li>
+    </ol>
+  </div>
+
+  <div class="note warn">
+    <b>Importante:</b> hoy <b>tus buzones no se leen solos</b>. Cuando el cliente escribe a <code>hola@</code> o <code>juansilva@traduccionesjuradas.net</code> (o por WhatsApp), eres tú quien coge el documento y lo registra con el panel. El email con enlace de pago que sale para el cliente lo manda el sistema; lo que es manual es <b>meter el lead</b>.
+  </div>
+
+  <h2>El detalle del precio</h2>
+  <div class="pricebox">
+    <div class="pcase ok">
+      <h4>✅ Tú fijas el precio (FR que llevas tú)</h4>
+      <p>Sabes el importe → lo pones en “Importe €” y listo. El panel funciona tal cual hoy.</p>
+    </div>
+    <div class="pcase gap">
+      <h4>🔧 Tiene que cotizar un colaborador</h4>
+      <p>El precio aún no existe al entrar el encargo. Hace falta una <b>entrada “pendiente de cotizar”</b> (sin importe); el precio lo rellena la <b>Fase 1</b> (<code>coste × 1,25 × 1,21</code>) al elegir la oferta. Añadido pequeño de la <b>Fase 2</b>.</p>
+    </div>
+  </div>
+
+  <h2>Cuando se automatice la entrada (Fase 5)</h2>
+  <div class="note soon">
+    <b>Email entrante:</b> suscripción a <code>hola@</code> / <code>juansilva@traduccionesjuradas.net</code> vía Microsoft Graph → el correo con adjunto crea el pedido solo.<br>
+    <b>WhatsApp entrante:</b> webhook de Twilio → el mensaje con documento crea el pedido (supeditado a rehabilitar el sender de WhatsApp).<br>
+    En ambos: el sistema detecta el idioma y dispara la solicitud de presupuesto sin que tú toques nada.
+  </div>
+
+  <footer>
+    Recorrido completo en <code>docs/flujo-cotizacion-end-to-end.html</code> · estado de cada pieza en <code>docs/flujo-cotizacion-multicolaborador.html</code> · plan en <code>docs/flujo-cotizacion-multicolaborador-plan.md</code>.
+  </footer>
+
+</div>
+</body>
+</html>

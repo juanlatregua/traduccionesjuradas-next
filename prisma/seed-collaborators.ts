@@ -41,6 +41,29 @@ const collaborators = [
     nif: "B92812973",
     address: "CC Centro Idea, Crta. de Mijas km 3.6, 29650 Mijas",
   },
+  {
+    fullName: "MadeInTranslation",
+    email: "info@madeintranslation.com",
+    languages: ["ar"],
+    supplierType: "EMPRESA" as const,
+    companyName: "MadeInTranslation",
+  },
+  {
+    // Ruso ofrecido SOLO vía cotización del colaborador (no auto-precio). uk sigue excluido.
+    fullName: "Babylon Systems",
+    email: "info@babylonsystems.es",
+    languages: ["ru"],
+    supplierType: "EMPRESA" as const,
+    companyName: "Babylon Systems",
+  },
+  {
+    // Juan Silva como colaborador formal de FR: asignación auto-aceptada + recordatorios.
+    fullName: "Juan Silva Moreno",
+    email: "juansilva@traduccionesjuradas.net",
+    languages: ["fr"],
+    swornNumber: "3850",
+    supplierType: "AUTONOMO" as const,
+  },
 ];
 
 async function main() {

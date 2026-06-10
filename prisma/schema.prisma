@@ -130,6 +130,9 @@ model Order {
   finalMimeType       String?
   assignedTo         String?
   dueDate            DateTime?
+  supplierCostCents  Int?
+  marginPct          Int?           @default(25)
+  quoteState         String?
   quoteId            String?
   draftFileKey       String?
   draftFileUrl       String?
@@ -691,6 +694,7 @@ model CollaboratorAssignment {
   orderId           String
   collaboratorId    String
   status            AssignmentStatus @default(REQUESTED)
+  isWinning         Boolean          @default(false)
   accessToken       String           @unique @default(uuid())
   adminNotes        String?
   quotedPriceCents  Int?
