@@ -9,6 +9,7 @@ import OrderWorkflowPanel from "./OrderWorkflowPanel";
 import OrderDocumentsPanel from "./OrderDocumentsPanel";
 import OrderLifecyclePanel from "./OrderLifecyclePanel";
 import CollaboratorAssignmentPanel from "./CollaboratorAssignmentPanel";
+import ClientMessagePanel from "./ClientMessagePanel";
 import DraftGeneratorButton from "./DraftGeneratorButton";
 import ConfirmPaymentButton from "./ConfirmPaymentButton";
 import SourceDocumentUpload from "./SourceDocumentUpload";
@@ -209,7 +210,7 @@ export default function OrderActionPanel({
   const lastRefreshedTab = useRef<string | null>(null);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<
-    "presupuesto" | "documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas" | "control"
+    "presupuesto" | "documentos" | "comprobante" | "workflow" | "asignar" | "entrega" | "notificar" | "finanzas" | "control" | "cliente"
   >("presupuesto");
 
   const quickQuoteHref = useMemo(() => {
@@ -230,13 +231,14 @@ export default function OrderActionPanel({
     { key: "asignar" as const, label: "Asignar", color: "text-amber-300" },
     { key: "entrega" as const, label: "Entrega", color: "text-emerald-300" },
     { key: "notificar" as const, label: "Notificar", color: "text-violet-300" },
+    { key: "cliente" as const, label: "Cliente", color: "text-sky-300" },
     { key: "finanzas" as const, label: "Finanzas", color: "text-lime-300" },
     { key: "control" as const, label: "Control", color: "text-rose-300" },
   ];
 
   // Tabs relevantes según el stage del pedido
   const visibleTabKeys = useMemo(() => {
-    const always = ["presupuesto", "documentos", "workflow"] as const;
+    const always = ["presupuesto", "documentos", "workflow", "cliente"] as const;
     const stage = canonicalStage;
     const extra: string[] = [];
 
@@ -483,6 +485,7 @@ export default function OrderActionPanel({
               {tab === "notificar" && (
                 <TranslatorNotifyForm reference={reference} defaultClientEmail={clientEmail} acquisitionSource={acquisitionSource} defaultDownloadUrl={finalDownloadUrl || undefined} quotePreviewUrl={String(artifacts.quotePreviewFileUrl || "") || undefined} paymentLink={trackedLinks.paymentUrl} statusLink={trackedLinks.statusUrl} deliveryNotifiedAt={deliveryNotification?.sentAt || null} deliveryNotifiedTo={deliveryNotification?.toEmail || null} canonicalStage={canonicalStage} />
               )}
+              {tab === "cliente" && <ClientMessagePanel reference={reference} clientEmail={clientEmail} />}
               {tab === "finanzas" && <OrderFinancePanel reference={reference} amountCents={amountCents} snapshot={financeSnapshot} />}
               {tab === "control" && <OrderLifecyclePanel reference={reference} isArchived={isArchived} canonicalStage={canonicalStage} gates={gates} canClose={canClose} />}
             </div>
@@ -812,6 +815,7 @@ export default function OrderActionPanel({
                 canonicalStage={canonicalStage}
               />
             )}
+            {tab === "cliente" && <ClientMessagePanel reference={reference} clientEmail={clientEmail} />}
             {tab === "finanzas" && (
               <OrderFinancePanel
                 reference={reference}
