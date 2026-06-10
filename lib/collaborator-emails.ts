@@ -83,6 +83,7 @@ export async function sendQuoteNotificationToAdmin(payload: QuoteNotificationPay
   const ref = escapeHtml(payload.orderReference);
   const deadline = escapeHtml(payload.deadline);
   const notes = payload.collaboratorNotes ? escapeHtml(payload.collaboratorNotes) : null;
+  const panelUrl = `${SITE_BASE_URL}/zona-traductor/control?q=${encodeURIComponent(payload.orderReference)}`;
   const html = `
     <p><strong>${name}</strong> ha enviado presupuesto para el pedido <strong>${ref}</strong>.</p>
     <table style="border-collapse:collapse; margin:12px 0;">
@@ -90,7 +91,7 @@ export async function sendQuoteNotificationToAdmin(payload: QuoteNotificationPay
       <tr><td style="padding:4px 12px 4px 0; color:#64748b;">Plazo</td><td>${deadline}</td></tr>
       ${notes ? `<tr><td style="padding:4px 12px 4px 0; color:#64748b;">Notas</td><td>${notes}</td></tr>` : ""}
     </table>
-    <p>Accede a la zona de traductor para aceptar o rechazar.</p>
+    <p><a href="${sanitizeUrl(panelUrl)}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir panel y adjudicar</a></p>
   `;
 
   await sendMail({
