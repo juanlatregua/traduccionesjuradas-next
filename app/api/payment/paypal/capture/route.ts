@@ -129,6 +129,17 @@ export async function POST(req: Request) {
         })
       ).catch((e) => console.error("[paypal-capture] staff new-order email failed", e));
 
+      void import("@/lib/sms")
+        .then(({ sendStaffNewOrderSMS }) =>
+          sendStaffNewOrderSMS({
+            reference: order.reference,
+            amountCents,
+            langPair: fullOrder?.langPair,
+            via: "PayPal",
+          })
+        )
+        .catch((e) => console.error("[paypal-capture] staff payment SMS failed", e));
+
       if (toEmail) {
         sendEmailWithRetry(() =>
           sendPaymentConfirmedEmail({

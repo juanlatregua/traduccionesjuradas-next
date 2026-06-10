@@ -81,6 +81,17 @@ export async function POST(req: Request) {
             langPair: order.langPair || undefined,
           })
         ).catch((e) => console.error("[redsys-notification] staff new-order email failed", e));
+
+        void import("@/lib/sms")
+          .then(({ sendStaffNewOrderSMS }) =>
+            sendStaffNewOrderSMS({
+              reference: order.reference,
+              amountCents: order.amountCents,
+              langPair: order.langPair,
+              via: "Redsys",
+            })
+          )
+          .catch((e) => console.error("[redsys-notification] staff payment SMS failed", e));
       }
 
       if (order?.clientEmail) {

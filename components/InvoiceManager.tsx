@@ -35,6 +35,18 @@ export type InvoiceRow = {
   createdAt: string;
 };
 
+type SavedCustomer = {
+  key: string;
+  clientName: string | null;
+  fiscalName: string;
+  nif: string | null;
+  address: string | null;
+  city: string | null;
+  postalCode: string | null;
+  country: string;
+  email: string | null;
+};
+
 const VAT_OPTIONS = [
   { label: "21%", value: 0.21 },
   { label: "10%", value: 0.1 },
@@ -80,6 +92,39 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [issueNumber, setIssueNumber] = useState(suggested);
+  const [customers, setCustomers] = useState<SavedCustomer[]>([]);
+
+  // Libro de clientes recurrentes: se carga al abrir el formulario.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/invoices/customers")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && d.ok) setCustomers(d.customers as SavedCustomer[]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  function applyCustomer(key: string) {
+    const c = customers.find((x) => x.key === key);
+    if (!c) return;
+    setForm((f) => ({
+      ...f,
+      clientName: c.clientName || f.clientName,
+      fiscalName: c.fiscalName,
+      nif: c.nif || "",
+      address: c.address || "",
+      city: c.city || "",
+      postalCode: c.postalCode || "",
+      country: c.country || "España",
+      email: c.email || "",
+    }));
+    setMsg(`Datos de ${c.fiscalName} cargados.`);
+  }
 
   const totals = useMemo(() => {
     const base = form.lines.reduce((s, l) => {
@@ -348,6 +393,28 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
               Traer datos del pedido
             </button>
           </div>
+
+          {/* Cargar un cliente ya facturado (recurrente, sin pedido) */}
+          {customers.length > 0 && (
+            <div className="mt-3">
+              <label className="text-xs text-slate-400">
+                Cliente recurrente
+                <select
+                  className={`mt-1 block w-full sm:w-96 ${FIELD}`}
+                  value=""
+                  onChange={(e) => applyCustomer(e.target.value)}
+                >
+                  <option value="">— Cargar un cliente ya facturado —</option>
+                  {customers.map((c) => (
+                    <option key={c.key} value={c.key}>
+                      {c.fiscalName}
+                      {c.nif ? ` · ${c.nif}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
 
           {/* Datos fiscales */}
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
