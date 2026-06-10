@@ -21,6 +21,14 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: access.error }, { status: 403 });
   }
 
+  let skipEmail = false;
+  try {
+    const body = await req.json();
+    skipEmail = !!body?.skipEmail;
+  } catch {
+    /* sin body = enviar email como antes */
+  }
+
   try {
     const quote = await prisma.quote.findUnique({
       where: { id: params.id },
@@ -89,18 +97,32 @@ export async function POST(req: Request, { params }: Params) {
       Promise.resolve(hashPdf(pdfBuffer)),
     ]);
 
+    // No se envía email si el staff lo pide (skipEmail) o si el email es un
+    // marcador de WhatsApp (no entregable). Igualmente se genera el PDF y el
+    // texto de WhatsApp para que Juan lo envíe.
+    const isPlaceholderEmail = /@whatsapp\.local$/i.test(quote.customerEmail);
+    const doSendEmail = !skipEmail && !isPlaceholderEmail;
+
     const emailCopy = buildPayLinkEmail({
       name: quote.customerName || "cliente",
       payUrl,
     });
-    const sendResult = await sendQuoteEmail({
-      to: quote.customerEmail,
-      subject: emailCopy.subject,
-      body: emailCopy.body,
-    });
+    let sendResult: { providerId?: string | null } = {};
+    if (doSendEmail) {
+      sendResult = await sendQuoteEmail({
+        to: quote.customerEmail,
+        subject: emailCopy.subject,
+        body: emailCopy.body,
+      });
+    }
 
+    const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
     const whatsappBody = buildWhatsAppPayText({
       name: quote.customerName || "cliente",
+      totalEur: decimalToNumber(quote.total),
+      deliveryType: quote.deliveryType,
+      plazo: plazoMatch ? plazoMatch[1].trim() : null,
+      paymentMethods: quote.paymentMethods,
       payUrl,
     });
 
@@ -117,19 +139,21 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
 
-      await tx.messageLog.create({
-        data: {
-          quoteId: quote.id,
-          channel: "EMAIL",
-          type: quote.sentAt ? "RESEND_PAY_LINK" : "PAY_LINK",
-          recipient: quote.customerEmail,
-          subject: emailCopy.subject,
-          body: emailCopy.body,
-          sentAt: now,
-          providerId: sendResult.providerId,
-          status: "SENT",
-        },
-      });
+      if (doSendEmail) {
+        await tx.messageLog.create({
+          data: {
+            quoteId: quote.id,
+            channel: "EMAIL",
+            type: quote.sentAt ? "RESEND_PAY_LINK" : "PAY_LINK",
+            recipient: quote.customerEmail,
+            subject: emailCopy.subject,
+            body: emailCopy.body,
+            sentAt: now,
+            providerId: sendResult.providerId,
+            status: "SENT",
+          },
+        });
+      }
 
       await tx.messageLog.create({
         data: {
@@ -221,6 +245,7 @@ export async function POST(req: Request, { params }: Params) {
       pdfUrl,
       payUrl,
       whatsappText: whatsappBody,
+      emailSent: doSendEmail,
     });
   } catch (err: any) {
     console.error("[quotes:finalize-send] error", err);

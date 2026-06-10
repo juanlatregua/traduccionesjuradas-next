@@ -48,8 +48,44 @@ Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
   return { subject, body };
 }
 
-export function buildWhatsAppPayText(data: CommonData) {
-  return `Hola ${data.name}, soy Juan Silva de TraduccionesJuradas.net. Le envío su presupuesto para revisar y confirmar aquí: ${data.payUrl}. Puede pagar por Bizum, transferencia o PayPal. En cuanto quede confirmado, comenzamos.`;
+// Etiquetas de pago para el mensaje de WhatsApp (cuenta / Bizum a elegir).
+export const PAYMENT_LABELS: Record<string, string> = {
+  bbva: "por transferencia a BBVA: ES66 0182 3370 67 0201616991",
+  openbank: "por transferencia a Openbank: ES33 0073 0100 5207 9242 5264",
+  bizum607: "por Bizum al 607356273",
+  bizum654: "por Bizum al 654069126",
+  bizum: "por Bizum al 607356273 / 654069126",
+  paypal: "por PayPal a hola@traduccionesjuradas.net",
+};
+
+export function buildWhatsAppPayText(data: {
+  name: string;
+  totalEur?: number;
+  deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP";
+  plazo?: string | null;
+  paymentMethods?: string[];
+  payUrl?: string;
+}) {
+  const methods = (data.paymentMethods && data.paymentMethods.length > 0
+    ? data.paymentMethods
+    : ["bbva", "bizum607"]
+  ).filter((m) => PAYMENT_LABELS[m]);
+  const payLines = methods.map((m, i) => `${i + 1}️⃣ ${PAYMENT_LABELS[m]}`).join("\n");
+  const entrega =
+    data.deliveryType === "PAPER_SHIP"
+      ? "📑 La traducción jurada es oficial y se envía en papel por mensajería."
+      : "📑 La traducción jurada es oficial y se envía en PDF con firma digital.";
+  return [
+    `Hola ${data.name}, le paso el presupuesto de su traducción jurada:`,
+    data.totalEur != null ? `💰 Coste: ${data.totalEur.toFixed(2)}€ (IVA incluido).` : "",
+    data.plazo ? `🕙 Plazo: ${data.plazo}.` : "",
+    entrega,
+    `🤝 Para confirmar su encargo puede hacer el pago:`,
+    payLines,
+    `📥 Envíenos el justificante de pago para finalizar el encargo. ¡Gracias!`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function buildPaidDigitalEmail(data: { name: string; etaDate: Date }) {

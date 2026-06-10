@@ -38,6 +38,17 @@ function toMoney(value: number) {
   return `${value.toFixed(2)} EUR`;
 }
 
+// La fuente estándar de jsPDF (helvetica/WinAnsi) no tiene varios caracteres
+// Unicode (p.ej. la flecha →) → salen como garabatos. Los normalizamos.
+function safe(s: string) {
+  return String(s ?? "")
+    .replace(/→/g, "->")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[–—]/g, "-")
+    .replace(/…/g, "...");
+}
+
 function drawRow(doc: jsPDF, y: number, cols: [string, string, string, string], bold = false) {
   doc.setFont("helvetica", bold ? "bold" : "normal");
   doc.text(cols[0], 14, y, { maxWidth: 90 });
@@ -99,17 +110,14 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
       doc.line(14, y, 196, y);
       y += 5;
     }
-    drawRow(
-      doc,
-      y,
-      [
-        line.description,
-        String(line.quantity),
-        toMoney(line.unitPrice),
-        toMoney(line.lineTotal),
-      ]
-    );
-    y += 6;
+    const descLines: string[] = doc.splitTextToSize(safe(line.description), 90);
+    const rowHeight = Math.max(6, descLines.length * 5);
+    doc.setFont("helvetica", "normal");
+    doc.text(descLines, 14, y);
+    doc.text(String(line.quantity), 110, y, { align: "right" });
+    doc.text(toMoney(line.unitPrice), 145, y, { align: "right" });
+    doc.text(toMoney(line.lineTotal), 195, y, { align: "right" });
+    y += rowHeight;
   });
 
   y += 4;
@@ -134,15 +142,14 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   y += 4;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`Pago seguro: ${data.payUrl}`, 14, y, { maxWidth: 180 });
-  y += 5;
+  // El enlace de pago NO va en el PDF (se envía aparte por WhatsApp/email, copia-pega).
   if (data.deliveryType === "PAPER_SHIP") {
     doc.text("El coste de envío en papel (12 € + IVA) está incluido en el total.", 14, y, { maxWidth: 180 });
     y += 5;
   }
 
   if (data.notesLegal) {
-    doc.text(`Notas legales: ${data.notesLegal}`, 14, y, { maxWidth: 180 });
+    doc.text(`Notas legales: ${safe(data.notesLegal)}`, 14, y, { maxWidth: 180 });
     y += 5;
   }
 
@@ -164,9 +171,9 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   if (methods.includes("openbank")) {
     payLines.push("Openbank · BIC OPENESMM · IBAN ES33 0073 0100 5207 9242 5264 · Juan Silva");
   }
-  if (methods.includes("bizum")) {
-    payLines.push("Bizum: 607356273 / 654069126");
-  }
+  const bizumBoth = methods.includes("bizum");
+  if (bizumBoth || methods.includes("bizum607")) payLines.push("Bizum: 607356273");
+  if (bizumBoth || methods.includes("bizum654")) payLines.push("Bizum: 654069126");
   if (methods.includes("paypal")) {
     payLines.push("PayPal: hola@traduccionesjuradas.net");
   }

@@ -94,7 +94,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
   const [validityDays, setValidityDays] = useState(15);
   const [notesLegal, setNotesLegal] = useState("");
   const [marginPct, setMarginPct] = useState(30);
-  const [paymentMethods, setPaymentMethods] = useState<string[]>(["bbva", "openbank", "bizum"]);
+  const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">("DIGITAL_PDF");
+  const [deliveryNote, setDeliveryNote] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(["bbva", "openbank", "bizum607"]);
   const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -269,20 +271,22 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
     () => includedDocs.reduce((s, d) => s + clientPriceOf(d.unitPrice), 0),
     [includedDocs, clientPriceOf]
   );
-  const discountAmount = Math.min(subtotal, (subtotal * discountPct) / 100);
-  const taxable = Math.max(0, subtotal - discountAmount);
+  const shipping = deliveryType === "PAPER_SHIP" ? 12 : 0;
+  const discountAmount = Math.min(subtotal + shipping, (subtotal * discountPct) / 100);
+  const taxable = Math.max(0, subtotal + shipping - discountAmount);
   const vat = taxable * 0.21;
   const total = taxable + vat;
 
   const busy = docs.some((d) => d.status === "uploading" || d.status === "analyzing");
-  const canSubmit =
-    !submitting &&
-    !busy &&
-    includedDocs.length > 0 &&
-    customerName.trim() &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail) &&
-    sourceLang &&
-    targetLang;
+  const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
+  const hasPhone = customerPhone.trim().length >= 6;
+  const missing: string[] = [];
+  if (includedDocs.length === 0) missing.push("una línea con precio");
+  if (!customerName.trim()) missing.push("nombre del cliente");
+  if (!hasEmail && !hasPhone) missing.push("email o teléfono del cliente");
+  if (!sourceLang) missing.push("idioma origen");
+  if (!targetLang) missing.push("idioma destino");
+  const canSubmit = !submitting && !busy && missing.length === 0;
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -290,8 +294,10 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
     try {
       const lines = includedDocs.map((d) => {
         const baseName = d.documentTypeEs || d.fileName.trim() || "Línea";
+        const dirSrc = d.sourceName || d.sourceLang || sourceLang;
+        const dirTgt = d.targetName || d.targetLang || targetLang;
         const parts: string[] = [];
-        if (d.sourceLang && d.targetLang) parts.push(`${d.sourceName || d.sourceLang}→${d.targetName || d.targetLang}`);
+        if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
         if (d.words) parts.push(`${d.words} palabras`);
         if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
         return {
@@ -310,13 +316,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           customerPhone: customerPhone.trim() || undefined,
           sourceLang,
           targetLang,
-          deliveryType: "DIGITAL_PDF",
+          deliveryType,
           expedienteRef: expedienteRef || undefined,
           discountType: discountPct > 0 ? "PERCENT" : "NONE",
           discountValue: discountPct,
           vatRate: 0.21,
           validityDays,
-          notesLegal: notesLegal.trim() || undefined,
+          notesLegal: [deliveryNote.trim() ? `Plazo de entrega: ${deliveryNote.trim()}.` : "", notesLegal.trim()].filter(Boolean).join(" ") || undefined,
           marginPct,
           paymentMethods,
           contactWhatsapp: contactWhatsapp.trim() || undefined,
@@ -334,7 +340,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, expedienteRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, expedienteRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote]);
 
   return (
     <div className="space-y-6 text-slate-200">
@@ -448,10 +454,47 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-300">
-                    {d.status === "done" ? `${(d.sourceLang || "?").toUpperCase()}→${(d.targetLang || "?").toUpperCase()}` : "—"}
+                    {d.status === "done" ? (
+                      `${(d.sourceLang || sourceLang || "?").toUpperCase()}→${(d.targetLang || targetLang || "?").toUpperCase()}`
+                    ) : d.status === "error" || d.status === "manual" ? (
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={d.sourceLang || ""}
+                          onChange={(e) => patch(d.localId, { sourceLang: e.target.value || undefined })}
+                          className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
+                        >
+                          <option value="">orig</option>
+                          {LANGS.map((l) => <option key={l.code} value={l.code}>{l.code.toUpperCase()}</option>)}
+                        </select>
+                        <span>→</span>
+                        <select
+                          value={d.targetLang || ""}
+                          onChange={(e) => patch(d.localId, { targetLang: e.target.value || undefined })}
+                          className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
+                        >
+                          <option value="">dest</option>
+                          {LANGS.map((l) => <option key={l.code} value={l.code}>{l.code.toUpperCase()}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-slate-300">
-                    {d.status === "done" ? d.words ?? "—" : "—"}
+                    {d.status === "done" ? (
+                      d.words ?? "—"
+                    ) : d.status === "error" || d.status === "manual" ? (
+                      <input
+                        type="number"
+                        min={0}
+                        value={d.words ?? ""}
+                        onChange={(e) => patch(d.localId, { words: e.target.value === "" ? undefined : Number(e.target.value) })}
+                        placeholder="palabras"
+                        className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                      />
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right">
                     {isPriceable(d.status) ? (
@@ -522,6 +565,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                 Validez (días)
                 <input type="number" min={1} value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
               </label>
+              <label className="text-xs text-slate-400">
+                Tipo de entrega
+                <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "DIGITAL_PDF" | "PAPER_SHIP")} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
+                  <option value="DIGITAL_PDF">PDF con certificado digital</option>
+                  <option value="PAPER_SHIP">Envío en papel (+12 € + IVA)</option>
+                </select>
+              </label>
+              <label className="text-xs text-slate-400">
+                Plazo de entrega
+                <input value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="ej. 3-4 días hábiles" className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+              </label>
             </div>
             {sourceLang && targetLang && docs.some((d) => d.status === "done" && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
               <p className="text-xs text-amber-400">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
@@ -546,7 +600,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                 {[
                   { id: "bbva", label: "BBVA" },
                   { id: "openbank", label: "Openbank" },
-                  { id: "bizum", label: "Bizum" },
+                  { id: "bizum607", label: "Bizum 607356273" },
+                  { id: "bizum654", label: "Bizum 654069126" },
                   { id: "paypal", label: "PayPal" },
                 ].map((m) => (
                   <label key={m.id} className="flex items-center gap-1">
@@ -567,6 +622,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           <div className="w-full max-w-xs space-y-1 text-sm">
             <div className="flex justify-between text-slate-400"><span>Subtotal</span><span className="tabular-nums">{subtotal.toFixed(2)} €</span></div>
             {discountPct > 0 && <div className="flex justify-between text-emerald-400"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>}
+            {shipping > 0 && <div className="flex justify-between text-slate-400"><span>Envío papel</span><span className="tabular-nums">{shipping.toFixed(2)} €</span></div>}
             <div className="flex justify-between text-slate-400"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
             <div className="flex justify-between border-t border-slate-700 pt-1 text-base font-semibold text-white"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
             <div className="mt-1 flex justify-between border-t border-dashed border-slate-700 pt-1 text-[11px] text-slate-500" title="Solo visible para ti, no aparece en el presupuesto del cliente">
@@ -583,6 +639,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           >
             {submitting ? "Creando…" : `Generar presupuesto (${includedDocs.length} doc${includedDocs.length > 1 ? "s" : ""})`}
           </button>
+          {!canSubmit && !submitting && missing.length > 0 && (
+            <p className="text-xs text-amber-400">Falta: {missing.join(", ")}.</p>
+          )}
           <p className="text-xs text-slate-500">Se crea como borrador en /admin/quotes para revisar y enviar.</p>
         </div>
       )}
