@@ -6,6 +6,7 @@ function serializeLine(line: any) {
     description: line.description,
     quantity: decimalToNumber(line.quantity),
     unitPrice: decimalToNumber(line.unitPrice),
+    supplierUnitCost: line.supplierUnitCost != null ? decimalToNumber(line.supplierUnitCost) : null,
     lineTotal: decimalToNumber(line.lineTotal),
   };
 }
@@ -47,6 +48,9 @@ export function serializeQuote(quote: any) {
     total: decimalToNumber(quote.total),
     adminCreatedBy: quote.adminCreatedBy,
     adminSentBy: quote.adminSentBy,
+    marginPct: quote.marginPct ?? null,
+    paymentMethods: Array.isArray(quote.paymentMethods) ? quote.paymentMethods : [],
+    contactWhatsapp: quote.contactWhatsapp ?? null,
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt,
     lines: Array.isArray(quote.lines) ? quote.lines.map(serializeLine) : [],

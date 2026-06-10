@@ -51,16 +51,32 @@ type ParsedCommon = {
   vatRate: number;
   notesLegal: string | null;
   validityDays: number;
+  marginPct: number | null;
+  paymentMethods: string[];
+  contactWhatsapp: string | null;
   lines: Array<{
     description: string;
     quantity: number;
     unitPrice: number;
+    supplierUnitCost?: number;
   }>;
 };
 
+const ALLOWED_PAYMENT_METHODS = ["bbva", "openbank", "bizum", "bizum607", "bizum654", "paypal"];
+
+function normalizePaymentMethods(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const v of value) {
+    const m = String(v || "").trim().toLowerCase();
+    if (ALLOWED_PAYMENT_METHODS.includes(m)) seen.add(m);
+  }
+  return [...seen];
+}
+
 function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; error: string } {
   const customerName = normalizeText(raw.customerName);
-  const customerEmail = normalizeEmail(raw.customerEmail);
+  let customerEmail = normalizeEmail(raw.customerEmail);
   const sourceLang = normalizeText(raw.sourceLang).toLowerCase();
   const targetLang = normalizeText(raw.targetLang).toLowerCase();
   const deliveryType = normalizeDeliveryType(raw.deliveryType);
@@ -70,9 +86,22 @@ function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; 
   const notesLegal = normalizeText(raw.notesLegal) || null;
   const validityDays = Math.max(1, Math.round(normalizeNumber(raw.validityDays, 15)));
   const customerPhone = normalizePhone(raw.customerPhone);
+  const rawMargin = Number(raw.marginPct);
+  const marginPct = Number.isFinite(rawMargin) && rawMargin >= 0 ? Math.round(rawMargin) : null;
+  const paymentMethods = normalizePaymentMethods(raw.paymentMethods);
+  const contactWhatsapp = normalizeText(raw.contactWhatsapp) || null;
 
   if (!customerName) return { ok: false, error: "Nombre de cliente requerido." };
-  if (!validateEmail(customerEmail)) return { ok: false, error: "Email de cliente no válido." };
+  // Email O teléfono: basta uno (el cliente puede entrar solo por WhatsApp).
+  // Sin email pero con teléfono → email-marcador no entregable (se envía por WhatsApp).
+  if (!validateEmail(customerEmail)) {
+    if (customerPhone) {
+      const digits = customerPhone.replace(/\D/g, "") || "sintelefono";
+      customerEmail = `${digits}@whatsapp.local`;
+    } else {
+      return { ok: false, error: "Indica el email o el teléfono del cliente." };
+    }
+  }
   if (!sourceLang || sourceLang.length < 2) return { ok: false, error: "Idioma origen requerido." };
   if (!targetLang || targetLang.length < 2) return { ok: false, error: "Idioma destino requerido." };
   if (vatRate < 0 || vatRate > 1) return { ok: false, error: "IVA inválido. Usa valor entre 0 y 1 (ej. 0.21)." };
@@ -100,6 +129,9 @@ function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; 
       vatRate,
       notesLegal,
       validityDays,
+      marginPct,
+      paymentMethods,
+      contactWhatsapp,
       lines: parsedLines.lines,
     },
   };

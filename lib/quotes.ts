@@ -3,7 +3,8 @@ import crypto from "crypto";
 export type QuoteLineInput = {
   description: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: number; // precio CLIENTE (sin IVA)
+  supplierUnitCost?: number; // coste del traductor (sin IVA) — solo interno
 };
 
 export type QuoteDiscountType = "NONE" | "PERCENT" | "FIXED";
@@ -125,10 +126,13 @@ export function normalizeQuoteLines(raw: unknown) {
     if (!Number.isFinite(unitPrice) || unitPrice < 0) {
       return { ok: false as const, error: `Precio inválido en "${description}".` };
     }
+    const rawCost = Number((item as any)?.supplierUnitCost);
+    const supplierUnitCost = Number.isFinite(rawCost) && rawCost >= 0 ? round2(rawCost) : undefined;
     lines.push({
       description,
       quantity: round2(quantity),
       unitPrice: round2(unitPrice),
+      ...(supplierUnitCost !== undefined ? { supplierUnitCost } : {}),
     });
   }
 
@@ -155,6 +159,7 @@ export function computeQuoteTotals(params: {
       quantity: round2(line.quantity),
       unitPrice: round2(line.unitPrice),
       lineTotal,
+      supplierUnitCost: line.supplierUnitCost !== undefined ? round2(line.supplierUnitCost) : null,
     };
   });
 

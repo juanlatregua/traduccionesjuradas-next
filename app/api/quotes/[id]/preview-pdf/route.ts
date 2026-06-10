@@ -54,6 +54,8 @@ export async function GET(req: Request, { params }: Params) {
     })),
     isDraft: true,
     notesLegal: quote.notesLegal,
+    paymentMethods: quote.paymentMethods,
+    contactWhatsapp: quote.contactWhatsapp,
   });
 
   return new NextResponse(buffer, {

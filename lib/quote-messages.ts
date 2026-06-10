@@ -48,8 +48,61 @@ Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
   return { subject, body };
 }
 
-export function buildWhatsAppPayText(data: CommonData) {
-  return `Hola ${data.name}, soy Juan Silva de TraduccionesJuradas.net. Le envío su presupuesto para revisar y confirmar aquí: ${data.payUrl}. Puede pagar por Bizum, transferencia o PayPal. En cuanto quede confirmado, comenzamos.`;
+// Etiquetas de pago para el mensaje de WhatsApp (cuenta / Bizum a elegir).
+export const PAYMENT_LABELS: Record<string, string> = {
+  bbva: "por transferencia a BBVA: ES66 0182 3370 67 0201616991",
+  openbank: "por transferencia a Openbank: ES33 0073 0100 5207 9242 5264",
+  bizum607: "por Bizum al 607356273",
+  bizum654: "por Bizum al 654069126",
+  bizum: "por Bizum al 607356273 / 654069126",
+  paypal: "por PayPal a hola@traduccionesjuradas.net",
+};
+
+const LANG_NAMES: Record<string, string> = {
+  es: "español", fr: "francés", en: "inglés", de: "alemán", it: "italiano",
+  pt: "portugués", ca: "catalán", nl: "neerlandés", sv: "sueco", no: "noruego",
+  ar: "árabe", ro: "rumano",
+};
+
+export function buildWhatsAppPayText(data: {
+  name: string;
+  totalEur?: number;
+  deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP";
+  plazo?: string | null;
+  paymentMethods?: string[];
+  sourceLang?: string;
+  targetLang?: string;
+  payUrl?: string;
+}) {
+  const methods = (data.paymentMethods && data.paymentMethods.length > 0
+    ? data.paymentMethods
+    : ["bbva", "bizum607"]
+  ).filter((m) => PAYMENT_LABELS[m]);
+  const payLines = methods.map((m, i) => `${i + 1}️⃣ ${PAYMENT_LABELS[m]}`).join("\n");
+
+  const src = data.sourceLang ? LANG_NAMES[data.sourceLang] || data.sourceLang : "";
+  const tgt = data.targetLang ? LANG_NAMES[data.targetLang] || data.targetLang : "";
+  const par = src && tgt ? ` del ${src} al ${tgt}` : "";
+  const costeLine =
+    data.totalEur != null
+      ? `- 💰 El coste de la traducción jurada${par} es de ${data.totalEur.toFixed(2)}€ (IVA incluido).`
+      : "";
+  const entrega =
+    data.deliveryType === "PAPER_SHIP"
+      ? "- 📑 La traducción jurada es oficial y se envía en papel por mensajería."
+      : "- 📑 La traducción jurada es oficial y se envía en PDF con firma digital.";
+
+  return [
+    `Hola ${data.name} 👋`,
+    costeLine,
+    data.plazo ? `- 🕙 El plazo es de ${data.plazo}.` : "",
+    entrega,
+    `- 🤝 Para confirmar su encargo puede hacer el pago:`,
+    payLines,
+    `- 📥 Nos envía el justificante de pago para finalizar el encargo. ¡Gracias!`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function buildPaidDigitalEmail(data: { name: string; etaDate: Date }) {

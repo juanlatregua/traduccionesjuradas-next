@@ -7,6 +7,7 @@ type QuoteLine = {
   description: string;
   quantity: number;
   unitPrice: number;
+  supplierUnitCost?: number | null;
   lineTotal: number;
 };
 
@@ -31,6 +32,7 @@ type QuoteData = {
   deliveredAt?: string | null;
   publicToken: string;
   pdfUrl?: string | null;
+  marginPct?: number | null;
   lines: QuoteLine[];
   messageLogs?: Array<{
     id: string;
@@ -120,21 +122,33 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
-  async function handleFinalizeSend() {
+  async function handleFinalizeSend(skipEmail = false) {
     setLoadingSend(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/quotes/${quote.id}/finalize-send`, { method: "POST" });
+      const res = await fetch(`/api/quotes/${quote.id}/finalize-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skipEmail }),
+      });
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo enviar el presupuesto.");
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo generar el presupuesto.");
       setWhatsText(String(data.whatsappText || ""));
-      setMessage("Presupuesto enviado al cliente correctamente.");
+      setMessage(
+        data.emailSent
+          ? "Presupuesto generado y enviado por email al cliente."
+          : "Presupuesto generado. Descarga el PDF y copia el texto de WhatsApp para enviárselo tú."
+      );
       await reloadQuote();
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo enviar el presupuesto.");
+      setMessage(err?.message || "No se pudo generar el presupuesto.");
     } finally {
       setLoadingSend(false);
     }
+  }
+
+  function downloadPdf() {
+    window.open(quote.pdfUrl || `/api/quotes/${quote.id}/preview-pdf`, "_blank");
   }
 
   async function handleResend() {
@@ -259,11 +273,26 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
         <div className="mt-5 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={handleFinalizeSend}
+            onClick={() => handleFinalizeSend(false)}
             disabled={loadingSend}
             className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
           >
-            {loadingSend ? "Enviando..." : "Confirmar y enviar"}
+            {loadingSend ? "Generando..." : "Confirmar y enviar por email"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFinalizeSend(true)}
+            disabled={loadingSend}
+            className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-60"
+          >
+            {loadingSend ? "Generando..." : "Generar (lo envío yo)"}
+          </button>
+          <button
+            type="button"
+            onClick={downloadPdf}
+            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Descargar PDF
           </button>
           <button
             type="button"
@@ -440,6 +469,33 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
             </tbody>
           </table>
         </div>
+
+        {(quote.marginPct != null || quote.lines.some((l) => l.supplierUnitCost != null)) && (
+          <div className="mt-3 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-3 text-xs text-slate-700">
+            <p className="font-semibold text-amber-700">Desglose interno · no aparece en el presupuesto del cliente</p>
+            <table className="mt-2 w-full text-left">
+              <thead className="text-slate-500">
+                <tr>
+                  <th className="py-1">Concepto</th>
+                  <th className="py-1 text-right">Coste traductor</th>
+                  <th className="py-1 text-right">Precio cliente</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quote.lines.map((line) => (
+                  <tr key={`int-${line.id}`} className="border-t border-amber-100">
+                    <td className="py-1">{line.description}</td>
+                    <td className="py-1 text-right">{line.supplierUnitCost != null ? formatMoney(line.supplierUnitCost) : "—"}</td>
+                    <td className="py-1 text-right">{formatMoney(line.unitPrice)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2">
+              Margen aplicado: <strong>{quote.marginPct != null ? `${quote.marginPct}%` : "—"}</strong>
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

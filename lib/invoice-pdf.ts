@@ -60,10 +60,10 @@ function drawHolaBonjourWordmark(doc: jsPDF, x: number, y: number) {
 
 // Paleta marca web
 const GOLD: [number, number, number] = [184, 146, 42]; // #B8922A
-const GOLD_DARK: [number, number, number] = [150, 117, 30];
+export const GOLD_DARK: [number, number, number] = [150, 117, 30];
 const BLUE: [number, number, number] = [61, 111, 168]; // #3D6FA8
-const INK: [number, number, number] = [17, 32, 46];
-const GREY: [number, number, number] = [110, 122, 133];
+export const INK: [number, number, number] = [17, 32, 46];
+export const GREY: [number, number, number] = [110, 122, 133];
 const TABLE_BG: [number, number, number] = [225, 230, 245];
 const LINE_GREY: [number, number, number] = [206, 211, 220];
 
@@ -88,7 +88,7 @@ function eur(cents: number): string {
 }
 
 // Recreación vectorial del logo (banner dorado + monograma TJ + wordmark + .net).
-function drawLogo(doc: jsPDF, x: number, y: number, w: number) {
+export function drawLogo(doc: jsPDF, x: number, y: number, w: number) {
   const s = w / 600; // escala desde el viewBox 600x200
   const h = 200 * s;
   const px = (u: number) => x + u * s;
