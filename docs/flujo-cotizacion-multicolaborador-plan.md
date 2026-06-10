@@ -26,6 +26,11 @@ cotización competitiva entre colaboradores y precio automático al cliente:
 - **Intake por las 3 vías**: alta manual (ya existe) primero; luego webhook WhatsApp y webhook email.
   WhatsApp entrante queda supeditado a rehabilitar el sender (ver `project_fase2_whatsapp_state`).
 - **Juan Silva = colaborador formal** con `fr`; los pedidos FR crean una asignación auto-aceptada.
+- **Cotización competitiva REAL: broadcast a N colaboradores por idioma.** NO un colaborador fijo. Al entrar un encargo no-FR, se pide presupuesto a **todos los colaboradores activos de ese idioma** (`getCollaboratorsByLanguage`), varios cotizan, y se elige la mejor por precio/plazo. La "puerta" queda abierta a añadir colaboradores (Juan tiene para árabe `ar`, rumano `ro`, etc.).
+- **Idiomas = los que tengan ≥1 colaborador activo**, NO un set fijo. Hay que generalizar `AUTO_ASSIGN_LANGUAGES` (hoy en/de/pt/it hardcoded) → derivar del padrón de colaboradores. Añadir un colaborador de árabe/rumano debe activar el flujo sin tocar código. Mantener la exclusión de negocio **ru/uk** (dificultad de plazos, ver [[project_automation_notifications]]).
+- **TODOS los no-FR a cotización (incluida la web):** se **retira el auto-precio del motor** para esos idiomas; el precio sale de la cotización del/los colaborador(es). Implicación: el cliente web de esos idiomas deja de ver precio instantáneo (pasa a "te cotizamos en breve").
+- **Visto bueno de Juan (1 toque):** recibidas las ofertas, el sistema **sugiere la mejor** (precio+plazo) y Juan **confirma** con un toque (puede ajustar margen/precio); recién entonces va el presupuesto+pago al cliente. Selección híbrida real.
+- **`autoAssignCollaboratorIfNeeded` se reemplaza por broadcast:** hoy asigna a 1 (`DEFAULT_COLLABORATOR_EMAIL`) y salta a EN_TRADUCCION tras el pago. El nuevo `quote-request-batch` crea N asignaciones REQUESTED al entrar el encargo (antes de cobrar) y NO salta a EN_TRADUCCION.
 
 ## Estado actual — lo que YA existe (≈70%)
 
