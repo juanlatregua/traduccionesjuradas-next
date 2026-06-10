@@ -7,7 +7,13 @@ import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle } from "lucid
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
 
-type DocStatus = "uploading" | "analyzing" | "done" | "error";
+type DocStatus = "uploading" | "analyzing" | "done" | "error" | "manual";
+
+// Una línea es facturable (se puede incluir y ponerle precio) si está analizada,
+// si dio error (precio a mano) o si es una línea manual sin documento.
+function isPriceable(status: DocStatus): boolean {
+  return status === "done" || status === "error" || status === "manual";
+}
 
 type DocRow = {
   localId: string;
@@ -225,7 +231,22 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const includedDocs = docs.filter((d) => d.include && d.status === "done");
+  const addManualLine = useCallback(() => {
+    setDocs((prev) => [
+      ...prev,
+      {
+        localId: uid(),
+        fileName: "",
+        fileSize: 0,
+        mimeType: "",
+        status: "manual" as DocStatus,
+        include: true,
+        unitPrice: 0,
+      },
+    ]);
+  }, []);
+
+  const includedDocs = docs.filter((d) => d.include && isPriceable(d.status));
   const subtotal = useMemo(
     () => includedDocs.reduce((s, d) => s + (d.unitPrice || 0), 0),
     [includedDocs]
@@ -250,11 +271,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
     setSubmitting(true);
     try {
       const lines = includedDocs.map((d) => {
-        const dir =
-          d.sourceLang && d.targetLang ? ` (${d.sourceName || d.sourceLang}→${d.targetName || d.targetLang}` : " (";
-        const meta = `${d.words ? `${d.words} palabras` : ""}${d.pages && d.pages > 1 ? `, ${d.pages} págs` : ""}`;
+        const baseName = d.documentTypeEs || d.fileName.trim() || "Línea";
+        const parts: string[] = [];
+        if (d.sourceLang && d.targetLang) parts.push(`${d.sourceName || d.sourceLang}→${d.targetName || d.targetLang}`);
+        if (d.words) parts.push(`${d.words} palabras`);
+        if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
         return {
-          description: `${d.documentTypeEs || d.fileName}${dir}${meta ? `, ${meta}` : ""})`.replace("(,", "("),
+          description: parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
           quantity: 1,
           unitPrice: d.unitPrice,
         };
@@ -323,6 +346,18 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         />
       </div>
 
+      {/* Añadir una línea a mano (sin documento) */}
+      <div>
+        <button
+          type="button"
+          onClick={addManualLine}
+          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
+        >
+          + Añadir línea manual
+        </button>
+        <span className="ml-2 text-xs text-slate-500">Para presupuestar sin subir documento, o añadir conceptos sueltos.</span>
+      </div>
+
       {/* Tabla de documentos */}
       {docs.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-slate-700">
@@ -345,16 +380,26 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                     <input
                       type="checkbox"
                       checked={d.include}
-                      disabled={d.status !== "done"}
+                      disabled={d.status === "uploading" || d.status === "analyzing"}
                       onChange={(e) => patch(d.localId, { include: e.target.checked })}
                       className="h-4 w-4 rounded border-slate-600"
                     />
                   </td>
                   <td className="max-w-[220px] px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 shrink-0 text-slate-500" />
-                      <span className="truncate" title={d.fileName}>{d.fileName}</span>
-                    </div>
+                    {d.status === "manual" ? (
+                      <input
+                        type="text"
+                        value={d.fileName}
+                        onChange={(e) => patch(d.localId, { fileName: e.target.value })}
+                        placeholder="Concepto de la línea"
+                        className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+                        <span className="truncate" title={d.fileName}>{d.fileName}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     {d.status === "uploading" && (
@@ -364,7 +409,10 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                       <span className="flex items-center gap-1 text-cyan-400"><Loader2 className="h-3 w-3 animate-spin" /> Analizando…</span>
                     )}
                     {d.status === "error" && (
-                      <span className="flex items-center gap-1 text-amber-400" title={d.error}><AlertTriangle className="h-3 w-3" /> Error</span>
+                      <span className="flex items-center gap-1 text-amber-400" title={d.error}><AlertTriangle className="h-3 w-3" /> Error · precio a mano</span>
+                    )}
+                    {d.status === "manual" && (
+                      <span className="text-slate-400">Línea manual</span>
                     )}
                     {d.status === "done" && (
                       <span className="flex items-center gap-1">
@@ -383,7 +431,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                     {d.status === "done" ? d.words ?? "—" : "—"}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {d.status === "done" ? (
+                    {isPriceable(d.status) ? (
                       <input
                         type="number"
                         min={0}
