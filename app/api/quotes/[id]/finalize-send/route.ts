@@ -123,6 +123,8 @@ export async function POST(req: Request, { params }: Params) {
       deliveryType: quote.deliveryType,
       plazo: plazoMatch ? plazoMatch[1].trim() : null,
       paymentMethods: quote.paymentMethods,
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
       payUrl,
     });
 

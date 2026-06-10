@@ -3,6 +3,8 @@ import { jsPDF } from "jspdf";
 import { put } from "@vercel/blob";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { formatDateEs } from "@/lib/quotes";
+import { drawLogo, GOLD_DARK, GREY } from "@/lib/invoice-pdf";
+import { getBrand } from "@/lib/invoice-brands";
 
 type QuotePdfLine = {
   description: string;
@@ -59,21 +61,35 @@ function drawRow(doc: jsPDF, y: number, cols: [string, string, string, string], 
 
 export function buildQuotePdfBuffer(data: QuotePdfData) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  let y = 16;
+  const brand = getBrand("traduccionesjuradas");
 
+  // Cabecera con el MISMO logo y datos que las facturas (logo vectorial).
+  drawLogo(doc, 14, 12, 64);
+  let yEmit = 42;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text("TRADUCCIONES JURADAS", 14, y);
-  y += 7;
-
+  doc.setFontSize(9);
+  doc.setTextColor(...GOLD_DARK);
+  doc.text(brand.emitterName, 14, yEmit);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text("Presupuesto de traducción jurada", 14, y);
-  y += 6;
-  doc.text(`Nº presupuesto: ${data.quoteNumber}`, 14, y);
-  y += 5;
-  doc.text(`Fecha emisión: ${formatDateEs(data.issuedAt)} · Válido hasta: ${formatDateEs(data.validUntil)}`, 14, y);
-  y += 7;
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GREY);
+  doc.text(`CIF: ${brand.cif}`, 14, (yEmit += 4));
+  doc.text(brand.address, 14, (yEmit += 4));
+  doc.text(brand.city, 14, (yEmit += 4));
+
+  // Meta del presupuesto (arriba derecha)
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("PRESUPUESTO", 196, 18, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Nº ${data.quoteNumber}`, 196, 24, { align: "right" });
+  doc.text(`Emisión: ${formatDateEs(data.issuedAt)}`, 196, 29, { align: "right" });
+  doc.text(`Válido hasta: ${formatDateEs(data.validUntil)}`, 196, 34, { align: "right" });
+
+  doc.setTextColor(0, 0, 0);
+  let y = 58;
 
   doc.setDrawColor(210, 210, 210);
   doc.line(14, y, 196, y);
@@ -193,14 +209,6 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   doc.setFont("helvetica", "normal");
   doc.text(`Dudas: WhatsApp / teléfono ${whatsapp}`, 14, y, { maxWidth: 180 });
   y += 5;
-
-  if (data.isDraft) {
-    doc.setTextColor(220, 20, 60);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(28);
-    doc.text("BORRADOR", 105, 150, { align: "center", angle: -25 });
-    doc.setTextColor(0, 0, 0);
-  }
 
   const arrayBuffer = doc.output("arraybuffer");
   return Buffer.from(arrayBuffer);

@@ -58,12 +58,20 @@ export const PAYMENT_LABELS: Record<string, string> = {
   paypal: "por PayPal a hola@traduccionesjuradas.net",
 };
 
+const LANG_NAMES: Record<string, string> = {
+  es: "español", fr: "francés", en: "inglés", de: "alemán", it: "italiano",
+  pt: "portugués", ca: "catalán", nl: "neerlandés", sv: "sueco", no: "noruego",
+  ar: "árabe", ro: "rumano",
+};
+
 export function buildWhatsAppPayText(data: {
   name: string;
   totalEur?: number;
   deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP";
   plazo?: string | null;
   paymentMethods?: string[];
+  sourceLang?: string;
+  targetLang?: string;
   payUrl?: string;
 }) {
   const methods = (data.paymentMethods && data.paymentMethods.length > 0
@@ -71,18 +79,27 @@ export function buildWhatsAppPayText(data: {
     : ["bbva", "bizum607"]
   ).filter((m) => PAYMENT_LABELS[m]);
   const payLines = methods.map((m, i) => `${i + 1}️⃣ ${PAYMENT_LABELS[m]}`).join("\n");
+
+  const src = data.sourceLang ? LANG_NAMES[data.sourceLang] || data.sourceLang : "";
+  const tgt = data.targetLang ? LANG_NAMES[data.targetLang] || data.targetLang : "";
+  const par = src && tgt ? ` del ${src} al ${tgt}` : "";
+  const costeLine =
+    data.totalEur != null
+      ? `- 💰 El coste de la traducción jurada${par} es de ${data.totalEur.toFixed(2)}€ (IVA incluido).`
+      : "";
   const entrega =
     data.deliveryType === "PAPER_SHIP"
-      ? "📑 La traducción jurada es oficial y se envía en papel por mensajería."
-      : "📑 La traducción jurada es oficial y se envía en PDF con firma digital.";
+      ? "- 📑 La traducción jurada es oficial y se envía en papel por mensajería."
+      : "- 📑 La traducción jurada es oficial y se envía en PDF con firma digital.";
+
   return [
-    `Hola ${data.name}, le paso el presupuesto de su traducción jurada:`,
-    data.totalEur != null ? `💰 Coste: ${data.totalEur.toFixed(2)}€ (IVA incluido).` : "",
-    data.plazo ? `🕙 Plazo: ${data.plazo}.` : "",
+    `Hola ${data.name} 👋`,
+    costeLine,
+    data.plazo ? `- 🕙 El plazo es de ${data.plazo}.` : "",
     entrega,
-    `🤝 Para confirmar su encargo puede hacer el pago:`,
+    `- 🤝 Para confirmar su encargo puede hacer el pago:`,
     payLines,
-    `📥 Envíenos el justificante de pago para finalizar el encargo. ¡Gracias!`,
+    `- 📥 Nos envía el justificante de pago para finalizar el encargo. ¡Gracias!`,
   ]
     .filter(Boolean)
     .join("\n");
