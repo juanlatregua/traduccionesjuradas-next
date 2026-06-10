@@ -140,11 +140,15 @@ export async function POST(req: Request) {
           total: totals.total,
           adminCreatedBy: access.email,
           expedienteRef,
+          marginPct: parsed.data.marginPct,
+          paymentMethods: parsed.data.paymentMethods,
+          contactWhatsapp: parsed.data.contactWhatsapp,
           lines: {
             create: totals.lines.map((line) => ({
               description: line.description,
               quantity: line.quantity,
               unitPrice: line.unitPrice,
+              supplierUnitCost: line.supplierUnitCost,
               lineTotal: line.lineTotal,
             })),
           },

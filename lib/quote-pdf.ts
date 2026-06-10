@@ -30,6 +30,8 @@ type QuotePdfData = {
   lines: QuotePdfLine[];
   isDraft?: boolean;
   notesLegal?: string | null;
+  paymentMethods?: string[]; // bbva/openbank/bizum/paypal — vacío = todas por defecto
+  contactWhatsapp?: string | null; // WhatsApp/teléfono override para este presupuesto
 };
 
 function toMoney(value: number) {
@@ -151,14 +153,38 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
     doc.addPage();
     y = 18;
   }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("Pago por transferencia o Bizum (opcional):", 14, y);
-  y += 5;
+  const methods =
+    data.paymentMethods && data.paymentMethods.length > 0
+      ? data.paymentMethods
+      : ["bbva", "openbank", "bizum"];
+  const payLines: string[] = [];
+  if (methods.includes("bbva")) {
+    payLines.push("BBVA · BIC BBVAESMM · IBAN ES66 0182 3370 67 0201616991 · HBTJ Consultores Lingüísticos");
+  }
+  if (methods.includes("openbank")) {
+    payLines.push("Openbank · BIC OPENESMM · IBAN ES33 0073 0100 5207 9242 5264 · Juan Silva");
+  }
+  if (methods.includes("bizum")) {
+    payLines.push("Bizum: 607356273 / 654069126");
+  }
+  if (methods.includes("paypal")) {
+    payLines.push("PayPal: hola@traduccionesjuradas.net");
+  }
+  if (payLines.length > 0) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Pago por transferencia, Bizum o PayPal (opcional):", 14, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    for (const line of payLines) {
+      doc.text(line, 14, y, { maxWidth: 180 });
+      y += 4.5;
+    }
+    y += 0.5;
+  }
+  const whatsapp = (data.contactWhatsapp || "").trim() || "951 333 614";
   doc.setFont("helvetica", "normal");
-  doc.text("BBVA · BIC BBVAESMM · IBAN ES66 0182 3370 67 0201616991", 14, y, { maxWidth: 180 });
-  y += 4.5;
-  doc.text("Openbank (2ª opción) · BIC OPENESMM · IBAN ES33 0073 0100 5207 9242 5264 · Bizum 607356273", 14, y, { maxWidth: 180 });
+  doc.text(`Dudas: WhatsApp / teléfono ${whatsapp}`, 14, y, { maxWidth: 180 });
   y += 5;
 
   if (data.isDraft) {

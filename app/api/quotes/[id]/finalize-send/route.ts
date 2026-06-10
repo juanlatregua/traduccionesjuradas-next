@@ -77,6 +77,8 @@ export async function POST(req: Request, { params }: Params) {
       })),
       isDraft: false,
       notesLegal: quote.notesLegal,
+      paymentMethods: quote.paymentMethods,
+      contactWhatsapp: quote.contactWhatsapp,
     });
 
     const [pdfUrl, pdfHash] = await Promise.all([

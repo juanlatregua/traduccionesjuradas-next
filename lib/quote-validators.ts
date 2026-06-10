@@ -51,12 +51,28 @@ type ParsedCommon = {
   vatRate: number;
   notesLegal: string | null;
   validityDays: number;
+  marginPct: number | null;
+  paymentMethods: string[];
+  contactWhatsapp: string | null;
   lines: Array<{
     description: string;
     quantity: number;
     unitPrice: number;
+    supplierUnitCost?: number;
   }>;
 };
+
+const ALLOWED_PAYMENT_METHODS = ["bbva", "openbank", "bizum", "paypal"];
+
+function normalizePaymentMethods(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const v of value) {
+    const m = String(v || "").trim().toLowerCase();
+    if (ALLOWED_PAYMENT_METHODS.includes(m)) seen.add(m);
+  }
+  return [...seen];
+}
 
 function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; error: string } {
   const customerName = normalizeText(raw.customerName);
@@ -70,6 +86,10 @@ function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; 
   const notesLegal = normalizeText(raw.notesLegal) || null;
   const validityDays = Math.max(1, Math.round(normalizeNumber(raw.validityDays, 15)));
   const customerPhone = normalizePhone(raw.customerPhone);
+  const rawMargin = Number(raw.marginPct);
+  const marginPct = Number.isFinite(rawMargin) && rawMargin >= 0 ? Math.round(rawMargin) : null;
+  const paymentMethods = normalizePaymentMethods(raw.paymentMethods);
+  const contactWhatsapp = normalizeText(raw.contactWhatsapp) || null;
 
   if (!customerName) return { ok: false, error: "Nombre de cliente requerido." };
   if (!validateEmail(customerEmail)) return { ok: false, error: "Email de cliente no válido." };
@@ -100,6 +120,9 @@ function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; 
       vatRate,
       notesLegal,
       validityDays,
+      marginPct,
+      paymentMethods,
+      contactWhatsapp,
       lines: parsedLines.lines,
     },
   };

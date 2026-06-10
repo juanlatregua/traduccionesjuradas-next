@@ -93,6 +93,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
   const [discountTouched, setDiscountTouched] = useState(false);
   const [validityDays, setValidityDays] = useState(15);
   const [notesLegal, setNotesLegal] = useState("");
+  const [marginPct, setMarginPct] = useState(30);
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(["bbva", "openbank", "bizum"]);
+  const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -246,10 +249,25 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
     ]);
   }, []);
 
+  // El campo editable de cada línea es el COSTE del traductor (sin IVA).
+  // El precio al cliente se deriva aplicando el margen.
+  const clientPriceOf = useCallback(
+    (cost: number) => Math.round((cost || 0) * (1 + marginPct / 100) * 100) / 100,
+    [marginPct]
+  );
+
+  const togglePaymentMethod = useCallback((m: string) => {
+    setPaymentMethods((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
+  }, []);
+
   const includedDocs = docs.filter((d) => d.include && isPriceable(d.status));
-  const subtotal = useMemo(
+  const costTotal = useMemo(
     () => includedDocs.reduce((s, d) => s + (d.unitPrice || 0), 0),
     [includedDocs]
+  );
+  const subtotal = useMemo(
+    () => includedDocs.reduce((s, d) => s + clientPriceOf(d.unitPrice), 0),
+    [includedDocs, clientPriceOf]
   );
   const discountAmount = Math.min(subtotal, (subtotal * discountPct) / 100);
   const taxable = Math.max(0, subtotal - discountAmount);
@@ -279,7 +297,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         return {
           description: parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
           quantity: 1,
-          unitPrice: d.unitPrice,
+          unitPrice: clientPriceOf(d.unitPrice), // precio CLIENTE = coste × (1+margen)
+          supplierUnitCost: d.unitPrice, // coste del traductor (interno)
         };
       });
       const res = await fetch("/api/quotes", {
@@ -298,6 +317,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           vatRate: 0.21,
           validityDays,
           notesLegal: notesLegal.trim() || undefined,
+          marginPct,
+          paymentMethods,
+          contactWhatsapp: contactWhatsapp.trim() || undefined,
           lines,
         }),
       });
@@ -312,7 +334,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, expedienteRef]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, expedienteRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp]);
 
   return (
     <div className="space-y-6 text-slate-200">
@@ -369,7 +391,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                 <th className="px-3 py-2">Tipo</th>
                 <th className="px-3 py-2">Dirección</th>
                 <th className="px-3 py-2 text-right">Palabras</th>
-                <th className="px-3 py-2 text-right">Precio (sin IVA)</th>
+                <th className="px-3 py-2 text-right">Coste traductor</th>
+                <th className="px-3 py-2 text-right">Precio cliente</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -444,6 +467,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                       "—"
                     )}
                   </td>
+                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-white">
+                    {isPriceable(d.status) ? `${clientPriceOf(d.unitPrice).toFixed(2)} €` : "—"}
+                  </td>
                   <td className="px-3 py-2">
                     <button
                       type="button"
@@ -500,6 +526,37 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
             {sourceLang && targetLang && docs.some((d) => d.status === "done" && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
               <p className="text-xs text-amber-400">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
             )}
+
+            {/* Margen sobre el coste del traductor (interno; el cliente solo ve su precio) */}
+            <div className="border-t border-slate-700 pt-3">
+              <label className="text-xs text-slate-400">Margen sobre coste del traductor (%)</label>
+              <div className="mt-1 flex items-center gap-2">
+                <input type="number" min={0} value={marginPct} onChange={(e) => setMarginPct(Math.max(0, Number(e.target.value)))} className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                {[30, 40].map((m) => (
+                  <button key={m} type="button" onClick={() => setMarginPct(m)} className={`rounded border px-2 py-1 text-xs ${marginPct === m ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}>{m}%</button>
+                ))}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">El cliente solo ve el precio final. Coste y margen quedan internos.</p>
+            </div>
+
+            {/* Formas de pago a mostrar en el PDF + WhatsApp del presupuesto */}
+            <div className="border-t border-slate-700 pt-3">
+              <label className="text-xs text-slate-400">Formas de pago en el presupuesto</label>
+              <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-300">
+                {[
+                  { id: "bbva", label: "BBVA" },
+                  { id: "openbank", label: "Openbank" },
+                  { id: "bizum", label: "Bizum" },
+                  { id: "paypal", label: "PayPal" },
+                ].map((m) => (
+                  <label key={m.id} className="flex items-center gap-1">
+                    <input type="checkbox" checked={paymentMethods.includes(m.id)} onChange={() => togglePaymentMethod(m.id)} />
+                    {m.label}
+                  </label>
+                ))}
+              </div>
+              <input value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="WhatsApp para este presupuesto (opcional; por defecto 951 333 614)" className="mt-2 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm" />
+            </div>
           </div>
         </div>
       )}
@@ -512,6 +569,10 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
             {discountPct > 0 && <div className="flex justify-between text-emerald-400"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>}
             <div className="flex justify-between text-slate-400"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
             <div className="flex justify-between border-t border-slate-700 pt-1 text-base font-semibold text-white"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
+            <div className="mt-1 flex justify-between border-t border-dashed border-slate-700 pt-1 text-[11px] text-slate-500" title="Solo visible para ti, no aparece en el presupuesto del cliente">
+              <span>Interno · coste {costTotal.toFixed(2)} € · margen {marginPct}%</span>
+              <span className="tabular-nums">+{(subtotal - costTotal).toFixed(2)} €</span>
+            </div>
           </div>
           {submitError && <p className="text-sm text-amber-400">{submitError}</p>}
           <button
