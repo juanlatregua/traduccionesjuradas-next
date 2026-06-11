@@ -410,6 +410,7 @@ model Quote {
   marginPct      Int?              // margen % aplicado sobre el coste del traductor (solo interno)
   paymentMethods String[]          // métodos de pago a mostrar en el PDF: bbva/openbank/bizum/paypal
   contactWhatsapp String?          // WhatsApp/teléfono a mostrar en este presupuesto (override)
+  deletedAt      DateTime?         // papelera: presupuesto no formalizado movido a "Eliminados"
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -424,6 +425,7 @@ model Quote {
   @@index([customerEmail])
   @@index([status, sentAt])
   @@index([validUntil])
+  @@index([deletedAt])
 }
 
 model QuoteLine {
