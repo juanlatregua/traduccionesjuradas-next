@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PAYMENT_LABELS } from "@/lib/payment-labels";
 
 type QuoteLine = {
   id: string;
@@ -33,6 +34,8 @@ type QuoteData = {
   publicToken: string;
   pdfUrl?: string | null;
   marginPct?: number | null;
+  paymentMethods?: string[];
+  contactWhatsapp?: string | null;
   lines: QuoteLine[];
   messageLogs?: Array<{
     id: string;
@@ -87,7 +90,12 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [loadingDeliver, setLoadingDeliver] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(false);
   const [loadingPaid, setLoadingPaid] = useState(false);
-  const [payMethod, setPayMethod] = useState<"BIZUM" | "STRIPE" | "TRANSFER">("BIZUM");
+  const [payMethod, setPayMethod] = useState<"BIZUM" | "STRIPE" | "TRANSFER">(() => {
+    const m = initialQuote.paymentMethods || [];
+    if (m.some((x) => x.startsWith("bizum"))) return "BIZUM";
+    if (m.some((x) => x === "bbva" || x === "openbank")) return "TRANSFER";
+    return "BIZUM";
+  });
   const [message, setMessage] = useState<string | null>(null);
   const [whatsText, setWhatsText] = useState<string>("");
   const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string; body: string } | null>(null);
@@ -98,18 +106,24 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     return `${baseUrl}/q/${quote.publicToken}`;
   }, [quote.publicToken]);
 
-  // Mensaje para el cliente según método de pago (WhatsApp). Bizum por defecto.
+  // Mensaje para el cliente (WhatsApp). Usa EXACTAMENTE los métodos de pago
+  // elegidos en el presupuesto (Bizum 607/654, BBVA/Openbank…) vía PAYMENT_LABELS,
+  // la misma fuente que el PDF — nada hardcodeado.
   const waMsg = useMemo(() => {
-    const greet = `Hola ${quote.customerName || ""},`.replace(/ ,$/, ",");
-    const concept = `${greet} tu presupuesto ${quote.quoteNumber} de traducción jurada: ${formatMoney(quote.total)} (IVA incl.).`;
+    const PAY = quote.paymentMethods && quote.paymentMethods.length ? quote.paymentMethods : ["bbva", "bizum607"];
+    const firstName = (quote.customerName || "").trim().split(/\s+/)[0] || "";
+    const head = `Hola ${firstName}: te envío el presupuesto ${quote.quoteNumber} de tu traducción jurada: ${formatMoney(quote.total)} (IVA incluido).`;
     if (payMethod === "BIZUM") {
-      return `${concept} Puedes pagarlo por Bizum al 607 356 273 (TraduccionesJuradas). Avísame cuando lo hagas y empiezo. ¡Gracias!`;
+      const k = PAY.find((m) => m.startsWith("bizum")) || "bizum607";
+      return `${head} Puedes abonarlo ${PAYMENT_LABELS[k]} (TraduccionesJuradas). En cuanto me confirmes el pago, comienzo con la traducción. Quedo a tu disposición. Un saludo.`;
     }
     if (payMethod === "TRANSFER") {
-      return `${concept} Por transferencia: IBAN ES66 0182 3370 67 0201616991 (BBVA), titular HBTJ Consultores Lingüísticos S.L. Avísame cuando la hagas. ¡Gracias!`;
+      const ks = PAY.filter((m) => m === "bbva" || m === "openbank");
+      const instr = (ks.length ? ks : ["bbva"]).map((k) => PAYMENT_LABELS[k]).join("; o ");
+      return `${head} Puedes abonarlo ${instr} (titular HBTJ Consultores Lingüísticos S.L.). En cuanto me confirmes el pago, comienzo. Un saludo.`;
     }
-    return `${concept} Paga con tarjeta de forma segura aquí: ${payUrl}`;
-  }, [payMethod, quote.customerName, quote.quoteNumber, quote.total, payUrl]);
+    return `${head} Puedes abonarlo de forma segura con tarjeta aquí: ${payUrl}. En cuanto se registre el pago, comienzo. Un saludo.`;
+  }, [payMethod, quote.paymentMethods, quote.customerName, quote.quoteNumber, quote.total, payUrl]);
 
   async function reloadQuote() {
     const res = await fetch(`/api/quotes/${quote.id}`, { cache: "no-store" });
