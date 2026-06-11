@@ -54,6 +54,33 @@
     <b>Línea de fondo:</b> la web está mejor construida de lo que factura. El esfuerzo va a un funnel de pago que cierra ~0 pedidos, mientras el dinero entra por <b>WhatsApp / portugués</b>. Las dos cosas que más mueven la aguja —<b>medir WhatsApp</b> y <b>reconciliar los 3 proveedores de pago</b>— son baratas y estaban sin hacer. Orden de ataque: <b>A) quick wins → B) P0 fiabilidad → P1 → P2.</b>
   </div>
 
+  <!-- ====================== RESUMEN DE LA SESIÓN ====================== -->
+  <h2>Trabajo de la sesión · 11-jun-2026</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="bar" style="flex:none">
+      <div class="l" style="color:var(--done);font-weight:700;margin-bottom:8px">✅ Entregado</div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7">
+        <li><b>En PROD:</b> Contabilidad completa (#120: conciliación vincula + gasto traductor + borradores 303/111/130)</li>
+        <li><b>En PROD:</b> Remitente de email → <code>hola@traduccionesjuradas.net</code> (antes salía de mitraductorjurado)</li>
+        <li><b>En PROD:</b> script <code>vercel-ignore-build.sh</code> (falta enchufarlo)</li>
+        <li><b>PR #119:</b> Fase 0/1 backoffice + Word en gastos + <b>WhatsApp del panel usa el Bizum/cuenta elegido</b></li>
+        <li><b>PR #121:</b> Papelera de presupuestos (no formalizados → Eliminados) + carpetas mes/cliente</li>
+        <li><b>PR #122:</b> Auditoría bloque A (locale PT, AEO/robots, cron anti-silencio, fuentes) + <b>alarma de cobro-sin-pedido</b></li>
+        <li><b>Auditoría ultracode</b> (58 agentes, 35 hallazgos) → este informe + <code>auditoria-web-v2.md</code></li>
+      </ul>
+    </div>
+    <div class="bar" style="flex:none">
+      <div class="l" style="color:var(--p0);font-weight:700;margin-bottom:8px">📋 Lo que queda</div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7">
+        <li><b>Tú (Vercel ahorro):</b> build machine Turbo→<b>Standard</b> · <b>Spend Management ON</b> (~$15 + avisos) · enchufar Ignored Build Step · revisar add-ons</li>
+        <li><b>Tú:</b> probar + mergear #119 (aviso FR), #121, #122</li>
+        <li><b>Tú:</b> decisión gestoría → ¿modelo <b>130</b>? · alta sender Twilio</li>
+        <li><b>Código (Bloque B):</b> cron reconciliación Redsys/PayPal · dead-man's-switch + 2º canal SMS · payment-proof (no PAID + token) · blobs PII privados · FailedEmail con contexto</li>
+        <li><b>Código (P1/P2):</b> tracking WhatsApp + lector · urgencia/papel · idioma del visitante · landing PT · ver tablas abajo</li>
+      </ul>
+    </div>
+  </div>
+
   <div class="bars">
     <div class="bar"><div class="n" id="b-total">0</div><div class="l">Medidas</div></div>
     <div class="bar"><div class="n" id="b-done" style="color:var(--done)">0</div><div class="l">Hechas</div>
