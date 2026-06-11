@@ -70,18 +70,21 @@ export function formatLangName(code?: string | null) {
   return LANG_NAMES[code.toLowerCase()] || code;
 }
 
-export function buildPresupuestoMessage(opts?: { lang?: string | null }) {
+export function buildPresupuestoMessage(opts?: { lang?: string | null; page?: string | null }) {
   const langName = formatLangName(opts?.lang);
   const combinacion = langName ? `${langName} ↔ español` : "";
-  return [
+  const lines = [
     "Hola, quiero pedir un presupuesto de traducción jurada.",
     `• Combinación de idiomas: ${combinacion}`,
     "• Tipo de documento: ",
     "• Email de contacto: ",
-  ].join("\n");
+  ];
+  // Atribución de la página de origen → Juan ve en el chat de dónde viene el lead.
+  if (opts?.page) lines.push(`(web: ${opts.page})`);
+  return lines.join("\n");
 }
 
-export function buildPresupuestoWhatsAppLink(opts?: { lang?: string | null }) {
+export function buildPresupuestoWhatsAppLink(opts?: { lang?: string | null; page?: string | null }) {
   return buildWhatsAppLinkFromText(buildPresupuestoMessage(opts));
 }
 
