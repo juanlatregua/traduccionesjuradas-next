@@ -6,15 +6,26 @@ function eur(cents: number): string {
   return `${(cents / 100).toFixed(2)} €`;
 }
 
-// Modelo 303 — IVA trimestral.
+// Modelo 303 — IVA trimestral, con desglose del IVA devengado por tipo (las
+// casillas 01-09 del modelo) y el IVA soportado deducible (casillas 28-29).
+export type Draft303Rate = { ratePct: number; baseCents: number; cuotaCents: number };
 export type Draft303 = {
-  ivaRepercutidoCents: number; // IVA de las facturas emitidas (devengado)
-  ivaSoportadoDeducibleCents: number; // IVA de gastos, solo el deducible
-  resultadoCents: number; // a ingresar (>0) o a compensar (<0)
+  devengado: Draft303Rate[]; // IVA repercutido desglosado por tipo
+  ivaRepercutidoCents: number; // total cuota devengada (casilla 27)
+  baseDeducibleCents: number; // base de las cuotas soportadas deducibles (casilla 28)
+  ivaSoportadoDeducibleCents: number; // cuota soportada deducible (casilla 29)
+  resultadoCents: number; // resultado (casilla 71): a ingresar (>0) o a compensar (<0)
 };
-export function build303(ivaRepercutidoCents: number, ivaSoportadoDeducibleCents: number): Draft303 {
+export function build303(
+  devengado: Draft303Rate[],
+  baseDeducibleCents: number,
+  ivaSoportadoDeducibleCents: number
+): Draft303 {
+  const ivaRepercutidoCents = devengado.reduce((a, r) => a + r.cuotaCents, 0);
   return {
+    devengado: devengado.filter((r) => r.baseCents > 0 || r.cuotaCents > 0),
     ivaRepercutidoCents,
+    baseDeducibleCents,
     ivaSoportadoDeducibleCents,
     resultadoCents: ivaRepercutidoCents - ivaSoportadoDeducibleCents,
   };
@@ -70,9 +81,15 @@ export function draftToText(period: string, d303: Draft303, d111: Draft111, d130
     `HBTJ Consultores Lingüísticos S.L. · uso interno (la gestoría presenta)`,
     ``,
     `== MODELO 303 (IVA) ==`,
-    `IVA repercutido (facturas):      ${eur(d303.ivaRepercutidoCents)}`,
-    `IVA soportado deducible (gastos): ${eur(d303.ivaSoportadoDeducibleCents)}`,
-    `RESULTADO:                        ${eur(d303.resultadoCents)} ${d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}`,
+    `IVA devengado (repercutido) por tipo:`,
+    ...(d303.devengado.length
+      ? d303.devengado.map((r) => `  · ${r.ratePct}%  base ${eur(r.baseCents)}  →  cuota ${eur(r.cuotaCents)}`)
+      : ["  (sin facturas en el periodo)"]),
+    `  Total IVA devengado (casilla 27):   ${eur(d303.ivaRepercutidoCents)}`,
+    `IVA soportado deducible (gastos):`,
+    `  Base (casilla 28):                  ${eur(d303.baseDeducibleCents)}`,
+    `  Cuota deducible (casilla 29):       ${eur(d303.ivaSoportadoDeducibleCents)}`,
+    `RESULTADO (casilla 71):               ${eur(d303.resultadoCents)} ${d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}`,
     ``,
     `== MODELO 111 (retenciones IRPF a colaboradores) ==`,
     `Base de las retenciones:  ${eur(d111.baseRetencionesCents)}`,

@@ -140,14 +140,27 @@ export default function ContabilidadClient({
     [fYear, periodEndMonth]
   );
   const drafts = useMemo(() => {
+    // IVA devengado desglosado por tipo (a partir de cada factura del periodo).
+    const byRate = new Map<number, { baseCents: number; cuotaCents: number }>();
+    for (const i of inv.rows) {
+      const rate = i.baseCents > 0 ? snapVat(i.vatCents / i.baseCents) : 0;
+      const cur = byRate.get(rate) || { baseCents: 0, cuotaCents: 0 };
+      cur.baseCents += i.baseCents;
+      cur.cuotaCents += i.vatCents;
+      byRate.set(rate, cur);
+    }
+    const devengado = [...byRate.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([rate, v]) => ({ ratePct: Math.round(rate * 100), baseCents: v.baseCents, cuotaCents: v.cuotaCents }));
+    const baseDeducible = exp.rows.filter((e) => e.ivaDeducible).reduce((a, e) => a + e.baseCents, 0);
     const exp111 = exp.rows.filter((e) => e.irpfCents > 0);
-    const d303 = build303(inv.vat, exp.deducibleVat);
+    const d303 = build303(devengado, baseDeducible, exp.deducibleVat);
     const d111 = build111(exp111.reduce((a, e) => a + e.baseCents, 0), exp.irpf, exp111.length);
     const ytdInvBase = invoices.filter((i) => inYtd(i.issuedAt)).reduce((a, i) => a + i.baseCents, 0);
     const ytdExpBase = expenses.filter((e) => inYtd(e.date)).reduce((a, e) => a + e.baseCents, 0);
     const d130 = build130(ytdInvBase, ytdExpBase);
     return { d303, d111, d130 };
-  }, [inv.vat, exp.deducibleVat, exp.rows, exp.irpf, invoices, expenses, inYtd]);
+  }, [inv.rows, exp.deducibleVat, exp.rows, exp.irpf, invoices, expenses, inYtd]);
   const periodLabel = `${fYear === "all" ? "todos los años" : fYear}${
     fPeriod === "all" ? "" : ` · ${fPeriod.startsWith("q") ? "T" + fPeriod.slice(1) : MONTHS[Number(fPeriod.slice(1)) - 1]}`
   }`;
@@ -386,9 +399,19 @@ export default function ContabilidadClient({
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 303 (IVA)</p>
-            <p className="mt-1 text-slate-300">Repercutido: <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaRepercutidoCents)}</span></p>
-            <p className="text-slate-300">Soportado ded.: <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaSoportadoDeducibleCents)}</span></p>
-            <p className="mt-1 font-semibold text-white">Resultado: <span className="tabular-nums">{eur(drafts.d303.resultadoCents)}</span> {drafts.d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}</p>
+            <p className="mt-1 text-[11px] text-slate-400">IVA devengado por tipo:</p>
+            {drafts.d303.devengado.length === 0 ? (
+              <p className="text-slate-500">—</p>
+            ) : (
+              drafts.d303.devengado.map((r) => (
+                <p key={r.ratePct} className="text-slate-300">
+                  {r.ratePct}%: base <span className="tabular-nums text-slate-100">{eur(r.baseCents)}</span> · cuota <span className="tabular-nums text-slate-100">{eur(r.cuotaCents)}</span>
+                </p>
+              ))
+            )}
+            <p className="text-slate-300">Devengado (c.27): <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaRepercutidoCents)}</span></p>
+            <p className="text-slate-300">Soportado ded. (c.29): <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaSoportadoDeducibleCents)}</span></p>
+            <p className="mt-1 font-semibold text-white">Resultado (c.71): <span className="tabular-nums">{eur(drafts.d303.resultadoCents)}</span> {drafts.d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}</p>
           </div>
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 111 (retenciones)</p>
