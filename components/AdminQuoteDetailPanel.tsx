@@ -71,6 +71,18 @@ function statusLabel(status: string) {
   return map[status] || status;
 }
 
+// Transiciones válidas del presupuesto → solo se muestra el siguiente paso real.
+const QUOTE_NEXT: Record<string, string[]> = {
+  DRAFT: ["SENT"],
+  SENT: ["PAID"],
+  OPENED: ["PAID"],
+  ACCEPTED: ["PAID"],
+  PAID: ["IN_PROGRESS", "DELIVERED"],
+  IN_PROGRESS: ["DELIVERED"],
+  DELIVERED: [],
+  EXPIRED: [],
+};
+
 export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [quote, setQuote] = useState(initialQuote);
   const [loadingSend, setLoadingSend] = useState(false);
@@ -285,22 +297,26 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => handleFinalizeSend(false)}
-            disabled={loadingSend}
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
-          >
-            {loadingSend ? "Generando..." : "Confirmar y enviar por email"}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFinalizeSend(true)}
-            disabled={loadingSend}
-            className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-60"
-          >
-            {loadingSend ? "Generando..." : "Generar (lo envío yo)"}
-          </button>
+          {!["PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED"].includes(quote.status) && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleFinalizeSend(false)}
+                disabled={loadingSend}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+              >
+                {loadingSend ? "Generando..." : "Confirmar y enviar por email"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFinalizeSend(true)}
+                disabled={loadingSend}
+                className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-60"
+              >
+                {loadingSend ? "Generando..." : "Generar (lo envío yo)"}
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={downloadPdf}
@@ -323,30 +339,36 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
           >
             {loadingResend ? "Reenviando..." : "Reenviar email"}
           </button>
-          <button
-            type="button"
-            onClick={markPaidManual}
-            disabled={loadingPaid}
-            className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
-          >
-            {loadingPaid ? "Registrando..." : "Marcar pagado (Bizum/transfer)"}
-          </button>
-          <button
-            type="button"
-            onClick={markInProgress}
-            disabled={loadingProgress}
-            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {loadingProgress ? "Guardando..." : "Marcar en progreso"}
-          </button>
-          <button
-            type="button"
-            onClick={markDelivered}
-            disabled={loadingDeliver}
-            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {loadingDeliver ? "Guardando..." : "Marcar entregado"}
-          </button>
+          {(QUOTE_NEXT[quote.status] || []).includes("PAID") && (
+            <button
+              type="button"
+              onClick={markPaidManual}
+              disabled={loadingPaid}
+              className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+            >
+              {loadingPaid ? "Registrando..." : "Marcar pagado (Bizum/transfer)"}
+            </button>
+          )}
+          {(QUOTE_NEXT[quote.status] || []).includes("IN_PROGRESS") && (
+            <button
+              type="button"
+              onClick={markInProgress}
+              disabled={loadingProgress}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {loadingProgress ? "Guardando..." : "Marcar en progreso"}
+            </button>
+          )}
+          {(QUOTE_NEXT[quote.status] || []).includes("DELIVERED") && (
+            <button
+              type="button"
+              onClick={markDelivered}
+              disabled={loadingDeliver}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {loadingDeliver ? "Guardando..." : "Marcar entregado"}
+            </button>
+          )}
           <a
             href={`/q/${quote.publicToken}`}
             target="_blank"
