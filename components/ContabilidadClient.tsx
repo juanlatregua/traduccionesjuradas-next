@@ -467,8 +467,8 @@ export default function ContabilidadClient({
               <input type="checkbox" checked={gasto.ivaDeducible} onChange={(e) => setGasto({ ...gasto, ivaDeducible: e.target.checked })} /> IVA deducible
             </label>
             <label className="text-xs text-slate-400">
-              Factura del proveedor (PDF/imagen)
-              <input type="file" accept=".pdf,image/*" className="mt-1 block w-full text-xs text-slate-300" onChange={(e) => setGastoFile(e.target.files?.[0] || null)} />
+              Factura del proveedor (PDF/imagen/Word)
+              <input type="file" accept=".pdf,image/*,.docx" className="mt-1 block w-full text-xs text-slate-300" onChange={(e) => setGastoFile(e.target.files?.[0] || null)} />
             </label>
             <button
               type="button"
