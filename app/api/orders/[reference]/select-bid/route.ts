@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { applyAcceptedQuoteSideEffects } from "@/lib/collaborators";
+import { notifyClientTranslationStarted } from "@/lib/orders";
 import {
   sendAcceptanceToCollaborator,
   sendRejectionToCollaborator,
@@ -42,6 +43,7 @@ export async function POST(req: Request, { params }: Params) {
             email: true,
             companyName: true,
             supplierType: true,
+            swornNumber: true,
           },
         },
       },
@@ -76,6 +78,13 @@ export async function POST(req: Request, { params }: Params) {
       await tx.collaboratorAssignment.update({
         where: { id: chosen.id },
         data: { status: "ACCEPTED", acceptedAt: new Date(), isWinning: true },
+      });
+
+      // Poblar Order.assignedTo con el ganador (mantiene Kanban/Cockpit vivos
+      // y permite resolver el nº de jurado para el aviso al cliente).
+      await tx.order.update({
+        where: { id: order.id },
+        data: { assignedTo: chosen.collaborator.fullName },
       });
 
       for (const loser of losers) {
@@ -119,6 +128,16 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
     });
+
+    // Aviso al CLIENTE (en proceso + nº jurado) + transición EN_TRADUCCION
+    // (dispara el SMS de hito). Fire-and-forget, idempotente por estado.
+    notifyClientTranslationStarted({
+      reference: params.reference,
+      translatorName: chosen.collaborator.fullName,
+      swornNumber: chosen.collaborator.swornNumber,
+      dueDate: chosen.quotedDeadline,
+      actorEmail: staff.email,
+    }).catch((err) => console.error("[select-bid] client notify failed", err));
 
     // Emails fire-and-forget (no bloquean la respuesta).
     sendAcceptanceToCollaborator({

@@ -20,21 +20,24 @@ export default function QuickQuotePanel() {
   const [src, setSrc] = useState("fr");
   const [tgt, setTgt] = useState("es");
   const [concept, setConcept] = useState("Traducción jurada");
-  const [price, setPrice] = useState<number>(50);
+  const [cost, setCost] = useState<number>(50);
+  const [margin, setMargin] = useState<number>(30);
   const [plazo, setPlazo] = useState("48 h");
   const [discount, setDiscount] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const totals = useMemo(() => {
-    const base = Math.max(0, Number(price) || 0);
-    const desc = discount > 0 ? base * (discount / 100) : 0;
-    const taxable = Math.max(0, base - desc);
+    const supplierCost = Math.max(0, Number(cost) || 0);
+    const marginPct = Math.max(0, Number(margin) || 0);
+    const clientPrice = Math.round(supplierCost * (1 + marginPct / 100) * 100) / 100;
+    const desc = discount > 0 ? clientPrice * (discount / 100) : 0;
+    const taxable = Math.max(0, clientPrice - desc);
     const vat = taxable * 0.21;
-    return { base, desc, vat, total: taxable + vat };
-  }, [price, discount]);
+    return { supplierCost, marginPct, clientPrice, desc, vat, total: taxable + vat };
+  }, [cost, margin, discount]);
 
-  const canSubmit = !busy && name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && totals.base > 0;
+  const canSubmit = !busy && name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && totals.clientPrice > 0;
 
   async function submit() {
     setErr(null);
@@ -53,12 +56,14 @@ export default function QuickQuotePanel() {
           discountType: discount > 0 ? "PERCENT" : "NONE",
           discountValue: discount,
           vatRate: 0.21,
+          marginPct: totals.marginPct,
           notesLegal: plazo.trim() ? `Plazo de entrega: ${plazo.trim()}` : undefined,
           lines: [
             {
               description: `${concept.trim()}${plazo.trim() ? ` · entrega ${plazo.trim()}` : ""}`,
               quantity: 1,
-              unitPrice: totals.base,
+              unitPrice: totals.clientPrice,
+              supplierUnitCost: totals.supplierCost,
             },
           ],
         }),
@@ -108,8 +113,8 @@ export default function QuickQuotePanel() {
               </select>
             </label>
             <label className="text-xs text-slate-400">
-              Precio (sin IVA) €
-              <input type="number" min={0} step="0.01" className={`mt-1 block w-full ${f} tabular-nums`} value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+              Coste traductor (sin IVA) €
+              <input type="number" min={0} step="0.01" className={`mt-1 block w-full ${f} tabular-nums`} value={cost} onChange={(e) => setCost(Number(e.target.value))} />
             </label>
             <label className="text-xs text-slate-400">
               Plazo de entrega
@@ -117,8 +122,12 @@ export default function QuickQuotePanel() {
             </label>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <input className={f} placeholder="Concepto (descripción)" value={concept} onChange={(e) => setConcept(e.target.value)} />
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              Margen %
+              <input type="number" min={0} className={`${f} w-24 tabular-nums`} value={margin} onChange={(e) => setMargin(Number(e.target.value))} />
+            </label>
             <label className="flex items-center gap-2 text-xs text-slate-400">
               Descuento %
               <input type="number" min={0} max={100} className={`${f} w-24 tabular-nums`} value={discount} onChange={(e) => setDiscount(Number(e.target.value))} />
@@ -128,7 +137,9 @@ export default function QuickQuotePanel() {
           {/* Resumen en vivo */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm">
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-300">
-              <span>Base: <span className="tabular-nums text-white">{totals.base.toFixed(2)} €</span></span>
+              <span>Coste: <span className="tabular-nums">{totals.supplierCost.toFixed(2)} €</span></span>
+              <span>Margen {totals.marginPct}%</span>
+              <span>Precio cliente: <span className="tabular-nums text-white">{totals.clientPrice.toFixed(2)} €</span></span>
               {discount > 0 && <span className="text-emerald-400">Dto {discount}%: -{totals.desc.toFixed(2)} €</span>}
               <span>IVA 21%: <span className="tabular-nums">{totals.vat.toFixed(2)} €</span></span>
               <span className="font-semibold text-white">Total: <span className="tabular-nums">{totals.total.toFixed(2)} €</span></span>
