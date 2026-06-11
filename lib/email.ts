@@ -950,6 +950,34 @@ export async function sendCronFailureAlertEmail(data: { job: string; detail?: st
   await sendMail({ to, subject, html });
 }
 
+// COBRO SIN PEDIDO: un proveedor confirmó un pago para una referencia que no
+// existe en BD. Es el incidente que originó V2. Máxima prioridad: hay dinero
+// cobrado sin pedido generado y el cliente no recibirá nada hasta que se actúe.
+export async function sendOrphanPaymentAlertEmail(data: {
+  reference: string;
+  provider: string;
+  providerEventId?: string;
+  source?: string;
+}) {
+  const to = alertRecipient();
+  if (!to) throw new Error("Missing ALERT_EMAIL / PRESUPUESTO_TO");
+
+  const subject = `[URGENTE] Cobro SIN PEDIDO — ${data.provider} ${data.reference}`;
+  const html = `
+    <h2 style="color:#b91c1c;">⚠ Pago cobrado sin pedido en la base de datos</h2>
+    <p>Un proveedor de pago confirmó un cobro, pero la referencia no corresponde a ningún pedido. El cliente <b>ha pagado y no recibirá nada</b> hasta que se actúe manualmente.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Proveedor</td><td>${data.provider}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">ID de pago</td><td>${data.providerEventId || "-"}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Origen</td><td>${data.source || "-"}</td></tr>
+    </table>
+    <p style="font-size:13px; color:#6b7280;">Revisa el panel del proveedor (importe, email del cliente) y crea/concilia el pedido cuanto antes. Este es el fallo que originó V2.</p>
+  `;
+
+  await sendMail({ to, subject, html });
+}
+
 export async function sendReviewRequestEmail(data: {
   toEmail: string;
   reference: string;

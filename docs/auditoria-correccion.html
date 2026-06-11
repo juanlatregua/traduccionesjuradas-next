@@ -90,7 +90,7 @@
   <table>
     <thead><tr><th>Medida</th><th>Por qué</th><th>Dónde</th><th>Esfuerzo</th><th>Estado</th></tr></thead>
     <tbody>
-      <tr><td>Reconciliación Redsys + PayPal + Quotes</td><td>Hoy el cron solo mira Stripe → Redsys/PayPal cobran sin pedido sin detección</td><td class="file">payment-reconciliation · redsys/notification · paypal/capture</td><td class="eff">2-3 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Reconciliación Redsys + PayPal + Quotes</td><td>Hoy el cron solo mira Stripe → Redsys/PayPal cobran sin pedido sin detección</td><td class="file">lib/orders.ts (updateOrderPayment) · lib/email.ts</td><td class="eff">2-3 d</td><td><span class="st st-prog" data-st>Alerta ✓ · cron pend.</span></td></tr>
       <tr><td>2º canal de alerta (SMS) + dead-man's-switch</td><td>Si cae el email Azure, cae toda la observabilidad</td><td class="file">lib/email.ts · 9 crons</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
       <tr><td>payment-proof: no marcar PAID + token firmado</td><td>Cualquiera con referencia+email regala trabajo y ensucia contabilidad</td><td class="file">orders/[reference]/payment-proof/route.ts</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
       <tr><td>Blobs de documentos privados + retención</td><td>PII (penales) público y permanente — RGPD art. 10</td><td class="file">rutas access:"public" · document-cleanup</td><td class="eff">2-3 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
@@ -134,6 +134,8 @@
     <div class="row"><span class="t">11-jun 19:55</span><span>Auditoría ultracode completada (58 agentes, 35 hallazgos verificados). HTML de seguimiento creado. Arrancando bloque A.</span></div>
     <div class="row"><span class="t">11-jun 20:10</span><span><b>Bloque A — 4 quick wins en PR:</b> (1) checkout captura idioma real es/fr/en/de/pt vía resolveLocale (PT visible en analítica; mensajes PT siguen pendientes de plantillas = P1). (2) robots abre los bots de respuesta (Perplexity/Claude/Gemini/ChatGPT) a todo el público. (3) cron de reconciliación envuelto en try/catch con alerta dedicada + 500 (deja de morir en silencio). (4) borradas fuentes muertas Inter/Merriweather. Build verde.</span></div>
     <div class="row"><span class="t">11-jun 20:10</span><span><b>Pausado:</b> reseñas 4,8/46 — parecen reales (nombres/fechas), no se borran sin confirmar con Juan. <b>Movido:</b> atribución del lector → P1 (tracking). <b>Aplazado:</b> drop de columna quoteState (destructivo en prod).</span></div>
+    <div class="row"><span class="t">11-jun 20:25</span><span><b>Reseñas resueltas:</b> Juan confirma que son REALES (visibles en HomeV2) → la auditoría se equivocó, el markup es legítimo, sin acción.</span></div>
+    <div class="row"><span class="t">11-jun 20:30</span><span><b>Bloque B — item nº1 (parte alerta):</b> alarma de COBRO SIN PEDIDO en tiempo real. Envuelta <code>updateOrderPayment</code> (punto común de Stripe/Redsys/PayPal/manual): si un proveedor confirma un pago para una referencia inexistente → email URGENTE inmediato (<code>sendOrphanPaymentAlertEmail</code>). Es el incidente que originó V2, cazado en caliente en TODOS los proveedores. Falta: el cron periódico para el caso "el webhook nunca llega" (Redsys sin API de listado → decisión arquitectónica).</span></div>
   </div>
 
   <footer>Generado a partir de <code>docs/auditoria-web-v2.md</code>. Estado actualizado manualmente conforme se codea cada medida.</footer>

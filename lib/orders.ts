@@ -513,6 +513,20 @@ export async function updateOrderPayment(
     });
 
     return { changed: true as const, alreadyPaid: false as const, duplicate: false as const };
+  }).catch((err: any) => {
+    // CRÍTICO: el proveedor (Stripe/Redsys/PayPal) confirmó un pago para una
+    // referencia que NO existe en BD = cobro sin pedido. Es EXACTAMENTE el
+    // incidente que originó V2 (webhook roto 2,5 meses). Alerta en caliente,
+    // en todos los proveedores (este es su punto común). Best-effort.
+    if (err?.message === "Pedido no encontrado.") {
+      console.error(`[updateOrderPayment] COBRO SIN PEDIDO: ${method} confirmó ${reference} pero no existe el pedido`);
+      import("@/lib/email")
+        .then(({ sendOrphanPaymentAlertEmail }) =>
+          sendOrphanPaymentAlertEmail({ reference, provider: method, providerEventId, source: options?.source })
+        )
+        .catch((e) => console.error("[updateOrderPayment] orphan-payment alert failed", e));
+    }
+    throw err;
   });
 }
 
