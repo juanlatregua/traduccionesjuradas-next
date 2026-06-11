@@ -194,6 +194,7 @@ model ClientInvoice {
   orderId       String?   @unique // null = factura libre (sin pedido)
   order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   issuedAt      DateTime? // se sella al emitir
+  paidAt        DateTime? // cobrada: se sella al vincular un ingreso bancario
   clientName    String? // nombre comercial / referencia interna (opcional)
   fiscalName    String
   nif           String?
@@ -236,6 +237,8 @@ model Expense {
   irpfCents             Int      @default(0)
   totalCents            Int // base + IVA (importe de la factura)
   payableCents          Int? // base + IVA − IRPF (lo que se transfiere al proveedor)
+  paidAt                DateTime? // pagado: se sella al vincular un cargo bancario
+  paymentStatus         String   @default("PENDING") // PENDING | PAID
   attachmentUrl         String? // justificante (Vercel Blob)
   attachmentKey         String?
   attachmentName        String?

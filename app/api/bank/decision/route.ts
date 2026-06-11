@@ -14,7 +14,21 @@ type Body = {
   matchedId?: string | null;
   note?: string | null;
   brand?: string | null;
+  movementDate?: string | null; // fecha del movimiento → sella paidAt en factura/gasto
 };
+
+// Sella (o limpia) el cobro/pago en la factura/gasto vinculado.
+async function setPaid(matchedType: string | null | undefined, matchedId: string | null | undefined, when: Date | null) {
+  try {
+    if (matchedType === "invoice" && matchedId) {
+      await prisma.clientInvoice.update({ where: { id: matchedId }, data: { paidAt: when } });
+    } else if (matchedType === "expense" && matchedId) {
+      await prisma.expense.update({ where: { id: matchedId }, data: { paidAt: when, paymentStatus: when ? "PAID" : "PENDING" } });
+    }
+  } catch (err) {
+    console.error("[bank-decision] setPaid failed", matchedType, matchedId, err);
+  }
+}
 
 async function gate(req: Request) {
   const access = await requireStaffAccess(req);
@@ -50,6 +64,12 @@ export async function POST(req: Request) {
     create: { lineHash, ...data },
     update: data,
   });
+
+  // Marcar cobrado/pagado al vincular; limpiar si la decisión deja de ser un emparejamiento.
+  if (status === "MATCHED_MANUAL") {
+    const when = body.movementDate && !isNaN(new Date(body.movementDate).getTime()) ? new Date(body.movementDate) : new Date();
+    await setPaid(data.matchedType, data.matchedId, when);
+  }
   return NextResponse.json({ ok: true, decision });
 }
 
@@ -65,6 +85,9 @@ export async function DELETE(req: Request) {
   }
   const lineHash = String(body.lineHash || "").trim();
   if (!lineHash) return NextResponse.json({ ok: false, error: "Falta lineHash." }, { status: 400 });
+  const prev = await prisma.bankDecision.findUnique({ where: { lineHash }, select: { matchedType: true, matchedId: true } });
   await prisma.bankDecision.deleteMany({ where: { lineHash } });
+  // Si deshacemos un emparejamiento manual, quitamos el sello de cobrado/pagado.
+  if (prev) await setPaid(prev.matchedType, prev.matchedId, null);
   return NextResponse.json({ ok: true });
 }
