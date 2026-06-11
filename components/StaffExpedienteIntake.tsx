@@ -33,8 +33,19 @@ type DocRow = {
   words?: number;
   pages?: number;
   mode?: "text" | "vision";
-  unitPrice: number; // editable, pre-IVA
+  priceMode: "doc" | "words"; // cómo se calcula el coste de la línea
+  ratePerWord?: number; // €/palabra cuando priceMode === "words"
+  unitPrice: number; // coste editable (pre-IVA) cuando priceMode === "doc"
 };
+
+function round2(n: number): number {
+  return Math.round((n || 0) * 100) / 100;
+}
+
+// Coste del traductor efectivo de una línea (pre-IVA): por palabras o por documento.
+function effectiveCostOf(d: DocRow): number {
+  return d.priceMode === "words" ? round2((d.words || 0) * (d.ratePerWord || 0)) : d.unitPrice || 0;
+}
 
 const LANGS: { code: string; name: string }[] = [
   { code: "es", name: "Español" },
@@ -169,6 +180,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         mimeType: f.type,
         status: "uploading",
         include: true,
+        priceMode: "doc",
         unitPrice: 0,
       }));
       setDocs((prev) => [...prev, ...rows]);
@@ -200,6 +212,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         mimeType: "application/pdf",
         status: "analyzing" as DocStatus,
         include: true,
+        priceMode: "doc",
         unitPrice: 0,
       }))
     );
@@ -248,6 +261,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         mimeType: "",
         status: "manual" as DocStatus,
         include: true,
+        priceMode: "doc",
         unitPrice: 0,
       },
     ]);
@@ -269,11 +283,11 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
 
   const includedDocs = docs.filter((d) => d.include && isPriceable(d.status));
   const costTotal = useMemo(
-    () => includedDocs.reduce((s, d) => s + (d.unitPrice || 0), 0),
+    () => includedDocs.reduce((s, d) => s + effectiveCostOf(d), 0),
     [includedDocs]
   );
   const subtotal = useMemo(
-    () => includedDocs.reduce((s, d) => s + clientPriceOf(d.unitPrice), 0),
+    () => includedDocs.reduce((s, d) => s + clientPriceOf(effectiveCostOf(d)), 0),
     [includedDocs, clientPriceOf]
   );
   const shipping = deliveryType === "PAPER_SHIP" ? 12 : 0;
@@ -305,11 +319,12 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
         if (d.words) parts.push(`${d.words} palabras`);
         if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
+        const cost = effectiveCostOf(d);
         return {
           description: parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
           quantity: 1,
-          unitPrice: clientPriceOf(d.unitPrice), // precio CLIENTE = coste × (1+margen)
-          supplierUnitCost: d.unitPrice, // coste del traductor (interno)
+          unitPrice: clientPriceOf(cost), // precio CLIENTE = coste × (1+margen)
+          supplierUnitCost: cost, // coste del traductor (interno)
         };
       });
       const res = await fetch("/api/quotes", {
@@ -503,20 +518,47 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                   </td>
                   <td className="px-3 py-2 text-right">
                     {isPriceable(d.status) ? (
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={d.unitPrice}
-                        onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value) })}
-                        className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        <select
+                          value={d.priceMode}
+                          onChange={(e) => patch(d.localId, { priceMode: e.target.value as "doc" | "words" })}
+                          className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
+                          title="Cómo se calcula el coste"
+                        >
+                          <option value="doc">doc</option>
+                          <option value="words">palabras</option>
+                        </select>
+                        {d.priceMode === "words" ? (
+                          <>
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={d.ratePerWord ?? ""}
+                              onChange={(e) => patch(d.localId, { ratePerWord: e.target.value === "" ? undefined : Number(e.target.value) })}
+                              placeholder="€/pal"
+                              title="€ por palabra"
+                              className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                            />
+                            <span className="w-16 text-right tabular-nums text-slate-300">{effectiveCostOf(d).toFixed(2)} €</span>
+                          </>
+                        ) : (
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={d.unitPrice}
+                            onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value) })}
+                            className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                          />
+                        )}
+                      </div>
                     ) : (
                       "—"
                     )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-white">
-                    {isPriceable(d.status) ? `${clientPriceOf(d.unitPrice).toFixed(2)} €` : "—"}
+                    {isPriceable(d.status) ? `${clientPriceOf(effectiveCostOf(d)).toFixed(2)} €` : "—"}
                   </td>
                   <td className="px-3 py-2">
                     <button

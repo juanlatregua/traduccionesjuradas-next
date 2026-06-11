@@ -5,7 +5,10 @@ import {
   buildManualPaymentProviderEventId,
   registerOrderPaymentEvent,
 } from "@/lib/order-payment-idempotency";
-import { inferFlowProfile } from "@/lib/workflow";
+import { inferFlowProfile, getWorkflowState } from "@/lib/workflow";
+import { transitionWorkflowState } from "@/lib/workflow-server";
+import { findTranslatorProfile } from "@/lib/translators";
+import { sendTranslationStartedAssignedEmail } from "@/lib/email";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -712,6 +715,104 @@ export async function assignOrder(
       },
     },
   });
+}
+
+/**
+ * Lógica cara-CLIENTE del arranque de traducción, extraída de
+ * `/api/orders/[reference]/assign` para poder reutilizarla desde la adjudicación
+ * (`select-bid`) y el FR-directo (`quote-request-batch`).
+ *
+ * Reproduce fielmente lo que hacía `/assign`:
+ *  (a) resuelve el nº de jurado del traductor (param explícito desde el
+ *      Collaborator ganador o, si no, fallback a `findTranslatorProfile`),
+ *  (b) manda el correo "su traducción está en proceso" con nº jurado + ETA +
+ *      idioma del cliente,
+ *  (c) transiciona el workflow a EN_TRADUCCION SOLO si el pedido está PAID y
+ *      sigue en PAGO_VALIDADO (eso dispara el SMS de hito al cliente),
+ *  (d) crea el OrderEvent `client.translation_started_notified`.
+ *
+ * Fire-and-forget interno (los fallos de email/evento/SMS se logean y no
+ * rompen el flujo), igual que en el endpoint original. Idempotente: no
+ * re-notifica si el pedido ya estaba asignado al mismo traductor.
+ */
+export async function notifyClientTranslationStarted(params: {
+  reference: string;
+  translatorName: string;
+  swornNumber?: string | null;
+  dueDate?: Date | null;
+  actorEmail?: string | null;
+}) {
+  const translatorName = params.translatorName?.trim();
+  if (!translatorName) return;
+
+  const orderBefore = await getOrderDetail(params.reference);
+  if (!orderBefore) return;
+
+  // Idempotencia basada en el OrderEvent, no en Order.assignedTo: los callers
+  // (select-bid / quote-request-batch) escriben assignedTo ANTES de invocar esta
+  // función (Kanban/Cockpit vivos, C2), así que comparar contra assignedTo daría
+  // siempre falso. Nos apoyamos en si ya existe el evento de notificación.
+  const alreadyNotified = orderBefore.events.some(
+    (e) => e.type === "client.translation_started_notified"
+  );
+  const shouldNotifyClient =
+    orderBefore.paymentStatus === "PAID" && !alreadyNotified;
+
+  if (!shouldNotifyClient) return;
+
+  const actorEmail = params.actorEmail || "system";
+  const dueDate = params.dueDate || orderBefore.dueDate || null;
+
+  // Resolver nº de jurado: preferimos el del Collaborator ganador; si no llega,
+  // fallback al perfil estático (comportamiento del /assign original).
+  const fallbackProfile = findTranslatorProfile(translatorName);
+  const swornNumber = params.swornNumber || fallbackProfile?.swornNumber || null;
+
+  const workflowBefore = getWorkflowState(orderBefore);
+  if (workflowBefore === "PAGO_VALIDADO") {
+    await transitionWorkflowState({
+      reference: params.reference,
+      to: "EN_TRADUCCION",
+      actorEmail,
+      reason: "Asignacion de traductor y arranque operativo.",
+    }).catch((err) => {
+      console.error("[notifyClientTranslationStarted] workflow transition failed", err);
+    });
+  }
+
+  const assignLang = orderBefore.clientLocale === "fr" ? "fr" : "es";
+  await sendTranslationStartedAssignedEmail({
+    toEmail: orderBefore.clientEmail,
+    reference: orderBefore.reference,
+    translatorName,
+    translatorSwornNumber: swornNumber,
+    etaDateLabel: dueDate
+      ? dueDate.toLocaleDateString(assignLang === "fr" ? "fr-FR" : "es-ES")
+      : null,
+    lang: assignLang,
+  }).catch((err) => {
+    console.error("[notifyClientTranslationStarted] client assign email failed", err);
+  });
+
+  await prisma.orderEvent
+    .create({
+      data: {
+        orderId: orderBefore.id,
+        type: "client.translation_started_notified",
+        message: `Cliente notificado: traduccion en proceso asignada a ${translatorName}.`,
+        payload: {
+          actorEmail,
+          assignedTo: translatorName,
+          swornNumber,
+          dueDate: dueDate ? dueDate.toISOString() : null,
+        },
+      },
+    })
+    .catch((err) => {
+      console.error("[notifyClientTranslationStarted] notification event failed", err);
+    });
+  // El SMS "en proceso" lo dispara transitionWorkflowState al cruzar a
+  // EN_TRADUCCION (ver arriba) — centralizado para cubrir tambien Kanban.
 }
 
 /* ------------------------------------------------------------------ */
