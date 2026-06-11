@@ -297,6 +297,35 @@ export async function applyAcceptedQuoteSideEffects(
     },
   });
 
+  // GASTO del traductor en contabilidad (Bloque B): el coste del colaborador
+  // entra en el libro de gastos (resultado/303/111). Idempotente por el marcador
+  // enc:<assignmentId>. IVA/IRPF a 0 por defecto (el coste se cotiza sin IVA y no
+  // conocemos el régimen del proveedor): Juan los completa desde la factura real.
+  const expenseMarker = `enc:${assignmentId}`;
+  const existingExpense = await db.expense.findFirst({ where: { supplierInvoiceNumber: expenseMarker }, select: { id: true } });
+  if (!existingExpense && supplierCostCents > 0) {
+    await db.expense.create({
+      data: {
+        date: new Date(),
+        brand: "traduccionesjuradas",
+        supplier: supplierName,
+        supplierInvoiceNumber: expenseMarker,
+        concept: `Traducción colaborador · ${supplierName}`,
+        category: "colaborador",
+        baseCents: supplierCostCents,
+        vatRate: 0,
+        vatCents: 0,
+        ivaDeducible: true,
+        irpfRetentionPct: 0,
+        irpfCents: 0,
+        totalCents: supplierCostCents,
+        payableCents: supplierCostCents,
+        paymentStatus: "PENDING",
+        notes: "Auto-generado al adjudicar. Revisa IVA/IRPF con la factura del traductor.",
+      },
+    });
+  }
+
   // Snapshot de margen — comparar SIEMPRE neto de IVA (ingreso sin IVA vs coste sin IVA).
   // El IVA es repercutido (no es margen).
   const revenueNetCents = netFromGross(customerPriceCents);

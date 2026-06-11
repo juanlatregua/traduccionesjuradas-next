@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 import { computeExpenseTotals, clampIrpfPct } from "@/lib/expense-math"; // puro, sin Prisma
+import { build303, build111, build130, draftToText } from "@/lib/tax-drafts";
 
 const ALLOWED_VAT = [0, 0.04, 0.1, 0.21];
 function snapVat(v: unknown): number {
@@ -122,6 +123,44 @@ export default function ContabilidadClient({
 
   const ivaLiquidar = inv.vat - exp.deducibleVat; // soportado deducible, no todo
   const resultado = inv.base - exp.base;
+
+  // ── Borradores de impuestos del trimestre (303/111/130) ──────────────
+  // El 130 va ACUMULADO del año hasta el final del periodo seleccionado.
+  const periodEndMonth = useMemo(() => {
+    if (fPeriod.startsWith("q")) { const ms = Q_MONTHS[fPeriod]; return ms[ms.length - 1]; }
+    if (fPeriod.startsWith("m")) return Number(fPeriod.slice(1)) - 1;
+    return 11;
+  }, [fPeriod]);
+  const inYtd = useMemo(
+    () => (iso: string) => {
+      if (fYear === "all") return false;
+      const d = new Date(iso);
+      return d.getUTCFullYear() === Number(fYear) && d.getUTCMonth() <= periodEndMonth;
+    },
+    [fYear, periodEndMonth]
+  );
+  const drafts = useMemo(() => {
+    const exp111 = exp.rows.filter((e) => e.irpfCents > 0);
+    const d303 = build303(inv.vat, exp.deducibleVat);
+    const d111 = build111(exp111.reduce((a, e) => a + e.baseCents, 0), exp.irpf, exp111.length);
+    const ytdInvBase = invoices.filter((i) => inYtd(i.issuedAt)).reduce((a, i) => a + i.baseCents, 0);
+    const ytdExpBase = expenses.filter((e) => inYtd(e.date)).reduce((a, e) => a + e.baseCents, 0);
+    const d130 = build130(ytdInvBase, ytdExpBase);
+    return { d303, d111, d130 };
+  }, [inv.vat, exp.deducibleVat, exp.rows, exp.irpf, invoices, expenses, inYtd]);
+  const periodLabel = `${fYear === "all" ? "todos los años" : fYear}${
+    fPeriod === "all" ? "" : ` · ${fPeriod.startsWith("q") ? "T" + fPeriod.slice(1) : MONTHS[Number(fPeriod.slice(1)) - 1]}`
+  }`;
+  function downloadDraft() {
+    const text = draftToText(periodLabel, drafts.d303, drafts.d111, drafts.d130);
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `borrador-impuestos-${periodLabel.replace(/[^\w]+/g, "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const qsPeriod = useMemo(() => {
     const p = new URLSearchParams();
@@ -334,6 +373,38 @@ export default function ContabilidadClient({
       <p className="mt-2 text-xs text-slate-500">
         Facturas por fecha de emisión; gastos por su fecha. Coste de pedidos del periodo (informativo, no en el resultado): {eur(ordCost)}.
       </p>
+
+      {/* Borradores de impuestos del trimestre (303 / 111 / 130) */}
+      <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-amber-200">Borradores de impuestos · {periodLabel}</h3>
+          <button onClick={downloadDraft} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500">
+            Descargar borrador (TXT)
+          </button>
+        </div>
+        <p className="mt-1 text-[11px] text-amber-200/70">Uso interno (la gestoría presenta). El 130 va acumulado del año.</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 303 (IVA)</p>
+            <p className="mt-1 text-slate-300">Repercutido: <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaRepercutidoCents)}</span></p>
+            <p className="text-slate-300">Soportado ded.: <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaSoportadoDeducibleCents)}</span></p>
+            <p className="mt-1 font-semibold text-white">Resultado: <span className="tabular-nums">{eur(drafts.d303.resultadoCents)}</span> {drafts.d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}</p>
+          </div>
+          <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 111 (retenciones)</p>
+            <p className="mt-1 text-slate-300">Base: <span className="tabular-nums text-slate-100">{eur(drafts.d111.baseRetencionesCents)}</span></p>
+            <p className="text-slate-300">Retenciones: <span className="tabular-nums text-slate-100">{eur(drafts.d111.retencionesCents)}</span></p>
+            <p className="text-slate-300">Perceptores: <span className="tabular-nums text-slate-100">{drafts.d111.numPerceptores}</span></p>
+          </div>
+          <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 130 (IRPF, año)</p>
+            <p className="mt-1 text-slate-300">Rendimiento: <span className="tabular-nums text-slate-100">{eur(drafts.d130.rendimientoNetoCents)}</span></p>
+            <p className="text-slate-300">Pago 20%: <span className="tabular-nums text-slate-100">{eur(drafts.d130.pagoFraccionado20Cents)}</span></p>
+            <p className="mt-1 font-semibold text-white">A ingresar: <span className="tabular-nums">{eur(drafts.d130.aIngresarCents)}</span></p>
+            <p className="text-[10px] text-slate-500">menos pagos previos del año (a completar)</p>
+          </div>
+        </div>
+      </div>
 
       {/* Gastos */}
       <div className="mt-8 flex items-center justify-between">
