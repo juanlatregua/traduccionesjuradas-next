@@ -1,12 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { track } from "@vercel/analytics";
 import { buildPresupuestoWhatsAppLink, detectLangFromPathname } from "@/lib/contact";
 import { useUiLang } from "@/lib/i18n/use-ui-lang";
 
 export default function WhatsAppFloat() {
   const pathname = usePathname();
-  const href = buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname) });
+  const href = buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname), page: pathname });
   const aria = useUiLang() === "fr" ? "Nous contacter sur WhatsApp" : "Contactar por WhatsApp";
   return (
     <a
@@ -14,6 +15,7 @@ export default function WhatsAppFloat() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={aria}
+      onClick={() => track("whatsapp_click", { page: pathname || "/", source: "float" })}
       className="whatsapp-float fixed bottom-24 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl sm:bottom-24 sm:right-6"
     >
       <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
