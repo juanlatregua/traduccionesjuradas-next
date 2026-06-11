@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Merriweather } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
 import "./globals.css";
@@ -15,19 +14,6 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 
 const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
   ssr: false,
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const merriweather = Merriweather({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-merriweather",
-  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -85,7 +71,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${inter.variable} ${merriweather.variable}`}>
+    <html lang="es">
       {/* SCHEMA ORG / PROFESSIONAL SERVICE */}
       <Script
         id="schema-organization"

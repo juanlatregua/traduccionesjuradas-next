@@ -13,6 +13,7 @@ import {
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable } from "@/lib/pricing-engine/languages";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
+import { resolveLocale } from "@/lib/i18n/locales";
 
 export const runtime = "nodejs";
 
@@ -65,9 +66,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Cuerpo inválido." }, { status: 400 });
   }
 
-  // Idioma del cliente capturado en la puerta (es|fr). Persiste en la sesión
-  // para que checkout/confirmación, SMS y email salgan en su idioma.
-  const clientLocale = body.lang === "fr" ? "fr" : "es";
+  // Idioma del cliente capturado en la puerta (es|fr|en|de|pt). Persiste en la
+  // sesión para checkout/confirmación, SMS, email y ANALÍTICA (visibilidad del
+  // inbound PT). Nota: las plantillas SMS/email aún son binarias fr/es → pt/en/de
+  // caen a español hasta que existan sus plantillas (P1).
+  const clientLocale = resolveLocale(body.lang);
 
   const inputs = Array.isArray(body.documents) ? body.documents : [];
   if (inputs.length === 0) {

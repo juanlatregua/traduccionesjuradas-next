@@ -930,6 +930,26 @@ export async function sendWebhookFailureAlertEmail(data: {
   await sendMail({ to, subject, html });
 }
 
+// Alerta cuando un CRON falla por completo (no su lógica de negocio, sino el
+// propio job). Crítico para reconciliación de pagos: si el cron muere, la red
+// de seguridad deja de avisar y un cobro-sin-pedido pasaría desapercibido.
+export async function sendCronFailureAlertEmail(data: { job: string; detail?: string }) {
+  const to = alertRecipient();
+  if (!to) throw new Error("Missing ALERT_EMAIL / PRESUPUESTO_TO");
+
+  const subject = `[Alerta] El cron "${data.job}" ha FALLADO`;
+  const html = `
+    <h2>Un cron ha fallado por completo</h2>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cron</td><td>${data.job}</td></tr>
+      ${data.detail ? `<tr><td style="padding:4px 12px 4px 0; font-weight:600;">Error</td><td>${data.detail}</td></tr>` : ""}
+    </table>
+    <p style="font-size:13px; color:#6b7280;">Si es el cron de reconciliacion de pagos, la deteccion de cobros-sin-pedido esta ciega hasta que se arregle. Revisar cuanto antes.</p>
+  `;
+
+  await sendMail({ to, subject, html });
+}
+
 export async function sendReviewRequestEmail(data: {
   toEmail: string;
   reference: string;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
-import { sendPaymentReconciliationAlertEmail } from "@/lib/email";
+import { sendPaymentReconciliationAlertEmail, sendCronFailureAlertEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,23 @@ export async function GET(req: Request) {
   if (!hasCronAuth(req)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
+  // El cron NO puede morir en silencio: si la lógica revienta (Stripe/BD caídos),
+  // la red de seguridad dejaría de avisar. Alertamos del propio fallo y devolvemos
+  // 500 para que Vercel lo marque como cron fallido (señal independiente del email).
+  try {
+    return await runReconciliation();
+  } catch (err: any) {
+    console.error("[payment-reconciliation] cron failed:", err?.message || err);
+    try {
+      await sendCronFailureAlertEmail({ job: "payment-reconciliation", detail: String(err?.message || err) });
+    } catch (alertErr) {
+      console.error("[payment-reconciliation] failure alert also failed:", alertErr);
+    }
+    return NextResponse.json({ ok: false, error: "Reconciliation cron failed." }, { status: 500 });
+  }
+}
 
+async function runReconciliation(): Promise<NextResponse> {
   const stripe = getStripe();
   const now = Math.floor(Date.now() / 1000);
   const windowStart = now - 72 * 3600;

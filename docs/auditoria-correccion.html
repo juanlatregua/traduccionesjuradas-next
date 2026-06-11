@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corrección auditoría — traduccionesjuradas.net</title>
+<style>
+  :root{
+    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f8fafc; --card:#fff;
+    --p0:#dc2626; --p1:#d97706; --p2:#0891b2; --qw:#059669;
+    --done:#16a34a; --prog:#ca8a04; --todo:#94a3b8; --pr:#7c3aed;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+  .verdict{background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:16px 18px;margin:0 0 28px;font-size:15px}
+  .verdict b{color:#9a3412}
+  .bars{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 28px}
+  .bar{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .bar .n{font-size:24px;font-weight:700}
+  .bar .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .progwrap{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
+  .progfill{height:100%;background:var(--done);width:0%}
+  h2{font-size:18px;margin:32px 0 6px;display:flex;align-items:center;gap:10px}
+  .chip{font-size:11px;font-weight:700;color:#fff;padding:2px 9px;border-radius:99px}
+  .c-qw{background:var(--qw)} .c-p0{background:var(--p0)} .c-p1{background:var(--p1)} .c-p2{background:var(--p2)}
+  .phasedesc{color:var(--muted);font-size:13px;margin:0 0 14px}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f1f5f9;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  tr:last-child td{border-bottom:0}
+  td.file{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#475569;white-space:nowrap}
+  td.eff{color:var(--muted);white-space:nowrap}
+  .st{font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;white-space:nowrap;display:inline-block}
+  .st-todo{background:#f1f5f9;color:var(--todo)} .st-prog{background:#fef9c3;color:var(--prog)}
+  .st-done{background:#dcfce7;color:var(--done)} .st-pr{background:#ede9fe;color:var(--pr)}
+  .log{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 0;font-size:13px}
+  .log .row{padding:8px 16px;border-bottom:1px solid var(--line);display:flex;gap:12px}
+  .log .row:last-child{border-bottom:0}
+  .log .t{color:var(--muted);font-family:ui-monospace,monospace;font-size:12px;white-space:nowrap}
+  footer{margin-top:36px;color:var(--muted);font-size:12px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:10px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Corrección de la auditoría — traduccionesjuradas.net</h1>
+  <p class="sub">Proceso de corrección y estado de cada punto · informe base: <code>docs/auditoria-web-v2.md</code> · actualizado a mano según se codea.</p>
+
+  <div class="verdict">
+    <b>Línea de fondo:</b> la web está mejor construida de lo que factura. El esfuerzo va a un funnel de pago que cierra ~0 pedidos, mientras el dinero entra por <b>WhatsApp / portugués</b>. Las dos cosas que más mueven la aguja —<b>medir WhatsApp</b> y <b>reconciliar los 3 proveedores de pago</b>— son baratas y estaban sin hacer. Orden de ataque: <b>A) quick wins → B) P0 fiabilidad → P1 → P2.</b>
+  </div>
+
+  <div class="bars">
+    <div class="bar"><div class="n" id="b-total">0</div><div class="l">Medidas</div></div>
+    <div class="bar"><div class="n" id="b-done" style="color:var(--done)">0</div><div class="l">Hechas</div>
+      <div class="progwrap"><div class="progfill" id="b-prog"></div></div></div>
+    <div class="bar"><div class="n" id="b-prog2" style="color:var(--prog)">0</div><div class="l">En curso</div></div>
+    <div class="bar"><div class="n" id="b-todo" style="color:var(--todo)">0</div><div class="l">Pendientes</div></div>
+  </div>
+  <div class="legend">
+    <span><b class="st st-todo">Pendiente</b></span>
+    <span><b class="st st-prog">En curso</b></span>
+    <span><b class="st st-pr">En PR</b></span>
+    <span><b class="st st-done">Hecho</b></span>
+  </div>
+
+  <!-- ====================== A — QUICK WINS ====================== -->
+  <h2><span class="chip c-qw">A · QUICK WINS</span> &lt;1 día · riesgo casi nulo</h2>
+  <p class="phasedesc">Lo barato y de alto impacto que estaba sin hacer. Se atacan primero.</p>
+  <table>
+    <thead><tr><th>Medida</th><th>Por qué</th><th>Dónde</th><th>Esfuerzo</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>Propagar idioma real del cliente (pt/en/de)</td><td>El inbound PT recibe pago/SMS/email en español</td><td class="file">puerta/checkout/route.ts:70</td><td class="eff">30 min</td><td><span class="st st-pr" data-st>En PR</span></td></tr>
+      <tr><td>Abrir AI crawlers (AEO) en robots</td><td>Hoy bloquea toda la IA salvo /uge-ce/; mata la AEO francófona</td><td class="file">app/robots.ts</td><td class="eff">1 h</td><td><span class="st st-pr" data-st>En PR</span></td></tr>
+      <tr><td>Quitar reseñas inventadas (4,8/46)</td><td>Riesgo de <i>manual action</i> que borra todos los rich snippets</td><td class="file">SchemaProduct.tsx · layout.tsx</td><td class="eff">2 h</td><td><span class="st st-prog" data-st>Espera Juan</span></td></tr>
+      <tr><td>Atribución lector→pedido (CTA con ?p=lector)</td><td>El flagship es inmedible y mete fricción de re-subida</td><td class="file">ia/RequirementsResult.tsx</td><td class="eff">15 min</td><td><span class="st st-todo" data-st>→ P1 (tracking)</span></td></tr>
+      <tr><td>try/catch + alerta en el cron de reconciliación</td><td>La red de seguridad puede morir en silencio</td><td class="file">cron/payment-reconciliation/route.ts</td><td class="eff">2 h</td><td><span class="st st-pr" data-st>En PR</span></td></tr>
+      <tr><td>Borrar fuentes muertas (Inter/Merriweather)</td><td>LCP en landings/puerta; cleanup</td><td class="file">globals.css · layout.tsx</td><td class="eff">15 min</td><td><span class="st st-pr" data-st>En PR</span></td></tr>
+      <tr><td>Borrar columna muerta <code>quoteState</code></td><td>0 referencias verificadas</td><td class="file">schema.prisma</td><td class="eff">10 min</td><td><span class="st st-todo" data-st>Aplazado (drop)</span></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ====================== B — P0 FIABILIDAD ====================== -->
+  <h2><span class="chip c-p0">B · P0 FIABILIDAD</span> el agujero que originó V2</h2>
+  <p class="phasedesc">Que no se repita el cobro-sin-pedido en silencio. Imprescindible antes de declarar V2 fiable.</p>
+  <table>
+    <thead><tr><th>Medida</th><th>Por qué</th><th>Dónde</th><th>Esfuerzo</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>Reconciliación Redsys + PayPal + Quotes</td><td>Hoy el cron solo mira Stripe → Redsys/PayPal cobran sin pedido sin detección</td><td class="file">payment-reconciliation · redsys/notification · paypal/capture</td><td class="eff">2-3 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>2º canal de alerta (SMS) + dead-man's-switch</td><td>Si cae el email Azure, cae toda la observabilidad</td><td class="file">lib/email.ts · 9 crons</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>payment-proof: no marcar PAID + token firmado</td><td>Cualquiera con referencia+email regala trabajo y ensucia contabilidad</td><td class="file">orders/[reference]/payment-proof/route.ts</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Blobs de documentos privados + retención</td><td>PII (penales) público y permanente — RGPD art. 10</td><td class="file">rutas access:"public" · document-cleanup</td><td class="eff">2-3 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>FailedEmail/FailedSms con contexto</td><td>"3 emails fallaron" es inaccionable; un cliente que pagó puede quedarse sin aviso</td><td class="file">schema.prisma · email-retry · sms.ts</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ====================== P1 ====================== -->
+  <h2><span class="chip c-p1">P1</span> mueve pedidos / menos trabajo manual</h2>
+  <table>
+    <thead><tr><th>Medida</th><th>Dónde</th><th>Esfuerzo</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>Botón WhatsApp en la DiagnosisCard + tracking lang/docType</td><td class="file">components/puerta/DiagnosisCard.tsx</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Instrumentar TODOS los wa.me (source/page/lang)</td><td class="file">~16 archivos</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Detección Accept-Language en / + &lt;html lang&gt;</td><td class="file">middleware.ts · layout.tsx</td><td class="eff">1-2 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Cobrar urgencia (+25%) y papel (+12€)</td><td class="file">checkout/route.ts:226</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Landing de captación PT/Brasil + CTA WhatsApp</td><td class="file">nuevo app/regularizacion-2026/</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Facturas rectificativas/abonos para REFUNDED</td><td class="file">lib/client-invoice.ts</td><td class="eff">2 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ====================== P2 ====================== -->
+  <h2><span class="chip c-p2">P2</span> higiene / deuda estructural</h2>
+  <table>
+    <thead><tr><th>Medida</th><th>Dónde</th><th>Esfuerzo</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>303/130 en zona horaria Europe/Madrid</td><td class="file">ContabilidadClient.tsx</td><td class="eff">0,5 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>No quemar nº fiscal en descarga PDF + issueWithRetry</td><td class="file">orders/[reference]/invoice-pdf/route.ts</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>JSON-LD a SSR (no afterInteractive)</td><td class="file">layout.tsx · blog/[slug]</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Fuentes a next/font</td><td class="file">globals.css · layout.tsx</td><td class="eff">0,5 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>zod en el camino crítico (0/108 routes)</td><td class="file">puerta · orders PATCH · encargo · leads</td><td class="eff">2 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>a11y DiagnosisCard (aria-live, foco)</td><td class="file">components/puerta/DiagnosisCard.tsx</td><td class="eff">1 d</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Consolidar backoffice (no añadir a /admin)</td><td class="file">docs/backoffice-unificacion-plan.md</td><td class="eff">fase aparte</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+      <tr><td>Limpieza código muerto (fixed-prices, paneles)</td><td class="file">varios</td><td class="eff">2 h</td><td><span class="st st-todo" data-st>Pendiente</span></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ====================== LOG ====================== -->
+  <h2>Registro de codeo</h2>
+  <div class="log" id="log">
+    <div class="row"><span class="t">11-jun 19:55</span><span>Auditoría ultracode completada (58 agentes, 35 hallazgos verificados). HTML de seguimiento creado. Arrancando bloque A.</span></div>
+    <div class="row"><span class="t">11-jun 20:10</span><span><b>Bloque A — 4 quick wins en PR:</b> (1) checkout captura idioma real es/fr/en/de/pt vía resolveLocale (PT visible en analítica; mensajes PT siguen pendientes de plantillas = P1). (2) robots abre los bots de respuesta (Perplexity/Claude/Gemini/ChatGPT) a todo el público. (3) cron de reconciliación envuelto en try/catch con alerta dedicada + 500 (deja de morir en silencio). (4) borradas fuentes muertas Inter/Merriweather. Build verde.</span></div>
+    <div class="row"><span class="t">11-jun 20:10</span><span><b>Pausado:</b> reseñas 4,8/46 — parecen reales (nombres/fechas), no se borran sin confirmar con Juan. <b>Movido:</b> atribución del lector → P1 (tracking). <b>Aplazado:</b> drop de columna quoteState (destructivo en prod).</span></div>
+  </div>
+
+  <footer>Generado a partir de <code>docs/auditoria-web-v2.md</code>. Estado actualizado manualmente conforme se codea cada medida.</footer>
+</div>
+
+<script>
+  // Recuento automático de estados.
+  (function(){
+    const sts = [...document.querySelectorAll('[data-st]')];
+    const total = sts.length;
+    const done = sts.filter(s=>s.classList.contains('st-done')).length;
+    const pr = sts.filter(s=>s.classList.contains('st-pr')).length;
+    const prog = sts.filter(s=>s.classList.contains('st-prog')).length;
+    const todo = sts.filter(s=>s.classList.contains('st-todo')).length;
+    document.getElementById('b-total').textContent = total;
+    document.getElementById('b-done').textContent = done + pr;
+    document.getElementById('b-prog2').textContent = prog;
+    document.getElementById('b-todo').textContent = todo;
+    document.getElementById('b-prog').style.width = Math.round((done+pr)/total*100) + '%';
+  })();
+</script>
+</body>
+</html>
