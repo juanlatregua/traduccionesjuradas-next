@@ -33,18 +33,24 @@ const SYSTEM = `Eres un extractor de datos de FACTURAS RECIBIDAS (de proveedor) 
 }
 Reglas: el PROVEEDOR es quien EMITE la factura, NO el destinatario. Si "HBTJ" / "Consultores Lingüísticos" aparece como destinatario/cliente, ignóralo (ese es el receptor, no el proveedor). No inventes: si un dato no aparece, pon null. Punto como separador decimal.`;
 
-export async function extractExpenseFromDocument(input: { fileBase64: string; mimeType: string; fileName: string }): Promise<ExtractedExpense> {
+export async function extractExpenseFromDocument(input: { fileBase64?: string; mimeType?: string; fileName: string; text?: string }): Promise<ExtractedExpense> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY no configurada.");
 
   const client = new Anthropic({ apiKey, maxRetries: 2 });
-  const isPdf = input.mimeType === "application/pdf";
-  const block: Anthropic.ContentBlockParam = isPdf
-    ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: input.fileBase64 } }
-    : {
-        type: "image",
-        source: { type: "base64", media_type: input.mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp", data: input.fileBase64 },
-      };
+  // Word (.docx) → se extrae el texto antes y se manda como texto (Claude visión
+  // no lee .docx). PDF → bloque documento. Imagen → bloque imagen.
+  let block: Anthropic.ContentBlockParam;
+  if (input.text) {
+    block = { type: "text", text: `FACTURA DE PROVEEDOR (texto extraído del documento Word):\n\n${input.text.slice(0, 20000)}` };
+  } else if (input.mimeType === "application/pdf") {
+    block = { type: "document", source: { type: "base64", media_type: "application/pdf", data: input.fileBase64 as string } };
+  } else {
+    block = {
+      type: "image",
+      source: { type: "base64", media_type: input.mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp", data: input.fileBase64 as string },
+    };
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
