@@ -161,7 +161,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
     }
   }
 
-  async function decide(lineHash: string, status: "IGNORED" | "MATCHED_MANUAL", extra?: { matchedType?: string; matchedId?: string; note?: string }) {
+  async function decide(lineHash: string, status: "IGNORED" | "MATCHED_MANUAL", extra?: { matchedType?: string; matchedId?: string; note?: string; movementDate?: string }) {
     setBusy(true);
     try {
       const res = await fetch("/api/bank/decision", {
@@ -278,7 +278,15 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
               <Section title={`Cargos sin gasto (${result.chargeNoExpense.length}) → registrar gasto (#5)`} color="rose">
                 {result.chargeNoExpense.map((it: any, i: number) =>
                   canIssue ? (
-                    <ChargeRow key={i} txn={it.txn} busy={busy} onRegister={registrarGasto} onIgnore={() => decide(it.lineHash, "IGNORED", { note: "no es gasto" })} />
+                    <ChargeRow
+                      key={i}
+                      txn={it.txn}
+                      busy={busy}
+                      onRegister={registrarGasto}
+                      onIgnore={() => decide(it.lineHash, "IGNORED", { note: "no es gasto" })}
+                      availableExpenses={result.availableExpenses}
+                      onLink={(expenseId) => decide(it.lineHash, "MATCHED_MANUAL", { matchedType: "expense", matchedId: expenseId, movementDate: it.txn.bookingDate })}
+                    />
                   ) : (
                     <Row key={i} txn={it.txn} />
                   )
@@ -290,7 +298,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                   <Row key={i} txn={it.txn}>
                     {canIssue &&
                       it.candidates.map((c: any, j: number) => (
-                        <button key={j} type="button" disabled={busy} onClick={() => decide(it.lineHash, "MATCHED_MANUAL", { matchedType: c.type, matchedId: c.id })} className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800">
+                        <button key={j} type="button" disabled={busy} onClick={() => decide(it.lineHash, "MATCHED_MANUAL", { matchedType: c.type, matchedId: c.id, movementDate: it.txn.bookingDate })} className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800">
                           {c.label}
                         </button>
                       ))}
@@ -301,7 +309,24 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
               <Section title={`Ingresos sin identificar (${result.unmatchedIncome.length})`} color="slate">
                 {result.unmatchedIncome.map((it: any, i: number) => (
                   <Row key={i} txn={it.txn} extra={it.label}>
-                    {canIssue && <IgnoreBtn onClick={() => decide(it.lineHash, "IGNORED", { note: it.label || "otra actividad" })} />}
+                    {canIssue && (
+                      <>
+                        {result.availableInvoices.length > 0 && (
+                          <select
+                            disabled={busy}
+                            value=""
+                            onChange={(e) => e.target.value && decide(it.lineHash, "MATCHED_MANUAL", { matchedType: "invoice", matchedId: e.target.value, movementDate: it.txn.bookingDate })}
+                            className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                          >
+                            <option value="">Vincular a factura…</option>
+                            {result.availableInvoices.map((inv: { id: string; label: string }) => (
+                              <option key={inv.id} value={inv.id}>{inv.label}</option>
+                            ))}
+                          </select>
+                        )}
+                        <IgnoreBtn onClick={() => decide(it.lineHash, "IGNORED", { note: it.label || "otra actividad" })} />
+                      </>
+                    )}
                   </Row>
                 ))}
               </Section>
@@ -312,7 +337,15 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                   {result.matched.map((it: any, i: number) => <Row key={"m" + i} txn={it.txn} extra={`✓ ${it.label}`} />)}
                   {result.internal.map((it: any, i: number) =>
                     canIssue && it.txn.amountCents < 0 ? (
-                      <ChargeRow key={"in" + i} txn={it.txn} busy={busy} onRegister={registrarGasto} onIgnore={() => decide(it.lineHash, "IGNORED", { note: it.label })} />
+                      <ChargeRow
+                        key={"in" + i}
+                        txn={it.txn}
+                        busy={busy}
+                        onRegister={registrarGasto}
+                        onIgnore={() => decide(it.lineHash, "IGNORED", { note: it.label })}
+                        availableExpenses={result.availableExpenses}
+                        onLink={(expenseId) => decide(it.lineHash, "MATCHED_MANUAL", { matchedType: "expense", matchedId: expenseId, movementDate: it.txn.bookingDate })}
+                      />
                     ) : (
                       <Row key={"in" + i} txn={it.txn} extra={it.label} />
                     )
@@ -360,10 +393,23 @@ function Row({ txn, extra, children }: { txn: BankTxn; extra?: string; children?
   );
 }
 
-function ChargeRow({ txn, busy, onRegister, onIgnore }: { txn: BankTxn; busy: boolean; onRegister: (txn: BankTxn, vatRate: number) => void; onIgnore: () => void }) {
+function ChargeRow({ txn, busy, onRegister, onIgnore, availableExpenses, onLink }: { txn: BankTxn; busy: boolean; onRegister: (txn: BankTxn, vatRate: number) => void; onIgnore: () => void; availableExpenses: { id: string; label: string }[]; onLink: (expenseId: string) => void }) {
   const [vat, setVat] = useState(0);
   return (
     <Row txn={txn}>
+      {availableExpenses.length > 0 && (
+        <select
+          disabled={busy}
+          value=""
+          onChange={(e) => e.target.value && onLink(e.target.value)}
+          className="rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[11px] text-slate-100"
+        >
+          <option value="">Vincular a gasto…</option>
+          {availableExpenses.map((ex) => (
+            <option key={ex.id} value={ex.id}>{ex.label}</option>
+          ))}
+        </select>
+      )}
       <select value={vat} onChange={(e) => setVat(Number(e.target.value))} className="rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[11px] text-slate-100">
         <option value={0}>IVA 0% / exento</option>
         <option value={0.21}>IVA 21%</option>

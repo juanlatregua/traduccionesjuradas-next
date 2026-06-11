@@ -25,9 +25,9 @@ export function computeLineHash(t: { bookingDate: string; amountCents: number; d
   return createHash("sha256").update(`${day}|${t.amountCents}|${normDesc(t.description)}`).digest("hex");
 }
 
-export type SnapInvoice = { id: string; number: string | null; totalCents: number; issuedAt: string; fiscalName: string; nif: string | null };
+export type SnapInvoice = { id: string; number: string | null; totalCents: number; issuedAt: string; fiscalName: string; nif: string | null; paidAt: string | null };
 export type SnapOrder = { reference: string; amountCents: number; paidAt: string | null; createdAt: string; clientName: string | null; paymentStatus: string };
-export type SnapExpense = { id: string; totalCents: number; date: string; supplier: string | null; concept: string };
+export type SnapExpense = { id: string; totalCents: number; date: string; supplier: string | null; concept: string; paidAt: string | null };
 export type SnapDecision = { lineHash: string; status: string; matchedType: string | null; matchedId: string | null; note: string | null };
 export type AccountingSnapshot = { invoices: SnapInvoice[]; orders: SnapOrder[]; expenses: SnapExpense[]; decisions: SnapDecision[] };
 
@@ -49,6 +49,9 @@ export type ReconResult = {
   ignored: IgnoredItem[];
   totals: { bankIn: number; bankOut: number; matchedIn: number; matchedOut: number; gapIn: number; gapOut: number };
   balanceCheck: { ok: boolean; message: string };
+  // Para vincular a mano un ingreso/cargo a un registro EXISTENTE no cobrado/pagado.
+  availableInvoices: { id: string; label: string; totalCents: number }[];
+  availableExpenses: { id: string; label: string; totalCents: number }[];
 };
 
 function within(a: number, b: number, tol: number) {
@@ -71,6 +74,8 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
     ignored: [],
     totals: { bankIn: 0, bankOut: 0, matchedIn: 0, matchedOut: 0, gapIn: 0, gapOut: 0 },
     balanceCheck: { ok: true, message: "" },
+    availableInvoices: [],
+    availableExpenses: [],
   };
 
   const seen = new Map<string, number>();
@@ -220,6 +225,25 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
       res.totals.gapOut += abs;
     }
   }
+
+  // Facturas/gastos EXISTENTES aún no cobrados/pagados y no emparejados ya:
+  // candidatos para vincular a mano un ingreso/cargo sin identificar.
+  res.availableInvoices = snap.invoices
+    .filter((i) => !i.paidAt && !usedInvoice.has(i.id))
+    .sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime())
+    .map((i) => ({
+      id: i.id,
+      label: `${i.number || "borrador"} · ${i.fiscalName} · ${(i.totalCents / 100).toFixed(2)} €`,
+      totalCents: i.totalCents,
+    }));
+  res.availableExpenses = snap.expenses
+    .filter((e) => !e.paidAt && !usedExpense.has(e.id))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map((e) => ({
+      id: e.id,
+      label: `${e.concept}${e.supplier ? ` · ${e.supplier}` : ""} · ${(e.totalCents / 100).toFixed(2)} €`,
+      totalCents: e.totalCents,
+    }));
 
   res.balanceCheck = checkBalance(txns);
   return res;

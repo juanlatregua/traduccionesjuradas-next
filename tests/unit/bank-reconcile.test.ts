@@ -45,7 +45,7 @@ function emptySnap(): AccountingSnapshot {
 
 test("ingreso casa con factura emitida", () => {
   const snap = emptySnap();
-  snap.invoices.push({ id: "i1", number: "26_010", totalCents: 24200, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "Oracle", nif: "B1" });
+  snap.invoices.push({ id: "i1", number: "26_010", totalCents: 24200, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "Oracle", nif: "B1", paidAt: null });
   const r = reconcile([{ bookingDate: "2026-05-11T00:00:00.000Z", description: "Transf Oracle", amountCents: 24200 }], snap);
   assert.equal(r.matched.length, 1);
   assert.equal(r.matched[0].kind, "invoice");
@@ -72,8 +72,8 @@ test("neto de comisión de pasarela se marca netOfFee, no exige gasto", () => {
 
 test(">1 candidato de factura → ambiguo, no auto-confirma", () => {
   const snap = emptySnap();
-  snap.invoices.push({ id: "i1", number: "26_001", totalCents: 10000, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "A", nif: null });
-  snap.invoices.push({ id: "i2", number: "26_002", totalCents: 10000, issuedAt: "2026-05-11T00:00:00.000Z", fiscalName: "B", nif: null });
+  snap.invoices.push({ id: "i1", number: "26_001", totalCents: 10000, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "A", nif: null, paidAt: null });
+  snap.invoices.push({ id: "i2", number: "26_002", totalCents: 10000, issuedAt: "2026-05-11T00:00:00.000Z", fiscalName: "B", nif: null, paidAt: null });
   const r = reconcile([{ bookingDate: "2026-05-10T00:00:00.000Z", description: "Ingreso", amountCents: 10000 }], snap);
   assert.equal(r.ambiguous.length, 1);
   assert.equal(r.ambiguous[0].candidates.length, 2);
@@ -82,7 +82,7 @@ test(">1 candidato de factura → ambiguo, no auto-confirma", () => {
 
 test("cargo casa con gasto; sin gasto → cargo sin gasto", () => {
   const snap = emptySnap();
-  snap.expenses.push({ id: "e1", totalCents: 5000, date: "2026-05-10T00:00:00.000Z", supplier: "Proveedor", concept: "Software" });
+  snap.expenses.push({ id: "e1", totalCents: 5000, date: "2026-05-10T00:00:00.000Z", supplier: "Proveedor", concept: "Software", paidAt: null });
   const r = reconcile(
     [
       { bookingDate: "2026-05-12T00:00:00.000Z", description: "Recibo Proveedor", amountCents: -5000 },
@@ -114,7 +114,7 @@ test("decisiones persistidas: IGNORED y MATCHED_MANUAL", () => {
 
 test("consumo greedy: dos ingresos iguales no roban la misma factura", () => {
   const snap = emptySnap();
-  snap.invoices.push({ id: "i1", number: "26_005", totalCents: 10000, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "A", nif: null });
+  snap.invoices.push({ id: "i1", number: "26_005", totalCents: 10000, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "A", nif: null, paidAt: null });
   const r = reconcile(
     [
       { bookingDate: "2026-05-10T00:00:00.000Z", description: "Ingreso 1", amountCents: 10000 },
@@ -167,7 +167,7 @@ test("dos pedidos igual de buenos → ambiguo (no auto-elige)", () => {
 
 test("MATCHED_MANUAL consume el objetivo (no se auto-empareja otra vez)", () => {
   const snap = emptySnap();
-  snap.invoices.push({ id: "i1", number: "26_001", totalCents: 10000, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "A", nif: null });
+  snap.invoices.push({ id: "i1", number: "26_001", totalCents: 10000, issuedAt: "2026-05-10T00:00:00.000Z", fiscalName: "A", nif: null, paidAt: null });
   const txnManual = { bookingDate: "2026-05-09T00:00:00.000Z", description: "Cobro raro", amountCents: 9999 };
   snap.decisions.push({ lineHash: computeLineHash(txnManual), status: "MATCHED_MANUAL", matchedType: "invoice", matchedId: "i1", note: null });
   const r = reconcile([txnManual, { bookingDate: "2026-05-10T00:00:00.000Z", description: "Ingreso", amountCents: 10000 }], snap);

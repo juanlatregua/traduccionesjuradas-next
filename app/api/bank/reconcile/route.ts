@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const [invoices, orders, expenses, decisions] = await Promise.all([
     prisma.clientInvoice.findMany({
       where: { status: "ISSUED" },
-      select: { id: true, number: true, totalCents: true, issuedAt: true, createdAt: true, fiscalName: true, nif: true },
+      select: { id: true, number: true, totalCents: true, issuedAt: true, createdAt: true, fiscalName: true, nif: true, paidAt: true },
       take: 5000,
     }),
     prisma.order.findMany({
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       select: { reference: true, amountCents: true, paidAt: true, createdAt: true, clientName: true, paymentStatus: true },
       take: 5000,
     }),
-    prisma.expense.findMany({ select: { id: true, totalCents: true, date: true, supplier: true, concept: true }, take: 5000 }),
+    prisma.expense.findMany({ select: { id: true, totalCents: true, date: true, supplier: true, concept: true, paidAt: true }, take: 5000 }),
     prisma.bankDecision.findMany({ select: { lineHash: true, status: true, matchedType: true, matchedId: true, note: true } }),
   ]);
 
@@ -56,6 +56,7 @@ export async function POST(req: Request) {
       issuedAt: (i.issuedAt ?? i.createdAt).toISOString(),
       fiscalName: i.fiscalName,
       nif: i.nif,
+      paidAt: i.paidAt ? i.paidAt.toISOString() : null,
     })),
     orders: orders.map((o) => ({
       reference: o.reference,
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
       clientName: o.clientName,
       paymentStatus: o.paymentStatus,
     })),
-    expenses: expenses.map((e) => ({ id: e.id, totalCents: e.totalCents, date: e.date.toISOString(), supplier: e.supplier, concept: e.concept })),
+    expenses: expenses.map((e) => ({ id: e.id, totalCents: e.totalCents, date: e.date.toISOString(), supplier: e.supplier, concept: e.concept, paidAt: e.paidAt ? e.paidAt.toISOString() : null })),
     decisions,
   };
 
