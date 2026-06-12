@@ -196,47 +196,75 @@ export async function sendTranslationReadyEmail(data: {
   downloadUrl: string;
   statusUrl?: string;
   lang?: "es" | "fr";
+  attachments?: MailAttachment[];
+  translationAttached?: boolean;
+  invoiceAttached?: boolean;
 }) {
   const fr = data.lang === "fr";
   const reviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "";
 
-  if (fr) {
-    const reviewBlock = reviewUrl
-      ? `<p style="margin-top:18px;">Si vous êtes satisfait du service, votre avis sur Google nous aiderait beaucoup :</p>
-         <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Laisser un avis sur Google</a></p>`
-      : "";
-    const html = `
-      <h2>Votre traduction assermentée est prête</h2>
-      <p>Référence : <strong>${data.reference}</strong></p>
-      <p>Vous pouvez télécharger votre fichier via ce lien :</p>
-      <p><a href="${data.downloadUrl}">${data.downloadUrl}</a></p>
-      ${data.statusUrl ? `<p style="font-size:13px; color:#6b7280;">Vous pouvez aussi <a href="${data.statusUrl}">suivre l'état de votre commande</a>.</p>` : `<p style="font-size:13px; color:#6b7280;">Vous pouvez aussi consulter l'état sur <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a>.</p>`}
-      <p>Si vous avez besoin d'une facture ou d'un envoi papier, répondez à cet e-mail.</p>
-      ${reviewBlock}
-    `;
-    await sendMail({ to: data.toEmail, subject: `Votre traduction assermentée est prête (${data.reference})`, html: wrapClientEmailHtml(html) });
-    return;
-  }
-
+  // Enlace de reseña directo y prominente.
   const reviewBlock = reviewUrl
-    ? `<p style="margin-top:18px;">Si estas satisfecho con el servicio, nos ayudaria mucho tu valoracion en Google:</p>
-       <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Dejar valoracion en Google</a></p>`
+    ? (fr
+        ? `<p style="margin-top:20px;">Votre avis nous aide énormément :</p>
+           <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:11px 26px; border-radius:8px; text-decoration:none; font-weight:600;">⭐ Laisser un avis Google</a></p>`
+        : `<p style="margin-top:20px;">Tu opinión nos ayuda muchísimo:</p>
+           <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:11px 26px; border-radius:8px; text-decoration:none; font-weight:600;">⭐ Dejar una reseña en Google</a></p>`)
     : "";
 
-  const html = `
-    <h2>Tu traduccion jurada esta lista</h2>
-    <p>Referencia: <strong>${data.reference}</strong></p>
-    <p>Puedes descargar tu archivo desde este enlace:</p>
-    <p><a href="${data.downloadUrl}">${data.downloadUrl}</a></p>
-    ${data.statusUrl ? `<p style="font-size:13px; color:#6b7280;">Tambien puedes <a href="${data.statusUrl}">ver el estado de tu pedido</a>.</p>` : `<p style="font-size:13px; color:#6b7280;">Tambien puedes consultar el estado en <a href="https://www.traduccionesjuradas.net/consulta">traduccionesjuradas.net/consulta</a>.</p>`}
-    <p>Si necesitas factura o envio en papel, responde a este correo.</p>
-    ${reviewBlock}
-  `;
+  const attachLine = data.translationAttached
+    ? (fr
+        ? `<p><strong>Vous trouverez votre traduction assermentée en pièce jointe${data.invoiceAttached ? ", ainsi que votre facture" : ""}.</strong></p>`
+        : `<p><strong>Adjuntamos tu traducción jurada${data.invoiceAttached ? " y tu factura" : ""} en este correo.</strong></p>`)
+    : "";
+
+  const backupLink = data.translationAttached
+    ? (fr
+        ? `<p style="font-size:13px; color:#6b7280;">Lien de téléchargement (sauvegarde) : <a href="${data.downloadUrl}">${data.downloadUrl}</a></p>`
+        : `<p style="font-size:13px; color:#6b7280;">Enlace de descarga (por si acaso): <a href="${data.downloadUrl}">${data.downloadUrl}</a></p>`)
+    : (fr
+        ? `<p>Vous pouvez télécharger votre fichier ici : <a href="${data.downloadUrl}">${data.downloadUrl}</a></p>`
+        : `<p>Puedes descargar tu archivo desde este enlace: <a href="${data.downloadUrl}">${data.downloadUrl}</a></p>`);
+
+  const statusLine = data.statusUrl
+    ? (fr
+        ? `<p style="font-size:13px; color:#6b7280;">Vous pouvez aussi <a href="${data.statusUrl}">suivre l'état de votre commande</a>.</p>`
+        : `<p style="font-size:13px; color:#6b7280;">También puedes <a href="${data.statusUrl}">ver el estado de tu pedido</a>.</p>`)
+    : "";
+
+  const invoiceNote = data.invoiceAttached
+    ? ""
+    : (fr
+        ? `<p>Si vous avez besoin d'une facture ou d'un envoi papier, répondez à cet e-mail.</p>`
+        : `<p>Si necesitas factura o envío en papel, responde a este correo.</p>`);
+
+  const html = fr
+    ? `
+      <h2>Votre traduction assermentée est prête</h2>
+      <p>Référence : <strong>${data.reference}</strong></p>
+      ${attachLine}
+      ${backupLink}
+      ${statusLine}
+      ${invoiceNote}
+      ${reviewBlock}
+    `
+    : `
+      <h2>Tu traducción jurada está lista</h2>
+      <p>Referencia: <strong>${data.reference}</strong></p>
+      ${attachLine}
+      ${backupLink}
+      ${statusLine}
+      ${invoiceNote}
+      ${reviewBlock}
+    `;
 
   await sendMail({
     to: data.toEmail,
-    subject: `Tu traduccion jurada esta lista (${data.reference})`,
+    subject: fr
+      ? `Votre traduction assermentée est prête (${data.reference})`
+      : `Tu traducción jurada está lista (${data.reference})`,
     html: wrapClientEmailHtml(html),
+    attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
   });
 }
 
