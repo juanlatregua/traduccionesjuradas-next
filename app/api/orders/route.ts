@@ -13,6 +13,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { inferFlowProfile, requiresInternalReview } from "@/lib/workflow";
+import { matchesFiscalForm } from "@/lib/ai/price-risk";
 import { getAdminEmails, getCollaboratorEmails, getPmEmails } from "@/lib/staff-access";
 import {
   computeQuoteTotals,
@@ -266,7 +267,18 @@ export async function POST(req: Request) {
       hasMixedCart: Boolean(body.hasMixedCart),
       containsWordCountItem: Boolean(body.containsWordCountItem),
     });
-    const needsInternalReview = body.reviewRequired === true || requiresInternalReview(flowProfile);
+    // Gate anti-infracobro (carril estimador legado): un documento fiscal/
+    // multi-copia NO debe saltar a autopago. El estimador ya marca el riesgo y
+    // el cliente manda reviewRequired, pero ese flag es manipulable → re-chequeo
+    // server-side por el título (la señal disponible aquí). Cae en revisión
+    // manual, igual que la puerta manda los de riesgo a presupuesto a medida.
+    const fiscalRiskyTitle = matchesFiscalForm(
+      `${body.title || ""} ${(body.estimationMeta as any)?.documentType || ""}`
+    );
+    const needsInternalReview =
+      body.reviewRequired === true ||
+      fiscalRiskyTitle ||
+      requiresInternalReview(flowProfile);
     const reviewReason =
       (body.reviewReason || "").trim() ||
       (needsInternalReview ? "Pedido requiere validacion interna antes de cobro." : null);

@@ -43,6 +43,13 @@ const FISCAL_FORM_PATTERNS: RegExp[] = [
 // pocos. Umbral 25: el 1099 real da 53; falsos positivos medidos ≤12.
 const REPEATED_TEMPLATE_THRESHOLD = 25;
 
+// Señal fiscal SOLO por texto/título, sin análisis IA completo. La usan flujos
+// que no tienen el análisis de la puerta (estimador legado, gate server de
+// /api/orders, que solo dispone del título del pedido).
+export function matchesFiscalForm(text: string): boolean {
+  return FISCAL_FORM_PATTERNS.some((re) => re.test(text || ""));
+}
+
 function repeatedTemplateScore(text: string): number {
   const words = text.toLowerCase().match(/[\p{L}]{3,}/gu) || [];
   if (words.length < 30) return 0;

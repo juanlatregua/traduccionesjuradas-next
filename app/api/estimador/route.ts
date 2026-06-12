@@ -7,6 +7,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { analyzeDocumentForBudget, normalizeOcrText } from "@/lib/ai-document";
+import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -820,6 +821,18 @@ export async function POST(req: Request) {
 
     const ai = analyzeDocumentForBudget(extraction.text, words);
 
+    // Red de seguridad anti-infracobro (incidente 1099-MISC): este carril legado
+    // tarifica plano sin el gate de la puerta. Marcamos los documentos de riesgo
+    // (fiscal/financiero, multi-copia, texto pegado) para que el frontend fuerce
+    // revisión manual en vez de autopago. El gate DURO está en /api/orders.
+    const priceRisk = assessAutoPriceRisk({
+      analysis: {
+        document_type: { category: "", specific_type: "" },
+        document_metrics: { extracted_text: extraction.text },
+      } as any,
+      extractedText: extraction.text,
+    }).risky;
+
     return NextResponse.json({
       ok: true,
       words,
@@ -832,6 +845,7 @@ export async function POST(req: Request) {
       marginPct: SAFETY_MARGIN_PCT,
       extractionMethod: extraction.method,
       ai,
+      priceRisk,
     });
   } catch (err: any) {
     return NextResponse.json(

@@ -1,6 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assessAutoPriceRisk } from "../../lib/ai/price-risk.ts";
+import { assessAutoPriceRisk, matchesFiscalForm } from "../../lib/ai/price-risk.ts";
+
+// matchesFiscalForm: gate por título (estimador legado + server /api/orders).
+test("matchesFiscalForm reconoce formularios fiscales por título y no falsos positivos", () => {
+  assert.equal(matchesFiscalForm("1099-MISC Valentina"), true);
+  assert.equal(matchesFiscalForm("Modelo 303 IVA"), true);
+  assert.equal(matchesFiscalForm("W-2 wage statement"), true);
+  assert.equal(matchesFiscalForm("Certificado de nacimiento"), false);
+  assert.equal(matchesFiscalForm("modelo 3 del vehículo"), false);
+  assert.equal(matchesFiscalForm(""), false);
+});
 
 // Análisis mínimo válido para las pruebas (solo lo que mira assessAutoPriceRisk).
 function fakeAnalysis(over: any = {}): any {
