@@ -42,6 +42,15 @@ const nextConfig = {
         source: "/pedido/:path*",
         headers: [noindexHeader],
       },
+      {
+        // El service worker no debe quedarse pegado en caché: que cada visita
+        // revalide para que una versión nueva se active sin esperas.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
     ];
   },
 

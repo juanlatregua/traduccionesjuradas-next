@@ -12,6 +12,7 @@ import SiteTopBars from "@/components/SiteTopBars";
 import { SITE_SEARCH_INDEX } from "@/lib/search/site-index";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
   ssr: false,
@@ -42,10 +43,16 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "TJ Juradas",
+  },
   icons: {
     icon: "/brand/favicon.svg",
     shortcut: "/brand/favicon.svg",
-    apple: "/brand/isotipo.svg",
+    apple: "/icons/apple-touch-icon.png",
   },
   openGraph: {
     type: "website",
@@ -266,6 +273,9 @@ export default function RootLayout({
 
         {/* ================= OFFLINE BANNER ================= */}
         <OfflineBanner />
+
+        {/* ================= PWA (service worker) ================= */}
+        <ServiceWorkerRegister />
 
         {/* ================= ANALYTICS ================= */}
         <Analytics />

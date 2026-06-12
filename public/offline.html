@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sin conexión · TraduccionesJuradas.net</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        background: #fbf7ed; color: #1f2937;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; padding: 24px;
+      }
+      .card { max-width: 28rem; }
+      .badge {
+        width: 72px; height: 72px; margin: 0 auto 20px; border-radius: 20px;
+        background: linear-gradient(135deg, #10b981, #22c55e 50%, #0ea5e9);
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 900; font-size: 28px; color: #fff; letter-spacing: -2px;
+      }
+      h1 { font-size: 1.4rem; margin: 0 0 8px; }
+      p { color: #6b7280; line-height: 1.5; margin: 0 0 24px; }
+      button {
+        border: 0; border-radius: 12px; padding: 12px 24px; font-size: 0.95rem; font-weight: 600;
+        background: #0ea5e9; color: #fff; cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="badge">TJ</div>
+      <h1>Sin conexión</h1>
+      <p>No hay conexión a internet ahora mismo. Comprueba la red y vuelve a intentarlo.</p>
+      <button onclick="location.reload()">Reintentar</button>
+    </div>
+  </body>
+</html>
