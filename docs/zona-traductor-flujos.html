@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mapa de flujos — Zona Traductor + Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: "dark", flowchart: { curve: "basis" } });</script>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0b1220; color:#e6edf6; font-family: system-ui,-apple-system,"Segoe UI",sans-serif; line-height:1.55; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 1.7rem; margin:0 0 4px; }
+  h2 { font-size: 1.25rem; margin: 36px 0 10px; border-bottom:1px solid #1e2a3d; padding-bottom:6px; }
+  .sub { color:#8aa0bd; margin:0 0 24px; }
+  .legend span { display:inline-block; padding:2px 10px; border-radius:6px; font-size:.8rem; font-weight:600; margin-right:8px; }
+  .dup { background:#fde68a; color:#000; } .dead { background:#fca5a5; color:#000; } .ok { background:#86efac; color:#000; }
+  .diagram { background:#0e1726; border:1px solid #1e2a3d; border-radius:14px; padding:16px; overflow:auto; }
+  table { width:100%; border-collapse:collapse; margin:10px 0 8px; font-size:.9rem; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid #1a2536; vertical-align:top; }
+  th { color:#9fb3d1; font-size:.78rem; text-transform:uppercase; letter-spacing:.03em; }
+  code { background:#16202f; padding:1px 5px; border-radius:4px; font-size:.85em; color:#bcd0ec; }
+  .tag { font-size:.72rem; font-weight:700; padding:1px 7px; border-radius:5px; }
+  .t-dup { background:#fde68a; color:#000; } .t-dead { background:#fca5a5; color:#000; } .t-ok { background:#86efac; color:#000; }
+  .callout { border-left:4px solid #f59e0b; background:#1c1606; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .callout.red { border-color:#ef4444; background:#1c0a0a; }
+  .callout.green { border-color:#10b981; background:#06160f; }
+  small { color:#8aa0bd; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Mapa de flujos — Zona Traductor + Admin</h1>
+  <p class="sub">Auditoría multi-agente (24 agentes · 194 nodos · 257 aristas · 16 candidatos verificados · 11 confirmados) · 2026-06-12</p>
+
+  <div class="legend">
+    <span class="dup">duplicado</span>
+    <span class="dead">muerto / desconectado</span>
+    <span class="ok">refutado: NO tocar</span>
+  </div>
+
+  <h2>1 · Esquema visual</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  classDef dup fill:#fde68a,stroke:#b45309,color:#000
+  classDef dead fill:#fca5a5,stroke:#991b1b,color:#000
+
+  subgraph NAV[Navegacion]
+    ZTNav[ZonaTraductorNav osc]
+    ANav[AdminNav claro]
+  end
+  subgraph PED[Pedidos listas]
+    Bandeja[Bandeja /zona-traductor]
+    Control[Control]:::dup
+    Tablero[Tablero Kanban]:::dup
+    AdmOrders[admin/orders lista]
+    OAP[OrderActionPanel]:::dup
+    DataSrc[loadEnrichedOrders]
+    TabQuery[findMany propio Tablero]:::dup
+  end
+  subgraph DET[Detalle de pedido]
+    Cockpit[proyecto/ref ProjectCockpit]
+    Workspace[workspace/ref editor+entrega]
+    AdmDet[admin/orders/ref]
+    AssignForm[AssignOrderForm]:::dup
+    AdmAssign[Admin handleAssign]:::dup
+    WF[api .../workflow]
+    ASG[api .../assign avisa cliente]
+  end
+  subgraph PRE[Presupuestos]
+    ZPres[zona/presupuesto builder]
+    QB[QuoteBuilder sin docs]
+    SEI[StaffExpedienteIntake docs+IA]
+    AdmNew[admin/quotes/new redirect]:::dup
+    AdmQList[admin/quotes lista]
+    AdmQDet[admin/quotes/id]
+    QAPI[api/quotes]
+    QStripe[quotes/stripe-webhook]
+  end
+  subgraph COL[Colaboradores]
+    CAP[CollaboratorAssignmentPanel]
+    Encargo[encargo/token publico]
+    ColGet[GET api/collaborators]
+    ColPost[POST api/collaborators]:::dead
+    ColPatch[PATCH api/collaborators/id]:::dead
+    Seed[seed-collaborators unica alta]
+  end
+  subgraph FIN[Facturas / Contabilidad]
+    Conta[contabilidad]
+    Fact[facturas InvoiceManager]
+    Recu[recurrentes]
+    InvGET[GET api/invoices/id]:::dead
+    ExpPATCH[PATCH api/expenses/id]:::dead
+    RecOrders[GET api/reconcile/orders]:::dead
+    OrdersGET[GET api/orders]:::dead
+  end
+
+  ZTNav --> Bandeja & Control & Tablero & ZPres & Fact & Recu & Conta
+  ANav --> AdmQList & AdmOrders
+  Bandeja -->|por pedido| OAP
+  Control -->|por pedido| OAP
+  Bandeja --> DataSrc
+  Control --> DataSrc
+  Tablero -->|query propia| TabQuery
+  Tablero -.->|solo badge| DataSrc
+  Tablero -->|Abrir| Cockpit
+  Cockpit <-->|Editor de traduccion| Workspace
+  AdmOrders -->|Abrir| AdmDet
+  OAP --> AssignForm --> ASG
+  AdmDet --> AdmAssign --> ASG
+  Cockpit --> WF
+  OAP --> WF
+  ZPres --> QB & SEI
+  QB --> QAPI
+  SEI --> QAPI
+  QB -->|redirect| AdmQDet
+  SEI -->|redirect| AdmQDet
+  AdmNew -->|redirect| ZPres
+  AdmQList --> AdmQDet --> QAPI
+  Encargo --> QStripe
+  OAP --> CAP
+  CAP -->|GET selector| ColGet
+  CAP --> Encargo
+  Seed --> ColGet
+  ColPost -.x sin UI.-> CAP
+  ColPatch -.x sin UI.-> ColGet
+  Conta --> Fact
+  Fact --> InvGET
+  Conta --> ExpPATCH
+  Conta -.->|server-load| RecOrders
+  </pre></div>
+
+  <h2>2 · El flujo de ENTREGA (tu problema)</h2>
+  <p>El "no puedo adjuntar la traducción y enviársela" tiene tres causas. La entrega real (subir archivo final + notificar cliente por email/SMS) existe en el <b>Workspace</b> → <code>POST /api/orders/[ref]/delivery</code>; el problema es llegar y conectar al traductor.</p>
+  <table>
+    <tr><th>Punto</th><th>Estado</th><th>Acción</th></tr>
+    <tr><td><b>"Ir a entrega"</b> en el panel de acciones</td><td><span class="tag t-dead">era muerto</span> hacía <code>setTab</code> (no navegaba)</td><td><span class="tag t-ok">ARREGLADO</span> ahora enlaza directo a <code>/zona-traductor/workspace/[ref]</code></td></tr>
+    <tr><td>Archivo entregado por la colaboradora</td><td>se ve en el <code>WorkspaceEditor</code> pero el <b>panel de entrega no lo recibe</b> → resubes a mano</td><td><span class="tag t-dup">por hacer</span> promover en 1 clic el archivo del colaborador a entrega final</td></tr>
+    <tr><td>Canal de subida del traductor</td><td>solo existe para el flujo de <b>cotización</b> (<code>/encargo/[token]</code>); un traductor asignado por <code>assignedTo</code> (caso Jimena) <b>no tiene dónde subir</b></td><td><span class="tag t-dead">falta</span> dar canal de subida al traductor asignado + paso "yo verifico → enviar"</td></tr>
+  </table>
+  <div class="callout green"><b>Para entregar a Jimena HOY:</b> en su tarjeta → <b>"Ir a entrega (workspace)"</b> → sube el archivo que te pasó Vanessa → marca <b>"Notificar al cliente"</b> → Guardar. Sale email + SMS con el enlace de estado.</div>
+
+  <h2>3 · Duplicados confirmados</h2>
+  <table>
+    <tr><th>Qué</th><th>Ficheros</th><th>Recomendación</th></tr>
+    <tr><td>Superficie de acción por pedido repetida</td><td>Bandeja + Control rinden el mismo <code>OrderActionPanel</code></td><td>Extraer lista única; Control deja solo métricas/filtros</td></tr>
+    <tr><td>Entrada de presupuesto partida</td><td><code>admin/quotes/new</code> (redirect) vs <code>zona/presupuesto</code></td><td>Canónico = zona/presupuesto; repuntar 4 deep-links</td></tr>
+    <tr><td>Asignación texto-libre duplicada</td><td><code>AssignOrderForm</code> + <code>AdminOrderDetailPanel.handleAssign</code></td><td>Fusionar UI <code>&lt;AssignTranslatorControl&gt;</code>; <b>NO</b> tocar el endpoint (avisa al cliente)</td></tr>
+    <tr><td>Doble fuente de verdad de pedidos</td><td>Tablero usa <code>findMany</code> propio + carga Bandeja entera para un badge</td><td>Derivar de <code>loadEnrichedOrders</code></td></tr>
+  </table>
+
+  <h2>4 · Muertos / desconectados confirmados</h2>
+  <table>
+    <tr><th>Nodo</th><th>Evidencia</th><th>Recomendación</th></tr>
+    <tr><td><code>POST /api/collaborators</code></td><td>ningún caller (alta solo por seed)</td><td>conectar mini-CRUD en <code>/admin/collaborators</code> o borrar</td></tr>
+    <tr><td><code>PATCH /api/collaborators/[id]</code></td><td>sin caller; <code>active</code> nunca se muta desde UI</td><td>conectar "Editar/baja" o borrar</td></tr>
+    <tr><td><code>GET /api/reconcile/orders</code></td><td>sin fetch; ignora sus params</td><td>borrar</td></tr>
+    <tr><td><code>GET /api/orders</code></td><td>los fetch son POST; cliente usa Server Component</td><td>borrar GET (conservar POST)</td></tr>
+    <tr><td><code>PATCH /api/expenses/[id]</code></td><td>solo se usa DELETE; sin UI de edición</td><td>conectar "Editar" o borrar</td></tr>
+    <tr><td><code>GET /api/invoices/[id]</code></td><td>sin caller (PATCH/DELETE/PDF sí)</td><td>borrar GET</td></tr>
+  </table>
+
+  <h2>5 · Refutados — parecían muertos pero NO lo son (no borrar)</h2>
+  <table>
+    <tr><th>Nodo</th><th>Conexión real</th></tr>
+    <tr><td><code>/api/quotes/stripe-webhook</code></td><td>Único webhook de pago de <b>Quote</b> (Quote→Order bridge). Ver alerta P0 abajo.</td></tr>
+    <tr><td><code>AssignOrderForm</code> texto libre</td><td>Única vía que avisa al cliente al iniciar traducción (email+SMS).</td></tr>
+    <tr><td><code>admin/orders/[ref]</code></td><td>Única vista con billing+shipping (dirección/NIF para envío papel) y override manual de workflow.</td></tr>
+    <tr><td>3 detalles de pedido (cockpit/workspace/admin)</td><td>Par cohesionado + admin con funciones exclusivas. No son duplicado dañino.</td></tr>
+    <tr><td>QuoteBuilder vs StaffExpedienteIntake</td><td>Un endpoint, dos UIs complementarias (sin-docs / con-docs).</td></tr>
+  </table>
+
+  <div class="callout red"><b>P0 operativo (no código):</b> verificar en el panel de Stripe que el webhook de <b>presupuestos</b> apunta a <code>…/api/quotes/stripe-webhook</code> y que el secret está en Vercel. Si falla, los presupuestos se cobran pero <b>nunca pasan a pedido</b> — fallo silencioso, mismo patrón que el incidente de 2,5 meses.</div>
+
+  <h2>6 · Consolidación priorizada</h2>
+  <ol>
+    <li><b>P0</b> · Verificar webhook Stripe de presupuestos (arriba).</li>
+    <li><b>P1</b> · Unificar fuente de datos del Tablero (<code>loadEnrichedOrders</code>).</li>
+    <li><b>P1</b> · Repuntar 4 deep-links de <code>admin/quotes/new</code> → <code>zona/presupuesto</code>.</li>
+    <li><b>P2</b> · Colaboradores: mini-CRUD en <code>/admin/collaborators</code> (alta/baja/datos fiscales) o borrar handlers huérfanos.</li>
+    <li><b>P2</b> · Extraer UI compartida (lista de acciones Bandeja+Control; <code>AssignTranslatorControl</code>).</li>
+    <li><b>P3</b> · Limpiar API ociosa (GET /api/orders, GET /api/invoices/[id], GET /api/reconcile/orders, PATCH /api/expenses/[id]); mover export CSV de <code>/api/admin/*</code> a <code>/api/invoices|expenses/export</code>.</li>
+  </ol>
+  <p><small>Nota: <code>docs/backoffice-unificacion-plan.md</code> referenciado en memoria NO existe en el repo (confirmado en la fase de refutación). Estas acciones son justo lo que ese plan debería recoger.</small></p>
+</div>
+</body>
+</html>
