@@ -184,6 +184,7 @@ export default async function WorkspacePage({ params }: Params) {
           currentDueDate={order.dueDate ? order.dueDate.toISOString().split("T")[0] : null}
           existingFileUrl={order.finalDeliveryFileUrl || order.translatedFileUrl || null}
           existingFilename={order.finalFilename || null}
+          translatorDeliveredAt={order.translatorDeliveredAt?.toISOString() || null}
         />
       </div>
     </main>

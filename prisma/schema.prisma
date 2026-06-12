@@ -129,6 +129,8 @@ model Order {
   finalFilename       String?
   finalMimeType       String?
   assignedTo         String?
+  translatorUploadToken String?     @unique
+  translatorDeliveredAt DateTime?
   dueDate            DateTime?
   supplierCostCents  Int?
   marginPct          Int?           @default(25)

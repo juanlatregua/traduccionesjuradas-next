@@ -538,6 +538,33 @@ export async function sendPaymentProofUploadedStaffEmail(data: {
   await sendMail({ to, subject, html });
 }
 
+export async function sendTranslatorDeliveredStaffEmail(data: {
+  reference: string;
+  clientName: string | null;
+  filename: string;
+  fileUrl: string;
+}) {
+  const to = process.env.PRESUPUESTO_TO;
+  if (!to) throw new Error("Missing PRESUPUESTO_TO");
+
+  const subject = `Traduccion recibida del traductor - ${data.reference}`;
+  const workspaceUrl = `https://www.traduccionesjuradas.net/zona-traductor/workspace/${data.reference}`;
+
+  const html = `
+    <h2>El traductor entregó la traducción</h2>
+    <p>Pendiente de que la <strong>verifiques y la envíes al cliente</strong>.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientName || "—"}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Archivo</td><td>${data.filename}</td></tr>
+    </table>
+    <p><a href="${data.fileUrl}">Descargar la traducción</a></p>
+    <p><a href="${workspaceUrl}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Verificar y enviar al cliente</a></p>
+  `;
+
+  await sendMail({ to, subject, html });
+}
+
 export async function sendPaymentProofReceivedClientEmail(data: {
   toEmail: string;
   reference: string;

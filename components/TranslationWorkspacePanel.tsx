@@ -9,6 +9,7 @@ type Props = {
   currentDueDate: string | null;
   existingFileUrl: string | null;
   existingFilename: string | null;
+  translatorDeliveredAt: string | null;
 };
 
 export default function TranslationWorkspacePanel({
@@ -17,11 +18,35 @@ export default function TranslationWorkspacePanel({
   currentDueDate,
   existingFileUrl,
   existingFilename,
+  translatorDeliveredAt,
 }: Props) {
   const router = useRouter();
+  // Si el traductor ya entregó (pendiente de verificar), arrancamos en TRADUCIDO
+  // para que Juan solo revise y pulse "Guardar entrega" (envía al cliente).
   const [state, setState] = useState<"EN_PROCESO" | "TRADUCIDO">(
-    currentDeliveryState === "TRADUCIDO" ? "TRADUCIDO" : "EN_PROCESO"
+    currentDeliveryState === "TRADUCIDO" || translatorDeliveredAt ? "TRADUCIDO" : "EN_PROCESO"
   );
+  const [translatorLink, setTranslatorLink] = useState<string | null>(null);
+  const [linkLoading, setLinkLoading] = useState(false);
+
+  async function getTranslatorLink() {
+    setLinkLoading(true);
+    try {
+      const res = await fetch(`/api/orders/${reference}/translator-link`, { method: "POST" });
+      const data = await res.json();
+      if (data?.ok && data?.path) {
+        const full = `${window.location.origin}${data.path}`;
+        setTranslatorLink(full);
+        try {
+          await navigator.clipboard.writeText(full);
+        } catch {
+          /* clipboard puede fallar sin https/permiso; el enlace queda visible */
+        }
+      }
+    } finally {
+      setLinkLoading(false);
+    }
+  }
   const [notifyClient, setNotifyClient] = useState(true);
   const [autoEta, setAutoEta] = useState(true);
   const [etaDate, setEtaDate] = useState(currentDueDate || "");
@@ -109,6 +134,36 @@ export default function TranslationWorkspacePanel({
       <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
         Estado de entrega
       </p>
+
+      {/* Enlace para que el traductor asignado suba su traducción */}
+      <div className="mt-3 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3">
+        <p className="text-xs text-slate-400">Enlace de subida para el traductor:</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={getTranslatorLink}
+            disabled={linkLoading}
+            className="rounded-lg border border-indigo-500/40 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/10 disabled:opacity-50"
+          >
+            {linkLoading ? "Generando…" : translatorLink ? "Copiar de nuevo" : "Generar y copiar enlace"}
+          </button>
+          {translatorLink && (
+            <a href={translatorLink} target="_blank" rel="noopener noreferrer" className="truncate text-xs text-indigo-300 hover:underline">
+              {translatorLink}
+            </a>
+          )}
+        </div>
+        <p className="mt-1 text-[11px] text-slate-500">Pásaselo al traductor; sube ahí su traducción y te aviso para verificar y enviar.</p>
+      </div>
+
+      {translatorDeliveredAt && (
+        <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+          <p className="text-xs font-semibold text-amber-300">⏳ El traductor entregó — pendiente de verificar</p>
+          <p className="mt-1 text-[11px] text-slate-300">
+            Revisa el archivo de abajo. Si está bien, deja el estado en <b>Traducido</b> + <b>Notificar al cliente</b> y pulsa Guardar para enviárselo.
+          </p>
+        </div>
+      )}
 
       {existingFileUrl && (
         <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
