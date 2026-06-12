@@ -222,26 +222,36 @@ export default function TranslationWorkspacePanel({
         </div>
       )}
 
-      {state === "TRADUCIDO" && (
-        <div className="mt-3">
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-slate-500 file:bg-slate-800 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-slate-100"
-          />
-        </div>
-      )}
+      {/* Subir la traducción terminada — siempre visible. Elegir un archivo ya
+          marca el pedido como Traducido (listo para entregar al cliente). */}
+      <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+        <p className="text-xs font-semibold text-emerald-300">📄 Entregar al cliente: sube la traducción terminada</p>
+        <input
+          type="file"
+          accept=".pdf,.doc,.docx"
+          onChange={(e) => {
+            const f = e.target.files?.[0] || null;
+            setFile(f);
+            if (f) setState("TRADUCIDO");
+          }}
+          className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-emerald-500/50 file:bg-emerald-600/20 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-200"
+        />
+        <p className="mt-1.5 text-[11px] text-slate-400">
+          {file
+            ? "✓ Archivo listo. Marca «Notificar al cliente» abajo y pulsa Guardar para enviárselo."
+            : "PDF o Word. Al elegir el archivo se marca como Traducido automáticamente."}
+        </p>
+      </div>
 
       {state === "TRADUCIDO" && (
-        <label className="mt-3 flex items-center gap-2 text-xs text-slate-300">
+        <label className="mt-3 flex items-center gap-2 text-sm font-medium text-slate-100">
           <input
             type="checkbox"
             checked={notifyClient}
             onChange={(e) => setNotifyClient(e.target.checked)}
             className="rounded border-slate-500"
           />
-          Notificar al cliente al marcar como traducido
+          Notificar al cliente (le llega email + SMS con la traducción)
         </label>
       )}
 
@@ -251,7 +261,11 @@ export default function TranslationWorkspacePanel({
         disabled={loading}
         className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
-        {loading ? "Guardando..." : "Guardar entrega"}
+        {loading
+          ? "Guardando..."
+          : state === "TRADUCIDO" && notifyClient
+            ? "Entregar y notificar al cliente"
+            : "Guardar entrega"}
       </button>
 
       {message && (
