@@ -73,7 +73,11 @@ export default function DiagnosisCard({
   const t = puertaT[lang];
   const lowConfidence = confidence < CONFIDENCE_THRESHOLD;
   const { delivery } = diagnosis;
-  const needsTargetLanguage = delivery.hours === null;
+  // Documento de riesgo (fiscal/multi-copia): NO es "falta idioma destino";
+  // se enruta a presupuesto manual con su propio mensaje.
+  const priceRisky = diagnosis.priceRisky;
+  const needsTargetLanguage = !priceRisky && delivery.hours === null;
+  const waUrl = `https://wa.me/34951333614?text=${encodeURIComponent(t.whatsappPrefill)}`;
 
   const deliveryDate = delivery.hours
     ? estimateDeliveryDate(delivery.hours)
@@ -106,7 +110,19 @@ export default function DiagnosisCard({
 
         {/* 2 · Precio */}
         <Row icon={Wallet} label={t.qPrice}>
-          {needsTargetLanguage ? (
+          {priceRisky ? (
+            <p className="text-graphite">
+              {t.manualQuoteNote}{" "}
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-vert underline underline-offset-2"
+              >
+                WhatsApp
+              </a>
+            </p>
+          ) : needsTargetLanguage ? (
             <p className="text-graphite">{t.pricePending}</p>
           ) : lowConfidence ? (
             <div>
@@ -128,7 +144,8 @@ export default function DiagnosisCard({
           )}
         </Row>
 
-        {/* 3 · Plazo */}
+        {/* 3 · Plazo — se oculta en documentos de riesgo (presupuesto manual) */}
+        {!priceRisky && (
         <Row icon={Clock} label={t.qDelivery}>
           {needsTargetLanguage ? (
             <div>
@@ -169,6 +186,7 @@ export default function DiagnosisCard({
             </div>
           )}
         </Row>
+        )}
 
         {/* 4 · Validez */}
         <Row icon={BadgeCheck} label={t.qValidity}>

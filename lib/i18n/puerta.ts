@@ -50,6 +50,7 @@ export type PuertaStrings = {
   qDelivery: string;
   qValidity: string;
   pricePending: string;
+  manualQuoteNote: string;
   orientativoSuffix: string;
   lowConfNote: string;
   ivaIncl: string;
@@ -126,6 +127,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qDelivery: "Plazo de entrega",
     qValidity: "Validez",
     pricePending: "Indícanos abajo el idioma de destino y calculamos el precio.",
+    manualQuoteNote:
+      "Este documento (formulario fiscal/financiero o con varias copias) necesita un presupuesto a medida. Escríbenos por WhatsApp y te lo preparamos al momento.",
     orientativoSuffix: "(orientativo)",
     lowConfNote: "No hemos podido leer el documento con seguridad. Confirmaremos el precio final antes de empezar.",
     ivaIncl: "IVA incluido",
@@ -179,6 +182,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qDelivery: "Délai de livraison",
     qValidity: "Validité",
     pricePending: "Indiquez ci-dessous la langue cible et nous calculons le prix.",
+    manualQuoteNote:
+      "Ce document (formulaire fiscal/financier ou comportant plusieurs copies) nécessite un devis sur mesure. Écrivez-nous sur WhatsApp et nous le préparons aussitôt.",
     orientativoSuffix: "(indicatif)",
     lowConfNote: "Nous n'avons pas pu lire le document avec certitude. Nous confirmerons le prix final avant de commencer.",
     ivaIncl: "TVA incluse",
@@ -232,6 +237,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qDelivery: "Delivery time",
     qValidity: "Validity",
     pricePending: "Tell us the target language below and we'll calculate the price.",
+    manualQuoteNote:
+      "This document (a tax/financial form or one with several copies) needs a tailored quote. Message us on WhatsApp and we'll prepare it right away.",
     orientativoSuffix: "(estimate)",
     lowConfNote: "We couldn't read the document with certainty. We'll confirm the final price before starting.",
     ivaIncl: "VAT included",
@@ -285,6 +292,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qDelivery: "Lieferzeit",
     qValidity: "Gültigkeit",
     pricePending: "Geben Sie unten die Zielsprache an, und wir berechnen den Preis.",
+    manualQuoteNote:
+      "Dieses Dokument (ein Steuer-/Finanzformular oder mit mehreren Kopien) braucht ein individuelles Angebot. Schreiben Sie uns per WhatsApp und wir erstellen es sofort.",
     orientativoSuffix: "(Richtwert)",
     lowConfNote: "Wir konnten das Dokument nicht sicher lesen. Wir bestätigen den Endpreis vor Beginn.",
     ivaIncl: "inkl. MwSt.",
@@ -338,6 +347,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qDelivery: "Prazo de entrega",
     qValidity: "Validade",
     pricePending: "Indique abaixo o idioma de destino e calculamos o preço.",
+    manualQuoteNote:
+      "Este documento (formulário fiscal/financeiro ou com várias cópias) precisa de um orçamento à medida. Escreva-nos pelo WhatsApp e preparamo-lo de imediato.",
     orientativoSuffix: "(indicativo)",
     lowConfNote: "Não conseguimos ler o documento com segurança. Confirmaremos o preço final antes de começar.",
     ivaIncl: "IVA incluído",

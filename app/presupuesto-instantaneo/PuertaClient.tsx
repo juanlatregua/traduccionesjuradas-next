@@ -190,9 +190,13 @@ export default function PuertaClient({
   }, [documents, purpose, email, phone, lang, sessionToken, t]);
 
   const total = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
+  // Documento de riesgo (fiscal/multi-copia): bloquea el pago igual que un idioma
+  // no soportado, pero NO es "falta idioma" → su mensaje lo da la DiagnosisCard.
+  const hasRiskyDoc = documents.some((d) => d.diagnosis.priceRisky);
   const pendingTargetLanguage = documents.some(
-    (d) => d.diagnosis.delivery.hours === null
+    (d) => !d.diagnosis.priceRisky && d.diagnosis.delivery.hours === null
   );
+  const blockCheckout = pendingTargetLanguage || hasRiskyDoc;
 
   return (
     <div className="space-y-6">
@@ -338,7 +342,7 @@ export default function PuertaClient({
             <button
               type="button"
               onClick={handleCheckout}
-              disabled={checkingOut || pendingTargetLanguage || !contactValid}
+              disabled={checkingOut || blockCheckout || !contactValid}
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
             >
               {checkingOut && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -347,7 +351,7 @@ export default function PuertaClient({
             {pendingTargetLanguage && (
               <p className="mt-2 text-center text-xs text-graphite">{t.hintTargetLang}</p>
             )}
-            {!pendingTargetLanguage && !contactValid && (
+            {!blockCheckout && !contactValid && (
               <p className="mt-2 text-center text-xs text-graphite">{t.hintContact}</p>
             )}
             {checkoutError && (

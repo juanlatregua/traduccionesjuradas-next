@@ -12,6 +12,7 @@ import {
 } from "@/lib/session-pricing";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable } from "@/lib/pricing-engine/languages";
+import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 
 export const runtime = "nodejs";
@@ -169,6 +170,23 @@ export async function POST(req: Request) {
           unsupported: true,
           error:
             "Por ahora no ofrecemos traducción jurada automática en este idioma. Escríbenos por WhatsApp y te preparamos un presupuesto a medida.",
+          whatsappUrl: WHATSAPP_URL,
+        },
+        { status: 422 }
+      );
+    }
+
+    // GATE DURO de autotarificación por DOCUMENTO (incidente 1099-MISC): los
+    // formularios fiscales/financieros, multi-copia o con texto pegado
+    // infracuentan palabras → infracobro. No llegan a Stripe; presupuesto manual.
+    // Se confía en price_risk persistido y se re-evalúa por si el análisis es viejo.
+    if (analysis.price_risk?.risky || assessAutoPriceRisk({ analysis, fileName: rec.fileName }).risky) {
+      return NextResponse.json(
+        {
+          ok: false,
+          unsupported: true,
+          error:
+            "Este documento necesita un presupuesto a medida (formularios fiscales/financieros o con varias copias). Escríbenos por WhatsApp y te lo preparamos al momento.",
           whatsappUrl: WHATSAPP_URL,
         },
         { status: 422 }

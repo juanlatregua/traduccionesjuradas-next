@@ -52,6 +52,9 @@ export type Diagnosis = {
   // false = idioma fuera del set auto-tarificable (ruso, ucraniano, etc.): no se
   // muestra precio instantáneo ni se permite checkout; se enruta a manual.
   autoPriceable: boolean;
+  // true = documento de riesgo de infraconteo (fiscal/financiero, multi-copia):
+  // se enruta a presupuesto manual con un mensaje DISTINTO al de "elige idioma".
+  priceRisky: boolean;
 };
 
 // ── Plazo de entrega ────────────────────────────────────────────────
@@ -294,7 +297,10 @@ export function buildDiagnosis(
   const direction: TranslationDirection =
     language.source === "es" ? "outbound" : "inbound";
   const foreignLang = resolveForeignLang(language);
-  const autoPriceable = isAutoPriceable(foreignLang);
+  // No autotarificable si el idioma no lo permite O si el documento es de riesgo
+  // de infraconteo (fiscal/financiero, multi-copia, texto pegado): en ese caso
+  // se manda a presupuesto manual en vez de cobrar mal (incidente 1099-MISC).
+  const autoPriceable = isAutoPriceable(foreignLang) && !analysis.price_risk?.risky;
 
   // Sin plazo determinista para idiomas no auto-tarificables: no anunciamos
   // "72h" de un idioma que se gestiona manualmente (o que no ofrecemos).
@@ -329,6 +335,7 @@ export function buildDiagnosis(
       originalDocument: originalDocumentValidity(document_type.specific_type, lang),
     },
     autoPriceable,
+    priceRisky: Boolean(analysis.price_risk?.risky),
   };
 }
 
