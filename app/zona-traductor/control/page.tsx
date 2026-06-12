@@ -190,10 +190,10 @@ export default async function ZonaTraductorControlPage({
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <a
-              href="/admin/quotes/new"
+              href="/zona-traductor/presupuesto"
               className="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600"
             >
-              Nuevo presupuesto con preview
+              Nuevo presupuesto
             </a>
             <a
               href="/admin/quotes"
@@ -346,7 +346,7 @@ export default async function ZonaTraductorControlPage({
                   marginPct: order.financeSnapshot.marginPct,
                   requiresMarginApproval: requiresMarginApproval(order),
                   hasMonthlyBatchPending: hasMonthlyBatchPending(order),
-                  quickQuoteHref: `/admin/quotes/new?${quickQuoteParams.toString()}`,
+                  quickQuoteHref: `/zona-traductor/presupuesto?${quickQuoteParams.toString()}`,
                   showConfirmPayment:
                     order.paymentStatus === "PENDING" &&
                     ["PENDIENTE_PAGO", "JUSTIFICANTE_SUBIDO", "PRESUPUESTO_ENVIADO"].includes(order.workflowState),
