@@ -20,6 +20,44 @@ export function round2(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+// ── Margen comercial tiered FR-aware (decisión Juan 2026-06-12) ──────────────
+// Para idiomas NO franceses, el precio del motor es el COSTE y el cliente paga
+// coste × (1 + margen), con margen por tramo de COSTE (base sin IVA):
+//   coste < 100 € → 30 % · 100–190 € → 25 % · ≥ 190 € → 20 %.
+// Francés: SIN margen (lo hace Juan; coste = precio cliente). El IVA va FUERA de
+// estos helpers (cada borde aplica el IVA donde ya lo hace hoy).
+
+export function marginPctForCost(costEur: number): number {
+  const cost = Number.isFinite(costEur) ? Math.max(0, costEur) : 0;
+  if (cost < 100) return 30;
+  if (cost < 190) return 25;
+  return 20;
+}
+
+// ¿El idioma extranjero del par/lengua es francés? Acepta par ("fr-es","es-fr")
+// o código suelto ("fr"). El lado no-ES del par es el idioma extranjero.
+export function isFrenchForeign(foreignLangOrPair: string | null | undefined): boolean {
+  const c = String(foreignLangOrPair || "").trim().toLowerCase();
+  if (!c) return false;
+  if (c.includes("-")) {
+    const [from, to] = c.split("-");
+    const foreign = from === "es" ? to : from;
+    return foreign === "fr";
+  }
+  return c === "fr";
+}
+
+// Precio CLIENTE sin IVA a partir del COSTE sin IVA. FR → coste tal cual.
+// No-FR → coste × (1 + margen tiered). IVA FUERA (se aplica en el borde).
+export function clientPriceFromCost(
+  costEur: number,
+  foreignLangOrPair: string | null | undefined
+): number {
+  const cost = Number.isFinite(costEur) ? Math.max(0, costEur) : 0;
+  if (isFrenchForeign(foreignLangOrPair)) return round2(cost);
+  return round2(cost * (1 + marginPctForCost(cost) / 100));
+}
+
 export function computeQuoteTotals(params: {
   lines: QuoteLineInput[];
   discountType: QuoteDiscountType;

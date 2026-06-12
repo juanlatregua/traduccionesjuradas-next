@@ -8,7 +8,8 @@ import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import { runDocumentAnalysis } from "@/lib/ai/run-analysis";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
-import { buildDiagnosis } from "@/lib/diagnosis";
+import { buildDiagnosis, resolveForeignLang } from "@/lib/diagnosis";
+import { clientPriceFromCost } from "@/lib/quote-math";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 
 export const runtime = "nodejs";
@@ -207,8 +208,11 @@ export async function POST(req: Request) {
         confidence: analysis.document_type.confidence,
         extractedNames: censoredNames,
         extractedDates: analysis.extracted_data.dates || [],
-        quoteAmount: quote.basePrice,
-        quoteUrgent: quote.urgentPrice,
+        // Persistimos el precio CLIENTE (coste + margen tiered, FR sin margen),
+        // coherente con el diagnóstico mostrado y con la rama cached (que aplica
+        // IVA sobre este valor). Ver lib/quote-math.ts.
+        quoteAmount: diagnosis.price.base,
+        quoteUrgent: clientPriceFromCost(quote.urgentPrice, resolveForeignLang(analysis.language)),
         estimatedDays: quote.estimatedDaysStandard,
         estimatedDaysUrgent: quote.estimatedDaysUrgent,
         quoteBreakdown: quote.breakdown as any,

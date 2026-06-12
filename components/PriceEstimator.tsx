@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
+import { isFrenchForeign, marginPctForCost } from "@/lib/quote-math";
 
 type Lang = "fr" | "de" | "en" | "it" | "pt" | "nl" | "ca" | "sv" | "no";
 type AnyLang = Lang | "es";
@@ -288,7 +289,7 @@ export default function PriceEstimator() {
         words: clampInt(Number(data.words || 0), 0, 200000),
         rate: Number(data.rate || 0),
         urgencyPct: fileUrgency === "urgente24" ? 25 : 0,
-        marginPct: Number(data.marginPct || SAFETY_MARGIN_PCT),
+        marginPct: Number(data.marginPct ?? SAFETY_MARGIN_PCT),
         days: getEstimatedDays(fileDocType, fileUrgency),
         source: "file",
         ai: data.ai || undefined,
@@ -310,14 +311,17 @@ export default function PriceEstimator() {
     const rate = getWordRateForLangOrPair(fileLangPair as string);
     const base = Math.round(manualWords * rate);
     const subtotal = Math.round(base * (fileUrgency === "urgente24" ? 1.25 : 1));
-    const total = Math.round(subtotal * SAFETY_MARGIN_MULTIPLIER);
+    // Misma fórmula que el backend (/api/estimador): coste × (1 + margen tiered)
+    // × IVA; francés sin margen. Mantener en paridad con la ruta por archivo.
+    const marginPct = isFrenchForeign(fileLangPair) ? 0 : marginPctForCost(subtotal);
+    const total = Math.round(Math.round(subtotal * (1 + marginPct / 100)) * 1.21);
     setResult({
       total,
       base,
       words: manualWords,
       rate,
       urgencyPct: fileUrgency === "urgente24" ? 25 : 0,
-      marginPct: SAFETY_MARGIN_PCT,
+      marginPct,
       days: getEstimatedDays(fileDocType, fileUrgency),
       source: "file",
     });

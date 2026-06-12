@@ -1,6 +1,7 @@
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
-import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { getRate, getLanguageName } from "@/lib/pricing-engine/languages";
+import { clientPriceFromCost, round2 } from "@/lib/quote-math";
 import { getMinimum, getApostilleSurcharge } from "@/lib/pricing-engine/rules";
 
 export type QuoteEstimateInput = {
@@ -122,10 +123,11 @@ export function getQuoteEstimate(input: QuoteEstimateInput): QuoteEstimateOutput
     minimum_price_eur: getMinimum(documentType, language),
     rate_per_word_eur: getRate(language),
     apostille_surcharge_eur: input.has_apostille ? getApostilleSurcharge(language) : 0,
-    base_price_eur: quote.basePrice,
-    base_price_with_vat_eur: quote.totalPrice,
-    urgent_price_eur: quote.urgentPrice,
-    urgent_price_with_vat_eur: quote.urgentTotalPrice,
+    // Precio CLIENTE = coste × (1 + margen tiered); FR sin margen. IVA encima.
+    base_price_eur: clientPriceFromCost(quote.basePrice, language),
+    base_price_with_vat_eur: round2(clientPriceFromCost(quote.basePrice, language) * (1 + VAT_RATE)),
+    urgent_price_eur: clientPriceFromCost(quote.urgentPrice, language),
+    urgent_price_with_vat_eur: round2(clientPriceFromCost(quote.urgentPrice, language) * (1 + VAT_RATE)),
     estimated_delivery_standard: quote.estimatedDaysStandard,
     estimated_delivery_urgent: quote.estimatedDaysUrgent,
     is_french_criminal_record: isFrenchCriminalRecord,

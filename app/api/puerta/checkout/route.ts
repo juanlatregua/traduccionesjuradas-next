@@ -11,6 +11,7 @@ import {
   PURPOSE_REGULARIZACION_2026,
 } from "@/lib/session-pricing";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { clientPriceFromCost } from "@/lib/quote-math";
 import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable } from "@/lib/pricing-engine/languages";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
@@ -210,7 +211,7 @@ export async function POST(req: Request) {
         foreignLang === "fr" &&
         !isFrenchCriminalRecord
           ? REGULARIZACION_FR_DOC_CENTS
-          : Math.round(quote.basePrice * 100);
+          : Math.round(clientPriceFromCost(quote.basePrice, foreignLang) * 100);
     } catch (err: any) {
       console.error("[puerta/checkout] calculatePrice:", err?.message);
       return NextResponse.json(

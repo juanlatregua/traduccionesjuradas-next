@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { analyzeDocumentForBudget, normalizeOcrText } from "@/lib/ai-document";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
+import { isFrenchForeign, marginPctForCost } from "@/lib/quote-math";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -816,8 +817,13 @@ export async function POST(req: Request) {
     const rate = getWordRateForLangOrPair(lang);
     const base = Math.round(words * rate);
     const urgencyMultiplier = urgency === "urgente24" ? 1.25 : 1;
+    // subtotal = COSTE (sin IVA). Cliente paga coste × (1 + margen tiered) + IVA;
+    // francés sin margen. Sustituye al antiguo colchón SAFETY_MARGIN del 10% y
+    // alinea el estimador con la puerta (que ya cobra IVA). Ver lib/quote-math.ts.
     const subtotal = Math.round(base * urgencyMultiplier);
-    const total = Math.round(subtotal * SAFETY_MARGIN_MULTIPLIER);
+    const marginPct = isFrenchForeign(lang) ? 0 : marginPctForCost(subtotal);
+    const withMargin = Math.round(subtotal * (1 + marginPct / 100));
+    const total = Math.round(withMargin * (1 + 0.21));
 
     const ai = analyzeDocumentForBudget(extraction.text, words);
 
@@ -842,7 +848,7 @@ export async function POST(req: Request) {
       total,
       estimatedByPages,
       pageCount: numPages || undefined,
-      marginPct: SAFETY_MARGIN_PCT,
+      marginPct,
       extractionMethod: extraction.method,
       ai,
       priceRisk,
