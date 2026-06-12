@@ -206,9 +206,9 @@ export async function sendTranslationReadyEmail(data: {
   // Enlace de reseña directo y prominente.
   const reviewBlock = reviewUrl
     ? (fr
-        ? `<p style="margin-top:20px;">Votre avis nous aide énormément :</p>
+        ? `<p style="margin-top:20px;">Merci de laisser un commentaire sur notre travail, cela nous aide énormément :</p>
            <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:11px 26px; border-radius:8px; text-decoration:none; font-weight:600;">⭐ Laisser un avis Google</a></p>`
-        : `<p style="margin-top:20px;">Tu opinión nos ayuda muchísimo:</p>
+        : `<p style="margin-top:20px;">Gracias por dejar un comentario sobre nuestro trabajo, nos ayuda muchísimo:</p>
            <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:11px 26px; border-radius:8px; text-decoration:none; font-weight:600;">⭐ Dejar una reseña en Google</a></p>`)
     : "";
 
