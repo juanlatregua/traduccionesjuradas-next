@@ -54,6 +54,31 @@
     <b>Línea de fondo:</b> la web está mejor construida de lo que factura. El esfuerzo va a un funnel de pago que cierra ~0 pedidos, mientras el dinero entra por <b>WhatsApp / portugués</b>. Las dos cosas que más mueven la aguja —<b>medir WhatsApp</b> y <b>reconciliar los 3 proveedores de pago</b>— son baratas y estaban sin hacer. Orden de ataque: <b>A) quick wins → B) P0 fiabilidad → P1 → P2.</b>
   </div>
 
+  <!-- ====================== SESIÓN 12-JUN ====================== -->
+  <h2>Trabajo de la sesión · 12-jun-2026 <span class="chip" style="font-size:12px;background:var(--done);color:#fff">PR #123 MERGEADO a prod</span></h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="bar" style="flex:none">
+      <div class="l" style="color:var(--done);font-weight:700;margin-bottom:8px">✅ Entregado (en PROD)</div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7">
+        <li><b>Flujo de entrega traductor→verificas→envías:</b> la traductora sube por enlace tokenizado <code>/entrega/[token]</code> → verificas en el workspace → envías. El email <b>adjunta la traducción (PDF) + la factura (si emitida) + botón de reseña</b> (es/fr). Fix "Ir a entrega" muerto + subir-archivo obvio.</li>
+        <li><b>Anti-infracobro por infraconteo</b> (el 1099 que costó dinero): suelo de conteo + gate que manda a presupuesto manual los fiscales/multi-copia, en <b>las 2 vías de cobro</b> (puerta + estimador legado). Calibrado anti-falsos-positivos.</li>
+        <li><b>Margen comercial tiered FR-aware</b> (30/25/20 % por coste, francés exento). ⚠ SUBE precios no-FR y el estimador ahora cobra IVA.</li>
+        <li><b>PWA instalable</b> · <b>presupuestos unificados</b> en un builder · <b>envío en papel +12 €</b> en la puerta del home.</li>
+        <li><b>Mapa de flujos</b> zona-traductor (<code>docs/zona-traductor-flujos.html</code>): duplicados/muertos verificados.</li>
+      </ul>
+    </div>
+    <div class="bar" style="flex:none">
+      <div class="l" style="color:var(--p0);font-weight:700;margin-bottom:8px">📋 Lo que queda</div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7">
+        <li><b>Tú · P0:</b> verificar el <b>webhook de Stripe de PRESUPUESTOS</b> (<code>/api/quotes/stripe-webhook</code>) + secret — el mapa lo cazó (cobra pero no pasa a pedido).</li>
+        <li><b>Tú:</b> confirmar en prod el <b>salto de precio</b> no-FR + IVA del estimador.</li>
+        <li><b>Tú (opcional):</b> enlace <code>g.page/r/…/review</code> de reseña de 1 clic en la env <code>NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ</code> (hoy usa fallback a la ficha).</li>
+        <li><b>Código:</b> <b>entrega MULTI-ARCHIVO</b> (decidido: varios PDFs, los subes tú en el workspace) — pospuesto para no meterlo sin probar. Primer candidato.</li>
+        <li><b>Código (Bloque B sigue pendiente):</b> cron reconciliación Redsys/PayPal · dead-man's-switch · payment-proof · blobs PII · ver tablas abajo.</li>
+      </ul>
+    </div>
+  </div>
+
   <!-- ====================== RESUMEN DE LA SESIÓN ====================== -->
   <h2>Trabajo de la sesión · 11-jun-2026</h2>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
