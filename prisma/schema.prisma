@@ -537,6 +537,8 @@ model OrderSession {
   paidAt        DateTime?
   paymentMethod String?
   reference     String      @unique
+  deliveryType  String?     @default("pdf") // "pdf" | "paper"
+  shippingJson  Json?       // dirección de envío en papel (nombre, dirección, ciudad, provincia, CP)
 
   docs OrderDocument[]
 

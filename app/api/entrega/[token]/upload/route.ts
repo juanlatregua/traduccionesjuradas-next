@@ -34,6 +34,20 @@ export async function POST(req: Request, { params }: Params) {
   if (!order) {
     return NextResponse.json({ ok: false, error: "Enlace no válido." }, { status: 404 });
   }
+  if (order.paymentStatus !== "PAID") {
+    return NextResponse.json(
+      { ok: false, error: "Este pedido aún no tiene el pago confirmado." },
+      { status: 409 }
+    );
+  }
+  // No aceptar entregas sobre un pedido ya entregado al cliente (evita pisar lo
+  // enviado). Sí se permite re-subir mientras está pendiente de verificar.
+  if (order.deliveryState === "TRADUCIDO" || order.status === "DELIVERED") {
+    return NextResponse.json(
+      { ok: false, error: "Este pedido ya se entregó al cliente. Contáctanos si necesitas cambiarlo." },
+      { status: 409 }
+    );
+  }
 
   try {
     const formData = await req.formData();

@@ -60,7 +60,23 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { documents?: DocInput[]; purpose?: string; email?: string; phone?: string; sessionToken?: string; lang?: string };
+  let body: {
+    documents?: DocInput[];
+    purpose?: string;
+    email?: string;
+    phone?: string;
+    sessionToken?: string;
+    lang?: string;
+    deliveryType?: string;
+    shipping?: {
+      name?: string;
+      address?: string;
+      city?: string;
+      province?: string;
+      postalCode?: string;
+      country?: string;
+    };
+  };
   try {
     body = await req.json();
   } catch {
@@ -244,6 +260,40 @@ export async function POST(req: Request) {
       orderReference: session.reference,
     },
   });
+
+  // Entrega en papel (+12 € + IVA): exige dirección de envío. Se persiste en la
+  // sesión; computeSessionPricing suma el recargo y createOrderFromSession crea
+  // el ShippingData al formalizar el pedido.
+  const wantsPaper = String(body.deliveryType || "").toLowerCase() === "paper";
+  if (wantsPaper) {
+    const s = body.shipping || {};
+    const name = String(s.name || "").trim();
+    const address = String(s.address || "").trim();
+    const city = String(s.city || "").trim();
+    const province = String(s.province || "").trim();
+    const postalCode = String(s.postalCode || "").trim();
+    if (!name || !address || !city || !province || !/^\d{4,10}$/.test(postalCode)) {
+      return NextResponse.json(
+        { ok: false, error: "Para el envío en papel necesitamos nombre, dirección, ciudad, provincia y código postal." },
+        { status: 422 }
+      );
+    }
+    await prisma.orderSession.update({
+      where: { id: session.id },
+      data: {
+        deliveryType: "paper",
+        shippingJson: {
+          name,
+          phone,
+          address,
+          city,
+          province,
+          postalCode,
+          country: String(s.country || "España").trim() || "España",
+        },
+      },
+    });
+  }
 
   await prisma.orderDocument.createMany({
     data: prepared.map(({ rec, analysis, quotedCents }) => ({

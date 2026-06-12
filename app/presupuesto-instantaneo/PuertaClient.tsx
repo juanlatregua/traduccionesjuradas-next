@@ -74,10 +74,22 @@ export default function PuertaClient({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [deliveryType, setDeliveryType] = useState<"pdf" | "paper">("pdf");
+  const [ship, setShip] = useState({ name: "", address: "", city: "", province: "", postalCode: "" });
+
+  const PAPER_SURCHARGE = 12; // € (sin IVA; el total ya lo lleva con su IVA)
+  const shippingValid =
+    deliveryType === "pdf" ||
+    (ship.name.trim() &&
+      ship.address.trim() &&
+      ship.city.trim() &&
+      ship.province.trim() &&
+      /^\d{4,10}$/.test(ship.postalCode.trim()));
 
   const contactValid =
     /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) &&
-    phone.replace(/\D/g, "").length >= 7;
+    phone.replace(/\D/g, "").length >= 7 &&
+    !!shippingValid;
 
   const neededBy = parseDateInput(neededByInput);
   const todayInput = new Date().toISOString().split("T")[0];
@@ -170,6 +182,8 @@ export default function PuertaClient({
           phone: phone.trim(),
           sessionToken,
           lang,
+          deliveryType,
+          shipping: deliveryType === "paper" ? ship : undefined,
           documents: documents.map((d) => ({
             id: d.id,
             targetLanguage: d.analysis.language.target,
@@ -187,9 +201,12 @@ export default function PuertaClient({
       setCheckoutError(t.checkoutErrorDefault);
       setCheckingOut(false);
     }
-  }, [documents, purpose, email, phone, lang, sessionToken, t]);
+  }, [documents, purpose, email, phone, lang, sessionToken, deliveryType, ship, t]);
 
-  const total = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
+  const docsTotal = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
+  // El recargo de papel (12 € + IVA) se muestra aquí; el servidor lo recalcula.
+  const paperTotal = deliveryType === "paper" ? PAPER_SURCHARGE * 1.21 : 0;
+  const total = docsTotal + paperTotal;
   // Documento de riesgo (fiscal/multi-copia): bloquea el pago igual que un idioma
   // no soportado, pero NO es "falta idioma" → su mensaje lo da la DiagnosisCard.
   const hasRiskyDoc = documents.some((d) => d.diagnosis.priceRisky);
@@ -339,6 +356,47 @@ export default function PuertaClient({
                 />
               </label>
             </div>
+
+            {/* Tipo de entrega: PDF (gratis) o papel certificado (+12 €) */}
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-encre">¿Cómo quieres la traducción?</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType("pdf")}
+                  className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${deliveryType === "pdf" ? "border-bleu bg-bleu/5 text-encre" : "border-graphite/20 text-graphite hover:bg-cream"}`}
+                >
+                  <span className="font-semibold">PDF firmado</span>
+                  <span className="block text-xs">Válido oficialmente · gratis</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType("paper")}
+                  className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${deliveryType === "paper" ? "border-bleu bg-bleu/5 text-encre" : "border-graphite/20 text-graphite hover:bg-cream"}`}
+                >
+                  <span className="font-semibold">En papel a tu casa</span>
+                  <span className="block text-xs">Copia sellada por correo · +12 €</span>
+                </button>
+              </div>
+
+              {deliveryType === "paper" && (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <input className="rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu sm:col-span-2" placeholder="Nombre y apellidos" autoComplete="name" value={ship.name} onChange={(e) => setShip((s) => ({ ...s, name: e.target.value }))} />
+                  <input className="rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu sm:col-span-2" placeholder="Dirección (calle, número, piso)" autoComplete="street-address" value={ship.address} onChange={(e) => setShip((s) => ({ ...s, address: e.target.value }))} />
+                  <input className="rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu" placeholder="Ciudad" autoComplete="address-level2" value={ship.city} onChange={(e) => setShip((s) => ({ ...s, city: e.target.value }))} />
+                  <input className="rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu" placeholder="Provincia" autoComplete="address-level1" value={ship.province} onChange={(e) => setShip((s) => ({ ...s, province: e.target.value }))} />
+                  <input className="rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu" placeholder="Código postal" inputMode="numeric" autoComplete="postal-code" value={ship.postalCode} onChange={(e) => setShip((s) => ({ ...s, postalCode: e.target.value }))} />
+                </div>
+              )}
+            </div>
+
+            {deliveryType === "paper" && (
+              <div className="mt-3 flex items-center justify-between rounded-lg border border-bleu/15 bg-cream px-4 py-2 text-sm">
+                <span className="text-graphite">Total con envío en papel</span>
+                <span className="font-baskerville text-lg font-bold text-bleu">{total.toFixed(2)} €</span>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handleCheckout}

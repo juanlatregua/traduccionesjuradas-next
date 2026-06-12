@@ -47,7 +47,10 @@ export default function TranslationWorkspacePanel({
       setLinkLoading(false);
     }
   }
-  const [notifyClient, setNotifyClient] = useState(true);
+  // Si la entrega la acaba de subir el traductor, "Notificar al cliente" arranca
+  // DESACTIVADO: obliga a Juan a verificar el archivo y marcarlo a conciencia
+  // antes de enviárselo al cliente (el negocio es YMYL, no se envía sin revisar).
+  const [notifyClient, setNotifyClient] = useState(!translatorDeliveredAt);
   const [autoEta, setAutoEta] = useState(true);
   const [etaDate, setEtaDate] = useState(currentDueDate || "");
   const [file, setFile] = useState<File | null>(null);
@@ -160,7 +163,7 @@ export default function TranslationWorkspacePanel({
         <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
           <p className="text-xs font-semibold text-amber-300">⏳ El traductor entregó — pendiente de verificar</p>
           <p className="mt-1 text-[11px] text-slate-300">
-            Revisa el archivo de abajo. Si está bien, deja el estado en <b>Traducido</b> + <b>Notificar al cliente</b> y pulsa Guardar para enviárselo.
+            <b>Descarga y revisa el archivo de abajo.</b> Si está correcto, marca <b>«Notificar al cliente»</b> (desactivado a propósito) y pulsa Guardar para enviárselo. No se envía nada hasta que tú lo marques.
           </p>
         </div>
       )}
