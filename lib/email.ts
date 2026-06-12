@@ -201,7 +201,13 @@ export async function sendTranslationReadyEmail(data: {
   invoiceAttached?: boolean;
 }) {
   const fr = data.lang === "fr";
-  const reviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "";
+  // Ficha de Google de HBTJ (CID de la URL de Maps). El env puede sobreescribirlo
+  // (p.ej. con el enlace corto g.page/r/.../review para reseña de un clic), pero
+  // solo si es una URL http válida; si no, se usa el fallback fiable.
+  const envReview = (process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "").trim();
+  const reviewUrl = envReview.startsWith("http")
+    ? envReview
+    : "https://www.google.com/maps?cid=1858671208989418611";
 
   // Enlace de reseña directo y prominente.
   const reviewBlock = reviewUrl
