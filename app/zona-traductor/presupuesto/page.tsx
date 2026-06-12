@@ -2,22 +2,57 @@ import type { Metadata } from "next";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
-import QuickQuotePanel from "@/components/QuickQuotePanel";
+import QuoteBuilder from "@/components/QuoteBuilder";
 
 export const metadata: Metadata = {
-  title: "Zona traductor — Presupuesto de expediente",
-  description: "Sube los documentos de un expediente y genera un presupuesto.",
+  title: "Zona traductor — Presupuesto",
+  description: "Crea un presupuesto manual o sube los documentos de un expediente.",
   robots: { index: false, follow: false },
 };
+
+const s = (raw?: string | string[]) =>
+  (Array.isArray(raw) ? raw[0] : raw || "").trim();
+
+function parseLangPair(raw: string) {
+  const [source, target] = raw.toLowerCase().split("-");
+  return source && target ? { source, target } : { source: "", target: "" };
+}
 
 export default async function ZonaTraductorPresupuestoPage({
   searchParams,
 }: {
-  searchParams: { exp?: string };
+  searchParams: {
+    exp?: string;
+    customerEmail?: string;
+    customerName?: string;
+    customerPhone?: string;
+    sourceLang?: string;
+    targetLang?: string;
+    langPair?: string;
+    lineDescription?: string;
+    lineAmount?: string;
+    deliveryType?: string;
+  };
 }) {
   await authZonaTraductorOrRedirect();
 
   const expRef = typeof searchParams.exp === "string" ? searchParams.exp : null;
+
+  // Prefill del builder manual (deep-links desde el panel del pedido, PM, etc.).
+  const pair = parseLangPair(s(searchParams.langPair));
+  const builderInitial = {
+    customerName: s(searchParams.customerName) || undefined,
+    customerEmail: s(searchParams.customerEmail) || undefined,
+    customerPhone: s(searchParams.customerPhone) || undefined,
+    sourceLang: s(searchParams.sourceLang) || pair.source || undefined,
+    targetLang: s(searchParams.targetLang) || pair.target || undefined,
+    deliveryType:
+      s(searchParams.deliveryType).toUpperCase() === "PAPER_SHIP"
+        ? ("PAPER_SHIP" as const)
+        : undefined,
+    lineDescription: s(searchParams.lineDescription) || undefined,
+    lineAmount: s(searchParams.lineAmount) || undefined,
+  };
   let initialDocs: { documentId: string; fileName: string }[] | undefined;
   let initialCustomer: { name?: string; email?: string; phone?: string } | undefined;
 
@@ -45,16 +80,16 @@ export default async function ZonaTraductorPresupuestoPage({
             ← Expedientes
           </a>
           <h1 className="mt-2 text-2xl font-semibold text-white">
-            Presupuesto de expediente{expRef ? ` · ${expRef}` : ""}
+            Presupuesto{expRef ? ` de expediente · ${expRef}` : ""}
           </h1>
           <p className="mt-1 text-sm text-slate-400">
             {expRef
               ? "Expediente del cliente. Los documentos se están analizando automáticamente. Revisa la tabla y genera el presupuesto."
-              : "Suelta los documentos del cliente. Se extraen tipo, idioma, palabras y precio automáticamente (los PDFs con texto van por la vía barata). Revisa y genera el presupuesto."}
+              : "Crea un presupuesto manual (lead de WhatsApp/teléfono) o suelta los documentos del cliente abajo para extraer tipo, idioma, palabras y precio automáticamente."}
           </p>
         </header>
 
-        {!expRef && <QuickQuotePanel />}
+        {!expRef && <QuoteBuilder initialData={builderInitial} />}
 
         <StaffExpedienteIntake initialDocs={initialDocs} initialCustomer={initialCustomer} expedienteRef={expRef} />
       </div>

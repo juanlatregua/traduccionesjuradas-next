@@ -581,13 +581,22 @@ export default function OrderActionPanel({
             <p className="mt-1 text-sm font-semibold text-slate-100">{nextBestAction.label}</p>
             <p className="mt-1 text-xs text-slate-400">{nextBestAction.reason}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setTab(nextBestAction.tab)}
-                className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
-              >
-                Ir a {nextBestAction.tab}
-              </button>
+              {nbaIsWorkspace ? (
+                <a
+                  href={`/zona-traductor/workspace/${reference}`}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                >
+                  Ir a entrega (workspace) →
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setTab(nextBestAction.tab)}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                >
+                  Ir a {nextBestAction.tab}
+                </button>
+              )}
               {(canonicalStage === "DRAFT" || canonicalStage === "QUOTE_READY") && (
                 <a
                   href={quickQuoteHref}

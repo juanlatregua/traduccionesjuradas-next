@@ -3,6 +3,7 @@ import { sendTranslationReadyEmail } from "@/lib/email";
 import { buildSignedOrderUrl } from "@/lib/order-token";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
+import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
 
 type NotifyBody = {
   reference?: string;
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
         id: true,
         reference: true,
         clientEmail: true,
+        clientLocale: true,
         finalDeliveryFileUrl: true,
         translatedFileUrl: true,
       },
@@ -55,11 +57,22 @@ export async function POST(req: Request) {
       );
     }
 
+    const transName = `Traduccion-jurada-${reference}.pdf`;
+    const [transAttach, invAttach] = await Promise.all([
+      fetchFileAsAttachment(downloadUrl, transName),
+      buildIssuedInvoiceAttachment(reference),
+    ]);
+    const attachments = [transAttach, invAttach].filter(Boolean) as NonNullable<typeof transAttach>[];
+
     await sendTranslationReadyEmail({
       toEmail: clientEmail,
       reference,
       downloadUrl,
       statusUrl: buildSignedOrderUrl(reference, "estado"),
+      lang: order.clientLocale === "fr" ? "fr" : "es",
+      attachments,
+      translationAttached: !!transAttach,
+      invoiceAttached: !!invAttach,
     });
 
     await prisma.orderEvent.create({

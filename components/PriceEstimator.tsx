@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
+import { isFrenchForeign, marginPctForCost } from "@/lib/quote-math";
 
 type Lang = "fr" | "de" | "en" | "it" | "pt" | "nl" | "ca" | "sv" | "no";
 type AnyLang = Lang | "es";
@@ -41,6 +42,7 @@ type EstimateResult = {
   title?: string;
   presetPagesLabel?: string;
   ai?: AiAnalysis;
+  priceRisk?: boolean;
 };
 
 type CartItem = {
@@ -51,6 +53,7 @@ type CartItem = {
   pagesLabel?: string;
   total: number;
   source: "preset" | "file";
+  priceRisk?: boolean;
 };
 const SAFETY_MARGIN_MULTIPLIER = 1.1;
 const SAFETY_MARGIN_PCT = 10;
@@ -286,10 +289,11 @@ export default function PriceEstimator() {
         words: clampInt(Number(data.words || 0), 0, 200000),
         rate: Number(data.rate || 0),
         urgencyPct: fileUrgency === "urgente24" ? 25 : 0,
-        marginPct: Number(data.marginPct || SAFETY_MARGIN_PCT),
+        marginPct: Number(data.marginPct ?? SAFETY_MARGIN_PCT),
         days: getEstimatedDays(fileDocType, fileUrgency),
         source: "file",
         ai: data.ai || undefined,
+        priceRisk: Boolean(data.priceRisk),
       });
       setMessage(`Archivo analizado: ${data.words} palabras (${data.extractionMethod}).`);
     } catch (error: any) {
@@ -307,14 +311,17 @@ export default function PriceEstimator() {
     const rate = getWordRateForLangOrPair(fileLangPair as string);
     const base = Math.round(manualWords * rate);
     const subtotal = Math.round(base * (fileUrgency === "urgente24" ? 1.25 : 1));
-    const total = Math.round(subtotal * SAFETY_MARGIN_MULTIPLIER);
+    // Misma fórmula que el backend (/api/estimador): coste × (1 + margen tiered)
+    // × IVA; francés sin margen. Mantener en paridad con la ruta por archivo.
+    const marginPct = isFrenchForeign(fileLangPair) ? 0 : marginPctForCost(subtotal);
+    const total = Math.round(Math.round(subtotal * (1 + marginPct / 100)) * 1.21);
     setResult({
       total,
       base,
       words: manualWords,
       rate,
       urgencyPct: fileUrgency === "urgente24" ? 25 : 0,
-      marginPct: SAFETY_MARGIN_PCT,
+      marginPct,
       days: getEstimatedDays(fileDocType, fileUrgency),
       source: "file",
     });
@@ -326,6 +333,9 @@ export default function PriceEstimator() {
       setMessage("Calcula primero una estimación antes de añadir.");
       return;
     }
+    // Defensa en profundidad: un documento de riesgo nunca entra al carrito/pago
+    // (va a presupuesto manual). El botón ya está oculto, esto cierra el flanco.
+    if (result.priceRisk) return;
     const activeLangPair = (result.source === "preset" ? presetLangPair : fileLangPair) || "";
     const item: CartItem = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -335,6 +345,7 @@ export default function PriceEstimator() {
       pagesLabel: result.presetPagesLabel,
       total: result.total,
       source: result.source,
+      priceRisk: result.priceRisk,
     };
     setCart((prev) => [...prev, item]);
     setResult(null);
@@ -399,10 +410,18 @@ export default function PriceEstimator() {
       }
       const idempotencyKey = createOrderIdempotencyRef.current as string;
 
+      // Documento de riesgo de infraconteo (fiscal/multi-copia): NO autopago →
+      // se fuerza revisión manual de Juan. El gate DURO se re-aplica en el
+      // servidor (/api/orders), porque este flag es manipulable desde el cliente.
+      const riskyOrder = hasCart
+        ? cart.some((c) => c.priceRisk)
+        : Boolean(payResult?.priceRisk);
+
       const payload: Record<string, unknown> = {
         amountCents: Math.round(payTotal * 100),
         currency: "eur",
         title,
+        reviewRequired: riskyOrder || undefined,
         source: hasCart ? (cart.some((c) => c.source === "file") ? "file" : "preset") : payResult?.source,
         langPair: activeLangPair || undefined,
         words: hasCart ? cart.reduce((s, c) => s + (c.words || 0), 0) || undefined : payResult?.words,
@@ -784,8 +803,27 @@ export default function PriceEstimator() {
           </div>
         )}
 
+        {result?.priceRisk && !showGuestEmail && (
+          <div className="mt-3 rounded-2xl border border-or/40 bg-or/5 p-3 text-sm text-sepia">
+            <p className="font-semibold text-encre">Este documento necesita presupuesto a medida</p>
+            <p className="mt-1 text-[13px]">
+              Los formularios fiscales/financieros o con varias copias se cotizan a mano para no
+              cobrarte de menos ni de más.{" "}
+              <a
+                href="https://wa.me/34951333614?text=Hola,%20quiero%20un%20presupuesto%20de%20traducci%C3%B3n%20jurada%20de%20un%20documento%20fiscal."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-vert underline underline-offset-2"
+              >
+                Escríbenos por WhatsApp
+              </a>{" "}
+              y te lo preparamos al momento.
+            </p>
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap gap-3 text-sm">
-          {result && !showGuestEmail && (
+          {result && !result.priceRisk && !showGuestEmail && (
             <>
               <button
                 type="button"

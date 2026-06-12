@@ -133,6 +133,11 @@ async function sendStaffSMS(body: string, context: string): Promise<void> {
   }
 }
 
+// Aviso genérico al staff (fire-and-forget). Para hitos sin plantilla propia.
+export async function sendStaffAlertSMS(body: string, context: string): Promise<void> {
+  return sendStaffSMS(body, context);
+}
+
 // Aviso INMEDIATO al staff cuando entra un pago.
 export async function sendStaffNewOrderSMS(data: {
   reference: string;

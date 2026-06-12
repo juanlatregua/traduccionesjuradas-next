@@ -75,6 +75,10 @@ export type DocumentAnalysisResult = {
     special_notes: string;
   };
   warnings: string[];
+  // Red de seguridad de autotarificación (lib/ai/price-risk.ts): si risky=true,
+  // el documento NO se autocobra (se manda a presupuesto manual). Lo rellena
+  // run-analysis tras el análisis.
+  price_risk?: import("./price-risk").PriceRisk;
 };
 
 type AnalyzeInput = {
