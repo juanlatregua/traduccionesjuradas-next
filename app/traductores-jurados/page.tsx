@@ -150,6 +150,33 @@ export default function TraductoresJuradosPage() {
           </Link>
           .
         </p>
+
+        {/* Enlazado interno a todas las páginas de idioma (antes solo francés;
+            rumano/sueco/neerlandés recibían impresiones sin enlace entrante). */}
+        <p className="mt-2 font-semibold text-encre">Traducción jurada por idioma:</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {[
+            { slug: "frances", label: "Francés" },
+            { slug: "ingles", label: "Inglés" },
+            { slug: "aleman", label: "Alemán" },
+            { slug: "portugues", label: "Portugués" },
+            { slug: "italiano", label: "Italiano" },
+            { slug: "neerlandes", label: "Neerlandés" },
+            { slug: "catalan", label: "Catalán" },
+            { slug: "rumano", label: "Rumano" },
+            { slug: "sueco", label: "Sueco" },
+            { slug: "noruego", label: "Noruego" },
+          ].map((i) => (
+            <Link
+              key={i.slug}
+              href={`/traductor-jurado-${i.slug}`}
+              className="rounded-lg border border-bleu/15 bg-parchment px-3 py-1.5 text-sm font-medium text-encre transition hover:border-bleu hover:bg-cream"
+            >
+              Traductor jurado de {i.label}
+            </Link>
+          ))}
+        </div>
+
         <p>
           Nuestro trabajo consiste en coordinar cada encargo, asignarlo al
           traductor jurado más adecuado y acompañarte durante el proceso para

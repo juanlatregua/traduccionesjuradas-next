@@ -39,6 +39,9 @@ function getPriority(route: string): number {
     route === "/presupuesto-instantaneo" ||
     route === "/expediente" ||
     route === "/traduction-assermentee" ||
+    route === "/sworn-translation" ||
+    route === "/beglaubigte-uebersetzung" ||
+    route === "/traducao-certificada" ||
     route === "/precios-traduccion-jurada" ||
     route === "/documentos-oficiales" ||
     route === "/regularizacion-2026"
@@ -96,6 +99,9 @@ const LAST_MODIFIED: Record<string, string> = {
   "/presupuesto-instantaneo":                       "2026-03-04",
   "/expediente":                                    "2026-05-29",
   "/traduction-assermentee":                        "2026-05-29",
+  "/sworn-translation":                             "2026-05-30",
+  "/beglaubigte-uebersetzung":                      "2026-05-30",
+  "/traducao-certificada":                          "2026-05-30",
   "/fr/acheter-bien-immobilier-espagne":            "2026-05-29",
   "/fr/declaration-non-resident-espagne":           "2026-05-29",
   "/traducciones-juradas-baratas":                  "2026-01-17",
