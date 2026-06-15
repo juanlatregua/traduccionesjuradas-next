@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaPerson } from "@/components/SchemaPerson";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
 export default function AcreditacionPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
+      <SchemaPerson id="schema-person-acreditacion" />
       <SchemaBreadcrumbs
         id="breadcrumbs-acreditacion"
         items={[
@@ -46,6 +48,10 @@ export default function AcreditacionPage() {
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Acreditación y credenciales oficiales
         </h1>
+        {/* Respuesta-arriba citable (AEO). */}
+        <p className="mt-3 text-base font-medium text-encre">
+          La acreditación de traductor jurado la concede el Ministerio de Asuntos Exteriores (MAEC) en España y habilita para firmar y sellar traducciones con validez oficial. Juan Silva Moreno es traductor jurado de francés acreditado por el MAEC con el nº 3850.
+        </p>
         <p className="mt-3 text-sm text-sepia sm:text-base">
           En esta página reunimos las credenciales oficiales que respaldan
           nuestro trabajo como servicio de traducción jurada. Creemos que la

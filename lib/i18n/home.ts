@@ -241,6 +241,28 @@ export const HOME: HomeStrings = {
         ),
         href: "/blog/reagrupacion-familiar-documentos",
       },
+      {
+        title: tr("Qué es un traductor jurado", "Qu'est-ce qu'un traducteur assermenté", "What is a sworn translator", "Was ist ein vereidigter Übersetzer", "O que é um tradutor ajuramentado"),
+        desc: tr(
+          "Quién puede firmar una traducción oficial y qué validez tiene.",
+          "Qui peut signer une traduction officielle et quelle est sa validité.",
+          "Who can sign an official translation and what validity it has.",
+          "Wer eine amtliche Übersetzung unterschreiben darf und welche Gültigkeit sie hat.",
+          "Quem pode assinar uma tradução oficial e que validade tem."
+        ),
+        href: "/blog/que-es-un-traductor-jurado",
+      },
+      {
+        title: tr("Jurada vs. simple", "Assermentée ou simple", "Sworn vs. standard", "Beglaubigt oder einfach", "Certificada vs. simples"),
+        desc: tr(
+          "Cuándo necesitas una traducción jurada y cuándo basta una simple.",
+          "Quand une traduction assermentée est nécessaire et quand une simple suffit.",
+          "When you need a sworn translation and when a standard one is enough.",
+          "Wann Sie eine beglaubigte Übersetzung brauchen und wann eine einfache reicht.",
+          "Quando precisa de uma tradução certificada e quando basta uma simples."
+        ),
+        href: "/blog/diferencia-traduccion-jurada-oficial-simple",
+      },
     ],
   },
   finalCta: {

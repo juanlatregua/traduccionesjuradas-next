@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaPerson } from "@/components/SchemaPerson";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
 export default function DocumentosOficialesPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
+      <SchemaPerson id="schema-person-documentos" />
       <SchemaBreadcrumbs
         id="breadcrumbs-documentos"
         items={[
@@ -43,6 +45,10 @@ export default function DocumentosOficialesPage() {
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre">
           Documentos oficiales que requieren traducción jurada para usarlos en España
         </h1>
+        {/* Respuesta-arriba citable (AEO). */}
+        <p className="mt-3 text-base font-medium text-encre">
+          Una traducción jurada de un documento oficial es la traducción firmada y sellada por un traductor jurado acreditado por el Ministerio de Asuntos Exteriores (MAEC), con plena validez legal ante administraciones, notarías, universidades y juzgados de España y del extranjero.
+        </p>
         <p className="mt-3 text-sm text-sepia sm:text-base">
           Gestionamos la <strong>traducción jurada de documentos oficiales extranjeros</strong> 
           más habituales para trámites de extranjería, estudios, trabajo, oposiciones, procesos
