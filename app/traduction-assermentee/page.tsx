@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function TraductionAssermenteePage() {
   return (
-    <div className="min-h-screen bg-parchment">
+    <div lang="fr" className="min-h-screen bg-parchment">
       <SchemaBreadcrumbs id="breadcrumbs-home-fr" items={[{ name: LOCALE_HOME_LABEL.fr, url: LOCALE_ABS.fr }]} />
       <SchemaPerson id="schema-person-home-fr" />
       <SchemaFAQ items={HOME_FAQ.fr} id="schema-faq-home-fr" />

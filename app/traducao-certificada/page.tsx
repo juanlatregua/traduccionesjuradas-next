@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function TraducaoCertificadaPage() {
   return (
-    <div className="min-h-screen bg-parchment text-sepia">
+    <div lang="pt" className="min-h-screen bg-parchment text-sepia">
       <SchemaBreadcrumbs id="breadcrumbs-home-pt" items={[{ name: LOCALE_HOME_LABEL.pt, url: LOCALE_ABS.pt }]} />
       <SchemaPerson id="schema-person-home-pt" />
       <SchemaFAQ items={HOME_FAQ.pt} id="schema-faq-home-pt" />
