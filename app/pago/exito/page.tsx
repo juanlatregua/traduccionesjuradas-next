@@ -31,7 +31,7 @@ export default async function PagoExitoPage({
   const t = funnelT[lang].confirmation;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
+    <main lang={lang} className="mx-auto max-w-3xl px-4 py-12">
       <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           {t.paidEyebrow}

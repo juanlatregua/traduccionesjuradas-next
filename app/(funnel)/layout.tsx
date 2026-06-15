@@ -4,9 +4,13 @@ import { getSessionLocale } from "@/lib/session";
 import { funnelT } from "@/lib/i18n/funnel";
 
 export default async function FunnelLayout({ children }: { children: ReactNode }) {
-  const t = funnelT[await getSessionLocale()].layout;
+  // El <html lang> raiz es estatico ("es"); el funnel hereda el idioma de la
+  // sesion (capturado en la puerta). lang en <main> aplica al subarbol y lo
+  // respetan lectores de pantalla y traductores.
+  const locale = await getSessionLocale();
+  const t = funnelT[locale].layout;
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8 sm:py-10">
+    <main lang={locale} className="mx-auto max-w-4xl px-4 py-8 sm:py-10">
       <section className="rounded-3xl border border-cream bg-card p-5 shadow-sm sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
           {t.eyebrow}

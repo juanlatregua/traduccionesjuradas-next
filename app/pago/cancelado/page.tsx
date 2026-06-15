@@ -29,7 +29,7 @@ export default async function PagoCanceladoPage({
   const t = funnelT[lang].cancelled;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
+    <main lang={lang} className="mx-auto max-w-3xl px-4 py-12">
       <section className="rounded-3xl border border-amber-200 bg-card p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
           {t.eyebrow}
