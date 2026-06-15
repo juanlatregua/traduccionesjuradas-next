@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Merriweather } from "next/font/google";
+import { Source_Sans_3, Libre_Baskerville, Caveat } from "next/font/google";
 import dynamic from "next/dynamic";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
@@ -17,16 +17,26 @@ const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
   ssr: false,
 });
 
-const inter = Inter({
+// Las 3 fuentes reales del sitio, vía next/font (preload + sin render-blocking).
+// Antes venían por @import en globals.css (bloqueante) y se cargaban Inter +
+// Merriweather sin usar.
+const sourceSans = Source_Sans_3({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-sans",
   display: "swap",
 });
 
-const merriweather = Merriweather({
+const baskerville = Libre_Baskerville({
   weight: ["400", "700"],
+  style: ["normal", "italic"],
   subsets: ["latin"],
-  variable: "--font-merriweather",
+  variable: "--font-baskerville",
+  display: "swap",
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-caveat",
   display: "swap",
 });
 
@@ -91,7 +101,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${inter.variable} ${merriweather.variable}`}>
+    <html lang="es" className={`${sourceSans.variable} ${baskerville.variable} ${caveat.variable}`}>
       {/* SCHEMA ORG / PROFESSIONAL SERVICE — server-render para que lo lean
           crawlers y bots de IA sin ejecutar JS (AEO). */}
       <script

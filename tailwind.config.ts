@@ -29,19 +29,19 @@ const config: Config = {
       },
       fontFamily: {
         baskerville: [
-          "Libre Baskerville",
+          "var(--font-baskerville)",
           "Georgia",
           "Times New Roman",
           "serif",
         ],
         sans: [
-          "Source Sans 3",
+          "var(--font-sans)",
           "system-ui",
           "-apple-system",
           "Segoe UI",
           "sans-serif",
         ],
-        caveat: ["Caveat", "cursive"],
+        caveat: ["var(--font-caveat)", "cursive"],
       },
       animation: {
         stampIn: "stampIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
