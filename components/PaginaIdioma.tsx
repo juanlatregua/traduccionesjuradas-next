@@ -49,6 +49,15 @@ export default function PaginaIdioma({
   const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado-${idiomaSlug}`;
   const breadcrumbName = `Traductor jurado de ${idioma}`;
 
+  // Respuesta-arriba citable (AEO): definición concisa y atribuible para que los
+  // motores de IA la extraigan. El nº 3850 es la credencial FRANCESA de Juan, así
+  // que solo se cita en francés; el resto, "acreditado por el MAEC" (genérico).
+  const credencial =
+    idiomaSlug === "frances"
+      ? "un traductor jurado de francés acreditado por el MAEC (nº 3850)"
+      : `un traductor jurado de ${idioma} acreditado por el MAEC`;
+  const respuestaAeo = `Una traducción jurada de ${idioma} es la traducción oficial de un documento, firmada y sellada por ${credencial}, con plena validez legal ante administraciones, notarías, universidades y juzgados de España y del extranjero. Se entrega en PDF firmado digitalmente.`;
+
   // Precios dinámicos para SchemaProduct (aplicando mínimo del idioma)
   const lang = langCode || LANGUAGE_CONFIGS[idiomaSlug]?.langCode || idiomaSlug;
   const rate = getWordRateForLangOrPair(lang);
@@ -111,6 +120,8 @@ export default function PaginaIdioma({
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre">
         {tituloH1}
       </h1>
+      {/* Respuesta-arriba citable (AEO) — primera frase atribuible para IA. */}
+      <p className="mt-3 text-base font-medium text-encre">{respuestaAeo}</p>
       <p className="mt-3 text-base text-sepia">{descripcion}</p>
 
       {/* 2. PRESUPUESTO INSTANTÁNEO */}
