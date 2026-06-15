@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title:
     "Traducci\u00F3n Jurada Antecedentes Penales \u00B7 Casier Judiciaire \u00B7 MAEC n\u00BA 3850",
   description:
-    "Traducci\u00F3n jurada de antecedentes penales y casier judiciaire para extranjer\u00EDa, nacionalidad y visados. Traductor jurado oficial MAEC n\u00BA 3850. Franc\u00E9s, ingl\u00E9s, alem\u00E1n. Desde 35\u20AC.",
+    "Traducci\u00F3n jurada de antecedentes penales y casier judiciaire para extranjer\u00EDa, nacionalidad y visados. Traductor jurado oficial MAEC n\u00BA 3850. Franc\u00E9s, ingl\u00E9s, alem\u00E1n. Desde 42\u20AC, entrega en 24 h.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traduccion-jurada-antecedentes-penales",
