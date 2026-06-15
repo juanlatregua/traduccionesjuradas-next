@@ -67,6 +67,7 @@ export async function POST(req: Request) {
         reference: order.reference,
         amountCents: order.amountCents,
         title: order.title,
+        locale: order.clientLocale,
         idempotencyKey: `order:${order.reference}:stripe:${order.amountCents}`,
       });
       return NextResponse.json({ ok: true, kind: "redirect", provider, url: session.url });
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
       notificationUrl: `${origin}/api/payment/redsys/notification`,
       successUrl: `${origin}/pago/exito?ref=${encodeURIComponent(reference)}`,
       cancelUrl: `${origin}/pago/cancelado?ref=${encodeURIComponent(reference)}`,
+      locale: order.clientLocale,
     });
 
     return NextResponse.json({ ok: true, kind: "redsys_form", provider, ...formData });

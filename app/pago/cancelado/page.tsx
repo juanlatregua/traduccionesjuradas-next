@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getOrderPublic } from "@/lib/orders";
+import { funnelT } from "@/lib/i18n/funnel";
+import { resolveLocale } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: "Pago cancelado | Traducciones Juradas",
@@ -10,27 +13,34 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PagoCanceladoPage({
+export default async function PagoCanceladoPage({
   searchParams,
 }: {
   searchParams?: { ref?: string | string[] };
 }) {
   const reference = Array.isArray(searchParams?.ref) ? searchParams?.ref[0] : searchParams?.ref;
+
+  const order = reference
+    ? await getOrderPublic(reference).catch(() => null)
+    : null;
+
+  // El idioma sigue al cliente, igual que en /pago/exito.
+  const lang = resolveLocale(order?.clientLocale);
+  const t = funnelT[lang].cancelled;
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <section className="rounded-3xl border border-amber-200 bg-card p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-          Pago cancelado
+          {t.eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-encre sm:text-3xl">
-          No se ha completado el pago
+          {t.title}
         </h1>
-        <p className="mt-3 text-sm text-sepia">
-          El pedido no se ha confirmado todavia. Puedes volver a intentar el pago cuando quieras.
-        </p>
+        <p className="mt-3 text-sm text-sepia">{t.body}</p>
         {reference && (
           <p className="mt-3 text-xs text-graphite">
-            Referencia de pedido: <span className="font-mono">{reference}</span>
+            {t.refLabel} <span className="font-mono">{reference}</span>
           </p>
         )}
 
@@ -40,18 +50,18 @@ export default function PagoCanceladoPage({
               href={`/area-cliente/pedido/${reference}/pagar`}
               className="rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
             >
-              Reintentar pago
+              {t.retry}
             </Link>
           ) : (
             <Link
               href="/"
               className="rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
             >
-              Volver a calcular y pagar
+              {t.restart}
             </Link>
           )}
           <Link href="/presupuesto-instantaneo" className="font-semibold text-bleu underline-offset-2 hover:underline">
-            O pedir presupuesto cerrado
+            {t.orQuote}
           </Link>
         </div>
       </section>

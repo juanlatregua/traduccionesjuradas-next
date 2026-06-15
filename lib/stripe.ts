@@ -19,14 +19,26 @@ export async function createCheckoutSession(params: {
   title: string;
   customerEmail?: string;
   idempotencyKey?: string;
+  locale?: string | null;
 }) {
   const stripe = getStripe();
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net";
+
+  // La pasarela hereda el idioma del pedido. Solo soportamos es/fr en producto;
+  // el resto cae a español (mercado por defecto).
+  const fr = params.locale === "fr";
+  const productName = fr
+    ? `Traduction assermentée : ${params.title}`
+    : `Traducción jurada: ${params.title}`;
+  const productDescription = fr
+    ? `Référence : ${params.reference}`
+    : `Referencia: ${params.reference}`;
 
   const session = await stripe.checkout.sessions.create(
     {
       mode: "payment",
       payment_method_types: ["card"],
+      locale: fr ? "fr" : "es",
       customer_email: params.customerEmail,
       line_items: [
         {
@@ -34,8 +46,8 @@ export async function createCheckoutSession(params: {
             currency: "eur",
             unit_amount: params.amountCents,
             product_data: {
-              name: `Traducción jurada: ${params.title}`,
-              description: `Referencia: ${params.reference}`,
+              name: productName,
+              description: productDescription,
             },
           },
           quantity: 1,
