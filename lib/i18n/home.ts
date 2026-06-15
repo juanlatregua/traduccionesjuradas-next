@@ -40,12 +40,12 @@ export const HOME: HomeStrings = {
     ),
     h1pre: tr(
       "Sube tu documento y sabes qué, cuánto y cuándo",
-      "Déposez votre document et sachez quoi, combien et quand",
+      "Déposez votre document à traduire. En 10 secondes, vous aurez votre",
       "Upload your document and know what, how much and when",
       "Laden Sie Ihr Dokument hoch und erfahren Sie was, wie viel und wann",
       "Envie o seu documento e saiba o quê, quanto e quando"
     ),
-    h1em: tr("en 10 segundos", "en 10 secondes", "in 10 seconds", "in 10 Sekunden", "em 10 segundos"),
+    h1em: tr("en 10 segundos", "devis", "in 10 seconds", "in 10 Sekunden", "em 10 segundos"),
     lede: tr(
       "No empezamos con un eslogan: empezamos resolviendo tu duda. Diagnóstico instantáneo y precio cerrado, sin compromiso.",
       "On ne commence pas par un slogan : on commence par répondre à votre question. Diagnostic instantané et prix ferme, sans engagement.",
