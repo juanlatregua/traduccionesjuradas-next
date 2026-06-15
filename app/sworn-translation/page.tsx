@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function SwornTranslationPage() {
   return (
-    <div className="min-h-screen bg-parchment text-sepia">
+    <div lang="en" className="min-h-screen bg-parchment text-sepia">
       <SchemaBreadcrumbs id="breadcrumbs-home-en" items={[{ name: LOCALE_HOME_LABEL.en, url: LOCALE_ABS.en }]} />
       <SchemaPerson id="schema-person-home-en" />
       <SchemaFAQ items={HOME_FAQ.en} id="schema-faq-home-en" />
