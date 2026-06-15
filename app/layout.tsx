@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Merriweather } from "next/font/google";
-import Script from "next/script";
 import dynamic from "next/dynamic";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
@@ -93,15 +92,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={`${inter.variable} ${merriweather.variable}`}>
-      {/* SCHEMA ORG / PROFESSIONAL SERVICE */}
-      <Script
-        id="schema-organization"
+      {/* SCHEMA ORG / PROFESSIONAL SERVICE — server-render para que lo lean
+          crawlers y bots de IA sin ejecutar JS (AEO). */}
+      <script
         type="application/ld+json"
-        strategy="afterInteractive"
-      >
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "ProfessionalService",
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ProfessionalService",
           "@id": "https://www.traduccionesjuradas.net/#organization",
           name: "TraduccionesJuradas.net",
           url: "https://www.traduccionesjuradas.net",
@@ -223,28 +221,28 @@ export default function RootLayout({
             ratingValue: "4.8",
             bestRating: "5",
             ratingCount: "46",
-          },
-        })}
-      </Script>
+            },
+          }),
+        }}
+      />
 
-      {/* SCHEMA ORG / WEBSITE + SEARCH ACTION */}
-      <Script
-        id="schema-website"
+      {/* SCHEMA ORG / WEBSITE + SEARCH ACTION — server-render (AEO). */}
+      <script
         type="application/ld+json"
-        strategy="afterInteractive"
-      >
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: "TraduccionesJuradas.net",
-          url: "https://www.traduccionesjuradas.net",
-          potentialAction: {
-            "@type": "SearchAction",
-            target: "https://www.traduccionesjuradas.net/buscar?q={search_term_string}",
-            "query-input": "required name=search_term_string",
-          },
-        })}
-      </Script>
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "TraduccionesJuradas.net",
+            url: "https://www.traduccionesjuradas.net",
+            potentialAction: {
+              "@type": "SearchAction",
+              target: "https://www.traduccionesjuradas.net/buscar?q={search_term_string}",
+              "query-input": "required name=search_term_string",
+            },
+          }),
+        }}
+      />
 
       <body className="min-h-screen bg-parchment text-sepia">
         <a
