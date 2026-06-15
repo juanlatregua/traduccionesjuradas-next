@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getOrderPublic } from "@/lib/orders";
 import { funnelT } from "@/lib/i18n/funnel";
-import { resolveLocale } from "@/lib/i18n/locales";
+import { LOCALE_HOME, resolveLocale } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: "Pago cancelado | Traducciones Juradas",
@@ -54,13 +54,13 @@ export default async function PagoCanceladoPage({
             </Link>
           ) : (
             <Link
-              href="/"
+              href={LOCALE_HOME[lang]}
               className="rounded-2xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
             >
               {t.restart}
             </Link>
           )}
-          <Link href="/presupuesto-instantaneo" className="font-semibold text-bleu underline-offset-2 hover:underline">
+          <Link href={LOCALE_HOME[lang]} className="font-semibold text-bleu underline-offset-2 hover:underline">
             {t.orQuote}
           </Link>
         </div>

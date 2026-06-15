@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
 import { getOrderPublic } from "@/lib/orders";
 import { funnelT } from "@/lib/i18n/funnel";
-import { resolveLocale } from "@/lib/i18n/locales";
+import { LOCALE_HOME, resolveLocale } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: "Pago confirmado | Traducciones Juradas",
@@ -60,7 +60,7 @@ export default async function PagoExitoPage({
           >
             {t.sendDocsWhatsapp}
           </a>
-          <Link href="/" className="font-semibold text-bleu underline-offset-2 hover:underline">
+          <Link href={LOCALE_HOME[lang]} className="font-semibold text-bleu underline-offset-2 hover:underline">
             {t.backHome}
           </Link>
         </div>
