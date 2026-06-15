@@ -370,6 +370,7 @@ export async function getOrderPublic(reference: string) {
       reference: true,
       clientEmail: true,
       clientName: true,
+      clientLocale: true,
       amountCents: true,
       currency: true,
       paymentStatus: true,

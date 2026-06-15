@@ -57,6 +57,10 @@ export default function TranslationWorkspacePanel({
   const [url, setUrl] = useState(existingFileUrl || "");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Tras notificar al cliente con éxito, bloqueamos el botón para no reenviar
+  // email+SMS por un segundo clic. Se reactiva si se cambia archivo o se vuelve
+  // a marcar la casilla a conciencia (reenvío intencionado).
+  const [delivered, setDelivered] = useState(false);
 
   async function uploadFile() {
     if (!file) return null;
@@ -121,6 +125,10 @@ export default function TranslationWorkspacePanel({
       }
       if (state === "EN_PROCESO" && data?.etaDate) {
         setMessage(`Estado actualizado. ETA: ${data.etaDate}.`);
+      } else if (state === "TRADUCIDO" && notifyClient) {
+        setMessage("Entregado y notificado al cliente (email + SMS).");
+        setDelivered(true);
+        setNotifyClient(false);
       } else {
         setMessage("Estado de entrega actualizado.");
       }
@@ -232,7 +240,10 @@ export default function TranslationWorkspacePanel({
           onChange={(e) => {
             const f = e.target.files?.[0] || null;
             setFile(f);
-            if (f) setState("TRADUCIDO");
+            if (f) {
+              setState("TRADUCIDO");
+              setDelivered(false);
+            }
           }}
           className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-emerald-500/50 file:bg-emerald-600/20 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-200"
         />
@@ -248,7 +259,10 @@ export default function TranslationWorkspacePanel({
           <input
             type="checkbox"
             checked={notifyClient}
-            onChange={(e) => setNotifyClient(e.target.checked)}
+            onChange={(e) => {
+              setNotifyClient(e.target.checked);
+              if (e.target.checked) setDelivered(false);
+            }}
             className="rounded border-slate-500"
           />
           Notificar al cliente (le llega email + SMS con la traducción)
@@ -258,14 +272,16 @@ export default function TranslationWorkspacePanel({
       <button
         type="button"
         onClick={submit}
-        disabled={loading}
+        disabled={loading || delivered}
         className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
         {loading
           ? "Guardando..."
-          : state === "TRADUCIDO" && notifyClient
-            ? "Entregar y notificar al cliente"
-            : "Guardar entrega"}
+          : delivered
+            ? "✓ Entregado y notificado"
+            : state === "TRADUCIDO" && notifyClient
+              ? "Entregar y notificar al cliente"
+              : "Guardar entrega"}
       </button>
 
       {message && (
