@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getCollaboratorsByLanguage, getDocumentsFromOrder } from "@/lib/collaborators";
+import { notifyClientTranslationStarted } from "@/lib/orders";
 import { sendFriendlyQuoteRequest } from "@/lib/collaborator-emails";
 import { getSourceLang, isQuoteExcludedLang, isFrenchSourceLang } from "@/lib/quotes";
 
@@ -105,6 +106,22 @@ export async function POST(req: Request, { params }: Params) {
           },
         },
       });
+
+      // Poblar Order.assignedTo con el colaborador FR (mantiene Kanban/Cockpit
+      // vivos y permite resolver el nº de jurado para el aviso al cliente).
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { assignedTo: frCollaborator.fullName },
+      });
+
+      // Aviso al CLIENTE (en proceso + nº jurado) + transición EN_TRADUCCION
+      // (dispara el SMS de hito). Fire-and-forget, idempotente por estado.
+      notifyClientTranslationStarted({
+        reference: order.reference,
+        translatorName: frCollaborator.fullName,
+        swornNumber: frCollaborator.swornNumber,
+        actorEmail: staff.email,
+      }).catch((err) => console.error("[quote-request-batch] client notify failed", err));
 
       return NextResponse.json({ ok: true, direct: true, assignments: [assignment] }, { status: 201 });
     }
