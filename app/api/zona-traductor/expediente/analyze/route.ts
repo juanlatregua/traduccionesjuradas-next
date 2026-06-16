@@ -98,6 +98,7 @@ export async function POST(req: Request) {
         id: doc.id,
         index: i,
         fileName,
+        fileUrl: blobUrl,
         documentType: a.document_type.specific_type,
         documentTypeEs: a.document_type.specific_type_es,
         category: a.document_type.category,

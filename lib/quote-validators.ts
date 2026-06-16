@@ -59,6 +59,9 @@ type ParsedCommon = {
     quantity: number;
     unitPrice: number;
     supplierUnitCost?: number;
+    sourceFileUrl?: string;
+    pageStart?: number;
+    pageEnd?: number;
   }>;
 };
 

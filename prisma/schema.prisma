@@ -438,6 +438,9 @@ model QuoteLine {
   unitPrice   Decimal  @db.Decimal(12, 2)
   supplierUnitCost Decimal? @db.Decimal(12, 2) // coste traductor (sin IVA) — solo interno
   lineTotal   Decimal  @db.Decimal(12, 2)
+  sourceFileUrl String? // PDF origen (Blob) de este documento, para ver/descargar
+  pageStart   Int?      // rango de páginas del documento dentro del PDF origen
+  pageEnd     Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

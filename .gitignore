@@ -42,3 +42,6 @@ context.md
 CONTEXT.md
 
 .claude/worktrees/
+
+# Artefactos QA generados (reportes GSC, etc.)
+qa/
