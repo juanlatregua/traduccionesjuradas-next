@@ -8,6 +8,11 @@ export type QuoteLineInput = {
   quantity: number;
   unitPrice: number; // precio CLIENTE (sin IVA)
   supplierUnitCost?: number; // coste del traductor (sin IVA) — solo interno
+  // Trazabilidad al documento origen (para "ver el PDF" de cada línea). El PDF
+  // origen se guarda entero en Blob; pageStart/pageEnd acotan este documento.
+  sourceFileUrl?: string;
+  pageStart?: number;
+  pageEnd?: number;
 };
 
 export type QuoteDiscountType = "NONE" | "PERCENT" | "FIXED";
@@ -79,6 +84,9 @@ export function computeQuoteTotals(params: {
       unitPrice: round2(line.unitPrice),
       lineTotal,
       supplierUnitCost: line.supplierUnitCost !== undefined ? round2(line.supplierUnitCost) : null,
+      sourceFileUrl: line.sourceFileUrl || null,
+      pageStart: line.pageStart ?? null,
+      pageEnd: line.pageEnd ?? null,
     };
   });
 

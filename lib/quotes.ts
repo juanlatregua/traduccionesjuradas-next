@@ -133,11 +133,22 @@ export function normalizeQuoteLines(raw: unknown) {
     }
     const rawCost = Number((item as any)?.supplierUnitCost);
     const supplierUnitCost = Number.isFinite(rawCost) && rawCost >= 0 ? round2(rawCost) : undefined;
+    // Trazabilidad al PDF origen (para "ver/descargar" cada documento). Solo se
+    // acepta una URL de Vercel Blob (evita SSRF / URLs arbitrarias).
+    const rawUrl = String((item as any)?.sourceFileUrl || "").trim();
+    const sourceFileUrl = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//.test(rawUrl) ? rawUrl : undefined;
+    const ps = Number((item as any)?.pageStart);
+    const pe = Number((item as any)?.pageEnd);
+    const pageStart = Number.isFinite(ps) && ps >= 1 ? Math.round(ps) : undefined;
+    const pageEnd = Number.isFinite(pe) && pe >= 1 ? Math.round(pe) : undefined;
     lines.push({
       description,
       quantity: round2(quantity),
       unitPrice: round2(unitPrice),
       ...(supplierUnitCost !== undefined ? { supplierUnitCost } : {}),
+      ...(sourceFileUrl ? { sourceFileUrl } : {}),
+      ...(pageStart !== undefined ? { pageStart } : {}),
+      ...(pageEnd !== undefined ? { pageEnd } : {}),
     });
   }
 

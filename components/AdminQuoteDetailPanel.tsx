@@ -9,7 +9,21 @@ type QuoteLine = {
   unitPrice: number;
   supplierUnitCost?: number | null;
   lineTotal: number;
+  sourceFileUrl?: string | null;
+  pageStart?: number | null;
+  pageEnd?: number | null;
 };
+
+// Enlace al documento de una línea (extrae su rango de páginas como PDF).
+function lineDocUrl(line: QuoteLine, download = false): string | null {
+  if (!line.sourceFileUrl) return null;
+  const p = new URLSearchParams({ url: line.sourceFileUrl });
+  if (line.pageStart) p.set("start", String(line.pageStart));
+  if (line.pageEnd) p.set("end", String(line.pageEnd));
+  p.set("name", line.description.slice(0, 60));
+  if (download) p.set("download", "1");
+  return `/api/documents/extract-pages?${p.toString()}`;
+}
 
 type QuoteData = {
   id: string;
@@ -460,7 +474,16 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
             <tbody>
               {quote.lines.map((line) => (
                 <tr key={line.id} className="border-t border-slate-100">
-                  <td className="px-3 py-2">{line.description}</td>
+                  <td className="px-3 py-2">
+                    {line.description}
+                    {line.sourceFileUrl && (
+                      <span className="ml-2 whitespace-nowrap text-[11px]">
+                        <a href={lineDocUrl(line)!} target="_blank" rel="noopener noreferrer" className="text-bleu hover:underline">ver PDF</a>
+                        <span className="text-slate-400"> · </span>
+                        <a href={lineDocUrl(line, true)!} className="text-bleu hover:underline">descargar</a>
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-right">{line.quantity}</td>
                   <td className="px-3 py-2 text-right">{formatMoney(line.unitPrice)}</td>
                   <td className="px-3 py-2 text-right">{formatMoney(line.lineTotal)}</td>
