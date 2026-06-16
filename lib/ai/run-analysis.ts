@@ -12,6 +12,29 @@
 import { analyzeDocument, analyzeDocumentText } from "./analyze-document";
 import type { DocumentAnalysisResult } from "./analyze-document";
 import { extractPdfText } from "./extract-text";
+import { countDocumentWords } from "./word-counter";
+import { assessAutoPriceRisk } from "./price-risk";
+
+// Suelo determinista: el conteo nunca debe quedar por debajo de las palabras
+// que la capa de texto del PDF sí extrae (la visión de Claude infracuenta
+// formularios repetitivos). Además marca el riesgo de autotarificación.
+function finalizeAnalysis(
+  analysis: DocumentAnalysisResult,
+  opts: { extractedText?: string; fileName?: string }
+): DocumentAnalysisResult {
+  if (opts.extractedText) {
+    const floor = countDocumentWords(opts.extractedText);
+    if (floor > (analysis.document_metrics.estimated_words || 0)) {
+      analysis.document_metrics.estimated_words = floor;
+    }
+  }
+  analysis.price_risk = assessAutoPriceRisk({
+    analysis,
+    extractedText: opts.extractedText,
+    fileName: opts.fileName,
+  });
+  return analysis;
+}
 
 const LARGE_DOC_THRESHOLD = 5; // pages
 const TRUNCATE_TO_PAGES = 3;
@@ -36,7 +59,7 @@ export async function runDocumentAnalysis(input: {
       mimeType,
       fileName,
     });
-    return { analysis, mode: "vision" };
+    return { analysis: finalizeAnalysis(analysis, { fileName }), mode: "vision" };
   }
 
   // PDF: contar páginas (pdf-lib) + extraer texto (pdf-parse).
@@ -62,7 +85,11 @@ export async function runDocumentAnalysis(input: {
       fileName,
       pageCount,
     });
-    return { analysis, mode: "text", pageCount };
+    return {
+      analysis: finalizeAnalysis(analysis, { extractedText: extraction.text, fileName }),
+      mode: "text",
+      pageCount,
+    };
   }
 
   // Camino visión: escaneo / imagen embebida. Truncar PDFs grandes.
@@ -95,5 +122,9 @@ export async function runDocumentAnalysis(input: {
     fileName,
     pageCount,
   });
-  return { analysis, mode: "vision", pageCount };
+  return {
+    analysis: finalizeAnalysis(analysis, { extractedText: extraction.text, fileName }),
+    mode: "vision",
+    pageCount,
+  };
 }

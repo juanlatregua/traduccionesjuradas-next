@@ -73,35 +73,9 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
       shippingDetails: o.shippingDetails || [shippingDetails],
       hasMerchantReturnPolicy: returnPolicy,
     })),
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      bestRating: "5",
-      ratingCount: "46",
-    },
-    review: [
-      {
-        "@type": "Review",
-        author: { "@type": "Person", name: "Yassine E." },
-        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
-        reviewBody: "Buen trabajo, bien hecho.",
-        datePublished: "2026-04-24",
-      },
-      {
-        "@type": "Review",
-        author: { "@type": "Person", name: "Anais A." },
-        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
-        reviewBody: "Excelente servicio, rapidez y respuesta.",
-        datePublished: "2026-03-22",
-      },
-      {
-        "@type": "Review",
-        author: { "@type": "Person", name: "Pedro V." },
-        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
-        reviewBody: "Necesitábamos con urgencia una traducción jurada del francés y el servicio fue fantástico. Muy profesionales.",
-        datePublished: "2024-04-15",
-      },
-    ],
+    // Rating/reviews NO van por producto (serían las mismas reseñas del negocio
+    // clonadas en 9 fichas → markup auto-servido, riesgo de penalización). El
+    // aggregateRating vive solo a nivel de negocio en app/layout.tsx.
     provider: {
       "@type": "Organization",
       name: "TraduccionesJuradas.net",

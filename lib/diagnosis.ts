@@ -9,6 +9,7 @@
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable } from "@/lib/pricing-engine/languages";
+import { clientPriceFromCost, round2, DEFAULT_VAT_RATE } from "@/lib/quote-math";
 import type { Locale } from "@/lib/i18n/locales";
 
 // inbound  = documento extranjero → español (uso en España)
@@ -52,6 +53,9 @@ export type Diagnosis = {
   // false = idioma fuera del set auto-tarificable (ruso, ucraniano, etc.): no se
   // muestra precio instantáneo ni se permite checkout; se enruta a manual.
   autoPriceable: boolean;
+  // true = documento de riesgo de infraconteo (fiscal/financiero, multi-copia):
+  // se enruta a presupuesto manual con un mensaje DISTINTO al de "elige idioma".
+  priceRisky: boolean;
 };
 
 // ── Plazo de entrega ────────────────────────────────────────────────
@@ -88,7 +92,7 @@ function deliveryLabel(hours: number, lang: DiagnosisLang): string {
 // Devuelve null cuando el original está en español y el destino aún no
 // se ha determinado (la puerta lo pregunta antes del diagnóstico).
 
-function resolveForeignLang(language: DocumentAnalysisResult["language"]): string | null {
+export function resolveForeignLang(language: DocumentAnalysisResult["language"]): string | null {
   if (language.source && language.source !== "es") return language.source;
   if (language.target && language.target !== "es" && language.target !== "unknown") {
     return language.target;
@@ -294,7 +298,10 @@ export function buildDiagnosis(
   const direction: TranslationDirection =
     language.source === "es" ? "outbound" : "inbound";
   const foreignLang = resolveForeignLang(language);
-  const autoPriceable = isAutoPriceable(foreignLang);
+  // No autotarificable si el idioma no lo permite O si el documento es de riesgo
+  // de infraconteo (fiscal/financiero, multi-copia, texto pegado): en ese caso
+  // se manda a presupuesto manual en vez de cobrar mal (incidente 1099-MISC).
+  const autoPriceable = isAutoPriceable(foreignLang) && !analysis.price_risk?.risky;
 
   // Sin plazo determinista para idiomas no auto-tarificables: no anunciamos
   // "72h" de un idioma que se gestiona manualmente (o que no ofrecemos).
@@ -302,6 +309,8 @@ export function buildDiagnosis(
     foreignLang && autoPriceable
       ? getDeliveryHours(foreignLang, document_metrics.pages || 1)
       : null;
+
+  const clientBase = clientPriceFromCost(quote.basePrice, foreignLang);
 
   return {
     type: {
@@ -314,9 +323,11 @@ export function buildDiagnosis(
       direction,
       statement: swornStatement(direction, lang),
     },
+    // El motor da el COSTE; el cliente paga coste × (1 + margen tiered) salvo
+    // francés (sin margen). El IVA se aplica encima. Ver lib/quote-math.ts.
     price: {
-      base: quote.basePrice,
-      total: quote.totalPrice,
+      base: clientBase,
+      total: round2(clientBase * (1 + DEFAULT_VAT_RATE)),
       currency: "EUR",
     },
     delivery: {
@@ -329,6 +340,7 @@ export function buildDiagnosis(
       originalDocument: originalDocumentValidity(document_type.specific_type, lang),
     },
     autoPriceable,
+    priceRisky: Boolean(analysis.price_risk?.risky),
   };
 }
 

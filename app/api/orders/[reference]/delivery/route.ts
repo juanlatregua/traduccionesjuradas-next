@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
+import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
 import { buildSignedOrderUrl } from "@/lib/order-token";
 import {
   addBusinessDays,
@@ -152,15 +153,28 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     if (body.notifyClient && state === "TRADUCIDO" && translatedFileUrl) {
-      sendEmailWithRetry(() =>
-        sendTranslationReadyEmail({
-          toEmail: order.clientEmail,
-          reference: order.reference,
-          downloadUrl: translatedFileUrl,
-          lang: deliveryLang,
-          statusUrl,
-        })
-      ).catch((e) => console.error("[orders-delivery] ready email failed", e));
+      // Adjuntos: la traducción terminada y, SOLO si ya se emitió, la factura.
+      // Se construyen en background para no bloquear la respuesta de la entrega.
+      void (async () => {
+        const transName = `Traduccion-jurada-${order.reference}.pdf`;
+        const [transAttach, invAttach] = await Promise.all([
+          fetchFileAsAttachment(translatedFileUrl!, transName),
+          buildIssuedInvoiceAttachment(order.reference),
+        ]);
+        const attachments = [transAttach, invAttach].filter(Boolean) as NonNullable<typeof transAttach>[];
+        await sendEmailWithRetry(() =>
+          sendTranslationReadyEmail({
+            toEmail: order.clientEmail,
+            reference: order.reference,
+            downloadUrl: translatedFileUrl!,
+            lang: deliveryLang,
+            statusUrl,
+            attachments,
+            translationAttached: !!transAttach,
+            invoiceAttached: !!invAttach,
+          })
+        );
+      })().catch((e) => console.error("[orders-delivery] ready email failed", e));
 
       await prisma.orderEvent
         .create({

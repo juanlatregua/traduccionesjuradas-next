@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function BeglaubigteUebersetzungPage() {
   return (
-    <div className="min-h-screen bg-parchment text-sepia">
+    <div lang="de" className="min-h-screen bg-parchment text-sepia">
       <SchemaBreadcrumbs id="breadcrumbs-home-de" items={[{ name: LOCALE_HOME_LABEL.de, url: LOCALE_ABS.de }]} />
       <SchemaPerson id="schema-person-home-de" />
       <SchemaFAQ items={HOME_FAQ.de} id="schema-faq-home-de" />

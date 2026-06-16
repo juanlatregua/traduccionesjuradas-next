@@ -11,7 +11,9 @@ import {
   PURPOSE_REGULARIZACION_2026,
 } from "@/lib/session-pricing";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { clientPriceFromCost } from "@/lib/quote-math";
 import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable } from "@/lib/pricing-engine/languages";
+import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 
 export const runtime = "nodejs";
@@ -58,7 +60,23 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { documents?: DocInput[]; purpose?: string; email?: string; phone?: string; sessionToken?: string; lang?: string };
+  let body: {
+    documents?: DocInput[];
+    purpose?: string;
+    email?: string;
+    phone?: string;
+    sessionToken?: string;
+    lang?: string;
+    deliveryType?: string;
+    shipping?: {
+      name?: string;
+      address?: string;
+      city?: string;
+      province?: string;
+      postalCode?: string;
+      country?: string;
+    };
+  };
   try {
     body = await req.json();
   } catch {
@@ -175,6 +193,23 @@ export async function POST(req: Request) {
       );
     }
 
+    // GATE DURO de autotarificación por DOCUMENTO (incidente 1099-MISC): los
+    // formularios fiscales/financieros, multi-copia o con texto pegado
+    // infracuentan palabras → infracobro. No llegan a Stripe; presupuesto manual.
+    // Se confía en price_risk persistido y se re-evalúa por si el análisis es viejo.
+    if (analysis.price_risk?.risky || assessAutoPriceRisk({ analysis, fileName: rec.fileName }).risky) {
+      return NextResponse.json(
+        {
+          ok: false,
+          unsupported: true,
+          error:
+            "Este documento necesita un presupuesto a medida (formularios fiscales/financieros o con varias copias). Escríbenos por WhatsApp y te lo preparamos al momento.",
+          whatsappUrl: WHATSAPP_URL,
+        },
+        { status: 422 }
+      );
+    }
+
     // El penal francés con anexo UE (Bulletin n°3, ~5 páginas) tiene precio
     // fijo propio en el pricing-engine (61,98 € → 75 € c/IVA): el anexo
     // multilingüe es trabajo real que el plano de campaña no cubre. Mismo
@@ -192,7 +227,7 @@ export async function POST(req: Request) {
         foreignLang === "fr" &&
         !isFrenchCriminalRecord
           ? REGULARIZACION_FR_DOC_CENTS
-          : Math.round(quote.basePrice * 100);
+          : Math.round(clientPriceFromCost(quote.basePrice, foreignLang) * 100);
     } catch (err: any) {
       console.error("[puerta/checkout] calculatePrice:", err?.message);
       return NextResponse.json(
@@ -225,6 +260,40 @@ export async function POST(req: Request) {
       orderReference: session.reference,
     },
   });
+
+  // Entrega en papel (+12 € + IVA): exige dirección de envío. Se persiste en la
+  // sesión; computeSessionPricing suma el recargo y createOrderFromSession crea
+  // el ShippingData al formalizar el pedido.
+  const wantsPaper = String(body.deliveryType || "").toLowerCase() === "paper";
+  if (wantsPaper) {
+    const s = body.shipping || {};
+    const name = String(s.name || "").trim();
+    const address = String(s.address || "").trim();
+    const city = String(s.city || "").trim();
+    const province = String(s.province || "").trim();
+    const postalCode = String(s.postalCode || "").trim();
+    if (!name || !address || !city || !province || !/^\d{4,10}$/.test(postalCode)) {
+      return NextResponse.json(
+        { ok: false, error: "Para el envío en papel necesitamos nombre, dirección, ciudad, provincia y código postal." },
+        { status: 422 }
+      );
+    }
+    await prisma.orderSession.update({
+      where: { id: session.id },
+      data: {
+        deliveryType: "paper",
+        shippingJson: {
+          name,
+          phone,
+          address,
+          city,
+          province,
+          postalCode,
+          country: String(s.country || "España").trim() || "España",
+        },
+      },
+    });
+  }
 
   await prisma.orderDocument.createMany({
     data: prepared.map(({ rec, analysis, quotedCents }) => ({

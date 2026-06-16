@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evolución hacia v3 · El compañero de trámite · traduccionesjuradas.net</title>
+<style>
+  :root{
+    --bleu:#1f3a5f;--bleu2:#2d5a87;--encre:#11202e;--cream:#f4efe6;--parchment:#faf7f1;
+    --gold:#B8922A;--gold-d:#8A6A1A;--green:#0f7a4f;--greenbg:#e7f5ee;--amber:#9a6a00;--amberbg:#fbf3df;
+    --red:#b3261e;--redbg:#fbeae8;--line:#e3ddd0;--ink:#33414d;--muted:#6b7682;--card:#fff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchment);color:var(--encre);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:44px 20px 90px}
+  .serif{font-family:Georgia,"Times New Roman",serif}
+  header.top{border-bottom:3px solid var(--bleu);padding-bottom:20px}
+  .kicker{font-size:13px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--bleu2)}
+  h1{font-size:32px;line-height:1.2;margin:8px 0 6px;font-family:Georgia,serif}
+  h1 em{font-style:normal;color:var(--gold-d)}
+  .sub{color:var(--muted);font-size:15px;max-width:680px}
+  .promise{background:var(--bleu);color:#fff;border-radius:14px;padding:18px 22px;margin:24px 0}
+  .promise b{color:#ffe6a8}
+  h2{font-size:21px;margin:38px 0 12px;font-family:Georgia,serif}
+  h3{margin:0 0 4px;font-size:16px}
+  /* Arc / timeline */
+  .arc{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin:18px 0}
+  .stage{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 14px 16px;position:relative;box-shadow:0 1px 2px rgba(17,32,46,.04)}
+  .stage .n{font-size:12px;font-weight:800;color:var(--bleu2);letter-spacing:.04em}
+  .stage h3{margin-top:6px;font-family:Georgia,serif;font-size:17px}
+  .stage p{font-size:13px;color:var(--ink);margin:6px 0 0}
+  .stage.v3{border:2px solid var(--gold);box-shadow:0 4px 16px rgba(184,146,42,.18)}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;margin-top:10px}
+  .done{background:var(--greenbg);color:var(--green)}
+  .partial{background:var(--amberbg);color:var(--amber)}
+  .next{background:#eae3f5;color:#5b3da8}
+  .future{background:#fbf1da;color:var(--gold-d)}
+  .arrow{text-align:center;color:var(--gold);font-size:20px;line-height:1;margin:-4px 0 2px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:12px 0;box-shadow:0 1px 2px rgba(17,32,46,.04)}
+  .card.gold{border-left:4px solid var(--gold)}
+  .card.blue{border-left:4px solid var(--bleu)}
+  ul{margin:8px 0 0;padding-left:20px}li{margin:5px 0;font-size:14.5px;color:var(--ink)}
+  table{border-collapse:collapse;width:100%;margin-top:10px;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--bleu2);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  code{background:var(--cream);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font:13px ui-monospace,Menlo,Consolas,monospace}
+  .tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap}
+  .t-ok{background:var(--greenbg);color:var(--green)}
+  .t-bot{background:#eef1f6;color:var(--bleu2)}
+  .t-no{background:var(--redbg);color:var(--red)}
+  .journey{counter-reset:step;margin:10px 0 0;padding:0;list-style:none}
+  .journey li{position:relative;padding:10px 0 10px 44px;border-bottom:1px dashed var(--line)}
+  .journey li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:9px;width:28px;height:28px;border-radius:50%;background:var(--bleu);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .journey b{color:var(--encre)}
+  footer{margin-top:46px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:13px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+  @media(max-width:720px){.arc{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="kicker">traduccionesjuradas.net · visión de producto</div>
+    <h1>La evolución hacia <em>v3 — el compañero de trámite</em></h1>
+    <p class="sub">De un formulario de pedido a un acompañante que te lleva por todo el trámite oficial, donde la traducción jurada es solo un paso. Documento de estado y rumbo · 15-jun-2026.</p>
+  </header>
+
+  <div class="promise">
+    El cambio de marco en una frase: <b>dejamos de vender "una traducción jurada"</b> y pasamos a <b>resolver el trámite completo del cliente</b> — y la jurada cae sola, en el momento justo, dentro de ese camino.
+  </div>
+
+  <h2>Los cuatro estadios de la interfaz</h2>
+  <div class="arc">
+    <div class="stage">
+      <div class="n">ESTADIO 1 · v1</div>
+      <h3>Transacción</h3>
+      <p>Formulario de pedido de jurada. El cliente ya sabía qué quería; la web solo cobraba.</p>
+      <span class="pill done">Superado</span>
+    </div>
+    <div class="stage">
+      <div class="n">ESTADIO 2 · v2</div>
+      <h3>Diagnóstico — "la puerta"</h3>
+      <p>Sube el documento → en 10 s: qué es, ¿necesita jurada?, precio, plazo, validez. Pago en 1 paso.</p>
+      <span class="pill done">En producción</span>
+    </div>
+    <div class="stage">
+      <div class="n">ESTADIO 3 · v2.x</div>
+      <h3>Asistente de utilidades (AEO)</h3>
+      <p>Banco de utilidades que resuelve la confusión del cliente y desemboca en la jurada. Pensado para que la IA lo cite.</p>
+      <span class="pill partial">En curso</span>
+    </div>
+    <div class="stage v3">
+      <div class="n">ESTADIO 4 · v3</div>
+      <h3>Compañero de trámite</h3>
+      <p>Guía del trámite completo, con estado y memoria del expediente. La jurada es un paso del camino.</p>
+      <span class="pill future">El destino</span>
+    </div>
+  </div>
+  <div class="arrow">▼</div>
+
+  <h2>Dónde estamos hoy — la base ya construida</h2>
+  <p class="sub">v3 no parte de cero: la puerta, el banco de utilidades y la capa de IA ya existen. Lo que falta es <b>unirlas en un acompañante con memoria</b>.</p>
+
+  <div class="card blue">
+    <h3>La puerta (v2) y el banco de utilidades</h3>
+    <p style="font-size:14.5px;color:var(--ink);margin:6px 0 0">El héroe ya no es un formulario: es la utilidad. Home y landings en 5 idiomas con diagnóstico-IA a la entrada, banco de utilidades con iconos, y el flagship <b>lector de requerimientos</b> ("tengo este papel y no entiendo qué me piden") live en 5 idiomas.</p>
+  </div>
+
+  <div class="card gold">
+    <h3>La capa AEO — para que la IA te cite (junio 2026)</h3>
+    <p style="font-size:14.5px;color:var(--ink);margin:6px 0 0">Barrido reciente que convierte las utilidades en algo que ChatGPT/Perplexity/Gemini pueden leer y citar:</p>
+    <ul>
+      <li><b>robots</b> abre los bots de cita IA (antes bloqueados) · <code>llms.txt</code> ya existe.</li>
+      <li><b>Schema server-side</b> (autoridad MAEC nº 3850 + datos) visible a crawlers sin JS.</li>
+      <li><b>Párrafo-respuesta citable</b> en páginas de idioma y hubs (documentos-oficiales, acreditación, blog).</li>
+      <li>Sitemap + hreflang + enlazado de los 10 idiomas · fuentes a <code>next/font</code> (CWV).</li>
+    </ul>
+  </div>
+
+  <h2>v2.1 — el puente: el chatbot que cierra el pedido</h2>
+  <div class="card">
+    <p style="font-size:14.5px;color:var(--ink);margin:0">El chatbot agéntico (Sonnet + prompt caching) es el escalón intermedio: ya tiene <b>herramientas que son proto-capacidades de compañero</b>, pero atrapadas dentro del chat. Sacarlas a la interfaz y darles estado = empezar v3.</p>
+  </div>
+
+  <h2>Los ladrillos de v3 — qué existe ya y dónde vive</h2>
+  <table>
+    <tr><th>Capacidad</th><th>Hoy vive en…</th><th>Estado</th></tr>
+    <tr><td>Diagnóstico de documento</td><td>La puerta (<code>/presupuesto-instantaneo</code>, home)</td><td><span class="tag t-ok">utilidad pública</span></td></tr>
+    <tr><td>Lector de requerimientos ("¿qué me piden?")</td><td><code>/que-traducciones-necesito</code> (5 idiomas)</td><td><span class="tag t-ok">utilidad pública</span></td></tr>
+    <tr><td>Checklist del trámite (arraigo, nacionalidad…)</td><td>Bot: <code>recommend_path</code>, <code>recommend_arraigo_pack</code></td><td><span class="tag t-bot">atrapado en el bot</span></td></tr>
+    <tr><td>Verificar traductor jurado (MAEC)</td><td>Bot: <code>verify_translator_credentials</code></td><td><span class="tag t-bot">atrapado en el bot</span></td></tr>
+    <tr><td>Traduce para entender (cortesía)</td><td><code>/api/traduccion-automatica</code> (sin página)</td><td><span class="tag t-no">endpoint sin UI</span></td></tr>
+    <tr><td>Guías por país y documento</td><td>Cluster de blog (AEO)</td><td><span class="tag t-ok">contenido</span></td></tr>
+    <tr><td>Estado del pedido en vivo</td><td><code>/pedido/[ref]</code> + avisos por hito</td><td><span class="tag t-ok">en producción</span></td></tr>
+  </table>
+  <p style="font-size:13.5px;color:var(--muted);margin-top:10px">La mitad de v3 <b>ya está construida</b> — solo que dispersa: parte como utilidad pública, parte atrapada en el chatbot, parte como endpoint sin cara.</p>
+
+  <h2>Qué es v3 — el viaje del cliente</h2>
+  <p class="sub">Un cliente no quiere "una traducción jurada": quiere <b>resolver su trámite</b> (arraigo, nacionalidad, homologar el título, comprar piso, casarse…). v3 lo acompaña de principio a fin:</p>
+  <ol class="journey">
+    <li><b>"Tengo este trámite"</b> — el compañero parte del objetivo (no del documento). Selecciona o describe el trámite.</li>
+    <li><b>"Esto es lo que necesitas"</b> — checklist del trámite (saca <code>recommend_path</code> del bot) con los documentos exactos por país y organismo.</li>
+    <li><b>"De estos, estos necesitan jurada"</b> — el lector de requerimientos aplica a cada documento; marca cuáles van con traducción jurada y con qué validez.</li>
+    <li><b>"Tradúcelos aquí"</b> — la puerta cobra solo lo que toca, en el momento justo del camino. (Aquí cae la jurada — el negocio.)</li>
+    <li><b>"Así los presentas"</b> — apostilla, legalización, dónde y cómo presentar; verificar credencial del traductor.</li>
+    <li><b>"Te aviso de cada paso"</b> — estado del expediente con memoria: qué está hecho, qué falta, plazos. Multilingüe y citable por IA.</li>
+  </ol>
+
+  <h2>Qué falta para v3</h2>
+  <div class="card">
+    <ul>
+      <li><b>Estado / memoria del expediente</b>: el salto real. Hoy cada utilidad es de un solo uso; v3 recuerda el trámite del cliente y su progreso.</li>
+      <li><b>Sacar capacidades del bot a la interfaz</b>: <code>recommend_path</code>, <code>recommend_arraigo_pack</code>, <code>verify_translator_credentials</code> como pantallas/pasos, no solo respuestas de chat.</li>
+      <li><b>Página pública</b> para "traduce para entender" (el endpoint ya existe).</li>
+      <li><b>Orquestación</b>: un hilo que une diagnóstico → checklist → jurada → presentación, en vez de utilidades sueltas.</li>
+      <li><b>Multilingüe completo</b> del chrome y de las utilidades aún estáticas (Ola 2 del audit).</li>
+    </ul>
+  </div>
+
+  <div class="promise" style="background:var(--gold);color:#1a1205">
+    <b>El insight:</b> v3 no es construir algo nuevo, es <b>tejer lo que ya existe</b> (puerta + lector + capacidades del bot + estado del pedido) en un compañero con memoria — sobre la base AEO que acabamos de poner para que, además, la IA lo recomiende.
+  </div>
+
+  <footer>
+    <div>Fuera de v2 (sagrado): chatbot agéntico que cierra el pedido → <b>v2.1</b>; compañero de trámite → <b>v3</b>. Fechas del brief = simbólicas; ordenar por impacto.</div>
+    <div class="legend">
+      <span><span class="tag t-ok">utilidad pública</span> ya vive en la web</span>
+      <span><span class="tag t-bot">atrapado en el bot</span> existe pero solo en el chat</span>
+      <span><span class="tag t-no">sin UI</span> backend sin página</span>
+    </div>
+    <div style="margin-top:8px">Generado 15-jun-2026 · base: docs/v2-brief.md + estado real del repo (banco de utilidades, lector de requerimientos, chatbot, capa AEO de junio).</div>
+  </footer>
+</div>
+</body>
+</html>

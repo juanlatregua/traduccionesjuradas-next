@@ -40,12 +40,12 @@ export const HOME: HomeStrings = {
     ),
     h1pre: tr(
       "Sube tu documento y sabes qué, cuánto y cuándo",
-      "Déposez votre document et sachez quoi, combien et quand",
+      "Déposez votre document à traduire. En 10 secondes, vous aurez votre",
       "Upload your document and know what, how much and when",
       "Laden Sie Ihr Dokument hoch und erfahren Sie was, wie viel und wann",
       "Envie o seu documento e saiba o quê, quanto e quando"
     ),
-    h1em: tr("en 10 segundos", "en 10 secondes", "in 10 seconds", "in 10 Sekunden", "em 10 segundos"),
+    h1em: tr("en 10 segundos", "devis", "in 10 seconds", "in 10 Sekunden", "em 10 segundos"),
     lede: tr(
       "No empezamos con un eslogan: empezamos resolviendo tu duda. Diagnóstico instantáneo y precio cerrado, sin compromiso.",
       "On ne commence pas par un slogan : on commence par répondre à votre question. Diagnostic instantané et prix ferme, sans engagement.",
@@ -240,6 +240,28 @@ export const HOME: HomeStrings = {
           "Que documentos precisa e quais exigem tradução certificada."
         ),
         href: "/blog/reagrupacion-familiar-documentos",
+      },
+      {
+        title: tr("Qué es un traductor jurado", "Qu'est-ce qu'un traducteur assermenté", "What is a sworn translator", "Was ist ein vereidigter Übersetzer", "O que é um tradutor ajuramentado"),
+        desc: tr(
+          "Quién puede firmar una traducción oficial y qué validez tiene.",
+          "Qui peut signer une traduction officielle et quelle est sa validité.",
+          "Who can sign an official translation and what validity it has.",
+          "Wer eine amtliche Übersetzung unterschreiben darf und welche Gültigkeit sie hat.",
+          "Quem pode assinar uma tradução oficial e que validade tem."
+        ),
+        href: "/blog/que-es-un-traductor-jurado",
+      },
+      {
+        title: tr("Jurada vs. simple", "Assermentée ou simple", "Sworn vs. standard", "Beglaubigt oder einfach", "Certificada vs. simples"),
+        desc: tr(
+          "Cuándo necesitas una traducción jurada y cuándo basta una simple.",
+          "Quand une traduction assermentée est nécessaire et quand une simple suffit.",
+          "When you need a sworn translation and when a standard one is enough.",
+          "Wann Sie eine beglaubigte Übersetzung brauchen und wann eine einfache reicht.",
+          "Quando precisa de uma tradução certificada e quando basta uma simples."
+        ),
+        href: "/blog/diferencia-traduccion-jurada-oficial-simple",
       },
     ],
   },

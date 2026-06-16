@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Merriweather } from "next/font/google";
-import Script from "next/script";
+import { Source_Sans_3, Libre_Baskerville, Caveat } from "next/font/google";
 import dynamic from "next/dynamic";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
@@ -12,21 +11,32 @@ import SiteTopBars from "@/components/SiteTopBars";
 import { SITE_SEARCH_INDEX } from "@/lib/search/site-index";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
   ssr: false,
 });
 
-const inter = Inter({
+// Las 3 fuentes reales del sitio, vía next/font (preload + sin render-blocking).
+// Antes venían por @import en globals.css (bloqueante) y se cargaban Inter +
+// Merriweather sin usar.
+const sourceSans = Source_Sans_3({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-sans",
   display: "swap",
 });
 
-const merriweather = Merriweather({
+const baskerville = Libre_Baskerville({
   weight: ["400", "700"],
+  style: ["normal", "italic"],
   subsets: ["latin"],
-  variable: "--font-merriweather",
+  variable: "--font-baskerville",
+  display: "swap",
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-caveat",
   display: "swap",
 });
 
@@ -42,10 +52,16 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "TJ Juradas",
+  },
   icons: {
     icon: "/brand/favicon.svg",
     shortcut: "/brand/favicon.svg",
-    apple: "/brand/isotipo.svg",
+    apple: "/icons/apple-touch-icon.png",
   },
   openGraph: {
     type: "website",
@@ -85,16 +101,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${inter.variable} ${merriweather.variable}`}>
-      {/* SCHEMA ORG / PROFESSIONAL SERVICE */}
-      <Script
-        id="schema-organization"
+    <html lang="es" className={`${sourceSans.variable} ${baskerville.variable} ${caveat.variable}`}>
+      {/* SCHEMA ORG / PROFESSIONAL SERVICE — server-render para que lo lean
+          crawlers y bots de IA sin ejecutar JS (AEO). */}
+      <script
         type="application/ld+json"
-        strategy="afterInteractive"
-      >
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "ProfessionalService",
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ProfessionalService",
           "@id": "https://www.traduccionesjuradas.net/#organization",
           name: "TraduccionesJuradas.net",
           url: "https://www.traduccionesjuradas.net",
@@ -216,28 +231,28 @@ export default function RootLayout({
             ratingValue: "4.8",
             bestRating: "5",
             ratingCount: "46",
-          },
-        })}
-      </Script>
+            },
+          }),
+        }}
+      />
 
-      {/* SCHEMA ORG / WEBSITE + SEARCH ACTION */}
-      <Script
-        id="schema-website"
+      {/* SCHEMA ORG / WEBSITE + SEARCH ACTION — server-render (AEO). */}
+      <script
         type="application/ld+json"
-        strategy="afterInteractive"
-      >
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: "TraduccionesJuradas.net",
-          url: "https://www.traduccionesjuradas.net",
-          potentialAction: {
-            "@type": "SearchAction",
-            target: "https://www.traduccionesjuradas.net/buscar?q={search_term_string}",
-            "query-input": "required name=search_term_string",
-          },
-        })}
-      </Script>
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "TraduccionesJuradas.net",
+            url: "https://www.traduccionesjuradas.net",
+            potentialAction: {
+              "@type": "SearchAction",
+              target: "https://www.traduccionesjuradas.net/buscar?q={search_term_string}",
+              "query-input": "required name=search_term_string",
+            },
+          }),
+        }}
+      />
 
       <body className="min-h-screen bg-parchment text-sepia">
         <a
@@ -266,6 +281,9 @@ export default function RootLayout({
 
         {/* ================= OFFLINE BANNER ================= */}
         <OfflineBanner />
+
+        {/* ================= PWA (service worker) ================= */}
+        <ServiceWorkerRegister />
 
         {/* ================= ANALYTICS ================= */}
         <Analytics />

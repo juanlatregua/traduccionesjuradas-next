@@ -128,6 +128,10 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
   try {
     const langPair = buildFunnelLangPair(docs);
     const flowProfile = inferFlowProfile({ langPair });
+    // Entrega en papel: materializar la dirección capturada en la puerta como
+    // ShippingData del pedido (la dirección viaja en session.shippingJson).
+    const isPaper = (session as any).deliveryType === "paper";
+    const ship = isPaper ? ((session as any).shippingJson as Record<string, unknown> | null) : null;
     const order = await prisma.order.create({
       data: {
         reference,
@@ -140,6 +144,22 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
         langPair,
         amountCents: session.totalCents,
         currency: (session.currency || "eur").toLowerCase(),
+        deliveryType: isPaper ? "paper" : "pdf",
+        ...(ship
+          ? {
+              shipping: {
+                create: {
+                  name: String(ship.name || clientName || ""),
+                  phone: String(ship.phone || clientPhone || ""),
+                  address: String(ship.address || ""),
+                  city: String(ship.city || ""),
+                  province: String(ship.province || ""),
+                  postalCode: String(ship.postalCode || ""),
+                  country: String(ship.country || "España"),
+                },
+              },
+            }
+          : {}),
         events: {
           create: [
             {
@@ -350,6 +370,7 @@ export async function getOrderPublic(reference: string) {
       reference: true,
       clientEmail: true,
       clientName: true,
+      clientLocale: true,
       amountCents: true,
       currency: true,
       paymentStatus: true,

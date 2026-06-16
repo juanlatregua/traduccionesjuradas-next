@@ -56,6 +56,10 @@ export default function BlogPage() {
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Guías sobre traducción jurada en España
         </h1>
+        {/* Respuesta-arriba citable (AEO). */}
+        <p className="mt-3 text-base font-medium text-encre">
+          Una traducción jurada es la traducción oficial de un documento, firmada y sellada por un traductor jurado acreditado por el Ministerio de Asuntos Exteriores (MAEC), con plena validez legal ante organismos oficiales de España y del extranjero. Estas guías explican cuándo se necesita y cómo tramitarla.
+        </p>
         <p className="mt-3 text-sm text-sepia sm:text-base">
           Artículos prácticos sobre traducción jurada, trámites de extranjería,
           homologación de títulos y documentación oficial.

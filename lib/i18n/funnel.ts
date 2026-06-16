@@ -22,6 +22,18 @@ type FunnelDict = {
     pendingBody: string;
     backToCheckout: string;
     toClientArea: string;
+    sendDocsEmail: string;
+    sendDocsWhatsapp: string;
+    backHome: string;
+  };
+  cancelled: {
+    eyebrow: string;
+    title: string;
+    body: string;
+    refLabel: string;
+    retry: string;
+    restart: string;
+    orQuote: string;
   };
   pay: {
     heading: string;
@@ -65,6 +77,18 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       pendingBody: "Hemos recibido la vuelta del checkout y estamos esperando confirmación final del proveedor.",
       backToCheckout: "Volver a checkout",
       toClientArea: "Ir a área cliente",
+      sendDocsEmail: "Enviar documentación por email",
+      sendDocsWhatsapp: "Enviar por WhatsApp",
+      backHome: "Volver al inicio",
+    },
+    cancelled: {
+      eyebrow: "Pago cancelado",
+      title: "No se ha completado el pago",
+      body: "El pedido no se ha confirmado todavía. Puedes volver a intentar el pago cuando quieras.",
+      refLabel: "Referencia de pedido:",
+      retry: "Reintentar pago",
+      restart: "Volver a calcular y pagar",
+      orQuote: "O pedir presupuesto cerrado",
     },
     pay: {
       heading: "Paso 4. Pago",
@@ -106,6 +130,18 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       pendingBody: "Nous avons reçu le retour du paiement et attendons la confirmation finale du prestataire.",
       backToCheckout: "Retour au paiement",
       toClientArea: "Accéder à l'espace client",
+      sendDocsEmail: "Envoyer les documents par e-mail",
+      sendDocsWhatsapp: "Envoyer par WhatsApp",
+      backHome: "Retour à l'accueil",
+    },
+    cancelled: {
+      eyebrow: "Paiement annulé",
+      title: "Le paiement n'a pas été finalisé",
+      body: "La commande n'est pas encore confirmée. Vous pouvez reprendre le paiement quand vous le souhaitez.",
+      refLabel: "Référence de commande :",
+      retry: "Réessayer le paiement",
+      restart: "Recalculer et payer",
+      orQuote: "Ou demander un devis ferme",
     },
     pay: {
       heading: "Étape 4. Paiement",
@@ -147,6 +183,18 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       pendingBody: "We've received the return from checkout and are awaiting final confirmation from the provider.",
       backToCheckout: "Back to checkout",
       toClientArea: "Go to client area",
+      sendDocsEmail: "Send documents by email",
+      sendDocsWhatsapp: "Send via WhatsApp",
+      backHome: "Back to home",
+    },
+    cancelled: {
+      eyebrow: "Payment cancelled",
+      title: "The payment wasn't completed",
+      body: "The order isn't confirmed yet. You can resume the payment whenever you like.",
+      refLabel: "Order reference:",
+      retry: "Retry payment",
+      restart: "Recalculate and pay",
+      orQuote: "Or request a firm quote",
     },
     pay: {
       heading: "Step 4. Payment",
@@ -188,6 +236,18 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       pendingBody: "Wir haben die Rückmeldung vom Checkout erhalten und warten auf die endgültige Bestätigung des Anbieters.",
       backToCheckout: "Zurück zum Checkout",
       toClientArea: "Zum Kundenbereich",
+      sendDocsEmail: "Dokumente per E-Mail senden",
+      sendDocsWhatsapp: "Per WhatsApp senden",
+      backHome: "Zur Startseite",
+    },
+    cancelled: {
+      eyebrow: "Zahlung abgebrochen",
+      title: "Die Zahlung wurde nicht abgeschlossen",
+      body: "Die Bestellung ist noch nicht bestätigt. Sie können die Zahlung jederzeit fortsetzen.",
+      refLabel: "Bestellreferenz:",
+      retry: "Zahlung erneut versuchen",
+      restart: "Neu berechnen und zahlen",
+      orQuote: "Oder ein festes Angebot anfordern",
     },
     pay: {
       heading: "Schritt 4. Zahlung",
@@ -229,6 +289,18 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       pendingBody: "Recebemos o retorno do checkout e aguardamos a confirmação final do fornecedor.",
       backToCheckout: "Voltar ao checkout",
       toClientArea: "Ir para a área de cliente",
+      sendDocsEmail: "Enviar documentos por email",
+      sendDocsWhatsapp: "Enviar por WhatsApp",
+      backHome: "Voltar ao início",
+    },
+    cancelled: {
+      eyebrow: "Pagamento cancelado",
+      title: "O pagamento não foi concluído",
+      body: "O pedido ainda não está confirmado. Pode retomar o pagamento quando quiser.",
+      refLabel: "Referência do pedido:",
+      retry: "Tentar pagar novamente",
+      restart: "Voltar a calcular e pagar",
+      orQuote: "Ou pedir um orçamento fechado",
     },
     pay: {
       heading: "Passo 4. Pagamento",

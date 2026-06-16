@@ -60,6 +60,7 @@ export async function POST(req: Request) {
       reference: order.reference,
       amountCents: order.amountCents,
       title: order.title,
+      locale: order.clientLocale,
       idempotencyKey: `order:${order.reference}:stripe:${order.amountCents}`,
     });
 

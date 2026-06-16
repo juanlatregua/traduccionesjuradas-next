@@ -28,6 +28,7 @@ export function buildRedsysFormData(opts: {
   notificationUrl: string;
   successUrl: string;
   cancelUrl: string;
+  locale?: string | null;
 }) {
   const merchantCode = process.env.REDSYS_MERCHANT_CODE || "";
   const terminal = process.env.REDSYS_TERMINAL || "1";
@@ -53,7 +54,7 @@ export function buildRedsysFormData(opts: {
     DS_MERCHANT_MERCHANTURL: opts.notificationUrl,
     DS_MERCHANT_URLOK: opts.successUrl,
     DS_MERCHANT_URLKO: opts.cancelUrl,
-    DS_MERCHANT_CONSUMERLANGUAGE: LANGUAGES.es,
+    DS_MERCHANT_CONSUMERLANGUAGE: opts.locale === "fr" ? LANGUAGES.fr : LANGUAGES.es,
     DS_MERCHANT_MERCHANTDATA: opts.orderReference,
   });
 

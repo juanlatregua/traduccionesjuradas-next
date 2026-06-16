@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
+import { clientPriceFromCost } from "@/lib/quote-math";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -93,7 +94,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
   const [discountTouched, setDiscountTouched] = useState(false);
   const [validityDays, setValidityDays] = useState(15);
   const [notesLegal, setNotesLegal] = useState("");
-  const [marginPct, setMarginPct] = useState(30);
+  // null = margen AUTO (tiered por coste, FR sin margen). Un número = override manual.
+  const [marginPct, setMarginPct] = useState<number | null>(null);
   const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">("DIGITAL_PDF");
   const [deliveryNote, setDeliveryNote] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<string[]>(["bbva", "openbank", "bizum607"]);
@@ -254,8 +256,11 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
   const clientPriceOf = useCallback(
-    (cost: number) => Math.round((cost || 0) * (1 + marginPct / 100) * 100) / 100,
-    [marginPct]
+    (cost: number) =>
+      marginPct === null
+        ? clientPriceFromCost(cost || 0, `${sourceLang}-${targetLang}`)
+        : Math.round((cost || 0) * (1 + marginPct / 100) * 100) / 100,
+    [marginPct, sourceLang, targetLang]
   );
 
   const togglePaymentMethod = useCallback((m: string) => {
@@ -323,7 +328,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           vatRate: 0.21,
           validityDays,
           notesLegal: [deliveryNote.trim() ? `Plazo de entrega: ${deliveryNote.trim()}.` : "", notesLegal.trim()].filter(Boolean).join(" ") || undefined,
-          marginPct,
+          marginPct: marginPct ?? undefined,
           paymentMethods,
           contactWhatsapp: contactWhatsapp.trim() || undefined,
           lines,
@@ -585,12 +590,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
             <div className="border-t border-slate-700 pt-3">
               <label className="text-xs text-slate-400">Margen sobre coste del traductor (%)</label>
               <div className="mt-1 flex items-center gap-2">
-                <input type="number" min={0} value={marginPct} onChange={(e) => setMarginPct(Math.max(0, Number(e.target.value)))} className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                <input type="number" min={0} value={marginPct ?? ""} placeholder="Auto" onChange={(e) => setMarginPct(e.target.value === "" ? null : Math.max(0, Number(e.target.value)))} className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                <button type="button" onClick={() => setMarginPct(null)} className={`rounded border px-2 py-1 text-xs ${marginPct === null ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}>Auto</button>
                 {[30, 40].map((m) => (
                   <button key={m} type="button" onClick={() => setMarginPct(m)} className={`rounded border px-2 py-1 text-xs ${marginPct === m ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}>{m}%</button>
                 ))}
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">El cliente solo ve el precio final. Coste y margen quedan internos.</p>
+              <p className="mt-1 text-[11px] text-slate-500">Auto = margen por tramo de coste (30/25/20 %), francés sin margen. El cliente solo ve el precio final.</p>
             </div>
 
             {/* Formas de pago a mostrar en el PDF + WhatsApp del presupuesto */}
