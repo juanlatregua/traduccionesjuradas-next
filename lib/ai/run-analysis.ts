@@ -164,8 +164,9 @@ export async function runDocumentSegmentation(input: {
   buffer: Buffer;
   mimeType: string;
   fileName: string;
+  targetLang?: string; // destino fijado por el staff (p. ej. "en")
 }): Promise<SegmentedRun> {
-  const { buffer, mimeType, fileName } = input;
+  const { buffer, mimeType, fileName, targetLang } = input;
 
   // Imágenes y no-PDF: no se segmentan (un archivo = un documento).
   if (mimeType !== "application/pdf") {
@@ -184,7 +185,7 @@ export async function runDocumentSegmentation(input: {
   // PDF digital multipágina → segmentar (devuelve 1..N).
   let segments;
   try {
-    segments = await segmentDocumentText({ pages: perPage.pages, fileName });
+    segments = await segmentDocumentText({ pages: perPage.pages, fileName, targetLang });
   } catch (err) {
     console.error("[run-analysis] segmentación falló, fallback a 1 documento:", err);
     return wrapSingle(await runDocumentAnalysis(input), perPage.pageCount || undefined);
@@ -201,7 +202,7 @@ export async function runDocumentSegmentation(input: {
     if (last && last[1] === pg - 1) last[1] = pg;
     else gaps.push([pg, pg]);
   }
-  for (const [start, end] of gaps) segments.push(makePlaceholderSegment(start, end));
+  for (const [start, end] of gaps) segments.push(makePlaceholderSegment(start, end, targetLang));
   segments.sort((a, b) => a.page_start - b.page_start);
 
   const documents: SegmentedDocument[] = segments.map((seg) => {
