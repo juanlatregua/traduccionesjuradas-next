@@ -89,6 +89,11 @@ export default function DocumentosOficialesPage() {
             href: "/documentos-oficiales/certificado-de-nacimiento",
           },
           {
+            title: "Certificado de matrimonio",
+            desc: "Traducción jurada del certificado o acta de matrimonio para nacionalidad, reagrupación familiar, registro civil y trámites de extranjería en España.",
+            href: "/documentos-oficiales/certificado-de-matrimonio",
+          },
+          {
             title: "Antecedentes penales",
             desc: "Certificado de antecedentes penales y equivalentes extranjeros (casier judiciaire, police clearance…) para extranjería, visados, nacionalidad, empleo y teletrabajo.",
             href: "/documentos-oficiales/antecedentes-penales",
