@@ -8,12 +8,41 @@ import { clientPriceFromCost } from "@/lib/quote-math";
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
 
-type DocStatus = "uploading" | "analyzing" | "done" | "error" | "manual";
+type DocStatus = "uploading" | "analyzing" | "done" | "error" | "manual" | "split";
 
 // Una línea es facturable (se puede incluir y ponerle precio) si está analizada,
-// si dio error (precio a mano) o si es una línea manual sin documento.
+// si dio error (precio a mano), si es una línea manual sin documento, o si es un
+// documento detectado dentro de un PDF con varios (split, editable).
 function isPriceable(status: DocStatus): boolean {
-  return status === "done" || status === "error" || status === "manual";
+  return status === "done" || status === "error" || status === "manual" || status === "split";
+}
+
+// Convierte un documento de la respuesta del análisis en una fila del builder.
+// isSplit = el archivo contenía varios documentos → la fila es editable (split).
+function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boolean): DocRow {
+  const range =
+    isSplit && d.pageStart
+      ? d.pageEnd && d.pageEnd > d.pageStart
+        ? ` · págs ${d.pageStart}-${d.pageEnd}`
+        : ` · pág ${d.pageStart}`
+      : "";
+  return {
+    localId: uid(),
+    fileName: `${d.fileName || ""}${range}`,
+    fileSize: 0,
+    mimeType: "application/pdf",
+    status: isSplit ? "split" : "done",
+    include: true,
+    documentTypeEs: d.documentTypeEs,
+    sourceLang: d.sourceLang,
+    sourceName: d.sourceName,
+    targetLang: d.targetLang,
+    targetName: d.targetName,
+    words: d.words,
+    pages: d.pages,
+    mode,
+    unitPrice: Number(d.basePrice) || 0,
+  };
 }
 
 type DocRow = {
@@ -135,22 +164,21 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           patch(row.localId, { status: "error", error: data.error || "Error al analizar." });
           return;
         }
-        const d = data.document;
-        patch(row.localId, {
-          status: "done",
-          documentTypeEs: d.documentTypeEs,
-          sourceLang: d.sourceLang,
-          sourceName: d.sourceName,
-          targetLang: d.targetLang,
-          targetName: d.targetName,
-          words: d.words,
-          pages: d.pages,
-          mode: data.mode,
-          unitPrice: Number(d.basePrice) || 0,
+        // Un PDF puede contener VARIOS documentos (expediente + título…): el
+        // análisis devuelve `documents` (1..N). Si hay más de uno, la fila
+        // subida se expande en N filas editables.
+        const list: any[] = Array.isArray(data.documents) && data.documents.length ? data.documents : [data.document];
+        const isSplit = list.length > 1;
+        const built = list.map((d) => buildDocRow(d, data.mode, isSplit));
+        setDocs((prev) => {
+          const idx = prev.findIndex((x) => x.localId === row.localId);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), ...built, ...prev.slice(idx + 1)];
         });
         // Sugerir dirección global desde el primer documento analizado.
-        setSourceLang((cur) => cur || d.sourceLang || "");
-        setTargetLang((cur) => cur || d.targetLang || "");
+        const first = list[0] || {};
+        setSourceLang((cur) => cur || first.sourceLang || "");
+        setTargetLang((cur) => cur || first.targetLang || "");
       } catch (err: any) {
         patch(row.localId, { status: "error", error: "Error de conexión." });
       }
@@ -180,7 +208,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
       // Re-sugerir descuento por volumen con los documentos finalizados.
       if (!discountTouched) {
         setDocs((cur) => {
-          const includedDone = cur.filter((d) => d.include && d.status === "done").length;
+          const includedDone = cur.filter((d) => d.include && (d.status === "done" || d.status === "split")).length;
           setDiscountPct(suggestVolumeDiscountPct(includedDone));
           return cur;
         });
@@ -215,21 +243,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           patch(d.documentId, { status: "error", error: data.error || "Error al analizar." });
           return;
         }
-        const doc = data.document;
-        patch(d.documentId, {
-          status: "done",
-          documentTypeEs: doc.documentTypeEs,
-          sourceLang: doc.sourceLang,
-          sourceName: doc.sourceName,
-          targetLang: doc.targetLang,
-          targetName: doc.targetName,
-          words: doc.words,
-          pages: doc.pages,
-          mode: data.mode,
-          unitPrice: Number(doc.basePrice) || 0,
+        const list: any[] = Array.isArray(data.documents) && data.documents.length ? data.documents : [data.document];
+        const isSplit = list.length > 1;
+        const built = list.map((doc) => buildDocRow(doc, data.mode, isSplit));
+        setDocs((prev) => {
+          const idx = prev.findIndex((x) => x.localId === d.documentId);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), ...built, ...prev.slice(idx + 1)];
         });
-        setSourceLang((cur) => cur || doc.sourceLang || "");
-        setTargetLang((cur) => cur || doc.targetLang || "");
+        const first = list[0] || {};
+        setSourceLang((cur) => cur || first.sourceLang || "");
+        setTargetLang((cur) => cur || first.targetLang || "");
       } catch {
         patch(d.documentId, { status: "error", error: "Error de conexión." });
       }
@@ -457,11 +481,18 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                         )}
                       </span>
                     )}
+                    {d.status === "split" && (
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-cyan-400" />
+                        {d.documentTypeEs}
+                        <span className="ml-1 rounded bg-cyan-500/15 px-1 text-[10px] text-cyan-300" title="Documento detectado dentro de un PDF con varios — revisa y ajusta">auto · varios</span>
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-300">
                     {d.status === "done" ? (
                       `${(d.sourceLang || sourceLang || "?").toUpperCase()}→${(d.targetLang || targetLang || "?").toUpperCase()}`
-                    ) : d.status === "error" || d.status === "manual" ? (
+                    ) : d.status === "error" || d.status === "manual" || d.status === "split" ? (
                       <div className="flex items-center gap-1">
                         <select
                           value={d.sourceLang || ""}
@@ -488,7 +519,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                   <td className="px-3 py-2 text-right tabular-nums text-slate-300">
                     {d.status === "done" ? (
                       d.words ?? "—"
-                    ) : d.status === "error" || d.status === "manual" ? (
+                    ) : d.status === "error" || d.status === "manual" || d.status === "split" ? (
                       <input
                         type="number"
                         min={0}
@@ -582,7 +613,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                 <input value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="ej. 3-4 días hábiles" className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
               </label>
             </div>
-            {sourceLang && targetLang && docs.some((d) => d.status === "done" && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
+            {sourceLang && targetLang && docs.some((d) => (d.status === "done" || d.status === "split") && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
               <p className="text-xs text-amber-400">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
             )}
 

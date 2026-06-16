@@ -11,7 +11,8 @@
 
 import { analyzeDocument, analyzeDocumentText } from "./analyze-document";
 import type { DocumentAnalysisResult } from "./analyze-document";
-import { extractPdfText } from "./extract-text";
+import { extractPdfText, extractPdfPages } from "./extract-text";
+import { segmentDocumentText, makePlaceholderSegment } from "./segment-document";
 import { countDocumentWords } from "./word-counter";
 import { assessAutoPriceRisk } from "./price-risk";
 
@@ -126,5 +127,93 @@ export async function runDocumentAnalysis(input: {
     analysis: finalizeAnalysis(analysis, { extractedText: extraction.text, fileName }),
     mode: "vision",
     pageCount,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Segmentación: un archivo → 1..N documentos                         */
+/*  Maneja el caso de clientes que mandan varios documentos fusionados */
+/*  en un solo PDF (a veces en idiomas distintos). Solo intenta dividir */
+/*  PDFs con capa de texto; escaneos/imágenes caen a 1 documento.      */
+/* ------------------------------------------------------------------ */
+
+export type SegmentedDocument = {
+  analysis: DocumentAnalysisResult;
+  pageStart: number;
+  pageEnd: number;
+};
+
+export type SegmentedRun = {
+  documents: SegmentedDocument[];
+  mode: "text" | "vision";
+  pageCount?: number;
+  split: boolean; // true si se detectó más de un documento en el archivo
+};
+
+function wrapSingle(run: AnalysisRun, pageCount?: number): SegmentedRun {
+  const pages = pageCount || run.pageCount || run.analysis.document_metrics.pages || 1;
+  return {
+    documents: [{ analysis: run.analysis, pageStart: 1, pageEnd: pages }],
+    mode: run.mode,
+    pageCount: pages,
+    split: false,
+  };
+}
+
+export async function runDocumentSegmentation(input: {
+  buffer: Buffer;
+  mimeType: string;
+  fileName: string;
+}): Promise<SegmentedRun> {
+  const { buffer, mimeType, fileName } = input;
+
+  // Imágenes y no-PDF: no se segmentan (un archivo = un documento).
+  if (mimeType !== "application/pdf") {
+    return wrapSingle(await runDocumentAnalysis(input));
+  }
+
+  const perPage = await extractPdfPages(buffer);
+
+  // Escaneo / sin capa de texto fiable / una sola página → camino normal (1 doc).
+  // (La segmentación automática de escaneos queda fuera de alcance por ahora;
+  // el staff puede dividirlos a mano.)
+  if (!perPage.hasTextLayer || perPage.pages.length <= 1) {
+    return wrapSingle(await runDocumentAnalysis(input), perPage.pageCount || undefined);
+  }
+
+  // PDF digital multipágina → segmentar (devuelve 1..N).
+  let segments;
+  try {
+    segments = await segmentDocumentText({ pages: perPage.pages, fileName });
+  } catch (err) {
+    console.error("[run-analysis] segmentación falló, fallback a 1 documento:", err);
+    return wrapSingle(await runDocumentAnalysis(input), perPage.pageCount || undefined);
+  }
+
+  // Cubrir páginas sin texto (escaneadas) que el segmentador no vio → no perder
+  // documentos en silencio: se añaden como placeholders editables con aviso.
+  const covered = new Set<number>();
+  for (const s of segments) for (let pg = s.page_start; pg <= s.page_end; pg += 1) covered.add(pg);
+  const gaps: Array<[number, number]> = [];
+  for (let pg = 1; pg <= perPage.pageCount; pg += 1) {
+    if (covered.has(pg)) continue;
+    const last = gaps[gaps.length - 1];
+    if (last && last[1] === pg - 1) last[1] = pg;
+    else gaps.push([pg, pg]);
+  }
+  for (const [start, end] of gaps) segments.push(makePlaceholderSegment(start, end));
+  segments.sort((a, b) => a.page_start - b.page_start);
+
+  const documents: SegmentedDocument[] = segments.map((seg) => {
+    const text = perPage.pages.slice(seg.page_start - 1, seg.page_end).join("\n");
+    const analysis = finalizeAnalysis(seg, { extractedText: text, fileName });
+    return { analysis, pageStart: seg.page_start, pageEnd: seg.page_end };
+  });
+
+  return {
+    documents,
+    mode: "text",
+    pageCount: perPage.pageCount,
+    split: documents.length > 1,
   };
 }
