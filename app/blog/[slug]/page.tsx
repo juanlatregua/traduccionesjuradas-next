@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Script from "next/script";
 import { posts } from "@/content";
 import { notFound } from "next/navigation";
 import { MDXContent } from "@/components/blog/MDXContent";
@@ -75,10 +74,10 @@ export default async function PostPage({ params }: Props) {
         ]}
       />
 
-      <Script
-        id="schema-article"
+      {/* Schema Article server-side (en el HTML): los bots de cita IA y Google
+          sin-JS deben ver autoría + fechas en las páginas de más tráfico. */}
+      <script
         type="application/ld+json"
-        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
