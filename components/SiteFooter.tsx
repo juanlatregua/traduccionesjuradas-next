@@ -78,6 +78,8 @@ export default function SiteFooter() {
               <Link href="/expediente" className="font-semibold text-cream hover:text-or transition-colors">Subir expediente (4+ docs)</Link>
               <Link href="/traduction-assermentee" className="hover:text-or transition-colors" hrefLang="fr">Traduction assermentée (FR)</Link>
               <Link href="/traductor-jurado-frances" className="hover:text-or transition-colors">Traductor jurado de francés</Link>
+              <Link href="/traductor-jurado" className="hover:text-or transition-colors">Traductor jurado por ciudades</Link>
+              <Link href="/que-traducciones-necesito" className="hover:text-or transition-colors">¿Qué traducciones necesito?</Link>
               <Link href="/regularizacion-2026" className="font-semibold text-or hover:text-cream transition-colors">Regularización 2026 · 25 €/doc</Link>
             </div>
           </div>

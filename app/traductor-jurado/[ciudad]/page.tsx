@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import Script from "next/script";
 import type { Metadata } from "next";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { CIUDADES, type Ciudad } from "@/src/data/ciudades";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
@@ -31,6 +31,8 @@ export async function generateMetadata({
     alternates: {
       canonical: `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`,
     },
+    // Cola consolidada: noindex para no diluir crawl budget (sigue accesible).
+    ...(ciudad.noindex ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -51,6 +53,33 @@ const DOCUMENTOS_MARRUECOS = [
   "Certificado de soltería marroquí",
 ];
 
+// FAQ por ciudad → FAQPage server-side (AEO) + sección visible (texto único).
+// Respuestas verificables y honestas: servicio online, validez MAEC en toda
+// España, plazo 24-48 h (coincide con el resto de la copia). Sin datos inventados.
+function cityFaq(ciudad: Ciudad): { question: string; answer: string }[] {
+  const faq = [
+    {
+      question: `¿Hay que ir en persona a ${ciudad.nombre} para una traducción jurada?`,
+      answer: `No. El servicio es 100% online: envías el documento desde ${ciudad.nombre} y recibes la traducción jurada firmada y sellada por email (y en papel por mensajería si lo necesitas). No hay que desplazarse ni pedir cita.`,
+    },
+    {
+      question: `¿La traducción jurada vale para la Administración de ${ciudad.provincia}?`,
+      answer: `Sí. Una traducción jurada de un traductor nombrado por el MAEC tiene validez oficial en toda España, incluidos el Registro Civil, la Oficina de Extranjería y los organismos de ${ciudad.provincia}.`,
+    },
+    {
+      question: `¿Cuánto tarda una traducción jurada en ${ciudad.nombre}?`,
+      answer: `La entrega habitual es de 24-48 horas por email desde ${ciudad.nombre}, según el volumen. Recibes un presupuesto cerrado al instante antes de confirmar.`,
+    },
+  ];
+  if (ciudad.altaInmigracionMarroqui) {
+    faq.push({
+      question: `¿Traducís documentos marroquíes (francés/árabe) para trámites en ${ciudad.nombre}?`,
+      answer: `Sí. En ${ciudad.nombre} es muy frecuente la traducción jurada de documentos del registro civil marroquí (acta de nacimiento, certificado de matrimonio, antecedentes penales) para reagrupación familiar, residencia y nacionalidad. En documentos bilingües francés-árabe se traduce desde el francés.`,
+    });
+  }
+  return faq;
+}
+
 export default async function PaginaCiudad({
   params,
 }: {
@@ -61,6 +90,7 @@ export default async function PaginaCiudad({
   if (!ciudad) notFound();
 
   const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`;
+  const faq = cityFaq(ciudad);
 
   // Use city-specific documents if available, otherwise fallback to generic list
   const documentosCiudad = ciudad.documentosMasFrecuentes?.length
@@ -94,12 +124,12 @@ export default async function PaginaCiudad({
           },
         ]}
       />
-      <Script
-        id={`schema-city-${ciudad.slug}`}
+      {/* Schema server-side (en el HTML), no por JS, para bots de cita IA y Google sin-JS. */}
+      <script
         type="application/ld+json"
-        strategy="afterInteractive"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
       />
+      <SchemaFAQ id={`faq-city-${ciudad.slug}`} items={faq} />
 
       <Breadcrumbs
         items={[
@@ -395,6 +425,35 @@ export default async function PaginaCiudad({
           ))}
         </div>
       </section>
+
+      {/* ═══════════════ SECCIÓN 7: PREGUNTAS FRECUENTES ═══════════════ */}
+      <section className="mt-10">
+        <h2 className="text-xl font-semibold text-encre">
+          Preguntas frecuentes — traductor jurado en {ciudad.nombre}
+        </h2>
+        <div className="mt-4 space-y-3">
+          {faq.map((qa) => (
+            <details
+              key={qa.question}
+              className="rounded-doc border border-cream bg-card p-4 shadow-paper"
+            >
+              <summary className="cursor-pointer text-sm font-semibold text-encre">
+                {qa.question}
+              </summary>
+              <p className="mt-2 text-sm leading-relaxed text-sepia">{qa.answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* Enlace al hub de ciudades (descubrimiento + autoridad interna) */}
+      <p className="mt-10 text-sm text-sepia">
+        ¿Estás en otra ciudad?{" "}
+        <Link href="/traductor-jurado" className="font-semibold text-bleu hover:underline">
+          Ver todas las ciudades donde damos traducción jurada
+        </Link>
+        .
+      </p>
     </main>
   );
 }
