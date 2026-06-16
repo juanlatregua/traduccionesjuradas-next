@@ -105,8 +105,9 @@ export function middleware(req: NextRequest) {
   // /inicio, /agencia, /contacto/page/N y /categoria-producto/*
   // se gestionan en next.config.mjs (se ejecuta antes del middleware)
 
-  // /traductor-jurado/[ciudad] are real Next.js pages — let them through
+  // /traductor-jurado/[ciudad] y el hub /traductor-jurado son páginas reales.
   const isCityPage = pathLower.startsWith("/traductor-jurado/");
+  const isCityHub = pathLower === "/traductor-jurado";
 
   // Redirect old WP city URLs: /traductor-jurado-madrid → /traductor-jurado/madrid
   if (pathLower.startsWith("/traductor-jurado-") && !isLanguagePillar) {
@@ -123,7 +124,7 @@ export function middleware(req: NextRequest) {
     pathLower.startsWith("/traductor-") ||
     pathLower.startsWith("/traducciones-");
 
-  if (startsWithLegacySlug && !isLanguagePillar && !isCityPage) {
+  if (startsWithLegacySlug && !isLanguagePillar && !isCityPage && !isCityHub) {
     return redirectPermanent(req, "/");
   }
 

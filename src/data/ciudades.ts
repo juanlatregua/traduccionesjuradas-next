@@ -21,6 +21,11 @@ export interface Ciudad {
   };
   datosUnicos: string[];
   documentosMasFrecuentes: string[];
+  // Cola consolidada: ciudad satélite de otra mayor. Se marca noindex y se
+  // excluye del hub /traductor-jurado y del sitemap para concentrar crawl
+  // budget/autoridad en las ciudades con demanda propia. Sigue viva para
+  // navegación directa.
+  noindex?: boolean;
 }
 
 export const CIUDADES: Ciudad[] = [
@@ -389,6 +394,7 @@ export const CIUDADES: Ciudad[] = [
     datosUnicos: [
       "Granada tiene una importante comunidad magrebí que necesita traducciones juradas de documentos marroquíes — actas de nacimiento, certificados de matrimonio y antecedentes penales — del árabe y francés al español.",
       "La Universidad de Granada es una de las más internacionales de España, con un alto volumen de estudiantes francófonos que precisan traducciones de títulos y expedientes para homologaciones.",
+      "Granada concentra trámites de nacionalidad española y reagrupación familiar que exigen traducción jurada de documentos en francés y árabe; al ser un servicio online, se resuelven sin desplazarse a la oficina del traductor.",
     ],
     documentosMasFrecuentes: [
       "Documentos del registro civil marroquí para reagrupación familiar",
@@ -477,6 +483,7 @@ export const CIUDADES: Ciudad[] = [
     datosUnicos: [
       "Almería tiene una de las mayores comunidades magrebíes de España, lo que genera una demanda muy alta de traducciones juradas de documentos marroquíes del árabe y francés al español para trámites de reagrupación familiar y residencia.",
       "El sector agrícola almeriense — el mayor invernadero de Europa — emplea a miles de trabajadores de origen magrebí cuyos documentos oficiales están redactados en francés y árabe.",
+      "Además de la capital y El Ejido, la provincia de Almería tramita un volumen constante de documentos del registro civil marroquí y argelino para residencia y arraigo, que requieren traducción jurada del francés al español.",
     ],
     documentosMasFrecuentes: [
       "Actas de nacimiento y matrimonio marroquíes",
@@ -695,6 +702,7 @@ export const CIUDADES: Ciudad[] = [
 
   {
     slug: "fuengirola",
+    noindex: true,
     nombre: "Fuengirola",
     provincia: "Málaga",
     comunidad: "Andalucía",
@@ -713,6 +721,7 @@ export const CIUDADES: Ciudad[] = [
 
   {
     slug: "torremolinos",
+    noindex: true,
     nombre: "Torremolinos",
     provincia: "Málaga",
     comunidad: "Andalucía",
@@ -730,6 +739,7 @@ export const CIUDADES: Ciudad[] = [
 
   {
     slug: "benidorm",
+    noindex: true,
     nombre: "Benidorm",
     provincia: "Alicante",
     comunidad: "Comunidad Valenciana",
@@ -747,6 +757,7 @@ export const CIUDADES: Ciudad[] = [
 
   {
     slug: "calpe",
+    noindex: true,
     nombre: "Calpe",
     provincia: "Alicante",
     comunidad: "Comunidad Valenciana",
@@ -784,6 +795,7 @@ export const CIUDADES: Ciudad[] = [
 
   {
     slug: "terrassa",
+    noindex: true,
     nombre: "Terrassa",
     provincia: "Barcelona",
     comunidad: "Cataluña",
@@ -801,6 +813,7 @@ export const CIUDADES: Ciudad[] = [
 
   {
     slug: "badalona",
+    noindex: true,
     nombre: "Badalona",
     provincia: "Barcelona",
     comunidad: "Cataluña",
@@ -818,6 +831,7 @@ export const CIUDADES: Ciudad[] = [
 
   {
     slug: "hospitalet",
+    noindex: true,
     nombre: "L'Hospitalet de Llobregat",
     provincia: "Barcelona",
     comunidad: "Cataluña",
@@ -835,6 +849,7 @@ export const CIUDADES: Ciudad[] = [
 
   {
     slug: "sabadell",
+    noindex: true,
     nombre: "Sabadell",
     provincia: "Barcelona",
     comunidad: "Cataluña",

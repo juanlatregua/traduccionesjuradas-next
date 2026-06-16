@@ -184,13 +184,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   } : null;
 
-  const citiesLastModified = new Date("2026-03-04");
-  const cityEntries = CIUDADES.map((ciudad) => ({
-    url: `${baseUrl}/traductor-jurado/${ciudad.slug}`,
-    lastModified: citiesLastModified,
-    changeFrequency: "monthly" as ChangeFreq,
-    priority: 0.7,
-  }));
+  const citiesLastModified = new Date("2026-06-16");
+  // La cola consolidada (noindex) NO va al sitemap; sí el hub /traductor-jurado.
+  const cityEntries = [
+    {
+      url: `${baseUrl}/traductor-jurado`,
+      lastModified: citiesLastModified,
+      changeFrequency: "monthly" as ChangeFreq,
+      priority: 0.8,
+    },
+    ...CIUDADES.filter((ciudad) => !ciudad.noindex).map((ciudad) => ({
+      url: `${baseUrl}/traductor-jurado/${ciudad.slug}`,
+      lastModified: citiesLastModified,
+      changeFrequency: "monthly" as ChangeFreq,
+      priority: 0.7,
+    })),
+  ];
 
   return [...staticEntries, ...cityEntries, blogIndex, ...blogEntries].filter(Boolean) as MetadataRoute.Sitemap;
 }
