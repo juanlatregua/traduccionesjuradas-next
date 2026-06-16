@@ -8,7 +8,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { runDocumentAnalysis } from "@/lib/ai/run-analysis";
+import { runDocumentSegmentation } from "@/lib/ai/run-analysis";
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 
@@ -29,6 +29,9 @@ export async function POST(req: Request) {
   }
 
   const documentId = String(body?.documentId || "");
+  // Idioma destino del expediente, si el staff lo fijó antes de analizar
+  // (caso "idiomas distintos → un tercer idioma", p. ej. todo a inglés).
+  const targetLang = String(body?.targetLang || "").trim().toLowerCase() || undefined;
 
   // Dos modos: analizar un documento YA registrado (expediente entrante,
   // por documentId) o uno recién subido a Blob por el staff (por blobUrl).
@@ -84,34 +87,68 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
     const started = Date.now();
-    const run = await runDocumentAnalysis({ buffer, mimeType, fileName });
-    const analysis = run.analysis;
+    const run = await runDocumentSegmentation({ buffer, mimeType, fileName, targetLang });
     const analysisMs = Date.now() - started;
 
-    const quote = calculatePrice(analysis);
-    const censoredNames = censorExtractedNames(analysis.extracted_data?.names || []);
+    // Un documento por segmento detectado (1..N). Cada uno con su precio.
+    const documents = run.documents.map((d, i) => {
+      const a = d.analysis;
+      const quote = calculatePrice(a);
+      return {
+        id: doc.id,
+        index: i,
+        fileName,
+        fileUrl: blobUrl,
+        documentType: a.document_type.specific_type,
+        documentTypeEs: a.document_type.specific_type_es,
+        category: a.document_type.category,
+        sourceLang: a.language.source,
+        sourceName: a.language.source_name,
+        targetLang: a.language.target,
+        targetName: a.language.target_name,
+        countryOrigin: a.country.origin_name,
+        words: a.document_metrics.estimated_words,
+        pages: a.document_metrics.pages,
+        pageStart: d.pageStart,
+        pageEnd: d.pageEnd,
+        complexity: a.complexity.level,
+        confidence: a.document_type.confidence,
+        basePrice: quote.basePrice,
+        totalPrice: quote.totalPrice,
+        warnings: a.warnings || [],
+      };
+    });
+
+    // Persistencia del archivo: agregada cuando hay varios documentos.
+    const primary = run.documents[0].analysis;
+    const totalWords = run.documents.reduce((s, d) => s + (d.analysis.document_metrics.estimated_words || 0), 0);
+    const totalBase = documents.reduce((s, d) => s + (d.basePrice || 0), 0);
+    const totalUrgent = run.documents.reduce((s, d) => s + (calculatePrice(d.analysis).urgentPrice || 0), 0);
+    const censoredNames = censorExtractedNames(
+      run.documents.flatMap((d) => d.analysis.extracted_data?.names || [])
+    );
 
     await prisma.documentAnalysis.update({
       where: { id: doc.id },
       data: {
         status: "QUOTE_GENERATED",
-        analysisJson: analysis as any,
-        documentType: analysis.document_type.specific_type,
-        documentCategory: analysis.document_type.category,
-        sourceLanguage: analysis.language.source,
-        targetLanguage: analysis.language.target,
-        countryOrigin: analysis.country.origin,
-        estimatedWords: analysis.document_metrics.estimated_words,
-        complexity: analysis.complexity.level,
-        confidence: analysis.document_type.confidence,
+        analysisJson: (run.split ? { segmented: true, documents: run.documents } : primary) as any,
+        documentType: run.split ? "expediente_combinado" : primary.document_type.specific_type,
+        documentCategory: primary.document_type.category,
+        sourceLanguage: primary.language.source,
+        targetLanguage: primary.language.target,
+        countryOrigin: primary.country.origin,
+        estimatedWords: totalWords,
+        complexity: primary.complexity.level,
+        confidence: primary.document_type.confidence,
         extractedNames: censoredNames,
-        extractedDates: analysis.extracted_data?.dates || [],
-        quoteAmount: quote.basePrice,
-        quoteUrgent: quote.urgentPrice,
-        estimatedDays: quote.estimatedDaysStandard,
-        estimatedDaysUrgent: quote.estimatedDaysUrgent,
-        quoteBreakdown: quote.breakdown as any,
-        pageCount: analysis.document_metrics.pages,
+        extractedDates: run.documents.flatMap((d) => d.analysis.extracted_data?.dates || []),
+        quoteAmount: totalBase,
+        quoteUrgent: totalUrgent,
+        estimatedDays: calculatePrice(primary).estimatedDaysStandard,
+        estimatedDaysUrgent: calculatePrice(primary).estimatedDaysUrgent,
+        quoteBreakdown: (run.split ? { segments: documents } : calculatePrice(primary).breakdown) as any,
+        pageCount: run.pageCount || primary.document_metrics.pages,
       },
     });
 
@@ -119,24 +156,10 @@ export async function POST(req: Request) {
       ok: true,
       mode: run.mode,
       analysisMs,
-      document: {
-        id: doc.id,
-        fileName,
-        documentType: analysis.document_type.specific_type,
-        documentTypeEs: analysis.document_type.specific_type_es,
-        category: analysis.document_type.category,
-        sourceLang: analysis.language.source,
-        sourceName: analysis.language.source_name,
-        targetLang: analysis.language.target,
-        targetName: analysis.language.target_name,
-        countryOrigin: analysis.country.origin_name,
-        words: analysis.document_metrics.estimated_words,
-        pages: analysis.document_metrics.pages,
-        complexity: analysis.complexity.level,
-        confidence: analysis.document_type.confidence,
-        basePrice: quote.basePrice,
-        totalPrice: quote.totalPrice,
-      },
+      split: run.split,
+      documents,
+      // Compatibilidad: primer documento como `document`.
+      document: documents[0],
     });
   } catch (err: any) {
     console.error("[expediente/analyze]", err?.message || err);

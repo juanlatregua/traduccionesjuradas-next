@@ -2,18 +2,50 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
-import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors } from "lucide-react";
 import { clientPriceFromCost } from "@/lib/quote-math";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
 
-type DocStatus = "uploading" | "analyzing" | "done" | "error" | "manual";
+type DocStatus = "uploading" | "analyzing" | "done" | "error" | "manual" | "split";
 
 // Una línea es facturable (se puede incluir y ponerle precio) si está analizada,
-// si dio error (precio a mano) o si es una línea manual sin documento.
+// si dio error (precio a mano), si es una línea manual sin documento, o si es un
+// documento detectado dentro de un PDF con varios (split, editable).
 function isPriceable(status: DocStatus): boolean {
-  return status === "done" || status === "error" || status === "manual";
+  return status === "done" || status === "error" || status === "manual" || status === "split";
+}
+
+// Convierte un documento de la respuesta del análisis en una fila del builder.
+// isSplit = el archivo contenía varios documentos → la fila es editable (split).
+function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boolean): DocRow {
+  const range =
+    isSplit && d.pageStart
+      ? d.pageEnd && d.pageEnd > d.pageStart
+        ? ` · págs ${d.pageStart}-${d.pageEnd}`
+        : ` · pág ${d.pageStart}`
+      : "";
+  return {
+    localId: uid(),
+    fileName: `${d.fileName || ""}${range}`,
+    fileSize: 0,
+    mimeType: "application/pdf",
+    status: isSplit ? "split" : "done",
+    include: true,
+    documentTypeEs: d.documentTypeEs,
+    sourceLang: d.sourceLang,
+    sourceName: d.sourceName,
+    targetLang: d.targetLang,
+    targetName: d.targetName,
+    words: d.words,
+    pages: d.pages,
+    mode,
+    unitPrice: Number(d.basePrice) || 0,
+    blobUrl: d.fileUrl || undefined,
+    pageStart: d.pageStart,
+    pageEnd: d.pageEnd,
+  };
 }
 
 type DocRow = {
@@ -33,18 +65,23 @@ type DocRow = {
   words?: number;
   pages?: number;
   mode?: "text" | "vision";
-  priceMode: "doc" | "words"; // cómo se calcula el coste de la línea
-  ratePerWord?: number; // €/palabra cuando priceMode === "words"
-  unitPrice: number; // coste editable (pre-IVA) cuando priceMode === "doc"
+  unitPrice: number; // editable, pre-IVA
+  // trazabilidad al PDF origen (para ver/descargar cada documento)
+  blobUrl?: string;
+  pageStart?: number;
+  pageEnd?: number;
 };
 
-function round2(n: number): number {
-  return Math.round((n || 0) * 100) / 100;
-}
-
-// Coste del traductor efectivo de una línea (pre-IVA): por palabras o por documento.
-function effectiveCostOf(d: DocRow): number {
-  return d.priceMode === "words" ? round2((d.words || 0) * (d.ratePerWord || 0)) : d.unitPrice || 0;
+// URL del endpoint que extrae el rango de páginas de un documento para
+// verlo/descargarlo como PDF propio.
+function docViewUrl(d: DocRow, download = false): string | null {
+  if (!d.blobUrl) return null;
+  const p = new URLSearchParams({ url: d.blobUrl });
+  if (d.pageStart) p.set("start", String(d.pageStart));
+  if (d.pageEnd) p.set("end", String(d.pageEnd));
+  if (d.documentTypeEs) p.set("name", d.documentTypeEs);
+  if (download) p.set("download", "1");
+  return `/api/documents/extract-pages?${p.toString()}`;
 }
 
 const LANGS: { code: string; name: string }[] = [
@@ -107,6 +144,10 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
   const [notesLegal, setNotesLegal] = useState("");
   // null = margen AUTO (tiered por coste, FR sin margen). Un número = override manual.
   const [marginPct, setMarginPct] = useState<number | null>(null);
+  // Modo de precio del COSTE por línea: "document" = precio fijo por documento
+  // (escribes el coste a mano); "word" = por palabra (coste = palabras × tarifa).
+  const [priceMode, setPriceMode] = useState<"document" | "word">("document");
+  const [wordRate, setWordRate] = useState<number>(0.07);
   const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">("DIGITAL_PDF");
   const [deliveryNote, setDeliveryNote] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<string[]>(["bbva", "openbank", "bizum607"]);
@@ -139,6 +180,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
             fileName: file.name,
             fileSize: file.size,
             mimeType: file.type || "application/pdf",
+            targetLang: targetLang || undefined,
           }),
         });
         const data = await res.json();
@@ -146,27 +188,26 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           patch(row.localId, { status: "error", error: data.error || "Error al analizar." });
           return;
         }
-        const d = data.document;
-        patch(row.localId, {
-          status: "done",
-          documentTypeEs: d.documentTypeEs,
-          sourceLang: d.sourceLang,
-          sourceName: d.sourceName,
-          targetLang: d.targetLang,
-          targetName: d.targetName,
-          words: d.words,
-          pages: d.pages,
-          mode: data.mode,
-          unitPrice: Number(d.basePrice) || 0,
+        // Un PDF puede contener VARIOS documentos (expediente + título…): el
+        // análisis devuelve `documents` (1..N). Si hay más de uno, la fila
+        // subida se expande en N filas editables.
+        const list: any[] = Array.isArray(data.documents) && data.documents.length ? data.documents : [data.document];
+        const isSplit = list.length > 1;
+        const built = list.map((d) => buildDocRow(d, data.mode, isSplit));
+        setDocs((prev) => {
+          const idx = prev.findIndex((x) => x.localId === row.localId);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), ...built, ...prev.slice(idx + 1)];
         });
         // Sugerir dirección global desde el primer documento analizado.
-        setSourceLang((cur) => cur || d.sourceLang || "");
-        setTargetLang((cur) => cur || d.targetLang || "");
+        const first = list[0] || {};
+        setSourceLang((cur) => cur || first.sourceLang || "");
+        setTargetLang((cur) => cur || first.targetLang || "");
       } catch (err: any) {
         patch(row.localId, { status: "error", error: "Error de conexión." });
       }
     },
-    [patch]
+    [patch, targetLang]
   );
 
   const handleFiles = useCallback(
@@ -180,7 +221,6 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         mimeType: f.type,
         status: "uploading",
         include: true,
-        priceMode: "doc",
         unitPrice: 0,
       }));
       setDocs((prev) => [...prev, ...rows]);
@@ -192,7 +232,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
       // Re-sugerir descuento por volumen con los documentos finalizados.
       if (!discountTouched) {
         setDocs((cur) => {
-          const includedDone = cur.filter((d) => d.include && d.status === "done").length;
+          const includedDone = cur.filter((d) => d.include && (d.status === "done" || d.status === "split")).length;
           setDiscountPct(suggestVolumeDiscountPct(includedDone));
           return cur;
         });
@@ -212,7 +252,6 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         mimeType: "application/pdf",
         status: "analyzing" as DocStatus,
         include: true,
-        priceMode: "doc",
         unitPrice: 0,
       }))
     );
@@ -228,21 +267,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           patch(d.documentId, { status: "error", error: data.error || "Error al analizar." });
           return;
         }
-        const doc = data.document;
-        patch(d.documentId, {
-          status: "done",
-          documentTypeEs: doc.documentTypeEs,
-          sourceLang: doc.sourceLang,
-          sourceName: doc.sourceName,
-          targetLang: doc.targetLang,
-          targetName: doc.targetName,
-          words: doc.words,
-          pages: doc.pages,
-          mode: data.mode,
-          unitPrice: Number(doc.basePrice) || 0,
+        const list: any[] = Array.isArray(data.documents) && data.documents.length ? data.documents : [data.document];
+        const isSplit = list.length > 1;
+        const built = list.map((doc) => buildDocRow(doc, data.mode, isSplit));
+        setDocs((prev) => {
+          const idx = prev.findIndex((x) => x.localId === d.documentId);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), ...built, ...prev.slice(idx + 1)];
         });
-        setSourceLang((cur) => cur || doc.sourceLang || "");
-        setTargetLang((cur) => cur || doc.targetLang || "");
+        const first = list[0] || {};
+        setSourceLang((cur) => cur || first.sourceLang || "");
+        setTargetLang((cur) => cur || first.targetLang || "");
       } catch {
         patch(d.documentId, { status: "error", error: "Error de conexión." });
       }
@@ -261,11 +296,51 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         mimeType: "",
         status: "manual" as DocStatus,
         include: true,
-        priceMode: "doc",
         unitPrice: 0,
       },
     ]);
   }, []);
+
+  // Separa una fila multipágina en UNA LÍNEA POR PÁGINA. Útil cuando un rango
+  // (p. ej. el placeholder escaneado de págs 4-5) contiene 2 documentos: cada
+  // página queda como su propio documento editable y con su propio "ver PDF".
+  const splitRowByPages = useCallback((localId: string) => {
+    setDocs((prev) => {
+      const idx = prev.findIndex((x) => x.localId === localId);
+      if (idx === -1) return prev;
+      const d = prev[idx];
+      const start = d.pageStart || 1;
+      const end = d.pageEnd || start;
+      if (end <= start) return prev;
+      const baseName = (d.fileName || "documento").replace(/ · págs? .*$/, "");
+      const rows: DocRow[] = [];
+      for (let pg = start; pg <= end; pg += 1) {
+        rows.push({
+          ...d,
+          localId: uid(),
+          status: "split",
+          fileName: `${baseName} · pág ${pg}`,
+          pageStart: pg,
+          pageEnd: pg,
+          words: undefined,
+          unitPrice: 0,
+        });
+      }
+      return [...prev.slice(0, idx), ...rows, ...prev.slice(idx + 1)];
+    });
+  }, []);
+
+  // Aplica la tarifa por palabra a las líneas con palabras: coste = palabras ×
+  // tarifa. No toca líneas sin palabras (escaneados sin contar, manuales).
+  const applyWordRate = useCallback(() => {
+    setDocs((prev) =>
+      prev.map((d) =>
+        isPriceable(d.status) && d.words && d.words > 0
+          ? { ...d, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100 }
+          : d
+      )
+    );
+  }, [wordRate]);
 
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
@@ -283,11 +358,11 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
 
   const includedDocs = docs.filter((d) => d.include && isPriceable(d.status));
   const costTotal = useMemo(
-    () => includedDocs.reduce((s, d) => s + effectiveCostOf(d), 0),
+    () => includedDocs.reduce((s, d) => s + (d.unitPrice || 0), 0),
     [includedDocs]
   );
   const subtotal = useMemo(
-    () => includedDocs.reduce((s, d) => s + clientPriceOf(effectiveCostOf(d)), 0),
+    () => includedDocs.reduce((s, d) => s + clientPriceOf(d.unitPrice), 0),
     [includedDocs, clientPriceOf]
   );
   const shipping = deliveryType === "PAPER_SHIP" ? 12 : 0;
@@ -319,12 +394,14 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
         if (d.words) parts.push(`${d.words} palabras`);
         if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
-        const cost = effectiveCostOf(d);
         return {
           description: parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
           quantity: 1,
-          unitPrice: clientPriceOf(cost), // precio CLIENTE = coste × (1+margen)
-          supplierUnitCost: cost, // coste del traductor (interno)
+          unitPrice: clientPriceOf(d.unitPrice), // precio CLIENTE = coste × (1+margen)
+          supplierUnitCost: d.unitPrice, // coste del traductor (interno)
+          sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
+          pageStart: d.pageStart,
+          pageEnd: d.pageEnd,
         };
       });
       const res = await fetch("/api/quotes", {
@@ -364,6 +441,22 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
 
   return (
     <div className="space-y-6 text-slate-200">
+      {/* Idioma destino del expediente — elígelo ANTES de subir si traduces a
+          un tercer idioma (p. ej. todo a inglés). Pre-rellena la dirección de
+          cada documento detectado hacia ese idioma. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3">
+        <label className="text-sm font-medium text-slate-200">Idioma destino del expediente</label>
+        <select
+          value={targetLang}
+          onChange={(e) => setTargetLang(e.target.value)}
+          className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-200"
+        >
+          <option value="">Auto (al español)</option>
+          {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+        </select>
+        <span className="text-xs text-slate-500">Elígelo antes de subir si traduces a un tercer idioma (p. ej. todo a inglés). El precio final lo confirmas tú.</span>
+      </div>
+
       {/* Dropzone */}
       <div
         onDragOver={(e) => e.preventDefault()}
@@ -444,9 +537,18 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                         className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
                       />
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 shrink-0 text-slate-500" />
-                        <span className="truncate" title={d.fileName}>{d.fileName}</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+                          <span className="truncate" title={d.fileName}>{d.fileName}</span>
+                        </div>
+                        {d.blobUrl && (
+                          <div className="ml-6 mt-0.5 flex items-center gap-2 text-[11px]">
+                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ver</a>
+                            <span className="text-slate-600">·</span>
+                            <a href={docViewUrl(d, true)!} className="text-cyan-400 hover:underline">descargar</a>
+                          </div>
+                        )}
                       </div>
                     )}
                   </td>
@@ -470,13 +572,33 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                         {d.mode === "text" && (
                           <span className="ml-1 rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Analizado por texto (barato)">texto</span>
                         )}
+                        {d.targetLang && d.targetLang !== "es" && (
+                          <span className="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
+                        )}
                       </span>
+                    )}
+                    {d.status === "split" && (
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          value={d.documentTypeEs || ""}
+                          onChange={(e) => patch(d.localId, { documentTypeEs: e.target.value })}
+                          placeholder="Concepto / tipo"
+                          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
+                        />
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="rounded bg-cyan-500/15 px-1 text-[10px] text-cyan-300" title="Documento detectado dentro de un PDF con varios — revisa y ajusta">auto · varios</span>
+                          {d.targetLang && d.targetLang !== "es" && (
+                            <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio">revisa precio</span>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-300">
                     {d.status === "done" ? (
                       `${(d.sourceLang || sourceLang || "?").toUpperCase()}→${(d.targetLang || targetLang || "?").toUpperCase()}`
-                    ) : d.status === "error" || d.status === "manual" ? (
+                    ) : d.status === "error" || d.status === "manual" || d.status === "split" ? (
                       <div className="flex items-center gap-1">
                         <select
                           value={d.sourceLang || ""}
@@ -503,7 +625,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                   <td className="px-3 py-2 text-right tabular-nums text-slate-300">
                     {d.status === "done" ? (
                       d.words ?? "—"
-                    ) : d.status === "error" || d.status === "manual" ? (
+                    ) : d.status === "error" || d.status === "manual" || d.status === "split" ? (
                       <input
                         type="number"
                         min={0}
@@ -518,57 +640,43 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                   </td>
                   <td className="px-3 py-2 text-right">
                     {isPriceable(d.status) ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <select
-                          value={d.priceMode}
-                          onChange={(e) => patch(d.localId, { priceMode: e.target.value as "doc" | "words" })}
-                          className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
-                          title="Cómo se calcula el coste"
-                        >
-                          <option value="doc">doc</option>
-                          <option value="words">palabras</option>
-                        </select>
-                        {d.priceMode === "words" ? (
-                          <>
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              value={d.ratePerWord ?? ""}
-                              onChange={(e) => patch(d.localId, { ratePerWord: e.target.value === "" ? undefined : Number(e.target.value) })}
-                              placeholder="€/pal"
-                              title="€ por palabra"
-                              className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
-                            />
-                            <span className="w-16 text-right tabular-nums text-slate-300">{effectiveCostOf(d).toFixed(2)} €</span>
-                          </>
-                        ) : (
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={d.unitPrice}
-                            onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value) })}
-                            className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
-                          />
-                        )}
-                      </div>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={d.unitPrice}
+                        onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value) })}
+                        className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                      />
                     ) : (
                       "—"
                     )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-white">
-                    {isPriceable(d.status) ? `${clientPriceOf(effectiveCostOf(d)).toFixed(2)} €` : "—"}
+                    {isPriceable(d.status) ? `${clientPriceOf(d.unitPrice).toFixed(2)} €` : "—"}
                   </td>
                   <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setDocs((prev) => prev.filter((x) => x.localId !== d.localId))}
-                      className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
-                      aria-label="Quitar"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      {d.blobUrl && d.pageStart != null && d.pageEnd != null && d.pageEnd > d.pageStart && (
+                        <button
+                          type="button"
+                          onClick={() => splitRowByPages(d.localId)}
+                          title="Separar en una línea por página (p. ej. 2 certificados en 2 páginas)"
+                          className="rounded p-1 text-cyan-400 hover:bg-slate-800"
+                          aria-label="Dividir por páginas"
+                        >
+                          <Scissors className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setDocs((prev) => prev.filter((x) => x.localId !== d.localId))}
+                        className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                        aria-label="Quitar"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -624,9 +732,56 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                 <input value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="ej. 3-4 días hábiles" className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
               </label>
             </div>
-            {sourceLang && targetLang && docs.some((d) => d.status === "done" && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
+            {sourceLang && targetLang && docs.some((d) => (d.status === "done" || d.status === "split") && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
               <p className="text-xs text-amber-400">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
             )}
+
+            {/* Modo de precio del coste por línea: por documento (fijo) o por palabra */}
+            <div className="border-t border-slate-700 pt-3">
+              <label className="text-xs text-slate-400">Precio del coste por</label>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPriceMode("document")}
+                  className={`rounded border px-2 py-1 text-xs ${priceMode === "document" ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}
+                >
+                  Documento (fijo)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPriceMode("word")}
+                  className={`rounded border px-2 py-1 text-xs ${priceMode === "word" ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}
+                >
+                  Palabra
+                </button>
+                {priceMode === "word" && (
+                  <>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.001"
+                      value={wordRate}
+                      onChange={(e) => setWordRate(Math.max(0, Number(e.target.value)))}
+                      className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                      title="€ por palabra (coste del traductor)"
+                    />
+                    <span className="text-xs text-slate-400">€/palabra</span>
+                    <button
+                      type="button"
+                      onClick={applyWordRate}
+                      className="rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30"
+                    >
+                      Aplicar a las líneas
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                {priceMode === "document"
+                  ? "Escribe el coste fijo de cada documento en su fila."
+                  : "Coste = palabras × tarifa. Pulsa “Aplicar” para rellenar las líneas con palabras; luego puedes ajustar cada una a mano."}
+              </p>
+            </div>
 
             {/* Margen sobre el coste del traductor (interno; el cliente solo ve su precio) */}
             <div className="border-t border-slate-700 pt-3">

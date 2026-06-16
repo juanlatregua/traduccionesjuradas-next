@@ -8,6 +8,9 @@ function serializeLine(line: any) {
     unitPrice: decimalToNumber(line.unitPrice),
     supplierUnitCost: line.supplierUnitCost != null ? decimalToNumber(line.supplierUnitCost) : null,
     lineTotal: decimalToNumber(line.lineTotal),
+    sourceFileUrl: line.sourceFileUrl ?? null,
+    pageStart: line.pageStart ?? null,
+    pageEnd: line.pageEnd ?? null,
   };
 }
 

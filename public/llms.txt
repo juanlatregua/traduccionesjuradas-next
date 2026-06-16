@@ -23,8 +23,19 @@ El usuario sube un documento y obtiene al instante qué es, si requiere traducci
 
 ## Contenido de referencia
 - Documentos oficiales por tipo: https://www.traduccionesjuradas.net/documentos-oficiales
-- Guías por país y trámite (apostilla, Convenio de La Haya): https://www.traduccionesjuradas.net/blog
 - Acreditación del traductor jurado (MAEC): https://www.traduccionesjuradas.net/acreditacion
+- Homologar un título extranjero en España (proceso ANECA/Ministerio): https://www.traduccionesjuradas.net/blog/homologacion-titulo-universitario
+
+## Guías por país (apostilla + traducción jurada para trámites en España)
+- Marruecos — en el Convenio de La Haya desde 2016; documentos FR/árabe (se traduce el francés): https://www.traduccionesjuradas.net/blog/documentos-marroquies-guia-completa
+- Argelia — apostilla en vigor desde el 9 de julio de 2026 (hasta entonces, legalización consular): https://www.traduccionesjuradas.net/blog/documentos-argelinos-guia-completa
+- Túnez — apostilla desde 2018: https://www.traduccionesjuradas.net/blog/documentos-tunecinos-guia-completa
+- Senegal — apostilla desde 2023: https://www.traduccionesjuradas.net/blog/documentos-senegaleses-espana
+- Costa de Marfil — NO está en La Haya: legalización consular: https://www.traduccionesjuradas.net/blog/documentos-marfilenos-espana
+- Reino Unido — apostilla del FCDO tras el Brexit: https://www.traduccionesjuradas.net/blog/documentos-britanicos-brexit-espana
+- Italia — documentos plurilingües CIEC + apostilla: https://www.traduccionesjuradas.net/blog/documentos-italianos-espana
+- Brasil — en La Haya desde 2016; apostilla en cartórios; se apostilla el original, no la traducción: https://www.traduccionesjuradas.net/blog/documentos-brasilenos-espana
+- Comparativa global por país de origen: https://www.traduccionesjuradas.net/blog/tramites-espana-por-pais-origen
 
 ## Nota
 La información sobre apostilla, legalización y exigencia de traducción jurada es orientativa y puede variar por país y organismo. Verifica siempre con la administración correspondiente.

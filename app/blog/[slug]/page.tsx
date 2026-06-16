@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Script from "next/script";
 import { posts } from "@/content";
 import { notFound } from "next/navigation";
 import { MDXContent } from "@/components/blog/MDXContent";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AuthorByline } from "@/components/AuthorByline";
 
@@ -75,10 +75,10 @@ export default async function PostPage({ params }: Props) {
         ]}
       />
 
-      <Script
-        id="schema-article"
+      {/* Schema Article server-side (en el HTML): los bots de cita IA y Google
+          sin-JS deben ver autoría + fechas en las páginas de más tráfico. */}
+      <script
         type="application/ld+json"
-        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
@@ -119,6 +119,10 @@ export default async function PostPage({ params }: Props) {
           }),
         }}
       />
+
+      {post.faq && post.faq.length > 0 && (
+        <SchemaFAQ id="faq-blog-post" items={post.faq} />
+      )}
 
       <article>
         <header className="mb-8">
