@@ -40,7 +40,10 @@ export type PdfPagesExtraction = {
 export async function extractPdfPages(buffer: Buffer): Promise<PdfPagesExtraction> {
   const empty: PdfPagesExtraction = { pages: [], pageCount: 0, hasTextLayer: false };
   try {
-    const pdfParse = require("pdf-parse");
+    // Importar el módulo interno, NO "pdf-parse" (su index.js ejecuta un bloque
+    // de debug al cargarse que lee un PDF de prueba inexistente → ENOENT en el
+    // bundle de Next/webpack, donde module.parent es falsy).
+    const pdfParse = require("pdf-parse/lib/pdf-parse.js");
     if (typeof pdfParse !== "function") return empty;
 
     const pages: string[] = [];
@@ -78,7 +81,10 @@ export async function extractPdfText(buffer: Buffer): Promise<PdfTextExtraction>
   try {
     // Carga dinámica: si pdf-parse falla, devolvemos sin capa de texto y el
     // llamador cae al camino de visión.
-    const pdfParse = require("pdf-parse");
+    // Importar el módulo interno, NO "pdf-parse" (su index.js ejecuta un bloque
+    // de debug al cargarse que lee un PDF de prueba inexistente → ENOENT en el
+    // bundle de Next/webpack, donde module.parent es falsy).
+    const pdfParse = require("pdf-parse/lib/pdf-parse.js");
     if (typeof pdfParse !== "function") return empty;
 
     const parsed = await pdfParse(buffer);
