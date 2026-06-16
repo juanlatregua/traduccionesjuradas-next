@@ -15,6 +15,9 @@ const posts = defineCollection({
       published: s.boolean().default(true),
       category: s.enum(['tramites', 'paises', 'faq', 'profesion']),
       keywords: s.array(s.string()).optional(),
+      // FAQ opcional → JSON-LD FAQPage server-side (formato que más citan los
+      // motores de IA). Las respuestas deben salir del contenido verificado.
+      faq: s.array(s.object({ question: s.string(), answer: s.string() })).optional(),
       body: s.mdx(),
       metadata: s.metadata(),
     })

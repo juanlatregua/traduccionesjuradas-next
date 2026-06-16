@@ -4,6 +4,7 @@ import { posts } from "@/content";
 import { notFound } from "next/navigation";
 import { MDXContent } from "@/components/blog/MDXContent";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AuthorByline } from "@/components/AuthorByline";
 
@@ -118,6 +119,10 @@ export default async function PostPage({ params }: Props) {
           }),
         }}
       />
+
+      {post.faq && post.faq.length > 0 && (
+        <SchemaFAQ id="faq-blog-post" items={post.faq} />
+      )}
 
       <article>
         <header className="mb-8">
