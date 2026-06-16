@@ -29,6 +29,9 @@ export async function POST(req: Request) {
   }
 
   const documentId = String(body?.documentId || "");
+  // Idioma destino del expediente, si el staff lo fijó antes de analizar
+  // (caso "idiomas distintos → un tercer idioma", p. ej. todo a inglés).
+  const targetLang = String(body?.targetLang || "").trim().toLowerCase() || undefined;
 
   // Dos modos: analizar un documento YA registrado (expediente entrante,
   // por documentId) o uno recién subido a Blob por el staff (por blobUrl).
@@ -84,7 +87,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
     const started = Date.now();
-    const run = await runDocumentSegmentation({ buffer, mimeType, fileName });
+    const run = await runDocumentSegmentation({ buffer, mimeType, fileName, targetLang });
     const analysisMs = Date.now() - started;
 
     // Un documento por segmento detectado (1..N). Cada uno con su precio.

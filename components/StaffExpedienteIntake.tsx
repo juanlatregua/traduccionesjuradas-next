@@ -157,6 +157,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
             fileName: file.name,
             fileSize: file.size,
             mimeType: file.type || "application/pdf",
+            targetLang: targetLang || undefined,
           }),
         });
         const data = await res.json();
@@ -183,7 +184,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         patch(row.localId, { status: "error", error: "Error de conexión." });
       }
     },
-    [patch]
+    [patch, targetLang]
   );
 
   const handleFiles = useCallback(
@@ -373,6 +374,22 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
 
   return (
     <div className="space-y-6 text-slate-200">
+      {/* Idioma destino del expediente — elígelo ANTES de subir si traduces a
+          un tercer idioma (p. ej. todo a inglés). Pre-rellena la dirección de
+          cada documento detectado hacia ese idioma. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3">
+        <label className="text-sm font-medium text-slate-200">Idioma destino del expediente</label>
+        <select
+          value={targetLang}
+          onChange={(e) => setTargetLang(e.target.value)}
+          className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-200"
+        >
+          <option value="">Auto (al español)</option>
+          {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+        </select>
+        <span className="text-xs text-slate-500">Elígelo antes de subir si traduces a un tercer idioma (p. ej. todo a inglés). El precio final lo confirmas tú.</span>
+      </div>
+
       {/* Dropzone */}
       <div
         onDragOver={(e) => e.preventDefault()}
@@ -479,6 +496,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                         {d.mode === "text" && (
                           <span className="ml-1 rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Analizado por texto (barato)">texto</span>
                         )}
+                        {d.targetLang && d.targetLang !== "es" && (
+                          <span className="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
+                        )}
                       </span>
                     )}
                     {d.status === "split" && (
@@ -486,6 +506,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                         <CheckCircle2 className="h-3 w-3 text-cyan-400" />
                         {d.documentTypeEs}
                         <span className="ml-1 rounded bg-cyan-500/15 px-1 text-[10px] text-cyan-300" title="Documento detectado dentro de un PDF con varios — revisa y ajusta">auto · varios</span>
+                        {d.targetLang && d.targetLang !== "es" && (
+                          <span className="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
+                        )}
                       </span>
                     )}
                   </td>

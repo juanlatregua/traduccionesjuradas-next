@@ -41,11 +41,12 @@ function clamp(n: number, lo: number, hi: number): number {
 // Segmento placeholder para páginas SIN texto (p.ej. escaneadas) que el
 // segmentador no pudo ver. Evita perder documentos en silencio: aparece como
 // línea editable con aviso para que el staff lo complete a mano.
-export function makePlaceholderSegment(pageStart: number, pageEnd: number): DocumentSegment {
+export function makePlaceholderSegment(pageStart: number, pageEnd: number, targetLang?: string): DocumentSegment {
   const span = pageEnd > pageStart ? `${pageStart}-${pageEnd}` : `${pageStart}`;
+  const tgt = targetLang && LANG_NAMES[targetLang] ? targetLang : "es";
   return {
     document_type: { category: "other", specific_type: "other", specific_type_es: "Documento sin texto (escaneado, revisar)", confidence: 0 },
-    language: { source: "unknown", source_name: "", target: "es", target_name: "Español", confidence: 0 },
+    language: { source: "unknown", source_name: "", target: tgt, target_name: LANG_NAMES[tgt] || "Español", confidence: 0 },
     country: { origin: "unknown", origin_name: "", issuing_authority: "", confidence: 0 },
     document_metrics: { estimated_words: 0, pages: pageEnd - pageStart + 1, has_tables: false, has_stamps_seals: false, has_handwriting: false, scan_quality: "poor", is_legible: false },
     extracted_data: { names: [], dates: [], reference_numbers: [], institutions: [], notes: "" },
@@ -119,15 +120,31 @@ function normalizeSegment(seg: RawSegment, pages: string[], pageCount: number): 
  * texto POR PÁGINA. Devuelve 1..N segmentos, cada uno un DocumentAnalysisResult
  * con su rango de páginas y sus palabras contadas en local.
  */
+const LANG_NAMES: Record<string, string> = {
+  es: "español", fr: "francés", en: "inglés", de: "alemán", it: "italiano",
+  pt: "portugués", ca: "catalán", nl: "neerlandés", sv: "sueco", no: "noruego",
+  ar: "árabe", ro: "rumano",
+};
+
 export async function segmentDocumentText(input: {
   pages: string[];
   fileName: string;
+  targetLang?: string; // idioma destino del expediente (si el staff lo fijó)
 }): Promise<DocumentSegment[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY no configurada.");
 
   const client = new Anthropic({ apiKey, maxRetries: MAX_RETRIES });
   const pageCount = input.pages.length;
+
+  // Pista de destino: si el staff fijó el idioma destino (p. ej. "todo a
+  // inglés"), se lo decimos al modelo para que ponga ese target en cada
+  // documento (source = el idioma del propio documento). Resuelve el caso
+  // "idiomas distintos → un tercer idioma".
+  const tgt = input.targetLang && LANG_NAMES[input.targetLang] ? input.targetLang : "";
+  const targetHint = tgt
+    ? `\n\nIMPORTANTE — DESTINO FIJADO: el idioma DESTINO de TODAS las traducciones es ${LANG_NAMES[tgt]} ("${tgt}"). En CADA documento pon language.target = "${tgt}" y language.source = el idioma real del documento. Si un documento ya está en ${LANG_NAMES[tgt]}, indícalo igualmente con source = "${tgt}".`
+    : "";
 
   // Texto marcado por página, acotado para limitar tokens (6 KB/pág, 48 KB total).
   const marked = input.pages
@@ -155,7 +172,7 @@ export async function segmentDocumentText(input: {
                 text:
                   `Archivo: ${input.fileName}. Tiene ${pageCount} página(s). ` +
                   `Identifica los documentos distintos y su rango de páginas. ` +
-                  `No incluyas extracted_text ni estimated_words. Devuelve el JSON.\n\n${marked}`,
+                  `No incluyas extracted_text ni estimated_words. Devuelve el JSON.${targetHint}\n\n${marked}`,
               },
             ],
           },
