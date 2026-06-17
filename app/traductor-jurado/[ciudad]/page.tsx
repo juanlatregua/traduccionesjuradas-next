@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
+import { SchemaLocalBusiness } from "@/components/SchemaLocalBusiness";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { CIUDADES, type Ciudad } from "@/src/data/ciudades";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
@@ -124,12 +125,23 @@ export default async function PaginaCiudad({
           },
         ]}
       />
-      {/* Schema server-side (en el HTML), no por JS, para bots de cita IA y Google sin-JS. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
-      />
+      {/* Schema server-side (en el HTML), no por JS, para bots de cita IA y Google sin-JS.
+          En Málaga NO se emite el ProfessionalService genérico: lo sustituye el
+          SchemaLocalBusiness (con dirección real) para no tener dos nodos
+          ProfessionalService que compitan por la misma entidad. */}
+      {ciudad.slug !== "malaga" && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+        />
+      )}
       <SchemaFAQ id={`faq-city-${ciudad.slug}`} items={faq} />
+      {/* LocalBusiness solo en Málaga: es la sede física real (Calle Esperanto, 9).
+          En el resto de ciudades el servicio es online (ProfessionalService con
+          serviceArea), sin sede local → no se afirma presencia física. */}
+      {ciudad.slug === "malaga" && (
+        <SchemaLocalBusiness id="https://www.traduccionesjuradas.net/traductor-jurado/malaga#localbusiness" />
+      )}
 
       <Breadcrumbs
         items={[
@@ -181,6 +193,14 @@ export default async function PaginaCiudad({
             Administración General del Estado, universidades y cualquier
             organismo público en España.
           </p>
+          {ciudad.slug === "malaga" && (
+            <p className="mt-3 text-sm leading-relaxed text-sepia">
+              Somos una empresa de traducción jurada con sede en Málaga (Calle
+              Esperanto, 9). El servicio es online, pero al estar basados aquí
+              conocemos de primera mano los trámites ante el Registro Civil, la
+              Oficina de Extranjería y los juzgados de Málaga.
+            </p>
+          )}
           {/* City-specific unique paragraphs */}
           {ciudad.datosUnicos?.map((dato, i) => (
             <p key={i} className="mt-3 text-sm leading-relaxed text-sepia">

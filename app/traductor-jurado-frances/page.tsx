@@ -30,7 +30,7 @@ export default function TraductorJuradoFrancesPage() {
       idiomaSlug="frances"
       combinaciones={["fr-es", "es-fr"]}
       tituloH1="Traducción jurada de francés para trámites oficiales en España y en países francófonos"
-      descripcion="La traducción jurada de francés es el formato que te piden cuando un documento en francés debe presentarse ante una administración, notaría, universidad o juzgado en España, o cuando un documento español se utiliza en Francia y otros países francófonos. Precio cerrado, plazo estimado, validez oficial y tipos de documentos más frecuentes. Todas las traducciones las firma un traductor jurado de francés acreditado por el MAEC, con entrega en PDF firmado digitalmente."
+      descripcion="Traductor jurado de francés nº 3850, nombrado por el MAEC: traducción jurada francés↔español con validez oficial en toda España y reconocida en países francófonos. Es el formato que te piden cuando un documento en francés debe presentarse ante una administración, notaría, universidad o juzgado en España, o cuando un documento español se utiliza en Francia. Precio cerrado, plazo estimado y entrega en PDF firmado digitalmente por un traductor jurado acreditado por el MAEC."
       faqItems={[
         {
           question: "¿Qué validez tiene una traducción jurada de francés en España?",

@@ -5,6 +5,7 @@ export function SchemaLocalBusiness({ id }: Props) {
   const data = {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
+    ...(id ? { "@id": id } : {}),
     name: "TraduccionesJuradas.net – HBTJ Consultores Lingüísticos S.L.",
     url: "https://www.traduccionesjuradas.net",
     telephone: "+34951333614",
