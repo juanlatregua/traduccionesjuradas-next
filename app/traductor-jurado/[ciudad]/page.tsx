@@ -125,11 +125,16 @@ export default async function PaginaCiudad({
           },
         ]}
       />
-      {/* Schema server-side (en el HTML), no por JS, para bots de cita IA y Google sin-JS. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
-      />
+      {/* Schema server-side (en el HTML), no por JS, para bots de cita IA y Google sin-JS.
+          En Málaga NO se emite el ProfessionalService genérico: lo sustituye el
+          SchemaLocalBusiness (con dirección real) para no tener dos nodos
+          ProfessionalService que compitan por la misma entidad. */}
+      {ciudad.slug !== "malaga" && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+        />
+      )}
       <SchemaFAQ id={`faq-city-${ciudad.slug}`} items={faq} />
       {/* LocalBusiness solo en Málaga: es la sede física real (Calle Esperanto, 9).
           En el resto de ciudades el servicio es online (ProfessionalService con

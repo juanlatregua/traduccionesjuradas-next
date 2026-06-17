@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title:
     "Traducci\u00F3n Jurada de Estatutos Sociales \u00B7 Registro Mercantil y Notar\u00EDa \u00B7 MAEC",
   description:
-    "Traducci\u00F3n jurada de estatutos sociales (franc\u00E9s\u2194espa\u00F1ol) para el Registro Mercantil, constituci\u00F3n de sucursales y tr\u00E1mites notariales. Traductor jurado oficial MAEC n\u00BA 3850. Presupuesto cerrado al instante, entrega en 2-5 d\u00EDas.",
+    "Traducci\u00F3n jurada de estatutos sociales para el Registro Mercantil, constituci\u00F3n de sucursales y tr\u00E1mites notariales. Traductor jurado oficial acreditado por el MAEC. Presupuesto cerrado al instante, entrega en 2-5 d\u00EDas.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traduccion-jurada-de-estatutos-sociales",
