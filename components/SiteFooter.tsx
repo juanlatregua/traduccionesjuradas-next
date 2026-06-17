@@ -92,6 +92,27 @@ export default function SiteFooter() {
             </div>
           </div>
         </div>
+        <div className="mt-8 border-t border-cream/10 pt-6">
+          <p className="font-baskerville text-sm font-bold text-parchment">Traductor jurado por idioma</p>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-cream/85">
+            {[
+              ["frances", "Francés"],
+              ["ingles", "Inglés"],
+              ["aleman", "Alemán"],
+              ["italiano", "Italiano"],
+              ["portugues", "Portugués"],
+              ["catalan", "Catalán"],
+              ["neerlandes", "Neerlandés"],
+              ["rumano", "Rumano"],
+              ["sueco", "Sueco"],
+              ["noruego", "Noruego"],
+            ].map(([slug, label]) => (
+              <Link key={slug} href={`/traductor-jurado-${slug}`} className="hover:text-or transition-colors">
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
         <div className="mt-10 border-t border-cream/10 pt-8">
           <p className="font-caveat text-2xl text-cream/90 animate-inkWrite">Juan Antonio Silva Moreno · Traductor jurado N.º 3850</p>
           <p className="mt-2 text-xs text-cream/70">© {year} HBTJ Consultores Lingüísticos S.L. · Todos los derechos reservados</p>

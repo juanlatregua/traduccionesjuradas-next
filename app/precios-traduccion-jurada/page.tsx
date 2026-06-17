@@ -227,6 +227,17 @@ export default function PreciosTraduccionJuradaPage() {
           decidido: podemos orientarte sobre qué es imprescindible traducir para
           tu expediente.
         </p>
+        <p className="mt-2 text-encre">
+          ¿Buscas un{" "}
+          <Link
+            href="/traducciones-juradas-baratas"
+            className="font-semibold text-bleu hover:underline"
+          >
+            precio ajustado sin renunciar a la validez oficial
+          </Link>
+          ? Te explicamos cómo trabajamos directamente con el traductor jurado, sin
+          intermediarios.
+        </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/presupuesto-instantaneo"

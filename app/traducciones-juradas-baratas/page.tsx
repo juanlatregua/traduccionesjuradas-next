@@ -2,6 +2,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { WHATSAPP_LINK } from "@/lib/contact";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
   title: "Traducciones Juradas Baratas Online \u00B7 Desde 35\u20AC \u00B7 Traductor Jurado en M\u00E1laga (MAEC)",
@@ -10,9 +11,33 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://www.traduccionesjuradas.net/traducciones-juradas-baratas" },
 };
 
+const FAQ_ITEMS = [
+  {
+    question: "¿Cuál es el precio de una traducción jurada?",
+    answer:
+      "El precio mínimo orientativo es desde 35 € por documento. El precio exacto depende del idioma, el tipo de documento, la extensión y el plazo de entrega. En algunos casos, como el francés gestionado directamente con el traductor jurado sin intermediarios, el precio puede ser más ajustado.",
+  },
+  {
+    question: "¿Una traducción jurada “barata” puede ser válida?",
+    answer:
+      "Puede ser válida si está realizada por un traductor jurado oficial y cumple formato, fidelidad y requisitos del organismo de destino. Lo importante no es el adjetivo, sino la validez legal.",
+  },
+  {
+    question: "¿Qué necesitáis para dar precio exacto?",
+    answer:
+      "Una foto o escaneo legible del documento, el idioma de destino y si lo necesitas urgente. Con eso te damos un presupuesto personalizado.",
+  },
+  {
+    question: "¿Entregáis en papel o en PDF?",
+    answer:
+      "Normalmente entregamos en PDF firmado digitalmente. Si necesitas copia en papel, podemos gestionarla según el caso.",
+  },
+];
+
 export default function TraduccionesJuradasBaratas() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 text-encre">
+      <SchemaFAQ id="faq-traducciones-juradas-baratas" items={FAQ_ITEMS} />
       {/* TÍTULO */}
       <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
         Traducciones juradas con precio ajustado
