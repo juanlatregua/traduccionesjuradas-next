@@ -31,6 +31,17 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
   }
 
   const session = event.data.object as any;
+
+  // Los pagos de presupuesto (Quote) llegan a ESTE endpoint registrado en Stripe
+  // (el dedicado /api/quotes/stripe-webhook no está dado de alta). Sin esta
+  // delegación, el evento cae más abajo en `if (!reference)` y se descarta en
+  // silencio: el presupuesto nunca pasa a PAID ni genera pedido. Mismo secret
+  // (STRIPE_WEBHOOK_SECRET) — no requiere config adicional.
+  if (String(session?.metadata?.quoteId || "").trim()) {
+    const { processQuoteStripeEvent } = await import("@/lib/quote-stripe-webhook");
+    return processQuoteStripeEvent(event);
+  }
+
   const orderSessionId = String(session?.metadata?.orderSessionId || "").trim();
   let reference = String(session?.metadata?.orderReference || "").trim();
   const stripeSessionId = String(session?.id || "").trim();
