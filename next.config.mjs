@@ -94,7 +94,7 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/:legacy((?!api/|_next/|traductor-jurado-frances(?:/)?$|traduccion-jurada-frances-malaga(?:/)?$).*(?:frances).*)",
+        source: "/:legacy((?!api/|_next/|blog/|traductor-jurado-frances(?:/)?$|traduccion-jurada-frances-malaga(?:/)?$).*(?:frances).*)",
         destination: "/traductor-jurado-frances",
         permanent: true,
       },
