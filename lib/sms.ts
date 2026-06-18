@@ -81,17 +81,30 @@ export async function sendSMS(
 }
 
 /**
- * Envía por WhatsApp si hay número de WhatsApp configurado, si no por SMS.
+ * Notificación al CLIENTE. Prefiere WhatsApp si está EXPLÍCITAMENTE habilitado,
+ * con fallback a SMS; si no, SMS directo.
+ *
+ * ⚠ El WhatsApp saliente exige DOS condiciones, no una: el flag
+ * `WHATSAPP_NOTIFICATIONS_ENABLED=1` Y el sender `TWILIO_WHATSAPP_FROM`. Motivo:
+ * los mensajes business-initiated fuera de la ventana de 24 h requieren PLANTILLA
+ * aprobada en Meta. Un texto libre (lo que envía `twilioSend`) Twilio lo acepta
+ * (ok:true) pero Meta lo descarta en silencio → notificación perdida y sin
+ * fallback. Eso fue el incidente (un TWILIO_WHATSAPP_FROM mal puesto tragó TODAS
+ * las notifs). El flag impide que poner la env sola re-active el camino roto:
+ * solo se pone a 1 cuando el sender dedicado + las plantillas están dados de alta
+ * (y el body de las llamadas pase a usar plantilla). Hasta entonces → SMS.
  */
 export async function sendNotification(
   msg: Omit<SMSMessage, "channel">
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const hasWhatsApp = Boolean(process.env.TWILIO_WHATSAPP_FROM);
-  if (hasWhatsApp) {
+  const whatsAppEnabled =
+    process.env.WHATSAPP_NOTIFICATIONS_ENABLED === "1" &&
+    Boolean(process.env.TWILIO_WHATSAPP_FROM);
+  if (whatsAppEnabled) {
     const wa = await sendSMS({ ...msg, channel: "whatsapp" });
     if (wa.ok) return wa;
     console.error(
-      `[sendNotification] WhatsApp fallo (${wa.error}); reintentando por SMS`
+      `[sendNotification] WhatsApp fallo (${wa.error}); fallback a SMS`
     );
   }
   return sendSMS({ ...msg, channel: "sms" });
