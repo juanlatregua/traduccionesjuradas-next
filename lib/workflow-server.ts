@@ -107,7 +107,15 @@ async function notifyClientMilestone(
         ? smsEnProceso({ ref: reference, url, lang })
         : smsTraduccionLista({ ref: reference, url, lang });
 
-    const result = await sendNotification({ to: formatPhoneSpain(phone), body });
+    const result = await sendNotification({
+      to: formatPhoneSpain(phone),
+      body,
+      whatsapp: {
+        key: milestone === "en_proceso" ? "proceso" : "lista",
+        lang,
+        vars: [reference, url],
+      },
+    });
     await prisma.orderEvent.create({
       data: {
         orderId: order.id,

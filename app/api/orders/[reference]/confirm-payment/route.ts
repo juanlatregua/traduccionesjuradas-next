@@ -109,9 +109,12 @@ export async function POST(req: Request, { params }: Params) {
         const phone = await getOrderPhone(orderFull.id).catch(() => null);
         if (phone) {
           const lang = orderFull.clientLocale === "fr" ? "fr" : "es";
+          const plazo = formatDeliveryPlazo(orderFull.dueDate, lang);
+          const url = buildSignedOrderUrl(params.reference, "estado");
           sendNotification({
             to: formatPhoneSpain(phone),
-            body: smsPagoConfirmado({ ref: params.reference, plazo: formatDeliveryPlazo(orderFull.dueDate, lang), url: buildSignedOrderUrl(params.reference, "estado"), lang }),
+            body: smsPagoConfirmado({ ref: params.reference, plazo, url, lang }),
+            whatsapp: { key: "pago", lang, vars: [params.reference, plazo, url] },
           }).catch((err) => console.error("[confirm-payment] SMS failed", err));
         }
       }

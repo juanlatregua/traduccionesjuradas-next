@@ -119,9 +119,12 @@ export async function POST(req: Request) {
           const phone = await getOrderPhone(orderFull.id).catch(() => null);
           if (phone) {
             const lang = orderFull.clientLocale === "fr" ? "fr" : "es";
+            const plazo = formatDeliveryPlazo(orderFull.dueDate, lang);
+            const url = buildSignedOrderUrl(orderReference, "estado");
             sendNotification({
               to: formatPhoneSpain(phone),
-              body: smsPagoConfirmado({ ref: orderReference, plazo: formatDeliveryPlazo(orderFull.dueDate, lang), url: buildSignedOrderUrl(orderReference, "estado"), lang }),
+              body: smsPagoConfirmado({ ref: orderReference, plazo, url, lang }),
+              whatsapp: { key: "pago", lang, vars: [orderReference, plazo, url] },
             }).catch((err) => console.error("[redsys-notification] SMS failed", err));
           }
         }
