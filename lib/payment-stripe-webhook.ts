@@ -210,9 +210,12 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
         const phone = await getOrderPhone(orderFull.id).catch(() => null);
         if (phone) {
           const lang = orderFull.clientLocale === "fr" ? "fr" : "es";
+          const plazo = formatDeliveryPlazo(orderFull.dueDate, lang);
+          const url = buildSignedOrderUrl(reference, "estado");
           sendNotification({
             to: formatPhoneSpain(phone),
-            body: smsPagoConfirmado({ ref: reference, plazo: formatDeliveryPlazo(orderFull.dueDate, lang), url: buildSignedOrderUrl(reference, "estado"), lang }),
+            body: smsPagoConfirmado({ ref: reference, plazo, url, lang }),
+            whatsapp: { key: "pago", lang, vars: [reference, plazo, url] },
           }).catch((err) => console.error(`[${source}] SMS failed`, err));
         }
       }

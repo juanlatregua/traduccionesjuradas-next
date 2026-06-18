@@ -23,6 +23,7 @@ import { buildDiagnosis, type Diagnosis } from "@/lib/diagnosis";
 import DiagnosisCard from "@/components/puerta/DiagnosisCard";
 import DeadlineCountdown from "@/components/puerta/DeadlineCountdown";
 import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
+import { track } from "@vercel/analytics";
 
 const DocumentUploader = dynamic(
   () => import("@/components/ia/DocumentUploader"),
@@ -442,6 +443,7 @@ export default function PuertaClient({
               href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => track("whatsapp_click", { source: "puerta", lang })}
               className="inline-flex items-center gap-2 rounded-lg bg-vert px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-vert/90"
             >
               <MessageCircle className="h-4 w-4" />

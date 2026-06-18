@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { track } from "@vercel/analytics";
 import { PAYMENT_LABELS } from "@/lib/payment-labels";
 
 type QuoteLine = {
@@ -427,6 +428,9 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                     href={`https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() =>
+                      track("paylink_whatsapp_sent", { method: payMethod, via: "wa_link" })
+                    }
                     className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
                   >
                     Enviar por WhatsApp al cliente
@@ -435,7 +439,10 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
               })()}
               <button
                 type="button"
-                onClick={() => copyText(waMsg, "Mensaje copiado.")}
+                onClick={() => {
+                  track("paylink_whatsapp_sent", { method: payMethod, via: "copy_msg" });
+                  copyText(waMsg, "Mensaje copiado.");
+                }}
                 className="rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
               >
                 Copiar mensaje

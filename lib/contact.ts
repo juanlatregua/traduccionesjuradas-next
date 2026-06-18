@@ -88,6 +88,38 @@ export function buildPresupuestoWhatsAppLink(opts?: { lang?: string | null; page
   return buildWhatsAppLinkFromText(buildPresupuestoMessage(opts));
 }
 
+// Enlace de WhatsApp para los DESVÍOS a presupuesto manual (idioma no
+// auto-tarificable, documento fiscal/multi-copia, lector saturado…). Lleva el
+// motivo + documento + página de origen en el mensaje para que el staff
+// distinga de un vistazo un "me expulsó el gate" de un click libre, sin tocar la
+// lógica del gate ni cambiar el número. Atribución manual del canal real.
+export function buildManualQuoteWhatsAppLink(opts: {
+  reason?: "idioma" | "fiscal" | "manual";
+  lang?: string | null;
+  fileName?: string | null;
+  note?: string | null;
+  page?: string | null;
+}) {
+  const langName = formatLangName(opts.lang);
+  const lines: string[] = [];
+  if (opts.reason === "idioma") {
+    lines.push(
+      `Hola, vengo del diagnóstico de la web y necesito una traducción jurada${langName ? ` en ${langName}` : ""} a medida.`
+    );
+  } else if (opts.reason === "fiscal") {
+    lines.push(
+      "Hola, vengo del diagnóstico de la web y necesito un presupuesto a medida (documento fiscal/financiero o con varias copias)."
+    );
+  } else {
+    lines.push("Hola, necesito un presupuesto de traducción jurada a medida.");
+  }
+  if (opts.fileName) lines.push(`• Documento: «${opts.fileName}»`);
+  if (opts.note) lines.push(`• ${opts.note}`);
+  lines.push("• Email de contacto: ");
+  if (opts.page) lines.push(`(web: ${opts.page})`);
+  return buildWhatsAppLinkFromText(lines.join("\n"));
+}
+
 const LANG_PATH_REGEX = /^\/traductor-jurado-([a-z]+)/i;
 const LANG_SLUG_TO_CODE: Record<string, string> = {
   frances: "fr",

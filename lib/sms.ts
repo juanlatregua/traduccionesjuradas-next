@@ -8,6 +8,20 @@ export type SMSMessage = {
   channel?: "sms" | "whatsapp";
 };
 
+// Plantillas WhatsApp aprobadas en Meta para mensajes business-initiated (fuera
+// de la ventana de 24 h). Cada clave = una plantilla; sus ContentSid se
+// configuran por env (ver resolveTemplateSid). `vars` son las variables
+// posicionales {{1}}, {{2}}, … en el ORDEN que define la plantilla:
+//   pago    → [ref, plazo, url]
+//   proceso → [ref, url]
+//   lista   → [ref, url]
+export type WaTemplateKey = "pago" | "proceso" | "lista";
+export type WaTemplate = {
+  key: WaTemplateKey;
+  lang?: string | null;
+  vars: string[];
+};
+
 /**
  * Twilio auth: prioriza Auth Token; fallback a API Key (TWILIO_API_KEY_SID + SECRET).
  */
@@ -56,6 +70,61 @@ async function twilioSend(
   return { ok: true, id: data.sid };
 }
 
+/**
+ * ContentSid de la plantilla aprobada, por clave e idioma. Configurable por env
+ * `WHATSAPP_TPL_<CLAVE>_<ES|FR>` (p.ej. WHATSAPP_TPL_PAGO_ES). Cae a la versión
+ * ES si no hay FR; si no hay ninguno → undefined → sendNotification usa SMS.
+ */
+function resolveTemplateSid(key: WaTemplateKey, lang?: string | null): string | undefined {
+  const L = String(lang || "es").toLowerCase() === "fr" ? "FR" : "ES";
+  const K = key.toUpperCase();
+  return (
+    process.env[`WHATSAPP_TPL_${K}_${L}`] ||
+    process.env[`WHATSAPP_TPL_${K}_ES`] ||
+    undefined
+  );
+}
+
+/** Envía una plantilla WhatsApp aprobada (ContentSid + variables posicionales). */
+async function twilioSendTemplate(
+  to: string,
+  from: string,
+  contentSid: string,
+  vars: string[]
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID!;
+  const auth = getTwilioAuth();
+  const contentVariables = JSON.stringify(
+    Object.fromEntries(vars.map((v, i) => [String(i + 1), v ?? ""]))
+  );
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization:
+          "Basic " + Buffer.from(`${auth.user}:${auth.pass}`).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        To: to,
+        From: from,
+        ContentSid: contentSid,
+        ContentVariables: contentVariables,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("[Twilio template error]", err);
+    return { ok: false, error: err };
+  }
+
+  const data = await res.json();
+  return { ok: true, id: data.sid };
+}
+
 export async function sendSMS(
   msg: SMSMessage
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
@@ -81,20 +150,45 @@ export async function sendSMS(
 }
 
 /**
- * Envía por WhatsApp si hay número de WhatsApp configurado, si no por SMS.
+ * Notificación al CLIENTE. Envía por WhatsApp **mediante plantilla aprobada** si
+ * (a) está habilitado y (b) la llamada aporta `whatsapp` con una plantilla cuyo
+ * ContentSid esté configurado; en cualquier otro caso, SMS. SMS es siempre el
+ * fallback (incluido si el envío por WhatsApp falla).
+ *
+ * ⚠ Por qué SOLO plantilla y nunca texto libre: los mensajes business-initiated
+ * fuera de la ventana de 24 h requieren PLANTILLA aprobada en Meta. Un texto
+ * libre Twilio lo acepta (ok:true) pero Meta lo descarta en silencio → notif
+ * perdida sin fallback. Eso fue el incidente. Por eso el WhatsApp exige TRES
+ * cosas: flag `WHATSAPP_NOTIFICATIONS_ENABLED=1` + sender `TWILIO_WHATSAPP_FROM`
+ * + ContentSid de la plantilla (`WHATSAPP_TPL_*`). Falta cualquiera → SMS.
  */
 export async function sendNotification(
-  msg: Omit<SMSMessage, "channel">
+  msg: Omit<SMSMessage, "channel"> & { whatsapp?: WaTemplate }
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const hasWhatsApp = Boolean(process.env.TWILIO_WHATSAPP_FROM);
-  if (hasWhatsApp) {
-    const wa = await sendSMS({ ...msg, channel: "whatsapp" });
-    if (wa.ok) return wa;
-    console.error(
-      `[sendNotification] WhatsApp fallo (${wa.error}); reintentando por SMS`
-    );
+  const realSend =
+    process.env.SMS_PROVIDER === "twilio" &&
+    process.env.NODE_ENV !== "development";
+  const whatsAppEnabled =
+    realSend &&
+    process.env.WHATSAPP_NOTIFICATIONS_ENABLED === "1" &&
+    Boolean(process.env.TWILIO_WHATSAPP_FROM);
+
+  if (whatsAppEnabled && msg.whatsapp) {
+    const sid = resolveTemplateSid(msg.whatsapp.key, msg.whatsapp.lang);
+    if (sid) {
+      const wa = await twilioSendTemplate(
+        `whatsapp:${msg.to}`,
+        process.env.TWILIO_WHATSAPP_FROM!,
+        sid,
+        msg.whatsapp.vars
+      );
+      if (wa.ok) return wa;
+      console.error(
+        `[sendNotification] WhatsApp plantilla ${msg.whatsapp.key} falló (${wa.error}); fallback a SMS`
+      );
+    }
   }
-  return sendSMS({ ...msg, channel: "sms" });
+  return sendSMS({ to: msg.to, body: msg.body, channel: "sms" });
 }
 
 /**

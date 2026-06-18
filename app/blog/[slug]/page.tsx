@@ -7,6 +7,7 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AuthorByline } from "@/components/AuthorByline";
+import WhatsAppPrimaryCta from "@/components/WhatsAppPrimaryCta";
 
 const CATEGORY_LABELS: Record<string, string> = {
   tramites: "Trámites",
@@ -189,23 +190,18 @@ export default async function PostPage({ params }: Props) {
             ¿Necesitas una traducción jurada?
           </h2>
           <p className="mt-1 text-encre">
-            Sube tu documento y recibe un{" "}
-            <strong>precio cerrado al instante</strong>.
+            Escríbenos por <strong>WhatsApp</strong> y te resolvemos el trámite, o
+            sube el documento para un <strong>precio cerrado al instante</strong>.
           </p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link
-              href="/presupuesto-instantaneo"
-              className="rounded-2xl bg-bleu px-5 py-2 text-xs font-semibold text-white hover:bg-bleu-dark"
-            >
-              Presupuesto instantáneo
-            </Link>
-            <Link
-              href="/blog"
-              className="text-xs font-medium text-bleu underline-offset-2 hover:underline"
-            >
-              Volver al blog
-            </Link>
+          <div className="mt-3">
+            <WhatsAppPrimaryCta source="blog" page={`/blog/${slug}`} />
           </div>
+          <Link
+            href="/blog"
+            className="mt-3 inline-block text-xs font-medium text-bleu underline-offset-2 hover:underline"
+          >
+            Volver al blog
+          </Link>
         </section>
       </article>
     </main>

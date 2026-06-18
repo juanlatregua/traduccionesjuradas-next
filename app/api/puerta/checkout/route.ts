@@ -15,10 +15,9 @@ import { clientPriceFromCost } from "@/lib/quote-math";
 import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable } from "@/lib/pricing-engine/languages";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
+import { buildManualQuoteWhatsAppLink } from "@/lib/contact";
 
 export const runtime = "nodejs";
-
-const WHATSAPP_URL = "https://wa.me/34951333614";
 
 // Idiomas válidos como destino (== claves de PER_WORD_RATE, fuente única).
 const KNOWN_LANGUAGES = AUTO_PRICEABLE_FOREIGN;
@@ -187,7 +186,12 @@ export async function POST(req: Request) {
           unsupported: true,
           error:
             "Por ahora no ofrecemos traducción jurada automática en este idioma. Escríbenos por WhatsApp y te preparamos un presupuesto a medida.",
-          whatsappUrl: WHATSAPP_URL,
+          whatsappUrl: buildManualQuoteWhatsAppLink({
+            reason: "idioma",
+            lang: foreignLang,
+            fileName: rec.fileName,
+            page: "/presupuesto-instantaneo",
+          }),
         },
         { status: 422 }
       );
@@ -204,7 +208,11 @@ export async function POST(req: Request) {
           unsupported: true,
           error:
             "Este documento necesita un presupuesto a medida (formularios fiscales/financieros o con varias copias). Escríbenos por WhatsApp y te lo preparamos al momento.",
-          whatsappUrl: WHATSAPP_URL,
+          whatsappUrl: buildManualQuoteWhatsAppLink({
+            reason: "fiscal",
+            fileName: rec.fileName,
+            page: "/presupuesto-instantaneo",
+          }),
         },
         { status: 422 }
       );

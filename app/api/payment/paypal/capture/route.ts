@@ -161,14 +161,12 @@ export async function POST(req: Request) {
         const phone = await getOrderPhone(fullOrder.id).catch(() => null);
         if (phone) {
           const lang = fullOrder.clientLocale === "fr" ? "fr" : "es";
+          const plazo = formatDeliveryPlazo(fullOrder.dueDate, lang);
+          const url = buildSignedOrderUrl(order.reference, "estado");
           sendNotification({
             to: formatPhoneSpain(phone),
-            body: smsPagoConfirmado({
-              ref: order.reference,
-              plazo: formatDeliveryPlazo(fullOrder.dueDate, lang),
-              url: buildSignedOrderUrl(order.reference, "estado"),
-              lang,
-            }),
+            body: smsPagoConfirmado({ ref: order.reference, plazo, url, lang }),
+            whatsapp: { key: "pago", lang, vars: [order.reference, plazo, url] },
           }).catch((err) => console.error("[paypal-capture] SMS failed", err));
         }
       }
