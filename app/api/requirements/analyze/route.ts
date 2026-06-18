@@ -11,11 +11,15 @@ import { checkRateLimit, getClientIp, checkRequirementsCap } from "@/lib/rate-li
 import { analyzeRequirement } from "@/lib/ai/requirements";
 import type { RequirementsExtraction } from "@/lib/ai/requirements";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { buildManualQuoteWhatsAppLink } from "@/lib/contact";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-const WHATSAPP_URL = "https://wa.me/34951333614";
+const WHATSAPP_URL = buildManualQuoteWhatsAppLink({
+  reason: "manual",
+  note: "Lector de requerimientos",
+});
 const VALID_LANGS = new Set(["es", "fr", "en", "de", "pt"]);
 
 export async function POST(req: Request) {

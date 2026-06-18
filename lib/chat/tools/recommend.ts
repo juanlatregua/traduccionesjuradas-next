@@ -1,3 +1,5 @@
+import { buildManualQuoteWhatsAppLink } from "@/lib/contact";
+
 export type RecommendPathInput = {
   country?: string;
   language?: string;
@@ -99,7 +101,6 @@ const DOCUMENT_TYPE_PAGES: Record<string, string> = {
 
 const HUB_URL = "/blog/tramites-espana-por-pais-origen";
 const QUOTE_URL = "/presupuesto-instantaneo";
-const WHATSAPP_URL = "https://wa.me/34951333614";
 
 const UTM_PARAMS = "utm_source=chat&utm_medium=bot&utm_campaign=recommend_path";
 
@@ -134,7 +135,15 @@ export function recommendPath(input: RecommendPathInput): RecommendPathOutput {
   const ctas: Cta[] = [];
 
   if (input.intent === "urgent") {
-    ctas.push({ label: "WhatsApp directo", url: WHATSAPP_URL, priority: 0 });
+    ctas.push({
+      label: "WhatsApp directo",
+      url: buildManualQuoteWhatsAppLink({
+        reason: "manual",
+        lang: language,
+        note: "Caso urgente (vengo del chat)",
+      }),
+      priority: 0,
+    });
   }
 
   if (countryInfo) {

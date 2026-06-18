@@ -5,7 +5,9 @@
 // RequirementsResult. Maneja loading, error y estado degradado (cap lleno).
 
 import { useState } from "react";
+import { track } from "@vercel/analytics";
 import { Loader2, AlertCircle, MessageCircle, RefreshCw } from "lucide-react";
+import { buildManualQuoteWhatsAppLink } from "@/lib/contact";
 import DocumentUploader from "@/components/ia/DocumentUploader";
 import RequirementsResult from "@/components/ia/RequirementsResult";
 import { lectorT } from "@/lib/i18n/lector";
@@ -91,9 +93,10 @@ export default function LectorRequerimientos({ lang }: { lang: Locale }) {
           <p className="font-baskerville text-lg font-bold text-encre">{t.capTitle}</p>
           <p className="mt-1 text-sm text-sepia">{t.capBody}</p>
           <a
-            href={whatsappUrl || "https://wa.me/34951333614"}
+            href={whatsappUrl || buildManualQuoteWhatsAppLink({ reason: "manual", note: "Lector de requerimientos" })}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => track("whatsapp_click", { source: "lector-cap" })}
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-or px-5 py-2.5 text-sm font-semibold text-encre transition hover:bg-or-dark hover:text-white"
           >
             <MessageCircle className="h-4 w-4" />
@@ -116,9 +119,10 @@ export default function LectorRequerimientos({ lang }: { lang: Locale }) {
               {t.retry}
             </button>
             <a
-              href={whatsappUrl || "https://wa.me/34951333614"}
+              href={whatsappUrl || buildManualQuoteWhatsAppLink({ reason: "manual", note: "Lector de requerimientos" })}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => track("whatsapp_click", { source: "lector-error" })}
               className="inline-flex items-center gap-2 rounded-xl bg-or px-4 py-2 text-sm font-semibold text-encre transition hover:bg-or-dark hover:text-white"
             >
               <MessageCircle className="h-4 w-4" />
