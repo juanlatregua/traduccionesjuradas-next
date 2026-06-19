@@ -17,6 +17,12 @@ function countDocumentWords(text: string): number {
   }).length;
 }
 
+// Palabras facturables: bilingües de mismo contenido (ca/es) → mitad.
+function billableWordCount(text: string, opts?: { bilingualDuplicate?: boolean }): number {
+  const words = countDocumentWords(text);
+  return opts?.bilingualDuplicate ? Math.round(words / 2) : words;
+}
+
 // ==================== TESTS ====================
 
 test("texto vacío → 0", () => {
@@ -124,4 +130,24 @@ EMOLUMENTO R$ 65,48 FERMOJU R$ 3,28 FAADEP R$ 1,32 FRMP R$ 0,66 ISS R$ 3,28 IBS 
   const count = countDocumentWords(text);
   assert.ok(count >= 420, `Expected >= 420 words, got ${count}`);
   assert.ok(count <= 440, `Expected <= 440 words, got ${count}`);
+});
+
+// ==================== BILINGÜE CO-OFICIAL (ca/es) ====================
+
+test("billableWordCount sin flag = conteo normal", () => {
+  const text = "Títol de tècnica superior Título de técnica superior";
+  assert.equal(billableWordCount(text), 8);
+  assert.equal(billableWordCount(text, { bilingualDuplicate: false }), 8);
+});
+
+test("billableWordCount bilingüe → mitad (documento ca/es contado una vez)", () => {
+  // Mismo contenido en català y castellano en paralelo: 8 tokens → 4 facturables.
+  const text = "Administració de sistemes informàtics Administración de sistemas informáticos";
+  assert.equal(countDocumentWords(text), 8);
+  assert.equal(billableWordCount(text, { bilingualDuplicate: true }), 4);
+});
+
+test("billableWordCount bilingüe redondea impares", () => {
+  // 7 palabras → round(3.5) = 4
+  assert.equal(billableWordCount("uno dos tres cuatro cinco seis siete", { bilingualDuplicate: true }), 4);
 });

@@ -11,7 +11,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { DOCUMENT_SEGMENTATION_PROMPT } from "./prompts";
 import { TEXT_MODEL_ID, parseModelJson } from "./analyze-document";
 import type { DocumentAnalysisResult } from "./analyze-document";
-import { countDocumentWords } from "./word-counter";
+import { billableWordCount } from "./word-counter";
 
 const MAX_TOKENS = 8_192;
 const TIMEOUT_MS = 110_000;
@@ -32,6 +32,7 @@ type RawSegment = {
   requirements?: DocumentAnalysisResult["requirements"];
   extracted_data?: Partial<DocumentAnalysisResult["extracted_data"]>;
   warnings?: string[];
+  is_bilingual_duplicate?: boolean;
 };
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -62,7 +63,8 @@ function normalizeSegment(seg: RawSegment, pages: string[], pageCount: number): 
   const start = clamp(seg.page_start ?? 1, 1, pageCount);
   const end = clamp(seg.page_end ?? start, start, pageCount);
   const text = pages.slice(start - 1, end).join("\n");
-  const words = countDocumentWords(text);
+  const bilingualDuplicate = seg.is_bilingual_duplicate === true;
+  const words = billableWordCount(text, { bilingualDuplicate });
 
   return {
     document_type: {
@@ -93,6 +95,7 @@ function normalizeSegment(seg: RawSegment, pages: string[], pageCount: number): 
       has_handwriting: false,
       scan_quality: "good",
       is_legible: true,
+      is_bilingual_duplicate: bilingualDuplicate,
     },
     extracted_data: {
       names: seg.extracted_data?.names || [],

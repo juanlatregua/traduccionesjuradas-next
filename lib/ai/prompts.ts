@@ -37,7 +37,8 @@ Analiza el documento que te proporcionan y devuelve un JSON estructurado con la 
     "has_stamps_seals": true,
     "has_handwriting": false,
     "scan_quality": "good | medium | poor",
-    "is_legible": true
+    "is_legible": true,
+    "is_bilingual_duplicate": false
   },
   "extracted_data": {
     "names": ["Mohammed Ben Ahmed"],
@@ -88,6 +89,7 @@ Debes incluir en "extracted_text" una transcripción COMPLETA de TODO el texto v
 1. Incluye TODO el texto visible: encabezados, títulos, nombres propios, fórmulas de firma ("Dou fé", "Certifico y doy fe"), averbaciones/anotaciones marginales, texto de sellos legibles, texto de apostillas (aunque estén rotadas 90°), pies de página, texto legal impreso.
 2. En documentos bilingües (ej: húngaro/inglés), transcribe SOLO el idioma que se va a traducir al español.
 3. En documentos bilingües francés/árabe (Marruecos), transcribe SOLO el francés.
+3bis. EXCEPCIÓN — documentos oficiales españoles CO-OFICIALES con el MISMO contenido en dos columnas/idiomas en paralelo (castellano + català/valencià, castellano + gallego, castellano + euskera; típico de títulos y expedientes de Cataluña, Galicia, Valencia o País Vasco): NO elijas un idioma. Transcribe el documento COMPLETO tal cual lo ves (las dos columnas) y marca "is_bilingual_duplicate": true. El sistema dividirá el conteo entre 2 automáticamente, porque solo se traduce un idioma. Si el documento NO está duplicado (contenido distinto en cada idioma, no es una simple traducción paralela), deja "is_bilingual_duplicate": false.
 4. Separa cada línea o sección con un salto de línea (\n).
 5. No omitas nombres, fechas escritas con letras, códigos alfanuméricos, ni fórmulas rituales.
 6. Para apostillas rotadas 90°: rota mentalmente la imagen y transcribe todo el texto.
@@ -110,6 +112,7 @@ La precisión del conteo de palabras determina directamente el precio del presup
 2. Cuenta las palabras reales que ves, no estimes a ojo. Cada palabra separada por espacio cuenta como 1.
 3. En documentos bilingües (ej: húngaro/inglés), cuenta SOLO el idioma que se va a traducir al español.
 4. En documentos bilingües francés/árabe (Marruecos), cuenta SOLO el francés.
+5. En documentos oficiales españoles CO-OFICIALES de contenido idéntico en paralelo (castellano + català/gallego/euskera): transcríbelo completo y marca "is_bilingual_duplicate": true; el sistema divide el conteo entre 2 (NO cuentes tú una sola columna en ese caso).
 
 **Reglas específicas para tablas:**
 - Cada celda con contenido cuenta sus palabras individualmente.
@@ -229,6 +232,7 @@ Identifica los documentos DISTINTOS, su rango de páginas, y clasifica CADA UNO 
       "complexity": { "level": "standard | complex | highly_complex", "reasons": ["…"], "estimated_hours": 0.5 },
       "requirements": { "needs_apostille_translation": false, "has_apostille": false, "has_legalization": false, "special_notes": "" },
       "extracted_data": { "names": [], "dates": [], "notes": "" },
+      "is_bilingual_duplicate": false,
       "warnings": []
     }
   ]
@@ -240,6 +244,7 @@ Identifica los documentos DISTINTOS, su rango de páginas, y clasifica CADA UNO 
 - Cirílico: distingue ruso (ы, э, ъ) de ucraniano (і, ї, є, ґ). Ninguno se ofrece.
 - Marruecos (bilingüe FR/árabe): source "fr".
 - NO incluyas extracted_text ni estimated_words: el conteo de palabras lo hacemos nosotros sobre el texto de cada rango de páginas.
+- "is_bilingual_duplicate": ponlo a true SOLO si ese documento es oficial español con el MISMO contenido en dos idiomas co-oficiales en paralelo (castellano + català/gallego/euskera; típico de títulos y expedientes). El sistema dividirá su conteo entre 2 (solo se traduce un idioma). En cualquier otro caso, false.
 - page_start/page_end son 1-indexados, contiguos, sin solapamientos, y deben cubrir todas las páginas con contenido.
 - NUNCA inventes. confidence < 0.7 → "unknown" + warning.
 - Responde SOLO el JSON, sin texto adicional.
