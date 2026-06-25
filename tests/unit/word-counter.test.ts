@@ -1,21 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-
-// Self-contained — reproduce logic to avoid @/ import alias issues
-
-function countDocumentWords(text: string): number {
-  if (!text || !text.trim()) return 0;
-  const tokens = text.split(/\s+/).filter(Boolean);
-  return tokens.filter((token) => {
-    const core = token.replace(
-      /^[^a-zA-Z\xAA\xBA\xC0-\xFF0-9]+|[^a-zA-Z\xAA\xBA\xC0-\xFF0-9]+$/g,
-      "",
-    );
-    if (!core) return false;
-    if (/^[\d.,/:;\-–—]+$/.test(core)) return false;
-    return true;
-  }).length;
-}
+// Importa la implementación REAL (ruta relativa, sin alias @/) para que el test
+// proteja el código de producción y no una copia divergente. Antes reimplementaba
+// countDocumentWords con un regex distinto (\xAA… en vez de \p{L}\p{N}), así que
+// validaba contra sí mismo y no contra word-counter.ts. (review #149)
+import { countDocumentWords, billableWordCount } from "../../lib/ai/word-counter.ts";
 
 // ==================== TESTS ====================
 
@@ -124,4 +113,24 @@ EMOLUMENTO R$ 65,48 FERMOJU R$ 3,28 FAADEP R$ 1,32 FRMP R$ 0,66 ISS R$ 3,28 IBS 
   const count = countDocumentWords(text);
   assert.ok(count >= 420, `Expected >= 420 words, got ${count}`);
   assert.ok(count <= 440, `Expected <= 440 words, got ${count}`);
+});
+
+// ==================== BILINGÜE CO-OFICIAL (ca/es) ====================
+
+test("billableWordCount sin flag = conteo normal", () => {
+  const text = "Títol de tècnica superior Título de técnica superior";
+  assert.equal(billableWordCount(text), 8);
+  assert.equal(billableWordCount(text, { bilingualDuplicate: false }), 8);
+});
+
+test("billableWordCount bilingüe → mitad (documento ca/es contado una vez)", () => {
+  // Mismo contenido en català y castellano en paralelo: 8 tokens → 4 facturables.
+  const text = "Administració de sistemes informàtics Administración de sistemas informáticos";
+  assert.equal(countDocumentWords(text), 8);
+  assert.equal(billableWordCount(text, { bilingualDuplicate: true }), 4);
+});
+
+test("billableWordCount bilingüe redondea impares", () => {
+  // 7 palabras → round(3.5) = 4
+  assert.equal(billableWordCount("uno dos tres cuatro cinco seis siete", { bilingualDuplicate: true }), 4);
 });

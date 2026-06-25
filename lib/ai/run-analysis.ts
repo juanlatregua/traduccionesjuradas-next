@@ -13,7 +13,7 @@ import { analyzeDocument, analyzeDocumentText } from "./analyze-document";
 import type { DocumentAnalysisResult } from "./analyze-document";
 import { extractPdfText, extractPdfPages } from "./extract-text";
 import { segmentDocumentText, makePlaceholderSegment } from "./segment-document";
-import { countDocumentWords } from "./word-counter";
+import { billableWordCount } from "./word-counter";
 import { assessAutoPriceRisk } from "./price-risk";
 
 // Suelo determinista: el conteo nunca debe quedar por debajo de las palabras
@@ -24,7 +24,9 @@ function finalizeAnalysis(
   opts: { extractedText?: string; fileName?: string }
 ): DocumentAnalysisResult {
   if (opts.extractedText) {
-    const floor = countDocumentWords(opts.extractedText);
+    const floor = billableWordCount(opts.extractedText, {
+      bilingualDuplicate: analysis.document_metrics.is_bilingual_duplicate === true,
+    });
     if (floor > (analysis.document_metrics.estimated_words || 0)) {
       analysis.document_metrics.estimated_words = floor;
     }

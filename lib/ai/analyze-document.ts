@@ -2,7 +2,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { DOCUMENT_ANALYSIS_PROMPT, LARGE_DOCUMENT_ADDENDUM } from "./prompts";
-import { countDocumentWords } from "./word-counter";
+import { countDocumentWords, billableWordCount } from "./word-counter";
 
 const MODEL = "claude-sonnet-4-20250514";
 // Camino barato: PDFs con capa de texto se clasifican con Haiku sobre el texto
@@ -55,6 +55,10 @@ export type DocumentAnalysisResult = {
     has_handwriting: boolean;
     scan_quality: "good" | "medium" | "poor";
     is_legible: boolean;
+    // true en documentos oficiales con el MISMO contenido en dos idiomas en
+    // paralelo (castellano + català/gallego/euskera, etc.): se traduce un solo
+    // idioma. El conteo de palabras se divide entre 2. Ver lib/ai/word-counter.ts.
+    is_bilingual_duplicate?: boolean;
   };
   extracted_data: {
     names: string[];
@@ -192,9 +196,14 @@ export async function analyzeDocumentText(input: {
     const result = parseModelJson(textContent.text, "analyzeDocumentText");
 
     // Conteo local sobre texto completo = autoritativo (cogemos el mayor por
-    // si el modelo estimó más alto en algún caso límite).
-    const claudeWords = result.document_metrics?.estimated_words || 0;
-    result.document_metrics.estimated_words = Math.max(localWords, claudeWords);
+    // si el modelo estimó más alto en algún caso límite). En bilingües de mismo
+    // contenido (ca/es co-oficial, etc.) el texto trae las dos columnas → mitad.
+    const bilingualDuplicate = result.document_metrics?.is_bilingual_duplicate === true;
+    const adjLocal = bilingualDuplicate ? Math.round(localWords / 2) : localWords;
+    const claudeWords = bilingualDuplicate
+      ? Math.round((result.document_metrics?.estimated_words || 0) / 2)
+      : result.document_metrics?.estimated_words || 0;
+    result.document_metrics.estimated_words = Math.max(adjLocal, claudeWords);
     if (input.pageCount) {
       result.document_metrics.pages = input.pageCount;
     }
@@ -303,12 +312,19 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
     // Parse JSON (Claude might wrap it in ```json blocks)
     const result = parseModelJson(textContent.text, "analyzeDocument");
 
+    // Documentos bilingües de mismo contenido (ca/es co-oficial, etc.): el
+    // modelo transcribe las dos columnas, pero solo se traduce/cuenta una.
+    const bilingualDuplicate = result.document_metrics.is_bilingual_duplicate === true;
+
     // Override word count with local counter if extracted_text is available
     if (result.document_metrics.extracted_text) {
-      const claudeWords = result.document_metrics.estimated_words;
-      const localWords = countDocumentWords(result.document_metrics.extracted_text);
+      // `estimated_words` puede faltar aunque haya extracted_text → || 0 evita
+      // que Math.round(undefined/2)=NaN contamine el max() y produzca precio NaN.
+      const modelWords = result.document_metrics.estimated_words || 0;
+      const claudeWords = bilingualDuplicate ? Math.round(modelWords / 2) : modelWords;
+      const localWords = billableWordCount(result.document_metrics.extracted_text, { bilingualDuplicate });
       const totalPages = input.pageCount || result.document_metrics.pages || 1;
-      console.log(`[analyzeDocument] Words: Claude=${claudeWords}, local=${localWords}, pages=${totalPages}`);
+      console.log(`[analyzeDocument] Words: Claude=${claudeWords}, local=${localWords}, pages=${totalPages}, bilingual=${bilingualDuplicate}`);
 
       if (isLargeDoc && totalPages > LARGE_DOC_THRESHOLD) {
         // Document was truncated — extracted_text only covers first pages.
@@ -325,6 +341,9 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
         // so trusting the local count alone can underestimate.
         result.document_metrics.estimated_words = Math.max(localWords, claudeWords);
       }
+    } else if (bilingualDuplicate) {
+      // Sin transcripción: el modelo contó las dos columnas → mitad.
+      result.document_metrics.estimated_words = Math.round((result.document_metrics.estimated_words || 0) / 2);
     }
 
     // Ensure page count reflects the real document, not the truncated version
