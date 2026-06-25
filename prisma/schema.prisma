@@ -368,6 +368,17 @@ model Customer {
   name      String
   email     String   @unique
   phone     String?
+  // Pack fiscal del cliente (B2B recurrente, p.ej. Auream). Antes solo vivía
+  // suelto en cada ClientInvoice; aquí es la ficha del cliente para el portal.
+  companyName String?
+  nif         String?
+  fiscalName  String?
+  address     String?
+  city        String?
+  postalCode  String?
+  country     String?  @default("España")
+  notes       String?
+  isBusiness  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -473,6 +473,20 @@ export async function sendShipmentNotificationEmail(data: {
   });
 }
 
+export async function sendClientAccessLinkEmail(data: { toEmail: string; url: string }) {
+  const html = `
+    <h2>Tu acceso a la zona de cliente</h2>
+    <p>Pulsa el botón para entrar a tu zona, donde tienes <strong>presupuestos, pedidos, facturas y descargas</strong> en un solo sitio.</p>
+    <p style="margin:16px 0;"><a href="${data.url}" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Entrar en mi zona de cliente</a></p>
+    <p style="font-size:13px; color:#6b7280;">El enlace es personal e intransferible y caduca en 30 días. Si no lo solicitaste, ignora este correo.</p>
+  `;
+  await sendMail({
+    to: data.toEmail,
+    subject: "Tu acceso a la zona de cliente — Traducciones Juradas",
+    html: wrapClientEmailHtml(html),
+  });
+}
+
 export async function sendNewOrderStaffEmail(data: {
   reference: string;
   title: string;
