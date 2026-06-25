@@ -55,8 +55,11 @@ No se parchea a ciegas por tocar el camino de pago. **Pendiente: confirmar el fl
 ---
 
 ## Estado y siguientes pasos
-- **Arreglado y pusheado** (`fix/seguridad-hardening`): E, F, email-norm.
-- **Pendiente de decisión tuya:** A (¿POST /api/orders vivo o legacy?), C (¿payment-proof auto-PAID intencional?), D (¿proxy/firmadas para blobs PII?).
-- **Fix directo cuando decidas:** B (token en lookup) — no requiere decisión de producto, solo confirmar que no rompe `/consulta-pedido`.
+**ACTUALIZACIÓN 25-jun (2º commit en `fix/seguridad-hardening`):** A, B y C **arreglados** con enfoques no-disruptivos (Juan dio "los 4 adelante"):
+- **A ✅** — `POST /api/orders` confirmado VIVO (lo usan `PriceEstimator`/`LanguageOfferPanel`). Mitigado con **suelo de precio server-side**: `amountCents` no puede caer por debajo del 40% del coste base (palabras × tarifa) → por debajo = 422 a presupuesto manual. No cambia el precio de pedidos legítimos. *(Fix completo futuro: derivar el precio del documento analizado, no del body — es la rearquitectura del funnel.)*
+- **B ✅** — rate-limit **por email** (15/h) en ambos lookups, además del de IP. Hace inviable el barrido de referencias sin tocar la consulta legítima. *(No se quitó `translatedFileUrl` porque `/consulta-pedido` lo usa para descargar; la raíz es D.)*
+- **C ✅** — `payment-proof` ya **no marca PAID** automáticamente: queda en JUSTIFICANTE_SUBIDO + aviso al staff, que confirma vía `confirm-payment`. Mata el fraude del justificante falso. *Cosmético pendiente: el componente de subida puede seguir diciendo "pagado"; ajustar el mensaje a "recibido, pendiente de verificación".*
+
+**Sigue pendiente (decisión + rearquitectura): D — blobs públicos.** Cambiar acceso a privado + proxy de descarga autorizado + actualizar todos los enlaces/emails. Es una migración con riesgo de romper la entrega de documentos a clientes reales → se hace en su propia tanda, no al vuelo. Mientras: sufijo aleatorio + limpieza RGPD (mitigación actual documentada).
 
 > Nota de proceso: el primer run del audit se degradó por errores de conexión (cayeron *pagos* y *PII* y la verificación). Este informe es del re-run focalizado, completo.
