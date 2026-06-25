@@ -68,6 +68,23 @@ test("texto pegado/concatenado (>15%) se marca de riesgo", () => {
   assert.ok(risk.reasons.includes("suspicious_text"));
 });
 
+test("bilingüe co-oficial (is_bilingual_duplicate) se marca de riesgo → no autotarifica", () => {
+  // El conteo /2 depende de una señal NO determinista del modelo: un humano
+  // confirma el precio antes de cobrar (red de seguridad #149).
+  const risk = assessAutoPriceRisk({
+    analysis: fakeAnalysis({ document_metrics: { estimated_words: 700, pages: 2, is_bilingual_duplicate: true } }),
+  });
+  assert.equal(risk.risky, true);
+  assert.ok(risk.reasons.includes("bilingual_duplicate"));
+});
+
+test("documento normal (is_bilingual_duplicate false) NO añade riesgo bilingüe", () => {
+  const risk = assessAutoPriceRisk({
+    analysis: fakeAnalysis({ document_metrics: { estimated_words: 700, pages: 2, is_bilingual_duplicate: false } }),
+  });
+  assert.equal(risk.reasons.includes("bilingual_duplicate"), false);
+});
+
 // ─── NO debe marcar de riesgo (falsos positivos que cuestan ventas) ───
 
 test("certificado de nacimiento con NIF / 'a efectos fiscales' NO es de riesgo", () => {

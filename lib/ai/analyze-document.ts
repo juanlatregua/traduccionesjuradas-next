@@ -318,9 +318,10 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
 
     // Override word count with local counter if extracted_text is available
     if (result.document_metrics.extracted_text) {
-      const claudeWords = bilingualDuplicate
-        ? Math.round(result.document_metrics.estimated_words / 2)
-        : result.document_metrics.estimated_words;
+      // `estimated_words` puede faltar aunque haya extracted_text → || 0 evita
+      // que Math.round(undefined/2)=NaN contamine el max() y produzca precio NaN.
+      const modelWords = result.document_metrics.estimated_words || 0;
+      const claudeWords = bilingualDuplicate ? Math.round(modelWords / 2) : modelWords;
       const localWords = billableWordCount(result.document_metrics.extracted_text, { bilingualDuplicate });
       const totalPages = input.pageCount || result.document_metrics.pages || 1;
       console.log(`[analyzeDocument] Words: Claude=${claudeWords}, local=${localWords}, pages=${totalPages}, bilingual=${bilingualDuplicate}`);
@@ -342,7 +343,7 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
       }
     } else if (bilingualDuplicate) {
       // Sin transcripción: el modelo contó las dos columnas → mitad.
-      result.document_metrics.estimated_words = Math.round(result.document_metrics.estimated_words / 2);
+      result.document_metrics.estimated_words = Math.round((result.document_metrics.estimated_words || 0) / 2);
     }
 
     // Ensure page count reflects the real document, not the truncated version

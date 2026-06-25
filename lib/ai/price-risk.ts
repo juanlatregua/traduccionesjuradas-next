@@ -18,7 +18,8 @@ import type { DocumentAnalysisResult } from "./analyze-document";
 export type PriceRiskReason =
   | "fiscal_financial" // formulario fiscal/financiero (denso, multi-casilla)
   | "repeated_copies" // la MISMA plantilla repetida N veces (multi-copia)
-  | "suspicious_text"; // capa de texto pegada/concatenada → conteo poco fiable
+  | "suspicious_text" // capa de texto pegada/concatenada → conteo poco fiable
+  | "bilingual_duplicate"; // co-oficial ca/es: el conteo se divide /2 por una señal del modelo → revisar antes de cobrar
 
 export type PriceRisk = { risky: boolean; reasons: PriceRiskReason[] };
 
@@ -106,6 +107,16 @@ export function assessAutoPriceRisk(input: {
       const glued = tokens.filter((t) => t.length > 25).length;
       if (glued / tokens.length > 0.15) reasons.push("suspicious_text");
     }
+  }
+
+  // 4. Duplicado bilingüe co-oficial: cuando el conteo se ha dividido /2 porque
+  //    el MODELO marcó is_bilingual_duplicate, el precio depende de una señal NO
+  //    determinista. Un falso positivo (doc monolingüe largo mal marcado, o
+  //    bilingüe de contenido distinto) infracobraría a mitad de precio sin red.
+  //    No autotarificamos: el conteo /2 se muestra en el presupuesto, pero un
+  //    humano confirma el precio antes de cobrar. Ver incidente Candela y #149.
+  if (analysis.document_metrics?.is_bilingual_duplicate === true) {
+    reasons.push("bilingual_duplicate");
   }
 
   return { risky: reasons.length > 0, reasons };
