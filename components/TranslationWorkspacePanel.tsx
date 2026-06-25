@@ -247,10 +247,28 @@ export default function TranslationWorkspacePanel({
           }}
           className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-emerald-500/50 file:bg-emerald-600/20 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-200"
         />
+        {/* Subir una CARPETA entera (webkitdirectory) — coge sus PDF/Word, descarta ocultos. */}
+        <input
+          type="file"
+          {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+          onChange={(e) => {
+            const picked = Array.from(e.target.files || []).filter(
+              (file) => !file.name.startsWith(".") && /\.(pdf|docx?|doc)$/i.test(file.name)
+            );
+            if (picked.length === 0) {
+              setMessage("La carpeta no contiene PDF o Word.");
+              return;
+            }
+            setFiles(picked);
+            setState("TRADUCIDO");
+            setDelivered(false);
+          }}
+          className="mt-2 block w-full text-xs text-slate-400 file:mr-3 file:rounded-lg file:border file:border-slate-500/50 file:bg-slate-700/40 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-200"
+        />
         <p className="mt-1.5 text-[11px] text-slate-400">
           {files.length > 0
             ? `✓ ${files.length} archivo${files.length > 1 ? "s" : ""} listo${files.length > 1 ? "s" : ""}. Marca «Notificar al cliente» y pulsa Guardar para enviárselo${files.length > 1 ? "s todos" : ""}.`
-            : "PDF o Word. Puedes seleccionar VARIOS. Al elegir se marca como Traducido automáticamente."}
+            : "PDF o Word. Elige VARIOS archivos (arriba) o una CARPETA entera (abajo). Al elegir se marca como Traducido."}
         </p>
       </div>
 
