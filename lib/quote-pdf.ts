@@ -31,6 +31,7 @@ type QuotePdfData = {
   payUrl: string;
   lines: QuotePdfLine[];
   isDraft?: boolean;
+  paid?: boolean; // recibo: sella el presupuesto como PAGADO (marca de agua + indicador)
   notesLegal?: string | null;
   paymentMethods?: string[]; // bbva/openbank/bizum/paypal — vacío = todas por defecto
   contactWhatsapp?: string | null; // WhatsApp/teléfono override para este presupuesto
@@ -87,6 +88,12 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   doc.text(`Nº ${data.quoteNumber}`, 196, 24, { align: "right" });
   doc.text(`Emisión: ${formatDateEs(data.issuedAt)}`, 196, 29, { align: "right" });
   doc.text(`Válido hasta: ${formatDateEs(data.validUntil)}`, 196, 34, { align: "right" });
+  if (data.paid) {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 140, 60);
+    doc.text("PAGADO", 196, 40, { align: "right" });
+    doc.setFont("helvetica", "normal");
+  }
 
   doc.setTextColor(0, 0, 0);
   let y = 58;
@@ -209,6 +216,22 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   doc.setFont("helvetica", "normal");
   doc.text(`Dudas: WhatsApp / teléfono ${whatsapp}`, 14, y, { maxWidth: 180 });
   y += 5;
+
+  // Marca de agua PAGADO (recibo): diagonal, verde, translúcida, encima del
+  // contenido sin taparlo. GState para la opacidad (cast: los tipos de jspdf
+  // no exponen GState en la instancia).
+  if (data.paid) {
+    const anyDoc = doc as any;
+    doc.saveGraphicsState();
+    anyDoc.setGState(new anyDoc.GState({ opacity: 0.16 }));
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(90);
+    doc.setTextColor(0, 140, 60);
+    doc.text("PAGADO", 105, 175, { align: "center", angle: 32 });
+    doc.restoreGraphicsState();
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9);
+  }
 
   const arrayBuffer = doc.output("arraybuffer");
   return Buffer.from(arrayBuffer);

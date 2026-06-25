@@ -128,6 +128,8 @@ model Order {
   finalDeliveryFileUrl String?
   finalFilename       String?
   finalMimeType       String?
+  trackingNumber     String?        // envío en papel (deliveryType "paper"): nº de seguimiento de la mensajería
+  shippedAt          DateTime?      // cuándo se notificó el envío al cliente
   assignedTo         String?
   translatorUploadToken String?     @unique
   translatorDeliveredAt DateTime?

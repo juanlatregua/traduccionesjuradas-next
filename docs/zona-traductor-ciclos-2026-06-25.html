@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ciclos del backoffice — traduccionesjuradas.net</title>
+<style>
+  :root{
+    --crema:#faf6ee;
+    --crema2:#f3ecdd;
+    --encre:#1f2a44;
+    --encre2:#2c3a5e;
+    --azul:#2563a8;
+    --azul-claro:#dbe8f7;
+    --sepia:#8a6d3b;
+    --sepia-claro:#efe3cc;
+    --verde:#2f8f5b;
+    --verde-claro:#dcf3e6;
+    --gris:#6b7280;
+    --linea:#d8cfbb;
+    --rojo:#b04a3a;
+    --sombra:0 1px 3px rgba(31,42,68,.12),0 6px 18px rgba(31,42,68,.08);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--crema);
+    color:var(--encre);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55;
+    font-size:16px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 20px 80px}
+
+  /* Cabecera */
+  header.doc{
+    background:linear-gradient(135deg,var(--encre),var(--encre2));
+    color:var(--crema);
+    border-radius:16px;
+    padding:30px 32px;
+    box-shadow:var(--sombra);
+    margin-bottom:36px;
+  }
+  header.doc .eyebrow{
+    font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--azul-claro);margin:0 0 8px;font-weight:600;
+  }
+  header.doc h1{margin:0 0 6px;font-size:30px;line-height:1.15;letter-spacing:-.01em}
+  header.doc .fecha{margin:0;color:#b9c4dc;font-size:14px}
+  header.doc .sub{margin:14px 0 0;color:#d7deec;font-size:15px;max-width:62ch}
+
+  /* Secciones */
+  section{margin:0 0 44px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin:0 0 16px;flex-wrap:wrap}
+  .sec-num{
+    flex:0 0 auto;background:var(--azul);color:#fff;font-weight:700;
+    width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px;
+    box-shadow:var(--sombra);
+  }
+  .sec-head h2{margin:0;font-size:21px;letter-spacing:-.01em}
+  .sec-head .lead{margin:2px 0 0;color:var(--gris);font-size:14px;flex-basis:100%}
+
+  .card{
+    background:#fff;border:1px solid var(--linea);border-radius:14px;
+    padding:20px 22px;box-shadow:var(--sombra);
+  }
+
+  /* ---------- 1. El problema: dos pantallas ---------- */
+  .problema{
+    background:var(--crema2);border:1px dashed var(--sepia);
+    border-radius:14px;padding:22px;
+  }
+  .dos-pantallas{
+    display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;
+  }
+  .flecha-confusa{
+    flex:0 0 auto;text-align:center;color:var(--rojo);font-size:13px;font-weight:600;max-width:150px;
+  }
+  .flecha-confusa svg{display:block;margin:0 auto 4px}
+
+  /* mini-mockup base */
+  .mock{
+    width:300px;max-width:100%;border-radius:10px;overflow:hidden;
+    border:1px solid rgba(0,0,0,.12);box-shadow:var(--sombra);font-size:12px;
+  }
+  .mock .bar{
+    padding:7px 11px;font-weight:700;font-size:11px;letter-spacing:.03em;
+    display:flex;align-items:center;gap:7px;
+  }
+  .mock .dots{display:flex;gap:4px}
+  .mock .dots i{width:8px;height:8px;border-radius:50%;display:block;opacity:.55}
+  .mock .body{padding:12px 13px}
+  .mock .row{
+    display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid;
+  }
+  .mock .row:last-of-type{border-bottom:0}
+  .mock .row b{font-weight:600}
+  .mock .btns{display:flex;gap:7px;margin-top:11px}
+  .mock .btn{
+    padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;
+  }
+  .mock .tag{font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.75;margin-bottom:7px}
+
+  /* tema CLARO (Presupuesto) */
+  .mock.claro{background:#fff}
+  .mock.claro .bar{background:var(--sepia-claro);color:var(--sepia)}
+  .mock.claro .dots i{background:var(--sepia)}
+  .mock.claro .body{color:var(--encre)}
+  .mock.claro .row{border-color:#eee4cf}
+  .mock.claro .tag{color:var(--sepia)}
+  .mock.claro .btn.p{background:var(--sepia);color:#fff}
+  .mock.claro .btn.s{background:#f1e8d4;color:var(--sepia)}
+
+  /* tema OSCURO (Pedido) */
+  .mock.oscuro{background:var(--encre)}
+  .mock.oscuro .bar{background:#16203a;color:#9fc3f0}
+  .mock.oscuro .dots i{background:#9fc3f0}
+  .mock.oscuro .body{color:#dfe6f4}
+  .mock.oscuro .row{border-color:#33405f}
+  .mock.oscuro .tag{color:#9fc3f0}
+  .mock.oscuro .btn.p{background:var(--azul);color:#fff}
+  .mock.oscuro .btn.s{background:#33405f;color:#cdd7ec}
+
+  .mock .ruta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;opacity:.8}
+
+  .nota-roja{
+    margin:16px auto 0;text-align:center;color:var(--rojo);font-weight:600;
+    font-size:14px;max-width:48ch;
+  }
+
+  /* ---------- 2. Ciclo unificado ---------- */
+  .flujo{display:flex;flex-direction:column;gap:0}
+  .paso{
+    display:grid;grid-template-columns:46px 1fr;gap:16px;align-items:stretch;
+  }
+  .paso .col-num{display:flex;flex-direction:column;align-items:center}
+  .paso .num{
+    flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+    background:var(--azul);color:#fff;display:grid;place-items:center;
+    font-weight:700;font-size:16px;box-shadow:var(--sombra);
+  }
+  .paso .linea-v{flex:1 1 auto;width:3px;background:linear-gradient(var(--azul),var(--azul-claro));margin:4px 0;border-radius:2px;min-height:14px}
+  .paso:last-child .linea-v{display:none}
+  .paso .contenido{
+    background:#fff;border:1px solid var(--linea);border-radius:12px;
+    padding:14px 16px;box-shadow:var(--sombra);margin-bottom:14px;
+  }
+  .paso h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .paso .actor{margin:0 0 10px;color:var(--gris);font-size:14px}
+  .notifs{display:flex;flex-wrap:wrap;gap:8px}
+  .notif{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    padding:4px 9px;border-radius:20px;border:1px solid var(--linea);background:var(--crema2);
+  }
+  .notif.cli{background:var(--azul-claro);border-color:#bcd3ef;color:#1d4e85}
+  .notif.trad{background:var(--sepia-claro);border-color:#e4d4b3;color:#7a5e2e}
+  .notif.staff{background:#ece9f4;border-color:#d3cce8;color:#4a4070}
+  .notif svg{flex:0 0 auto}
+
+  .badge-new{
+    display:inline-flex;align-items:center;gap:5px;background:var(--verde-claro);
+    color:var(--verde);border:1px solid #b7e0c6;border-radius:20px;
+    font-size:11px;font-weight:700;padding:2px 9px;letter-spacing:.02em;
+  }
+  .badge-new svg{flex:0 0 auto}
+
+  .leyenda{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 0;font-size:13px;color:var(--gris)}
+  .leyenda .it{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+
+  /* ---------- 3. Matriz ---------- */
+  .tabla-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--linea);box-shadow:var(--sombra)}
+  table{border-collapse:collapse;width:100%;background:#fff;font-size:14px;min-width:560px}
+  thead th{
+    background:var(--encre);color:var(--crema);text-align:left;
+    padding:11px 14px;font-weight:600;font-size:13px;letter-spacing:.02em;
+  }
+  thead th:first-child{border-top-left-radius:12px}
+  thead th:last-child{border-top-right-radius:12px}
+  tbody td,tbody th{padding:10px 14px;border-top:1px solid var(--linea);vertical-align:top}
+  tbody th{text-align:left;font-weight:600;background:var(--crema2);color:var(--encre);font-size:13px}
+  tbody tr:nth-child(even) td{background:#fcfaf4}
+  .cel{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+  .cel.email{color:var(--azul);font-weight:600}
+  .cel.sms{color:var(--sepia);font-weight:600}
+  .cel.none{color:#b8b2a3}
+  td.center,th.center{text-align:center}
+  .pie-tabla{margin:12px 2px 0;font-size:13px;color:var(--gris);display:flex;gap:8px;align-items:flex-start}
+  .pie-tabla svg{flex:0 0 auto;margin-top:2px}
+
+  /* ---------- 4. Anti-duplicación ---------- */
+  .anti{
+    background:linear-gradient(135deg,#fff,var(--crema2));
+    border:1px solid var(--linea);border-left:5px solid var(--verde);
+    border-radius:14px;padding:22px 24px;box-shadow:var(--sombra);
+  }
+  .anti h3{margin:0 0 4px;font-size:17px}
+  .anti .intro{margin:0 0 16px;color:var(--gris);font-size:14px}
+  .fuentes{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+  .fuentes li{
+    display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;
+    background:#fff;border:1px solid var(--linea);border-radius:10px;padding:11px 14px;
+  }
+  .fuentes .ico{
+    width:30px;height:30px;border-radius:8px;background:var(--verde-claro);
+    display:grid;place-items:center;color:var(--verde);
+  }
+  .fuentes .txt b{display:block;font-size:14px}
+  .fuentes .txt .fn{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px;color:var(--azul);background:var(--azul-claro);
+    padding:1px 6px;border-radius:5px;display:inline-block;margin-top:3px;word-break:break-all;
+  }
+  .guardian{
+    margin:18px 0 0;background:var(--encre);color:var(--crema);
+    border-radius:10px;padding:14px 16px;font-size:14px;display:flex;gap:12px;align-items:flex-start;
+  }
+  .guardian svg{flex:0 0 auto;margin-top:2px}
+  .guardian b{color:#9fc3f0}
+
+  footer.doc{
+    margin-top:48px;border-top:1px solid var(--linea);padding-top:18px;
+    color:var(--gris);font-size:13px;text-align:center;
+  }
+
+  @media (max-width:640px){
+    header.doc h1{font-size:24px}
+    .flecha-confusa{transform:rotate(90deg)}
+  }
+
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none;padding:0}
+    header.doc,.card,.paso .contenido,.anti,.tabla-wrap,.mock,.problema{box-shadow:none}
+    section{break-inside:avoid}
+    .paso{break-inside:avoid}
+    header.doc{background:var(--encre)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="doc">
+    <p class="eyebrow">Mapa mental del backoffice</p>
+    <h1>Ciclos del backoffice — traduccionesjuradas.net</h1>
+    <p class="fecha">Zona traductor &middot; 25 de junio de 2026</p>
+    <p class="sub">Cómo viaja un encargo desde que llega el documento hasta que se cierra, qué avisos salen en cada paso, y qué se acaba de arreglar para no repetir el trabajo en dos pantallas.</p>
+  </header>
+
+  <!-- ============ 1. EL PROBLEMA ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">1</span>
+      <h2>El problema (antes)</h2>
+      <p class="lead">El mismo encargo vivía en DOS pantallas distintas. Saltabas de una a otra sin saber en qué punto estaba.</p>
+    </div>
+
+    <div class="problema">
+      <div class="dos-pantallas">
+
+        <!-- Mock CLARO: Presupuesto -->
+        <div class="mock claro">
+          <div class="bar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            Presupuesto &middot; tema CLARO
+          </div>
+          <div class="body">
+            <div class="tag">/zona-traductor/presupuesto &middot; /admin/quotes</div>
+            <div class="row"><b>MARIO LATORRE MARTIN</b><span>es&rarr;en</span></div>
+            <div class="row"><span>3 documentos</span><b>108,90 &euro;</b></div>
+            <div class="row"><span>Estado</span><span>Enviado</span></div>
+            <div class="btns">
+              <span class="btn p">Generar PDF</span>
+              <span class="btn s">Enviar</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Flecha confusa -->
+        <div class="flecha-confusa">
+          <svg width="58" height="40" viewBox="0 0 58 40" fill="none" aria-hidden="true">
+            <path d="M4 12 C 20 2, 38 22, 50 12" stroke="#b04a3a" stroke-width="2.5" stroke-dasharray="4 4" fill="none"/>
+            <path d="M50 12 l-8 -2 M50 12 l-3 8" stroke="#b04a3a" stroke-width="2.5" fill="none"/>
+            <path d="M4 28 C 18 38, 36 18, 50 28" stroke="#b04a3a" stroke-width="2.5" stroke-dasharray="4 4" fill="none"/>
+            <path d="M4 28 l3 -8 M4 28 l8 2" stroke="#b04a3a" stroke-width="2.5" fill="none"/>
+          </svg>
+          ¿el mismo encargo?
+        </div>
+
+        <!-- Mock OSCURO: Pedido -->
+        <div class="mock oscuro">
+          <div class="bar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            Pedido &middot; tema OSCURO
+          </div>
+          <div class="body">
+            <div class="tag">/zona-traductor/proyecto</div>
+            <div class="row"><b>MARIO LATORRE MARTIN</b><span>es&rarr;en</span></div>
+            <div class="row"><span>Referencia</span><b>2026-000XX</b></div>
+            <div class="row"><span>Total</span><b>108,90 &euro;</b></div>
+            <div class="btns">
+              <span class="btn p">Entregar</span>
+              <span class="btn s">Factura</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <p class="nota-roja">Saltas de una a otra y no sabes qué pasa: ¿pagó?, ¿se avisó al cliente?, ¿quién traduce?, ¿se emitió la factura?</p>
+    </div>
+  </section>
+
+  <!-- ============ 2. CICLO UNIFICADO ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">2</span>
+      <h2>El ciclo unificado (objetivo)</h2>
+      <p class="lead">Un solo recorrido, de principio a fin. Cada paso indica quién actúa y qué aviso sale.</p>
+    </div>
+
+    <div class="flujo">
+
+      <!-- 1 Intake -->
+      <div class="paso">
+        <div class="col-num"><span class="num">1</span><span class="linea-v"></span></div>
+        <div class="contenido">
+          <h3>Intake — llega el documento</h3>
+          <p class="actor">El cliente envía el documento por <b>web</b>, <b>email</b> o <b>WhatsApp</b>. Aterriza en la bandeja.</p>
+          <div class="notifs">
+            <span class="notif staff">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 6 9-6" stroke="currentColor" stroke-width="2"/></svg>
+              Staff: nuevo encargo
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Presupuesto -->
+      <div class="paso">
+        <div class="col-num"><span class="num">2</span><span class="linea-v"></span></div>
+        <div class="contenido">
+          <h3>Presupuesto — se cotiza</h3>
+          <p class="actor">Builder manual del traductor <b>o</b> broadcast a colaboradores que ponen <b>precio + fecha</b>. Se elige la oferta y se monta el presupuesto.</p>
+          <div class="notifs">
+            <span class="notif trad">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4h16v12H7l-3 3V4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+              Colaborador: petición de oferta (SMS)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Envío al cliente -->
+      <div class="paso">
+        <div class="col-num"><span class="num">3</span><span class="linea-v"></span></div>
+        <div class="contenido">
+          <h3>Envío al cliente</h3>
+          <p class="actor">Se manda el presupuesto (PDF) al cliente por <b>email</b> y/o <b>WhatsApp</b>, con enlace de pago.</p>
+          <div class="notifs">
+            <span class="notif cli">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 6 9-6" stroke="currentColor" stroke-width="2"/></svg>
+              Cliente: presupuesto + enlace de pago
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Pago -->
+      <div class="paso">
+        <div class="col-num"><span class="num">4</span><span class="linea-v"></span></div>
+        <div class="contenido">
+          <h3>Pago</h3>
+          <p class="actor">El cliente paga con <b>Stripe</b>, <b>Redsys</b>, <b>Bizum</b> o <b>transferencia</b>. El webhook detecta el cobro.</p>
+          <div class="notifs">
+            <span class="notif staff">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 6 9-6" stroke="currentColor" stroke-width="2"/></svg>
+              Staff: cobro recibido
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 Avisos al confirmarse el pago -->
+      <div class="paso">
+        <div class="col-num"><span class="num">5</span><span class="linea-v"></span></div>
+        <div class="contenido">
+          <h3>Avisos al confirmarse el pago
+            <span class="badge-new">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              NUEVO 25-jun
+            </span>
+          </h3>
+          <p class="actor">En cuanto se confirma el pago salen <b>dos avisos automáticos</b> en el mismo punto, vengan de presupuesto o de pedido.</p>
+          <div class="notifs">
+            <span class="notif cli">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 6 9-6" stroke="currentColor" stroke-width="2"/></svg>
+              Cliente: pago confirmado (email + SMS)
+            </span>
+            <span class="notif trad">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 6 9-6" stroke="currentColor" stroke-width="2"/></svg>
+              Traductor: confirmación de encargo + FECHA DE ENTREGA
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 Traducción -->
+      <div class="paso">
+        <div class="col-num"><span class="num">6</span><span class="linea-v"></span></div>
+        <div class="contenido">
+          <h3>Traducción en proceso</h3>
+          <p class="actor">El traductor trabaja el encargo. El estado queda visible para el equipo.</p>
+          <div class="notifs">
+            <span class="notif staff">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Estado interno: en traducción
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7 Entrega -->
+      <div class="paso">
+        <div class="col-num"><span class="num">7</span><span class="linea-v"></span></div>
+        <div class="contenido">
+          <h3>Entrega
+            <span class="badge-new">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              ARREGLADO 25-jun
+            </span>
+          </h3>
+          <p class="actor">Dos vías: <b>PDF firmado</b> (jurada digital) <b>o</b> <b>envío en papel</b> con número de seguimiento por mensajería.</p>
+          <div class="notifs">
+            <span class="notif cli">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 6 9-6" stroke="currentColor" stroke-width="2"/></svg>
+              Cliente: traducción lista (PDF firmado)
+            </span>
+            <span class="notif cli">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7h11v8H3zM14 9h4l3 3v3h-7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7" cy="17" r="1.6" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="17" r="1.6" stroke="currentColor" stroke-width="2"/></svg>
+              Cliente: enviado en papel + nº de seguimiento
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 Cierre -->
+      <div class="paso">
+        <div class="col-num"><span class="num">8</span></div>
+        <div class="contenido">
+          <h3>Cierre
+            <span class="badge-new">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              NUEVO 25-jun
+            </span>
+          </h3>
+          <p class="actor"><b>Recibo PAGADO</b> automático, o <b>factura</b> a petición del cliente.</p>
+          <div class="notifs">
+            <span class="notif cli">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Cliente: recibo PAGADO (email)
+            </span>
+            <span class="notif cli">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Cliente: factura a petición (email)
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="leyenda">
+      <span class="it"><span class="dot" style="background:var(--azul)"></span> Aviso al CLIENTE</span>
+      <span class="it"><span class="dot" style="background:var(--sepia)"></span> Aviso al TRADUCTOR/colaborador</span>
+      <span class="it"><span class="dot" style="background:#6c5fb0"></span> Aviso al STAFF</span>
+      <span class="it"><span class="dot" style="background:var(--verde)"></span> Pieza nueva o arreglada el 25-jun</span>
+    </div>
+  </section>
+
+  <!-- ============ 3. MATRIZ DE NOTIFICACIONES ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">3</span>
+      <h2>Matriz de notificaciones</h2>
+      <p class="lead">Quién recibe qué, y por qué canal, en cada hito del ciclo.</p>
+    </div>
+
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Hito</th>
+            <th class="center">Cliente</th>
+            <th class="center">Traductor</th>
+            <th class="center">Staff</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Presupuesto enviado</th>
+            <td class="center"><span class="cel email">Email</span></td>
+            <td class="center"><span class="cel sms">SMS</span></td>
+            <td class="center"><span class="cel email">Email</span></td>
+          </tr>
+          <tr>
+            <th>Pago confirmado</th>
+            <td class="center"><span class="cel email">Email + SMS</span></td>
+            <td class="center"><span class="cel email">Email</span></td>
+            <td class="center"><span class="cel email">Email</span></td>
+          </tr>
+          <tr>
+            <th>En traducción</th>
+            <td class="center"><span class="cel none">—</span></td>
+            <td class="center"><span class="cel none">—</span></td>
+            <td class="center"><span class="cel email">Estado interno</span></td>
+          </tr>
+          <tr>
+            <th>Lista / entregada</th>
+            <td class="center"><span class="cel email">Email + SMS</span></td>
+            <td class="center"><span class="cel none">—</span></td>
+            <td class="center"><span class="cel email">Email</span></td>
+          </tr>
+          <tr>
+            <th>Envío en papel (tracking)</th>
+            <td class="center"><span class="cel email">Email + SMS</span></td>
+            <td class="center"><span class="cel none">—</span></td>
+            <td class="center"><span class="cel email">Email</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="pie-tabla">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="#6b7280" stroke-width="2"/><path d="M12 7v6" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.2" fill="#6b7280"/></svg>
+      <span><b>WhatsApp está desactivado</b> (a la espera de Meta). Todo lo que iría por WhatsApp cae automáticamente a <b>SMS</b>, así que ningún aviso al cliente se pierde.</span>
+    </p>
+  </section>
+
+  <!-- ============ 4. ANTI-DUPLICACIÓN ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">4</span>
+      <h2>Anti-duplicación (la regla)</h2>
+      <p class="lead">Cada cosa se hace en UN solo sitio y se reutiliza. No se reinventa en cada pantalla.</p>
+    </div>
+
+    <div class="anti">
+      <h3>Fuentes únicas que se reusan, no se reinventan</h3>
+      <p class="intro">Tanto el camino del presupuesto como el del pedido llaman a estas mismas piezas. Por eso un cambio en el email o en la factura vale para todo el ciclo.</p>
+
+      <ul class="fuentes">
+        <li>
+          <span class="ico">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 6 9-6" stroke="currentColor" stroke-width="2"/></svg>
+          </span>
+          <span class="txt">
+            <b>Email de pago al cliente</b>
+            «Pago confirmado» — un solo email, salga del presupuesto o del pedido.
+            <span class="fn">sendPaymentConfirmedEmail</span>
+          </span>
+        </li>
+        <li>
+          <span class="ico">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 2h9l5 5v15H6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="txt">
+            <b>PDF del presupuesto</b>
+            El mismo generador para presupuestos, recibo PAGADO y vista previa.
+            <span class="fn">buildQuotePdfBuffer</span>
+          </span>
+        </li>
+        <li>
+          <span class="ico">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M13 7l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="12" r="0"/></svg>
+          </span>
+          <span class="txt">
+            <b>Puente pago → pedido</b>
+            Cuando un presupuesto se paga, se convierte solo en pedido por un único camino.
+            <span class="fn">runQuoteToOrderBridge</span>
+          </span>
+        </li>
+        <li>
+          <span class="ico">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span class="txt">
+            <b>Emisión de factura</b>
+            Una sola ruta emite la factura del pedido.
+            <span class="fn">/api/orders/[reference]/invoice/issue</span>
+          </span>
+        </li>
+        <li>
+          <span class="ico">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5l9 6 9-6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M15 14h5M17.5 11.5v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span class="txt">
+            <b>Envío de email con adjuntos</b>
+            Toda salida de correo (con PDF, factura, etc.) pasa por aquí.
+            <span class="fn">sendMail</span>
+          </span>
+        </li>
+      </ul>
+
+      <div class="guardian">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" stroke="#9fc3f0" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5L16 9.5" stroke="#9fc3f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Existe un <b>agente «guardián de flujos»</b> que vigila esto: revisa antes y después de tocar presupuestos, pedidos, pagos, notificaciones o pantallas, y avisa si alguien intenta duplicar una pantalla, un endpoint o un email que ya existe.</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="doc">
+    HBTJ Consultores Lingüísticos S.L. — Málaga &middot; Backoffice traduccionesjuradas.net &middot; 25-jun-2026 &middot; Documento autocontenido (sin recursos externos)
+  </footer>
+
+</div>
+</body>
+</html>

@@ -4,7 +4,7 @@
 // (workflow PAGO_VALIDADO, ETA francés, auto-asignación de colaborador).
 
 import { createOrderShellFromQuote, updateOrderPayment } from "@/lib/orders";
-import { sendNewOrderStaffEmail } from "@/lib/email";
+import { sendNewOrderStaffEmail, sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import type { PaymentMethod } from "@prisma/client";
 
@@ -28,6 +28,11 @@ export async function runQuoteToOrderBridge(input: {
   providerEventId: string;
   source: string;
   payload?: Record<string, unknown>;
+  // El puente es el chokepoint común del pago de presupuesto (mark-paid manual
+  // Y webhook Stripe-quotes). El webhook YA manda su propio email de pago rico
+  // (buildPaidDigitalEmail con ETA) → pasa false para no duplicar. El pago
+  // manual no mandaba ninguno → lo deja en true (default) y lo envía el puente.
+  sendClientPaidEmail?: boolean;
 }) {
   const { quote } = input;
 
@@ -66,6 +71,27 @@ export async function runQuoteToOrderBridge(input: {
     await autoAssignCollaboratorIfNeeded({ reference: order.reference, actorEmail: input.source }).catch((e) =>
       console.error("[quote-to-order] auto collaborator failed", e)
     );
+
+    // Aviso al CLIENTE: pago confirmado. Antes el pago MANUAL de presupuesto solo
+    // avisaba a staff → el cliente pagaba (Bizum/transferencia) y no recibía nada.
+    // Reusa la MISMA plantilla es/fr que los pedidos directos (Stripe/Redsys/PayPal).
+    // Fire-and-forget con retry → FailedEmail si agota. Se omite cuando el caller
+    // ya mandó su propio email de pago (webhook Stripe-quotes) para no duplicar.
+    // NOTA: order.clientLocale aún no se propaga desde el Quote (default "es");
+    // los presupuestos FR saldrían en es hasta que se propague el locale.
+    if (quote.customerEmail && input.sendClientPaidEmail !== false) {
+      const lang = order.clientLocale === "fr" ? "fr" : "es";
+      sendEmailWithRetry(() =>
+        sendPaymentConfirmedEmail({
+          toEmail: quote.customerEmail,
+          reference: order.reference,
+          title: order.title,
+          amountCents: Math.round((quote.totalEur || 0) * 100),
+          method: input.provider,
+          lang,
+        })
+      ).catch((e) => console.error("[quote-to-order] client payment-confirmed email failed", e));
+    }
 
     // Aviso a staff — antes los pedidos vía presupuesto NO avisaban a nadie.
     // Mismo email que el funnel (a PRESUPUESTO_TO). Fire-and-forget con retry;
