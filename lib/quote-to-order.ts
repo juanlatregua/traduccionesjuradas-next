@@ -4,7 +4,7 @@
 // (workflow PAGO_VALIDADO, ETA francés, auto-asignación de colaborador).
 
 import { createOrderShellFromQuote, updateOrderPayment } from "@/lib/orders";
-import { sendNewOrderStaffEmail } from "@/lib/email";
+import { sendNewOrderStaffEmail, sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import type { PaymentMethod } from "@prisma/client";
 
@@ -66,6 +66,26 @@ export async function runQuoteToOrderBridge(input: {
     await autoAssignCollaboratorIfNeeded({ reference: order.reference, actorEmail: input.source }).catch((e) =>
       console.error("[quote-to-order] auto collaborator failed", e)
     );
+
+    // Aviso al CLIENTE: pago confirmado. Antes el camino de presupuesto solo
+    // avisaba a staff → el cliente pagaba (Bizum/transferencia o Stripe-quotes)
+    // y no recibía nada. Reusa la MISMA plantilla es/fr que los pedidos directos
+    // (Stripe/Redsys/PayPal). Fire-and-forget con retry → FailedEmail si agota.
+    // NOTA: order.clientLocale aún no se propaga desde el Quote (default "es");
+    // los presupuestos FR saldrían en es hasta que se propague el locale.
+    if (quote.customerEmail) {
+      const lang = order.clientLocale === "fr" ? "fr" : "es";
+      sendEmailWithRetry(() =>
+        sendPaymentConfirmedEmail({
+          toEmail: quote.customerEmail,
+          reference: order.reference,
+          title: order.title,
+          amountCents: Math.round((quote.totalEur || 0) * 100),
+          method: input.provider,
+          lang,
+        })
+      ).catch((e) => console.error("[quote-to-order] client payment-confirmed email failed", e));
+    }
 
     // Aviso a staff — antes los pedidos vía presupuesto NO avisaban a nadie.
     // Mismo email que el funnel (a PRESUPUESTO_TO). Fire-and-forget con retry;
