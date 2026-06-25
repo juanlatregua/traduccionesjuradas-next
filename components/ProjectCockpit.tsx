@@ -131,6 +131,28 @@ export default function ProjectCockpit({ data }: { data: Data }) {
     }
   }
 
+  async function notifyShipment() {
+    const trackingNumber = window.prompt("Nº de seguimiento de la mensajería:");
+    if (!trackingNumber || !trackingNumber.trim()) return;
+    const courier = window.prompt("Transportista (opcional: Correos, MRW, SEUR…):") || "";
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/orders/${data.reference}/notify-shipment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackingNumber: trackingNumber.trim(), courier: courier.trim() }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo notificar el envío.");
+      flash(`Envío notificado al cliente (seguimiento ${d.trackingNumber}).`);
+      router.refresh();
+    } catch (e: any) {
+      flash(e?.message || "No se pudo notificar el envío.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const card = "rounded-xl border border-slate-700 bg-slate-900/40 p-4";
 
   return (
@@ -202,6 +224,9 @@ export default function ProjectCockpit({ data }: { data: Data }) {
             )}
             {data.quote && (
               <a href={`/admin/quotes`} className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800">Presupuesto {data.quote.quoteNumber}</a>
+            )}
+            {data.paymentStatus === "PAID" && (
+              <button type="button" onClick={notifyShipment} disabled={busy} className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50">📦 Notificar envío</button>
             )}
           </div>
         </div>

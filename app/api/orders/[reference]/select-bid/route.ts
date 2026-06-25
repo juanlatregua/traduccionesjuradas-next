@@ -146,6 +146,7 @@ export async function POST(req: Request, { params }: Params) {
       orderReference: params.reference,
       priceCents,
       accessToken: chosen.accessToken,
+      dueDate: chosen.quotedDeadline,
     }).catch((err) => console.error("[select-bid] acceptance email failed", err));
 
     for (const loser of losers) {

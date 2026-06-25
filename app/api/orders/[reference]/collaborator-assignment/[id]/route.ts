@@ -115,13 +115,14 @@ export async function POST(req: Request, { params }: Params) {
         );
       }
 
-      // Send acceptance email
+      // Send acceptance email (con la fecha de entrega comprometida, igual que select-bid)
       sendAcceptanceToCollaborator({
         collaboratorName: assignment.collaborator.fullName,
         collaboratorEmail: assignment.collaborator.email,
         orderReference: assignment.order.reference,
         priceCents,
         accessToken: assignment.accessToken,
+        dueDate: assignment.quotedDeadline,
       }).catch((err) => {
         console.error("[collaborator-assignment] acceptance email failed", err);
       });

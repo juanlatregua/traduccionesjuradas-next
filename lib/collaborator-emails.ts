@@ -144,6 +144,7 @@ type AcceptanceEmailPayload = {
   orderReference: string;
   priceCents: number;
   accessToken: string;
+  dueDate?: Date | string | null;
 };
 
 export async function sendAcceptanceToCollaborator(payload: AcceptanceEmailPayload) {
@@ -151,11 +152,21 @@ export async function sendAcceptanceToCollaborator(payload: AcceptanceEmailPaylo
   const priceFormatted = (payload.priceCents / 100).toFixed(2);
   const name = escapeHtml(payload.collaboratorName);
   const ref = escapeHtml(payload.orderReference);
+  // Fecha de entrega comprometida: es la que el propio colaborador puso al
+  // cotizar (quotedDeadline). Confirmar el encargo SIN la fecha dejaba al
+  // traductor sin saber para cuándo se comprometió.
+  const dueLabel = payload.dueDate
+    ? new Date(payload.dueDate).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })
+    : null;
+  const dueRow = dueLabel
+    ? `<tr><td style="padding:4px 12px 4px 0; color:#64748b;">Fecha de entrega</td><td style="font-weight:600;">${escapeHtml(dueLabel)}</td></tr>`
+    : "";
   const html = `
     <p>Hola ${name},</p>
-    <p>Tu presupuesto para el encargo <strong>${ref}</strong> ha sido <strong>aceptado</strong>.</p>
+    <p>Tu presupuesto para el encargo <strong>${ref}</strong> ha sido <strong>aceptado</strong> y el cliente ha pagado. Queda confirmado.</p>
     <table style="border-collapse:collapse; margin:12px 0;">
       <tr><td style="padding:4px 12px 4px 0; color:#64748b;">Precio confirmado</td><td style="font-weight:600;">${priceFormatted} €</td></tr>
+      ${dueRow}
     </table>
     <p>Cuando tengas la traducción terminada, súbela a través de este enlace:</p>
     <p style="margin:16px 0;">
