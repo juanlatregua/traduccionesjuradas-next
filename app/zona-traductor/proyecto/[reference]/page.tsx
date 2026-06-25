@@ -78,6 +78,7 @@ export default async function ProyectoCockpitPage({ params }: { params: { refere
       quotedCents: d.quotedCents,
       prodStatus: d.prodStatus,
       assignedTo: d.assignedTo,
+      fileUrl: d.fileUrl,
       deliveredFileUrl: d.deliveredFileUrl,
     })),
     timeline: order.events.map((e) => ({
