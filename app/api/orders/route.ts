@@ -183,6 +183,27 @@ export async function POST(req: Request) {
       );
     }
 
+    // Suelo de precio server-side (audit seguridad 25-jun): amountCents lo pone
+    // el cliente y antes solo se exigía >=1€ → un pedido de 50€ se podía crear y
+    // pagar a 1€. El importe nunca puede caer por debajo del coste BASE del
+    // traductor (palabras × tarifa). Usamos un umbral holgado (40%) para no dar
+    // falsos positivos con precios fijos/excepciones (p.ej. antecedentes FR);
+    // por debajo de eso = manipulación → a presupuesto manual, no autopago.
+    if (body.words && body.words > 0 && body.langPair) {
+      const rate = getWordRateForLangOrPair(body.langPair); // €/palabra
+      const floorCents = Math.round(body.words * rate * 100 * 0.4);
+      if (floorCents > 100 && body.amountCents < floorCents) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "El importe no cuadra con el documento. Escríbenos para un presupuesto a medida.",
+          },
+          { status: 422 }
+        );
+      }
+    }
+
     const idempotencyKey =
       normalizeIdempotencyKey(req.headers.get("x-idempotency-key")) ||
       normalizeIdempotencyKey(body.idempotencyKey) ||
