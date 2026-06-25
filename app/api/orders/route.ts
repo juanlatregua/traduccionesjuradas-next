@@ -160,7 +160,10 @@ export async function POST(req: Request) {
   }
 
   if (session?.user?.email) {
-    clientEmail = session.user.email;
+    // Normalizar a minúsculas: el guest ya lo hace (L166), pero el email de
+    // sesión se guardaba con mayúsculas → comparación inconsistente en
+    // payment-proof (Alice@x.com vs alice@x.com). (audit seguridad 25-jun)
+    clientEmail = session.user.email.trim().toLowerCase();
     clientName = session.user.name || undefined;
   } else if (body.guestEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.guestEmail)) {
     clientEmail = body.guestEmail.trim().toLowerCase();

@@ -4,6 +4,7 @@ import { sendProjectManagerFinanceUpdateEmail } from "@/lib/email";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { getStaffRole } from "@/lib/staff-access";
 
 export const runtime = "nodejs";
 
@@ -76,6 +77,16 @@ export async function POST(req: Request, { params }: Params) {
   const staff = await requireStaffAccess(req);
   if (!staff.ok) {
     return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
+  }
+  // Finanzas = solo ADMIN/PM (mismo patrón que /api/bank/decision). Antes
+  // cualquier staff (incl. rol COLLABORATOR) podía marcar facturas de proveedor
+  // PAID y cerrar finanzas. (audit seguridad 25-jun)
+  const role = getStaffRole(staff.email);
+  if (role !== "ADMIN" && role !== "PM") {
+    return NextResponse.json(
+      { ok: false, error: "Solo ADMIN/PM pueden actualizar facturas de proveedor." },
+      { status: 403 }
+    );
   }
   const actorEmail = staff.email;
 

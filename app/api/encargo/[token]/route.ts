@@ -89,6 +89,14 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "Encargo no encontrado." }, { status: 404 });
   }
 
+  // Caduca el enlace tras 90 días (espejo del GET, que solo cubría 30d para
+  // DELIVERED/REJECTED). Un token filtrado no debe permitir enviar
+  // presupuesto/entrega indefinidamente. (audit seguridad 25-jun)
+  const POST_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
+  if (assignment.createdAt < new Date(Date.now() - POST_EXPIRY_MS)) {
+    return NextResponse.json({ ok: false, error: "Este enlace ha expirado." }, { status: 410 });
+  }
+
   const body = (await req.json()) as PostBody;
 
   if (body.action === "quote") {
