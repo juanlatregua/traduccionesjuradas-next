@@ -602,6 +602,9 @@ export async function updateDeliveryState(
     translatedFileKey?: string;
     translatedFilename?: string;
     translatedMimeType?: string;
+    // Entrega MULTI-archivo: lista completa. translatedFileUrl sigue siendo el
+    // primero (compat con páginas/SMS/email que leen el campo único).
+    deliveryFiles?: Array<{ url: string; fileKey?: string | null; filename?: string | null; mimeType?: string | null }>;
     dueDate?: Date | null;
     eventMessage?: string;
   }
@@ -612,6 +615,7 @@ export async function updateDeliveryState(
     data: {
       deliveryState: state,
       ...(nextStatus ? { status: nextStatus } : {}),
+      ...(options?.deliveryFiles && options.deliveryFiles.length > 0 ? { deliveryFilesJson: options.deliveryFiles } : {}),
       ...(options?.translatedFileUrl ? { translatedFileUrl: options.translatedFileUrl } : {}),
       ...(options?.translatedFileUrl ? { finalDeliveryFileUrl: options.translatedFileUrl } : {}),
       ...(options?.translatedFileKey ? { finalDeliveryFileKey: options.translatedFileKey } : {}),

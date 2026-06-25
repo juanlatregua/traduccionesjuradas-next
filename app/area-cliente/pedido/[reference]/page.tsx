@@ -315,21 +315,48 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
       )}
 
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-encre">Archivo traducido</h2>
-        {order.translatedFileUrl ? (
-          <a
-            href={order.translatedFileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-flex rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark"
-          >
-            Descargar PDF traducido
-          </a>
-        ) : (
-          <p className="mt-2 text-sm text-sepia">
-            Aún no hay archivo disponible. Te avisaremos cuando el pedido pase a estado traducido.
-          </p>
-        )}
+        <h2 className="text-lg font-semibold text-encre">
+          {(() => {
+            const n = Array.isArray(order.deliveryFilesJson) ? order.deliveryFilesJson.length : order.translatedFileUrl ? 1 : 0;
+            return n > 1 ? `Archivos traducidos (${n})` : "Archivo traducido";
+          })()}
+        </h2>
+        {(() => {
+          // Lista MULTI-archivo (deliveryFilesJson); fallback al campo único.
+          const files = Array.isArray(order.deliveryFilesJson)
+            ? (order.deliveryFilesJson as Array<{ url?: string; filename?: string | null }>).filter(
+                (f) => f && typeof f.url === "string" && f.url
+              )
+            : [];
+          const list =
+            files.length > 0
+              ? files
+              : order.translatedFileUrl
+                ? [{ url: order.translatedFileUrl, filename: order.finalFilename }]
+                : [];
+          if (list.length === 0) {
+            return (
+              <p className="mt-2 text-sm text-sepia">
+                Aún no hay archivo disponible. Te avisaremos cuando el pedido pase a estado traducido.
+              </p>
+            );
+          }
+          return (
+            <div className="mt-3 flex flex-col items-start gap-2">
+              {list.map((f, i) => (
+                <a
+                  key={f.url}
+                  href={f.url as string}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark"
+                >
+                  ⬇ {f.filename || (list.length > 1 ? `Traducción ${i + 1} (PDF)` : "Descargar PDF traducido")}
+                </a>
+              ))}
+            </div>
+          );
+        })()}
       </section>
 
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">

@@ -4,60 +4,78 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import GuestOrderLookup from "@/components/GuestOrderLookup";
-import { getOrdersByClientEmail } from "@/lib/orders";
-import {
-  getDeliveryStateLabel,
-  getDeliveryTypeLabel,
-  getPaymentStateLabel,
-} from "@/lib/client-area";
+import ClientAccessForm from "@/components/ClientAccessForm";
+import { getClientPortalData } from "@/lib/client-portal";
+import { verifyClientToken } from "@/lib/client-token";
+import { buildSignedOrderUrl } from "@/lib/order-token";
+import { decimalToNumber } from "@/lib/quotes";
+import { getDeliveryStateLabel, getPaymentStateLabel } from "@/lib/client-area";
 import { isStaffEmail } from "@/lib/staff-access";
 import AutoRefresh from "@/components/AutoRefresh";
 
 export const metadata: Metadata = {
   title: "Área de cliente",
-  description: "Acceso a tu área de cliente para seguimiento de pedidos.",
-  robots: {
-    index: false,
-    follow: false,
-  },
+  description: "Tu zona: presupuestos, pedidos, facturas y descargas.",
+  robots: { index: false, follow: false },
 };
 
-function formatMoney(cents: number) {
+function eur(cents: number) {
   return `${(cents / 100).toFixed(2)} EUR`;
 }
 
-export default async function AreaClientePage() {
-  const session = await getServerSession(authOptions);
+const QUOTE_LABEL: Record<string, string> = {
+  DRAFT: "Borrador",
+  SENT: "Enviado",
+  OPENED: "Abierto",
+  ACCEPTED: "Aceptado",
+  PAID: "Pagado",
+  IN_PROGRESS: "En proceso",
+  DELIVERED: "Entregado",
+  EXPIRED: "Expirado",
+};
 
-  if (!session) {
+export default async function AreaClientePage({
+  searchParams,
+}: {
+  searchParams?: { email?: string; token?: string };
+}) {
+  const session = await getServerSession(authOptions);
+  const tokenEmail = (searchParams?.email || "").trim().toLowerCase();
+  const token = (searchParams?.token || "").trim();
+
+  // Acceso por SESIÓN (Google) o por TOKEN firmado enviado al email del cliente.
+  let clientEmail: string | null = null;
+  if (session?.user?.email) clientEmail = session.user.email.trim().toLowerCase();
+  else if (tokenEmail && token && verifyClientToken(tokenEmail, token)) clientEmail = tokenEmail;
+
+  if (!clientEmail) {
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
         <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-          <h1 className="text-2xl font-bold tracking-tight text-encre sm:text-3xl">
-            Área de cliente
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-encre sm:text-3xl">Tu zona de cliente</h1>
           <p className="mt-2 text-sm text-sepia">
-            Consulta el estado de tu pedido con la referencia y el email.
+            Recibe un enlace de acceso a tu email y entra a todos tus presupuestos, pedidos, facturas y descargas.
           </p>
-
-          <div className="mt-6">
-            <GuestOrderLookup />
+          <div className="mt-5">
+            <ClientAccessForm />
           </div>
 
           <div className="mt-8 border-t border-cream pt-6">
-            <p className="text-sm text-sepia">
-              Para ver todos tus pedidos y descargar traducciones, inicia sesión:
-            </p>
+            <p className="text-sm text-sepia">¿Solo quieres consultar un pedido por su referencia?</p>
+            <div className="mt-3">
+              <GuestOrderLookup />
+            </div>
+          </div>
+
+          <div className="mt-8 border-t border-cream pt-6">
+            <p className="text-sm text-sepia">También puedes entrar con Google:</p>
             <div className="mt-3 flex flex-wrap gap-3 text-sm">
               <GoogleSignInButton
                 callbackUrl="/area-cliente"
                 label="Entrar con Google"
                 className="rounded-2xl bg-encre px-4 py-2 font-semibold text-white hover:bg-encre"
               />
-              <Link
-                href="/"
-                className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream"
-              >
+              <Link href="/" className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream">
                 Volver al inicio
               </Link>
             </div>
@@ -67,155 +85,188 @@ export default async function AreaClientePage() {
     );
   }
 
-  const isStaff = isStaffEmail(session?.user?.email);
-  const orders = await getOrdersByClientEmail(session.user?.email || "");
-
-  const paidOrders = orders.filter((o) => o.paymentStatus === "PAID").length;
-  const pendingOrders = orders.filter((o) => o.paymentStatus === "PENDING").length;
-  const translatedOrders = orders.filter((o) => o.deliveryState === "TRADUCIDO").length;
+  const data = await getClientPortalData(clientEmail);
+  const orders = data?.orders || [];
+  const quotes = data?.quotes || [];
+  const invoices = data?.invoices || [];
+  const customer = data?.customer || null;
+  const isStaff = isStaffEmail(clientEmail);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
-      <AutoRefresh intervalMs={20000} idleMs={30000} />
-      <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-          Área de cliente
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-encre sm:text-3xl">
-          Bienvenido, {session.user?.name || "cliente"}
-        </h1>
-        <p className="mt-2 text-sm text-sepia">
-          Sesión activa: {session.user?.email || "sin email"}
-        </p>
+      <AutoRefresh intervalMs={30000} idleMs={45000} />
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-cream bg-parchment p-3">
-            <p className="text-xs uppercase tracking-wide text-graphite">Pedidos pendientes</p>
-            <p className="mt-1 text-sm font-semibold text-encre">{pendingOrders}</p>
+      {/* Cabecera + ficha del cliente */}
+      <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">Tu zona de cliente</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-encre sm:text-3xl">
+          {customer?.companyName || customer?.name || session?.user?.name || clientEmail}
+        </h1>
+        <p className="mt-1 text-sm text-sepia">{clientEmail}</p>
+
+        {customer && (customer.nif || customer.address) && (
+          <div className="mt-4 rounded-2xl border border-cream bg-parchment p-4 text-sm text-sepia">
+            <p className="text-xs font-semibold uppercase tracking-wide text-graphite">Datos fiscales</p>
+            {customer.fiscalName && <p className="mt-1 font-semibold text-encre">{customer.fiscalName}</p>}
+            {customer.nif && <p>NIF: {customer.nif}</p>}
+            {(customer.address || customer.city) && (
+              <p>{[customer.address, customer.postalCode, customer.city, customer.country].filter(Boolean).join(" · ")}</p>
+            )}
           </div>
-          <div className="rounded-2xl border border-cream bg-parchment p-3">
-            <p className="text-xs uppercase tracking-wide text-graphite">Pedidos pagados</p>
-            <p className="mt-1 text-sm font-semibold text-encre">{paidOrders}</p>
-          </div>
-          <div className="rounded-2xl border border-cream bg-parchment p-3">
-            <p className="text-xs uppercase tracking-wide text-graphite">Traducidos</p>
-            <p className="mt-1 text-sm font-semibold text-encre">{translatedOrders}</p>
-          </div>
+        )}
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-4">
+          <Stat label="Presupuestos" value={quotes.length} />
+          <Stat label="Pedidos" value={orders.length} />
+          <Stat label="Entregados" value={orders.filter((o) => o.deliveryState === "TRADUCIDO").length} />
+          <Stat label="Facturas" value={invoices.length} />
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
-          <a
-            href="/api/auth/signout?callbackUrl=/"
-            className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream"
-          >
-            Cerrar sesión
-          </a>
-          <Link
-            href="/presupuesto-instantaneo"
-            className="rounded-2xl bg-bleu px-4 py-2 font-semibold text-white hover:bg-bleu-dark"
-          >
-            Crear nuevo encargo
+          <Link href="/presupuesto-instantaneo" className="rounded-2xl bg-bleu px-4 py-2 font-semibold text-white hover:bg-bleu-dark">
+            Nuevo encargo
           </Link>
+          {session && (
+            <a href="/api/auth/signout?callbackUrl=/" className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream">
+              Cerrar sesión
+            </a>
+          )}
           {isStaff && (
-            <Link
-              href="/zona-traductor"
-              className="rounded-2xl border border-bleu px-4 py-2 font-semibold text-bleu hover:bg-cream"
-            >
+            <Link href="/zona-traductor" className="rounded-2xl border border-bleu px-4 py-2 font-semibold text-bleu hover:bg-cream">
               Zona traductor
             </Link>
           )}
         </div>
       </section>
 
+      {/* Pedidos (expediente conjunto) */}
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-encre">Estado de mis pedidos</h2>
+        <h2 className="text-lg font-semibold text-encre">Mis pedidos</h2>
         {orders.length === 0 ? (
-          <p className="mt-3 text-sm text-sepia">
-            No tienes pedidos todavía.{" "}
-            <Link href="/presupuesto-instantaneo" className="font-semibold text-bleu hover:underline">
-              Solicita un presupuesto
-            </Link>{" "}
-            para empezar.
-          </p>
+          <p className="mt-3 text-sm text-sepia">Aún no tienes pedidos.</p>
         ) : (
-          <>
-            <p className="mt-2 text-sm text-sepia">
-              Cada fila incluye acceso al pago, estado del proceso y descarga del archivo final cuando esté listo.
-            </p>
-            <div className="mt-5 overflow-x-auto rounded-2xl border border-cream">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-parchment text-xs uppercase tracking-wide text-graphite">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Referencia</th>
-                    <th className="px-4 py-3 font-semibold">Descripción</th>
-                    <th className="px-4 py-3 font-semibold">Importe</th>
-                    <th className="px-4 py-3 font-semibold">Pago</th>
-                    <th className="px-4 py-3 font-semibold">Formato</th>
-                    <th className="px-4 py-3 font-semibold">Estado</th>
-                    <th className="px-4 py-3 font-semibold">ETA</th>
-                    <th className="px-4 py-3 font-semibold">Factura</th>
-                    <th className="px-4 py-3 font-semibold">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => {
-                    return (
-                      <tr key={order.reference} className="border-t border-cream">
-                        <td className="px-4 py-3 font-mono text-xs text-sepia">{order.reference}</td>
-                        <td className="px-4 py-3 text-sepia">{order.title}</td>
-                        <td className="px-4 py-3 text-sepia">{formatMoney(order.amountCents)}</td>
-                        <td className="px-4 py-3 text-sepia">{getPaymentStateLabel(order.paymentStatus)}</td>
-                        <td className="px-4 py-3 text-sepia">{getDeliveryTypeLabel(order.deliveryType)}</td>
-                        <td className="px-4 py-3 text-sepia">{getDeliveryStateLabel(order.deliveryState)}</td>
-                        <td className="px-4 py-3 text-sepia">
-                          {order.dueDate ? order.dueDate.toLocaleDateString("es-ES") : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-sepia">
-                          {order.billing?.requested
-                            ? "Solicitada"
-                            : "No solicitada"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <Link
-                              href={`/area-cliente/pedido/${order.reference}`}
-                              className="rounded-xl border border-cream px-2.5 py-1 text-xs font-semibold text-sepia hover:bg-cream"
-                            >
-                              Ver estado
-                            </Link>
-                            {order.paymentStatus === "PENDING" && (
-                              <Link
-                                href={`/area-cliente/pedido/${order.reference}/pagar`}
-                                className="rounded-xl bg-bleu px-2.5 py-1 text-xs font-semibold text-white hover:bg-bleu-dark"
-                              >
-                                Pagar
-                              </Link>
-                            )}
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-cream">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-parchment text-xs uppercase tracking-wide text-graphite">
+                <tr>
+                  <th className="px-4 py-3">Referencia</th>
+                  <th className="px-4 py-3">Descripción</th>
+                  <th className="px-4 py-3">Importe</th>
+                  <th className="px-4 py-3">Pago</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3">Descarga</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((o) => {
+                  const files = Array.isArray(o.deliveryFilesJson)
+                    ? (o.deliveryFilesJson as Array<{ url?: string; filename?: string | null }>).filter((f) => f && f.url)
+                    : o.translatedFileUrl
+                      ? [{ url: o.translatedFileUrl, filename: o.finalFilename }]
+                      : [];
+                  return (
+                    <tr key={o.reference} className="border-t border-cream align-top">
+                      <td className="px-4 py-3">
+                        <a href={buildSignedOrderUrl(o.reference, "estado")} className="font-mono text-xs font-semibold text-bleu hover:underline">
+                          {o.reference}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-sepia">{o.title}</td>
+                      <td className="px-4 py-3 text-sepia">{eur(o.amountCents)}</td>
+                      <td className="px-4 py-3 text-sepia">{getPaymentStateLabel(o.paymentStatus)}</td>
+                      <td className="px-4 py-3 text-sepia">
+                        {getDeliveryStateLabel(o.deliveryState)}
+                        {o.trackingNumber ? ` · envío ${o.trackingNumber}` : ""}
+                      </td>
+                      <td className="px-4 py-3">
+                        {files.length === 0 ? (
+                          <span className="text-xs text-graphite">—</span>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            {files.map((f, i) => (
+                              <a key={f.url} href={f.url as string} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-bleu hover:underline">
+                                ⬇ {f.filename || (files.length > 1 ? `Traducción ${i + 1}` : "Descargar")}
+                              </a>
+                            ))}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
-      {orders.length > 0 && (
+      {/* Presupuestos */}
+      {quotes.length > 0 && (
         <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-          <h2 className="text-lg font-semibold text-encre">Historial de pedidos</h2>
+          <h2 className="text-lg font-semibold text-encre">Mis presupuestos</h2>
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-cream">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-parchment text-xs uppercase tracking-wide text-graphite">
+                <tr>
+                  <th className="px-4 py-3">Nº</th>
+                  <th className="px-4 py-3">Idiomas</th>
+                  <th className="px-4 py-3">Total</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3">Válido hasta</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {quotes.map((q) => (
+                  <tr key={q.id} className="border-t border-cream">
+                    <td className="px-4 py-3 font-mono text-xs text-sepia">{q.quoteNumber}</td>
+                    <td className="px-4 py-3 text-sepia">{q.sourceLang} → {q.targetLang}</td>
+                    <td className="px-4 py-3 text-sepia">{decimalToNumber(q.total).toFixed(2)} EUR</td>
+                    <td className="px-4 py-3 text-sepia">{QUOTE_LABEL[q.status] || q.status}</td>
+                    <td className="px-4 py-3 text-sepia">{q.validUntil ? q.validUntil.toLocaleDateString("es-ES") : "—"}</td>
+                    <td className="px-4 py-3">
+                      {["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status) && (
+                        <a href={`/q/${q.publicToken}`} className="text-xs font-semibold text-bleu hover:underline">Ver / pagar</a>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Facturas */}
+      {invoices.length > 0 && (
+        <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+          <h2 className="text-lg font-semibold text-encre">Mis facturas</h2>
           <ul className="mt-3 space-y-2 text-sm text-sepia">
-            {orders.map((order) => (
-              <li key={`history-${order.reference}`} className="rounded-2xl border border-cream bg-parchment px-3 py-2">
-                <span className="font-mono text-xs font-semibold text-encre">{order.reference}</span>{" "}
-                · {order.langPair || "—"} · {order.createdAt.toISOString().slice(0, 10)} · {getDeliveryStateLabel(order.deliveryState)}
+            {invoices.map((inv) => (
+              <li key={inv.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cream bg-parchment px-4 py-2">
+                <span>
+                  <span className="font-semibold text-encre">{inv.number}</span>
+                  {inv.issuedAt ? ` · ${inv.issuedAt.toLocaleDateString("es-ES")}` : ""}
+                  {inv.concept ? ` · ${inv.concept}` : ""}
+                </span>
+                <span className="font-semibold text-encre">
+                  {eur(inv.totalCents)} {inv.paidAt ? "· cobrada" : ""}
+                </span>
               </li>
             ))}
           </ul>
+          <p className="mt-2 text-[11px] text-graphite">¿Necesitas el PDF de una factura? Escríbenos y te lo enviamos.</p>
         </section>
       )}
     </main>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-cream bg-parchment p-3">
+      <p className="text-xs uppercase tracking-wide text-graphite">{label}</p>
+      <p className="mt-1 text-lg font-bold text-encre">{value}</p>
+    </div>
   );
 }

@@ -128,6 +128,7 @@ model Order {
   finalDeliveryFileUrl String?
   finalFilename       String?
   finalMimeType       String?
+  deliveryFilesJson  Json?          // entrega MULTI-archivo A NIVEL PEDIDO: [{url, fileKey?, filename?, mimeType?}]; translatedFileUrl = el primero (compat). Distinto de OrderDocumentItem.deliveredFileUrl (por documento) y del assignment del colaborador.
   trackingNumber     String?        // envío en papel (deliveryType "paper"): nº de seguimiento de la mensajería
   shippedAt          DateTime?      // cuándo se notificó el envío al cliente
   assignedTo         String?
@@ -367,6 +368,17 @@ model Customer {
   name      String
   email     String   @unique
   phone     String?
+  // Pack fiscal del cliente (B2B recurrente, p.ej. Auream). Antes solo vivía
+  // suelto en cada ClientInvoice; aquí es la ficha del cliente para el portal.
+  companyName String?
+  nif         String?
+  fiscalName  String?
+  address     String?
+  city        String?
+  postalCode  String?
+  country     String?  @default("España")
+  notes       String?
+  isBusiness  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

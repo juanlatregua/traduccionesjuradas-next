@@ -335,6 +335,7 @@ export default async function PedidoPortalPage({
       finalDeliveryFileUrl: true,
       translatedFileUrl: true,
       finalFilename: true,
+      deliveryFilesJson: true,
       createdAt: true,
       paidAt: true,
       events: {
@@ -372,10 +373,17 @@ export default async function PedidoPortalPage({
   const deliveryLabel = getDeliveryLabel(workflowState, t);
   const timeline = buildTimeline(order, t);
 
-  // Delivery file URL
+  // Delivery file URL (primario) + lista multi-archivo (deliveryFilesJson).
   const deliveryFileUrl =
     String(order.finalDeliveryFileUrl || "").trim() ||
     String(order.translatedFileUrl || "").trim();
+  const deliveryFiles = Array.isArray(order.deliveryFilesJson)
+    ? (order.deliveryFilesJson as Array<{ url?: string; filename?: string | null }>).filter(
+        (f) => f && typeof f.url === "string" && f.url
+      )
+    : deliveryFileUrl
+      ? [{ url: deliveryFileUrl, filename: order.finalFilename }]
+      : [];
 
   // Payment URL (signed)
   const paymentUrl = buildSignedOrderUrl(reference, "pagar");
@@ -525,15 +533,21 @@ export default async function PedidoPortalPage({
                 <p className="text-sm font-medium text-emerald-900">
                   {t.readyBanner}
                 </p>
-                {deliveryFileUrl && (
-                  <a
-                    href={deliveryFileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-block rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-                  >
-                    {t.download}
-                  </a>
+                {deliveryFiles.length > 0 && (
+                  <div className="mt-3 flex flex-col items-start gap-2">
+                    {deliveryFiles.map((f, i) => (
+                      <a
+                        key={f.url}
+                        href={f.url as string}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                      >
+                        {t.download}
+                        {deliveryFiles.length > 1 ? ` ${i + 1}${f.filename ? ` · ${f.filename}` : ""}` : ""}
+                      </a>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

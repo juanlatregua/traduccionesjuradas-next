@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   computeQuoteTotals,
   PAPER_SHIPPING_BASE_EUR,
@@ -66,6 +66,26 @@ export default function QuoteBuilder({
   ]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Agenda de clientes (modelo Customer): elegir uno rellena los campos.
+  type Agenda = {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    companyName: string | null;
+    fiscalName: string | null;
+    nif: string | null;
+  };
+  const [agenda, setAgenda] = useState<Agenda[]>([]);
+  useEffect(() => {
+    fetch("/api/customers")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.ok && Array.isArray(d.customers)) setAgenda(d.customers);
+      })
+      .catch(() => {});
+  }, []);
 
   function updateLine(i: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -161,7 +181,29 @@ export default function QuoteBuilder({
       </p>
 
       <div className="mt-4 space-y-3">
-        {/* Cliente */}
+        {/* Cliente: elegir de la agenda (Customer) rellena los campos, o teclear */}
+        {agenda.length > 0 && (
+          <select
+            className={f}
+            defaultValue=""
+            onChange={(e) => {
+              const c = agenda.find((x) => x.id === e.target.value);
+              if (!c) return;
+              setName(c.companyName || c.name || "");
+              setEmail((c.email || "").toLowerCase());
+              setPhone(c.phone || "");
+            }}
+          >
+            <option value="">— Elegir cliente de la agenda (o teclear abajo) —</option>
+            {agenda.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.companyName || c.name}
+                {c.nif ? ` · ${c.nif}` : ""}
+                {c.email ? ` · ${c.email}` : ""}
+              </option>
+            ))}
+          </select>
+        )}
         <div className="grid gap-2 sm:grid-cols-3">
           <input className={f} placeholder="Nombre cliente" value={name} onChange={(e) => setName(e.target.value)} />
           <input className={f} type="email" placeholder="Email (o teléfono)" value={email} onChange={(e) => setEmail(e.target.value)} />

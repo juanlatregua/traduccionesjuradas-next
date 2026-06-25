@@ -19,12 +19,17 @@ export const runtime = "nodejs";
 
 type Params = { params: { reference: string } };
 
+type DeliveryFile = { url: string; fileKey?: string | null; filename?: string | null; mimeType?: string | null };
+
 type DeliveryBody = {
   state?: "EN_PROCESO" | "TRADUCIDO";
   translatedFileUrl?: string;
   translatedFileKey?: string;
   translatedFilename?: string;
   translatedMimeType?: string;
+  // Entrega MULTI-archivo: el panel sube N traducciones. El primero queda como
+  // translatedFileUrl (compat); todos se adjuntan al email y se guardan en lista.
+  files?: DeliveryFile[];
   notifyClient?: boolean;
   etaDate?: string;
   autoEta?: boolean;
@@ -51,6 +56,24 @@ export async function POST(req: Request, { params }: Params) {
     const translatedMimeType = (body.translatedMimeType || "").trim();
     const etaDateRaw = (body.etaDate || "").trim();
 
+    // Lista de entrega: usa body.files si llega; si no, retrocompat con el campo
+    // único. El primero es el "primario" (translatedFileUrl) para páginas/SMS/email.
+    const extraFiles = Array.isArray(body.files)
+      ? body.files.filter((f) => f && typeof f.url === "string" && f.url.trim())
+      : [];
+    const deliveryFiles =
+      extraFiles.length > 0
+        ? extraFiles.map((f) => ({
+            url: f.url.trim(),
+            fileKey: (f.fileKey || "").toString().trim() || null,
+            filename: (f.filename || "").toString().trim() || null,
+            mimeType: (f.mimeType || "").toString().trim() || null,
+          }))
+        : translatedFileUrl
+          ? [{ url: translatedFileUrl, fileKey: translatedFileKey || null, filename: translatedFilename || null, mimeType: translatedMimeType || null }]
+          : [];
+    const primaryFileUrl = deliveryFiles[0]?.url || translatedFileUrl;
+
     if (order.paymentStatus !== "PAID") {
       return NextResponse.json(
         { ok: false, error: "No se puede avanzar la entrega en pedidos pendientes de pago." },
@@ -58,9 +81,9 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    if (state === "TRADUCIDO" && !translatedFileUrl) {
+    if (state === "TRADUCIDO" && !primaryFileUrl) {
       return NextResponse.json(
-        { ok: false, error: "Para marcar como traducido debes adjuntar URL del archivo." },
+        { ok: false, error: "Para marcar como traducido debes adjuntar al menos un archivo." },
         { status: 400 }
       );
     }
@@ -131,12 +154,14 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     await updateDeliveryState(order.reference, state, {
-      translatedFileUrl: translatedFileUrl || undefined,
-      translatedFileKey: translatedFileKey || undefined,
-      translatedFilename: translatedFilename || undefined,
-      translatedMimeType: translatedMimeType || undefined,
+      translatedFileUrl: primaryFileUrl || undefined,
+      translatedFileKey: deliveryFiles[0]?.fileKey || translatedFileKey || undefined,
+      translatedFilename: deliveryFiles[0]?.filename || translatedFilename || undefined,
+      translatedMimeType: deliveryFiles[0]?.mimeType || translatedMimeType || undefined,
+      deliveryFiles: deliveryFiles.length > 0 ? deliveryFiles : undefined,
       dueDate: state === "EN_PROCESO" ? etaDate : undefined,
-      eventMessage: `Estado de entrega actualizado a ${state}.${etaMessage}`.trim(),
+      eventMessage:
+        `Estado de entrega actualizado a ${state}.${deliveryFiles.length > 1 ? ` ${deliveryFiles.length} archivos.` : ""}${etaMessage}`.trim(),
     });
 
     const statusUrl = buildSignedOrderUrl(order.reference, "estado");
@@ -152,25 +177,33 @@ export async function POST(req: Request, { params }: Params) {
       }).catch((e) => console.error("[orders-delivery] eta email failed", e));
     }
 
-    if (body.notifyClient && state === "TRADUCIDO" && translatedFileUrl) {
-      // Adjuntos: la traducción terminada y, SOLO si ya se emitió, la factura.
+    if (body.notifyClient && state === "TRADUCIDO" && primaryFileUrl) {
+      // Adjuntos: TODAS las traducciones entregadas + la factura (solo si emitida).
       // Se construyen en background para no bloquear la respuesta de la entrega.
       void (async () => {
-        const transName = `Traduccion-jurada-${order.reference}.pdf`;
-        const [transAttach, invAttach] = await Promise.all([
-          fetchFileAsAttachment(translatedFileUrl!, transName),
+        const multi = deliveryFiles.length > 1;
+        const [fileAttachments, invAttach] = await Promise.all([
+          Promise.all(
+            deliveryFiles.map((f, i) =>
+              fetchFileAsAttachment(
+                f.url,
+                f.filename || `Traduccion-jurada-${order.reference}${multi ? `-${i + 1}` : ""}.pdf`
+              )
+            )
+          ),
           buildIssuedInvoiceAttachment(order.reference),
         ]);
-        const attachments = [transAttach, invAttach].filter(Boolean) as NonNullable<typeof transAttach>[];
+        const transAttachments = fileAttachments.filter(Boolean) as NonNullable<(typeof fileAttachments)[number]>[];
+        const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
         await sendEmailWithRetry(() =>
           sendTranslationReadyEmail({
             toEmail: order.clientEmail,
             reference: order.reference,
-            downloadUrl: translatedFileUrl!,
+            downloadUrl: primaryFileUrl!,
             lang: deliveryLang,
             statusUrl,
             attachments,
-            translationAttached: !!transAttach,
+            translationAttached: transAttachments.length > 0,
             invoiceAttached: !!invAttach,
           })
         );
