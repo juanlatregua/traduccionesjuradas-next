@@ -28,6 +28,11 @@ export async function runQuoteToOrderBridge(input: {
   providerEventId: string;
   source: string;
   payload?: Record<string, unknown>;
+  // El puente es el chokepoint común del pago de presupuesto (mark-paid manual
+  // Y webhook Stripe-quotes). El webhook YA manda su propio email de pago rico
+  // (buildPaidDigitalEmail con ETA) → pasa false para no duplicar. El pago
+  // manual no mandaba ninguno → lo deja en true (default) y lo envía el puente.
+  sendClientPaidEmail?: boolean;
 }) {
   const { quote } = input;
 
@@ -67,13 +72,14 @@ export async function runQuoteToOrderBridge(input: {
       console.error("[quote-to-order] auto collaborator failed", e)
     );
 
-    // Aviso al CLIENTE: pago confirmado. Antes el camino de presupuesto solo
-    // avisaba a staff → el cliente pagaba (Bizum/transferencia o Stripe-quotes)
-    // y no recibía nada. Reusa la MISMA plantilla es/fr que los pedidos directos
-    // (Stripe/Redsys/PayPal). Fire-and-forget con retry → FailedEmail si agota.
+    // Aviso al CLIENTE: pago confirmado. Antes el pago MANUAL de presupuesto solo
+    // avisaba a staff → el cliente pagaba (Bizum/transferencia) y no recibía nada.
+    // Reusa la MISMA plantilla es/fr que los pedidos directos (Stripe/Redsys/PayPal).
+    // Fire-and-forget con retry → FailedEmail si agota. Se omite cuando el caller
+    // ya mandó su propio email de pago (webhook Stripe-quotes) para no duplicar.
     // NOTA: order.clientLocale aún no se propaga desde el Quote (default "es");
     // los presupuestos FR saldrían en es hasta que se propague el locale.
-    if (quote.customerEmail) {
+    if (quote.customerEmail && input.sendClientPaidEmail !== false) {
       const lang = order.clientLocale === "fr" ? "fr" : "es";
       sendEmailWithRetry(() =>
         sendPaymentConfirmedEmail({

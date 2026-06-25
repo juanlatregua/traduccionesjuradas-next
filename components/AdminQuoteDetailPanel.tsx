@@ -104,6 +104,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [loadingDeliver, setLoadingDeliver] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(false);
   const [loadingPaid, setLoadingPaid] = useState(false);
+  const [loadingReceipt, setLoadingReceipt] = useState(false);
   const [payMethod, setPayMethod] = useState<"BIZUM" | "STRIPE" | "TRANSFER">(() => {
     const m = initialQuote.paymentMethods || [];
     if (m.some((x) => x.startsWith("bizum"))) return "BIZUM";
@@ -263,6 +264,22 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
+  async function sendPaidReceipt() {
+    setLoadingReceipt(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}/send-paid-receipt`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo enviar el recibo.");
+      setMessage("Recibo PAGADO enviado al cliente por email.");
+      await reloadQuote();
+    } catch (err: any) {
+      setMessage(err?.message || "No se pudo enviar el recibo.");
+    } finally {
+      setLoadingReceipt(false);
+    }
+  }
+
   async function copyText(value: string, okMessage: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -345,14 +362,26 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
           >
             Copiar pay URL
           </button>
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={loadingResend}
-            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {loadingResend ? "Reenviando..." : "Reenviar email"}
-          </button>
+          {!["PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED"].includes(quote.status) && (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={loadingResend}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {loadingResend ? "Reenviando..." : "Reenviar email"}
+            </button>
+          )}
+          {["PAID", "IN_PROGRESS", "DELIVERED"].includes(quote.status) && (
+            <button
+              type="button"
+              onClick={sendPaidReceipt}
+              disabled={loadingReceipt}
+              className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+            >
+              {loadingReceipt ? "Enviando..." : "Enviar recibo PAGADO"}
+            </button>
+          )}
           {(QUOTE_NEXT[quote.status] || []).includes("PAID") && (
             <button
               type="button"

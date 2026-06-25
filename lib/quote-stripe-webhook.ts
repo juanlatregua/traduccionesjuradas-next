@@ -218,6 +218,9 @@ export async function processQuoteStripeEvent(event: any) {
         provider: "STRIPE",
         providerEventId: stripePaymentIntentId || stripeSessionId || `quote:${quote.id}`,
         source: "quote_webhook",
+        // El webhook ya envió su propio email de pago (buildPaidDigitalEmail con
+        // ETA, arriba) → el puente NO debe mandar otro. Evita el doble email.
+        sendClientPaidEmail: false,
         payload: { stripeEventId: String(event.id || ""), quoteId: quote.id },
       });
     } catch (bridgeErr) {
