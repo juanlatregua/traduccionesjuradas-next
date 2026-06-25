@@ -32,6 +32,22 @@ export async function GET(req: Request) {
     );
   }
 
+  // Rate-limit POR EMAIL (no solo por IP, que es falsificable vía x-forwarded-for):
+  // corta la enumeración de referencias contra un email conocido, que devolvía
+  // metadata + translatedFileUrl (blob público) → descarga masiva de PII por
+  // barrido. El cliente legítimo hace 1-2 consultas; 15/hora basta. (audit 25-jun)
+  const rlEmail = await checkRateLimit({
+    key: `lookup:email:${email}`,
+    limit: 15,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rlEmail.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiadas consultas para este email. Inténtalo más tarde." },
+      { status: 429 }
+    );
+  }
+
   const order = await prisma.order.findFirst({
     where: {
       reference,

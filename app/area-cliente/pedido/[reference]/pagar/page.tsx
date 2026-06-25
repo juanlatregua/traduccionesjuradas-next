@@ -503,12 +503,12 @@ export default function PagarPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-bleu">Pago registrado</h2>
+          <h2 className="text-xl font-bold text-bleu">Comprobante recibido</h2>
           <p className="mt-2 text-sm text-bleu">
-            Hemos recibido tu comprobante para el pedido <span className="font-mono font-semibold">{reference}</span> y ya ha quedado marcado como pagado.
+            Hemos recibido tu comprobante para el pedido <span className="font-mono font-semibold">{reference}</span>. Lo verificamos y te confirmamos el pago en breve por email.
           </p>
           <p className="mt-1 text-sm text-bleu">
-            Te hemos enviado la confirmación por email y puedes seguir el avance desde tu área de cliente.
+            Puedes seguir el avance desde tu área de cliente.
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link

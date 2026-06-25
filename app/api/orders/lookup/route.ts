@@ -32,6 +32,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Referencia y email son obligatorios." }, { status: 400 });
     }
 
+    // Rate-limit POR EMAIL (no solo por IP, falsificable): corta la enumeración
+    // de referencias contra un email conocido. (audit seguridad 25-jun)
+    const rlEmail = await checkRateLimit({
+      key: `orders:lookup:email:${email}`,
+      limit: 15,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!rlEmail.ok) {
+      return NextResponse.json(
+        { ok: false, error: "Demasiadas consultas para este email. Inténtalo más tarde." },
+        { status: 429, headers: { "Retry-After": String(rlEmail.retryAfterSec) } }
+      );
+    }
+
     const order = await getOrderLookupByReferenceAndEmail(reference, email);
     if (!order) {
       // Mensaje generico para no revelar combinaciones validas.

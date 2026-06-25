@@ -7,14 +7,10 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import {
-  sendPaymentConfirmedEmail,
-  sendPaymentProofUploadedStaffEmail,
-} from "@/lib/email";
-import { updateOrderPayment } from "@/lib/orders";
+import { sendPaymentProofUploadedStaffEmail } from "@/lib/email";
 import { validatePaymentProofFile } from "@/lib/file-security";
 import { getWorkflowState } from "@/lib/workflow";
-import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { transitionWorkflowState } from "@/lib/workflow-server";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
 
@@ -195,47 +191,17 @@ export async function POST(req: Request, { params }: Params) {
       console.error("[payment-proof] workflow transition failed", err);
     });
 
-    const paymentUpdate = await updateOrderPayment(
-      order.reference,
-      paymentMethod,
-      proofProviderEventId,
-      {
-        source: "payment_proof_upload",
-        payload: {
-          proofHash,
-          fileName: validation.safeName,
-          fileSize: file.size,
-          uploadedBy: sessionEmail || clientEmailRaw || null,
-        },
-      }
-    );
+    // El comprobante NO marca el pedido PAID automáticamente (audit seguridad
+    // 25-jun): subir una imagen no es prueba verificada de pago, y antes
+    // cualquiera con la referencia + el email podía dar por pagado un pedido con
+    // un justificante falso → traducción gratis. El pedido queda en
+    // JUSTIFICANTE_SUBIDO y es el STAFF quien confirma el pago (tras revisar el
+    // banco) vía /api/orders/[reference]/confirm-payment, que marca PAID y avisa
+    // al cliente. `paymentMethod` queda registrado en el evento de arriba.
+    void paymentMethod;
+    void proofProviderEventId;
 
-    if (paymentUpdate.changed) {
-      await transitionWorkflowState({
-        reference: order.reference,
-        to: "PAGO_VALIDADO",
-        actorEmail: sessionEmail || clientEmailRaw || "guest",
-        reason: "Pago validado automaticamente tras subir comprobante.",
-      }).catch((err) => {
-        console.error("[payment-proof] workflow transition to PAGO_VALIDADO failed", err);
-      });
-
-      await assignDefaultFrenchEtaIfNeeded({
-        reference: order.reference,
-        actorEmail: sessionEmail || clientEmailRaw || "guest",
-      }).catch((err) => {
-        console.error("[payment-proof] default FR ETA assignment failed", err);
-      });
-
-      await autoAssignCollaboratorIfNeeded({
-        reference: order.reference,
-        actorEmail: sessionEmail || clientEmailRaw || "guest",
-      }).catch((err) => {
-        console.error("[payment-proof] auto collaborator assignment failed", err);
-      });
-    }
-
-    // Non-blocking notifications
+    // Aviso al staff para que verifique el comprobante y confirme el pago.
     sendPaymentProofUploadedStaffEmail({
       reference: order.reference,
       title: order.title,
@@ -245,22 +211,10 @@ export async function POST(req: Request, { params }: Params) {
       fileName: file.name,
     }).catch((e) => console.error("[payment-proof] staff email failed", e));
 
-    if (paymentUpdate.changed) {
-      sendPaymentConfirmedEmail({
-        toEmail: order.clientEmail,
-        reference: order.reference,
-        title: order.title,
-        amountCents: order.amountCents,
-        method: paymentMethod,
-        lang: order.clientLocale === "fr" ? "fr" : "es",
-      }).catch((e) => console.error("[payment-proof] client payment confirmation email failed", e));
-    }
-
     return NextResponse.json({
       ok: true,
-      paymentStatus: paymentUpdate.changed ? "PAID" : order.paymentStatus,
-      duplicate: paymentUpdate.duplicate,
-      alreadyPaid: !paymentUpdate.changed && paymentUpdate.alreadyPaid,
+      paymentStatus: order.paymentStatus,
+      pendingVerification: true,
     });
   } catch (err: any) {
     console.error("[payment-proof] error", err);

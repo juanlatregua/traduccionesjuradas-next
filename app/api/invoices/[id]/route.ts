@@ -110,14 +110,17 @@ export async function DELETE(req: Request, { params }: Params) {
   });
   if (!invoice) return NextResponse.json({ ok: false, error: "Factura no encontrada." }, { status: 404 });
 
-  if (invoice.status === "ISSUED") {
-    const role = getStaffRole(access.email);
-    if (role !== "ADMIN" && role !== "PM") {
-      return NextResponse.json(
-        { ok: false, error: "Solo ADMIN/PM puede borrar una factura emitida." },
-        { status: 403 }
-      );
-    }
+  // Rol COLLABORATOR (traductor externo) nunca borra facturas, ni siquiera
+  // borradores; antes solo se gateaba el borrado de ISSUED. (audit seguridad 25-jun)
+  const role = getStaffRole(access.email);
+  if (role === "COLLABORATOR" || role === null) {
+    return NextResponse.json({ ok: false, error: "No autorizado para borrar facturas." }, { status: 403 });
+  }
+  if (invoice.status === "ISSUED" && role !== "ADMIN" && role !== "PM") {
+    return NextResponse.json(
+      { ok: false, error: "Solo ADMIN/PM puede borrar una factura emitida." },
+      { status: 403 }
+    );
   }
 
   try {
