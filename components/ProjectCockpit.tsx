@@ -13,6 +13,7 @@ type Item = {
   quotedCents: number | null;
   prodStatus: string;
   assignedTo: string | null;
+  fileUrl: string | null;
   deliveredFileUrl: string | null;
 };
 type Data = {
@@ -274,8 +275,18 @@ export default function ProjectCockpit({ data }: { data: Data }) {
                     placeholder="colaborador"
                     className="w-32 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-200"
                   />
+                  {it.fileUrl && (
+                    <a
+                      href={it.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 rounded-md border border-slate-600 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800"
+                    >
+                      📄 Original
+                    </a>
+                  )}
                   {it.deliveredFileUrl && (
-                    <a href={it.deliveredFileUrl} className="text-xs text-cyan-400 hover:text-cyan-300">archivo</a>
+                    <a href={it.deliveredFileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-emerald-400 hover:text-emerald-300">✓ traducción</a>
                   )}
                 </li>
               );
