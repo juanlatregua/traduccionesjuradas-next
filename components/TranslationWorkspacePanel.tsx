@@ -53,7 +53,7 @@ export default function TranslationWorkspacePanel({
   const [notifyClient, setNotifyClient] = useState(!translatorDeliveredAt);
   const [autoEta, setAutoEta] = useState(true);
   const [etaDate, setEtaDate] = useState(currentDueDate || "");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [url, setUrl] = useState(existingFileUrl || "");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -62,22 +62,27 @@ export default function TranslationWorkspacePanel({
   // a marcar la casilla a conciencia (reenvío intencionado).
   const [delivered, setDelivered] = useState(false);
 
-  async function uploadFile() {
-    if (!file) return null;
-    const form = new FormData();
-    form.append("file", file);
-    form.append("reference", reference);
-    const res = await fetch("/api/upload", { method: "POST", body: form });
-    const data = await res.json();
-    if (!res.ok || !data?.ok || !data?.url) {
-      throw new Error(data?.error || "No se pudo subir el archivo.");
+  type UploadedFile = { url: string; fileKey: string | null; filename: string; mimeType: string | null };
+
+  async function uploadFiles(): Promise<UploadedFile[]> {
+    const uploaded: UploadedFile[] = [];
+    for (const f of files) {
+      const form = new FormData();
+      form.append("file", f);
+      form.append("reference", reference);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok || !data?.ok || !data?.url) {
+        throw new Error(data?.error || `No se pudo subir ${f.name}.`);
+      }
+      uploaded.push({
+        url: String(data.url),
+        fileKey: String(data.pathname || "").trim() || null,
+        filename: f.name,
+        mimeType: f.type || null,
+      });
     }
-    return {
-      url: String(data.url),
-      fileKey: String(data.pathname || "").trim() || null,
-      filename: file.name,
-      mimeType: file.type || null,
-    };
+    return uploaded;
   }
 
   async function submit() {
@@ -90,18 +95,11 @@ export default function TranslationWorkspacePanel({
     setMessage(null);
     try {
       let finalUrl = url.trim();
-      let finalFileKey: string | null = null;
-      let finalFilename: string | null = null;
-      let finalMimeType: string | null = null;
+      let uploaded: UploadedFile[] = [];
 
-      if (state === "TRADUCIDO" && !finalUrl && file) {
-        const upload = await uploadFile();
-        if (upload) {
-          finalUrl = upload.url;
-          finalFileKey = upload.fileKey;
-          finalFilename = upload.filename;
-          finalMimeType = upload.mimeType;
-        }
+      if (state === "TRADUCIDO" && files.length > 0) {
+        uploaded = await uploadFiles();
+        finalUrl = uploaded[0]?.url || finalUrl;
         setUrl(finalUrl);
       }
 
@@ -111,9 +109,10 @@ export default function TranslationWorkspacePanel({
         body: JSON.stringify({
           state,
           translatedFileUrl: finalUrl || undefined,
-          translatedFileKey: finalFileKey || undefined,
-          translatedFilename: finalFilename || undefined,
-          translatedMimeType: finalMimeType || undefined,
+          translatedFileKey: uploaded[0]?.fileKey || undefined,
+          translatedFilename: uploaded[0]?.filename || undefined,
+          translatedMimeType: uploaded[0]?.mimeType || undefined,
+          files: uploaded.length > 0 ? uploaded : undefined,
           notifyClient: state === "TRADUCIDO" ? notifyClient : false,
           etaDate: state === "EN_PROCESO" && !autoEta ? etaDate || undefined : undefined,
           autoEta: state === "EN_PROCESO" ? autoEta : false,
@@ -237,10 +236,11 @@ export default function TranslationWorkspacePanel({
         <input
           type="file"
           accept=".pdf,.doc,.docx"
+          multiple
           onChange={(e) => {
-            const f = e.target.files?.[0] || null;
-            setFile(f);
-            if (f) {
+            const fs = Array.from(e.target.files || []);
+            setFiles(fs);
+            if (fs.length > 0) {
               setState("TRADUCIDO");
               setDelivered(false);
             }
@@ -248,9 +248,9 @@ export default function TranslationWorkspacePanel({
           className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-emerald-500/50 file:bg-emerald-600/20 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-200"
         />
         <p className="mt-1.5 text-[11px] text-slate-400">
-          {file
-            ? "✓ Archivo listo. Marca «Notificar al cliente» abajo y pulsa Guardar para enviárselo."
-            : "PDF o Word. Al elegir el archivo se marca como Traducido automáticamente."}
+          {files.length > 0
+            ? `✓ ${files.length} archivo${files.length > 1 ? "s" : ""} listo${files.length > 1 ? "s" : ""}. Marca «Notificar al cliente» y pulsa Guardar para enviárselo${files.length > 1 ? "s todos" : ""}.`
+            : "PDF o Word. Puedes seleccionar VARIOS. Al elegir se marca como Traducido automáticamente."}
         </p>
       </div>
 
