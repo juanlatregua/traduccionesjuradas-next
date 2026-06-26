@@ -751,16 +751,12 @@ export async function sendTranslationStartedAssignedEmail(data: {
   const fr = data.lang === "fr";
 
   if (fr) {
-    const translatorLabel = data.translatorSwornNumber
-      ? `${data.translatorName} (n° ${data.translatorSwornNumber})`
-      : data.translatorName;
     const etaLine = data.etaDateLabel
       ? `Date de livraison estimée : ${data.etaDateLabel}`
       : "La date de livraison estimée sera confirmée sous peu.";
     const html = `
       <h2>Votre traduction est en cours</h2>
       <p>Commande <strong>${data.reference}</strong>.</p>
-      <p>Votre traducteur assermenté assigné est <strong>${translatorLabel}</strong>.</p>
       <p>${etaLine}</p>
       <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Suivre l'état</a></p>
     `;
@@ -768,9 +764,6 @@ export async function sendTranslationStartedAssignedEmail(data: {
     return;
   }
 
-  const translatorLabel = data.translatorSwornNumber
-    ? `${data.translatorName} (Nº ${data.translatorSwornNumber})`
-    : data.translatorName;
   const etaLine = data.etaDateLabel
     ? `Fecha estimada de entrega: ${data.etaDateLabel}`
     : "La fecha estimada de entrega se confirmara en breve.";
@@ -778,7 +771,6 @@ export async function sendTranslationStartedAssignedEmail(data: {
   const html = `
     <h2>Tu traduccion ya esta en proceso</h2>
     <p>Pedido <strong>${data.reference}</strong>.</p>
-    <p>Tu traductor jurado asignado es <strong>${translatorLabel}</strong>.</p>
     <p>${etaLine}</p>
     <p><a href="https://www.traduccionesjuradas.net/consulta" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar estado</a></p>
   `;

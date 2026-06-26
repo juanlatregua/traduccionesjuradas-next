@@ -12,7 +12,6 @@ import {
 import OrderClientPanel from "@/components/OrderClientPanel";
 import AutoRefresh from "@/components/AutoRefresh";
 import { getWorkflowState } from "@/lib/workflow";
-import { findTranslatorProfile } from "@/lib/translators";
 
 export const metadata: Metadata = {
   title: "Estado de pedido",
@@ -80,8 +79,6 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
   const sourceDocuments = getSourceDocuments(order.events);
   const hasProofUploaded = proofEvents.length > 0;
   const workflowState = getWorkflowState(order);
-  const translatorProfile = findTranslatorProfile(order.assignedTo);
-  const translatorName = order.assignedTo || translatorProfile?.fullName || null;
   const paymentVerificationLabel =
     order.paymentStatus === "PAID"
       ? "Pago confirmado"
@@ -153,12 +150,8 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           {order.langPair && <p><span className="font-semibold">Idiomas:</span> {order.langPair}</p>}
           {order.words && <p><span className="font-semibold">Palabras:</span> {order.words}</p>}
           {order.pagesLabel && <p><span className="font-semibold">Alcance:</span> {order.pagesLabel}</p>}
-          {translatorName && (
-            <p>
-              <span className="font-semibold">Traductor/a jurado/a asignado/a:</span> {translatorName}
-              {translatorProfile?.swornNumber ? ` · Nº ${translatorProfile.swornNumber}` : ""}
-            </p>
-          )}
+          {/* El traductor/colaborador asignado NO se muestra al cliente (confidencial,
+              uso interno de la zona traductor). */}
         </div>
         <p className="mt-3 text-sm font-semibold text-encre">Total: {formatMoney(order.amountCents)}</p>
       </section>
