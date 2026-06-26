@@ -31,9 +31,12 @@ export default async function AdminQuoteDetailPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-4">
         <Link href="/admin/quotes" className="text-sm font-semibold text-emerald-700 hover:underline">
           ← Volver a presupuestos
+        </Link>
+        <Link href={`/admin/quotes/${params.id}/editar`} className="text-sm font-semibold text-emerald-700 hover:underline">
+          ✎ Editar datos y líneas
         </Link>
       </div>
       <AdminQuoteDetailPanel initialQuote={serialized as any} />
