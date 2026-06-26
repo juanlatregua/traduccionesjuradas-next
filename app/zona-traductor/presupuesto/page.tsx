@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
+import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -34,6 +35,7 @@ export default async function ZonaTraductorPresupuestoPage({
   };
 }) {
   await authZonaTraductorOrRedirect();
+  const { pedidosAccionables } = await loadBandejaState();
 
   const expRef = typeof searchParams.exp === "string" ? searchParams.exp : null;
 
@@ -73,6 +75,7 @@ export default async function ZonaTraductorPresupuestoPage({
 
   return (
     <div className="min-h-screen bg-slate-950">
+      <ZonaTraductorNav modoActivo="presupuesto" pedidosAccionables={pedidosAccionables} />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <header className="mb-6">
           <a href="/zona-traductor/expedientes" className="text-sm text-cyan-400 hover:text-cyan-300">

@@ -35,7 +35,7 @@ function MessageBody({ html, text }: { html: string | null; text: string | null 
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="text-xs font-semibold text-bleu hover:underline"
+        className="text-xs font-semibold text-cyan-400 hover:underline"
       >
         {open ? "Ocultar mensaje" : "Ver mensaje enviado"}
       </button>
@@ -47,10 +47,10 @@ function MessageBody({ html, text }: { html: string | null; text: string | null 
             title="Mensaje enviado al cliente"
             sandbox=""
             srcDoc={html}
-            className="mt-2 h-72 w-full rounded-lg border border-sepia/40 bg-white"
+            className="mt-2 h-72 w-full rounded-lg border border-slate-700 bg-slate-900"
           />
         ) : (
-          <p className="mt-2 whitespace-pre-wrap rounded-lg border border-sepia/40 bg-cream/60 p-3 text-sm text-encre">
+          <p className="mt-2 whitespace-pre-wrap rounded-lg border border-slate-700 bg-slate-800/40 p-3 text-sm text-slate-100">
             {text}
           </p>
         ))}
@@ -61,7 +61,7 @@ function MessageBody({ html, text }: { html: string | null; text: string | null 
 export default function ClientMessagesSection({ messages }: { messages: ClientMessage[] }) {
   if (!messages.length) {
     return (
-      <p className="text-sm text-encre/60">
+      <p className="text-sm text-slate-400">
         Aún no se ha enviado ningún mensaje al cliente desde este pedido.
       </p>
     );
@@ -69,20 +69,20 @@ export default function ClientMessagesSection({ messages }: { messages: ClientMe
   return (
     <ul className="space-y-3">
       {messages.map((m) => (
-        <li key={m.id} className="rounded-xl border border-sepia/30 bg-cream/50 p-3">
+        <li key={m.id} className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-encre">
+            <p className="text-sm font-semibold text-slate-100">
               {typeLabel(m.type)}{" "}
-              <span className="rounded-md bg-bleu/10 px-1.5 py-0.5 text-[11px] font-semibold text-bleu">
+              <span className="rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-cyan-400">
                 {channelLabel(m.channel)}
               </span>
             </p>
-            <p className="text-xs text-encre/50">
+            <p className="text-xs text-slate-500">
               {new Date(m.createdAt).toLocaleString("es-ES")}
             </p>
           </div>
-          {m.toEmail && <p className="mt-0.5 text-xs text-encre/60">Para: {m.toEmail}</p>}
-          {m.subject && <p className="mt-1 text-sm text-encre/80">{m.subject}</p>}
+          {m.toEmail && <p className="mt-0.5 text-xs text-slate-400">Para: {m.toEmail}</p>}
+          {m.subject && <p className="mt-1 text-sm text-slate-300">{m.subject}</p>}
           <MessageBody html={m.bodyHtml} text={m.bodyText} />
         </li>
       ))}
