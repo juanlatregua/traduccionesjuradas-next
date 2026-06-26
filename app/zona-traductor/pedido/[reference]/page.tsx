@@ -10,6 +10,8 @@ import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getOrderActionStage, getNextBestAction } from "@/lib/order-actions";
 import OrderStepper from "@/components/order-workspace/OrderStepper";
+import ClientMessageComposer from "@/components/order-workspace/ClientMessageComposer";
+import FileThumbnails from "@/components/order-workspace/FileThumbnails";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
 import ClientMessagesSection, {
   type ClientMessage,
@@ -164,10 +166,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           "¡Gracias!",
         ].join("\n\n")
       : "";
-  const whatsappResendHref =
-    clientPhoneDigits && whatsappResendText
-      ? `https://wa.me/${clientPhoneDigits}?text=${encodeURIComponent(whatsappResendText)}`
-      : null;
+  const clientMessageSubject = `Tu traducción jurada está lista (pedido ${order.reference})`;
 
   return (
     <main className="min-h-screen bg-cream px-4 py-6">
@@ -231,34 +230,16 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                   </li>
                 ))}
               </ul>
-              <div className="mt-3 border-t border-emerald-200 pt-3">
-                <p className="text-xs font-semibold text-emerald-800">Reenviar al cliente</p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  {whatsappResendHref ? (
-                    <a
-                      href={whatsappResendHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
-                    >
-                      Reenviar por WhatsApp (traducciones + reseña)
-                    </a>
-                  ) : (
-                    <span className="text-xs text-encre/50">Sin teléfono del cliente para WhatsApp.</span>
-                  )}
-                  <a
-                    href={reviewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-bleu hover:underline"
-                  >
-                    Enlace de reseña Google →
-                  </a>
-                </div>
-                <p className="mt-1 text-[11px] text-encre/50">
-                  Abre WhatsApp con el mensaje y los enlaces ya escritos. Útil para leads sin email real (@whatsapp.local).
-                </p>
-              </div>
+              <FileThumbnails
+                files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
+              />
+              <ClientMessageComposer
+                reference={order.reference}
+                clientEmail={order.clientEmail}
+                clientPhoneDigits={clientPhoneDigits}
+                defaultSubject={clientMessageSubject}
+                defaultMessage={whatsappResendText}
+              />
             </div>
           ) : (
             <p className="mb-4 text-sm text-encre/60">
@@ -295,6 +276,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               ))}
             </ul>
           )}
+          <FileThumbnails
+            files={sourceDocs.filter((d) => d.url).map((d) => ({ name: d.name, url: d.url as string }))}
+          />
         </Section>
 
         {/* SECCIÓN 3 — Colaborador */}

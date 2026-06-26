@@ -1,0 +1,113 @@
+// app/api/orders/[reference]/notify-custom/route.ts
+//
+// Envía al cliente un EMAIL con cuerpo editable por el staff desde la landing del
+// pedido (adjunta las traducciones entregadas + la factura emitida si la hay).
+// Registra el mensaje como OrderEvent para que se vea en la propia landing.
+
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireStaffAccess } from "@/lib/staff-auth";
+import { sendCustomClientEmail } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
+import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
+
+export const runtime = "nodejs";
+
+type Params = { params: { reference: string } };
+type DeliveryFile = { url: string; filename?: string | null };
+
+export async function POST(req: Request, { params }: Params) {
+  const staff = await requireStaffAccess(req);
+  if (!staff.ok) {
+    return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
+  }
+
+  try {
+    const order = await prisma.order.findUnique({
+      where: { reference: params.reference },
+      select: {
+        id: true,
+        reference: true,
+        clientEmail: true,
+        deliveryFilesJson: true,
+        translatedFileUrl: true,
+        finalFilename: true,
+      },
+    });
+    if (!order) {
+      return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const subject = String(body?.subject || "").trim() || `Tu traducción jurada (${order.reference})`;
+    const bodyText = String(body?.bodyText || "").trim();
+    const attachFiles = body?.attachFiles !== false;
+    if (!bodyText) {
+      return NextResponse.json({ ok: false, error: "El mensaje está vacío." }, { status: 400 });
+    }
+
+    // Los leads de WhatsApp tienen email sintético (@whatsapp.local): no llega.
+    if (String(order.clientEmail || "").toLowerCase().endsWith("@whatsapp.local")) {
+      return NextResponse.json(
+        { ok: false, error: "Este cliente no tiene email real (lead de WhatsApp). Envíalo por WhatsApp." },
+        { status: 400 }
+      );
+    }
+
+    let attachments: any[] = [];
+    if (attachFiles) {
+      const files: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
+        ? (order.deliveryFilesJson as unknown as DeliveryFile[]).filter(
+            (f) => f && typeof f.url === "string" && f.url.trim()
+          )
+        : order.translatedFileUrl
+          ? [{ url: order.translatedFileUrl, filename: order.finalFilename || null }]
+          : [];
+      const multi = files.length > 1;
+      const [fileAtts, invAtt] = await Promise.all([
+        Promise.all(
+          files.map((f, i) =>
+            fetchFileAsAttachment(
+              f.url,
+              f.filename || `Traduccion-jurada-${order.reference}${multi ? `-${i + 1}` : ""}.pdf`
+            )
+          )
+        ),
+        buildIssuedInvoiceAttachment(order.reference),
+      ]);
+      attachments = [...fileAtts.filter(Boolean), ...(invAtt ? [invAtt] : [])];
+    }
+
+    // Log SÍNCRONO antes del envío de fondo: el contenido exacto queda en la
+    // landing aunque el envío no llegue a completar en serverless.
+    await prisma.orderEvent
+      .create({
+        data: {
+          orderId: order.id,
+          type: "notification.custom.sent",
+          message: "Mensaje personalizado enviado al cliente por email.",
+          payload: {
+            channel: "EMAIL",
+            toEmail: order.clientEmail,
+            subject,
+            bodyText,
+            actorEmail: staff.email,
+            fileCount: attachments.length,
+          },
+        },
+      })
+      .catch((e) => console.error("[notify-custom] event failed", e));
+
+    await sendEmailWithRetry(() =>
+      sendCustomClientEmail({ toEmail: order.clientEmail, subject, bodyText, attachments })
+    );
+
+    return NextResponse.json({ ok: true, fileCount: attachments.length });
+  } catch (err: any) {
+    console.error("[notify-custom] error", err);
+    return NextResponse.json(
+      { ok: false, error: err?.message || "Error al enviar el email." },
+      { status: 500 }
+    );
+  }
+}

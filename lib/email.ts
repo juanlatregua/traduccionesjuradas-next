@@ -59,6 +59,27 @@ export function wrapClientEmailHtml(content: string) {
   `;
 }
 
+// Envío de un mensaje EDITABLE por el staff al cliente (cuerpo de texto plano que
+// el staff escribe/ajusta en la landing del pedido). Opcionalmente con adjuntos.
+export async function sendCustomClientEmail(data: {
+  toEmail: string;
+  subject: string;
+  bodyText: string;
+  attachments?: MailAttachment[];
+}) {
+  const safe = String(data.bodyText)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const html = `<div style="white-space:pre-wrap; font-size:14px; line-height:1.5;">${safe}</div>`;
+  await sendMail({
+    to: data.toEmail,
+    subject: data.subject,
+    html: wrapClientEmailHtml(html),
+    attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
+  });
+}
+
 export async function sendPresupuestoEmail(payload: PresupuestoPayload) {
   const to = process.env.PRESUPUESTO_TO;
   if (!to) throw new Error("Missing PRESUPUESTO_TO");
