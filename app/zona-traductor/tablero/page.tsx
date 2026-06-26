@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
-import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import KanbanBoard from "@/components/KanbanBoard";
 import {
   getWorkflowState,
@@ -29,8 +28,6 @@ function laneOf(state: WorkflowState): string {
 
 export default async function ZonaTraductorTableroPage() {
   await authZonaTraductorOrRedirect();
-  const bandeja = await loadBandejaState().catch(() => null);
-  const accionables = bandeja?.pedidosAccionables ?? 0;
 
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
@@ -87,7 +84,6 @@ export default async function ZonaTraductorTableroPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <ZonaTraductorNav modoActivo="tablero" pedidosAccionables={accionables} />
       <KanbanBoard lanes={LANES.map(({ key, label }) => ({ key, label }))} initialCards={cards} />
     </div>
   );

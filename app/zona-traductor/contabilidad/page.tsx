@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getStaffRole } from "@/lib/staff-access";
 import { listPaidUnbilledOrders } from "@/lib/reconcile-invoices";
-import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense } from "@/components/ContabilidadClient";
 import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 import ReconcilePanel from "@/components/ReconcilePanel";
@@ -19,8 +18,6 @@ export default async function ZonaTraductorContabilidadPage() {
   const staffEmail = await authZonaTraductorOrRedirect();
   const role = getStaffRole(staffEmail);
   const canIssue = role === "ADMIN" || role === "PM";
-  const bandeja = await loadBandejaState().catch(() => null);
-  const accionables = bandeja?.pedidosAccionables ?? 0;
 
   const [rawInvoices, rawOrders, rawExpenses, unbilled] = await Promise.all([
     prisma.clientInvoice.findMany({ where: { status: "ISSUED" }, orderBy: { issuedAt: "desc" }, take: 3000 }),
@@ -76,7 +73,6 @@ export default async function ZonaTraductorContabilidadPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <ZonaTraductorNav modoActivo="contabilidad" pedidosAccionables={accionables} />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

@@ -16,8 +16,6 @@ import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
 import ClientMessagesSection, {
   type ClientMessage,
 } from "@/components/order-workspace/ClientMessagesSection";
-import ZonaTraductorNav from "@/components/ZonaTraductorNav";
-import { loadBandejaState } from "@/lib/zona-traductor-data";
 
 export const metadata: Metadata = {
   title: "Pedido — Zona traductor",
@@ -144,8 +142,6 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const deliveredFiles = getDeliveredFiles(order);
   const messages = getClientMessages(order.events);
   const assignment = order.collaboratorAssignments?.[0] || null;
-  // Menú central (mismo de toda la zona): necesita el contador de pendientes.
-  const { pedidosAccionables } = await loadBandejaState();
 
   // Stepper lineal: el backend (lib/order-actions) ya calcula el paso actual y
   // la "siguiente mejor accion". La landing solo lo renderiza — cero logica nueva.
@@ -174,7 +170,6 @@ export default async function PedidoWorkspacePage({ params }: Params) {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <ZonaTraductorNav modoActivo="bandeja" pedidosAccionables={pedidosAccionables} />
       <main className="px-4 py-6">
       <div className="mx-auto max-w-5xl space-y-5">
         {/* Cabecera */}
@@ -313,10 +308,25 @@ export default async function PedidoWorkspacePage({ params }: Params) {
 
         {/* SECCIÓN 4 — Finanzas */}
         <Section id="finanzas" title="Finanzas">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Importe</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Importe (ingreso)</p>
               <p className="text-sm font-semibold text-slate-100">{(order.amountCents / 100).toFixed(2)} EUR</p>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Margen</p>
+              <p
+                className={`text-sm font-semibold ${
+                  financeSnapshot.marginCents != null && financeSnapshot.marginCents < 0
+                    ? "text-rose-400"
+                    : "text-emerald-400"
+                }`}
+              >
+                {financeSnapshot.marginCents != null
+                  ? `${(financeSnapshot.marginCents / 100).toFixed(2)} EUR`
+                  : "—"}
+                {financeSnapshot.marginPct != null ? ` (${financeSnapshot.marginPct}%)` : ""}
+              </p>
             </div>
             <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
               <p className="text-xs uppercase tracking-wide text-slate-500">Estado de pago</p>

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getStaffRole } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
-import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import RecurringInvoiceManager, { type RecurringRow } from "@/components/RecurringInvoiceManager";
 
 export const metadata: Metadata = {
@@ -16,8 +15,6 @@ export default async function ZonaTraductorRecurrentesPage() {
   const email = await authZonaTraductorOrRedirect();
   const role = getStaffRole(email);
   const canManage = role === "ADMIN" || role === "PM";
-  const bandeja = await loadBandejaState().catch(() => null);
-  const accionables = bandeja?.pedidosAccionables ?? 0;
 
   const raw = await prisma.recurringInvoice.findMany({ orderBy: [{ active: "desc" }, { createdAt: "desc" }] });
   const templates: RecurringRow[] = raw.map((t) => ({
@@ -45,7 +42,6 @@ export default async function ZonaTraductorRecurrentesPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <ZonaTraductorNav modoActivo="recurrentes" pedidosAccionables={accionables} />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-semibold text-white">Facturas recurrentes</h1>
         <p className="mt-1 text-sm text-slate-400">

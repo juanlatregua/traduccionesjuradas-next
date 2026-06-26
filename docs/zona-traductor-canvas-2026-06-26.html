@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zona traductor — cómo quedaría</title>
+<style>
+  :root{
+    --bg:#020617;--panel:#0f172a;--panel2:#1e293b;--panel3:#172033;
+    --line:#334155;--line2:#1e293b;--ink:#e2e8f0;--ink2:#f1f5f9;--mut:#94a3b8;--mut2:#64748b;
+    --cyan:#22d3ee;--cyanb:#0891b2;--emer:#34d399;--amber:#fbbf24;--rose:#fb7185;--violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1140px;margin:0 auto;padding:26px 20px 70px}
+  h1{font-size:26px;margin:0 0 4px;color:var(--ink2)}
+  .sub{color:var(--mut);margin:0 0 22px;font-size:14px}
+  h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:34px 0 12px;font-weight:700}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px;font-size:11.5px}
+  .tag{padding:3px 9px;border-radius:999px;font-weight:700;white-space:nowrap}
+  .t-new{background:rgba(34,211,238,.16);color:var(--cyan)}
+  .t-ws{background:rgba(167,139,250,.18);color:var(--violet)}
+  .t-cp{background:rgba(52,211,153,.16);color:var(--emer)}
+  .t-ok{background:rgba(148,163,184,.18);color:var(--mut)}
+
+  /* ANTES -> DESPUES */
+  .flow{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin:10px 0 6px}
+  .col h3{font-size:12px;color:var(--mut);margin:0 0 8px;text-transform:uppercase;letter-spacing:.06em}
+  .messy{border:1px solid var(--rose);border-radius:14px;padding:12px;background:rgba(251,113,133,.05)}
+  .messy .row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .messy .row:last-child{margin-bottom:0}
+  .chip{font-size:11.5px;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+  .chip.dim{opacity:.6;text-decoration:line-through;border-style:dashed}
+  .clean{border:1px solid var(--emer);border-radius:14px;padding:12px;background:rgba(52,211,153,.05)}
+  .clean .chip{border-color:var(--cyanb);background:rgba(8,145,178,.18);color:var(--cyan);font-weight:600}
+  .arrow{font-size:30px;color:var(--cyan);text-align:center}
+  .note{font-size:11px;color:var(--mut2);margin-top:6px}
+
+  /* app shell */
+  .app{border:1px solid var(--line2);border-radius:18px;overflow:hidden;background:var(--panel);box-shadow:0 16px 40px rgba(0,0,0,.4)}
+  .nav{display:flex;align-items:center;gap:4px;background:#0b1220;border-bottom:1px solid var(--line2);padding:9px 14px;flex-wrap:wrap}
+  .nav .tab{font-size:13px;font-weight:600;color:var(--mut);padding:6px 12px;border-radius:8px}
+  .nav .tab.on{color:#fff;border-bottom:2px solid var(--cyan);border-radius:0;padding-bottom:7px}
+  .nav .badge{margin-left:5px;background:rgba(34,211,238,.18);color:var(--cyan);font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px}
+  .nav .spacer{flex:1}
+  .nav .new{background:var(--cyanb);color:#fff;font-size:13px;font-weight:700;padding:7px 14px;border-radius:10px}
+  .body{padding:18px}
+
+  /* generic card */
+  .card{border:1px solid var(--line);border-radius:16px;background:var(--panel3);padding:14px 16px;margin-bottom:14px;position:relative}
+  .card .src{position:absolute;top:12px;right:12px}
+  .card h4{margin:0 0 4px;font-size:14px;color:var(--ink2)}
+  .card .muted{color:var(--mut);font-size:12.5px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px}
+  .p-paid{background:rgba(52,211,153,.16);color:var(--emer)}
+  .p-state{background:rgba(34,211,238,.14);color:var(--cyan)}
+
+  /* stepper */
+  .steps{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+  .step{font-size:11.5px;padding:4px 10px;border-radius:999px;background:rgba(148,163,184,.14);color:var(--mut2)}
+  .step.done{background:rgba(52,211,153,.16);color:var(--emer)}
+  .step.cur{background:var(--cyanb);color:#fff;font-weight:700}
+  .step .sep{color:var(--mut2);padding:0 2px}
+  .next{margin-top:12px;border:1px solid rgba(34,211,238,.4);background:rgba(34,211,238,.08);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .next b{color:var(--ink2)}
+  .next .cta{background:var(--cyanb);color:#fff;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:10px}
+
+  /* action buttons */
+  .actions{display:flex;flex-wrap:wrap;gap:8px}
+  .btn{font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:10px;border:1px solid var(--line)}
+  .btn.primary{background:var(--cyanb);color:#fff;border-color:var(--cyanb)}
+  .btn.ghost{background:transparent;color:var(--ink)}
+  .btn.wa{background:#059669;color:#fff;border-color:#059669}
+
+  /* mini boxes */
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .mini{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:10px}
+  .mini .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut2)}
+  .mini .v{font-size:13px;font-weight:700;color:var(--ink2);margin-top:2px}
+  .mini .v.pos{color:var(--emer)}
+  .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+  .thumb{border:1px solid var(--line);border-radius:10px;background:var(--panel2);height:84px;display:flex;align-items:center;justify-content:center;color:var(--mut2);font-size:11px}
+  .editor{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .editor .pane{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:10px;min-height:90px;font-size:12px;color:var(--mut)}
+  .editor .pane.r{border-color:var(--cyanb)}
+  .composer{border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:8px;font-size:12px;color:var(--mut)}
+  .input{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:7px 10px;font-size:12px;color:var(--mut);margin-bottom:6px}
+  .dashed{border-style:dashed!important}
+  .annot{font-size:11px;color:var(--mut2);margin-top:8px;border-left:2px solid var(--line);padding-left:8px}
+  @media(max-width:720px){.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}.grid4{grid-template-columns:1fr 1fr}.editor{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Zona traductor — cómo quedaría</h1>
+  <p class="sub">Un solo menú · <b>una lista</b> (Bandeja) · <b>un detalle</b> (la Landing del pedido). Todo lo demás redirige aquí.</p>
+
+  <div class="legend">
+    <span class="tag t-ok">ya estaba</span>
+    <span class="tag t-new">nuevo / a pintar</span>
+    <span class="tag t-cp">viene del Cockpit (gestión)</span>
+    <span class="tag t-ws">viene del Workspace (producción)</span>
+  </div>
+
+  <!-- ANTES / DESPUES -->
+  <h2>De 6 pantallas → 2</h2>
+  <div class="flow">
+    <div class="col">
+      <h3>Antes (el caos)</h3>
+      <div class="messy">
+        <div class="row"><span class="chip">Bandeja</span><span class="chip dim">Tablero</span><span class="chip dim">Control</span></div>
+        <div class="row"><span class="chip">Landing</span><span class="chip dim">Workspace</span><span class="chip dim">Cockpit</span></div>
+        <div class="note">3 listas + 3 detalles del mismo pedido. Cada lista abre un detalle distinto.</div>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col">
+      <h3>Después</h3>
+      <div class="clean">
+        <div class="row"><span class="chip">Bandeja &nbsp;(la lista)</span></div>
+        <div class="row"><span class="chip">Pedido / Landing &nbsp;(el detalle)</span></div>
+        <div class="note">Tablero/Control/Workspace/Cockpit → redirigen aquí (con 308, sin romper SMS/emails). La contabilidad intacta.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANDEJA -->
+  <h2>1 · La lista — Bandeja</h2>
+  <div class="app">
+    <div class="nav">
+      <span class="tab on">Bandeja<span class="badge">4</span></span>
+      <span class="tab">Expedientes</span><span class="tab">Presupuesto</span>
+      <span class="tab">Facturas</span><span class="tab">Recurrentes</span><span class="tab">Contabilidad</span>
+      <span class="spacer"></span><span class="new">+ Nuevo pedido</span>
+    </div>
+    <div class="body">
+      <div class="card" style="margin-bottom:10px">
+        <h4>Maite Manterola <span class="muted">· TJ-2026-QKFJ2661 · AR→ES · 55 €</span> <span class="pill p-paid">PAGADO</span></h4>
+        <div class="muted">2 documentos · vence 17 abr</div>
+        <div class="actions" style="margin-top:10px"><span class="btn primary">Abrir pedido →</span></div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <h4>Bénédiction <span class="muted">· 26_F08934 · FR→ES · 73 €</span> <span class="pill p-state">EN TRADUCCIÓN</span></h4>
+        <div class="actions" style="margin-top:10px"><span class="btn primary">Abrir pedido →</span></div>
+      </div>
+      <div class="annot">Un solo botón por pedido: <b>Abrir pedido</b> → la Landing. (Adiós a "Workspace / Ver detalle / Avanzar" sueltos.)</div>
+    </div>
+  </div>
+
+  <div style="text-align:center;font-size:26px;color:var(--cyan);margin:14px 0">↓ &nbsp; Abrir pedido</div>
+
+  <!-- LANDING -->
+  <h2>2 · El detalle — la Landing del pedido (TODO en un sitio)</h2>
+  <div class="app">
+    <div class="nav">
+      <span class="tab on">Bandeja<span class="badge">4</span></span>
+      <span class="tab">Expedientes</span><span class="tab">Presupuesto</span>
+      <span class="tab">Facturas</span><span class="tab">Recurrentes</span><span class="tab">Contabilidad</span>
+      <span class="spacer"></span><span class="new">+ Nuevo pedido</span>
+    </div>
+    <div class="body">
+
+      <!-- cabecera -->
+      <div style="margin-bottom:6px"><span class="muted" style="color:var(--cyan)">← Volver a la bandeja</span></div>
+      <div class="card">
+        <h4 style="font-size:18px">Pedido TJ-2026-QKFJ2661 &nbsp;<span class="muted" style="font-weight:400">· Maite Manterola · AR→ES · 55 €</span> <span class="pill p-paid">PAGADO</span></h4>
+
+        <!-- stepper -->
+        <div class="steps">
+          <span class="step done">✓ Presupuesto</span><span class="sep">→</span>
+          <span class="step done">✓ Enviar y cobrar</span><span class="sep">→</span>
+          <span class="step cur">3. Asignar traductor</span><span class="sep">→</span>
+          <span class="step">Subir traducción</span><span class="sep">→</span>
+          <span class="step">Enviar al cliente</span><span class="sep">→</span>
+          <span class="step">Finalizar</span><span class="sep">→</span>
+          <span class="step">Archivado</span>
+        </div>
+        <div class="next">
+          <div><div style="font-size:11px;color:var(--cyan);text-transform:uppercase;letter-spacing:.05em">Siguiente paso</div><b>Asignar traductor</b> <span class="muted">· el pago está validado</span></div>
+          <span class="cta">Ir al paso →</span>
+        </div>
+      </div>
+
+      <!-- GESTION (del cockpit) -->
+      <div class="card">
+        <span class="src tag t-cp">viene del Cockpit</span>
+        <h4>Acciones del pedido</h4>
+        <div class="muted" style="margin-bottom:10px">Mover el pedido y facturar sin salir.</div>
+        <div class="actions">
+          <span class="btn primary">Avanzar → Pago validado</span>
+          <span class="btn ghost">Emitir factura</span>
+          <span class="btn ghost">📦 Notificar envío</span>
+          <span class="btn wa">Cobrar por WhatsApp</span>
+        </div>
+      </div>
+
+      <!-- DOCUMENTOS -->
+      <div class="card">
+        <span class="src tag t-ok">ya estaba <span style="opacity:.7">+ subir fuente</span></span>
+        <h4>Documentos del cliente</h4>
+        <div class="thumbs">
+          <div class="thumb">📄 doc 1.pdf</div><div class="thumb">📄 doc 2.pdf</div>
+          <div class="thumb dashed" style="border-color:var(--violet);color:var(--violet)">+ subir fuente</div>
+        </div>
+        <div class="annot">Miniaturas del original (ya estaba) + <span style="color:var(--violet)">subir documento fuente</span> (viene del Workspace).</div>
+      </div>
+
+      <!-- PRODUCCION (del workspace) -->
+      <div class="card">
+        <span class="src tag t-ws">viene del Workspace</span>
+        <h4>Producción · Borrador IA <span class="muted" style="font-weight:400">(plegable)</span></h4>
+        <div class="actions" style="margin:8px 0"><span class="btn primary">⚙︎ Generar borrador IA</span><span class="btn ghost">Descargar DOCX jurado</span></div>
+        <div class="editor">
+          <div class="pane">Original / entrega del colaborador<br><span style="color:var(--mut2)">(visor PDF · imagen · docx)</span></div>
+          <div class="pane r">Traducción editable por secciones<br><span style="color:var(--mut2)">autoguardado · checklist de revisión · notas</span></div>
+        </div>
+        <div class="annot">El editor 2-columnas + el BORRADOR IA con Claude que hoy SOLO existe en el Workspace.</div>
+      </div>
+
+      <!-- TRADUCCION / ENTREGA -->
+      <div class="card">
+        <span class="src tag t-ok">ya estaba</span>
+        <h4>Traducción y entrega al cliente</h4>
+        <div class="muted">Subir traducciones (varios archivos / carpeta) + miniaturas.</div>
+        <div class="thumbs"><div class="thumb">✓ jurada 1.pdf</div><div class="thumb">✓ jurada 2.pdf</div><div class="thumb dashed">+ subir</div></div>
+        <div class="composer">
+          <div style="color:var(--emer);font-weight:700;margin-bottom:6px">Enviar al cliente (editable)</div>
+          <div class="input">Asunto: Tu traducción jurada está lista (TJ-2026-QKFJ2661)</div>
+          <div class="input" style="height:46px">Hola, tu traducción jurada ya está lista… + enlace de reseña Google…</div>
+          <div class="actions"><span class="btn primary">Enviar email</span><span class="btn wa">Abrir WhatsApp</span></div>
+          <div class="annot" style="margin-top:8px">El email lleva la firma legal completa; el WhatsApp va limpio.</div>
+        </div>
+      </div>
+
+      <!-- COLABORADOR + FINANZAS -->
+      <div class="grid2">
+        <div class="card" style="margin-bottom:0">
+          <span class="src tag t-ok">ya estaba</span>
+          <h4>Colaborador</h4>
+          <div class="muted">Asignado: <b style="color:var(--ink2)">Vanessa Bech</b> · ACCEPTED<br><span style="color:var(--mut2)">(privado — el cliente no lo ve)</span></div>
+        </div>
+        <div class="card" style="margin-bottom:0">
+          <span class="src tag t-new">margen nuevo</span>
+          <h4>Finanzas</h4>
+          <div class="grid2" style="margin-top:8px">
+            <div class="mini"><div class="k">Ingreso</div><div class="v">55,00 €</div></div>
+            <div class="mini"><div class="k">Margen</div><div class="v pos">55,00 € (100%)</div></div>
+            <div class="mini"><div class="k">Pago</div><div class="v">PAID ✓</div></div>
+            <div class="mini"><div class="k">Factura</div><div class="v" style="color:var(--cyan)">Gestionar →</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MENSAJES -->
+      <div class="card" style="margin-top:14px;margin-bottom:0">
+        <span class="src tag t-ok">ya estaba</span>
+        <h4>Mensajes enviados al cliente</h4>
+        <div class="muted">Historial de emails / WhatsApp con su contenido exacto.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <p class="annot" style="margin-top:18px;border:0;font-size:12.5px;color:var(--mut)">
+    <b style="color:var(--ink2)">Cómo se construye, sin riesgo:</b> primero <span style="color:var(--cyan)">pinto lo nuevo</span> y <span style="color:var(--violet)">muevo Producción</span>/<span style="color:var(--emer)">Gestión</span> a la Landing (todos los endpoints ya existen). Solo cuando la Landing ya hace TODO, retiro Workspace y Cockpit con <b>redirect 308</b> (los SMS/emails ya enviados siguen funcionando). La contabilidad no se toca.
+  </p>
+</div>
+</body>
+</html>

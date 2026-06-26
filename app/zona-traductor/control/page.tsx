@@ -9,7 +9,6 @@ import OrderTableWithBulkActions from "@/components/OrderTableWithBulkActions";
 import PMQuickCreatePanel from "@/components/PMQuickCreatePanel";
 import TranslatorAgenda from "@/components/TranslatorAgenda";
 import ZonaTraductorFilters from "@/components/ZonaTraductorFilters";
-import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
 import {
   authZonaTraductorOrRedirect,
@@ -70,12 +69,10 @@ export default async function ZonaTraductorControlPage({
     dateBase,
     filtro,
     qRaw,
-    pedidosAccionables,
   } = state;
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <ZonaTraductorNav modoActivo="control" pedidosAccionables={pedidosAccionables} />
       <main className="px-4 py-10">
         <AutoRefresh intervalMs={20000} idleMs={30000} />
         <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
-import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import { FileText } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -21,8 +20,6 @@ type Group = {
 
 export default async function ZonaTraductorExpedientesPage() {
   await authZonaTraductorOrRedirect();
-  const bandeja = await loadBandejaState().catch(() => null);
-  const accionables = bandeja?.pedidosAccionables ?? 0;
 
   const rows = await prisma.documentAnalysis.findMany({
     where: { sessionToken: { startsWith: "exp:" } },
@@ -63,7 +60,6 @@ export default async function ZonaTraductorExpedientesPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <ZonaTraductorNav modoActivo="expedientes" pedidosAccionables={accionables} />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-semibold text-white">Expedientes entrantes</h1>
         <p className="mt-1 text-sm text-slate-400">
