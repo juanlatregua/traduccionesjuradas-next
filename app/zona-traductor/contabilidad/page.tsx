@@ -3,10 +3,11 @@ import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getStaffRole } from "@/lib/staff-access";
-import { listPaidUnbilledOrders } from "@/lib/reconcile-invoices";
+import { listPaidUnbilledOrders, listExcludedFromBilling } from "@/lib/reconcile-invoices";
 import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense } from "@/components/ContabilidadClient";
 import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 import ReconcilePanel from "@/components/ReconcilePanel";
+import ExcludedOrdersPanel from "@/components/ExcludedOrdersPanel";
 import BankReconcilePanel from "@/components/BankReconcilePanel";
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default async function ZonaTraductorContabilidadPage() {
     listPaidUnbilledOrders(),
   ]);
   const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
+  const excludedFromBilling = await listExcludedFromBilling();
 
   const invoices: AcInvoice[] = rawInvoices.map((i) => ({
     id: i.id,
@@ -90,6 +92,7 @@ export default async function ZonaTraductorContabilidadPage() {
           </a>
         </div>
         <ReconcilePanel rows={unbilled} totalAmountCents={unbilledTotal} canIssue={canIssue} />
+        <ExcludedOrdersPanel rows={excludedFromBilling} />
         <ContabilidadClient invoices={invoices} orders={orders} expenses={expenses} />
         <BankReconcilePanel canIssue={canIssue} />
         <ImportInvoicesPanel />

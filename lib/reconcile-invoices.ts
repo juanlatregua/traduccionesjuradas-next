@@ -42,6 +42,7 @@ export async function listPaidUnbilledOrders(): Promise<PaidUnbilledOrder[]> {
     where: {
       paymentStatus: "PAID",
       amountCents: { gt: 0 },
+      billingExcluded: false,
       OR: [{ clientInvoice: { is: null } }, { clientInvoice: { is: { status: "DRAFT" } } }],
     },
     select: {
@@ -81,6 +82,40 @@ export async function listPaidUnbilledOrders(): Promise<PaidUnbilledOrder[]> {
       sinFechaCobro: !o.paidAt,
     };
   });
+}
+
+export type ExcludedOrder = {
+  reference: string;
+  clientName: string | null;
+  clientEmail: string;
+  amountCents: number;
+  paidAt: string | null;
+  reason: string | null;
+};
+
+// Pedidos apartados del libro oficial (con motivo). Para el apartado reversible.
+export async function listExcludedFromBilling(): Promise<ExcludedOrder[]> {
+  const orders = await prisma.order.findMany({
+    where: { billingExcluded: true },
+    select: {
+      reference: true,
+      clientName: true,
+      clientEmail: true,
+      amountCents: true,
+      paidAt: true,
+      billingExcludedReason: true,
+    },
+    orderBy: { paidAt: "desc" },
+    take: 500,
+  });
+  return orders.map((o) => ({
+    reference: o.reference,
+    clientName: o.clientName,
+    clientEmail: o.clientEmail,
+    amountCents: o.amountCents,
+    paidAt: o.paidAt ? o.paidAt.toISOString() : null,
+    reason: o.billingExcludedReason,
+  }));
 }
 
 type OrderForIssue = {

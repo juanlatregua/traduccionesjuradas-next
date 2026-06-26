@@ -29,6 +29,8 @@ function eur(c: number) {
   return `${(c / 100).toFixed(2)} €`;
 }
 
+const EXCLUDE_REASONS = ["Pago no confirmado en banco", "Pedido de prueba", "Reembolsado", "Duplicado"];
+
 export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { rows: Row[]; totalAmountCents: number; canIssue: boolean }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [dateMode, setDateMode] = useState<"paid" | "today">("paid");
@@ -43,6 +45,7 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({ fiscalName: "", nif: "", address: "", city: "", postalCode: "" });
   const [savingBilling, setSavingBilling] = useState(false);
+  const [excludingRef, setExcludingRef] = useState<string | null>(null);
 
   // Completa: exige NIF + nombre fiscal. Simplificada (≤400€, consumidor final, RD
   // 1619/2012): no exige NIF; solo importes ≤400€.
@@ -113,6 +116,21 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
     } catch (e: any) {
       setMsg(e?.message || "No se pudo guardar los datos fiscales.");
       setSavingBilling(false);
+    }
+  }
+
+  async function excludeOrder(ref: string, reason: string) {
+    try {
+      const res = await fetch(`/api/orders/${ref}/billing-exclude`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excluded: true, reason }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "Error");
+      window.location.reload();
+    } catch (e: any) {
+      setMsg(e?.message || "No se pudo excluir el pedido.");
     }
   }
 
@@ -251,6 +269,33 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
                       + datos fiscales
                     </button>
                   )}
+                  {canIssue &&
+                    (excludingRef === r.reference ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-1">
+                        <span className="text-[10px] text-slate-400">Excluir por:</span>
+                        {EXCLUDE_REASONS.map((reason) => (
+                          <button
+                            key={reason}
+                            type="button"
+                            onClick={() => excludeOrder(r.reference, reason)}
+                            className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-200 hover:bg-slate-700"
+                          >
+                            {reason}
+                          </button>
+                        ))}
+                        <button type="button" onClick={() => setExcludingRef(null)} className="text-[10px] text-slate-500 hover:text-slate-300">
+                          cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setExcludingRef(r.reference)}
+                        className="mt-1 ml-1 rounded border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-400 hover:bg-slate-800"
+                      >
+                        Excluir de facturación
+                      </button>
+                    ))}
                 </td>
               </tr>
             ))}
