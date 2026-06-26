@@ -83,6 +83,20 @@ async function notifyClientMilestone(
     });
     if (!order) return;
 
+    // Idempotencia: si este hito ya se notifico por SMS a este pedido, no
+    // reenviar. Cubre la ENTREGA REAL que llega despues de un movimiento de
+    // tablero que ya dejo el workflow en el hito (ver transitionWorkflowState):
+    // el aviso debe salir UNA vez, lo dispare la transicion o la entrega.
+    const alreadyNotified = await prisma.orderEvent.findFirst({
+      where: {
+        orderId: order.id,
+        type: "notification.milestone_sms.sent",
+        payload: { path: ["milestone"], equals: to },
+      },
+      select: { id: true },
+    });
+    if (alreadyNotified) return;
+
     const milestone = milestoneSmsFor(to, {
       delivered: payload?.delivered === true,
       translatedFileUrl: order.translatedFileUrl,
@@ -129,6 +143,7 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
         id: true,
         paymentStatus: true,
         deliveryState: true,
+        translatedFileUrl: true,
         events: { orderBy: { createdAt: "desc" }, take: 80 },
       },
     });
@@ -147,6 +162,8 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
     assertWorkflowTransitionPreconditions({
       to,
       paymentStatus: order.paymentStatus,
+      translatedFileUrl: order.translatedFileUrl,
+      delivered: options.payload?.delivered === true,
     });
 
     if (!canTransitionWorkflow(from, to)) {
@@ -180,7 +197,12 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
   });
 
   // Aviso de hito al cliente: fuera de la transaccion, fire-and-forget.
-  if (result.changed) {
+  // Tambien cuando la transicion fue NO-OP porque el workflow ya estaba en el
+  // hito (p.ej. la tarjeta se movio en el tablero ANTES de subir el fichero):
+  // la entrega real (payload.delivered) aun no habia disparado el aviso "lista".
+  // notifyClientMilestone es idempotente, asi que nunca duplica.
+  const redeliveredMilestone = !result.changed && options.payload?.delivered === true;
+  if (result.changed || redeliveredMilestone) {
     void notifyClientMilestone(options.reference, result.to, options.payload);
   }
 

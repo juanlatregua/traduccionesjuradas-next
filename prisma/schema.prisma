@@ -379,6 +379,11 @@ model Customer {
   country     String?  @default("España")
   notes       String?
   isBusiness  Boolean  @default(false)
+  // Cliente de confianza (B2B recurrente, p.ej. Auream): al subir el justificante
+  // de transferencia se auto-confirma el pago y se emite la factura, sin esperar a
+  // que el staff verifique en el banco. Para el resto sigue requiriendo confirmacion
+  // manual (anti-fraude de justificante falso, audit 25-jun).
+  autoConfirmPayment Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

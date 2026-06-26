@@ -13,6 +13,8 @@ import { getWorkflowState } from "@/lib/workflow";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
+import { confirmManualPaymentWithSideEffects } from "@/lib/payments-confirm";
+import { issueOrUpdateInvoice } from "@/lib/client-invoice";
 
 export const runtime = "nodejs";
 
@@ -163,7 +165,7 @@ export async function POST(req: Request, { params }: Params) {
       data: {
         orderId: order.id,
         type: "payment.proof_uploaded",
-        message: "Comprobante de pago adjuntado por el cliente. Pago marcado automaticamente.",
+        message: "Comprobante de pago adjuntado por el cliente.",
         payload: {
           fileKey: blob.pathname,
           fileUrl: blob.url,
@@ -181,6 +183,70 @@ export async function POST(req: Request, { params }: Params) {
         paymentProofFileKey: blob.pathname,
       },
     });
+
+    // Cliente de CONFIANZA (B2B recurrente, p.ej. Auream): subir el justificante
+    // auto-confirma el pago y emite la factura. Para el resto se mantiene el
+    // anti-fraude (queda en JUSTIFICANTE_SUBIDO y lo confirma el staff tras el banco).
+    const trustedCustomer = await prisma.customer.findFirst({
+      where: {
+        email: { equals: order.clientEmail, mode: "insensitive" },
+        autoConfirmPayment: true,
+      },
+      select: {
+        name: true,
+        email: true,
+        companyName: true,
+        fiscalName: true,
+        nif: true,
+        address: true,
+        city: true,
+        postalCode: true,
+        country: true,
+      },
+    });
+
+    if (trustedCustomer) {
+      const method = paymentMethod === "BIZUM" ? "BIZUM" : "TRANSFER";
+      const actor = sessionEmail || clientEmailRaw || order.clientEmail;
+      let confirmed = false;
+      try {
+        const confirm = await confirmManualPaymentWithSideEffects(order.reference, method, actor);
+        confirmed = confirm.changed;
+      } catch (e) {
+        // Si la auto-confirmacion falla NO mentimos al cliente: degradamos al
+        // flujo manual de abajo (queda JUSTIFICANTE_SUBIDO y lo confirma el staff).
+        console.error("[payment-proof] auto-confirm (trusted) failed — degradando a confirmacion manual", e);
+      }
+      if (confirmed) {
+        // Pago YA confirmado. La factura es best-effort: si falla, el pago sigue
+        // valido y el staff la emite a mano (issueOrUpdateInvoice es idempotente).
+        const nif = trustedCustomer.nif || "";
+        await issueOrUpdateInvoice({
+          orderId: order.id,
+          amountCents: order.amountCents,
+          billing: {
+            fiscalName:
+              trustedCustomer.fiscalName ||
+              trustedCustomer.companyName ||
+              trustedCustomer.name ||
+              order.clientEmail,
+            nif,
+            address: trustedCustomer.address || "",
+            city: trustedCustomer.city || "",
+            postalCode: trustedCustomer.postalCode || "",
+            country: trustedCustomer.country || "España",
+            email: trustedCustomer.email || order.clientEmail,
+          },
+          origin: "client_portal_trusted",
+          // Simplificada solo si no hay NIF y ≤400€ (RD 1619/2012); con NIF, normal.
+          simplified: !nif && order.amountCents <= 40000,
+        }).catch((e) =>
+          console.error("[payment-proof] auto-invoice failed (pago confirmado; emitir a mano)", e)
+        );
+        return NextResponse.json({ ok: true, paymentStatus: "PAID", autoConfirmed: true });
+      }
+      // confirmed === false → cae al flujo normal (JUSTIFICANTE_SUBIDO) de abajo.
+    }
 
     await transitionWorkflowState({
       reference: order.reference,

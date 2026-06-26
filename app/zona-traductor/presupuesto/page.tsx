@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
-import QuoteBuilder from "@/components/QuoteBuilder";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -89,9 +88,12 @@ export default async function ZonaTraductorPresupuestoPage({
           </p>
         </header>
 
-        {!expRef && <QuoteBuilder initialData={builderInitial} />}
-
-        <StaffExpedienteIntake initialDocs={initialDocs} initialCustomer={initialCustomer} expedienteRef={expRef} />
+        <StaffExpedienteIntake
+          initialDocs={initialDocs}
+          initialCustomer={initialCustomer}
+          initialData={expRef ? undefined : builderInitial}
+          expedienteRef={expRef}
+        />
       </div>
     </div>
   );

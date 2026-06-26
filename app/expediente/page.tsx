@@ -14,7 +14,16 @@ const STEPS = [
   { n: "3", t: "Recibes el presupuesto", d: "Te lo enviamos por email con descuento por volumen y formas de pago." },
 ];
 
-export default function ExpedientePage() {
+export default function ExpedientePage({
+  searchParams,
+}: {
+  searchParams?: { email?: string; name?: string; phone?: string };
+}) {
+  // Prefill cuando se llega desde el área-cliente (cliente identificado): no le
+  // pedimos otra vez sus datos. El intake sigue avisando a Juan igual.
+  const initialEmail = (searchParams?.email || "").trim();
+  const initialName = (searchParams?.name || "").trim();
+  const initialPhone = (searchParams?.phone || "").trim();
   return (
     <main className="min-h-screen bg-parchment">
       <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
@@ -43,7 +52,7 @@ export default function ExpedientePage() {
 
         <div className="mt-10 rounded-2xl border border-bleu/15 bg-card p-6 shadow-paper sm:p-8">
           <h2 className="mb-4 font-baskerville text-xl text-bleu">Sube tu expediente</h2>
-          <ExpedientePublicIntake />
+          <ExpedientePublicIntake initialName={initialName} initialEmail={initialEmail} initialPhone={initialPhone} />
         </div>
 
         <p className="mt-6 text-center text-sm text-graphite">

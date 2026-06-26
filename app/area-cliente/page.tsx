@@ -123,8 +123,15 @@ export default async function AreaClientePage({
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
-          <Link href="/presupuesto-instantaneo" className="rounded-2xl bg-bleu px-4 py-2 font-semibold text-white hover:bg-bleu-dark">
-            Nuevo encargo
+          <Link
+            href={`/expediente?email=${encodeURIComponent(clientEmail)}${
+              customer?.companyName || customer?.name
+                ? `&name=${encodeURIComponent(customer.companyName || customer.name || "")}`
+                : ""
+            }`}
+            className="rounded-2xl bg-bleu px-4 py-2 font-semibold text-white hover:bg-bleu-dark"
+          >
+            Subir documentos · pedido nuevo
           </Link>
           {session && (
             <a href="/api/auth/signout?callbackUrl=/" className="rounded-2xl border border-cream px-4 py-2 font-semibold text-sepia hover:bg-cream">

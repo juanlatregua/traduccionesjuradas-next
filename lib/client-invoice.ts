@@ -250,6 +250,27 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
   }
 }
 
+// Fuente ÚNICA del sellado de cobro de una factura de cliente. La usan tanto la
+// conciliación bancaria (app/api/bank/decision) como el marcado manual
+// (app/api/invoices/[id]/paid) para que solo haya UN camino a ClientInvoice.paidAt,
+// con la misma guarda de estado. `when=null` limpia el cobro (deshacer conciliación).
+// Devuelve el resultado o lanza con un mensaje claro (el caller decide cómo avisar).
+export async function setInvoicePaid(id: string, when: Date | null = new Date()) {
+  const inv = await prisma.clientInvoice.findUnique({
+    where: { id },
+    select: { id: true, status: true, paidAt: true },
+  });
+  if (!inv) throw new Error("Factura no encontrada.");
+  if (when && inv.status !== "ISSUED") {
+    throw new Error("Emite la factura antes de marcarla como cobrada.");
+  }
+  // Idempotente solo si la fecha es la MISMA (evita re-sellar en un re-emparejamiento
+  // idéntico). Una fecha distinta SÍ actualiza: permite corregir la fecha real del
+  // movimiento desde la conciliación. Limpiar (when=null) siempre pasa.
+  if (when && inv.paidAt && when.getTime() === inv.paidAt.getTime()) return inv;
+  return prisma.clientInvoice.update({ where: { id }, data: { paidAt: when } });
+}
+
 export async function deleteInvoice(id: string) {
   return prisma.clientInvoice.delete({ where: { id } });
 }

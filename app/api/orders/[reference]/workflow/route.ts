@@ -96,7 +96,8 @@ export async function POST(req: Request, { params }: Params) {
     const message = String(err?.message || "No se pudo actualizar el workflow.");
     if (
       message.includes("Transicion no permitida") ||
-      message.includes("PAGO_VALIDADO sin pago confirmado")
+      message.includes("PAGO_VALIDADO sin pago confirmado") ||
+      message.includes("adjuntar al menos un archivo")
     ) {
       return NextResponse.json({ ok: false, error: message }, { status: 400 });
     }

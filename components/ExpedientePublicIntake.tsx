@@ -26,11 +26,19 @@ function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export default function ExpedientePublicIntake() {
+export default function ExpedientePublicIntake({
+  initialName = "",
+  initialEmail = "",
+  initialPhone = "",
+}: {
+  initialName?: string;
+  initialEmail?: string;
+  initialPhone?: string;
+} = {}) {
   const [rows, setRows] = useState<FileRow[]>([]);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
+  const [phone, setPhone] = useState(initialPhone);
   const [notes, setNotes] = useState("");
   const [gdpr, setGdpr] = useState(false);
   const [submitting, setSubmitting] = useState(false);

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getStaffRole } from "@/lib/staff-access";
+import { setInvoicePaid } from "@/lib/client-invoice";
 
 export const runtime = "nodejs";
 
@@ -17,16 +18,25 @@ type Body = {
   movementDate?: string | null; // fecha del movimiento → sella paidAt en factura/gasto
 };
 
-// Sella (o limpia) el cobro/pago en la factura/gasto vinculado.
-async function setPaid(matchedType: string | null | undefined, matchedId: string | null | undefined, when: Date | null) {
+// Sella (o limpia) el cobro/pago en la factura/gasto vinculado. La factura pasa
+// por el helper único setInvoicePaid (misma guarda que el marcado manual). No se
+// traga el fallo: devuelve un aviso para que el panel lo muestre (p.ej. factura
+// aún en borrador → no se puede sellar como cobrada).
+async function setPaid(
+  matchedType: string | null | undefined,
+  matchedId: string | null | undefined,
+  when: Date | null
+): Promise<{ ok: boolean; warning?: string }> {
   try {
     if (matchedType === "invoice" && matchedId) {
-      await prisma.clientInvoice.update({ where: { id: matchedId }, data: { paidAt: when } });
+      await setInvoicePaid(matchedId, when);
     } else if (matchedType === "expense" && matchedId) {
       await prisma.expense.update({ where: { id: matchedId }, data: { paidAt: when, paymentStatus: when ? "PAID" : "PENDING" } });
     }
-  } catch (err) {
+    return { ok: true };
+  } catch (err: any) {
     console.error("[bank-decision] setPaid failed", matchedType, matchedId, err);
+    return { ok: false, warning: err?.message || "No se pudo sellar el cobro." };
   }
 }
 
@@ -68,7 +78,10 @@ export async function POST(req: Request) {
   // Marcar cobrado/pagado al vincular; limpiar si la decisión deja de ser un emparejamiento.
   if (status === "MATCHED_MANUAL") {
     const when = body.movementDate && !isNaN(new Date(body.movementDate).getTime()) ? new Date(body.movementDate) : new Date();
-    await setPaid(data.matchedType, data.matchedId, when);
+    const sealed = await setPaid(data.matchedType, data.matchedId, when);
+    if (!sealed.ok) {
+      return NextResponse.json({ ok: true, decision, warning: sealed.warning });
+    }
   }
   return NextResponse.json({ ok: true, decision });
 }

@@ -32,7 +32,12 @@ const WORKFLOW_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
   PRESUPUESTO_ENVIADO: ["PENDIENTE_PAGO"],
   PENDIENTE_PAGO: ["JUSTIFICANTE_SUBIDO", "PAGO_VALIDADO"],
   JUSTIFICANTE_SUBIDO: ["PAGO_VALIDADO"],
-  PAGO_VALIDADO: ["EN_TRADUCCION"],
+  // Un pedido ya pagado puede entregarse directamente sin pasar por
+  // EN_TRADUCCION (caso normal FR: traduce Juan, nunca se auto-asigna
+  // colaborador, así que el pedido se queda en PAGO_VALIDADO hasta la entrega).
+  // El pago está garantizado por paymentStatus=PAID + el gate del endpoint de
+  // entrega; esta arista NO relaja ningún control de pago.
+  PAGO_VALIDADO: ["EN_TRADUCCION", "TRADUCIDO_ENTREGADO"],
   EN_TRADUCCION: ["TRADUCIDO_ENTREGADO"],
   TRADUCIDO_ENTREGADO: ["CERRADO"],
   CERRADO: [],
