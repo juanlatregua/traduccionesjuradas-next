@@ -32,10 +32,17 @@ function eur(c: number) {
 export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { rows: Row[]; totalAmountCents: number; canIssue: boolean }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [dateMode, setDateMode] = useState<"paid" | "today">("paid");
-  const [tipo, setTipo] = useState<"completa" | "simplificada">("completa");
+  // Por defecto Simplificada si TODOS son ventas a particular sin NIF y ≤400€ (el
+  // caso típico web). Si hay alguno con NIF, arranca en Completa.
+  const [tipo, setTipo] = useState<"completa" | "simplificada">(() =>
+    rows.length > 0 && rows.every((r) => !r.hasNif && r.bookableAmountCents <= 40000) ? "simplificada" : "completa"
+  );
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [result, setResult] = useState<{ issued: Outcome[]; failed: Outcome[] } | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [form, setForm] = useState({ fiscalName: "", nif: "", address: "", city: "", postalCode: "" });
+  const [savingBilling, setSavingBilling] = useState(false);
 
   // Completa: exige NIF + nombre fiscal. Simplificada (≤400€, consumidor final, RD
   // 1619/2012): no exige NIF; solo importes ≤400€.
@@ -82,6 +89,33 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
     }
   }
 
+  function openEdit(r: Row) {
+    setEditing(r.reference);
+    setForm({ fiscalName: r.clientName || "", nif: "", address: "", city: "", postalCode: "" });
+  }
+
+  async function saveBilling(ref: string) {
+    if (!form.fiscalName.trim() || !form.nif.trim()) {
+      setMsg("El nombre fiscal y el NIF son obligatorios.");
+      return;
+    }
+    setSavingBilling(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${ref}/billing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo guardar.");
+      window.location.reload();
+    } catch (e: any) {
+      setMsg(e?.message || "No se pudo guardar los datos fiscales.");
+      setSavingBilling(false);
+    }
+  }
+
   if (rows.length === 0) {
     return (
       <div className="mt-6 rounded-xl border border-emerald-800/50 bg-emerald-900/10 p-4 text-sm text-emerald-300">
@@ -91,6 +125,7 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
   }
 
   const selectableCount = rows.filter(issuable).length;
+  const fieldCls = "rounded-md border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500";
 
   return (
     <div className="mt-6 rounded-xl border border-amber-700/50 bg-amber-900/10 p-4">
@@ -134,6 +169,38 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
         final): no exige NIF — ideal para ventas web a particulares. Si un pedido ya tiene borrador, se factura con sus líneas.
       </p>
 
+      {canIssue && tipo === "completa" && rows.length > 0 && selectableCount === 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-cyan-700/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
+          <span>Ninguno tiene NIF. Para ventas web a particulares (≤400€) puedes facturar <strong>sin NIF</strong>:</span>
+          <button
+            type="button"
+            onClick={() => changeTipo("simplificada")}
+            className="rounded-md bg-cyan-600 px-2.5 py-1 font-semibold text-white hover:bg-cyan-500"
+          >
+            Cambiar a Simplificada ≤400€
+          </button>
+        </div>
+      )}
+
+      {editing && (
+        <div className="mt-3 rounded-lg border border-cyan-700/50 bg-cyan-900/10 p-3">
+          <p className="text-xs font-semibold text-cyan-200">Datos fiscales · pedido {editing}</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <input value={form.fiscalName} onChange={(e) => setForm((f) => ({ ...f, fiscalName: e.target.value }))} placeholder="Nombre / razón fiscal *" className={fieldCls} />
+            <input value={form.nif} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value }))} placeholder="NIF / CIF *" className={fieldCls} />
+            <input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="Dirección" className={fieldCls} />
+            <input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} placeholder="Ciudad" className={fieldCls} />
+            <input value={form.postalCode} onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))} placeholder="Código postal" className={fieldCls} />
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <button type="button" onClick={() => saveBilling(editing)} disabled={savingBilling} className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
+              {savingBilling ? "Guardando…" : "Guardar (permite factura Completa)"}
+            </button>
+            <button type="button" onClick={() => setEditing(null)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">Cancelar</button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 overflow-x-auto rounded-lg border border-slate-700">
         <table className="w-full text-sm text-slate-200">
           <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
@@ -175,6 +242,15 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
                     {r.amountMismatch && <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-200">borrador ≠ cobrado</span>}
                     {r.sinFechaCobro && <span className="rounded bg-slate-500/20 px-1.5 py-0.5 text-[10px] text-slate-300">sin fecha de cobro</span>}
                   </div>
+                  {canIssue && (!r.hasNif || !r.hasFiscalName) && (
+                    <button
+                      type="button"
+                      onClick={() => openEdit(r)}
+                      className="mt-1 rounded border border-cyan-700/50 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 hover:bg-cyan-600/20"
+                    >
+                      + datos fiscales
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
