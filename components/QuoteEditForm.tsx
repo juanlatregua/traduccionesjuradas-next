@@ -8,7 +8,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Line = { description: string; quantity: number; unitPrice: number };
+type Line = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  supplierUnitCost?: number | null;
+  sourceFileUrl?: string | null;
+  pageStart?: number | null;
+  pageEnd?: number | null;
+};
 
 type Quote = {
   id: string;
@@ -39,16 +47,25 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
   const [sourceLang, setSourceLang] = useState(quote.sourceLang || "");
   const [targetLang, setTargetLang] = useState(quote.targetLang || "");
   const [lines, setLines] = useState<Line[]>(
-    (quote.lines || []).map((l) => ({ description: l.description, quantity: l.quantity, unitPrice: l.unitPrice }))
+    (quote.lines || []).map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      // Se conservan (no editables aquí) para no perder margen ni referencias al re-guardar.
+      supplierUnitCost: (l as any).supplierUnitCost ?? null,
+      sourceFileUrl: (l as any).sourceFileUrl ?? null,
+      pageStart: (l as any).pageStart ?? null,
+      pageEnd: (l as any).pageEnd ?? null,
+    }))
   );
   const [discountType, setDiscountType] = useState(quote.discountType || "NONE");
-  const [discountValue, setDiscountValue] = useState(quote.discountValue || 0);
-  const [validityDays, setValidityDays] = useState(quote.validityDays || 15);
+  const [discountValue, setDiscountValue] = useState(quote.discountValue ?? 0);
+  const [validityDays, setValidityDays] = useState(quote.validityDays ?? 15);
   const [notesLegal, setNotesLegal] = useState(quote.notesLegal || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const vatRate = quote.vatRate || 0.21;
+  const vatRate = quote.vatRate ?? 0.21;
   const subtotal = lines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0), 0);
   const discount =
     discountType === "PERCENT"
@@ -88,6 +105,10 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
             description: l.description.trim() || "Línea",
             quantity: Number(l.quantity) || 1,
             unitPrice: Number(l.unitPrice) || 0,
+            ...(l.supplierUnitCost != null ? { supplierUnitCost: Number(l.supplierUnitCost) } : {}),
+            ...(l.sourceFileUrl ? { sourceFileUrl: l.sourceFileUrl } : {}),
+            ...(l.pageStart != null ? { pageStart: Number(l.pageStart) } : {}),
+            ...(l.pageEnd != null ? { pageEnd: Number(l.pageEnd) } : {}),
           })),
         }),
       });

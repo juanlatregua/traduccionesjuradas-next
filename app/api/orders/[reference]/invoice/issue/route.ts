@@ -73,12 +73,18 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "Falta el nombre fiscal del cliente." }, { status: 400 });
   }
 
+  // Sin NIF y ≤400€ (venta web a particular): factura SIMPLIFICADA, no Completa con
+  // NIF en blanco (fiscalmente inválida). Coherente con ReconcilePanel. El body puede forzarlo.
+  const simplified =
+    typeof body.simplified === "boolean" ? body.simplified : !billing.nif && order.amountCents <= 40000;
+
   try {
     const invoice = await issueOrUpdateInvoice({
       orderId: order.id,
       amountCents: order.amountCents,
       billing,
       number: body.number,
+      simplified,
     });
     // Persistir los datos fiscales en BillingData si se introdujeron a mano y no existían.
     if (!b) {

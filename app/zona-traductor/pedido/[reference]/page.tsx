@@ -11,6 +11,7 @@ import { getFinanceSnapshot } from "@/lib/finance";
 import { getOrderActionStage, getNextBestAction } from "@/lib/order-actions";
 import OrderStepper from "@/components/order-workspace/OrderStepper";
 import OrderManagementActions from "@/components/order-workspace/OrderManagementActions";
+import CollaboratorAssignmentPanel from "@/components/CollaboratorAssignmentPanel";
 import ClientMessageComposer from "@/components/order-workspace/ClientMessageComposer";
 import FileThumbnails from "@/components/order-workspace/FileThumbnails";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
@@ -103,7 +104,7 @@ function getClientMessages(events: any[]): ClientMessage[] {
         channel: String(p.channel || (isSms ? "SMS" : "EMAIL")),
         subject: p.subject ? String(p.subject) : isSms ? String(e.message || "") : null,
         bodyHtml: p.bodyHtml ? String(p.bodyHtml) : null,
-        bodyText: p.body ? String(p.body) : null,
+        bodyText: p.bodyText ? String(p.bodyText) : p.body ? String(p.body) : null,
         toEmail: p.toEmail ? String(p.toEmail) : null,
         createdAt: (e.createdAt instanceof Date ? e.createdAt : new Date(e.createdAt)).toISOString(),
       };
@@ -159,7 +160,6 @@ export default async function PedidoWorkspacePage({ params }: Params) {
       collaboratorAssignments: {
         include: { collaborator: { select: { fullName: true, email: true } } },
         orderBy: { createdAt: "desc" },
-        take: 1,
       },
       clientInvoice: { select: { number: true, totalCents: true } },
       quote: { select: { quoteNumber: true } },
@@ -195,6 +195,22 @@ export default async function PedidoWorkspacePage({ params }: Params) {
     assignedTo: d.assignedTo,
     fileUrl: d.fileUrl,
     deliveredFileUrl: d.deliveredFileUrl,
+  }));
+  // Adjudicación de colaborador (antes solo accesible desde Control/OrderActionPanel).
+  const collabAssignments = (order.collaboratorAssignments || []).map((a: any) => ({
+    id: a.id,
+    status: a.status,
+    collaboratorId: a.collaboratorId,
+    quotedPriceCents: a.quotedPriceCents,
+    quotedDeadline: a.quotedDeadline ? new Date(a.quotedDeadline).toISOString() : null,
+    collaboratorNotes: a.collaboratorNotes,
+    rejectionReason: a.rejectionReason,
+    revisionReason: a.revisionReason,
+    deliveredFileUrl: a.deliveredFileUrl,
+    deliveredFilename: a.deliveredFilename,
+    deliveredAt: a.deliveredAt ? new Date(a.deliveredAt).toISOString() : null,
+    adminNotes: a.adminNotes,
+    collaborator: { fullName: a.collaborator.fullName, email: a.collaborator.email },
   }));
 
   // Stepper lineal: el backend (lib/order-actions) ya calcula el paso actual y
@@ -393,6 +409,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               <span className="text-slate-500">(FR lo traduce Juan; otros idiomas se auto-asignan al pago).</span>
             </p>
           )}
+          <div className="mt-4">
+            <CollaboratorAssignmentPanel reference={order.reference} langPair={order.langPair} assignments={collabAssignments} />
+          </div>
         </Section>
 
         {/* SECCIÓN 4 — Finanzas */}

@@ -4,7 +4,6 @@ import { getTrackedConsultaUrl, getTrackedPresupuestoUrl } from "@/lib/contact";
 import { isDueSoon, isOverdue } from "@/lib/order-utils";
 import AutoRefresh from "@/components/AutoRefresh";
 import EstimationAccuracyCard from "@/components/EstimationAccuracyCard";
-import OrderActionPanel from "@/components/OrderActionPanel";
 import OrderTableWithBulkActions from "@/components/OrderTableWithBulkActions";
 import PMQuickCreatePanel from "@/components/PMQuickCreatePanel";
 import TranslatorAgenda from "@/components/TranslatorAgenda";
@@ -14,9 +13,6 @@ import {
   authZonaTraductorOrRedirect,
   loadControlState,
   getPaymentProofs,
-  getSubmittedDocuments,
-  getQuoteDraft,
-  getQuoteAuditTrail,
   hasFinancialRisk,
   requiresMarginApproval,
   hasMonthlyBatchPending,
@@ -78,7 +74,7 @@ export default async function ZonaTraductorControlPage({
         <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Zona traductor</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Gestion operativa + control economico
+            Resumen · control económico
           </h1>
           <p className="mt-1 text-sm text-slate-400">Sesion: {email}</p>
           <ZonaTraductorThemeToggle />
@@ -202,65 +198,6 @@ export default async function ZonaTraductorControlPage({
         </section>
 
         <EstimationAccuracyCard />
-
-        {orders.length > 0 && (
-          <section className="mx-auto mt-6 max-w-6xl space-y-3">
-            <h2 className="text-lg font-semibold text-white">
-              Acciones por pedido
-              <span className="ml-2 text-sm font-normal text-slate-400">(pulsa para expandir)</span>
-            </h2>
-            {orders.map((order) => (
-              <OrderActionPanel
-                key={order.reference}
-                reference={order.reference}
-                clientName={order.clientName}
-                clientEmail={order.clientEmail}
-                title={order.title}
-                langPair={order.langPair}
-                paymentStatus={order.paymentStatus}
-                deliveryState={order.deliveryState}
-                workflowState={order.workflowState}
-                acquisitionSource={order.acquisitionSource}
-                assignedTo={order.assignedTo}
-                dueDate={order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null}
-                amountCents={order.amountCents}
-                paymentProofs={getPaymentProofs(order)}
-                documents={getSubmittedDocuments(order)}
-                quoteDraft={getQuoteDraft(order)}
-                quoteAuditTrail={getQuoteAuditTrail(order)}
-                isArchived={Boolean(order.isArchived)}
-                financeSnapshot={order.financeSnapshot}
-                artifacts={order.artifacts}
-                deliveryNotification={order.deliveryNotification}
-                trackedLinks={order.trackedLinks}
-                draftFileUrl={order.draftFileUrl}
-                draftFilename={order.draftFilename}
-                draftGeneratedAt={order.draftGeneratedAt ? new Date(order.draftGeneratedAt).toISOString() : null}
-                collaboratorAssignments={((order as any).collaboratorAssignments || []).map((a: any) => ({
-                  id: a.id,
-                  status: a.status,
-                  collaboratorId: a.collaboratorId,
-                  quotedPriceCents: a.quotedPriceCents,
-                  quotedDeadline: a.quotedDeadline ? new Date(a.quotedDeadline).toISOString() : null,
-                  collaboratorNotes: a.collaboratorNotes,
-                  rejectionReason: a.rejectionReason,
-                  revisionReason: a.revisionReason,
-                  deliveredFileUrl: a.deliveredFileUrl,
-                  deliveredFilename: a.deliveredFilename,
-                  deliveredAt: a.deliveredAt ? new Date(a.deliveredAt).toISOString() : null,
-                  adminNotes: a.adminNotes,
-                  collaborator: {
-                    fullName: a.collaborator.fullName,
-                    email: a.collaborator.email,
-                  },
-                }))}
-                canonicalStage={order.canonicalStage}
-                gates={order.gates}
-                nextBestAction={order.nextBestAction}
-              />
-            ))}
-          </section>
-        )}
 
         {criticalFinanceOrders.length > 0 && (
           <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-red-500/30 bg-red-500/5 p-6 shadow-xl sm:p-8">

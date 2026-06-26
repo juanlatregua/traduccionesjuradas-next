@@ -27,9 +27,12 @@ export default function ClientMessageComposer({
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   const isWaLead = clientEmail.toLowerCase().endsWith("@whatsapp.local");
-  const waHref = clientPhoneDigits
-    ? `https://wa.me/${clientPhoneDigits}?text=${encodeURIComponent(body)}`
-    : null;
+  const waPhone = clientPhoneDigits
+    ? clientPhoneDigits.length === 9
+      ? `34${clientPhoneDigits}`
+      : clientPhoneDigits
+    : "";
+  const waHref = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent(body)}` : null;
 
   const sendEmail = async () => {
     setSending(true);

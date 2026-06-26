@@ -122,14 +122,18 @@ async function notifyClientMilestone(
         : smsTraduccionLista({ ref: reference, url, lang });
 
     const result = await sendNotification({ to: formatPhoneSpain(phone), body });
-    await prisma.orderEvent.create({
-      data: {
-        orderId: order.id,
-        type: "notification.milestone_sms.sent",
-        message: `Aviso de hito ${to} enviado por SMS al cliente.`,
-        payload: { milestone: to, channel: "SMS", ok: result.ok },
-      },
-    });
+    // Solo registramos el hito si el envío SALIÓ BIEN: si falla, no escribimos el
+    // evento de idempotencia para no suprimir reintentos futuros (alreadyNotified).
+    if (result.ok) {
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "notification.milestone_sms.sent",
+          message: `Aviso de hito ${to} enviado por SMS al cliente.`,
+          payload: { milestone: to, channel: "SMS", ok: true },
+        },
+      });
+    }
   } catch (err) {
     console.error("[workflow] milestone SMS failed", err);
   }

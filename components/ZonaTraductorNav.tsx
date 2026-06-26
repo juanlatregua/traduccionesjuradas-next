@@ -23,6 +23,7 @@ const TABS: { href: string; label: string; key: ModoActivo }[] = [
   { href: "/zona-traductor/facturas", label: "Facturas", key: "facturas" },
   { href: "/zona-traductor/recurrentes", label: "Recurrentes", key: "recurrentes" },
   { href: "/zona-traductor/contabilidad", label: "Contabilidad", key: "contabilidad" },
+  { href: "/zona-traductor/control", label: "Resumen", key: "control" },
 ];
 
 export default function ZonaTraductorNav({ pedidosAccionables }: Props) {
