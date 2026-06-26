@@ -87,6 +87,19 @@ const nextConfig = {
         destination: "/zona-traductor/control",
         permanent: false,
       },
+      // Consolidación: la Landing del pedido es la ÚNICA pantalla de detalle.
+      // Workspace y Cockpit se retiran redirigiendo a ella (307 revertible). Cubre
+      // los enlaces ya enviados en SMS/email a /workspace.
+      {
+        source: "/zona-traductor/workspace/:reference",
+        destination: "/zona-traductor/pedido/:reference",
+        permanent: false,
+      },
+      {
+        source: "/zona-traductor/proyecto/:reference",
+        destination: "/zona-traductor/pedido/:reference",
+        permanent: false,
+      },
       {
         source: "/:path*",
         has: [{ type: "host", value: "traduccionesjuradas.net" }],

@@ -15,6 +15,7 @@ import ClientMessageComposer from "@/components/order-workspace/ClientMessageCom
 import FileThumbnails from "@/components/order-workspace/FileThumbnails";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
 import WorkspaceEditor from "@/components/WorkspaceEditor";
+import OrderDocumentItems from "@/components/order-workspace/OrderDocumentItems";
 import ClientMessagesSection, {
   type ClientMessage,
 } from "@/components/order-workspace/ClientMessagesSection";
@@ -162,6 +163,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
       },
       clientInvoice: { select: { number: true, totalCents: true } },
       quote: { select: { quoteNumber: true } },
+      documentItems: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!order) redirect("/zona-traductor");
@@ -181,6 +183,19 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         collaboratorName: assignment.collaborator?.fullName || assignment.collaborator?.email || "colaborador",
       }
     : null;
+  const docItems = (order.documentItems || []).map((d: any) => ({
+    id: d.id,
+    fileName: d.fileName,
+    documentType: d.documentType,
+    sourceLang: d.sourceLang,
+    targetLang: d.targetLang,
+    words: d.words,
+    quotedCents: d.quotedCents,
+    prodStatus: d.prodStatus,
+    assignedTo: d.assignedTo,
+    fileUrl: d.fileUrl,
+    deliveredFileUrl: d.deliveredFileUrl,
+  }));
 
   // Stepper lineal: el backend (lib/order-actions) ya calcula el paso actual y
   // la "siguiente mejor accion". La landing solo lo renderiza — cero logica nueva.
@@ -353,6 +368,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           <FileThumbnails
             files={sourceDocs.filter((d) => d.url).map((d) => ({ name: d.name, url: d.url as string }))}
           />
+          <OrderDocumentItems reference={order.reference} items={docItems} />
         </Section>
 
         {/* SECCIÓN 3 — Colaborador */}
