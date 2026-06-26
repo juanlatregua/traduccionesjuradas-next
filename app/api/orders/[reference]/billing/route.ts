@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { getStaffRole } from "@/lib/staff-access";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,10 @@ export async function POST(req: Request, { params }: Params) {
   const staff = await requireStaffAccess(req);
   if (!staff.ok) {
     return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
+  }
+  const role = getStaffRole(staff.email);
+  if (role !== "ADMIN" && role !== "PM") {
+    return NextResponse.json({ ok: false, error: "Solo ADMIN/PM puede editar datos fiscales." }, { status: 403 });
   }
 
   try {

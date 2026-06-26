@@ -264,10 +264,11 @@ export async function setInvoicePaid(id: string, when: Date | null = new Date())
   if (when && inv.status !== "ISSUED") {
     throw new Error("Emite la factura antes de marcarla como cobrada.");
   }
-  // Idempotente solo si la fecha es la MISMA (evita re-sellar en un re-emparejamiento
-  // idéntico). Una fecha distinta SÍ actualiza: permite corregir la fecha real del
-  // movimiento desde la conciliación. Limpiar (when=null) siempre pasa.
-  if (when && inv.paidAt && when.getTime() === inv.paidAt.getTime()) return inv;
+  // Una vez sellada con fecha, NO se reescribe el paidAt en re-emparejamientos: un
+  // re-guardado sin movementDate defaultea a hoy y mandaría el cobro a OTRO trimestre
+  // (bug de conciliación). Para corregir la fecha: limpiar (when=null) y volver a
+  // sellar con la fecha correcta. Limpiar (when=null) siempre pasa.
+  if (when && inv.paidAt) return inv;
   return prisma.clientInvoice.update({ where: { id }, data: { paidAt: when } });
 }
 

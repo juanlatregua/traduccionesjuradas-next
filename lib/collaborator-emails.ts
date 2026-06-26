@@ -83,7 +83,7 @@ export async function sendQuoteNotificationToAdmin(payload: QuoteNotificationPay
   const ref = escapeHtml(payload.orderReference);
   const deadline = escapeHtml(payload.deadline);
   const notes = payload.collaboratorNotes ? escapeHtml(payload.collaboratorNotes) : null;
-  const panelUrl = `${SITE_BASE_URL}/zona-traductor/control?q=${encodeURIComponent(payload.orderReference)}`;
+  const panelUrl = `${SITE_BASE_URL}/zona-traductor/pedido/${encodeURIComponent(payload.orderReference)}`;
   const html = `
     <p><strong>${name}</strong> ha enviado presupuesto para el pedido <strong>${ref}</strong>.</p>
     <table style="border-collapse:collapse; margin:12px 0;">

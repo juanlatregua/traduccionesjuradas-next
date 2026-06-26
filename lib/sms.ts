@@ -159,7 +159,7 @@ export async function sendStaffQuoteSMS(data: {
   priceCents: number;
 }): Promise<void> {
   const amount = (data.priceCents / 100).toFixed(2);
-  const body = `COTIZACION ${amount} EUR de ${data.collaboratorName} - pedido ${data.reference}. Adjudica: traduccionesjuradas.net/zona-traductor/control?q=${encodeURIComponent(data.reference)}`;
+  const body = `COTIZACION ${amount} EUR de ${data.collaboratorName} - pedido ${data.reference}. Adjudica: traduccionesjuradas.net/zona-traductor/pedido/${encodeURIComponent(data.reference)}`;
   await sendStaffSMS(body, `cotizacion ${data.reference}`);
 }
 

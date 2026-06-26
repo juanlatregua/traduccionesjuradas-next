@@ -171,6 +171,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
       });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo guardar la decisión.");
+      if (d.warning) setMsg(`⚠ ${d.warning}`);
       await refresh();
     } catch (e: any) {
       setMsg(e?.message || "Error.");
