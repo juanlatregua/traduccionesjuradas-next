@@ -6,10 +6,11 @@ import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
 import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import { prisma } from "@/lib/prisma";
-import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
+import { getWorkflowState, getWorkflowStateLabel, getNextWorkflowStates } from "@/lib/workflow";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getOrderActionStage, getNextBestAction } from "@/lib/order-actions";
 import OrderStepper from "@/components/order-workspace/OrderStepper";
+import OrderManagementActions from "@/components/order-workspace/OrderManagementActions";
 import ClientMessageComposer from "@/components/order-workspace/ClientMessageComposer";
 import FileThumbnails from "@/components/order-workspace/FileThumbnails";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
@@ -133,11 +134,14 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         orderBy: { createdAt: "desc" },
         take: 1,
       },
+      clientInvoice: { select: { number: true, totalCents: true } },
+      quote: { select: { quoteNumber: true } },
     },
   });
   if (!order) redirect("/zona-traductor");
 
   const workflowState = getWorkflowState(order);
+  const moves = getNextWorkflowStates(workflowState).map((s) => ({ to: s, label: getWorkflowStateLabel(s) }));
   const sourceDocs = getSourceDocuments(order.events);
   const deliveredFiles = getDeliveredFiles(order);
   const messages = getClientMessages(order.events);
@@ -214,6 +218,21 @@ export default async function PedidoWorkspacePage({ params }: Params) {
 
         {/* STEPPER lineal: estado del pedido + siguiente paso, todo en un sitio */}
         <OrderStepper stage={actionStage} nextAction={nextAction} />
+
+        {/* Acciones de gestión (antes solo en el Cockpit): avanzar, factura, envío, cobro */}
+        <div className="rounded-3xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Acciones del pedido</p>
+          <OrderManagementActions
+            reference={order.reference}
+            clientName={order.clientName || order.clientEmail || "cliente"}
+            clientPhone={order.clientPhone}
+            amountCents={order.amountCents}
+            paymentStatus={order.paymentStatus}
+            moves={moves}
+            invoice={order.clientInvoice ? { number: order.clientInvoice.number } : null}
+            quote={order.quote ? { quoteNumber: order.quote.quoteNumber } : null}
+          />
+        </div>
 
         {/* SECCIÓN 1 — Subir / ver traducciones (lo primero: el dolor de "dónde meto la traducción") */}
         <Section id="traduccion" title="Subir y entregar la traducción">
