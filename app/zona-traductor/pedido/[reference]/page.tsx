@@ -14,6 +14,7 @@ import OrderManagementActions from "@/components/order-workspace/OrderManagement
 import ClientMessageComposer from "@/components/order-workspace/ClientMessageComposer";
 import FileThumbnails from "@/components/order-workspace/FileThumbnails";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
+import WorkspaceEditor from "@/components/WorkspaceEditor";
 import ClientMessagesSection, {
   type ClientMessage,
 } from "@/components/order-workspace/ClientMessagesSection";
@@ -62,6 +63,31 @@ function getDeliveredFiles(order: any): DocRef[] {
     if (single) list.push({ name: order.finalFilename || "Traducción jurada", url: String(single) });
   }
   return list;
+}
+
+// Documentos fuente con tipo, para el editor de producción (visor pdf/img/docx).
+function getWorkspaceDocuments(events: any[]): { name: string; url?: string; type: string }[] {
+  const submitted = events.find((e: any) => e.type === "presupuesto.submitted");
+  const submittedFiles = submitted
+    ? (Array.isArray((submitted.payload as any)?.files) ? (submitted.payload as any).files : []).map((f: any) => ({
+        name: String(f?.name || "Documento"),
+        url: f?.url ? String(f.url) : undefined,
+        type: String(f?.type || ""),
+      }))
+    : [];
+  const uploaded = events
+    .filter((e: any) => e.type === "order.source_document_uploaded")
+    .map((e: any) => {
+      const p = (e.payload as any) || {};
+      return { name: String(p.fileName || "Documento"), url: p.fileUrl ? String(p.fileUrl) : undefined, type: String(p.fileType || "") };
+    });
+  const seen = new Set<string>();
+  return [...uploaded, ...submittedFiles].filter((d) => {
+    if (!d.url) return true;
+    if (seen.has(d.url)) return false;
+    seen.add(d.url);
+    return true;
+  });
 }
 
 function getClientMessages(events: any[]): ClientMessage[] {
@@ -146,6 +172,15 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const deliveredFiles = getDeliveredFiles(order);
   const messages = getClientMessages(order.events);
   const assignment = order.collaboratorAssignments?.[0] || null;
+  const workspaceDocs = getWorkspaceDocuments(order.events);
+  const collaboratorDelivery = assignment?.deliveredFileUrl
+    ? {
+        fileUrl: assignment.deliveredFileUrl,
+        filename: assignment.deliveredFilename || "Entrega colaborador",
+        deliveredAt: assignment.deliveredAt?.toISOString() || null,
+        collaboratorName: assignment.collaborator?.fullName || assignment.collaborator?.email || "colaborador",
+      }
+    : null;
 
   // Stepper lineal: el backend (lib/order-actions) ya calcula el paso actual y
   // la "siguiente mejor accion". La landing solo lo renderiza — cero logica nueva.
@@ -235,6 +270,25 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         </div>
 
         {/* SECCIÓN 1 — Subir / ver traducciones (lo primero: el dolor de "dónde meto la traducción") */}
+        {/* SECCIÓN — Producción · Borrador IA (migrado del Workspace), plegable */}
+        <section id="produccion" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+          <details>
+            <summary className="cursor-pointer text-lg font-semibold text-slate-100">Producción · Borrador IA</summary>
+            <div className="mt-4">
+              <WorkspaceEditor
+                reference={order.reference}
+                langPair={order.langPair}
+                draftContentJson={order.draftContentJson || null}
+                draftFileUrl={order.draftFileUrl || null}
+                draftFilename={order.draftFilename || null}
+                draftGeneratedAt={order.draftGeneratedAt?.toISOString() || null}
+                documents={workspaceDocs}
+                collaboratorDelivery={collaboratorDelivery}
+              />
+            </div>
+          </details>
+        </section>
+
         <Section id="traduccion" title="Subir y entregar la traducción">
           {deliveredFiles.length > 0 ? (
             <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
