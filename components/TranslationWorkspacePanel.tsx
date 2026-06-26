@@ -62,6 +62,34 @@ export default function TranslationWorkspacePanel({
   // a marcar la casilla a conciencia (reenvío intencionado).
   const [delivered, setDelivered] = useState(false);
 
+  // Los archivos se ACUMULAN: añadir uno NO borra los anteriores (antes setFiles
+  // reemplazaba → solo quedaba el último → solo se entregaba/enviaba uno). Dedup
+  // por nombre+tamaño para no repetir si se reelige el mismo.
+  function addFiles(incoming: File[]) {
+    if (incoming.length === 0) return;
+    setFiles((prev) => {
+      // Dedup por nombre+tamaño+fecha-de-modificación: así una versión CORREGIDA
+      // del mismo PDF (mismo nombre, quizá mismo tamaño) NO se descarta por error.
+      const keyOf = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
+      const seen = new Set(prev.map(keyOf));
+      const merged = [...prev];
+      for (const f of incoming) {
+        const key = keyOf(f);
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(f);
+        }
+      }
+      return merged;
+    });
+    setState("TRADUCIDO");
+    setDelivered(false);
+  }
+
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
   type UploadedFile = { url: string; fileKey: string | null; filename: string; mimeType: string | null };
 
   async function uploadFiles(): Promise<UploadedFile[]> {
@@ -121,6 +149,12 @@ export default function TranslationWorkspacePanel({
       const data = await res.json();
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "No se pudo actualizar la entrega.");
+      }
+      // Los ficheros ya están subidos y persistidos en el pedido: limpiamos la
+      // selección pendiente para que una segunda entrega NO los vuelva a subir
+      // (con la acumulación, dejarlos provocaría duplicados).
+      if (uploaded.length > 0) {
+        setFiles([]);
       }
       if (state === "EN_PROCESO" && data?.etaDate) {
         setMessage(`Estado actualizado. ETA: ${data.etaDate}.`);
@@ -238,12 +272,8 @@ export default function TranslationWorkspacePanel({
           accept=".pdf,.doc,.docx"
           multiple
           onChange={(e) => {
-            const fs = Array.from(e.target.files || []);
-            setFiles(fs);
-            if (fs.length > 0) {
-              setState("TRADUCIDO");
-              setDelivered(false);
-            }
+            addFiles(Array.from(e.target.files || []));
+            e.target.value = ""; // permite reelegir / añadir el mismo input otra vez
           }}
           className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-emerald-500/50 file:bg-emerald-600/20 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-200"
         />
@@ -257,19 +287,44 @@ export default function TranslationWorkspacePanel({
             );
             if (picked.length === 0) {
               setMessage("La carpeta no contiene PDF o Word.");
+              e.target.value = "";
               return;
             }
-            setFiles(picked);
-            setState("TRADUCIDO");
-            setDelivered(false);
+            addFiles(picked);
+            e.target.value = "";
           }}
           className="mt-2 block w-full text-xs text-slate-400 file:mr-3 file:rounded-lg file:border file:border-slate-500/50 file:bg-slate-700/40 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-200"
         />
-        <p className="mt-1.5 text-[11px] text-slate-400">
-          {files.length > 0
-            ? `✓ ${files.length} archivo${files.length > 1 ? "s" : ""} listo${files.length > 1 ? "s" : ""}. Marca «Notificar al cliente» y pulsa Guardar para enviárselo${files.length > 1 ? "s todos" : ""}.`
-            : "PDF o Word. Elige VARIOS archivos (arriba) o una CARPETA entera (abajo). Al elegir se marca como Traducido."}
-        </p>
+        {files.length > 0 ? (
+          <div className="mt-2">
+            <ul className="space-y-1">
+              {files.map((f, i) => (
+                <li
+                  key={`${f.name}-${f.size}-${i}`}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-slate-800/60 px-2.5 py-1.5 text-xs text-slate-200"
+                >
+                  <span className="truncate">📄 {f.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="shrink-0 font-semibold text-red-300 hover:text-red-200"
+                  >
+                    quitar
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              ✓ {files.length} archivo{files.length > 1 ? "s" : ""} listo{files.length > 1 ? "s" : ""}. Marca «Notificar al
+              cliente» y pulsa Guardar para enviárselo{files.length > 1 ? "s todos" : ""}.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-1.5 text-[11px] text-slate-400">
+            PDF o Word. Añade los archivos de uno en uno (se ACUMULAN, no se borran) o una CARPETA entera. Al elegir se
+            marca como Traducido.
+          </p>
+        )}
       </div>
 
       {state === "TRADUCIDO" && (

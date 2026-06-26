@@ -190,16 +190,18 @@ export async function sendPresupuestoConfirmationEmail(payload: PresupuestoPaylo
   });
 }
 
-export async function sendTranslationReadyEmail(data: {
-  toEmail: string;
+// Compone (sin enviar) el email de "traducción lista". Separado del envío para
+// poder registrar de forma SÍNCRONA en OrderEvent el contenido EXACTO que se
+// manda al cliente: en serverless el envío de fondo puede no completarse, y el
+// registro de "qué se envió" no debe depender de él.
+export function buildTranslationReadyEmail(data: {
   reference: string;
   downloadUrl: string;
   statusUrl?: string;
   lang?: "es" | "fr";
-  attachments?: MailAttachment[];
   translationAttached?: boolean;
   invoiceAttached?: boolean;
-}) {
+}): { subject: string; html: string } {
   const fr = data.lang === "fr";
   // Ficha de Google de HBTJ (CID de la URL de Maps). El env puede sobreescribirlo
   // (p.ej. con el enlace corto g.page/r/.../review para reseña de un clic), pero
@@ -264,14 +266,30 @@ export async function sendTranslationReadyEmail(data: {
       ${reviewBlock}
     `;
 
+  const subject = fr
+    ? `Votre traduction assermentée est prête (${data.reference})`
+    : `Tu traducción jurada está lista (${data.reference})`;
+  return { subject, html: wrapClientEmailHtml(html) };
+}
+
+export async function sendTranslationReadyEmail(data: {
+  toEmail: string;
+  reference: string;
+  downloadUrl: string;
+  statusUrl?: string;
+  lang?: "es" | "fr";
+  attachments?: MailAttachment[];
+  translationAttached?: boolean;
+  invoiceAttached?: boolean;
+}): Promise<{ subject: string; html: string }> {
+  const composed = buildTranslationReadyEmail(data);
   await sendMail({
     to: data.toEmail,
-    subject: fr
-      ? `Votre traduction assermentée est prête (${data.reference})`
-      : `Tu traducción jurada está lista (${data.reference})`,
-    html: wrapClientEmailHtml(html),
+    subject: composed.subject,
+    html: composed.html,
     attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
   });
+  return composed;
 }
 
 export async function sendInvoiceRequestEmail(data: {

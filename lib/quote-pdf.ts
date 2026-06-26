@@ -45,6 +45,11 @@ function toMoney(value: number) {
 // Unicode (p.ej. la flecha →) → salen como garabatos. Los normalizamos.
 function safe(s: string) {
   return String(s ?? "")
+    // Quitar TILDES/diacríticos (é, û, à, ç…): la helvetica estándar de jsPDF los
+    // infra-mide, así que splitTextToSize cree que la línea cabe y luego renderiza
+    // más ancha → el texto pisa las columnas Cantidad/Precio/Total. A ASCII.
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/→/g, "->")
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
@@ -124,6 +129,7 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   y += 5;
 
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
   data.lines.forEach((line) => {
     if (y > 265) {
       doc.addPage();
@@ -133,7 +139,10 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
       doc.line(14, y, 196, y);
       y += 5;
     }
-    const descLines: string[] = doc.splitTextToSize(safe(line.description), 90);
+    // Acotar la descripcion a SU columna: splitTextToSize ya corta a 82 mm (deja
+    // hueco hasta Cantidad en x=110). El render va SIN maxWidth: pasarlo de nuevo
+    // hacia justificar el parrafo (caracteres espaciados) y volvia a descuadrar.
+    const descLines: string[] = doc.splitTextToSize(safe(line.description), 82);
     const rowHeight = Math.max(6, descLines.length * 5);
     doc.setFont("helvetica", "normal");
     doc.text(descLines, 14, y);

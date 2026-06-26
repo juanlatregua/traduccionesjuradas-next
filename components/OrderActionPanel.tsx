@@ -330,6 +330,13 @@ export default function OrderActionPanel({
             {assignedTo && <span className="text-amber-300/80">→ {assignedTo}</span>}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={`/zona-traductor/pedido/${reference}`}
+              className="rounded-lg border border-emerald-500/50 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/25"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Abrir pedido
+            </a>
             {showWorkspaceLink && (
               <a
                 href={`/zona-traductor/workspace/${reference}`}

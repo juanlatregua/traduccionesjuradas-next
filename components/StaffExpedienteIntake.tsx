@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors } from "lucide-react";
-import { clientPriceFromCost } from "@/lib/quote-math";
+import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -65,7 +65,8 @@ type DocRow = {
   words?: number;
   pages?: number;
   mode?: "text" | "vision";
-  unitPrice: number; // editable, pre-IVA
+  unitPrice: number; // editable, pre-IVA (coste TOTAL de la linea)
+  wordRate?: number; // €/palabra de esta linea (modo "palabra"); unitPrice = words × wordRate
   // trazabilidad al PDF origen (para ver/descargar cada documento)
   blobUrl?: string;
   pageStart?: number;
@@ -124,37 +125,100 @@ async function runPool<T>(items: T[], worker: (item: T) => Promise<void>, limit:
   await Promise.all(runners);
 }
 
+// Prefill por deep-link (fusion del antiguo QuoteBuilder): cliente, idiomas,
+// entrega y una linea suelta. Equivale al QuoteBuilderInitialData de antes.
+type StaffIntakeInitialData = {
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  sourceLang?: string;
+  targetLang?: string;
+  deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP";
+  lineDescription?: string;
+  lineAmount?: string;
+};
+
 type Props = {
   // Expediente entrante ya subido por el cliente: se analizan por documentId.
   initialDocs?: { documentId: string; fileName: string }[];
   initialCustomer?: { name?: string; email?: string; phone?: string };
+  initialData?: StaffIntakeInitialData;
   expedienteRef?: string | null;
 };
 
-export default function StaffExpedienteIntake({ initialDocs, initialCustomer, expedienteRef }: Props = {}) {
+export default function StaffExpedienteIntake({ initialDocs, initialCustomer, initialData, expedienteRef }: Props = {}) {
   const [docs, setDocs] = useState<DocRow[]>([]);
-  const [customerName, setCustomerName] = useState(initialCustomer?.name || "");
-  const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || "");
-  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone || "");
-  const [sourceLang, setSourceLang] = useState("");
-  const [targetLang, setTargetLang] = useState("");
+  const [customerName, setCustomerName] = useState(initialCustomer?.name || initialData?.customerName || "");
+  const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || initialData?.customerEmail || "");
+  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone || initialData?.customerPhone || "");
+  const [sourceLang, setSourceLang] = useState(initialData?.sourceLang || "");
+  const [targetLang, setTargetLang] = useState(initialData?.targetLang || "");
   const [discountPct, setDiscountPct] = useState(0);
   const [discountTouched, setDiscountTouched] = useState(false);
   const [validityDays, setValidityDays] = useState(15);
   const [notesLegal, setNotesLegal] = useState("");
   // null = margen AUTO (tiered por coste, FR sin margen). Un número = override manual.
-  const [marginPct, setMarginPct] = useState<number | null>(null);
+  const [marginPct, setMarginPct] = useState<number | null>(initialData?.lineAmount ? 0 : null);
   // Modo de precio del COSTE por línea: "document" = precio fijo por documento
   // (escribes el coste a mano); "word" = por palabra (coste = palabras × tarifa).
   const [priceMode, setPriceMode] = useState<"document" | "word">("document");
   const [wordRate, setWordRate] = useState<number>(0.07);
-  const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">("DIGITAL_PDF");
+  // P2: si false, soltar documentos NO lanza el conteo IA (precio a mano / fijo).
+  const [autoCount, setAutoCount] = useState(true);
+  const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">(
+    initialData?.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
+  );
   const [deliveryNote, setDeliveryNote] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<string[]>(["bbva", "openbank", "bizum607"]);
   const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Agenda de clientes (modelo Customer): elegir uno rellena los campos. Portado
+  // del antiguo QuoteBuilder al fusionar ambos builders en este intake.
+  type Agenda = {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    companyName: string | null;
+    fiscalName: string | null;
+    nif: string | null;
+  };
+  const [agenda, setAgenda] = useState<Agenda[]>([]);
+  useEffect(() => {
+    fetch("/api/customers")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.ok && Array.isArray(d.customers)) setAgenda(d.customers);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Prefill por deep-link (PM, panel de pedido): sembrar una linea manual desde
+  // lineDescription/lineAmount, para que el bloque de presupuesto aparezca y el
+  // precio especificado no se pierda. Con lineAmount el margen arranca en 0 (el
+  // staff especifico el precio exacto; lo persistido = lo indicado).
+  useEffect(() => {
+    if (initialDocs && initialDocs.length) return; // el camino expediente posee docs
+    if (initialData?.lineDescription || initialData?.lineAmount) {
+      setDocs([
+        {
+          localId: uid(),
+          fileName: initialData.lineDescription || "",
+          fileSize: 0,
+          mimeType: "",
+          status: "manual",
+          include: true,
+          unitPrice: initialData.lineAmount
+            ? Number(String(initialData.lineAmount).replace(",", ".")) || 0
+            : 0,
+        },
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const patch = useCallback((localId: string, data: Partial<DocRow>) => {
     setDocs((prev) => prev.map((d) => (d.localId === localId ? { ...d, ...data } : d)));
@@ -170,7 +234,14 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
           clientPayload: JSON.stringify({ gdprConsent: true }),
         });
 
-        patch(row.localId, { status: "analyzing" });
+        // Guarda el blobUrl ya: filas con error o sin analizar conservan el "ver".
+        patch(row.localId, { status: "analyzing", blobUrl: blob.url });
+
+        // P2: sin conteo automatico → fila editable a mano (sin coste de IA).
+        if (!autoCount) {
+          patch(row.localId, { status: "manual", blobUrl: blob.url });
+          return;
+        }
 
         const res = await fetch("/api/zona-traductor/expediente/analyze", {
           method: "POST",
@@ -207,7 +278,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         patch(row.localId, { status: "error", error: "Error de conexión." });
       }
     },
-    [patch, targetLang]
+    [patch, targetLang, autoCount]
   );
 
   const handleFiles = useCallback(
@@ -336,7 +407,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
     setDocs((prev) =>
       prev.map((d) =>
         isPriceable(d.status) && d.words && d.words > 0
-          ? { ...d, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100 }
+          ? { ...d, wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100 }
           : d
       )
     );
@@ -361,15 +432,29 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
     () => includedDocs.reduce((s, d) => s + (d.unitPrice || 0), 0),
     [includedDocs]
   );
-  const subtotal = useMemo(
-    () => includedDocs.reduce((s, d) => s + clientPriceOf(d.unitPrice), 0),
-    [includedDocs, clientPriceOf]
+  // Totales en vivo con la MISMA funcion que el servidor (computeQuoteTotals) →
+  // la UI nunca diverge del precio que se persiste en /api/quotes.
+  const quoteTotals = useMemo(
+    () =>
+      computeQuoteTotals({
+        lines: includedDocs.map((d) => ({
+          description: d.documentTypeEs || d.fileName || "Linea",
+          quantity: 1,
+          unitPrice: clientPriceOf(d.unitPrice),
+        })),
+        discountType: discountPct > 0 ? "PERCENT" : "NONE",
+        discountValue: discountPct,
+        vatRate: 0.21,
+        deliveryType,
+        shippingBase: PAPER_SHIPPING_BASE_EUR,
+      }),
+    [includedDocs, clientPriceOf, discountPct, deliveryType]
   );
-  const shipping = deliveryType === "PAPER_SHIP" ? 12 : 0;
-  const discountAmount = Math.min(subtotal + shipping, (subtotal * discountPct) / 100);
-  const taxable = Math.max(0, subtotal + shipping - discountAmount);
-  const vat = taxable * 0.21;
-  const total = taxable + vat;
+  const subtotal = quoteTotals.subtotal;
+  const shipping = quoteTotals.shippingAmount;
+  const discountAmount = quoteTotals.discountAmount;
+  const vat = quoteTotals.vatAmount;
+  const total = quoteTotals.total;
 
   const busy = docs.some((d) => d.status === "uploading" || d.status === "analyzing");
   const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
@@ -441,6 +526,39 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
 
   return (
     <div className="space-y-6 text-slate-200">
+      {/* Cliente ARRIBA: confirma QUIÉN antes de subir documentos / cotizar.
+          (Selector de agenda + datos; el builder unificado funciona sin docs.) */}
+      <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+        <h3 className="text-sm font-semibold text-white">Cliente</h3>
+        {agenda.length > 0 && (
+          <select
+            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-slate-200"
+            defaultValue=""
+            onChange={(e) => {
+              const c = agenda.find((x) => x.id === e.target.value);
+              if (!c) return;
+              setCustomerName(c.companyName || c.name || "");
+              setCustomerEmail((c.email || "").toLowerCase());
+              setCustomerPhone(c.phone || "");
+            }}
+          >
+            <option value="">— Elegir cliente de la agenda (o teclear abajo) —</option>
+            {agenda.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.companyName || c.name}
+                {c.nif ? ` · ${c.nif}` : ""}
+                {c.email ? ` · ${c.email}` : ""}
+              </option>
+            ))}
+          </select>
+        )}
+        <div className="grid gap-2 sm:grid-cols-3">
+          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Nombre del cliente" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Teléfono (opcional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+        </div>
+      </div>
+
       {/* Idioma destino del expediente — elígelo ANTES de subir si traduces a
           un tercer idioma (p. ej. todo a inglés). Pre-rellena la dirección de
           cada documento detectado hacia ese idioma. */}
@@ -456,6 +574,21 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         </select>
         <span className="text-xs text-slate-500">Elígelo antes de subir si traduces a un tercer idioma (p. ej. todo a inglés). El precio final lo confirmas tú.</span>
       </div>
+
+      {/* P2: elegir si el conteo IA se lanza al soltar (tiene coste) o se pone a mano */}
+      <label className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-slate-200">
+        <input
+          type="checkbox"
+          checked={autoCount}
+          onChange={(e) => setAutoCount(e.target.checked)}
+          className="h-4 w-4"
+        />
+        <span className="font-medium">Contar palabras automáticamente al soltar (IA)</span>
+        <span className="text-xs text-slate-500">
+          El conteo automático usa IA y tiene coste. Desactívalo para clientes con precio fijo por documento
+          (p. ej. 30 €/doc): subes el archivo y pones el precio a mano, sin lanzar el conteo.
+        </span>
+      </label>
 
       {/* Dropzone */}
       <div
@@ -510,7 +643,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                 <th className="px-3 py-2">Tipo</th>
                 <th className="px-3 py-2">Dirección</th>
                 <th className="px-3 py-2 text-right">Palabras</th>
-                <th className="px-3 py-2 text-right">Coste traductor</th>
+                {priceMode === "word" && <th className="px-3 py-2 text-right">€/palabra</th>}
+                <th className="px-3 py-2 text-right">{priceMode === "word" ? "Total coste" : "Coste fijo"}</th>
                 <th className="px-3 py-2 text-right">Precio cliente</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -528,14 +662,23 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                     />
                   </td>
                   <td className="max-w-[220px] px-3 py-2">
-                    {d.status === "manual" ? (
-                      <input
-                        type="text"
-                        value={d.fileName}
-                        onChange={(e) => patch(d.localId, { fileName: e.target.value })}
-                        placeholder="Concepto de la línea"
-                        className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
-                      />
+                    {d.status === "manual" || d.status === "error" ? (
+                      <div>
+                        <input
+                          type="text"
+                          value={d.fileName}
+                          onChange={(e) => patch(d.localId, { fileName: e.target.value })}
+                          placeholder={d.status === "error" ? "Nombre / concepto del documento" : "Concepto de la línea"}
+                          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                        />
+                        {d.blobUrl && (
+                          <div className="mt-0.5 flex items-center gap-2 text-[11px]">
+                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ver</a>
+                            <span className="text-slate-600">·</span>
+                            <a href={docViewUrl(d, true)!} className="text-cyan-400 hover:underline">descargar</a>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <div>
                         <div className="flex items-center gap-2">
@@ -630,7 +773,15 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                         type="number"
                         min={0}
                         value={d.words ?? ""}
-                        onChange={(e) => patch(d.localId, { words: e.target.value === "" ? undefined : Number(e.target.value) })}
+                        onChange={(e) => {
+                          const w = e.target.value === "" ? undefined : Number(e.target.value);
+                          patch(
+                            d.localId,
+                            priceMode === "word"
+                              ? { words: w, unitPrice: Math.round((w || 0) * (d.wordRate ?? wordRate) * 100) / 100 }
+                              : { words: w }
+                          );
+                        }}
                         placeholder="palabras"
                         className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
                       />
@@ -638,16 +789,40 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
                       "—"
                     )}
                   </td>
+                  {priceMode === "word" && (
+                    <td className="px-3 py-2 text-right">
+                      {isPriceable(d.status) ? (
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.001"
+                          value={d.wordRate ?? wordRate}
+                          onChange={(e) => {
+                            const r = Math.max(0, Number(e.target.value));
+                            patch(d.localId, { wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100 });
+                          }}
+                          className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                          title="€ por palabra (coste del traductor) de esta línea"
+                        />
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  )}
                   <td className="px-3 py-2 text-right">
                     {isPriceable(d.status) ? (
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={d.unitPrice}
-                        onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value) })}
-                        className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
-                      />
+                      priceMode === "word" ? (
+                        <span className="tabular-nums text-slate-300">{(d.unitPrice || 0).toFixed(2)} €</span>
+                      ) : (
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={d.unitPrice}
+                          onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value) })}
+                          className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                        />
+                      )
                     ) : (
                       "—"
                     )}
@@ -685,16 +860,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
         </div>
       )}
 
-      {/* Datos del cliente + presupuesto */}
+      {/* Configuración del presupuesto (al haber líneas; el Cliente va arriba). */}
       {docs.length > 0 && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-            <h3 className="text-sm font-semibold text-white">Cliente</h3>
-            <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Nombre del cliente" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-            <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
-            <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Teléfono (opcional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
-          </div>
-
           <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
             <h3 className="text-sm font-semibold text-white">Presupuesto</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -816,7 +983,6 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
               <input value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="WhatsApp para este presupuesto (opcional; por defecto 951 333 614)" className="mt-2 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm" />
             </div>
           </div>
-        </div>
       )}
 
       {/* Totales + acción */}
@@ -829,7 +995,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, ex
             <div className="flex justify-between text-slate-400"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
             <div className="flex justify-between border-t border-slate-700 pt-1 text-base font-semibold text-white"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
             <div className="mt-1 flex justify-between border-t border-dashed border-slate-700 pt-1 text-[11px] text-slate-500" title="Solo visible para ti, no aparece en el presupuesto del cliente">
-              <span>Interno · coste {costTotal.toFixed(2)} € · margen {marginPct}%</span>
+              <span>Interno · coste {costTotal.toFixed(2)} € · margen {marginPct === null ? "AUTO" : `${marginPct}%`}</span>
               <span className="tabular-nums">+{(subtotal - costTotal).toFixed(2)} €</span>
             </div>
           </div>

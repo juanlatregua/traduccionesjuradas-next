@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { confirmManualPayment, getOrderDetail } from "@/lib/orders";
-import { sendPaymentConfirmedEmail } from "@/lib/email";
-import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
+import { confirmManualPaymentWithSideEffects } from "@/lib/payments-confirm";
 import { prisma } from "@/lib/prisma";
 import { getWorkflowState } from "@/lib/workflow";
 import { requireStaffAccess } from "@/lib/staff-auth";
@@ -55,66 +53,13 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    const paymentUpdate = await confirmManualPayment(params.reference, method, actorEmail);
-    if (!paymentUpdate.changed) {
+    const result = await confirmManualPaymentWithSideEffects(params.reference, method, actorEmail);
+    if (!result.changed) {
       return NextResponse.json({
         ok: true,
         alreadyPaid: true,
-        duplicate: paymentUpdate.duplicate,
+        duplicate: result.duplicate,
       });
-    }
-
-    await transitionWorkflowState({
-      reference: params.reference,
-      to: "PAGO_VALIDADO",
-      actorEmail,
-      reason: `Pago manual validado (${method}).`,
-    });
-    await assignDefaultFrenchEtaIfNeeded({
-      reference: params.reference,
-      actorEmail,
-    }).catch((err) => {
-      console.error("[confirm-payment] default FR ETA assignment failed", err);
-    });
-
-    await autoAssignCollaboratorIfNeeded({
-      reference: params.reference,
-      actorEmail,
-    }).catch((err) => {
-      console.error("[confirm-payment] auto collaborator assignment failed", err);
-    });
-
-    // Notify client (non-blocking)
-    const order = await getOrderDetail(params.reference);
-    if (order?.clientEmail) {
-      sendPaymentConfirmedEmail({
-        toEmail: order.clientEmail,
-        reference: order.reference,
-        title: order.title,
-        amountCents: order.amountCents,
-        method,
-        lang: order.clientLocale === "fr" ? "fr" : "es",
-      }).catch((e) => console.error("[confirm-payment] email failed", e));
-
-      // SMS notification (fire & forget)
-      const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
-      const { smsPagoConfirmado } = await import("@/lib/sms-templates");
-      const { buildSignedOrderUrl } = await import("@/lib/order-token");
-      const { formatDeliveryPlazo } = await import("@/lib/sms-templates");
-      const orderFull = await prisma.order.findUnique({
-        where: { reference: params.reference },
-        select: { id: true, dueDate: true, clientLocale: true },
-      });
-      if (orderFull) {
-        const phone = await getOrderPhone(orderFull.id).catch(() => null);
-        if (phone) {
-          const lang = orderFull.clientLocale === "fr" ? "fr" : "es";
-          sendNotification({
-            to: formatPhoneSpain(phone),
-            body: smsPagoConfirmado({ ref: params.reference, plazo: formatDeliveryPlazo(orderFull.dueDate, lang), url: buildSignedOrderUrl(params.reference, "estado"), lang }),
-          }).catch((err) => console.error("[confirm-payment] SMS failed", err));
-        }
-      }
     }
 
     return NextResponse.json({ ok: true });
