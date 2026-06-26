@@ -337,15 +337,6 @@ export default function OrderActionPanel({
             >
               Abrir pedido
             </a>
-            {showWorkspaceLink && (
-              <a
-                href={`/zona-traductor/workspace/${reference}`}
-                className="rounded-lg border border-indigo-500/40 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/10"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Workspace
-              </a>
-            )}
             {!nbaIsWorkspace && nextBestAction.tab === "presupuesto" && (
               <a
                 href={quickQuoteHref}
@@ -360,13 +351,6 @@ export default function OrderActionPanel({
                 <ConfirmPaymentButton reference={reference} />
               </span>
             )}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-              className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
-            >
-              {open ? "Ocultar" : "Ver detalle"}
-            </button>
           </div>
         </div>
 
