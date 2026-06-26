@@ -16,6 +16,8 @@ import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
 import ClientMessagesSection, {
   type ClientMessage,
 } from "@/components/order-workspace/ClientMessagesSection";
+import ZonaTraductorNav from "@/components/ZonaTraductorNav";
+import { loadBandejaState } from "@/lib/zona-traductor-data";
 
 export const metadata: Metadata = {
   title: "Pedido — Zona traductor",
@@ -83,11 +85,11 @@ function getClientMessages(events: any[]): ClientMessage[] {
 }
 
 const PAY_CLS: Record<string, string> = {
-  PAID: "bg-emerald-100 text-emerald-800",
+  PAID: "bg-emerald-500/15 text-emerald-300",
 };
 const DELIVERY_CLS: Record<string, string> = {
-  TRADUCIDO: "bg-emerald-100 text-emerald-800",
-  EN_PROCESO: "bg-bleu/10 text-bleu",
+  TRADUCIDO: "bg-emerald-500/15 text-emerald-300",
+  EN_PROCESO: "bg-cyan-500/15 text-cyan-400",
 };
 
 function Section({
@@ -102,9 +104,9 @@ function Section({
   return (
     <section
       id={id}
-      className="scroll-mt-20 rounded-3xl border border-sepia/30 bg-parchment/70 p-6 shadow-sm"
+      className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm"
     >
-      <h2 className="text-lg font-semibold text-encre">{title}</h2>
+      <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -142,6 +144,8 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const deliveredFiles = getDeliveredFiles(order);
   const messages = getClientMessages(order.events);
   const assignment = order.collaboratorAssignments?.[0] || null;
+  // Menú central (mismo de toda la zona): necesita el contador de pendientes.
+  const { pedidosAccionables } = await loadBandejaState();
 
   // Stepper lineal: el backend (lib/order-actions) ya calcula el paso actual y
   // la "siguiente mejor accion". La landing solo lo renderiza — cero logica nueva.
@@ -169,44 +173,46 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const clientMessageSubject = `Tu traducción jurada está lista (pedido ${order.reference})`;
 
   return (
-    <main className="min-h-screen bg-cream px-4 py-6">
+    <div className="min-h-screen bg-slate-950">
+      <ZonaTraductorNav modoActivo="bandeja" pedidosAccionables={pedidosAccionables} />
+      <main className="px-4 py-6">
       <div className="mx-auto max-w-5xl space-y-5">
         {/* Cabecera */}
-        <div className="rounded-3xl border border-sepia/30 bg-white p-6 shadow-sm">
-          <a href="/zona-traductor" className="text-xs font-semibold text-bleu hover:underline">
+        <div className="rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-sm">
+          <a href="/zona-traductor" className="text-xs font-semibold text-cyan-400 hover:underline">
             ← Volver a zona traductor
           </a>
           <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-encre">
-                Pedido <span className="font-mono text-bleu">{order.reference}</span>
+              <h1 className="text-2xl font-bold text-slate-100">
+                Pedido <span className="font-mono text-cyan-400">{order.reference}</span>
               </h1>
-              <p className="mt-1 text-sm text-encre/70">
+              <p className="mt-1 text-sm text-slate-300">
                 {order.title} · {order.langPair || "—"} · {order.clientEmail}
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="rounded-md bg-sepia/20 px-2 py-1 text-encre">
+              <span className="rounded-md bg-slate-700/50 px-2 py-1 text-slate-100">
                 {getWorkflowStateLabel(workflowState)}
               </span>
-              <span className={`rounded-md px-2 py-1 ${PAY_CLS[order.paymentStatus] || "bg-amber-100 text-amber-800"}`}>
+              <span className={`rounded-md px-2 py-1 ${PAY_CLS[order.paymentStatus] || "bg-amber-500/15 text-amber-300"}`}>
                 Pago: {order.paymentStatus}
               </span>
-              <span className={`rounded-md px-2 py-1 ${DELIVERY_CLS[order.deliveryState] || "bg-sepia/20 text-encre"}`}>
+              <span className={`rounded-md px-2 py-1 ${DELIVERY_CLS[order.deliveryState] || "bg-slate-700/50 text-slate-100"}`}>
                 Entrega: {order.deliveryState}
               </span>
             </div>
           </div>
-          <div className="mt-4 grid gap-2 text-xs text-encre/70 sm:grid-cols-2 lg:grid-cols-4">
-            <p>ETA: <strong className="text-encre">{order.dueDate ? new Date(order.dueDate).toLocaleDateString("es-ES") : "—"}</strong></p>
-            <p>Importe: <strong className="text-encre">{(order.amountCents / 100).toFixed(2)} EUR</strong></p>
-            <p>Asignado: <strong className="text-encre">{order.assignedTo || "—"}</strong></p>
-            <p>Teléfono: <strong className="text-encre">{order.clientPhone || "—"}</strong></p>
+          <div className="mt-4 grid gap-2 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
+            <p>ETA: <strong className="text-slate-100">{order.dueDate ? new Date(order.dueDate).toLocaleDateString("es-ES") : "—"}</strong></p>
+            <p>Importe: <strong className="text-slate-100">{(order.amountCents / 100).toFixed(2)} EUR</strong></p>
+            <p>Asignado: <strong className="text-slate-100">{order.assignedTo || "—"}</strong></p>
+            <p>Teléfono: <strong className="text-slate-100">{order.clientPhone || "—"}</strong></p>
           </div>
           {order.clientNotes && (
-            <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-2.5">
-              <p className="text-xs font-semibold text-amber-800">Observaciones del cliente</p>
-              <p className="mt-1 whitespace-pre-line text-sm text-encre/80">{order.clientNotes}</p>
+            <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5">
+              <p className="text-xs font-semibold text-amber-300">Observaciones del cliente</p>
+              <p className="mt-1 whitespace-pre-line text-sm text-slate-300">{order.clientNotes}</p>
             </div>
           )}
         </div>
@@ -217,14 +223,14 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         {/* SECCIÓN 1 — Subir / ver traducciones (lo primero: el dolor de "dónde meto la traducción") */}
         <Section id="traduccion" title="Subir y entregar la traducción">
           {deliveredFiles.length > 0 ? (
-            <div className="mb-4 rounded-xl border border-emerald-300/60 bg-emerald-50 p-3">
-              <p className="text-xs font-semibold text-emerald-800">
+            <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+              <p className="text-xs font-semibold text-emerald-300">
                 Traducciones subidas en este pedido ({deliveredFiles.length})
               </p>
               <ul className="mt-1.5 space-y-1">
                 {deliveredFiles.map((f, i) => (
                   <li key={i} className="text-sm">
-                    <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-bleu hover:underline">
+                    <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
                       ✓ {f.name}
                     </a>
                   </li>
@@ -242,7 +248,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               />
             </div>
           ) : (
-            <p className="mb-4 text-sm text-encre/60">
+            <p className="mb-4 text-sm text-slate-400">
               Aún no hay ninguna traducción subida en este pedido.
             </p>
           )}
@@ -260,17 +266,17 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         {/* SECCIÓN 2 — Documentos del cliente */}
         <Section id="docs" title="Documentos del cliente">
           {sourceDocs.length === 0 ? (
-            <p className="text-sm text-encre/60">No hay documentos fuente guardados en este pedido.</p>
+            <p className="text-sm text-slate-400">No hay documentos fuente guardados en este pedido.</p>
           ) : (
             <ul className="space-y-1">
               {sourceDocs.map((d, i) => (
                 <li key={i} className="text-sm">
                   {d.url ? (
-                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-bleu hover:underline">
+                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
                       {d.name}
                     </a>
                   ) : (
-                    <span className="text-encre/70">{d.name}</span>
+                    <span className="text-slate-300">{d.name}</span>
                   )}
                 </li>
               ))}
@@ -284,23 +290,23 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         {/* SECCIÓN 3 — Colaborador */}
         <Section id="colab" title="Colaborador">
           {assignment ? (
-            <div className="text-sm text-encre/80">
+            <div className="text-sm text-slate-300">
               <p>
-                <strong className="text-encre">{assignment.collaborator.fullName}</strong> · {assignment.status}
+                <strong className="text-slate-100">{assignment.collaborator.fullName}</strong> · {assignment.status}
               </p>
               {assignment.deliveredFileUrl && (
                 <p className="mt-1">
                   Entrega del colaborador:{" "}
-                  <a href={assignment.deliveredFileUrl} target="_blank" rel="noopener noreferrer" className="text-bleu hover:underline">
+                  <a href={assignment.deliveredFileUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
                     {assignment.deliveredFilename || "archivo"}
                   </a>
                 </p>
               )}
             </div>
           ) : (
-            <p className="text-sm text-encre/60">
+            <p className="text-sm text-slate-400">
               Sin colaborador asignado{" "}
-              <span className="text-encre/50">(FR lo traduce Juan; otros idiomas se auto-asignan al pago).</span>
+              <span className="text-slate-500">(FR lo traduce Juan; otros idiomas se auto-asignan al pago).</span>
             </p>
           )}
         </Section>
@@ -308,17 +314,17 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         {/* SECCIÓN 4 — Finanzas */}
         <Section id="finanzas" title="Finanzas">
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-sepia/30 bg-cream/60 p-3">
-              <p className="text-xs uppercase tracking-wide text-encre/50">Importe</p>
-              <p className="text-sm font-semibold text-encre">{(order.amountCents / 100).toFixed(2)} EUR</p>
+            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Importe</p>
+              <p className="text-sm font-semibold text-slate-100">{(order.amountCents / 100).toFixed(2)} EUR</p>
             </div>
-            <div className="rounded-xl border border-sepia/30 bg-cream/60 p-3">
-              <p className="text-xs uppercase tracking-wide text-encre/50">Estado de pago</p>
-              <p className="text-sm font-semibold text-encre">{order.paymentStatus}</p>
+            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Estado de pago</p>
+              <p className="text-sm font-semibold text-slate-100">{order.paymentStatus}</p>
             </div>
-            <div className="rounded-xl border border-sepia/30 bg-cream/60 p-3">
-              <p className="text-xs uppercase tracking-wide text-encre/50">Factura</p>
-              <a href="/zona-traductor/facturas" className="text-sm font-semibold text-bleu hover:underline">
+            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Factura</p>
+              <a href="/zona-traductor/facturas" className="text-sm font-semibold text-cyan-400 hover:underline">
                 Gestionar facturas →
               </a>
             </div>
@@ -330,6 +336,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           <ClientMessagesSection messages={messages} />
         </Section>
       </div>
-    </main>
+      </main>
+    </div>
   );
 }

@@ -54,11 +54,11 @@ export default function ClientMessageComposer({
   };
 
   const inputCls =
-    "w-full rounded-lg border border-sepia/40 bg-white px-3 py-2 text-sm text-encre placeholder:text-encre/40";
+    "w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
 
   return (
-    <div className="mt-3 space-y-2 border-t border-emerald-200 pt-3">
-      <p className="text-xs font-semibold text-emerald-800">Enviar al cliente (editable)</p>
+    <div className="mt-3 space-y-2 border-t border-emerald-500/20 pt-3">
+      <p className="text-xs font-semibold text-emerald-300">Enviar al cliente (editable)</p>
 
       <input
         value={subject}
@@ -79,7 +79,7 @@ export default function ClientMessageComposer({
           onClick={sendEmail}
           disabled={sending || isWaLead}
           title={isWaLead ? "Cliente sin email real (lead de WhatsApp)" : "Enviar por email con las traducciones + factura adjuntas"}
-          className="rounded-lg bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {sending ? "Enviando…" : "Enviar email"}
         </button>
@@ -94,17 +94,17 @@ export default function ClientMessageComposer({
             Abrir WhatsApp
           </a>
         ) : (
-          <span className="text-xs text-encre/50">Sin teléfono para WhatsApp.</span>
+          <span className="text-xs text-slate-500">Sin teléfono para WhatsApp.</span>
         )}
       </div>
 
       {isWaLead && (
-        <p className="text-[11px] text-amber-700">
+        <p className="text-[11px] text-amber-300">
           Este cliente no tiene email real (@whatsapp.local) → envíalo por WhatsApp (los PDF los adjuntas tú).
         </p>
       )}
       {feedback && (
-        <p className={`text-xs font-medium ${feedback.ok ? "text-emerald-700" : "text-amber-700"}`}>
+        <p className={`text-xs font-medium ${feedback.ok ? "text-emerald-300" : "text-amber-300"}`}>
           {feedback.text}
         </p>
       )}
