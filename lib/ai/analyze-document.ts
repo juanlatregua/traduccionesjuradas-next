@@ -4,7 +4,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { DOCUMENT_ANALYSIS_PROMPT, LARGE_DOCUMENT_ADDENDUM } from "./prompts";
 import { countDocumentWords, billableWordCount } from "./word-counter";
 
-const MODEL = "claude-sonnet-4-20250514";
+// Sonnet 4.6 (alias estable, sin sufijo de fecha): el anterior
+// claude-sonnet-4-20250514 (Sonnet 4, may-2025) quedo retirado y devolvia 404,
+// rompiendo TODO el analisis por vision (escaneos/imagenes) en produccion.
+const MODEL = "claude-sonnet-4-6";
 // Camino barato: PDFs con capa de texto se clasifican con Haiku sobre el texto
 // extraído (sin imagen). ~15× más barato que Sonnet visión y sin tokens de
 // imagen. Ver lib/ai/extract-text.ts y lib/ai/run-analysis.ts.

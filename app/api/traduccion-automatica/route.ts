@@ -12,7 +12,7 @@ import { generateDraftDocx } from "@/lib/draft-docx";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "claude-sonnet-4-6"; // Sonnet 4 (20250514) retirado 15-jun-2026 → 404
 const MAX_TOKENS = 8192;
 
 type RequestBody = {
