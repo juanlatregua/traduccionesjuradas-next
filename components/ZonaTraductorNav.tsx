@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PMQuickCreatePanel from "./PMQuickCreatePanel";
 
-type ModoActivo = "bandeja" | "control" | "presupuesto" | "expedientes" | "facturas" | "recurrentes" | "contabilidad" | "tablero";
+type ModoActivo = "bandeja" | "clientes" | "control" | "presupuesto" | "expedientes" | "facturas" | "recurrentes" | "contabilidad" | "tablero";
 
 type Props = {
   modoActivo?: ModoActivo; // ya no se pasa: el tab activo se deriva del pathname.
@@ -17,6 +17,7 @@ type Props = {
 // siguen vivas para no romper enlaces de SMS/email a /control?q=...).
 const TABS: { href: string; label: string; key: ModoActivo }[] = [
   { href: "/zona-traductor", label: "Bandeja", key: "bandeja" },
+  { href: "/zona-traductor/clientes", label: "Clientes", key: "clientes" },
   { href: "/zona-traductor/expedientes", label: "Expedientes", key: "expedientes" },
   { href: "/zona-traductor/presupuesto", label: "Presupuesto", key: "presupuesto" },
   { href: "/zona-traductor/facturas", label: "Facturas", key: "facturas" },
