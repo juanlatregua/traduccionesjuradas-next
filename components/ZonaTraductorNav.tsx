@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PMQuickCreatePanel from "./PMQuickCreatePanel";
 
 type ModoActivo = "bandeja" | "control" | "presupuesto" | "expedientes" | "facturas" | "recurrentes" | "contabilidad" | "tablero";
 
 type Props = {
-  modoActivo: ModoActivo;
+  modoActivo?: ModoActivo; // ya no se pasa: el tab activo se deriva del pathname.
   pedidosAccionables: number;
 };
 
@@ -23,8 +24,16 @@ const TABS: { href: string; label: string; key: ModoActivo }[] = [
   { href: "/zona-traductor/contabilidad", label: "Contabilidad", key: "contabilidad" },
 ];
 
-export default function ZonaTraductorNav({ modoActivo, pedidosAccionables }: Props) {
+export default function ZonaTraductorNav({ pedidosAccionables }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const pathname = usePathname();
+  // El menú vive en el layout y está SIEMPRE presente en toda la zona; solo se
+  // oculta en la puerta OTP (/verificar), donde aún no hay sesión.
+  if (pathname === "/zona-traductor/verificar") return null;
+  const isActive = (href: string) =>
+    href === "/zona-traductor"
+      ? pathname === "/zona-traductor" || pathname.startsWith("/zona-traductor/pedido")
+      : pathname.startsWith(href);
 
   return (
     <>
@@ -35,7 +44,7 @@ export default function ZonaTraductorNav({ modoActivo, pedidosAccionables }: Pro
               key={tab.key}
               href={tab.href}
               className={`relative rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                modoActivo === tab.key
+                isActive(tab.href)
                   ? "border-b-2 border-b-cyan-400 text-white"
                   : "text-slate-400 hover:text-slate-200"
               }`}

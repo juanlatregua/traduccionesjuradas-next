@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { authZonaTraductorOrRedirect, loadBandejaState } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
-import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import InvoiceManager, { type InvoiceRow } from "@/components/InvoiceManager";
 import { suggestNextInvoiceNumber } from "@/lib/client-invoice";
 
@@ -18,8 +17,6 @@ type Line = { description: string; detail?: string; amountCents: number };
 
 export default async function ZonaTraductorFacturasPage() {
   await authZonaTraductorOrRedirect();
-  const bandeja = await loadBandejaState().catch(() => null);
-  const accionables = bandeja?.pedidosAccionables ?? 0;
 
   const raw = await prisma.clientInvoice.findMany({
     orderBy: { createdAt: "desc" },
@@ -59,7 +56,6 @@ export default async function ZonaTraductorFacturasPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <ZonaTraductorNav modoActivo="facturas" pedidosAccionables={accionables} />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
