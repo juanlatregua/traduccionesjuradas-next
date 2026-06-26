@@ -7,6 +7,9 @@ import { isStaffEmail } from "@/lib/staff-access";
 import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import { prisma } from "@/lib/prisma";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
+import { getFinanceSnapshot } from "@/lib/finance";
+import { getOrderActionStage, getNextBestAction } from "@/lib/order-actions";
+import OrderStepper from "@/components/order-workspace/OrderStepper";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
 import ClientMessagesSection, {
   type ClientMessage,
@@ -138,6 +141,13 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const messages = getClientMessages(order.events);
   const assignment = order.collaboratorAssignments?.[0] || null;
 
+  // Stepper lineal: el backend (lib/order-actions) ya calcula el paso actual y
+  // la "siguiente mejor accion". La landing solo lo renderiza — cero logica nueva.
+  const orderForActions = { ...order, workflowState } as any;
+  const financeSnapshot = getFinanceSnapshot(orderForActions);
+  const actionStage = getOrderActionStage(orderForActions, financeSnapshot);
+  const nextAction = getNextBestAction(orderForActions, financeSnapshot);
+
   // Reenvío manual al cliente (sobre todo leads de WhatsApp con email sintético
   // @whatsapp.local, a los que el email de entrega no llega): un enlace wa.me con
   // las traducciones + el enlace de reseña ya escritos, y la reseña accesible.
@@ -201,6 +211,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             </div>
           )}
         </div>
+
+        {/* STEPPER lineal: estado del pedido + siguiente paso, todo en un sitio */}
+        <OrderStepper stage={actionStage} nextAction={nextAction} />
 
         {/* SECCIÓN 1 — Subir / ver traducciones (lo primero: el dolor de "dónde meto la traducción") */}
         <Section id="traduccion" title="Subir y entregar la traducción">
