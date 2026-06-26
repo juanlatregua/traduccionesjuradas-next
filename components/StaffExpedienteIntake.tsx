@@ -173,6 +173,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Nombre-IA: id de la fila cuyo nombre se está sugiriendo (spinner inline).
+  const [namingId, setNamingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Agenda de clientes (modelo Customer): elegir uno rellena los campos. Portado
@@ -223,6 +225,29 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const patch = useCallback((localId: string, data: Partial<DocRow>) => {
     setDocs((prev) => prev.map((d) => (d.localId === localId ? { ...d, ...data } : d)));
   }, []);
+
+  // Nombre-IA: llamada barata "solo nombre" (sin contar palabras) para filas que
+  // se soltaron sin análisis o cuyo análisis falló. Rellena el nombre editable.
+  const suggestName = useCallback(
+    async (d: DocRow) => {
+      if (!d.blobUrl) return;
+      setNamingId(d.localId);
+      try {
+        const res = await fetch("/api/zona-traductor/expediente/name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ blobUrl: d.blobUrl, fileName: d.fileName, mimeType: d.mimeType }),
+        });
+        const data = await res.json();
+        if (data.ok && data.name) patch(d.localId, { fileName: data.name, documentTypeEs: data.name });
+      } catch {
+        /* el staff siempre puede teclearlo a mano */
+      } finally {
+        setNamingId(null);
+      }
+    },
+    [patch]
+  );
 
   const processFile = useCallback(
     async (row: DocRow, file: File) => {
@@ -672,10 +697,20 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                           className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
                         />
                         {d.blobUrl && (
-                          <div className="mt-0.5 flex items-center gap-2 text-[11px]">
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px]">
                             <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ver</a>
                             <span className="text-slate-600">·</span>
                             <a href={docViewUrl(d, true)!} className="text-cyan-400 hover:underline">descargar</a>
+                            <span className="text-slate-600">·</span>
+                            <button
+                              type="button"
+                              onClick={() => suggestName(d)}
+                              disabled={namingId === d.localId}
+                              className="text-cyan-400 hover:underline disabled:opacity-50"
+                              title="Sugerir el tipo de documento con IA (no cuenta palabras)"
+                            >
+                              {namingId === d.localId ? "nombrando…" : "sugerir nombre (IA)"}
+                            </button>
                           </div>
                         )}
                       </div>

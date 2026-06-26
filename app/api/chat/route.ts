@@ -29,7 +29,7 @@ type ChatMessage = {
 
 const anthropic = new Anthropic();
 const MAX_TOOL_ITERATIONS = 5;
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "claude-sonnet-4-6"; // Sonnet 4 (20250514) retirado 15-jun-2026 → 404
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES: ImageBlock["source"]["media_type"][] = [
   "image/jpeg",
