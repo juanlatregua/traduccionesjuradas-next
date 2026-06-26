@@ -71,7 +71,19 @@ export async function sendCustomClientEmail(data: {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-  const html = `<div style="white-space:pre-wrap; font-size:14px; line-height:1.5;">${safe}</div>`;
+  // Firma completa + nota legal: SOLO en el email (el WhatsApp va sin firma).
+  const signatureHtml = `
+    <p style="margin:12px 0 4px 0;"><strong>Juan Silva Moreno</strong><br/>
+    Jefe de proyectos · Traductor jurado de francés (Nº3850)<br/>
+    HBTJ Consultores Lingüísticos S.L. · CIF B93712784<br/>
+    Calle Esperanto, 9 · 29007 Málaga<br/>
+    Tel: <a href="tel:+34951333614">${WHATSAPP_DISPLAY}</a></p>
+    <p style="font-size:12px; color:#6b7280; margin:8px 0 0 0;"><strong>NOTA LEGAL</strong> – Este documento se dirige exclusivamente a su destinatario y puede contener información confidencial sometida a secreto profesional. Si no es el destinatario autorizado, su uso o divulgación está prohibido; por favor comuníquelo y destrúyalo. Las comunicaciones por email pueden ser modificadas o interceptadas; el remitente no asume responsabilidad por errores u omisiones.</p>
+    <p style="font-size:12px; color:#6b7280; margin:6px 0 0 0;"><strong>Protección de datos:</strong> Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingüísticos S.L. para gestionar su encargo y comunicaciones. Puede ejercer derechos de acceso, rectificación, supresión y oposición en Calle Esperanto, 9 · 29007 Málaga o en <a href="mailto:hola@traduccionesjuradas.net">hola@traduccionesjuradas.net</a>.</p>
+  `;
+  const html = `<div style="white-space:pre-wrap; font-size:14px; line-height:1.5;">${safe}</div>
+    <hr style="margin:16px 0 12px 0; border:0; border-top:1px solid #e5e7eb;" />
+    ${signatureHtml}`;
   await sendMail({
     to: data.toEmail,
     subject: data.subject,

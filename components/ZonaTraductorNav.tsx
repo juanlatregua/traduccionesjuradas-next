@@ -11,10 +11,11 @@ type Props = {
   pedidosAccionables: number;
 };
 
+// Barra simplificada: Bandeja es el ÚNICO sitio para ver pedidos (Tablero y
+// Control eran vistas duplicadas de lo mismo → fuera de la barra; sus rutas
+// siguen vivas para no romper enlaces de SMS/email a /control?q=...).
 const TABS: { href: string; label: string; key: ModoActivo }[] = [
   { href: "/zona-traductor", label: "Bandeja", key: "bandeja" },
-  { href: "/zona-traductor/tablero", label: "Tablero", key: "tablero" },
-  { href: "/zona-traductor/control", label: "Control", key: "control" },
   { href: "/zona-traductor/expedientes", label: "Expedientes", key: "expedientes" },
   { href: "/zona-traductor/presupuesto", label: "Presupuesto", key: "presupuesto" },
   { href: "/zona-traductor/facturas", label: "Facturas", key: "facturas" },
