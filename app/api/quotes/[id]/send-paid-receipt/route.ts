@@ -59,6 +59,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     isDraft: false,
     paid: true,
     notesLegal: quote.notesLegal,
+    holderNames: quote.holderNames,
     paymentMethods: quote.paymentMethods,
     contactWhatsapp: quote.contactWhatsapp,
   });

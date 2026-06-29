@@ -53,6 +53,7 @@ export async function GET(req: Request, { params }: Params) {
       brand: invoice.brand,
       logoDataUrl,
       poNumber: invoice.poNumber,
+      holderNames: invoice.holderNames,
       simplified: invoice.simplified,
       draft: invoice.status !== "ISSUED",
       langPair: invoice.langPair,

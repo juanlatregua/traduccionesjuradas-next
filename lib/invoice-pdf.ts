@@ -23,6 +23,7 @@ type InvoiceData = {
   brand?: string; // marca/actividad emisora (traduccionesjuradas | holabonjour)
   logoDataUrl?: string; // PNG en data URL para marcas con logo de imagen
   poNumber?: string | null; // Purchase Order / nº de pedido del cliente
+  holderNames?: string | null; // titulares de los certificados (informativo)
   langPair?: string | null;
   words?: number | null;
   paidAt?: Date | null;
@@ -218,8 +219,28 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setTextColor(...INK);
   doc.text(`Fecha: ${dateStr}`, margin, 66);
 
+  // ── Titulares de los certificados (informativo) ───────────
+  let leftBottom = 66;
+  const holders = (data.holderNames || "").trim();
+  if (holders) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BLUE);
+    doc.text("Titulares:", margin, 72);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...INK);
+    // El bloque del cliente ocupa la derecha (desde boxX); deja margen hasta ahí.
+    const holderWrapped = doc.splitTextToSize(holders, boxX - margin - 22) as string[];
+    let hy = 72;
+    for (const l of holderWrapped) {
+      doc.text(l, margin + 18, hy);
+      hy += 4.3;
+    }
+    leftBottom = hy;
+  }
+
   // ── Tabla ─────────────────────────────────────────────────
-  let ty = Math.max(74, cliY + cliH + 8);
+  let ty = Math.max(74, leftBottom + 4, cliY + cliH + 8);
   const cDesc = margin;
   const cLangW = 44;
   const cImpW = 30;

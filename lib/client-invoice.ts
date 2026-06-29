@@ -142,6 +142,7 @@ export async function getOrCreateClientInvoice(input: {
 export type DraftInvoiceInput = {
   brand?: string | null;
   clientName?: string | null;
+  holderNames?: string | null;
   fiscalName: string;
   nif?: string | null;
   address?: string | null;
@@ -168,6 +169,7 @@ function draftData(input: DraftInvoiceInput) {
     data: {
       brand: input.brand?.trim() || "traduccionesjuradas",
       clientName: input.clientName?.trim() || null,
+      holderNames: input.holderNames?.trim() || null,
       fiscalName: String(input.fiscalName || "").trim(),
       nif: input.nif?.trim() || null,
       address: input.address?.trim() || null,
@@ -255,7 +257,14 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
 // (app/api/invoices/[id]/paid) para que solo haya UN camino a ClientInvoice.paidAt,
 // con la misma guarda de estado. `when=null` limpia el cobro (deshacer conciliación).
 // Devuelve el resultado o lanza con un mensaje claro (el caller decide cómo avisar).
-export async function setInvoicePaid(id: string, when: Date | null = new Date()) {
+// `proof` opcional: patch del justificante (url/key/name) escrito en el MISMO update
+// que el paidAt → sellado de cobro + adjunto son atómicos (no deja PAID-sin-proof).
+// Pasar `{ url:null, key:null, name:null }` limpia el justificante. Omitirlo no lo toca.
+export async function setInvoicePaid(
+  id: string,
+  when: Date | null = new Date(),
+  proof?: { url: string | null; key: string | null; name: string | null }
+) {
   const inv = await prisma.clientInvoice.findUnique({
     where: { id },
     select: { id: true, status: true, paidAt: true },
@@ -264,12 +273,20 @@ export async function setInvoicePaid(id: string, when: Date | null = new Date())
   if (when && inv.status !== "ISSUED") {
     throw new Error("Emite la factura antes de marcarla como cobrada.");
   }
+  const data: Prisma.ClientInvoiceUpdateInput = {};
   // Una vez sellada con fecha, NO se reescribe el paidAt en re-emparejamientos: un
   // re-guardado sin movementDate defaultea a hoy y mandaría el cobro a OTRO trimestre
   // (bug de conciliación). Para corregir la fecha: limpiar (when=null) y volver a
-  // sellar con la fecha correcta. Limpiar (when=null) siempre pasa.
-  if (when && inv.paidAt) return inv;
-  return prisma.clientInvoice.update({ where: { id }, data: { paidAt: when } });
+  // sellar con la fecha correcta. Limpiar (when=null) siempre pasa. Adjuntar un
+  // justificante a una factura YA cobrada conserva su paidAt original (no lo pisa).
+  if (!(when && inv.paidAt)) data.paidAt = when;
+  if (proof !== undefined) {
+    data.paymentProofUrl = proof?.url ?? null;
+    data.paymentProofKey = proof?.key ?? null;
+    data.paymentProofName = proof?.name ?? null;
+  }
+  if (Object.keys(data).length === 0) return inv;
+  return prisma.clientInvoice.update({ where: { id }, data });
 }
 
 export async function deleteInvoice(id: string) {

@@ -32,6 +32,7 @@ type Quote = {
   vatRate?: number;
   validityDays?: number;
   notesLegal?: string | null;
+  holderNames?: string | null;
   lines: Line[];
 };
 
@@ -62,6 +63,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
   const [discountValue, setDiscountValue] = useState(quote.discountValue ?? 0);
   const [validityDays, setValidityDays] = useState(quote.validityDays ?? 15);
   const [notesLegal, setNotesLegal] = useState(quote.notesLegal || "");
+  const [holderNames, setHolderNames] = useState(quote.holderNames || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +103,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
           vatRate,
           validityDays: Number(validityDays) || 15,
           notesLegal: notesLegal.trim() || null,
+          holderNames: holderNames.trim() || null,
           lines: lines.map((l) => ({
             description: l.description.trim() || "Línea",
             quantity: Number(l.quantity) || 1,
@@ -172,6 +175,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
           <div><label className={label}>Valor descuento</label><input type="number" step="0.01" min="0" value={discountValue} onChange={(e) => setDiscountValue(Number(e.target.value))} className={input} disabled={discountType === "NONE"} /></div>
           <div><label className={label}>Validez (días)</label><input type="number" step="1" min="1" value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} className={input} /></div>
         </div>
+        <div className="mt-3"><label className={label}>Titulares de los certificados (opcional)</label><input value={holderNames} onChange={(e) => setHolderNames(e.target.value)} placeholder="p. ej. María García, Juan Pérez" className={input} /></div>
         <div className="mt-3"><label className={label}>Notas / condiciones</label><textarea value={notesLegal} onChange={(e) => setNotesLegal(e.target.value)} rows={3} className={input} /></div>
       </div>
 

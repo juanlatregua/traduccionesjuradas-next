@@ -54,6 +54,7 @@ export async function GET(req: Request, { params }: Params) {
     })),
     isDraft: true,
     notesLegal: quote.notesLegal,
+    holderNames: quote.holderNames,
     paymentMethods: quote.paymentMethods,
     contactWhatsapp: quote.contactWhatsapp,
   });

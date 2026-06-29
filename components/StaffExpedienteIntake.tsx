@@ -157,6 +157,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [discountTouched, setDiscountTouched] = useState(false);
   const [validityDays, setValidityDays] = useState(15);
   const [notesLegal, setNotesLegal] = useState("");
+  const [holderNames, setHolderNames] = useState("");
   // null = margen AUTO (tiered por coste, FR sin margen). Un número = override manual.
   const [marginPct, setMarginPct] = useState<number | null>(initialData?.lineAmount ? 0 : null);
   // Modo de precio del COSTE por línea: "document" = precio fijo por documento
@@ -530,6 +531,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           vatRate: 0.21,
           validityDays,
           notesLegal: [deliveryNote.trim() ? `Plazo de entrega: ${deliveryNote.trim()}.` : "", notesLegal.trim()].filter(Boolean).join(" ") || undefined,
+          holderNames: holderNames.trim() || undefined,
           marginPct: marginPct ?? undefined,
           paymentMethods,
           contactWhatsapp: contactWhatsapp.trim() || undefined,
@@ -547,7 +549,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, expedienteRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote]);
 
   return (
     <div className="space-y-6 text-slate-200">
@@ -582,6 +584,12 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
           <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Teléfono (opcional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
         </div>
+        <input
+          className="mt-2 w-full rounded border border-slate-600 bg-slate-900 px-3 py-2"
+          placeholder="Titulares de los certificados (opcional, p. ej. María García, Juan Pérez)"
+          value={holderNames}
+          onChange={(e) => setHolderNames(e.target.value)}
+        />
       </div>
 
       {/* Idioma destino del expediente — elígelo ANTES de subir si traduces a
