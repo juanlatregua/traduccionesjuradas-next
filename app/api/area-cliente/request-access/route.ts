@@ -37,11 +37,13 @@ export async function POST(req: Request) {
   if (rlEmail.ok) {
     // Solo enviamos si el email tiene algo asociado (case-insensitive). NO lo revelamos.
     const ci = { equals: email, mode: "insensitive" as const };
-    const [hasOrder, hasQuote] = await Promise.all([
+    const [hasOrder, hasQuote, hasCustomer] = await Promise.all([
       prisma.order.findFirst({ where: { clientEmail: ci }, select: { id: true } }),
       prisma.quote.findFirst({ where: { customerEmail: ci }, select: { id: true } }),
+      // Ficha de cliente (p.ej. un intermediario que solo trae clientes, sin pedidos propios).
+      prisma.customer.findFirst({ where: { email: ci }, select: { id: true } }),
     ]);
-    if (hasOrder || hasQuote) {
+    if (hasOrder || hasQuote || hasCustomer) {
       const url = buildClientPortalUrl(email);
       sendClientAccessLinkEmail({ toEmail: email, url }).catch((e) =>
         console.error("[client-access] email failed", e)

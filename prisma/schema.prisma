@@ -394,12 +394,19 @@ model Customer {
   // que el staff verifique en el banco. Para el resto sigue requiriendo confirmacion
   // manual (anti-fraude de justificante falso, audit 25-jun).
   autoConfirmPayment Boolean @default(false)
+  // Intermediario que trajo a este cliente (p.ej. Ahmed). Autorrelación nullable:
+  // "es intermediario" se infiere si tiene `referrals`. onDelete SetNull = borrar al
+  // intermediario no borra a sus clientes, solo los deja sueltos.
+  intermediaryId String?
+  intermediary   Customer?  @relation("CustomerIntermediary", fields: [intermediaryId], references: [id], onDelete: SetNull)
+  referrals      Customer[] @relation("CustomerIntermediary")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   quotes Quote[]
 
   @@index([email])
+  @@index([intermediaryId])
 }
 
 model Quote {

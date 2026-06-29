@@ -360,6 +360,13 @@ export default function ContabilidadClient({
         </div>
       </div>
 
+      {/* Paquete trimestral para la gestoría */}
+      <p className="mt-2 rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+        📦 <span className="font-semibold text-slate-300">Paquete para la gestoría ({periodLabel}):</span> descarga{" "}
+        <span className="text-cyan-300">CSV facturas</span> + <span className="text-cyan-300">CSV gastos</span> del periodo y adjunta tu
+        extracto bancario del trimestre. Eso es todo lo que necesita: facturas de clientes, facturas de gastos y movimientos.
+      </p>
+
       {/* Resumen del periodo */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className={card}>

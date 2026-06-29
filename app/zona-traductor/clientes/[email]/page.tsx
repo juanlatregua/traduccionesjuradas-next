@@ -49,7 +49,13 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
   const ci = (v: string) => ({ equals: v, mode: "insensitive" as const });
 
   const [customer, orders, quotes, invoices] = await Promise.all([
-    prisma.customer.findFirst({ where: { email: ci(email) } }),
+    prisma.customer.findFirst({
+      where: { email: ci(email) },
+      include: {
+        intermediary: { select: { name: true, email: true } },
+        referrals: { select: { name: true, email: true, isBusiness: true }, orderBy: { name: "asc" } },
+      },
+    }),
     prisma.order.findMany({
       where: { clientEmail: ci(email) },
       orderBy: { createdAt: "desc" },
@@ -102,6 +108,40 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
         </div>
 
         <ClientAccessLink email={email} />
+
+        {customer?.intermediary && (
+          <div className={card}>
+            <p className="text-sm text-slate-400">
+              Traído por <span className="font-medium text-slate-100">{customer.intermediary.name}</span>{" "}
+              <a href={`/zona-traductor/clientes/${encodeURIComponent(customer.intermediary.email)}`} className="text-cyan-400 hover:underline">
+                ({customer.intermediary.email})
+              </a>
+            </p>
+          </div>
+        )}
+
+        {customer && customer.referrals.length > 0 && (
+          <div className={card}>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Sus clientes ({customer.referrals.length}) · intermediario
+            </h2>
+            <div className="mt-3 divide-y divide-slate-800 rounded-xl border border-slate-700">
+              {customer.referrals.map((r) => (
+                <a
+                  key={r.email}
+                  href={`/zona-traductor/clientes/${encodeURIComponent(r.email)}`}
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-900/40"
+                >
+                  <span className="font-medium text-white">
+                    {r.name || r.email}
+                    {r.isBusiness && <span className="ml-2 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-200">B2B</span>}
+                  </span>
+                  <span className="text-slate-400">{r.email}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {customer && (customer.nif || customer.fiscalName || customer.address || customer.companyName) && (
           <div className={card}>
