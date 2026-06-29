@@ -29,7 +29,15 @@ export default async function IntermediaryClientView({
   params: { email: string };
   searchParams?: { email?: string; token?: string };
 }) {
-  const targetEmail = decodeURIComponent(params.email).trim().toLowerCase();
+  // App Router ya decodifica el segmento; el decode extra es defensivo y va en
+  // try/catch para no romper con un '%' literal en el email.
+  let targetEmail: string;
+  try {
+    targetEmail = decodeURIComponent(params.email);
+  } catch {
+    targetEmail = params.email;
+  }
+  targetEmail = targetEmail.trim().toLowerCase();
 
   const session = await getServerSession(authOptions);
   const tokenEmail = (searchParams?.email || "").trim().toLowerCase();
@@ -106,7 +114,7 @@ export default async function IntermediaryClientView({
                   return (
                     <tr key={o.reference} className="border-t border-cream align-top">
                       <td className="px-4 py-3 font-mono text-xs text-sepia">{o.reference}</td>
-                      <td className="px-4 py-3 text-sepia">{o.createdAt.toLocaleDateString("es-ES")}</td>
+                      <td className="px-4 py-3 text-sepia">{o.createdAt.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}</td>
                       <td className="px-4 py-3 text-sepia">{o.title}</td>
                       <td className="px-4 py-3 text-sepia">{eur(o.amountCents)}</td>
                       <td className="px-4 py-3 text-sepia">{getDeliveryStateLabel(o.deliveryState)}</td>
@@ -170,7 +178,7 @@ export default async function IntermediaryClientView({
               <li key={inv.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cream bg-parchment px-4 py-2">
                 <span>
                   <span className="font-semibold text-encre">{inv.number}</span>
-                  {inv.issuedAt ? ` · ${inv.issuedAt.toLocaleDateString("es-ES")}` : ""}
+                  {inv.issuedAt ? ` · ${inv.issuedAt.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}` : ""}
                 </span>
                 <span className="font-semibold text-encre">
                   {eur(inv.totalCents)} {inv.paidAt ? "· cobrada" : ""}

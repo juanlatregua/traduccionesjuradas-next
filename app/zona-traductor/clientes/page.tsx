@@ -15,7 +15,7 @@ export default async function ClientesPage() {
   // (p. ej. Auream, B2B), sin pedido todavía → agregamos de las 4 fuentes.
   const [customers, orders, quotes, invoices] = await Promise.all([
     prisma.customer.findMany({
-      select: { email: true, name: true, companyName: true, fiscalName: true, isBusiness: true },
+      select: { email: true, name: true, companyName: true, fiscalName: true, isBusiness: true, createdAt: true },
       take: 5000,
     }),
     prisma.order.findMany({
@@ -67,6 +67,7 @@ export default async function ClientesPage() {
     const a = get(c.email);
     a.name = a.name || c.companyName || c.name || c.fiscalName || "";
     a.isBusiness = a.isBusiness || !!c.isBusiness;
+    bump(a, c.createdAt); // sin esto el cliente solo-agenda se hundía al fondo (last=epoch)
   }
   for (const o of orders) {
     const a = get(o.clientEmail);

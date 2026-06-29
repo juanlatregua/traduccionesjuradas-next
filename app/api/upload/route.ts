@@ -64,6 +64,8 @@ export async function POST(req: Request) {
       "image/jpeg",
       "image/png",
       "image/webp",
+      "image/heic",
+      "image/heif",
       "text/plain",
     ]);
     if (file.type && !allowedTypes.has(file.type)) {

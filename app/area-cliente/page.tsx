@@ -217,7 +217,7 @@ export default async function AreaClientePage({
                           {o.reference}
                         </a>
                       </td>
-                      <td className="px-4 py-3 text-sepia">{o.createdAt.toLocaleDateString("es-ES")}</td>
+                      <td className="px-4 py-3 text-sepia">{o.createdAt.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}</td>
                       <td className="px-4 py-3 text-sepia">{o.title}</td>
                       <td className="px-4 py-3 text-sepia">{eur(o.amountCents)}</td>
                       <td className="px-4 py-3 text-sepia">{getPaymentStateLabel(o.paymentStatus)}</td>
@@ -270,7 +270,7 @@ export default async function AreaClientePage({
                     <td className="px-4 py-3 text-sepia">{q.sourceLang} → {q.targetLang}</td>
                     <td className="px-4 py-3 text-sepia">{decimalToNumber(q.total).toFixed(2)} EUR</td>
                     <td className="px-4 py-3 text-sepia">{QUOTE_LABEL[q.status] || q.status}</td>
-                    <td className="px-4 py-3 text-sepia">{q.createdAt.toLocaleDateString("es-ES")}</td>
+                    <td className="px-4 py-3 text-sepia">{q.createdAt.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}</td>
                     <td className="px-4 py-3">
                       <a href={`/q/${q.publicToken}`} className="text-xs font-semibold text-bleu hover:underline">
                         {q.paidAt || q.status === "PAID"
@@ -297,7 +297,7 @@ export default async function AreaClientePage({
               <li key={inv.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cream bg-parchment px-4 py-2">
                 <span>
                   <span className="font-semibold text-encre">{inv.number}</span>
-                  {inv.issuedAt ? ` · ${inv.issuedAt.toLocaleDateString("es-ES")}` : ""}
+                  {inv.issuedAt ? ` · ${inv.issuedAt.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}` : ""}
                   {inv.concept ? ` · ${inv.concept}` : ""}
                 </span>
                 <span className="font-semibold text-encre">

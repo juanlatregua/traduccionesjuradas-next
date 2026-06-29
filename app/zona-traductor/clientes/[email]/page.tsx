@@ -46,7 +46,12 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
   await authZonaTraductorOrRedirect();
   // El email puede venir con mayúsculas distintas a las guardadas → cotejo
   // case-insensitive en todas las fuentes para no partir al cliente.
-  const email = decodeURIComponent(params.email);
+  let email: string;
+  try {
+    email = decodeURIComponent(params.email);
+  } catch {
+    email = params.email;
+  }
   const ci = (v: string) => ({ equals: v, mode: "insensitive" as const });
 
   const [customer, orders, quotes, invoices] = await Promise.all([

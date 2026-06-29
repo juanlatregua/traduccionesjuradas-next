@@ -3,9 +3,9 @@
 import { useState } from "react";
 
 // Acción de staff en la carpeta del cliente: subir las traducciones (PDF) y crear
-// una ENTREGA (pedido ya entregado) para un cliente sin pedido (presupuesto/WhatsApp).
-// Sube cada fichero a /api/upload (prefix=deliveries) y luego llama a
-// /api/customers/deliver, que crea el pedido con los adjuntos visibles en su portal.
+// una ENTREGA para un cliente sin pedido (presupuesto/WhatsApp). Compone los
+// chokepoints canónicos (no clona): /api/customers/deliver crea el pedido, lo sella
+// como entregado, y —si "ya ha pagado"— lo marca cobrado y dispara el aviso normal.
 const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
 
 async function uploadFile(file: File): Promise<{ url: string; key: string; name: string }> {
@@ -24,13 +24,20 @@ export default function ClientDeliverForm({ email }: { email: string }) {
   const [langPair, setLangPair] = useState("fr-es");
   const [amount, setAmount] = useState("");
   const [translations, setTranslations] = useState<File[]>([]);
-  const [originals, setOriginals] = useState<File[]>([]);
+  const [alreadyPaid, setAlreadyPaid] = useState(false);
+  const [notifyClient, setNotifyClient] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  const isWhatsapp = email.endsWith("@whatsapp.local");
 
   async function submit() {
     if (translations.length === 0) {
       setMsg("Adjunta al menos un PDF traducido.");
+      return;
+    }
+    if (alreadyPaid && !amount.trim()) {
+      setMsg("Indica el importe cobrado para marcarlo como pagado.");
       return;
     }
     setBusy(true);
@@ -38,8 +45,6 @@ export default function ClientDeliverForm({ email }: { email: string }) {
     try {
       const tr = [];
       for (const f of translations) tr.push(await uploadFile(f));
-      const or = [];
-      for (const f of originals) or.push(await uploadFile(f));
       setMsg("Creando la entrega…");
       const res = await fetch("/api/customers/deliver", {
         method: "POST",
@@ -50,13 +55,14 @@ export default function ClientDeliverForm({ email }: { email: string }) {
           langPair: langPair.trim() || null,
           amountCents: amount.trim() ? Math.round((parseFloat(amount.replace(",", ".")) || 0) * 100) : null,
           translations: tr,
-          originals: or,
+          alreadyPaid,
+          notifyClient,
         }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo crear la entrega.");
       setMsg(`Entrega creada (pedido ${data.reference}). El cliente ya puede descargarla.`);
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => window.location.reload(), 900);
     } catch (e: any) {
       setMsg(e?.message || "Error al crear la entrega.");
       setBusy(false);
@@ -80,7 +86,7 @@ export default function ClientDeliverForm({ email }: { email: string }) {
           <div className="grid gap-2 sm:grid-cols-3">
             <input className={FIELD} placeholder="Título (p. ej. Traducción jurada)" value={title} onChange={(e) => setTitle(e.target.value)} />
             <input className={FIELD} placeholder="Idiomas (fr-es)" value={langPair} onChange={(e) => setLangPair(e.target.value)} />
-            <input className={FIELD} placeholder="Importe € (opcional)" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <input className={FIELD} placeholder="Importe € (cobrado)" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <label className="block text-xs text-slate-400">
             Traducciones (PDF, una o varias) *
@@ -92,16 +98,16 @@ export default function ClientDeliverForm({ email }: { email: string }) {
               onChange={(e) => setTranslations(Array.from(e.target.files || []))}
             />
           </label>
-          <label className="block text-xs text-slate-400">
-            Originales (opcional)
-            <input
-              type="file"
-              multiple
-              accept="application/pdf,image/*"
-              className="mt-1 block w-full text-sm text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-slate-100"
-              onChange={(e) => setOriginals(Array.from(e.target.files || []))}
-            />
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" className="h-4 w-4" checked={alreadyPaid} onChange={(e) => setAlreadyPaid(e.target.checked)} />
+            El cliente ya ha pagado (transferencia) — lo marca cobrado y dispara el aviso de traducción lista
           </label>
+          {!isWhatsapp && (
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" className="h-4 w-4" checked={notifyClient} onChange={(e) => setNotifyClient(e.target.checked)} />
+              Enviar email al cliente con la traducción adjunta
+            </label>
+          )}
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -114,7 +120,8 @@ export default function ClientDeliverForm({ email }: { email: string }) {
             {msg && <span className="text-xs text-cyan-300">{msg}</span>}
           </div>
           <p className="text-xs text-slate-500">
-            Crea un pedido entregado con los PDFs adjuntos; el cliente los verá y descargará desde su zona (enlace de acceso).
+            Crea un pedido entregado con los PDFs adjuntos; el cliente los descarga desde su zona (enlace de acceso).
+            {isWhatsapp ? " Cliente de WhatsApp: mándale tú el enlace de acceso por WhatsApp." : ""}
           </p>
         </div>
       )}
