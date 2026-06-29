@@ -85,6 +85,7 @@ export async function POST(req: Request, { params }: Params) {
       })),
       isDraft: false,
       notesLegal: quote.notesLegal,
+      holderNames: quote.holderNames,
       paymentMethods: quote.paymentMethods,
       contactWhatsapp: quote.contactWhatsapp,
     });

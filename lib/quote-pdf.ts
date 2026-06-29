@@ -33,6 +33,7 @@ type QuotePdfData = {
   isDraft?: boolean;
   paid?: boolean; // recibo: sella el presupuesto como PAGADO (marca de agua + indicador)
   notesLegal?: string | null;
+  holderNames?: string | null; // titulares de los certificados (informativo)
   paymentMethods?: string[]; // bbva/openbank/bizum/paypal — vacío = todas por defecto
   contactWhatsapp?: string | null; // WhatsApp/teléfono override para este presupuesto
 };
@@ -113,6 +114,13 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   doc.setFont("helvetica", "normal");
   doc.text(`${data.customerName} (${data.customerEmail})`, 14, y);
   y += 5;
+  if (data.holderNames && data.holderNames.trim()) {
+    const holderLines = doc.splitTextToSize(`Titulares: ${safe(data.holderNames)}`, 182) as string[];
+    for (const hl of holderLines) {
+      doc.text(hl, 14, y);
+      y += 5; // mismo paso de 5 mm que el resto del bloque Cliente
+    }
+  }
   doc.text(`Idiomas: ${data.sourceLang} -> ${data.targetLang}`, 14, y);
   y += 5;
   doc.text(

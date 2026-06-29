@@ -17,6 +17,7 @@ type Body = {
   brand?: string | null;
   orderReference?: string | null;
   clientName?: string | null;
+  holderNames?: string | null;
   fiscalName?: string;
   nif?: string | null;
   address?: string | null;
@@ -81,6 +82,7 @@ export async function PATCH(req: Request, { params }: Params) {
       brand: body.brand,
       orderId,
       clientName: body.clientName,
+      holderNames: body.holderNames,
       fiscalName: String(body.fiscalName || ""),
       nif: body.nif,
       address: body.address,

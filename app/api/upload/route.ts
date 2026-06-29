@@ -80,7 +80,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Archivo demasiado grande (max 10 MB)." }, { status: 400 });
     }
 
-    const prefix = reference ? `orders/${reference}` : prefixField === "expenses" ? "expenses" : "uploads";
+    const prefix = reference
+      ? `orders/${reference}`
+      : prefixField === "expenses"
+        ? "expenses"
+        : prefixField === "invoices"
+          ? "invoices"
+          : "uploads";
     const pathname = `${prefix}/${Date.now()}-${validation.safeName}`;
 
     if (!isBlobConfigured()) {

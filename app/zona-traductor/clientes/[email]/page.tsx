@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
+import ClientAccessLink from "@/components/ClientAccessLink";
 
 export const metadata: Metadata = {
   title: "Cliente — Zona traductor",
@@ -42,12 +43,15 @@ function getDelivered(o: any): DocRef[] {
 
 export default async function ClienteFolderPage({ params }: { params: { email: string } }) {
   await authZonaTraductorOrRedirect();
+  // El email puede venir con mayúsculas distintas a las guardadas → cotejo
+  // case-insensitive en todas las fuentes para no partir al cliente.
   const email = decodeURIComponent(params.email);
+  const ci = (v: string) => ({ equals: v, mode: "insensitive" as const });
 
-  const [customer, orders] = await Promise.all([
-    prisma.customer.findUnique({ where: { email } }),
+  const [customer, orders, quotes, invoices] = await Promise.all([
+    prisma.customer.findFirst({ where: { email: ci(email) } }),
     prisma.order.findMany({
-      where: { clientEmail: email },
+      where: { clientEmail: ci(email) },
       orderBy: { createdAt: "desc" },
       include: {
         events: { select: { type: true, payload: true, createdAt: true }, orderBy: { createdAt: "desc" } },
@@ -55,10 +59,33 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
         quote: { select: { quoteNumber: true } },
       },
     }),
+    prisma.quote.findMany({
+      where: { customerEmail: ci(email) },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, quoteNumber: true, status: true, total: true, customerName: true, createdAt: true },
+    }),
+    // Solo facturas SUELTAS (sin pedido): las ligadas a un pedido ya salen en su fila.
+    prisma.clientInvoice.findMany({
+      where: { email: ci(email), orderId: null },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, number: true, status: true, totalCents: true, paidAt: true, holderNames: true, paymentProofUrl: true, createdAt: true },
+    }),
   ]);
 
-  const name = customer?.name || orders.find((o) => o.clientName)?.clientName || email;
-  const totalPaid = orders.filter((o) => o.paymentStatus === "PAID").reduce((s, o) => s + o.amountCents, 0);
+  // Mismo orden de preferencia que la lista de clientes, para que el nombre no diverja.
+  const name =
+    customer?.companyName ||
+    customer?.name ||
+    customer?.fiscalName ||
+    orders.find((o) => o.clientName)?.clientName ||
+    quotes.find((q) => q.customerName)?.customerName ||
+    email;
+  // Cobrado = pedidos pagados + facturas sueltas cobradas (sin orderId, para no
+  // duplicar la factura espejo del pedido). Mismo cálculo que la lista de clientes.
+  const issuedInvoiceCount = invoices.filter((i) => i.status === "ISSUED").length;
+  const totalPaid =
+    orders.filter((o) => o.paymentStatus === "PAID").reduce((s, o) => s + o.amountCents, 0) +
+    invoices.filter((i) => i.status === "ISSUED" && i.paidAt).reduce((s, i) => s + i.totalCents, 0);
   const card = "rounded-2xl border border-slate-700 bg-slate-900/60 p-5";
 
   return (
@@ -70,9 +97,11 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
           </a>
           <h1 className="mt-1 text-2xl font-semibold text-white">{name}</h1>
           <p className="text-sm text-slate-400">
-            {email} · {orders.length} pedido(s) · {eur(totalPaid)} cobrado
+            {email} · {orders.length} pedido(s) · {quotes.length} presupuesto(s) · {issuedInvoiceCount} factura(s) suelta(s) · {eur(totalPaid)} cobrado
           </p>
         </div>
+
+        <ClientAccessLink email={email} />
 
         {customer && (customer.nif || customer.fiscalName || customer.address || customer.companyName) && (
           <div className={card}>
@@ -158,6 +187,65 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
                           </a>
                         )}
                       </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Presupuestos del cliente (incluye los que aún no son pedido) */}
+        <div className={card}>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Presupuestos</h2>
+          {quotes.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-400">Sin presupuestos.</p>
+          ) : (
+            <div className="mt-3 divide-y divide-slate-800 rounded-xl border border-slate-700">
+              {quotes.map((q) => (
+                <a
+                  key={q.id}
+                  href={`/admin/quotes/${q.id}`}
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-900/40"
+                >
+                  <span className="font-mono font-semibold text-cyan-400">{q.quoteNumber}</span>
+                  <span className="text-xs text-slate-400">{q.status}</span>
+                  <span className="tabular-nums text-slate-200">{eur(Math.round(Number(q.total) * 100))}</span>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Facturas libres del cliente (las ligadas a pedidos salen en su fila arriba) */}
+        <div className={card}>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Facturas sueltas (sin pedido)</h2>
+          {invoices.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-400">Sin facturas.</p>
+          ) : (
+            <div className="mt-3 divide-y divide-slate-800 rounded-xl border border-slate-700">
+              {invoices.map((inv) => {
+                const issued = inv.status === "ISSUED";
+                return (
+                  <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-semibold text-cyan-400">{inv.number || "borrador"}</span>
+                      {issued ? (
+                        inv.paidAt ? (
+                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">Cobrada</span>
+                        ) : (
+                          <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold text-rose-200">Pendiente</span>
+                        )
+                      ) : (
+                        <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-200">Borrador</span>
+                      )}
+                    </div>
+                    {inv.holderNames && <span className="text-xs text-slate-400">{inv.holderNames}</span>}
+                    <div className="flex items-center gap-3">
+                      <span className="tabular-nums text-slate-200">{eur(inv.totalCents)}</span>
+                      <a href={`/api/invoices/${inv.id}/pdf`} target="_blank" rel="noreferrer" className="text-xs text-cyan-300 hover:underline">
+                        PDF
+                      </a>
                     </div>
                   </div>
                 );

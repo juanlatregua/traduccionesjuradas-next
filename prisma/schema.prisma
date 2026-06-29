@@ -204,7 +204,12 @@ model ClientInvoice {
   orderId       String?   @unique // null = factura libre (sin pedido)
   order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   issuedAt      DateTime? // se sella al emitir
-  paidAt        DateTime? // cobrada: se sella al vincular un ingreso bancario
+  paidAt        DateTime? // cobrada: se sella al vincular un ingreso bancario o al adjuntar el justificante
+  // Justificante bancario del pago (Vercel Blob). Adjuntarlo sella paidAt vía setInvoicePaid.
+  paymentProofUrl  String?
+  paymentProofKey  String?
+  paymentProofName String?
+  holderNames   String? // titulares de los certificados (p.ej. clientes de Auream) — solo informativo
   clientName    String? // nombre comercial / referencia interna (opcional)
   fiscalName    String
   nif           String?
@@ -414,6 +419,7 @@ model Quote {
   discountType   QuoteDiscountType @default(NONE)
   discountValue  Decimal           @default(0) @db.Decimal(12, 2)
   notesLegal     String?
+  holderNames    String? // titulares de los certificados (p.ej. clientes de Auream) — solo informativo
   validityDays   Int               @default(15)
   issuedAt       DateTime          @default(now())
   validUntil     DateTime

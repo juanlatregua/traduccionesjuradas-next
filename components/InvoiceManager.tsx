@@ -16,7 +16,11 @@ export type InvoiceRow = {
   brand: string;
   orderReference: string | null;
   clientName: string | null;
+  holderNames: string | null;
   poNumber: string | null;
+  paidAt: string | null;
+  paymentProofUrl: string | null;
+  paymentProofName: string | null;
   fiscalName: string;
   nif: string | null;
   address: string | null;
@@ -67,6 +71,7 @@ function emptyForm() {
     brand: "traduccionesjuradas",
     orderReference: "",
     clientName: "",
+    holderNames: "",
     fiscalName: "",
     nif: "",
     address: "",
@@ -171,6 +176,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
       brand: row.brand || "traduccionesjuradas",
       orderReference: row.orderReference || "",
       clientName: row.clientName || "",
+      holderNames: row.holderNames || "",
       fiscalName: row.fiscalName || "",
       nif: row.nif || "",
       address: row.address || "",
@@ -239,6 +245,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
       brand: form.brand,
       orderReference: form.orderReference.trim() || null,
       clientName: form.clientName.trim() || null,
+      holderNames: form.holderNames.trim() || null,
       fiscalName: form.fiscalName.trim(),
       nif: form.nif.trim() || null,
       address: form.address.trim() || null,
@@ -309,6 +316,63 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
     } catch (e: any) {
       setMsg(e?.message || "Error al emitir.");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  // Adjuntar el justificante bancario de una factura emitida → la marca cobrada.
+  async function attachProof(row: InvoiceRow, file: File) {
+    setBusy(true);
+    setMsg(null);
+    let uploadedUrl = "";
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("prefix", "invoices");
+      const up = await fetch("/api/upload", { method: "POST", body: fd });
+      const ud = await up.json();
+      if (!up.ok || !ud.ok) throw new Error(ud.error || "No se pudo subir el justificante.");
+      uploadedUrl = ud.url;
+      const res = await fetch(`/api/invoices/${row.id}/paid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid: true, proof: { url: ud.url, key: ud.pathname, name: file.name } }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo marcar la factura como cobrada.");
+      setMsg("Justificante adjuntado · factura cobrada.");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e: any) {
+      // Si el blob se subió pero falló el sellado, bórralo para no dejar huérfanos.
+      if (uploadedUrl) {
+        fetch("/api/upload", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: uploadedUrl }),
+        }).catch(() => {});
+      }
+      setMsg(e?.message || "Error al adjuntar el justificante.");
+      setBusy(false);
+    }
+  }
+
+  // Quitar el justificante y volver la factura a pendiente.
+  async function removeProof(row: InvoiceRow) {
+    if (!window.confirm("¿Quitar el justificante y marcar la factura como pendiente de cobro?")) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/invoices/${row.id}/paid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid: false }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo actualizar.");
+      setMsg("Factura marcada como pendiente de cobro.");
+      setTimeout(() => window.location.reload(), 500);
+    } catch (e: any) {
+      setMsg(e?.message || "Error al actualizar.");
       setBusy(false);
     }
   }
@@ -428,6 +492,16 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
             <input className={FIELD} placeholder="Concepto / título (opcional)" value={form.concept} onChange={(e) => set("concept", e.target.value)} />
             <input className={FIELD} placeholder="Purchase Order / Nº pedido cliente" value={form.poNumber} onChange={(e) => set("poNumber", e.target.value)} />
             <input className={FIELD} placeholder="Par idiomas (p.ej. fr-es)" value={form.langPair} onChange={(e) => set("langPair", e.target.value)} />
+          </div>
+
+          {/* Titulares de los certificados (informativo, para no perder la cuenta) */}
+          <div className="mt-2">
+            <input
+              className={`w-full ${FIELD}`}
+              placeholder="Titulares de los certificados (opcional, p. ej. María García, Juan Pérez)"
+              value={form.holderNames}
+              onChange={(e) => set("holderNames", e.target.value)}
+            />
           </div>
 
           {/* Líneas */}
@@ -554,6 +628,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
             <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
               <tr>
                 <th className="px-4 py-2">Estado</th>
+                <th className="px-4 py-2">Cobro</th>
                 <th className="px-4 py-2">Número</th>
                 <th className="px-4 py-2">Fecha</th>
                 <th className="px-4 py-2">Pedido</th>
@@ -578,6 +653,80 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
                       >
                         {isDraft ? "Borrador" : "Emitida"}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {isDraft ? (
+                        <span className="text-slate-600">—</span>
+                      ) : inv.paidAt ? (
+                        <div className="space-y-1">
+                          <span className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
+                            Cobrada
+                          </span>
+                          <div className="text-[11px] text-slate-400">
+                            {new Date(inv.paidAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                          </div>
+                          {inv.paymentProofUrl ? (
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={inv.paymentProofUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[11px] text-cyan-300 hover:underline"
+                                title={inv.paymentProofName || "Justificante"}
+                              >
+                                📎 justificante
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => removeProof(inv)}
+                                disabled={busy}
+                                className="text-[11px] text-rose-300 hover:underline disabled:opacity-50"
+                              >
+                                quitar
+                              </button>
+                            </div>
+                          ) : (
+                            // Cobrada sin justificante (p. ej. sellada por conciliación): permite adjuntarlo.
+                            <label className="block cursor-pointer text-[11px] text-cyan-300 hover:underline">
+                              + Adjuntar justificante
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="application/pdf,image/*"
+                                disabled={busy}
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) attachProof(inv, f);
+                                  e.currentTarget.value = "";
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <span className="inline-block rounded-full bg-rose-500/20 px-2 py-0.5 text-[11px] font-semibold text-rose-200">
+                            Pendiente
+                          </span>
+                          <label
+                            className={`block text-[11px] ${busy ? "pointer-events-none opacity-50" : "cursor-pointer text-cyan-300 hover:underline"}`}
+                            aria-disabled={busy}
+                          >
+                            + Adjuntar justificante
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="application/pdf,image/*"
+                              disabled={busy}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) attachProof(inv, f);
+                                e.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-mono text-cyan-300">{inv.number || "—"}</td>
                     <td className="px-4 py-3 text-slate-400">
