@@ -86,7 +86,9 @@ export async function POST(req: Request) {
         ? "expenses"
         : prefixField === "invoices"
           ? "invoices"
-          : "uploads";
+          : prefixField === "deliveries"
+            ? "deliveries"
+            : "uploads";
     const pathname = `${prefix}/${Date.now()}-${validation.safeName}`;
 
     if (!isBlobConfigured()) {
