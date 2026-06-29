@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
+import ClientAccessLink from "@/components/ClientAccessLink";
 
 export const metadata: Metadata = {
   title: "Cliente — Zona traductor",
@@ -99,6 +100,8 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
             {email} · {orders.length} pedido(s) · {quotes.length} presupuesto(s) · {issuedInvoiceCount} factura(s) suelta(s) · {eur(totalPaid)} cobrado
           </p>
         </div>
+
+        <ClientAccessLink email={email} />
 
         {customer && (customer.nif || customer.fiscalName || customer.address || customer.companyName) && (
           <div className={card}>
