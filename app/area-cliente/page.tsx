@@ -157,6 +157,7 @@ export default async function AreaClientePage({
               <thead className="bg-parchment text-xs uppercase tracking-wide text-graphite">
                 <tr>
                   <th className="px-4 py-3">Referencia</th>
+                  <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Descripción</th>
                   <th className="px-4 py-3">Importe</th>
                   <th className="px-4 py-3">Pago</th>
@@ -178,6 +179,7 @@ export default async function AreaClientePage({
                           {o.reference}
                         </a>
                       </td>
+                      <td className="px-4 py-3 text-sepia">{o.createdAt.toLocaleDateString("es-ES")}</td>
                       <td className="px-4 py-3 text-sepia">{o.title}</td>
                       <td className="px-4 py-3 text-sepia">{eur(o.amountCents)}</td>
                       <td className="px-4 py-3 text-sepia">{getPaymentStateLabel(o.paymentStatus)}</td>
@@ -219,7 +221,7 @@ export default async function AreaClientePage({
                   <th className="px-4 py-3">Idiomas</th>
                   <th className="px-4 py-3">Total</th>
                   <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Válido hasta</th>
+                  <th className="px-4 py-3">Fecha de encargo</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -230,11 +232,15 @@ export default async function AreaClientePage({
                     <td className="px-4 py-3 text-sepia">{q.sourceLang} → {q.targetLang}</td>
                     <td className="px-4 py-3 text-sepia">{decimalToNumber(q.total).toFixed(2)} EUR</td>
                     <td className="px-4 py-3 text-sepia">{QUOTE_LABEL[q.status] || q.status}</td>
-                    <td className="px-4 py-3 text-sepia">{q.validUntil ? q.validUntil.toLocaleDateString("es-ES") : "—"}</td>
+                    <td className="px-4 py-3 text-sepia">{q.createdAt.toLocaleDateString("es-ES")}</td>
                     <td className="px-4 py-3">
-                      {["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status) && (
-                        <a href={`/q/${q.publicToken}`} className="text-xs font-semibold text-bleu hover:underline">Ver / pagar</a>
-                      )}
+                      <a href={`/q/${q.publicToken}`} className="text-xs font-semibold text-bleu hover:underline">
+                        {q.paidAt || q.status === "PAID"
+                          ? "Ver recibo"
+                          : ["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status)
+                            ? "Ver / pagar"
+                            : "Ver"}
+                      </a>
                     </td>
                   </tr>
                 ))}
