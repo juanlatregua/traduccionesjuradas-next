@@ -32,6 +32,7 @@ function emptyForm() {
     city: "",
     postalCode: "",
     autoConfirmPayment: false,
+    intermediaryEmail: "",
   };
 }
 
@@ -81,6 +82,7 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
           city: form.city.trim() || null,
           postalCode: form.postalCode.trim() || null,
           autoConfirmPayment: form.autoConfirmPayment,
+          intermediaryEmail: form.intermediaryEmail.trim() || null,
         }),
       });
       const data = await res.json();
@@ -125,6 +127,12 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
             <input className={FIELD} placeholder="Email *" value={form.email} onChange={(e) => set("email", e.target.value)} />
             <input className={FIELD} placeholder="Teléfono" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
           </div>
+          <input
+            className={`mt-2 w-full ${FIELD}`}
+            placeholder="Intermediario (email de quien lo trae, opcional — p. ej. Ahmed)"
+            value={form.intermediaryEmail}
+            onChange={(e) => set("intermediaryEmail", e.target.value)}
+          />
           <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
             <input type="checkbox" className="h-4 w-4" checked={form.isBusiness} onChange={(e) => set("isBusiness", e.target.checked)} />
             Cliente de empresa (B2B)

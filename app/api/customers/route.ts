@@ -45,6 +45,7 @@ type CreateBody = {
   notes?: string | null;
   isBusiness?: boolean;
   autoConfirmPayment?: boolean;
+  intermediaryEmail?: string | null;
 };
 
 // STAFF: alta manual de un cliente en la agenda (sin pasar por un presupuesto).
@@ -71,11 +72,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Ya existe un cliente con ese email." }, { status: 409 });
   }
 
+  // Intermediario opcional: se resuelve por email (case-insensitive). No puede ser
+  // uno mismo (anti-ciclo trivial: el email del intermediario ≠ el del nuevo cliente).
+  let intermediaryId: string | null = null;
+  const intermediaryEmail = String(body.intermediaryEmail || "").trim().toLowerCase();
+  if (intermediaryEmail) {
+    if (intermediaryEmail === email) {
+      return NextResponse.json({ ok: false, error: "Un cliente no puede ser su propio intermediario." }, { status: 400 });
+    }
+    const inter = await prisma.customer.findFirst({
+      where: { email: { equals: intermediaryEmail, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!inter) {
+      return NextResponse.json({ ok: false, error: "No existe un cliente con el email del intermediario indicado." }, { status: 400 });
+    }
+    intermediaryId = inter.id;
+  }
+
   try {
     const customer = await prisma.customer.create({
       data: {
         name,
         email,
+        intermediaryId,
         phone: body.phone?.trim() || null,
         companyName: body.companyName?.trim() || null,
         fiscalName: body.fiscalName?.trim() || null,

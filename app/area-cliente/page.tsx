@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import GuestOrderLookup from "@/components/GuestOrderLookup";
 import ClientAccessForm from "@/components/ClientAccessForm";
+import { prisma } from "@/lib/prisma";
 import { getClientPortalData } from "@/lib/client-portal";
 import { verifyClientToken } from "@/lib/client-token";
 import { buildSignedOrderUrl } from "@/lib/order-token";
@@ -92,6 +93,23 @@ export default async function AreaClientePage({
   const customer = data?.customer || null;
   const isStaff = isStaffEmail(clientEmail);
 
+  // Si este cliente es INTERMEDIARIO (tiene clientes que cuelgan de él), los lista.
+  const referrals = customer
+    ? await prisma.customer.findMany({
+        where: { intermediaryId: customer.id },
+        select: { name: true, email: true, isBusiness: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
+  // Propaga el acceso (magic-link) del intermediario a la vista de cada cliente suyo.
+  const subClientHref = (subEmail: string) => {
+    const base = `/area-cliente/cliente/${encodeURIComponent(subEmail)}`;
+    if (tokenEmail && token) {
+      return `${base}?email=${encodeURIComponent(tokenEmail)}&token=${encodeURIComponent(token)}`;
+    }
+    return base;
+  };
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
       <AutoRefresh intervalMs={30000} idleMs={45000} />
@@ -145,6 +163,26 @@ export default async function AreaClientePage({
           )}
         </div>
       </section>
+
+      {/* Mis clientes (si este cliente es intermediario) */}
+      {referrals.length > 0 && (
+        <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+          <h2 className="text-lg font-semibold text-encre">Mis clientes</h2>
+          <p className="mt-1 text-sm text-sepia">Los clientes que gestionas. Abre uno para ver sus pedidos, presupuestos y descargas.</p>
+          <div className="mt-4 divide-y divide-cream rounded-2xl border border-cream">
+            {referrals.map((r) => (
+              <a
+                key={r.email}
+                href={subClientHref(r.email)}
+                className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm hover:bg-parchment"
+              >
+                <span className="font-semibold text-encre">{r.name || r.email}</span>
+                <span className="text-sepia">{r.email} →</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Pedidos (expediente conjunto) */}
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
