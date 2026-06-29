@@ -102,7 +102,7 @@ export default function ClientDeliverForm({ email }: { email: string }) {
             <input type="checkbox" className="h-4 w-4" checked={alreadyPaid} onChange={(e) => setAlreadyPaid(e.target.checked)} />
             El cliente ya ha pagado (transferencia) — lo marca cobrado y dispara el aviso de traducción lista
           </label>
-          {!isWhatsapp && (
+          {!isWhatsapp && alreadyPaid && (
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input type="checkbox" className="h-4 w-4" checked={notifyClient} onChange={(e) => setNotifyClient(e.target.checked)} />
               Enviar email al cliente con la traducción adjunta

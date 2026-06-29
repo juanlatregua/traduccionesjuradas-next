@@ -8,6 +8,15 @@
 // El SMS "traducción lista" lo dispara transitionWorkflowState (fuente única), igual
 // que /api/orders/[reference]/delivery. Si el cliente aún no ha pagado, se entrega
 // sin marcar pago y sin aviso automático (el staff manda el enlace por WhatsApp).
+//
+// CAVEATS (entrega SIN pago, alreadyPaid=false), revisados con guardian-flujos:
+//  - El pedido queda DELIVERED + PENDING. El cobro posterior de ESTE pedido se
+//    registra por la vía de pago manual simple (confirmManualPayment) o en la FACTURA
+//    (justificante). NO por la transición canónica TRADUCIDO_ENTREGADO→PAGO_VALIDADO
+//    (no permitida). El dinero se controla en la factura del cliente.
+//  - Herramienta pensada para clientes SIN presupuesto pagable activo. El pedido se
+//    crea sin quoteId; si existiera un Quote y se pagara por /q, el puente crearía un
+//    pedido aparte (no se enlaza el Quote a propósito: el form no tiene ese selector).
 
 import { NextResponse } from "next/server";
 import { createOrder, confirmManualPayment, updateDeliveryState } from "@/lib/orders";
@@ -115,9 +124,10 @@ export async function POST(req: Request) {
       eventMessage: `Entrega directa creada por ${actorEmail}.${translations.length > 1 ? ` ${translations.length} archivos.` : ""}`,
     });
 
-    // 5) Email "traducción lista" con adjuntos — solo si se pide notificar Y el email
-    //    es entregable (los clientes de WhatsApp tienen email-marcador @whatsapp.local).
-    if (body.notifyClient && isDeliverableEmail(clientEmail)) {
+    // 5) Email "traducción lista" con la jurada adjunta — solo si: se pide notificar,
+    //    el pedido está COBRADO (no se manda la traducción jurada a un impago) y el
+    //    email es entregable (los de WhatsApp llevan email-marcador @whatsapp.local).
+    if (body.notifyClient && alreadyPaid && isDeliverableEmail(clientEmail)) {
       const statusUrl = buildSignedOrderUrl(reference, "estado");
       const lang = order.clientLocale === "fr" ? "fr" : "es";
       const composed = buildTranslationReadyEmail({
