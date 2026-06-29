@@ -36,7 +36,12 @@ export async function POST(req: Request, { params }: Params) {
     /* opcional */
   }
 
-  const markPaid = body.paid !== false; // por defecto marca como cobrada
+  // `paid` debe llegar explícito: nunca marcar/desmarcar cobro por un body vacío o
+  // malformado (evita sellar un cobro falso con fecha de hoy en una petición rota).
+  if (typeof body.paid !== "boolean") {
+    return NextResponse.json({ ok: false, error: "Falta el estado de cobro (paid)." }, { status: 400 });
+  }
+  const markPaid = body.paid;
   const when: Date | null = markPaid
     ? body.date && !isNaN(new Date(body.date).getTime())
       ? new Date(body.date)

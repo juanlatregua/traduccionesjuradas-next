@@ -55,14 +55,16 @@ export default function ClientAccessLink({ email }: { email: string }) {
         >
           {busy ? "…" : "Copiar enlace de acceso"}
         </button>
-        <button
-          type="button"
-          onClick={() => fetchUrl(true)}
-          disabled={busy}
-          className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-        >
-          Enviar por email
-        </button>
+        {!email.endsWith("@whatsapp.local") && (
+          <button
+            type="button"
+            onClick={() => fetchUrl(true)}
+            disabled={busy}
+            className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          >
+            Enviar por email
+          </button>
+        )}
       </div>
       {url && (
         <input

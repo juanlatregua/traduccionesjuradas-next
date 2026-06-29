@@ -64,6 +64,8 @@ export async function POST(req: Request) {
       "image/jpeg",
       "image/png",
       "image/webp",
+      "image/heic",
+      "image/heif",
       "text/plain",
     ]);
     if (file.type && !allowedTypes.has(file.type)) {
@@ -86,7 +88,9 @@ export async function POST(req: Request) {
         ? "expenses"
         : prefixField === "invoices"
           ? "invoices"
-          : "uploads";
+          : prefixField === "deliveries"
+            ? "deliveries"
+            : "uploads";
     const pathname = `${prefix}/${Date.now()}-${validation.safeName}`;
 
     if (!isBlobConfigured()) {

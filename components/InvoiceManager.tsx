@@ -321,7 +321,16 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
   }
 
   // Adjuntar el justificante bancario de una factura emitida → la marca cobrada.
-  async function attachProof(row: InvoiceRow, file: File) {
+  async function attachProof(row: InvoiceRow, file: File, dateISO?: string) {
+    // Fecha del COBRO (no la de hoy): el justificante puede subirse días después.
+    // Importa para el trimestre fiscal. Si se cancela el prompt, no se adjunta.
+    let when = dateISO;
+    if (when === undefined) {
+      const today = new Date().toISOString().slice(0, 10);
+      const picked = window.prompt("Fecha del cobro (AAAA-MM-DD):", today);
+      if (picked === null) return;
+      when = picked.trim() || today;
+    }
     setBusy(true);
     setMsg(null);
     let uploadedUrl = "";
@@ -336,7 +345,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
       const res = await fetch(`/api/invoices/${row.id}/paid`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paid: true, proof: { url: ud.url, key: ud.pathname, name: file.name } }),
+        body: JSON.stringify({ paid: true, date: when, proof: { url: ud.url, key: ud.pathname, name: file.name } }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo marcar la factura como cobrada.");
