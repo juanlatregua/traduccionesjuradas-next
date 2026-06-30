@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PayPalButton from "@/components/PayPalButton";
 import CopyField from "@/components/CopyField";
+import { getAc, acIntl } from "@/lib/i18n/area-cliente";
 
 type OrderInfo = {
   reference: string;
@@ -13,6 +14,7 @@ type OrderInfo = {
   currency?: string;
   paymentStatus: string;
   status?: string;
+  clientLocale?: string | null;
   paymentBlocked?: boolean;
   hasSourceDocument?: boolean;
   workflowState?: string;
@@ -130,6 +132,13 @@ export default function PagarPage() {
   const [sourceDocuments, setSourceDocuments] = useState<SourceDocument[]>([]);
   const sourceInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Idioma del cliente (es|fr). getAc() devuelve referencias estables por idioma,
+  // así que `t`/`tc` no provocan re-renders ni invalidan los useCallback.
+  const lang = order?.clientLocale;
+  const t = getAc(lang).pagar;
+  const tc = getAc(lang).common;
+  const intl = acIntl(lang);
+
   useEffect(() => {
     fetch("/api/payment/capabilities")
       .then((r) => r.json())
@@ -169,10 +178,10 @@ export default function PagarPage() {
           setSourceDocuments(docs);
           setSourceUploaded(Boolean(data.order?.hasSourceDocument) || docs.length > 0);
         } else {
-          setError(data.error || "Pedido no encontrado.");
+          setError(data.error || getAc(null).pagar.notFound);
         }
       })
-      .catch(() => setError("Error de conexion."))
+      .catch(() => setError(getAc(null).pagar.connError))
       .finally(() => setLoading(false));
   }, [reference, orderToken]);
 
@@ -192,8 +201,8 @@ export default function PagarPage() {
     hasSourceDocument && (tab === "bizum" || tab === "transferencia" || (tab === "paypal" && !capabilities.paypalEnabled));
 
   const handleCopied = useCallback((label: string) => {
-    setCopyToast(`Copiado: ${label}`);
-  }, []);
+    setCopyToast(t.copied(label));
+  }, [t]);
 
   const handlePayPalSuccess = useCallback(() => {
     window.location.assign(`/pago/exito?ref=${encodeURIComponent(reference)}`);
@@ -201,7 +210,7 @@ export default function PagarPage() {
 
   const handleCardCheckout = useCallback(async () => {
     if (paymentBlockedBySource) {
-      setUploadError("Sube el documento original antes de continuar al pago.");
+      setUploadError(t.errUploadSourceFirst);
       sourceInputRef.current?.focus();
       return;
     }
@@ -215,7 +224,7 @@ export default function PagarPage() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "No se pudo iniciar el pago con tarjeta.");
+        throw new Error(data?.error || t.errCardStart);
       }
       if (data.kind === "redsys_form") {
         const form = document.createElement("form");
@@ -241,13 +250,13 @@ export default function PagarPage() {
         window.location.assign(String(data.url));
         return;
       }
-      throw new Error("No se recibió URL de pago.");
+      throw new Error(t.errNoPayUrl);
     } catch (err: any) {
-      setUploadError(err?.message || "No se pudo iniciar el pago con tarjeta.");
+      setUploadError(err?.message || t.errCardStart);
     } finally {
       setCardLoading(false);
     }
-  }, [paymentBlockedBySource, reference]);
+  }, [paymentBlockedBySource, reference, t]);
 
   function formatMoney(cents: number) {
     return `${(cents / 100).toFixed(2)} EUR`;
@@ -264,17 +273,16 @@ export default function PagarPage() {
 
     return (
       <div className={`mt-7 rounded-2xl border p-4 ${isSuccess ? "border-cream bg-card" : "border-cream bg-parchment"}`}>
-        <p className={`text-sm font-semibold ${titleCls}`}>Revisa tu documento</p>
+        <p className={`text-sm font-semibold ${titleCls}`}>{t.reviewDocTitle}</p>
         {hasSourceDocument ? (
           <p className={`mt-1 text-xs ${hintCls}`}>
             {sourceDocuments.length > 0
-              ? `Ya hemos recibido ${sourceDocuments.length} documento(s). Revisa miniatura y abre el archivo para confirmar que es correcto.`
-              : "Ya consta al menos un documento en el pedido. Puedes subir otro si necesitas reemplazarlo."}
+              ? t.docsReceived(sourceDocuments.length)
+              : t.docExists}
           </p>
         ) : (
           <p className={`mt-1 text-xs ${hintCls}`}>
-            Si ya lo enviaste por email o WhatsApp, no necesitas subirlo de nuevo.
-            Solo adjúntalo aquí si quieres reemplazarlo o asegurarte de que aparece en el pedido.
+            {t.docHint}
           </p>
         )}
 
@@ -299,7 +307,7 @@ export default function PagarPage() {
                     <p className="truncate text-xs font-semibold text-encre">{doc.fileName}</p>
                     {doc.uploadedAt && (
                       <p className="mt-0.5 text-[11px] text-graphite">
-                        {new Date(doc.uploadedAt).toLocaleString("es-ES")}
+                        {new Date(doc.uploadedAt).toLocaleString(intl)}
                       </p>
                     )}
                     <a
@@ -308,7 +316,7 @@ export default function PagarPage() {
                       rel="noopener noreferrer"
                       className="mt-1 inline-flex text-[11px] font-semibold text-bleu hover:underline"
                     >
-                      Abrir documento
+                      {t.openDocument}
                     </a>
                   </div>
                 </div>
@@ -320,12 +328,12 @@ export default function PagarPage() {
         <div className="mt-3 rounded-xl border border-dashed border-cream bg-card p-3">
           <p className="text-xs font-semibold text-sepia">
               {hasSourceDocument
-                ? "Subir o reemplazar documento"
-                : "Subir documento original (obligatorio para pagar)"}
+                ? t.uploadOrReplace
+                : t.uploadSourceRequired}
           </p>
           {sourceUploaded && (
             <p className="mt-1 text-[11px] font-semibold text-bleu">
-              Documento fuente registrado correctamente.
+              {t.sourceRegistered}
             </p>
           )}
           <input
@@ -346,7 +354,7 @@ export default function PagarPage() {
             disabled={!sourceFile || sourceUploading || !capabilities.manualProofUploadEnabled}
             className={`mt-3 rounded-2xl px-4 py-2 text-xs font-semibold text-white disabled:opacity-60 ${buttonCls}`}
           >
-            {sourceUploading ? "Subiendo..." : "Guardar documento en el pedido"}
+            {sourceUploading ? t.uploading : t.saveDocInOrder}
           </button>
         </div>
       </div>
@@ -355,12 +363,12 @@ export default function PagarPage() {
 
   async function handleUploadProof() {
     if (paymentBlockedBySource) {
-      setUploadError("Debes subir primero el documento original para poder enviar el comprobante.");
+      setUploadError(t.errProofNeedsSource);
       sourceInputRef.current?.focus();
       return;
     }
     if (!capabilities.manualProofUploadEnabled) {
-      setUploadError("La subida automática de justificantes está temporalmente no disponible.");
+      setUploadError(t.errProofUnavailable);
       return;
     }
     if (!file) return;
@@ -380,11 +388,11 @@ export default function PagarPage() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "Error al subir el comprobante.");
+        throw new Error(data?.error || t.errProofUpload);
       }
       setProofSent(true);
     } catch (err: any) {
-      setUploadError(err?.message || "Error al subir el comprobante.");
+      setUploadError(err?.message || t.errProofUpload);
     } finally {
       setUploading(false);
     }
@@ -392,7 +400,7 @@ export default function PagarPage() {
 
   async function handleUploadSourceDocument() {
     if (!capabilities.manualProofUploadEnabled) {
-      setSourceUploadError("La subida automática de documentos está temporalmente no disponible.");
+      setSourceUploadError(t.errDocsUnavailable);
       return;
     }
     if (!sourceFile) return;
@@ -410,7 +418,7 @@ export default function PagarPage() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "Error al subir el documento.");
+        throw new Error(data?.error || t.errDocUpload);
       }
       const uploadedDoc = data?.document
         ? {
@@ -429,7 +437,7 @@ export default function PagarPage() {
       setSourceUploaded(true);
       setSourceFile(null);
     } catch (err: any) {
-      setSourceUploadError(err?.message || "Error al subir el documento.");
+      setSourceUploadError(err?.message || t.errDocUpload);
     } finally {
       setSourceUploading(false);
     }
@@ -438,7 +446,7 @@ export default function PagarPage() {
   if (loading) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
-        <p className="text-sm text-sepia">Cargando datos del pedido...</p>
+        <p className="text-sm text-sepia">{t.loading}</p>
       </main>
     );
   }
@@ -449,7 +457,7 @@ export default function PagarPage() {
         <section className="rounded-3xl border border-red-200 bg-card p-6 shadow-sm sm:p-8">
           <p className="text-sm text-red-600">{error}</p>
           <Link href="/" className="mt-3 inline-block text-sm font-semibold text-bleu hover:underline">
-            Volver al inicio
+            {tc.backHome}
           </Link>
         </section>
       </main>
@@ -462,13 +470,13 @@ export default function PagarPage() {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
         <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold text-bleu">Este pedido ya está pagado.</p>
+          <p className="text-sm font-semibold text-bleu">{t.alreadyPaid}</p>
           <Link href={`/pago/exito?ref=${encodeURIComponent(order.reference)}`} className="mt-3 inline-block text-sm font-semibold text-bleu hover:underline">
-            Ver confirmación de pago
+            {t.seePaymentConfirmation}
           </Link>
           <br />
           <Link href="/area-cliente" className="mt-2 inline-block text-sm font-semibold text-bleu hover:underline">
-            Consultar estado del pedido
+            {t.checkOrderStatus}
           </Link>
         </section>
       </main>
@@ -479,13 +487,12 @@ export default function PagarPage() {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
         <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold text-amber-800">Pedido en revisión interna</p>
+          <p className="text-sm font-semibold text-amber-800">{t.underReviewTitle}</p>
           <p className="mt-2 text-sm text-amber-700">
-            Tu pedido <span className="font-mono">{order.reference}</span> se está validando antes de habilitar el pago.
-            Te avisaremos por email cuando esté listo.
+            {t.underReviewBody(order.reference)}
           </p>
           <Link href="/area-cliente" className="mt-4 inline-block text-sm font-semibold text-amber-800 underline">
-            Consultar estado del pedido
+            {t.checkOrderStatus}
           </Link>
         </section>
       </main>
@@ -503,25 +510,25 @@ export default function PagarPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-bleu">Comprobante recibido</h2>
+          <h2 className="text-xl font-bold text-bleu">{t.proofReceivedTitle}</h2>
           <p className="mt-2 text-sm text-bleu">
-            Hemos recibido tu comprobante para el pedido <span className="font-mono font-semibold">{reference}</span>. Lo verificamos y te confirmamos el pago en breve por email.
+            {t.proofReceivedBody(reference)}
           </p>
           <p className="mt-1 text-sm text-bleu">
-            Puedes seguir el avance desde tu área de cliente.
+            {t.proofReceivedFollow}
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/area-cliente"
               className="rounded-2xl bg-bleu-dark px-5 py-2.5 text-sm font-semibold text-white hover:bg-bleu-dark"
             >
-              Consultar estado del pedido
+              {t.checkOrderStatus}
             </Link>
             <Link
               href="/"
               className="text-sm font-semibold text-bleu hover:underline"
             >
-              Volver al inicio
+              {tc.backHome}
             </Link>
           </div>
           </div>
@@ -536,21 +543,21 @@ export default function PagarPage() {
     <main className="mx-auto max-w-3xl px-4 py-12">
       <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-          Pagar pedido
+          {t.eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-encre">
           {order.title}
         </h1>
         <p className="mt-1 text-sm text-sepia">
-          Referencia: <span className="font-mono">{order.reference}</span> · Importe:{" "}
+          {tc.reference}: <span className="font-mono">{order.reference}</span> · {tc.amount}:{" "}
           <span className="font-semibold">{formatMoney(order.amountCents)}</span>
         </p>
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-          Flujo recomendado: revisa tu documento, elige método de pago y confirma el justificante si aplica.
+          {t.recommendedFlow}
         </p>
         {paymentBlockedBySource && (
           <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
-            Para continuar al pago primero debes subir al menos un documento original.
+            {t.mustUploadSource}
           </p>
         )}
 
@@ -567,7 +574,7 @@ export default function PagarPage() {
                 : "border border-cream text-sepia hover:bg-cream"
             }`}
           >
-            Tarjeta
+            {t.tabCard}
           </button>
           <button
             type="button"
@@ -578,7 +585,7 @@ export default function PagarPage() {
                 : "border border-cream text-sepia hover:bg-cream"
             }`}
           >
-            PayPal
+            {t.tabPaypal}
           </button>
           <button
             type="button"
@@ -589,7 +596,7 @@ export default function PagarPage() {
                 : "border border-cream text-sepia hover:bg-cream"
             }`}
           >
-            Bizum
+            {t.tabBizum}
           </button>
           <button
             type="button"
@@ -600,17 +607,17 @@ export default function PagarPage() {
                 : "border border-cream text-sepia hover:bg-cream"
             }`}
           >
-            Transferencia
+            {t.tabTransfer}
           </button>
         </div>
 
         {tab === "tarjeta" && (
           <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-            <p className="text-sm font-semibold text-blue-900">Pago con tarjeta</p>
+            <p className="text-sm font-semibold text-blue-900">{t.cardTitle}</p>
             {capabilities.cardEnabled ? (
               <>
                 <p className="mt-1 text-xs text-blue-700">
-                  El pago se procesa de forma segura y la confirmación se refleja automáticamente.
+                  {t.cardSecure}
                 </p>
                 <button
                   type="button"
@@ -618,12 +625,12 @@ export default function PagarPage() {
                   disabled={cardLoading || paymentBlockedBySource}
                   className="mt-3 rounded-2xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
                 >
-                  {cardLoading ? "Redirigiendo..." : "Pagar con tarjeta ahora"}
+                  {cardLoading ? t.cardRedirecting : t.cardPayNow}
                 </button>
               </>
             ) : (
               <p className="mt-1 text-xs text-blue-700">
-                Tarjeta no disponible en este entorno. Usa Bizum, transferencia o PayPal manual.
+                {t.cardUnavailable}
               </p>
             )}
           </div>
@@ -631,15 +638,15 @@ export default function PagarPage() {
 
         {tab === "paypal" && (
           <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-            <p className="text-sm font-semibold text-blue-900">Pago con PayPal</p>
+            <p className="text-sm font-semibold text-blue-900">{t.paypalTitle}</p>
             {capabilities.paypalEnabled ? (
               <>
                 <p className="mt-1 text-xs text-blue-700">
-                  Completa el pago en PayPal. Al confirmar, te llevamos automáticamente a la confirmación.
+                  {t.paypalAuto}
                 </p>
                 {paymentBlockedBySource ? (
                   <p className="mt-3 text-xs font-semibold text-red-700">
-                    Sube primero el documento original para habilitar PayPal.
+                    {t.paypalNeedSource}
                   </p>
                 ) : (
                   <div className="mt-4 max-w-sm">
@@ -650,26 +657,25 @@ export default function PagarPage() {
             ) : (
               <>
                 <p className="mt-1 text-xs text-blue-700">
-                  PayPal no está automatizado en este entorno.
-                  {" "}Puedes pagar por Bizum/transferencia o usar PayPal manual y subir justificante.
+                  {t.paypalManual}
                 </p>
                 <div className="mt-3 space-y-2">
                   {MANUAL_PAYMENT.paypalLink ? (
                     <CopyField
-                      label="Enlace PayPal"
+                      label={t.paypalLink}
                       value={MANUAL_PAYMENT.paypalLink}
-                      actionLabel="Abrir"
+                      actionLabel={tc.open}
                       actionHref={MANUAL_PAYMENT.paypalLink}
                       onCopied={handleCopied}
                     />
                   ) : (
                     <CopyField
-                      label="Cuenta PayPal"
+                      label={t.paypalAccount}
                       value={MANUAL_PAYMENT.paypalAccount}
                       onCopied={handleCopied}
                     />
                   )}
-                  <CopyField label="Concepto" value={order.reference} onCopied={handleCopied} />
+                  <CopyField label={t.concept} value={order.reference} onCopied={handleCopied} />
                 </div>
               </>
             )}
@@ -680,15 +686,15 @@ export default function PagarPage() {
         {tab === "bizum" && (
           <div className="mt-6">
             <p className="text-sm text-sepia">
-              Realiza un Bizum con los siguientes datos:
+              {t.bizumPrompt}
             </p>
             <div className="mt-4 space-y-2 rounded-2xl border border-cream bg-parchment p-4">
               <CopyField label="Bizum" value={MANUAL_PAYMENT.bizumPhone} onCopied={handleCopied} />
-              <CopyField label="Concepto" value={order.reference} onCopied={handleCopied} />
-              <CopyField label="Importe" value={formatMoney(order.amountCents)} mono={false} onCopied={handleCopied} />
+              <CopyField label={t.concept} value={order.reference} onCopied={handleCopied} />
+              <CopyField label={tc.amount} value={formatMoney(order.amountCents)} mono={false} onCopied={handleCopied} />
             </div>
             <p className="mt-3 text-xs text-graphite">
-              Incluye la referencia <span className="font-mono font-semibold">{order.reference}</span> en el concepto.
+              {t.includeRefInConcept(order.reference)}
             </p>
           </div>
         )}
@@ -697,17 +703,17 @@ export default function PagarPage() {
         {tab === "transferencia" && (
           <div className="mt-6">
             <p className="text-sm text-sepia">
-              Realiza una transferencia bancaria con los siguientes datos:
+              {t.transferPrompt}
             </p>
             <div className="mt-4 space-y-2 rounded-2xl border border-cream bg-parchment p-4">
-              <CopyField label="Beneficiario" value={MANUAL_PAYMENT.accountHolder} mono={false} onCopied={handleCopied} />
+              <CopyField label={t.beneficiary} value={MANUAL_PAYMENT.accountHolder} mono={false} onCopied={handleCopied} />
               <CopyField label="IBAN" value={MANUAL_PAYMENT.iban} onCopied={handleCopied} />
               <CopyField label="BIC/SWIFT" value={MANUAL_PAYMENT.bic} onCopied={handleCopied} />
-              <CopyField label="Concepto" value={order.reference} onCopied={handleCopied} />
-              <CopyField label="Importe" value={formatMoney(order.amountCents)} mono={false} onCopied={handleCopied} />
+              <CopyField label={t.concept} value={order.reference} onCopied={handleCopied} />
+              <CopyField label={tc.amount} value={formatMoney(order.amountCents)} mono={false} onCopied={handleCopied} />
             </div>
             <p className="mt-3 text-xs text-graphite">
-              Incluye la referencia <span className="font-mono font-semibold">{order.reference}</span> en el concepto.
+              {t.includeRefInConcept(order.reference)}
             </p>
           </div>
         )}
@@ -716,23 +722,23 @@ export default function PagarPage() {
         {acceptsProofUpload && (
           <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-5">
             <h3 className="text-sm font-semibold text-blue-900">
-              Adjunta tu comprobante de pago
+              {t.proofUploadTitle}
             </h3>
             <p className="mt-1 text-xs text-blue-700">
               {tab === "paypal"
-                ? "Sube el justificante de PayPal para registrar el pago automáticamente."
-                : "Sube una captura del Bizum o el justificante de la transferencia para registrar el pago automáticamente."}
+                ? t.proofUploadPaypal
+                : t.proofUploadBizumTransfer}
             </p>
             <div className="mt-4">
               <label htmlFor="proofEmail" className="mb-1 block text-xs font-semibold text-blue-800">
-                Email del pedido (recomendado si no has iniciado sesión)
+                {t.proofEmailLabel}
               </label>
               <input
                 id="proofEmail"
                 type="email"
                 value={proofEmail}
                 onChange={(e) => setProofEmail(e.target.value)}
-                placeholder="tu@email.com"
+                placeholder={t.proofEmailPlaceholder}
                 className="mb-3 block w-full rounded-xl border border-blue-200 bg-card px-3 py-2 text-sm text-sepia"
                 disabled={!capabilities.manualProofUploadEnabled}
               />
@@ -750,12 +756,12 @@ export default function PagarPage() {
             {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
             {!capabilities.manualProofUploadEnabled && (
               <p className="mt-2 text-xs font-semibold text-amber-800">
-                La subida automática de justificantes está temporalmente no disponible.
+                {t.errProofUnavailable}
               </p>
             )}
             {paymentBlockedBySource && (
               <p className="mt-2 text-xs font-semibold text-amber-800">
-                Sube primero el documento original para habilitar el envío del comprobante.
+                {t.proofNeedsSource}
               </p>
             )}
             <button
@@ -764,14 +770,14 @@ export default function PagarPage() {
               disabled={!file || uploading || !capabilities.manualProofUploadEnabled || paymentBlockedBySource}
               className="mt-4 rounded-2xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
             >
-              {uploading ? "Enviando..." : "Enviar comprobante"}
+              {uploading ? t.sending : t.sendProof}
             </button>
           </div>
         )}
 
         <div className="mt-6">
           <Link href="/" className="text-sm font-semibold text-bleu hover:underline">
-            Volver al inicio
+            {tc.backHome}
           </Link>
         </div>
       </section>

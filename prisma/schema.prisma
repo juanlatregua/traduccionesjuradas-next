@@ -78,6 +78,7 @@ enum QuoteMessageType {
   DRAFT_WHATSAPP
   EXPIRED_NOTICE
   RESEND_PAY_LINK
+  TRANSLATOR_REVIEW_OFFER
 }
 
 enum QuoteAccessEventType {

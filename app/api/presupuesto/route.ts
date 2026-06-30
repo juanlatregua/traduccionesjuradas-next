@@ -20,6 +20,8 @@ import {
   generateQuoteToken,
 } from "@/lib/quotes";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
+import { sendEmailWithRetry } from "@/lib/email-retry";
+import { sendStaffAlertSMS } from "@/lib/sms";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -403,24 +405,32 @@ export async function POST(req: Request) {
     const reviewers = [...new Set([...getAdminEmails(), "hola@traduccionesjuradas.net"])];
     const pmEmail = getPmEmails()[0] || undefined;
 
-    sendOrderReviewRoutingEmail({
-      reference: order.reference,
-      title,
-      amountCents: Math.max(amountCents, 0),
-      clientEmail: email,
-      langPair,
-      flowProfile,
-      reviewers: reviewers.filter(Boolean),
-      pmEmail,
-      urgencyNotes: body.contacto.notas || undefined,
-      reviewReason: "Solicitud desde estimador: revisión previa al cobro.",
-      quoteId: autoQuoteId || undefined,
-    }).catch((e) => console.error("[presupuesto] review routing email failed", e));
+    // Con reintentos (sendEmailWithRetry persiste en FailedEmail si agota intentos):
+    // antes eran fire-and-forget con solo console.error → un fallo de Graph se perdía.
+    void sendEmailWithRetry(() =>
+      sendOrderReviewRoutingEmail({
+        reference: order.reference,
+        title,
+        amountCents: Math.max(amountCents, 0),
+        clientEmail: email,
+        langPair,
+        flowProfile,
+        reviewers: reviewers.filter(Boolean),
+        pmEmail,
+        urgencyNotes: body.contacto.notas || undefined,
+        reviewReason: "Solicitud desde estimador: revisión previa al cobro.",
+        quoteId: autoQuoteId || undefined,
+      })
+    );
 
-    // Confirmación al cliente (no bloqueante)
-    sendPresupuestoConfirmationEmail(payload).catch((err: any) => {
-      console.error("[/api/presupuesto] Error al enviar confirmación:", err);
-    });
+    // Confirmación al cliente (no bloqueante, con reintentos)
+    void sendEmailWithRetry(() => sendPresupuestoConfirmationEmail(payload));
+
+    // SMS al staff: nueva solicitud de presupuesto desde el estimador.
+    sendStaffAlertSMS(
+      `Nueva solicitud de presupuesto ${order.reference} de ${email} (${langPair}). Quote DRAFT en /admin/quotes.`,
+      `presupuesto ${order.reference}`
+    ).catch(() => {});
 
     // Review routed event
     prisma.orderEvent

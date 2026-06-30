@@ -4,6 +4,7 @@ import path from "path";
 import { WHATSAPP_DISPLAY, buildWhatsAppLinkFromText, SITE_BASE_URL } from "@/lib/contact";
 import { sendMail } from "@/lib/azure-mail";
 import type { MailAttachment } from "@/lib/azure-mail";
+import { sendStaffAlertSMS } from "@/lib/sms";
 
 export type PresupuestoPayload = {
   documentos: Array<{
@@ -322,7 +323,53 @@ export async function sendTranslationReadyEmail(data: {
     html: composed.html,
     attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
   });
+  // Solo tras enviarse OK al cliente: aviso al staff (Juan) de "entrega enviada".
+  // Best-effort: nunca rompe ni bloquea la entrega.
+  void notifyStaffDeliverySent({
+    reference: data.reference,
+    clientEmail: data.toEmail,
+    lang: data.lang === "fr" ? "fr" : "es",
+    fileCount: data.attachments?.length,
+    invoiceAttached: data.invoiceAttached,
+  }).catch((e) => console.error("[delivery-staff-notify] failed", e));
   return composed;
+}
+
+// Aviso al staff (Juan) de que la entrega salió correctamente al cliente: email
+// (con detalle) + SMS (corto al móvil). Best-effort; no lanza. Se dispara desde
+// `sendTranslationReadyEmail`, tras confirmarse el envío al cliente.
+export async function notifyStaffDeliverySent(data: {
+  reference: string;
+  clientEmail: string;
+  lang?: "es" | "fr";
+  fileCount?: number;
+  invoiceAttached?: boolean;
+}): Promise<void> {
+  const to = alertRecipient();
+  const fileLine = data.fileCount ? `${data.fileCount} archivo(s) adjunto(s)` : "sin adjuntos";
+  const langLabel = data.lang === "fr" ? "FR" : "ES";
+
+  const tasks: Promise<unknown>[] = [];
+
+  if (to) {
+    const subject = `✅ Entrega enviada al cliente — ${data.reference}`;
+    const html = `
+      <h2>Entrega enviada correctamente</h2>
+      <p>El email de "traducción lista" se ha enviado al cliente.</p>
+      <table style="border-collapse:collapse; margin:12px 0;">
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Idioma</td><td>${langLabel}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Adjuntos</td><td>${fileLine}${data.invoiceAttached ? " (incluye factura)" : ""}</td></tr>
+      </table>
+    `;
+    tasks.push(sendMail({ to, subject, html }));
+  }
+
+  const sms = `TraduccionesJuradas: entrega enviada OK a ${data.clientEmail} (ref ${data.reference}, ${fileLine}).`;
+  tasks.push(sendStaffAlertSMS(sms, `delivery_sent_${data.reference}`));
+
+  await Promise.allSettled(tasks);
 }
 
 export async function sendInvoiceRequestEmail(data: {
@@ -705,6 +752,28 @@ export async function sendTranslatorDeliveredStaffEmail(data: {
     </table>
     <p><a href="${data.fileUrl}">Descargar la traducción</a></p>
     <p><a href="${workspaceUrl}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Verificar y enviar al cliente</a></p>
+  `;
+
+  await sendMail({ to, subject, html });
+}
+
+export async function sendSourceDocsUploadedStaffEmail(data: {
+  reference: string;
+  clientEmail: string;
+  fileName: string;
+  fileUrl: string;
+}) {
+  const to = process.env.PRESUPUESTO_TO;
+  if (!to) return;
+
+  const subject = `Documentos subidos por el cliente - ${data.reference}`;
+  const orderUrl = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${data.reference}`;
+
+  const html = `
+    <h2>El cliente ha subido documentos</h2>
+    <p>El cliente del pedido <strong>${data.reference}</strong> (${data.clientEmail}) ha adjuntado un documento. Revisa y prepara/actualiza el presupuesto.</p>
+    <p><a href="${data.fileUrl}">Ver documento: ${data.fileName}</a></p>
+    <p><a href="${orderUrl}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir el pedido</a></p>
   `;
 
   await sendMail({ to, subject, html });

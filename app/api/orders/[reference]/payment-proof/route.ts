@@ -7,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { sendPaymentProofUploadedStaffEmail } from "@/lib/email";
+import { sendPaymentProofUploadedStaffEmail, sendPaymentProofReceivedClientEmail } from "@/lib/email";
+import { isPlaceholderEmail } from "@/lib/quote-email";
 import { validatePaymentProofFile } from "@/lib/file-security";
 import { getWorkflowState } from "@/lib/workflow";
 import { transitionWorkflowState } from "@/lib/workflow-server";
@@ -276,6 +277,15 @@ export async function POST(req: Request, { params }: Params) {
       proofUrl: blob.url,
       fileName: file.name,
     }).catch((e) => console.error("[payment-proof] staff email failed", e));
+
+    // Confirmación al cliente de que se recibió el comprobante (antes la función
+    // existía pero no se llamaba desde ningún sitio → el cliente no recibía nada).
+    if (!isPlaceholderEmail(order.clientEmail)) {
+      sendPaymentProofReceivedClientEmail({
+        toEmail: order.clientEmail,
+        reference: order.reference,
+      }).catch((e) => console.error("[payment-proof] client email failed", e));
+    }
 
     return NextResponse.json({
       ok: true,

@@ -146,3 +146,80 @@ Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
 export function buildWhatsAppReminderText(data: { name: string; payUrl: string }) {
   return `Hola ${data.name}, le escribo desde TraduccionesJuradas.net para recordarle que su presupuesto sigue pendiente de confirmación. Puede completarlo aquí: ${data.payUrl}. Quedo atento.`;
 }
+
+// ── Captación de leads con presupuesto que no llegó / no se revisó ────────────
+// Mensaje humano (NO transaccional): ofrece que un traductor jurado revise el
+// caso personalmente. Localizado es/fr/en según el idioma del cliente.
+
+export type CaptureLang = "es" | "fr" | "en";
+
+/** Resuelve el idioma del mensaje de captación: clientLocale del pedido, si no
+ *  el idioma de origen del documento; fr→fr, es→es, cualquier otro→inglés. */
+export function resolveCaptureLang(opts: {
+  clientLocale?: string | null;
+  sourceLang?: string | null;
+}): CaptureLang {
+  const v = opts.clientLocale || opts.sourceLang || "es";
+  if (v === "fr") return "fr";
+  if (v === "es") return "es";
+  return "en";
+}
+
+/** Email de captación "un traductor analiza tu presupuesto". `payUrl` opcional:
+ *  inclúyelo SOLO si el presupuesto se entregó de verdad (no enlaces un DRAFT
+ *  con precios sin revisar). */
+export function buildTranslatorReviewEmail(data: {
+  name: string;
+  lang?: CaptureLang;
+  payUrl?: string | null;
+}) {
+  const lang = data.lang || "es";
+  if (lang === "fr") {
+    const link = data.payUrl ? ` ${data.payUrl}` : "";
+    return {
+      subject: "Votre devis de traduction assermentée — souhaitez-vous qu'on le revoie ensemble ?",
+      body: `Bonjour ${data.name},
+Nous avons préparé le devis de votre traduction assermentée, mais il semble que vous n'ayez pas pu le consulter.
+Pour lever tout doute, un traducteur assermenté peut étudier votre dossier personnellement — document, délai et validité officielle auprès de l'organisme destinataire — sans engagement.
+Répondez à ce courriel ou écrivez-nous sur WhatsApp et nous le voyons aujourd'hui même.${link}
+Cordialement, Juan Silva — Traducteur assermenté (MAEC).`,
+    };
+  }
+  if (lang === "en") {
+    const link = data.payUrl ? ` ${data.payUrl}` : "";
+    return {
+      subject: "Your sworn translation quote — shall we review it together?",
+      body: `Dear ${data.name},
+We've prepared the quote for your sworn translation, but it looks like you haven't had a chance to review it.
+To clear up any doubts, a sworn translator can review your case personally — document, turnaround time and official validity before the receiving authority — at no obligation.
+Reply to this email or message us on WhatsApp and we'll look at it today.${link}
+Best regards, Juan Silva — Sworn Translator (MAEC).`,
+    };
+  }
+  const link = data.payUrl ? ` ${data.payUrl}` : "";
+  return {
+    subject: "Su presupuesto de traducción jurada — ¿lo revisamos juntos?",
+    body: `Estimado/a ${data.name},
+Hemos preparado el presupuesto de su traducción jurada, pero no nos consta que haya podido revisarlo.
+Para que no se quede con dudas, un traductor jurado puede analizar su caso personalmente —documento, plazo y validez oficial ante el organismo de destino— sin compromiso.
+Responda a este correo o escríbanos por WhatsApp y lo vemos hoy mismo.${link}
+Atentamente, Juan Silva — Traductor Jurado (MAEC).`,
+  };
+}
+
+/** Texto de WhatsApp equivalente (para leads sin email entregable). */
+export function buildWhatsAppTranslatorReviewText(data: {
+  name: string;
+  lang?: CaptureLang;
+  payUrl?: string | null;
+}) {
+  const lang = data.lang || "es";
+  const link = data.payUrl ? ` ${data.payUrl}` : "";
+  if (lang === "fr") {
+    return `Bonjour ${data.name}, équipe de TraduccionesJuradas.net. Nous avons préparé votre devis de traduction assermentée mais il n'a pas été consulté. Souhaitez-vous qu'un traducteur assermenté étudie votre dossier personnellement ? Nous répondons aujourd'hui.${link}`;
+  }
+  if (lang === "en") {
+    return `Hi ${data.name}, this is the TraduccionesJuradas.net team. We prepared your sworn translation quote but it looks like you haven't seen it. Would you like a sworn translator to review your case personally? We'll reply today.${link}`;
+  }
+  return `Hola ${data.name}, soy del equipo de TraduccionesJuradas.net. Preparamos su presupuesto de traducción jurada pero no nos consta que lo viera. ¿Quiere que un traductor jurado revise su caso personalmente? Le respondemos hoy.${link}`;
+}
