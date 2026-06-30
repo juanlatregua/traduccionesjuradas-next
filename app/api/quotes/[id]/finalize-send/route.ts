@@ -4,7 +4,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { decimalToNumber } from "@/lib/quotes";
 import { buildQuotePdfBuffer, hashPdf, uploadFinalQuotePdf } from "@/lib/quote-pdf";
 import { buildPayLinkEmail, buildWhatsAppPayText } from "@/lib/quote-messages";
-import { sendQuoteEmail } from "@/lib/quote-email";
+import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 
 export const runtime = "nodejs";
@@ -101,8 +101,8 @@ export async function POST(req: Request, { params }: Params) {
     // No se envía email si el staff lo pide (skipEmail) o si el email es un
     // marcador de WhatsApp (no entregable). Igualmente se genera el PDF y el
     // texto de WhatsApp para que Juan lo envíe.
-    const isPlaceholderEmail = /@whatsapp\.local$/i.test(quote.customerEmail);
-    const doSendEmail = !skipEmail && !isPlaceholderEmail;
+    const placeholderEmail = isPlaceholderEmail(quote.customerEmail);
+    const doSendEmail = !skipEmail && !placeholderEmail;
 
     const emailCopy = buildPayLinkEmail({
       name: quote.customerName || "cliente",
@@ -110,7 +110,7 @@ export async function POST(req: Request, { params }: Params) {
     });
     let sendResult: { providerId?: string | null } = {};
     if (doSendEmail) {
-      sendResult = await sendQuoteEmail({
+      sendResult = await sendQuoteEmailWithRetry({
         to: quote.customerEmail,
         subject: emailCopy.subject,
         body: emailCopy.body,

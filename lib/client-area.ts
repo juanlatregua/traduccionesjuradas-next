@@ -1,33 +1,11 @@
-/* Label helpers for order states — used by area-cliente pages */
+/* Label helpers for order states — used by area-cliente pages.
+ * La fuente única (es|fr) vive en lib/i18n/area-cliente.ts. Aquí solo se
+ * reexporta para no romper los imports existentes (p. ej. GuestOrderLookup).
+ * Sin `locale` → español, igual que antes. */
 
-export function getPaymentStateLabel(status: string) {
-  if (status === "PAID") return "Pagado";
-  if (status === "FAILED") return "Fallido";
-  if (status === "REFUNDED") return "Reembolsado";
-  return "Pendiente de pago";
-}
-
-export function getDeliveryStateLabel(state: string) {
-  if (state === "EN_PROCESO") return "En proceso";
-  if (state === "TRADUCIDO") return "Traducido";
-  return "Presupuesto emitido";
-}
-
-export function getDeliveryTypeLabel(type: string) {
-  return type === "envio" ? "Envío físico" : "PDF firmado";
-}
-
-export function getWorkflowStateLabel(state?: string | null) {
-  const map: Record<string, string> = {
-    BORRADOR: "Borrador",
-    PENDIENTE_REVISION: "Pendiente de revisión interna",
-    PRESUPUESTO_ENVIADO: "Presupuesto enviado",
-    PENDIENTE_PAGO: "Pendiente de pago",
-    JUSTIFICANTE_SUBIDO: "Justificante subido",
-    PAGO_VALIDADO: "Pago validado",
-    EN_TRADUCCION: "En traducción",
-    TRADUCIDO_ENTREGADO: "Traducido y entregado",
-    CERRADO: "Cerrado",
-  };
-  return map[String(state || "")] || "Pendiente de pago";
-}
+export {
+  getPaymentStateLabel,
+  getDeliveryStateLabel,
+  getDeliveryTypeLabel,
+  getWorkflowStateLabel,
+} from "@/lib/i18n/area-cliente";

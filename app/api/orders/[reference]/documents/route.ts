@@ -9,6 +9,8 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { validateGeneralUploadFile } from "@/lib/file-security";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { getWorkflowState } from "@/lib/workflow";
+import { sendSourceDocsUploadedStaffEmail } from "@/lib/email";
+import { sendStaffAlertSMS } from "@/lib/sms";
 
 export const runtime = "nodejs";
 
@@ -161,6 +163,22 @@ export async function POST(req: Request, { params }: Params) {
         },
       },
     });
+
+    // Aviso al staff SOLO si lo subió el cliente (no cuando lo sube el propio
+    // staff). Antes esta vía no notificaba nada → Juan no se enteraba de que el
+    // cliente había mandado los documentos para el presupuesto. Best-effort.
+    if (!isStaff) {
+      sendSourceDocsUploadedStaffEmail({
+        reference: order.reference,
+        clientEmail: order.clientEmail,
+        fileName: validation.safeName ?? file.name,
+        fileUrl: blob.url,
+      }).catch((e) => console.error("[orders-documents] staff email failed", e));
+      sendStaffAlertSMS(
+        `Cliente subió documento(s) al pedido ${order.reference} (${order.clientEmail}). Revisa y prepara el presupuesto.`,
+        `docs ${order.reference}`
+      ).catch(() => {});
+    }
 
     return NextResponse.json({
       ok: true,

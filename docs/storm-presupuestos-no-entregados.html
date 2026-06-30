@@ -1,0 +1,140 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STORM — Presupuestos que no llegan al cliente</title>
+<style>
+:root{--bleu:#1f4e79;--encre:#1a2230;--sepia:#5b5446;--cream:#e7e0d2;--parchment:#f6f1e7;--card:#fffdf8;--or:#b8860b;--red:#b91c1c;--green:#2e7d32;--graphite:#6b7280}
+*{box-sizing:border-box}
+body{margin:0;background:var(--parchment);color:var(--encre);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:1.8rem;margin:.2em 0}
+h2{font-size:1.15rem;color:var(--encre);margin:1.4em 0 .3em}
+h3{color:var(--bleu);border-left:4px solid var(--bleu);padding-left:10px;margin:1.6em 0 .5em}
+.meta{color:var(--sepia);font-size:.88rem}
+.topic{background:var(--card);border:1px solid var(--cream);border-left:4px solid var(--or);padding:12px 14px;border-radius:8px;margin:14px 0;font-style:italic}
+.card{background:var(--card);border:1px solid var(--cream);border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.03);margin:10px 0}
+.summary{background:linear-gradient(180deg,#eaf2fb,#fffdf8);border:1px solid #c7dcf2;border-radius:12px;padding:18px;margin:16px 0}
+table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px}
+td,th{text-align:left;padding:7px 9px;border-bottom:1px solid #d7e6f5;vertical-align:top}
+th{font-size:.74rem;text-transform:uppercase;color:var(--sepia)}
+.sev{font-weight:800;border-radius:6px;padding:1px 7px;font-size:.8rem;white-space:nowrap}
+.s-crit{background:#fde8e8;color:var(--red)}
+.s-high{background:#fdf0db;color:var(--or)}
+.s-med{background:#eef2f7;color:var(--bleu)}
+.ok{color:var(--green);font-weight:700}
+.pill{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eef2f7;color:var(--bleu);text-transform:uppercase;letter-spacing:.03em}
+.pill.done{background:#e6f4ea;color:var(--green)}
+.pill.pend{background:#fdf0db;color:var(--or)}
+ul{margin:.3em 0;padding-left:1.2em}
+li{margin:5px 0}
+code{background:#f0ece2;padding:1px 5px;border-radius:4px;font-size:.85em}
+.num{font-weight:700;font-variant-numeric:tabular-nums}
+.copy{background:#f6f1e7;border:1px dashed var(--cream);border-radius:8px;padding:10px 12px;margin:8px 0;font-size:.9rem;white-space:pre-wrap}
+.lang{font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--or);letter-spacing:.05em}
+footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--cream);color:var(--graphite);font-size:.8rem}
+</style></head><body><div class="wrap">
+
+<div class="meta">Método STORM · auditoría de fuga de leads + verificación de código (8/8 afirmaciones confirmadas por verificadores independientes) + datos reales de producción · 2026-06-30</div>
+<h1>Por qué un presupuesto elaborado no llega al cliente — y cómo no perder ese lead</h1>
+<div class="topic"><strong>Tesis central (convergencia, alta confianza):</strong> El sistema <strong>ELABORA</strong> presupuestos automáticamente (Quote en <code>DRAFT</code>) pero <strong>NO los ENTREGA</strong> con enlace de pago de forma automática: la entrega depende de una acción manual del staff (<code>finalize-send</code>). Si nadie la ejecuta, el lead muere <strong>en silencio</strong>. Ahí está la fuga.</div>
+
+<div class="summary">
+<strong>La cifra que arbitra:</strong> el inventario real (solo lectura, prod, 2026-06-30) detectó <span class="num">6</span> fugas de <span class="num">27</span> presupuestos abiertos. Los <strong>4 leads reales</strong> en riesgo (los <code>@whatsapp.local</code>) suman ≈ <span class="num">1.335 €</span> de pipeline parado, y son <strong>multilingües</strong> (fr, es›en, en, pt) — lo que justifica además el alta del inglés en el área de cliente.
+</div>
+
+<h3>1 · Convergencia — el diagnóstico, verificado contra el código</h3>
+<p>Las 8 afirmaciones del análisis fueron verificadas adversarialmente por agentes independientes: <strong>8/8 CONFIRMADAS, 0 refutadas.</strong></p>
+<div class="card"><table>
+<tr><th>Sev.</th><th>Hallazgo confirmado</th><th>Evidencia</th></tr>
+<tr><td><span class="sev s-crit">CRÍTICO</span></td><td>El Quote auto-generado por el estimador nace en <code>DRAFT</code> y solo se entrega con pay-link manualmente (finalize-send, staff). Sin acción humana, nunca llega.</td><td><code>api/presupuesto/route.ts:287-319</code> · <code>finalize-send/route.ts</code></td></tr>
+<tr><td><span class="sev s-crit">CRÍTICO</span></td><td>El cron de recordatorios ignora los <code>DRAFT</code> (filtra <code>SENT</code>/<code>OPENED</code>): un DRAFT nunca recibe recordatorio de pago.</td><td><code>quotes/reminders/route.ts:36-48</code></td></tr>
+<tr><td><span class="sev s-crit">CRÍTICO</span></td><td>…pero el barrido de expiración SÍ incluye DRAFT y enviaba al cliente un email de «presupuesto expirado» con un <code>quoteNumber</code> que nunca vio: primer y único contacto, y de cierre.</td><td><code>reminders/route.ts:124,136-155</code></td></tr>
+<tr><td><span class="sev s-crit">CRÍTICO</span></td><td>Email-marcador <code>@whatsapp.local</code>: se salta el envío real pero igualmente marca el quote <code>SENT</code>+<code>sentAt</code> → figura entregado sin haberse enviado.</td><td><code>finalize-send/route.ts:104-105,139-143</code></td></tr>
+<tr><td><span class="sev s-high">ALTO</span></td><td><code>resend</code> no tenía guardia <code>@whatsapp.local</code> → 500 al reenviar a un lead de WhatsApp.</td><td><code>resend/route.ts:48-52</code></td></tr>
+<tr><td><span class="sev s-high">ALTO</span></td><td>finalize-send/resend/reminders enviaban sin reintentos ni registro en <code>FailedEmail</code>: un fallo transitorio de Graph = lead perdido sin rastro.</td><td><code>lib/quote-email.ts</code> · <code>lib/email-retry.ts</code></td></tr>
+<tr><td><span class="sev s-high">ALTO</span></td><td>Ningún aviso al staff cuando un envío al cliente falla (reminders contaba <code>remindersFailed</code> pero no notificaba).</td><td><code>reminders/route.ts</code></td></tr>
+<tr><td><span class="sev s-med">MEDIO</span></td><td><code>EMAIL_FROM</code> por defecto <code>…@holabonjour.es</code> ≠ marca <code>traduccionesjuradas.net</code> → riesgo SPF/DKIM/DMARC (spam). <code>saveToSentItems:false</code> dificulta auditar.</td><td><code>lib/azure-mail.ts:74,113</code></td></tr>
+</table></div>
+
+<h3>2 · La cifra que arbitra — inventario real (cohortes de fuga)</h3>
+<div class="card"><table>
+<tr><th>Cohorte</th><th>Presupuesto</th><th>Estado</th><th>Importe</th><th>Par</th><th>Contacto</th></tr>
+<tr><td>C · placeholder WhatsApp (figura enviado, email nunca salió)</td><td>2026-00034</td><td>OPENED</td><td class="num">509,11 €</td><td>fr›es</td><td>+1 404 805 4743</td></tr>
+<tr><td>C</td><td>2026-00027</td><td>DRAFT</td><td class="num">332,75 €</td><td>es›en</td><td>+351 927 718 167</td></tr>
+<tr><td>C</td><td>2026-00025</td><td>EXPIRED</td><td class="num">206,18 €</td><td>en›es</td><td>654934485</td></tr>
+<tr><td>C</td><td>2026-00024</td><td>EXPIRED</td><td class="num">287,15 €</td><td>pt›es</td><td>Brasil (+55)</td></tr>
+<tr><td>A · DRAFT nunca enviado</td><td>2026-00028</td><td>DRAFT</td><td class="num">313,81 €</td><td>es›en</td><td>juanlatregua@gmail.com (test)</td></tr>
+<tr><td>D · envío fallido</td><td>2026-00016</td><td>EXPIRED</td><td class="num">48,40 €</td><td>fr›es</td><td>juanlatregua@gmail.com (test)</td></tr>
+</table>
+<p style="margin:.6em 0 0"><span class="muted">Fuente:</span> <code>scripts/quotes-undelivered-report.ts</code> (solo lectura). Reproducir: <code>node --experimental-strip-types --env-file=.env.local scripts/quotes-undelivered-report.ts</code></p></div>
+
+<h3>3 · Escalera de acción</h3>
+<div class="card">
+<p><span class="pill done">HECHO</span> <strong>Fixes confirmados (sin cambio de BD):</strong></p>
+<ul>
+<li>Guardia <code>@whatsapp.local</code> en <code>resend</code> (no más 500).</li>
+<li>Envío con reintentos <code>sendQuoteEmailWithRetry</code> en finalize-send / resend / reminders.</li>
+<li>El cron de expiración ya <strong>no escribe</strong> al cliente que nunca recibió el presupuesto (DRAFT/placeholder); sigue marcando EXPIRED internamente.</li>
+<li>Los leads <code>@whatsapp.local</code> generan borrador de WhatsApp + <strong>aviso SMS al staff</strong> (<code>sendStaffAlertSMS</code>) en vez de intentar un email imposible.</li>
+</ul>
+<p><span class="pill done">HECHO</span> <strong>Acción de captación</strong> (endpoint <code>GET /api/quotes/capture-leads</code>): dry-run por defecto; con <code>?send=true</code> ofrece «un traductor analiza tu presupuesto» por email (es/fr/en) o borrador de WhatsApp, con dedup y sin enlazar borradores sin revisar.</p>
+<p><span class="pill pend">PENDIENTE (acción de Juan)</span></p>
+<ul>
+<li><code>npx prisma db push</code> para el nuevo enum <code>QuoteMessageType.TRANSLATOR_REVIEW_OFFER</code> antes de usar <code>?send=true</code>.</li>
+<li>Decidir si <code>capture-leads</code> se programa como cron (hoy es manual/staff, a propósito) y revisar el copy.</li>
+<li>Alinear <code>EMAIL_FROM</code> al dominio <code>traduccionesjuradas.net</code> y verificar SPF/DKIM/DMARC.</li>
+<li>Recuperar manualmente los 4 leads WhatsApp ya identificados (≈1.335 €).</li>
+</ul>
+</div>
+
+<h3>4 · Acción de captación — copy (es / fr / en)</h3>
+<div class="card">
+<p class="lang">ES · email</p><div class="copy">Asunto: Su presupuesto de traducción jurada — ¿lo revisamos juntos?
+
+Estimado/a [nombre], hemos preparado el presupuesto de su traducción jurada, pero no nos consta que haya podido revisarlo. Para que no se quede con dudas, un traductor jurado puede analizar su caso personalmente —documento, plazo y validez oficial ante el organismo de destino— sin compromiso. Responda a este correo o escríbanos por WhatsApp y lo vemos hoy mismo.
+Atentamente, Juan Silva — Traductor Jurado (MAEC).</div>
+<p class="lang">FR · e-mail</p><div class="copy">Objet : Votre devis de traduction assermentée — souhaitez-vous qu'on le revoie ensemble ?
+
+Bonjour [nom], nous avons préparé le devis de votre traduction assermentée, mais il semble que vous n'ayez pas pu le consulter. Pour lever tout doute, un traducteur assermenté peut étudier votre dossier personnellement — document, délai et validité officielle auprès de l'organisme destinataire — sans engagement. Répondez à ce courriel ou écrivez-nous sur WhatsApp et nous le voyons aujourd'hui même.
+Cordialement, Juan Silva — Traducteur assermenté (MAEC).</div>
+<p class="lang">EN · email</p><div class="copy">Subject: Your sworn translation quote — shall we review it together?
+
+Dear [name], we've prepared the quote for your sworn translation, but it looks like you haven't had a chance to review it. To clear up any doubts, a sworn translator can review your case personally — document, turnaround time and official validity before the receiving authority — at no obligation. Reply to this email or message us on WhatsApp and we'll look at it today.
+Best regards, Juan Silva — Sworn Translator (MAEC).</div>
+</div>
+
+<h3>5 · Riesgos abiertos</h3>
+<ul>
+<li><strong>Entregabilidad:</strong> dominio remitente (<code>holabonjour.es</code>) ≠ marca; revisar antes de cualquier campaña de captación masiva.</li>
+<li><strong>No contactar a quien ya pagó por otra vía:</strong> el endpoint filtra <code>paidAt</code>, pero conviene revisar la lista en dry-run antes de <code>?send=true</code>.</li>
+<li><strong>Saturación:</strong> dedup por <code>TRANSLATOR_REVIEW_OFFER</code> evita repetir; no encadenar con recordatorios el mismo día.</li>
+</ul>
+
+<h3>6 · Qué NO hacer</h3>
+<ul>
+<li><strong>No</strong> automatizar el envío del pay-link completo de un <code>DRAFT</code> sin revisión humana: los precios del estimador son estimados, no cerrados. La captación ofrece revisión personal, no un precio vinculante.</li>
+<li><strong>No</strong> marcar un presupuesto como entregado si el email no salió de verdad (origen del bug del placeholder).</li>
+</ul>
+
+<h3>7 · Anexos</h3>
+<div class="card">
+<p><strong>Ficheros tocados (fixes + captación):</strong></p>
+<ul>
+<li><code>lib/quote-email.ts</code> — <code>isPlaceholderEmail</code>, <code>sendQuoteEmailWithRetry</code></li>
+<li><code>lib/quote-messages.ts</code> — plantillas de captación es/fr/en + <code>resolveCaptureLang</code></li>
+<li><code>app/api/quotes/[id]/resend/route.ts</code> · <code>finalize-send/route.ts</code> · <code>quotes/reminders/route.ts</code></li>
+<li><code>app/api/quotes/capture-leads/route.ts</code> (nuevo)</li>
+<li><code>prisma/schema.prisma</code> — enum <code>TRANSLATOR_REVIEW_OFFER</code> (requiere <code>db push</code>)</li>
+<li><code>scripts/quotes-undelivered-report.ts</code> (solo lectura)</li>
+</ul>
+<p><strong>SQL equivalente (solo lectura) para el inventario:</strong></p>
+<div class="copy">SELECT q."quoteNumber", q.status, q."customerEmail", q.total,
+       q."sourceLang"||'>'||q."targetLang" AS par,
+       q."createdAt"::date, q."sentAt", q."openedAt"
+FROM "Quote" q
+WHERE q."deletedAt" IS NULL AND q."paidAt" IS NULL
+  AND q.status IN ('DRAFT','SENT','OPENED','ACCEPTED','EXPIRED')
+ORDER BY q."createdAt" DESC;</div>
+</div>
+
+<footer>STORM «presupuestos no entregados» · diagnóstico verificado 8/8 + inventario real de producción + fixes implementados (sin commitear) · traduccionesjuradas.net · HBTJ Consultores Lingüísticos · 2026-06-30</footer>
+</div></body></html>

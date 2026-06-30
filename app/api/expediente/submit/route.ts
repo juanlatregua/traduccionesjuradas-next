@@ -11,6 +11,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createExpedienteRef, createExpedienteToken } from "@/lib/expediente-token";
 import { sendExpedienteReceiptEmail, sendExpedienteStaffEmail } from "@/lib/emails/expediente";
 import { sendEmailWithRetry } from "@/lib/email-retry";
+import { sendStaffAlertSMS } from "@/lib/sms";
 
 export const runtime = "nodejs";
 
@@ -104,6 +105,11 @@ export async function POST(req: Request) {
   sendEmailWithRetry(() =>
     sendExpedienteStaffEmail({ ref, clientName, clientEmail, clientPhone, documentCount: clean.length, notes })
   ).catch((e) => console.error("[expediente/submit] staff email error:", e?.message));
+  // SMS al staff: nueva solicitud de presupuesto (antes solo había email).
+  sendStaffAlertSMS(
+    `Nueva solicitud (expediente ${ref}) de ${clientName} <${clientEmail}>, ${clean.length} doc(s). Preparar presupuesto.`,
+    `expediente ${ref}`
+  ).catch(() => {});
 
   return NextResponse.json({ ok: true, ref, token });
 }

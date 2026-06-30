@@ -20,6 +20,7 @@ export async function getClientPortalData(emailRaw: string) {
         reference: true,
         title: true,
         langPair: true,
+        clientLocale: true,
         amountCents: true,
         currency: true,
         status: true,

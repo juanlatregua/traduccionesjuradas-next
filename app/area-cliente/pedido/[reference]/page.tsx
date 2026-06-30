@@ -6,9 +6,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOrderDetail } from "@/lib/orders";
 import {
+  getAc,
+  acIntl,
   getDeliveryStateLabel,
   getPaymentStateLabel,
-} from "@/lib/client-area";
+} from "@/lib/i18n/area-cliente";
 import OrderClientPanel from "@/components/OrderClientPanel";
 import AutoRefresh from "@/components/AutoRefresh";
 import { getWorkflowState } from "@/lib/workflow";
@@ -74,6 +76,11 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
   const order = await getOrderDetail(params.reference, session.user.email);
   if (!order) notFound();
 
+  const lang = order.clientLocale;
+  const t = getAc(lang).pedido;
+  const tc = getAc(lang).common;
+  const intl = acIntl(lang);
+
   const invoiceEvents = order.events.filter((e) => e.type.startsWith("invoice"));
   const proofEvents = order.events.filter((e) => e.type === "payment.proof_uploaded");
   const sourceDocuments = getSourceDocuments(order.events);
@@ -81,58 +88,58 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
   const workflowState = getWorkflowState(order);
   const paymentVerificationLabel =
     order.paymentStatus === "PAID"
-      ? "Pago confirmado"
+      ? t.paymentVerified
       : hasProofUploaded
-      ? "Comprobante enviado (pendiente de verificación)"
-      : "Pendiente de pago";
+      ? t.paymentProofPending
+      : t.paymentPending;
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <AutoRefresh intervalMs={20000} idleMs={30000} />
       <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-          Referencia {order.reference}
+          {t.eyebrowReference(order.reference)}
         </p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-encre sm:text-3xl">
-          Estado de tu pedido
+          {t.title}
         </h1>
         <p className="mt-2 text-sm text-sepia">
-          Fecha: {order.createdAt.toISOString().slice(0, 10)} · Combinación: {order.langPair || "—"}
+          {t.dateAndPair(order.createdAt.toISOString().slice(0, 10), order.langPair || "—")}
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-cream bg-parchment p-3">
-            <p className="text-xs uppercase tracking-wide text-graphite">Presupuesto</p>
+            <p className="text-xs uppercase tracking-wide text-graphite">{t.cardQuote}</p>
             <p className="mt-1 text-sm font-semibold text-encre">
               {formatMoney(order.amountCents)}
             </p>
           </div>
           <div className="rounded-2xl border border-cream bg-parchment p-3">
-            <p className="text-xs uppercase tracking-wide text-graphite">Pago</p>
-            <p className="mt-1 text-sm font-semibold text-encre">{getPaymentStateLabel(order.paymentStatus)}</p>
+            <p className="text-xs uppercase tracking-wide text-graphite">{tc.payment}</p>
+            <p className="mt-1 text-sm font-semibold text-encre">{getPaymentStateLabel(order.paymentStatus, lang)}</p>
           </div>
           <div className="rounded-2xl border border-cream bg-parchment p-3">
-            <p className="text-xs uppercase tracking-wide text-graphite">Estado</p>
-            <p className="mt-1 text-sm font-semibold text-encre">{getDeliveryStateLabel(order.deliveryState)}</p>
+            <p className="text-xs uppercase tracking-wide text-graphite">{tc.status}</p>
+            <p className="mt-1 text-sm font-semibold text-encre">{getDeliveryStateLabel(order.deliveryState, lang)}</p>
           </div>
         </div>
         <p className="mt-3 text-sm text-sepia">
-          Verificación de pago: <span className="font-semibold">{paymentVerificationLabel}</span>
+          {t.paymentVerification}: <span className="font-semibold">{paymentVerificationLabel}</span>
         </p>
         {workflowState === "PENDIENTE_REVISION" && (
           <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Tu pedido está en revisión interna para validar precio y plazo. Te enviaremos el enlace de pago en cuanto esté confirmado.
+            {t.noticeUnderReview}
           </p>
         )}
         {workflowState === "PRESUPUESTO_ENVIADO" && (
           <p className="mt-2 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-800">
-            Ya hemos enviado tu presupuesto final. Puedes completar el pago desde la pantalla de pago del pedido.
+            {t.noticeQuoteSent}
           </p>
         )}
         {order.dueDate && (
           <p className="mt-1 text-sm text-sepia">
-            Fecha estimada de entrega:{" "}
+            {t.eta}:{" "}
             <span className="font-semibold">
-              {order.dueDate.toLocaleDateString("es-ES", {
+              {order.dueDate.toLocaleDateString(intl, {
                 weekday: "long",
                 day: "2-digit",
                 month: "2-digit",
@@ -144,20 +151,21 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
       </section>
 
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-encre">Detalle del pedido</h2>
+        <h2 className="text-lg font-semibold text-encre">{t.detailTitle}</h2>
         <div className="mt-4 space-y-1 text-sm text-sepia">
-          <p><span className="font-semibold">Concepto:</span> {order.title}</p>
-          {order.langPair && <p><span className="font-semibold">Idiomas:</span> {order.langPair}</p>}
-          {order.words && <p><span className="font-semibold">Palabras:</span> {order.words}</p>}
-          {order.pagesLabel && <p><span className="font-semibold">Alcance:</span> {order.pagesLabel}</p>}
+          <p><span className="font-semibold">{t.concept}:</span> {order.title}</p>
+          {order.langPair && <p><span className="font-semibold">{tc.languages}:</span> {order.langPair}</p>}
+          {order.words && <p><span className="font-semibold">{t.words}:</span> {order.words}</p>}
+          {order.pagesLabel && <p><span className="font-semibold">{t.scope}:</span> {order.pagesLabel}</p>}
           {/* El traductor/colaborador asignado NO se muestra al cliente (confidencial,
               uso interno de la zona traductor). */}
         </div>
-        <p className="mt-3 text-sm font-semibold text-encre">Total: {formatMoney(order.amountCents)}</p>
+        <p className="mt-3 text-sm font-semibold text-encre">{tc.total}: {formatMoney(order.amountCents)}</p>
       </section>
 
       <OrderClientPanel
         reference={order.reference}
+        lang={lang}
         deliveryType={order.deliveryType}
         paymentStatus={order.paymentStatus}
         hasShipping={!!order.shipping}
@@ -197,10 +205,10 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
       />
 
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-encre">Documento original</h2>
+        <h2 className="text-lg font-semibold text-encre">{t.sourceDocTitle}</h2>
         {sourceDocuments.length === 0 ? (
           <p className="mt-2 text-sm text-sepia">
-            Aún no hay documento fuente adjunto en este pedido.
+            {t.sourceDocEmpty}
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -208,7 +216,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
               <li key={`${doc.fileUrl}-${idx}`} className="rounded-2xl border border-cream bg-parchment px-3 py-2 text-sm text-sepia">
                 <p>
                   <span className="font-semibold">
-                    {doc.uploadedAt ? doc.uploadedAt.slice(0, 16).replace("T", " ") : "Sin fecha"}
+                    {doc.uploadedAt ? doc.uploadedAt.slice(0, 16).replace("T", " ") : t.noDate}
                   </span>{" "}
                   · {doc.fileName}
                 </p>
@@ -218,7 +226,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
                   rel="noopener noreferrer"
                   className="mt-1 inline-flex text-xs font-semibold text-bleu hover:underline"
                 >
-                  Ver documento
+                  {t.seeDocument}
                 </a>
               </li>
             ))}
@@ -227,10 +235,10 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
       </section>
 
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-encre">Comprobante de pago</h2>
+        <h2 className="text-lg font-semibold text-encre">{t.proofTitle}</h2>
         {proofEvents.length === 0 ? (
           <p className="mt-2 text-sm text-sepia">
-            Aún no hemos recibido ningún comprobante en este pedido.
+            {t.proofEmpty}
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -253,7 +261,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
                       rel="noopener noreferrer"
                       className="mt-1 inline-flex text-xs font-semibold text-bleu hover:underline"
                     >
-                      Ver comprobante
+                      {t.seeProof}
                     </a>
                   )}
                 </li>
@@ -264,29 +272,29 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
       </section>
 
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-encre">Agenda del pedido</h2>
+        <h2 className="text-lg font-semibold text-encre">{t.timelineTitle}</h2>
         <ol className="mt-3 space-y-2 text-sm text-sepia">
           <li className="rounded-2xl border border-cream bg-parchment px-3 py-2">
-            Pedido creado: {order.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+            {t.timelineCreated(order.createdAt.toISOString().slice(0, 16).replace("T", " "))}
           </li>
           {hasProofUploaded && (
             <li className="rounded-2xl border border-cream bg-parchment px-3 py-2">
-              Comprobante recibido: {proofEvents[0].createdAt.toISOString().slice(0, 16).replace("T", " ")}
+              {t.timelineProof(proofEvents[0].createdAt.toISOString().slice(0, 16).replace("T", " "))}
             </li>
           )}
           {order.paidAt && (
             <li className="rounded-2xl border border-cream bg-parchment px-3 py-2">
-              Pago confirmado: {order.paidAt.toISOString().slice(0, 16).replace("T", " ")}
+              {t.timelinePaid(order.paidAt.toISOString().slice(0, 16).replace("T", " "))}
             </li>
           )}
           {order.dueDate && (
             <li className="rounded-2xl border border-cream bg-parchment px-3 py-2">
-              ETA entrega: {order.dueDate.toLocaleDateString("es-ES")}
+              {t.timelineEta(order.dueDate.toLocaleDateString(intl))}
             </li>
           )}
           {order.deliveryState === "TRADUCIDO" && (
             <li className="rounded-2xl border border-cream bg-cream px-3 py-2 font-semibold text-bleu">
-              Traducción finalizada
+              {t.timelineDone}
             </li>
           )}
         </ol>
@@ -294,15 +302,15 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
 
       {order.billing?.requested && (
         <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-          <h2 className="text-lg font-semibold text-encre">Factura</h2>
+          <h2 className="text-lg font-semibold text-encre">{t.invoiceTitle}</h2>
           <p className="mt-2 text-sm text-sepia">
-            Datos de facturación registrados a nombre de {order.billing.fiscalName} ({order.billing.nif}).
+            {t.invoiceBillingData(order.billing.fiscalName || "", order.billing.nif || "")}
           </p>
           <a
             href={`/api/orders/${order.reference}/invoice-pdf`}
             className="mt-3 inline-flex rounded-2xl bg-encre px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark"
           >
-            Descargar factura PDF
+            {t.invoiceDownload}
           </a>
         </section>
       )}
@@ -311,7 +319,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         <h2 className="text-lg font-semibold text-encre">
           {(() => {
             const n = Array.isArray(order.deliveryFilesJson) ? order.deliveryFilesJson.length : order.translatedFileUrl ? 1 : 0;
-            return n > 1 ? `Archivos traducidos (${n})` : "Archivo traducido";
+            return n > 1 ? t.filesTitleMany(n) : t.filesTitleOne;
           })()}
         </h2>
         {(() => {
@@ -330,7 +338,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           if (list.length === 0) {
             return (
               <p className="mt-2 text-sm text-sepia">
-                Aún no hay archivo disponible. Te avisaremos cuando el pedido pase a estado traducido.
+                {t.filesEmpty}
               </p>
             );
           }
@@ -344,7 +352,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
                   rel="noopener noreferrer"
                   className="inline-flex rounded-2xl bg-bleu px-4 py-2 text-sm font-semibold text-white hover:bg-bleu-dark"
                 >
-                  ⬇ {f.filename || (list.length > 1 ? `Traducción ${i + 1} (PDF)` : "Descargar PDF traducido")}
+                  ⬇ {f.filename || (list.length > 1 ? t.fileTranslationN(i + 1) : t.fileDownloadOne)}
                 </a>
               ))}
             </div>
@@ -353,9 +361,9 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
       </section>
 
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-encre">Historial</h2>
+        <h2 className="text-lg font-semibold text-encre">{t.historyTitle}</h2>
         {order.events.length === 0 ? (
-          <p className="mt-2 text-sm text-sepia">Sin eventos registrados.</p>
+          <p className="mt-2 text-sm text-sepia">{t.historyEmpty}</p>
         ) : (
           <ul className="mt-4 space-y-2 text-sm text-sepia">
             {order.events.map((entry) => (
@@ -367,7 +375,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
           </ul>
         )}
         <Link href="/area-cliente" className="mt-4 inline-block text-sm font-semibold text-bleu hover:underline">
-          Volver al área de cliente
+          {tc.backClientArea}
         </Link>
       </section>
     </main>

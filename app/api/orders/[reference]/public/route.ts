@@ -67,6 +67,7 @@ export async function GET(req: Request, { params }: Params) {
         paymentStatus: true,
         status: true,
         deliveryState: true,
+        clientLocale: true,
         quoteSnapshotJson: true,
         events: {
           where: {
@@ -103,6 +104,7 @@ export async function GET(req: Request, { params }: Params) {
       currency: order.currency,
       paymentStatus: order.paymentStatus,
       status: order.status,
+      clientLocale: order.clientLocale,
       paymentBlocked,
       hasSourceDocument,
       items: normalizeItems(order.quoteSnapshotJson),
