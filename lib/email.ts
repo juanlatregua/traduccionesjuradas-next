@@ -6,6 +6,11 @@ import { sendMail } from "@/lib/azure-mail";
 import type { MailAttachment } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 
+// Copia de archivo: toda entrega al cliente (traducción y/o factura adjunta) se
+// manda en copia oculta a esta dirección para dejar constancia exacta de lo que
+// recibió el cliente (sendMail usa saveToSentItems:false → no hay otra copia).
+const DELIVERY_ARCHIVE_BCC = process.env.DELIVERY_ARCHIVE_BCC || "hola@traduccionesjuradas.net";
+
 export type PresupuestoPayload = {
   documentos: Array<{
     tipo: string;
@@ -319,6 +324,7 @@ export async function sendTranslationReadyEmail(data: {
   const composed = buildTranslationReadyEmail(data);
   await sendMail({
     to: data.toEmail,
+    bcc: [DELIVERY_ARCHIVE_BCC],
     subject: composed.subject,
     html: composed.html,
     attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
@@ -1054,21 +1060,42 @@ export async function sendPaymentReminderEmail(data: {
   title: string;
   amountCents: number;
   paymentUrl: string;
+  lang?: "es" | "fr";
+  holderNames?: string | null; // titulares de los certificados (p.ej. clientes de Auream)
 }) {
   const amount = (data.amountCents / 100).toFixed(2);
-  const subject = `Pedido ${data.reference} pendiente de pago`;
+  const fr = data.lang === "fr";
+  const holders = (data.holderNames || "").trim();
 
-  const html = `
-    <h2>Pedido pendiente de pago</h2>
-    <p>Tu pedido <strong>${data.reference}</strong> esta pendiente de pago.</p>
+  const subject = fr
+    ? `Rappel — commande ${data.reference} en attente de paiement`
+    : `Recordatorio — pedido ${data.reference} pendiente de pago`;
+
+  const row = (k: string, v: string) =>
+    `<tr><td style="padding:4px 12px 4px 0; font-weight:600;">${k}</td><td>${v}</td></tr>`;
+
+  const html = fr
+    ? `
+    <p>Bonjour,</p>
+    <p>Nous espérons que vous allez bien. Nous nous permettons de vous rappeler aimablement que votre commande <strong>${data.reference}</strong> reste en attente de paiement.</p>
     <table style="border-collapse:collapse; margin:12px 0;">
-      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
-      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
-      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
+      ${row("Référence", data.reference)}${row("Objet", data.title)}${row("Montant", `${amount} €`)}${holders ? row("Titulaires des certificats", holders) : ""}
     </table>
-    <p><a href="${data.paymentUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Completar pago</a></p>
-    <p style="font-size:13px; color:#6b7280;">Si ya has realizado el pago, ignora este mensaje.</p>
-    <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
+    <p>Vous pouvez régler le paiement ou, si vous avez déjà effectué le virement, <strong>déposer le justificatif de paiement</strong> dans votre espace client :</p>
+    <p><a href="${data.paymentUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Accéder à mon espace · déposer le justificatif</a></p>
+    <p style="font-size:13px; color:#6b7280;">Si vous avez déjà réglé, merci de ne pas tenir compte de ce message.</p>
+    <p>Nous restons à votre disposition.<br/>Bien cordialement,<br/>Juan Silva Moreno — Traducciones Juradas</p>
+  `
+    : `
+    <p>Estimado/a cliente,</p>
+    <p>Esperamos que se encuentre bien. Le recordamos amablemente que su pedido <strong>${data.reference}</strong> queda pendiente de pago.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      ${row("Referencia", data.reference)}${row("Concepto", data.title)}${row("Importe", `${amount} €`)}${holders ? row("Titulares de los certificados", holders) : ""}
+    </table>
+    <p>Puede completar el pago o, si ya ha realizado la transferencia, <strong>subir el justificante de pago</strong> en su zona de cliente:</p>
+    <p><a href="${data.paymentUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Acceder a mi zona · subir justificante</a></p>
+    <p style="font-size:13px; color:#6b7280;">Si ya ha realizado el pago, le rogamos disculpe este recordatorio.</p>
+    <p>Quedamos a su disposición.<br/>Un cordial saludo,<br/>Juan Silva Moreno — Traducciones Juradas</p>
   `;
 
   await sendMail({
@@ -1076,6 +1103,38 @@ export async function sendPaymentReminderEmail(data: {
     subject,
     html: wrapClientEmailHtml(html),
   });
+}
+
+// Aviso a Juan de pago pendiente. stage="client_plus_staff" (48h, ya se avisó
+// también al cliente) o "staff_only" (escalado: el cliente sigue sin pagar y te
+// encargas tú). Best-effort; usa alertRecipient (ALERT_EMAIL/PRESUPUESTO_TO/EMAIL_FROM).
+export async function sendStaffPaymentPendingEmail(data: {
+  reference: string;
+  title: string;
+  amountCents: number;
+  clientEmail: string;
+  stage: "client_plus_staff" | "staff_only";
+}): Promise<void> {
+  const to = alertRecipient();
+  if (!to) return;
+  const amount = (data.amountCents / 100).toFixed(2);
+  const staffOnly = data.stage === "staff_only";
+  const subject = staffOnly
+    ? `⏳ Pago sin resolver — ${data.reference} (encárgate tú)`
+    : `💸 Recordatorio de pago enviado al cliente — ${data.reference}`;
+  const html = `
+    <h2>${staffOnly ? "Pago aún pendiente tras el recordatorio" : "Recordatorio de pago enviado al cliente"}</h2>
+    <p>${staffOnly
+      ? "El cliente sigue sin pagar tras el recordatorio. Toca gestionarlo manualmente (al cobrar, sube el justificante y finaliza el pedido)."
+      : "Se ha enviado al cliente el recordatorio de pago de 48 h. Te avisamos para que lo tengas en el radar."}</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} €</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
+    </table>
+  `;
+  await sendMail({ to, subject, html });
 }
 
 function alertRecipient() {
