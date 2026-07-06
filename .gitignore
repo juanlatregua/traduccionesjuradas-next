@@ -45,3 +45,6 @@ CONTEXT.md
 
 # Artefactos QA generados (reportes GSC, etc.)
 qa/
+
+# Exports fiscales con datos de clientes (PII) — nunca commitear
+exports/

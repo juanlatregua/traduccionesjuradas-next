@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getStaffRole } from "@/lib/staff-access";
 import { listPaidUnbilledOrders, listExcludedFromBilling } from "@/lib/reconcile-invoices";
-import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense } from "@/components/ContabilidadClient";
+import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense, type AcUnbilled } from "@/components/ContabilidadClient";
 import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 import ReconcilePanel from "@/components/ReconcilePanel";
 import ExcludedOrdersPanel from "@/components/ExcludedOrdersPanel";
@@ -21,7 +21,7 @@ export default async function ZonaTraductorContabilidadPage() {
   const canIssue = role === "ADMIN" || role === "PM";
 
   const [rawInvoices, rawOrders, rawExpenses, unbilled] = await Promise.all([
-    prisma.clientInvoice.findMany({ where: { status: "ISSUED" }, orderBy: { issuedAt: "desc" }, take: 3000 }),
+    prisma.clientInvoice.findMany({ where: { status: "ISSUED" }, orderBy: { issuedAt: "desc" }, take: 3000, include: { order: { select: { reference: true } } } }),
     prisma.order.findMany({
       where: { paymentStatus: "PAID" },
       select: { reference: true, paidAt: true, createdAt: true, amountCents: true, paymentStatus: true, events: { select: { type: true, payload: true, createdAt: true } } },
@@ -33,6 +33,8 @@ export default async function ZonaTraductorContabilidadPage() {
   const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
   const excludedFromBilling = await listExcludedFromBilling();
 
+  const unbilledIncome: AcUnbilled[] = unbilled.map((r) => ({ date: r.paidAt ?? r.createdAt, baseCents: r.bookableBaseCents }));
+
   const invoices: AcInvoice[] = rawInvoices.map((i) => ({
     id: i.id,
     number: i.number,
@@ -42,6 +44,7 @@ export default async function ZonaTraductorContabilidadPage() {
     baseCents: i.baseCents,
     vatCents: i.vatCents,
     totalCents: i.totalCents,
+    orderReference: i.order?.reference ?? null,
   }));
 
   const orders: AcOrder[] = rawOrders.map((o) => {
@@ -91,11 +94,20 @@ export default async function ZonaTraductorContabilidadPage() {
             + Factura de otra actividad
           </a>
         </div>
-        <ReconcilePanel rows={unbilled} totalAmountCents={unbilledTotal} canIssue={canIssue} />
-        <ExcludedOrdersPanel rows={excludedFromBilling} />
-        <ContabilidadClient invoices={invoices} orders={orders} expenses={expenses} />
-        <BankReconcilePanel canIssue={canIssue} />
-        <ImportInvoicesPanel />
+        <ContabilidadClient
+          invoices={invoices}
+          orders={orders}
+          expenses={expenses}
+          unbilled={unbilledIncome}
+          sinFacturaSlot={
+            <>
+              <ReconcilePanel rows={unbilled} totalAmountCents={unbilledTotal} canIssue={canIssue} />
+              <ExcludedOrdersPanel rows={excludedFromBilling} />
+            </>
+          }
+          bancoSlot={<BankReconcilePanel canIssue={canIssue} />}
+          importSlot={<ImportInvoicesPanel />}
+        />
       </div>
     </div>
   );
