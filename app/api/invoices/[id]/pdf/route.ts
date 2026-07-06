@@ -60,6 +60,7 @@ export async function GET(req: Request, { params }: Params) {
       createdAt: invoice.createdAt,
       invoiceNumber: invoice.number || undefined,
       issuedAt: invoice.issuedAt,
+      paidAt: invoice.paidAt,
       lines: lines && lines.length > 0 ? lines : undefined,
       billing: {
         fiscalName: invoice.fiscalName,

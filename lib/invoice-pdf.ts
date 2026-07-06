@@ -272,11 +272,19 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   const bodyTop = ty;
   doc.setTextColor(...INK);
   for (const line of lines) {
+    // El detalle (p.ej. nota legal de inversión del sujeto pasivo) se envuelve a
+    // varias líneas para no cortarse por la derecha; la fila crece con él.
+    let detailLines: string[] = [];
+    if (line.detail) {
+      doc.setFontSize(7.5);
+      detailLines = doc.splitTextToSize(line.detail, contentW - 6) as string[];
+    }
+    const rowH = line.detail ? 8 + detailLines.length * 3.2 : 8;
     doc.setFillColor(...TABLE_BG);
-    const rowH = line.detail ? 11 : 8;
     doc.rect(cDesc, ty, contentW, rowH, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
+    doc.setTextColor(...INK);
     doc.text(doc.splitTextToSize(line.description, cLang - cDesc - 4), cDesc + 2, ty + 5.5);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -284,7 +292,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     if (line.detail) {
       doc.setFontSize(7.5);
       doc.setTextColor(...GREY);
-      doc.text(line.detail, cDesc + 2, ty + 9.5);
+      doc.text(detailLines, cDesc + 2, ty + 9.5);
       doc.setTextColor(...INK);
     }
     ty += rowH;
@@ -318,18 +326,31 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.line(sumLabelX, ty - 4, cImp, ty - 4);
   drawSum("TOTAL", eur(data.amountCents), true, true);
 
-  // ── Pie: datos bancarios (banda azul) ─────────────────────
+  // ── Pie: si está pagada, sello PAGADA (sin datos bancarios); si no, datos de pago ──
   const footY = 270;
-  doc.setFillColor(...BLUE);
-  doc.roundedRect(margin, footY, contentW, 16, 2, 2, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("BIC/SWIFT", margin + 5, footY + 6);
-  doc.text("CUENTA BANCARIA / Bank account", margin + 5, footY + 11.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(brand.bic, margin + 60, footY + 6);
-  doc.text(brand.iban, margin + 60, footY + 11.5);
+  if (data.paidAt) {
+    doc.setFillColor(22, 101, 52); // verde: cobrada
+    doc.roundedRect(margin, footY, contentW, 16, 2, 2, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("FACTURA PAGADA / Paiement reçu", margin + 5, footY + 7);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    const paidStr = data.paidAt.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+    doc.text(`Cobrada el ${paidStr}`, margin + 5, footY + 12.5);
+  } else {
+    doc.setFillColor(...BLUE);
+    doc.roundedRect(margin, footY, contentW, 16, 2, 2, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("BIC/SWIFT", margin + 5, footY + 6);
+    doc.text("CUENTA BANCARIA / Bank account", margin + 5, footY + 11.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(brand.bic, margin + 60, footY + 6);
+    doc.text(brand.iban, margin + 60, footY + 11.5);
+  }
 
   // ── Marca de agua de borrador (proforma, sin valor fiscal) ────────────
   if (data.draft) {
