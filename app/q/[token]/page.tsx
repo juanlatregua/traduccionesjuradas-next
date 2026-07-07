@@ -128,6 +128,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       sourceLang: true,
       targetLang: true,
       deliveryType: true,
+      holderNames: true,
       pdfUrl: true,
       subtotal: true,
       discountAmount: true,
@@ -194,6 +195,11 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 {refreshed.deliveryType === "PAPER_SHIP" ? "Papel con envío 24/48h" : "PDF digital firmado"}
               </strong>
             </p>
+            {refreshed.holderNames && refreshed.holderNames.trim() && (
+              <p className="text-sm text-sepia">
+                Titulares: <strong>{refreshed.holderNames}</strong>
+              </p>
+            )}
 
             <div className="overflow-x-auto rounded-xl border border-cream">
               <table className="w-full text-left text-sm">
