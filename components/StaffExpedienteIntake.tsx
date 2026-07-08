@@ -140,7 +140,7 @@ type StaffIntakeInitialData = {
 
 type Props = {
   // Expediente entrante ya subido por el cliente: se analizan por documentId.
-  initialDocs?: { documentId: string; fileName: string }[];
+  initialDocs?: { documentId: string; fileName: string; fileUrl?: string }[];
   initialCustomer?: { name?: string; email?: string; phone?: string };
   initialData?: StaffIntakeInitialData;
   expedienteRef?: string | null;
@@ -345,6 +345,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       initialDocs.map((d) => ({
         localId: d.documentId,
         fileName: d.fileName,
+        blobUrl: d.fileUrl,
         fileSize: 0,
         mimeType: "application/pdf",
         status: "analyzing" as DocStatus,

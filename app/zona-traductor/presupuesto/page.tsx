@@ -52,17 +52,17 @@ export default async function ZonaTraductorPresupuestoPage({
     lineDescription: s(searchParams.lineDescription) || undefined,
     lineAmount: s(searchParams.lineAmount) || undefined,
   };
-  let initialDocs: { documentId: string; fileName: string }[] | undefined;
+  let initialDocs: { documentId: string; fileName: string; fileUrl?: string }[] | undefined;
   let initialCustomer: { name?: string; email?: string; phone?: string } | undefined;
 
   if (expRef) {
     const rows = await prisma.documentAnalysis.findMany({
       where: { sessionToken: `exp:${expRef}` },
       orderBy: { createdAt: "asc" },
-      select: { id: true, fileName: true, clientName: true, clientEmail: true, clientPhone: true },
+      select: { id: true, fileName: true, fileUrl: true, clientName: true, clientEmail: true, clientPhone: true },
     });
     if (rows.length > 0) {
-      initialDocs = rows.map((r) => ({ documentId: r.id, fileName: r.fileName }));
+      initialDocs = rows.map((r) => ({ documentId: r.id, fileName: r.fileName, fileUrl: r.fileUrl }));
       initialCustomer = {
         name: rows[0].clientName || undefined,
         email: rows[0].clientEmail || undefined,
