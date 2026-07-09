@@ -96,7 +96,8 @@ export function middleware(req: NextRequest) {
     !isLanguagePillar &&
     pathLower.includes("frances") &&
     !pathLower.startsWith("/api/") &&
-    !pathLower.startsWith("/_next/");
+    !pathLower.startsWith("/_next/") &&
+    !pathLower.startsWith("/blog/");
 
   if (isFrenchLegacy) {
     return redirectPermanent(req, "/traductor-jurado-frances");
