@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendPaymentReminderEmail, sendStaffPaymentPendingEmail } from "@/lib/email";
-import { sendSMS } from "@/lib/sms";
+import { sendNotification } from "@/lib/sms";
 import { buildSignedOrderUrl } from "@/lib/order-token";
 
 export const runtime = "nodejs";
@@ -30,9 +30,15 @@ function staffWhatsApp() {
 
 async function alertStaffWhatsApp(body: string) {
   try {
-    await sendSMS({ to: staffWhatsApp(), body, channel: "whatsapp" });
+    // sendNotification cae a SMS si WhatsApp no está configurado/falla; el
+    // sendSMS directo con channel:"whatsapp" devolvía {ok:false} en silencio
+    // con TWILIO_WHATSAPP_FROM sin definir y la alerta se perdía.
+    const result = await sendNotification({ to: staffWhatsApp(), body });
+    if (!result.ok) {
+      console.error("[order-reminders] staff alert failed:", result.error);
+    }
   } catch (err: any) {
-    console.error("[order-reminders] whatsapp staff:", err?.message || err);
+    console.error("[order-reminders] staff alert:", err?.message || err);
   }
 }
 

@@ -126,6 +126,7 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
   const existing = await prisma.order.findUnique({ where: { reference } });
   if (existing) {
     await linkDocumentAnalysesToOrder(reference, existing.id);
+    await wireSessionDocsToOrder(existing.id, docs);
     return existing;
   }
   try {
@@ -187,12 +188,14 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
       },
     });
     await linkDocumentAnalysesToOrder(reference, order.id);
+    await wireSessionDocsToOrder(order.id, docs);
     return order;
   } catch (err: any) {
     if (err?.code === "P2002") {
       const fallback = await prisma.order.findUnique({ where: { reference } });
       if (fallback) {
         await linkDocumentAnalysesToOrder(reference, fallback.id);
+        await wireSessionDocsToOrder(fallback.id, docs);
         return fallback;
       }
     }
@@ -211,6 +214,72 @@ async function linkDocumentAnalysesToOrder(reference: string, orderId: string) {
     });
   } catch (err) {
     console.error("[createOrderFromSession] link DocumentAnalysis failed", err);
+  }
+}
+
+// Engancha los OrderDocument de la sesión del funnel a las vistas canónicas del
+// pedido: OrderDocumentItem (expediente doc-a-doc) + evento
+// `order.source_document_uploaded` (lo que leen cockpit, admin y el enlace del
+// colaborador vía getDocumentsFromOrder). Sin esto el documento del funnel era
+// invisible para quien traduce (incidente TJ-20260708-62ZI). Idempotente por
+// fileUrl: el webhook de Stripe reintenta y no debe duplicar.
+async function wireSessionDocsToOrder(orderId: string, docs: OrderDocument[]) {
+  const withFile = docs.filter((d) => d.fileUrl);
+  if (withFile.length === 0) return;
+  try {
+    const [existingEvents, existingItems] = await Promise.all([
+      prisma.orderEvent.findMany({
+        where: { orderId, type: "order.source_document_uploaded" },
+        select: { payload: true },
+      }),
+      prisma.orderDocumentItem.findMany({
+        where: { orderId },
+        select: { fileUrl: true },
+      }),
+    ]);
+    const eventUrls = new Set(
+      existingEvents.map((e) => String((e.payload as Record<string, unknown>)?.fileUrl || ""))
+    );
+    const itemUrls = new Set(existingItems.map((i) => i.fileUrl || ""));
+
+    const newItems = withFile.filter((d) => !itemUrls.has(d.fileUrl));
+    if (newItems.length > 0) {
+      await prisma.orderDocumentItem.createMany({
+        data: newItems.map((d) => ({
+          orderId,
+          fileName: d.filename,
+          fileUrl: d.fileUrl,
+          documentType: d.detectedType,
+          sourceLang: d.sourceLang,
+          targetLang: d.targetLang,
+          // OrderDocument.quotedCents es NETO (session-pricing añade el 21%
+          // encima); OrderDocumentItem.quotedCents se consume como BRUTO
+          // (invoice-pdf y delivery-attachments hacen /1.21).
+          quotedCents: d.quotedCents != null ? Math.round(d.quotedCents * 1.21) : null,
+        })),
+      });
+    }
+
+    const newEvents = withFile.filter((d) => !eventUrls.has(d.fileUrl));
+    if (newEvents.length > 0) {
+      await prisma.orderEvent.createMany({
+        data: newEvents.map((d) => ({
+          orderId,
+          type: "order.source_document_uploaded",
+          message: "Documento fuente adjuntado desde el funnel.",
+          payload: {
+            fileUrl: d.fileUrl,
+            fileName: d.filename,
+            fileType: d.mimeType || null,
+            fileSize: d.sizeBytes,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: "funnel",
+          },
+        })),
+      });
+    }
+  } catch (err) {
+    console.error("[createOrderFromSession] wireSessionDocsToOrder failed", err);
   }
 }
 
@@ -261,6 +330,26 @@ async function populateOrderItemsFromQuote(orderId: string, input: CreateOrderFr
         await prisma.documentAnalysis.updateMany({
           where: { sessionToken: `exp:${input.expedienteRef}`, orderId: null },
           data: { orderId },
+        });
+        // Evento canónico por documento: es lo único que lee el enlace del
+        // colaborador externo (getDocumentsFromOrder) — sin él, el pedido
+        // nacido de presupuesto llegaba al colaborador sin archivos.
+        await prisma.orderEvent.createMany({
+          data: docs
+            .filter((d) => d.fileUrl)
+            .map((d) => ({
+              orderId,
+              type: "order.source_document_uploaded",
+              message: "Documento fuente adjuntado desde el presupuesto.",
+              payload: {
+                fileUrl: d.fileUrl,
+                fileName: d.fileName,
+                fileType: d.mimeType || null,
+                fileSize: d.fileSize,
+                uploadedAt: new Date().toISOString(),
+                uploadedBy: "presupuesto",
+              },
+            })),
         });
         return;
       }

@@ -30,7 +30,6 @@ export default function TranslatorNotifyForm({
   deliveryNotifiedTo = null,
   canonicalStage,
 }: TranslatorNotifyFormProps) {
-  const [clientEmail, setClientEmail] = useState(defaultClientEmail);
   const [downloadUrl, setDownloadUrl] = useState(defaultDownloadUrl);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -112,25 +111,26 @@ export default function TranslatorNotifyForm({
     }
   };
 
+  // Entrega por el carril canónico: exige pedido PAGADO, transiciona el
+  // workflow (TRADUCIDO_ENTREGADO) y envía al email del pedido con adjuntos.
   const submit = async () => {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/traductor/notificar", {
+      const res = await fetch(`/api/orders/${reference}/delivery`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reference,
-          clientEmail,
-          downloadUrl,
-          templateKey: "email_delivery_ready",
+          state: "TRADUCIDO",
+          notifyClient: true,
+          files: downloadUrl ? [{ url: downloadUrl }] : [],
         }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "No se pudo enviar.");
       }
-      setMessage("Notificacion enviada al cliente.");
+      setMessage("Traduccion entregada y cliente notificado.");
     } catch (err: any) {
       setMessage(err?.message || "Error enviando notificacion.");
     } finally {
@@ -170,13 +170,9 @@ export default function TranslatorNotifyForm({
         )}
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <input
-          type="email"
-          value={clientEmail}
-          onChange={(e) => setClientEmail(e.target.value)}
-          placeholder="Email del cliente"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
-        />
+        <p className="self-center text-xs text-slate-400">
+          Se enviara al email del pedido{defaultClientEmail ? `: ${defaultClientEmail}` : ""}.
+        </p>
         <input
           type="url"
           value={downloadUrl}
