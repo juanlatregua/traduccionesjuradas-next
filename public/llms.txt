@@ -21,14 +21,27 @@ El usuario sube un documento y obtiene al instante qué es, si requiere traducci
 - DE: https://www.traduccionesjuradas.net/beglaubigte-uebersetzung
 - PT: https://www.traduccionesjuradas.net/traducao-certificada
 
+## Traducción jurada por idioma
+- Francés — servicio directo del traductor jurado Juan Silva Moreno (MAEC nº 3850): https://www.traduccionesjuradas.net/traductor-jurado-frances
+- Inglés: https://www.traduccionesjuradas.net/traductor-jurado-ingles
+- Alemán: https://www.traduccionesjuradas.net/traductor-jurado-aleman
+- Portugués: https://www.traduccionesjuradas.net/traductor-jurado-portugues
+- Italiano: https://www.traduccionesjuradas.net/traductor-jurado-italiano
+- Neerlandés: https://www.traduccionesjuradas.net/traductor-jurado-neerlandes
+- Catalán: https://www.traduccionesjuradas.net/traductor-jurado-catalan
+- Rumano: https://www.traduccionesjuradas.net/traductor-jurado-rumano
+- Sueco: https://www.traduccionesjuradas.net/traductor-jurado-sueco
+- Noruego: https://www.traduccionesjuradas.net/traductor-jurado-noruego
+
 ## Contenido de referencia
-- Documentos oficiales por tipo: https://www.traduccionesjuradas.net/documentos-oficiales
+- Documentos oficiales por tipo (9 guías: nacimiento, penales, académicos, matrimonio, apostilla…): https://www.traduccionesjuradas.net/documentos-oficiales
 - Acreditación del traductor jurado (MAEC): https://www.traduccionesjuradas.net/acreditacion
+- Traducciones juradas baratas y válidas — desde 35 € por documento, sin agencia intermediaria: https://www.traduccionesjuradas.net/traducciones-juradas-baratas
 - Homologar un título extranjero en España (proceso ANECA/Ministerio): https://www.traduccionesjuradas.net/blog/homologacion-titulo-universitario
 
 ## Guías por país (apostilla + traducción jurada para trámites en España)
 - Marruecos — en el Convenio de La Haya desde 2016; documentos FR/árabe (se traduce el francés): https://www.traduccionesjuradas.net/blog/documentos-marroquies-guia-completa
-- Argelia — apostilla en vigor desde el 9 de julio de 2026 (hasta entonces, legalización consular): https://www.traduccionesjuradas.net/blog/documentos-argelinos-guia-completa
+- Argelia — la apostilla está en vigor desde el 9 de julio de 2026 (verificado en la tabla HCCH el 2026-07-09); antes de esa fecha se exigía legalización consular: https://www.traduccionesjuradas.net/blog/documentos-argelinos-guia-completa
 - Túnez — apostilla desde 2018: https://www.traduccionesjuradas.net/blog/documentos-tunecinos-guia-completa
 - Senegal — apostilla desde 2023: https://www.traduccionesjuradas.net/blog/documentos-senegaleses-espana
 - Costa de Marfil — NO está en La Haya: legalización consular: https://www.traduccionesjuradas.net/blog/documentos-marfilenos-espana
@@ -36,6 +49,22 @@ El usuario sube un documento y obtiene al instante qué es, si requiere traducci
 - Italia — documentos plurilingües CIEC + apostilla: https://www.traduccionesjuradas.net/blog/documentos-italianos-espana
 - Brasil — en La Haya desde 2016; apostilla en cartórios; se apostilla el original, no la traducción: https://www.traduccionesjuradas.net/blog/documentos-brasilenos-espana
 - Comparativa global por país de origen: https://www.traduccionesjuradas.net/blog/tramites-espana-por-pais-origen
+
+## Guías de trámites en España
+- Nacionalidad española: qué documentos necesitan traducción jurada: https://www.traduccionesjuradas.net/blog/nacionalidad-espanola-documentos
+- Nacionalidad española para franceses — qué traducir y qué no: https://www.traduccionesjuradas.net/blog/nacionalidad-espanola-para-franceses
+- Reagrupación familiar: documentos y traducción jurada: https://www.traduccionesjuradas.net/blog/reagrupacion-familiar-documentos
+- Residencia permanente (larga duración): documentos necesarios: https://www.traduccionesjuradas.net/blog/residencia-permanente-espana-documentos
+- Regularización extraordinaria 2026 (RD 316/2026): documentos y traducciones: https://www.traduccionesjuradas.net/blog/regularizacion-extraordinaria-2026-documentos
+- Casarse en España siendo francés — Reglamento UE 2016/1191, sin apostilla: https://www.traduccionesjuradas.net/blog/boda-en-espana-documentos-franceses
+- Antecedentes penales: obtención y traducción jurada: https://www.traduccionesjuradas.net/blog/traduccion-jurada-antecedentes-penales
+- Casier judiciaire francés (Bulletin n°3): cómo pedirlo y traducirlo: https://www.traduccionesjuradas.net/blog/casier-judiciaire-frances-traduccion
+
+## Sobre la traducción jurada
+- Qué es un traductor jurado y cómo verificar su habilitación (listado MAEC): https://www.traduccionesjuradas.net/blog/que-es-un-traductor-jurado
+- Diferencia entre traducción jurada, traducción oficial y traducción simple: https://www.traduccionesjuradas.net/blog/diferencia-traduccion-jurada-oficial-simple
+- La traducción jurada online es legal y tiene la misma validez que la presencial: https://www.traduccionesjuradas.net/blog/traduccion-jurada-online-es-legal
+- Apostilla de La Haya: qué es, para qué sirve y cuándo la necesitas: https://www.traduccionesjuradas.net/blog/apostilla-haya-que-es
 
 ## Nota
 La información sobre apostilla, legalización y exigencia de traducción jurada es orientativa y puede variar por país y organismo. Verifica siempre con la administración correspondiente.

@@ -1,7 +1,7 @@
 // app/preguntas-frecuentes/page.tsx
 import type { Metadata } from "next";
-import Script from "next/script";
 import { WHATSAPP_LINK } from "@/lib/contact";
+import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
   title: "Preguntas frecuentes sobre traducción jurada",
@@ -13,97 +13,57 @@ export const metadata: Metadata = {
 const whatsappLink = WHATSAPP_LINK;
 const mailLink = "mailto:hola@traduccionesjuradas.net";
 
+const FAQ_ITEMS = [
+  {
+    question: "¿Qué es una traducción jurada?",
+    answer:
+      "Una traducción jurada es una traducción realizada y firmada por un traductor jurado acreditado, que añade su sello y una declaración de veracidad. Tiene validez oficial ante administraciones, juzgados, notarías, universidades y otros organismos.",
+  },
+  {
+    question: "¿Puedo enviar una foto del documento o tiene que ser un escaneo?",
+    answer:
+      "Para preparar el presupuesto basta con una foto clara o un escaneo donde se lea todo el contenido. Para la traducción jurada definitiva también podemos trabajar a partir de una imagen nítida, siempre que no falte información en los márgenes.",
+  },
+  {
+    question: "¿Cuánto tarda una traducción jurada?",
+    answer:
+      "El plazo habitual para una traducción jurada sencilla es de 24 a 72 horas laborables. En el caso de documentos extensos o varios idiomas, el plazo se ajusta al volumen. Si tienes una cita o plazo concreto, puedes indicarlo al pedir presupuesto para valorar la urgencia.",
+  },
+  {
+    question: "¿La traducción jurada se entrega en papel o en PDF?",
+    answer:
+      "Cada vez más organismos aceptan la traducción jurada en PDF firmado digitalmente. Nosotros solemos entregar en PDF firmado y, si lo necesitas, también podemos enviarte el original en papel por mensajería a tu dirección en España.",
+  },
+  {
+    question: "¿Cuándo es necesaria la Apostilla de la Haya?",
+    answer:
+      "La Apostilla de la Haya suele exigirse cuando un documento público va a surtir efecto en otro país firmante del Convenio de La Haya. Es frecuente en certificados del Registro Civil, antecedentes penales o documentos mercantiles. Normalmente hay que traducir tanto el documento como la apostilla.",
+  },
+  {
+    question:
+      "¿Mis traducciones juradas son válidas en España si el documento es extranjero?",
+    answer:
+      "Sí, siempre que la traducción jurada la realice un traductor jurado acreditado y el documento original cumpla los requisitos del organismo al que te diriges. Para trámites complejos, como extranjería o nacionalidad, conviene consultar antes con la administración o consulado correspondiente.",
+  },
+  {
+    question:
+      "¿Hacéis traducciones juradas urgentes para citas de extranjería o notarías?",
+    answer:
+      "En muchos casos podemos ofrecer traducción jurada urgente, dependiendo del volumen y del idioma. Si tienes una cita de extranjería, una firma notarial o un plazo universitario, indícalo al pedir presupuesto para revisar la disponibilidad del equipo.",
+  },
+  {
+    question: "¿Cuánto cuesta una traducción jurada?",
+    answer:
+      "El precio depende del tipo de documento, el idioma, la extensión y la urgencia. Trabajamos con tarifas ajustadas y te indicamos siempre un precio cerrado antes de empezar. Puedes consultar una tabla de precios orientativos en nuestra página de precios o pedir un presupuesto personalizado.",
+  },
+];
+
 export default function PreguntasFrecuentesPage() {
   return (
     <>
-      {/* SCHEMA FAQ */}
-      <Script
-        id="schema-faq-preguntas-frecuentes"
-        type="application/ld+json"
-        strategy="afterInteractive"
-      >
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: [
-            {
-              "@type": "Question",
-              name: "¿Qué es una traducción jurada?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text:
-                  "Una traducción jurada es una traducción realizada y firmada por un traductor jurado acreditado, que añade su sello y una declaración de veracidad. Tiene validez oficial ante administraciones, juzgados, notarías, universidades y otros organismos.",
-              },
-            },
-            {
-              "@type": "Question",
-              name:
-                "¿Puedo enviar una foto del documento o tiene que ser un escaneo?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text:
-                  "Para preparar el presupuesto basta con una foto clara o un escaneo donde se lea todo el contenido. Para la traducción jurada definitiva también podemos trabajar a partir de una imagen nítida, siempre que no falte información en los márgenes.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Cuánto tarda una traducción jurada?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text:
-                  "El plazo habitual para una traducción jurada sencilla es de 24 a 72 horas laborables. En el caso de documentos extensos o varios idiomas, el plazo se ajusta al volumen. Si tienes una cita o plazo concreto, puedes indicarlo al pedir presupuesto para valorar la urgencia.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿La traducción jurada se entrega en papel o en PDF?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text:
-                  "Cada vez más organismos aceptan la traducción jurada en PDF firmado digitalmente. Nosotros solemos entregar en PDF firmado y, si lo necesitas, también podemos enviarte el original en papel por mensajería a tu dirección en España.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Cuándo es necesaria la Apostilla de la Haya?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text:
-                  "La Apostilla de la Haya suele exigirse cuando un documento público va a surtir efecto en otro país firmante del Convenio de La Haya. Es frecuente en certificados del Registro Civil, antecedentes penales o documentos mercantiles. Normalmente hay que traducir tanto el documento como la apostilla.",
-              },
-            },
-            {
-              "@type": "Question",
-              name:
-                "¿Mis traducciones juradas son válidas en España si el documento es extranjero?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text:
-                  "Sí, siempre que la traducción jurada la realice un traductor jurado acreditado y el documento original cumpla los requisitos del organismo al que te diriges. Para trámites complejos, como extranjería o nacionalidad, conviene consultar antes con la administración o consulado correspondiente.",
-              },
-            },
-            {
-              "@type": "Question",
-              name:
-                "¿Hacéis traducciones juradas urgentes para citas de extranjería o notarías?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text:
-                  "En muchos casos podemos ofrecer traducción jurada urgente, dependiendo del volumen y del idioma. Si tienes una cita de extranjería, una firma notarial o un plazo universitario, indícalo al pedir presupuesto para revisar la disponibilidad del equipo.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Cuánto cuesta una traducción jurada?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text:
-                  "El precio depende del tipo de documento, el idioma, la extensión y la urgencia. Trabajamos con tarifas ajustadas y te indicamos siempre un precio cerrado antes de empezar. Puedes consultar una tabla de precios orientativos en nuestra página de precios o pedir un presupuesto personalizado.",
-              },
-            },
-          ],
-        })}
-      </Script>
+      {/* SCHEMA FAQ — server-render para que lo lean crawlers y bots de IA
+          sin ejecutar JS (AEO). */}
+      <SchemaFAQ id="faq-preguntas-frecuentes" items={FAQ_ITEMS} />
 
       <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
         {/* CABECERA */}

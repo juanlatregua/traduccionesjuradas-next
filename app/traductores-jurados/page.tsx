@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import Link from "next/link";
 import Image from "next/image";
 import { MAIL_LINK, WHATSAPP_LINK } from "@/lib/contact";
@@ -25,10 +24,10 @@ export default function TraductoresJuradosPage() {
         ]}
       />
       <SchemaPerson />
-      <Script
-        id="schema-profilepage-juan"
+      {/* SCHEMA PROFILEPAGE — server-render para que lo lean crawlers y bots
+          de IA sin ejecutar JS (AEO). */}
+      <script
         type="application/ld+json"
-        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",

@@ -5,9 +5,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
-  title: "Traducciones Juradas Baratas Online \u00B7 Desde 35\u20AC \u00B7 Traductor Jurado en M\u00E1laga (MAEC)",
+  title: "Traducciones Juradas Baratas y V\u00E1lidas \u00B7 Desde 35 \u20AC \u00B7 Traductor Jurado MAEC",
   description:
-    "Traducciones juradas baratas con validez oficial. Traductor jurado MAEC en M\u00E1laga, sin agencias intermediarias: pagas el trabajo del traductor, no comisiones. Desde 35\u20AC por certificado, presupuesto cerrado al instante.",
+    "Traducciones juradas baratas y v\u00E1lidas desde 35 \u20AC por documento. Traductor jurado nombrado por el MAEC, sin agencia intermediaria: pagas el trabajo del traductor, no comisiones. Presupuesto cerrado al instante.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/traducciones-juradas-baratas" },
 };
 
@@ -44,10 +44,13 @@ export default function TraduccionesJuradasBaratas() {
       </h1>
 
       <p className="mt-4 text-lg text-sepia">
-        Muchas personas buscan <strong>traducciones juradas baratas</strong>.
-        Nuestro enfoque es diferente: ofrecer{" "}
-        <strong>un precio ajustado y transparente</strong>, sin intermediarios,
-        manteniendo siempre la <strong>validez legal</strong> de la traducción.
+        Una traducción jurada barata y válida cuesta{" "}
+        <strong>desde 35 € por documento</strong> cuando la hace directamente
+        un <strong>traductor jurado nombrado por el MAEC</strong>, sin agencia
+        intermediaria. Si buscas <strong>traducciones juradas baratas</strong>,
+        ese es nuestro enfoque: un{" "}
+        <strong>precio ajustado y transparente</strong>, manteniendo siempre la{" "}
+        <strong>validez legal</strong> de la traducción.
       </p>
 
       {/* BLOQUE CLARIDAD */}
