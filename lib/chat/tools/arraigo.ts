@@ -170,7 +170,7 @@ export function recommendArraigoPack(input: RecommendArraigoPackInput) {
   }
   if (country === "DZ") {
     notes.push(
-      "Argelia: Convenio de La Haya en vigor el 09-07-2026; hoy todavía requiere legalización consular.",
+      "Argelia: Convenio de La Haya en vigor desde el 09-07-2026 → apostilla (verificar aceptación; las legalizaciones consulares previas siguen valiendo).",
     );
   }
 

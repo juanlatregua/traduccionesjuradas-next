@@ -85,7 +85,7 @@ Reglas que la herramienta ya aplica automáticamente: mínimo por idioma (FR 35 
   → Marruecos firmó La Haya el 27/07/2015, en vigor desde el 14/08/2016 → APOSTILLA (no legalización consular como muchos creen). Autoridad: Min. del Interior, portal apostille.ma. 1-2 semanas, ~14-28 €. Documentos legalizados antes de 2016 siguen siendo válidos sin re-apostillar. Documentos típicos en bilingüe árabe-francés (traducción desde francés). Tipos: casier judiciaire (Min. Justicia), fiche anthropométrique (Min. Interior), Bulletin n°3, livret de famille, acta nacimiento.
 
 - **Argelia — guía completa**: /blog/documentos-argelinos-guia-completa
-  → Argelia depositó adhesión a La Haya el 5 de noviembre de 2025; ENTRADA EN VIGOR el 9 de julio de 2026. **Hasta julio de 2026, los documentos argelinos siguen requiriendo LEGALIZACIÓN CONSULAR** en el Consulado/Embajada de España en Argelia (3-6 semanas). NO digas que ya tiene apostilla operativa: aún no. Tras julio 2026 será apostilla, pero conviene verificar acceptación porque hay objeciones depositadas.
+  → Argelia depositó adhesión a La Haya el 5 de noviembre de 2025; el Convenio ENTRÓ EN VIGOR el 9 de julio de 2026 → APOSTILLA (verificado en la tabla HCCH). Los documentos legalizados por vía consular antes de esa fecha siguen siendo válidos. MATIZ obligatorio: la adhesión tiene objeciones depositadas (A** en HCCH) → recomienda SIEMPRE verificar con el organismo español destinatario que acepta la apostilla argelina.
 
 - **Túnez — guía completa**: /blog/documentos-tunecinos-guia-completa
   → Túnez tiene apostilla en vigor desde el 30 de marzo de 2018 (no 1998). Es el sistema de apostilla más antiguo del Magreb francófono actualmente operativo. 1-2 semanas. ~5-15 €.
@@ -170,9 +170,9 @@ You can [upload the DBS for an instant quote](/presupuesto-instantaneo) — clos
 
 **Pregunta**: "Tengo un extrait de naissance de Argelia"
 **Respuesta**:
-"Argelia se incorpora al Convenio de La Haya el **9 de julio de 2026**. Hasta entonces, tu extrait sigue necesitando **legalización consular**: tribunal/registro → Min. AAEE argelino → Consulado/Embajada de España en Argelia (3-6 semanas en total).
+"Argelia es parte del Convenio de La Haya desde el **9 de julio de 2026**: tu extrait ya puede **apostillarse** en Argelia, sin pasar por la legalización consular. Como la adhesión es reciente y tiene objeciones depositadas, confirma con el organismo español destinatario que acepta la apostilla argelina (si tu documento se legalizó por vía consular antes de julio de 2026, sigue siendo válido).
 
-Una vez legalizado, la traducción jurada francés→español parte de **35 €** y la entregamos en 24-72h. La guía completa con el detalle del cambio de julio 2026: [Documentos argelinos — guía 2026](/blog/documentos-argelinos-guia-completa).
+Una vez apostillado, la traducción jurada francés→español parte de **35 €** y la entregamos en 24-72h. La guía completa: [Documentos argelinos — guía 2026](/blog/documentos-argelinos-guia-completa).
 
 [Sube el documento al presupuesto](/presupuesto-instantaneo) para precio exacto."
 

@@ -34,7 +34,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Necesito apostilla o legalización consular?",
     answer:
-      "Depende del país emisor. Marruecos (desde 14-08-2016), Senegal (desde 23-03-2023), Túnez (desde 30-03-2018) y Brasil aplican Apostilla de La Haya. Argelia se adhirió en 2025 con entrada en vigor el 09-07-2026, por lo que hoy todavía requiere legalización consular. Verifica siempre con la Subdelegación o el consulado.",
+      "Depende del país emisor. Marruecos (desde 14-08-2016), Senegal (desde 23-03-2023), Túnez (desde 30-03-2018), Brasil y Argelia (desde 09-07-2026) aplican Apostilla de La Haya. Los documentos argelinos legalizados por vía consular antes de julio de 2026 siguen siendo válidos. Verifica siempre con la Subdelegación o el consulado.",
   },
   {
     question: "¿Qué pasa si las autoridades de mi país no me entregan los antecedentes?",
@@ -327,8 +327,8 @@ export default function Regularizacion2026Page() {
           <li>
             <span className="font-semibold text-encre">Argelia</span>{" "}
             <span className="text-xs">
-              — Hague en vigor 09-07-2026; hoy aún requiere legalización
-              consular
+              — apostilla de La Haya desde el 09-07-2026 (verificar
+              aceptación; legalizaciones consulares previas siguen valiendo)
             </span>
           </li>
         </ul>

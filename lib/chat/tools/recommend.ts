@@ -35,7 +35,7 @@ const COUNTRY_MAP: Record<string, CountryInfo> = {
   DZ: {
     blog: "/blog/documentos-argelinos-guia-completa",
     default_language: "fr",
-    note: "Argelia: legalización consular hasta el 9 de julio de 2026; apostilla después.",
+    note: "Argelia: apostilla desde el 9 de julio de 2026 (antes, legalización consular; las legalizaciones previas siguen valiendo).",
   },
   TN: {
     blog: "/blog/documentos-tunecinos-guia-completa",

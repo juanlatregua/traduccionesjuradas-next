@@ -44,11 +44,11 @@ export const HCCH_TABLE: {
       note: "Marruecos es parte del Convenio de La Haya: apostilla. Confírmalo con la autoridad marroquí competente.",
     },
     DZ: {
-      // En transición: adhesión registrada, apostilla aún NO en vigor a la fecha
-      // de revisión. Se deja "unknown" a propósito para forzar la verificación.
-      regime: "unknown",
+      // Verificado en hcch.net (status table cid=41) el 2026-07-09: adhesión
+      // 5-XI-2025, entrada en vigor 9-VII-2026.
+      regime: "apostille",
       inForce: "2026-07-09",
-      note: "Argelia se ha adherido al Convenio de La Haya, pero la apostilla entra en vigor el 9 de julio de 2026. Antes de esa fecha rige la legalización consular; después, apostilla. Verifica según la fecha de tu trámite.",
+      note: "Argelia es parte del Convenio de La Haya desde el 9 de julio de 2026: apostilla. Los documentos legalizados por vía consular antes de esa fecha siguen siendo válidos. Confírmalo con la autoridad argelina competente.",
     },
     TN: {
       regime: "apostille",
