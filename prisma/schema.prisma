@@ -199,6 +199,7 @@ model ClientInvoice {
   id            String    @id @default(cuid())
   number        String?   @unique // AA_NNN secuencial; null mientras es BORRADOR
   status        String    @default("DRAFT") // DRAFT | ISSUED
+  docKind       String    @default("invoice") // invoice | quote — los "presupuestos" emitidos por este módulo comparten la serie AA_NNN pero NO son facturas: quedan fuera de contabilidad/303/gestoría
   simplified    Boolean   @default(false) // factura simplificada (≤400€, sin NIF del cliente; RD 1619/2012)
   origin        String? // auditoría: lazy_pdf | reconcile_batch | manual | import | draft
   brand         String    @default("traduccionesjuradas") // marca/actividad emisora (numeración compartida)

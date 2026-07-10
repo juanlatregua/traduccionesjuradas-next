@@ -12,6 +12,7 @@ import { createDraftInvoice, type InvoiceLine } from "@/lib/client-invoice";
 export const runtime = "nodejs";
 
 type Body = {
+  docKind?: string | null;
   brand?: string | null;
   orderReference?: string | null;
   clientName?: string | null;
@@ -117,6 +118,7 @@ export async function POST(req: Request) {
 
   try {
     const invoice = await createDraftInvoice({
+      docKind: body.docKind,
       brand: body.brand,
       orderId,
       clientName: body.clientName,

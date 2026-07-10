@@ -14,6 +14,7 @@ export const runtime = "nodejs";
 type Params = { params: { id: string } };
 
 type Body = {
+  docKind?: string | null;
   brand?: string | null;
   orderReference?: string | null;
   clientName?: string | null;
@@ -79,6 +80,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
   try {
     const invoice = await updateDraftInvoice(params.id, {
+      docKind: body.docKind,
       brand: body.brand,
       orderId,
       clientName: body.clientName,

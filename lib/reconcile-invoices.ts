@@ -43,7 +43,12 @@ export async function listPaidUnbilledOrders(): Promise<PaidUnbilledOrder[]> {
       paymentStatus: "PAID",
       amountCents: { gt: 0 },
       billingExcluded: false,
-      OR: [{ clientInvoice: { is: null } }, { clientInvoice: { is: { status: "DRAFT" } } }],
+      OR: [
+        { clientInvoice: { is: null } },
+        { clientInvoice: { is: { status: "DRAFT" } } },
+        // Un presupuesto emitido sobre el pedido NO es factura: sigue sin facturar.
+        { clientInvoice: { is: { docKind: "quote" } } },
+      ],
     },
     select: {
       reference: true,

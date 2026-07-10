@@ -32,7 +32,7 @@ export async function GET(req: Request) {
 
   // Solo facturas EMITIDAS (los borradores no van a la gestoría). Filtro por
   // periodo contable sobre la fecha de EMISIÓN (issuedAt).
-  const where: Prisma.ClientInvoiceWhereInput = { status: "ISSUED" };
+  const where: Prisma.ClientInvoiceWhereInput = { status: "ISSUED", docKind: "invoice" };
   let periodTag = "";
   if (year && /^\d{4}$/.test(year)) {
     const y = Number(year);

@@ -28,6 +28,7 @@ export default async function ZonaTraductorFacturasPage() {
     id: i.id,
     number: i.number,
     status: i.status,
+    docKind: i.docKind,
     brand: i.brand,
     orderReference: i.order?.reference ?? null,
     clientName: i.clientName,

@@ -13,6 +13,7 @@ export type InvoiceRow = {
   id: string;
   number: string | null;
   status: string; // DRAFT | ISSUED
+  docKind: string; // invoice | quote
   brand: string;
   orderReference: string | null;
   clientName: string | null;
@@ -68,6 +69,7 @@ function brandLabel(key: string) {
 
 function emptyForm() {
   return {
+    docKind: "invoice",
     brand: "traduccionesjuradas",
     orderReference: "",
     clientName: "",
@@ -173,6 +175,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
   function startEdit(row: InvoiceRow) {
     setEditingId(row.id);
     setForm({
+      docKind: row.docKind || "invoice",
       brand: row.brand || "traduccionesjuradas",
       orderReference: row.orderReference || "",
       clientName: row.clientName || "",
@@ -242,6 +245,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
 
   function payload() {
     return {
+      docKind: form.docKind,
       brand: form.brand,
       orderReference: form.orderReference.trim() || null,
       clientName: form.clientName.trim() || null,
@@ -433,7 +437,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
           </div>
 
           {/* Marca / actividad emisora (numeración compartida) */}
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-4">
             <label className="text-xs text-slate-400">
               Marca / actividad
               <select className={`mt-1 block w-64 ${FIELD}`} value={form.brand} onChange={(e) => set("brand", e.target.value)}>
@@ -443,6 +447,18 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="text-xs text-slate-400">
+              Tipo de documento
+              <select className={`mt-1 block w-64 ${FIELD}`} value={form.docKind} onChange={(e) => set("docKind", e.target.value)}>
+                <option value="invoice">Factura</option>
+                <option value="quote">Presupuesto (fuera de contabilidad)</option>
+              </select>
+              {form.docKind === "quote" && (
+                <span className="mt-1 block text-[11px] text-violet-300">
+                  Comparte numeración AA_NNN pero NO cuenta en contabilidad, 303 ni gestoría.
+                </span>
+              )}
             </label>
           </div>
 
@@ -662,6 +678,11 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
                       >
                         {isDraft ? "Borrador" : "Emitida"}
                       </span>
+                      {inv.docKind === "quote" && (
+                        <span className="ml-1 rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] font-semibold text-violet-300">
+                          Presupuesto
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {isDraft ? (

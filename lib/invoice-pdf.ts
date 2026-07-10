@@ -19,6 +19,7 @@ type InvoiceData = {
   vatCents?: number;
   vatRate?: number; // fracción (0.21). Si se omite, se asume 21%.
   draft?: boolean; // marca de agua PROFORMA y oculta el número
+  docKind?: string; // invoice | quote — quote imprime "PRESUPUESTO" en vez de FACTURA
   simplified?: boolean; // factura simplificada (RD 1619/2012)
   brand?: string; // marca/actividad emisora (traduccionesjuradas | holabonjour)
   logoDataUrl?: string; // PNG en data URL para marcas con logo de imagen
@@ -176,8 +177,13 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold");
   const isSimpl = !!data.simplified && !data.draft;
-  doc.setFontSize(isSimpl ? 10 : 13);
-  doc.text(data.draft ? "PROFORMA" : isSimpl ? "FACTURA SIMPLIFICADA" : "FACTURA", boxX + 5, 25.5);
+  const isQuote = data.docKind === "quote";
+  doc.setFontSize(isSimpl || isQuote ? 10 : 13);
+  doc.text(
+    isQuote ? "PRESUPUESTO" : data.draft ? "PROFORMA" : isSimpl ? "FACTURA SIMPLIFICADA" : "FACTURA",
+    boxX + 5,
+    25.5
+  );
   doc.setFontSize(15);
   const numberLabel = data.invoiceNumber || (data.draft ? "BORRADOR" : data.reference ? `F-${data.reference}` : "—");
   doc.text(numberLabel, pageW - margin - 5, 25.5, { align: "right" });
@@ -334,7 +340,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("FACTURA PAGADA / Paiement reçu", margin + 5, footY + 7);
+    doc.text(isQuote ? "PAGADO / Paiement reçu" : "FACTURA PAGADA / Paiement reçu", margin + 5, footY + 7);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     const paidStr = data.paidAt.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });

@@ -156,6 +156,7 @@ export type DraftInvoiceInput = {
   lines: InvoiceLine[];
   vatRate: number;
   orderId?: string | null;
+  docKind?: string | null; // invoice | quote — quote = presupuesto: comparte serie AA_NNN pero queda fuera de contabilidad/303/gestoría
 };
 
 // Campos comunes de un borrador (sin orderId: lo gestiona cada caller para no
@@ -167,6 +168,7 @@ function draftData(input: DraftInvoiceInput) {
   return {
     lines,
     data: {
+      docKind: input.docKind === "quote" ? "quote" : "invoice",
       brand: input.brand?.trim() || "traduccionesjuradas",
       clientName: input.clientName?.trim() || null,
       holderNames: input.holderNames?.trim() || null,

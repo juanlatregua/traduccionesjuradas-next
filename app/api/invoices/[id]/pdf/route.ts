@@ -55,6 +55,7 @@ export async function GET(req: Request, { params }: Params) {
       poNumber: invoice.poNumber,
       holderNames: invoice.holderNames,
       simplified: invoice.simplified,
+      docKind: invoice.docKind,
       draft: invoice.status !== "ISSUED",
       langPair: invoice.langPair,
       createdAt: invoice.createdAt,

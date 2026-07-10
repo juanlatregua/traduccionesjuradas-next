@@ -21,7 +21,7 @@ export default async function ZonaTraductorContabilidadPage() {
   const canIssue = role === "ADMIN" || role === "PM";
 
   const [rawInvoices, rawOrders, rawExpenses, unbilled] = await Promise.all([
-    prisma.clientInvoice.findMany({ where: { status: "ISSUED" }, orderBy: { issuedAt: "desc" }, take: 3000, include: { order: { select: { reference: true } } } }),
+    prisma.clientInvoice.findMany({ where: { status: "ISSUED", docKind: "invoice" }, orderBy: { issuedAt: "desc" }, take: 3000, include: { order: { select: { reference: true } } } }),
     prisma.order.findMany({
       where: { paymentStatus: "PAID" },
       select: { reference: true, paidAt: true, createdAt: true, amountCents: true, paymentStatus: true, events: { select: { type: true, payload: true, createdAt: true } } },

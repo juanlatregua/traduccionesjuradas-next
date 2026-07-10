@@ -67,7 +67,7 @@ function s(raw?: string | string[]): string {
 
 async function loadIngresos(): Promise<Dataset> {
   const raw = await prisma.clientInvoice.findMany({
-    where: { status: "ISSUED" },
+    where: { status: "ISSUED", docKind: "invoice" },
     orderBy: { issuedAt: "desc" },
     take: 5000,
     select: {
