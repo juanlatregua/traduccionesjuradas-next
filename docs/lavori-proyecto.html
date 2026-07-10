@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lavori × Gestión — el proyecto en paralelo</title>
+<style>
+  :root{
+    --bg:#0f1420; --card:#171e2e; --card2:#1d2536; --ink:#e8edf6; --muted:#9aa7bd;
+    --line:#2a3348; --accent:#5b9bff; --gold:#d9a441; --green:#3ecf8e; --red:#ff6b6b;
+    --violet:#a78bfa;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f4ee; --card:#ffffff; --card2:#f1eee6; --ink:#1c2333; --muted:#5d6678;
+      --line:#ddd6c8; --accent:#2456b8; --gold:#9a6d17; --green:#177a52; --red:#c02f2f; --violet:#6d4fd1; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,"Segoe UI",Roboto,sans-serif;padding:2rem 1rem 5rem}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:1.9rem;line-height:1.2;margin:.2rem 0 .4rem}
+  h2{font-size:1.25rem;margin:0 0 .8rem;display:flex;align-items:center;gap:.5rem}
+  h2 .n{display:inline-grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:.5rem;background:var(--accent);color:#fff;font-size:.9rem;flex:none}
+  .eyebrow{color:var(--gold);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.75rem}
+  .sub{color:var(--muted);max-width:64ch}
+  section{background:var(--card);border:1px solid var(--line);border-radius:1.2rem;padding:1.4rem 1.5rem;margin-top:1.2rem}
+  .tesis{background:linear-gradient(135deg,var(--card),var(--card2));border-left:4px solid var(--gold)}
+  .tesis p.big{font-size:1.15rem;font-weight:600;margin:.2rem 0}
+  .grid2{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .box{background:var(--card2);border:1px solid var(--line);border-radius:.9rem;padding:1rem 1.1rem}
+  .box h3{margin:.1rem 0 .5rem;font-size:1rem}
+  .tag{display:inline-block;border-radius:999px;padding:.1rem .6rem;font-size:.72rem;font-weight:700;letter-spacing:.03em}
+  .t-green{background:color-mix(in srgb,var(--green) 18%,transparent);color:var(--green)}
+  .t-red{background:color-mix(in srgb,var(--red) 18%,transparent);color:var(--red)}
+  .t-gold{background:color-mix(in srgb,var(--gold) 20%,transparent);color:var(--gold)}
+  .t-violet{background:color-mix(in srgb,var(--violet) 18%,transparent);color:var(--violet)}
+  ul{margin:.4rem 0;padding-left:1.2rem}
+  li{margin:.25rem 0}
+  li::marker{color:var(--gold)}
+  table{width:100%;border-collapse:collapse;font-size:.92rem}
+  th,td{text-align:left;padding:.55rem .7rem;border-top:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;border-top:none}
+  .rec{outline:2px solid var(--green);outline-offset:-2px;border-radius:.5rem}
+  .timeline{list-style:none;margin:.8rem 0 0;padding:0;position:relative}
+  .timeline::before{content:"";position:absolute;left:.55rem;top:.4rem;bottom:.4rem;width:2px;background:var(--line)}
+  .timeline li{position:relative;padding:0 0 1rem 2rem;margin:0}
+  .timeline li::before{content:"";position:absolute;left:.15rem;top:.35rem;width:.85rem;height:.85rem;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+  .timeline li.warn::before{background:var(--red)}
+  .timeline li.gold::before{background:var(--gold)}
+  .timeline li.go::before{background:var(--green)}
+  .when{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .mono{font-family:ui-monospace,Menlo,monospace;font-size:.85em;background:var(--card2);border:1px solid var(--line);border-radius:.35rem;padding:0 .3rem}
+  .foot{color:var(--muted);font-size:.8rem;margin-top:2rem;text-align:center}
+  .kpis{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:.6rem}
+  .kpi{background:var(--card2);border:1px solid var(--line);border-radius:.9rem;padding:.8rem 1rem}
+  .kpi b{display:block;font-size:1.5rem;line-height:1.2}
+  .kpi span{color:var(--muted);font-size:.78rem}
+  a{color:var(--accent)}
+  .danger{border-left:4px solid var(--red)}
+  .overflow{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">HBTJ · proyecto en paralelo · 10 julio 2026</p>
+  <h1>Lavori × Gestión</h1>
+  <p class="sub">El tablón de los jurados como canal · la suite de gestión que Juan ya usa cada día como producto. Fuente: <span class="mono">docs/lavori-plan.md</span> + storm de monetización de lavori (22-jun).</p>
+
+  <section class="tesis">
+    <p class="big">El tablón es gratis para siempre. Lo que se cobra es la herramienta de producción: presupuestar → cobrar → entregar → facturar → contabilidad. Esa herramienta ya existe, en producción, con el cierre fiscal 2T-2026 real hecho con ella.</p>
+    <div class="kpis">
+      <div class="kpi"><b>~10k</b><span>líneas ya escritas y probadas en producción</span></div>
+      <div class="kpi"><b>n≈10</b><span>jurados piloto — comunidad finita y autenticada (OTP + nº MAEC)</span></div>
+      <div class="kpi"><b>9 €/mes</b><span>precio fundador congelado (12-15 € después)</span></div>
+      <div class="kpi"><b>≥4/10</b><span>señal de preventa GO/NO-GO antes de invertir más</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">1</span> Las dos piezas</h2>
+    <div class="grid2">
+      <div class="box">
+        <h3>🏛️ Lavori — el canal <span class="tag t-green">ya existe</span></h3>
+        <p class="sub" style="font-size:.9rem">PWA del tablón de jurados (<span class="mono">~/proyectos/lavori</span>): encargos estructurados, push, acceso OTP por teléfono contra lista blanca, onboarding anclado al nº MAEC. Resuelve lo caro de cualquier SaaS: <b>identidad, distribución y confianza del grupo</b>.</p>
+      </div>
+      <div class="box">
+        <h3>🧾 La suite de gestión — el producto <span class="tag t-green">ya existe</span></h3>
+        <p class="sub" style="font-size:.9rem">Dentro de traduccionesjuradas-net: presupuestos con PDF, gastos con IA (foto de factura → gasto), conciliación bancaria CSV, borradores 303/111/<b>130 (¡el de autónomos: el cliente destino!)</b>, export gestoría trimestral, facturas multimarca. El mismo problema que Juan se resolvió a sí mismo.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:.8rem;font-size:.9rem">Con el signo cambiado: los compradores <b>son traductores jurados</b> — el par de idiomas, los titulares de certificados o el flujo de colaboradores dejan de ser "deuda específica" y pasan a ser <b>feature de nicho</b>.</p>
+  </section>
+
+  <section class="danger">
+    <h2><span class="n" style="background:var(--red)">2</span> Verifactu — EL gate (verificado en fuentes, 10-jul-2026)</h2>
+    <ul class="timeline">
+      <li class="warn"><span class="when">Desde 29 · jul · 2025 — YA EN VIGOR</span><br><b>Los productores de software de facturación están obligados.</b> Vender un software que GENERA facturas convierte a Juan en productor de SIF: registros inalterables con hash encadenado, QR, log de eventos, declaración responsable. Sanciones hasta <b>150.000 €</b>. El módulo actual (borradores editables, borrar factura, importación retroactiva) es justo el "doble uso" que el reglamento persigue.</li>
+      <li class="gold"><span class="when">1 · ene · 2027</span><br><b>HBTJ (S.L.) debe usar un SIF conforme para sí misma.</b> El trabajo Verifactu hay que hacerlo igual, se venda o no → inversión de doble uso.</li>
+      <li><span class="when">1 · jul · 2027</span><br>Obligación de uso para autónomos/profesionales (los jurados clientes). RDL 15/2025 (BOE 3-dic-2025).</li>
+    </ul>
+    <div class="box" style="margin-top:.6rem">
+      <h3>✅ La línea limpia legal HOY (MVP vendible sin Verifactu)</h3>
+      <p class="sub" style="font-size:.9rem"><b>Presupuestos NO son facturas</b> · libro-registro de facturas <i>ya emitidas fuera</i> es contabilidad, no SIF · gastos, conciliación bancaria, borradores 303/130 y export gestoría tampoco lo son. → Se vende todo eso; la <b>EMISIÓN</b> de facturas queda para la fase con Verifactu nativo (o un SIF tercero homologado por API).</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span> Cómo se empaqueta — 3 opciones, 1 recomendada</h2>
+    <div class="overflow"><table>
+      <tr><th>Opción</th><th>Esfuerzo</th><th>Riesgo</th><th>Veredicto</th></tr>
+      <tr><td>(A) App hermana con SSO (repo/deploy/BD aparte)</td><td>Alto (meses)</td><td>Operativo alto: 2º sistema que mantener</td><td>Sobre-construye para n=10. Solo si el piloto valida y crece</td></tr>
+      <tr class="rec"><td><b>(B) Módulo "Gestión" dentro del repo lavori</b> (Drizzle, <span class="mono">userId</span> = jurado del OTP)</td><td><b>Medio (semanas)</b></td><td><b>Bajo</b> — un deploy, una BD, una marca</td><td><b>RECOMENDADA</b> — los motores de cálculo (~1.000 líneas puras) y la UI se copian; solo se reescriben CRUDs finos</td></tr>
+      <tr><td>(C) Una instancia por jurado</td><td>Bajo unitario, ×N total</td><td>Insostenible para 1 persona; Verifactu aplica igual</td><td>Descartar</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span> La ruta — 4 fases con freno de mano</h2>
+    <ul class="timeline">
+      <li><span class="when">F0 · 1-2 semanas · en traduccionesjuradas-net</span><br><b>Delimitar el core portable.</b> Parametrizar el emisor (sacar CIF/IBAN de <span class="mono">invoice-brands.ts</span> a datos) y fijar los módulos puros como frontera. Sirve doble: es el primer paso del Verifactu propio de HBTJ para 2027. Útil pase lo que pase.</li>
+      <li><span class="when">F1 · 3-4 semanas · en el repo lavori</span><br><b>Portar la línea limpia</b> a tablas <span class="mono">gestion_*</span> con userId y numeración por usuario+año, en este orden: ① presupuestos (builder simplificado + PDF + estados; cada jurado cobra en su cuenta, se marca cobrado a mano) ② gastos con IA ③ libro-registro de facturas emitidas fuera ④ conciliación CSV + borradores 303/130 + export gestoría.</li>
+      <li class="go"><span class="when">F2 · 4 semanas · MEDIR (reglas del storm)</span><br><b>Preventa fundador por WhatsApp: ≥4 de 10 pagan = GO.</b> Uso real observado. Cero UI de pago hasta la señal. Si no hay señal: se queda como herramienta del tablón y no se invierte más.</li>
+      <li class="gold"><span class="when">F3 · solo con señal de pago</span><br><b>Emisión de facturas Verifactu-nativa</b> (hash encadenado + QR + modo VERI*FACTU con envío a AEAT + declaración responsable + DPA/RGPD) — que además resuelve la obligación propia de HBTJ de ene-2027. Alternativa de arranque: emitir vía SIF tercero homologado por API y quedarse la capa de gestión.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span> Qué se porta y qué no</h2>
+    <div class="grid2">
+      <div class="box"><h3><span class="tag t-green">SE COPIA TAL CUAL</span></h3>
+        <p class="sub" style="font-size:.88rem">Motores puros sin dependencias: <span class="mono">tax-drafts</span> (303/111/130) · <span class="mono">bank-parse</span>+<span class="mono">bank-reconcile</span> · <span class="mono">invoice/expense/quote-math</span> · <span class="mono">period-grouping</span> · <span class="mono">ai/extract-expense</span> · PDFs con marca inyectada · la UI React/Tailwind.</p></div>
+      <div class="box"><h3><span class="tag t-violet">SE REESCRIBE (fino)</span></h3>
+        <p class="sub" style="font-size:.88rem">Solo la capa de persistencia: CRUDs de facturas, gastos, recurrentes y presupuestos pasan de Prisma a Drizzle con <span class="mono">userId</span>. Numeración por usuario+año.</p></div>
+      <div class="box"><h3><span class="tag t-red">NO SE PORTA</span></h3>
+        <p class="sub" style="font-size:.88rem">Funnel/puerta, pricing-engine público, SEO/blog, chatbot, pipeline DocumentAnalysis, Redsys/PayPal, márgenes PM de pedidos web.</p></div>
+      <div class="box"><h3><span class="tag t-gold">HAY QUE ARRANCAR</span></h3>
+        <p class="sub" style="font-size:.88rem">Supuestos single-tenant: CIF/IBAN hardcodeados, numeración global única, ningún modelo fiscal con userId, roles por emails en env, email por el tenant Azure de HBTJ.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span> Modelo y precio (del storm de monetización)</h2>
+    <ul>
+      <li><b>Tablón, perfil y avisos: gratis para siempre.</b> La comunidad es el foso, no la caja.</li>
+      <li><b>Un solo SKU:</b> la suite de gestión entera a <b>9 €/mes fundador congelado de por vida</b> (piloto) → 12-15 €/mes después. La emisión Verifactu se añade a la misma cuota cuando exista.</li>
+      <li><b>Kit Digital</b> como financiación del jurado (CAC≈0), sin ser agente digitalizador (otro expediente; no para n=10).</li>
+    </ul>
+  </section>
+
+  <section class="danger">
+    <h2><span class="n" style="background:var(--red)">7</span> Lista roja — qué NO hacer</h2>
+    <ul>
+      <li><b>No prometer ni vender emisión de facturas antes del cumplimiento Verifactu</b> — la única pieza con sanción de seis cifras.</li>
+      <li>No montar repo/SSO aparte ni multi-tenancy "de verdad" (sobre-construye para n=10).</li>
+      <li>No meter Stripe Connect / Redsys para cobros de terceros, ni agregadores bancarios PSD2.</li>
+      <li>No migrar traduccionesjuradas a Drizzle ni unificar stacks.</li>
+      <li>No hacerse agente digitalizador del Kit Digital.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="n">8</span> Próximo paso</h2>
+    <p class="sub"><b>Decisión de Juan:</b> dar el GO a la <b>Fase 0</b> (parametrizar el emisor en traduccionesjuradas — 1-2 semanas, sin riesgo, sirve doble para el Verifactu propio de HBTJ). La F1 se trabaja en el repo de lavori con su propio contexto. Lo ya hecho hoy que sirve a ambos mundos: gates "no entregar sin cobrar" + carpeta de expedientes + <span class="mono">docKind</span> presupuesto/factura.</p>
+  </section>
+
+  <p class="foot">Generado el 10-jul-2026 · fuentes normativas verificadas: AEAT (nota informativa RDL 15/2025) · plan completo con inventario file:line en <span class="mono">docs/lavori-plan.md</span></p>
+</div>
+</body>
+</html>
