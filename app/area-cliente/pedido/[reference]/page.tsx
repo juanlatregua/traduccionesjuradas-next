@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { clientVisibleDeliveryFiles } from "@/lib/client-delivery";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
@@ -296,23 +297,13 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
       <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-encre">
           {(() => {
-            const n = Array.isArray(order.deliveryFilesJson) ? order.deliveryFilesJson.length : order.translatedFileUrl ? 1 : 0;
+            const n = clientVisibleDeliveryFiles(order).length;
             return n > 1 ? t.filesTitleMany(n) : t.filesTitleOne;
           })()}
         </h2>
         {(() => {
-          // Lista MULTI-archivo (deliveryFilesJson); fallback al campo único.
-          const files = Array.isArray(order.deliveryFilesJson)
-            ? (order.deliveryFilesJson as Array<{ url?: string; filename?: string | null }>).filter(
-                (f) => f && typeof f.url === "string" && f.url
-              )
-            : [];
-          const list =
-            files.length > 0
-              ? files
-              : order.translatedFileUrl
-                ? [{ url: order.translatedFileUrl, filename: order.finalFilename }]
-                : [];
+          // Fuente única con gate de pago (no entregar sin cobrar).
+          const list = clientVisibleDeliveryFiles(order);
           if (list.length === 0) {
             return (
               <p className="mt-2 text-sm text-sepia">

@@ -29,6 +29,7 @@ export async function POST(req: Request, { params }: Params) {
         id: true,
         reference: true,
         clientEmail: true,
+        paymentStatus: true,
         deliveryFilesJson: true,
         translatedFileUrl: true,
         finalFilename: true,
@@ -50,6 +51,19 @@ export async function POST(req: Request, { params }: Params) {
     if (String(order.clientEmail || "").toLowerCase().endsWith("@whatsapp.local")) {
       return NextResponse.json(
         { ok: false, error: "Este cliente no tiene email real (lead de WhatsApp). Envíalo por WhatsApp." },
+        { status: 400 }
+      );
+    }
+
+    // No entregar sin cobrar: adjuntar la traducción a un impago no se permite.
+    // El staff puede reenviar el mensaje sin adjuntos (attachFiles=false).
+    if (attachFiles && order.paymentStatus !== "PAID") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "El pedido no está pagado: no se puede adjuntar la traducción. Desmarca los adjuntos o confirma el pago primero.",
+        },
         { status: 400 }
       );
     }

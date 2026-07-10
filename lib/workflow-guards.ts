@@ -17,4 +17,10 @@ export function assertWorkflowTransitionPreconditions(params: {
   if (params.to === "TRADUCIDO_ENTREGADO" && !params.delivered && !params.translatedFileUrl) {
     throw new Error("Para marcar como entregado debes adjuntar al menos un archivo.");
   }
+  // Regla de negocio: no entregar sin cobrar. Hoy el grafo ya lo impone
+  // (solo se llega desde PAGO_VALIDADO/EN_TRADUCCION), pero este guard es la
+  // defensa en profundidad: cualquier arista o caller futuro choca aquí.
+  if (params.to === "TRADUCIDO_ENTREGADO" && params.paymentStatus !== "PAID") {
+    throw new Error("No se puede marcar como entregado un pedido sin pago confirmado.");
+  }
 }

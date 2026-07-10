@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { clientVisibleDeliveryFiles } from "@/lib/client-delivery";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -373,17 +374,8 @@ export default async function PedidoPortalPage({
   const deliveryLabel = getDeliveryLabel(workflowState, t);
   const timeline = buildTimeline(order, t);
 
-  // Delivery file URL (primario) + lista multi-archivo (deliveryFilesJson).
-  const deliveryFileUrl =
-    String(order.finalDeliveryFileUrl || "").trim() ||
-    String(order.translatedFileUrl || "").trim();
-  const deliveryFiles = Array.isArray(order.deliveryFilesJson)
-    ? (order.deliveryFilesJson as Array<{ url?: string; filename?: string | null }>).filter(
-        (f) => f && typeof f.url === "string" && f.url
-      )
-    : deliveryFileUrl
-      ? [{ url: deliveryFileUrl, filename: order.finalFilename }]
-      : [];
+  // Traducciones descargables: fuente única con gate de pago (no entregar sin cobrar).
+  const deliveryFiles = clientVisibleDeliveryFiles(order);
 
   // Payment URL (signed)
   const paymentUrl = buildSignedOrderUrl(reference, "pagar");

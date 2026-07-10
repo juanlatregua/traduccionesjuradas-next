@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { clientVisibleDeliveryFiles } from "@/lib/client-delivery";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
@@ -118,11 +119,7 @@ export default async function IntermediaryClientView({
               </thead>
               <tbody>
                 {orders.map((o) => {
-                  const files = Array.isArray(o.deliveryFilesJson)
-                    ? (o.deliveryFilesJson as Array<{ url?: string; filename?: string | null }>).filter((f) => f && f.url)
-                    : o.translatedFileUrl
-                      ? [{ url: o.translatedFileUrl, filename: o.finalFilename }]
-                      : [];
+                  const files = clientVisibleDeliveryFiles(o);
                   return (
                     <tr key={o.reference} className="border-t border-cream align-top">
                       <td className="px-4 py-3 font-mono text-xs text-sepia">{o.reference}</td>
