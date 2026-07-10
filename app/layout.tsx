@@ -102,8 +102,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={`${sourceSans.variable} ${baskerville.variable} ${caveat.variable}`}>
+      <body className="min-h-screen bg-parchment text-sepia">
       {/* SCHEMA ORG / PROFESSIONAL SERVICE — server-render para que lo lean
-          crawlers y bots de IA sin ejecutar JS (AEO). */}
+          crawlers y bots de IA sin ejecutar JS (AEO). Dentro de <body>: como
+          hijo directo de <html> el parser lo recoloca y la hidratación lo
+          DUPLICABA → Google fusionaba dos #organization con dos ratings
+          (error crítico "varias puntuaciones agregadas" en GSC). */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -254,7 +258,6 @@ export default function RootLayout({
         }}
       />
 
-      <body className="min-h-screen bg-parchment text-sepia">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-xl focus:bg-bleu focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
