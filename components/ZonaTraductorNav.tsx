@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PMQuickCreatePanel from "./PMQuickCreatePanel";
 
-type ModoActivo = "bandeja" | "clientes" | "control" | "presupuesto" | "expedientes" | "facturas" | "recurrentes" | "contabilidad" | "periodos" | "tablero";
+type ModoActivo = "bandeja" | "clientes" | "control" | "presupuesto" | "presupuestos" | "expedientes" | "facturas" | "recurrentes" | "contabilidad" | "periodos" | "tablero";
 
 type Props = {
   modoActivo?: ModoActivo; // ya no se pasa: el tab activo se deriva del pathname.
@@ -19,6 +19,7 @@ const TABS: { href: string; label: string; key: ModoActivo }[] = [
   { href: "/zona-traductor", label: "Bandeja", key: "bandeja" },
   { href: "/zona-traductor/clientes", label: "Clientes", key: "clientes" },
   { href: "/zona-traductor/expedientes", label: "Expedientes", key: "expedientes" },
+  { href: "/zona-traductor/presupuestos", label: "Presupuestos", key: "presupuestos" },
   { href: "/zona-traductor/presupuesto", label: "Presupuesto", key: "presupuesto" },
   { href: "/zona-traductor/facturas", label: "Facturas", key: "facturas" },
   { href: "/zona-traductor/recurrentes", label: "Recurrentes", key: "recurrentes" },
@@ -36,7 +37,7 @@ export default function ZonaTraductorNav({ pedidosAccionables }: Props) {
   const isActive = (href: string) =>
     href === "/zona-traductor"
       ? pathname === "/zona-traductor" || pathname.startsWith("/zona-traductor/pedido")
-      : pathname.startsWith(href);
+      : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <>
