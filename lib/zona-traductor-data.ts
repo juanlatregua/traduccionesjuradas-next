@@ -611,6 +611,10 @@ export async function loadControlState(searchParams: ControlSearchParams) {
 
 // Helpers reexportables (puros) que las vistas necesitan en JSX
 export {
+  getAcquisitionSource,
+  getArchiveState,
+  getLatestDeliveryNotification,
+  getOrderArtifacts,
   getPaymentProofs,
   getSubmittedDocuments,
   getQuoteDraft,

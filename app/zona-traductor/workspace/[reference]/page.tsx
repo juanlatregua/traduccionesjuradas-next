@@ -7,6 +7,7 @@ import { isStaffEmail } from "@/lib/staff-access";
 import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import { prisma } from "@/lib/prisma";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
+import { getSourceDocumentsFromEvents } from "@/lib/order-source-documents";
 import WorkspaceEditor from "@/components/WorkspaceEditor";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
 
@@ -18,37 +19,11 @@ export const metadata: Metadata = {
 type Params = { params: { reference: string } };
 
 function getSubmittedDocuments(events: any[]) {
-  const submitted = events.find((e: any) => e.type === "presupuesto.submitted");
-  const submittedFiles = (() => {
-    if (!submitted) return [];
-    const payload = (submitted.payload as any) || {};
-    const files = Array.isArray(payload.files) ? payload.files : [];
-    return files.map((file: any) => ({
-      name: String(file?.name || "Documento"),
-      url: file?.url ? String(file.url) : undefined,
-      type: String(file?.type || ""),
-    }));
-  })();
-
-  const sourceUploadFiles = events
-    .filter((e: any) => e.type === "order.source_document_uploaded")
-    .map((e: any) => {
-      const payload = (e.payload as any) || {};
-      return {
-        name: String(payload.fileName || "Documento"),
-        url: payload.fileUrl ? String(payload.fileUrl) : undefined,
-        type: String(payload.fileType || ""),
-      };
-    });
-
-  const seen = new Set<string>();
-  return [...sourceUploadFiles, ...submittedFiles].filter((doc) => {
-    const url = doc.url || "";
-    if (!url) return true;
-    if (seen.has(url)) return false;
-    seen.add(url);
-    return true;
-  });
+  return getSourceDocumentsFromEvents(events).map((d) => ({
+    name: d.name,
+    url: d.url,
+    type: d.type || "",
+  }));
 }
 
 export default async function WorkspacePage({ params }: Params) {
@@ -115,10 +90,10 @@ export default async function WorkspacePage({ params }: Params) {
             </h1>
             <p className="mt-1 text-sm text-slate-300">{order.title}</p>
             <a
-              href={`/zona-traductor/proyecto/${order.reference}`}
+              href={`/zona-traductor/pedido/${order.reference}`}
               className="mt-2 inline-block rounded-lg border border-cyan-700 bg-cyan-600/15 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-600/30"
             >
-              📋 Vista de proyecto (cockpit)
+              📋 Ficha del pedido
             </a>
           </div>
         </div>

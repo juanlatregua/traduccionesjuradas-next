@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 // El "nuevo presupuesto" se unificó en /zona-traductor/presupuesto (un único
 // builder manual, mismo tema). Esta ruta redirige preservando el prefill de los
-// deep-links (PMQuickCreatePanel, OrderActionPanel, pm-create, lista de admin).
+// deep-links (PMQuickCreatePanel, bandeja, pm-create, lista de admin).
 export default function AdminQuoteNewPage({
   searchParams,
 }: {

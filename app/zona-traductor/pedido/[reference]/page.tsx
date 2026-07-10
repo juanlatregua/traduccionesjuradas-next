@@ -8,10 +8,35 @@ import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp
 import { prisma } from "@/lib/prisma";
 import { getWorkflowState, getWorkflowStateLabel, getNextWorkflowStates } from "@/lib/workflow";
 import { getFinanceSnapshot } from "@/lib/finance";
-import { getOrderActionStage, getNextBestAction } from "@/lib/order-actions";
+import { getSourceDocumentsFromEvents } from "@/lib/order-source-documents";
+import {
+  getOrderActionStage,
+  getNextBestAction,
+  getOrderGates,
+  buildOrderTrackedLinks,
+} from "@/lib/order-actions";
+import {
+  getAcquisitionSource,
+  getArchiveState,
+  getLatestDeliveryNotification,
+  getOrderArtifacts,
+  getPaymentProofs,
+  getQuoteAuditTrail,
+  getQuoteDraft,
+  getSubmittedDocuments,
+} from "@/lib/zona-traductor-data";
 import OrderStepper from "@/components/order-workspace/OrderStepper";
 import OrderManagementActions from "@/components/order-workspace/OrderManagementActions";
 import CollaboratorAssignmentPanel from "@/components/CollaboratorAssignmentPanel";
+import AssignOrderForm from "@/components/AssignOrderForm";
+import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
+import ClientMessagePanel from "@/components/ClientMessagePanel";
+import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
+import OrderFinancePanel from "@/components/OrderFinancePanel";
+import OrderLifecyclePanel from "@/components/OrderLifecyclePanel";
+import OrderWorkflowPanel from "@/components/OrderWorkflowPanel";
+import SourceDocumentUpload from "@/components/SourceDocumentUpload";
+import TranslatorNotifyForm from "@/components/TranslatorNotifyForm";
 import ClientMessageComposer from "@/components/order-workspace/ClientMessageComposer";
 import FileThumbnails from "@/components/order-workspace/FileThumbnails";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
@@ -31,25 +56,7 @@ type Params = { params: { reference: string } };
 type DocRef = { name: string; url?: string };
 
 function getSourceDocuments(events: any[]): DocRef[] {
-  const submitted = events.find((e: any) => e.type === "presupuesto.submitted");
-  const submittedFiles: DocRef[] = submitted
-    ? (Array.isArray((submitted.payload as any)?.files) ? (submitted.payload as any).files : []).map(
-        (f: any) => ({ name: String(f?.name || "Documento"), url: f?.url ? String(f.url) : undefined })
-      )
-    : [];
-  const uploaded: DocRef[] = events
-    .filter((e: any) => e.type === "order.source_document_uploaded")
-    .map((e: any) => ({
-      name: String((e.payload as any)?.fileName || "Documento"),
-      url: (e.payload as any)?.fileUrl ? String((e.payload as any).fileUrl) : undefined,
-    }));
-  const seen = new Set<string>();
-  return [...uploaded, ...submittedFiles].filter((d) => {
-    if (!d.url) return true;
-    if (seen.has(d.url)) return false;
-    seen.add(d.url);
-    return true;
-  });
+  return getSourceDocumentsFromEvents(events);
 }
 
 function getDeliveredFiles(order: any): DocRef[] {
@@ -164,6 +171,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
       clientInvoice: { select: { number: true, totalCents: true } },
       quote: { select: { quoteNumber: true } },
       documentItems: { orderBy: { createdAt: "asc" } },
+      documentAnalyses: {
+        select: { fileName: true, fileUrl: true, mimeType: true, fileSize: true, createdAt: true },
+      },
+      billing: true,
+      shipping: true,
     },
   });
   if (!order) redirect("/zona-traductor");
@@ -196,7 +208,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
     fileUrl: d.fileUrl,
     deliveredFileUrl: d.deliveredFileUrl,
   }));
-  // Adjudicación de colaborador (antes solo accesible desde Control/OrderActionPanel).
+  // Adjudicación de colaborador (antes solo accesible desde Control).
   const collabAssignments = (order.collaboratorAssignments || []).map((a: any) => ({
     id: a.id,
     status: a.status,
@@ -219,6 +231,19 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const financeSnapshot = getFinanceSnapshot(orderForActions);
   const actionStage = getOrderActionStage(orderForActions, financeSnapshot);
   const nextAction = getNextBestAction(orderForActions, financeSnapshot);
+  const gates = getOrderGates(orderForActions, financeSnapshot);
+
+  // Datos que antes solo montaba la Bandeja: mismos helpers compartidos.
+  const paymentProofs = getPaymentProofs(order);
+  const submittedDocuments = getSubmittedDocuments(order);
+  const quoteDraft = getQuoteDraft(order);
+  const quoteAuditTrail = getQuoteAuditTrail(order);
+  const artifacts = getOrderArtifacts(order);
+  const deliveryNotification = getLatestDeliveryNotification(order);
+  const trackedLinks = buildOrderTrackedLinks(order.reference);
+  const acquisitionSource = getAcquisitionSource(order);
+  const { isArchived } = getArchiveState(order);
+  const dueDateInput = order.dueDate ? order.dueDate.toISOString().split("T")[0] : null;
 
   // Reenvío manual al cliente (sobre todo leads de WhatsApp con email sintético
   // @whatsapp.local, a los que el email de entrega no llega): un enlace wa.me con
@@ -298,7 +323,64 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             invoice={order.clientInvoice ? { number: order.clientInvoice.number } : null}
             quote={order.quote ? { quoteNumber: order.quote.quoteNumber } : null}
           />
+          <details className="mt-4 border-t border-slate-700/50 pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
+              Cambiar workflow a otro estado
+            </summary>
+            <div className="mt-3">
+              <OrderWorkflowPanel reference={order.reference} currentState={workflowState} />
+            </div>
+          </details>
         </div>
+
+        {/* SECCIÓN — Presupuesto: editor inline + reenvío + enlace de pago */}
+        <Section id="presupuesto" title="Presupuesto">
+          <OrderDocumentsPanel
+            reference={order.reference}
+            workflowState={workflowState}
+            amountCents={order.amountCents}
+            documents={submittedDocuments}
+            quoteDraft={quoteDraft}
+            quoteAuditTrail={quoteAuditTrail}
+          />
+        </Section>
+
+        {/* SECCIÓN — Pago: confirmar cobro manual + comprobantes subidos */}
+        <Section id="pago" title="Pago y comprobantes">
+          {order.paymentStatus !== "PAID" && (
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <span className="text-sm text-slate-300">Marcar cobrado:</span>
+              <ConfirmPaymentButton reference={order.reference} />
+            </div>
+          )}
+          {paymentProofs.length === 0 ? (
+            <p className="text-sm text-slate-400">Aún no se ha subido comprobante.</p>
+          ) : (
+            <ul className="space-y-2">
+              {paymentProofs.map((proof: any, idx: number) => (
+                <li
+                  key={`${proof.fileUrl}-${idx}`}
+                  className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-200"
+                >
+                  <p className="font-semibold text-slate-100">{proof.fileName || "Comprobante"}</p>
+                  {proof.uploadedAt && (
+                    <p className="text-xs text-slate-400">
+                      Subido: {new Date(proof.uploadedAt).toLocaleString("es-ES")}
+                    </p>
+                  )}
+                  <a
+                    href={proof.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                  >
+                    Abrir comprobante
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
 
         {/* SECCIÓN 1 — Subir / ver traducciones (lo primero: el dolor de "dónde meto la traducción") */}
         {/* SECCIÓN — Producción · Borrador IA (migrado del Workspace), plegable */}
@@ -385,6 +467,18 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             files={sourceDocs.filter((d) => d.url).map((d) => ({ name: d.name, url: d.url as string }))}
           />
           <OrderDocumentItems reference={order.reference} items={docItems} />
+          <div className="mt-4 border-t border-slate-700/50 pt-4">
+            <SourceDocumentUpload reference={order.reference} />
+          </div>
+        </Section>
+
+        {/* SECCIÓN — Asignación a nivel pedido (traductor + fecha límite) */}
+        <Section id="asignar" title="Asignación y plazo">
+          <AssignOrderForm
+            reference={order.reference}
+            currentAssignedTo={order.assignedTo}
+            currentDueDate={dueDateInput}
+          />
         </Section>
 
         {/* SECCIÓN 3 — Colaborador */}
@@ -414,44 +508,113 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           </div>
         </Section>
 
-        {/* SECCIÓN 4 — Finanzas */}
+        {/* SECCIÓN 4 — Finanzas (panel editable: conciliación, factura proveedor, margen, cierre) */}
         <Section id="finanzas" title="Finanzas">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Importe (ingreso)</p>
-              <p className="text-sm font-semibold text-slate-100">{(order.amountCents / 100).toFixed(2)} EUR</p>
-            </div>
-            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Margen</p>
-              <p
-                className={`text-sm font-semibold ${
-                  financeSnapshot.marginCents != null && financeSnapshot.marginCents < 0
-                    ? "text-rose-400"
-                    : "text-emerald-400"
-                }`}
-              >
-                {financeSnapshot.marginCents != null
-                  ? `${(financeSnapshot.marginCents / 100).toFixed(2)} EUR`
-                  : "—"}
-                {financeSnapshot.marginPct != null ? ` (${financeSnapshot.marginPct}%)` : ""}
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Estado de pago</p>
-              <p className="text-sm font-semibold text-slate-100">{order.paymentStatus}</p>
-            </div>
-            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Factura</p>
-              <a href="/zona-traductor/facturas" className="text-sm font-semibold text-cyan-400 hover:underline">
-                Gestionar facturas →
-              </a>
-            </div>
+          <OrderFinancePanel
+            reference={order.reference}
+            amountCents={order.amountCents}
+            snapshot={financeSnapshot}
+          />
+          <p className="mt-3 text-xs">
+            <a href="/zona-traductor/facturas" className="font-semibold text-cyan-400 hover:underline">
+              Gestionar facturas →
+            </a>
+          </p>
+        </Section>
+
+        {/* SECCIÓN — Comunicación: plantillas copy-first + mensaje libre al cliente */}
+        <Section id="comunicacion" title="Comunicación con el cliente">
+          <TranslatorNotifyForm
+            reference={order.reference}
+            defaultClientEmail={order.clientEmail}
+            acquisitionSource={acquisitionSource}
+            defaultDownloadUrl={artifacts.finalDeliveryFileUrl || undefined}
+            quotePreviewUrl={artifacts.quotePreviewFileUrl || undefined}
+            paymentLink={trackedLinks.paymentUrl}
+            statusLink={trackedLinks.statusUrl}
+            deliveryNotifiedAt={deliveryNotification?.sentAt || null}
+            deliveryNotifiedTo={deliveryNotification?.toEmail || null}
+            canonicalStage={actionStage}
+          />
+          <div className="mt-6 border-t border-slate-700/50 pt-6">
+            <ClientMessagePanel reference={order.reference} clientEmail={order.clientEmail} />
           </div>
         </Section>
 
         {/* SECCIÓN 5 — Cliente y mensajes (lo que NUNCA se veía) */}
         <Section id="cliente" title="Mensajes enviados al cliente">
           <ClientMessagesSection messages={messages} />
+        </Section>
+
+        {/* SECCIÓN — Datos fiscales, envío postal y timeline completo de eventos */}
+        <Section id="datos" title="Datos y actividad">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Datos de facturación
+              </p>
+              {order.billing ? (
+                <div className="mt-2 space-y-1 text-sm text-slate-300">
+                  <p>Nombre fiscal: <strong className="text-slate-100">{order.billing.fiscalName}</strong></p>
+                  <p>NIF: <strong className="text-slate-100">{order.billing.nif}</strong></p>
+                  <p>Dirección: {order.billing.address}</p>
+                  <p>Ciudad: {order.billing.city} {order.billing.postalCode}</p>
+                  <p>País: {order.billing.country}</p>
+                  <p>Email: {order.billing.email}</p>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-slate-400">Sin datos de facturación.</p>
+              )}
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Datos de envío postal
+              </p>
+              {order.shipping ? (
+                <div className="mt-2 space-y-1 text-sm text-slate-300">
+                  <p>Nombre: <strong className="text-slate-100">{order.shipping.name}</strong></p>
+                  <p>Teléfono: {order.shipping.phone}</p>
+                  <p>Dirección: {order.shipping.address}</p>
+                  <p>Ciudad: {order.shipping.city} ({order.shipping.province})</p>
+                  <p>CP: {order.shipping.postalCode}</p>
+                  <p>País: {order.shipping.country}</p>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-slate-400">Sin datos de envío postal.</p>
+              )}
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Timeline de eventos
+            </p>
+            {order.events.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-400">Sin eventos registrados.</p>
+            ) : (
+              <ul className="mt-2 max-h-96 space-y-2 overflow-y-auto pr-1">
+                {order.events.map((evt: any) => (
+                  <li key={evt.id} className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
+                    <span className="shrink-0 text-xs text-slate-500">
+                      {new Date(evt.createdAt).toLocaleString("es-ES")}
+                    </span>
+                    <span className="font-mono text-xs text-slate-400">{evt.type}</span>
+                    <span className="text-slate-300">{evt.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Section>
+
+        {/* SECCIÓN final — Control: cerrar/archivar/eliminar + gates */}
+        <Section id="control" title="Control">
+          <OrderLifecyclePanel
+            reference={order.reference}
+            isArchived={isArchived}
+            canonicalStage={actionStage}
+            gates={gates}
+            canClose={gates.closeReady}
+          />
         </Section>
       </div>
       </main>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import OrderActionPanel from "./OrderActionPanel";
+import ConfirmPaymentButton from "./ConfirmPaymentButton";
 import type { FinanceSnapshot } from "@/lib/finance";
 import type { NextBestAction, OrderActionStage, OrderGates } from "@/lib/order-actions";
 
@@ -89,6 +89,109 @@ type Props = {
   orders: BandejaOrder[];
   staffEmail: string;
 };
+
+function PaymentBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    PAID: { label: "Pagado", cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+    PENDING: { label: "Pendiente", cls: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+    FAILED: { label: "Fallido", cls: "bg-red-500/20 text-red-300 border-red-500/30" },
+    REFUNDED: { label: "Reembolsado", cls: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
+  };
+  const info = map[status] || map.PENDING;
+  return (
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${info.cls}`}>
+      {info.label}
+    </span>
+  );
+}
+
+function DeliveryBadge({ state }: { state: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    PRESUPUESTO: { label: "Presupuesto", cls: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
+    EN_PROCESO: { label: "En proceso", cls: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+    TRADUCIDO: { label: "Traducido", cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+  };
+  const info = map[state] || map.PRESUPUESTO;
+  return (
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${info.cls}`}>
+      {info.label}
+    </span>
+  );
+}
+
+// Card resumen: la gestión completa vive en el detalle canónico /zona-traductor/pedido/[ref].
+function BandejaOrderCard({ order }: { order: BandejaOrder }) {
+  const quickQuoteHref = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("customerEmail", order.clientEmail);
+    if (order.clientName) params.set("customerName", order.clientName);
+    params.set("lineDescription", order.title || "Traducción jurada");
+    params.set("lineAmount", (Math.max(0, order.amountCents) / 100).toFixed(2));
+    if (order.langPair) params.set("langPair", order.langPair);
+    return `/admin/quotes/new?${params.toString()}`;
+  }, [order]);
+
+  const borderColor = order.overdue
+    ? "border-l-4 border-l-red-500"
+    : order.dueSoon
+      ? "border-l-4 border-l-amber-500"
+      : order.deliveryState === "EN_PROCESO"
+        ? "border-l-4 border-l-blue-500"
+        : "";
+
+  return (
+    <div className={`rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-4 transition-colors hover:border-slate-600 hover:bg-slate-800/50 ${borderColor}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-sm font-bold text-cyan-300">{order.reference}</span>
+        {order.langPair && <span className="text-xs text-slate-500">{order.langPair}</span>}
+        <PaymentBadge status={order.paymentStatus} />
+        <DeliveryBadge state={order.deliveryState} />
+        {order.collaboratorAssignments.some((a) => a.status === "DELIVERED" && a.deliveredFileUrl) && (
+          <span className="inline-block rounded-full border bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300 border-emerald-500/30">
+            Entrega pendiente
+          </span>
+        )}
+      </div>
+      <p className="mt-1 truncate text-sm text-slate-300">{order.title}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+        <span>{order.clientEmail}</span>
+        <span className="font-medium text-slate-200">{(order.amountCents / 100).toFixed(2)} EUR</span>
+        <span>
+          {new Date(order.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+        </span>
+        <span className={order.acquisitionSource === "WHATSAPP" ? "font-semibold text-emerald-400" : "text-slate-500"}>
+          {order.acquisitionSource === "WHATSAPP" ? "WA" : "Web"}
+        </span>
+        {order.dueDate && (
+          <span className={order.overdue ? "font-semibold text-red-400" : order.dueSoon ? "font-semibold text-amber-400" : ""}>
+            Entrega: {new Date(order.dueDate).toLocaleDateString("es-ES")}
+            {order.overdue && " (vencido)"}
+          </span>
+        )}
+        {order.assignedTo && <span className="text-amber-300/80">→ {order.assignedTo}</span>}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a
+          href={`/zona-traductor/pedido/${order.reference}`}
+          className="rounded-lg border border-emerald-500/50 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/25"
+        >
+          Abrir pedido
+        </a>
+        {order.nextBestAction.tab === "presupuesto" && (
+          <a
+            href={quickQuoteHref}
+            className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+          >
+            {order.nextBestAction.label}
+          </a>
+        )}
+        {order.nextBestAction.tab === "workflow" && order.paymentStatus === "PENDING" && (
+          <ConfirmPaymentButton reference={order.reference} />
+        )}
+      </div>
+    </div>
+  );
+}
 
 type FilterKey = "todos" | "urgentes" | "a-trabajar" | "en-curso" | "mis-pedidos";
 type GroupKey = "urgente" | "aTrabajar" | "enCurso" | "pendientes";
@@ -224,41 +327,7 @@ export default function BandejaEntrada({ orders, staffEmail }: Props) {
             {!isCollapsed && (
               <div className="space-y-3 pl-1">
                 {items.map((order) => (
-                  <OrderActionPanel
-                    key={order.reference}
-                    variant="card"
-                    isOverdue={order.overdue}
-                    isDueSoon={order.dueSoon}
-                    reference={order.reference}
-                    clientName={order.clientName}
-                    clientEmail={order.clientEmail}
-                    title={order.title}
-                    langPair={order.langPair}
-                    paymentStatus={order.paymentStatus}
-                    deliveryState={order.deliveryState}
-                    workflowState={order.workflowState}
-                    acquisitionSource={order.acquisitionSource}
-                    assignedTo={order.assignedTo}
-                    dueDate={order.dueDate}
-                    amountCents={order.amountCents}
-                    paymentProofs={order.paymentProofs}
-                    documents={order.documents}
-                    quoteDraft={order.quoteDraft}
-                    quoteAuditTrail={order.quoteAuditTrail}
-                    isArchived={order.isArchived}
-                    financeSnapshot={order.financeSnapshot}
-                    artifacts={order.artifacts}
-                    deliveryNotification={order.deliveryNotification}
-                    trackedLinks={order.trackedLinks}
-                    collaboratorAssignments={order.collaboratorAssignments}
-                    draftFileUrl={order.draftFileUrl}
-                    draftFilename={order.draftFilename}
-                    draftGeneratedAt={order.draftGeneratedAt}
-                    createdAt={order.createdAt}
-                    canonicalStage={order.canonicalStage}
-                    gates={order.gates}
-                    nextBestAction={order.nextBestAction}
-                  />
+                  <BandejaOrderCard key={order.reference} order={order} />
                 ))}
               </div>
             )}

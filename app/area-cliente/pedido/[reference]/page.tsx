@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOrderDetail } from "@/lib/orders";
+import { getSourceDocumentsFromEvents } from "@/lib/order-source-documents";
 import {
   getAc,
   acIntl,
@@ -35,36 +36,13 @@ function formatMoney(cents: number) {
 }
 
 function getSourceDocuments(events: Array<any>) {
-  const submitted = events.find((e) => e.type === "presupuesto.submitted");
-  const fromSubmitted = (() => {
-    if (!submitted) return [];
-    const payload = (submitted.payload || {}) as any;
-    const files = Array.isArray(payload.files) ? payload.files : [];
-    return files.map((file: any) => ({
-      fileUrl: String(file?.url || ""),
-      fileName: String(file?.name || "Documento"),
-      uploadedAt: String(file?.uploadedAt || submitted.createdAt?.toISOString?.() || ""),
+  return getSourceDocumentsFromEvents(events)
+    .filter((d) => d.url)
+    .map((d) => ({
+      fileUrl: String(d.url),
+      fileName: d.name,
+      uploadedAt: d.uploadedAt || "",
     }));
-  })();
-
-  const fromOrderUpload = events
-    .filter((e) => e.type === "order.source_document_uploaded")
-    .map((event) => {
-      const payload = (event.payload || {}) as any;
-      return {
-        fileUrl: String(payload.fileUrl || ""),
-        fileName: String(payload.fileName || "Documento"),
-        uploadedAt: String(payload.uploadedAt || event.createdAt?.toISOString?.() || ""),
-      };
-    });
-
-  const seen = new Set<string>();
-  return [...fromOrderUpload, ...fromSubmitted].filter((doc) => {
-    if (!doc.fileUrl) return false;
-    if (seen.has(doc.fileUrl)) return false;
-    seen.add(doc.fileUrl);
-    return true;
-  });
 }
 
 export default async function PedidoPage({ params }: PedidoPageProps) {

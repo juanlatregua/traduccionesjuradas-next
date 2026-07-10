@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getSourceDocumentsFromEvents } from "@/lib/order-source-documents";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import {
   customerPriceFromSupplierCost,
@@ -355,39 +356,12 @@ export async function applyAcceptedQuoteSideEffects(
 export function getDocumentsFromOrder(order: {
   events: Array<{ type: string; payload: unknown }>;
 }) {
-  const docs: Array<{ name: string; url: string; type: string }> = [];
-  const seen = new Set<string>();
-
-  for (const event of order.events) {
-    if (event.type === "order.source_document_uploaded") {
-      const payload = event.payload as Record<string, unknown>;
-      const url = String(payload?.fileUrl || "");
-      if (url && !seen.has(url)) {
-        seen.add(url);
-        docs.push({
-          name: String(payload?.fileName || "Documento"),
-          url,
-          type: String(payload?.fileType || "application/octet-stream"),
-        });
-      }
-    }
-    if (event.type === "presupuesto.submitted") {
-      const payload = event.payload as Record<string, unknown>;
-      const files = Array.isArray(payload?.files) ? payload.files : [];
-      for (const file of files) {
-        const f = file as Record<string, unknown>;
-        const url = String(f?.url || "");
-        if (url && !seen.has(url)) {
-          seen.add(url);
-          docs.push({
-            name: String(f?.name || "Documento"),
-            url,
-            type: String(f?.type || "application/octet-stream"),
-          });
-        }
-      }
-    }
-  }
-
-  return docs;
+  return getSourceDocumentsFromEvents(order.events)
+    .filter((d) => d.url)
+    .map((d) => ({
+      name: d.name,
+      url: String(d.url),
+      type: d.type || "application/octet-stream",
+    }));
 }
+
