@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fase A contabilidad — qué ha cambiado (14-jul-2026)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.55; max-width: 900px; margin: 2rem auto; padding: 0 1.2rem; color: #1e2530; background: #faf8f4; }
+  @media (prefers-color-scheme: dark) { body { color: #eaf0f7; background: #111a2b; } }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #27835b; padding-bottom: .4rem; }
+  h2 { font-size: 1.25rem; margin-top: 2.2rem; border-bottom: 1px solid #27835b55; padding-bottom: .25rem; }
+  .meta { color: #777; font-size: .9rem; }
+  .box { border: 1px solid #27835b66; border-left: 5px solid #27835b; border-radius: 6px; padding: .8rem 1rem; margin: 1rem 0; background: #27835b0d; }
+  .box.ambar { border-color: #b8860b88; border-left-color: #b8860b; background: #b8860b0d; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid #8886; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #27835b1a; }
+  code { background: #8883; padding: .1rem .3rem; border-radius: 3px; font-size: .88em; }
+  .antes { color: #b0483e; } .ahora { color: #27835b; font-weight: 600; }
+  ul { padding-left: 1.3rem; } li { margin: .35rem 0; }
+  .overflow { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<h1>✅ Fase A de contabilidad — qué ha cambiado</h1>
+<p class="meta">14 de julio de 2026 · PR #176 mergeado y desplegado en producción · Base: informe <code>docs/contabilidad-vendible-2026-07-14.html</code> · Verificado con revisión adversarial de 30 agentes (10 bugs cazados y corregidos antes de desplegar).</p>
+
+<div class="box">
+<strong>En una frase:</strong> tu contabilidad ya no depende de tu memoria — los gastos fijos entran solos cada mes, los duplicados se detectan al momento, el borrador del 303 entiende el ISP, y la numeración de facturas tiene un solo contador (la BD) con serie propia para presupuestos.
+</div>
+
+<h2>1 · Gastos recurrentes: los ~9 fijos del mes entran solos</h2>
+<p><span class="antes">Antes:</span> retecleabas cada mes la nómina de Isabelle, la TGSS, Laborlex, Microsoft, Adobe, Anthropic, Vercel, Stripe y Orange (o los acumulabas para un script trimestral).</p>
+<p><span class="ahora">Ahora:</span> hay <strong>9 plantillas activas</strong> en <code>/zona-traductor/recurrentes</code> (sección "Gastos recurrentes"). El cron diario genera cada gasto cuando llega su día del mes:</p>
+<div class="overflow"><table>
+<tr><th>Plantilla</th><th>Día</th><th>Importe</th><th>Cómo entra</th></tr>
+<tr><td>Nómina Isabelle (especie)</td><td>28</td><td>777,66 €</td><td>Directo al libro</td></tr>
+<tr><td>TGSS aplazamiento</td><td>28</td><td>104,93 €</td><td>Directo al libro</td></tr>
+<tr><td>Laborlex asesoría</td><td>28</td><td>90,82 € + IVA</td><td>Directo al libro</td></tr>
+<tr><td>Microsoft 365</td><td>7</td><td>17,75 € (ISP)</td><td>Directo al libro</td></tr>
+<tr><td>Adobe Creative Cloud</td><td>27</td><td>65,54 € (ISP)</td><td>Directo al libro</td></tr>
+<tr><td>Anthropic · Vercel · Stripe · Orange</td><td>5/10/28/5</td><td>variable</td><td><strong>Pendiente de confirmar</strong>: banner en contabilidad, subes el PDF (o tecleas el importe) y confirmas</td></tr>
+</table></div>
+<ul>
+<li>Los <strong>pendientes de confirmar NO cuentan</strong> en totales, 303 ni CSV de gestoría hasta que los confirmes — no contaminan números.</li>
+<li>Si el cron falla justo el día 28, el mes <strong>se recupera solo</strong> (ventana de un mes de backfill).</li>
+<li>Como el gasto ya existe cuando subes el CSV del BBVA, la conciliación <strong>cuadra sola</strong> los cargos recurrentes (±3 €).</li>
+<li>Editar plantillas (subida de cuota de Laborlex, etc.): en <code>/zona-traductor/recurrentes</code>.</li>
+</ul>
+
+<h2>2 · Anti-duplicados: el bug de los 91,46 € no puede repetirse en silencio</h2>
+<p><span class="antes">Antes:</span> nada impedía registrar dos veces la misma factura (pasó en el 2T: 4 duplicados → el 303 salió 172,53 € cuando el asesor tenía razón con ~246,83 €).</p>
+<p><span class="ahora">Ahora:</span></p>
+<ul>
+<li>Al guardar un gasto con el mismo <strong>NIF + nº de factura</strong> de proveedor (o mismo proveedor + mismo importe ±3 días si no hay número), la web te avisa con el detalle del gasto existente y te pregunta <strong>"¿guardar de todas formas?"</strong> — decisión consciente, no accidente.</li>
+<li>La <strong>extracción IA</strong> avisa "⚠ esta factura YA está registrada" nada más leer el PDF, antes de que rellenes nada.</li>
+<li>Los 4 duplicados del 2T ya están <strong>borrados de producción</strong> (originales conservados).</li>
+</ul>
+
+<h2>3 · El 303 entiende el ISP (y se acabó el modelo 130)</h2>
+<p><span class="antes">Antes:</span> los gastos de Microsoft/Adobe/Anthropic/Vercel/Stripe iban como "IVA 0 + nota de texto", el borrador del 303 los ignoraba (acertaba de casualidad) y el borrador calculaba un modelo 130 que no te aplica (eres S.L.).</p>
+<p><span class="ahora">Ahora:</span></p>
+<ul>
+<li>Cada gasto lleva su <strong>Tratamiento de IVA</strong>: General · ISP intracomunitario (Irlanda: Microsoft, Adobe, Stripe) · ISP importación de servicios (EE. UU.: Anthropic, Vercel, OpenAI) · Exento. Los <strong>29 gastos históricos ya están reclasificados</strong> en producción, y la extracción IA lo sugiere sola (NIF UE o "reverse charge" en la factura).</li>
+<li>El borrador del 303 <strong>autorrepercute</strong>: la cuota ISP suma al devengado y (solo la deducible) al deducible — las casillas dejan de "acertar de casualidad". Un ISP marcado no-deducible ahora sube el resultado, como debe.</li>
+<li>El <strong>CSV de la gestoría</strong> lleva 3 columnas nuevas: Tratamiento IVA, Notas y enlace al justificante — el asesor ya no tiene que adivinar qué es intracomunitario.</li>
+<li>La tarjeta del 130 es ahora una nota: <em>"S.L.: pagos fraccionados del IS por modelo 202 (gestoría)"</em>.</li>
+</ul>
+<div class="box ambar"><strong>Pendiente tuyo:</strong> validar con el asesor el mapeo exacto de casillas (adquisiciones intracomunitarias de servicios vs importación de servicios). El borrador usa etiquetas descriptivas hasta entonces — el resultado es correcto, los números de casilla los pone la gestoría.</div>
+
+<h2>4 · Numeración: un solo contador, serie propia para presupuestos</h2>
+<p><span class="antes">Antes:</span> el contador maestro era tu Excel (colisión real 26_010), los presupuestos consumían números de la serie fiscal de facturas, y un cliente podía consumir un número sin que te enteraras.</p>
+<p><span class="ahora">Ahora:</span></p>
+<ul>
+<li><strong>La BD es el contador.</strong> Al emitir, el número sugerido se asigna en el momento con reintento anti-colisión; solo si TÚ escribes un número distinto se respeta el tuyo (validado). Puedes jubilar la pestaña del Excel.</li>
+<li><strong>Presupuestos con serie propia <code>P26_NNN</code></strong> — dejan de comerse números de factura. Los históricos (26_011, 26_030…) se quedan como están, documentados.</li>
+<li>Si un cliente descarga su factura y el sistema la emite (lazy_pdf), te llega <strong>email de aviso</strong> con el número asignado.</li>
+<li><strong>Protección nueva importante:</strong> un pedido con <strong>presupuesto vinculado</strong> ya nunca se convierte solo en factura con 21% inventado — el cliente recibe la <strong>proforma</strong> y te llega aviso para emitir tú con el IVA correcto (protege los IVA-0 extra-UE tipo Fernández/HOLDING NOE).</li>
+<li>Borrar un pedido ya no arrastra su factura emitida (se conserva, es un documento fiscal); los borradores y presupuestos vinculados sí se limpian.</li>
+</ul>
+
+<h2>5 · Qué verás los próximos días</h2>
+<ul>
+<li><strong>Mañana ~08:00</strong> (cron de las 06:00 UTC): se generan los recurrentes de julio ya vencidos — Microsoft (fijo) y Anthropic/Vercel/Orange como <strong>pendientes de confirmar</strong> en el banner de <code>/zona-traductor/contabilidad</code>. Súbeles su PDF cuando lleguen y confirma.</li>
+<li><strong>Día 27-28</strong>: Adobe, nómina, TGSS, Laborlex y Stripe del mes entran solos.</li>
+<li>Si julio ya tenía algún gasto metido a mano, el sistema lo detecta y <strong>no lo duplica</strong> (lo verás como "skipped" — es lo esperado).</li>
+</ul>
+
+<h2>6 · Lo que NO cambia</h2>
+<ul>
+<li>La gestoría sigue siendo lo oficial; esto son borradores y libro interno (mejores, pero borradores).</li>
+<li>La nómina de Isabelle la sigue haciendo Laborlex — aquí solo entra su apunte contable con el PDF archivado (decisión razonada en el informe: generar el recibo en casa crearía dos verdades documentales sin ahorrarte nada).</li>
+<li>El flujo de emitir facturas es el mismo; solo que el número te lo da el sistema.</li>
+</ul>
+
+<p class="meta">Siguiente fase disponible cuando quieras (P1): botón "Paquete gestoría" (el zip trimestral en un clic) + reglas bancarias con memoria + Fase 0 Lavori. Plan completo en <code>docs/contabilidad-vendible-2026-07-14.html</code>.</p>
+
+</body>
+</html>
