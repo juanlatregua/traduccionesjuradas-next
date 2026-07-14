@@ -43,6 +43,12 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
 
+    // Con onDelete SetNull, la ClientInvoice vinculada NO se borra en cascada:
+    // los borradores y presupuestos se limpian (no son documentos fiscales);
+    // una factura EMITIDA se conserva huérfana a propósito (inmutable).
+    await prisma.clientInvoice.deleteMany({
+      where: { orderId: order.id, OR: [{ status: "DRAFT" }, { docKind: "quote" }] },
+    });
     await prisma.order.delete({
       where: { reference: params.reference },
     });

@@ -1137,6 +1137,55 @@ export async function sendStaffPaymentPendingEmail(data: {
   await sendMail({ to, subject, html });
 }
 
+// Aviso a Juan: una descarga del cliente auto-emitió la factura (origin lazy_pdf),
+// gastando un número de la serie fiscal sin intervención del staff. Best-effort.
+export async function sendInvoiceAutoIssuedStaffEmail(data: {
+  number: string;
+  reference: string;
+  totalCents: number;
+  clientEmail: string;
+}): Promise<void> {
+  const to = alertRecipient();
+  if (!to) return;
+  const amount = (data.totalCents / 100).toFixed(2);
+  const subject = `🧾 Factura ${data.number} emitida automáticamente (descarga del cliente, pedido ${data.reference})`;
+  const html = `
+    <h2>Factura emitida automáticamente</h2>
+    <p>El cliente ha descargado el PDF de su factura y el sistema la ha emitido con el siguiente número libre de la serie (la BD es el contador maestro). No hace falta hacer nada, solo que lo sepas.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Número</td><td>${data.number}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Pedido</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} €</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
+    </table>
+    <p style="font-size:13px; color:#6b7280;">Puedes revisarla en /zona-traductor/facturas.</p>
+  `;
+  await sendMail({ to, subject, html });
+}
+
+export async function sendInvoicePendingManualStaffEmail(data: {
+  quoteNumber: string;
+  reference: string;
+  totalCents: number;
+  clientEmail: string;
+}): Promise<void> {
+  const to = alertRecipient();
+  if (!to) return;
+  const amount = (data.totalCents / 100).toFixed(2);
+  const subject = `🧾 Pedido ${data.reference} pagado con presupuesto vinculado — falta emitir la factura`;
+  const html = `
+    <h2>Factura pendiente de emitir a mano</h2>
+    <p>El cliente ha descargado el PDF de su factura, pero el pedido tiene un presupuesto vinculado (${data.quoteNumber}) y su régimen de IVA puede no ser el 21%: el sistema le ha servido una PROFORMA. Emite la factura desde /zona-traductor/facturas con el IVA que corresponda.</p>
+    <table style="border-collapse:collapse; margin:12px 0;">
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Presupuesto</td><td>${data.quoteNumber}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Pedido</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} €</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
+    </table>
+  `;
+  await sendMail({ to, subject, html });
+}
+
 function alertRecipient() {
   const to =
     process.env.ALERT_EMAIL ||

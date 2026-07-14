@@ -237,7 +237,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
         <div className="mt-12">
           <h2 className="text-lg font-semibold text-white">Presupuestos del módulo de facturas</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Emitidos con serie AA_NNN desde Facturas (docKind «quote»). No son facturas ni entran en contabilidad.
+            Emitidos con serie propia P·AA_NNN desde Facturas (docKind «quote»). No son facturas ni entran en contabilidad.
           </p>
           {invoiceQuotes.length === 0 ? (
             <p className="mt-4 text-sm text-slate-500">

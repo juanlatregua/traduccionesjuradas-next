@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getOrderDetail } from "@/lib/orders";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
 import { getOrCreateClientInvoice } from "@/lib/client-invoice";
+import { sendInvoiceAutoIssuedStaffEmail, sendInvoicePendingManualStaffEmail } from "@/lib/email";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -53,11 +54,31 @@ export async function GET(req: Request, { params }: Params) {
       country: order.billing.country,
       email: order.billing.email,
     };
-    const invoice = await getOrCreateClientInvoice({
+    const { invoice, created, quotePending } = await getOrCreateClientInvoice({
       orderId: order.id,
       amountCents: order.amountCents,
       billing,
     });
+
+    // Auto-emisión (lazy_pdf): avisar al staff sin bloquear la descarga del PDF.
+    if (created) {
+      sendInvoiceAutoIssuedStaffEmail({
+        number: invoice.number || "(sin número)",
+        reference: order.reference,
+        totalCents: invoice.totalCents,
+        clientEmail: billing.email,
+      }).catch(console.error);
+    }
+    // Presupuesto vinculado: el cliente recibe la PROFORMA y el staff emite a mano
+    // (el régimen de IVA del presupuesto puede no ser 21%; no se convierte solo).
+    if (quotePending) {
+      sendInvoicePendingManualStaffEmail({
+        quoteNumber: invoice.number || "(borrador)",
+        reference: order.reference,
+        totalCents: invoice.totalCents,
+        clientEmail: billing.email,
+      }).catch(console.error);
+    }
 
     // Líneas del expediente, si las hay (precio sin IVA por documento).
     const items = await prisma.orderDocumentItem.findMany({
@@ -84,13 +105,14 @@ export async function GET(req: Request, { params }: Params) {
       words: order.words,
       paidAt: order.paidAt,
       createdAt: order.createdAt,
-      invoiceNumber: invoice.number ?? undefined,
+      invoiceNumber: quotePending ? undefined : (invoice.number ?? undefined),
       issuedAt: invoice.issuedAt,
       lines: lines.length > 0 ? lines : undefined,
       billing,
+      draft: quotePending || undefined,
     });
 
-    const filename = `${invoice.number}.pdf`;
+    const filename = quotePending ? `proforma-${order.reference}.pdf` : `${invoice.number}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

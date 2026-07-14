@@ -1,7 +1,9 @@
 // lib/client-invoice.ts — Factura al cliente con numeración fiscal AA_NNN.
-// Formato real de HBTJ: contador anual compartido (presupuestos + facturas),
-// p.ej. 26_014. La web auto-sugiere el siguiente según lo que tenga en BD, pero
-// el número es EDITABLE/manual porque el contador maestro lo lleva Juan (Excel).
+// La BD es el CONTADOR MAESTRO (el doble contador Excel+BD causó la colisión
+// 26_010): al emitir sin número se asigna automáticamente el siguiente de la
+// serie del docKind. Series separadas: facturas AA_NNN, presupuestos P·AA_NNN
+// (los presupuestos históricos con número de la serie de facturas se quedan como
+// están). El override manual sigue permitido, validado por formato del docKind.
 //
 // Dos caminos conviven:
 //  - Pedido pagado (auto): el importe es el TOTAL con IVA del pedido → base = total/(1+iva).
@@ -13,14 +15,18 @@ import type { Prisma } from "@prisma/client";
 import {
   clampVatRate,
   computeLineTotals,
+  isValidDocNumber,
   isValidInvoiceNumber,
+  nextNumberInSeries,
   normalizeLines,
   totalsFromGross,
   type InvoiceLine,
 } from "@/lib/invoice-math";
 
 // Re-exporta la API pública que ya consumían otros módulos.
-export { clampVatRate, computeLineTotals, isValidInvoiceNumber, type InvoiceLine };
+export { clampVatRate, computeLineTotals, isValidDocNumber, isValidInvoiceNumber, type InvoiceLine };
+
+export type DocKind = "invoice" | "quote";
 
 function yy(forYear?: number): string {
   return String((forYear ?? new Date().getFullYear()) % 100).padStart(2, "0");
@@ -31,21 +37,24 @@ function numberTakenError(n: string) {
   return Object.assign(new Error(`El número ${n} ya está en uso por otra factura.`), { code: "INVOICE_NUMBER_TAKEN" });
 }
 
-// Sugerencia: mayor secuencia conocida en BD para el año + 1. OJO: no conoce los
-// números que Juan haya asignado a mano en el Excel → es solo un punto de partida.
-// forYear: año de la serie (= año de la fecha de emisión); por defecto el actual.
-export async function suggestNextInvoiceNumber(forYear?: number): Promise<string> {
-  const prefix = `${yy(forYear)}_`;
+function invalidNumberError(docKind: DocKind) {
+  return new Error(
+    docKind === "quote"
+      ? "Número de presupuesto inválido. Formato: P + AA_NNN (p.ej. P26_001)."
+      : "Número de factura inválido. Formato: AA_NNN (p.ej. 26_018)."
+  );
+}
+
+// Sugerencia = contador maestro: mayor secuencia en BD de la serie del docKind
+// para el año + 1. forYear: año de la serie (= año de la emisión); por defecto el actual.
+export async function suggestNextInvoiceNumber(docKind: DocKind = "invoice", forYear?: number): Promise<string> {
+  const yearYY = yy(forYear);
+  const prefix = docKind === "quote" ? `P${yearYY}_` : `${yearYY}_`;
   const rows = await prisma.clientInvoice.findMany({
     where: { number: { startsWith: prefix } },
     select: { number: true },
   });
-  let max = 0;
-  for (const r of rows) {
-    const m = r.number?.match(/^(\d{2})_(\d+)$/);
-    if (m) max = Math.max(max, Number(m[2]));
-  }
-  return `${prefix}${String(max + 1).padStart(3, "0")}`;
+  return nextNumberInSeries(rows.map((r) => r.number), docKind, yearYY);
 }
 
 type BillingSnapshot = {
@@ -70,72 +79,105 @@ export async function issueOrUpdateInvoice(input: {
   origin?: string | null; // auditoría del origen
   simplified?: boolean; // factura simplificada (≤400€, sin NIF)
 }) {
-  const finalNumber = (input.number || "").trim() || (await suggestNextInvoiceNumber());
-  if (!isValidInvoiceNumber(finalNumber)) {
-    throw new Error("Número de factura inválido. Formato: AA_NNN (p.ej. 26_018).");
+  const manualNumber = (input.number || "").trim();
+  if (manualNumber && !isValidDocNumber(manualNumber, "invoice")) {
+    throw invalidNumberError("invoice");
   }
-
-  // Unicidad: no permitir un número ya usado por OTRO pedido.
-  const clash = await prisma.clientInvoice.findUnique({
-    where: { number: finalNumber },
-    select: { orderId: true },
+  // Un presupuesto vinculado NO se convierte automáticamente: su régimen de IVA
+  // puede no ser 21% (extra-UE 0%) y convertirlo destruiría el documento P y su
+  // número. La factura se emite a mano desde Facturas con el IVA correcto.
+  const linked = await prisma.clientInvoice.findUnique({
+    where: { orderId: input.orderId },
+    select: { docKind: true, number: true },
   });
-  if (clash && clash.orderId !== input.orderId) {
-    throw numberTakenError(finalNumber);
+  if (linked?.docKind === "quote") {
+    throw new Error(
+      `El pedido tiene un presupuesto vinculado (${linked.number || "borrador"}): emite la factura desde /zona-traductor/facturas con el IVA que corresponda.`
+    );
   }
-
+  const forYear = (input.issuedAt ?? new Date()).getFullYear();
   const { baseCents, vatCents, totalCents } = totalsFromGross(input.amountCents, 0.21);
-  const data = {
-    number: finalNumber,
-    status: "ISSUED",
-    fiscalName: input.billing.fiscalName,
-    nif: input.billing.nif,
-    address: input.billing.address,
-    city: input.billing.city,
-    postalCode: input.billing.postalCode,
-    country: input.billing.country,
-    email: input.billing.email,
-    baseCents,
-    vatRate: 0.21,
-    vatCents,
-    totalCents,
-    // origin solo se fija si se pasa explícito (no pisar el de una factura ya creada)
-    ...(input.origin ? { origin: input.origin } : {}),
-    // issuedAt en update solo si se pasa explícito (no re-sellar una emitida)
-    ...(input.issuedAt ? { issuedAt: input.issuedAt } : {}),
-    ...(input.simplified !== undefined ? { simplified: input.simplified } : {}),
-  };
 
-  try {
-    return await prisma.clientInvoice.upsert({
-      where: { orderId: input.orderId },
-      create: {
-        orderId: input.orderId,
-        issuedAt: input.issuedAt ?? new Date(),
-        origin: input.origin ?? "manual",
-        simplified: input.simplified ?? false,
-        ...data,
-      },
-      update: data,
+  // Auto-numeración con reintento anti-colisión (carrera con otra emisión); con
+  // número manual no se reintenta: la colisión es un error del operador.
+  let lastErr: any;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const finalNumber = manualNumber || (await suggestNextInvoiceNumber("invoice", forYear));
+
+    // Unicidad: no permitir un número ya usado por OTRO pedido.
+    const clash = await prisma.clientInvoice.findUnique({
+      where: { number: finalNumber },
+      select: { orderId: true },
     });
-  } catch (err: any) {
-    // Colisión de número @unique desde el propio upsert (carrera con otra emisión).
-    if (err?.code === "P2002") {
-      throw numberTakenError(finalNumber);
+    if (clash && clash.orderId !== input.orderId) {
+      if (manualNumber) throw numberTakenError(finalNumber);
+      lastErr = numberTakenError(finalNumber);
+      continue;
     }
-    throw err;
+
+    const data = {
+      number: finalNumber,
+      status: "ISSUED",
+      // Este camino SIEMPRE emite factura: si el pedido tenía un presupuesto
+      // (docKind quote), la fila pasa a factura para que serie y docKind casen.
+      docKind: "invoice",
+      fiscalName: input.billing.fiscalName,
+      nif: input.billing.nif,
+      address: input.billing.address,
+      city: input.billing.city,
+      postalCode: input.billing.postalCode,
+      country: input.billing.country,
+      email: input.billing.email,
+      baseCents,
+      vatRate: 0.21,
+      vatCents,
+      totalCents,
+      // origin solo se fija si se pasa explícito (no pisar el de una factura ya creada)
+      ...(input.origin ? { origin: input.origin } : {}),
+      // issuedAt en update solo si se pasa explícito (no re-sellar una emitida)
+      ...(input.issuedAt ? { issuedAt: input.issuedAt } : {}),
+      ...(input.simplified !== undefined ? { simplified: input.simplified } : {}),
+    };
+
+    try {
+      return await prisma.clientInvoice.upsert({
+        where: { orderId: input.orderId },
+        create: {
+          orderId: input.orderId,
+          issuedAt: input.issuedAt ?? new Date(),
+          origin: input.origin ?? "manual",
+          simplified: input.simplified ?? false,
+          ...data,
+        },
+        update: data,
+      });
+    } catch (err: any) {
+      // Colisión de número @unique desde el propio upsert (carrera con otra emisión).
+      if (err?.code === "P2002") {
+        if (manualNumber) throw numberTakenError(finalNumber);
+        lastErr = numberTakenError(finalNumber);
+        continue;
+      }
+      throw err;
+    }
   }
+  throw lastErr;
 }
 
 // Camino cliente: emite la factura si no existe (número auto AA_NNN). Idempotente.
+// `created` distingue la auto-emisión (lazy_pdf) para poder avisar al staff.
 export async function getOrCreateClientInvoice(input: {
   orderId: string;
   amountCents: number;
   billing: BillingSnapshot;
 }) {
   const existing = await prisma.clientInvoice.findUnique({ where: { orderId: input.orderId } });
-  if (existing) return existing;
-  return issueOrUpdateInvoice({ ...input, origin: "lazy_pdf" });
+  // Un presupuesto (docKind quote) no es la factura del cliente y NO se convierte
+  // solo: el cliente recibe la proforma y el staff emite la factura a mano.
+  if (existing?.docKind === "quote") return { invoice: existing, created: false, quotePending: true as const };
+  if (existing) return { invoice: existing, created: false };
+  const invoice = await issueOrUpdateInvoice({ ...input, origin: "lazy_pdf" });
+  return { invoice, created: true };
 }
 
 // ── Camino manual/libre: borrador editable, sin número hasta emitir ─────────────
@@ -156,7 +198,7 @@ export type DraftInvoiceInput = {
   lines: InvoiceLine[];
   vatRate: number;
   orderId?: string | null;
-  docKind?: string | null; // invoice | quote — quote = presupuesto: comparte serie AA_NNN pero queda fuera de contabilidad/303/gestoría
+  docKind?: string | null; // invoice | quote — quote = presupuesto: serie propia P·AA_NNN y fuera de contabilidad/303/gestoría
 };
 
 // Campos comunes de un borrador (sin orderId: lo gestiona cada caller para no
@@ -217,6 +259,7 @@ export async function updateDraftInvoice(id: string, input: DraftInvoiceInput) {
 }
 
 // Asigna el número fiscal y congela la factura. Idempotente si ya está emitida.
+// La serie sale del docKind del documento: factura AA_NNN, presupuesto P·AA_NNN.
 // issuedAt opcional: para sellar con la fecha del cobro (conciliación), no hoy.
 export async function issueInvoice(id: string, opts?: { number?: string | null; issuedAt?: Date | null; origin?: string | null; simplified?: boolean }) {
   const inv = await prisma.clientInvoice.findUnique({ where: { id } });
@@ -225,33 +268,47 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
   if (!inv.fiscalName?.trim()) throw new Error("Falta el nombre fiscal del cliente.");
   if (inv.totalCents <= 0) throw new Error("La factura no tiene importe. Añade al menos una línea.");
 
-  const finalNumber = (opts?.number || "").trim() || (await suggestNextInvoiceNumber());
-  if (!isValidInvoiceNumber(finalNumber)) {
-    throw new Error("Número de factura inválido. Formato: AA_NNN (p.ej. 26_018).");
+  const docKind: DocKind = inv.docKind === "quote" ? "quote" : "invoice";
+  const manualNumber = (opts?.number || "").trim();
+  if (manualNumber && !isValidDocNumber(manualNumber, docKind)) {
+    throw invalidNumberError(docKind);
   }
-  const clash = await prisma.clientInvoice.findUnique({
-    where: { number: finalNumber },
-    select: { id: true },
-  });
-  if (clash && clash.id !== id) {
-    throw numberTakenError(finalNumber);
-  }
+  const issuedAt = opts?.issuedAt ?? new Date();
 
-  try {
-    return await prisma.clientInvoice.update({
-      where: { id },
-      data: {
-        number: finalNumber,
-        status: "ISSUED",
-        issuedAt: opts?.issuedAt ?? new Date(),
-        ...(opts?.origin ? { origin: opts.origin } : {}),
-        ...(opts?.simplified !== undefined ? { simplified: opts.simplified } : {}),
-      },
+  let lastErr: any;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const finalNumber = manualNumber || (await suggestNextInvoiceNumber(docKind, issuedAt.getFullYear()));
+    const clash = await prisma.clientInvoice.findUnique({
+      where: { number: finalNumber },
+      select: { id: true },
     });
-  } catch (err: any) {
-    if (err?.code === "P2002") throw numberTakenError(finalNumber);
-    throw err;
+    if (clash && clash.id !== id) {
+      if (manualNumber) throw numberTakenError(finalNumber);
+      lastErr = numberTakenError(finalNumber);
+      continue;
+    }
+
+    try {
+      return await prisma.clientInvoice.update({
+        where: { id },
+        data: {
+          number: finalNumber,
+          status: "ISSUED",
+          issuedAt,
+          ...(opts?.origin ? { origin: opts.origin } : {}),
+          ...(opts?.simplified !== undefined ? { simplified: opts.simplified } : {}),
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === "P2002") {
+        if (manualNumber) throw numberTakenError(finalNumber);
+        lastErr = numberTakenError(finalNumber);
+        continue;
+      }
+      throw err;
+    }
   }
+  throw lastErr;
 }
 
 // Fuente ÚNICA del sellado de cobro de una factura de cliente. La usan tanto la

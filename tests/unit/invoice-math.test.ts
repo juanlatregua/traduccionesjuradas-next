@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   isValidInvoiceNumber,
+  isValidDocNumber,
+  nextNumberInSeries,
   clampVatRate,
   normalizeLines,
   computeLineTotals,
@@ -14,6 +16,35 @@ test("isValidInvoiceNumber acepta AA_NNN y rechaza el resto", () => {
   assert.ok(!isValidInvoiceNumber("FAC-2026-001"));
   assert.ok(!isValidInvoiceNumber("26-018"));
   assert.ok(!isValidInvoiceNumber("2026_18"));
+});
+
+test("isValidDocNumber: cada serie rechaza el formato de la otra", () => {
+  // Facturas: AA_NNN, sin P.
+  assert.ok(isValidDocNumber("26_018", "invoice"));
+  assert.ok(!isValidDocNumber("P26_018", "invoice"));
+  // Presupuestos: P + AA_NNN, obligatoria la P.
+  assert.ok(isValidDocNumber("P26_001", "quote"));
+  assert.ok(isValidDocNumber("P26_0012", "quote"));
+  assert.ok(!isValidDocNumber("26_001", "quote"));
+  assert.ok(!isValidDocNumber("p26_001", "quote"));
+  assert.ok(!isValidDocNumber("P26-001", "quote"));
+  assert.ok(!isValidDocNumber("P26_01", "quote"));
+});
+
+test("nextNumberInSeries: serie de facturas ignora los P y cuenta los quotes históricos sin P", () => {
+  const existing = ["26_010", "26_011", "26_045", "P26_003", "25_099", null];
+  assert.equal(nextNumberInSeries(existing, "invoice", "26"), "26_046");
+});
+
+test("nextNumberInSeries: serie P solo cuenta los P de su año; los históricos sin P no", () => {
+  const existing = ["26_011", "26_030", "26_041", "26_045", "P25_007"];
+  assert.equal(nextNumberInSeries(existing, "quote", "26"), "P26_001");
+  assert.equal(nextNumberInSeries([...existing, "P26_002"], "quote", "26"), "P26_003");
+});
+
+test("nextNumberInSeries: series vacías arrancan en 001", () => {
+  assert.equal(nextNumberInSeries([], "invoice", "26"), "26_001");
+  assert.equal(nextNumberInSeries([], "quote", "26"), "P26_001");
 });
 
 test("clampVatRate normaliza fracción, porcentaje y basura", () => {

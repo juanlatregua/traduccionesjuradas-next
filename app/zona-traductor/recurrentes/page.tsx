@@ -3,20 +3,25 @@ import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getStaffRole } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
 import RecurringInvoiceManager, { type RecurringRow } from "@/components/RecurringInvoiceManager";
+import RecurringExpenseManager, { type RecurringExpenseRow } from "@/components/RecurringExpenseManager";
 
 export const metadata: Metadata = {
-  title: "Zona traductor — Facturas recurrentes",
+  title: "Zona traductor — Recurrentes",
   robots: { index: false, follow: false },
 };
 
 type Line = { description: string; detail?: string; amountCents: number };
+type ExpenseLine = { concept: string; baseCents: number; vatRate: number; ivaDeducible?: boolean; taxTreatment?: string };
 
 export default async function ZonaTraductorRecurrentesPage() {
   const email = await authZonaTraductorOrRedirect();
   const role = getStaffRole(email);
   const canManage = role === "ADMIN" || role === "PM";
 
-  const raw = await prisma.recurringInvoice.findMany({ orderBy: [{ active: "desc" }, { createdAt: "desc" }] });
+  const [raw, rawExpenses] = await Promise.all([
+    prisma.recurringInvoice.findMany({ orderBy: [{ active: "desc" }, { createdAt: "desc" }] }),
+    prisma.recurringExpense.findMany({ orderBy: [{ active: "desc" }, { createdAt: "desc" }] }),
+  ]);
   const templates: RecurringRow[] = raw.map((t) => ({
     id: t.id,
     label: t.label,
@@ -40,6 +45,24 @@ export default async function ZonaTraductorRecurrentesPage() {
     notes: t.notes,
   }));
 
+  const expenseTemplates: RecurringExpenseRow[] = rawExpenses.map((t) => ({
+    id: t.id,
+    label: t.label,
+    active: t.active,
+    brand: t.brand,
+    supplier: t.supplier,
+    supplierNif: t.supplierNif,
+    category: t.category,
+    conceptTemplate: t.conceptTemplate,
+    lines: Array.isArray(t.lineItemsJson) ? (t.lineItemsJson as unknown as ExpenseLine[]) : [],
+    vatRate: t.vatRate,
+    taxTreatment: t.taxTreatment,
+    irpfRetentionPct: t.irpfRetentionPct,
+    amountCents: t.amountCents,
+    dayOfMonth: t.dayOfMonth,
+    lastGeneratedPeriod: t.lastGeneratedPeriod,
+  }));
+
   return (
     <div className="min-h-screen bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -50,6 +73,18 @@ export default async function ZonaTraductorRecurrentesPage() {
         </p>
         {canManage ? (
           <RecurringInvoiceManager templates={templates} />
+        ) : (
+          <p className="mt-6 text-slate-500">Solo ADMIN/PM puede gestionar plantillas recurrentes.</p>
+        )}
+
+        <h2 className="mt-12 text-2xl font-semibold text-white">Gastos recurrentes</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Gastos fijos del mes (nómina, TGSS, asesoría, SaaS…). El cron crea el gasto el día indicado; los de importe
+          variable quedan <strong>pendientes de confirmar</strong> en Contabilidad y no cuentan hasta que pongas el
+          importe real. Usa <code>{"{MES} {AÑO}"}</code> en el concepto.
+        </p>
+        {canManage ? (
+          <RecurringExpenseManager templates={expenseTemplates} />
         ) : (
           <p className="mt-6 text-slate-500">Solo ADMIN/PM puede gestionar plantillas recurrentes.</p>
         )}

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { taxTreatmentLabel } from "@/lib/expense-math";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,8 @@ export async function GET(req: Request) {
   const q = url.searchParams.get("q");
   const m = url.searchParams.get("m");
 
-  const where: Prisma.ExpenseWhereInput = {};
+  // needsReview=true = gasto recurrente pendiente de confirmar → fuera de la gestoría.
+  const where: Prisma.ExpenseWhereInput = { needsReview: false };
   let tag = "";
   if (year && /^\d{4}$/.test(year)) {
     const y = Number(year);
@@ -46,7 +48,7 @@ export async function GET(req: Request) {
 
   const rows = await prisma.expense.findMany({ where, orderBy: { date: "asc" } });
 
-  const header = ["Fecha", "NumFacturaProveedor", "Proveedor", "NIF", "Concepto", "Categoria", "Base", "%IVA", "IVA", "IVADeducible", "%IRPF", "IRPF", "Total", "APagar"].join(";");
+  const header = ["Fecha", "NumFacturaProveedor", "Proveedor", "NIF", "Concepto", "Categoria", "Base", "%IVA", "IVA", "IVADeducible", "Tratamiento IVA", "%IRPF", "IRPF", "Total", "APagar", "Notas", "Justificante"].join(";");
   const body = rows.map((r) =>
     [
       r.date.toISOString().slice(0, 10),
@@ -59,10 +61,13 @@ export async function GET(req: Request) {
       String(Math.round(r.vatRate * 100)),
       eur(r.vatCents),
       r.ivaDeducible ? "Si" : "No",
+      taxTreatmentLabel(r.taxTreatment),
       String(Math.round(r.irpfRetentionPct * 100)),
       eur(r.irpfCents),
       eur(r.totalCents),
       eur(r.payableCents ?? r.totalCents),
+      r.notes || "",
+      r.attachmentUrl || "",
     ]
       .map(csvCell)
       .join(";")

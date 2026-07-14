@@ -11,6 +11,35 @@ export function clampIrpfPct(v: number | string | null | undefined): number {
   return 0;
 }
 
+// Tratamiento de IVA del gasto: general | ISP intracomunitario | ISP importación | exento.
+export const TAX_TREATMENTS = ["general", "isp_intracom", "isp_import", "exempt"] as const;
+
+export const TAX_TREATMENT_OPTIONS = [
+  { value: "general", label: "General" },
+  { value: "isp_intracom", label: "ISP intracomunitario (UE)" },
+  { value: "isp_import", label: "ISP importación de servicios (extra-UE)" },
+  { value: "exempt", label: "Exento/no sujeto" },
+] as const;
+
+export function taxTreatmentLabel(v: string | null | undefined): string {
+  return TAX_TREATMENT_OPTIONS.find((o) => o.value === v)?.label || "General";
+}
+
+export function clampTaxTreatment(v: string | null | undefined): string {
+  return (TAX_TREATMENTS as readonly string[]).includes(v || "") ? (v as string) : "general";
+}
+
+// Ventana de sospecha de duplicado sin nº de factura: mismo proveedor + mismo
+// importe con fechas a ≤ N días de distancia (por defecto ±3).
+export const DUPLICATE_WINDOW_DAYS = 3;
+
+export function isWithinDuplicateWindow(a: Date | string, b: Date | string, days: number = DUPLICATE_WINDOW_DAYS): boolean {
+  const ta = new Date(a).getTime();
+  const tb = new Date(b).getTime();
+  if (!Number.isFinite(ta) || !Number.isFinite(tb)) return false;
+  return Math.abs(ta - tb) <= days * 24 * 60 * 60 * 1000;
+}
+
 // total = base + IVA (importe de la factura recibida).
 // payable = base + IVA − IRPF (lo que se transfiere al proveedor; el IRPF lo ingresa
 // HBTJ en el 111). IRPF es ortogonal al IVA: no toca el 303.

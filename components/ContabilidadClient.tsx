@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BRAND_OPTIONS } from "@/lib/invoice-brands";
-import { computeExpenseTotals, clampIrpfPct } from "@/lib/expense-math"; // puro, sin Prisma
-import { build303, build111, build130, draftToText } from "@/lib/tax-drafts";
+import { computeExpenseTotals, clampIrpfPct, clampTaxTreatment, TAX_TREATMENT_OPTIONS } from "@/lib/expense-math"; // puro, sin Prisma
+import { build303, build111, draftToText } from "@/lib/tax-drafts";
 import CollapsibleSection from "@/components/CollapsibleSection";
 
 const ALLOWED_VAT = [0, 0.04, 0.1, 0.21];
@@ -38,12 +38,18 @@ export type AcExpense = {
   date: string;
   concept: string;
   supplier: string | null;
+  supplierNif: string | null;
   supplierInvoiceNumber: string | null;
   category: string | null;
   brand: string;
   baseCents: number;
+  vatRate: number;
   vatCents: number;
   ivaDeducible: boolean;
+  taxTreatment: string;
+  needsReview: boolean;
+  notes: string | null;
+  irpfRetentionPct: number;
   irpfCents: number;
   totalCents: number;
   payableCents: number;
@@ -86,7 +92,7 @@ const SECTIONS = [
 export default function ContabilidadClient({
   invoices,
   orders,
-  expenses,
+  expenses: allExpenses,
   unbilled = [],
   sinFacturaSlot,
   bancoSlot,
@@ -100,6 +106,11 @@ export default function ContabilidadClient({
   bancoSlot?: ReactNode;
   importSlot?: ReactNode;
 }) {
+  // needsReview=true = gasto recurrente pendiente de confirmar → fuera de TODOS los
+  // números (totales, balance, 303/130). Solo aparece en el banner de pendientes.
+  const expenses = useMemo(() => allExpenses.filter((e) => !e.needsReview), [allExpenses]);
+  const pendingExpenses = useMemo(() => allExpenses.filter((e) => e.needsReview), [allExpenses]);
+
   const years = useMemo(() => {
     const ys = new Set<number>();
     invoices.forEach((i) => ys.add(new Date(i.issuedAt).getUTCFullYear()));
@@ -154,7 +165,7 @@ export default function ContabilidadClient({
   const ingresosCobrado = inv.base + sinFacturaBase;
   const resultado = ingresosCobrado - exp.base;
   const margen = ingresosCobrado > 0 ? resultado / ingresosCobrado : 0;
-  // Los impuestos se derivan de la fuente única (build303/111/130) más abajo, tras `drafts`.
+  // Los impuestos se derivan de la fuente única (build303/111) más abajo, tras `drafts`.
 
   // ── Balance por mes/trimestre/año (ingreso cobrado vs gasto) ──
   const balance = useMemo(() => {
@@ -194,20 +205,7 @@ export default function ContabilidadClient({
     return { inc, gto, res, margen: inc > 0 ? res / inc : 0, best, worst, trend };
   }, [balance]);
 
-  // ── Borradores de impuestos del periodo (303/111/130) ──
-  const periodEndMonth = useMemo(() => {
-    if (fPeriod.startsWith("q")) { const ms = Q_MONTHS[fPeriod]; return ms[ms.length - 1]; }
-    if (fPeriod.startsWith("m")) return Number(fPeriod.slice(1)) - 1;
-    return 11;
-  }, [fPeriod]);
-  const inYtd = useMemo(
-    () => (iso: string) => {
-      if (fYear === "all") return false;
-      const d = new Date(iso);
-      return d.getUTCFullYear() === Number(fYear) && d.getUTCMonth() <= periodEndMonth;
-    },
-    [fYear, periodEndMonth]
-  );
+  // ── Borradores de impuestos del periodo (303/111) ──
   const drafts = useMemo(() => {
     const byRate = new Map<number, { baseCents: number; cuotaCents: number }>();
     for (const i of inv.rows) {
@@ -220,29 +218,36 @@ export default function ContabilidadClient({
     const devengado = [...byRate.entries()]
       .sort((a, b) => b[0] - a[0])
       .map(([rate, v]) => ({ ratePct: Math.round(rate * 100), baseCents: v.baseCents, cuotaCents: v.cuotaCents }));
-    const baseDeducible = exp.rows.filter((e) => e.ivaDeducible).reduce((a, e) => a + e.baseCents, 0);
+    // ISP (art. 84 LIVA): la cuota se autorrepercute (devengado) y se deduce a la vez.
+    // Los gastos ISP llevan vatCents 0 → el soportado "clásico" (vatCents) no los duplica.
+    const ispBase = (kind: string, onlyDeducible: boolean) =>
+      exp.rows
+        .filter((e) => e.taxTreatment === kind && (!onlyDeducible || e.ivaDeducible))
+        .reduce((a, e) => a + e.baseCents, 0);
+    const baseDeducible = exp.rows.filter((e) => e.ivaDeducible && !e.taxTreatment.startsWith("isp_")).reduce((a, e) => a + e.baseCents, 0);
     const exp111 = exp.rows.filter((e) => e.irpfCents > 0);
-    const d303 = build303(devengado, baseDeducible, exp.deducibleVat);
+    const d303 = build303(devengado, baseDeducible, exp.deducibleVat, {
+      intracomBaseCents: ispBase("isp_intracom", false),
+      intracomDeducibleBaseCents: ispBase("isp_intracom", true),
+      importBaseCents: ispBase("isp_import", false),
+      importDeducibleBaseCents: ispBase("isp_import", true),
+    });
     const d111 = build111(exp111.reduce((a, e) => a + e.baseCents, 0), exp.irpf, exp111.length);
-    const ytdInvBase = invoices.filter((i) => inYtd(i.issuedAt)).reduce((a, i) => a + i.baseCents, 0);
-    const ytdExpBase = expenses.filter((e) => inYtd(e.date)).reduce((a, e) => a + e.baseCents, 0);
-    const d130 = build130(ytdInvBase, ytdExpBase);
-    return { d303, d111, d130 };
-  }, [inv.rows, exp.deducibleVat, exp.rows, exp.irpf, invoices, expenses, inYtd]);
+    return { d303, d111 };
+  }, [inv.rows, exp.deducibleVat, exp.rows, exp.irpf]);
 
-  // Impuestos estimados atados a la fuente única (build303/111/130). El 303 y el 111 son
-  // del periodo; el 130 es acumulado del año (así funciona el pago fraccionado real).
+  // Impuestos estimados atados a la fuente única (build303/111), del periodo.
+  // El IS (pagos fraccionados, modelo 202) lo lleva la gestoría — fuera de aquí.
   const iva303 = drafts.d303.resultadoCents;
   const irpf111 = drafts.d111.retencionesCents;
-  const irpf130 = drafts.d130.aIngresarCents;
-  const impuestosEstim = Math.max(0, iva303) + Math.max(0, irpf111) + Math.max(0, irpf130);
+  const impuestosEstim = Math.max(0, iva303) + Math.max(0, irpf111);
 
   const periodLabel = `${fYear === "all" ? "todos los años" : fYear}${
     fPeriod === "all" ? "" : ` · ${fPeriod.startsWith("q") ? "T" + fPeriod.slice(1) : MONTHS[Number(fPeriod.slice(1)) - 1]}`
   }`;
 
   function downloadDraft() {
-    const text = draftToText(periodLabel, drafts.d303, drafts.d111, drafts.d130);
+    const text = draftToText(periodLabel, drafts.d303, drafts.d111);
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -267,8 +272,32 @@ export default function ContabilidadClient({
   const [showExp, setShowExp] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [gasto, setGasto] = useState({ date: "", concept: "", supplier: "", supplierNif: "", supplierInvoiceNumber: "", category: "", brand: "traduccionesjuradas", base: "", vatRate: 0.21, irpfPct: 0, ivaDeducible: true });
+  const [gasto, setGasto] = useState({ date: "", concept: "", supplier: "", supplierNif: "", supplierInvoiceNumber: "", category: "", brand: "traduccionesjuradas", base: "", vatRate: 0.21, irpfPct: 0, ivaDeducible: true, taxTreatment: "general" });
   const [gastoFile, setGastoFile] = useState<File | null>(null);
+  // Gasto recurrente pendiente que se está confirmando (el guardado hace PATCH needsReview:false).
+  const [confirming, setConfirming] = useState<AcExpense | null>(null);
+
+  function startConfirm(e: AcExpense) {
+    setConfirming(e);
+    setGasto({
+      date: e.date.slice(0, 10),
+      concept: e.concept,
+      supplier: e.supplier || "",
+      supplierNif: e.supplierNif || "",
+      supplierInvoiceNumber: e.supplierInvoiceNumber || "",
+      category: e.category || "",
+      brand: e.brand,
+      base: e.baseCents ? (e.baseCents / 100).toFixed(2) : "",
+      vatRate: snapVat(e.vatRate),
+      irpfPct: clampIrpfPct(e.irpfRetentionPct),
+      ivaDeducible: e.ivaDeducible,
+      taxTreatment: e.taxTreatment,
+    });
+    setGastoFile(null);
+    setMsg(null);
+    setShowExp(true);
+    document.getElementById("estructurales")?.scrollIntoView({ behavior: "smooth" });
+  }
 
   const gastoCalc = useMemo(() => {
     const base = Math.round((parseFloat(gasto.base.replace(",", ".")) || 0) * 100);
@@ -282,6 +311,10 @@ export default function ContabilidadClient({
     }
     if (gasto.irpfPct > 0 && !gasto.supplierNif.trim()) {
       setMsg("La retención de IRPF exige el NIF del proveedor.");
+      return;
+    }
+    if (confirming && !(parseFloat(gasto.base.replace(",", ".")) > 0)) {
+      setMsg("Indica el importe real (base) para confirmar el gasto recurrente.");
       return;
     }
     setBusy(true);
@@ -301,27 +334,38 @@ export default function ContabilidadClient({
         attachmentKey = ud.pathname || null;
         attachmentName = gastoFile.name;
       }
-      const res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: gasto.date,
-          concept: gasto.concept.trim(),
-          supplier: gasto.supplier.trim() || null,
-          supplierNif: gasto.supplierNif.trim() || null,
-          supplierInvoiceNumber: gasto.supplierInvoiceNumber.trim() || null,
-          category: gasto.category.trim() || null,
-          brand: gasto.brand,
-          baseCents: Math.round((parseFloat(gasto.base.replace(",", ".")) || 0) * 100),
-          vatRate: gasto.vatRate,
-          ivaDeducible: gasto.ivaDeducible,
-          irpfRetentionPct: gasto.irpfPct,
-          attachmentUrl,
-          attachmentKey,
-          attachmentName,
-        }),
-      });
-      const data = await res.json();
+      const url = confirming ? `/api/expenses/${confirming.id}` : "/api/expenses";
+      const method = confirming ? "PATCH" : "POST";
+      const payload = {
+        date: gasto.date,
+        concept: gasto.concept.trim(),
+        supplier: gasto.supplier.trim() || null,
+        supplierNif: gasto.supplierNif.trim() || null,
+        supplierInvoiceNumber: gasto.supplierInvoiceNumber.trim() || null,
+        category: gasto.category.trim() || null,
+        brand: gasto.brand,
+        baseCents: Math.round((parseFloat(gasto.base.replace(",", ".")) || 0) * 100),
+        vatRate: gasto.vatRate,
+        ivaDeducible: gasto.ivaDeducible,
+        taxTreatment: gasto.taxTreatment,
+        irpfRetentionPct: gasto.irpfPct,
+        attachmentUrl,
+        attachmentKey,
+        attachmentName,
+        ...(confirming ? { needsReview: false, notes: confirming.notes } : {}),
+      };
+      let res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      let data = await res.json();
+      // 409 = posible duplicado (mismo nº de factura, o mismo proveedor+importe±3d): confirmar antes de forzar.
+      if (res.status === 409 && data.duplicate) {
+        const d = data.duplicate;
+        const detail = `${new Date(d.date).toLocaleDateString("es-ES")} · ${d.concept}${d.supplier ? ` · ${d.supplier}` : ""} · ${((d.totalCents || 0) / 100).toFixed(2)} €`;
+        if (!window.confirm(`Ya existe un gasto que parece el mismo:\n\n${detail}\n\n¿Guardar de todas formas?`)) {
+          throw new Error("No guardado: posible duplicado.");
+        }
+        res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, force: true }) });
+        data = await res.json();
+      }
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo guardar.");
       window.location.reload();
     } catch (e: any) {
@@ -347,10 +391,18 @@ export default function ContabilidadClient({
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo extraer.");
       const x = d.data || {};
-      const vatRate = x.vatRate != null ? snapVat(x.vatRate) : gasto.vatRate;
+      const suggestedTreatment = x.taxTreatment ? clampTaxTreatment(x.taxTreatment) : null;
+      const vatRate = suggestedTreatment?.startsWith("isp_") ? 0 : x.vatRate != null ? snapVat(x.vatRate) : gasto.vatRate;
       const irpfPct = x.irpfRate != null ? clampIrpfPct(x.irpfRate) : gasto.irpfPct;
       const base = x.baseEur != null ? String(x.baseEur) : gasto.base;
       let warn = "";
+      if (d.duplicateOf) {
+        const dup = d.duplicateOf;
+        warn += ` ⚠ Esta factura (nº ${x.supplierInvoiceNumber}) YA está registrada: ${dup.supplier || dup.concept} el ${String(dup.date).slice(0, 10)} por ${(dup.totalCents / 100).toFixed(2).replace(".", ",")} €. Si guardas, crearás un duplicado.`;
+      }
+      if (suggestedTreatment?.startsWith("isp_")) {
+        warn += " Proveedor extranjero: se sugiere ISP (IVA autorrepercutido en el 303) — revisa el tratamiento de IVA.";
+      }
       if (x.irpfRate && clampIrpfPct(x.irpfRate) === 0) {
         warn += " Retención no estándar (¿19% de alquiler? eso es modelo 115, aparte): revísala a mano.";
       }
@@ -370,6 +422,7 @@ export default function ContabilidadClient({
         base,
         vatRate,
         irpfPct,
+        taxTreatment: suggestedTreatment || g.taxTreatment,
       }));
       setMsg("Datos extraídos. Revísalos y completa lo que falte antes de guardar." + warn);
     } catch (e: any) {
@@ -528,9 +581,37 @@ export default function ContabilidadClient({
         <div className={card}>
           <p className={cardLabel}>Impuestos estim. a pagar</p>
           <p className={`${cardValue} text-amber-300`}>{eur(impuestosEstim)}</p>
-          <p className="mt-1 text-[11px] text-slate-500">IVA {eur(Math.max(0, iva303))} · 111 {eur(Math.max(0, irpf111))} · 130 año {eur(Math.max(0, irpf130))}</p>
+          <p className="mt-1 text-[11px] text-slate-500">IVA {eur(Math.max(0, iva303))} · 111 {eur(Math.max(0, irpf111))} · IS por 202 (gestoría)</p>
         </div>
       </div>
+
+      {/* Gastos recurrentes pendientes de confirmar (fuera de todos los números) */}
+      {pendingExpenses.length > 0 && (
+        <div className="mt-4 rounded-xl border border-amber-700/60 bg-amber-900/20 p-4">
+          <p className="text-sm font-semibold text-amber-200">Gastos recurrentes pendientes de confirmar ({pendingExpenses.length})</p>
+          <p className="mt-1 text-[11px] text-amber-200/70">
+            No cuentan en totales, 303 ni CSV de gestoría hasta que los confirmes con el importe real de la factura.
+          </p>
+          <ul className="mt-2 divide-y divide-amber-800/40">
+            {pendingExpenses.map((e) => (
+              <li key={e.id} className="flex flex-wrap items-center gap-2 py-2 text-sm text-slate-200">
+                <span className="w-24 shrink-0 text-xs text-slate-400">{new Date(e.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</span>
+                <span className="min-w-[180px] flex-1">
+                  {e.concept}
+                  {e.supplier && <span className="ml-2 text-xs text-slate-500">{e.supplier}</span>}
+                </span>
+                <span className="tabular-nums text-xs text-slate-400">{e.baseCents > 0 ? eur(e.baseCents) : "importe pendiente"}</span>
+                <button type="button" onClick={() => startConfirm(e)} disabled={busy} className="rounded bg-amber-600 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">
+                  Confirmar
+                </button>
+                <button type="button" onClick={() => delExpense(e.id)} disabled={busy} className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50">
+                  Descartar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Chips de navegación (sticky) */}
       <nav className="sticky top-0 z-20 -mx-4 mt-4 overflow-x-auto border-b border-slate-800 bg-slate-950/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
@@ -678,13 +759,25 @@ export default function ContabilidadClient({
         title="Gastos estructurales"
         subtitle={`Costes fijos (nómina, SS, seguros, software, telefonía, gestoría…) · base ${eur(estructBase)}`}
         right={
-          <button type="button" onClick={() => setShowExp((v) => !v)} className="rounded-lg border border-cyan-700 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-900/30">
+          <button
+            type="button"
+            onClick={() => {
+              setShowExp((v) => !v);
+              setConfirming(null);
+            }}
+            className="rounded-lg border border-cyan-700 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-900/30"
+          >
             {showExp ? "Cerrar" : "+ Añadir gasto"}
           </button>
         }
       >
         {showExp && (
           <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+            {confirming && (
+              <p className="mb-3 rounded-lg border border-amber-700/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-200">
+                Confirmando gasto recurrente «{confirming.concept}»: pon el importe real y guarda. Se contabilizará al confirmar.
+              </p>
+            )}
             <div className="grid gap-2 sm:grid-cols-3">
               <input type="date" className={FIELD} value={gasto.date} onChange={(e) => setGasto({ ...gasto, date: e.target.value })} />
               <input className={`${FIELD} sm:col-span-2`} placeholder="Concepto *" value={gasto.concept} onChange={(e) => setGasto({ ...gasto, concept: e.target.value })} />
@@ -698,12 +791,25 @@ export default function ContabilidadClient({
                 ))}
               </select>
               <input className={FIELD} placeholder="Base € (sin IVA)" inputMode="decimal" value={gasto.base} onChange={(e) => setGasto({ ...gasto, base: e.target.value })} />
-              <select className={FIELD} value={gasto.vatRate} onChange={(e) => setGasto({ ...gasto, vatRate: Number(e.target.value) })}>
+              {/* ISP/exento: la factura llega sin IVA → tipo fijado a 0 (el servidor lo fuerza igual) */}
+              <select className={FIELD} value={gasto.vatRate} disabled={gasto.taxTreatment !== "general"} onChange={(e) => setGasto({ ...gasto, vatRate: Number(e.target.value) })}>
                 <option value={0.21}>IVA 21%</option>
                 <option value={0.1}>IVA 10%</option>
                 <option value={0.04}>IVA 4%</option>
                 <option value={0}>IVA 0% / exento</option>
               </select>
+              <label className="text-xs text-slate-400">
+                Tratamiento IVA
+                <select
+                  className={`mt-1 block w-full ${FIELD}`}
+                  value={gasto.taxTreatment}
+                  onChange={(e) => setGasto({ ...gasto, taxTreatment: e.target.value, ...(e.target.value !== "general" ? { vatRate: 0 } : {}) })}
+                >
+                  {TAX_TREATMENT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
               <select className={FIELD} value={gasto.irpfPct} onChange={(e) => setGasto({ ...gasto, irpfPct: Number(e.target.value) })}>
                 <option value={0}>Sin IRPF</option>
                 <option value={0.15}>IRPF 15%</option>
@@ -727,7 +833,7 @@ export default function ContabilidadClient({
                 {" · "}Factura <b className="tabular-nums text-slate-200">{eur(gastoCalc.totalCents)}</b> · A pagar <b className="tabular-nums text-white">{eur(gastoCalc.payableCents)}</b>
               </div>
               <button type="button" onClick={addExpense} disabled={busy} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
-                {busy ? "Guardando…" : "Guardar gasto"}
+                {busy ? "Guardando…" : confirming ? "Confirmar gasto" : "Guardar gasto"}
               </button>
             </div>
             {msg && <p className="mt-2 text-xs text-cyan-300">{msg}</p>}
@@ -745,7 +851,7 @@ export default function ContabilidadClient({
       <CollapsibleSection
         id="impuestos"
         title="Impuestos — estimación y borradores"
-        subtitle={`Estimación a pagar: ${eur(impuestosEstim)} (IVA+111 del periodo, 130 del año)`}
+        subtitle={`Estimación a pagar: ${eur(impuestosEstim)} (IVA+111 del periodo; IS por 202 lo lleva la gestoría)`}
         right={
           <button onClick={downloadDraft} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500">Descargar borrador (TXT)</button>
         }
@@ -763,9 +869,18 @@ export default function ContabilidadClient({
                 <p key={r.ratePct} className="text-slate-300">{r.ratePct}%: base <span className="tabular-nums text-slate-100">{eur(r.baseCents)}</span> · cuota <span className="tabular-nums text-slate-100">{eur(r.cuotaCents)}</span></p>
               ))
             )}
-            <p className="text-slate-300">Devengado (c.27): <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaRepercutidoCents)}</span></p>
-            <p className="text-slate-300">Soportado ded. (c.29): <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaSoportadoDeducibleCents)}</span></p>
-            <p className="mt-1 font-semibold text-white">Resultado (c.71): <span className="tabular-nums">{eur(drafts.d303.resultadoCents)}</span> {drafts.d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}</p>
+            {drafts.d303.ispIntracomBaseCents > 0 && (
+              <p className="text-slate-300">ISP intracom. (autorrep.): base <span className="tabular-nums text-slate-100">{eur(drafts.d303.ispIntracomBaseCents)}</span> · cuota <span className="tabular-nums text-slate-100">{eur(drafts.d303.ispIntracomCuotaCents)}</span></p>
+            )}
+            {drafts.d303.ispImportBaseCents > 0 && (
+              <p className="text-slate-300">ISP importación (autorrep.): base <span className="tabular-nums text-slate-100">{eur(drafts.d303.ispImportBaseCents)}</span> · cuota <span className="tabular-nums text-slate-100">{eur(drafts.d303.ispImportCuotaCents)}</span></p>
+            )}
+            <p className="text-slate-300">Devengado: <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaRepercutidoCents)}</span></p>
+            <p className="text-slate-300">Soportado deducible: <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaSoportadoDeducibleCents)}</span></p>
+            {(drafts.d303.ispIntracomBaseCents > 0 || drafts.d303.ispImportBaseCents > 0) && (
+              <p className="text-[11px] text-slate-500">ISP: cuota en devengado y deducible (casillas exactas: validar con gestoría).</p>
+            )}
+            <p className="mt-1 font-semibold text-white">Resultado: <span className="tabular-nums">{eur(drafts.d303.resultadoCents)}</span> {drafts.d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}</p>
           </div>
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 111 (retenciones)</p>
@@ -774,13 +889,11 @@ export default function ContabilidadClient({
             <p className="text-slate-300">Perceptores: <span className="tabular-nums text-slate-100">{drafts.d111.numPerceptores}</span></p>
           </div>
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 130 (IRPF, año)</p>
-            <p className="mt-1 text-slate-300">Rendimiento: <span className="tabular-nums text-slate-100">{eur(drafts.d130.rendimientoNetoCents)}</span></p>
-            <p className="text-slate-300">Pago 20%: <span className="tabular-nums text-slate-100">{eur(drafts.d130.pagoFraccionado20Cents)}</span></p>
-            <p className="mt-1 font-semibold text-white">A ingresar: <span className="tabular-nums">{eur(drafts.d130.aIngresarCents)}</span></p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Impuesto de Sociedades</p>
+            <p className="mt-1 text-slate-300">S.L.: pagos fraccionados del IS por modelo 202 (lo presenta la gestoría).</p>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-amber-200/70">Uso interno (la gestoría presenta). La «estimación a pagar» suma el 303 y el 111 del periodo + el 130 acumulado del año (así se paga el fraccionado real).</p>
+        <p className="mt-2 text-[11px] text-amber-200/70">Uso interno (la gestoría presenta). La «estimación a pagar» suma el 303 y el 111 del periodo. El IS (modelo 202) lo lleva la gestoría.</p>
       </CollapsibleSection>
 
       {/* SIN FACTURA */}

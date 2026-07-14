@@ -92,7 +92,15 @@ function emptyForm() {
 const FIELD =
   "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
 
-export default function InvoiceManager({ invoices, suggested }: { invoices: InvoiceRow[]; suggested: string }) {
+export default function InvoiceManager({
+  invoices,
+  suggested,
+  suggestedQuote,
+}: {
+  invoices: InvoiceRow[];
+  suggested: string;
+  suggestedQuote: string;
+}) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm());
@@ -100,6 +108,9 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
   const [msg, setMsg] = useState<string | null>(null);
   const [issueNumber, setIssueNumber] = useState(suggested);
   const [customers, setCustomers] = useState<SavedCustomer[]>([]);
+
+  // Sugerencia por serie: facturas AA_NNN, presupuestos P·AA_NNN.
+  const suggestionFor = (docKind: string) => (docKind === "quote" ? suggestedQuote : suggested);
 
   // Libro de clientes recurrentes: se carga al abrir el formulario.
   useEffect(() => {
@@ -144,6 +155,8 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
 
   function set<K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+    // Al cambiar el tipo de documento, la sugerencia de número cambia de serie.
+    if (key === "docKind") setIssueNumber(suggestionFor(String(value)));
   }
 
   function setLine(i: number, patch: Partial<Line>) {
@@ -174,6 +187,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
 
   function startEdit(row: InvoiceRow) {
     setEditingId(row.id);
+    setIssueNumber(suggestionFor(row.docKind));
     setForm({
       docKind: row.docKind || "invoice",
       brand: row.brand || "traduccionesjuradas",
@@ -297,21 +311,30 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
     }
   }
 
-  async function issue(id: string, num?: string) {
+  async function issue(id: string, num?: string, docKind?: string) {
     let number = num;
     if (number === undefined) {
       // Emitir desde la fila de la tabla (sin el formulario abierto): pide el número.
-      const p = window.prompt(`Número fiscal a asignar (formato AA_NNN):`, suggested);
+      const isQuote = docKind === "quote";
+      const p = window.prompt(
+        `Número a asignar (formato ${isQuote ? "P·AA_NNN" : "AA_NNN"}, sugerido por el sistema — la BD es el contador):`,
+        suggestionFor(docKind || "invoice")
+      );
       if (p === null) return;
       number = p;
     }
+    // La sugerencia se calculó al cargar la página y puede estar caducada (otra
+    // emisión o un lazy_pdf pudo consumirla). Si no se ha editado, se manda vacío
+    // y el servidor asigna el siguiente libre con reintento anti-colisión.
+    const trimmed = number.trim();
+    const untouchedSuggestion = trimmed === suggestionFor(docKind || form.docKind || "invoice");
     setBusy(true);
     setMsg(null);
     try {
       const res = await fetch(`/api/invoices/${id}/issue`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number: number.trim() || undefined }),
+        body: JSON.stringify({ number: untouchedSuggestion ? undefined : trimmed || undefined }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo emitir.");
@@ -456,7 +479,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
               </select>
               {form.docKind === "quote" && (
                 <span className="mt-1 block text-[11px] text-violet-300">
-                  Comparte numeración AA_NNN pero NO cuenta en contabilidad, 303 ni gestoría.
+                  Serie propia P·AA_NNN (p.ej. P26_001). NO cuenta en contabilidad, 303 ni gestoría.
                 </span>
               )}
             </label>
@@ -616,13 +639,16 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
                   Vista previa proforma
                 </a>
                 <label className="text-xs text-slate-400">
-                  Nº factura
+                  {form.docKind === "quote" ? "Nº presupuesto" : "Nº factura"}
                   <input
                     className={`mt-1 block w-28 ${FIELD} font-mono`}
                     value={issueNumber}
                     onChange={(e) => setIssueNumber(e.target.value)}
-                    placeholder={suggested}
+                    placeholder={suggestionFor(form.docKind)}
                   />
+                  <span className="mt-1 block text-[11px] text-slate-500">
+                    sugerido por el sistema — la BD es el contador
+                  </span>
                 </label>
                 <button
                   type="button"
@@ -788,7 +814,7 @@ export default function InvoiceManager({ invoices, suggested }: { invoices: Invo
                         {isDraft && (
                           <button
                             type="button"
-                            onClick={() => issue(inv.id)}
+                            onClick={() => issue(inv.id, undefined, inv.docKind)}
                             disabled={busy}
                             className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
                           >

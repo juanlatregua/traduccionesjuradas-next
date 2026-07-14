@@ -204,7 +204,7 @@ model ClientInvoice {
   origin        String? // auditoría: lazy_pdf | reconcile_batch | manual | import | draft
   brand         String    @default("traduccionesjuradas") // marca/actividad emisora (numeración compartida)
   orderId       String?   @unique // null = factura libre (sin pedido)
-  order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   issuedAt      DateTime? // se sella al emitir
   paidAt        DateTime? // cobrada: se sella al vincular un ingreso bancario o al adjuntar el justificante
   // Justificante bancario del pago (Vercel Blob). Adjuntarlo sella paidAt vía setInvoicePaid.
@@ -250,6 +250,8 @@ model Expense {
   vatRate               Float    @default(0.21)
   vatCents              Int // IVA soportado
   ivaDeducible          Boolean  @default(true) // false = no deducible (atenciones, comidas… art. 96 LIVA)
+  taxTreatment          String   @default("general") // general | isp_intracom | isp_import | exempt
+  needsReview           Boolean  @default(false)
   irpfRetentionPct      Float    @default(0) // retención IRPF de colaboradores (modelo 111/190)
   irpfCents             Int      @default(0)
   totalCents            Int // base + IVA (importe de la factura)
@@ -263,8 +265,36 @@ model Expense {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @default(now()) @updatedAt
 
+  // Sin @@unique(supplierNif, supplierInvoiceNumber): en PG los NULL no colisionan
+  // (los SaaS sin NIF quedarían fuera) y bloquearía el "guardar de todas formas"
+  // legítimo (una factura partida en 2 apuntes). La guarda es assertNotDuplicate.
   @@index([date])
+  @@index([supplierNif, supplierInvoiceNumber])
   @@index([supplierNif])
+}
+
+// Plantilla de gasto recurrente (espejo de RecurringInvoice): el cron genera un
+// borrador cada mes. amountCents null = importe variable (se completa a mano).
+model RecurringExpense {
+  id                  String   @id @default(cuid())
+  label               String
+  active              Boolean  @default(true)
+  brand               String   @default("traduccionesjuradas")
+  supplier            String?
+  supplierNif         String?
+  category            String?
+  conceptTemplate     String // admite {MES} {AÑO}
+  lineItemsJson       Json? // multi-apunte: [{ concept, baseCents, vatRate, ivaDeducible?, taxTreatment? }] (caso Orange)
+  vatRate             Float    @default(0.21)
+  taxTreatment        String   @default("general") // general | isp_intracom | isp_import | exempt
+  irpfRetentionPct    Float    @default(0)
+  amountCents         Int? // null = importe variable
+  dayOfMonth          Int      @default(1)
+  lastGeneratedPeriod String? // "YYYY-MM"
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+
+  @@index([active])
 }
 
 // Decisiones del staff sobre líneas del extracto bancario. NO almacena el extracto

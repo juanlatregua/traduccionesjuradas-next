@@ -5,27 +5,9 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { createDraftInvoice, type InvoiceLine } from "@/lib/client-invoice";
 import { clampVatRate, normalizeLines } from "@/lib/invoice-math";
+import { periodKey, resolveConcept, clampDay } from "@/lib/recurring-logic";
 
-const MONTHS_ES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
-
-export function periodKey(d: Date = new Date()): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-// Resuelve {MES} {AÑO} {MES_AÑO} sin new Date(period) (que en TZ negativas cae al mes anterior).
-export function resolveConcept(template: string, period: string): string {
-  const y = period.slice(0, 4);
-  const mes = MONTHS_ES[Number(period.slice(5, 7)) - 1] || "";
-  return String(template || "")
-    .replace(/\{MES_A(Ñ|N)O\}/gi, `${mes} ${y}`)
-    .replace(/\{MES\}/gi, mes)
-    .replace(/\{A(Ñ|N)O\}/gi, y);
-}
-
-function clampDay(n: number): number {
-  const x = Math.round(Number(n) || 1);
-  return Math.min(28, Math.max(1, x));
-}
+export { periodKey, resolveConcept };
 
 export type RecurringInput = {
   label: string;

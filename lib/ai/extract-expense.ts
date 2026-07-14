@@ -16,7 +16,25 @@ export type ExtractedExpense = {
   irpfRate?: number | null; // fracción
   totalEur?: number | null;
   confidence?: number;
+  taxTreatment?: string | null; // sugerencia heurística: isp_intracom | isp_import
 };
+
+// Heurística post-extracción (sin IA extra): NIF-IVA de otro país UE → ISP
+// intracomunitario; proveedor US conocido o mención de reverse charge sin NIF
+// UE → ISP importación de servicios.
+const EU_VAT_PREFIXES = new Set(["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "FI", "FR", "GR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK", "XI"]);
+const IMPORT_SUPPLIERS = /anthropic|vercel|openai/i;
+
+export function suggestTaxTreatment(x: ExtractedExpense, rawText?: string): "isp_intracom" | "isp_import" | null {
+  const nif = (x.supplierNif || "").replace(/[\s.-]/g, "").toUpperCase();
+  const prefix = nif.slice(0, 2);
+  if (EU_VAT_PREFIXES.has(prefix)) return "isp_intracom";
+  if (prefix === "EU") return "isp_import"; // registro OSS no-UE (p.ej. proveedores US)
+  if (IMPORT_SUPPLIERS.test(x.supplier || "")) return "isp_import";
+  const hay = `${rawText || ""} ${x.concept || ""}`.toLowerCase();
+  if (/reverse charge|inversi[oó]n del sujeto pasivo/.test(hay)) return "isp_import";
+  return null;
+}
 
 const SYSTEM = `Eres un extractor de datos de FACTURAS RECIBIDAS (de proveedor) para la contabilidad de una empresa española (HBTJ Consultores Lingüísticos S.L.). Devuelve SOLO un objeto JSON, sin texto alrededor, con estas claves:
 {
@@ -75,7 +93,10 @@ export async function extractExpenseFromDocument(input: { fileBase64?: string; m
       .join("");
     const m = text.match(/\{[\s\S]*\}/);
     if (!m) throw new Error("La IA no devolvió datos legibles.");
-    return JSON.parse(m[0]) as ExtractedExpense;
+    const parsed = JSON.parse(m[0]) as ExtractedExpense;
+    const suggested = suggestTaxTreatment(parsed, input.text);
+    if (suggested) parsed.taxTreatment = suggested;
+    return parsed;
   } finally {
     clearTimeout(timeout);
   }
