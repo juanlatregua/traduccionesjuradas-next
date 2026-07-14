@@ -59,6 +59,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Referencias vacías." }, { status: 400 });
     }
 
+    // Con onDelete SetNull: limpiar borradores/presupuestos vinculados (las
+    // facturas EMITIDAS se conservan huérfanas a propósito, son inmutables).
+    await prisma.clientInvoice.deleteMany({
+      where: {
+        order: { reference: { in: cleanRefs } },
+        OR: [{ status: "DRAFT" }, { docKind: "quote" }],
+      },
+    });
     const result = await prisma.order.deleteMany({
       where: { reference: { in: cleanRefs } },
     });

@@ -9,6 +9,28 @@ export function isValidInvoiceNumber(n: string): boolean {
   return /^\d{2}_\d{3,}$/.test(n.trim());
 }
 
+// Serie por tipo de documento: factura AA_NNN, presupuesto P·AA_NNN (P26_001).
+// Cada serie rechaza el formato de la otra.
+export function isValidDocNumber(n: string, docKind: string): boolean {
+  const v = n.trim();
+  return docKind === "quote" ? /^P\d{2}_\d{3,}$/.test(v) : /^\d{2}_\d{3,}$/.test(v);
+}
+
+// Siguiente número de la serie del docKind para un año (yearYY = "26"), a partir
+// de los números existentes. Los presupuestos históricos SIN "P" (26_011…) no
+// cuentan para la serie P (arranca limpia); para facturas se ignoran los "P…".
+export function nextNumberInSeries(existing: Array<string | null | undefined>, docKind: string, yearYY: string): string {
+  const prefix = docKind === "quote" ? `P${yearYY}_` : `${yearYY}_`;
+  const re = docKind === "quote" ? /^P\d{2}_(\d+)$/ : /^\d{2}_(\d+)$/;
+  let max = 0;
+  for (const n of existing) {
+    if (!n || !n.startsWith(prefix)) continue;
+    const m = n.match(re);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
+}
+
 // IVA como fracción (0.21). Tolera "21" → 0.21. Fuera de rango / inválido → 21%.
 export function clampVatRate(v: number | string | null | undefined): number {
   if (v === null || v === undefined || v === "") return 0.21; // sin valor → por defecto (0 explícito = exento)

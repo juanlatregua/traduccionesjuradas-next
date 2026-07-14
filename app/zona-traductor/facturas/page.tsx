@@ -57,7 +57,10 @@ export default async function ZonaTraductorFacturasPage() {
 
   const issued = raw.filter((i) => i.status === "ISSUED");
   const facturado = issued.reduce((s, i) => s + i.totalCents, 0);
-  const suggested = await suggestNextInvoiceNumber();
+  const [suggested, suggestedQuote] = await Promise.all([
+    suggestNextInvoiceNumber("invoice"),
+    suggestNextInvoiceNumber("quote"),
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -67,7 +70,8 @@ export default async function ZonaTraductorFacturasPage() {
             <h1 className="text-2xl font-semibold text-white">Facturas</h1>
             <p className="mt-1 text-sm text-slate-400">
               {issued.length} emitida{issued.length === 1 ? "" : "s"} · {eur(facturado)} facturado. Próximo nº sugerido:{" "}
-              <span className="font-mono text-cyan-300">{suggested}</span>
+              <span className="font-mono text-cyan-300">{suggested}</span> · presupuestos:{" "}
+              <span className="font-mono text-violet-300">{suggestedQuote}</span>
             </p>
           </div>
           <a
@@ -79,7 +83,7 @@ export default async function ZonaTraductorFacturasPage() {
         </div>
 
         <div className="mt-6">
-          <InvoiceManager invoices={invoices} suggested={suggested} />
+          <InvoiceManager invoices={invoices} suggested={suggested} suggestedQuote={suggestedQuote} />
         </div>
       </div>
     </div>

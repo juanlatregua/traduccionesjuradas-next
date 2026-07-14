@@ -59,14 +59,16 @@ export async function listPaidUnbilledOrders(): Promise<PaidUnbilledOrder[]> {
       paidAt: true,
       createdAt: true,
       billing: { select: { nif: true, fiscalName: true } },
-      clientInvoice: { select: { id: true, status: true, totalCents: true, baseCents: true } },
+      clientInvoice: { select: { id: true, status: true, totalCents: true, baseCents: true, docKind: true } },
     },
     orderBy: { paidAt: "desc" },
     take: 1000,
   });
 
   return orders.map((o) => {
-    const draft = o.clientInvoice?.status === "DRAFT" ? o.clientInvoice : null;
+    // Un presupuesto (docKind quote) NO es un borrador de factura: al emitir se
+    // facturará el importe del pedido por el camino issueOrUpdateInvoice.
+    const draft = o.clientInvoice?.status === "DRAFT" && o.clientInvoice.docKind !== "quote" ? o.clientInvoice : null;
     const bookableAmountCents = draft ? draft.totalCents : o.amountCents;
     const bookableBaseCents = draft ? draft.baseCents : Math.round(o.amountCents / 1.21);
     return {
@@ -134,7 +136,7 @@ async function issueWithRetry(order: OrderForIssue, explicitNumber: string | und
   const forYear = issuedAt.getFullYear();
   let lastErr: any;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const number = (explicitNumber || "").trim() || (await suggestNextInvoiceNumber(forYear));
+    const number = (explicitNumber || "").trim() || (await suggestNextInvoiceNumber("invoice", forYear));
     try {
       const inv = order.draftInvoiceId
         ? await issueInvoice(order.draftInvoiceId, { number, issuedAt, origin: "reconcile_batch", simplified })
@@ -199,17 +201,18 @@ export async function issueInvoicesForOrders(input: {
           clientName: true,
           paymentStatus: true,
           billing: true,
-          clientInvoice: { select: { id: true, status: true, totalCents: true } },
+          clientInvoice: { select: { id: true, status: true, totalCents: true, docKind: true } },
         },
       });
       if (!order) throw new Error("Pedido no encontrado.");
       if (order.paymentStatus !== "PAID") throw new Error("El pedido no está cobrado.");
-      if (order.clientInvoice?.status === "ISSUED") {
+      // Un presupuesto EMITIDO no es factura: el pedido sigue sin facturar.
+      if (order.clientInvoice?.status === "ISSUED" && order.clientInvoice.docKind !== "quote") {
         issued.push({ reference, ok: true, skipped: "already_issued" });
         continue;
       }
       const b = order.billing;
-      const draft = order.clientInvoice?.status === "DRAFT" ? order.clientInvoice : null;
+      const draft = order.clientInvoice?.status === "DRAFT" && order.clientInvoice.docKind !== "quote" ? order.clientInvoice : null;
       const bookableCents = draft ? draft.totalCents : order.amountCents;
 
       let billing: { fiscalName: string; nif: string; address: string; city: string; postalCode: string; country: string; email: string };

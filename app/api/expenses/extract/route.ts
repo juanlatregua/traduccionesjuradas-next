@@ -4,7 +4,18 @@ import { NextResponse } from "next/server";
 import mammoth from "mammoth";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { extractExpenseFromDocument } from "@/lib/ai/extract-expense";
+import { extractExpenseFromDocument, type ExtractedExpense } from "@/lib/ai/extract-expense";
+import { prisma } from "@/lib/prisma";
+
+// Aviso (no bloqueo): busca por nº de factura sin exigir NIF idéntico — el
+// gasto existente puede tener el NIF vacío aunque la extracción lo traiga.
+async function findDuplicateOf(data: ExtractedExpense) {
+  if (!data.supplierInvoiceNumber) return null;
+  return prisma.expense.findFirst({
+    where: { supplierInvoiceNumber: data.supplierInvoiceNumber },
+    select: { id: true, date: true, totalCents: true, supplier: true, concept: true },
+  });
+}
 
 export const runtime = "nodejs";
 
@@ -45,12 +56,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: "No se pudo leer texto del Word. Prueba a guardarlo como PDF." }, { status: 400 });
       }
       const data = await extractExpenseFromDocument({ text, fileName: file.name });
-      return NextResponse.json({ ok: true, data });
+      return NextResponse.json({ ok: true, data, duplicateOf: await findDuplicateOf(data) });
     }
 
     const fileBase64 = Buffer.from(await file.arrayBuffer()).toString("base64");
     const data = await extractExpenseFromDocument({ fileBase64, mimeType: file.type || "application/pdf", fileName: file.name });
-    return NextResponse.json({ ok: true, data });
+    return NextResponse.json({ ok: true, data, duplicateOf: await findDuplicateOf(data) });
   } catch (err: any) {
     console.error("[expenses-extract] error", err);
     return NextResponse.json({ ok: false, error: err?.message || "No se pudo extraer." }, { status: 500 });

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contabilidad vendible — investigación y plan (14-jul-2026)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.55; max-width: 980px; margin: 2rem auto; padding: 0 1.2rem; color: #1e2530; background: #faf8f4; }
+  @media (prefers-color-scheme: dark) { body { color: #eaf0f7; background: #111a2b; } }
+  h1 { font-size: 1.7rem; border-bottom: 3px solid #b8860b; padding-bottom: .4rem; }
+  h2 { font-size: 1.3rem; margin-top: 2.4rem; border-bottom: 1px solid #b8860b55; padding-bottom: .25rem; }
+  h3 { font-size: 1.05rem; margin-top: 1.6rem; }
+  .meta { color: #777; font-size: .9rem; }
+  .box { border: 1px solid #b8860b66; border-left: 5px solid #b8860b; border-radius: 6px; padding: .8rem 1rem; margin: 1rem 0; background: #b8860b0d; }
+  .box.rojo { border-color: #c0392b88; border-left-color: #c0392b; background: #c0392b0d; }
+  .box.verde { border-color: #27835b88; border-left-color: #27835b; background: #27835b0d; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid #8886; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #b8860b1a; }
+  code { background: #8883; padding: .1rem .3rem; border-radius: 3px; font-size: .88em; }
+  .tag { display: inline-block; font-size: .75rem; font-weight: 700; padding: .1rem .45rem; border-radius: 10px; margin-right: .3rem; }
+  .p0 { background: #c0392b; color: #fff; } .p1 { background: #b8860b; color: #fff; } .p2 { background: #56606e; color: #fff; }
+  .fuente { font-size: .8rem; color: #888; word-break: break-all; }
+  .overflow { overflow-x: auto; }
+  ul { padding-left: 1.3rem; }
+  li { margin: .3rem 0; }
+  .col2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 720px) { .col2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Zona de contabilidad vendible — investigación completa y plan</h1>
+<p class="meta">14 de julio de 2026 · 2 workflows (15 agentes: 5 lectores de código + 2 diseñadores + 1 revisor adversarial de propuestas + 5 investigadores web + 2 verificadores YMYL contra BOE/AEAT) · Toda afirmación regulatoria citada a fuente oficial y verificada adversarialmente.</p>
+
+<h2>0 · Resumen ejecutivo</h2>
+<div class="box">
+<ol>
+<li><strong>Verifactu se volvió a aplazar</strong> (RD-ley 15/2025, BOE 3-dic-2025): usuarios del IS → <strong>1-ene-2027</strong>; autónomos → <strong>1-jul-2027</strong>. Hoy ningún cliente potencial está obligado. <strong>PERO la obligación del PRODUCTOR de software está en vigor desde el 29-jul-2025</strong>: vender un SaaS que emita facturas exige ya conformidad + declaración responsable (multa: 150.000 €/ejercicio y tipo de sistema).</li>
+<li><strong>La "línea limpia" del plan Lavori queda confirmada oficialmente</strong>: la AEAT define SIF como sistema usado para <em>expedir facturas</em> — un producto solo de presupuestos + gastos + conciliación + borradores 303/130 queda <strong>fuera</strong> del RD 1007/2023. Sin gate regulatorio.</li>
+<li><strong>El pitch "deja de pagar 130 € al asesor" hay que recalibrarlo</strong>: 130 €/mes es lo que paga una S.L. (normal-barato: rango 150-250 €); el traductor autónomo medio paga <strong>50-70 €</strong> (mediana 50 €, estudio de 157 despachos). Y el hueco 30-40 € NO está vacío: TaxDown (29,90 €) y Abaq (39 €) ya dan gestoría <em>con humanos y presentación real</em> a ese precio.</li>
+<li><strong>El hueco que SÍ está libre es el vertical</strong>: no existe ningún SaaS con fiscalidad española específico para traductores. Lo defendible no es el precio, es lo que ningún generalista tiene: presupuesto por palabra/documento, expedientes, ISP/349 automático (todo traductor con Trados/ChatGPT/Adobe tiene ISP), IVA 0 extra-UE, retenciones de colaboradores (111/190), conciliación de cobros con Stripe/transferencias.</li>
+<li><strong>El usuario puede presentar sin asesor</strong>: la Sede de la AEAT importa ficheros con diseño de registro (<code>.303</code>, Pre130) generados por software externo; el usuario firma con su Cl@ve/certificado. Es la vía sin carga regulatoria (la que usan Quipu y Declarando). Presentar EN NOMBRE del usuario exige ser colaborador social — fase posterior, opcional.</li>
+<li><strong>Nóminas: accesorio, no core.</strong> El 90 % del target (autónomos sin empleados) no tiene NINGUNA presentación periódica ante la TGSS: la cuota RETA se domicilia y se carga sola. Una S.L. sin empleados tampoco presenta seguros sociales mensuales. Scope recomendado: "autónomos y S.L. sin empleados". El recibo de Isabelle: <strong>no generarlo; registrarlo y archivarlo automáticamente</strong> (veredicto unánime de las dos lentes de diseño + verificación).</li>
+</ol>
+</div>
+
+<h2>1 · Verifactu: estado exacto a 14-jul-2026 (verificado contra BOE/AEAT)</h2>
+
+<div class="overflow"><table>
+<tr><th>Norma</th><th>Qué fijó</th><th>Estado</th></tr>
+<tr><td>RD 1007/2023 (original)</td><td>1-jul-2025 para todos los obligados</td><td>Superado</td></tr>
+<tr><td>RD 254/2025 (abr-2025)</td><td>1-ene-2026 (IS) · 1-jul-2026 (resto)</td><td>Superado — <em>la fecha que asumía nuestra memoria interna</em></td></tr>
+<tr><td><strong>RD-ley 15/2025 (2-dic-2025, BOE-A-2025-24446)</strong></td><td><strong>1-ene-2027 (IS) · 1-jul-2027 (autónomos/resto)</strong></td><td><strong>VIGENTE</strong>. Sin prórrogas posteriores a 14-jul-2026</td></tr>
+</table></div>
+
+<h3>Lo que NO se aplazó: la obligación del productor</h3>
+<ul>
+<li>Desde el <strong>29-jul-2025</strong> (9 meses desde la Orden HAC/1177/2024) solo puede comercializarse software de facturación <strong>adaptado al reglamento</strong>. El RD-ley 15/2025 mantuvo este plazo intacto. <em>Confirmado en el PDF oficial de FAQ para desarrolladores de la AEAT (v1.3, dic-2025).</em></li>
+<li>La "certificación" es una <strong>declaración responsable</strong> (art. 13 RD 1007/2023): autocertificación del productor, sin tercero y sin registro en la AEAT; visible dentro del software en cada versión y disponible antes de la compra. Incluirla en un producto que no cumple es sancionable en sí.</li>
+<li>Las FAQ tratan expresamente el <strong>"SIF en la nube, tipo SaaS"</strong>: el productor del SaaS emite la DR; en multiusuario el <code>IndicadorMultiplesOT</code> se calcula por usuario.</li>
+<li><strong>Sanciones (art. 201 bis LGT, verificado en texto consolidado BOE)</strong>: productor de sistemas no conformes → <strong>150.000 € por ejercicio y por tipo de sistema</strong>; comercializar sin DR → 1.000 € por sistema; usuario con sistema sin certificar → 50.000 €/ejercicio (exigible ligada a sus plazos 2027).</li>
+</ul>
+
+<h3>La línea del ámbito (favorable al plan)</h3>
+<div class="box verde">
+La AEAT define SIF como <em>"sistema informático utilizado para <strong>expedir</strong> facturas"</em> (art. 1.2 del reglamento). Un software solo de <strong>presupuestos + gastos + conciliación bancaria + borradores de impuestos</strong> que no expide facturas <strong>queda fuera del RD 1007/2023</strong>. En cuanto convierta un presupuesto en factura, es SIF y arrastra todo (con la DR ya exigible hoy). Las dos modalidades para el SIF: <strong>VERI*FACTU</strong> (remisión continua de registros XML a la AEAT; exime de firma electrónica, registro de eventos y conservación reforzada — <em>la más simple para un SaaS</em>) o <strong>no-Verifactu</strong> (hash encadenado + firma + eventos + exportación a requerimiento). QR en factura en ambas.
+</div>
+
+<h2>2 · Presentar impuestos sin asesor: las dos vías</h2>
+<ul>
+<li><strong>Vía MVP (cero carga regulatoria):</strong> generar el <strong>fichero con diseño de registro BOE</strong> (extensión <code>.303</code>; ruta análoga Pre130 para el 130) que el formulario web de la Sede <strong>importa</strong>; el usuario firma con su Cl@ve (solo personas físicas) o certificado (una S.L. necesita certificado de representante). Es lo que hacen Quipu y Declarando ("genera + guía"). Matiz verificado: el 130 aún admite predeclaración en papel; el 303 es solo electrónico.</li>
+<li><strong>Vía colaborador social (fase posterior):</strong> presentar EN NOMBRE del usuario exige acuerdo de colaboración social con la AEAT (entidad privada) o adhesión de profesionales vía colegio/asociación con acuerdo. Alcanzable para una S.L. pequeña, pero convierte a HBTJ de software en <em>presentador con responsabilidad</em> — el modelo de TaxDown (que <em>afirma en su web</em> ser colaborador social) y Abaq. Solo si se quiere competir en presentación delegada.</li>
+<li><strong>El hueco real:</strong> el Pre303 de la AEAT solo pre-rellena datos censales y cuotas a compensar al autónomo pequeño; <strong>los datos económicos solo se pre-rellenan a empresas del SII</strong>. A un autónomo trimestral nadie le calcula el IVA hoy. (Que Verifactu alimente borradores del 303 en el futuro es hipótesis, no compromiso publicado — pero acota la ventana a medio plazo: el valor defendible a largo es conciliación + gastos + flujo, no "te calculo el 303".)</li>
+</ul>
+
+<h2>3 · Mercado a jul-2026 (precios verificados en páginas oficiales)</h2>
+
+<div class="overflow"><table>
+<tr><th>Producto</th><th>Precio/mes</th><th>Qué da</th><th>Asesor humano</th><th>Verifactu</th></tr>
+<tr><td>Billin</td><td>6,6–20 € +IVA</td><td>Facturación + OCR gastos; conciliación "próximamente"</td><td>No</td><td>Sí, todos los planes</td></tr>
+<tr><td>Contasimple (TeamSystem)</td><td>0–19,95 €</td><td>Facturación, impuestos desde plataforma</td><td>No</td><td>Sí, incluso gratis</td></tr>
+<tr><td>FacturaDirecta</td><td>0–40 €</td><td>40 € = contabilidad doble partida con libros</td><td>No</td><td>Sí, todos</td></tr>
+<tr><td>Holded</td><td>7,50–99,50 €</td><td>Estándar 29,50 €: bancos ilimitados, reglas conciliación, SII</td><td>No (partner asesorías)</td><td>Sí (Plus dudoso)</td></tr>
+<tr><td>Quipu (TeamSystem)</td><td>14–59 €</td><td><strong>Solution 25-30 €: conciliación bancaria</strong> + borradores impuestos</td><td>Opcional +80 €</td><td>Sí, todos</td></tr>
+<tr><td>Anfix</td><td>~12 € (2,49–41,66)</td><td>Orientado a colaboración con asesorías</td><td>No</td><td>Sí</td></tr>
+<tr><td>Declarando</td><td>29,90–49,90 € +IVA</td><td>Esencial 29,90: software+presentación guiada; <strong>Avanzado 39,90: asesor ilimitado + garantía</strong></td><td>Desde 39,90 €</td><td>Sí</td></tr>
+<tr><td><strong>TaxDown autónomos</strong></td><td><strong>29,90–59,90 € +IVA</strong></td><td>Alta autónomo + asesoría + <strong>presentación real</strong> + facturación + OCR</td><td><strong>Sí, desde 29,90 €</strong></td><td>No lo anuncia</td></tr>
+<tr><td><strong>Abaq</strong></td><td><strong>39 € (117 €/trim)</strong></td><td>Gestoría digital completa: todas las declaraciones + libros + OCR</td><td><strong>Sí, ilimitado</strong></td><td>No lo anuncia</td></tr>
+<tr><td>Xolo</td><td>15–99 € +IVA</td><td>Starter 49 €: presentación + gestores; enfoque internacional</td><td>Desde 49 €</td><td>—</td></tr>
+</table></div>
+
+<ul>
+<li><strong>Dos bandas:</strong> software solo 0-25 € · software+humano/presentación 29,90-99 €. <strong>Verifactu ya es requisito de mesa</strong>, no diferenciador (hasta en planes gratuitos).</li>
+<li><strong>Asesorías:</strong> autónomo sin empleados 35-70 €/mes (mediana 50 €; presencial 50-200 €); S.L. pequeña 150-250 €/mes. <strong>Los ~130 € de HBTJ son mercado normal de S.L.</strong>; el autónomo objetivo paga más bien 50-90 €. Gestorías online low-cost ya venden a 29,95-39,90 € con humanos.</li>
+<li><strong>Vertical traductor: LIBRE.</strong> Gespoint = ERP Windows para agencias; LSP.expert (~9-13 €) = belga, sin fiscalidad española. El patrón "vertical cobra premium" está validado en otros sectores (jurídico: 50-70 €/usuario).</li>
+<li><strong>Responsabilidad:</strong> ante Hacienda siempre responde el obligado tributario. Patrón del sector: Holded declara literalmente que "no ofrece garantías respecto a la exactitud de los cálculos". Quien promete cumplimiento (Declarando) pone humanos detrás. <strong>Fórmula segura: "borrador que tu asesor revisa" o partnership con asesoría colegiada — nunca "sustituye a tu asesor" sin humanos.</strong></li>
+</ul>
+
+<h2>4 · Nóminas y Seguridad Social: veredicto</h2>
+<div class="box">
+<strong>Accesorio, no core.</strong> Datos verificados (fuentes oficiales TGSS/BOE/AEAT):
+<ul>
+<li><strong>Autónomo sin empleados</strong> (≈90 % del target): cero presentaciones ante la TGSS. La cuota RETA se domicilia obligatoriamente y se carga sola el último día hábil del mes; alta/bajas/cambio de base (6×/año)/rendimientos: autoservicio en Import@ss. El valor del producto: registrar la cuota como gasto automático, avisar del tramo óptimo y anticipar la regularización anual.</li>
+<li><strong>S.L. sin trabajadores por cuenta ajena</strong> (caso HBTJ): tampoco presenta RLC/RNT mensuales — sin CCC con empleados no hay nada que remitir por SILTRA. La "nómina" del administrador societario es en realidad un asunto <strong>fiscal</strong> (retención 35 %, o 19 % si cifra de negocio &lt; 100.000 €; ingresos a cuenta por especie; modelos 111/190), no de Seguridad Social.</li>
+<li><strong>Generar recibos de salarios es legal</strong> (no es actividad reservada; la autorización RED es para tramitar ante TGSS, no para maquetar el documento), pero <strong>calcular nóminas reales es otro producto</strong>: convenios, IT, SILTRA, algoritmo de retenciones. PayFit cuesta ~69 €/mes + 15-21 €/empleado; Quipu declara expresamente "no es un software de nóminas"; Declarando tampoco las incluye. Señal fuerte de que no compensa.</li>
+<li><strong>Recibo de Isabelle:</strong> NO generarlo (dos verdades documentales frente a RNT/190, mantenimiento normativo anual RETA/MEI, y no ahorra nada: Laborlex lo confecciona dentro de la cuota que igualmente cubre 111/190). SÍ: gasto recurrente automático (777,66 especie + TGSS) con el PDF de Laborlex archivado y categoría propia en el CSV de gestoría.</li>
+<li>Datos finos para HBTJ que salieron de la verificación: la base mínima de regularización del autónomo societario 2026 es 1.424,40 €/mes (≈448 €/mes de cuota — coincide con los 448,68 de la nómina: Isabelle ya está en base segura). Y según criterio DGT (V3134-21, a confirmar con Laborlex), el seguro médico del administrador NO disfruta de la exención de 500 € (relación mercantil, no laboral).</li>
+<li><strong>Scope recomendado del producto: "autónomos y S.L. sin empleados".</strong> Si un cliente contrata a su primer empleado → derivar/integrar (NominaSOL/PayFit/gestoría laboral), no construir motor de nóminas.</li>
+</ul>
+</div>
+
+<h2>5 · Lo que ya tenemos (mapa verificado del módulo fiscal propio)</h2>
+<p><strong>Maduro y batallado con datos reales:</strong> facturas borrador→emitir con numeración AA_NNN anti-colisión e inmutabilidad al emitir, docKind factura/presupuesto, multimarca, import CSV, facturas recurrentes con cron, conciliación pedidos-cobrados-sin-factura con gate de trimestre presentado, conciliación bancaria por CSV con motor puro testeado (±3 €, ventanas 7/14 días, verificación de saldo, privacidad: solo decisiones), gastos con extracción IA (Claude visión), borradores 303/111, CSVs de gestoría por periodo, generador PDF jsPDF.</p>
+<p><strong>El cierre del 2T real necesitó ~9 pasos artesanales</strong> (scripts locales sin commitear, conversión USD→EUR a mano, desglose Stripe por CLI, zip en el Escritorio) <strong>y dejó 2 incidentes:</strong> 4 gastos duplicados (IVA soportado inflado 91,46 € → nuestro 303 daba 172,53 € frente a los 246,83 € del asesor) y el descubrimiento de que el borrador calcula el modelo 130 siendo HBTJ una S.L. (tocaría el 202).</p>
+
+<h3>Gaps principales (con evidencia en código)</h3>
+<ul>
+<li>Sin chequeo de duplicados de gastos (<code>lib/expenses.ts:62</code>; el único dedupe vive en un script untracked) — causa directa del incidente.</li>
+<li>Sin gastos recurrentes (RecurringInvoice solo cubre facturas emitidas) — ~10 gastos fijos retecleados cada mes.</li>
+<li>ISP como convención de texto en <code>notes</code>: el borrador 303 lo ignora (<code>lib/tax-drafts.ts:19-32</code>) y el CSV de gestoría no lo exporta.</li>
+<li>Doble contador de numeración (Excel de Juan + BD) — causa de la colisión 26_010 — y auto-emisión <code>lazy_pdf</code>: un cliente puede consumir un número fiscal sin aviso.</li>
+<li>Conciliación sin memoria: TGSS/Orange/nómina reaparecen cada mes como "cargos sin gasto"; la UI no lee la columna Observaciones de BBVA (el script CLI sí).</li>
+<li>Paquete gestoría = nota de texto recordatoria, no botón.</li>
+</ul>
+
+<h2>6 · Plan de mejoras consolidado (2 lentes fusionadas + revisión adversarial)</h2>
+
+<h3><span class="tag p0">P0</span>Fiabilidad fiscal (sirve a Juan YA y es núcleo del producto)</h3>
+<ol>
+<li><strong>Anti-duplicados de gastos</strong> [S]: chequeo en <code>createExpense</code>/<code>updateExpense</code> + aviso en la extracción IA ("esta factura ya está registrada") + índice único por SQL con <code>COALESCE(supplierNif,'')</code> (el índice ingenuo no protege a Anthropic/Vercel, con NIF null; Prisma no soporta índices parciales — SQL manual + <code>migrate resolve</code>). Más limpieza one-off de los 4 duplicados de prod (pendiente OK de Juan).</li>
+<li><strong>RecurringExpense</strong> [M]: clon del patrón RecurringInvoice (periodKey/dayOfMonth/idempotencia ya escritos). ~10 plantillas semilla (nómina 777,66, TGSS 104,93 —aplazamiento— , Laborlex, Orange multi-línea, Microsoft/Adobe/Anthropic/Vercel ISP, MAPFRE). Los variables nacen con <code>needsReview</code> y <strong>excluidos del 303/CSV hasta confirmar</strong> (corrección del verificador). Banner "faltan N gastos del mes". Alimenta además el matcher bancario: con el gasto pre-existente, el CSV de BBVA cuadra solo.</li>
+<li><strong>taxTreatment estructurado + 303 con autorrepercusión ISP + retirar el 130</strong> [M]: enum en Expense (general | ISP intracom | importación servicios | exento | no deducible); build303 con las casillas de autorrepercusión; el CSV de gestoría exporta tratamiento + notas + justificante. <strong>Matiz YMYL: Microsoft/Adobe (Irlanda) = intracomunitario; Anthropic/Vercel (EE. UU.) = importación de servicios — casillas distintas: validar el mapeo exacto con el asesor antes de codificar.</strong></li>
+<li><strong>Numeración: BD como contador maestro</strong> [M]: jubilar el Excel (sesión única de reconciliación), serie aparte para presupuestos (desde punto de corte — la correlatividad retroactiva es inalcanzable: 26_011/030/033/041/045 ya son presupuestos), y decidir <code>lazy_pdf</code> (recomendación del verificador: mantener la auto-emisión + aviso al staff, mejor que degradar al cliente pagado a proforma). Es el cimiento Verifactu propio: <strong>HBTJ como S.L. debe tener su propia facturación conforme antes del 1-ene-2027.</strong></li>
+</ol>
+
+<h3><span class="tag p1">P1</span>El cierre en un clic</h3>
+<ol>
+<li><strong>Botón "Paquete gestoría"</strong> [M]: zip por periodo (PDF por factura + CSVs + justificantes + borrador 303 TXT) con checklist de pre-cierre, y fecha de cierre de trimestre <strong>en BD</strong> (mata la env <code>LAST_303_CLOSE</code>). Costes honestos que cazó el verificador: portar la agregación fiscal de <code>ContabilidadClient</code> a <code>lib/</code> (fuente única servidor+cliente) y usar jszip/archiver (el script actual usa el binario <code>zip</code>, inexistente en Vercel).</li>
+<li><strong>Reglas bancarias con memoria</strong> [M]: BankRule (patrón concepto→proveedor/categoría/IVA/tratamiento) creada con un clic desde cada emparejamiento manual; quick-create completo desde el cargo (hoy solo pide IVA, nace mudo y PENDING) sellando <code>paidAt</code>. <strong>Corrección crítica del verificador: las Observaciones de BBVA van en campo aparte, sin tocar el hash de línea — o se invalidan TODAS las decisiones históricas.</strong></li>
+<li><strong>Fase 0 Lavori literal</strong> [S]: sacar CIF/IBAN/dirección de <code>invoice-brands.ts</code> a datos. Sin IssuerProfile grande todavía (el verificador cazó que separar series por marca sería un error fiscal: una entidad = una serie; y el logo TJ es vectorial en código).</li>
+</ol>
+
+<h3><span class="tag p2">P2</span>Pulido</h3>
+<ol>
+<li><strong>Higiene del libro</strong> [S]: editar gasto (el PATCH existe, la UI no lo llama), chip pagado/pendiente, confirmar cuadrados en lote, borrar blob al borrar gasto. Única propuesta SOLIDA sin matices.</li>
+<li><strong>Stripe en la UI</strong> [L]: payout→N cargos en el matcher + gasto de comisión automático (o simplemente plantilla RecurringExpense variable) + export por periodo. Mayormente solo-para-Juan.</li>
+<li><strong>Ficha nómina/TGSS</strong>: 2 plantillas semilla sobre RecurringExpense + categorías de catálogo (<code>nomina-especie</code>, <code>seguros-sociales</code>) + adjunto obligatorio del PDF de Laborlex.</li>
+</ol>
+
+<h2>7 · Estrategia del producto vendible</h2>
+
+<div class="overflow"><table>
+<tr><th>Fase</th><th>Qué</th><th>Gate regulatorio</th><th>Precio orientativo</th></tr>
+<tr><td><strong>A · Ahora (repo propio)</strong></td><td>P0 del plan (anti-dup, RecurringExpense, ISP/303, numeración). Doble uso: fiabilidad para Juan + lógica de negocio del futuro producto.</td><td>Ninguno</td><td>—</td></tr>
+<tr><td><strong>B · Lavori v1 — "línea limpia"</strong></td><td>Gastos + conciliación bancaria + cuota RETA automática + borradores 303/130 + <strong>fichero .303 importable en la Sede</strong> + paquete gestoría. Multi-tenant en el repo Lavori (Drizzle/Neon: se porta el diseño, no el código Prisma). SIN emisión de facturas.</td><td><strong>Fuera del RD 1007/2023</strong> (confirmado AEAT). Disclaimers patrón Holded.</td><td>9 €/mes fundador (piloto n≈10) → 15-19 €</td></tr>
+<tr><td><strong>C · Tier facturación Verifactu</strong></td><td>Emisión de facturas como SIF conforme en modalidad <strong>VERI*FACTU</strong> (remisión a AEAT: exime de firma/eventos/conservación reforzada — la más simple para SaaS) + QR + declaración responsable de HBTJ como productor. <em>Resuelve de paso la obligación propia de HBTJ (1-ene-2027).</em></td><td>DR obligatoria ANTES de vender (en vigor desde jul-2025). Sanción si no: 150.000 €/ejercicio.</td><td>25-40 €/mes, <strong>solo si el vertical justifica el premium</strong> frente a Quipu 25-30 €</td></tr>
+<tr><td><strong>D · Opcional futuro</strong></td><td>Presentación delegada (acuerdo de colaboración social con AEAT o partnership con asesoría colegiada "borrador que tu asesor revisa").</td><td>Alta en censo de colaboradores sociales; convierte a HBTJ en presentador con responsabilidad</td><td>Competir con Abaq/TaxDown a 39-59 €</td></tr>
+</table></div>
+
+<div class="box rojo">
+<strong>Los tres riesgos que el plan debe respetar:</strong>
+<ol>
+<li><strong>No prometer "sustituye a tu asesor" sin humanos detrás</strong> — expone a reclamaciones civiles por los borradores. Posicionamiento: "tu contabilidad lista y tu trimestre en un clic — preséntalo tú o dáselo hecho a tu gestor".</li>
+<li><strong>No emitir facturas de terceros ni un día antes de tener la DR y el SIF conforme</strong> (la fase B no emite: cero riesgo; la fase C se lanza solo completa).</li>
+<li><strong>Seguridad/RGPD desde el diseño</strong> ("vendible y segura"): multi-tenant con aislamiento estricto, blobs PRIVADOS (el backlog PII propio pasa a bloqueante antes de vender), extracto bancario nunca persistido (el patrón BankDecision ya es correcto), sin custodiar certificados/Cl@ve de usuarios (la presentación es suya).</li>
+</ol>
+</div>
+
+<h2>8 · Pendientes de decisión (Juan)</h2>
+<ul>
+<li>OK a <strong>borrar los 4 gastos duplicados</strong> de prod (Montemar 103/2026, MRW FV-003773, MiT 3918 y 4093) — y de paso confirmar al asesor la domiciliación de los 246,83 € (su cifra es más correcta que la nuestra; si quieres precisión, pídele el desglose de casillas para cuadrar los 17,16 € restantes).</li>
+<li>GO a la <strong>Fase A</strong> (P0: anti-dup + RecurringExpense + ISP/303 + numeración) — 2-3 sesiones.</li>
+<li>Validar con el asesor el <strong>mapeo de casillas ISP</strong> (intracom vs importación de servicios) antes de codificar build303.</li>
+<li>Decidir el <strong>orden B→C</strong>: ¿piloto Lavori sin emisión primero (recomendado: valida demanda sin gate) o directo al tier Verifactu?</li>
+<li>Recalibrar el pitch: ¿"deja de pagar 130 €" (S.L.) o "tu gestoría entera por lo que cuesta el software" (autónomo que paga 50-70 €)?</li>
+</ul>
+
+<h2>9 · Fuentes oficiales clave</h2>
+<ul class="fuente">
+<li>RD-ley 15/2025 (aplazamiento 2027): https://www.boe.es/eli/es/rdl/2025/12/02/15</li>
+<li>Nota AEAT ampliación de plazo: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/nota-informativa-ampliacion-plazo-adaptacion-facturacion.html</li>
+<li>FAQ desarrolladores AEAT v1.3 (SaaS = SIF, DR, plazo productor): https://sede.agenciatributaria.gob.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/FAQs-Desarrolladores.pdf</li>
+<li>Ámbito SIF (solo quien expide facturas): https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/cuestiones-generales-ambitos-aplicacion.html</li>
+<li>Declaración responsable: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/certificacion-sistemas-informaticos-declaracion-responsable.html</li>
+<li>Art. 201 bis LGT (sanciones, texto consolidado): https://www.boe.es/buscar/act.php?id=BOE-A-2003-23186</li>
+<li>Presentación 303 por fichero: https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/presentacion-declaraciones-ayuda-tecnica/modelo-303/presentacion-electronica-modelo-303-fichero.html</li>
+<li>Colaboración social: https://sede.agenciatributaria.gob.es/Sede/colaborar-agencia-tributaria/colaboracion-social-presentacion-declaraciones.html</li>
+<li>Pre303: https://sede.agenciatributaria.gob.es/Sede/iva/pre-303/que-servicios-funcionalidades-tiene-nuevo-pre303.html</li>
+<li>Guía RETA Import@ss: https://portal.seg-social.gob.es/wps/portal/importass/importass/Colectivos/trabajo+autonomo/guia</li>
+<li>Cotización 2026 (Orden PJC/297/2026): https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-7296</li>
+<li>Recibo de salarios (Orden ESS/2098/2014): https://www.boe.es/buscar/doc.php?id=BOE-A-2014-11637</li>
+<li>Precios verificados 14-jul-2026: getquipu.com/en/pricing-plans · holded.com/es/precios · billin.net/precios · contasimple.com/precios · taxdown.es/autonomos · abaq.pro/precios · xolo.io/es-es/pricing</li>
+<li>Estudio tarifas gestorías (157 despachos, dic-25/ene-26): copilotgestoria.com/blog/pricing-gestorias-2026-tarifas-servicio-margenes-rentabilidad-estudio-despachos</li>
+</ul>
+
+<p class="meta">Generado el 14-jul-2026 · Workflows wf_731d08f2 (mapa+diseño+verificación del módulo fiscal, 8 agentes) y wf_8c00a99d (investigación regulatoria/mercado + verificación YMYL, 7 agentes).</p>
+
+</body>
+</html>
