@@ -20,7 +20,7 @@ export default async function ZonaTraductorContabilidadPage() {
   const role = getStaffRole(staffEmail);
   const canIssue = role === "ADMIN" || role === "PM";
 
-  const [rawInvoices, rawOrders, rawExpenses, unbilled] = await Promise.all([
+  const [rawInvoices, rawOrders, rawExpenses, unbilled, rawTaxCloses] = await Promise.all([
     prisma.clientInvoice.findMany({ where: { status: "ISSUED", docKind: "invoice" }, orderBy: { issuedAt: "desc" }, take: 3000, include: { order: { select: { reference: true } } } }),
     prisma.order.findMany({
       where: { paymentStatus: "PAID" },
@@ -29,7 +29,9 @@ export default async function ZonaTraductorContabilidadPage() {
     }),
     prisma.expense.findMany({ orderBy: { date: "desc" }, take: 3000 }),
     listPaidUnbilledOrders(),
+    prisma.taxPeriodClose.findMany({ select: { period: true, closedAt: true } }),
   ]);
+  const taxCloses = rawTaxCloses.map((c) => ({ period: c.period, closedAt: c.closedAt.toISOString() }));
   const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
   const excludedFromBilling = await listExcludedFromBilling();
 
@@ -105,6 +107,7 @@ export default async function ZonaTraductorContabilidadPage() {
           orders={orders}
           expenses={expenses}
           unbilled={unbilledIncome}
+          taxCloses={taxCloses}
           sinFacturaSlot={
             <>
               <ReconcilePanel rows={unbilled} totalAmountCents={unbilledTotal} canIssue={canIssue} />
