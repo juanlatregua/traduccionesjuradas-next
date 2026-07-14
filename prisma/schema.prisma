@@ -740,6 +740,14 @@ model FailedEmail {
   createdAt DateTime @default(now())
 }
 
+// Trimestre de IVA cerrado (303 presentado). period = "YYYY-TN".
+// Las emisiones en lote no retro-fechan facturas dentro de un periodo cerrado.
+model TaxPeriodClose {
+  period   String   @id
+  closedAt DateTime @default(now())
+  closedBy String
+}
+
 enum CollaboratorSupplierType {
   AUTONOMO
   EMPRESA

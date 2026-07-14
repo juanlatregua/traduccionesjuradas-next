@@ -4,11 +4,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { issueInvoice, issueOrUpdateInvoice, suggestNextInvoiceNumber } from "@/lib/client-invoice";
+import { getLast303Close } from "@/lib/tax-close-store";
 
-// Primera fecha facturable = fin del último trimestre de IVA presentado + 1 día.
-// T1 2026 presentado → 1-abr-2026. Si un cobro cae ANTES, no se retro-fecha (se
-// factura con fecha de hoy para no tocar un periodo ya liquidado). Editable por env.
-export const LAST_303_CLOSE = new Date(process.env.LAST_303_CLOSE || "2026-04-01T00:00:00.000Z");
+// Primera fecha facturable = fin del último trimestre de IVA presentado
+// (TaxPeriodClose, ver lib/tax-close-store). Si un cobro cae ANTES, no se
+// retro-fecha: se factura con fecha de hoy para no tocar un periodo liquidado.
+export { getLast303Close };
 
 export type PaidUnbilledOrder = {
   reference: string;
@@ -160,9 +161,9 @@ async function issueWithRetry(order: OrderForIssue, explicitNumber: string | und
 }
 
 // Resuelve la fecha de emisión efectiva de una referencia (y si se ajustó a hoy).
-function effectiveIssuedAt(paidAt: Date | null, dateMode: "paid" | "today"): { date: Date; adjusted: boolean } {
+function effectiveIssuedAt(paidAt: Date | null, dateMode: "paid" | "today", last303Close: Date): { date: Date; adjusted: boolean } {
   if (dateMode === "today" || !paidAt) return { date: new Date(), adjusted: dateMode === "paid" };
-  if (paidAt < LAST_303_CLOSE) return { date: new Date(), adjusted: true }; // trimestre ya presentado
+  if (paidAt < last303Close) return { date: new Date(), adjusted: true }; // trimestre ya presentado
   return { date: paidAt, adjusted: false };
 }
 
@@ -184,8 +185,9 @@ export async function issueInvoicesForOrders(input: {
     where: { reference: { in: input.references } },
     select: { reference: true, paidAt: true },
   });
+  const last303Close = await getLast303Close();
   const eff = new Map<string, { date: Date; adjusted: boolean }>();
-  for (const d of dates) eff.set(d.reference, effectiveIssuedAt(d.paidAt, input.dateMode));
+  for (const d of dates) eff.set(d.reference, effectiveIssuedAt(d.paidAt, input.dateMode, last303Close));
   const sortedRefs = [...input.references].sort(
     (a, b) => (eff.get(a)?.date.getTime() ?? 0) - (eff.get(b)?.date.getTime() ?? 0)
   );
@@ -245,7 +247,7 @@ export async function issueInvoicesForOrders(input: {
         };
       }
 
-      const { date: issuedAt, adjusted: dateAdjusted } = eff.get(reference) ?? effectiveIssuedAt(null, input.dateMode);
+      const { date: issuedAt, adjusted: dateAdjusted } = eff.get(reference) ?? effectiveIssuedAt(null, input.dateMode, last303Close);
 
       const number = await issueWithRetry(
         {

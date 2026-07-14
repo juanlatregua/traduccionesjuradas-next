@@ -1,18 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 import { computeExpenseTotals, clampIrpfPct, clampTaxTreatment, TAX_TREATMENT_OPTIONS } from "@/lib/expense-math"; // puro, sin Prisma
-import { build303, build111, draftToText } from "@/lib/tax-drafts";
+import { draftToText } from "@/lib/tax-drafts";
+import { aggregateFiscal, snapVat } from "@/lib/fiscal-aggregation";
 import CollapsibleSection from "@/components/CollapsibleSection";
-
-const ALLOWED_VAT = [0, 0.04, 0.1, 0.21];
-function snapVat(v: unknown): number {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 0.21;
-  const f = n > 1 ? n / 100 : n;
-  return ALLOWED_VAT.reduce((best, a) => (Math.abs(a - f) < Math.abs(best - f) ? a : best), 0.21);
-}
 
 export type AcInvoice = {
   id: string;
@@ -61,6 +55,9 @@ export type AcExpense = {
 // para la salud del negocio, no para el 303 (que va por factura emitida).
 export type AcUnbilled = { date: string; baseCents: number };
 
+// Trimestre de IVA cerrado (303 presentado). period = "YYYY-TN".
+export type AcTaxClose = { period: string; closedAt: string };
+
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const Q_MONTHS: Record<string, number[]> = { q1: [0, 1, 2], q2: [3, 4, 5], q3: [6, 7, 8], q4: [9, 10, 11] };
@@ -94,6 +91,7 @@ export default function ContabilidadClient({
   orders,
   expenses: allExpenses,
   unbilled = [],
+  taxCloses = [],
   sinFacturaSlot,
   bancoSlot,
   importSlot,
@@ -102,10 +100,12 @@ export default function ContabilidadClient({
   orders: AcOrder[];
   expenses: AcExpense[];
   unbilled?: AcUnbilled[];
+  taxCloses?: AcTaxClose[];
   sinFacturaSlot?: ReactNode;
   bancoSlot?: ReactNode;
   importSlot?: ReactNode;
 }) {
+  const router = useRouter();
   // needsReview=true = gasto recurrente pendiente de confirmar → fuera de TODOS los
   // números (totales, balance, 303/130). Solo aparece en el banner de pendientes.
   const expenses = useMemo(() => allExpenses.filter((e) => !e.needsReview), [allExpenses]);
@@ -206,35 +206,12 @@ export default function ContabilidadClient({
   }, [balance]);
 
   // ── Borradores de impuestos del periodo (303/111) ──
-  const drafts = useMemo(() => {
-    const byRate = new Map<number, { baseCents: number; cuotaCents: number }>();
-    for (const i of inv.rows) {
-      const rate = i.baseCents > 0 ? snapVat(i.vatCents / i.baseCents) : 0;
-      const cur = byRate.get(rate) || { baseCents: 0, cuotaCents: 0 };
-      cur.baseCents += i.baseCents;
-      cur.cuotaCents += i.vatCents;
-      byRate.set(rate, cur);
-    }
-    const devengado = [...byRate.entries()]
-      .sort((a, b) => b[0] - a[0])
-      .map(([rate, v]) => ({ ratePct: Math.round(rate * 100), baseCents: v.baseCents, cuotaCents: v.cuotaCents }));
-    // ISP (art. 84 LIVA): la cuota se autorrepercute (devengado) y se deduce a la vez.
-    // Los gastos ISP llevan vatCents 0 → el soportado "clásico" (vatCents) no los duplica.
-    const ispBase = (kind: string, onlyDeducible: boolean) =>
-      exp.rows
-        .filter((e) => e.taxTreatment === kind && (!onlyDeducible || e.ivaDeducible))
-        .reduce((a, e) => a + e.baseCents, 0);
-    const baseDeducible = exp.rows.filter((e) => e.ivaDeducible && !e.taxTreatment.startsWith("isp_")).reduce((a, e) => a + e.baseCents, 0);
-    const exp111 = exp.rows.filter((e) => e.irpfCents > 0);
-    const d303 = build303(devengado, baseDeducible, exp.deducibleVat, {
-      intracomBaseCents: ispBase("isp_intracom", false),
-      intracomDeducibleBaseCents: ispBase("isp_intracom", true),
-      importBaseCents: ispBase("isp_import", false),
-      importDeducibleBaseCents: ispBase("isp_import", true),
-    });
-    const d111 = build111(exp111.reduce((a, e) => a + e.baseCents, 0), exp.irpf, exp111.length);
-    return { d303, d111 };
-  }, [inv.rows, exp.deducibleVat, exp.rows, exp.irpf]);
+  // Fuente única en lib/fiscal-aggregation. Se le pasa el array SIN filtrar
+  // por needsReview (la exclusión vive dentro de aggregateFiscal).
+  const drafts = useMemo(
+    () => aggregateFiscal(inv.rows, allExpenses.filter((e) => inPeriod(e.date))),
+    [inv.rows, allExpenses, inPeriod]
+  );
 
   // Impuestos estimados atados a la fuente única (build303/111), del periodo.
   // El IS (pagos fraccionados, modelo 202) lo lleva la gestoría — fuera de aquí.
@@ -267,6 +244,84 @@ export default function ContabilidadClient({
   }, [fYear, fPeriod]);
   const csvHref = `/api/admin/invoices/export${qsPeriod}`;
   const expensesCsvHref = `/api/admin/expenses/export${qsPeriod}`;
+
+  // ── Paquete gestoría + cierre de trimestre (solo con un trimestre elegido) ──
+  const selectedQuarter = fYear !== "all" && fPeriod.startsWith("q") ? { year: Number(fYear), q: Number(fPeriod.slice(1)) } : null;
+  const selectedTaxPeriod = selectedQuarter ? `${selectedQuarter.year}-T${selectedQuarter.q}` : null;
+  const selectedClose = selectedTaxPeriod ? taxCloses.find((c) => c.period === selectedTaxPeriod) ?? null : null;
+  const [taxBusy, setTaxBusy] = useState(false);
+
+  async function downloadGestoriaPackage() {
+    if (!selectedQuarter) return;
+    setTaxBusy(true);
+    try {
+      const qs = `?year=${selectedQuarter.year}&q=${selectedQuarter.q}`;
+      const res = await fetch(`/api/admin/gestoria-package${qs}&check=1`);
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "No se pudo comprobar el periodo.");
+      const lines = [
+        `${d.invoices} facturas · ${d.expenses} gastos`,
+        ...(d.paidUnbilled?.length ? [`⚠ ${d.paidUnbilled.length} pedidos cobrados sin factura`] : []),
+        ...(d.needsReview ? [`⚠ ${d.needsReview} gastos pendientes de confirmar`] : []),
+        ...(d.sinJustificante ? [`⚠ ${d.sinJustificante} sin justificante`] : []),
+      ];
+      if (!window.confirm(`Paquete gestoría T${selectedQuarter.q} ${selectedQuarter.year}:\n\n${lines.join("\n")}\n\n¿Generar el zip?`)) return;
+      // Descarga vía blob: si el servidor devuelve error, se muestra un aviso en
+      // vez de navegar la app a una página de JSON crudo.
+      const zipRes = await fetch(`/api/admin/gestoria-package${qs}`);
+      if (!zipRes.ok) {
+        const err = await zipRes.json().catch(() => null);
+        throw new Error(err?.error || `Error al generar el paquete (HTTP ${zipRes.status}).`);
+      }
+      const blob = await zipRes.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `gestoria-${selectedQuarter.year}-T${selectedQuarter.q}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    } catch (e: any) {
+      window.alert(e?.message || "Error al preparar el paquete.");
+    } finally {
+      setTaxBusy(false);
+    }
+  }
+
+  async function closeQuarter() {
+    if (!selectedQuarter || !selectedTaxPeriod) return;
+    const ok = window.confirm(
+      `Cerrar el trimestre T${selectedQuarter.q} ${selectedQuarter.year} (303 presentado):\n\nLas emisiones en lote ya no fecharán cobros dentro del trimestre — se facturarán con fecha de hoy.\n\n¿Cerrar?`
+    );
+    if (!ok) return;
+    setTaxBusy(true);
+    try {
+      const res = await fetch("/api/admin/tax-close", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ period: selectedTaxPeriod }) });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo cerrar el trimestre.");
+      router.refresh(); // refresca taxCloses sin perder los filtros elegidos
+      setTaxBusy(false);
+    } catch (e: any) {
+      window.alert(e?.message || "Error al cerrar el trimestre.");
+      setTaxBusy(false);
+    }
+  }
+
+  async function reopenQuarter() {
+    if (!selectedQuarter || !selectedTaxPeriod) return;
+    if (!window.confirm(`¿Reabrir el trimestre T${selectedQuarter.q} ${selectedQuarter.year}? Las emisiones en lote volverán a poder fechar cobros dentro de él.`)) return;
+    setTaxBusy(true);
+    try {
+      const res = await fetch("/api/admin/tax-close", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ period: selectedTaxPeriod }) });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo reabrir el trimestre.");
+      router.refresh();
+      setTaxBusy(false);
+    } catch (e: any) {
+      window.alert(e?.message || "Error al reabrir el trimestre.");
+      setTaxBusy(false);
+    }
+  }
 
   // ── Alta rápida de gasto ──────────────────────────────────
   const [showExp, setShowExp] = useState(false);
@@ -856,9 +911,42 @@ export default function ContabilidadClient({
           <button onClick={downloadDraft} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500">Descargar borrador (TXT)</button>
         }
       >
-        <p className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
-          📦 <span className="font-semibold text-slate-300">Paquete gestoría ({periodLabel}):</span> CSV facturas + CSV gastos del periodo (botones arriba) + extracto bancario del trimestre.
-        </p>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2">
+          <button
+            type="button"
+            onClick={downloadGestoriaPackage}
+            disabled={taxBusy || !selectedQuarter}
+            className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+          >
+            📦 Paquete gestoría{selectedQuarter ? ` (T${selectedQuarter.q} ${selectedQuarter.year})` : ""}
+          </button>
+          {selectedQuarter ? (
+            selectedClose ? (
+              <>
+                <span className="rounded-full border border-emerald-700 bg-emerald-900/30 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+                  T{selectedQuarter.q} cerrado el {new Date(selectedClose.closedAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+                <button type="button" onClick={reopenQuarter} disabled={taxBusy} className="text-xs text-slate-500 underline hover:text-slate-300 disabled:opacity-50">
+                  Reabrir
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={closeQuarter}
+                disabled={taxBusy}
+                className="rounded-lg border border-amber-600 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
+              >
+                Cerrar trimestre T{selectedQuarter.q}
+              </button>
+            )
+          ) : (
+            <span className="text-xs text-slate-500">elige un trimestre en los filtros</span>
+          )}
+          <span className="w-full text-[11px] text-slate-500 sm:ml-auto sm:w-auto">
+            El zip lleva PDFs de facturas, justificantes de gastos, CSVs y resumen 303. Añade el extracto bancario del trimestre.
+          </span>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 303 (IVA)</p>

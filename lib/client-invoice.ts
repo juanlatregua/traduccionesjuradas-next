@@ -12,6 +12,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { assertNotInClosedPeriod } from "@/lib/tax-close-store";
 import {
   clampVatRate,
   computeLineTotals,
@@ -95,6 +96,8 @@ export async function issueOrUpdateInvoice(input: {
       `El pedido tiene un presupuesto vinculado (${linked.number || "borrador"}): emite la factura desde /zona-traductor/facturas con el IVA que corresponda.`
     );
   }
+  // Gate de trimestre cerrado (mismo criterio que issueInvoice).
+  if (input.issuedAt) await assertNotInClosedPeriod(input.issuedAt);
   const forYear = (input.issuedAt ?? new Date()).getFullYear();
   const { baseCents, vatCents, totalCents } = totalsFromGross(input.amountCents, 0.21);
 
@@ -274,6 +277,10 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
     throw invalidNumberError(docKind);
   }
   const issuedAt = opts?.issuedAt ?? new Date();
+  // Gate de trimestre cerrado en el chokepoint: cualquier camino que retro-feche
+  // una FACTURA dentro de un 303 presentado falla aquí (los presupuestos no
+  // entran en contabilidad y quedan fuera del gate).
+  if (opts?.issuedAt && docKind === "invoice") await assertNotInClosedPeriod(issuedAt);
 
   let lastErr: any;
   for (let attempt = 0; attempt < 3; attempt++) {

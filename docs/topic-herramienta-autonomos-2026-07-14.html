@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOPIC: dar la herramienta a autónomos — qué necesitamos (14-jul-2026)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.55; max-width: 980px; margin: 2rem auto; padding: 0 1.2rem; color: #1e2530; background: #faf8f4; }
+  @media (prefers-color-scheme: dark) { body { color: #eaf0f7; background: #111a2b; } }
+  h1 { font-size: 1.65rem; border-bottom: 3px solid #7c4dbe; padding-bottom: .4rem; }
+  h2 { font-size: 1.28rem; margin-top: 2.3rem; border-bottom: 1px solid #7c4dbe55; padding-bottom: .25rem; }
+  h3 { font-size: 1.02rem; margin-top: 1.5rem; }
+  .meta { color: #777; font-size: .9rem; }
+  .box { border: 1px solid #7c4dbe66; border-left: 5px solid #7c4dbe; border-radius: 6px; padding: .8rem 1rem; margin: 1rem 0; background: #7c4dbe0d; }
+  .box.rojo { border-color: #c0392b88; border-left-color: #c0392b; background: #c0392b0d; }
+  .box.verde { border-color: #27835b88; border-left-color: #27835b; background: #27835b0d; }
+  .box.ambar { border-color: #b8860b88; border-left-color: #b8860b; background: #b8860b0d; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .9rem; }
+  th, td { border: 1px solid #8886; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #7c4dbe1a; }
+  code { background: #8883; padding: .1rem .3rem; border-radius: 3px; font-size: .88em; }
+  .tag { display: inline-block; font-size: .74rem; font-weight: 700; padding: .1rem .45rem; border-radius: 10px; margin-right: .3rem; color: #fff; }
+  .mata { background: #c0392b; } .serio { background: #b8860b; } .gest { background: #56606e; }
+  .bloq { background: #c0392b; } .imp { background: #b8860b; } .men { background: #56606e; }
+  .fuente { font-size: .8rem; color: #888; word-break: break-all; }
+  .overflow { overflow-x: auto; }
+  ul { padding-left: 1.3rem; } li { margin: .32rem 0; }
+</style>
+</head>
+<body>
+
+<h1>TOPIC · Dar la herramienta de contabilidad a traductores autónomos — qué necesitamos</h1>
+<p class="meta">14 de julio de 2026 · STORM de 7 agentes: 4 lectores de código (traduccionesjuradas-net + repo Lavori) + 1 investigador fiscal web (fuentes AEAT/BOE) + arquitecto de roadmap + crítico adversarial. Complementa el informe <code>docs/contabilidad-vendible-2026-07-14.html</code> (mercado/regulación) bajando al QUÉ FALTA exacto.</p>
+
+<div class="box">
+<strong>Respuesta corta:</strong> técnicamente sí — <strong>~70% del producto v1 ya está resuelto en lógica</strong> (~1.080 líneas de motores puros + 497 de tests + ~2.100 de UI portables). Lo que falta es exactamente lo específico del target: el <strong>modelo 130</strong> (retirado hoy mismo del repo por ser tú S.L.), la <strong>retención IRPF en facturas emitidas</strong> (15%/7%, no existe en el modelo), <strong>multi-tenant</strong> (cero <code>userId</code> en los modelos fiscales), el <strong>RGPD de encargado de tratamiento</strong>, y el <strong>billing</strong>. Pero el crítico adversarial y el propio estado de Lavori dicen algo más importante: <strong>antes de escribir una línea del port hay dos cosas que resolver — un choque entre tus propios documentos de estrategia y una preventa con dinero real.</strong>
+</div>
+
+<h2>⚠ 0 · El hallazgo que manda: tus dos documentos se contradicen</h2>
+<div class="box rojo">
+<p>En el repo Lavori hay una hoja de ruta <strong>fechada HOY</strong> (<code>research/hoja-ruta-negocio-2026-07-14.md</code>, sin commitear) que documenta un pivote del 11-jul: <strong>Lavori pasa a ser vehículo del colectivo/derivación B2B, congela el código</strong> ("salvo batch ≤1 día") y sitúa la "herramienta con 2-4 jurados midiendo" en <strong>Q1-2027</strong>, con stop-rules el 23-jul y a los ~90 días.</p>
+<p>Eso choca frontalmente con el plan Gestión del 10-jul (<code>docs/lavori-plan.md</code>: 3-4 semanas de código en ese repo, empezando ya). <strong>Son incompatibles en horas y en secuencia. Decidir cuál manda es lo primero — y solo puedes hacerlo tú.</strong> La síntesis que proponen tanto el arquitecto como el crítico: respetar la congelación y usar las 2-3 semanas hasta la stop-rule del 23-jul SOLO para preventa (cero código) — es compatible con ambos documentos.</p>
+</div>
+
+<h2>1 · Lo que ya tenemos: ~70% del v1 en lógica portable</h2>
+<p>El plan aprobado es la opción B: módulo "Gestión" dentro del repo Lavori (Drizzle/Neon), portando diseño y lógica. Inventario verificado import a import:</p>
+<div class="overflow"><table>
+<tr><th>Grupo</th><th>Piezas</th><th>Trabajo</th></tr>
+<tr><td><strong>(a) Puras — se copian casi tal cual</strong><br>~1.080 líneas + 497 de tests</td><td>Motor de conciliación bancaria (268 l., 100% puro, "la joya"), parser CSV bancario, tax-drafts (303 con ISP), fiscal-aggregation y gestoria-csv (creadas hoy), recurring-logic, expense-math, invoice-math, extract-expense (IA, solo SDK Anthropic)</td><td>Cambiar alias <code>@/</code> y parametrizar textos HBTJ</td></tr>
+<tr><td><strong>(b) Lógica clara, data-layer a reescribir</strong><br>~950 líneas</td><td>Gastos+anti-dup (buildExpenseData ya es puro; 2 queries), recurrentes (el claim transaccional se traduce directo a Drizzle — verificado que Lavori usa transacciones interactivas en prod), numeración con contador en BD, paquete gestoría (el diseño del zip entero)</td><td>CRUDs finos en Drizzle con <code>userId</code></td></tr>
+<tr><td><strong>(c) No se portan</strong></td><td>invoice-brands (CIF/IBAN HBTJ hardcodeados → tabla perfil fiscal), reconcile-invoices (acoplado al modelo Order del funnel web), emisión con IVA 21% fijo, textos S.L.</td><td>—</td></tr>
+<tr><td><strong>UI</strong> ~2.540 líneas</td><td>ContabilidadClient, BankReconcilePanel, RecurringExpenseManager (Tailwind, solo importan libs puras + fetch)</td><td>Renombrar endpoints, perfil de usuario</td></tr>
+</table></div>
+
+<h2>2 · Los deltas fiscales del autónomo (lo que nuestro código NO sabe hacer)</h2>
+<div class="overflow"><table>
+<tr><th></th><th>Gap</th><th>Detalle</th><th>Esfuerzo</th></tr>
+<tr><td><span class="tag bloq">BLOQ</span></td><td><strong>Modelo 130</strong></td><td>Lo retiramos HOY (S.L.→202); el autónomo SÍ lo presenta salvo exención por la regla del ≥70% de ingresos con retención (fuente AEAT). <strong>Confirmado por Juan: las facturas de los jurados SÍ llevan retención</strong> (agencias/empresas) — así que cada jurado cae de un lado u otro según su mezcla particulares/agencias: la pregunta de la exención (casilla del 037) es CENTRAL en el onboarding y el producto debe soportar ambos casos. La implementación vieja está en git (<code>c1f2744</code>) pero exige lo que no existe: <strong>agregación ACUMULADA del año</strong> (todo lo nuestro es por periodo), pagos fraccionados previos, resta de retenciones soportadas, flag de exoneración 037.</td><td>M</td></tr>
+<tr><td><span class="tag bloq">BLOQ</span></td><td><strong>Retención IRPF en facturas emitidas (15%/7%)</strong></td><td>El autónomo retiene a empresas/profesionales españoles (nunca a particulares ni extranjeros). <strong>Confirmado por Juan: es el caso habitual del gremio</strong> — imprescindible, no opcional. ClientInvoice no tiene campos, la matemática recorta negativos, el PDF no la pinta, el CSV no la lista. <strong>Matiz del arquitecto que lo rebaja a S+:</strong> como el v1 NO emite facturas (Verifactu), basta con la retención como CAMPO del registro de ingresos (el 130 la descuenta y el CSV la lista) — sin tocar PDF ni clamps.</td><td>S+ (v1) / M (con emisión)</td></tr>
+<tr><td><span class="tag imp">IMP</span></td><td>Perfil de emisor</td><td>BRANDS hardcodea HBTJ S.L./CIF/IBAN; el PDF pone "CIF:" fijo (persona física = NIF). → tabla <code>gestion_perfil_fiscal</code> por usuario.</td><td>M</td></tr>
+<tr><td><span class="tag imp">IMP</span></td><td>Serie de numeración configurable</td><td>El formato AA_NNN es tu convención personal en regex; cada jurado llega con su serie histórica (2026-001, F-26/001…). La ley solo pide correlatividad.</td><td>M</td></tr>
+<tr><td><span class="tag imp">IMP</span></td><td>Prompt de la IA de gastos</td><td>Hardcodea "HBTJ" como destinatario a ignorar — con otro usuario extraería al propio traductor como proveedor de sus gastos. 1 línea, invisible hasta que falla.</td><td>S</td></tr>
+<tr><td><span class="tag men">men</span></td><td>390 / textos</td><td>No hay borrador del 390 (el autónomo en régimen general SÍ lo presenta, fuente AEAT); textos "S.L./modelo 202" sembrados en TXT/LEEME/UI.</td><td>S</td></tr>
+</table></div>
+<p><strong>Lo que es neutral y vale tal cual (verificado):</strong> el 303 con ISP (el caso Trados/OpenAI/Adobe ES el del traductor), el 111 (si subcontrata colaboradores — nuestro flujo exacto), la simplificada ≤400 €, la serie P de presupuestos, la conciliación y todo el lado gasto.</p>
+
+<h3>El año fiscal del target (investigado con fuentes AEAT/BOE)</h3>
+<ul>
+<li><strong>Trimestral:</strong> 303 + <strong>130</strong> (el impuesto del target) + 349 si opera con UE (&lt;50.000 € → trimestral; exige alta previa en ROI — pregunta obligada del onboarding). <strong>Anual:</strong> 390 + Renta + 347 en su caso. 111/190 solo si retiene a colaboradores. Ni recargo de equivalencia ni prorrata (único edge: traducción literaria exenta art. 20.Uno.26 → aviso en letra pequeña).</li>
+<li><strong>RETA 2026</strong> (Orden PJC/297/2026): bases congeladas, MEI 0,9%; un traductor con rendimientos 1.500-3.000 €/mes paga <strong>~303-427 €/mes</strong>.</li>
+<li><strong>Plantillas recurrentes semilla del gremio</strong> (sustituyen a las de tu S.L.): RETA por tramo · APTIJ 80 €/año · ASETRAD ~110 €/año · seguro RC (~70-150 €/año, sin precio oficial) · Trados ~400 €/año · memoQ 360 €/año · Phrase ~27 $/mes · OpenAI/Claude ISP — cada una con la distinción proveedor UE (ISP + 349-I) vs no-UE (ISP sin 349) que hoy no automatizamos. Y suministros con la regla del 30%×m² (exige afectación en el 036/037).</li>
+</ul>
+
+<h2>3 · El destino (Lavori): qué tiene, qué le falta</h2>
+<div class="col2">
+<div class="box verde">
+<strong>YA TIENE (lo caro):</strong>
+<ul>
+<li>Identidad multi-usuario real: miembros con teléfono E.164 único + nº MAEC, sesiones revocables, RBAC, tabla de auditoría (base útil para el log de eventos que Verifactu pedirá algún día). <em>El userId que a nuestro módulo le falta, Lavori lo regala.</em></li>
+<li>PWA instalada + web-push operativo + email Graph del mismo tenant HBTJ.</li>
+<li>Cron protegido con CRON_SECRET (el de recurrentes se acopla trivial).</li>
+<li>Transacciones Drizzle interactivas YA en producción → la numeración por usuario es viable (fricción desmentida).</li>
+</ul>
+</div>
+<div class="box ambar">
+<strong>LE FALTA:</strong>
+<ul>
+<li>Perfil fiscal del jurado (NIF/IBAN/serie — los campos cif/razonSocial existentes son de los CLIENTES).</li>
+<li>Billing: cero Stripe (el plan ya dice "cero UI de pago hasta la señal de preventa" — no bloqueante).</li>
+<li><strong>Storage: Lavori PROMETE no custodiar ficheros</strong> (en schema y textos legales, con veto RGPD documentado del 23-jun que exige revisión legal+DPA antes de tocar código). Los justificantes de gasto chocan con esa promesa — casi-bloqueante a resolver.</li>
+<li>IA: sin SDK ni clave Anthropic.</li>
+<li>Piloto: lista blanca ~105 pero <strong>solo ~10-17 activados reales</strong> (75/105 sin idiomas en el perfil); GATE 0 superado con actividad orgánica hoy mismo.</li>
+</ul>
+</div>
+</div>
+
+<h2>4 · RGPD/seguridad: condición de venta, no papeleo</h2>
+<ul>
+<li><strong>Dar esto a terceros te hace encargado de tratamiento (art. 28):</strong> contrato con cada jurado (aceptación en el alta, patrón del sector), registro de actividades, anexo de subencargados con transferencias a EE. UU. (Vercel, Neon, Anthropic — firmar su DPA; Zero Data Retention deseable), borrado a la baja y export por tenant (el paquete gestoría es la base perfecta del "tus datos en un clic" — argumento de confianza en un gremio de rivales).</li>
+<li><strong>Blobs públicos</strong> (deuda conocida de tj-net): en Lavori se nace bien — Blob privado + proxy de descarga con sesión + registro en la tabla de auditoría (art. 32 gratis).</li>
+<li><strong>Trampa concreta cazada:</strong> el anti-duplicados actual busca por nº de factura en TODA la tabla y devolvería datos del gasto de OTRO jurado — todo el anti-dup debe ser <code>(tenantId, NIF, nº)</code>.</li>
+<li><strong>Lo que ya está bien por diseño:</strong> el extracto bancario NO se persiste (verificado: parseo en navegador, solo hashes de decisión) — "tu extracto nunca sale de tu ordenador" es vendible tal cual. Único retoque: salar el hash por tenant (dos cuotas RETA idénticas de dos jurados chocarían).</li>
+<li><strong>Coste IA: NO es factor de pricing</strong> — ~0,01-0,03 $/extracción → &lt;1 €/usuario/mes con 20-40 gastos, con rate-limit ya implementado.</li>
+</ul>
+
+<h2>5 · Roadmap propuesto (si la señal de preventa llega)</h2>
+<div class="overflow"><table>
+<tr><th>Fase</th><th>Qué</th><th>Esfuerzo</th><th>Criterio de salida</th></tr>
+<tr><td><strong>0 · Preventa antes de código</strong><br>(ya → ~31-jul)</td><td>Resolver el choque de documentos · terminar/mergear P1 paquete gestoría (la demo tangible: "esto tendrás cada trimestre") · guión de preventa a Vanessa + 4-6 activados reales · arrancar la revisión legal del veto RGPD</td><td>1 sem (repartida)</td><td><strong>≥3 compromisos de pago de 9 €/mes</strong> — sin ellos, TODO lo demás se cancela</td></tr>
+<tr><td><strong>1 · Cimientos multi-tenant</strong><br>(ago)</td><td>Esquema <code>gestion_*</code> con userId desde el día 1 · perfil fiscal · portar motores puros + UI de gastos · Blob privado + proxy · IA parametrizada · cron</td><td>3,5-4 sem-persona</td><td>2 tenants reales registran gastos con foto-IA; test de aislamiento cross-tenant en verde</td></tr>
+<tr><td><strong>2 · Fiscal del autónomo</strong><br>(sep → cierre 3T, 20-oct)</td><td>Libro de ingresos SIN emisión (con retención 15%/7% como campo + 3 regímenes de venta) · import del histórico YTD · <strong>build130 reintroducido</strong> con acumulado anual + exoneración 70% · draftToText por entityType · paquete gestoría por tenant · disclaimer patrón Holded</td><td>2,5-3 sem-persona</td><td>El 3T real de ≥2 jurados cerrado; <strong>sus gestores validan los borradores sin correcciones materiales</strong></td></tr>
+<tr><td><strong>3 · Onboarding autoservicio</strong><br>(oct-nov)</td><td>Wizard (perfil + las 4 preguntas: ¿exoneración 130 en 037? ¿ROI? ¿retienes? ¿m²?) · plantillas semilla del gremio · baja RGPD (exportar→entregar→borrar) · art. 28 en el alta</td><td>2 sem-persona</td><td>Un jurado desconocido se da de alta y registra su primer gasto en &lt;30 min sin ayuda</td></tr>
+<tr><td><strong>4 · Cobro + conciliación + escalar</strong><br>(nov → ene/feb-27)</td><td>Stripe Payment Link 9 €/mes + flag de acceso · conciliación (lista CERRADA de 2-3 bancos + Norma 43, no "tu banco") · campaña "cierra el 4T y el 390 con esto" · stop-rule explícita en feb</td><td>2 sem código</td><td><strong>LA META: 10 usando / ≥4 pagando</strong> 2 meses seguidos</td></tr>
+</table></div>
+<p class="meta">Total ~11-12 semanas-persona; a tiempo parcial aterriza en ene/feb-2027 — compatible con el "Q1-2027" de la hoja de ruta SI la preventa se hace ya.</p>
+
+<h2>6 · El crítico adversarial: lo que puede matar el proyecto</h2>
+<div class="overflow"><table>
+<tr><th></th><th>Riesgo</th><th>Mitigación</th></tr>
+<tr><td><span class="tag mata">MATA</span></td><td><strong>Economía unitaria muerta a escala piloto:</strong> mercado alcanzable HOY = ~10-17 personas → éxito total = 90-190 €/mes, que no paga ni el RGPD ni el 130 ni el soporte perpetuo. Solo es racional como apuesta a que Lavori escale a 100+ — y la adopción actual apunta a lo contrario.</td><td>Preventa con dinero ANTES de código, o degradarlo conscientemente a feature de retención del colectivo (gratis/simbólico). <strong>Lo letal es la vía intermedia.</strong></td></tr>
+<tr><td><span class="tag mata">MATA</span></td><td><strong>El choque estratégico sin resolver</strong> (sección 0).</td><td>Decisión escrita de Juan; preventa es compatible con ambos documentos.</td></tr>
+<tr><td><span class="tag serio">SERIO</span></td><td><strong>Confianza:</strong> el jurado enseña su cartera y precios al colega-competidor que administra el tablón. Un rumor de "Juan ve lo que facturas" contamina Lavori entero.</td><td>Aislamiento demostrable (no prometido): scoping + compromiso contractual de no-acceso + log art. 32 + export en 1 clic. Piloto con combinaciones que NO compiten contigo (EN/DE). Si aun así nadie sube datos: ese ES el resultado.</td></tr>
+<tr><td><span class="tag serio">SERIO</span></td><td><strong>Soporte = ejercer de gestor sin serlo:</strong> las dudas serán fiscales; el target probablemente YA paga un gestor de 30-60 €/mes.</td><td>Posicionamiento innegociable: "el cuaderno que tu gestor recibe perfecto cada trimestre" — complemento, nunca sustituto. Validar EN PREVENTA si el 100% tiene gestor.</td></tr>
+<tr><td><span class="tag serio">SERIO</span></td><td><strong>Conciliación multi-banco = pozo:</strong> 10 usuarios = 10 formatos CSV que cambian sin aviso, y las roturas llegan la semana del cierre.</td><td>Lista cerrada de 2-3 bancos + Norma 43/Cuaderno AEB como formato canónico + mapeador que configura el usuario.</td></tr>
+<tr><td><span class="tag serio">SERIO</span></td><td><strong>La ventana se cierra sola:</strong> cuando la AEAT explote los datos Verifactu (12-24 meses), el borrador 303 —la pieza vistosa— se comoditiza gratis.</td><td>Anclar el valor en lo que la AEAT nunca tendrá: el lado GASTO (deducciones, ISP, RETA, 30% suministros, foto→gasto) + el paquete gestoría.</td></tr>
+<tr><td><span class="tag serio">SERIO</span></td><td><strong>Responsabilidad por borrador erróneo</strong> (el 130 YTD es el más fácil de errar) · <strong>RGPD choca con la promesa de Lavori de no custodiar ficheros</strong> · <strong>competencia 10× más madura</strong> (Holded/Quipu/Declarando) · <strong>canibaliza tu tiempo</strong> (los cierres de 10 usuarios llegan TODOS los días 15-20 de abril/julio/octubre/enero — compitiendo con TU cierre y TUS entregas).</td><td>Disclaimers + v1 sin fichero importable en Sede · opción v1 SIN adjuntos (esquiva el veto y recorta 60% del RGPD) · venderlo como "el cierre trimestral del traductor jurado", nunca como "contabilidad" · nada de port antes del cierre de v2 web (1-sept).</td></tr>
+<tr><td><span class="tag gest">GEST</span></td><td>Coste IA por usuario.</td><td>&lt;1 €/mes real; cap por tenant y a otra cosa.</td></tr>
+</table></div>
+
+<div class="box rojo">
+<strong>Veredicto del crítico (íntegro en espíritu):</strong> NO escribir el port hoy. No por el código (los motores son buenos y portables), sino porque (1) tu propio negocio lo degradó ayer con la hoja de ruta del 14-jul y nadie ha resuelto el conflicto; (2) el mercado alcanzable real (~10-17) no paga el esfuerzo ni en el mejor caso; (3) la pieza vistosa se comoditiza cuando la AEAT explote Verifactu. <strong>Señal mínima antes de una línea, ejecutable en 2-3 semanas sin violar la congelación:</strong> (a) decides por escrito qué documento manda; (b) preventa real en el tablón — oferta fundador 9 €/mes con cobro o compromiso firmado, umbral <strong>≥5 pagando</strong>, de los cuales ≥2 fuera del círculo de cortesía y ≥1 dispuesto explícitamente a subir sus datos fiscales a tu plataforma; (c) 2-3 entrevistas donde el jurado te ENSEÑE cómo hace hoy su trimestre. Si a la stop-rule del 23-jul no hay 5 pagos: matar la versión de pago sin duelo y, como mucho, <strong>regalar el paquete gestoría como feature de retención del colectivo — que es probablemente lo que esto siempre fue</strong>.
+</div>
+
+<h2>7 · Decisiones que solo tú puedes tomar</h2>
+<ol>
+<li><strong>¿Qué documento manda?</strong> Hoja de ruta 14-jul (congelar, Q1-2027) vs plan Gestión 10-jul (código ya). Propuesta de compromiso: preventa ahora, código solo con ≥3-5 síes con dinero.</li>
+<li><strong>¿Levantas el veto RGPD de custodia de ficheros en Lavori?</strong> (revisión legal + DPA, con coste de abogado). Alternativa: v1 sin adjuntos.</li>
+<li><strong>Cobro para n≤10:</strong> ¿Stripe Payment Link o domiciliación manual con flag?</li>
+<li><strong>Tenant 0:</strong> ¿migras la contabilidad de HBTJ a Lavori (dogfooding, exige mantener entityType=sl) o la S.L. se queda en traduccionesjuradas y el primer usuario real es Vanessa?</li>
+<li><strong>Anthropic:</strong> ¿clave compartida o cuenta aparte? ¿Zero Data Retention o DPA estándar?</li>
+<li><strong>¿La conciliación bancaria entra en el v1 de pago o después de la meta?</strong> (mayor diferenciador, pero las 2 semanas más prescindibles).</li>
+<li><strong>Precio fundador:</strong> ¿9 €/mes incluye el primer cierre asistido por ti? ¿cap de extracciones IA?</li>
+</ol>
+
+<h2>8 · Correcciones a documentos existentes (deuda detectada por el barrido)</h2>
+<ul>
+<li><code>docs/lavori-plan.md</code> cita <code>build130</code> como existente — ya NO existe tras el commit de hoy (d3c01ad); su reintroducción es esfuerzo M de la Fase 2.</li>
+<li>El plan y la memoria dicen "OTP Twilio" — el OTP de Lavori va por EMAIL (Graph); Twilio está aparcado.</li>
+<li><code>app/zona-traductor/periodos/page.tsx:357</code> sigue anunciando "borradores 303/111/130" — texto huérfano tras retirar el 130.</li>
+</ul>
+
+<p class="meta">Fuentes fiscales clave: AEAT pagos fraccionados (exención 70%) · AEAT retenciones actividades profesionales (15%/7%) · BOE-A-2026-7296 (RETA 2026) · AEAT exonerados 390 · Manual IRPF (suministros 30%). Workflow wf_eb18f24e (7 agentes, 693k tokens). Datos de mercado y Verifactu: ver docs/contabilidad-vendible-2026-07-14.html.</p>
+
+</body>
+</html>
