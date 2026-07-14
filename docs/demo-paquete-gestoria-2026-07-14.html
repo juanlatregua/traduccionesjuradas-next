@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEMO · Paquete gestoría en un clic (probado con el 2T real)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5; max-width: 940px; margin: 2rem auto; padding: 0 1.2rem; color: #1e2530; background: #faf8f4; }
+  @media (prefers-color-scheme: dark) { body { color: #eaf0f7; background: #111a2b; } }
+  h1 { font-size: 1.55rem; border-bottom: 3px solid #27835b; padding-bottom: .4rem; }
+  h2 { font-size: 1.2rem; margin-top: 2.2rem; }
+  .meta { color: #777; font-size: .9rem; }
+  .paso { border: 1px solid #8885; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .paso .n { display: inline-block; background: #27835b; color: #fff; font-weight: 700; border-radius: 50%; width: 1.7rem; height: 1.7rem; text-align: center; line-height: 1.7rem; margin-right: .5rem; }
+  .ui { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 1rem 1.2rem; font-size: .9rem; margin: .8rem 0; border: 1px solid #334155; }
+  .ui .btn { display: inline-block; border-radius: 8px; padding: .45rem .9rem; font-weight: 600; font-size: .85rem; margin: .2rem .3rem .2rem 0; }
+  .btn.verde { background: #059669; color: #fff; } .btn.ambar { background: #b45309; color: #fff; } .btn.gris { background: transparent; border: 1px solid #64748b; color: #cbd5e1; }
+  .badge { display: inline-block; background: #06402511; border: 1px solid #059669; color: #34d399; border-radius: 999px; padding: .15rem .7rem; font-size: .8rem; }
+  pre { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 1rem; overflow-x: auto; font-size: .78rem; line-height: 1.45; border: 1px solid #334155; }
+  .confirm { background: #fff; color: #111; border: 1px solid #bbb; border-radius: 10px; box-shadow: 0 8px 30px #0004; padding: 1rem 1.3rem; max-width: 460px; font-size: .9rem; margin: .8rem 0; }
+  @media (prefers-color-scheme: dark) { .confirm { background: #1e293b; color: #e2e8f0; border-color: #475569; } }
+  .confirm .cbtn { display: inline-block; border: 1px solid #888; border-radius: 6px; padding: .25rem .9rem; margin-right: .5rem; font-size: .85rem; }
+  .ok { color: #27835b; font-weight: 700; }
+  .box { border-left: 5px solid #27835b; background: #27835b0d; border-radius: 6px; padding: .8rem 1rem; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>📦 DEMO · Paquete gestoría en un clic</h1>
+<p class="meta">Probado end-to-end el 14-jul-2026 contra los <strong>datos reales de producción</strong> (2T-2026): HTTP 200 · zip de 3,4 MB · 59 archivos · 13 segundos. El zip real de esta demo está en <code>exports/gestoria-2026-T2-demo.zip</code> — ábrelo.</p>
+
+<div class="box"><strong>La validación que importa:</strong> el resumen 303 del zip da <strong>263,99 € a ingresar</strong> — exactamente el mismo número que el recálculo independiente de esta mañana tras borrar los duplicados (devengado 617,55 con ISP desglosado · deducible 353,56). La tarjeta de la UI y el TXT salen ahora del mismo código: no pueden divergir.</div>
+
+<div class="paso"><span class="n">1</span><strong>Eliges el trimestre en Contabilidad</strong> y aparecen los dos botones nuevos en la sección Impuestos:
+<div class="ui">
+  <div style="margin-bottom:.5rem; color:#94a3b8;">/zona-traductor/contabilidad · filtros: <b style="color:#e2e8f0">2026 · T2</b></div>
+  <span class="btn verde">📦 Paquete gestoría (T2 2026)</span>
+  <span class="btn ambar">Cerrar trimestre T2</span>
+  <div style="margin-top:.5rem; color:#64748b; font-size:.8rem;">(con mes o "todos" elegido, el botón se desactiva: "elige un trimestre en los filtros")</div>
+</div>
+</div>
+
+<div class="paso"><span class="n">2</span><strong>Checklist de pre-cierre</strong> — el confirm que salió con tus datos reales del 2T:
+<div class="confirm">
+  <b>Paquete gestoría T2 2026:</b><br><br>
+  19 facturas · 43 gastos<br>
+  ⚠ 3 pedidos cobrados sin factura<br>
+  ⚠ 7 sin justificante<br><br>
+  ¿Generar el zip?<br><br>
+  <span class="cbtn">Cancelar</span><span class="cbtn" style="background:#059669;color:#fff;border-color:#059669;">Aceptar</span>
+</div>
+<p class="meta">Los 3 cobros sin factura que cazó: 26_9A7F75 (108,90 €), TJ-20260612-9981 (118,06 €) y TJ-2026-QKFJ2661 (55 € — el de Maite, que decidiste no facturar: márcalo "excluido de facturación" en admin y desaparecerá del aviso).</p>
+</div>
+
+<div class="paso"><span class="n">3</span><strong>Se descarga el zip</strong> — contenido real generado:
+<pre>gestoria-2026-T2.zip  (3,4 MB · 59 archivos)
+├── facturas/                     19 PDFs emitidos (26_009 … 26_028,
+│                                 con logo de marca: TJ vectorial / Hola Bonjour PNG)
+├── justificantes/                35 justificantes descargados de Blob, nombrados
+│   ├── 2026-04-05_Orange-Espagne-S.A.U._E10010903935-0426.pdf
+│   ├── 2026-04-07_Microsoft-Ireland-Operations-Ltd_E0100Z6UCA.pdf
+│   ├── 2026-04-30_Isabelle-M.V.-Guitton-nómina_….pdf
+│   └── …
+├── facturas-2026-T2.csv          para la gestoría (mismas columnas que el export)
+├── gastos-2026-T2.csv            con Tratamiento IVA + Notas + Justificante
+├── resumen-303-2026-T2.txt       ↓ ver abajo
+└── LEEME.txt                     recuentos + avisos del checklist</pre>
+</div>
+
+<div class="paso"><span class="n">4</span><strong>El resumen 303 que va dentro</strong> (líneas ISP nuevas de la Fase A):
+<pre>BORRADOR DE IMPUESTOS — 2026 · T2
+HBTJ Consultores Lingüísticos S.L. · uso interno (la gestoría presenta)
+
+== MODELO 303 (IVA) ==
+IVA devengado (repercutido) por tipo:
+  · 21%  base 2242.16 €  →  cuota 470.86 €
+  · 0%   base  239.76 €  →  cuota   0.00 €
+IVA devengado por ISP (autorrepercutido, art. 84 LIVA):
+  · Adquis. intracomunitarias de servicios: base 221.10 € → cuota  46.43 €
+  · Importación de servicios:               base 477.41 € → cuota 100.26 €
+  (casillas exactas: validar con gestoría)
+  Total IVA devengado:                617.55 €
+IVA soportado deducible (gastos):
+  Base (facturas interiores):         3893.66 €
+  Cuota deducible (facturas):          206.87 €
+  Cuota deducible por ISP:             146.69 €
+  Total cuota deducible:               353.56 €
+RESULTADO:                            263.99 € (a ingresar)   ← cuadra con el asesor
+
+== MODELO 111 ==  0,00 (sin retenciones a colaboradores este trimestre)
+== IMPUESTO DE SOCIEDADES ==  S.L.: modelo 202 (lo presenta la gestoría)</pre>
+</div>
+
+<div class="paso"><span class="n">5</span><strong>Al presentar el 303, cierras el trimestre</strong> — y el candado es real:
+<div class="ui">
+  <span class="badge">✓ T2 cerrado el 20-jul-2026</span> &nbsp;<span class="btn gris">Reabrir</span>
+  <div style="margin-top:.6rem; color:#94a3b8; font-size:.82rem;">Desde ese momento, NINGÚN camino (lote, emisión individual, descarga del cliente) puede fechar una factura dentro del trimestre — da error claro en su lugar. T1-2026 ya está cerrado de serie.</div>
+</div>
+</div>
+
+<h2>Lo que esto sustituye</h2>
+<p>Tu cierre del 2T real fue: script de export local con <code>DATABASE_URL</code> + juntar PDFs a mano en el Escritorio + zipear con <code>ditto</code> + calcular el 303 aparte + email. <strong>Ahora: filtro → botón → confirm → zip → adjuntar al email del asesor.</strong> El del 3T (octubre) será así.</p>
+
+<p class="meta">Implementado y probado en traduccionesjuradas-net (PR #177, pendiente de merge). El port a Lavori es otra historia (ver docs/topic-herramienta-autonomos-2026-07-14.html) — pero esta demo es exactamente lo que enseñarías en la preventa.</p>
+
+</body>
+</html>
