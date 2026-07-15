@@ -83,7 +83,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
     });
 
-    await runQuoteToOrderBridge({
+    const order = await runQuoteToOrderBridge({
       quote: {
         id: quote.id,
         quoteNumber: quote.quoteNumber,
@@ -103,7 +103,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       payload: { actorEmail: access.email },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, orderReference: order?.reference || null });
   } catch (err: any) {
     console.error("[quotes:mark-paid] error", err?.message || err);
     return NextResponse.json({ ok: false, error: "No se pudo registrar el pago." }, { status: 500 });

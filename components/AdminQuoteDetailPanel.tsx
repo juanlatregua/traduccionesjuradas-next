@@ -30,6 +30,7 @@ type QuoteData = {
   id: string;
   quoteNumber: string;
   status: string;
+  orders?: { reference: string }[];
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
@@ -255,7 +256,11 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo registrar el pago.");
-      setMessage(`Pago ${method} registrado. Pedido de producción creado.`);
+      setMessage(
+        data.orderReference
+          ? `Pago ${method} registrado. Pedido de producción ${data.orderReference} creado.`
+          : `Pago ${method} registrado. Pedido de producción creado.`
+      );
       await reloadQuote();
     } catch (err: any) {
       setMessage(err?.message || "No se pudo registrar el pago.");
@@ -328,6 +333,15 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
+          {(quote.orders || []).map((o: any) => (
+            <a
+              key={o.reference}
+              href={`/zona-traductor/pedido/${o.reference}`}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+            >
+              Abrir pedido {o.reference} →
+            </a>
+          ))}
           {!["PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED"].includes(quote.status) && (
             <>
               <button

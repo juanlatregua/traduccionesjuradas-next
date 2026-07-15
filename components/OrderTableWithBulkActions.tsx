@@ -282,10 +282,10 @@ export default function OrderTableWithBulkActions({ orders }: Props) {
                       <>
                         <br />
                         <a
-                          href={`/zona-traductor/workspace/${order.reference}`}
+                          href={`/zona-traductor/pedido/${order.reference}`}
                           className="mb-2 inline-flex rounded-lg border border-indigo-500/40 px-2 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/10"
                         >
-                          Workspace
+                          Abrir pedido
                         </a>
                       </>
                     )}

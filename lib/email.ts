@@ -746,7 +746,7 @@ export async function sendTranslatorDeliveredStaffEmail(data: {
   if (!to) throw new Error("Missing PRESUPUESTO_TO");
 
   const subject = `Traduccion recibida del traductor - ${data.reference}`;
-  const workspaceUrl = `https://www.traduccionesjuradas.net/zona-traductor/workspace/${data.reference}`;
+  const workspaceUrl = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${data.reference}`;
 
   const html = `
     <h2>El traductor entregó la traducción</h2>

@@ -523,10 +523,10 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                         </a>
                         <span className="text-slate-500">·</span>
                         <a
-                          href={`/zona-traductor/workspace/${reference}`}
+                          href={`/zona-traductor/pedido/${reference}`}
                           className="text-xs font-semibold text-cyan-300 underline"
                         >
-                          Abrir workspace
+                          Abrir pedido
                         </a>
                       </div>
                     </div>

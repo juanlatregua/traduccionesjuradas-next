@@ -68,7 +68,7 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
       include: {
         events: { select: { type: true, payload: true, createdAt: true }, orderBy: { createdAt: "desc" } },
         clientInvoice: { select: { number: true, totalCents: true, status: true } },
-        quote: { select: { quoteNumber: true } },
+        quote: { select: { id: true, quoteNumber: true } },
       },
     }),
     prisma.quote.findMany({
@@ -230,7 +230,7 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
                           <p className="text-slate-600">sin factura</p>
                         )}
                         {o.quote && (
-                          <a href="/admin/quotes" className="block text-slate-300 hover:underline">
+                          <a href={`/admin/quotes/${o.quote.id}`} className="block text-slate-300 hover:underline">
                             Presupuesto {o.quote.quoteNumber}
                           </a>
                         )}

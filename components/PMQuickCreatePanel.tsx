@@ -105,7 +105,7 @@ export default function PMQuickCreatePanel() {
       const paymentUrl = String(data.paymentUrl || "");
       const zonaTraductorPath = toInternalPath(
         String(data.zonaTraductorUrl || ""),
-        `/zona-traductor?q=${encodeURIComponent(reference)}`
+        `/zona-traductor/pedido/${encodeURIComponent(reference)}`
       );
       const consultaPath = toInternalPath(
         String(data.consultaUrl || ""),
@@ -346,16 +346,10 @@ export default function PMQuickCreatePanel() {
 
           <div className="mt-3 flex flex-wrap gap-2">
             <a
-              href={`/zona-traductor/workspace/${created.reference}`}
+              href={created.zonaTraductorPath}
               className="rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white hover:bg-emerald-500"
             >
-              Ir al workspace
-            </a>
-            <a
-              href={created.zonaTraductorPath}
-              className="rounded-lg border border-slate-600 px-3 py-1.5 font-semibold text-slate-200 hover:bg-slate-800"
-            >
-              Ver pedido en zona traductor
+              Abrir pedido
             </a>
             <a
               href={created.consultaPath}

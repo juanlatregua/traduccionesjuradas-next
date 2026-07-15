@@ -53,8 +53,7 @@ function buildPaymentUrl(reference: string, channel: "whatsapp" | "email" | "web
 
 function buildZonaTraductorUrl(reference: string) {
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-  const url = new URL("/zona-traductor", baseUrl);
-  url.searchParams.set("q", reference);
+  const url = new URL(`/zona-traductor/pedido/${encodeURIComponent(reference)}`, baseUrl);
   return url.toString();
 }
 
