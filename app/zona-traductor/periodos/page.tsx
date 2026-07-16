@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ContabilidadSubNav from "@/components/ContabilidadSubNav";
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
@@ -324,6 +325,7 @@ export default async function ZonaTraductorPeriodosPage({
   return (
     <div className="min-h-screen bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <ContabilidadSubNav />
         <h1 className="text-2xl font-semibold text-white">Periodos · trimestres y meses</h1>
         <p className="mt-1 text-sm text-slate-400">
           Agrupa ingresos, presupuestos y pedidos por trimestre y mes (zona horaria Europe/Madrid). Útil para cierres

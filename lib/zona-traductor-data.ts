@@ -1,9 +1,11 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isStaffEmail } from "@/lib/staff-access";
 import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
+import { prisma } from "@/lib/prisma";
 import { getAllOrdersForStaff } from "@/lib/orders";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState } from "@/lib/workflow";
@@ -368,7 +370,11 @@ function getArchiveState(order: any) {
   return { isArchived, archivedAt };
 }
 
-async function loadEnrichedOrders() {
+// cache() de React: el layout (badge del nav) y la página (lista) piden los
+// mismos pedidos en el MISMO render. Sin esto, getAllOrdersForStaff —la query
+// más pesada del backoffice: todos los pedidos con sus eventos, análisis y
+// asignaciones— corría dos veces por pantalla y agotaba el pool de conexiones.
+const loadEnrichedOrders = cache(async () => {
   const allOrders = await getAllOrdersForStaff();
   return allOrders.map((o) => {
     const financeSnapshot = getFinanceSnapshot(o);
@@ -388,7 +394,7 @@ async function loadEnrichedOrders() {
       ...getArchiveState(o),
     };
   });
-}
+});
 
 type EnrichedOrder = Awaited<ReturnType<typeof loadEnrichedOrders>>[number];
 
@@ -456,6 +462,21 @@ function computePedidosAccionables(allActiveOrders: EnrichedOrder[]) {
 
 // ─── Public API ───
 
+// Igual que authZonaTraductorOrRedirect pero SIN redirigir: devuelve null si no
+// hay staff verificado. El layout la usa para no tocar la BD cuando no hay
+// sesión (build, /verificar, visitante suelto): antes pagaba la query más cara
+// del backoffice sin comprobar auth siquiera.
+export const getZonaTraductorStaffEmail = cache(async (): Promise<string | null> => {
+  const session = await getServerSession(authOptions);
+  const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
+  const verifiedCookie = cookies().get(STAFF_OTP_VERIFIED_COOKIE)?.value;
+  const verified = readVerifiedOtpToken(verifiedCookie);
+  const verifiedEmail = verified?.email && isStaffEmail(verified.email) ? verified.email : null;
+  const sessionStaffEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : null;
+  if (sessionStaffEmail && (!verifiedEmail || verifiedEmail !== sessionStaffEmail)) return null;
+  return sessionStaffEmail || verifiedEmail;
+});
+
 export async function authZonaTraductorOrRedirect(): Promise<string> {
   const session = await getServerSession(authOptions);
   const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
@@ -485,6 +506,41 @@ export async function loadBandejaState() {
     pedidosAccionables: computePedidosAccionables(allActive),
   };
 }
+
+// Expedientes entrantes que aún no tienen presupuesto: el trabajo real que
+// espera en la sub-vista Expedientes. cache(): lo piden el badge del nav (en el
+// layout) y la propia sub-vista dentro del mismo render.
+export const countExpedientesPendientes = cache(async (): Promise<number> => {
+  const [expedienteTokens, quotedRefs] = await Promise.all([
+    prisma.documentAnalysis.findMany({
+      where: { sessionToken: { startsWith: "exp:" } },
+      distinct: ["sessionToken"],
+      select: { sessionToken: true },
+      take: 400,
+    }),
+    prisma.quote.findMany({
+      where: { expedienteRef: { not: null }, deletedAt: null },
+      distinct: ["expedienteRef"],
+      select: { expedienteRef: true },
+    }),
+  ]);
+  const alreadyQuoted = new Set(quotedRefs.map((q) => q.expedienteRef));
+  return expedienteTokens.filter(
+    (t) => t.sessionToken && !alreadyQuoted.has(t.sessionToken.replace(/^exp:/, ""))
+  ).length;
+});
+
+// Badge de la pestaña Presupuestos: lo que espera trabajo del traductor =
+// expedientes entrantes SIN presupuesto todavía + borradores sin enviar.
+// Decisión de Juan: cuenta ambos (llegar al mismo sitio desde varios ángulos
+// no es redundancia; lo redundante sería duplicar la implementación).
+export const countPresupuestosAccionables = cache(async (): Promise<number> => {
+  const [draftQuotes, pendingExpedientes] = await Promise.all([
+    prisma.quote.count({ where: { status: "DRAFT", deletedAt: null } }),
+    countExpedientesPendientes(),
+  ]);
+  return draftQuotes + pendingExpedientes;
+});
 
 export async function loadControlState(searchParams: ControlSearchParams) {
   const enriched = await loadEnrichedOrders();
@@ -585,6 +641,9 @@ export async function loadControlState(searchParams: ControlSearchParams) {
 
   return {
     orders,
+    // Mismos pedidos filtrados, serializados para las tarjetas de triage: la
+    // vista Cards y la vista Tabla comparten filtro y dataset (una sola carga).
+    bandejaOrders: orders.map(toBandejaOrder),
     periodOrders,
     activeScopedOrders,
     counts,
