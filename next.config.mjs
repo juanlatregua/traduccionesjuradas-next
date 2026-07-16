@@ -81,6 +81,12 @@ const nextConfig = {
         destination: "https://www.traduccionesjuradas.net/:path*",
         permanent: true,
       },
+      // ?modo=control era el atajo a la vista de control: ahora es la vista
+      // Tabla de Pedidos (misma pantalla). OJO: Next conserva los query params
+      // del origen en el destino, así que redirigir a /zona-traductor volvería a
+      // traer ?modo=control y la regla reentraría en bucle. El salto pasa por
+      // /control (que no tiene regla `has`) y allí el page component descarta
+      // `modo` y reenvía a la vista Tabla. Un salto de más, cero bucles.
       {
         source: "/zona-traductor",
         has: [{ type: "query", key: "modo", value: "control" }],

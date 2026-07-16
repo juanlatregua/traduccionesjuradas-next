@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
+import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
+import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber, QUOTE_STATUS_LABELS, type QuoteStatus } from "@/lib/quotes";
 import { FileText, ExternalLink } from "lucide-react";
@@ -36,6 +37,7 @@ type Props = { searchParams?: { q?: string } };
 
 export default async function ZonaTraductorPresupuestosPage({ searchParams }: Props) {
   await authZonaTraductorOrRedirect();
+  const expedientesPendientes = await countExpedientesPendientes();
 
   const q = (searchParams?.q || "").trim();
 
@@ -115,6 +117,12 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
   return (
     <div className="min-h-screen bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <ZonaTraductorSubNav
+          tabs={[
+            { href: "/zona-traductor/presupuestos", label: "Carpeta" },
+            { href: "/zona-traductor/expedientes", label: "Expedientes", badge: expedientesPendientes },
+          ]}
+        />
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-white">Presupuestos</h1>
@@ -122,6 +130,16 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
               Carpeta de presupuestos: cada uno con sus documentos fuente, su PDF y su pedido si existe.
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/zona-traductor/presupuesto"
+              className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
+            >
+              + Nuevo presupuesto
+            </Link>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
           <form method="get" className="flex items-center gap-2">
             <input
               type="search"

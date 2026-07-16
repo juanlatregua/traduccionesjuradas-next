@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type FilterKey =
   | "todos"
@@ -75,6 +75,9 @@ export default function ZonaTraductorFilters({
   dateBase,
 }: Props) {
   const router = useRouter();
+  // La vista activa (Tarjetas|Tabla) es ortogonal al filtro: filtrar no debe
+  // sacarte de la lectura que estabas usando.
+  const vista = useSearchParams().get("vista");
   const [search, setSearch] = useState(query || "");
   const [periodKey, setPeriodKey] = useState<PeriodKey>(normalizePeriod(period));
   const [from, setFrom] = useState(fromDate || "");
@@ -102,8 +105,9 @@ export default function ZonaTraductorFilters({
         if (nextTo) params.set("hasta", nextTo);
       }
     }
+    if (vista) params.set("vista", vista);
     const qs = params.toString();
-    return qs ? `/zona-traductor/control?${qs}` : "/zona-traductor/control";
+    return qs ? `/zona-traductor?${qs}` : "/zona-traductor";
   }
 
   function navigate(filterKey: string) {
@@ -131,7 +135,7 @@ export default function ZonaTraductorFilters({
     setFrom("");
     setTo("");
     setBase("created");
-    router.push("/zona-traductor/control");
+    router.push(vista ? `/zona-traductor?vista=${vista}` : "/zona-traductor");
   }
 
   function exportCsv() {

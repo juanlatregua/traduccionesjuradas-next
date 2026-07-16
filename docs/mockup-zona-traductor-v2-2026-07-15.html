@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Zona traductor v2 (10 → 6 pestañas) · 2026-07-15</title>
+<style>
+  :root{
+    --s950:#020617; --s900:#0f172a; --s800:#1e293b; --s700:#334155; --s600:#475569;
+    --s500:#64748b; --s400:#94a3b8; --s300:#cbd5e1; --s200:#e2e8f0;
+    --cyan:#22d3ee; --cyan-d:#0e7490; --cyan-btn:#0891b2;
+    --emerald:#34d399; --amber:#fbbf24; --red:#f87171; --blue:#60a5fa;
+    --violet:#a78bfa; --rose:#fb7185; --fuchsia:#e879f9; --lime:#a3e635;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--s950); color:var(--s300);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:15px; line-height:1.5;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+
+  /* ============ franja superior: mockup + comparación 10→6 ============ */
+  .mockbar{background:linear-gradient(90deg,#312e81,#1e1b4b);border-bottom:1px solid var(--s700);padding:14px 0}
+  .mockbar h1{font-size:16px;color:#fff;font-weight:700}
+  .mockbar p{font-size:12.5px;color:#c7d2fe;margin-top:2px}
+  .compare{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .compare-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .compare-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#a5b4fc;min-width:130px}
+  .chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;border:1px solid var(--s600);background:rgba(15,23,42,.7);color:var(--s300)}
+  .chip small{font-weight:500;color:var(--s500);font-size:10px}
+  .chip.gone{border-style:dashed;color:var(--s500);text-decoration:line-through;text-decoration-color:rgba(148,163,184,.5)}
+  .chip.new{border-color:rgba(34,211,238,.5);background:rgba(34,211,238,.1);color:var(--cyan)}
+  .chip.future{border-color:rgba(232,121,249,.5);background:rgba(232,121,249,.08);color:var(--fuchsia)}
+  .chip .to{color:var(--cyan);font-weight:700}
+
+  /* ============ nav real (imitación ZonaTraductorNav) ============ */
+  nav.zt{
+    position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:8px;
+    border-bottom:1px solid var(--s700);background:rgba(15,23,42,.95);backdrop-filter:blur(6px);
+    padding:8px 16px;overflow-x:auto;
+  }
+  .zt-tabs{display:flex;align-items:center;gap:2px}
+  .zt-tab{
+    position:relative;border-radius:10px;padding:8px 14px;font-size:13.5px;font-weight:600;color:var(--s400);
+    background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit;
+  }
+  .zt-tab:hover{color:var(--s200)}
+  .zt-tab.active{color:#fff;border-bottom-color:var(--cyan);border-radius:10px 10px 0 0}
+  .zt-tab .count{margin-left:6px;display:inline-flex;min-width:20px;height:20px;align-items:center;justify-content:center;border-radius:999px;background:rgba(34,211,238,.2);padding:0 5px;font-size:11px;font-weight:700;color:var(--cyan)}
+  .zt-tab.gear{font-size:16px;padding:8px 10px}
+  .btn-new{border:none;border-radius:12px;background:var(--cyan-btn);padding:8px 16px;font-size:13.5px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;font-family:inherit}
+  .btn-new:hover{background:#0aa2c0}
+
+  /* ============ pantallas ============ */
+  .screen{display:none;padding:24px 0 64px}
+  .screen.on{display:block}
+  h2.pg{font-size:22px;font-weight:600;color:#fff}
+  .pg-sub{font-size:13.5px;color:var(--s400);margin-top:3px}
+  .kicker{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--cyan)}
+
+  /* ============ post-its ============ */
+  .postit{
+    position:relative;display:inline-block;max-width:280px;background:#fef3c7;color:#451a03;
+    border-radius:2px;padding:8px 11px;font-size:11.5px;line-height:1.45;font-weight:500;
+    box-shadow:2px 3px 8px rgba(0,0,0,.45);transform:rotate(-1deg);vertical-align:top;
+  }
+  .postit.r{transform:rotate(1.2deg)}
+  .postit::before{content:"";position:absolute;top:-7px;left:50%;width:34px;height:12px;transform:translateX(-50%) rotate(-2deg);background:rgba(251,191,36,.55)}
+  .postit b{font-weight:700}
+  .postit-row{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 6px}
+  .postit.pink{background:#fce7f3;color:#500724}
+  .postit.pink::before{background:rgba(244,114,182,.5)}
+  .postit.green{background:#d1fae5;color:#064e3b}
+  .postit.green::before{background:rgba(52,211,153,.5)}
+
+  /* ============ componentes ============ */
+  .card{border:1px solid var(--s700);border-radius:20px;background:rgba(15,23,42,.8);padding:20px}
+  .card+.card{margin-top:16px}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:16px}
+  .kpi{border:1px solid var(--s700);border-radius:16px;background:rgba(30,41,59,.6);padding:12px 8px;text-align:center}
+  .kpi b{display:block;font-size:20px;color:#fff}
+  .kpi span{display:block;margin-top:2px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--s400)}
+  .kpi.em{border-color:rgba(52,211,153,.25);background:rgba(52,211,153,.06)} .kpi.em b{color:var(--emerald)}
+  .kpi.bl{border-color:rgba(96,165,250,.25);background:rgba(96,165,250,.06)} .kpi.bl b{color:var(--blue)}
+  .kpi.am{border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.06)} .kpi.am b{color:var(--amber)}
+  .kpi.cy{border-color:rgba(34,211,238,.25);background:rgba(34,211,238,.06)} .kpi.cy b{color:var(--cyan);font-size:15px;padding-top:5px}
+  .kpi.rd{border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.06)} .kpi.rd b{color:var(--red)}
+
+  .pills{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{border-radius:999px;border:1px solid var(--s700);background:rgba(30,41,59,.6);padding:6px 15px;font-size:12px;font-weight:600;color:var(--s400);cursor:pointer;font-family:inherit}
+  .pill:hover{color:var(--s200);border-color:var(--s600)}
+  .pill.on{background:rgba(34,211,238,.15);border-color:rgba(34,211,238,.4);color:var(--cyan)}
+  .pill .n{margin-left:5px;font-size:10.5px;color:var(--s500)}
+
+  .badge{display:inline-block;border-radius:999px;border:1px solid;padding:1px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+  .b-paid{background:rgba(52,211,153,.15);color:var(--emerald);border-color:rgba(52,211,153,.3)}
+  .b-pend{background:rgba(251,191,36,.15);color:var(--amber);border-color:rgba(251,191,36,.3)}
+  .b-proc{background:rgba(96,165,250,.15);color:var(--blue);border-color:rgba(96,165,250,.3)}
+  .b-trad{background:rgba(52,211,153,.15);color:var(--emerald);border-color:rgba(52,211,153,.3)}
+  .b-pres{background:rgba(100,116,139,.2);color:var(--s400);border-color:rgba(100,116,139,.4)}
+  .b-sent{background:rgba(56,189,248,.15);color:#7dd3fc;border-color:rgba(56,189,248,.3)}
+  .b-viol{background:rgba(167,139,250,.15);color:var(--violet);border-color:rgba(167,139,250,.3)}
+  .b-rose{background:rgba(251,113,133,.15);color:var(--rose);border-color:rgba(251,113,133,.3)}
+  .b-new{background:rgba(251,191,36,.15);color:var(--amber);border-color:rgba(251,191,36,.3)}
+
+  .btn{display:inline-block;border-radius:10px;border:1px solid var(--s600);background:none;padding:6px 13px;font-size:12px;font-weight:600;color:var(--s300);cursor:pointer;font-family:inherit;text-decoration:none}
+  .btn:hover{background:var(--s800);text-decoration:none}
+  .btn-p{background:var(--cyan-btn);border-color:var(--cyan-btn);color:#fff}
+  .btn-p:hover{background:#0aa2c0}
+  .btn-g{border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.12);color:#6ee7b7}
+  .btn-g:hover{background:rgba(52,211,153,.22)}
+  .btn-c{border-color:rgba(34,211,238,.4);color:var(--cyan)}
+  .btn-c:hover{background:rgba(34,211,238,.08)}
+  .btn-d{border-color:rgba(248,113,113,.4);color:var(--red)}
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+
+  /* order cards (bandeja) */
+  .ocard{border:1px solid var(--s700);border-radius:16px;background:rgba(15,23,42,.8);padding:15px 18px;transition:border-color .15s}
+  .ocard:hover{border-color:var(--s600);background:rgba(30,41,59,.5)}
+  .ocard+.ocard{margin-top:10px}
+  .ocard.urg{border-left:4px solid #ef4444}
+  .ocard.soon{border-left:4px solid #f59e0b}
+  .ocard.proc{border-left:4px solid #3b82f6}
+  .oref{font-size:13px;font-weight:700;color:var(--cyan)}
+  .ohead{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .otitle{margin-top:4px;font-size:13.5px;color:var(--s300);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ometa{margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--s400)}
+  .ometa .money{color:var(--s200);font-weight:600}
+  .obtns{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+  .grp{display:flex;align-items:center;gap:8px;margin:18px 0 8px;background:none;border:none;cursor:pointer;font-family:inherit;width:100%;text-align:left}
+  .grp .tri{color:var(--s500);font-size:11px;transition:transform .15s}
+  .grp.open .tri{transform:rotate(90deg)}
+  .grp span.lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+  .grp .cnt{font-size:11px;color:var(--s500)}
+  .grp-body{display:none}
+  .grp.open+.grp-body{display:block}
+
+  /* filtros */
+  .filterbar{border:1px solid var(--s700);border-radius:16px;background:rgba(2,6,23,.5);padding:14px;margin-top:16px}
+  .filterbar .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .filterbar .row+.row{margin-top:10px}
+  input[type=search],input[type=text],input[type=email],input[type=date],select,textarea{
+    border:1px solid var(--s700);border-radius:10px;background:var(--s900);color:var(--s200);
+    padding:7px 11px;font-size:13px;font-family:inherit;outline:none;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--cyan-d)}
+  label.fl{font-size:11px;font-weight:600;text-transform:uppercase;color:var(--s500);letter-spacing:.03em}
+
+  /* tabla */
+  .tblwrap{overflow-x:auto;border:1px solid var(--s700);border-radius:14px;margin-top:12px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  thead{background:rgba(30,41,59,.6)}
+  th{padding:8px 12px;text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--s400);white-space:nowrap}
+  td{padding:9px 12px;border-top:1px solid rgba(51,65,85,.5);color:var(--s300);white-space:nowrap}
+  td.r,th.r{text-align:right}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* sub-tabs internos (contabilidad, presupuestos) */
+  .subtabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--s700);padding-bottom:0;margin-top:18px}
+  .subtab{border:none;background:none;color:var(--s400);font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent}
+  .subtab:hover{color:var(--s200)}
+  .subtab.on{color:var(--cyan);border-bottom-color:var(--cyan)}
+  .subpane{display:none;padding-top:18px}
+  .subpane.on{display:block}
+
+  /* stepper detalle pedido */
+  .stepper{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:14px}
+  .step{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--s500)}
+  .step .dot{width:22px;height:22px;border-radius:999px;border:1.5px solid var(--s600);display:flex;align-items:center;justify-content:center;font-size:11px}
+  .step.done{color:var(--emerald)} .step.done .dot{border-color:var(--emerald);background:rgba(52,211,153,.12)}
+  .step.cur{color:var(--cyan)} .step.cur .dot{border-color:var(--cyan);background:rgba(34,211,238,.12)}
+  .step-sep{color:var(--s700);margin:0 4px}
+  .section{border:1px solid var(--s700);border-radius:20px;background:rgba(15,23,42,.7);padding:18px 20px;margin-top:14px;scroll-margin-top:80px}
+  .section h3{font-size:15px;color:#fff;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .section h3 .anchor{font-size:11px;color:var(--s500);font-weight:500}
+  .canon{display:inline-block;border-radius:6px;background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3);color:var(--cyan);font-size:10px;font-weight:700;padding:1px 7px;text-transform:uppercase;letter-spacing:.03em}
+
+  .note{font-size:12px;color:var(--s500);margin-top:6px}
+  .hr{border:none;border-top:1px solid var(--s700);margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .bigfig{font-size:34px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+  .alertbox{border:1px solid rgba(248,113,113,.3);border-radius:16px;background:rgba(248,113,113,.05);padding:14px 16px;margin-top:14px}
+  .alertbox b{color:#fecaca}
+  .future-banner{border:1px dashed rgba(232,121,249,.5);border-radius:16px;background:rgba(232,121,249,.06);padding:14px 18px;color:#f0abfc;font-size:13px;margin-top:14px}
+  .backlink{font-size:13px;color:var(--cyan);background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
+  .backlink:hover{text-decoration:underline}
+  .checkline{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:8px}
+  .msg-templates{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+
+  @media (max-width:820px){
+    .kpis{grid-template-columns:repeat(3,1fr)}
+    .grid2,.grid3{grid-template-columns:1fr}
+    .compare-label{min-width:100%}
+    .postit{max-width:100%}
+  }
+  @media (max-width:520px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= FRANJA SUPERIOR: 10 → 6 ================= -->
+<header class="mockbar">
+  <div class="wrap">
+    <h1>MOCKUP · Zona traductor v2 — reorganización 10 → 6 pestañas <span style="font-weight:400;color:#a5b4fc">(PR 2 de la auditoría 15-jul-2026 · navegable, datos ficticios)</span></h1>
+    <p>Regla de oro: <b>ninguna función se pierde</b> — mismo proceso, misma capacidad, una sola puerta por gesto. Haz clic en las pestañas de abajo.</p>
+    <div class="compare">
+      <div class="compare-row">
+        <span class="compare-label">Nav actual (10)</span>
+        <span class="chip">Bandeja <small>→ <b class="to">Pedidos</b></small></span>
+        <span class="chip gone">Resumen <small>→ <b class="to">Pedidos</b></small></span>
+        <span class="chip">Presupuestos <small>→ <b class="to">Presupuestos</b></small></span>
+        <span class="chip gone">Presupuesto <small>→ botón «Nuevo» dentro</small></span>
+        <span class="chip gone">Expedientes <small>→ sección de Presupuestos</small></span>
+        <span class="chip">Clientes <small>→ <b class="to">Clientes</b></small></span>
+        <span class="chip">Facturas <small>→ <b class="to">Facturas</b></small></span>
+        <span class="chip gone">Recurrentes <small>→ sub-pestaña Contabilidad</small></span>
+        <span class="chip">Contabilidad <small>→ <b class="to">Contabilidad</b></small></span>
+        <span class="chip gone">Periodos <small>→ sub-pestaña Contabilidad</small></span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-label">Nav nuevo (6)</span>
+        <span class="chip new">1 · Pedidos</span>
+        <span class="chip new">2 · Presupuestos</span>
+        <span class="chip new">3 · Clientes</span>
+        <span class="chip new">4 · Facturas</span>
+        <span class="chip new">5 · Contabilidad</span>
+        <span class="chip future">6 · ⚙ Ajustes <small>(futura, paquete vendible)</small></span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= NAV ================= -->
+<nav class="zt">
+  <div class="zt-tabs">
+    <button class="zt-tab active" data-tab="pedidos" onclick="showTab('pedidos')">Pedidos<span class="count">4</span></button>
+    <button class="zt-tab" data-tab="presupuestos" onclick="showTab('presupuestos')">Presupuestos<span class="count" style="background:rgba(251,191,36,.18);color:var(--amber)">2</span></button>
+    <button class="zt-tab" data-tab="clientes" onclick="showTab('clientes')">Clientes</button>
+    <button class="zt-tab" data-tab="facturas" onclick="showTab('facturas')">Facturas</button>
+    <button class="zt-tab" data-tab="contabilidad" onclick="showTab('contabilidad')">Contabilidad</button>
+    <button class="zt-tab gear" data-tab="ajustes" onclick="showTab('ajustes')" title="Ajustes">⚙</button>
+  </div>
+  <button class="btn-new">+ Nuevo pedido</button>
+</nav>
+
+<div class="wrap">
+
+<!-- ============================================================
+     1 · PEDIDOS  (Bandeja + Resumen fusionados)
+============================================================ -->
+<section class="screen on" id="screen-pedidos">
+  <p class="kicker">Zona traductor</p>
+  <h2 class="pg">Pedidos</h2>
+  <p class="pg-sub">Triage, búsqueda, tabla y export en una sola pantalla. Sesión: juan@ejemplo.net</p>
+
+  <div class="postit-row">
+    <div class="postit"><b>Fusión Bandeja + Resumen.</b> El triage con cards (URGENTE / A TRABAJAR / EN CURSO) era la Bandeja; los filtros server-side, la tabla bulk y el CSV eran el Resumen (/control). Nada se retira: cambia de sitio.</div>
+    <div class="postit r"><b>KPIs compactos = operativos.</b> Los 12 KPIs del Resumen se reducen aquí a 6 operativos; los económicos (margen medio, cierres financieros, lote vencido…) viven ahora en <b>Contabilidad → Resumen fiscal</b>.</div>
+    <div class="postit green"><b>Filtros ya arreglados</b> (fix ALTA de la auditoría): pills, búsqueda y periodo navegan a esta misma pestaña, no expulsan a otra pantalla.</div>
+  </div>
+
+  <!-- KPIs operativos compactos -->
+  <div class="kpis">
+    <div class="kpi"><b>14</b><span>Activos</span></div>
+    <div class="kpi em"><b>5</b><span>Pagados</span></div>
+    <div class="kpi bl"><b>3</b><span>En proceso</span></div>
+    <div class="kpi am"><b>4</b><span>Pend. pago</span></div>
+    <div class="kpi rd"><b>1</b><span>Vencidos</span></div>
+    <div class="kpi cy"><b>1.240,00 €</b><span>Cobrado · periodo</span></div>
+  </div>
+
+  <!-- Filtros server-side (del antiguo control, arreglados) -->
+  <div class="filterbar">
+    <div class="row">
+      <input type="search" placeholder="Buscar por referencia, cliente, email…" style="flex:1;min-width:200px" value="">
+      <select><option>Este trimestre</option><option>Este mes</option><option>Este año</option><option>Rango personalizado…</option></select>
+      <select><option>Base: fecha pedido</option><option>Base: fecha cobro</option></select>
+      <button class="btn">Aplicar</button>
+      <button class="btn">Limpiar</button>
+      <button class="btn btn-c">Exportar CSV</button>
+    </div>
+    <div class="row">
+      <div class="pills">
+        <button class="pill on" onclick="pickPill(this)">Todos<span class="n">14</span></button>
+        <button class="pill" onclick="pickPill(this)">Urgentes<span class="n">2</span></button>
+        <button class="pill" onclick="pickPill(this)">A trabajar<span class="n">3</span></button>
+        <button class="pill" onclick="pickPill(this)">En curso<span class="n">3</span></button>
+        <button class="pill" onclick="pickPill(this)">Pend. pago<span class="n">4</span></button>
+        <button class="pill" onclick="pickPill(this)">Mis pedidos<span class="n">6</span></button>
+        <button class="pill" onclick="pickPill(this)">Riesgo fin.<span class="n">1</span></button>
+        <button class="pill" onclick="pickPill(this)">Archivados<span class="n">31</span></button>
+      </div>
+      <span style="flex:1"></span>
+      <div class="pills">
+        <button class="pill on" id="vw-cards" onclick="setView('cards')">▦ Cards</button>
+        <button class="pill" id="vw-tabla" onclick="setView('tabla')">☰ Tabla / bulk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- alerta crítica (del control) -->
+  <div class="alertbox">
+    <b>Alerta crítica a resolver hoy</b> · <span class="mono oref">TJ-20260712-K4M2</span> — coste del colaborador sin registrar y pedido pagado (margen desconocido) · cliente@ejemplo.fr
+  </div>
+
+  <!-- ===== VISTA CARDS (triage bandeja) ===== -->
+  <div id="view-cards">
+
+    <button class="grp open" onclick="this.classList.toggle('open')">
+      <span class="tri">▶</span><span class="lbl" style="color:var(--red)">Urgente</span><span class="cnt">(2)</span>
+    </button>
+    <div class="grp-body">
+      <div class="ocard urg">
+        <div class="ohead">
+          <span class="mono oref">TJ-20260709-Q7R1</span><span style="font-size:11px;color:var(--s500)">fr-es</span>
+          <span class="badge b-paid">Pagado</span><span class="badge b-proc">En proceso</span>
+        </div>
+        <p class="otitle">Acta de nacimiento + certificado de soltería — apostillados</p>
+        <div class="ometa">
+          <span>marie.dupont@ejemplo.fr</span><span class="money">96,80 €</span><span>09/07/26</span><span style="color:var(--emerald);font-weight:600">WA</span>
+          <span style="color:var(--red);font-weight:600">Entrega: 14/07/2026 (vencido)</span>
+        </div>
+        <div class="obtns">
+          <button class="btn btn-g" onclick="showTab('pedido')">Abrir pedido</button>
+          <button class="btn btn-c" onclick="showTab('pedido')">Siguiente paso: entregar traducción</button>
+        </div>
+      </div>
+      <div class="ocard soon">
+        <div class="ohead">
+          <span class="mono oref">TJ-20260711-B3D8</span><span style="font-size:11px;color:var(--s500)">es-fr</span>
+          <span class="badge b-paid">Pagado</span><span class="badge b-proc">En proceso</span>
+          <span class="badge b-trad">Entrega colaborador pendiente</span>
+        </div>
+        <p class="otitle">Expediente académico (3 págs.) — Universidad de Granada</p>
+        <div class="ometa">
+          <span>k.benali@ejemplo.com</span><span class="money">135,00 €</span><span>11/07/26</span><span style="color:var(--s500)">Web</span>
+          <span style="color:var(--amber);font-weight:600">Entrega: 16/07/2026</span><span style="color:var(--amber)">→ colaborador.en@ejemplo.com</span>
+        </div>
+        <div class="obtns">
+          <button class="btn btn-g" onclick="showTab('pedido')">Abrir pedido</button>
+          <button class="btn btn-c" onclick="showTab('pedido')">Siguiente paso: revisar entrega del colaborador</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="grp open" onclick="this.classList.toggle('open')">
+      <span class="tri">▶</span><span class="lbl" style="color:var(--amber)">A trabajar</span><span class="cnt">(1)</span>
+    </button>
+    <div class="grp-body">
+      <div class="ocard">
+        <div class="ohead">
+          <span class="mono oref">TJ-20260714-H9S5</span><span style="font-size:11px;color:var(--s500)">pt-es</span>
+          <span class="badge b-paid">Pagado</span><span class="badge b-pres">Presupuesto</span>
+        </div>
+        <p class="otitle">Certidão de nascimento + antecedentes criminales</p>
+        <div class="ometa">
+          <span>joao.ferreira@ejemplo.pt</span><span class="money">88,00 €</span><span>14/07/26</span><span style="color:var(--s500)">Web</span>
+        </div>
+        <div class="obtns">
+          <button class="btn btn-g" onclick="showTab('pedido')">Abrir pedido</button>
+          <button class="btn btn-c" onclick="showTab('pedido')">Siguiente paso: empezar producción</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="grp" onclick="this.classList.toggle('open')">
+      <span class="tri">▶</span><span class="lbl" style="color:var(--blue)">En curso</span><span class="cnt">(1)</span>
+    </button>
+    <div class="grp-body">
+      <div class="ocard proc">
+        <div class="ohead">
+          <span class="mono oref">TJ-20260713-N2W6</span><span style="font-size:11px;color:var(--s500)">it-es</span>
+          <span class="badge b-pend">Pendiente</span><span class="badge b-proc">En proceso</span>
+        </div>
+        <p class="otitle">Visura camerale — Officine Verdi S.R.L.</p>
+        <div class="ometa"><span>amministrazione@ejemplo.it</span><span class="money">210,00 €</span><span>13/07/26</span><span style="color:var(--s500)">Web</span></div>
+        <div class="obtns">
+          <button class="btn btn-g" onclick="showTab('pedido')">Abrir pedido</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="grp" onclick="this.classList.toggle('open')">
+      <span class="tri">▶</span><span class="lbl" style="color:var(--s400)">Pendientes</span><span class="cnt">(2)</span>
+    </button>
+    <div class="grp-body">
+      <div class="ocard">
+        <div class="ohead">
+          <span class="mono oref">TJ-20260715-C1F4</span><span style="font-size:11px;color:var(--s500)">ar-es</span>
+          <span class="badge b-pend">Pendiente</span><span class="badge b-pres">Presupuesto</span>
+        </div>
+        <p class="otitle">Acta de matrimonio (Rabat) — pendiente de presupuestar</p>
+        <div class="ometa"><span>y.tazi@ejemplo.ma</span><span class="money">0,00 €</span><span>15/07/26</span><span style="color:var(--emerald);font-weight:600">WA</span></div>
+        <div class="obtns">
+          <button class="btn btn-g" onclick="showTab('pedido')">Abrir pedido</button>
+          <button class="btn btn-c" onclick="showTab('presupuestos'); showSub('pres','builder')">Siguiente paso: preparar presupuesto</button>
+          <button class="btn">Confirmar pago manual</button>
+        </div>
+      </div>
+      <div class="ocard">
+        <div class="ohead">
+          <span class="mono oref">TJ-20260710-V8T3</span><span style="font-size:11px;color:var(--s500)">de-es</span>
+          <span class="badge b-pend">Pendiente</span><span class="badge b-pres">Presupuesto</span>
+        </div>
+        <p class="otitle">Führungszeugnis — presupuesto enviado, esperando pago</p>
+        <div class="ometa"><span>l.schmidt@ejemplo.de</span><span class="money">64,00 €</span><span>10/07/26</span><span style="color:var(--s500)">Web</span></div>
+        <div class="obtns">
+          <button class="btn btn-g" onclick="showTab('pedido')">Abrir pedido</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agenda (del control) -->
+    <div class="card" style="margin-top:22px">
+      <h3 style="font-size:15px;color:#fff">Agenda de entregas · esta semana</h3>
+      <div class="postit-row"><div class="postit r" style="max-width:240px">La agenda semanal venía del Resumen. Se conserva aquí, plegada bajo el triage.</div></div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Día</th><th>Ref.</th><th>Pedido</th><th>Estado</th><th>Asignado</th></tr></thead>
+          <tbody>
+            <tr><td>Lun 14 <span style="color:var(--red)">●</span></td><td class="mono oref">TJ-20260709-Q7R1</td><td>Acta nacimiento + soltería</td><td><span class="badge b-proc">En proceso</span></td><td>Juan</td></tr>
+            <tr><td>Mié 16</td><td class="mono oref">TJ-20260711-B3D8</td><td>Expediente académico</td><td><span class="badge b-proc">En proceso</span></td><td>colaborador.en@…</td></tr>
+            <tr><td>Vie 18</td><td class="mono oref">TJ-20260713-N2W6</td><td>Visura camerale</td><td><span class="badge b-proc">En proceso</span></td><td>Juan</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== VISTA TABLA / BULK (del control) ===== -->
+  <div id="view-tabla" style="display:none">
+    <div class="postit-row"><div class="postit"><b>Esto era la tabla del Resumen</b> (OrderTableWithBulkActions). Se conserva como segunda vista de la misma pestaña, para bulk y para escanear muchos pedidos. Misma fuente de datos y mismos filtros que las cards.</div></div>
+    <div class="card" style="padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:12.5px;color:var(--s400)"><b style="color:#fff">2</b> seleccionados:</span>
+      <button class="btn">Archivar</button>
+      <button class="btn">Asignar a…</button>
+      <button class="btn">Cambiar plazo</button>
+      <button class="btn btn-c">Exportar selección CSV</button>
+    </div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr>
+          <th><input type="checkbox" checked></th><th>Ref.</th><th>Pedido</th><th class="r">Importe</th><th>Pago</th><th>Estado</th><th>Origen</th><th>Plazo</th><th class="r">Margen</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox" checked></td><td class="mono oref">TJ-20260709-Q7R1</td><td>Acta nacimiento + soltería</td><td class="r num">96,80 €</td><td><span class="badge b-paid">Pagado</span></td><td><span class="badge b-proc">En proceso</span></td><td>WA</td><td style="color:var(--red)">14/07 ●</td><td class="r num">62%</td><td><button class="btn btn-g" onclick="showTab('pedido')">Abrir</button></td></tr>
+          <tr><td><input type="checkbox" checked></td><td class="mono oref">TJ-20260711-B3D8</td><td>Expediente académico</td><td class="r num">135,00 €</td><td><span class="badge b-paid">Pagado</span></td><td><span class="badge b-proc">En proceso</span></td><td>Web</td><td style="color:var(--amber)">16/07</td><td class="r num">41%</td><td><button class="btn btn-g" onclick="showTab('pedido')">Abrir</button></td></tr>
+          <tr><td><input type="checkbox"></td><td class="mono oref">TJ-20260714-H9S5</td><td>Certidão + antecedentes</td><td class="r num">88,00 €</td><td><span class="badge b-paid">Pagado</span></td><td><span class="badge b-pres">Presupuesto</span></td><td>Web</td><td>—</td><td class="r num">100%</td><td><button class="btn btn-g" onclick="showTab('pedido')">Abrir</button></td></tr>
+          <tr><td><input type="checkbox"></td><td class="mono oref">TJ-20260713-N2W6</td><td>Visura camerale</td><td class="r num">210,00 €</td><td><span class="badge b-pend">Pendiente</span></td><td><span class="badge b-proc">En proceso</span></td><td>Web</td><td>18/07</td><td class="r num" style="color:var(--red)">8% ⚠</td><td><button class="btn btn-g" onclick="showTab('pedido')">Abrir</button></td></tr>
+          <tr><td><input type="checkbox"></td><td class="mono oref">TJ-20260710-V8T3</td><td>Führungszeugnis</td><td class="r num">64,00 €</td><td><span class="badge b-pend">Pendiente</span></td><td><span class="badge b-pres">Presupuesto</span></td><td>Web</td><td>—</td><td class="r num">—</td><td><button class="btn btn-g" onclick="showTab('pedido')">Abrir</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Nota de la fusión: el botón «Confirmar pago» YA NO está en la tabla — cobrar tiene una sola puerta: la sección <b>#pago</b> del detalle del pedido (abre uno para verla).</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     1b · DETALLE DE PEDIDO (carril canónico)
+============================================================ -->
+<section class="screen" id="screen-pedido">
+  <button class="backlink" onclick="showTab('pedidos')">← Volver a Pedidos</button>
+  <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin-top:10px">
+    <h2 class="pg mono" style="color:var(--cyan)">TJ-20260709-Q7R1</h2>
+    <span class="badge b-paid">Pagado</span><span class="badge b-proc">En proceso</span>
+    <span style="font-size:13px;color:var(--s400)">Acta de nacimiento + certificado de soltería · fr-es · 96,80 €</span>
+  </div>
+  <p class="pg-sub">Marie Dupont · marie.dupont@ejemplo.fr · <a href="#" onclick="showTab('clientes');showSub('cli','ficha');return false">Abrir carpeta del cliente →</a></p>
+
+  <div class="postit-row">
+    <div class="postit"><b>Carril canónico.</b> El stepper marca dónde está el pedido y cada paso ancla a SU sección. Una sola puerta por gesto: cobrar = #pago, entregar = #entrega, escribir al cliente = #comunicacion.</div>
+    <div class="postit pink r"><b>Enlace nuevo pedido↔cliente:</b> el email de arriba abre la carpeta del cliente, y la carpeta del cliente enlaza de vuelta a cada pedido (hoy la carpeta es una isla).</div>
+  </div>
+
+  <div class="stepper">
+    <span class="step done"><span class="dot">✓</span>Presupuesto</span><span class="step-sep">─</span>
+    <span class="step done"><span class="dot">✓</span>Pago</span><span class="step-sep">─</span>
+    <span class="step cur"><span class="dot">3</span>Producción</span><span class="step-sep">─</span>
+    <span class="step"><span class="dot">4</span>Entrega</span><span class="step-sep">─</span>
+    <span class="step"><span class="dot">5</span>Cerrado</span>
+  </div>
+
+  <div class="section" id="d-presupuesto">
+    <h3>Presupuesto <span class="anchor">#presupuesto</span></h3>
+    <div class="tblwrap"><table>
+      <tbody>
+        <tr><td>Acta de nacimiento (copie intégrale)</td><td class="r num">48,40 €</td></tr>
+        <tr><td>Certificado de soltería</td><td class="r num">48,40 €</td></tr>
+        <tr><td style="font-weight:700;color:#fff">Total (IVA incl.)</td><td class="r num" style="font-weight:700;color:#fff">96,80 €</td></tr>
+      </tbody>
+    </table></div>
+    <div class="obtns"><button class="btn btn-c" onclick="showTab('presupuestos');showSub('pres','detalle')">Ver presupuesto 2026-00041 →</button><button class="btn">PDF</button></div>
+    <p class="note">El enlace «Presupuesto 2026-00041» ya no sale de la zona: abre el detalle interno en la pestaña Presupuestos.</p>
+  </div>
+
+  <div class="section" id="d-pago">
+    <h3>Pago y comprobantes <span class="anchor">#pago</span> <span class="canon">único sitio para cobrar</span></h3>
+    <div class="postit-row"><div class="postit green" style="max-width:330px"><b>Antes se podía «cobrar» desde 3 sitios</b> (tabla del control, card de la bandeja, aquí). Ahora los otros dos enlazan aquí. Marcar pagado, enlace de pago, justificante y factura: todo en esta sección.</div></div>
+    <p style="font-size:13px"><span class="badge b-paid">Pagado</span> &nbsp;09/07/2026 · Stripe · 96,80 € &nbsp;·&nbsp; Justificante: <a href="#" onclick="return false">transferencia-marie.pdf</a></p>
+    <div class="hr"></div>
+    <div class="obtns">
+      <button class="btn" disabled>Marcar pagado (ya pagado)</button>
+      <button class="btn">Copiar enlace de pago</button>
+      <button class="btn">Subir justificante</button>
+      <button class="btn btn-c" onclick="showTab('facturas')">Factura 26_027 · emitida →</button>
+    </div>
+  </div>
+
+  <div class="section" id="d-produccion">
+    <h3>Producción <span class="anchor">#produccion · #asignar · #colab</span></h3>
+    <div class="grid2">
+      <div>
+        <label class="fl">Asignado a</label>
+        <div style="margin-top:5px"><select><option>Juan (titular FR)</option><option>colaborador.en@ejemplo.com</option></select></div>
+        <label class="fl" style="display:block;margin-top:10px">Plazo de entrega</label>
+        <div style="margin-top:5px"><input type="date" value="2026-07-14"></div>
+      </div>
+      <div>
+        <label class="fl">Colaborador</label>
+        <p style="font-size:13px;margin-top:5px;color:var(--s400)">Sin colaborador externo — pedido FR del titular.</p>
+        <button class="btn" style="margin-top:8px">Proponer a colaborador…</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="d-entrega">
+    <h3>Entregar la traducción <span class="anchor">#entrega</span> <span class="canon">un solo botón de entrega</span></h3>
+    <div class="postit-row"><div class="postit" style="max-width:330px"><b>Antes había 2 caminos</b>: el panel del workspace y el formulario de notificación con URL manual. Queda uno: subir archivo(s) → verificar → este botón compone email + adjunta traducción y factura + marca entregado (idempotente).</div></div>
+    <div class="checkline"><span style="color:var(--emerald)">✓</span> acta-nacimiento-ES-firmada.pdf (sello + firma digital)</div>
+    <div class="checkline"><span style="color:var(--emerald)">✓</span> certificado-solteria-ES-firmada.pdf</div>
+    <div class="checkline"><span style="color:var(--s500)">＋</span> <a href="#" onclick="return false">Añadir otro archivo…</a></div>
+    <div class="obtns" style="margin-top:14px">
+      <button class="btn btn-p" style="padding:9px 20px">Entregar al cliente (email + factura + reseña)</button>
+    </div>
+  </div>
+
+  <div class="section" id="d-comunicacion">
+    <h3>Mensajes al cliente <span class="anchor">#comunicacion</span> <span class="canon">un panel, 4 plantillas</span></h3>
+    <div class="postit-row"><div class="postit r" style="max-width:330px"><b>Antes: 4 widgets con 4 endpoints</b> (aviso de entrega, recordatorio de cobro, petición de reseña, mensaje libre). Ahora: UN panel con selector de plantilla; el historial de lo enviado, debajo.</div></div>
+    <div class="msg-templates">
+      <button class="pill on" onclick="pickMsg(this,'libre')">Mensaje libre</button>
+      <button class="pill" onclick="pickMsg(this,'cobro')">Recordatorio de pago</button>
+      <button class="pill" onclick="pickMsg(this,'entrega')">Aviso de entrega</button>
+      <button class="pill" onclick="pickMsg(this,'resena')">Petición de reseña</button>
+    </div>
+    <textarea id="msgbox" rows="3" style="width:100%;margin-top:10px">Hola Marie, tu traducción está en marcha. Te la entrego mañana a primera hora.</textarea>
+    <div class="obtns"><button class="btn btn-p">Enviar email</button><button class="btn">Enviar SMS</button></div>
+    <div class="hr"></div>
+    <p class="note" style="margin-top:0"><b style="color:var(--s300)">Historial:</b> 09/07 presupuesto enviado · 09/07 confirmación de pago · 12/07 «tu pedido está en proceso» (SMS)</p>
+  </div>
+
+  <div class="section" id="d-docs">
+    <h3>Documentos del cliente <span class="anchor">#docs</span></h3>
+    <p style="font-size:13px">📄 acte-naissance.pdf (1,2 MB) · 📄 certificat-celibat.pdf (0,8 MB) &nbsp;<span class="note" style="display:inline">— fuente única fusionada (eventos + análisis IA): los mismos docs que ve #presupuesto y la carpeta del cliente.</span></p>
+  </div>
+
+  <div class="section" id="d-datos">
+    <h3>Datos y actividad <span class="anchor">#datos · #finanzas · #control</span></h3>
+    <p class="note" style="margin-top:0">Finanzas del pedido (coste, margen 62%, cierre financiero), actividad completa y acciones de control (archivar, cerrar) — igual que hoy, al final del carril.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     2 · PRESUPUESTOS  (carpeta + expedientes + builder + detalle)
+============================================================ -->
+<section class="screen" id="screen-presupuestos">
+  <div style="display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px">
+    <div>
+      <p class="kicker">Zona traductor</p>
+      <h2 class="pg">Presupuestos</h2>
+      <p class="pg-sub">Carpeta de presupuestos: cada uno con sus documentos fuente, su PDF y su pedido si existe.</p>
+    </div>
+    <button class="btn btn-p" style="padding:9px 18px" onclick="showSub('pres','builder')">+ Nuevo presupuesto</button>
+  </div>
+
+  <div class="postit-row">
+    <div class="postit"><b>La pestaña «Presupuesto» desaparece del nav:</b> el builder vive aquí, detrás del botón «+ Nuevo presupuesto» (misma pantalla, mismos deep-links ?exp= y prefill).</div>
+    <div class="postit r"><b>«Expedientes» ya no es pestaña:</b> es la sección «Expedientes entrantes» de esta carpeta — un expediente ES un presupuesto por preparar.</div>
+    <div class="postit pink"><b>Detalle sin salir de la zona:</b> hoy «ver presupuesto» manda a /admin/quotes; ahora el detalle es interno (/zona-traductor/presupuestos/[id]) con enviar / marcar cobrado / abrir pedido.</div>
+  </div>
+
+  <div class="subtabs">
+    <button class="subtab on" data-sub="pres-lista" onclick="showSub('pres','lista')">Carpeta</button>
+    <button class="subtab" data-sub="pres-exp" onclick="showSub('pres','exp')">Expedientes entrantes <span class="badge b-new" style="margin-left:4px">2 nuevos</span></button>
+    <button class="subtab" data-sub="pres-builder" onclick="showSub('pres','builder')">Builder</button>
+    <button class="subtab" data-sub="pres-detalle" onclick="showSub('pres','detalle')">Detalle (ejemplo)</button>
+  </div>
+
+  <!-- carpeta -->
+  <div class="subpane on" id="pane-pres-lista">
+    <div class="filterbar" style="margin-top:4px"><div class="row">
+      <input type="search" placeholder="Buscar por número o cliente…" style="flex:1;min-width:200px">
+      <select><option>Todos los estados</option><option>Enviado</option><option>Pagado</option><option>Entregado</option><option>Caducado</option></select>
+      <label style="font-size:12px;color:var(--s500)"><input type="checkbox"> ver eliminados</label>
+      <button class="btn">Buscar</button>
+    </div></div>
+
+    <div class="ocard" style="margin-top:14px">
+      <div class="ohead"><span class="mono oref">2026-00041</span><span class="badge b-paid">Pagado</span><span style="font-size:12px;color:var(--s400)">Marie Dupont · marie.dupont@ejemplo.fr</span></div>
+      <p class="otitle">2 documentos fuente · PDF enviado 09/07 · pedido <a href="#" onclick="showTab('pedido');return false" class="mono">TJ-20260709-Q7R1</a></p>
+      <div class="ometa"><span class="money">96,80 €</span><span>emitido 09/07/2026</span></div>
+      <div class="obtns"><button class="btn btn-c" onclick="showSub('pres','detalle')">Ver detalle</button><button class="btn">PDF</button></div>
+    </div>
+    <div class="ocard">
+      <div class="ohead"><span class="mono oref">2026-00040</span><span class="badge b-sent">Enviado</span><span style="font-size:12px;color:var(--s400)">Yassine Tazi · y.tazi@ejemplo.ma</span></div>
+      <p class="otitle">1 documento fuente (acta de matrimonio) · sin pedido todavía</p>
+      <div class="ometa"><span class="money">72,60 €</span><span>emitido 15/07/2026</span></div>
+      <div class="obtns"><button class="btn btn-c" onclick="showSub('pres','detalle')">Ver detalle</button><button class="btn">PDF</button><button class="btn">Reenviar</button></div>
+    </div>
+    <div class="ocard">
+      <div class="ohead"><span class="mono oref">2026-00039</span><span class="badge b-viol">Aceptado</span><span style="font-size:12px;color:var(--s400)">Officine Verdi S.R.L. · amministrazione@ejemplo.it</span></div>
+      <p class="otitle">4 documentos fuente · expediente EXP-8F2K · pedido <a href="#" onclick="showTab('pedido');return false" class="mono">TJ-20260713-N2W6</a></p>
+      <div class="ometa"><span class="money">210,00 €</span><span>emitido 12/07/2026</span></div>
+      <div class="obtns"><button class="btn btn-c" onclick="showSub('pres','detalle')">Ver detalle</button><button class="btn">PDF</button></div>
+    </div>
+    <div class="ocard" style="opacity:.55">
+      <div class="ohead"><span class="mono oref">2026-00036</span><span class="badge b-rose">Caducado</span><span style="font-size:12px;color:var(--s400)">prueba@ejemplo.com</span></div>
+      <p class="otitle">Sin documentos · caducó el 30/06</p>
+      <div class="obtns"><button class="btn" onclick="showSub('pres','detalle')">Ver detalle</button><button class="btn">Restaurar</button></div>
+    </div>
+    <p class="note">«Nada se pierde»: los eliminados no desaparecen, se filtran (toggle de arriba) y se pueden restaurar in situ.</p>
+  </div>
+
+  <!-- expedientes -->
+  <div class="subpane" id="pane-pres-exp">
+    <div class="postit-row"><div class="postit"><b>Esto era la pestaña «Expedientes».</b> Misma tabla, mismo botón: «Preparar presupuesto» abre el builder con los docs del expediente ya cargados (?exp=REF).</div></div>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Expediente</th><th>Cliente</th><th class="r">Docs</th><th>Recibido</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono oref">EXP-3J9Z</td>
+          <td>Fatou Ndiaye<br><span style="font-size:11px;color:var(--s500)">f.ndiaye@ejemplo.sn</span></td>
+          <td class="r num">3</td><td>15 jul</td><td><span class="badge b-new">Nuevo</span></td>
+          <td class="r"><button class="btn btn-p" onclick="showSub('pres','builder')">Preparar presupuesto</button></td>
+        </tr>
+        <tr>
+          <td class="mono oref">EXP-7Q1M</td>
+          <td>Pavel Novák<br><span style="font-size:11px;color:var(--s500)">p.novak@ejemplo.cz</span></td>
+          <td class="r num">1</td><td>14 jul</td><td><span class="badge b-new">Nuevo</span></td>
+          <td class="r"><button class="btn btn-p" onclick="showSub('pres','builder')">Preparar presupuesto</button></td>
+        </tr>
+        <tr>
+          <td class="mono oref">EXP-8F2K</td>
+          <td>Officine Verdi S.R.L.<br><span style="font-size:11px;color:var(--s500)">amministrazione@ejemplo.it</span></td>
+          <td class="r num">4</td><td>12 jul</td><td><span class="badge b-paid" style="text-transform:none">Analizado → 2026-00039</span></td>
+          <td class="r"><button class="btn" onclick="showSub('pres','detalle')">Ver presupuesto</button></td>
+        </tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <!-- builder -->
+  <div class="subpane" id="pane-pres-builder">
+    <div class="postit-row"><div class="postit"><b>El builder vivía en la pestaña «Presupuesto» (/zona-traductor/presupuesto).</b> Es el mismo, montado dentro de esta pestaña. Conserva: docs del expediente, análisis IA por documento, líneas manuales, precio por palabra o por doc, envío con preview.</div></div>
+    <div class="card">
+      <div class="grid3">
+        <div><label class="fl">Cliente</label><div style="margin-top:5px"><input type="text" value="Fatou Ndiaye" style="width:100%"></div></div>
+        <div><label class="fl">Email</label><div style="margin-top:5px"><input type="email" value="f.ndiaye@ejemplo.sn" style="width:100%"></div></div>
+        <div><label class="fl">Idiomas</label><div style="margin-top:5px;display:flex;gap:6px"><select style="flex:1"><option>fr</option></select><span style="align-self:center">→</span><select style="flex:1"><option>es</option></select></div></div>
+      </div>
+      <div class="hr"></div>
+      <label class="fl">Documentos del expediente EXP-3J9Z</label>
+      <div class="checkline">📄 acte-naissance.pdf · <a href="#" onclick="return false">abrir</a> · <button class="btn" style="padding:2px 9px;font-size:11px">Analizar con IA</button> <span style="color:var(--emerald);font-size:12px">✓ 412 palabras</span></div>
+      <div class="checkline">📄 casier-judiciaire.pdf · <a href="#" onclick="return false">abrir</a> · <button class="btn" style="padding:2px 9px;font-size:11px">Analizar con IA</button></div>
+      <div class="checkline">📄 attestation-scolarite.pdf · <a href="#" onclick="return false">abrir</a> · <button class="btn" style="padding:2px 9px;font-size:11px">Analizar con IA</button></div>
+      <div class="hr"></div>
+      <label class="fl">Líneas del presupuesto</label>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Concepto</th><th class="r">Importe</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Acta de nacimiento — trad. jurada FR→ES</td><td class="r num">48,40 €</td><td></td></tr>
+          <tr><td>Certificado de antecedentes penales</td><td class="r num">42,35 €</td><td></td></tr>
+          <tr><td colspan="3"><a href="#" onclick="return false">＋ añadir línea manual</a></td></tr>
+          <tr><td style="font-weight:700;color:#fff">Total (IVA incl.)</td><td class="r num" style="font-weight:700;color:#fff">90,75 €</td><td></td></tr>
+        </tbody>
+      </table></div>
+      <div class="obtns" style="margin-top:14px">
+        <button class="btn">Previsualizar PDF + email</button>
+        <button class="btn btn-p">Enviar presupuesto</button>
+        <button class="btn">Guardar borrador</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- detalle -->
+  <div class="subpane" id="pane-pres-detalle">
+    <div class="postit-row"><div class="postit pink"><b>NUEVO dentro de la zona.</b> Hoy este detalle vive en /admin/quotes (fuera del shell, con su propio gate). Aquí se monta el mismo panel bajo la ruta interna /zona-traductor/presupuestos/[id]; /admin/quotes queda como redirect.</div></div>
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px">
+        <h3 style="font-size:18px;color:#fff">Presupuesto <span class="mono oref">2026-00040</span></h3>
+        <span class="badge b-sent">Enviado</span>
+      </div>
+      <p class="note">Yassine Tazi · y.tazi@ejemplo.ma · +212 6XX XX XX XX · emitido 15/07/2026 · caduca 29/07/2026</p>
+      <div class="tblwrap"><table>
+        <tbody>
+          <tr><td>Acta de matrimonio (Rabat) — trad. jurada AR→ES</td><td class="r num">72,60 €</td></tr>
+          <tr><td style="font-weight:700;color:#fff">Total (IVA incl.)</td><td class="r num" style="font-weight:700;color:#fff">72,60 €</td></tr>
+        </tbody>
+      </table></div>
+      <div class="hr"></div>
+      <label class="fl">Trazabilidad</label>
+      <p class="note" style="margin-top:4px">15/07 10:12 enviado a y.tazi@… · 15/07 10:31 abierto por el cliente · enlace de pago activo</p>
+      <div class="obtns" style="margin-top:12px">
+        <button class="btn">Reenviar email</button>
+        <button class="btn">Copiar enlace de pago</button>
+        <button class="btn btn-g">Marcar cobrado (manual)</button>
+        <button class="btn btn-c" onclick="showTab('pedido')">Abrir pedido →</button>
+        <button class="btn">PDF</button>
+        <button class="btn btn-d">Eliminar (recuperable)</button>
+      </div>
+      <p class="note">«Marcar cobrado» crea/actualiza el pedido y devuelve el botón «Abrir pedido» (fix ALTA de la auditoría: mark-paid ahora expone la referencia).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     3 · CLIENTES
+============================================================ -->
+<section class="screen" id="screen-clientes">
+  <p class="kicker">Zona traductor</p>
+  <h2 class="pg">Clientes</h2>
+  <p class="pg-sub">128 clientes. Busca uno, créalo, o abre su carpeta: documentos, traducciones, presupuestos y facturas.</p>
+
+  <div class="postit-row">
+    <div class="postit"><b>Igual que hoy</b> (lista agregada de pedidos+presupuestos+facturas+agenda), con 2 añadidos: botón <b>«Editar»</b> en la ficha (hoy no existe: los datos fiscales solo se corrigen tocando BD) y <b>enlaces bidireccionales</b> pedido↔cliente.</div>
+  </div>
+
+  <div class="subtabs">
+    <button class="subtab on" data-sub="cli-lista" onclick="showSub('cli','lista')">Lista</button>
+    <button class="subtab" data-sub="cli-ficha" onclick="showSub('cli','ficha')">Carpeta de cliente (ejemplo)</button>
+  </div>
+
+  <div class="subpane on" id="pane-cli-lista">
+    <div class="filterbar" style="margin-top:4px"><div class="row">
+      <input type="search" placeholder="Buscar por nombre o email…" style="flex:1;min-width:200px">
+      <button class="btn">Buscar</button>
+      <button class="btn btn-p">+ Crear cliente</button>
+    </div></div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Cliente</th><th>Email</th><th class="r">Pedidos</th><th class="r">Presup.</th><th class="r">Fact. sueltas</th><th class="r">Cobrado</th><th></th></tr></thead>
+        <tbody>
+          <tr><td style="color:#fff">Marie Dupont</td><td>marie.dupont@ejemplo.fr</td><td class="r num">3</td><td class="r num">3</td><td class="r num">0</td><td class="r num">289,30 €</td><td class="r"><button class="btn btn-c" onclick="showSub('cli','ficha')">Abrir carpeta</button></td></tr>
+          <tr><td style="color:#fff">Officine Verdi S.R.L. <span class="badge b-viol" style="margin-left:4px">B2B</span></td><td>amministrazione@ejemplo.it</td><td class="r num">6</td><td class="r num">7</td><td class="r num">2</td><td class="r num">1.480,00 €</td><td class="r"><button class="btn btn-c" onclick="showSub('cli','ficha')">Abrir carpeta</button></td></tr>
+          <tr><td style="color:#fff">Karim Benali</td><td>k.benali@ejemplo.com</td><td class="r num">1</td><td class="r num">1</td><td class="r num">0</td><td class="r num">135,00 €</td><td class="r"><button class="btn btn-c" onclick="showSub('cli','ficha')">Abrir carpeta</button></td></tr>
+          <tr><td style="color:#fff">Gestiones Atlas <span class="badge b-rose" style="margin-left:4px">Intermediario</span></td><td>34XXXXXXXXX@whatsapp.local</td><td class="r num">0</td><td class="r num">0</td><td class="r num">0</td><td class="r num">—</td><td class="r"><button class="btn btn-c" onclick="showSub('cli','ficha')">Abrir carpeta</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="subpane" id="pane-cli-ficha">
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:start">
+        <div>
+          <h3 style="font-size:18px;color:#fff">Marie Dupont</h3>
+          <p class="note" style="margin-top:2px">marie.dupont@ejemplo.fr · +33 6 XX XX XX XX · particular · cliente desde mar-2026</p>
+          <p class="note">Fiscal: Marie Dupont · NIF/NIE: Y1234567Z · 29 rue de l'Exemple, 75011 París (FR)</p>
+        </div>
+        <div class="obtns" style="margin-top:0">
+          <button class="btn btn-p">✎ Editar datos</button>
+          <button class="btn">Enlace de acceso cliente</button>
+        </div>
+      </div>
+      <div class="postit-row"><div class="postit pink" style="max-width:300px"><b>«Editar datos» es NUEVO.</b> PATCH /api/customers/[id]: nombre fiscal, NIF, dirección, teléfono, intermediario. Hoy solo existe el alta; corregir = tocar la BD.</div></div>
+      <div class="hr"></div>
+      <label class="fl">Pedidos (3)</label>
+      <div class="tblwrap"><table><tbody>
+        <tr><td class="mono oref">TJ-20260709-Q7R1</td><td>Acta nacimiento + soltería</td><td><span class="badge b-paid">Pagado</span> <span class="badge b-proc">En proceso</span></td><td class="r num">96,80 €</td><td class="r"><button class="btn btn-g" onclick="showTab('pedido')">Abrir pedido</button></td></tr>
+        <tr><td class="mono oref">TJ-20260502-D4E9</td><td>Diploma DELF B2</td><td><span class="badge b-paid">Pagado</span> <span class="badge b-trad">Entregado</span></td><td class="r num">60,50 €</td><td class="r"><button class="btn" onclick="showTab('pedido')">Abrir pedido</button></td></tr>
+        <tr><td class="mono oref">TJ-20260318-A2C7</td><td>Permiso de conducir</td><td><span class="badge b-paid">Pagado</span> <span class="badge b-trad">Entregado</span></td><td class="r num">48,40 €</td><td class="r"><button class="btn" onclick="showTab('pedido')">Abrir pedido</button></td></tr>
+      </tbody></table></div>
+      <label class="fl" style="display:block;margin-top:14px">Presupuestos (3) · Facturas (3) · Documentos y traducciones</label>
+      <p class="note" style="margin-top:4px">2026-00041 pagado · 2026-00019 pagado · 2026-00007 pagado — <a href="#" onclick="showTab('presupuestos');return false">ver en Presupuestos →</a> · Facturas 26_027, 26_014, 26_006 — <a href="#" onclick="showTab('facturas');return false">ver en Facturas →</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     4 · FACTURAS
+============================================================ -->
+<section class="screen" id="screen-facturas">
+  <div style="display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px">
+    <div>
+      <p class="kicker">Zona traductor</p>
+      <h2 class="pg">Facturas</h2>
+      <p class="pg-sub">27 emitidas · 2.870,45 € facturado. Próximo nº sugerido: <span class="mono" style="color:var(--cyan)">26_028</span> · presupuestos: <span class="mono" style="color:var(--violet)">P-26_043</span></p>
+    </div>
+    <div class="obtns" style="margin-top:0">
+      <button class="btn btn-p">+ Nueva factura</button>
+      <button class="btn">+ Factura de otra actividad</button>
+    </div>
+  </div>
+
+  <div class="postit-row">
+    <div class="postit green"><b>Sin cambios: igual que hoy.</b> Emitir, marcar cobrada (con fecha del cobro y justificante), titulares en factura, multimarca, PDF, numeración BD serie propia. Solo se recolocan los accesos: «Ir a Contabilidad» apunta a la nueva pestaña con sub-pestañas.</div>
+  </div>
+
+  <div class="filterbar"><div class="row">
+    <input type="search" placeholder="Buscar por número, cliente o NIF…" style="flex:1;min-width:200px">
+    <select><option>Todas</option><option>Emitidas</option><option>Borradores</option><option>Cobradas</option><option>Pendientes de cobro</option></select>
+    <select><option>Marca: todas</option><option>traduccionesjuradas.net</option><option>holabonjour.es</option></select>
+    <button class="btn">Buscar</button>
+  </div></div>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Nº</th><th>Estado</th><th>Cliente</th><th>Concepto</th><th class="r">Base</th><th class="r">IVA</th><th class="r">Total</th><th>Cobro</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="mono oref">26_027</td><td><span class="badge b-paid">Emitida</span></td><td>Marie Dupont</td><td>Trad. jurada FR→ES acta + soltería</td><td class="r num">80,00 €</td><td class="r num">16,80 €</td><td class="r num">96,80 €</td><td><span class="badge b-paid">Cobrada 09/07</span></td><td class="r"><button class="btn">PDF</button></td></tr>
+        <tr><td class="mono oref">26_026</td><td><span class="badge b-paid">Emitida</span></td><td>Officine Verdi S.R.L.</td><td>Lote junio — 4 documentos IT→ES</td><td class="r num">380,17 €</td><td class="r num">79,83 €</td><td class="r num">460,00 €</td><td><span class="badge b-pend">Pend. cobro</span></td><td class="r"><button class="btn">PDF</button> <button class="btn btn-g">Marcar cobrada</button></td></tr>
+        <tr><td class="mono oref">26_025</td><td><span class="badge b-paid">Emitida</span></td><td>Karim Benali</td><td>Expediente académico ES→FR</td><td class="r num">111,57 €</td><td class="r num">23,43 €</td><td class="r num">135,00 €</td><td><span class="badge b-paid">Cobrada 11/07</span></td><td class="r"><button class="btn">PDF</button></td></tr>
+        <tr><td class="mono oref">H-26_004</td><td><span class="badge b-viol">Otra actividad</span></td><td>Academia — bono 10 clases</td><td>Clases de francés julio</td><td class="r num">247,93 €</td><td class="r num">52,07 €</td><td class="r num">300,00 €</td><td><span class="badge b-paid">Cobrada 01/07</span></td><td class="r"><button class="btn">PDF</button></td></tr>
+        <tr><td class="mono" style="color:var(--s500)">borrador</td><td><span class="badge b-pres">Borrador</span></td><td>Officine Verdi S.R.L.</td><td>Lote julio (recurrente) — {MES} {AÑO}</td><td class="r num">380,17 €</td><td class="r num">79,83 €</td><td class="r num">460,00 €</td><td>—</td><td class="r"><button class="btn btn-c">Revisar y emitir</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">El borrador de arriba lo generó la plantilla recurrente (ver Contabilidad → Recurrentes): cada mes nace un borrador que se revisa y emite aquí. Ese flujo no cambia.</p>
+</section>
+
+<!-- ============================================================
+     5 · CONTABILIDAD  (con sub-pestañas)
+============================================================ -->
+<section class="screen" id="screen-contabilidad">
+  <p class="kicker">Zona traductor</p>
+  <h2 class="pg">Contabilidad</h2>
+  <p class="pg-sub">Todo lo fiscal en una pestaña: resumen 303, recurrentes, periodos y cierre, conciliación de banco.</p>
+
+  <div class="postit-row">
+    <div class="postit"><b>3 pestañas → 1 con sub-pestañas.</b> «Recurrentes» y «Periodos» dejan de ser pestañas del nav y pasan a vivir aquí. La conciliación de banco (que ya estaba dentro de Contabilidad) gana sub-pestaña propia.</div>
+    <div class="postit green r"><b>UNA sola cifra de trimestre.</b> Todos los cálculos usan lib/period-grouping con TZ Europe/Madrid. Antes Contabilidad agrupaba en UTC y Periodos en Madrid → dos 303 distintos según la pantalla.</div>
+  </div>
+
+  <div class="subtabs">
+    <button class="subtab on" data-sub="con-resumen" onclick="showSub('con','resumen')">Resumen fiscal</button>
+    <button class="subtab" data-sub="con-recurrentes" onclick="showSub('con','recurrentes')">Recurrentes</button>
+    <button class="subtab" data-sub="con-periodos" onclick="showSub('con','periodos')">Periodos / Cierre</button>
+    <button class="subtab" data-sub="con-banco" onclick="showSub('con','banco')">Conciliación banco</button>
+  </div>
+
+  <!-- Resumen fiscal -->
+  <div class="subpane on" id="pane-con-resumen">
+    <div class="filterbar" style="margin-top:4px"><div class="row">
+      <select><option>2026</option><option>2025</option></select>
+      <select><option>3T (jul–sep)</option><option>2T (abr–jun) · cerrado</option><option>1T (ene–mar) · cerrado</option><option>Año completo</option></select>
+      <span style="flex:1"></span>
+      <button class="btn btn-c">📦 Paquete gestoría (zip)</button>
+      <button class="btn btn-d">Cerrar trimestre…</button>
+    </div></div>
+
+    <div class="grid3" style="margin-top:16px">
+      <div class="card" style="text-align:center">
+        <label class="fl">Resultado 303 · 3T-2026 (provisional)</label>
+        <p class="bigfig" style="margin-top:6px">412,35 €</p>
+        <p class="note">a ingresar · TZ Europe/Madrid · cifra única en toda la zona</p>
+      </div>
+      <div class="card">
+        <label class="fl">IVA repercutido</label>
+        <p style="font-size:22px;color:var(--emerald);font-weight:700" class="num">618,12 €</p>
+        <p class="note">Ingresos base 2.943,40 € (facturas + cobros sin factura señalados)</p>
+      </div>
+      <div class="card">
+        <label class="fl">IVA soportado deducible</label>
+        <p style="font-size:22px;color:var(--rose);font-weight:700" class="num">205,77 €</p>
+        <p class="note">Gastos base 1.212,60 € · ISP intracom. incluido en casillas propias</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="font-size:15px;color:#fff">Gastos del periodo</h3>
+      <div class="obtns" style="margin-top:10px">
+        <button class="btn btn-p">+ Registrar gasto</button>
+        <button class="btn">📎 Subir factura de gasto (IA)</button>
+        <button class="btn">Importar histórico (Excel)</button>
+      </div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Fecha</th><th>Proveedor</th><th>Concepto</th><th>Trato</th><th class="r">Base</th><th class="r">IVA</th><th class="r">Total</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>05/07</td><td>Asesoría Ejemplo SLP</td><td>Cuota mensual julio</td><td>General</td><td class="r num">90,00 €</td><td class="r num">18,90 €</td><td class="r num">108,90 €</td><td>📎</td></tr>
+          <tr><td>03/07</td><td>Nube Irlanda Ltd</td><td>SaaS julio</td><td><span class="badge b-viol">ISP intracom</span></td><td class="r num">42,00 €</td><td class="r num">0,00 €</td><td class="r num">42,00 €</td><td>📎</td></tr>
+          <tr><td>01/07</td><td>TGSS</td><td>Seguros sociales <span class="badge b-new" style="margin-left:4px">recurrente</span></td><td>Exento</td><td class="r num">380,00 €</td><td class="r num">—</td><td class="r num">380,00 €</td><td></td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">Anti-duplicados activo: mismo proveedor+importe+fecha avisa antes de guardar. Los KPIs económicos del antiguo Resumen (margen medio, cierres financieros, pagos a proveedor pendientes, lote mensual vencido) viven en esta pantalla, bajo «Indicadores de negocio».</p>
+    </div>
+
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+      <div class="kpi"><b>44%</b><span>Margen medio</span></div>
+      <div class="kpi rd"><b>1</b><span>Pagos prov. pend.</span></div>
+      <div class="kpi am"><b>0</b><span>Lote mensual vencido</span></div>
+      <div class="kpi em"><b>9</b><span>Cierres financieros</span></div>
+    </div>
+  </div>
+
+  <!-- Recurrentes -->
+  <div class="subpane" id="pane-con-recurrentes">
+    <div class="postit-row"><div class="postit"><b>Esto era la pestaña «Recurrentes».</b> Idéntica: plantillas de factura mensual (borrador que se emite en Facturas) y gastos fijos que el cron crea el día indicado; los variables quedan «pendientes de confirmar».</div></div>
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Facturas recurrentes</h3>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Plantilla</th><th>Cliente</th><th class="r">Importe</th><th>Día</th><th>Último periodo</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Lote mensual Officine Verdi</td><td>Officine Verdi S.R.L.</td><td class="r num">460,00 €</td><td>1</td><td>2026-07 ✓</td><td class="r"><button class="btn">Editar</button> <button class="btn">Pausar</button></td></tr>
+        </tbody>
+      </table></div>
+      <button class="btn btn-p" style="margin-top:10px">+ Nueva plantilla de factura</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Gastos recurrentes</h3>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Plantilla</th><th>Proveedor</th><th class="r">Importe</th><th>Trato</th><th>Día</th><th>Último periodo</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Seguros sociales</td><td>TGSS</td><td class="r num">380,00 €</td><td>Exento</td><td>1</td><td>2026-07 ✓</td><td class="r"><button class="btn">Editar</button></td></tr>
+          <tr><td>Asesoría</td><td>Asesoría Ejemplo SLP</td><td class="r num">108,90 €</td><td>General</td><td>5</td><td>2026-07 ✓</td><td class="r"><button class="btn">Editar</button></td></tr>
+          <tr><td>SaaS nube (variable)</td><td>Nube Irlanda Ltd</td><td class="r num" style="color:var(--amber)">variable</td><td>ISP</td><td>3</td><td>2026-07 · pend. confirmar</td><td class="r"><button class="btn">Editar</button></td></tr>
+        </tbody>
+      </table></div>
+      <button class="btn btn-p" style="margin-top:10px">+ Nueva plantilla de gasto</button>
+    </div>
+  </div>
+
+  <!-- Periodos / cierre -->
+  <div class="subpane" id="pane-con-periodos">
+    <div class="postit-row"><div class="postit"><b>Esto era la pestaña «Periodos».</b> Misma agrupación por trimestre/mes con vistas Ingresos (facturas) / Presupuestos / Pedidos, más el estado de cierre de cada trimestre (TaxPeriodClose).</div></div>
+    <div class="pills" style="margin-bottom:14px">
+      <button class="pill on" onclick="pickPill(this)">Ingresos (facturas)</button>
+      <button class="pill" onclick="pickPill(this)">Presupuestos</button>
+      <button class="pill" onclick="pickPill(this)">Pedidos</button>
+      <span style="flex:1"></span>
+      <select><option>2026</option><option>2025</option></select>
+    </div>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Periodo</th><th class="r">Docs</th><th class="r">Base</th><th class="r">IVA</th><th class="r">Total</th><th>Cierre</th><th></th></tr></thead>
+      <tbody>
+        <tr><td style="color:#fff;font-weight:600">3T-2026 (en curso)</td><td class="r num">9</td><td class="r num">2.943,40 €</td><td class="r num">618,12 €</td><td class="r num">3.561,52 €</td><td><span class="badge b-pend">Abierto</span></td><td class="r"><button class="btn">Desplegar meses</button></td></tr>
+        <tr><td style="color:#fff;font-weight:600">2T-2026</td><td class="r num">14</td><td class="r num">3.820,66 €</td><td class="r num">802,34 €</td><td class="r num">4.623,00 €</td><td><span class="badge b-paid">Cerrado 14/07</span> 🔒</td><td class="r"><button class="btn">Ver detalle</button></td></tr>
+        <tr><td style="color:#fff;font-weight:600">1T-2026</td><td class="r num">11</td><td class="r num">3.190,00 €</td><td class="r num">669,90 €</td><td class="r num">3.859,90 €</td><td><span class="badge b-paid">Cerrado 15/04</span> 🔒</td><td class="r"><button class="btn">Ver detalle</button></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Un trimestre cerrado bloquea ediciones en el chokepoint (facturas, gastos, cobros de ese periodo) — para corregir hay que reabrir dejando rastro. Igual que hoy, solo cambia dónde se ve.</p>
+  </div>
+
+  <!-- Banco -->
+  <div class="subpane" id="pane-con-banco">
+    <div class="postit-row"><div class="postit"><b>Ya vivía dentro de Contabilidad</b> (BankReconcilePanel + cobros sin factura + excluidos). Ahora con sub-pestaña propia para que no quede enterrado al final del scroll.</div></div>
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Movimientos del banco vs. facturas y pedidos</h3>
+      <div class="obtns" style="margin-top:10px"><button class="btn btn-p">Importar extracto (CSV banco)</button><button class="btn">Conciliar payouts Stripe</button></div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Fecha</th><th>Movimiento banco</th><th class="r">Importe</th><th>Casado con</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>10/07</td><td>LIQ.OP. TARJETAS (payout Stripe)</td><td class="r num">228,15 €</td><td><span style="color:var(--emerald)">✓</span> 3 cobros Stripe (26_027, 26_025, TJ-…-H9S5)</td><td class="r"><button class="btn">Ver desglose</button></td></tr>
+          <tr><td>08/07</td><td>TRANSFERENCIA K. BENALI</td><td class="r num">135,00 €</td><td><span style="color:var(--emerald)">✓</span> Factura 26_025</td><td class="r"><button class="btn">Ver</button></td></tr>
+          <tr><td>07/07</td><td>TRANSFERENCIA SIN CONCEPTO</td><td class="r num">72,60 €</td><td><span style="color:var(--amber)">⚠ sin casar</span></td><td class="r"><button class="btn btn-c">Casar…</button></td></tr>
+        </tbody>
+      </table></div>
+      <div class="hr"></div>
+      <label class="fl">Cobros sin factura (2) · Excluidos de facturación (1)</label>
+      <p class="note" style="margin-top:4px">Pedidos pagados sin factura emitida: TJ-20260714-H9S5 (88,00 €) · TJ-20260711-B3D8 (135,00 €) → <button class="btn" style="padding:3px 10px;font-size:11px">Emitir facturas</button></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     6 · AJUSTES (futura — paquete vendible)
+============================================================ -->
+<section class="screen" id="screen-ajustes">
+  <p class="kicker">Zona traductor</p>
+  <h2 class="pg">⚙ Ajustes</h2>
+  <p class="pg-sub">Configuración del despacho — la base para empaquetar la herramienta para otros traductores.</p>
+
+  <div class="future-banner">
+    <b>Pantalla FUTURA (mockup, no existe).</b> Hoy casi todo esto está hardcodeado en el código (invoice-brands, staff-access, translators, textos de cobro).
+    Este es el trabajo «paquete vendible» del plan de la auditoría: solo sube a ALTA si se decide vender. Se muestra aquí para reservarle su sitio en el nav (el engranaje) desde el PR 2.
+  </div>
+
+  <div class="grid2" style="margin-top:16px">
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Identidad del emisor</h3>
+      <p class="note">Hoy: hardcodeado en lib/invoice-brands.ts</p>
+      <div style="margin-top:10px;display:grid;gap:8px">
+        <input type="text" value="HBTJ Consultores Lingüísticos S.L." disabled style="opacity:.6">
+        <input type="text" value="NIF B-XXXXXXXX · Málaga" disabled style="opacity:.6">
+        <input type="text" value="Traductor titular: Juan S. · MAEC nº XXXX (FR)" disabled style="opacity:.6">
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Régimen fiscal</h3>
+      <p class="note">Cambia series, modelos y textos: S.L. (impuesto sociedades) vs autónomo (reactiva borrador del modelo 130), ISP opt-in.</p>
+      <div style="margin-top:10px;display:flex;gap:14px;font-size:13px">
+        <label><input type="radio" name="reg" checked disabled> Sociedad (S.L.)</label>
+        <label style="opacity:.6"><input type="radio" name="reg" disabled> Autónomo</label>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Marcas de facturación</h3>
+      <p class="note">Multimarca opcional: si solo hay una, la UI se simplifica (monomarca).</p>
+      <p style="font-size:13px;margin-top:8px">🔵 traduccionesjuradas.net (serie 26_) · 🟣 academia (serie H-26_)</p>
+      <button class="btn" disabled style="margin-top:8px">+ Añadir marca</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Módulos activables (flags)</h3>
+      <div style="display:grid;gap:8px;margin-top:10px;font-size:13px">
+        <label><input type="checkbox" checked disabled> Colaboradores externos (pujas, margen, modelo 111)</label>
+        <label><input type="checkbox" checked disabled> Intermediarios (portal scoped por cliente)</label>
+        <label><input type="checkbox" checked disabled> Análisis IA de documentos (contador por mes)</label>
+        <label><input type="checkbox" disabled> WhatsApp por plantilla</label>
+      </div>
+      <p class="note">Un traductor solo, sin colaboradores, vería la zona sin todo el carril de asignación.</p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Equipo y accesos</h3>
+      <p class="note">Hoy: emails de staff hardcodeados en lib/staff-access.ts. Aquí: alta/baja + rol (ADMIN / PM / TRADUCTOR).</p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;color:#fff">Plantillas de mensajes y numeración</h3>
+      <p class="note">Textos de los 4 mensajes al cliente, pie de factura, series y siguiente número por serie.</p>
+    </div>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<footer style="border-top:1px solid var(--s700);padding:18px 16px;margin-top:20px">
+  <div class="wrap" style="font-size:12px;color:var(--s500)">
+    Mockup navegable · PR 2 de la auditoría de la zona traductor (15-jul-2026) · datos 100% ficticios ·
+    fusiones: Bandeja+Resumen→Pedidos · Presupuesto+Expedientes→Presupuestos · Recurrentes+Periodos→Contabilidad · ⚙ Ajustes = nueva (futura).
+    Ninguna función se retira: cada gesto conserva exactamente una puerta.
+  </div>
+</footer>
+
+<script>
+  function showTab(key){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+    var el = document.getElementById('screen-' + key);
+    if (el) el.classList.add('on');
+    // nav activo: el detalle de pedido cuelga de Pedidos
+    var navKey = (key === 'pedido') ? 'pedidos' : key;
+    document.querySelectorAll('.zt-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === navKey));
+    window.scrollTo({top: document.querySelector('nav.zt').offsetTop, behavior: 'auto'});
+  }
+  function showSub(group, key){
+    // group: 'pres' | 'con' | 'cli'
+    var prefix = 'pane-' + group + '-';
+    document.querySelectorAll('[id^="' + prefix + '"]').forEach(p => p.classList.remove('on'));
+    var pane = document.getElementById(prefix + key);
+    if (pane) pane.classList.add('on');
+    var subKey = group + '-' + key;
+    var screen = pane ? pane.closest('.screen') : null;
+    if (screen) screen.querySelectorAll('.subtab').forEach(t => t.classList.toggle('on', t.dataset.sub === subKey));
+  }
+  function setView(v){
+    document.getElementById('view-cards').style.display = (v === 'cards') ? '' : 'none';
+    document.getElementById('view-tabla').style.display = (v === 'tabla') ? '' : 'none';
+    document.getElementById('vw-cards').classList.toggle('on', v === 'cards');
+    document.getElementById('vw-tabla').classList.toggle('on', v === 'tabla');
+  }
+  function pickPill(btn){
+    var parent = btn.parentElement;
+    parent.querySelectorAll('.pill').forEach(p => p.classList.remove('on'));
+    btn.classList.add('on');
+  }
+  var MSGS = {
+    libre:   'Hola Marie, tu traducción está en marcha. Te la entrego mañana a primera hora.',
+    cobro:   'Hola Marie, te recuerdo que el presupuesto 2026-00041 (96,80 €) sigue pendiente de pago. Puedes pagar aquí: [enlace de pago]. Cualquier duda me dices.',
+    entrega: 'Hola Marie, ¡tu traducción jurada está lista! Te la adjunto firmada y sellada digitalmente, junto con la factura. Gracias por confiar en nosotros.',
+    resena:  'Hola Marie, espero que la traducción te haya servido. Si tienes un minuto, nos ayudaría mucho una reseña: [enlace reseña]. ¡Mil gracias!'
+  };
+  function pickMsg(btn, key){
+    pickPill(btn);
+    document.getElementById('msgbox').value = MSGS[key] || '';
+  }
+</script>
+</body>
+</html>
