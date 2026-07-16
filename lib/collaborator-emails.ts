@@ -267,7 +267,7 @@ export async function sendDeliveryNotificationToAdmin(payload: DeliveryNotificat
   const ref = escapeHtml(payload.orderReference);
   const filename = escapeHtml(payload.filename);
   const fileUrl = sanitizeUrl(payload.fileUrl);
-  const workspaceUrl = `${SITE_BASE_URL}/zona-traductor/workspace/${payload.orderReference}`;
+  const workspaceUrl = `${SITE_BASE_URL}/zona-traductor/pedido/${payload.orderReference}`;
   const now = new Date().toLocaleString("es-ES", { timeZone: "Europe/Madrid" });
   const html = `
     <p><strong>${name}</strong> ha entregado la traducción del pedido <strong>${ref}</strong>.</p>

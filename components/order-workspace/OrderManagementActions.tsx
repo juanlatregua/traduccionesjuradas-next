@@ -31,7 +31,7 @@ export default function OrderManagementActions({
   paymentStatus: string;
   moves: { to: string; label: string }[];
   invoice: { number: string | null } | null;
-  quote: { quoteNumber: string } | null;
+  quote: { id: string; quoteNumber: string } | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -148,7 +148,7 @@ export default function OrderManagementActions({
       )}
 
       {quote && (
-        <a href="/admin/quotes" className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
+        <a href={`/admin/quotes/${quote.id}`} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
           Presupuesto {quote.quoteNumber}
         </a>
       )}

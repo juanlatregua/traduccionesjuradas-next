@@ -10,6 +10,7 @@ export async function getQuoteByIdForAdmin(id: string) {
       payments: { orderBy: { createdAt: "desc" } },
       messageLogs: { orderBy: { createdAt: "desc" }, take: 50 },
       accessEvents: { orderBy: { at: "desc" }, take: 30 },
+      orders: { select: { reference: true }, orderBy: { createdAt: "desc" } },
     },
   });
 }

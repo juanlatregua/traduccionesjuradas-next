@@ -19,15 +19,15 @@ const STEPS: { label: string; stages: OrderActionStage[] }[] = [
 
 // El "tab" que sugiere getNextBestAction → ancla de la seccion de la landing.
 const TAB_ANCHOR: Record<NextBestAction["tab"], string> = {
-  presupuesto: "#docs",
+  presupuesto: "#presupuesto",
   documentos: "#docs",
-  comprobante: "#finanzas",
+  comprobante: "#pago",
   workflow: "#traduccion",
-  asignar: "#colab",
+  asignar: "#asignar",
   entrega: "#traduccion",
-  notificar: "#traduccion",
+  notificar: "#comunicacion",
   finanzas: "#finanzas",
-  control: "#finanzas",
+  control: "#control",
 };
 
 export default function OrderStepper({

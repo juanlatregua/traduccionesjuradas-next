@@ -27,6 +27,7 @@ export async function GET(req: Request, { params }: Params) {
       payments: { orderBy: { createdAt: "desc" } },
       messageLogs: { orderBy: { createdAt: "desc" }, take: 50 },
       accessEvents: { orderBy: { at: "desc" }, take: 30 },
+      orders: { select: { reference: true }, orderBy: { createdAt: "desc" } },
     },
   });
   if (!quote) {
@@ -145,6 +146,7 @@ export async function PATCH(req: Request, { params }: Params) {
           payments: { orderBy: { createdAt: "desc" } },
           messageLogs: { orderBy: { createdAt: "desc" }, take: 50 },
           accessEvents: { orderBy: { at: "desc" }, take: 30 },
+          orders: { select: { reference: true }, orderBy: { createdAt: "desc" } },
         },
       });
 

@@ -103,7 +103,7 @@ export default function ZonaTraductorFilters({
       }
     }
     const qs = params.toString();
-    return qs ? `/zona-traductor?${qs}` : "/zona-traductor";
+    return qs ? `/zona-traductor/control?${qs}` : "/zona-traductor/control";
   }
 
   function navigate(filterKey: string) {
@@ -131,7 +131,7 @@ export default function ZonaTraductorFilters({
     setFrom("");
     setTo("");
     setBase("created");
-    router.push("/zona-traductor");
+    router.push("/zona-traductor/control");
   }
 
   function exportCsv() {

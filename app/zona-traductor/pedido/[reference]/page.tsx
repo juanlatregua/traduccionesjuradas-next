@@ -169,7 +169,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         orderBy: { createdAt: "desc" },
       },
       clientInvoice: { select: { number: true, totalCents: true } },
-      quote: { select: { quoteNumber: true } },
+      quote: { select: { id: true, quoteNumber: true } },
       documentItems: { orderBy: { createdAt: "asc" } },
       documentAnalyses: {
         select: { fileName: true, fileUrl: true, mimeType: true, fileSize: true, createdAt: true },
@@ -321,7 +321,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             paymentStatus={order.paymentStatus}
             moves={moves}
             invoice={order.clientInvoice ? { number: order.clientInvoice.number } : null}
-            quote={order.quote ? { quoteNumber: order.quote.quoteNumber } : null}
+            quote={order.quote ? { id: order.quote.id, quoteNumber: order.quote.quoteNumber } : null}
           />
           <details className="mt-4 border-t border-slate-700/50 pt-3">
             <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">

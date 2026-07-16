@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoría A-Z — Zona traductor (15-jul-2026)</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif; background: #f6f4ef; color: #1d2433; }
+  @media (prefers-color-scheme: dark) { body { background: #0e131c; color: #dbe2ee; } }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+  header h1 { font-size: 26px; margin: 0 0 4px; }
+  header .sub { opacity: .75; margin: 0 0 6px; }
+  .kpis { display: flex; gap: 12px; flex-wrap: wrap; margin: 18px 0 8px; }
+  .kpi { background: #fff; border: 1px solid #d8d2c4; border-radius: 10px; padding: 10px 16px; min-width: 110px; }
+  @media (prefers-color-scheme: dark) { .kpi { background: #161e2c; border-color: #2a3550; } }
+  .kpi b { display: block; font-size: 22px; }
+  .kpi span { font-size: 12px; opacity: .7; text-transform: uppercase; letter-spacing: .04em; }
+  h2 { font-size: 20px; margin: 36px 0 10px; border-bottom: 2px solid #c9c2b2; padding-bottom: 6px; }
+  @media (prefers-color-scheme: dark) { h2 { border-color: #2a3550; } }
+  .veredicto { background: #fff; border-left: 4px solid #2f5fa8; border-radius: 8px; padding: 14px 18px; }
+  @media (prefers-color-scheme: dark) { .veredicto { background: #161e2c; } }
+  code { font: 12.5px/1.4 ui-monospace, "SF Mono", Menlo, monospace; background: rgba(127,127,127,.13); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: .03em; vertical-align: middle; }
+  .badge.sev-alta { background: #b3261e; color: #fff; }
+  .badge.sev-media { background: #b57f00; color: #fff; }
+  .badge.sev-baja { background: #5c6672; color: #fff; }
+  .badge.cat { background: rgba(47,95,168,.15); color: #2f5fa8; }
+  @media (prefers-color-scheme: dark) { .badge.cat { color: #8fb4e8; } }
+  .badge.verdict-confirmado { background: rgba(20,120,60,.15); color: #157a3c; }
+  .badge.verdict-parcial { background: rgba(180,130,0,.15); color: #a07200; }
+  @media (prefers-color-scheme: dark) { .badge.verdict-confirmado { color: #57c47e; } .badge.verdict-parcial { color: #d9a93f; } }
+  details.finding { background: #fff; border: 1px solid #ddd6c8; border-radius: 10px; margin: 8px 0; }
+  @media (prefers-color-scheme: dark) { details.finding { background: #141b28; border-color: #263148; } }
+  details.finding summary { cursor: pointer; padding: 10px 14px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  details.finding summary::-webkit-details-marker { display: none; }
+  .ftitle { font-weight: 600; flex: 1 1 60%; }
+  .fbody { padding: 4px 16px 14px; border-top: 1px dashed rgba(127,127,127,.3); }
+  .fbody p { margin: 8px 0; }
+  .redu { background: #fff; border: 1px solid #ddd6c8; border-radius: 10px; padding: 10px 16px; margin: 8px 0; }
+  @media (prefers-color-scheme: dark) { .redu { background: #141b28; border-color: #263148; } }
+  .redu-que { margin: 0 0 4px; }
+  .redu-accion { margin: 0; color: #157a3c; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .redu-accion { color: #57c47e; } }
+  .bloque { background: #fff; border: 1px solid #ddd6c8; border-radius: 12px; padding: 14px 18px; margin: 14px 0; }
+  @media (prefers-color-scheme: dark) { .bloque { background: #141b28; border-color: #263148; } }
+  .bloque h3 { margin: 0 0 4px; font-size: 16px; }
+  .bloque .porque { margin: 4px 0 8px; opacity: .8; font-style: italic; }
+  .bloque ul { margin: 6px 0 2px; padding-left: 22px; }
+  .bloque li { margin: 5px 0; }
+  table { border-collapse: collapse; margin: 10px 0; width: 100%; }
+  td { border: 1px solid rgba(127,127,127,.3); padding: 6px 10px; font-size: 13.5px; vertical-align: top; }
+  .tablewrap, .scrollx { overflow-x: auto; }
+  .rutas { font-size: 13px; background: rgba(21,122,60,.08); border: 1px solid rgba(21,122,60,.3); border-radius: 8px; padding: 10px 14px; }
+  h3 { font-size: 16px; margin: 22px 0 6px; }
+  h4 { font-size: 14.5px; margin: 16px 0 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Auditoría A-Z — Zona traductor</h1>
+  <p class="sub">traduccionesjuradas.net · 15-jul-2026 · 66 agentes (mapa 6 clústeres → 3 lentes → verificación adversarial → síntesis) + 1 agente de extractabilidad</p>
+  <div class="rutas">✓ <strong>Rutas verificadas (15-jul-2026):</strong> app/zona-traductor/* (16 páginas), components/ZonaTraductorNav.tsx, lib/zona-traductor-data.ts, lib/client-invoice.ts, lib/invoice-brands.ts, next.config.mjs. Todos los hallazgos pasaron verificación adversarial contra el código real (0 refutados de 56; 54 únicos tras dedupe).</div>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><b>54</b><span>hallazgos únicos</span></div>
+  <div class="kpi"><b>17</b><span>alta</span></div>
+  <div class="kpi"><b>30</b><span>media</span></div>
+  <div class="kpi"><b>7</b><span>baja</span></div>
+</div>
+
+<h2>Veredicto global</h2>
+<div class="veredicto"><p>La zona SÍ cubre el ciclo A-Z (lead → pedido → presupuesto → cobro → factura → 303/gestoría) y el motor está bien resuelto: casi todo converge en chokepoints correctos (confirm-payment, lib/client-invoice, /delivery, quote-to-order). El problema no es el motor sino la superficie: el mismo gesto está pintado 3-6 veces, hay 3 copias del motor de filtrado, una página zombie enlazada desde 5 sitios, y 4 roturas reales de flujo (filtros del Resumen, pedidos nacidos de presupuesto sin archivos, TZ dispar que puede falsear el 303, Customer ineditable). Tal cual está NO es empaquetable para un jurado individual: la identidad de HBTJ está cableada en código, el detalle de presupuesto vive fuera del paquete (/admin) y el módulo fiscal asume S.L. con gestoría; pero el 80% del recorte es ocultar/flag, no reescribir.</p></div>
+
+<h2>Coherencia del flujo A→Z (lead → cobro → contabilidad)</h2>
+<div class="veredicto"><p>El flujo funciona de punta a punta pero con 5 costuras rotas o flojas: (1) los filtros del Resumen (/control) navegan a /zona-traductor que ignora searchParams — el panel económico entero es funcionalmente un botón de 'volver a la bandeja' (fix de 1 línea); (2) un pedido nacido de un presupuesto sin expediente pierde los archivos fuente (el puente solo transporta description+unitPrice) — misma familia del incidente TJ-20260708-62ZI, y el cron de 30 días además borra los blobs de esos DocumentAnalysis huérfanos rompiendo el 'ver PDF' de presupuestos viejos; (3) Contabilidad filtra trimestres en UTC y Periodos en Europe/Madrid: dos pantallas del mismo backoffice pueden dar cifras distintas del trimestre, y el 303 sale de la que usa el criterio fiscalmente incorrecto; (4) no existe editar Customer en ninguna superficie: un NIF mal tecleado antes de facturar exige tocar la BD, y los upserts silenciosos provocan 409 en el alta manual; (5) el eslabón central presupuesto→envío→cobro cruza a /admin/quotes (mismo OTP, así que no hay re-login, pero rompe el perímetro de la zona) y tras mark-paid ni la respuesta ni el detalle enlazan el pedido creado. Deep-links post-creación (?q=REF) apuntan a una bandeja que no los lee. Nada de esto impide operar hoy — Juan lo salva con memoria muscular — pero son roturas objetivas, no estilo.</p></div>
+
+<h2>Redundancias clave</h2>
+
+<div class="redu"><p class="redu-que">Bandeja y Resumen/control: dos vistas completas del mismo dataset (loadEnrichedOrders) con dos sistemas de filtrado de semántica casi idéntica ('urgentes'≈'sla-riesgo', 'a-trabajar'≈'pagados-sin-asignar')</p><p class="redu-accion">→ Fusionar en una sola pestaña 'Pedidos': triage de la bandeja + filtros server-side del control; KPIs económicos a Contabilidad</p></div>
+<div class="redu"><p class="redu-que">El export CSV reimplementa por copy-paste las 8 funciones del motor de filtrado + el switch de 11 filtros (tercera copia contando la bandeja): el CSV fiscal puede divergir en silencio de la pantalla</p><p class="redu-accion">→ Exportar las funciones desde lib/zona-traductor-data y que app/api/orders/export las importe; borrar las copias</p></div>
+<div class="redu"><p class="redu-que">workspace/[reference]: página duplicada entera (segundo render de WorkspaceEditor+TranslationWorkspacePanel) inaccesible por redirect 307 pero enlazada desde 5 emisores vivos (3 componentes + 2 emails)</p><p class="redu-accion">→ Repuntar los 5 enlaces a /zona-traductor/pedido/[ref], borrar la página, conservar solo el redirect; mismo trato a tablero/proyecto/admin-quotes-new</p></div>
+<div class="redu"><p class="redu-que">Periodos·ingresos repinta columna a columna la tabla de facturas de Contabilidad, con OTRA zona horaria</p><p class="redu-accion">→ Unificar periodo en lib/period-grouping (Europe/Madrid) para ContabilidadClient y retirar la vista ingresos de Periodos (dejar drill-down que enlace a Contabilidad)</p></div>
+<div class="redu"><p class="redu-que">Dos listados del mismo modelo Quote: carpeta Presupuestos (sin filtrar deletedAt, sin acciones) vs /admin/quotes (papelera funcional), con el detalle solo en admin</p><p class="redu-accion">→ Detalle canónico en /zona-traductor/presupuestos/[id], /admin/quotes degradado a redirect; mientras tanto añadir deletedAt:null (o toggle) a la carpeta</p></div>
+<div class="redu"><p class="redu-que">getAllOrdersForStaff (la query más pesada: TODOS los pedidos ×150 eventos + enriquecimiento) corre 2× por render (layout para un badge + página), sin auth previa, y AutoRefresh la repite cada 20s; la bandeja además serializa al cliente un payload que la card nunca pinta</p><p class="redu-accion">→ React cache() + auth dentro de loadBandejaState, query count ligera para el badge, serializador ligero para la bandeja (conservando nextBestAction y collaboratorAssignments)</p></div>
+<div class="redu"><p class="redu-que">'Marcar cobrado' en 3 superficies y 'emitir factura' en 4 caminos de UI (chokepoints correctos, pero sin lugar canónico y dos de ellas sin mostrar el justificante)</p><p class="redu-accion">→ Cobro y emisión canónicos en el detalle (#pago); bandeja/control enlazan al detalle; Contabilidad solo para lote/conciliación; rotularlo en la UI</p></div>
+<div class="redu"><p class="redu-que">Dos botones de entrega en la misma página de pedido contra el mismo POST /delivery (uploader + TranslatorNotifyForm con URL manual), sin guard de idempotencia: riesgo real de notificar dos veces al cliente</p><p class="redu-accion">→ Entrega solo en TranslationWorkspacePanel; quitar de TranslatorNotifyForm el POST /delivery y los inputs de URL manual (dejarle reseña + plantillas)</p></div>
+<div class="redu"><p class="redu-que">Tres derivaciones distintas de 'documentos fuente' en el mismo detalle de pedido (getSubmittedDocuments, getSourceDocumentsFromEvents, getWorkspaceDocuments) + quinta copia en la carpeta de cliente, pese a que lib/order-source-documents nació como 'fuente ÚNICA'</p><p class="redu-accion">→ Una sola función en lib/order-source-documents que fusione eventos + DocumentAnalysis; usarla en las 3 secciones y en la carpeta; borrar copias locales</p></div>
+<div class="redu"><p class="redu-que">Micro-duplicados: gate OTP copiado inline en 2 páginas, PMQuickCreatePanel montado 2× en /control, 'Cerrar pedido' en 2 paneles (uno sin gate closeReady), eur() definido 19 veces, GET /api/quotes sin consumidores, quick-quote con dos destinos</p><p class="redu-accion">→ authZonaTraductorOrRedirect en las 2 páginas; quitar el panel inline de control; cierre solo en OrderLifecyclePanel; lib/format.ts; borrar GET /api/quotes; todos los quick-quote a /zona-traductor/presupuesto</p></div>
+
+<h2>Vendibilidad / empaquetado</h2>
+<div class="veredicto"><p>Lo genérico y vendible ya existe: pedido→presupuesto→cobro (Stripe/manual)→factura→conciliación banco/Stripe→zip gestoría, CRM con carpeta de cliente y portal, entrega con notificación. Lo HBTJ-específico está CABLEADO, no configurado: identidad fiscal completa (razón social, CIF, IBAN, dirección en lib/invoice-brands), emails staff, Bizum 607…, los 3 traductores con nº MAEC, y la cabecera del 303 'la gestoría presenta'. Sin una capa de config de tenant no hay producto, solo un fork por cliente — es el prerequisito de todo. Recortar/ocultar para el jurado solo: (1) multimarca → si BRANDS.length===1 ocultar select/deep-link/badge; (2) TODO el circuito colaboradores (pujas, adjudicación, margen FR-aware, retención 111) tras flag hasCollaborators off — media página del detalle y varios KPIs desaparecen; (3) intermediarios tras flag hasIntermediaries off; (4) taxRegime 'autonomo': reactivar el 130 (existe en git, retirado en d3c01ad), ISP opt-in — sin el 130 el módulo fiscal no tiene el impuesto principal del comprador objetivo; (5) UN solo camino visible de presupuesto (builder→Quote), retirar del menú la creación de ClientInvoice docKind=quote; (6) nav de 10 pestañas a 5-6 (Presupuesto→botón dentro de Presupuestos, Expedientes→sección, Recurrentes/Periodos→pestañas de Contabilidad); (7) fuera del paquete: EstimationAccuracyCard, importador histórico tras flag, scripts .mjs. Además tres carencias de producto que en HBTJ no duelen pero en manos ajenas sí: auth por allowlist sin noción de cuenta (4 gates con semánticas distintas + fallback 'staff-otp-dev-secret'), coste BD/IA sin metering ni paginación (tu margen por tenant hoy no se mide), y borrados duros sin papelera (bulk-delete de 50 pedidos con un confirm(), DELETE de factura EMITIDA permitido a ADMIN/PM cuando lo legal es rectificativa).</p></div>
+
+<h2>Extractabilidad técnica (módulo embebible / desktop)</h2>
+<p>Superficie analizada: 16 páginas en <code>app/zona-traductor/</code> + ~20 rutas API de gestión + libs.</p>
+<h3>1. Inventario de dependencias duras</h3>
+<h4>Modelos Prisma</h4>
+<p>El schema real tiene <strong>28 modelos</strong> (no 20 como dice CLAUDE.md). La zona traductor y sus libs directas tocan <strong>15</strong>:</p>
+<table>
+<tr><td>Grupo</td><td>Modelos</td><td>Veredicto</td></tr>
+<tr><td><strong>Núcleo fiscal</strong> (contabilidad/facturas/periodos/recurrentes)</td><td><code>ClientInvoice</code> (32 usos), <code>Expense</code> (11), <code>RecurringInvoice</code> (9), <code>RecurringExpense</code> (7), <code>BankDecision</code> (4), <code>TaxPeriodClose</code> (4), <code>Customer</code></td><td>7 modelos autocontenidos — es el módulo vendible</td></tr>
+<tr><td><strong>Gestión de pedidos</strong></td><td><code>Order</code> (29 usos), <code>OrderDocumentItem</code>, <code>OrderEvent</code>, <code>Quote</code>, <code>Collaborator</code>, <code>CollaboratorAssignment</code>, <code>BillingData</code>, <code>ShippingData</code></td><td>Compartidos con el funnel web; <code>Order</code> es el modelo-imán (75 campos, <code>prisma/schema.prisma:101-175</code>)</td></tr>
+<tr><td><strong>Solo funnel/web</strong> (NO los toca la zona)</td><td><code>OrderSession</code>, <code>FunnelEvent</code>, <code>ChatSession</code>, <code>DocumentAnalysis</code>*, <code>StripeEventLog</code>, <code>RateLimitBucket</code>, <code>AccessEvent</code>, <code>FailedEmail</code>, <code>MessageLog</code>, <code>OrderDocument</code>, <code>OrderPaymentEvent</code></td><td>Se quedan atrás sin dolor (*<code>DocumentAnalysis</code> aparece 6 veces vía expedientes/verificar)</td></tr>
+</table>
+<h4>Servicios externos cableados</h4>
+<ul>
+<li><strong>Auth = NextAuth (Google OAuth) + OTP por EMAIL</strong>: todo endpoint de gestión pasa por <code>requireStaffAccess</code> (<code>lib/staff-auth.ts:1-4</code> → <code>next-auth</code> + <code>lib/staff-otp.ts</code>); el código OTP sale por <code>sendStaffOtpEmail</code> (<code>app/api/traductor/send-code/route.ts:5</code>) — <strong>el login depende de Google + Microsoft Graph a la vez</strong>.</li>
+<li><strong>Email = Microsoft Graph</strong> hardcodeado: <code>lib/azure-mail.ts:117</code>.</li>
+<li><strong>Vercel Blob</strong> en 13 archivos; en el módulo de gestión: <code>app/api/upload/route.ts:2</code>, justificantes de cobro <code>app/api/invoices/[id]/paid/route.ts</code>, PDFs de gasto. Los archivos fiscales viven en Blob, no en la BD.</li>
+<li><strong>Claude AI</strong> para extracción de gastos: <code>app/api/expenses/extract/route.ts:7</code>.</li>
+<li><strong>Stripe/Redsys</strong>: NO están en el núcleo contable — <code>lib/finance.ts</code> y <code>ContabilidadClient.tsx</code> no importan stripe; la conciliación Stripe vive en scripts sueltos. El acoplamiento Stripe queda en el carril de cobro del pedido.</li>
+<li><strong>Twilio</strong> solo vía notificaciones de pedido (<code>lib/sms.ts</code>), no el módulo fiscal.</li>
+</ul>
+<h4>Supuestos HBTJ hardcodeados</h4>
+<ul>
+<li><code>lib/invoice-brands.ts:21-44</code> — CIF <code>B93712784</code>, <strong>IBAN en código fuente</strong>, direcciones de Málaga, 2 marcas fijas; consumido por <code>lib/invoice-pdf.ts:6,147,358</code> y 5 veces por <code>ContabilidadClient.tsx</code>.</li>
+<li><code>lib/staff-access.ts:1-9</code> — emails de staff/PM/admin/colaborador con defaults hardcodeados; env vars solo AÑADEN, no sustituyen.</li>
+<li><code>lib/client-invoice.ts:3-5,51</code> — serie de numeración <code>AA_NNN</code> única compartida entre marcas, contador = MAX en BD por año.</li>
+<li><code>lib/tax-drafts.ts:1-5</code> — régimen fiscal fijado: "S.L., IVA general con ISP (art. 84 LIVA)"; el modelo 130 (autónomos) fue retirado. Un traductor autónomo (el cliente típico de Lavori) necesita 130/IRPF distinto.</li>
+<li><code>lib/contact.ts:114</code> — <code>hola@traduccionesjuradas.net</code>.</li>
+</ul>
+<h3>2. Núcleo vs corteza</h3>
+<h4>Núcleo puro — ~2.100 LOC extraíbles HOY sin tocar nada</h4>
+<table>
+<tr><td>Lib</td><td>LOC</td><td>Imports</td></tr>
+<tr><td><code>lib/tax-drafts.ts</code> (303/111)</td><td>127</td><td><strong>cero</strong> — céntimos in, borrador out</td></tr>
+<tr><td><code>lib/fiscal-aggregation.ts</code></td><td>66</td><td>solo <code>./tax-drafts</code></td></tr>
+<tr><td><code>lib/expense-math.ts</code>, <code>lib/invoice-math.ts</code>, <code>lib/quote-math.ts</code></td><td>57+64+120</td><td><strong>cero</strong></td></tr>
+<tr><td><code>lib/gestoria-csv.ts</code></td><td>111</td><td>solo <code>./expense-math</code></td></tr>
+<tr><td><code>lib/fiscal-period.ts</code>, <code>lib/tax-close.ts</code></td><td>35+25</td><td><strong>cero</strong></td></tr>
+<tr><td><code>lib/recurring-logic.ts</code>, <code>lib/period-grouping.ts</code></td><td>124+260</td><td><strong>cero</strong></td></tr>
+<tr><td><code>lib/bank-parse.ts</code> + <code>lib/bank-reconcile.ts</code></td><td>87+268</td><td>solo <code>./csv</code> y <code>crypto</code> — motor de conciliación puro</td></tr>
+<tr><td><code>lib/finance.ts</code></td><td>342</td><td><strong>cero prisma</strong> — tipos estructurales (<code>OrderLike</code>, <code>EventLike</code>)</td></tr>
+<tr><td><code>lib/invoice-pdf.ts</code></td><td>373</td><td><code>jspdf</code> + <code>invoice-brands</code> (única fuga HBTJ, inyectable)</td></tr>
+</table>
+<p>Quien diseñó esto ya separó matemática de persistencia. La capa pura opera sobre objetos planos en céntimos — <strong>sobrevive a Drizzle, SQLite o lo que sea</strong>.</p>
+<h4>Corteza soldada a Prisma/Next</h4>
+<ul>
+<li><code>lib/client-invoice.ts</code> (410 LOC, prisma en <code>:13</code>) — <strong>aquí está el problema</strong>: numeración transaccional, gate de periodo cerrado, series por docKind… reglas de negocio de oro DENTRO de llamadas Prisma.</li>
+<li><code>lib/expenses.ts</code>, <code>lib/reconcile-invoices.ts</code>, <code>lib/tax-close-store.ts</code>, <code>lib/recurring-expense.ts</code>, <code>lib/recurring-invoice.ts</code>, <code>lib/orders.ts</code>, <code>lib/workflow-server.ts</code> — ~1.500 LOC de servicios Prisma.</li>
+<li><code>lib/zona-traductor-data.ts</code> (626 LOC) — mezcla carga de datos con <code>redirect</code>, <code>cookies</code>, <code>getServerSession</code>: Next-only.</li>
+<li><strong>UI</strong>: <code>ContabilidadClient.tsx</code> (1.039 LOC), <code>InvoiceManager.tsx</code> (851), <code>BankReconcilePanel.tsx</code> (434) son client components que solo importan libs puras + <code>invoice-brands</code> y hablan por <code>fetch("/api/...")</code> — portables <strong>si</strong> el host reproduce ~15 endpoints.</li>
+</ul>
+<h3>3. Caminos de empaquetado</h3>
+<h4>(a) Paquete npm para Lavori — <strong>M</strong> (el más barato con diferencia)</h4>
+<ul>
+<li><strong>Lógica pura: S.</strong> Mover las ~2.100 LOC a <code>@hbtj/fiscal-core</code>, quitar alias <code>@/lib</code>, inyectar <code>BrandProfile</code> como parámetro. Cero riesgo.</li>
+<li><strong>Persistencia: M.</strong> Lavori (Drizzle+Neon) reimplementa el puerto de datos: 7 tablas fiscales + reescribir <code>client-invoice.ts</code>/<code>expenses.ts</code>/<code>tax-close-store.ts</code> sobre Drizzle (~1.500 LOC, la mitad es validación que ya vive en las libs puras). La numeración transaccional necesita el equivalente Drizzle con cuidado de carreras.</li>
+<li><strong>UI: M.</strong> Los 3 componentes gordos viajan si Lavori expone los mismos ~15 endpoints; alternativa: reescribir UI en Lavori consumiendo el core (probablemente mejor).</li>
+<li>Bonus: Lavori ya usa OTP propio → la corteza auth de aquí se tira, no se porta.</li>
+</ul>
+<h4>(b) SaaS multi-tenant — <strong>L/XL</strong></h4>
+<ul>
+<li><strong>No existe <code>tenantId</code> en ningún modelo.</strong> Añadirlo a ~10 modelos + todos los <code>where</code> de ~30 archivos.</li>
+<li>Numeración fiscal es un contador global por año → por-tenant + por-serie.</li>
+<li>Branding estático (<code>invoice-brands.ts</code> compilado) → tabla en BD + upload de logo (el logo se lee de <code>fs</code> en build: <code>lib/invoice-pdf-args.ts:5-7</code>).</li>
+<li>Auth por lista de emails → cuentas/roles reales, onboarding, billing. Además Verifactu aplica de lleno a un SaaS de facturación.</li>
+</ul>
+<h4>(c) Desktop/local-first (Tauri + SQLite) — <strong>XL</strong> entera, <strong>L</strong> solo el núcleo fiscal</h4>
+<ul>
+<li><strong>Prisma + SQLite inviable tal cual: 16 campos <code>Json</code></strong> en el schema y Prisma no soporta <code>Json</code> en SQLite → columnas TEXT o cambiar de ORM.</li>
+<li>Vercel Blob (13 archivos) → filesystem local (asumible).</li>
+<li>Login NextAuth Google + OTP-email → reemplazo total.</li>
+<li>Email Graph, webhooks Stripe, crons Vercel → desaparecen o se degradan.</li>
+<li>Lo único que funciona out-of-the-box en desktop es exactamente el núcleo puro del punto 2.</li>
+</ul>
+<h3>4. Los 3 mayores obstáculos</h3>
+<ul>
+<li><strong>Las reglas de facturación viven dentro de Prisma, no en la capa pura.</strong> <code>lib/client-invoice.ts:13-15,49-51,265-287</code>: numeración por serie/año, promoción presupuesto→factura, gate de trimestre cerrado — todo entretejido con transacciones Prisma. Es la pieza más valiosa del producto y la única del núcleo fiscal que hay que reescribir por backend. Extraer sus invariantes a un puerto <code>InvoiceRepository</code> es el trabajo real.</li>
+<li><strong>Corteza de identidad doble-proveedor en cada puerta.</strong> Todos los endpoints exigen NextAuth/Google + cookie OTP cuyo código sale por Microsoft Graph, con emails HBTJ hardcodeados como default. Ningún host embebedor puede reutilizarlo; hay que definir un contrato <code>getActor()</code> inyectable.</li>
+<li><strong>Identidad fiscal HBTJ compilada + gravedad de datos en Blob.</strong> CIF/IBAN/direcciones en código, serie única compartida entre marcas, régimen S.L.-con-ISP asumido (sin modelo 130 para autónomos — el usuario objetivo), y justificantes/PDFs en Vercel Blob fuera de la BD. "Configurar el emisor" no es un formulario: es parametrizar numeración, régimen fiscal y almacenamiento.</li>
+</ul>
+<h3>Recomendación</h3>
+<p><strong>Camino (a) primero</strong>: extraer <code>fiscal-core</code> como paquete npm (las ~2.100 LOC puras + <code>invoice-pdf</code> con brand inyectado + un puerto de repositorio tipado que hoy implementa Prisma y mañana Drizzle). Esfuerzo M, no rompe nada en producción, y es <strong>prerrequisito común</strong> de los otros dos caminos. Montarlo dentro de Lavori como módulo vertical valida el producto con los ~10 pilotos antes de decidir si (b) o (c) merecen la inversión L/XL — y deja la decisión Verifactu (2027) para cuando haya señal de demanda.</p>
+
+<h2>Plan priorizado</h2>
+
+<div class="bloque bloque-alta">
+  <h3><span class="badge sev-alta">ALTA</span> Roturas de flujo visibles y baratas (≤1 día en total)</h3>
+  <p class="porque">Bugs objetivos que se descubren en 2 clics y algunos son fixes de 1 línea; destruyen confianza en demo y molestan a Juan hoy</p>
+  <ul><li>Filtros del Resumen: apuntar buildUrl/resetView de ZonaTraductorFilters a /zona-traductor/control (fix 1 línea)</li><li>pm-create y PMQuickCreatePanel: devolver /zona-traductor/pedido/{ref} en vez de ?q=REF y del alias workspace</li><li>mark-paid: devolver order.reference + botón 'Abrir pedido' en AdminQuoteDetailPanel; exponer el order en serializeQuote</li><li>TAB_ANCHOR del OrderStepper: remapear presupuesto→#presupuesto, comprobante→#pago, asignar→#asignar, notificar→#comunicacion + test de anclas</li><li>Enlaces 'Presupuesto NNNN' del pedido y carpeta cliente: incluir quote.id en los selects y deep-linkar al detalle</li></ul>
+</div>
+<div class="bloque bloque-alta">
+  <h3><span class="badge sev-alta">ALTA</span> Datos que se pierden o cifras fiscales que divergen</h3>
+  <p class="porque">Riesgo real sobre pedidos en producción (colaborador sin archivos, PDFs que mueren a los 30 días) y sobre el 303</p>
+  <ul><li>Puente quote→order: propagar sourceFileUrl (+pageStart/End) en QuoteForBridge y en el fallback de populateOrderItemsFromQuote crear OrderDocumentItem.fileUrl + evento order.source_document_uploaded (misma clase que el incidente TJ-20260708-62ZI)</li><li>DocumentAnalysis staff:*: re-etiquetar al grupo del expediente al generar el quote y excluirlos del cron de limpieza mientras un QuoteLine apunte a su blob</li><li>Unificar trimestre en Europe/Madrid: ContabilidadClient debe usar lib/period-grouping (el 303 hoy sale del criterio UTC, el incorrecto)</li><li>Export CSV: importar el motor de filtrado desde lib/zona-traductor-data y borrar las 8 copias del route</li><li>PATCH /api/customers/[id] + formulario de edición en la carpeta del cliente (NIF, fiscal, teléfono, intermediario); resolver el choque 409 alta-vs-upsert</li></ul>
+</div>
+<div class="bloque bloque-media">
+  <h3><span class="badge sev-media">MEDIA</span> Consolidar superficies: un solo lugar para cada gesto</h3>
+  <p class="porque">Elimina el grueso de la redundancia sin tocar el motor; hace la zona aprendible (hoy solo funciona con la memoria muscular de Juan)</p>
+  <ul><li>Fusionar Bandeja+Resumen en una pestaña 'Pedidos' (triage + filtros server-side); KPIs económicos a Contabilidad; retirar OrderTableWithBulkActions o dejarlo solo para bulk/export</li><li>Entrega SOLO desde TranslationWorkspacePanel; quitar POST /delivery e inputs de URL manual de TranslatorNotifyForm; añadir guard de idempotencia en el endpoint /delivery</li><li>Un solo panel 'Mensajes al cliente' con selector de plantilla (entrega/reseña/cobro/libre) en vez de 4 widgets con 4 endpoints</li><li>Cobro/factura canónicos en el detalle: retirar ConfirmPaymentButton de la tabla del control (y mostrar justificante en la card de bandeja si se conserva), rotular el carril de facturación</li><li>Unificar documentos fuente en lib/order-source-documents (fusión eventos+DocumentAnalysis) y consumirla en #presupuesto, #docs, Producción y carpeta cliente</li><li>Micro-limpiezas: gate OTP vía helper en pedido/[ref], quitar PMQuickCreatePanel inline de /control, cierre solo en OrderLifecyclePanel, eur() a lib/format.ts, quick-quote siempre a /zona-traductor/presupuesto</li><li>Enlazar clientEmail → carpeta del cliente desde el detalle y la bandeja (la carpeta es hoy una isla)</li></ul>
+</div>
+<div class="bloque bloque-media">
+  <h3><span class="badge sev-media">MEDIA</span> Coser el carril de presupuesto dentro de la zona + rendimiento</h3>
+  <p class="porque">Cierra el perímetro del backoffice (prerequisito de empaquetado) y quita la query pesada duplicada que hoy corre sin auth</p>
+  <ul><li>Detalle de Quote como ruta /zona-traductor/presupuestos/[id] (montar AdminQuoteDetailPanel bajo el shell de la zona); repuntar los ~6 enlaces; /admin/quotes queda como redirect</li><li>loadBandejaState: React cache() + auth antes de tocar BD; badge del nav con query count; serializador ligero para la bandeja (mantener nextBestAction y collaboratorAssignments)</li><li>Carpeta Presupuestos: filtro deletedAt:null con toggle 'ver eliminados' + acción restaurar in situ (respetando el diseño 'nada se pierde' del commit 51b98db)</li><li>Unificar semántica de gates: mismo requisito OTP en páginas y APIs (requireStaffAccess hoy es más laxo), fail-hard si falta NEXTAUTH_SECRET en producción</li></ul>
+</div>
+<div class="bloque bloque-baja">
+  <h3><span class="badge sev-baja">BAJA</span> Limpieza legacy (media jornada)</h3>
+  <p class="porque">Kilos muertos que no rompen nada pero que un comprador pagaría en bugs y peso</p>
+  <ul><li>Borrar app/zona-traductor/workspace/[reference]/page.tsx + hasWorkspaceAccess tras repuntar enlaces; conservar solo el redirect</li><li>Borrar stubs tablero/proyecto/admin-quotes-new cuando caduquen los bookmarks</li><li>Eliminar GET /api/quotes (sin consumidores)</li><li>Renombrar botones 'Workspace' → 'Abrir pedido' (concepto fantasma en la UI)</li></ul>
+</div>
+<div class="bloque bloque-baja">
+  <h3><span class="badge sev-baja">BAJA</span> Paquete vendible — SOLO si se decide vender (entonces sube a ALTA)</h3>
+  <p class="porque">Nada de esto mejora la operación de HBTJ; es el trabajo de producto para el encargo Lavori y no tiene sentido empezarlo antes de las consolidaciones de arriba</p>
+  <ul><li>Capa de config de tenant (emisor fiscal, Bizum, emails staff, traductor titular MAEC) leída de BD/env, consumida por invoice-brands, staff-access, tax-drafts, translators y textos de cobro — prerequisito de todo</li><li>Flags: hasCollaborators off (oculta pujas/margen/111, margen configurable por par en vez de FR-hardcoded), hasIntermediaries off, monomarca si BRANDS.length===1</li><li>taxRegime 'sl'|'autonomo': reactivar borrador 130 (recuperable de git), ISP opt-in, quitar 'la gestoría presenta' como supuesto</li><li>Nav 10→6 pestañas: Presupuesto→botón, Expedientes→sección de Presupuestos, Recurrentes/Periodos→pestañas de Contabilidad</li><li>UN camino visible de presupuesto: retirar del menú la creación de ClientInvoice docKind=quote (la dualidad sobrevive en datos, no en el menú)</li><li>Red de seguridad: soft-delete de pedidos con papelera 30 días (patrón Quote.deletedAt existe), bloquear DELETE de factura emitida → empujar a rectificativa</li><li>Metering: paginar getAllOrdersForStaff y contador de análisis IA por tenant/mes (base del pricing)</li></ul>
+</div>
+
+<h2>Los 54 hallazgos verificados</h2>
+<p style="opacity:.7">Clic para desplegar problema, evidencia archivo:línea y recomendación.</p>
+
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Los filtros del Resumen (/control) navegan a /zona-traductor, que ignora searchParams: cualquier filtro te expulsa a la Bandeja</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Resumen/control · Bandeja</p>
+    <p><strong>Problema:</strong> ZonaTraductorFilters se monta en /zona-traductor/control (control/page.tsx:235) pero todas sus URLs (pills, búsqueda, periodo, reset) apuntan a /zona-traductor. La página Bandeja no lee searchParams (app/zona-traductor/page.tsx:12-14), así que pulsar cualquier filtro del Resumen descarta el filtro y te saca de la pantalla. El panel de filtrado server-side entero está funcionalmente roto; solo el botón Exportar CSV funciona.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/ZonaTraductorFilters.tsx:106 y :134 vs app/zona-traductor/page.tsx:12-14; agravante verificado: next.config.mjs:84-89 (redirect a /control solo con ?modo=control, que buildUrl no emite)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Fix de una línea: apuntar las dos construcciones de URL a /zona-traductor/control. Después decidir si el Resumen sigue vivo (ver hallazgo bandeja-vs-control); si se retira, borrar el componente entero.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: ZonaTraductorFilters solo se monta en control/page.tsx:235; todas sus navegaciones (pills vía navigate, buscar, limpiar, aplicar periodo en buildUrl :106; resetear en :134) apuntan a /zona-traductor, y la Bandeja (app/zona-traductor/page.tsx:12-14) no recibe searchParams — llama loadBandejaState() sin argumentos. Comprobé el posible salvavidas: el redirect next.config.mjs:84-89 /zona-traductor→/zona-traductor/control exige ?modo=control, que buildUrl nunca añade, y middleware.ts no reescribe zona-traductor. Solo Exportar CSV funciona (va directo a /api/orders/export). El panel de filtrado server-side del Resumen está funcionalmente roto tal como alega el hallazgo.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El export CSV reimplementa por copy-paste todo el motor de filtrado del control</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Resumen/control · API /api/orders/export</p>
+    <p><strong>Problema:</strong> normalizePeriod, getDateRange, matchesSearch, hasFinancialRisk, requiresMarginApproval, hasMonthlyBatchPending, getAcquisitionSource y getArchiveState existen duplicados línea a línea en el route del export y en lib/zona-traductor-data. Cualquier cambio en un filtro hay que hacerlo dos veces o el CSV diverge silenciosamente de la pantalla (riesgo directo para conciliación fiscal, el CSV lleva margen y factura proveedor).</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/api/orders/export/route.ts:18,57,110,118,131,135,139,147,221-249 duplican lib/zona-traductor-data.ts:299-304,306-343,46-52,359-369,214-216,218-220,222-228,230-246,506-533</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Extraer las funciones de filtrado a lib/zona-traductor-data.ts (exportarlas) y que el route del export las importe. Una sola fuente de verdad del filtrado; borrar las copias del route.</p>
+    <p class="vreason"><strong>Verificación:</strong> Las 8 funciones citadas existen duplicadas en app/api/orders/export/route.ts sin ningún import desde lib/zona-traductor-data.ts: normalizePeriod, matchesSearch, hasFinancialRisk, requiresMarginApproval, hasMonthlyBatchPending y getAcquisitionSource son idénticas línea a línea; getDateRange y getArchiveState comparten la misma lógica (las de lib solo añaden campos de UI: label/fromInput/toInput y archivedAt). Además está duplicado entero el switch de 11 filtros (route:221-249 vs lib:506-533) y los helpers de fechas. Agrava el hallazgo que lib YA exporta 5 de esas funciones (líneas 613-626) y el route las recopia igualmente; no hay barrera técnica client/server que justifique la copia. La divergencia silenciosa del CSV respecto a la pantalla es un riesgo real: cualquier cambio en un filtro debe hacerse en dos sitios.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">legacy</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">workspace/[reference] es código muerto vivo: inaccesible por redirect pero duplicado entero y enlazado desde 5 sitios</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Detalle pedido · Resumen/control · PMQuickCreatePanel · emails staff</p>
+    <p><strong>Problema:</strong> next.config.mjs:94-96 redirige /zona-traductor/workspace/:ref a pedido/:ref, así que la página nunca se renderiza — pero sigue en el repo montando WorkspaceEditor + TranslationWorkspacePanel (los mismos que ya renderiza pedido/[reference] en :391 y :437). Peor: 3 componentes y 2 emails siguen generando enlaces a la ruta muerta, y control calcula hasWorkspaceAccess para una superficie retirada. Mantenimiento doble garantizado y confusión sobre cuál es la pantalla canónica.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>next.config.mjs:93-97 (redirect); app/zona-traductor/workspace/[reference]/page.tsx:144,156 vs app/zona-traductor/pedido/[reference]/page.tsx:391,437; components/OrderTableWithBulkActions.tsx:281,285; components/PMQuickCreatePanel.tsx:349; components/CollaboratorAssignmentPanel.tsx:526; lib/email.ts:749; lib/collaborator-emails.ts:270; app/zona-traductor/control/page.tsx:287</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Repuntar los 5 enlaces a /zona-traductor/pedido/[ref], borrar app/zona-traductor/workspace/[reference]/page.tsx y el cálculo hasWorkspaceAccess, conservar solo el redirect de next.config para SMS/emails ya enviados. Mismo tratamiento para proyecto/[reference] y tablero (redirects puros sin enlaces internos: dejar el redirect, quitar el page stub cuando caduquen los bookmarks).</p>
+    <p class="vreason"><strong>Verificación:</strong> Toda la evidencia se verifica línea a línea: el redirect 307 en next.config.mjs:93-97 hace irrenderizable workspace/[reference], cuya page.tsx (167 líneas) duplica el montaje de WorkspaceEditor (:144) y TranslationWorkspacePanel (:156) que pedido/[reference] ya renderiza en :391/:437; los 5 puntos que generan enlaces a la ruta muerta existen en las líneas exactas citadas (3 componentes + 2 módulos de email con URL absoluta), y hasWorkspaceAccess en control/page.tsx:287 solo alimenta el gate del enlace retirado (OrderTableWithBulkActions:281). Matiz que no refuta: los enlaces funcionan vía redirect (no rotos para el usuario), y hasWorkspaceAccess aún controla visibilidad del enlace, por lo que hay que repuntar el enlace al borrarlo — la recomendación ya lo contempla. tablero es redirect() in-page (no next.config) pero igualmente stub de 6 líneas.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">La query más pesada del backoffice corre 2× por render en toda la zona (layout + página) y AutoRefresh la repite cada 20s sin gate de auth</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Shell zona-traductor · Bandeja · Resumen/control · todas las pestañas</p>
+    <p><strong>Problema:</strong> El layout llama loadBandejaState() solo para el badge del nav y cada página (bandeja, control) la vuelve a llamar: getAllOrdersForStaff es un findMany de TODOS los pedidos con 150 eventos + análisis + asignaciones + enriquecimiento (finanzas, gates, workflow) por pedido. Además el layout la ejecuta en try/catch SIN comprobar auth (loadBandejaState no autentica), pagando el coste de BD también para visitantes anónimos de /verificar. AutoRefresh re-dispara todo cada 20s.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/layout.tsx:10 (loadBandejaState sin gate) + app/zona-traductor/page.tsx:14 (segunda llamada); lib/zona-traductor-data.ts:371-391 y 480-487 (loadEnrichedOrders/loadBandejaState sin cache() ni auth); lib/orders.ts:915 getAllOrdersForStaff; app/zona-traductor/page.tsx:18 y app/zona-traductor/control/page.tsx:73 AutoRefresh 20s</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Envolver loadBandejaState en React cache() (memoiza por request: layout y página comparten resultado) y añadir el check de auth dentro de la función antes de tocar BD. Para el badge, valorar una query count ligera en vez del dataset completo.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: layout.tsx:10 y page.tsx:14 llaman ambos loadBandejaState() en el mismo request; no hay React.cache() ni memoización en lib/zona-traductor-data.ts (Next solo dedupe fetch, no Prisma), así que getAllOrdersForStaff (lib/orders.ts:915, findMany de TODOS los pedidos con events take:150 + documentAnalyses + collaboratorAssignments) más el enriquecimiento por pedido (finanzas/workflow/gates en loadEnrichedOrders:371-391) corre 2× por render. Ídem en /control (loadControlState → loadEnrichedOrders otra vez). loadBandejaState no autentica y getAllOrdersForStaff tampoco: el catch del layout no salta por falta de sesión (nada lanza), luego un anónimo en /zona-traductor/verificar sí ejecuta la query completa (solo se oculta el nav; sin fuga de datos, pero coste BD/DoS real). AutoRefresh (page.tsx:18 y control/page.tsx:73, intervalMs=20000) hace router.refresh() re-ejecutando layout+página = 2 queries por tick; único matiz: solo dispara con pestaña visible + usuario idle ≥30s + sin input con foco, no incondicionalmente, pero en pestaña desatendida equivale a cada 20s.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Dos listados del mismo modelo Quote (carpeta zona-traductor vs /admin/quotes) con semánticas distintas, y el detalle vive en la superficie admin</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Presupuestos (carpeta) · /admin/quotes · Clientes (carpeta) · Periodos</p>
+    <p><strong>Problema:</strong> La carpeta Presupuestos lista Quote SIN filtrar deletedAt (los borrados aparecen con badge 'Eliminado' sin acción de restaurar = ruido) mientras /admin/quotes filtra deletedAt:null y tiene papelera funcional y acciones. Además la carpeta, la carpeta de cliente y Periodos deep-linkan el detalle a /admin/quotes/[id]: el usuario cruza de backoffice a mitad de flujo. Dos backoffices para la misma entidad.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/presupuestos/page.tsx:42,51-68 (quoteWhere={} sin deletedAt; select deletedAt:65), :161-165 (badge Eliminado sin restaurar), :215-216 (Link /admin/quotes/[id]); app/admin/quotes/page.tsx:37 (deletedAt: deleted?{not:null}:null), :151 (QuoteRowActions con restore); cross-links: app/zona-traductor/clientes/[email]/page.tsx:233,256; app/zona-traductor/periodos/page.tsx:159; app/zona-traductor/control/page.tsx:192 (no citado en el hallazgo)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Elegir UN listado canónico. Lo natural dado el rumbo (todo vive en zona-traductor): mover el detalle de quote bajo /zona-traductor y retirar la lista admin a redirect; mientras tanto, mínimo añadir <code>deletedAt: null</code> al findMany de la carpeta.</p>
+    <p class="vreason"><strong>Verificación:</strong> Toda la evidencia es exacta. La carpeta zona-traductor hace prisma.quote.findMany con where={} (solo OR de búsqueda), sin filtrar deletedAt pese a seleccionarlo (:65), y pinta badge 'Eliminado' (:161-165) sin ninguna acción de restaurar (las acciones :206-230 son solo PDF/Detalle/Pedido); restaurar solo existe en QuoteRowActions, usado exclusivamente por /admin/quotes, que sí filtra <code>deletedAt: deleted ? {not:null} : null</code> (:37) con tabs Activos/Eliminados. No es una superficie que enlaza a otra: son dos findMany independientes sobre el mismo modelo con semánticas divergentes. El detalle solo existe en app/admin/quotes/[id] (no hay detalle bajo zona-traductor) y los deep-links cruzados están donde se alega — más uno adicional no citado: control/page.tsx:192 enlaza /admin/quotes. Agravante: las dos superficies usan gates de auth distintos (authZonaTraductorOrRedirect vs requireAdminPageAccess), así que el cruce puede exigir re-autenticación a mitad de flujo. Único matiz que impide llamarlo copia pura: la carpeta añade docs fuente por expedienteRef y la sección ClientInvoice docKind=quote — es un fork divergente, no un duplicado literal, pero la redundancia y el problema de deletedAt son reales.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Periodos·ingresos duplica la tabla de Contabilidad y ambas usan zonas horarias distintas: pueden discrepar en bordes de trimestre (afecta al 303)</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Periodos · Contabilidad</p>
+    <p><strong>Problema:</strong> La misma consulta (ClientInvoice ISSUED docKind=invoice) se pinta dos veces con la misma tabla y el mismo filtro año/trimestre/mes. Peor: ContabilidadClient filtra con getUTCFullYear/getUTCMonth (UTC) y Periodos agrupa con Europe/Madrid — una factura emitida el 1-jul 00:30 Madrid (30-jun 22:30 UTC) cae en T2 para Contabilidad y T3 para Periodos. El 303 sale de Contabilidad: dos pantallas del mismo backoffice pueden dar cifras trimestrales distintas.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/ContabilidadClient.tsx:116-131 (inPeriod con getUTC*) y 211-218 (303 sobre filas UTC) vs lib/period-grouping.ts:7,79-89 (MADRID_TZ, madridParts); duplicación: app/zona-traductor/periodos/page.tsx:68-130 (loadIngresos, misma where que app/zona-traductor/contabilidad/page.tsx:24)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Unificar el cálculo de periodo en lib/period-grouping (Europe/Madrid, que es el criterio fiscal correcto) y que ContabilidadClient lo use. Después retirar la vista ingresos de Periodos o reducirla a drill-down mensual que enlace a Contabilidad.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: (1) misma consulta ClientInvoice {status:ISSUED, docKind:"invoice"} en contabilidad/page.tsx:24 y en loadIngresos de periodos/page.tsx:69-71, ambas pintadas como tabla de facturas con filtro año/trimestre/mes — Periodos enlaza a Contabilidad pero además renderiza su propia tabla completa, así que es duplicación real, no un simple enlace. (2) TZ dispar confirmada: ContabilidadClient.inPeriod usa getUTCFullYear/getUTCMonth (UTC) mientras period-grouping usa madridParts con Intl y Europe/Madrid; con Madrid en UTC+2 en verano, una factura emitida 1-jul 00:30 Madrid (30-jun 22:30 UTC) cae en T2 para Contabilidad y T3 para Periodos. (3) Lo más grave se sostiene: el borrador del 303 se calcula sobre las filas filtradas en UTC (drafts = aggregateFiscal(inv.rows, …) en ContabilidadClient.tsx:211-218), es decir, la pantalla que alimenta el 303 usa el criterio de trimestre fiscalmente incorrecto y la otra el correcto. La recomendación de unificar en period-grouping (Madrid) es coherente con lo observado.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">Tras cobrar un presupuesto no hay enlace al pedido creado: el flujo se corta en el paso aceptación→pedido</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> /admin/quotes/[id] · bandeja /zona-traductor</p>
+    <p><strong>Problema:</strong> El puente quote→order (runQuoteToOrderBridge) crea el Order de producción al marcar el presupuesto como pagado, pero la UI solo muestra el texto 'Pago X registrado. Pedido de producción creado.' sin referencia ni enlace al pedido. El serializador del quote (lib/quote-serializer.ts) no expone el Order asociado. El staff tiene que ir a la Bandeja y buscar a mano el pedido recién nacido — justo en el eslabón central del ciclo A-Z.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/AdminQuoteDetailPanel.tsx:258 (mensaje sin link, correcto); app/api/quotes/[id]/mark-paid/route.ts:106 (descarta order.reference, mejor evidencia que quote-to-order.ts:39); CONTRAEVIDENCIA: app/zona-traductor/presupuestos/page.tsx:221-229 (link quote→pedido ya existe en la lista)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Devolver order.reference en la respuesta de /api/quotes/[id]/mark-paid y pintar un botón 'Abrir pedido →' hacia /zona-traductor/pedido/[ref]; añadir el reference al serializeQuote para que el detalle de presupuesto ya pagado siempre enlace a su pedido.</p>
+    <p class="vreason"><strong>Verificación:</strong> La mitad técnica es cierta: /api/quotes/[id]/mark-paid llama a runQuoteToOrderBridge (que devuelve el order con reference, lib/quote-to-order.ts:123) pero responde solo { ok: true } (route.ts:106); AdminQuoteDetailPanel.tsx:258 pinta el mensaje sin enlace y ningún href del panel apunta a un pedido; serializeQuote no expone orders, así que el DETALLE del presupuesto pagado nunca enlaza su pedido. PERO el 'callejón sin salida' es falso: la lista /zona-traductor/presupuestos ya carga orders:{reference} por presupuesto (page.tsx:66) y pinta un botón 'Pedido {reference}' → /zona-traductor/pedido/[ref] en cada tarjeta (page.tsx:221-229); también la carpeta de cliente enlaza los pedidos. El staff no tiene que ir a la Bandeja a buscar a mano: el enlace existe a un clic, solo falta en el panel de detalle y en la respuesta del mark-paid. Hallazgo válido como pulido UX, severidad 'alta' sobredimensionada.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">El paso presupuesto→envío→cobro obliga a salir de la zona traductor hacia /admin con otra puerta de login</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> /zona-traductor/presupuesto · /zona-traductor/presupuestos · /admin/quotes/[id]</p>
+    <p><strong>Problema:</strong> Generar presupuesto en el builder de la zona redirige a /admin/quotes/{id} (window.location.href), y TODAS las acciones del ciclo del quote (enviar al cliente, mark-paid, editar) viven solo en la superficie admin. No existe detalle de presupuesto dentro de zona-traductor: la carpeta Presupuestos también deep-linka a /admin/quotes/[id]. Además admin usa otro gate (requireAdminPageAccess acepta sesión sola y redirige a /acceso) mientras la zona exige OTP y redirige a /verificar: dos backoffices y dos puertas para un mismo flujo continuo.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/StaffExpedienteIntake.tsx:548; app/zona-traductor/presupuestos/page.tsx:216; lib/admin-page-access.ts:8-21 (nota: líneas 12-18 aceptan la cookie OTP de la zona, no hay re-login zona→admin); lib/zona-traductor-data.ts:459-478; app/admin/quotes/[id]/page.tsx:24,42 (único uso de AdminQuoteDetailPanel)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Traer el detalle de presupuesto dentro de /zona-traductor (o mover /admin/quotes/[id] bajo el shell de la zona con su nav y su gate OTP) para que builder→envío→cobro→pedido sea un solo carril; como mínimo unificar el gate (requireAdminPageAccess → misma semántica que authZonaTraductorOrRedirect).</p>
+    <p class="vreason"><strong>Verificación:</strong> El núcleo del hallazgo es real: el builder de /zona-traductor/presupuesto redirige a /admin/quotes/{id} (StaffExpedienteIntake.tsx:548), la carpeta Presupuestos deep-linka su "Detalle" a /admin/quotes/[id] (presupuestos/page.tsx:216), no existe detalle de presupuesto bajo app/zona-traductor/, y todas las acciones del ciclo (finalize-send, resend, mark-paid, send-paid-receipt, editar) viven solo en AdminQuoteDetailPanel, usado únicamente en app/admin/quotes/[id]/page.tsx. Los dos gates también existen y difieren (admin acepta sesión sola y redirige a /acceso; la zona exige OTP y redirige a /verificar). PERO la afirmación "otra puerta de login" está sobrestimada: requireAdminPageAccess (líneas 12-18) acepta la misma cookie OTP de la zona, así que el cruce zona→admin NO pide re-autenticación al traductor ya verificado; la fricción de doble puerta solo ocurre en sentido admin→zona (sesión sola → forzado a /verificar), que no es el flujo descrito. Queda confirmada la fragmentación de superficie/shell y la divergencia de gates (el admin es más laxo), no el segundo login.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El pedido nacido de un presupuesto sin expediente pierde los archivos fuente (misma clase de bug que el incidente TJ-20260708-62ZI)</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> builder /zona-traductor/presupuesto · pedido/[reference] · encargo colaborador</p>
+    <p><strong>Problema:</strong> El builder guarda el archivo en QuoteLine.sourceFileUrl (StaffExpedienteIntake.tsx:514), pero el puente de pago solo transporta {description, unitPrice} por línea, y el fallback de populateOrderItemsFromQuote crea OrderDocumentItem sin fileUrl y NO emite eventos order.source_document_uploaded. Solo el camino expedienteRef (exp:REF) engancha archivos. Resultado: un pedido nacido de un presupuesto hecho con documentos soltados a mano por el staff llega a producción y al colaborador externo SIN archivos — el propio comentario del código admite que sin ese evento 'el pedido llegaba al colaborador sin archivos'.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>lib/quote-to-order.ts:22; lib/orders.ts:357-365 (fallback sin fileUrl ni evento) vs lib/orders.ts:311-353 (camino exp:); components/StaffExpedienteIntake.tsx:514; app/api/quotes/[id]/mark-paid/route.ts:43; lib/quote-stripe-webhook.ts:85; app/api/zona-traductor/expediente/analyze/route.ts:62 (sessionToken staff:, no exp:)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Propagar sourceFileUrl (+pageStart/End) por QuoteForBridge.lines y en el fallback de populateOrderItemsFromQuote crear OrderDocumentItem.fileUrl y el evento order.source_document_uploaded por cada línea con archivo, igual que hace el camino de expediente.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: el builder sin ?exp= crea el Quote con expedienteRef null y guarda el archivo solo en QuoteLine.sourceFileUrl (los DocumentAnalysis de docs soltados a mano llevan sessionToken "staff:email", no "exp:REF", analyze/route.ts:62). Ambos callers del puente seleccionan solo {description, unitPrice} de las líneas (mark-paid/route.ts:43 y quote-stripe-webhook.ts:85), así que sourceFileUrl se pierde en el propio select de BD. El fallback de populateOrderItemsFromQuote (orders.ts:357-365) crea OrderDocumentItem sin fileUrl y no emite order.source_document_uploaded, y el comentario en orders.ts:334-336 confirma que el enlace del colaborador solo lee esos eventos → el pedido llega sin archivos. No hay ningún otro camino que enganche QuoteLine.sourceFileUrl al pedido (grep exhaustivo). Intentos de refutación fallidos: el prop expedienteRef solo llega vía deep-link ?exp=; en modo manual (autoCount off) ni siquiera existe DocumentAnalysis.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">No existe editar Customer en ninguna superficie: corregir datos fiscales antes de facturar exige tocar la BD</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> /zona-traductor/clientes · carpeta clientes/[email] · Facturas</p>
+    <p><strong>Problema:</strong> El ciclo termina en factura con datos fiscales correctos, pero la ficha Customer solo se escribe en el alta (POST /api/customers) o por upserts silenciosos con datos mínimos desde quotes/pedidos. No hay ningún customer.update ni DELETE en el repo: NIF, dirección fiscal, teléfono, intermediario y autoConfirmPayment son inmutables desde la UI. Si el cliente nació por upsert (nombre+email pelados), el alta manual choca 409 y la única vía de arreglo es la BD a mano o el parche por-pedido de BillingData.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/api/customers/route.ts:70-76,94 (GET+POST únicamente, 409 doble); app/api/quotes/route.ts:100-111 (upsert name+phone); app/api/orders/route.ts:468 (upsert name); app/api/presupuesto/route.ts:99 (upsert update:{name:email}); components/ClientesManager.tsx:70-71 (solo POST)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Añadir PATCH /api/customers/[id] + formulario de edición en la carpeta del cliente (mismos campos del alta), reutilizando la validación anti-ciclo de intermediario.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado: cero customer.update en el repo; app/api/customers/route.ts solo GET+POST con 409 doble (findUnique pre-check + P2002); upserts colaterales con datos mínimos en quotes:100-111, orders:468 y presupuesto:99 (este degrada name al email); ningún formulario de edición en UI (ClientesManager solo POST). Los campos fiscales son inmutables tras el alta salvo BD a mano. Matiz: phone sí se pisa indirectamente vía upsert de quotes.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">vendibilidad</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">La identidad de HBTJ está cableada en código: no hay concepto de 'emisor configurable'</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Fiscal (Facturas/Contabilidad) · Detalle de pedido · Shell/OTP · Emails</p>
+    <p><strong>Problema:</strong> El paquete no es instalable por otro traductor sin editar código fuente: razón social, CIF, IBAN, dirección (lib/invoice-brands.ts), emails del staff con dominio traduccionesjuradas.net (lib/staff-access.ts), el número de Bizum 607 356 273 en el texto de cobro por WhatsApp, la plantilla del 303 con 'HBTJ Consultores Lingüísticos S.L. · uso interno (la gestoría presenta)' y los 3 traductores jurados con nombre y nº MAEC en lib/translators.ts. Es lo primero que hay que resolver: sin capa de configuración de emisor/tenant no hay producto, solo un fork por cliente.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>lib/invoice-brands.ts:21-44 (HBTJ, CIF B93712784, IBAN ES66… en ambas marcas); lib/staff-access.ts:1-9 (defaults hardcodeados; envs solo añaden, no sustituyen); components/order-workspace/OrderManagementActions.tsx:108 (Bizum 607 356 273); lib/tax-drafts.ts:85 (cabecera HBTJ del borrador 303); lib/translators.ts:8-27 (BASE_TRANSLATOR_PROFILES con nº MAEC; TRANSLATOR_COLLABORATORS solo añade)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Crear un objeto de configuración de tenant (emisor fiscal: nombre/NIF/IBAN/dirección/logo; teléfono Bizum; emails staff; traductor titular con nº MAEC) leído de BD o env, y hacer que invoice-brands, staff-access, tax-drafts, translators y los textos de cobro lo consuman. Es el prerequisito de todo lo demás.</p>
+    <p class="vreason"><strong>Verificación:</strong> Las 5 evidencias son exactas: BRANDS en invoice-brands.ts (líneas 21-44) hardcodea razón social/CIF/IBAN/dirección sin lectura de BD ni env; el Bizum 607 356 273 es literal en OrderManagementActions.tsx:108; tax-drafts.ts:85 imprime 'HBTJ Consultores Lingüísticos S.L. · uso interno'; translators.ts:8-27 hardcodea los 3 jurados con nº MAEC. Los únicos mecanismos de configuración existentes (STAFF_EMAILS/PM_EMAILS/ADMIN_EMAILS en staff-access.ts y TRANSLATOR_COLLABORATORS en translators.ts) son ADITIVOS: hacen unión con los defaults hardcodeados, por lo que otro tenant no puede retirar la identidad HBTJ sin editar código. No hay capa de emisor/tenant configurable.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">vendibilidad</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El sistema multimarca (Traducciones Juradas + Hola Bonjour) sobra para un jurado individual</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Facturas (InvoiceManager) · Contabilidad</p>
+    <p><strong>Problema:</strong> Un autónomo factura con UNA identidad. El selector de marca en el formulario de factura, el deep-link ?nueva=holabonjour desde Contabilidad y el badge de marca en las filas son puro HBTJ (S.L. con academia). Para el comprador es ruido conceptual en la pantalla más delicada del producto (emitir facturas legales).</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>lib/invoice-brands.ts:6,21-44; components/InvoiceManager.tsx:181-186 (deep-link), 462-473 (select siempre visible), 794-798 (badge, solo marca no-default); app/zona-traductor/contabilidad/page.tsx:99 (origen del deep-link)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Mantener BRANDS como array de perfiles del tenant; si length===1 (caso vendible por defecto), ocultar el select, el deep-link y el badge. El multimarca queda como capacidad avanzada tras flag, no como UI visible.</p>
+    <p class="vreason"><strong>Verificación:</strong> Toda la evidencia existe: BrandKey de 2 marcas con perfiles HBTJ hardcoded (mismo CIF B93712784, holabonjour "(academia)") en lib/invoice-brands.ts; el select "Marca / actividad" se renderiza incondicionalmente con las 2 opciones (InvoiceManager.tsx:462-473); el deep-link ?nueva=holabonjour funciona (:181-186) y lo emite un botón incondicional en app/zona-traductor/contabilidad/page.tsx:99. Único matiz: el badge (:794-798) solo aparece cuando brand !== traduccionesjuradas, así que en uso monomarca sería invisible por sí solo — pero el select y el deep-link son UI visible siempre, y los emisores fiscales están cableados a HBTJ, no son configurables por tenant. La recomendación es viable: BRAND_OPTIONS ya deriva de BRANDS, condicionar por length===1 es trivial.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">vendibilidad</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Todo el circuito de colaboradores (pujas, adjudicación, margen, retenciones 111) es 'modo agencia' — recortar u ocultar tras flag</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Detalle de pedido (#colab, #asignar, #finanzas) · Contabilidad (111, gastos 'colaborador') · Bandeja/Control (KPIs margen)</p>
+    <p><strong>Problema:</strong> Un jurado solo no lanza batch de solicitudes de cotización, no adjudica pujas, no asigna traductores, no aprueba márgenes ni retiene IRPF a colaboradores (modelo 111). Para él, media página del detalle de pedido y varios KPIs del Resumen son secciones que nunca usará y que le impiden entender qué hace el producto. El margen tiered FR-aware (FR sin margen porque FR es el propio Juan) es una regla de negocio de HBTJ incrustada en el motor de precios.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/CollaboratorAssignmentPanel.tsx:113 y :252; app/zona-traductor/pedido/[reference]/page.tsx:507,513 (render incondicional); lib/quote-math.ts:28-63; lib/tax-drafts.ts:67-76; components/OrderFinancePanel.tsx:136,150,167</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Flag de tenant <code>hasCollaborators</code> (off por defecto en el paquete solo): oculta #colab, #asignar, aprobación de margen, KPIs de margen del Resumen y el bloque 111 del borrador fiscal. Sustituir la regla FR-sin-margen por margen configurable por par de idiomas. El editor de coste proveedor puede quedarse como 'gasto asociado al pedido' opcional.</p>
+    <p class="vreason"><strong>Verificación:</strong> Toda la evidencia se verifica en el código: CollaboratorAssignmentPanel.tsx:113 lanza quote-request-batch y :252 select-bid (y el confirm de la línea 108 hardcodea "FR se asigna directo a Juan Silva"); el panel y OrderFinancePanel se renderizan SIN condición en la única pantalla de detalle (app/zona-traductor/pedido/[reference]/page.tsx:507 y 513); lib/quote-math.ts:28-63 incrusta el margen tiered FR-aware con el comentario literal "decisión Juan 2026-06-12" e isFrenchForeign/clientPriceFromCost hardcodean fr=sin margen; lib/tax-drafts.ts:67-76 define build111 "a colaboradores profesionales"; OrderFinancePanel.tsx:150 y :167 postean a finance/margin y finance/margin-approval y calcula irpfRetentionPct para AUTONOMO (línea 136). No existe ningún flag hasCollaborators ni concepto de tenant en lib/ ni components/ (grep vacío). No es un malentendido de superficies enlazadas: el circuito agencia está cableado en duro y siempre visible.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">vendibilidad</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El módulo fiscal asume S.L. con gestoría: a un autónomo le falta el 130/IRPF y le sobra el ISP</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Contabilidad · Periodos · Paquete gestoría</p>
+    <p><strong>Problema:</strong> El comprador objetivo es un autónomo: necesita modelo 130 (pagos fraccionados IRPF) — que fue retirado del código — y probablemente no toca ISP intracomunitario. El borrador se firma como 'HBTJ … (la gestoría presenta)': el producto asume que hay gestoría y que el régimen es sociedades. Vender 'contabilidad para traductores jurados' con el impuesto principal del autónomo ausente es un agujero de propuesta de valor; casualmente es la misma conclusión del plan Lavori (gate Verifactu).</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>lib/tax-drafts.ts:3, lib/tax-drafts.ts:85 (y :124-125 modelo 202 S.L.); retirada del 130 en commit d3c01ad (#176), añadido originalmente en c1f2744</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Introducir <code>taxRegime: 'sl' | 'autonomo'</code> en la config del tenant: autónomo reactiva el borrador 130 (existió, hay base), oculta ISP salvo opt-in, y el texto del paquete deja de nombrar gestoría como supuesto. Sin esto el módulo fiscal no es vendible al público objetivo.</p>
+    <p class="vreason"><strong>Verificación:</strong> Toda la evidencia es exacta: lib/tax-drafts.ts:3 dice literalmente "Régimen: S.L., IVA general con ISP (art. 84 LIVA)"; la línea 85 firma el borrador como "HBTJ Consultores Lingüísticos S.L. · uso interno (la gestoría presenta)"; y las líneas 124-125 añaden "S.L.: pagos fraccionados del IS por modelo 202 (lo presenta la gestoría)". El modelo 130 existió (Draft130/build130, commit c1f2744) y fue retirado en d3c01ad (#176) con nota explícita "retirado el modelo 130 (S.L. → 202)", así que hay base en git para reactivarlo. No existe ningún taxRegime/config de régimen en lib/ ni app/ (el único AUTONOMO/EMPRESA es supplierType de colaboradores, otra cosa). El paquete gestoría (app/api/admin/gestoria-package/route.ts vía lib/fiscal-aggregation.ts) se apoya en estos borradores hardcodeados. Matiz adversarial: para el uso actual (HBTJ es S.L. con gestoría) el hardcode es correcto y la retirada del 130 fue deliberada, no un bug; el agujero existe solo en el frame de vendibilidad a autónomos — que es exactamente la categoría del hallazgo, así que se sostiene.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Dos entidades 'presupuesto' (Quote vs ClientInvoice docKind=quote) conviven visibles con dos numeraciones y dos PDFs</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Presupuestos (carpeta) · Presupuesto (builder) · Facturas · Periodos · Detalle de pedido</p>
+    <p><strong>Problema:</strong> Para HBTJ es una distinción deliberada (memoria: 'NO son duplicados'), pero un comprador nuevo ve: presupuestos serie AAAA-NNNN en el builder, presupuestos P·AA_NNN en Facturas, una carpeta que pinta ambos en secciones separadas, Periodos que enseña solo los primeros, y además el pedido tiene su propio quoteSnapshotJson editable inline. Tres formas de 'hacer un presupuesto' sin que la UI explique cuál usar = fricción letal en demo.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/presupuestos/page.tsx:88-113,237-296; components/InvoiceManager.tsx:476-485; components/OrderDocumentsPanel.tsx:182 (+ app/api/orders/[reference]/quote/route.ts:135 quoteSnapshotJson); app/zona-traductor/periodos/page.tsx:132-148 (y :70 loadIngresos filtra docKind="invoice")</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Para el paquete vendible: UN solo camino visible de presupuesto (el builder → Quote), retirar de la UI la creación de docKind=quote desde Facturas (o fusionar series), y degradar el editor inline del pedido a 'ajustar importe'. La dualidad puede sobrevivir en datos, pero no en el menú.</p>
+    <p class="vreason"><strong>Verificación:</strong> Las cuatro evidencias existen tal cual: (1) presupuestos/page.tsx carga ClientInvoice docKind=quote (88-113) y lo pinta en sección aparte con serie P·AA_NNN y PDF propio (237-296); (2) InvoiceManager.tsx 476-485 permite CREAR docKind=quote desde Facturas; (3) OrderDocumentsPanel.tsx:182 hace POST /api/orders/[ref]/quote que escribe quoteSnapshotJson (route.ts:135) — tercera vía de presupuesto; (4) periodos/page.tsx loadPresupuestos (132-148) consulta solo prisma.quote y loadIngresos filtra docKind:"invoice", así que los presupuestos serie P no aparecen en ninguna vista de Periodos. Matiz menor: sí hay copy explicativo (presupuestos:240 e InvoiceManager:481-483 "NO cuenta en contabilidad"), pero explica qué es cada serie, no cuál usar; la triple vía de creación con dos numeraciones y la omisión en Periodos son reales, no un malentendido de superficies enlazadas.</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">La zona traductor no es autosuficiente: el detalle de presupuesto vive en /admin/quotes, fuera del paquete</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Presupuestos (carpeta) · CRM carpeta cliente · Periodos · Bandeja (quick-quote) · PMQuickCreatePanel</p>
+    <p><strong>Problema:</strong> No se puede empaquetar /zona-traductor como producto si el flujo central (ver/enviar/cobrar un presupuesto) sale a la superficie /admin: carpeta → /admin/quotes/[id], generar presupuesto → window.location a /admin/quotes/{id}, Periodos → /admin/quotes/[id], y la bandeja aún enlaza /admin/quotes/new. El comprador necesitaría acceso a un segundo backoffice con otra puerta de login (/acceso vs /verificar).</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/presupuestos/page.tsx:216; components/StaffExpedienteIntake.tsx:548 y 1058; app/zona-traductor/periodos/page.tsx:159; components/BandejaEntrada.tsx:131; components/PMQuickCreatePanel.tsx:118; lib/admin-page-access.ts:8-21 (matiz: acepta la cookie staff_otp_verified de /verificar, cf. lib/zona-traductor-data.ts:459-478 y app/api/traductor/verify-code/route.ts:66-67 — dos gates, misma credencial)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Mover (o montar como ruta espejo) el detalle de Quote dentro de /zona-traductor/presupuestos/[id] y repuntar los ~6 enlaces. Unificar la puerta en /verificar. Es el trabajo de costura nº1 antes de poder dibujar el perímetro del producto.</p>
+    <p class="vreason"><strong>Verificación:</strong> Las 6 evidencias verifican exactamente: el detalle de Quote solo existe en app/admin/quotes/[id] (no hay ruta zona-traductor/presupuestos/[id]) y los 5 saltos citados desde superficies de zona-traductor a /admin/quotes existen literalmente (Link "Detalle", window.location tras crear, periodos, bandeja y control → /admin/quotes/new); todos los componentes citados se renderizan dentro de /zona-traductor. La fuga estructural es real: el flujo ver/editar/enviar presupuesto sale del paquete. ÚNICO matiz: la sub-afirmación "otra puerta de login" está sobredimensionada — lib/admin-page-access.ts:12-16 acepta la misma cookie staff_otp_verified que setea /zona-traductor/verificar (api/traductor/verify-code:66-67), así que un traductor OTP-verificado entra a /admin/quotes sin segundo login; hay dos gates en código pero comparten credencial. Esto no debilita el hallazgo principal ni la recomendación (ruta espejo + repuntar ~6 enlaces).</p>
+  </div>
+</details>
+<details class="finding sev-alta">
+  <summary>
+    <span class="badge sev-alta">ALTA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Los filtros del Resumen expulsan a la Bandeja y descartan el filtro: bug visible en 2 clics de demo</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Resumen/control · Bandeja</p>
+    <p><strong>Problema:</strong> Cualquier pill, búsqueda o periodo aplicado en /control navega a /zona-traductor, que ignora searchParams: el usuario aterriza en la Bandeja sin su filtro. En un producto vendido esto se descubre en la primera exploración y destruye la confianza ('está roto').</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/ZonaTraductorFilters.tsx:106 y :134 (URLs hacia /zona-traductor); app/zona-traductor/page.tsx:12-14 (sin searchParams, loadBandejaState() sin args); next.config.mjs:85-88 (redirect solo con modo=control, nunca emitido)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Fix de una línea (apuntar a /zona-traductor/control) como parche inmediato; la solución de producto es la fusión bandeja+control del hallazgo bandeja-control-duplicados.</p>
+    <p class="vreason"><strong>Verificación:</strong> buildUrl (línea 106) y resetView (línea 134) de ZonaTraductorFilters navegan a /zona-traductor, pero el componente solo se monta en /zona-traductor/control (control/page.tsx:235), cuyo loadControlState sí consume filtro/q/periodo. La página destino app/zona-traductor/page.tsx no recibe searchParams y llama loadBandejaState() sin argumentos, así que cualquier pill, búsqueda o periodo expulsa a la Bandeja descartando el filtro. Intenté refutarlo con el redirect de next.config.mjs:85-88 (/zona-traductor → /zona-traductor/control) pero solo dispara con ?modo=control, parámetro que buildUrl nunca emite — ese redirect residual delata que el componente quedó apuntando a la URL antigua tras mover el Resumen a /control.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El 'presupuesto rápido pre-rellenado' apunta a dos rutas distintas según la superficie</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Bandeja · Resumen/control · PMQuickCreatePanel · admin/quotes/new</p>
+    <p><strong>Problema:</strong> La misma acción va a /admin/quotes/new (stub que solo redirige a /zona-traductor/presupuesto conservando query, admin/quotes/new/page.tsx) desde la bandeja y el panel de alta, pero a /zona-traductor/presupuesto directo desde la tabla del control. Dos caminos para el mismo builder, uno con salto extra por la superficie admin.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/BandejaEntrada.tsx:131 y components/PMQuickCreatePanel.tsx:118 (/admin/quotes/new) vs app/zona-traductor/control/page.tsx:283 (/zona-traductor/presupuesto); stub redirect en app/admin/quotes/new/page.tsx:17</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Repuntar BandejaEntrada:131 y PMQuickCreatePanel:118 a /zona-traductor/presupuesto directo. Mantener el stub de /admin/quotes/new solo como compat de deep-links externos viejos.</p>
+    <p class="vreason"><strong>Verificación:</strong> Todas las líneas citadas existen tal cual: BandejaEntrada.tsx:131 y PMQuickCreatePanel.tsx:118 construyen /admin/quotes/new?... mientras control/page.tsx:283 construye /zona-traductor/presupuesto?... directo; admin/quotes/new/page.tsx:17 es un stub que solo hace redirect conservando la query. No hay rotura funcional (el redirect preserva el prefill y el stub es compat deliberado según su propio comentario), pero la incoherencia de flujo es real: dos superficies internas pasan por un salto extra hacia el mismo builder al que una tercera enlaza directo, exactamente como describe el hallazgo (severidad media/coherencia, no rotura).</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El gate sesión+OTP está copiado línea a línea en pedido y workspace en vez de llamar a authZonaTraductorOrRedirect</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Detalle pedido · workspace/[reference] · Shell zona-traductor</p>
+    <p><strong>Problema:</strong> Tres copias idénticas de la misma lógica de auth (sesión NextAuth staff exige cookie OTP del mismo email; si no, redirect a /verificar). Cualquier ajuste de seguridad hay que replicarlo en tres sitios; si una copia se olvida, queda una puerta con reglas distintas.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/pedido/[reference]/page.tsx:150-161 y app/zona-traductor/workspace/[reference]/page.tsx:30-46 duplican lib/zona-traductor-data.ts:459-478</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Sustituir ambos bloques inline por <code>const email = await authZonaTraductorOrRedirect()</code>. (Si se borra workspace según el hallazgo workspace-zombie, solo queda uno por migrar.)</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: lib/zona-traductor-data.ts:459-478 define authZonaTraductorOrRedirect() y las dos páginas citadas duplican su cuerpo — workspace/[reference]/page.tsx:30-46 es copia literal y pedido/[reference]/page.tsx:150-161 la misma lógica comprimida (semánticamente idéntica: sesión staff exige cookie OTP del mismo email o redirect a /verificar). El helper no es teórico: ya lo usan 10 páginas de zona-traductor (bandeja, control, facturas, contabilidad, clientes, presupuestos, expedientes, periodos, recurrentes, presupuesto); pedido y workspace son las únicas dos que lo replican inline (verificar/page.tsx usa la cookie legítimamente, no es duplicado). La recomendación de sustituir ambos bloques por el helper es directamente aplicable.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Dos botones en la misma página de pedido disparan la entrega por el mismo POST /delivery</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Detalle pedido (#traduccion y #comunicacion)</p>
+    <p><strong>Problema:</strong> El uploader multi-archivo (TranslationWorkspacePanel) y el 'Enviar aviso al cliente' de TranslatorNotifyForm llaman ambos a POST /api/orders/[ref]/delivery — el segundo con una URL de PDF tecleada a mano, carril de la época mono-archivo. Dos caminos en la misma pantalla para el mismo resultado, con el riesgo de notificar dos veces al cliente. Los inputs de URL manual son legacy redundante con el uploader.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/TranslationWorkspacePanel.tsx:134 y components/TranslatorNotifyForm.tsx:120 (mismo POST /delivery); inputs manuales en TranslationWorkspacePanel.tsx:235-241 y TranslatorNotifyForm.tsx:176-182; coexisten en app/zona-traductor/pedido/[reference]/page.tsx:437 y :527 (secciones apiladas, no tabs); sin guard anti-renotificación en app/api/orders/[reference]/delivery/route.ts:203</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Dejar la entrega SOLO en TranslationWorkspacePanel (chokepoint único visible); quitar de TranslatorNotifyForm el camino /delivery y los inputs de URL manual, conservando en él únicamente reseña Google y plantillas copy-first.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: ambos componentes hacen POST a /api/orders/[ref]/delivery (TranslationWorkspacePanel.tsx:134 y TranslatorNotifyForm.tsx:120) y ambos se renderizan en la MISMA página app/zona-traductor/pedido/[reference]/page.tsx (líneas 437 y 527) en secciones apiladas — Section (page.tsx:129-147) es un &lt;section&gt; plano, no una pestaña, así que los dos botones son visibles a la vez. Los inputs de URL manual existen donde se alega (TranslatorNotifyForm.tsx:176-182 y TranslationWorkspacePanel.tsx:235-241) y son el carril mono-archivo: el submit de TranslatorNotifyForm envía files:[{url:downloadUrl}] con notifyClient:true hardcodeado. El riesgo de doble notificación es real: el endpoint (app/api/orders/[reference]/delivery/route.ts:203) no tiene guard de idempotencia — envía email+SMS siempre que notifyClient &amp;&amp; TRADUCIDO &amp;&amp; fileUrl — y el botón de TranslatorNotifyForm se re-habilita tras cada envío (sin lockout 'delivered' como sí tiene el panel en sus líneas 63/348), con downloadUrl pre-rellenado desde finalDeliveryFileUrl. Único matiz: es reutilización deliberada del carril canónico (comentario en TranslatorNotifyForm.tsx:114-115), no un pipeline paralelo; el copy obsoleto 'pestaña Entrega' (línea 168) confirma que es resto de la UI antigua. La recomendación (dejar la entrega solo en el panel, quitar de TranslatorNotifyForm el POST /delivery y los inputs manuales) es coherente con lo observado.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">PMQuickCreatePanel montado dos veces en el mismo DOM cuando estás en /control</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Resumen/control · Shell zona-traductor (nav)</p>
+    <p><strong>Problema:</strong> El dialog global del nav ya ofrece '+ Nuevo pedido' desde cualquier pestaña; la página de control además lo embebe inline. En /control hay dos formularios idénticos de alta rápida (con idempotency-key propia cada uno) en la misma página.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/ZonaTraductorNav.tsx:6,94 y app/zona-traductor/control/page.tsx:8,174 (además app/zona-traductor/layout.tsx:16 prueba que el nav está montado en /control)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Quitar la instancia inline de control/page.tsx:174; el dialog del nav es el camino único.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: ZonaTraductorNav (montado en TODA la zona vía app/zona-traductor/layout.tsx:16, solo se oculta en /verificar) renderiza PMQuickCreatePanel dentro de un &lt;dialog&gt; siempre presente en el DOM (línea 94), y control/page.tsx renderiza una segunda instancia inline (línea 174) sin props diferenciadores. Cada instancia mantiene su propia idempotency key (PMQuickCreatePanel.tsx:47-48, useRef por instancia), así que rellenar ambas crearía dos pedidos con claves distintas. Matiz menor: el formulario del nav está oculto hasta pulsar '+ Nuevo pedido' (no hay dos formularios visibles a la vez), pero la doble montura en el DOM y la redundancia funcional son reales; la instancia inline es superflua y la recomendación de quitarla es coherente.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">pm-create devuelve un deep-link /zona-traductor?q=REF que la bandeja ignora</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> PMQuickCreatePanel · Bandeja</p>
+    <p><strong>Problema:</strong> buildZonaTraductorUrl (pm-create) y el fallback de PMQuickCreatePanel generan /zona-traductor?q=REF, pero la Bandeja no lee searchParams: el enlace 'Ver pedido' tras crear un pedido no localiza nada. El destino correcto existe: /zona-traductor/pedido/[ref].</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/api/orders/pm-create/route.ts:54-58,162,324 y components/PMQuickCreatePanel.tsx:106-109,355 vs app/zona-traductor/page.tsx:12 (sin searchParams) + components/BandejaEntrada.tsx (sin useSearchParams ni lectura de q)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Cambiar buildZonaTraductorUrl y el fallback del panel para que devuelvan /zona-traductor/pedido/${reference}.</p>
+    <p class="vreason"><strong>Verificación:</strong> buildZonaTraductorUrl (pm-create route.ts:54-58) añade searchParams.set("q", reference) y el fallback de PMQuickCreatePanel.tsx:108 genera /zona-traductor?q=REF, renderizado como botón "Ver pedido en zona traductor" (línea 355). Pero app/zona-traductor/page.tsx:12 no declara searchParams y BandejaEntrada.tsx (339 líneas, verificado entero) no tiene useSearchParams ni buscador: solo filtra por deliveryState en memoria. El parámetro q se descarta por completo; el enlace aterriza en la bandeja genérica sin localizar el pedido. No hay middleware ni otro consumidor que rescate el q. El destino correcto /zona-traductor/pedido/[reference] existe, y el propio panel ya usa un enlace directo válido (/zona-traductor/workspace/REF, línea 349), lo que confirma que el fix propuesto es coherente con el patrón existente.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">legacy</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">La Bandeja serializa al cliente un payload enriquecido que la card nunca renderiza</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Bandeja</p>
+    <p><strong>Problema:</strong> El tipo BandejaOrder declara quoteDraft, paymentProofs, financeSnapshot, artifacts, trackedLinks, gates, documents… y loadBandejaState los calcula y serializa en cada render, pero el grep de <code>order.financeSnapshot|order.gates|order.trackedLinks|order.paymentProofs|order.quoteDraft|order.artifacts</code> en BandejaEntrada.tsx devuelve cero usos: es resto de cuando la bandeja era pantalla de gestión completa. Coste de cómputo + payload al navegador para nada.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/BandejaEntrada.tsx:23-82 (tipo sin usos; excepciones usadas: collaboratorAssignments L149 y nextBestAction L180-190) vs lib/zona-traductor-data.ts:395-446 (toBandejaOrder) + app/zona-traductor/page.tsx:14-19 (paso al cliente) + app/zona-traductor/layout.tsx:10 (doble carga)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Crear un serializador ligero para la bandeja (referencia, cliente, estado, urgencia, importe, assignedTo) y dejar el enriquecido solo para el control/export. Reduce además el coste de la doble carga del layout.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: toBandejaOrder (lib/zona-traductor-data.ts:395-446) serializa financeSnapshot, artifacts, trackedLinks, gates, paymentProofs, documents, quoteDraft, quoteAuditTrail, deliveryNotification, draft*, canonicalStage y workflowState, y app/zona-traductor/page.tsx:14-19 pasa el array completo al client component; grep en BandejaEntrada.tsx confirma CERO usos de todos esos campos (solo aparecen en la declaración del tipo, líneas 23-82). El comentario en BandejaEntrada.tsx:122 confirma el origen legacy ('la gestión completa vive en el detalle canónico'). Además loadBandejaState se ejecuta dos veces (layout.tsx:10 solo para pedidosAccionables + page.tsx). Dos matices que no refutan: (1) la card SÍ usa nextBestAction (líneas 180-190) y collaboratorAssignments (línea 149), así que el serializador ligero propuesto debe incluirlos o rompe el CTA y el badge 'Entrega pendiente'; (2) el cómputo de financeSnapshot no es 100% desperdicio porque es input de getNextBestAction — el desperdicio neto es la serialización al navegador + getQuoteDraft/getQuoteAuditTrail/getPaymentProofs/getSubmittedDocuments/getOrderArtifacts/getOrderGates/buildOrderTrackedLinks.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El CTA 'Ir al paso' del OrderStepper aterriza en secciones equivocadas</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Detalle pedido</p>
+    <p><strong>Problema:</strong> TAB_ANCHOR mapea presupuesto→#docs, comprobante→#finanzas, asignar→#colab y notificar→#traduccion, pero la página tiene secciones #presupuesto (:337), #pago (:349), #asignar (:476) y #comunicacion (:526). La guía de siguiente-mejor-acción, la pieza que debería ordenar el flujo, lleva al usuario al sitio incorrecto en 4 de 9 pasos.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/order-workspace/OrderStepper.tsx:21-31 vs app/zona-traductor/pedido/[reference]/page.tsx:337,349,476,526,610; tabs realmente emitidos en lib/order-actions.ts:159-227 (comprobante nunca se emite)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Corregir el mapa: presupuesto→#presupuesto, comprobante→#pago, asignar→#asignar, notificar→#comunicacion. Añadir un test que valide que cada ancla del mapa existe en la página.</p>
+    <p class="vreason"><strong>Verificación:</strong> TAB_ANCHOR (OrderStepper.tsx:21-31) sí manda a secciones equivocadas y 3 de los 4 casos alegados están vivos: presupuesto→#docs (el editor de presupuesto está en #presupuesto:337, #docs:448 son docs fuente), asignar→#colab (AssignOrderForm que setea assignedTo —el gate exacto— está en #asignar:476) y notificar→#traduccion ("Enviar enlace de pago" aterriza en el uploader:405; el paymentLink está en TranslatorNotifyForm en #comunicacion:526). Matiz: comprobante→#finanzas es mapping muerto — getNextBestAction (lib/order-actions.ts:159-227) nunca emite tab "comprobante", así que no puede desviar a nadie hoy. Medido por stages el impacto es MAYOR que lo alegado: el CTA aterriza mal en 6 de 9 stages (DRAFT, QUOTE_READY, SENT_TO_CLIENT, PAYMENT_PENDING, PAYMENT_VALIDATED sin asignar, DELIVERY_READY). Extra no detectado: control→#finanzas también está desfasado, existe #control en page.tsx:610. La recomendación de corregir el mapa + test de anclas es válida.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">La carpeta de cliente mantiene una quinta copia de la lógica de documentos fuente que la auditoría P1-7 ya unificó</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Clientes (carpeta) · Detalle pedido</p>
+    <p><strong>Problema:</strong> lib/order-source-documents.ts nació como 'fuente ÚNICA' precisamente porque esta extracción estaba copiada en 4 sitios — pero clientes/[email] no se migró: getSourceDocs local reimplementa el parseo de eventos (y NO incluye DocumentAnalysis, la misma clase de agujero del incidente del 8-jul: docs del funnel invisibles). getDelivered también es copia local de la lógica de deliveryFilesJson.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/clientes/[email]/page.tsx:19-32 (getSourceDocs) y :34-43 (getDelivered) vs lib/order-source-documents.ts:17-54 y lib/client-delivery.ts:10-28; el fix del 8-jul está en lib/orders.ts:226-284 (write-side, no en el helper de lectura)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Migrar la carpeta a getSourceDocumentsFromEvents (y valorar clientVisibleDeliveryFiles de lib/client-delivery para getDelivered). Borrar las copias locales.</p>
+    <p class="vreason"><strong>Verificación:</strong> La redundancia es REAL: getSourceDocs (page.tsx:19-32) reimplementa el parseo de eventos que lib/order-source-documents.ts unificó (P1-7) y que ya consumen las 4 superficies originales (zona-traductor/pedido, workspace, area-cliente, collaborators.ts:359) — es de verdad una quinta copia, usada para renderizar (línea 180), no un enlace. getDelivered (:34-43) duplica el parse de deliveryFilesJson de lib/client-delivery.ts. PERO el agujero funcional alegado es falso: el helper unificado TAMPOCO lee DocumentAnalysis; el incidente del 8-jul se arregló en escritura (wireSessionDocsToOrder, lib/orders.ts:226-284, emite order.source_document_uploaded para docs del funnel) y la copia local parsea exactamente ese evento (page.tsx:26-28), así que los docs del funnel SÍ son visibles en la carpeta. Queda solo riesgo de mantenimiento (cambios de shape romperían esta quinta pantalla), no rotura actual. Ojo con la recomendación de clientVisibleDeliveryFiles: gatea PAID+TRADUCIDO (regla de cara al cliente) y esta página es de staff — adoptarlo tal cual ocultaría entregas no cobradas/no verificadas al traductor.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Los documentos que el staff suelta en el builder crean DocumentAnalysis huérfanos invisibles en todas las vistas</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Presupuesto (builder) · Expedientes · Presupuestos (carpeta)</p>
+    <p><strong>Problema:</strong> El analyze staff crea DocumentAnalysis con sessionToken <code>staff:{email}</code>, pero Expedientes y la carpeta solo consultan <code>exp:*</code>: esos registros no aparecen en ninguna pantalla y el documento solo sobrevive por valor en QuoteLine.sourceFileUrl. Es la misma familia de bug de visibilidad del incidente del 8-jul (doc del funnel solo en DocumentAnalysis): dos fuentes de verdad para 'los ficheros de este presupuesto' que divergen según cómo entró el documento.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/api/zona-traductor/expediente/analyze/route.ts:62 vs app/zona-traductor/expedientes/page.tsx:25</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Al generar el quote, re-etiquetar los DocumentAnalysis staff:* al grupo del expediente (o vincularlos por quoteId), y añadir limpieza cron para los que nunca acaben en un quote. Objetivo: una sola fuente de 'documentos del presupuesto'.</p>
+    <p class="vreason"><strong>Verificación:</strong> El código prueba el hallazgo en todos sus puntos. (1) analyze/route.ts:56-67: cuando el staff sube por blobUrl (rama sin documentId, la del builder StaffExpedienteIntake.tsx:257-276) se crea un DocumentAnalysis con sessionToken <code>staff:${access.email}</code>. (2) Ese prefijo solo se ESCRIBE ahí: grep de todo app/lib/components confirma que ninguna consulta lee <code>staff:*</code>. Todas las vistas que listan documentos de expediente filtran <code>exp:*</code>: expedientes/page.tsx:25 (startsWith "exp:"), zona-traductor/presupuesto/page.tsx:60 (<code>exp:${expRef}</code>), zona-traductor/presupuestos/page.tsx:69-77 (expTokens construidos todos como <code>exp:${quote.expedienteRef}</code>) y expediente/[token]/page.tsx:16. (3) DocumentAnalysis (prisma/schema.prisma:670-734) no tiene quoteId — solo orderId/orderReference, que este flujo no estampa — así que el único vínculo con el presupuesto es copia por valor: StaffExpedienteIntake.tsx:514 <code>sourceFileUrl: d.blobUrl</code> → QuoteLine.sourceFileUrl (schema.prisma:510). Agravante no citado en el hallazgo: el cron app/api/cron/document-cleanup/route.ts:33-51 borra a los 30 días registro + blob de los DocumentAnalysis en estado QUOTE_GENERATED (el estado final de estos huérfanos, línea 134 del analyze), de modo que el blob al que apunta QuoteLine.sourceFileUrl también muere y el enlace "ver PDF" del panel de presupuesto (AdminQuoteDetailPanel.tsx:544) queda roto en presupuestos de más de un mes. No hay malentendido posible: no existe ninguna superficie alternativa que muestre estos registros.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Bandeja y Resumen/control son dos vistas completas del mismo dataset con dos sistemas de filtrado paralelos</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Bandeja · Resumen/control</p>
+    <p><strong>Problema:</strong> Ambas pintan el universo completo de loadEnrichedOrders: la bandeja clasifica client-side (pills en useState, classifyOrder) y el control filtra server-side por searchParams con criterios semánticamente casi idénticos ('a-trabajar' ≈ 'pagados-sin-asignar', 'urgentes' ≈ 'sla-riesgo') implementados dos veces. El propio nav lo reconoce como legado ('Tablero y Control eran vistas duplicadas'). Con los filtros del control además rotos (hallazgo aparte), el Resumen hoy solo aporta KPIs, bulk-delete y export.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/BandejaEntrada.tsx:206-270 (classifyOrder + pills useState) vs lib/zona-traductor-data.ts:489-610 loadControlState (12 filtros server-side); ambos sobre loadEnrichedOrders lib/zona-traductor-data.ts:371 (defecto periodo "total" :299-304); comentario legacy components/ZonaTraductorNav.tsx:15-17 (pero Control sigue en la barra como "Resumen" :28); tabla completa duplicada en app/zona-traductor/control/page.tsx:248-290</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Decidir el rol de cada una y quitar el solape: Bandeja = triage operativo (sin tabla masiva), Control = solo económico/masivo (KPIs, bulk, export, alta PM fuera — ya está en el nav). Unificar la semántica de urgencia/a-trabajar en una única función compartida antes de tocar nada más.</p>
+    <p class="vreason"><strong>Verificación:</strong> Ambas vistas pintan el universo completo: loadBandejaState (:480) y loadControlState (:489) llaman a loadEnrichedOrders (:371) sobre getAllOrdersForStaff, y el periodo por defecto del control es "total" (normalizePeriod :299-304), así que el Resumen también muestra todo por defecto. Los dos sistemas de filtrado paralelos existen: pills client-side en useState + classifyOrder (BandejaEntrada.tsx:206-270) vs 12 filtros server-side por searchParams (zona-traductor-data.ts:506-548), con semántica duplicada real ('en-curso' es EXACTAMENTE 'en-proceso', 'urgentes' ≈ 'sla-riesgo' casi idéntico, 'a-trabajar' ≈ 'pagados-sin-asignar' con matiz assignedTo vs overdue). El comentario legacy existe verbatim en ZonaTraductorNav.tsx:15-17 y además está desfasado en un sentido que refuerza el hallazgo: dice que Control quedó "fuera de la barra" pero sigue en TABS como "Resumen" (:28) y renderiza tabla completa de pedidos con OrderTableWithBulkActions (control/page.tsx:248). No es un enlace ni un redirect: son dos páginas vivas completas del mismo dataset. Única imprecisión menor: el Resumen aporta también TranslatorAgenda, EstimationAccuracyCard y alertas críticas, no solo KPIs+bulk-delete+export CSV; no cambia la conclusión.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">Dos entidades llamadas 'presupuesto' (Quote AAAA-NNNN vs ClientInvoice P·AA_NNN) conviven en las mismas pantallas sin que la UI las distinga</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Presupuestos (carpeta) · Facturas · Periodos</p>
+    <p><strong>Problema:</strong> Es una dualidad intencional (memoria del proyecto: no son duplicados), pero la UI la expone cruda: la carpeta Presupuestos mezcla ambas en secciones, Periodos·presupuestos enseña solo Quote y Facturas solo los docKind=quote, con dos numeraciones y dos PDFs. Para quien opera (o para empaquetar esto como producto Lavori) es confusión asegurada sobre 'cuántos presupuestos tengo y dónde'.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/presupuestos/page.tsx:88-113 y 237-296; components/InvoiceManager.tsx:318 (isQuote) y 707-711 (badge 'Presupuesto'); app/zona-traductor/periodos/page.tsx:132-148 (solo prisma.quote) y :70 (ingresos filtra docKind='invoice' → serie P· ausente de todo Periodos); app/zona-traductor/facturas/page.tsx:21 (lista sin filtro docKind)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> No fusionar modelos (decisión ya tomada), sino la presentación: una sola lista 'Presupuestos' con columna Origen/Serie (Web · AAAA-NNNN vs Manual · P·AA_NNN) y que Periodos·presupuestos incluya ambas series o desaparezca.</p>
+    <p class="vreason"><strong>Verificación:</strong> La dualidad y la fragmentación existen tal cual: la carpeta Presupuestos consulta prisma.quote (líneas 51-68) y aparte clientInvoice docKind='quote' (88-113, sección 237-296), con dos numeraciones y dos endpoints de PDF (/api/quotes/[id]/preview-pdf vs /api/invoices/[id]/pdf); y Periodos·presupuestos (loadPresupuestos, 132-148) solo cuenta Quote mientras ingresos filtra docKind='invoice' (línea 70), así que la serie P·AA_NNN no aparece en NINGUNA vista de Periodos — el recuento trimestral de presupuestos es estructuralmente incompleto. PERO la afirmación de cabecera 'sin que la UI las distinga' es falsa: la carpeta las separa en una sección rotulada con copy explícito ('Emitidos con serie propia P·AA_NNN desde Facturas… No son facturas ni entran en contabilidad', líneas 238-241) y InvoiceManager pone badge violeta 'Presupuesto' a las filas docKind=quote (707-711) dentro de la lista de Facturas. El problema real no es falta de distinción sino vistas agregadas incompletas y ausencia de lista unificada; la recomendación (columna Origen/Serie + incluir ambas series en Periodos) sigue siendo válida.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">La 'carpeta del cliente' se implementa tres veces para tres audiencias sin compartir la consulta</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Clientes (carpeta staff) · Área cliente · Portal intermediario</p>
+    <p><strong>Problema:</strong> Staff (Prisma inline en la página), cliente final e intermediario (lib/client-portal.getClientPortalData) pintan la misma carpeta (pedidos+descargas+presupuestos+facturas sueltas). El staff no reutiliza getClientPortalData y duplica reglas de negocio a mano: 'cobrado = PAID + sueltas ISSUED cobradas sin orderId' está implementada dos veces con un comentario que admite 'Mismo cálculo que la lista de clientes'.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/clientes/[email]/page.tsx:57-100 (consulta inline 57-85 + totalPaid 95-100) duplicado con app/zona-traductor/clientes/page.tsx:76,89-91; lib/client-portal.ts:6-70 (getClientPortalData) compartida por app/area-cliente/page.tsx:88 y app/area-cliente/cliente/[email]/page.tsx:71</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Extraer la agregación a una función compartida (getClientFolderData) con flag de audiencia (staff ve todo, cliente filtra visibilidad) y que las tres superficies la consuman; la regla 'cobrado' vive una sola vez.</p>
+    <p class="vreason"><strong>Verificación:</strong> La duplicación de la regla 'cobrado' es real: app/zona-traductor/clientes/[email]/page.tsx:95-100 la implementa con el comentario literal "Mismo cálculo que la lista de clientes" y clientes/page.tsx:76,89-91 la repite (PAID + sueltas ISSUED cobradas sin orderId). Y el staff efectivamente no reutiliza getClientPortalData. PERO el titular "triplicada" es falso: cliente final (area-cliente/page.tsx:88) e intermediario (area-cliente/cliente/[email]/page.tsx:71) consumen la MISMA getClientPortalData — son dos implementaciones para tres audiencias, no tres. Además la consulta staff no es copia mecánica: necesita events del pedido (docs origen), relaciones intermediary/referrals, facturas en TODOS los estados con paymentProofUrl/holderNames (el portal filtra solo ISSUED) y semántica distinta de suelta (orderId:null vs OR email/order.clientEmail). Y la regla 'cobrado' duplicada vive dos veces DENTRO de la superficie staff (lista+detalle), no entre audiencias: getClientPortalData ni siquiera calcula totalPaid. La recomendación (función compartida con flag) sigue siendo razonable pero exige más trabajo del que sugiere el hallazgo.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El enlace 'Ver pedido en zona traductor' tras el alta rápida PM apunta a ?q=REF que la Bandeja ignora</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> PMQuickCreatePanel (nav + /control) · /zona-traductor</p>
+    <p><strong>Problema:</strong> pm-create devuelve buildZonaTraductorUrl → /zona-traductor?q=REF y el panel usa ese mismo fallback, pero la página Bandeja no lee searchParams: el botón post-creación aterriza en la lista completa sin resaltar ni filtrar el pedido recién creado. El paso 'lead→pedido creado→abrir pedido' pierde el hilo; el otro botón ('Ir al workspace') funciona solo porque el 307 lo rescata.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/api/orders/pm-create/route.ts:54-59 (buildZonaTraductorUrl, q en :57; usado en :162 y :324); components/PMQuickCreatePanel.tsx:106-109 (fallback /zona-traductor?q=) y :349 (href workspace/[ref]); next.config.mjs:93-97 (redirect 307 workspace→pedido); app/zona-traductor/page.tsx:12-14 (sin searchParams); components/BandejaEntrada.tsx (sin useSearchParams ni lectura de q); lib/zona-traductor-data.ts:495 (q solo en loadControlState/Control)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Que pm-create devuelva directamente /zona-traductor/pedido/{reference} y el botón principal del panel sea 'Abrir pedido' hacia el detalle canónico; eliminar el href a workspace/[ref].</p>
+    <p class="vreason"><strong>Verificación:</strong> pm-create devuelve /zona-traductor?q=REF (route.ts:54-59) y el panel lo usa como href del botón "Ver pedido en zona traductor" (PMQuickCreatePanel.tsx:106-109, 354-359), pero la Bandeja lo ignora por completo: page.tsx no acepta searchParams y BandejaEntrada.tsx no tiene useSearchParams ni lee 'q' en ningún sitio (su único URLSearchParams, línea 125, construye el href de quote). El único consumidor de 'q' en zona traductor es loadControlState (zona-traductor-data.ts:495) para /zona-traductor/control, ruta que este enlace nunca alcanza — el parámetro parece heredado de Control, lo que explica el bug. El botón aterriza en la lista completa sin filtrar ni resaltar. También verificado que el href hardcodeado a workspace/[ref] (línea 349) solo funciona por el 307 de next.config.mjs:93-97 hacia /zona-traductor/pedido/:reference, el detalle canónico, así que la recomendación de devolver esa ruta directamente es coherente con la consolidación existente.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Tres builders de documentos en el mismo detalle de pedido: los docs del funnel se ven en #presupuesto pero no en #docs ni en Producción</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> pedido/[reference] secciones #presupuesto, #docs y Producción</p>
+    <p><strong>Problema:</strong> La misma página calcula los documentos fuente con tres funciones distintas: getSubmittedDocuments (única que incluye la tabla DocumentAnalysis) alimenta #presupuesto; getSourceDocumentsFromEvents (solo eventos) alimenta #docs 'Documentos del cliente'; y getWorkspaceDocuments reimplementa localmente la extracción por eventos para el editor de Producción pese a que lib/order-source-documents se creó como 'fuente ÚNICA'. Para pedidos legacy del funnel (pre-fix wireSessionDocsToOrder) el documento existe en una sección y 'no hay documentos' en la de al lado — información que se pierde entre secciones de la misma pantalla.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/pedido/[reference]/page.tsx:58-60, 78-100, 185, 189, 238, 342, 398, 448-467; lib/zona-traductor-data.ts:65-119 (iaDocFiles en :95); lib/order-source-documents.ts:1-6; lib/orders.ts:220-284 (wireSessionDocsToOrder, incidente TJ-20260708-62ZI)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Unificar en lib/order-source-documents una sola función que fusione eventos + DocumentAnalysis (la lógica de getSubmittedDocuments) y usarla en las tres secciones; borrar getWorkspaceDocuments y el wrapper.</p>
+    <p class="vreason"><strong>Verificación:</strong> Las tres derivaciones existen tal cual: getSubmittedDocuments (única que fusiona order.documentAnalyses, lib/zona-traductor-data.ts:95) alimenta #presupuesto (page.tsx:342); #docs usa getSourceDocumentsFromEvents vía wrapper (solo eventos, :58-60/:185/:448-467); y getWorkspaceDocuments (:78-100) reimplementa localmente la misma extracción por eventos que lib/order-source-documents.ts ofrece como "Fuente ÚNICA" (su cabecera :1-6 dice que se creó justo para eliminar estas copias), sin diferencia de comportamiento que lo justifique. El escenario de rotura no es hipotético: lib/orders.ts:220-225 documenta el incidente TJ-20260708-62ZI (doc del funnel solo en DocumentAnalysis, sin evento ni OrderDocumentItem) y wireSessionDocsToOrder solo repara pedidos nuevos/reintentados, no backfillea legacy — para esos pedidos el doc aparece en #presupuesto y dos secciones más abajo #docs muestra "No hay documentos fuente guardados" y el editor de Producción abre vacío. Chequeos adversariales descartados: OrderDocumentItems en #docs lee order.documentItems (también vacío en el caso legacy) y no son superficies enlazadas sino secciones contradictorias de la misma pantalla.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Los enlaces 'Presupuesto NNNN' del pedido y de la carpeta de cliente van a la LISTA /admin/quotes, no al detalle</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> pedido/[reference] · clientes/[email]</p>
+    <p><strong>Problema:</strong> La trazabilidad pedido→presupuesto está rota a medias: tanto el botón del bloque Acciones del detalle como la fila de pedido en la carpeta del cliente enlazan a /admin/quotes (lista completa) porque solo tienen quoteNumber y no el id. El usuario tiene que rebuscar el presupuesto a mano en la lista, cuando el include podría traer el id.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/order-workspace/OrderManagementActions.tsx:150-153 (href="/admin/quotes", prop tipada sin id en :34, alimentada por app/zona-traductor/pedido/[reference]/page.tsx:172 select solo quoteNumber); app/zona-traductor/clientes/[email]/page.tsx:232-236 (href="/admin/quotes") y :71 (include quote select solo quoteNumber). Destino de deep-link existente: app/admin/quotes/[id]/</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Incluir quote.id en ambos selects y deep-linkar a /admin/quotes/[id] (o al futuro detalle en zona).</p>
+    <p class="vreason"><strong>Verificación:</strong> Ambos enlaces "Presupuesto NNNN" van a /admin/quotes a secas (lista completa, sin ni siquiera usar el filtro ?q= que la lista soporta), pese a que el detalle /admin/quotes/[id] existe. Los dos selects Prisma traen solo quoteNumber sin id (clientes/[email]/page.tsx:71 y pedido/[reference]/page.tsx:172), y la prop de OrderManagementActions está tipada sin id (línea 34), así que el deep-link es imposible hoy sin ampliar el include. No es una superficie que enlaza a otra: el texto promete un presupuesto concreto y aterriza en la lista genérica.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">coherencia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">La carpeta del cliente (enlace de acceso + entrega directa) es una isla: ningún pedido, presupuesto ni bandeja enlaza hacia ella</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> clientes/[email] · pedido/[reference] · bandeja</p>
+    <p><strong>Problema:</strong> Las dos acciones que cierran el ciclo con el cliente (enviar magic-link de la zona cliente y la entrega directa) solo existen en la carpeta del cliente, pero la única entrada a esa carpeta es la pestaña Clientes + buscador manual: el detalle de pedido muestra clientEmail sin enlazarlo, y la bandeja tampoco. Terminar un pedido y querer mandar el enlace de acceso implica salir, abrir Clientes, buscar el email y entrar — salto sin enlace en el tramo entrega→postventa.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/pedido/[reference]/page.tsx:281 (clientEmail texto plano); components/BandejaEntrada.tsx:157 (span sin enlace); components/ZonaTraductorNav.tsx:20 (única entrada externa); app/zona-traductor/clientes/[email]/page.tsx:116-118 (ClientAccessLink + ClientDeliverForm solo montados aquí)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Enlazar clientEmail → /zona-traductor/clientes/[email] desde la cabecera del detalle de pedido (y desde la card de bandeja), o montar ClientAccessLink también en la sección #comunicacion del pedido.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: la única entrada a /zona-traductor/clientes/[email] es la pestaña Clientes del nav (ZonaTraductorNav.tsx:20) + el buscador/listado de ClientesManager (que es el propio módulo). El detalle de pedido pinta order.clientEmail como texto plano (page.tsx:281, cero referencias a "clientes" en todo el fichero) y la card de bandeja igual (BandejaEntrada.tsx:157, &lt;span&gt; sin enlace). ClientAccessLink solo se monta en clientes/[email]/page.tsx:116 y ClientDeliverForm en :118; buildClientPortalUrl solo lo usan /api/customers/portal-link y el request-access iniciado por el cliente, así que el email de entrega NO incluye el magic-link — el desvío manual por Clientes es el único camino staff. Único matiz: la mitad de "entrega directa" es más débil (es entrega SIN pedido, tiene sentido que viva en la carpeta), pero el salto entrega→postventa sin enlace es real.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">'Presupuesto rápido' apunta a dos builders distintos según la superficie de origen</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> bandeja · PMQuickCreatePanel · /zona-traductor/control</p>
+    <p><strong>Problema:</strong> La misma acción con los mismos params (customerEmail, lineDescription, lineAmount, langPair) navega a /admin/quotes/new desde la bandeja y el panel de alta rápida (que pasa por un stub de redirect) pero a /zona-traductor/presupuesto desde la tabla del Resumen. Dos rutas de entrada al mismo builder, una de ellas cruzando por la superficie admin: incoherencia de carril que confunde y complica retirar el stub.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/PMQuickCreatePanel.tsx:117-125 y app/api/orders/pm-create/route.ts:77 (buildQuickQuoteUrl → /admin/quotes/new); components/BandejaEntrada.tsx:131 (/admin/quotes/new) vs app/zona-traductor/control/page.tsx:252,283 (/zona-traductor/presupuesto); app/admin/quotes/new/page.tsx (stub redirect); además app/admin/quotes/page.tsx:78 enlaza al stub</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Apuntar todos los orígenes directamente a /zona-traductor/presupuesto?… y dejar /admin/quotes/new solo como redirect para deep-links históricos.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: la misma acción con los mismos params apunta a /admin/quotes/new desde BandejaEntrada.tsx:131 y desde PMQuickCreatePanel (fallback en :118 Y el valor primario que devuelve la API — buildQuickQuoteUrl en app/api/orders/pm-create/route.ts:77 también genera /admin/quotes/new), mientras que control/page.tsx:283 apunta directo a /zona-traductor/presupuesto con los mismos params (construidos en :252). app/admin/quotes/new/page.tsx es un stub de redirect puro cuyo propio comentario admite que sirve deep-links de superficies internas VIVAS, no solo históricas — lo que confirma que hoy es irretirable. No hay rotura (el redirect preserva params y no hay gate de auth en el stub), pero el hallazgo no alegaba rotura sino incoherencia de carril, y esa existe. Matiz que refuerza el hallazgo: la recomendación debe incluir también buildQuickQuoteUrl en pm-create, no solo los componentes, o el fix quedaría incompleto.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El paso 'cobro→factura' está repartido en 3+4 botones equivalentes sin un carril claro</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> bandeja · control · pedido/[reference] · Facturas · Contabilidad·Sin factura · Contabilidad·Banco</p>
+    <p><strong>Problema:</strong> 'Marcar cobrado' del pedido existe en tres superficies (card bandeja, fila control, detalle) y 'emitir factura' en cuatro caminos de UI que convergen en lib/client-invoice. Todos usan los chokepoints correctos, pero para el operador el tramo cobro→factura del ciclo no tiene un lugar canónico: el mismo gesto se ofrece en seis pantallas con matices distintos (fecha, simplificada, justificante), lo que invita a duplicar trabajo o a dudar de cuál es el bueno.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/BandejaEntrada.tsx:189, components/OrderTableWithBulkActions.tsx:294, app/zona-traductor/pedido/[reference]/page.tsx:353 (cobro); components/InvoiceManager.tsx:334, components/ReconcilePanel.tsx:78, components/BankReconcilePanel.tsx:121-124, components/order-workspace/OrderManagementActions.tsx:68 (emisión)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Dejar 'Marcar cobrado' solo en el detalle (bandeja/control enlazan al detalle con ancla #pago) y documentar en la UI el carril canónico de facturación (detalle→emitir; Contabilidad solo para lotes/conciliación).</p>
+    <p class="vreason"><strong>Verificación:</strong> Todas las líneas citadas existen y las superficies están montadas en páginas alcanzables. 'Marcar cobrado' es el mismo ConfirmPaymentButton (POST /api/orders/[ref]/confirm-payment) repetido en bandeja (BandejaEntrada:189, /zona-traductor), fila de control (OrderTableWithBulkActions:294, /zona-traductor/control) y detalle (pedido/[reference]/page.tsx:353, sección id=pago) — tres entradas vivas, no enlaces ni código muerto. La emisión de factura tiene 4 caminos de UI reales que convergen en lib/client-invoice: InvoiceManager:334→/api/invoices/[id]/issue (prompt de número), ReconcilePanel:78→/api/reconcile/orders/issue (lote, dateMode+simplified), BankReconcilePanel:121-124→mismo endpoint (referencia única, dateMode 'paid' hardcodeado) y OrderManagementActions.emitInvoice:68→/api/orders/[reference]/invoice/issue (body vacío, defaults silenciosos); los 'matices distintos' (fecha, simplificada, número) son ciertos. Matices menores que no refutan: son 7 botones en 5 páginas, no 'seis pantallas' (detalle y contabilidad alojan dos cada una), e InvoiceManager emite borradores de Invoice (no solo pedidos), luego no es 100% equivalente pero sí el mismo gesto de operador. El ancla #pago recomendada ya existe en el detalle (page.tsx:349), lo que hace la recomendación trivial de aplicar.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">Dos entidades llamadas 'presupuesto' conviven en las mismas pantallas sin que la UI las distinga</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> /zona-traductor/presupuestos · Facturas · Periodos·presupuestos</p>
+    <p><strong>Problema:</strong> Quote (serie AAAA-NNNN, flujo publicToken/pago/puente a pedido) y ClientInvoice docKind='quote' (serie P·AA_NNN, emitido desde Facturas, sin puente a pedido) son entidades distintas a propósito (decisión registrada), pero la carpeta Presupuestos las apila en la misma página, Periodos enseña solo la primera y Facturas solo la segunda. Para el flujo A-Z esto significa que un 'presupuesto aceptado' sigue caminos opuestos según cuál de los dos sea, y nada en la UI explica cuál usar cuando.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/presupuestos/page.tsx:51-68 y :96-113 (dos consultas, correcto) pero :237-241 refuta el "sin distinguir" (sección rotulada con serie y aviso); components/InvoiceManager.tsx:476-484 y :707-711 (aviso y badge ya existentes); app/zona-traductor/periodos/page.tsx:70 y :133 (P·AA_NNN ausente de Periodos, correcto)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Rotular explícitamente las dos series en la carpeta ('Presupuesto con cobro online' vs 'Presupuesto documento P·AA_NNN') y decidir un criterio único de cuándo usar cada uno; a medio plazo, valorar que el P·AA_NNN pueda convertirse en Quote cobrable para no bifurcar el flujo.</p>
+    <p class="vreason"><strong>Verificación:</strong> La convivencia de las dos entidades y el hueco en Periodos son reales (periodos/page.tsx:133 solo prisma.quote; :70 solo docKind invoice), pero la premisa central de UX es falsa: la UI YA las distingue y rotula. La carpeta Presupuestos separa los P·AA_NNN en una sección propia con cabecera "Presupuestos del módulo de facturas" y subtítulo "Emitidos con serie propia P·AA_NNN desde Facturas (docKind «quote»). No son facturas ni entran en contabilidad" (presupuestos/page.tsx:237-241), e InvoiceManager marca cada fila quote con badge "Presupuesto" (:707-711) y el formulario avisa "fuera de contabilidad, NO cuenta en 303 ni gestoría" (:476-484). La recomendación principal del hallazgo (rotular las dos series en la carpeta) ya está implementada. Además, "sin puente a pedido" es impreciso: ClientInvoice admite orderReference y la carpeta enlaza al pedido cuando existe (presupuestos/page.tsx:280-287); lo que le falta es el flujo publicToken/pago de Quote. Queda como residuo válido solo la bifurcación conceptual (por diseño, decisión registrada) y que ningún criterio de "cuándo usar cuál" esté escrito, pero con severidad menor que la alegada.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Bandeja y Resumen son dos vistas del mismo dataset con dos sistemas de filtrado: fusionar en una sola lista</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Bandeja · Resumen/control</p>
+    <p><strong>Problema:</strong> Mismo universo de pedidos (loadEnrichedOrders) pintado dos veces: pills client-side en la bandeja vs 12 filtros server-side en control, con semánticas casi idénticas implementadas dos veces ('a-trabajar' ≈ 'pagados-sin-asignar'). Para un jurado con 5-15 pedidos/mes, dos pestañas de listado + un CSV que reimplementa el filtrado por tercera vez (export/route.ts) es sobre-superficie: más pestañas que pedidos activos.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>lib/zona-traductor-data.ts:480-487 vs :489-610 (ambos sobre loadEnrichedOrders:371); components/BandejaEntrada.tsx:206-244 (classifyOrder + switch de pills, el switch exacto es 225-244); app/api/orders/export/route.ts:18-163 (helpers duplicados) y :221-249 (switch de filtro copiado de zona-traductor-data.ts:506-533)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Una sola pestaña 'Pedidos': agrupación por urgencia de la bandeja + filtros/búsqueda del control leyendo searchParams, KPIs económicos movidos a Contabilidad. El export debe consumir el mismo módulo de filtrado, no una copia.</p>
+    <p class="vreason"><strong>Verificación:</strong> El código lo prueba. (1) Mismo universo: loadBandejaState (zona-traductor-data.ts:480-487) y loadControlState (:489-610) llaman ambos a loadEnrichedOrders (:371). (2) Filtrado duplicado con semánticas solapadas: pills client-side en BandejaEntrada.tsx:225-244 vs switch de 12 filtros server-side en data.ts:506-533; 'urgentes'≡'sla-riesgo' y 'en-curso'≡'en-proceso' son lógicamente idénticos; 'a-trabajar' vs 'pagados-sin-asignar' difieren solo en assignedTo/urgencia (el hallazgo ya decía "casi idénticas"). (3) Tercera copia literal: app/api/orders/export/route.ts:18-163 re-declara verbatim getDateRange, isWithinDateRange, hasFinancialRisk, requiresMarginApproval, hasMonthlyBatchPending, matchesSearch, getAcquisitionSource, getArchiveState, y el switch de filtro (route.ts:221-249) es copy-paste del de loadControlState — un cambio de semántica exige tocar 2-3 sitios o el CSV diverge de la pantalla. Matiz que no refuta: Control añade KPIs económicos y criticalFinanceOrders que Bandeja no tiene, así que no es duplicado puro de superficie, pero la recomendación ya lo contempla (KPIs a Contabilidad).</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">10 pestañas con 'Presupuestos' y 'Presupuesto' casi homónimas: el menú no cabe en la cabeza de un usuario nuevo</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Shell/nav completo</p>
+    <p><strong>Problema:</strong> Bandeja, Clientes, Expedientes, Presupuestos, Presupuesto, Facturas, Recurrentes, Contabilidad, Periodos, Resumen. Dos pestañas se llaman igual en singular/plural (archivo vs builder), 'Expedientes' es una lista read-only que solo alimenta al builder, y Recurrentes/Periodos son subvistas de Contabilidad promocionadas a pestaña. Un producto vendible aguanta 5-6 entradas: Pedidos, Presupuestos, Clientes, Facturación, Contabilidad.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/ZonaTraductorNav.tsx:18-29 (las 10 pestañas; el rango 20-27 omitía Bandeja y Resumen); app/zona-traductor/expedientes/page.tsx:109 (correcto: única acción = enlace al builder)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Renombrar y plegar: 'Presupuesto'→botón 'Nuevo presupuesto' dentro de Presupuestos; Expedientes→sección 'Recibidos de la web' dentro de Presupuestos; Recurrentes y Periodos→pestañas internas de Contabilidad; Resumen→fusionado con Bandeja (ver hallazgo previo).</p>
+    <p class="vreason"><strong>Verificación:</strong> Las 10 pestañas existen tal cual en el array TABS, incluida la pareja casi homónima 'Presupuestos' (/presupuestos, archivo de quotes) y 'Presupuesto' (/presupuesto, builder), que son páginas distintas ambas promocionadas a pestaña. Expedientes es efectivamente una lista read-only cuya ÚNICA acción es el enlace 'Preparar presupuesto' al builder (línea 109). Recurrentes y Periodos son páginas independientes de corte contable/facturación; llamarlas 'subvistas de Contabilidad' es juicio UX razonable, no error factual. Refuerza el hallazgo que el propio comentario del nav (líneas 15-17) reconoce una poda previa de pestañas duplicadas (Tablero/Control).</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">vendibilidad</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Intermediarios (autorrelación Customer + portal scoped) es un caso HBTJ (Ahmed): ocultar tras flag</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> CRM Clientes/carpeta · Área cliente intermediario</p>
+    <p><strong>Problema:</strong> El campo 'traído por', las cards de referidos y el portal /area-cliente/cliente/[email] existen para un intermediario concreto de HBTJ. Un jurado individual arranca sin esa figura; en el alta de cliente el campo intermediaryEmail es una pregunta que no sabe contestar. Además la relación solo se fija al crear (no editable), lo que en producto sería un bug reportado.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>prisma/schema.prisma:428-441 (comentario "p.ej. Ahmed" + autorrelación); app/api/customers/route.ts:77-91; app/zona-traductor/clientes/[email]/page.tsx:120-152; components/ClientesManager.tsx:133-134 (campo intermediaryEmail en el alta); app/area-cliente/cliente/[email]/page.tsx:27-68 (portal scoped)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Flag <code>hasIntermediaries</code> off por defecto: oculta campo de alta, cards y portal scoped. El schema puede quedarse; es puramente UI condicional.</p>
+    <p class="vreason"><strong>Verificación:</strong> Las tres evidencias son exactas y todos los claims resisten el intento de refutación: (1) autorrelación Customer con comentario en el propio schema "p.ej. Ahmed" que prueba el origen caso-HBTJ; (2) el alta manual (ClientesManager.tsx:133-134 + POST /api/customers:77-91) pregunta intermediaryEmail — opcional, pero presente siempre; (3) cards "Traído por"/"Sus clientes" en zona-traductor/clientes/[email]/page.tsx:120-152 y portal scoped en app/area-cliente/cliente/[email]/page.tsx. El claim de no-editabilidad es cierto: no existe PATCH/PUT de Customer (solo GET/POST, deliver, portal-link), los upserts de quotes/orders/presupuesto no tocan intermediaryId, y la página de detalle no tiene edición — la relación solo se corrige por BD. No hay ningún flag hasIntermediaries ni env condicionando estas superficies. Matiz menor que no refuta: cards y portal ya se auto-ocultan sin datos y el campo es opcional, así que el impacto para un jurado individual es confusión de UI + bug de edición, no rotura.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">4 caminos de UI para emitir factura y 3 para 'marcar cobrado': chokepoints correctos, superficie confusa</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Facturas · Contabilidad (Sin factura + Banco) · Detalle de pedido · Bandeja · Resumen</p>
+    <p><strong>Problema:</strong> Emitir factura: InvoiceManager, panel Sin-factura en lote, Banco·'Facturar ref' y OrderManagementActions en el pedido. Confirmar pago: card de bandeja, tabla de control y detalle. Todos convergen en lib/client-invoice y confirm-payment (bien), pero un usuario nuevo no sabe cuál es 'el' sitio y teme duplicar facturas. Para HBTJ es comodidad de experto; para el comprador es ambigüedad.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/InvoiceManager.tsx:334; components/ReconcilePanel.tsx:78; components/BankReconcilePanel.tsx:121; components/order-workspace/OrderManagementActions.tsx:68; components/BandejaEntrada.tsx:189; components/OrderTableWithBulkActions.tsx:294; app/zona-traductor/pedido/[reference]/page.tsx:353</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Definir el camino canónico visible (desde el pedido: 'Emitir factura'; desde Contabilidad: el lote) y degradar el resto a enlaces 'ir al pedido'. Documentar en la UI ('la factura se emite una vez; aquí solo se refleja').</p>
+    <p class="vreason"><strong>Verificación:</strong> Los 4 caminos de emisión existen y son acciones reales (no enlaces): InvoiceManager POST /api/invoices/[id]/issue; ReconcilePanel emisión en lote y BankReconcilePanel "Facturar ref" ambos POST /api/reconcile/orders/issue; OrderManagementActions POST /api/orders/[ref]/invoice/issue. Los 3 puntos de confirmar pago renderizan el mismo ConfirmPaymentButton en las líneas exactas citadas. La convergencia también se verifica: todo acaba en lib/client-invoice (reconcile-invoices.ts:6 delega en issueInvoice/issueOrUpdateInvoice). Matiz que no refuta: la duplicación de facturas está bloqueada a nivel de datos (findUnique por orderId en client-invoice.ts:177-181 y corte si ISSUED en :270), así que el riesgo es solo perceptual — exactamente como el hallazgo lo enmarca ("chokepoints correctos, superficie confusa").</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">El detalle de pedido tiene 4 widgets para escribir al cliente y 2 botones para la misma entrega: simplificar antes de vender</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Detalle de pedido</p>
+    <p><strong>Problema:</strong> ClientMessageComposer (notify-custom), ClientMessagePanel (send-client-message), TranslatorNotifyForm (plantillas + segundo disparador de /delivery) y el wa.me de cobro conviven en la misma página; la entrega se dispara desde #traduccion y desde #comunicacion contra el mismo endpoint. El stepper además ancla a secciones equivocadas (TAB_ANCHOR desfasado). Para Juan es memoria muscular; para un comprador es una página que no se puede aprender.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/pedido/[reference]/page.tsx:423-429 y :527-541 (3 compositores) + :316 con components/order-workspace/OrderManagementActions.tsx:120-122 (wa.me cobro); components/TranslationWorkspacePanel.tsx:134 vs components/TranslatorNotifyForm.tsx:120 (mismo POST /delivery); components/order-workspace/OrderStepper.tsx:21-31 (TAB_ANCHOR vs secciones #presupuesto/#pago/#asignar en page.tsx:337/349/476)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Un solo panel 'Mensajes al cliente' con selector de plantilla (entrega/reseña/libre/cobro) sobre un endpoint; la entrega solo desde el uploader de #traduccion; corregir TAB_ANCHOR (fix trivial).</p>
+    <p class="vreason"><strong>Verificación:</strong> Los 3 puntos se prueban en el código. (1) Cuatro widgets de escritura al cliente en la misma página con 4 endpoints distintos: ClientMessageComposer (page.tsx:423, POST notify-custom + wa.me propio), TranslatorNotifyForm (page.tsx:527, POST review-request:98 y delivery:120), ClientMessagePanel (page.tsx:540, POST send-client-message) y el wa.me de cobro Bizum en OrderManagementActions.tsx:120-122 montado en page.tsx:316. (2) Doble disparador de entrega real: TranslationWorkspacePanel.tsx:134 (#traduccion) y TranslatorNotifyForm.tsx:120 (#comunicacion) hacen POST idéntico a /api/orders/[ref]/delivery con state TRADUCIDO y notifyClient:true. (3) TAB_ANCHOR desfasado: OrderStepper.tsx:21-31 manda presupuesto→#docs pese a existir id="presupuesto" (page:337), comprobante→#finanzas pese a existir id="pago" (page:349) y asignar→#colab pese a existir id="asignar" (page:476); las anclas resuelven pero a secciones equivocadas. Matiz que no refuta: los 4 widgets no son visibles simultáneamente en todo estado (ClientMessageComposer requiere deliveredFiles&gt;0; wa.me cobro requiere no-PAID+teléfono), pero en un pedido entregado sin cobrar coexisten todos.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">legacy</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Ruta workspace inaccesible pero enlazada desde 4 sitios + tablero/proyecto/quotes-new: limpiar el esqueleto legacy antes de empaquetar</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> workspace/[ref] · tablero · proyecto/[ref] · Resumen · PMQuickCreatePanel · emails staff</p>
+    <p><strong>Problema:</strong> workspace/[reference] es una página completa que un redirect en next.config hace inalcanzable, pero botones 'Ir al workspace' y emails de staff siguen apuntándole; tablero y proyecto son stubs de redirect; GET /api/quotes no tiene consumidores; el payload muerto de BandejaOrder serializa al cliente campos que la card nunca pinta. Empaquetar esto significa vender código muerto que el comprador pagará en bugs y peso.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>next.config.mjs:94-96 vs components/OrderTableWithBulkActions.tsx:285, components/PMQuickCreatePanel.tsx:349, components/CollaboratorAssignmentPanel.tsx:526, lib/email.ts:749 y lib/collaborator-emails.ts:270 (5º enlace no citado); app/api/quotes/route.ts:179-219 (GET sin consumidores; el fetch de components/StaffExpedienteIntake.tsx:519 es POST); lib/zona-traductor-data.ts:395-446 vs components/BandejaEntrada.tsx:123-193 (card que no pinta el payload); stubs: app/zona-traductor/tablero/page.tsx, app/zona-traductor/proyecto/[reference]/page.tsx, app/admin/quotes/new/page.tsx</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Borrar workspace/[reference] repuntando los 4 enlaces a pedido/[ref], eliminar tablero/proyecto/admin-quotes-new tras un periodo de redirect, borrar GET /api/quotes y podar el payload de BandejaOrder. Media jornada que quita kilos al paquete.</p>
+    <p class="vreason"><strong>Verificación:</strong> Las 5 patas se verifican en código: (1) el redirect de next.config.mjs:94-96 intercepta antes que la ruta de filesystem, dejando workspace/[reference]/page.tsx (167 líneas con auth+Prisma+WorkspaceEditor+TranslationWorkspacePanel) como código muerto; (2) los 4 enlaces citados existen en las líneas exactas y en superficies vivas, más un 5º no citado (lib/collaborator-emails.ts:270) — matiz: no están rotos, el redirect los cubre, es peso muerto/indirección y no rotura; (3) tablero y proyecto son stubs de redirect de 6 líneas y admin/quotes/new otro stub con prefill; (4) GET /api/quotes (route.ts:179) no tiene ningún consumidor — el único fetch a "/api/quotes" (StaffExpedienteIntake.tsx:519) es POST y /admin/quotes lee con Prisma directo; (5) toBandejaOrder serializa paymentProofs, documents, quoteDraft, quoteAuditTrail, financeSnapshot, artifacts, trackedLinks, draft*, gates, canonicalStage, workflowState y subcampos de assignments que BandejaOrderCard (único consumidor, vía app/zona-traductor/page.tsx:19) jamás pinta — solo usa nextBestAction.tab/label y status+deliveredFileUrl de assignments además de los campos básicos.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">vendibilidad</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Query total sin paginación 2× por render + AutoRefresh 20s + análisis IA sin tope: economía unitaria del producto sin control</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Shell/layout · Bandeja · Resumen · Presupuesto builder</p>
+    <p><strong>Problema:</strong> getAllOrdersForStaff (todos los pedidos × 150 eventos + finanzas) corre en el layout para un badge Y otra vez en cada página, sin gate de auth previo (también para anónimos en /verificar), y AutoRefresh lo repite cada 20s. El análisis IA staff (Haiku/Sonnet visión) no tiene rate-limit ni contador de coste. En HBTJ lo paga Juan; en un producto vendido el coste por tenant (BD + tokens Claude) es tu margen y hoy no se mide ni se limita.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/layout.tsx:8-13 (loadBandejaState sin gate, catch inerte) + app/zona-traductor/page.tsx:14 (segunda llamada sin dedup) + lib/zona-traductor-data.ts:480-487 y lib/orders.ts:915-934 (findMany sin paginación, events take:150); components/AutoRefresh.tsx:29-35 con page.tsx:18 (refresh 20s, guards idle/visibilidad); app/api/zona-traductor/expediente/analyze/route.ts:5-6,15-19 (sin rate-limit ni contador, maxDuration 120, gate staff en :19)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Cachear el badge (unstable_cache 30-60s) o quitarlo del layout, mover el guard antes de la query, paginar getAllOrdersForStaff, y añadir contador de análisis IA por tenant/mes (base del pricing por planes).</p>
+    <p class="vreason"><strong>Verificación:</strong> Todo verificado en código: (1) getAllOrdersForStaff (lib/orders.ts:915-934) es findMany sin take con events take:150 + billing + documentAnalyses + collaboratorAssignments; (2) loadBandejaState no tiene auth interna ni React.cache/unstable_cache, y se ejecuta 2× por render (layout.tsx:10 + page.tsx:14) sin dedup; el try/catch del layout no protege nada — para anónimos en /verificar la query se ejecuta igual (no hay code path que lance, y middleware.ts no gatea zona-traductor); (3) AutoRefresh repite router.refresh() cada 20s (page.tsx:18, AutoRefresh.tsx:29-35), aunque con matices atenuantes no citados: solo pestaña visible + idle ≥30s + foco fuera de inputs; (4) analyze/route.ts confirma en su propio comentario (líneas 5-6) "Sin los topes de rate-limit públicos", maxDuration 120 en línea 16, y no existe contador de coste/uso — sí tiene gate requireStaffAccess (línea 19), que el hallazgo no negaba. Única imprecisión: la evidencia 11-13 apunta a imports, no al gate/maxDuration.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">vendibilidad</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Auth por allowlist de emails + 4 gates con semánticas distintas + fallback de secreto dev: no hay noción de cuenta de cliente</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Shell/OTP · APIs staff · /admin</p>
+    <p><strong>Problema:</strong> El acceso es 'tu email está en la lista' (hardcodeada + env), con dos puertas de login (/acceso, /verificar), APIs más laxas que las páginas (requireStaffAccess acepta sesión sin OTP) y un fallback 'staff-otp-dev-secret' si falta NEXTAUTH_SECRET. Sirve para un equipo interno; no se puede dar de alta a un comprador sin redeploy, y la incoherencia de gates es superficie de incidente en manos ajenas.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>lib/staff-access.ts:1-9; lib/staff-auth.ts:20-34; lib/zona-traductor-data.ts:459-478; lib/admin-page-access.ts:8-21; lib/staff-otp.ts:18; además: app/zona-traductor/pedido/[reference]/page.tsx:150-161 (4º gate inline duplicado) y lib/expediente-token.ts:8 (mismo patrón de fallback de secreto)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Modelo Tenant/User en BD con onboarding (aunque sea manual), un solo helper de gate con la misma exigencia OTP en páginas y APIs, y fail-hard si falta NEXTAUTH_SECRET en producción.</p>
+    <p class="vreason"><strong>Verificación:</strong> Todo verificado en código: (1) allowlist hardcodeada de 4 listas de emails ampliable solo por env vars, sin modelo User/Tenant en BD (lib/staff-access.ts:1-9); (2) los 4 gates existen con semánticas distintas — requireStaffAccess (APIs) acepta sesión SIN OTP (staff-auth.ts:23-25), authZonaTraductorOrRedirect exige sesión+OTP coincidente y redirige a /verificar (zona-traductor-data.ts:467-471), requireAdminPageAccess es laxo como la API pero redirige a la otra puerta /acceso (admin-page-access.ts:8-21), y hay un 4º gate inline duplicado a mano en pedido/[reference] y workspace/[reference] — las dos puertas de login /acceso y /zona-traductor/verificar existen; (3) el fallback "staff-otp-dev-secret" está en staff-otp.ts:18 sin fail-hard en producción, y el patrón se repite en lib/expediente-token.ts:8 ("expediente-dev-secret"). El path OTP es independiente de NextAuth, así que el secreto forjable no queda mitigado por el crash de NextAuth sin NEXTAUTH_SECRET. Matiz: app/api/traductor/dev-bypass/route.ts está bien gateado a NODE_ENV development y no agrava el hallazgo. Severidad media/vendibilidad correcta: no explotable hoy, pero el diagnóstico de no-multitenant e incoherencia de gates es exacto.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">Borrado masivo de pedidos y borrado de facturas emitidas sin papelera: aceptable para Juan, peligroso en producto</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Bandeja/Resumen (bulk-delete) · Facturas (DELETE emitidas) · Detalle (delete permanente)</p>
+    <p><strong>Problema:</strong> bulk-delete hace deleteMany de hasta 50 pedidos + sus facturas con solo un confirm() del navegador; Facturas permite borrar facturas EMITIDAS (en España lo correcto es rectificativa); no hay papelera ni undo. El dueño del negocio asume su propio riesgo; un cliente de pago que se cargue su libro de facturas por error es un ticket de soporte grave y un problema legal suyo que te atribuirá a ti.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/api/orders/bulk-delete/route.ts:62-72 (deleteMany de pedidos; facturas EMITIDAS se conservan huérfanas, solo se borran DRAFT/quote); components/OrderTableWithBulkActions.tsx:134-149 (solo window.confirm); components/InvoiceManager.tsx:416-436 (DELETE de emitida con warning) + app/api/invoices/[id]/route.ts:123-131 y lib/client-invoice.ts:358-360 (hard delete permitido a ADMIN/PM, sin gate de trimestre cerrado); components/OrderLifecyclePanel.tsx:54-64 (borrado individual con doble confirmación, no solo confirm); prisma/schema.prisma:484 (Quote.deletedAt, patrón reutilizable)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Soft-delete (deletedAt) para pedidos con papelera de 30 días; bloquear DELETE de facturas emitidas fuera de rol admin y empujar a rectificativa. El patrón ya existe en Quote.deletedAt: reutilizarlo.</p>
+    <p class="vreason"><strong>Verificación:</strong> El núcleo es real: bulk-delete hace deleteMany duro de hasta 50 pedidos con solo window.confirm() y no existe papelera para pedidos (deletedAt solo en Quote, schema.prisma:484); y una factura EMITIDA sí puede borrarse en duro (deleteInvoice = prisma.delete sin gate de TaxPeriodClose). PERO dos afirmaciones clave son falsas: (1) bulk-delete NO borra las facturas emitidas — el código borra solo DRAFT/quote y conserva las EMITIDAS huérfanas a propósito (onDelete SetNull, comentario explícito en route.ts:62-69), así que el "libro de facturas" no se pierde por esa vía; (2) el borrado individual (OrderLifecyclePanel) no es "solo un confirm": exige además teclear la referencia exacta (líneas 54-64). Además el DELETE de factura ya está gateado por rol: COLLABORATOR bloqueado del todo y EMITIDA restringida a ADMIN/PM (app/api/invoices/[id]/route.ts:117-128), cumpliendo parcialmente la propia recomendación; el gap residual es que ADMIN/PM aún puede borrar en duro una emitida en vez de rectificativa.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">ux</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">No existe editar ni borrar Cliente en ninguna superficie: datos fiscales mal tecleados exigen tocar la BD</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> CRM Clientes/carpeta</p>
+    <p><strong>Problema:</strong> El alta captura NIF, datos fiscales, teléfono e intermediario, pero no hay update/delete (grep customer.update = 0). En HBTJ lo arregla Juan por consola; un comprador con un NIF mal escrito en la factura no tiene salida. Además el alta manual puede chocar 409 contra fichas creadas silenciosamente por upsert desde 4 endpoints, un fallo que el usuario no puede entender ni resolver.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/api/customers/route.ts (solo GET+POST; 409 en 70-73 pre-check y 115-116 P2002) vs upserts en app/api/quotes/route.ts:100, app/api/quotes/[id]/route.ts:86, app/api/presupuesto/route.ts:99, app/api/orders/route.ts:468; matiz: InvoiceManager.tsx:533+ y app/api/invoices/[id]/route.ts:89 permiten corregir NIF por factura mientras es borrador</code></p>
+    <p class="reco"><strong>Recomendación:</strong> PATCH /api/customers/[id] + formulario de edición en la carpeta (nombre, fiscal, teléfono, intermediario). Es el hueco funcional más barato de cerrar con más impacto en vendibilidad del CRM.</p>
+    <p class="vreason"><strong>Verificación:</strong> Probado en código: app/api/customers/route.ts solo tiene GET+POST y grep de customer.update/customer.delete da 0 hits en app/lib/components/scripts; ClientesManager.tsx solo hace POST (alta), sin editar ni borrar. La colisión 409 también es real y peor de lo descrito: hay 4 upserts silenciosos (quotes, quotes/[id], presupuesto, orders) que crean fichas solo con name/email — presupuesto/route.ts:101 y orders/route.ts:471 además machacan name (presupuesto pone name=email) — y el alta manual completa contra ese email devuelve 409 sin vía de enriquecer la ficha existente. Único matiz que no cambia el veredicto: una factura BORRADOR sí permite corregir NIF/fiscal en su propio snapshot (InvoiceManager.tsx:533+, PATCH /api/invoices/[id]), así que "no tiene salida" es exagerado para una factura suelta; pero la ficha Customer queda mal para siempre, pre-rellena mal los siguientes documentos y solo se arregla tocando la BD.</p>
+  </div>
+</details>
+<details class="finding sev-media">
+  <summary>
+    <span class="badge sev-media">MEDIA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Periodos duplica Contabilidad con OTRA zona horaria: dos cifras fiscales distintas en bordes de trimestre</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Periodos · Contabilidad</p>
+    <p><strong>Problema:</strong> Periodos·ingresos repinta la misma tabla de facturas emitidas que Contabilidad, pero agrupa con Europe/Madrid mientras Contabilidad filtra en UTC: una factura emitida el 30-jun 23:30 puede caer en trimestres distintos según la pestaña. En un producto fiscal, que dos pantallas den totales distintos del mismo trimestre es la clase de bug que hace desinstalar.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/ContabilidadClient.tsx:125-134 (getUTC*) vs lib/period-grouping.ts:79-89 (madridParts Europe/Madrid); tabla duplicada: app/zona-traductor/periodos/page.tsx:90-129 vs components/ContabilidadClient.tsx:767-809; misma query: app/zona-traductor/contabilidad/page.tsx:24 vs app/zona-traductor/periodos/page.tsx:69-84; enlace que admite el solape: periodos/page.tsx:355-363</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Unificar en Europe/Madrid (lo fiscalmente correcto en España) como única función de periodo compartida, y retirar la vista ingresos de Periodos dándole a Contabilidad el drill-down mensual (la propia página ya enlaza a Contabilidad admitiendo el solape).</p>
+    <p class="vreason"><strong>Verificación:</strong> Ambas pantallas consultan el MISMO dataset (clientInvoice status ISSUED + docKind invoice, fecha issuedAt??createdAt: contabilidad/page.tsx:24 vs periodos/page.tsx:69-84) pero lo agrupan con relojes distintos: ContabilidadClient.tsx:125-134 usa getUTCFullYear/getUTCMonth (UTC puro) mientras lib/period-grouping.ts:79-89 (madridParts, usado por groupByPeriod:133 y matchesPeriod:244) usa Intl con Europe/Madrid. Una factura con issuedAt 2026-06-30T22:30Z (=1-jul 00:30 Madrid) cae en T2 en Contabilidad y T3 en Periodos: dos totales fiscales distintos del mismo trimestre. La duplicación de tabla también es literal: periodos/page.tsx:90-129 reproduce columna a columna (Número/Fecha/Cliente/Base/IVA/Total/PDF a /api/invoices/{id}/pdf) la sección INGRESOS de ContabilidadClient.tsx:767-809, y la propia página enlaza a Contabilidad admitiendo el solape (periodos/page.tsx:355-363). Único matiz: la discrepancia solo se materializa con facturas emitidas en la ventana de 1-2h alrededor del borde de periodo (offset UTC↔Madrid), así que severidad media es correcta, no alta.</p>
+  </div>
+</details>
+<details class="finding sev-baja">
+  <summary>
+    <span class="badge sev-baja">BAJA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">'Marcar cobrado' está renderizado en tres superficies</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Bandeja · Resumen/control · Detalle pedido</p>
+    <p><strong>Problema:</strong> ConfirmPaymentButton aparece en la card de bandeja, la fila de la tabla del control y el detalle. Todos van al mismo chokepoint (/confirm-payment → confirmManualPaymentWithSideEffects), así que no hay bifurcación de lógica, pero triplicar una mutación de dinero en superficies de listado invita a confirmar pagos sin ver el contexto (justificante, importe).</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/BandejaEntrada.tsx:189, components/OrderTableWithBulkActions.tsx:294, app/zona-traductor/pedido/[reference]/page.tsx:353</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Conservar en Bandeja (operativa diaria) y Detalle; retirarlo de la tabla del control, que es semi-legacy y no muestra el justificante.</p>
+    <p class="vreason"><strong>Verificación:</strong> Las tres superficies existen y renderizan el botón de mutación real (no un enlace): card de bandeja (gated por nextBestAction.tab==='workflow' &amp;&amp; PENDING), fila de la tabla de control (gated por showConfirmPayment) y sección Pago del detalle. Las tres pasan por el mismo chokepoint: ConfirmPaymentButton.tsx:18 hace POST a /api/orders/[reference]/confirm-payment, cuya route llama a confirmManualPaymentWithSideEffects (route.ts:56). El detalle muestra los comprobantes bajo el botón; la tabla del control no renderiza ningún justificante. Matiz: la card de bandeja TAMPOCO pinta paymentProofs (el campo está en el tipo, línea 23, pero nunca se renderiza), así que el riesgo de confirmar sin ver el justificante aplica a bandeja y control por igual — la recomendación de conservarlo en Bandeja debería acompañarse de mostrar ahí el comprobante o el importe de contexto.</p>
+  </div>
+</details>
+<details class="finding sev-baja">
+  <summary>
+    <span class="badge sev-baja">BAJA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Formateador eur() copiado a mano en 9 archivos del clúster fiscal</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Contabilidad · Facturas · Recurrentes · Periodos</p>
+    <p><strong>Problema:</strong> El mismo helper <code>(c/100)... €</code> existe como función local en 9 sitios verificados. Trivial pero es exactamente el patrón 'todo por todos lados': cualquier cambio de formato (separador de miles, negativo) exige 9 ediciones.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/ContabilidadClient.tsx:65, components/InvoiceManager.tsx:62, components/ReconcilePanel.tsx:28, components/BankReconcilePanel.tsx:14, components/ImportInvoicesPanel.tsx:86, components/ExcludedOrdersPanel.tsx:17, components/RecurringInvoiceManager.tsx:41, components/RecurringExpenseManager.tsx:40, app/zona-traductor/facturas/page.tsx:12 (todas correctas; hay 10 duplicados adicionales fuera del clúster fiscal, p.ej. lib/invoice-pdf.ts:85, lib/gestoria-csv.ts:7, lib/tax-drafts.ts:7)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Extraer a lib/format.ts (o exportar el de lib/period-grouping.ts) e importar en los 9.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado abriendo los 9 archivos: en las 9 líneas citadas existe una función local eur() con cuerpo idéntico <code>(c/100).toFixed(2) €</code> (solo varía el nombre del parámetro c/cents). Es duplicación real de código, no superficies que se enlazan. De hecho el hallazgo se queda corto: el grep completo del repo encuentra 19 definiciones locales de eur() (además de las 9: area-cliente/page.tsx, area-cliente/cliente/[email]/page.tsx, zona-traductor/clientes/[email]/page.tsx, ClientesManager, OrderManagementActions, OrderDocumentItems, QuoteEditForm —esta con firma distinta—, lib/gestoria-csv.ts, lib/invoice-pdf.ts, lib/tax-drafts.ts). Único matiz: la recomendación alternativa de "exportar el de lib/period-grouping.ts" no aplica — ese fichero no contiene ningún eur; la extracción debería ir a un lib/format.ts nuevo.</p>
+  </div>
+</details>
+<details class="finding sev-baja">
+  <summary>
+    <span class="badge sev-baja">BAJA</span>
+    <span class="badge cat">legacy</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">GET /api/quotes es un endpoint muerto</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> API /api/quotes</p>
+    <p><strong>Problema:</strong> El listado JSON con include lines/payments/messageLogs no tiene ningún consumidor en app/components (verificado por grep: solo el POST se usa desde StaffExpedienteIntake.tsx:519; los listados usan Prisma directo en Server Components). Superficie de API pública-staff que mantener y auditar sin que nadie la llame.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/api/quotes/route.ts:179-219</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Eliminar el handler GET (dejar solo POST). Si algún día hace falta listado JSON, se recrea con contrato explícito.</p>
+    <p class="vreason"><strong>Verificación:</strong> El handler GET existe en app/api/quotes/route.ts:179-219 (findMany take 120 con include lines/payments/messageLogs) y no tiene ningún consumidor: el único fetch a /api/quotes en el árbol principal es StaffExpedienteIntake.tsx:519 con method POST; los listados de presupuestos (app/admin/quotes/page.tsx:46 y app/zona-traductor/presupuestos/page.tsx:51) usan prisma.quote.findMany directo en Server Components; ningún script, test ni cron llama al GET, y hasta el código de worktrees/ramas antiguas (QuickQuotePanel, AdminQuoteCreateForm) usa solo POST. Es superficie staff-gated muerta; eliminar el GET dejando el POST es seguro.</p>
+  </div>
+</details>
+<details class="finding sev-baja">
+  <summary>
+    <span class="badge sev-baja">BAJA</span>
+    <span class="badge cat">redundancia</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">'Cerrar pedido' (finance/close) existe en dos paneles de la misma página</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Detalle pedido (#finanzas y #control)</p>
+    <p><strong>Problema:</strong> OrderFinancePanel y OrderLifecyclePanel disparan el mismo POST /api/orders/[ref]/finance/close. Mismo chokepoint, pero dos botones para el cierre en la misma pantalla diluyen dónde 'se termina' un pedido y duplican estados de carga/errores.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/OrderFinancePanel.tsx:183 y components/OrderLifecyclePanel.tsx:85 (ambos en app/zona-traductor/pedido/[reference]/page.tsx:513 y :611)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Dejar el cierre solo en OrderLifecyclePanel (#control, gated por closeReady) y que #finanzas muestre el estado de cierre en solo-lectura con ancla a #control.</p>
+    <p class="vreason"><strong>Verificación:</strong> Verificado en código: los dos componentes hacen POST al mismo endpoint /api/orders/[ref]/finance/close (OrderFinancePanel.tsx:183 dentro de closeFinance, botón "Cerrar financieramente" en :456-463; OrderLifecyclePanel.tsx:85 dentro de closeOrder, botón "Cerrar pedido" en :134-141) y ambos se renderizan incondicionalmente en la misma página app/zona-traductor/pedido/[reference]/page.tsx (sección #finanzas :513, sección #control :611). Son botones reales, no enlaces ni redirects, con estados loading/message duplicados e independientes. Agravante que refuerza la recomendación: el botón de #control está gated por canClose={gates.closeReady} (page.tsx:616) pero el de #finanzas solo se deshabilita por loading, así que la misma acción tiene dos niveles de protección UI distintos en la misma pantalla.</p>
+  </div>
+</details>
+<details class="finding sev-baja">
+  <summary>
+    <span class="badge sev-baja">BAJA</span>
+    <span class="badge cat">legacy</span>
+    <span class="badge verdict-confirmado">confirmado</span>
+    <span class="ftitle">Botones y emails siguen enlazando /zona-traductor/workspace/[ref], ruta que solo existe como redirect 307</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> /zona-traductor/control · PMQuickCreatePanel · CollaboratorAssignmentPanel · emails staff</p>
+    <p><strong>Problema:</strong> La consolidación dejó el detalle canónico en pedido/[ref], pero cuatro emisores vivos siguen generando enlaces a workspace/[ref]: funcionan gracias al redirect de next.config, pero impiden borrar la página workspace duplicada del repo (con su segundo render de WorkspaceEditor/TranslationWorkspacePanel) y mantienen el rótulo 'Workspace' como concepto fantasma en la UI.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>components/OrderTableWithBulkActions.tsx:285, components/PMQuickCreatePanel.tsx:349, components/CollaboratorAssignmentPanel.tsx:526, lib/email.ts:749, lib/collaborator-emails.ts:270 vs next.config.mjs:93-97 (redirect 307 workspace→pedido); página duplicada muerta en app/zona-traductor/workspace/[reference]/page.tsx:144-163 (segundo render WorkspaceEditor+TranslationWorkspacePanel, duplicando pedido/[reference]/page.tsx:391,437)</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Reapuntar los 5 emisores a /zona-traductor/pedido/[ref] (renombrando el botón a 'Abrir pedido'), y tras un periodo de gracia borrar app/zona-traductor/workspace/[reference]/page.tsx dejando solo el redirect.</p>
+    <p class="vreason"><strong>Verificación:</strong> Los 5 emisores existen y están todos vivos: OrderTableWithBulkActions:285 ("Workspace") y PMQuickCreatePanel:349 ("Ir al workspace") se renderizan en /zona-traductor/control; CollaboratorAssignmentPanel:526 ("Abrir workspace") se renderiza dentro del propio detalle canónico pedido/[reference] (enlaza de vuelta al alias); lib/email.ts:749 se envía desde api/entrega/[token]/upload/route.ts:114 y lib/collaborator-emails.ts:270 desde api/encargo/[token]/route.ts:201. El redirect 307 workspace→pedido está en next.config.mjs:93-97. La página app/zona-traductor/workspace/[reference]/page.tsx sigue en el repo (167 líneas) con un segundo render de WorkspaceEditor+TranslationWorkspacePanel (pedido los renderiza en 391/437) y es código muerto porque el redirect intercepta antes. Único matiz menor: los emisores no "impiden" técnicamente borrar la página (el redirect de next.config captura la URL aunque no exista page.tsx), lo que perpetúan es la URL legacy y el rótulo fantasma "Workspace"; y el hallazgo dice "cuatro emisores" pero son cinco, como su propia evidencia lista.</p>
+  </div>
+</details>
+<details class="finding sev-baja">
+  <summary>
+    <span class="badge sev-baja">BAJA</span>
+    <span class="badge cat">legacy</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">La carpeta Presupuestos lista quotes borrados con badge 'Eliminado' sin poder restaurarlos ni filtrarlos</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> /zona-traductor/presupuestos · /admin/quotes?view=deleted</p>
+    <p><strong>Problema:</strong> La consulta de la carpeta no filtra deletedAt, así que los presupuestos eliminados aparecen mezclados con los vivos como ruido de solo lectura; la papelera funcional (restaurar) vive en /admin/quotes?view=deleted. Incoherencia entre las dos listas de la misma entidad y ruido en la vista de trabajo diaria.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/presupuestos/page.tsx:42-52 (quoteWhere sin deletedAt) y :161-165 (badge 'Eliminado') vs app/admin/quotes/page.tsx:37; intención de diseño en commit 51b98db ("incluye eliminados con badge — nada se pierde")</code></p>
+    <p class="reco"><strong>Recomendación:</strong> Añadir where deletedAt:null a la carpeta (con un toggle opcional 'ver eliminados' que enlace a la papelera de admin mientras exista).</p>
+    <p class="vreason"><strong>Verificación:</strong> Los hechos son ciertos (findMany sin filtro deletedAt, badge 'Eliminado' sin restaurar, papelera funcional solo en /admin/quotes?view=deleted con QuoteRowActions). Pero el commit 51b98db (10-jul-2026) que creó la página dice explícitamente "incluye eliminados con badge" bajo el lema "carpeta de expedientes — nada se pierde": mostrar los borrados es diseño deliberado y reciente (la vista es un archivo de expedientes, no una cola de trabajo), no código muerto ni legacy. La categoría 'muerto-legacy' es incorrecta y la recomendación de filtrar deletedAt:null revertiría una feature intencionada; lo único que sobrevive es una observación UX menor (falta toggle para ocultarlos / restaurar in situ). Además cada tarjeta enlaza a /admin/quotes/[id], así que hay camino hacia la superficie con papelera.</p>
+  </div>
+</details>
+<details class="finding sev-baja">
+  <summary>
+    <span class="badge sev-baja">BAJA</span>
+    <span class="badge cat">legacy</span>
+    <span class="badge verdict-parcial">parcial</span>
+    <span class="ftitle">Herramientas de propósito cumplido o interno (import CSV histórico, precisión del estimador, conciliación Stripe) — ocultar del paquete</span>
+  </summary>
+  <div class="fbody">
+    <p><strong>Superficies:</strong> Contabilidad (ImportInvoicesPanel) · Bandeja (EstimationAccuracyCard) · scripts/</p>
+    <p><strong>Problema:</strong> El importador de facturas históricas ya cumplió su función (la BD es contador maestro desde jul-2026); la card de precisión del estimador IA es telemetría interna de HBTJ, no valor para el comprador; los scripts sueltos de conciliación Stripe/gestoría en /scripts son operativa de Juan sin UI. Todo esto en pantalla diluye el producto.</p>
+    <p class="evidence"><strong>Evidencia:</strong> <code>app/zona-traductor/control/page.tsx:200 (EstimationAccuracyCard, confirmado) + app/api/orders/estimation-accuracy/route.ts; components/ImportInvoicesPanel.tsx:91 y 153-155 (ya plegado por defecto, montado vía app/zona-traductor/contabilidad/page.tsx:118 → components/ContabilidadClient.tsx:808); scripts/stripe-*.mjs untracked (git status), sin UI</code></p>
+    <p class="reco"><strong>Recomendación:</strong> ImportInvoicesPanel tras details plegado 'Migración' o flag; EstimationAccuracyCard fuera del paquete por defecto; los scripts .mjs no entran en el paquete.</p>
+    <p class="vreason"><strong>Verificación:</strong> La parte de EstimationAccuracyCard se confirma: sección completa de telemetría interna renderizada incondicionalmente en /zona-traductor/control con API staff-gated. Pero ImportInvoicesPanel YA está plegado por defecto (useState(false), solo cabecera de una línea + botón "Abrir importador") — la recomendación "tras details plegado" está esencialmente implementada y el efecto de dilución es mínimo. Y los scripts stripe-*.mjs existen sin commitear pero no tienen UI ni están en pantalla: no diluyen nada y, al estar untracked, no entrarían en ningún paquete de todos modos (recomendación ya cumplida por defecto).</p>
+  </div>
+</details>
+
+<h2>AL TERMINAR — build + checklist en dev</h2>
+<ul>
+  <li><code>npm run build</code> + <code>npx tsc --noEmit --skipLibCheck</code> (solo errores preexistentes conocidos)</li>
+  <li>Checklist en dev: filtros del Resumen filtran (no expulsan) · alta PM aterriza en el detalle del pedido · presupuesto cobrado enlaza a su pedido · pedido nacido de presupuesto conserva archivos · Contabilidad y Periodos dan el mismo trimestre · editar Cliente funciona</li>
+</ul>
+</div>
+</body>
+</html>

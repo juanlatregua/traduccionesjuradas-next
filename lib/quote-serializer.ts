@@ -58,6 +58,9 @@ export function serializeQuote(quote: any) {
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt,
     lines: Array.isArray(quote.lines) ? quote.lines.map(serializeLine) : [],
+    orders: Array.isArray(quote.orders)
+      ? quote.orders.map((o: any) => ({ reference: o.reference }))
+      : [],
     customer: quote.customer || null,
     messageLogs: quote.messageLogs || [],
     payments: quote.payments || [],
