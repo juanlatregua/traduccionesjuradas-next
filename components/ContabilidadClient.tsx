@@ -6,6 +6,7 @@ import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 import { computeExpenseTotals, clampIrpfPct, clampTaxTreatment, TAX_TREATMENT_OPTIONS } from "@/lib/expense-math"; // puro, sin Prisma
 import { draftToText } from "@/lib/tax-drafts";
 import { aggregateFiscal, snapVat } from "@/lib/fiscal-aggregation";
+import { madridParts, quarterOf } from "@/lib/period-grouping"; // puro, mismo criterio que /periodos
 import CollapsibleSection from "@/components/CollapsibleSection";
 
 export type AcInvoice = {
@@ -113,22 +114,27 @@ export default function ContabilidadClient({
 
   const years = useMemo(() => {
     const ys = new Set<number>();
-    invoices.forEach((i) => ys.add(new Date(i.issuedAt).getUTCFullYear()));
-    orders.forEach((o) => ys.add(new Date(o.date).getUTCFullYear()));
-    expenses.forEach((e) => ys.add(new Date(e.date).getUTCFullYear()));
+    invoices.forEach((i) => ys.add(madridParts(new Date(i.issuedAt)).year));
+    orders.forEach((o) => ys.add(madridParts(new Date(o.date)).year));
+    expenses.forEach((e) => ys.add(madridParts(new Date(e.date)).year));
     return Array.from(ys).sort((a, b) => b - a);
   }, [invoices, orders, expenses]);
 
   const [fYear, setFYear] = useState<string>(years[0] ? String(years[0]) : "all");
   const [fPeriod, setFPeriod] = useState<string>("all");
 
+  // El trimestre se calcula en Europe/Madrid, NO en UTC: el devengo fiscal es
+  // hora local española. En UTC, una factura emitida el 1-jul 00:30 Madrid
+  // (= 30-jun 22:30 UTC) caía en T2 aquí y en T3 en /periodos → dos cifras del
+  // mismo trimestre, y el borrador del 303 salía de esta pantalla (la del
+  // criterio incorrecto). madridParts es la misma función que usa /periodos.
   const inPeriod = useMemo(() => {
     return (iso: string) => {
-      const d = new Date(iso);
-      if (fYear !== "all" && d.getUTCFullYear() !== Number(fYear)) return false;
+      const { year, month } = madridParts(new Date(iso));
+      if (fYear !== "all" && year !== Number(fYear)) return false;
       if (fPeriod === "all") return true;
-      if (fPeriod.startsWith("q")) return Q_MONTHS[fPeriod].includes(d.getUTCMonth());
-      if (fPeriod.startsWith("m")) return d.getUTCMonth() === Number(fPeriod.slice(1)) - 1;
+      if (fPeriod.startsWith("q")) return quarterOf(month) === Number(fPeriod.slice(1));
+      if (fPeriod.startsWith("m")) return month === Number(fPeriod.slice(1));
       return true;
     };
   }, [fYear, fPeriod]);
@@ -177,17 +183,18 @@ export default function ContabilidadClient({
         b[f] += v;
         map.set(y, b);
       };
-      invoices.forEach((i) => add(new Date(i.issuedAt).getUTCFullYear(), "inc", i.baseCents));
-      unbilled.forEach((u) => add(new Date(u.date).getUTCFullYear(), "inc", u.baseCents));
-      expenses.forEach((e) => add(new Date(e.date).getUTCFullYear(), "exp", e.baseCents));
+      invoices.forEach((i) => add(madridParts(new Date(i.issuedAt)).year, "inc", i.baseCents));
+      unbilled.forEach((u) => add(madridParts(new Date(u.date)).year, "inc", u.baseCents));
+      expenses.forEach((e) => add(madridParts(new Date(e.date)).year, "exp", e.baseCents));
       const rows = [...map.entries()].sort((a, b) => b[0] - a[0]).map(([y, v]) => ({ label: String(y), inc: v.inc, exp: v.exp }));
       const maxBar = Math.max(1, ...rows.flatMap((r) => [r.inc, r.exp]));
       return { mode: "year" as const, rows, maxBar };
     }
+    // madridParts.month es 1-12; el array de meses es 0-11.
     const months = Array.from({ length: 12 }, () => ({ inc: 0, exp: 0 }));
-    invoices.forEach((i) => { const d = new Date(i.issuedAt); if (d.getUTCFullYear() === yearNum) months[d.getUTCMonth()].inc += i.baseCents; });
-    unbilled.forEach((u) => { const d = new Date(u.date); if (d.getUTCFullYear() === yearNum) months[d.getUTCMonth()].inc += u.baseCents; });
-    expenses.forEach((e) => { const d = new Date(e.date); if (d.getUTCFullYear() === yearNum) months[d.getUTCMonth()].exp += e.baseCents; });
+    invoices.forEach((i) => { const p = madridParts(new Date(i.issuedAt)); if (p.year === yearNum) months[p.month - 1].inc += i.baseCents; });
+    unbilled.forEach((u) => { const p = madridParts(new Date(u.date)); if (p.year === yearNum) months[p.month - 1].inc += u.baseCents; });
+    expenses.forEach((e) => { const p = madridParts(new Date(e.date)); if (p.year === yearNum) months[p.month - 1].exp += e.baseCents; });
     const maxBar = Math.max(1, ...months.flatMap((m) => [m.inc, m.exp]));
     return { mode: "month" as const, months, maxBar, year: yearNum };
   }, [invoices, unbilled, expenses, fYear]);

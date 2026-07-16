@@ -82,7 +82,7 @@ export async function processQuoteStripeEvent(event: any) {
         sourceLang: true,
         targetLang: true,
         expedienteRef: true,
-        lines: { select: { description: true, unitPrice: true } },
+        lines: { select: { description: true, unitPrice: true, sourceFileUrl: true, pageStart: true, pageEnd: true } },
       },
     });
     if (!quote) {
@@ -213,6 +213,9 @@ export async function processQuoteStripeEvent(event: any) {
           lines: quote.lines.map((l) => ({
             description: l.description,
             unitPrice: decimalToNumber(l.unitPrice),
+            sourceFileUrl: l.sourceFileUrl,
+            pageStart: l.pageStart,
+            pageEnd: l.pageEnd,
           })),
         },
         provider: "STRIPE",

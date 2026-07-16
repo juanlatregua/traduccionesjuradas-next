@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ContabilidadSubNav from "@/components/ContabilidadSubNav";
+import { BRANDS } from "@/lib/invoice-brands";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
@@ -97,12 +98,21 @@ export default async function ZonaTraductorContabilidadPage() {
               tu histórico desde Excel.
             </p>
           </div>
-          <a
-            href="/zona-traductor/facturas?nueva=holabonjour"
-            className="shrink-0 rounded-lg border border-fuchsia-600 px-4 py-2 text-sm font-semibold text-fuchsia-200 hover:bg-fuchsia-900/30"
-          >
-            + Factura de otra actividad
-          </a>
+          {/* Un atajo por actividad distinta de la principal, derivado de BRANDS:
+              añadir una marca no debe exigir tocar esta cabecera. */}
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {Object.values(BRANDS)
+              .filter((b) => b.key !== "traduccionesjuradas")
+              .map((b) => (
+                <a
+                  key={b.key}
+                  href={`/zona-traductor/facturas?nueva=${b.key}`}
+                  className="rounded-lg border border-fuchsia-600 px-4 py-2 text-sm font-semibold text-fuchsia-200 hover:bg-fuchsia-900/30"
+                >
+                  + Factura {b.label}
+                </a>
+              ))}
+          </div>
         </div>
         <ContabilidadClient
           invoices={invoices}

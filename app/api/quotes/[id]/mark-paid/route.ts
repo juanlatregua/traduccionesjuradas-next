@@ -40,7 +40,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       expedienteRef: true,
       total: true,
       currency: true,
-      lines: { select: { description: true, unitPrice: true } },
+      lines: { select: { description: true, unitPrice: true, sourceFileUrl: true, pageStart: true, pageEnd: true } },
     },
   });
   if (!quote) {
@@ -95,7 +95,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         totalEur,
         currency: quote.currency,
         expedienteRef: quote.expedienteRef,
-        lines: quote.lines.map((l) => ({ description: l.description, unitPrice: decimalToNumber(l.unitPrice) })),
+        lines: quote.lines.map((l) => ({
+          description: l.description,
+          unitPrice: decimalToNumber(l.unitPrice),
+          sourceFileUrl: l.sourceFileUrl,
+          pageStart: l.pageStart,
+          pageEnd: l.pageEnd,
+        })),
       },
       provider: method,
       providerEventId: `manual:${method}:${quote.id}`,
