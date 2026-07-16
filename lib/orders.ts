@@ -299,7 +299,13 @@ type CreateOrderFromQuoteInput = {
   currency?: string | null;
   documentCount: number;
   expedienteRef?: string | null;
-  lines?: { description: string; unitPrice: number }[];
+  lines?: {
+    description: string;
+    unitPrice: number;
+    sourceFileUrl?: string | null;
+    pageStart?: number | null;
+    pageEnd?: number | null;
+  }[];
 };
 
 // Puebla OrderDocumentItem para que un pedido grande sea gestionable documento a
@@ -354,14 +360,41 @@ async function populateOrderItemsFromQuote(orderId: string, input: CreateOrderFr
         return;
       }
     }
+    // Fallback: presupuesto SIN expediente (documentos soltados a mano por el
+    // staff en el builder). El archivo vive en QuoteLine.sourceFileUrl. Hay que
+    // hacer lo MISMO que el camino de expediente o el pedido nace sin archivos:
+    // item con fileUrl + evento canónico (lo único que lee el enlace del
+    // colaborador externo, ver getDocumentsFromOrder).
     if (input.lines && input.lines.length > 0) {
       await prisma.orderDocumentItem.createMany({
         data: input.lines.map((l) => ({
           orderId,
           fileName: l.description,
+          fileUrl: l.sourceFileUrl || null,
           quotedCents: Math.round((l.unitPrice || 0) * 100),
         })),
       });
+
+      const withFiles = input.lines.filter((l) => l.sourceFileUrl);
+      if (withFiles.length > 0) {
+        await prisma.orderEvent.createMany({
+          data: withFiles.map((l) => ({
+            orderId,
+            type: "order.source_document_uploaded",
+            message: "Documento fuente adjuntado desde el presupuesto.",
+            payload: {
+              fileUrl: l.sourceFileUrl,
+              fileName: l.description,
+              fileType: null,
+              fileSize: null,
+              pageStart: l.pageStart ?? null,
+              pageEnd: l.pageEnd ?? null,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: "presupuesto",
+            },
+          })),
+        });
+      }
     }
   } catch (err) {
     console.error("[populateOrderItemsFromQuote] failed", err);

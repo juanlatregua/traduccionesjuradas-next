@@ -88,6 +88,41 @@ export function madridParts(date: Date): { year: number; month: number } {
   return { year: Number(y), month: Number(m) };
 }
 
+/**
+ * Instante UTC en el que empieza el día 1 del mes dado, hora local de Madrid.
+ * Es el límite de periodo fiscalmente correcto: el devengo es hora española, no
+ * UTC. Ejemplo: T2-2026 empieza el 1-abr 00:00 Madrid = 31-mar 22:00 UTC (CEST).
+ * Construir el límite con Date.UTC() dejaba fuera del trimestre las facturas
+ * emitidas en las 1-2 h siguientes a medianoche local.
+ *
+ * `month` es 1-12 y admite 13 para "principio del año siguiente" (fin de T4).
+ * DST-safe: se calcula el desfase real de Madrid en ese instante y se corrige.
+ * Los cuatro inicios de trimestre (1-ene/abr/jul/oct) nunca caen en la hora del
+ * cambio horario (último domingo de marzo/octubre), así que una sola corrección
+ * basta.
+ */
+export function madridStartOfMonthUtc(year: number, month: number): Date {
+  const guessMs = Date.UTC(year, month - 1, 1, 0, 0, 0);
+  const guess = new Date(guessMs);
+  // Reinterpretar el reloj de pared de Madrid como si fuese UTC → el desfase.
+  const s = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MADRID_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(guess);
+  const [datePart, timePart] = s.split(", ");
+  const [y, m, d] = datePart.split("-").map(Number);
+  const [hh, mm, ss] = timePart.split(":").map(Number);
+  const wallClockAsUtc = Date.UTC(y, m - 1, d, hh === 24 ? 0 : hh, mm, ss);
+  const offsetMs = wallClockAsUtc - guessMs;
+  return new Date(guessMs - offsetMs);
+}
+
 export function quarterOf(month: number): number {
   return Math.floor((month - 1) / 3) + 1;
 }
