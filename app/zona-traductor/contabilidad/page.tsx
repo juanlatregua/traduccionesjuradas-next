@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ContabilidadSubNav from "@/components/ContabilidadSubNav";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
@@ -87,6 +88,7 @@ export default async function ZonaTraductorContabilidadPage() {
   return (
     <div className="min-h-screen bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <ContabilidadSubNav />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-white">Contabilidad general</h1>

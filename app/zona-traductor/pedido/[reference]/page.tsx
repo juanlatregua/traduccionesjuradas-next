@@ -278,7 +278,15 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                 Pedido <span className="font-mono text-cyan-400">{order.reference}</span>
               </h1>
               <p className="mt-1 text-sm text-slate-300">
-                {order.title} · {order.langPair || "—"} · {order.clientEmail}
+                {order.title} · {order.langPair || "—"} ·{" "}
+                {/* La carpeta del cliente era una isla: ningún pedido enlazaba a ella. */}
+                <a
+                  href={`/zona-traductor/clientes/${encodeURIComponent(order.clientEmail)}`}
+                  className="text-cyan-400 hover:underline"
+                  title="Abrir la carpeta de este cliente"
+                >
+                  {order.clientEmail}
+                </a>
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs font-semibold">

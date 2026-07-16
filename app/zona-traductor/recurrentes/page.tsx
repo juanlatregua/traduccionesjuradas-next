@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ContabilidadSubNav from "@/components/ContabilidadSubNav";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getStaffRole } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
@@ -66,6 +67,7 @@ export default async function ZonaTraductorRecurrentesPage() {
   return (
     <div className="min-h-screen bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <ContabilidadSubNav />
         <h1 className="text-2xl font-semibold text-white">Facturas recurrentes</h1>
         <p className="mt-1 text-sm text-slate-400">
           Plantillas que se repiten cada mes (p.ej. la cuota de Oracle). Cada mes se genera un <strong>borrador</strong>{" "}

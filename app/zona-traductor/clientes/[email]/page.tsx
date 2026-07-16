@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 import ClientAccessLink from "@/components/ClientAccessLink";
 import ClientDeliverForm from "@/components/ClientDeliverForm";
+import CustomerEditForm from "@/components/CustomerEditForm";
 
 export const metadata: Metadata = {
   title: "Cliente — Zona traductor",
@@ -111,6 +112,29 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
           <p className="text-sm text-slate-400">
             {email} · {orders.length} pedido(s) · {quotes.length} presupuesto(s) · {issuedInvoiceCount} factura(s) suelta(s) · {eur(totalPaid)} cobrado
           </p>
+          {customer && (
+            <div className="mt-3">
+              <CustomerEditForm
+                customer={{
+                  id: customer.id,
+                  name: customer.name,
+                  email: customer.email,
+                  phone: customer.phone,
+                  companyName: customer.companyName,
+                  fiscalName: customer.fiscalName,
+                  nif: customer.nif,
+                  address: customer.address,
+                  city: customer.city,
+                  postalCode: customer.postalCode,
+                  country: customer.country,
+                  notes: customer.notes,
+                  isBusiness: customer.isBusiness,
+                  autoConfirmPayment: customer.autoConfirmPayment,
+                  intermediaryEmail: customer.intermediary?.email ?? null,
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <ClientAccessLink email={email} />
