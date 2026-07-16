@@ -3,7 +3,7 @@
 // IBAN; cambia el logo, la dirección y la identidad comercial. La numeración
 // fiscal AA_NNN es ÚNICA y compartida entre todas las marcas.
 
-export type BrandKey = "traduccionesjuradas" | "holabonjour";
+export type BrandKey = "traduccionesjuradas" | "holabonjour" | "dev";
 
 export type BrandProfile = {
   key: BrandKey;
@@ -40,6 +40,21 @@ export const BRANDS: Record<BrandKey, BrandProfile> = {
     bic: "BBVAESMM",
     iban: "ES66 0182 3370 67 0201616991",
     logo: { kind: "image", path: "public/brands/holabonjour.png", widthMm: 30, heightMm: 32 },
+  },
+  // Tercera actividad: desarrollo web y backoffice para terceros (p.ej. la puesta
+  // a punto de bechtraducciones.com). Mismo NIF, mismo IBAN y MISMA numeración
+  // correlativa AA_NNN que el resto: es un apartado comercial, no una serie
+  // fiscal aparte (decisión D2 — un solo contador maestro en BD).
+  dev: {
+    key: "dev",
+    label: "HBTJ Dev (web y backoffice)",
+    emitterName: "HBTJ Consultores Lingüísticos S.L",
+    cif: "B93712784",
+    address: "Calle Esperanto, 9",
+    city: "29007 Málaga · España",
+    bic: "BBVAESMM",
+    iban: "ES66 0182 3370 67 0201616991",
+    logo: { kind: "vector" },
   },
 };
 

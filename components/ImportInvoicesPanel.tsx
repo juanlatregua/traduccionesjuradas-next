@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { norm, detectDelimiter, splitCsvLine, toCents, mapColumns } from "@/lib/csv";
+import { getBrand } from "@/lib/invoice-brands";
 
 // Importa facturas históricas desde un CSV (exportado de Excel). Parseo en
 // cliente, previsualización y confirmación. Crea facturas EMITIDAS en la
@@ -60,7 +61,12 @@ function parseCsv(text: string): { rows: Row[]; headerError?: string } {
     }
     if (!total) total = base + vat;
     const brandRaw = norm(get(cells, "brand"));
-    const brand = brandRaw.includes("bonjour") || brandRaw.includes("hola") ? "holabonjour" : "traduccionesjuradas";
+    const brand =
+      brandRaw.includes("bonjour") || brandRaw.includes("hola")
+        ? "holabonjour"
+        : brandRaw.includes("dev") || brandRaw.includes("web")
+          ? "dev"
+          : "traduccionesjuradas";
 
     let error: string | undefined;
     if (!/^\d{2}_\d{3,}$/.test(number)) error = "número inválido (AA_NNN)";
@@ -200,7 +206,8 @@ export default function ImportInvoicesPanel() {
                         <td className="px-3 py-1.5 text-right tabular-nums">{eur(r.baseCents)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{eur(r.vatCents)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{eur(r.totalCents)}</td>
-                        <td className="px-3 py-1.5">{r.brand === "holabonjour" ? "Hola Bonjour" : "TJ"}</td>
+                        {/* Etiqueta desde BRANDS: añadir una marca no debe exigir tocar esta tabla. */}
+                        <td className="px-3 py-1.5">{getBrand(r.brand).label}</td>
                         <td className="px-3 py-1.5 text-rose-300">{r.error || ""}</td>
                       </tr>
                     ))}
