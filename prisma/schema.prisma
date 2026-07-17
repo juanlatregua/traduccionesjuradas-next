@@ -713,6 +713,14 @@ model DocumentAnalysis {
   ipHash           String?
   gdprConsent      Boolean                @default(false)
   gdprConsentAt    DateTime?
+  // Consentimiento SEPARADO y no premarcado para el envío del presupuesto por
+  // email y su recordatorio. El gdprConsent de arriba solo cubre el tratamiento
+  // de los DOCUMENTOS para generar el presupuesto: no ampara enviar correo.
+  // La LSSI (art. 21.1) exige autorización expresa y previa para el email
+  // comercial, y su excepción (21.2) pide relación contractual previa — un lead
+  // que nunca compró no la tiene. El cron de recordatorios filtra por este campo.
+  marketingConsent   Boolean              @default(false)
+  marketingConsentAt DateTime?
 
   // Relación con Order (se crea al pagar)
   orderId          String?

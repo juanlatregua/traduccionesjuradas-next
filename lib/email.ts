@@ -1033,13 +1033,15 @@ export async function sendLeadReminderEmail(data: {
   toEmail: string;
   clientName?: string | null;
 }) {
-  const name = data.clientName || "";
+  // La puerta captura el email pero NO el nombre → sin esto el saludo salía
+  // "Hola ," a todos los leads que recupera este aviso.
+  const greeting = data.clientName?.trim() ? `Hola ${data.clientName.trim()},` : "Hola,";
   const presupuestoUrl = `${SITE_BASE_URL}/presupuesto-instantaneo`;
   const subject = "Tu presupuesto de traduccion jurada sigue disponible";
 
   const html = `
     <h2>Tu presupuesto sigue disponible</h2>
-    <p>Hola ${name},</p>
+    <p>${greeting}</p>
     <p>Hace unos dias subiste un documento para obtener un presupuesto de traduccion jurada y no llegaste a completar el pedido.</p>
     <p>Tu presupuesto sigue disponible. Puedes retomarlo en cualquier momento:</p>
     <p><a href="${presupuestoUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Retomar presupuesto</a></p>

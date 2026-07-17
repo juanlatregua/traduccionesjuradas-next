@@ -25,6 +25,12 @@ type Props = {
   onGdprConsentChange?: (consent: boolean) => void;
   source?: string | null;
   lang?: PuertaLang;
+  // Email del cliente, si su producto lo pidió antes de subir. La puerta lo pasa
+  // para que la fila nazca con lead; el lector de requerimientos no lo pide y lo
+  // omite. Opcional a propósito: este uploader lo comparten los dos.
+  clientEmail?: string | null;
+  // Motivo del bloqueo, para que `disabled` no sea un gris mudo.
+  disabledReason?: string;
 };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -39,6 +45,8 @@ export default function DocumentUploader({
   onGdprConsentChange,
   source,
   lang = "es",
+  clientEmail,
+  disabledReason,
 }: Props) {
   const t = puertaT[lang];
   const [dragOver, setDragOver] = useState(false);
@@ -56,6 +64,15 @@ export default function DocumentUploader({
   const handleFile = useCallback(
     async (file: File) => {
       setError(null);
+
+      // `disabled` solo pintaba opacidad + pointer-events: un drag&drop o la
+      // cámara podían saltárselo y subir igualmente. El guard va aquí. Y avisa:
+      // por teclado el diálogo de archivos SÍ se abre (pointer-events no lo
+      // frena), así que sin mensaje el usuario elegía un fichero y no pasaba nada.
+      if (disabled) {
+        setError(disabledReason || null);
+        return;
+      }
 
       if (file.size > MAX_FILE_SIZE) {
         setError(t.errTooLarge);
@@ -97,6 +114,7 @@ export default function DocumentUploader({
             sessionToken,
             gdprConsent: true,
             source,
+            clientEmail: clientEmail || undefined,
           }),
         });
 
@@ -124,7 +142,7 @@ export default function DocumentUploader({
         setUploading(false);
       }
     },
-    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t]
+    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t, clientEmail, disabled, disabledReason]
   );
 
   const handleDrop = useCallback(
