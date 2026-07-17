@@ -30,6 +30,10 @@ export async function GET(req: Request) {
     where: {
       status: { in: ["QUOTE_GENERATED", "PAYMENT_PENDING"] },
       clientEmail: { not: null },
+      // Sin consentimiento expreso y previo NO se escribe: la casilla de la
+      // subida solo cubre tratar los documentos (LSSI art. 21.1; su excepción
+      // del 21.2 pide relación contractual previa, y un lead no es cliente).
+      marketingConsent: true,
       orderId: null,
       reminderSentAt: null,
       createdAt: { gte: since, lte: after },

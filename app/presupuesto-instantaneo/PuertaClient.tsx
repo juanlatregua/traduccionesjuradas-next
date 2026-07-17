@@ -74,6 +74,12 @@ export default function PuertaClient({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  // Consentimiento SEPARADO del de la subida (que solo cubre tratar los
+  // documentos). Sin él no se guarda el email ni se envía nada: LSSI art. 21.1.
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [contactSaved, setContactSaved] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<"pdf" | "paper">("pdf");
   const [ship, setShip] = useState({ name: "", address: "", city: "", province: "", postalCode: "" });
 
@@ -107,23 +113,64 @@ export default function PuertaClient({
     []
   );
 
+  // El análisis puede terminar antes de que el usuario acabe de teclear el
+  // email. En vez de saltar al diagnóstico y perder el lead, se guarda el
+  // resultado en espera y se revela al confirmar el contacto (o directamente,
+  // si ya lo confirmó mientras giraba el spinner).
+  const [pending, setPending] = useState<DocEntry | null>(null);
+
+  const revealDocument = useCallback((entry: DocEntry) => {
+    setDocuments((prev) => [...prev, entry]);
+    setPending(null);
+    setStep("diagnosis");
+  }, []);
+
   const handleAnalysisComplete = useCallback(
     (analysis: DocumentAnalysisResult, quote: Quote) => {
       if (!currentDocId) return;
-      setDocuments((prev) => [
-        ...prev,
-        {
-          id: currentDocId,
-          fileName: currentFileName,
-          analysis,
-          quote,
-          diagnosis: buildDiagnosis(analysis, quote, lang),
-        },
-      ]);
-      setStep("diagnosis");
+      const entry: DocEntry = {
+        id: currentDocId,
+        fileName: currentFileName,
+        analysis,
+        quote,
+        diagnosis: buildDiagnosis(analysis, quote, lang),
+      };
+      // Ya dio el contacto (o es el 2º documento de la sesión): directo.
+      if (contactSaved) revealDocument(entry);
+      else setPending(entry);
     },
-    [currentDocId, currentFileName, lang]
+    [currentDocId, currentFileName, lang, contactSaved, revealDocument]
   );
+
+  const handleSaveContact = useCallback(async () => {
+    if (!emailValid || !marketingConsent || !sessionToken) return;
+    setSavingContact(true);
+    setContactError(null);
+    try {
+      const res = await fetch("/api/documents/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionToken,
+          clientEmail: email.trim(),
+          marketingConsent: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "");
+      setContactSaved(true);
+      // Si el análisis ya terminó mientras tecleaba, revélalo ahora.
+      if (pending) revealDocument(pending);
+    } catch {
+      // No bloquear el presupuesto por un fallo de guardado: el usuario ya hizo
+      // su parte y el documento está analizado. Se revela igual.
+      setContactError(t.checkoutErrorDefault);
+      setContactSaved(true);
+      if (pending) revealDocument(pending);
+    } finally {
+      setSavingContact(false);
+    }
+  }, [emailValid, marketingConsent, sessionToken, email, pending, revealDocument, t]);
 
   const handleError = useCallback((error: string) => {
     setErrorMessage(error);
@@ -245,40 +292,9 @@ export default function PuertaClient({
             </div>
           )}
 
-          {/* Email ANTES de analizar: el análisis con IA es lo caro y lo valioso,
-              y sin esto se lo llevaba el 95% sin dejar con quién continuar.
-              Solo el email; el teléfono sigue en el checkout, donde ya hay
-              intención de compra. Al añadir un 2º documento ya está puesto y
-              este bloque no reaparece. */}
-          {/* Visible mientras el email no sea válido, NO solo con 0 documentos:
-              el input del checkout comparte este mismo estado, así que borrarlo
-              allí y pulsar "Añadir otro documento" dejaba un uploader gris sin
-              campo que arreglar, sin pista y sin vuelta atrás. */}
-          {(documents.length === 0 || !emailValid) && (
-            <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
-              <label
-                htmlFor="entry-email"
-                className="flex items-center gap-2 text-sm font-semibold text-encre"
-              >
-                <Mail className="h-4 w-4 text-bleu" />
-                {t.entryEmailTitle}
-              </label>
-              <p className="mt-1 text-xs text-graphite">{t.entryEmailHelp}</p>
-              <input
-                id="entry-email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t.emailPlaceholder}
-                className="mt-3 w-full rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20 sm:max-w-sm"
-              />
-            </div>
-          )}
-
-          {/* El uploader se comparte con el lector de requerimientos: el gate vive
-              aquí, no dentro de él. */}
+          {/* La entrada queda LIBRE: pedir el email aquí contradice el
+              "presupuesto instantáneo en segundos" de la portada y cobra
+              fricción antes de dar nada. El email se pide en el spinner. */}
           <DocumentUploader
             onUploadComplete={handleUploadComplete}
             sessionToken={sessionToken}
@@ -287,22 +303,80 @@ export default function PuertaClient({
             onGdprConsentChange={setGdprConsent}
             source={source}
             lang={lang}
-            disabled={!emailValid}
-            disabledReason={t.entryEmailHelp}
-            clientEmail={emailValid ? email.trim() : null}
           />
         </>
       )}
 
       {/* ─── Analizando ─── */}
       {step === "analyzing" && currentDocId && (
-        <DocumentAnalysis
-          documentId={currentDocId}
-          sessionToken={sessionToken}
-          fileSize={currentFileSize}
-          onAnalysisComplete={handleAnalysisComplete}
-          onError={handleError}
-        />
+        <div className="space-y-5">
+          {/* Mientras no haya resultado en espera, el spinner sigue vivo. Cuando
+              lo hay pero falta el contacto, se anuncia que está listo: el
+              momento de máxima motivación para dar el email. */}
+          {!pending && (
+            <DocumentAnalysis
+              documentId={currentDocId}
+              sessionToken={sessionToken}
+              fileSize={currentFileSize}
+              onAnalysisComplete={handleAnalysisComplete}
+              onError={handleError}
+            />
+          )}
+
+          {/* El componente se desmonta al llegar el resultado (arriba), pero su
+              petición ya terminó: no se cancela nada. */}
+          {!contactSaved && (
+            <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
+              {pending && (
+                <p className="mb-2 text-sm font-semibold text-bleu">{t.spinnerEmailReady}</p>
+              )}
+              <label
+                htmlFor="spinner-email"
+                className="flex items-center gap-2 text-sm font-semibold text-encre"
+              >
+                <Mail className="h-4 w-4 text-bleu" />
+                {t.spinnerEmailTitle}
+              </label>
+              <p className="mt-1 text-xs text-graphite">{t.spinnerEmailHelp}</p>
+              <input
+                id="spinner-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t.emailPlaceholder}
+                className="mt-3 w-full rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20 sm:max-w-sm"
+              />
+
+              {/* Casilla separada y NO premarcada: el consentimiento de la
+                  subida solo cubre tratar los documentos, no enviar correo. */}
+              <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-graphite">
+                <input
+                  type="checkbox"
+                  checked={marketingConsent}
+                  onChange={(e) => setMarketingConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-graphite/30"
+                />
+                <span>{t.marketingConsent}</span>
+              </label>
+
+              <button
+                type="button"
+                onClick={handleSaveContact}
+                disabled={!emailValid || !marketingConsent || savingContact}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-bleu px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {savingContact && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t.spinnerSeeQuote}
+              </button>
+              {emailValid && !marketingConsent && (
+                <p className="mt-2 text-xs text-graphite">{t.marketingRequired}</p>
+              )}
+              {contactError && <p className="mt-2 text-xs text-graphite">{contactError}</p>}
+            </div>
+          )}
+        </div>
       )}
 
       {/* ─── Diagnóstico ─── */}

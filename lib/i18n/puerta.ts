@@ -21,10 +21,17 @@ export type PuertaStrings = {
   contactHelp: string;
   emailPlaceholder: string;
   phonePlaceholder: string;
-  // Email pedido en la ENTRADA, antes de gastar el análisis: así un documento
-  // analizado deja siempre un lead con el que poder volver.
-  entryEmailTitle: string;
-  entryEmailHelp: string;
+  // Email pedido MIENTRAS corre el análisis: el spinner es tiempo muerto y el
+  // usuario ya se comprometió subiendo el documento → se da sin fricción, sin
+  // contradecir el "presupuesto instantáneo" de la portada.
+  spinnerEmailTitle: string;
+  spinnerEmailHelp: string;
+  spinnerEmailReady: string;
+  spinnerSeeQuote: string;
+  // Casilla SEPARADA y no premarcada (LSSI art. 21.1): el consentimiento de la
+  // subida solo cubre tratar los documentos, no enviar correo.
+  marketingConsent: string;
+  marketingRequired: string;
   continuePay: string;
   preparingPay: string;
   hintTargetLang: string;
@@ -102,8 +109,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "Te enviamos la confirmación y el aviso de entrega por email y WhatsApp.",
     emailPlaceholder: "tu@email.com",
     phonePlaceholder: "Teléfono",
-    entryEmailTitle: "¿A qué email te enviamos el presupuesto?",
-    entryEmailHelp: "Lo necesitamos para guardarte el análisis y poder responderte si algo no cuadra.",
+    spinnerEmailTitle: "Mientras analizamos, ¿te guardamos el presupuesto?",
+    spinnerEmailHelp: "Tu presupuesto aparece aquí en segundos. El email es para que no lo pierdas y puedas retomarlo.",
+    spinnerEmailReady: "Tu presupuesto ya está listo.",
+    spinnerSeeQuote: "Ver mi presupuesto",
+    marketingConsent: "Quiero recibir mi presupuesto por email y un recordatorio si no llego a completarlo.",
+    marketingRequired: "Marca la casilla para que podamos enviártelo.",
     continuePay: "Continuar al pago",
     preparingPay: "Preparando el pago…",
     hintTargetLang: "Indica el idioma de destino de cada documento para continuar.",
@@ -159,8 +170,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "Nous vous envoyons la confirmation et l'avis de livraison par email et WhatsApp.",
     emailPlaceholder: "votre@email.com",
     phonePlaceholder: "Téléphone",
-    entryEmailTitle: "À quelle adresse e-mail envoyons-nous le devis ?",
-    entryEmailHelp: "Nous en avons besoin pour conserver votre analyse et vous répondre en cas de doute.",
+    spinnerEmailTitle: "Pendant l'analyse, on vous garde le devis ?",
+    spinnerEmailHelp: "Votre devis s'affiche ici en quelques secondes. L'e-mail sert à ne pas le perdre et à pouvoir le reprendre.",
+    spinnerEmailReady: "Votre devis est prêt.",
+    spinnerSeeQuote: "Voir mon devis",
+    marketingConsent: "Je souhaite recevoir mon devis par e-mail et un rappel si je ne le finalise pas.",
+    marketingRequired: "Cochez la case pour que nous puissions vous l'envoyer.",
     continuePay: "Continuer vers le paiement",
     preparingPay: "Préparation du paiement…",
     hintTargetLang: "Indiquez la langue cible de chaque document pour continuer.",
@@ -216,8 +231,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "We'll send you the confirmation and delivery notice by email and WhatsApp.",
     emailPlaceholder: "you@email.com",
     phonePlaceholder: "Phone",
-    entryEmailTitle: "Which email should we send the quote to?",
-    entryEmailHelp: "We need it to save your analysis and get back to you if anything looks off.",
+    spinnerEmailTitle: "While we analyse it, shall we save your quote?",
+    spinnerEmailHelp: "Your quote appears here in seconds. The email is so you don't lose it and can pick it up later.",
+    spinnerEmailReady: "Your quote is ready.",
+    spinnerSeeQuote: "See my quote",
+    marketingConsent: "I want to receive my quote by email and a reminder if I don't complete it.",
+    marketingRequired: "Tick the box so we can send it to you.",
     continuePay: "Continue to payment",
     preparingPay: "Preparing payment…",
     hintTargetLang: "Select the target language of each document to continue.",
@@ -273,8 +292,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "Wir senden Ihnen die Bestätigung und die Liefermitteilung per E-Mail und WhatsApp.",
     emailPlaceholder: "ihre@email.de",
     phonePlaceholder: "Telefon",
-    entryEmailTitle: "An welche E-Mail-Adresse senden wir den Kostenvoranschlag?",
-    entryEmailHelp: "Wir benötigen sie, um Ihre Analyse zu speichern und Ihnen bei Rückfragen zu antworten.",
+    spinnerEmailTitle: "Sollen wir Ihnen den Kostenvoranschlag während der Analyse speichern?",
+    spinnerEmailHelp: "Ihr Kostenvoranschlag erscheint hier in Sekunden. Die E-Mail dient dazu, ihn nicht zu verlieren.",
+    spinnerEmailReady: "Ihr Kostenvoranschlag ist fertig.",
+    spinnerSeeQuote: "Kostenvoranschlag ansehen",
+    marketingConsent: "Ich möchte meinen Kostenvoranschlag per E-Mail erhalten und eine Erinnerung, falls ich ihn nicht abschließe.",
+    marketingRequired: "Bitte kreuzen Sie das Kästchen an, damit wir ihn senden können.",
     continuePay: "Weiter zur Zahlung",
     preparingPay: "Zahlung wird vorbereitet…",
     hintTargetLang: "Wählen Sie die Zielsprache jedes Dokuments, um fortzufahren.",
@@ -330,8 +353,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "Enviamos a confirmação e o aviso de entrega por email e WhatsApp.",
     emailPlaceholder: "o-seu@email.com",
     phonePlaceholder: "Telefone",
-    entryEmailTitle: "Para que email enviamos o orçamento?",
-    entryEmailHelp: "Precisamos dele para guardar a sua análise e responder-lhe se algo não bater certo.",
+    spinnerEmailTitle: "Enquanto analisamos, guardamos-lhe o orçamento?",
+    spinnerEmailHelp: "O seu orçamento aparece aqui em segundos. O email é para não o perder e poder retomá-lo.",
+    spinnerEmailReady: "O seu orçamento já está pronto.",
+    spinnerSeeQuote: "Ver o meu orçamento",
+    marketingConsent: "Quero receber o meu orçamento por email e um lembrete se não o concluir.",
+    marketingRequired: "Assinale a caixa para lho podermos enviar.",
     continuePay: "Continuar para o pagamento",
     preparingPay: "A preparar o pagamento…",
     hintTargetLang: "Indique o idioma de destino de cada documento para continuar.",
