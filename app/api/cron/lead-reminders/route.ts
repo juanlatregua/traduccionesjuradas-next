@@ -41,28 +41,45 @@ export async function GET(req: Request) {
     take: 100,
   });
 
+  // UN aviso por PERSONA, no por documento. La puerta es multi-documento: una
+  // sesión con 3 documentos deja 3 filas con el mismo email, y enviar por fila
+  // significaba 3 correos idénticos el mismo día (queja de spam garantizada, y
+  // el dominio de envío es del que depende el negocio).
+  const byEmail = new Map<string, typeof candidates>();
+  for (const lead of candidates) {
+    if (!lead.clientEmail) continue;
+    const key = lead.clientEmail.toLowerCase();
+    const group = byEmail.get(key);
+    if (group) group.push(lead);
+    else byEmail.set(key, [lead]);
+  }
+
   let sent = 0;
   let failed = 0;
 
-  for (const lead of candidates) {
-    if (!lead.clientEmail) continue;
+  for (const [email, group] of byEmail) {
     try {
       await sendLeadReminderEmail({
-        toEmail: lead.clientEmail,
-        clientName: lead.clientName,
+        toEmail: group[0].clientEmail!,
+        // El nombre casi nunca está (la puerta no lo pide); si alguna fila del
+        // grupo lo trae, se usa.
+        clientName: group.find((l) => l.clientName)?.clientName ?? null,
       });
-      await prisma.documentAnalysis.update({
-        where: { id: lead.id },
+      // Marcar TODAS las filas del grupo: si solo se marcase la enviada, las
+      // hermanas seguirían siendo candidatas y reenviarían mañana (la ventana
+      // es de 7 días).
+      await prisma.documentAnalysis.updateMany({
+        where: { id: { in: group.map((l) => l.id) } },
         data: { reminderSentAt: new Date() },
       });
       sent++;
     } catch (err: any) {
-      console.error(`[lead-reminders] Failed for ${lead.id}:`, err?.message || err);
+      console.error(`[lead-reminders] Failed for ${email}:`, err?.message || err);
       failed++;
     }
   }
 
-  return NextResponse.json({ ok: true, scanned: candidates.length, sent, failed });
+  return NextResponse.json({ ok: true, scanned: candidates.length, leads: byEmail.size, sent, failed });
 }
 
 export const POST = GET;

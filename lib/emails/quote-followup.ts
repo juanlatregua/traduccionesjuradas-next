@@ -29,7 +29,9 @@ function wrapHtml(content: string) {
 
 export type QuoteFollowupData = {
   email: string;
-  name: string;
+  // Opcional: la puerta captura el email pero NO el nombre. Exigirlo mantenía
+  // este email muerto justo para sus leads (el gate era `email && name`).
+  name?: string | null;
   documentType: string;
   price: number;
   totalPrice: number;
@@ -44,7 +46,7 @@ export async function sendQuoteFollowupEmail(data: QuoteFollowupData) {
 
   const html = wrapHtml(`
     <h2 style="margin:0 0 8px 0; font-size:20px; color:#0f172a;">Tu presupuesto está listo</h2>
-    <p>Hola ${data.name},</p>
+    <p>${data.name?.trim() ? `Hola ${data.name.trim()},` : "Hola,"}</p>
     <p>Hemos analizado tu documento con IA y este es tu presupuesto:</p>
 
     <table style="border-collapse:collapse; margin:16px 0; width:100%;">

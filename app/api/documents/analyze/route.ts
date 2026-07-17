@@ -220,8 +220,10 @@ export async function POST(req: Request) {
       },
     });
 
-    // Send follow-up email (fire-and-forget, non-blocking)
-    if (doc.clientEmail && doc.clientName) {
+    // Envío del presupuesto por email (fire-and-forget). El gate exigía además
+    // clientName, que la puerta NUNCA escribe → este email jamás salía para sus
+    // leads, pese a que el formulario promete enviarlo. Basta el email.
+    if (doc.clientEmail) {
       sendQuoteFollowupEmail({
         email: doc.clientEmail,
         name: doc.clientName,

@@ -250,7 +250,11 @@ export default function PuertaClient({
               Solo el email; el teléfono sigue en el checkout, donde ya hay
               intención de compra. Al añadir un 2º documento ya está puesto y
               este bloque no reaparece. */}
-          {documents.length === 0 && (
+          {/* Visible mientras el email no sea válido, NO solo con 0 documentos:
+              el input del checkout comparte este mismo estado, así que borrarlo
+              allí y pulsar "Añadir otro documento" dejaba un uploader gris sin
+              campo que arreglar, sin pista y sin vuelta atrás. */}
+          {(documents.length === 0 || !emailValid) && (
             <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
               <label
                 htmlFor="entry-email"
@@ -284,11 +288,9 @@ export default function PuertaClient({
             source={source}
             lang={lang}
             disabled={!emailValid}
+            disabledReason={t.entryEmailHelp}
             clientEmail={emailValid ? email.trim() : null}
           />
-          {!emailValid && documents.length === 0 && (
-            <p className="text-center text-xs text-graphite">{t.entryEmailHelp}</p>
-          )}
         </>
       )}
 

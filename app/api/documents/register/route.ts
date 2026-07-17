@@ -55,8 +55,14 @@ export async function POST(req: Request) {
     // análisis deja lead y no solo coste), pero el lector de requerimientos monta
     // este mismo uploader sin pedirlo. Exigirlo aquí rompería el lector.
     // Si viene mal formado se descarta en silencio: nunca debe tumbar una subida.
+    // El límite se comprueba ANTES de validar: truncar después del regex
+    // guardaría una dirección distinta (y rota) como si fuese un lead bueno.
+    // 254 = longitud máxima de una dirección de correo (RFC 5321).
     const email = typeof clientEmail === "string" ? clientEmail.trim().toLowerCase() : "";
-    const validEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email.slice(0, 254) : null;
+    const validEmail =
+      email.length > 0 && email.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
+        ? email
+        : null;
 
     const doc = await prisma.documentAnalysis.create({
       data: {
