@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { blobUrl, fileName, fileSize, mimeType, sessionToken, gdprConsent, source } =
+    const { blobUrl, fileName, fileSize, mimeType, sessionToken, gdprConsent, source, clientEmail } =
       await req.json();
 
     // Origen de captación (atribución del funnel). Whitelist para no guardar basura.
@@ -51,6 +51,13 @@ export async function POST(req: Request) {
 
     const token = sessionToken || crypto.randomUUID();
 
+    // Email OPCIONAL a propósito: la puerta lo pide antes de analizar (así el
+    // análisis deja lead y no solo coste), pero el lector de requerimientos monta
+    // este mismo uploader sin pedirlo. Exigirlo aquí rompería el lector.
+    // Si viene mal formado se descarta en silencio: nunca debe tumbar una subida.
+    const email = typeof clientEmail === "string" ? clientEmail.trim().toLowerCase() : "";
+    const validEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email.slice(0, 254) : null;
+
     const doc = await prisma.documentAnalysis.create({
       data: {
         fileName: String(fileName).slice(0, 255),
@@ -59,6 +66,7 @@ export async function POST(req: Request) {
         mimeType: mimeType || "application/octet-stream",
         sessionToken: token,
         source: normalizedSource,
+        clientEmail: validEmail,
         ipHash: hashIp(ip),
         gdprConsent: true,
         gdprConsentAt: new Date(),

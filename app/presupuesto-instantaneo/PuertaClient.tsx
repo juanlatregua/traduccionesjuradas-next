@@ -86,8 +86,10 @@ export default function PuertaClient({
       ship.province.trim() &&
       /^\d{4,10}$/.test(ship.postalCode.trim()));
 
+  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+
   const contactValid =
-    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) &&
+    emailValid &&
     phone.replace(/\D/g, "").length >= 7 &&
     !!shippingValid;
 
@@ -243,6 +245,36 @@ export default function PuertaClient({
             </div>
           )}
 
+          {/* Email ANTES de analizar: el análisis con IA es lo caro y lo valioso,
+              y sin esto se lo llevaba el 95% sin dejar con quién continuar.
+              Solo el email; el teléfono sigue en el checkout, donde ya hay
+              intención de compra. Al añadir un 2º documento ya está puesto y
+              este bloque no reaparece. */}
+          {documents.length === 0 && (
+            <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
+              <label
+                htmlFor="entry-email"
+                className="flex items-center gap-2 text-sm font-semibold text-encre"
+              >
+                <Mail className="h-4 w-4 text-bleu" />
+                {t.entryEmailTitle}
+              </label>
+              <p className="mt-1 text-xs text-graphite">{t.entryEmailHelp}</p>
+              <input
+                id="entry-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t.emailPlaceholder}
+                className="mt-3 w-full rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20 sm:max-w-sm"
+              />
+            </div>
+          )}
+
+          {/* El uploader se comparte con el lector de requerimientos: el gate vive
+              aquí, no dentro de él. */}
           <DocumentUploader
             onUploadComplete={handleUploadComplete}
             sessionToken={sessionToken}
@@ -251,7 +283,12 @@ export default function PuertaClient({
             onGdprConsentChange={setGdprConsent}
             source={source}
             lang={lang}
+            disabled={!emailValid}
+            clientEmail={emailValid ? email.trim() : null}
           />
+          {!emailValid && documents.length === 0 && (
+            <p className="text-center text-xs text-graphite">{t.entryEmailHelp}</p>
+          )}
         </>
       )}
 

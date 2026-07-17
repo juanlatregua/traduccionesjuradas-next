@@ -25,6 +25,10 @@ type Props = {
   onGdprConsentChange?: (consent: boolean) => void;
   source?: string | null;
   lang?: PuertaLang;
+  // Email del cliente, si su producto lo pidió antes de subir. La puerta lo pasa
+  // para que la fila nazca con lead; el lector de requerimientos no lo pide y lo
+  // omite. Opcional a propósito: este uploader lo comparten los dos.
+  clientEmail?: string | null;
 };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -39,6 +43,7 @@ export default function DocumentUploader({
   onGdprConsentChange,
   source,
   lang = "es",
+  clientEmail,
 }: Props) {
   const t = puertaT[lang];
   const [dragOver, setDragOver] = useState(false);
@@ -56,6 +61,10 @@ export default function DocumentUploader({
   const handleFile = useCallback(
     async (file: File) => {
       setError(null);
+
+      // `disabled` solo pintaba opacidad + pointer-events: un drag&drop o la
+      // cámara podían saltárselo y subir igualmente. El guard va aquí.
+      if (disabled) return;
 
       if (file.size > MAX_FILE_SIZE) {
         setError(t.errTooLarge);
@@ -97,6 +106,7 @@ export default function DocumentUploader({
             sessionToken,
             gdprConsent: true,
             source,
+            clientEmail: clientEmail || undefined,
           }),
         });
 
@@ -124,7 +134,7 @@ export default function DocumentUploader({
         setUploading(false);
       }
     },
-    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t]
+    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t, clientEmail, disabled]
   );
 
   const handleDrop = useCallback(

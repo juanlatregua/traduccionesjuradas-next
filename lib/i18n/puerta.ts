@@ -21,6 +21,10 @@ export type PuertaStrings = {
   contactHelp: string;
   emailPlaceholder: string;
   phonePlaceholder: string;
+  // Email pedido en la ENTRADA, antes de gastar el análisis: así un documento
+  // analizado deja siempre un lead con el que poder volver.
+  entryEmailTitle: string;
+  entryEmailHelp: string;
   continuePay: string;
   preparingPay: string;
   hintTargetLang: string;
@@ -98,6 +102,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "Te enviamos la confirmación y el aviso de entrega por email y WhatsApp.",
     emailPlaceholder: "tu@email.com",
     phonePlaceholder: "Teléfono",
+    entryEmailTitle: "¿A qué email te enviamos el presupuesto?",
+    entryEmailHelp: "Lo necesitamos para guardarte el análisis y poder responderte si algo no cuadra.",
     continuePay: "Continuar al pago",
     preparingPay: "Preparando el pago…",
     hintTargetLang: "Indica el idioma de destino de cada documento para continuar.",
@@ -153,6 +159,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "Nous vous envoyons la confirmation et l'avis de livraison par email et WhatsApp.",
     emailPlaceholder: "votre@email.com",
     phonePlaceholder: "Téléphone",
+    entryEmailTitle: "À quelle adresse e-mail envoyons-nous le devis ?",
+    entryEmailHelp: "Nous en avons besoin pour conserver votre analyse et vous répondre en cas de doute.",
     continuePay: "Continuer vers le paiement",
     preparingPay: "Préparation du paiement…",
     hintTargetLang: "Indiquez la langue cible de chaque document pour continuer.",
@@ -208,6 +216,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "We'll send you the confirmation and delivery notice by email and WhatsApp.",
     emailPlaceholder: "you@email.com",
     phonePlaceholder: "Phone",
+    entryEmailTitle: "Which email should we send the quote to?",
+    entryEmailHelp: "We need it to save your analysis and get back to you if anything looks off.",
     continuePay: "Continue to payment",
     preparingPay: "Preparing payment…",
     hintTargetLang: "Select the target language of each document to continue.",
@@ -263,6 +273,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "Wir senden Ihnen die Bestätigung und die Liefermitteilung per E-Mail und WhatsApp.",
     emailPlaceholder: "ihre@email.de",
     phonePlaceholder: "Telefon",
+    entryEmailTitle: "An welche E-Mail-Adresse senden wir den Kostenvoranschlag?",
+    entryEmailHelp: "Wir benötigen sie, um Ihre Analyse zu speichern und Ihnen bei Rückfragen zu antworten.",
     continuePay: "Weiter zur Zahlung",
     preparingPay: "Zahlung wird vorbereitet…",
     hintTargetLang: "Wählen Sie die Zielsprache jedes Dokuments, um fortzufahren.",
@@ -318,6 +330,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     contactHelp: "Enviamos a confirmação e o aviso de entrega por email e WhatsApp.",
     emailPlaceholder: "o-seu@email.com",
     phonePlaceholder: "Telefone",
+    entryEmailTitle: "Para que email enviamos o orçamento?",
+    entryEmailHelp: "Precisamos dele para guardar a sua análise e responder-lhe se algo não bater certo.",
     continuePay: "Continuar para o pagamento",
     preparingPay: "A preparar o pagamento…",
     hintTargetLang: "Indique o idioma de destino de cada documento para continuar.",

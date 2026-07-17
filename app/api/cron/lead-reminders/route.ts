@@ -20,6 +20,12 @@ export async function GET(req: Request) {
   const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
   const after = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24h ago
 
+  // Solo leads de la PUERTA. Se excluyen a propósito:
+  //  · exp:*   → expedientes que el staff está presupuestando a mano; decirles
+  //              "no llegaste a completar el pedido" sería falso y queda fatal.
+  //  · staff:* → documentos del propio traductor en el builder.
+  // Antes esto no hacía falta porque el email solo se estampaba en el checkout y
+  // el cron casi nunca encontraba a nadie; ahora la puerta lo captura al entrar.
   const candidates = await prisma.documentAnalysis.findMany({
     where: {
       status: { in: ["QUOTE_GENERATED", "PAYMENT_PENDING"] },
@@ -27,6 +33,10 @@ export async function GET(req: Request) {
       orderId: null,
       reminderSentAt: null,
       createdAt: { gte: since, lte: after },
+      NOT: [
+        { sessionToken: { startsWith: "exp:" } },
+        { sessionToken: { startsWith: "staff:" } },
+      ],
     },
     take: 100,
   });
