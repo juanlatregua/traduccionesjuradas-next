@@ -138,6 +138,36 @@ export default function MarruecosPage() {
         </p>
       </section>
 
+      {/* Enlazado interno hacia las ciudades con más comunidad marroquí: la
+          página no enlazaba a ninguna, desaprovechando la autoridad que sí
+          recibe hacia unas páginas de ciudad que apenas la tienen. */}
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-bleu">
+          Traductor jurado para documentos marroquíes, ciudad a ciudad
+        </h2>
+        <p className="mt-1 text-sm text-encre">
+          Trabajamos online para toda España, con entrega en PDF firmado
+          digitalmente. Estas son las ciudades desde las que más nos escriben:
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            ["malaga", "Málaga"],
+            ["granada", "Granada"],
+            ["almeria", "Almería"],
+            ["huelva", "Huelva"],
+            ["marbella", "Marbella"],
+          ].map(([slug, nombre]) => (
+            <Link
+              key={slug}
+              href={`/traductor-jurado/${slug}`}
+              className="rounded-full border border-cream bg-card px-3 py-1.5 text-xs font-medium text-encre transition-colors hover:border-bleu hover:text-bleu"
+            >
+              {nombre}
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* CTA FINAL */}
       <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
         <h2 className="text-lg font-semibold text-bleu">

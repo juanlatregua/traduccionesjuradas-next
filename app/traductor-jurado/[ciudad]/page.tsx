@@ -26,9 +26,26 @@ export async function generateMetadata({
   if (!ciudad) return {};
 
   const consuladoNote = ciudad.tieneConsulado ? " · Consulado de Francia" : "";
+  // "León (León)" no aporta: el paréntesis solo cuando ciudad y provincia difieren.
+  const provinciaNote =
+    ciudad.nombre === ciudad.provincia ? "" : ` (${ciudad.provincia})`;
+
+  // Description derivada de los datos reales de cada ciudad. Las 42 declaraban
+  // la MISMA cadena y afirmaban "validez ante Consulado" en las 37 que no tienen
+  // consulado. El organismo concreto es dato único, cierto y distingue la página.
+  const organismos = [
+    ciudad.registroCivil ? `el ${ciudad.registroCivil.nombre}` : "Registro Civil",
+    "Extranjería",
+    ...(ciudad.tieneConsulado ? ["el Consulado de Francia"] : []),
+  ];
+  const validez =
+    organismos.length > 2
+      ? `${organismos.slice(0, -1).join(", ")} y ${organismos[organismos.length - 1]}`
+      : organismos.join(" y ");
+
   return {
-    title: `Traductor Jurado en ${ciudad.nombre} (${ciudad.provincia})${consuladoNote} · MAEC`,
-    description: `Traductor jurado oficial para ${ciudad.nombre}, ${ciudad.provincia}. Traducción jurada online con validez ante Registro Civil, Extranjería y Consulado. Entrega en 24-48h, sin desplazamientos. Desde 35€.`,
+    title: `Traductor Jurado en ${ciudad.nombre}${provinciaNote}${consuladoNote} · MAEC`,
+    description: `Traductor jurado en ${ciudad.nombre}: traducción jurada online válida ante ${validez}. Entrega en 24-48 h. Desde 35 €.`,
     alternates: {
       canonical: `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`,
     },

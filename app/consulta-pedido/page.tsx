@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "Consulta tu pedido",
   description:
     "Introduce tu email y referencia de pedido para ver el estado de tu traducción jurada.",
+  // Utilidad transaccional, no contenido de búsqueda: sin canonical, fuera del
+  // sitemap y duplicando el servicio de /consulta (que ya era noindex). Quedaba
+  // abierta a indexarse como página fina y a competir con /consulta y /pedido.
+  robots: { index: false, follow: true },
 };
 
 export default function ConsultaPedidoPage() {
