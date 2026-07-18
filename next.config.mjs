@@ -59,10 +59,11 @@ const nextConfig = {
     // (repo: juanlatregua/traduccionesjuradas-uge, basePath /uge-ce).
     // El proxy se hace server-side: el usuario nunca ve la URL de Vercel.
     return [
-      {
-        source: "/uge-ce",
-        destination: "https://traduccionesjuradas-uge.vercel.app/uge-ce",
-      },
+      // OJO: /uge-ce a secas NO se proxea. El upstream resuelve su raíz con un
+      // redirect de RSC (app/page.tsx -> /es) que sale como 307 y pierde la
+      // cabecera Location al atravesar este rewrite: quedaba una respuesta HTTP
+      // inválida que ningún rastreador puede seguir, cacheada 51 días en el edge.
+      // Se resuelve con un 308 explícito en redirects() hacia /uge-ce/es.
       {
         source: "/uge-ce/:path*",
         destination: "https://traduccionesjuradas-uge.vercel.app/uge-ce/:path*",
@@ -79,6 +80,15 @@ const nextConfig = {
           { type: "header", key: "x-forwarded-proto", value: "http" },
         ],
         destination: "https://www.traduccionesjuradas.net/:path*",
+        permanent: true,
+      },
+      // La raíz del subsitio: 308 explícito en vez de dejar que el upstream
+      // resuelva con un 307 que pierde el Location al cruzar el rewrite. Los
+      // redirects se evalúan ANTES que los rewrites, así que /uge-ce nunca
+      // llega a proxearse; /uge-ce/es y el resto sí, con su regla intacta.
+      {
+        source: "/uge-ce",
+        destination: "/uge-ce/es",
         permanent: true,
       },
       // ?modo=control era el atajo a la vista de control: ahora es la vista
