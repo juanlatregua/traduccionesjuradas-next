@@ -160,9 +160,17 @@ const nextConfig = {
         destination: "/",
         permanent: true,
       },
+      // La única categoría con destino temático propio, antes del comodín.
+      {
+        source: "/categoria-producto/mercantil",
+        destination: "/documentos-oficiales/documentos-mercantiles",
+        permanent: true,
+      },
+      // Al hub de documentos, NO a la home: Google trata el 301 masivo a "/"
+      // como soft-404 y diluye el equity en vez de reforzar /documentos-oficiales.
       {
         source: "/categoria-producto/:path*",
-        destination: "/",
+        destination: "/documentos-oficiales",
         permanent: true,
       },
       // Legacy catch-all redirects removed — handled by middleware.ts
@@ -196,9 +204,23 @@ const nextConfig = {
         destination: "/documentos-oficiales",
         permanent: true,
       },
+      // Las específicas van ANTES del comodín: en Next.js gana la primera que casa.
+      {
+        source: "/documentos/traduccion-jurada-del-libro-de-familia",
+        destination: "/documentos-oficiales/certificados-registro-civil",
+        permanent: true,
+      },
+      {
+        source: "/documentos/traduccion-jurada-de-certificado-de-seguridad-social",
+        destination: "/documentos-oficiales/documentos-laborales",
+        permanent: true,
+      },
+      // Al hub, NO a /documentos-oficiales/:path*: los slugs legacy de WP tienen
+      // forma "traduccion-jurada-de-X" y jamás coinciden con los 9 hijos reales,
+      // así que el passthrough mandaba todo slug desconocido a un 404 tras un 301.
       {
         source: "/documentos/:path*",
-        destination: "/documentos-oficiales/:path*",
+        destination: "/documentos-oficiales",
         permanent: true,
       },
 
@@ -226,23 +248,8 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/categoria-producto/civil/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/civil",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
         source: "/ciudades-desde-donde-puedes-comprar-una-traduccion-jurada/",
         destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/documentos/traduccion-jurada-del-libro-de-familia/",
-        destination: "/documentos-oficiales/certificados-registro-civil",
         permanent: true,
       },
       {
@@ -346,16 +353,6 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/documentos/traduccion-jurada-de-certificado-de-seguridad-social/",
-        destination: "/documentos-oficiales/documentos-laborales",
-        permanent: true,
-      },
-      {
-        source: "/documentos/traduccion-jurada-de-certificado-de-seguridad-social",
-        destination: "/documentos-oficiales/documentos-laborales",
-        permanent: true,
-      },
-      {
         source: "/traduccion-jurada-de-expediente-academico",
         destination: "/documentos-oficiales/documentos-academicos",
         permanent: true,
@@ -444,56 +441,6 @@ const nextConfig = {
       // CATEGORÍAS WOOCOMMERCE
       // ===============================
 
-      {
-        source: "/categoria-producto/judicial/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/judicial",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/hacienda/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/hacienda",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/notarial/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/notarial",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/notarial/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/mercantil/",
-        destination: "/documentos-oficiales/documentos-mercantiles",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/mercantil",
-        destination: "/documentos-oficiales/documentos-mercantiles",
-        permanent: true,
-      },
-      {
-        source: "/categoria-producto/civil/",
-        destination: "/documentos-oficiales",
-        permanent: true,
-      },
 
       // ===============================
       // IDIOMAS ANTIGUOS (no son páginas de ciudad)
@@ -587,11 +534,6 @@ const nextConfig = {
       {
         source: "/aviso-legal-privacidad",
         destination: "/aviso-legal",
-        permanent: true,
-      },
-      {
-        source: "/documentos/traduccion-jurada-del-libro-de-familia/",
-        destination: "/documentos-oficiales/certificados-registro-civil",
         permanent: true,
       },
       {
