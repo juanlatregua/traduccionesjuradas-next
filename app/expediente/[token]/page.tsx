@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { readExpedienteToken } from "@/lib/expediente-token";
 import { FileText } from "lucide-react";
@@ -19,18 +20,11 @@ export default async function ExpedienteStatusPage({ params }: { params: { token
       })
     : [];
 
+  // notFound() en vez de renderizar el aviso: así responde 404 de verdad y un
+  // token caducado deja de recrawlearse como 200 (soft 404). El mensaje con la
+  // salida por WhatsApp vive ahora en el not-found.tsx de este segmento.
   if (!ref || docs.length === 0) {
-    return (
-      <main className="min-h-screen bg-parchment">
-        <section className="mx-auto max-w-xl px-4 py-16 text-center">
-          <h1 className="font-baskerville text-2xl text-encre">Expediente no encontrado</h1>
-          <p className="mt-3 text-graphite">
-            El enlace no es válido o ha caducado. Si crees que es un error, escríbenos por{" "}
-            <a href="https://wa.me/34951333614" className="text-bleu underline">WhatsApp</a>.
-          </p>
-        </section>
-      </main>
-    );
+    notFound();
   }
 
   const created = docs[0].createdAt;

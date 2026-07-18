@@ -78,7 +78,10 @@ export default function SiteFooter() {
               <Link href="/expediente" className="font-semibold text-cream hover:text-or transition-colors">Subir expediente (4+ docs)</Link>
               <Link href="/traduction-assermentee" className="hover:text-or transition-colors" hrefLang="fr">Traduction assermentée (FR)</Link>
               <Link href="/traductor-jurado-frances" className="hover:text-or transition-colors">Traductor jurado de francés</Link>
+              <Link href="/traduccion-jurada-frances-malaga" className="hover:text-or transition-colors">Traductor jurado de francés en Málaga</Link>
               <Link href="/traductor-jurado" className="hover:text-or transition-colors">Traductor jurado por ciudades</Link>
+              <Link href="/traduccion-jurada-online" className="hover:text-or transition-colors">Traducción jurada online</Link>
+              <Link href="/traduccion-jurada-permiso-de-conducir" className="hover:text-or transition-colors">Traducción jurada del permiso de conducir</Link>
               <Link href="/que-traducciones-necesito" className="hover:text-or transition-colors">¿Qué traducciones necesito?</Link>
               <Link href="/regularizacion-2026" className="font-semibold text-or hover:text-cream transition-colors">Regularización 2026 · 25 €/doc</Link>
             </div>
@@ -108,6 +111,25 @@ export default function SiteFooter() {
               ["noruego", "Noruego"],
             ].map(([slug, label]) => (
               <Link key={slug} href={`/traductor-jurado-${slug}`} className="hover:text-or transition-colors">
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+        {/* Versiones del sitio en otros idiomas. Sin este bloque, las landings
+            EN/DE/PT solo eran descubribles por el sitemap: cero enlaces internos
+            y, por tanto, cero autoridad — el patrón clásico de "rastreada, no
+            indexada". */}
+        <div className="mt-8 border-t border-cream/10 pt-6">
+          <p className="font-baskerville text-sm font-bold text-parchment">Este sitio en otros idiomas</p>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-cream/85">
+            {[
+              ["/traduction-assermentee", "Français", "fr"],
+              ["/sworn-translation", "English", "en"],
+              ["/beglaubigte-uebersetzung", "Deutsch", "de"],
+              ["/traducao-certificada", "Português", "pt"],
+            ].map(([href, label, lang]) => (
+              <Link key={href} href={href} hrefLang={lang} className="hover:text-or transition-colors">
                 {label}
               </Link>
             ))}

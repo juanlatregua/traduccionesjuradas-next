@@ -23,8 +23,8 @@ export default function TraduccionJuradaOnlinePage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12 text-sm text-sepia">
       <SchemaBreadcrumbs
         items={[
-          { name: "Inicio", url: "https://traduccionesjuradas.net/" },
-          { name: "Traducción jurada online", url: "https://traduccionesjuradas.net/traduccion-jurada-online" },
+          { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
+          { name: "Traducción jurada online", url: "https://www.traduccionesjuradas.net/traduccion-jurada-online" },
         ]}
       />
       <SchemaFAQ

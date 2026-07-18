@@ -163,7 +163,28 @@ export default function PaginaIdioma({
         </div>
       </section>
 
-      {/* 4. OTROS IDIOMAS */}
+      {/* 4. PREGUNTAS FRECUENTES — deben ser visibles: el SchemaFAQ de arriba las
+          declara y la política de datos estructurados exige que el usuario las vea. */}
+      <section className="mt-10">
+        <h2 className="text-xl font-semibold text-encre">
+          Preguntas frecuentes — traducción jurada de {idioma}
+        </h2>
+        <div className="mt-4 space-y-3">
+          {faqItems.map((qa) => (
+            <details
+              key={qa.question}
+              className="rounded-doc border border-cream bg-card p-4 shadow-paper"
+            >
+              <summary className="cursor-pointer text-sm font-semibold text-encre">
+                {qa.question}
+              </summary>
+              <p className="mt-2 text-sm leading-relaxed text-sepia">{qa.answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* 5. OTROS IDIOMAS */}
       <section className="mt-10">
         <h2 className="text-lg font-semibold text-encre">
           Traducción jurada en otros idiomas
@@ -183,7 +204,7 @@ export default function PaginaIdioma({
         </div>
       </section>
 
-      {/* 5. CIUDADES PRINCIPALES */}
+      {/* 6. CIUDADES PRINCIPALES */}
       <section className="mt-10">
         <h2 className="text-lg font-semibold text-encre">
           Traductor jurado de {idioma} en las principales ciudades

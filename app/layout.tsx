@@ -230,12 +230,14 @@ export default function RootLayout({
               },
             ],
           },
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: "4.8",
-            bestRating: "5",
-            ratingCount: "46",
-            },
+          // Sin aggregateRating a propósito. Google: "si la entidad reseñada
+          // controla las reseñas sobre sí misma, sus páginas con LocalBusiness
+          // u Organization NO son elegibles para las estrellas", y prohíbe
+          // agregar valoraciones de otras webs (estas venían del perfil de
+          // Google Business). Además el layout lo inyectaba en TODAS las
+          // páginas, incluidas /aviso-legal y /privacidad, que no tienen
+          // reseña alguna. Las 46 reseñas son reales y siguen visibles como
+          // texto en TrustStrip, que es donde sí corresponde.
           }),
         }}
       />

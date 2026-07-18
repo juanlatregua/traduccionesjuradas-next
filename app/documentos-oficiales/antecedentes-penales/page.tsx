@@ -11,10 +11,14 @@ import { RelatedDocuments } from "@/components/RelatedDocuments";
 import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
+  // Cara INFORMACIONAL del par. La landing /traduccion-jurada-antecedentes-penales
+  // es la transaccional (precio y pedido); esta se queda con la intención de
+  // "qué me piden y cómo lo legalizo", que es lo que de verdad cubre su contenido
+  // (22 menciones a apostilla, casier francés, certificado marroquí).
   title:
-    "Antecedentes penales y casier judiciaire | Traducción jurada oficial",
+    "Antecedentes penales para trámites: qué pide cada país y cómo legalizarlos",
   description:
-    "Traducción jurada de antecedentes penales para extranjería, nacionalidad y visados. Incluye casier judiciaire en francés con apostilla, precio claro y entrega 24-72h.",
+    "Qué certificado de antecedentes penales te piden y cómo legalizarlo: casier judiciaire francés, certificado marroquí, cuándo hace falta apostilla de La Haya y cuándo legalización consular.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/antecedentes-penales" },
   openGraph: {
     images: [
@@ -358,6 +362,17 @@ export default function AntecedentesPenalesPage() {
           en España como con{" "}
           <strong>antecedentes penales de Marruecos, Francia y otros países
           extranjeros</strong>.
+        </p>
+        {/* Enlace a la cara transaccional del par: esta ficha explica el trámite,
+            la landing cierra la venta (precio, plazo, pedido). */}
+        <p className="mt-3 text-xs text-encre">
+          ¿Ya sabes lo que necesitas?{" "}
+          <a
+            href="/traduccion-jurada-antecedentes-penales"
+            className="font-semibold text-bleu underline-offset-2 hover:underline"
+          >
+            Consulta precio y plazo de la traducción jurada de antecedentes penales →
+          </a>
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <a

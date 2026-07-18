@@ -95,6 +95,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/":                                              "2026-04-29",
   "/proceso":                                       "2026-03-01",
   "/preguntas-frecuentes":                          "2026-03-01",
+  "/como-escanear-bien":                             "2026-04-17",
   "/precios-traduccion-jurada":                     "2026-03-04",
   "/presupuesto-instantaneo":                       "2026-03-04",
   "/expediente":                                    "2026-05-29",
@@ -177,9 +178,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     }));
 
+  // El índice se fecha con el post MÁS RECIENTE, no con blogEntries[0]: la lista
+  // no viene ordenada, así que el hub declaraba meses de antigüedad falsa y
+  // Google lo recrawleaba menos de lo que toca (lastmod es señal de prioridad).
   const blogIndex = blogEntries.length > 0 ? {
     url: `${baseUrl}/blog`,
-    lastModified: new Date(blogEntries[0].lastModified),
+    lastModified: new Date(Math.max(...blogEntries.map((e) => e.lastModified.getTime()))),
     changeFrequency: "weekly" as ChangeFreq,
     priority: 0.8,
   } : null;

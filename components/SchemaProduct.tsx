@@ -62,7 +62,10 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
       "@type": "Brand",
       name: "TraduccionesJuradas.net",
     },
-    image: ["https://traduccionesjuradas.net/brand/logo-horizontal.svg"],
+    // PNG y en el host canónico: Google no acepta SVG para rich results
+    // (BMP/GIF/JPEG/PNG/WebP) y el dominio sin www responde 308, así que la
+    // imagen del Product quedaba inválida por partida doble.
+    image: ["https://www.traduccionesjuradas.net/api/og"],
     offers: offers.map((o) => ({
       "@type": "Offer",
       price: o.price,
@@ -79,7 +82,7 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
     provider: {
       "@type": "Organization",
       name: "TraduccionesJuradas.net",
-      url: "https://traduccionesjuradas.net",
+      url: "https://www.traduccionesjuradas.net",
       email: "hola@traduccionesjuradas.net",
       telephone: "+34 951 333 614",
       address: {
