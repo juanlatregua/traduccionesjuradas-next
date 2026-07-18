@@ -98,7 +98,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
     name: "recommend_arraigo_pack",
     description:
-      "Asesora sobre la regularización extraordinaria 2026 (RD 316/2026, plazo improrrogable 30-jun-2026). Llámala cuando el usuario mencione 'regularización', 'arraigo', 'sin papeles', 'tramitar papeles', 'extranjería' o un país francófono africano (Marruecos, Senegal, Mali, Costa de Marfil, Guinea, Camerún) en contexto de residencia. Devuelve elegibilidad, vía aplicable (DA 21ª arraigo extraordinario o DA 20ª protección internacional), documentos requeridos del país de origen, si necesita Apostilla o legalización consular, presupuesto a 25 €/doc, plazo de entrega 24h, métodos de pago y URLs canónicas (página país + flujo de pedido). NO improvises elegibilidad ni precios — usa siempre esta tool.",
+      "Asesora sobre la regularización extraordinaria 2026 (RD 316/2026). El plazo venció el 30-jun-2026 y era improrrogable: la respuesta incluye `deadline_passed`; si es true, NO presentes la vía como abierta ni animes a solicitar. Llámala cuando el usuario mencione 'regularización', 'arraigo', 'sin papeles', 'tramitar papeles', 'extranjería' o un país francófono africano (Marruecos, Senegal, Mali, Costa de Marfil, Guinea, Camerún) en contexto de residencia. Devuelve elegibilidad, vía aplicable (DA 21ª arraigo extraordinario o DA 20ª protección internacional), documentos requeridos del país de origen, si necesita Apostilla o legalización consular, presupuesto a 25 €/doc, plazo de entrega 24h, métodos de pago y URLs canónicas (página país + flujo de pedido). NO improvises elegibilidad ni precios — usa siempre esta tool.",
     input_schema: {
       type: "object",
       properties: {

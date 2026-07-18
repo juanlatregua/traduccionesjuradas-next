@@ -151,7 +151,18 @@ export function recommendArraigoPack(input: RecommendArraigoPackInput) {
   const countryPage = COUNTRY_PAGES[country];
   const countryName = COUNTRY_NAMES[country] || country || null;
 
+  // El plazo del RD 316/2026 era improrrogable (verificado: sin prórroga ni
+  // ampliación). Se calcula en cada llamada en vez de escribirlo a mano para que
+  // el bot nunca presente como abierto un plazo vencido.
+  const deadlinePassed =
+    Date.now() > new Date(`${DEADLINE}T23:59:59+02:00`).getTime();
+
   const notes: string[] = [];
+  if (deadlinePassed) {
+    notes.push(
+      `El plazo de la regularización extraordinaria venció el ${DEADLINE} y era improrrogable: YA NO se pueden presentar solicitudes nuevas. Esta información sirve para expedientes ya presentados o para quien pregunte por otras vías de arraigo ordinarias.`
+    );
+  }
   notes.push(
     "Validez del certificado de antecedentes penales: la administración exige menos de 3 meses desde su emisión.",
   );
@@ -196,6 +207,7 @@ export function recommendArraigoPack(input: RecommendArraigoPackInput) {
     via: eligibility.via,
     reason: eligibility.reason,
     deadline: DEADLINE,
+    deadline_passed: deadlinePassed,
     country: country || null,
     country_name: countryName,
     country_page_url: countryPage ? withUtm(countryPage) : null,

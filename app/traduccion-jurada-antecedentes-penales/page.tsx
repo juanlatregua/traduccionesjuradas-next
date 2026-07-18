@@ -6,10 +6,14 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
+  // Cara TRANSACCIONAL del par. La ficha /documentos-oficiales/antecedentes-penales
+  // cubre la intenci\u00F3n informacional (qu\u00E9 pide cada pa\u00EDs, apostilla vs consular);
+  // ambas indexan, pero solo esta apunta al t\u00E9rmino comercial para que Google no
+  // tenga que repartir se\u00F1ales entre dos URLs casi id\u00E9nticas.
   title:
-    "Traducci\u00F3n Jurada Antecedentes Penales \u00B7 Casier Judiciaire \u00B7 MAEC n\u00BA 3850",
+    "Traducci\u00F3n jurada de antecedentes penales \u00B7 Desde 42 \u20AC \u00B7 24 h \u00B7 MAEC n\u00BA 3850",
   description:
-    "Traducci\u00F3n jurada de antecedentes penales y casier judiciaire para extranjer\u00EDa, nacionalidad y visados. Traductor jurado oficial MAEC n\u00BA 3850. Franc\u00E9s, ingl\u00E9s, alem\u00E1n. Desde 42\u20AC, entrega en 24 h.",
+    "Encarga la traducci\u00F3n jurada de tus antecedentes penales o casier judiciaire: desde 42 \u20AC, entrega en 24 h y PDF firmado digitalmente. Traductor jurado oficial MAEC n\u00BA 3850. Presupuesto al instante.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traduccion-jurada-antecedentes-penales",
