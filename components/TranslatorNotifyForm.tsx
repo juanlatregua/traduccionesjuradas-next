@@ -30,9 +30,9 @@ export default function TranslatorNotifyForm({
   deliveryNotifiedTo = null,
   canonicalStage,
 }: TranslatorNotifyFormProps) {
-  const [downloadUrl, setDownloadUrl] = useState(defaultDownloadUrl);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  // El enlace de descarga viene del artefacto de entrega del pedido; la entrega
+  // en sí (subir + notificar) vive en su carril único, la sección Entrega.
+  const downloadUrl = defaultDownloadUrl;
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   const paymentUrl = paymentLink || getTrackedPaymentUrl(reference, "pm");
@@ -111,37 +111,10 @@ export default function TranslatorNotifyForm({
     }
   };
 
-  // Entrega por el carril canónico: exige pedido PAGADO, transiciona el
-  // workflow (TRADUCIDO_ENTREGADO) y envía al email del pedido con adjuntos.
-  const submit = async () => {
-    setLoading(true);
-    setMessage(null);
-    try {
-      const res = await fetch(`/api/orders/${reference}/delivery`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          state: "TRADUCIDO",
-          notifyClient: true,
-          files: downloadUrl ? [{ url: downloadUrl }] : [],
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "No se pudo enviar.");
-      }
-      setMessage("Traduccion entregada y cliente notificado.");
-    } catch (err: any) {
-      setMessage(err?.message || "Error enviando notificacion.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">
-        Notificar traduccion lista (copy-first)
+        Enlaces y plantillas (copy-first)
       </p>
       <div className="mt-3 space-y-2 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
         <CopyField label="Enlace pago" value={paymentUrl} onCopied={() => setCopyMessage("Enlace de pago copiado.")} />
@@ -169,32 +142,12 @@ export default function TranslatorNotifyForm({
           </p>
         )}
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <p className="self-center text-xs text-slate-400">
-          Se enviara al email del pedido{defaultClientEmail ? `: ${defaultClientEmail}` : ""}.
-        </p>
-        <input
-          type="url"
-          value={downloadUrl}
-          onChange={(e) => setDownloadUrl(e.target.value)}
-          placeholder="URL de descarga del PDF"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
-        />
-      </div>
       {deliveryNotifiedAt && (
         <p className="mt-2 text-[11px] text-emerald-300">
           Ultima notificacion de entrega: {new Date(deliveryNotifiedAt).toLocaleString("es-ES")}
           {deliveryNotifiedTo ? ` · ${deliveryNotifiedTo}` : ""}
         </p>
       )}
-      <button
-        type="button"
-        onClick={submit}
-        disabled={loading}
-        className="mt-3 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
-      >
-        {loading ? "Enviando..." : "Enviar aviso al cliente"}
-      </button>
       <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
           Plantillas registradas
@@ -292,7 +245,6 @@ export default function TranslatorNotifyForm({
           {reviewMessage && <p className="mt-2 text-xs font-semibold text-slate-200">{reviewMessage}</p>}
         </div>
       )}
-      {message && <p className="mt-2 text-xs font-semibold text-slate-200">{message}</p>}
       {copyMessage && <p className="mt-2 text-xs font-semibold text-emerald-300">{copyMessage}</p>}
     </div>
   );

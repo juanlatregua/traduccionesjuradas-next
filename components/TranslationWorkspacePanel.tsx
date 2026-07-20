@@ -232,14 +232,19 @@ export default function TranslationWorkspacePanel({
           <option value="EN_PROCESO">En proceso</option>
           <option value="TRADUCIDO">Traducido</option>
         </select>
+      </div>
+      <details className="mt-2" open={Boolean(url)}>
+        <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
+          Avanzado: traducción alojada fuera (URL externa)
+        </summary>
         <input
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="URL PDF traducido (opcional si subes archivo)"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
         />
-      </div>
+      </details>
 
       {state === "EN_PROCESO" && (
         <div className="mt-3 space-y-2 rounded-xl border border-slate-700 bg-slate-900/60 p-3">

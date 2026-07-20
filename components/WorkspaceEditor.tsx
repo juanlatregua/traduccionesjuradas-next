@@ -287,7 +287,6 @@ export default function WorkspaceEditor({
               ))}
             </ul>
           )}
-          <SourceDocumentUpload reference={reference} />
         </div>
 
         <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-5">
