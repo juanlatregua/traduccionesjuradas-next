@@ -924,54 +924,6 @@ export async function sendDocumentResubmissionRequestEmail(data: {
   });
 }
 
-// Mensaje LIBRE del staff al cliente (p.ej. pedir info sobre el documento).
-// Texto escrito por Juan en el panel; respeta es/fr y enlaza a la página del pedido.
-export async function sendClientMessageEmail(data: {
-  toEmail: string;
-  reference: string;
-  message: string;
-  statusUrl: string;
-  lang?: "es" | "fr";
-}) {
-  const fr = data.lang === "fr";
-  const esc = (s: string) =>
-    s
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  const bodyHtml = esc(data.message).replace(/\r?\n/g, "<br>");
-
-  const subject = fr
-    ? `Message concernant votre commande ${data.reference}`
-    : `Mensaje sobre tu pedido ${data.reference}`;
-  const heading = fr ? "Nous avons un message au sujet de votre commande" : "Tenemos un mensaje sobre tu pedido";
-  const intro = fr
-    ? `Au sujet de votre commande <strong>${data.reference}</strong> :`
-    : `Sobre tu pedido <strong>${data.reference}</strong>:`;
-  const cta = fr ? "Voir ma commande" : "Ver mi pedido";
-  const replyLine = fr
-    ? "Vous pouvez répondre directement à cet e-mail."
-    : "Puedes responder directamente a este correo.";
-
-  const html = `
-    <h2>${heading}</h2>
-    <p>${intro}</p>
-    <div style="margin:12px 0; padding:12px 16px; border-left:3px solid #0891b2; background:#f0f9ff; color:#0f172a;">${bodyHtml}</div>
-    <p>
-      <a href="${data.statusUrl}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">${cta}</a>
-    </p>
-    <p style="font-size:13px; color:#6b7280;">${replyLine}</p>
-  `;
-
-  await sendMail({
-    to: data.toEmail,
-    subject,
-    html: wrapClientEmailHtml(html),
-  });
-}
-
 export async function sendStaffOtpEmail(data: { toEmail: string; code: string }) {
   const subject = "Codigo de acceso - Zona traductor";
 

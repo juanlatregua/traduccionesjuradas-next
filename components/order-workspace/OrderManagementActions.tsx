@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { buildNotificationTemplate } from "@/lib/notification-templates";
 
 function eur(c: number) {
   return `${(c / 100).toFixed(2)} €`;
@@ -105,7 +106,12 @@ export default function OrderManagementActions({
 
   const digits = String(clientPhone || "").replace(/\D/g, "");
   const phone = digits ? (digits.length === 9 ? `34${digits}` : digits) : "";
-  const cobroText = `Hola ${clientName}, tu pedido ${reference}: ${eur(amountCents)} (IVA incl.). Puedes pagarlo por Bizum al 607 356 273 (TraduccionesJuradas). Avísame cuando lo hagas y empiezo. ¡Gracias!`;
+  const cobroText = buildNotificationTemplate({
+    key: "wa_bizum_payment",
+    reference,
+    clientName,
+    amountEur: eur(amountCents),
+  });
 
   const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40";
 

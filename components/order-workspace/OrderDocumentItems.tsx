@@ -34,6 +34,9 @@ const STATUS_UI: Record<string, { label: string; cls: string }> = {
 export default function OrderDocumentItems({ reference, items: initial }: { reference: string; items: Item[] }) {
   const [items, setItems] = useState<Item[]>(initial);
   const [msg, setMsg] = useState<string | null>(null);
+  // Asignación POR documento: solo la usan los expedientes multi-colaborador
+  // (p.ej. Auream). Plegada salvo que algún documento ya la tenga rellena.
+  const [showAssignees, setShowAssignees] = useState(initial.some((i) => i.assignedTo));
 
   if (initial.length === 0) return null;
 
@@ -81,7 +84,15 @@ export default function OrderDocumentItems({ reference, items: initial }: { refe
     <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-slate-100">Desglose por documento</p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowAssignees((v) => !v)}
+            className="text-[11px] font-semibold text-slate-500 hover:text-slate-300"
+            title="Asignar un colaborador distinto a cada documento (expedientes multi-colaborador)"
+          >
+            {showAssignees ? "ocultar asignación por documento" : "asignación por documento"}
+          </button>
           <div className="h-1.5 w-28 overflow-hidden rounded-full bg-slate-700">
             <div className="h-full bg-emerald-500" style={{ width: `${Math.round((done / total) * 100)}%` }} />
           </div>
@@ -102,12 +113,14 @@ export default function OrderDocumentItems({ reference, items: initial }: { refe
                   {[it.sourceLang && it.targetLang ? `${it.sourceLang}-${it.targetLang}` : "", it.words ? `${it.words} pal.` : "", it.quotedCents ? eur(it.quotedCents) : ""].filter(Boolean).join(" · ")}
                 </p>
               </div>
-              <input
-                defaultValue={it.assignedTo || ""}
-                onBlur={(e) => saveAssignee(it, e.target.value.trim())}
-                placeholder="colaborador"
-                className="w-32 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-200"
-              />
+              {showAssignees && (
+                <input
+                  defaultValue={it.assignedTo || ""}
+                  onBlur={(e) => saveAssignee(it, e.target.value.trim())}
+                  placeholder="colaborador"
+                  className="w-32 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                />
+              )}
               {it.fileUrl && (
                 <a href={it.fileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-md border border-slate-600 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800">
                   📄 Original

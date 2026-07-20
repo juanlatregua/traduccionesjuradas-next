@@ -1,8 +1,9 @@
 // app/api/orders/[reference]/notify-custom/route.ts
 //
-// Envía al cliente un EMAIL con cuerpo editable por el staff desde la landing del
-// pedido (adjunta las traducciones entregadas + la factura emitida si la hay).
-// Registra el mensaje como OrderEvent para que se vea en la propia landing.
+// Compositor ÚNICO de mensajes del staff al cliente (fusión con el antiguo
+// /send-client-message): EMAIL con cuerpo editable (adjunta traducciones +
+// factura si attachFiles) y SMS opcional (alsoSms). Registra OrderEvent
+// notification.custom.sent → visible en el log de mensajes de la ficha.
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -43,8 +44,12 @@ export async function POST(req: Request, { params }: Params) {
     const subject = String(body?.subject || "").trim() || `Tu traducción jurada (${order.reference})`;
     const bodyText = String(body?.bodyText || "").trim();
     const attachFiles = body?.attachFiles !== false;
+    const alsoSms = body?.alsoSms === true;
     if (!bodyText) {
       return NextResponse.json({ ok: false, error: "El mensaje está vacío." }, { status: 400 });
+    }
+    if (bodyText.length > 4000) {
+      return NextResponse.json({ ok: false, error: "El mensaje es demasiado largo (máx. 4000)." }, { status: 400 });
     }
 
     // Los leads de WhatsApp tienen email sintético (@whatsapp.local): no llega.
@@ -92,6 +97,28 @@ export async function POST(req: Request, { params }: Params) {
       attachments = [...fileAtts.filter(Boolean), ...(invAtt ? [invAtt] : [])];
     }
 
+    // SMS opcional (absorbido de /send-client-message): versión corta + enlace
+    // de estado. Best-effort — no bloquea el email si Twilio falla.
+    let smsSent = false;
+    if (alsoSms) {
+      try {
+        const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+        const { buildSignedOrderUrl } = await import("@/lib/order-token");
+        const phone = await getOrderPhone(order.id);
+        if (phone) {
+          const statusUrl = buildSignedOrderUrl(order.reference, "estado");
+          const short = bodyText.length > 120 ? `${bodyText.slice(0, 117)}...` : bodyText;
+          await sendNotification({
+            to: formatPhoneSpain(phone),
+            body: `${order.reference}: ${short} ${statusUrl}`,
+          });
+          smsSent = true;
+        }
+      } catch (err) {
+        console.error("[notify-custom] SMS failed", err);
+      }
+    }
+
     // Log SÍNCRONO antes del envío de fondo: el contenido exacto queda en la
     // landing aunque el envío no llegue a completar en serverless.
     await prisma.orderEvent
@@ -101,7 +128,7 @@ export async function POST(req: Request, { params }: Params) {
           type: "notification.custom.sent",
           message: "Mensaje personalizado enviado al cliente por email.",
           payload: {
-            channel: "EMAIL",
+            channel: smsSent ? "EMAIL+SMS" : "EMAIL",
             toEmail: order.clientEmail,
             subject,
             bodyText,
@@ -116,7 +143,7 @@ export async function POST(req: Request, { params }: Params) {
       sendCustomClientEmail({ toEmail: order.clientEmail, subject, bodyText, attachments })
     );
 
-    return NextResponse.json({ ok: true, fileCount: attachments.length });
+    return NextResponse.json({ ok: true, fileCount: attachments.length, smsSent });
   } catch (err: any) {
     console.error("[notify-custom] error", err);
     return NextResponse.json(

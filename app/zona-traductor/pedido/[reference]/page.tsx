@@ -30,7 +30,7 @@ import OrderManagementActions from "@/components/order-workspace/OrderManagement
 import CollaboratorAssignmentPanel from "@/components/CollaboratorAssignmentPanel";
 import AssignOrderForm from "@/components/AssignOrderForm";
 import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
-import ClientMessagePanel from "@/components/ClientMessagePanel";
+import { buildDeliveryResendMessage } from "@/lib/notification-templates";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
 import OrderFinancePanel from "@/components/OrderFinancePanel";
 import OrderLifecyclePanel from "@/components/OrderLifecyclePanel";
@@ -256,16 +256,15 @@ export default async function PedidoWorkspacePage({ params }: Params) {
     ? (process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ as string).trim()
     : "https://www.google.com/maps?cid=1858671208989418611";
   const clientPhoneDigits = (order.clientPhone || "").replace(/\D/g, "");
-  const whatsappResendText =
+  const whatsappResendText = buildDeliveryResendMessage({
+    reference: order.reference,
+    files: deliveredFiles,
+    reviewUrl,
+  });
+  const clientMessageSubject =
     deliveredFiles.length > 0
-      ? [
-          `Hola, tu traducción jurada (pedido ${order.reference}) ya está lista.`,
-          deliveredFiles.map((f) => `• ${f.name}: ${f.url}`).join("\n"),
-          `Si todo está correcto, nos ayudaría muchísimo tu reseña en Google: ${reviewUrl}`,
-          "¡Gracias!",
-        ].join("\n\n")
-      : "";
-  const clientMessageSubject = `Tu traducción jurada está lista (pedido ${order.reference})`;
+      ? `Tu traducción jurada está lista (pedido ${order.reference})`
+      : `Sobre tu pedido ${order.reference}`;
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -491,13 +490,13 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               <FileThumbnails
                 files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
               />
-              <ClientMessageComposer
-                reference={order.reference}
-                clientEmail={order.clientEmail}
-                clientPhoneDigits={clientPhoneDigits}
-                defaultSubject={clientMessageSubject}
-                defaultMessage={whatsappResendText}
-              />
+              <p className="mt-3 border-t border-emerald-500/20 pt-3 text-xs text-slate-400">
+                ¿Reenviar al cliente?{" "}
+                <a href="#comunicacion" className="font-semibold text-cyan-400 hover:underline">
+                  Escribir al cliente ↓
+                </a>{" "}
+                (el mensaje de entrega sale ya escrito).
+              </p>
             </div>
           ) : (
             <p className="mb-4 text-sm text-slate-400">
@@ -610,22 +609,36 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           </details>
         </section>
 
-        {/* SECCIÓN — Comunicación: plantillas copy-first + mensaje libre al cliente */}
+        {/* SECCIÓN — Comunicación: UN compositor (email con adjuntos + SMS opcional
+            + WhatsApp) y las plantillas copy-first. El segundo formulario y su
+            endpoint /send-client-message se retiraron (P2.6). */}
         <Section id="comunicacion" title="Comunicación con el cliente">
-          <TranslatorNotifyForm
-            reference={order.reference}
-            defaultClientEmail={order.clientEmail}
-            acquisitionSource={acquisitionSource}
-            defaultDownloadUrl={artifacts.finalDeliveryFileUrl || undefined}
-            quotePreviewUrl={artifacts.quotePreviewFileUrl || undefined}
-            paymentLink={trackedLinks.paymentUrl}
-            statusLink={trackedLinks.statusUrl}
-            deliveryNotifiedAt={deliveryNotification?.sentAt || null}
-            deliveryNotifiedTo={deliveryNotification?.toEmail || null}
-            canonicalStage={actionStage}
-          />
+          <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
+            Escribir al cliente
+          </p>
+          <div className="mt-3">
+            <ClientMessageComposer
+              reference={order.reference}
+              clientEmail={order.clientEmail}
+              clientPhoneDigits={clientPhoneDigits}
+              defaultSubject={clientMessageSubject}
+              defaultMessage={whatsappResendText}
+              hasDeliveryFiles={deliveredFiles.length > 0}
+            />
+          </div>
           <div className="mt-6 border-t border-slate-700/50 pt-6">
-            <ClientMessagePanel reference={order.reference} clientEmail={order.clientEmail} />
+            <TranslatorNotifyForm
+              reference={order.reference}
+              defaultClientEmail={order.clientEmail}
+              acquisitionSource={acquisitionSource}
+              defaultDownloadUrl={artifacts.finalDeliveryFileUrl || undefined}
+              quotePreviewUrl={artifacts.quotePreviewFileUrl || undefined}
+              paymentLink={trackedLinks.paymentUrl}
+              statusLink={trackedLinks.statusUrl}
+              deliveryNotifiedAt={deliveryNotification?.sentAt || null}
+              deliveryNotifiedTo={deliveryNotification?.toEmail || null}
+              canonicalStage={actionStage}
+            />
           </div>
         </Section>
 
