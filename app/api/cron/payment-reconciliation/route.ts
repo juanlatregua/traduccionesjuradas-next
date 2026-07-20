@@ -31,6 +31,7 @@ export async function GET(req: Request) {
     created: number;
     reference: string | null;
     sessionRefId: string | null;
+    quoteId: string | null;
     email: string | null;
     amount: string;
   }> = [];
@@ -50,6 +51,7 @@ export async function GET(req: Request) {
         created: s.created,
         reference: String(s.metadata?.orderReference || "").trim() || null,
         sessionRefId: String(s.metadata?.orderSessionId || "").trim() || null,
+        quoteId: String(s.metadata?.quoteId || "").trim() || null,
         email:
           String(s.customer_details?.email || s.customer_email || "")
             .trim()
@@ -74,12 +76,40 @@ export async function GET(req: Request) {
     refByOrderSessionId = new Map(os.map((o) => [o.id, o.reference]));
   }
 
+  // 2b. Resolver los pagos de presupuesto (quoteId -> Order.reference). Sin esto,
+  // cada presupuesto pagado por Stripe (metadata.quoteId, sin orderReference)
+  // saltaba como "pago sin pedido" durante los 3 dias de la ventana aunque el
+  // puente quote-to-order hubiera creado el pedido.
+  const quoteIds = sessions
+    .map((s) => s.quoteId)
+    .filter((x): x is string => Boolean(x));
+  let refByQuoteId = new Map<string, string>();
+  let numberByQuoteId = new Map<string, string>();
+  if (quoteIds.length > 0) {
+    const quoteOrders = await prisma.order.findMany({
+      where: { quoteId: { in: quoteIds } },
+      select: { quoteId: true, reference: true },
+    });
+    refByQuoteId = new Map(
+      quoteOrders
+        .filter((o): o is { quoteId: string; reference: string } => Boolean(o.quoteId))
+        .map((o) => [o.quoteId, o.reference])
+    );
+    // Para los que NO tengan pedido (huerfano real): numero de presupuesto en la alerta
+    const quotes = await prisma.quote.findMany({
+      where: { id: { in: quoteIds } },
+      select: { id: true, quoteNumber: true },
+    });
+    numberByQuoteId = new Map(quotes.map((q) => [q.id, q.quoteNumber]));
+  }
+
   // 3. Cruzar contra los pedidos PAID
   const resolved = sessions.map((s) => ({
     ...s,
     resolvedRef:
       s.reference ||
-      (s.sessionRefId ? refByOrderSessionId.get(s.sessionRefId) || null : null),
+      (s.sessionRefId ? refByOrderSessionId.get(s.sessionRefId) || null : null) ||
+      (s.quoteId ? refByQuoteId.get(s.quoteId) || null : null),
   }));
   const refs = resolved
     .map((r) => r.resolvedRef)
@@ -96,7 +126,11 @@ export async function GET(req: Request) {
   const discrepancies = resolved
     .filter((r) => !r.resolvedRef || !paidOrderRefs.has(r.resolvedRef))
     .map((r) => ({
-      reference: r.resolvedRef,
+      reference:
+        r.resolvedRef ||
+        (r.quoteId
+          ? `presupuesto ${numberByQuoteId.get(r.quoteId) || r.quoteId} sin pedido`
+          : null),
       clientEmail: r.email,
       amount: r.amount,
       stripeSessionId: r.id,
