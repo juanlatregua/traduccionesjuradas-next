@@ -371,7 +371,10 @@ async function populateOrderItemsFromQuote(orderId: string, input: CreateOrderFr
           orderId,
           fileName: l.description,
           fileUrl: l.sourceFileUrl || null,
-          quotedCents: Math.round((l.unitPrice || 0) * 100),
+          // Quote.unitPrice es SIN IVA (quote-math); OrderDocumentItem.quotedCents
+          // se consume como BRUTO (invoice-pdf y delivery-attachments hacen /1.21).
+          // Escribir el neto aquí infra-declaraba la base imponible de la factura.
+          quotedCents: Math.round((l.unitPrice || 0) * 100 * 1.21),
         })),
       });
 

@@ -21,11 +21,14 @@ type EventLike = {
   createdAt?: string | Date | null;
 };
 
+type AssignmentLike = { status?: string | null };
+
 type OrderLike = {
   reference: string;
   workflowState?: string | null;
   paymentStatus?: string | null;
   assignedTo?: string | null;
+  collaboratorAssignments?: AssignmentLike[];
   deliveryState?: string | null;
   quoteSnapshotJson?: unknown;
   quotePreviewFileKey?: string | null;
@@ -74,6 +77,11 @@ function hasAnyEvent(order: OrderLike, types: string[]) {
   return eventList(order).some((event) => set.has(String(event?.type || "")));
 }
 
+export function getActiveAssignment(order: OrderLike): AssignmentLike | null {
+  const list = Array.isArray(order.collaboratorAssignments) ? order.collaboratorAssignments : [];
+  return list.find((a) => String(a?.status || "").toUpperCase() !== "REJECTED") || null;
+}
+
 export function buildOrderTrackedLinks(reference: string) {
   const paymentUrl = buildSignedOrderUrl(reference, "pagar", { src: "wa", ref: reference });
   const statusUrl = buildSignedOrderUrl(reference, "estado", { src: "wa" });
@@ -113,7 +121,12 @@ export function getOrderGates(order: OrderLike, finance: FinanceSnapshot): Order
     Boolean(String(order.paymentProofFileKey || "").trim()) ||
     hasEvent(order, "payment.proof_uploaded");
 
-  const productionReady = Boolean(String(order.assignedTo || "").trim());
+  // La asignación cuenta por CUALQUIERA de las dos vías: el nombre manual
+  // (Order.assignedTo, carril FR) o un encargo de colaborador vivo. La
+  // auto-asignación al pago solo crea CollaboratorAssignment y el stepper
+  // pedía "asignar traductor" con el encargo ya enviado.
+  const productionReady =
+    Boolean(String(order.assignedTo || "").trim()) || Boolean(getActiveAssignment(order));
   const deliveryReady = hasDeliveryArtifact(order);
   const deliveredReady = hasAnyEvent(order, [
     "notification.delivery_ready.sent",
@@ -190,6 +203,21 @@ export function getNextBestAction(order: OrderLike, finance: FinanceSnapshot): N
   }
   if (stage === "PAYMENT_VALIDATED" || stage === "IN_PRODUCTION") {
     if (!gates.deliveryReady) {
+      // Encargo enviado pero sin aceptar: la pelota está en el colaborador,
+      // no hay nada que "subir" todavía.
+      const active = getActiveAssignment(order);
+      const pendingStatuses = new Set(["REQUESTED", "QUOTED", "QUOTE_REVISION_REQUESTED"]);
+      if (
+        !String(order.assignedTo || "").trim() &&
+        active &&
+        pendingStatuses.has(String(active.status || "").toUpperCase())
+      ) {
+        return {
+          label: "Esperando al colaborador",
+          tab: "asignar",
+          reason: "Encargo enviado; pendiente de que el colaborador acepte o cotice.",
+        };
+      }
       return {
         label: "Subir entrega final",
         tab: "entrega",

@@ -233,6 +233,10 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const nextAction = getNextBestAction(orderForActions, financeSnapshot);
   const gates = getOrderGates(orderForActions, financeSnapshot);
 
+  // La ficha enseña lo que toca en cada etapa: lo demás se pliega, no se borra.
+  const isPaidQuoteOrder = Boolean(order.quote) && order.paymentStatus === "PAID";
+  const isDeliveredStage = actionStage === "DELIVERED" || actionStage === "CLOSED";
+
   // Datos que antes solo montaba la Bandeja: mismos helpers compartidos.
   const paymentProofs = getPaymentProofs(order);
   const submittedDocuments = getSubmittedDocuments(order);
@@ -304,7 +308,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           <div className="mt-4 grid gap-2 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
             <p>ETA: <strong className="text-slate-100">{order.dueDate ? new Date(order.dueDate).toLocaleDateString("es-ES") : "—"}</strong></p>
             <p>Importe: <strong className="text-slate-100">{(order.amountCents / 100).toFixed(2)} EUR</strong></p>
-            <p>Asignado: <strong className="text-slate-100">{order.assignedTo || "—"}</strong></p>
+            <p>Asignado: <strong className="text-slate-100">{order.assignedTo || assignment?.collaborator?.fullName || "—"}</strong></p>
             <p>Teléfono: <strong className="text-slate-100">{order.clientPhone || "—"}</strong></p>
           </div>
           {order.clientNotes && (
@@ -341,19 +345,77 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           </details>
         </div>
 
-        {/* SECCIÓN — Presupuesto: editor inline + reenvío + enlace de pago */}
-        <Section id="presupuesto" title="Presupuesto">
-          <OrderDocumentsPanel
-            reference={order.reference}
-            workflowState={workflowState}
-            amountCents={order.amountCents}
-            documents={submittedDocuments}
-            quoteDraft={quoteDraft}
-            quoteAuditTrail={quoteAuditTrail}
-          />
-        </Section>
+        {/* SECCIÓN — Presupuesto. Pedido nacido de presupuesto PAGADO → una línea:
+            el editor de presupuestar aquí solo enseñaba totales a 0,00 y un botón
+            que reenviaría el presupuesto a un cliente que ya pagó. El editor
+            completo sigue disponible (plegado) y para pedidos sin Quote (WhatsApp
+            order-first) se muestra como siempre. */}
+        {isPaidQuoteOrder ? (
+          <section id="presupuesto" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-100">
+                  Presupuesto {order.quote!.quoteNumber}
+                </h2>
+                <p className="mt-1 text-sm text-slate-300">
+                  {(order.amountCents / 100).toFixed(2)} EUR ·{" "}
+                  <span className="font-semibold text-emerald-300">pagado</span>
+                </p>
+              </div>
+              <a
+                href={`/admin/quotes/${order.quote!.id}`}
+                className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+              >
+                Abrir presupuesto →
+              </a>
+            </div>
+            <details className="mt-3 border-t border-slate-700/50 pt-3">
+              <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
+                Editor de presupuesto del pedido (avanzado — este pedido ya está cobrado)
+              </summary>
+              <div className="mt-3">
+                <OrderDocumentsPanel
+                  reference={order.reference}
+                  workflowState={workflowState}
+                  amountCents={order.amountCents}
+                  documents={submittedDocuments}
+                  quoteDraft={quoteDraft}
+                  quoteAuditTrail={quoteAuditTrail}
+                />
+              </div>
+            </details>
+          </section>
+        ) : (
+          <Section id="presupuesto" title="Presupuesto">
+            <OrderDocumentsPanel
+              reference={order.reference}
+              workflowState={workflowState}
+              amountCents={order.amountCents}
+              documents={submittedDocuments}
+              quoteDraft={quoteDraft}
+              quoteAuditTrail={quoteAuditTrail}
+            />
+          </Section>
+        )}
 
-        {/* SECCIÓN — Pago: confirmar cobro manual + comprobantes subidos */}
+        {/* SECCIÓN — Pago. Pagado por pasarela sin justificantes → una línea
+            («Aún no se ha subido comprobante» en un pedido cobrado por Stripe
+            confundía). El flujo justificante→cobrada (Bizum/transferencia) sigue
+            intacto: si hay comprobantes o falta el cobro, sección completa. */}
+        {order.paymentStatus === "PAID" && paymentProofs.length === 0 ? (
+          <section id="pago" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-lg font-semibold text-slate-100">Pago</h2>
+              <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300">
+                Pagado · {order.paymentMethod || "—"}
+              </span>
+              <span className="text-sm text-slate-300">
+                {(order.amountCents / 100).toFixed(2)} EUR
+                {order.paidAt ? ` · ${new Date(order.paidAt).toLocaleDateString("es-ES")}` : ""}
+              </span>
+            </div>
+          </section>
+        ) : (
         <Section id="pago" title="Pago y comprobantes">
           {order.paymentStatus !== "PAID" && (
             <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -389,6 +451,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             </ul>
           )}
         </Section>
+        )}
 
         {/* SECCIÓN 1 — Subir / ver traducciones (lo primero: el dolor de "dónde meto la traducción") */}
         {/* SECCIÓN — Producción · Borrador IA (migrado del Workspace), plegable */}
@@ -452,24 +515,12 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           />
         </Section>
 
-        {/* SECCIÓN 2 — Documentos del cliente */}
+        {/* SECCIÓN 2 — Documentos del cliente: UN solo listado (miniaturas +
+            desglose por documento con original/traducción/coste) + subida.
+            La lista plana duplicada de los mismos archivos se retiró. */}
         <Section id="docs" title="Documentos del cliente">
-          {sourceDocs.length === 0 ? (
+          {sourceDocs.length === 0 && docItems.length === 0 && (
             <p className="text-sm text-slate-400">No hay documentos fuente guardados en este pedido.</p>
-          ) : (
-            <ul className="space-y-1">
-              {sourceDocs.map((d, i) => (
-                <li key={i} className="text-sm">
-                  {d.url ? (
-                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
-                      {d.name}
-                    </a>
-                  ) : (
-                    <span className="text-slate-300">{d.name}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
           )}
           <FileThumbnails
             files={sourceDocs.filter((d) => d.url).map((d) => ({ name: d.name, url: d.url as string }))}
@@ -480,17 +531,10 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           </div>
         </Section>
 
-        {/* SECCIÓN — Asignación a nivel pedido (traductor + fecha límite) */}
-        <Section id="asignar" title="Asignación y plazo">
-          <AssignOrderForm
-            reference={order.reference}
-            currentAssignedTo={order.assignedTo}
-            currentDueDate={dueDateInput}
-          />
-        </Section>
-
-        {/* SECCIÓN 3 — Colaborador */}
-        <Section id="colab" title="Colaborador">
+        {/* SECCIÓN 3 — Traductor: colaborador (broadcast/encargo directo) con la
+            asignación manual FR plegada dentro. Antes eran dos secciones que
+            competían y el texto libre parecía obligatorio incluso auto-asignado. */}
+        <Section id="asignar" title="Traductor">
           {assignment ? (
             <div className="text-sm text-slate-300">
               <p>
@@ -505,6 +549,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                 </p>
               )}
             </div>
+          ) : order.assignedTo ? (
+            <p className="text-sm text-slate-300">
+              Asignado a <strong className="text-slate-100">{order.assignedTo}</strong>
+              {order.dueDate ? ` · fecha límite ${new Date(order.dueDate).toLocaleDateString("es-ES")}` : ""}
+            </p>
           ) : (
             <p className="text-sm text-slate-400">
               Sin colaborador asignado{" "}
@@ -514,21 +563,52 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           <div className="mt-4">
             <CollaboratorAssignmentPanel reference={order.reference} langPair={order.langPair} assignments={collabAssignments} />
           </div>
+          <details className="mt-4 border-t border-slate-700/50 pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
+              Asignación manual y fecha límite (carril FR — avisa al cliente «en proceso»)
+            </summary>
+            <div className="mt-3">
+              <AssignOrderForm
+                reference={order.reference}
+                currentAssignedTo={order.assignedTo}
+                currentDueDate={dueDateInput}
+              />
+            </div>
+          </details>
         </Section>
 
-        {/* SECCIÓN 4 — Finanzas (panel editable: conciliación, factura proveedor, margen, cierre) */}
-        <Section id="finanzas" title="Finanzas">
-          <OrderFinancePanel
-            reference={order.reference}
-            amountCents={order.amountCents}
-            snapshot={financeSnapshot}
-          />
-          <p className="mt-3 text-xs">
-            <a href="/zona-traductor/facturas" className="font-semibold text-cyan-400 hover:underline">
-              Gestionar facturas →
-            </a>
-          </p>
-        </Section>
+        {/* SECCIÓN 4 — Finanzas. Plegada hasta la entrega (conciliación, IRPF y
+            cierre no pintan nada en un pedido recién pagado); los avisos del
+            snapshot quedan visibles en el pliegue para no ocultar un margen bajo. */}
+        <section id="finanzas" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+          <details open={isDeliveredStage}>
+            <summary className="flex cursor-pointer flex-wrap items-center gap-3">
+              <h2 className="text-lg font-semibold text-slate-100">Finanzas</h2>
+              {!isDeliveredStage && (
+                <span className="text-xs text-slate-500">
+                  conciliación, factura proveedor y cierre — se gestionan al entregar
+                </span>
+              )}
+              {financeSnapshot.warnings.length > 0 && (
+                <span className="rounded-md bg-amber-500/15 px-2 py-1 text-xs font-semibold text-amber-300">
+                  {financeSnapshot.warnings.length} aviso{financeSnapshot.warnings.length === 1 ? "" : "s"}
+                </span>
+              )}
+            </summary>
+            <div className="mt-3">
+              <OrderFinancePanel
+                reference={order.reference}
+                amountCents={order.amountCents}
+                snapshot={financeSnapshot}
+              />
+              <p className="mt-3 text-xs">
+                <a href="/zona-traductor/facturas" className="font-semibold text-cyan-400 hover:underline">
+                  Gestionar facturas →
+                </a>
+              </p>
+            </div>
+          </details>
+        </section>
 
         {/* SECCIÓN — Comunicación: plantillas copy-first + mensaje libre al cliente */}
         <Section id="comunicacion" title="Comunicación con el cliente">
@@ -554,8 +634,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           <ClientMessagesSection messages={messages} />
         </Section>
 
-        {/* SECCIÓN — Datos fiscales, envío postal y timeline completo de eventos */}
-        <Section id="datos" title="Datos y actividad">
+        {/* SECCIÓN — Datos fiscales, envío postal y timeline, plegados por defecto */}
+        <section id="datos" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+          <details>
+            <summary className="cursor-pointer text-lg font-semibold text-slate-100">Datos y actividad</summary>
+            <div className="mt-3">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -612,7 +695,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               </ul>
             )}
           </div>
-        </Section>
+            </div>
+          </details>
+        </section>
 
         {/* SECCIÓN final — Control: cerrar/archivar/eliminar + gates */}
         <Section id="control" title="Control">
