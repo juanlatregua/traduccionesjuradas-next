@@ -2,9 +2,10 @@
 
 // components/order-workspace/ClientMessageComposer.tsx
 //
-// Compositor del mensaje al cliente DESDE la landing: el staff ve el mensaje,
-// lo edita y lo envía — por email (POST /notify-custom, adjunta traducciones +
-// factura) o abriendo WhatsApp con el texto ya escrito. Todo sin salir.
+// Compositor ÚNICO del mensaje al cliente (fusión del antiguo ClientMessagePanel
+// y el compositor de reenvío de la entrega): el staff escribe/edita el mensaje y
+// lo envía por email (POST /notify-custom — adjuntos opcionales y SMS opcional)
+// o abre WhatsApp con el texto ya escrito. Un endpoint, un historial.
 
 import { useState } from "react";
 
@@ -14,15 +15,19 @@ export default function ClientMessageComposer({
   clientPhoneDigits,
   defaultSubject,
   defaultMessage,
+  hasDeliveryFiles = false,
 }: {
   reference: string;
   clientEmail: string;
   clientPhoneDigits: string;
   defaultSubject: string;
   defaultMessage: string;
+  hasDeliveryFiles?: boolean;
 }) {
   const [subject, setSubject] = useState(defaultSubject);
   const [body, setBody] = useState(defaultMessage);
+  const [attachFiles, setAttachFiles] = useState(hasDeliveryFiles);
+  const [alsoSms, setAlsoSms] = useState(false);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -35,18 +40,25 @@ export default function ClientMessageComposer({
   const waHref = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent(body)}` : null;
 
   const sendEmail = async () => {
+    if (!body.trim()) {
+      setFeedback({ ok: false, text: "✗ Escribe un mensaje." });
+      return;
+    }
     setSending(true);
     setFeedback(null);
     try {
       const res = await fetch(`/api/orders/${encodeURIComponent(reference)}/notify-custom`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, bodyText: body, attachFiles: true }),
+        body: JSON.stringify({ subject, bodyText: body, attachFiles, alsoSms }),
       });
       const data = await res.json();
       setFeedback(
         data.ok
-          ? { ok: true, text: `✓ Email enviado al cliente${data.fileCount ? ` con ${data.fileCount} adjunto(s)` : ""}.` }
+          ? {
+              ok: true,
+              text: `✓ Enviado al cliente${data.fileCount ? ` con ${data.fileCount} adjunto(s)` : ""}${data.smsSent ? " (email + SMS)" : ""}.`,
+            }
           : { ok: false, text: `✗ ${data.error || "No se pudo enviar."}` }
       );
     } catch {
@@ -60,8 +72,11 @@ export default function ClientMessageComposer({
     "w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
 
   return (
-    <div className="mt-3 space-y-2 border-t border-emerald-500/20 pt-3">
-      <p className="text-xs font-semibold text-emerald-300">Enviar al cliente (editable)</p>
+    <div className="space-y-2">
+      <p className="text-xs text-slate-400">
+        Se envía a <strong className="text-slate-200">{clientEmail || "(sin email)"}</strong>. Escribe
+        lo que necesites: pedir información, avisar de la entrega, reenviar enlaces…
+      </p>
 
       <input
         value={subject}
@@ -73,15 +88,32 @@ export default function ClientMessageComposer({
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={6}
+        maxLength={4000}
+        placeholder="Ej.: Necesitamos el documento original escaneado con mejor calidad, ¿podrías reenviarlo?"
         className={`${inputCls} resize-y`}
       />
+
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+        <label className="flex items-center gap-2 text-xs text-slate-300">
+          <input
+            type="checkbox"
+            checked={attachFiles}
+            onChange={(e) => setAttachFiles(e.target.checked)}
+          />
+          Adjuntar traducciones + factura{hasDeliveryFiles ? "" : " (aún no hay entrega)"}
+        </label>
+        <label className="flex items-center gap-2 text-xs text-slate-300">
+          <input type="checkbox" checked={alsoSms} onChange={(e) => setAlsoSms(e.target.checked)} />
+          Enviar también por SMS (si hay teléfono)
+        </label>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={sendEmail}
           disabled={sending || isWaLead}
-          title={isWaLead ? "Cliente sin email real (lead de WhatsApp)" : "Enviar por email con las traducciones + factura adjuntas"}
+          title={isWaLead ? "Cliente sin email real (lead de WhatsApp)" : "Enviar por email (adjuntos y SMS según casillas)"}
           className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {sending ? "Enviando…" : "Enviar email"}

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STORM — ¿Afinar v2 o definir v3? · traduccionesjuradas.net</title>
+<style>
+  :root{
+    --bleu:#1f4e79; --encre:#1a2230; --sepia:#5b5446; --cream:#e7e0d2; --parchment:#f6f1e7;
+    --card:#fffdf8; --or:#b8860b; --green:#2e7d32; --amber:#b45309; --red:#b91c1c; --graphite:#6b7280;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchment);color:var(--encre);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 20px 80px}
+  header.top{border-bottom:3px solid var(--bleu);padding-bottom:18px;margin-bottom:8px}
+  h1{font-size:1.9rem;margin:.2em 0;color:var(--encre);letter-spacing:-.01em}
+  h2{font-size:1.35rem;margin:1.8em 0 .5em;color:var(--bleu);border-left:4px solid var(--bleu);padding-left:10px}
+  h3{font-size:1.05rem;margin:1.3em 0 .4em;color:var(--encre)}
+  .meta{color:var(--sepia);font-size:.9rem}
+  .topic{background:var(--card);border:1px solid var(--cream);border-left:4px solid var(--or);padding:14px 16px;border-radius:8px;margin:16px 0;font-style:italic}
+  .grid{display:grid;gap:14px}
+  @media(min-width:680px){.cols-2{grid-template-columns:1fr 1fr}.cols-3{grid-template-columns:1fr 1fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--cream);border-radius:10px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .verdict{background:linear-gradient(180deg,#eaf2fb,#fffdf8);border:1px solid #c7dcf2;border-radius:12px;padding:20px;margin:18px 0}
+  .verdict .big{font-size:1.5rem;font-weight:800;color:var(--bleu);letter-spacing:-.01em}
+  .pill{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+  .pill.keep{background:#e3f2e4;color:var(--green)}
+  .pill.adjust{background:#fdf0db;color:var(--amber)}
+  .pill.drop{background:#fbe3e3;color:var(--red)}
+  .pill.score{background:#eef2f7;color:var(--bleu)}
+  .alert{background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid var(--amber);border-radius:10px;padding:16px;margin:18px 0}
+  .alert h2{border:0;padding:0;margin:0 0 8px;color:var(--amber)}
+  .flag{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:.92rem}
+  .flag b{color:var(--red)}
+  .ok{color:var(--green);font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;margin:8px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--cream);vertical-align:top}
+  th{background:#f0ece2;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:var(--sepia)}
+  .num{font-variant-numeric:tabular-nums;font-weight:700}
+  .persp-h{font-weight:800;color:var(--bleu);margin-bottom:4px}
+  .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--graphite);font-weight:700;margin-top:8px}
+  .lean{display:inline-block;background:#eef2f7;color:var(--bleu);font-weight:700;font-size:.8rem;padding:2px 8px;border-radius:6px}
+  .conflict{border-left:3px solid var(--red);padding-left:12px;margin:12px 0}
+  .conflict .vs{font-weight:700;color:var(--red);font-size:.9rem}
+  .consensus li{margin:6px 0}
+  .corr{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:2px 6px;font-size:.82rem;color:#065f46}
+  .small{font-size:.85rem;color:var(--sepia)}
+  .stat{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0}
+  .stat .s{background:var(--card);border:1px solid var(--cream);border-radius:8px;padding:10px 14px;min-width:120px}
+  .stat .s .v{font-size:1.3rem;font-weight:800;color:var(--bleu);font-variant-numeric:tabular-nums}
+  .stat .s .k{font-size:.75rem;color:var(--sepia);text-transform:uppercase;letter-spacing:.03em}
+  .grade{font-size:2rem;font-weight:800;color:var(--bleu)}
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--cream);color:var(--graphite);font-size:.82rem}
+  code{background:#f0ece2;padding:1px 5px;border-radius:4px;font-size:.85em}
+  .placeholder{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:18px;color:var(--graphite);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="meta">Método STORM (Stanford) · grounded en datos reales · 8 agentes · 2026-06-18</div>
+  <h1>¿Afinar la v2 o definir ya la v3?</h1>
+  <div class="meta">traduccionesjuradas.net — HBTJ Consultores Lingüísticos S.L. · Traductor jurado FR MAEC nº 3850</div>
+  <div class="topic"><strong>Topic:</strong> ¿Con los datos reales de GSC y la viabilidad del producto, conviene <strong>afinar la v2</strong> (funnel/conversión/post-venta, obj. 1-sept) o ya <strong>definir una v3</strong> (compañero de trámite, hoy fuera de alcance v2)? ¿Qué decisiones SEO/producto mantener, ajustar o abandonar sin romper lo que existe?</div>
+</header>
+
+<div class="verdict">
+  <span class="pill score">Veredicto unánime (5/5 perspectivas)</span>
+  <div class="big">AFINAR LA V2 — no abrir la v3 ahora</div>
+  <p>La decisión es <em>falsable, no opinable</em>: la v3 (<q>compañero de trámite</q>) <strong>no es una fase futura por construir</strong> — ya se desplegó en miniatura como los <strong>5 lectores AEO</strong>, y están <strong>100% invisibles en GSC</strong>. La tesis de v2 (<q>el bucle pago→descarga fiable trae pedidos</q>) aún no tiene datos porque la conversión <em>no se mide</em>. Asimetría decisiva: una hipótesis ya tiene datos en contra; la otra es barata y casi está hecha.</p>
+  <p class="small"><strong>Caveat honesto:</strong> «afinar v2» debe recortarse a <strong>fiabilidad + medición + embeber el diagnóstico en los posts que ya rankean</strong>. No venderse como que mueve la métrica estrella («más pedidos») sobre 39 clics/mes en declive — eso es prematuro. La única palanca de captación con ROI probado es replicar el patrón <strong>blog de trámite por país</strong> (Marruecos, reagrupación).</p>
+</div>
+
+<div class="alert">
+  <h2>⚠️ Panel anti-alucinación (lo que el peer-review corrigió del propio análisis)</h2>
+  <p class="small">Pediste <q>no alucines y rompas producto</q>. La Fase 4 revisó la síntesis contra el código y cazó esto — <strong>aplicado ya a las conclusiones de arriba</strong>:</p>
+  <div class="flag"><b>FALSO — corregido:</b> la síntesis afirmaba que el post Marruecos <q>enlaza al diagnóstico-IA / lector AEO</q>. Verificado en <code>documentos-marroquies-guia-completa.mdx</code>: <strong>cero enlaces</strong> al lector. Lo que enlaza es <code>/presupuesto-instantaneo</code> (que es v2). → Embeber el lector AEO es una <em>acción pendiente</em>, no un hecho consumado.</div>
+  <div class="flag"><b>RIESGO-CÓDIGO — corregido:</b> los gates anti-infracobro del checkout están en <code>líneas 183 y 200</code> (no 180/198), y <strong>no son el mismo mecanismo</strong>: la 183 filtra por <em>idioma</em> no auto-tarificable (ruso/ucraniano), la 200 por <em>price_risk</em> (fiscal/multi-copia). <span class="ok">NO tocar los gates</span> — son defensas por incidentes reales (ruso 50,82€). Solo instrumentar.</div>
+  <div class="flag"><b>EXAGERACIÓN — matizada:</b> <q>Google rechazó la v3 / experimento fallido</q>. Los datos dicen <code>URL unknown to Google</code> = <strong>orfandad</strong> (nunca crawleado), no rechazo de calidad. El experimento <em>no se corrió</em>, no <em>fracasó</em> — y la causa (orfandad) es justo lo que se propone arreglar.</div>
+  <div class="flag"><b>SIN RESPALDO — degradado:</b> <q>ahí van los pedidos de más valor</q> (sobre el desvío a WhatsApp) no tiene ninguna cifra detrás. Conjetura, no hallazgo.</div>
+  <p class="small"><strong>Nota global del peer-review: <span style="color:var(--bleu);font-weight:800">B+</span></strong> — diagnóstico empírico fuerte y honesto, pero la «conexión oculta» estrella se apoyaba en un enlace inexistente. Corregido arriba.</p>
+</div>
+
+<h2>Los datos (única verdad del análisis)</h2>
+<div class="stat">
+  <div class="s"><div class="v">39</div><div class="k">clics / 28d</div></div>
+  <div class="s"><div class="v">8.085</div><div class="k">impresiones</div></div>
+  <div class="s"><div class="v">0,48%</div><div class="k">CTR</div></div>
+  <div class="s"><div class="v">35,3</div><div class="k">posición media</div></div>
+  <div class="s"><div class="v">116→39</div><div class="k">clics 90d (declive)</div></div>
+  <div class="s"><div class="v">46/119</div><div class="k">URLs sin indexar</div></div>
+</div>
+<div class="grid cols-2">
+  <div class="card">
+    <h3>Lo que SÍ funciona (motor real)</h3>
+    <ul class="small">
+      <li><strong>/blog/documentos-marroquies</strong> — 11 de 39 clics, pos 7,6</li>
+      <li><strong>/blog/reagrupacion-familiar</strong> — CTR 5,56%, pos 6,5 (el mejor)</li>
+      <li><strong>/blog/documentos-brasilenos</strong> — 3 clics, pos 8</li>
+      <li>16 de 22 posts ya llevan CTA a <code>/presupuesto-instantaneo</code></li>
+      <li>Móvil convierte <strong>4,5× mejor</strong> (CTR 1,33% vs 0,29% desktop)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Lo que NO produce nada</h3>
+    <ul class="small">
+      <li>Los <strong>10 idiomas</strong> /traductor-jurado-* → 0 clics TODOS (FR=0, PT=0)</li>
+      <li><strong>/traductor-jurado-neerlandes</strong> — 1.313 impr, 1 clic, pos 59</li>
+      <li>Los <strong>5 lectores AEO</strong> (prototipo v3) → 100% invisibles</li>
+      <li><strong>3 docs de compra</strong> (apostilla, antecedentes, matrimonio) → ni descubiertas, pese a ~43 enlaces internos</li>
+      <li><strong>43 ciudades</strong> + hub → 41% de los problemas de indexación</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Fase 1 — Las 5 perspectivas</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="persp-h">🔧 El Practicante <span class="lean">AFINAR_V2</span></div>
+    <div class="small"><strong>Posición:</strong> El cuello no es falta de features ni páginas, es ejecución de lo ya construido. v3 es justo lo que ya fracasó en miniatura (los 5 lectores AEO solo se enlazan desde el footer).</div>
+    <div class="lbl">Insight único</div>
+    <div class="small">Con 8.085 impr el sitio no tiene problema de demanda a corto, tiene problema de <strong>rendimiento de lo poco que ya rankea</strong>. La palanca: embeber el diagnóstico-IA dentro de los 3-4 posts que ya traen clics, no diluir en 50 ciudades ni 5 lectores huérfanos.</div>
+  </div>
+
+  <div class="card">
+    <div class="persp-h">🎓 El Académico <span class="lean">AFINAR_V2</span></div>
+    <div class="small"><strong>Posición:</strong> El declive 116→39 NO es penalización de calidad, es <strong>contracción de cobertura</strong>: Google reasigna crawl-budget en un dominio de baja autoridad con 119 URLs. «Más páginas únicas = más tráfico» es falso en 2026.</div>
+    <div class="lbl">Insight único</div>
+    <div class="small">El AEO-como-proyecto está empíricamente muerto antes de empezar. En 2026 se gana citación en LLMs por las guías de trámite que YA rankean, no por utilidades-app que Google ni rastrea. El «compañero de trámite» es una <strong>propiedad emergente del blog</strong>, no una app por construir.</div>
+  </div>
+
+  <div class="card">
+    <div class="persp-h">🔥 El Escéptico <span class="lean">AFINAR_V2 (recortado)</span></div>
+    <div class="small"><strong>Posición:</strong> La v2 optimiza un carril vacío y en declive. Se confunde <q>web fiable</q> (legítimo, barato, ya casi hecho) con <q>web que vende</q> (exige tráfico que no existe). El negocio real va por WhatsApp/PT.</div>
+    <div class="lbl">Insight único</div>
+    <div class="small">La promesa v2 resuelve un problema de <strong>fiabilidad</strong> (webhook roto 2,5 meses), NO de demanda. El dato grita demanda internacional-móvil-WhatsApp — justo el canal que la v2 trata como <q>escape</q> en vez de como producto.</div>
+  </div>
+
+  <div class="card">
+    <div class="persp-h">💰 El Economista <span class="lean">AFINAR_V2</span></div>
+    <div class="small"><strong>Posición:</strong> El embudo que convierte ya existe y ya está cableado al tráfico real. Definir v3 hoy es invertir las horas más escasas del dueño en un carril sin demanda probada (5 lectores = 0 clics).</div>
+    <div class="lbl">Insight único</div>
+    <div class="small">Cada URL nueva sin demanda probada es un <strong>pasivo, no un activo</strong>: diluye PageRank interno y roba atención. Las 53 URLs (43 ciudades + 10 idiomas) dan ~0 clics pero restan link-equity a las 3 docs de compra. No podar (decisión del dueño) pero <strong>CONGELAR</strong>.</div>
+  </div>
+
+  <div class="card">
+    <div class="persp-h">📜 El Historiador <span class="lean">AFINAR_V2</span></div>
+    <div class="small"><strong>Posición:</strong> En productos YMYL de un solo operador, saltar a la <q>siguiente versión</q> antes de cerrar el bucle pago→descarga de la actual es la causa nº1 de muerte por inanición de atención.</div>
+    <div class="lbl">Insight único</div>
+    <div class="small">v3 no es una fase futura: es un experimento <strong>ya ejecutado</strong> (5 lectores AEO) — aunque <span class="corr">corrección: por orfandad, no por «rechazo» de Google</span>. El que tiene un motor (Marruecos) y no termina de conectarlo a la caja no necesita un motor nuevo: necesita soldar los tubos del que ya arrancó.</div>
+  </div>
+
+</div>
+
+<h2>Fase 2 — Mapa de contradicciones</h2>
+<div class="card">
+  <div class="conflict"><div class="vs">Practicante/Economista vs Escéptico — ¿cuál es el cuello?</div><div class="small">«El problema es rendimiento de lo que ya rankea; embeber la puerta en los 4 posts = más pedidos» <strong>vs</strong> «optimizar conversión sobre 39 clics/mes en declive es pulir la rampa de un coche que nadie sube».</div></div>
+  <div class="conflict"><div class="vs">Practicante vs Académico/Escéptico — naturaleza de la no-indexación</div><div class="small">«Es orfandad, arreglable concentrando enlaces» <strong>vs</strong> «es crawl-budget/autoridad sistémica de TODO el dominio; las docs de compra ya reciben ~20 enlaces y siguen invisibles».</div></div>
+  <div class="conflict"><div class="vs">Escéptico vs los otros cuatro — el canal real</div><div class="small">«El dato grita WhatsApp/PT; la v2 lo trata como escape hardcodeado» <strong>vs</strong> «el embudo que convierte ya está cableado al tráfico real; soldar ese bucle, no replantear el canal».</div></div>
+
+  <h3>La pregunta que lo resuelve</h3>
+  <p class="small">¿Las 3 docs de compra están sin indexar por <strong>orfandad</strong> (arreglable con enlaces) o por <strong>autoridad sistémica</strong> del dominio (no arreglable con enlaces)? <em>El experimento:</em> ping de sitemap + un refuerzo de enlace desde home, y medir en 4-6 semanas. Si siguen invisibles → probado que es autoridad sistémica, y la única palanca es replicar contenido de trámite que ya rankea.</p>
+
+  <h3>Consenso unánime (probablemente cierto)</h3>
+  <ul class="consensus small">
+    <li><strong>AFINAR_V2, no abrir v3</strong> — las 5 perspectivas convergen.</li>
+    <li>El blog de trámites de país es el <strong>único motor probado</strong>; mantener y replicar.</li>
+    <li>El problema de las docs de compra es de <strong>autoridad/descubrimiento</strong>, no thin-content.</li>
+    <li>10 idiomas + 5 lectores AEO no producen clics: <strong>abandonar como inversión de tiempo</strong> (degradar AEO a subproducto, no borrar).</li>
+    <li><strong>NO podar</strong> las 43 ciudades (tienen datosUnicos reales) pero <strong>CONGELAR</strong>.</li>
+    <li>Mantener el diagnóstico-IA de la puerta y el schema Málaga; terminar fiabilidad/medición.</li>
+  </ul>
+
+  <h3>🕳️ El punto ciego (lo que ninguna perspectiva abordó)</h3>
+  <p class="small">Ninguna cuantifica la <strong>economía unitaria del canal web frente a WhatsApp/Portugués</strong>, que el propio contexto declara como <q>el negocio real</q>. Las 5 discuten cómo sacar más de 39 clics/mes web, pero nadie pregunta cuántos pedidos/€ entran HOY por WhatsApp/PT. <strong>Si el grueso del dinero entra por ahí, incluso «afinar v2» podría ser la asignación incorrecta de las horas del dueño.</strong> <span class="small">[el packet no tiene datos de ingresos por canal — queda como pregunta frontera]</span></p>
+</div>
+
+<h2>Fase 3 — Síntesis y plan (corregido por el peer-review)</h2>
+<div class="card">
+  <h3>Refinamientos de v2 (lo que sí hacer)</h3>
+  <table>
+    <tr><th>Acción</th><th>Por qué</th><th>Esfuerzo</th></tr>
+    <tr><td><strong>Medir HOY</strong> pedidos/€ por WhatsApp/PT vs funnel web (a mano un mes)</td><td>Punto ciego unánime. Sin esto, «v2 vs v3» puede ser la pregunta equivocada. <strong>Pre-requisito bloqueante.</strong></td><td>bajo</td></tr>
+    <tr><td>Cerrar la <strong>instrumentación del funnel</strong> + blindar bucle pago→WhatsApp→descarga + reconciliar presupuestos pagados pre-fix Stripe</td><td>Origen y promesa nuclear de v2 (web fiable tras webhook roto 2,5 meses). Barato, casi hecho.</td><td>medio</td></tr>
+    <tr><td><strong>Embeber</strong> el diagnóstico-IA y el lector AEO DENTRO de los 3-4 posts que rankean</td><td>Captura la captación existente y rescata el lector de la orfandad. <span class="corr">Es acción pendiente, no hecho consumado.</span></td><td>medio</td></tr>
+    <tr><td>Escribir <strong>1-2 guías de trámite de país</strong> nuevas replicando el patrón Marruecos/reagrupación</td><td>Única palanca de captación con ROI probado y única vía de construir autoridad que arrastre las docs de compra.</td><td>medio</td></tr>
+    <tr><td><strong>CONGELAR</strong> ciudades e idiomas: cero horas nuevas</td><td>53 URLs dan ~0 clics y diluyen PageRank. No podar (decisión del dueño) pero no seguir pagando con horas.</td><td>bajo</td></tr>
+    <tr><td>Ping de sitemap + 1 refuerzo home→docs de compra y <strong>medir</strong> en 4-6 semanas</td><td>Resuelve la contradicción central (orfandad vs autoridad sistémica).</td><td>bajo</td></tr>
+  </table>
+  <h3>v3 — ¿procede?</h3>
+  <p class="small"><strong>NO ahora.</strong> El prototipo (5 lectores AEO) está invisible por orfandad; escalarlo es repetir un patrón sin autoridad. <em>[especulación]</em> Si tras medir el funnel + un par de guías nuevas las páginas de trámite ganan autoridad y los lectores empiezan a indexarse al vivir DENTRO de esos posts, la v3 justificada NO sería una app aislada, sino <strong>formalizar el patrón blog-de-trámite-con-diagnóstico-embebido</strong> como plantilla repetible.</p>
+</div>
+
+<h2>Fase 4 — Peer-review (autocrítica)</h2>
+<div class="grid cols-2">
+  <div class="card">
+    <h3>Puntuaciones de confianza</h3>
+    <table>
+      <tr><th>Hallazgo</th><th>1-10</th></tr>
+      <tr><td>v3 = los 5 lectores AEO, hoy invisibles (verificado)</td><td class="num">9</td></tr>
+      <tr><td>Docs de compra: cuello de autoridad, no orfandad</td><td class="num">8</td></tr>
+      <tr><td>Blog de trámite = único motor probado</td><td class="num">9</td></tr>
+      <tr><td>Declive + idiomas a 0 clics</td><td class="num">9</td></tr>
+      <tr><td>Gates del checkout expulsan pedidos de valor</td><td class="num">6</td></tr>
+      <tr><td>«hiddenConnection»: el blog YA es la v3</td><td class="num" style="color:var(--red)">4</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Sesgo · ausencias · nota</h3>
+    <div class="lbl">Sesgo dominante</div>
+    <div class="small">Dominaron el Escéptico y el Académico/Historiador (statu-quo + autoridad). El framing AFINAR_V2 venía pre-decidido por el brief y se racionaliza a posteriori.</div>
+    <div class="lbl">Perspectiva ausente (6ª)</div>
+    <div class="small"><strong>El cliente real que paga por WhatsApp/PT.</strong> Para él ni funnel ni lector ni blog importan — importa la velocidad de respuesta humana. Reordenaría todo: la pregunta sería <q>¿invertir 0 horas web hasta industrializar WhatsApp (plantillas, cobro por link, OCR de la foto)?</q></div>
+    <div class="lbl">Nota global</div>
+    <div class="grade">B+</div>
+  </div>
+</div>
+
+<h2>El próximo paso obligado (lo que dice el peer-review)</h2>
+<div class="verdict">
+  <p>La <strong>pregunta frontera</strong> debe pasar de nota al pie a <strong>pre-requisito bloqueante</strong>:</p>
+  <p class="big" style="font-size:1.2rem">¿Cuánto factura HOY WhatsApp/Portugués vs el funnel web (pedidos y € reales, no clics)?</p>
+  <p class="small">Hoy las 5 perspectivas optimizan el carril que el propio análisis declara secundario. Si el dinero entra por WhatsApp, 4 de las 6 acciones son horas mal asignadas. <strong>Medir esto primero</strong> decide si la web merece siquiera las horas de «afinar v2».</p>
+</div>
+
+<h2 id="backlog">Backlog — otros topics a atacar</h2>
+<p class="small">Segundo workflow: 8 scouts read-only minaron memoria + docs + código → 28 candidatos → rankeador adversarial que <strong>verificó contra el código</strong> (mató los candidatos ya resueltos — incluido el fix de hoy <code>0aacf6f</code>) y priorizó por impacto × urgencia × datos.</p>
+
+<div class="verdict">
+  <span class="pill score">Convergencia de los dos workflows</span>
+  <p>El <strong>topic nº1 del backlog</strong> es exactamente el <strong>punto ciego</strong> que destapó la STORM v2/v3: <em>¿qué carril optimiza el producto — el funnel de pago web (~0% del negocio) o las conversaciones WhatsApp/PT que sí facturan?</em> Dos análisis independientes aterrizan en la misma pregunta madre. Eso sube su fiabilidad.</p>
+</div>
+
+<h3>Top 5 priorizado</h3>
+<table>
+  <tr><th>#</th><th>Topic (decisión abierta)</th><th>Score</th><th>Urgencia</th></tr>
+  <tr><td class="num">1</td><td><strong>Métrica-estrella de v2 / qué carril:</strong> ¿funnel web (~0% del negocio) o WhatsApp/PT que factura? <span class="small">El brief literalmente la deja en «Decidir» (v2-brief:179). Decisión madre que reordena todo.</span></td><td class="num">88</td><td>alta</td></tr>
+  <tr><td class="num">2</td><td><strong>Reordenar roadmap v2:</strong> ¿priorizar fiabilidad de pagos + idioma PT/FR sobre el pulido del funnel, o ejecutar el alcance literal (idioma en sept)? <span class="small">A 74 días, solo el reordenado es realista; el código (PR #122) ya divergió del plan.</span></td><td class="num">82</td><td>alta</td></tr>
+  <tr><td class="num">3</td><td><strong>Cerrar el P0 de fiabilidad:</strong> reconciliación periódica Redsys/PayPal + dead-man's-switch. ¿Cuánta fiabilidad comprar vs aceptar deuda? <span class="small">La alarma en caliente ya existe; falta la red estructural (el cron solo lista Stripe).</span></td><td class="num">80</td><td>alta</td></tr>
+  <tr><td class="num">4</td><td><strong>Carril de captación en Portugués:</strong> ¿landing PT/Brasil + UI + pricing antes o después del 1-sept, o dejar el inbound PT cerrando solo por WhatsApp? <span class="small">La auditoría dice que ahí está «la palanca de más pedidos».</span></td><td class="num">71</td><td>media</td></tr>
+  <tr><td class="num">5</td><td><strong>Auto-precio vs cotización-broadcast:</strong> el margen tiered (en prod) auto-precia no-FR, pero el plan dice retirarlo a favor de cotización multi-colaborador. Contradicción viva en producción.</td><td class="num">64</td><td>media</td></tr>
+</table>
+
+<div class="card">
+  <h3>🔑 La clave del rankeador: 1, 2 y 4 son UNA sola STORM encadenada</h3>
+  <p class="small">No son tres análisis separados, son <strong>la misma decisión a tres alturas</strong>: métrica (qué medir) → roadmap (qué priorizar) → carril PT (dónde captar). Si solo hay presupuesto para un STORM, hacer el <strong>nº1 con el 2 y el 4 como ramas dentro de él</strong>. Y deberían <strong>esperar a digerir esta STORM v2/v3</strong> antes de lanzarse.</p>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <h3>⚙️ Hacer, pero NO son STORM (ejecución de Juan)</h3>
+    <div class="flag" style="background:#fff7ed;border-color:#fed7aa"><b style="color:var(--amber)">⏰ Con fecha:</b> reconciliar en Stripe los <strong>presupuestos pagados antes del fix PR #145</strong> — riesgo fiscal en el <strong>modelo 303 Q2 antes del 20-jul</strong>. Es runbook, no debate.</div>
+    <div class="flag" style="background:#f0fdf4;border-color:#bbf7d0"><b style="color:var(--green)">Quick-win:</b> rellenar el <strong>Google Business Profile de Málaga</strong> — 2h, alto ROI local, sin trade-off real.</div>
+  </div>
+  <div class="card">
+    <h3>🗑️ Descartados (verificados como ya resueltos)</h3>
+    <ul class="small">
+      <li><strong>Desbloquear los 3 posts FR</strong> → ya hecho hoy (commit <code>0aacf6f</code>, el rankeador lo encontró).</li>
+      <li><strong>WhatsApp Business dedicado vs SMS</strong> → ya decidido; bloqueo es tarea manual en Twilio/Meta, no pregunta abierta.</li>
+      <li><strong>uge-ce integrar vs separar</strong> → decidido (PR #75, separado).</li>
+      <li><strong>Márgenes variables por presupuesto</strong> → ya en prod (PR #116/#117).</li>
+      <li><strong>Gate anti-infracobro / margen tiered</strong> → sin datos hasta medir el carril real (dependen del nº1).</li>
+    </ul>
+  </div>
+</div>
+
+<p class="small"><strong>Nota honesta del rankeador:</strong> quien priorizara solo desde la auditoría del 11-jun sobreestima la deuda — varios P0/quick-wins ya se ejecutaron en PR #122 (clientLocale es/fr/en/de/pt, robots AEO, try/catch en el cron, alarma de cobro-sin-pedido en caliente). El P0 de fiabilidad está <em>a medias</em>, no abierto.</p>
+
+<footer>
+  Generado por workflow STORM (5 perspectivas independientes → mapa de contradicciones → síntesis → peer-review anti-alucinación), anclado a datos reales de Google Search Console (28d, corte 2026-06-16), inspect-all de indexación (2026-06-18, 119 URLs) y al Brief v2 aprobado. Correcciones del peer-review aplicadas a las conclusiones. · traduccionesjuradas.net · 2026-06-18
+</footer>
+
+</div>
+</body>
+</html>
