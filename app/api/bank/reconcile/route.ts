@@ -44,7 +44,9 @@ export async function POST(req: Request) {
       select: { reference: true, amountCents: true, paidAt: true, createdAt: true, clientName: true, paymentStatus: true },
       take: 5000,
     }),
-    prisma.expense.findMany({ select: { id: true, totalCents: true, date: true, supplier: true, concept: true, paidAt: true }, take: 5000 }),
+    // Los devengos de colaborador (isAccrual) no se concilian con el banco:
+    // lo que se paga es la factura real del traductor.
+    prisma.expense.findMany({ where: { isAccrual: false }, select: { id: true, totalCents: true, date: true, supplier: true, concept: true, paidAt: true }, take: 5000 }),
     prisma.bankDecision.findMany({ select: { lineHash: true, status: true, matchedType: true, matchedId: true, note: true } }),
   ]);
 

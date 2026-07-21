@@ -96,6 +96,7 @@ export default function ContabilidadClient({
   sinFacturaSlot,
   bancoSlot,
   importSlot,
+  proveedoresSlot,
 }: {
   invoices: AcInvoice[];
   orders: AcOrder[];
@@ -105,6 +106,7 @@ export default function ContabilidadClient({
   sinFacturaSlot?: ReactNode;
   bancoSlot?: ReactNode;
   importSlot?: ReactNode;
+  proveedoresSlot?: ReactNode;
 }) {
   const router = useRouter();
   // needsReview=true = gasto recurrente pendiente de confirmar → fuera de TODOS los
@@ -906,6 +908,7 @@ export default function ContabilidadClient({
 
       {/* PROVEEDORES */}
       <CollapsibleSection id="proveedores" title="Proveedores" subtitle={`Coste de traducciones de colaboradores · base ${eur(provBase)}`}>
+        {proveedoresSlot}
         <ExpenseTable rows={provRows} empty="Sin gastos de proveedores en este periodo." />
       </CollapsibleSection>
 

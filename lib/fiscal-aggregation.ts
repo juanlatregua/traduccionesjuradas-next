@@ -21,13 +21,14 @@ export type FiscalExpense = {
   taxTreatment: string;
   needsReview: boolean;
   irpfCents: number;
+  isAccrual?: boolean; // devengo de colaborador sin factura: fuera de 303/111
 };
 
 export function aggregateFiscal(
   invoices: FiscalInvoice[],
   expenses: FiscalExpense[]
 ): { d303: Draft303; d111: Draft111 } {
-  const rows = expenses.filter((e) => !e.needsReview);
+  const rows = expenses.filter((e) => !e.needsReview && !e.isAccrual);
 
   const byRate = new Map<number, { baseCents: number; cuotaCents: number }>();
   for (const i of invoices) {

@@ -52,10 +52,11 @@ async function fetchInvoices(period: FiscalPeriod) {
 }
 
 // Gastos del periodo SIN filtrar por needsReview: la exclusión fiscal vive en
-// aggregateFiscal; el CSV y los justificantes filtran aquí.
+// aggregateFiscal; el CSV y los justificantes filtran aquí. Los devengos de
+// colaborador (isAccrual) quedan fuera: no son facturas recibidas.
 async function fetchExpenses(period: FiscalPeriod) {
   return prisma.expense.findMany({
-    where: { date: { gte: period.gte, lt: period.lt } },
+    where: { date: { gte: period.gte, lt: period.lt }, isAccrual: false },
     orderBy: { date: "asc" },
   });
 }

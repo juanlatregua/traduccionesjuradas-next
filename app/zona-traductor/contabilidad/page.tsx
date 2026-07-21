@@ -11,6 +11,7 @@ import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 import ReconcilePanel from "@/components/ReconcilePanel";
 import ExcludedOrdersPanel from "@/components/ExcludedOrdersPanel";
 import BankReconcilePanel from "@/components/BankReconcilePanel";
+import CollaboratorAccountPanel, { type CollaboratorAccountGroup } from "@/components/CollaboratorAccountPanel";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Contabilidad general",
@@ -22,18 +23,58 @@ export default async function ZonaTraductorContabilidadPage() {
   const role = getStaffRole(staffEmail);
   const canIssue = role === "ADMIN" || role === "PM";
 
-  const [rawInvoices, rawOrders, rawExpenses, unbilled, rawTaxCloses] = await Promise.all([
+  const [rawInvoices, rawOrders, rawExpenses, unbilled, rawTaxCloses, rawAccruals] = await Promise.all([
     prisma.clientInvoice.findMany({ where: { status: "ISSUED", docKind: "invoice" }, orderBy: { issuedAt: "desc" }, take: 3000, include: { order: { select: { reference: true } } } }),
     prisma.order.findMany({
       where: { paymentStatus: "PAID" },
       select: { reference: true, paidAt: true, createdAt: true, amountCents: true, paymentStatus: true, events: { select: { type: true, payload: true, createdAt: true } } },
       take: 3000,
     }),
-    prisma.expense.findMany({ orderBy: { date: "desc" }, take: 3000 }),
+    // Los devengos de colaborador (isAccrual) no son facturas recibidas: van a la
+    // cuenta por traductor, no al libro.
+    prisma.expense.findMany({ where: { isAccrual: false }, orderBy: { date: "desc" }, take: 3000 }),
     listPaidUnbilledOrders(),
     prisma.taxPeriodClose.findMany({ select: { period: true, closedAt: true } }),
+    prisma.expense.findMany({
+      where: { isAccrual: true, settledById: null },
+      orderBy: { date: "asc" },
+      select: {
+        id: true,
+        date: true,
+        supplier: true,
+        concept: true,
+        baseCents: true,
+        orderReference: true,
+        collaborator: { select: { id: true, fullName: true, companyName: true, supplierType: true, nif: true } },
+      },
+      take: 500,
+    }),
   ]);
   const taxCloses = rawTaxCloses.map((c) => ({ period: c.period, closedAt: c.closedAt.toISOString() }));
+
+  // Cuenta por traductor: devengos sin liquidar agrupados por colaborador.
+  const accrualGroups = new Map<string, CollaboratorAccountGroup>();
+  for (const a of rawAccruals) {
+    const key = a.collaborator?.id ?? `sin-ficha:${a.supplier ?? "?"}`;
+    let g = accrualGroups.get(key);
+    if (!g) {
+      g = {
+        collaboratorId: a.collaborator?.id ?? null,
+        name: a.collaborator ? a.collaborator.companyName || a.collaborator.fullName : a.supplier || "Sin colaborador",
+        supplierType: a.collaborator?.supplierType ?? "AUTONOMO",
+        nif: a.collaborator?.nif ?? null,
+        charges: [],
+      };
+      accrualGroups.set(key, g);
+    }
+    g.charges.push({
+      id: a.id,
+      date: a.date.toISOString(),
+      orderReference: a.orderReference,
+      concept: a.concept,
+      baseCents: a.baseCents,
+    });
+  }
   const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
   const excludedFromBilling = await listExcludedFromBilling();
 
@@ -128,6 +169,7 @@ export default async function ZonaTraductorContabilidadPage() {
           }
           bancoSlot={<BankReconcilePanel canIssue={canIssue} />}
           importSlot={<ImportInvoicesPanel />}
+          proveedoresSlot={<CollaboratorAccountPanel groups={[...accrualGroups.values()]} canIssue={canIssue} />}
         />
       </div>
     </div>

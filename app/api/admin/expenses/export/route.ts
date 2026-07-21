@@ -15,7 +15,8 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   // needsReview=true = gasto recurrente pendiente de confirmar → fuera de la gestoría.
-  const where: Prisma.ExpenseWhereInput = { needsReview: false };
+  // isAccrual=true = devengo de colaborador sin factura → no es factura recibida.
+  const where: Prisma.ExpenseWhereInput = { needsReview: false, isAccrual: false };
   const period = parseFiscalPeriod(url);
   const tag = period ? `-${period.tag}` : "";
   if (period) where.date = { gte: period.gte, lt: period.lt };
