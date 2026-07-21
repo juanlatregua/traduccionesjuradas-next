@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 // Pedidos cobrados sin factura emitida → emitir en lote. La fuente de ingresos
 // del libro son las facturas emitidas, así que esto cierra el hueco.
@@ -32,6 +33,7 @@ function eur(c: number) {
 const EXCLUDE_REASONS = ["Pago no confirmado en banco", "Pedido de prueba", "Reembolsado", "Duplicado"];
 
 export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { rows: Row[]; totalAmountCents: number; canIssue: boolean }) {
+  const router = useRouter();
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [dateMode, setDateMode] = useState<"paid" | "today">("paid");
   // Por defecto Simplificada si TODOS son ventas a particular sin NIF y ≤400€ (el
@@ -85,6 +87,9 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
       setResult({ issued: data.issued || [], failed: data.failed || [] });
       setMsg(`Emitidas ${data.issuedCount}. Fallidas ${data.failedCount}.`);
       setSel(new Set());
+      // Refrescar la lista del servidor: las emitidas desaparecen de la tabla
+      // (el estado local msg/result sobrevive al refresh).
+      router.refresh();
     } catch (e: any) {
       setMsg(e?.message || "Error al emitir el lote.");
     } finally {
