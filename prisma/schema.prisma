@@ -265,12 +265,26 @@ model Expense {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @default(now()) @updatedAt
 
+  // Cuenta corriente por colaborador: el gasto auto-creado al adjudicar un encargo
+  // es un DEVENGO interno (isAccrual) — pendiente de la factura real del traductor,
+  // fuera de libro/303/gestoría/banco. Al registrar la factura del mes, los devengos
+  // se sellan con settledById (la factura recibida que los absorbe).
+  collaboratorId String?
+  collaborator   Collaborator? @relation(fields: [collaboratorId], references: [id], onDelete: SetNull)
+  orderReference String? // pedido que originó el devengo
+  isAccrual      Boolean       @default(false)
+  settledById    String?
+  settledBy      Expense?      @relation("ExpenseSettlement", fields: [settledById], references: [id], onDelete: SetNull)
+  settles        Expense[]     @relation("ExpenseSettlement")
+
   // Sin @@unique(supplierNif, supplierInvoiceNumber): en PG los NULL no colisionan
   // (los SaaS sin NIF quedarían fuera) y bloquearía el "guardar de todas formas"
   // legítimo (una factura partida en 2 apuntes). La guarda es assertNotDuplicate.
   @@index([date])
   @@index([supplierNif, supplierInvoiceNumber])
   @@index([supplierNif])
+  @@index([isAccrual, settledById])
+  @@index([collaboratorId])
 }
 
 // Plantilla de gasto recurrente (espejo de RecurringInvoice): el cron genera un
@@ -786,6 +800,7 @@ model Collaborator {
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
   assignments  CollaboratorAssignment[]
+  expenses     Expense[]
 
   @@index([active])
 }

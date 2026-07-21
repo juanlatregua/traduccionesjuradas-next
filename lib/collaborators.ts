@@ -298,13 +298,17 @@ export async function applyAcceptedQuoteSideEffects(
     },
   });
 
-  // GASTO del traductor en contabilidad (Bloque B): el coste del colaborador
-  // entra en el libro de gastos (resultado/303/111). Idempotente por el marcador
-  // enc:<assignmentId>. IVA/IRPF a 0 por defecto (el coste se cotiza sin IVA y no
-  // conocemos el régimen del proveedor): Juan los completa desde la factura real.
+  // DEVENGO del traductor (cuenta corriente por colaborador): el coste entra
+  // como apunte interno pendiente de factura (isAccrual) — fuera de libro/303/
+  // gestoría hasta que se registre la factura real del colaborador (mensual o
+  // puntual) desde Contabilidad → Proveedores. Idempotente por enc:<assignmentId>.
   const expenseMarker = `enc:${assignmentId}`;
   const existingExpense = await db.expense.findFirst({ where: { supplierInvoiceNumber: expenseMarker }, select: { id: true } });
   if (!existingExpense && supplierCostCents > 0) {
+    const assignmentCtx = await db.collaboratorAssignment.findUnique({
+      where: { id: assignmentId },
+      select: { collaboratorId: true, order: { select: { reference: true } } },
+    });
     await db.expense.create({
       data: {
         date: new Date(),
@@ -322,7 +326,10 @@ export async function applyAcceptedQuoteSideEffects(
         totalCents: supplierCostCents,
         payableCents: supplierCostCents,
         paymentStatus: "PENDING",
-        notes: "Auto-generado al adjudicar. Revisa IVA/IRPF con la factura del traductor.",
+        isAccrual: true,
+        collaboratorId: assignmentCtx?.collaboratorId ?? null,
+        orderReference: assignmentCtx?.order.reference ?? null,
+        notes: "Devengo auto-generado al adjudicar. Se liquida al registrar la factura del colaborador.",
       },
     });
   }
