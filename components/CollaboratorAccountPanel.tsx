@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 // Cuenta corriente por colaborador: devengos por encargo pendientes de la
 // factura real del traductor. Al registrarla se liquidan y el gasto entra en
@@ -32,7 +33,7 @@ function fmtDate(iso: string) {
 
 const FIELD = "rounded-md border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500";
 
-function GroupCard({ group, canIssue }: { group: CollaboratorAccountGroup; canIssue: boolean }) {
+function GroupCard({ group, canIssue, onDone }: { group: CollaboratorAccountGroup; canIssue: boolean; onDone: (msg: string) => void }) {
   const [sel, setSel] = useState<Set<string>>(() => new Set(group.charges.map((c) => c.id)));
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -91,7 +92,7 @@ function GroupCard({ group, canIssue }: { group: CollaboratorAccountGroup; canIs
         }
         throw new Error(d.error || "No se pudo registrar la factura.");
       }
-      window.location.reload();
+      onDone(`Factura ${form.number.trim()} de ${group.name} registrada: ${d.settledCount} devengo(s) liquidado(s).`);
     } catch (e: any) {
       setDuplicate(false);
       setMsg(e?.message || "Error al registrar la factura.");
@@ -214,11 +215,21 @@ function GroupCard({ group, canIssue }: { group: CollaboratorAccountGroup; canIs
 }
 
 export default function CollaboratorAccountPanel({ groups, canIssue }: { groups: CollaboratorAccountGroup[]; canIssue: boolean }) {
+  const router = useRouter();
+  const [okMsg, setOkMsg] = useState<string | null>(null);
   const totalCents = useMemo(() => groups.reduce((a, g) => a + g.charges.reduce((b, c) => b + c.baseCents, 0), 0), [groups]);
+
+  // El refresh del servidor quita los devengos liquidados; el mensaje vive aquí
+  // (no en la tarjeta) porque el grupo puede desaparecer entero al liquidarse.
+  function handleDone(msg: string) {
+    setOkMsg(msg);
+    router.refresh();
+  }
 
   if (groups.length === 0) {
     return (
       <div className="mb-4 rounded-xl border border-slate-700 bg-slate-900/30 p-3 text-xs text-slate-500">
+        {okMsg && <p className="mb-1 text-emerald-300">{okMsg}</p>}
         Cuenta por traductor: sin encargos pendientes de factura. Los encargos adjudicados se acumulan aquí hasta que el
         colaborador envía su factura (mensual o puntual).
       </div>
@@ -237,9 +248,10 @@ export default function CollaboratorAccountPanel({ groups, canIssue }: { groups:
         Cada encargo adjudicado acumula aquí su coste. Estos devengos NO cuentan en libro/303/gestoría: cuentan cuando
         registras la factura real del colaborador (una al mes o puntual), que los liquida y entra como factura recibida.
       </p>
+      {okMsg && <p className="mt-2 text-xs text-emerald-300">{okMsg}</p>}
       <div className="mt-3 space-y-3">
         {groups.map((g) => (
-          <GroupCard key={g.collaboratorId ?? g.name} group={g} canIssue={canIssue} />
+          <GroupCard key={g.collaboratorId ?? g.name} group={g} canIssue={canIssue} onDone={handleDone} />
         ))}
       </div>
     </div>

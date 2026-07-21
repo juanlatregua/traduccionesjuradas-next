@@ -152,7 +152,31 @@ export async function updateExpense(id: string, input: ExpenseInput, opts?: { fo
 
 export async function deleteExpense(id: string) {
   await assertNotSettledAccrual(id);
-  return prisma.expense.delete({ where: { id } });
+  // Si el gasto es una factura de colaborador que absorbía devengos, estos se
+  // liberan (onDelete: SetNull) y el ciclo del pedido vuelve a pendiente: sin
+  // esto quedaría BOOKED huérfano apuntando a una factura que ya no existe.
+  const settles = await prisma.expense.findMany({
+    where: { settledById: id },
+    select: { orderReference: true },
+  });
+  const refs = [...new Set(settles.map((s) => s.orderReference).filter(Boolean))] as string[];
+  if (refs.length === 0) return prisma.expense.delete({ where: { id } });
+
+  const orders = await prisma.order.findMany({ where: { reference: { in: refs } }, select: { id: true } });
+  return prisma.$transaction(async (tx) => {
+    const deleted = await tx.expense.delete({ where: { id } });
+    for (const o of orders) {
+      await tx.orderEvent.create({
+        data: {
+          orderId: o.id,
+          type: "finance.supplier_invoice.updated",
+          message: "Factura del colaborador borrada: el encargo vuelve a pendiente de factura (devengo liberado).",
+          payload: { status: "PENDING_REQUEST", deletedExpenseId: id },
+        },
+      });
+    }
+    return deleted;
+  });
 }
 
 // ——— Cuenta corriente por colaborador ———
@@ -206,6 +230,12 @@ export async function registerCollaboratorInvoice(input: CollaboratorInvoiceInpu
   }
 
   const sumCents = accruals.reduce((a, e) => a + e.baseCents, 0);
+  // baseCents explícita: entero positivo o nada. Sin esto, un NaN/negativo se
+  // coaccionaría a 0 aguas abajo y sellaría devengos reales contra una factura
+  // de 0 € (hallazgo de la revisión de seguridad).
+  if (input.baseCents != null && (!Number.isInteger(input.baseCents) || input.baseCents <= 0)) {
+    throw new Error("Base de la factura inválida: debe ser un importe positivo en céntimos.");
+  }
   const baseCents = input.baseCents ?? sumCents;
   if (baseCents !== sumCents && !input.acceptMismatch) {
     throw new AccrualMismatchError(sumCents, baseCents);

@@ -59,7 +59,7 @@ for (const line of lines.slice(1)) {
 const [invoices, orders, expenses, decisions] = await Promise.all([
   prisma.clientInvoice.findMany({ where: { status: "ISSUED" }, select: { id: true, number: true, totalCents: true, issuedAt: true, createdAt: true, fiscalName: true, nif: true, paidAt: true }, take: 5000 }),
   prisma.order.findMany({ where: { paymentStatus: { in: ["PAID", "REFUNDED"] } }, select: { reference: true, amountCents: true, paidAt: true, createdAt: true, clientName: true, paymentStatus: true }, take: 5000 }),
-  prisma.expense.findMany({ select: { id: true, totalCents: true, date: true, supplier: true, concept: true, paidAt: true }, take: 5000 }),
+  prisma.expense.findMany({ where: { isAccrual: false }, select: { id: true, totalCents: true, date: true, supplier: true, concept: true, paidAt: true }, take: 5000 }),
   prisma.bankDecision.findMany({ select: { lineHash: true, status: true, matchedType: true, matchedId: true, note: true } }),
 ]);
 

@@ -309,6 +309,9 @@ export async function applyAcceptedQuoteSideEffects(
       where: { id: assignmentId },
       select: { collaboratorId: true, order: { select: { reference: true } } },
     });
+    // Sin colaborador resoluble no hay cuenta donde liquidar el devengo: se crea
+    // como gasto normal (comportamiento anterior) para no perder el coste del libro.
+    const accrual = !!assignmentCtx?.collaboratorId;
     await db.expense.create({
       data: {
         date: new Date(),
@@ -326,10 +329,12 @@ export async function applyAcceptedQuoteSideEffects(
         totalCents: supplierCostCents,
         payableCents: supplierCostCents,
         paymentStatus: "PENDING",
-        isAccrual: true,
+        isAccrual: accrual,
         collaboratorId: assignmentCtx?.collaboratorId ?? null,
         orderReference: assignmentCtx?.order.reference ?? null,
-        notes: "Devengo auto-generado al adjudicar. Se liquida al registrar la factura del colaborador.",
+        notes: accrual
+          ? "Devengo auto-generado al adjudicar. Se liquida al registrar la factura del colaborador."
+          : "Auto-generado al adjudicar (sin ficha de colaborador). Revisa IVA/IRPF con la factura real.",
       },
     });
   }

@@ -62,7 +62,8 @@ export default async function ZonaTraductorContabilidadPage() {
         collaboratorId: a.collaborator?.id ?? null,
         name: a.collaborator ? a.collaborator.companyName || a.collaborator.fullName : a.supplier || "Sin colaborador",
         supplierType: a.collaborator?.supplierType ?? "AUTONOMO",
-        nif: a.collaborator?.nif ?? null,
+        // El NIF solo viaja al cliente para quien puede registrar la factura.
+        nif: canIssue ? a.collaborator?.nif ?? null : null,
         charges: [],
       };
       accrualGroups.set(key, g);

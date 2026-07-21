@@ -10,10 +10,16 @@ ALTER TABLE "Expense" ADD COLUMN IF NOT EXISTS "orderReference" TEXT;
 ALTER TABLE "Expense" ADD COLUMN IF NOT EXISTS "isAccrual" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "Expense" ADD COLUMN IF NOT EXISTS "settledById" TEXT;
 
-ALTER TABLE "Expense" ADD CONSTRAINT "Expense_collaboratorId_fkey"
-  FOREIGN KEY ("collaboratorId") REFERENCES "Collaborator"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Expense" ADD CONSTRAINT "Expense_settledById_fkey"
-  FOREIGN KEY ("settledById") REFERENCES "Expense"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- ADD CONSTRAINT no admite IF NOT EXISTS: se envuelve para que la migración
+-- sea re-ejecutable sobre un entorno ya actualizado por db push.
+DO $$ BEGIN
+  ALTER TABLE "Expense" ADD CONSTRAINT "Expense_collaboratorId_fkey"
+    FOREIGN KEY ("collaboratorId") REFERENCES "Collaborator"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Expense" ADD CONSTRAINT "Expense_settledById_fkey"
+    FOREIGN KEY ("settledById") REFERENCES "Expense"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS "Expense_isAccrual_settledById_idx" ON "Expense"("isAccrual", "settledById");
 CREATE INDEX IF NOT EXISTS "Expense_collaboratorId_idx" ON "Expense"("collaboratorId");

@@ -123,6 +123,26 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
+    // Carril único de contabilización: si el pedido tiene un devengo abierto en
+    // la cuenta del colaborador, el BOOKED manual dejaría el libro cojo (no crea
+    // el gasto ni sella el devengo). Se registra desde Contabilidad → Proveedores.
+    if (status === "BOOKED") {
+      const openAccrual = await prisma.expense.findFirst({
+        where: { isAccrual: true, settledById: null, orderReference: order.reference },
+        select: { id: true },
+      });
+      if (openAccrual) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "Este pedido tiene un devengo abierto en la cuenta del colaborador: registra su factura desde Contabilidad → Proveedores (sección Cuenta por traductor), que contabiliza y liquida a la vez.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const billingMode = safeBillingMode(body.billingMode || prevPayload?.billingMode);
     const supplierType = safeSupplierType(body.supplierType || prevPayload?.supplierType);
     if (status !== "PENDING_REQUEST" && supplierType === "UNKNOWN") {

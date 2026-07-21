@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 async function findDuplicateOf(data: ExtractedExpense) {
   if (!data.supplierInvoiceNumber) return null;
   return prisma.expense.findFirst({
-    where: { supplierInvoiceNumber: data.supplierInvoiceNumber },
+    where: { supplierInvoiceNumber: data.supplierInvoiceNumber, isAccrual: false },
     select: { id: true, date: true, totalCents: true, supplier: true, concept: true },
   });
 }
