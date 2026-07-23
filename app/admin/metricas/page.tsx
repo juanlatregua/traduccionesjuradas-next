@@ -166,7 +166,7 @@ export default async function AdminMetricasPage() {
             </div>
           </div>
           <a
-            href="https://search.google.com/local/reviews?placeid=ChIJ"
+            href="https://www.google.com/maps?cid=1858671208989418611"
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 inline-block text-sm font-semibold text-bleu hover:underline"
