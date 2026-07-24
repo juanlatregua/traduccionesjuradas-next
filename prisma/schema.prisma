@@ -85,6 +85,15 @@ enum QuoteAccessEventType {
   OPENED
 }
 
+// Motivo por el que un presupuesto enviado no se convirtió (lo da el cliente).
+enum QuoteLostReason {
+  PRICE
+  DEADLINE
+  NO_LONGER_NEEDED
+  SOLVED_ELSEWHERE
+  OTHER
+}
+
 enum SessionStep {
   START
   UPLOAD
@@ -495,6 +504,16 @@ model Quote {
   marginPct      Int?              // margen % aplicado sobre el coste del traductor (solo interno)
   paymentMethods String[]          // métodos de pago a mostrar en el PDF: bbva/openbank/bizum/paypal
   contactWhatsapp String?          // WhatsApp/teléfono a mostrar en este presupuesto (override)
+  // Presupuesto perdido: motivo dado por el cliente (1 clic desde el email de
+  // expirado, confirmado con POST en /q/[token]) + post-mortem determinista
+  // calculado al expirar (cron reminders); el digest los lee, no los recalcula.
+  lostReason     QuoteLostReason?
+  lostReasonNote String?
+  lostFeedbackAt DateTime?
+  postMortemJson Json?
+  // Instante real del marcado EXPIRED (cron reminders o flip de la página pública).
+  // validUntil NO sirve como ventana del digest: el cron corre horas después.
+  expiredAt      DateTime?
   deletedAt      DateTime?         // papelera: presupuesto no formalizado movido a "Eliminados"
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt

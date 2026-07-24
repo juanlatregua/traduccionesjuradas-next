@@ -12,6 +12,7 @@ import {
   type QuoteStatus,
 } from "@/lib/quotes";
 import QuotePublicPayButton from "@/components/QuotePublicPayButton";
+import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
   searchParams: {
     paid?: string;
     canceled?: string;
+    fb?: string;
   };
 };
 
@@ -100,16 +102,17 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       const qs = new URLSearchParams();
       if (searchParams?.paid) qs.set("paid", String(searchParams.paid));
       if (searchParams?.canceled) qs.set("canceled", String(searchParams.canceled));
+      if (searchParams?.fb) qs.set("fb", String(searchParams.fb));
       const suffix = qs.toString() ? `?${qs.toString()}` : "";
       redirect(`https://www.traduccionesjuradas.net/q/${encodeURIComponent(params.token)}${suffix}`);
     }
     notFound();
   }
 
-  if (quote.tokenExpiresAt && quote.tokenExpiresAt < new Date()) {
+  if (quote.tokenExpiresAt && quote.tokenExpiresAt < new Date() && quote.status !== "EXPIRED") {
     await prisma.quote.update({
       where: { id: quote.id },
-      data: { status: "EXPIRED" },
+      data: { status: "EXPIRED", expiredAt: new Date() },
     });
   }
 
@@ -129,6 +132,8 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       targetLang: true,
       deliveryType: true,
       holderNames: true,
+      lostReason: true,
+      paidAt: true,
       pdfUrl: true,
       subtotal: true,
       discountAmount: true,
@@ -260,6 +265,18 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
             />
           </aside>
         </div>
+
+        {/* Solo en EXPIRED (o llegando desde el email con ?fb): en un presupuesto
+            vigente el "¿por qué no siguió?" competiría con el botón de pagar. */}
+        {!refreshed.paidAt && (status === "EXPIRED" || (searchParams?.fb && ["SENT", "OPENED", "ACCEPTED"].includes(status))) && (
+          <section className="mt-6 rounded-2xl border border-cream p-4">
+            <QuoteFeedbackForm
+              token={params.token}
+              preselect={searchParams?.fb || null}
+              alreadySent={refreshed.lostReason != null}
+            />
+          </section>
+        )}
 
         <section className="mt-6 rounded-2xl border border-cream p-4">
           <h2 className="text-base font-semibold text-encre">PDF del presupuesto</h2>

@@ -8,6 +8,7 @@ import {
 } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { buildQuotePostMortem } from "@/lib/quote-post-mortem";
 
 export const runtime = "nodejs";
 
@@ -178,9 +179,25 @@ export async function GET(req: Request) {
       where: { id: quote.id },
       data: {
         status: "EXPIRED",
+        expiredAt: now,
       },
     });
     expiredUpdated += 1;
+
+    // Post-mortem determinista (una sola vez, en el instante de expirar): el
+    // digest diario lo lee de Quote.postMortemJson. Best-effort: un fallo aquí
+    // no debe impedir marcar EXPIRED ni enviar el aviso.
+    try {
+      const postMortem = await buildQuotePostMortem(quote.id);
+      if (postMortem) {
+        await prisma.quote.update({
+          where: { id: quote.id },
+          data: { postMortemJson: postMortem },
+        });
+      }
+    } catch (err) {
+      console.error("[quotes:reminders] post-mortem failed", quote.quoteNumber, err);
+    }
 
     const wasDelivered = quote.messageLogs.length > 0 && !isPlaceholderEmail(quote.customerEmail);
     if (!wasDelivered) continue;

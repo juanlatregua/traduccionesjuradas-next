@@ -4,7 +4,7 @@ import { sendMail } from "@/lib/azure-mail";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -13,7 +13,7 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function sanitizeUrl(url: string): string {
+export function sanitizeUrl(url: string): string {
   const trimmed = url.trim();
   if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) return trimmed;
   return "#";

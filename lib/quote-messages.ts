@@ -136,9 +136,18 @@ Quedo a su disposición. – Juan Silva`;
 
 export function buildExpiredEmail(data: { name: string; quoteNumber: string; payUrl: string }) {
   const subject = "Presupuesto expirado";
+  // Los enlaces de motivo aterrizan en la página pública con el motivo preseleccionado;
+  // el registro real exige confirmar con un botón (POST) — los escáneres de email
+  // pre-abren enlaces y un GET que escribiera en BD llenaría esto de motivos falsos.
   const body = `Estimado/a ${data.name},
 El presupuesto ${data.quoteNumber} ha expirado.
 Si desea retomarlo, responda a este correo o use este enlace para solicitar actualización: ${data.payUrl}
+Si decidió no seguir adelante, nos ayudaría mucho conocer el motivo (solo un clic):
+· El precio: ${data.payUrl}?fb=PRICE
+· El plazo: ${data.payUrl}?fb=DEADLINE
+· Ya no lo necesito: ${data.payUrl}?fb=NO_LONGER_NEEDED
+· Lo resolví con otro traductor: ${data.payUrl}?fb=SOLVED_ELSEWHERE
+· Otro motivo: ${data.payUrl}?fb=OTHER
 Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
   return { subject, body };
 }

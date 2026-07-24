@@ -5,6 +5,7 @@
 // algo de la automatización se rompió.
 
 import { prisma } from "@/lib/prisma";
+import { escapeHtml, sanitizeUrl } from "@/lib/collaborator-emails";
 
 export const FUNNEL_STAGES = [
   { key: "analizado", label: "Documento analizado" },
@@ -37,12 +38,33 @@ export type StaffDigest = {
   paidOrders: { reference: string; amountEur: number; langPair: string | null; clientEmail: string | null; source: string | null }[];
   topLanguages: { lang: string; count: number }[];
   failedEmails: { error: string; attempt: number; at: string }[];
+  lostQuotes: LostQuoteEntry[];
+};
+
+export type LostQuoteEntry = {
+  id: string;
+  quoteNumber: string;
+  totalEur: number;
+  langPair: string;
+  customerEmail: string;
+  reason: string | null; // etiqueta ES del motivo dado por el cliente
+  reasonNote: string | null;
+  findings: string[]; // hallazgos del post-mortem determinista
+  docs: { fileName: string; fileUrl: string }[];
+};
+
+const LOST_REASON_LABELS: Record<string, string> = {
+  PRICE: "el precio",
+  DEADLINE: "el plazo",
+  NO_LONGER_NEEDED: "ya no lo necesita",
+  SOLVED_ELSEWHERE: "lo resolvió con otro traductor",
+  OTHER: "otro motivo",
 };
 
 export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
-  const [day, week, paid, recentAnalyses, failed] = await Promise.all([
+  const [day, week, paid, recentAnalyses, failed, lost] = await Promise.all([
     funnelForWindow(windowHours / 24),
     funnelForWindow(7),
     prisma.order.findMany({
@@ -59,6 +81,32 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
       orderBy: { createdAt: "desc" },
       take: 20,
       select: { error: true, attempt: true, createdAt: true },
+    }),
+    // Presupuestos perdidos: marcados EXPIRED en la ventana (expiredAt = instante
+    // real del marcado, cron o página pública) o con motivo del cliente en la
+    // ventana. sentAt filtra los DRAFT que jamás llegaron al cliente.
+    prisma.quote.findMany({
+      where: {
+        status: "EXPIRED",
+        paidAt: null,
+        deletedAt: null,
+        sentAt: { not: null },
+        OR: [{ expiredAt: { gte: since } }, { lostFeedbackAt: { gte: since } }],
+        orders: { none: { paymentStatus: "PAID" } },
+      },
+      orderBy: { expiredAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        quoteNumber: true,
+        total: true,
+        sourceLang: true,
+        targetLang: true,
+        customerEmail: true,
+        lostReason: true,
+        lostReasonNote: true,
+        postMortemJson: true,
+      },
     }),
   ]);
 
@@ -85,6 +133,23 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
     })),
     topLanguages,
     failedEmails: failed.map((f) => ({ error: f.error.slice(0, 200), attempt: f.attempt, at: f.createdAt.toISOString() })),
+    lostQuotes: lost.map((q) => {
+      const pm = (q.postMortemJson || null) as {
+        findings?: { detail: string }[];
+        docs?: { fileName: string; fileUrl: string }[];
+      } | null;
+      return {
+        id: q.id,
+        quoteNumber: q.quoteNumber,
+        totalEur: Number(q.total),
+        langPair: `${q.sourceLang}→${q.targetLang}`,
+        customerEmail: q.customerEmail,
+        reason: q.lostReason ? LOST_REASON_LABELS[q.lostReason] || q.lostReason : null,
+        reasonNote: q.lostReasonNote,
+        findings: (pm?.findings || []).map((f) => f.detail),
+        docs: pm?.docs || [],
+      };
+    }),
   };
 }
 
@@ -108,6 +173,23 @@ export function buildDigestHtml(d: StaffDigest): string {
     ? d.topLanguages.map((l) => `${l.lang}: ${l.count}`).join(" · ")
     : "—";
 
+  const lostHtml = d.lostQuotes.length
+    ? `<div style="margin:10px 0; padding:10px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px;">
+        <p style="margin:0 0 6px; font-weight:600; color:#92400e;">📉 ${d.lostQuotes.length} presupuesto(s) perdido(s)</p>
+        <ul style="margin:0; padding-left:18px; font-size:13px; color:#78350f;">${d.lostQuotes
+          .map((q) => {
+            const bits: string[] = [
+              `<a href="https://www.traduccionesjuradas.net/admin/quotes/${encodeURIComponent(q.id)}" style="font-weight:600; color:#92400e;">${escapeHtml(q.quoteNumber)}</a> · ${q.totalEur.toFixed(2)} € · ${escapeHtml(q.langPair)} · ${escapeHtml(q.customerEmail)}`,
+            ];
+            if (q.reason) bits.push(`Motivo del cliente: <strong>${escapeHtml(q.reason)}</strong>${q.reasonNote ? ` — «${escapeHtml(q.reasonNote)}»` : ""}`);
+            if (q.findings.length) bits.push(`⚠ ${escapeHtml(q.findings.join(" · "))}`);
+            if (q.docs.length) bits.push(q.docs.map((doc) => `<a href="${sanitizeUrl(doc.fileUrl)}">${escapeHtml(doc.fileName)}</a>`).join(" · "));
+            return `<li style="margin-bottom:6px;">${bits.join("<br/>")}</li>`;
+          })
+          .join("")}</ul>
+      </div>`
+    : "";
+
   const failHtml = d.failedEmails.length
     ? `<div style="margin:10px 0; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;">
         <p style="margin:0 0 6px; font-weight:600; color:#991b1b;">⚠ ${d.failedEmails.length} email(s) fallaron en 24 h</p>
@@ -123,6 +205,8 @@ export function buildDigestHtml(d: StaffDigest): string {
     ${paidHtml}
 
     ${failHtml}
+
+    ${lostHtml}
 
     <h3 style="margin:16px 0 4px;">Embudo — últimas ${d.windowHours} h</h3>
     <table style="border-collapse:collapse; font-size:14px;"><tbody>${stageRows(d.day)}</tbody></table>
