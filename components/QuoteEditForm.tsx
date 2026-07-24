@@ -7,6 +7,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
+
+const PAYMENT_METHOD_OPTIONS = [
+  { id: "bbva", label: "BBVA" },
+  { id: "openbank", label: "Openbank" },
+  { id: "bizum607", label: "Bizum 607356273" },
+  { id: "bizum654", label: "Bizum 654069126" },
+  { id: "paypal", label: "PayPal" },
+];
 
 type Line = {
   description: string;
@@ -33,6 +42,9 @@ type Quote = {
   validityDays?: number;
   notesLegal?: string | null;
   holderNames?: string | null;
+  marginPct?: number | null;
+  paymentMethods?: string[];
+  contactWhatsapp?: string | null;
   lines: Line[];
 };
 
@@ -64,6 +76,9 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
   const [validityDays, setValidityDays] = useState(quote.validityDays ?? 15);
   const [notesLegal, setNotesLegal] = useState(quote.notesLegal || "");
   const [holderNames, setHolderNames] = useState(quote.holderNames || "");
+  const [deliveryType, setDeliveryType] = useState(quote.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF");
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(quote.paymentMethods || []);
+  const [contactWhatsapp, setContactWhatsapp] = useState(quote.contactWhatsapp || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,10 +91,15 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
         ? Number(discountValue) || 0
         : 0;
   const base = Math.max(0, subtotal - discount);
-  const total = base + base * vatRate;
+  const shipping = deliveryType === "PAPER_SHIP" ? PAPER_SHIPPING_BASE_EUR : 0;
+  const total = base + shipping + (base + shipping) * vatRate;
 
   function setLine(i: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
+
+  function togglePaymentMethod(id: string) {
+    setPaymentMethods((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
   }
 
   async function save() {
@@ -97,13 +117,16 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
           customerPhone: customerPhone.trim() || undefined,
           sourceLang,
           targetLang,
-          deliveryType: quote.deliveryType || "DIGITAL",
+          deliveryType,
           discountType,
           discountValue: Number(discountValue) || 0,
           vatRate,
           validityDays: Number(validityDays) || 15,
           notesLegal: notesLegal.trim() || null,
           holderNames: holderNames.trim() || null,
+          marginPct: quote.marginPct ?? undefined,
+          paymentMethods,
+          contactWhatsapp: contactWhatsapp.trim() || null,
           lines: lines.map((l) => ({
             description: l.description.trim() || "Línea",
             quantity: Number(l.quantity) || 1,
@@ -162,6 +185,34 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Pago y entrega</h2>
+        <div className="mt-2">
+          <label className={label}>Formas de pago en el presupuesto</label>
+          <div className="mt-1 flex flex-wrap gap-4 text-sm text-slate-700">
+            {PAYMENT_METHOD_OPTIONS.map((m) => (
+              <label key={m.id} className="flex items-center gap-1.5">
+                <input type="checkbox" checked={paymentMethods.includes(m.id)} onChange={() => togglePaymentMethod(m.id)} />
+                {m.label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className={label}>Tipo de entrega</label>
+            <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value)} className={input}>
+              <option value="DIGITAL_PDF">Digital (PDF firmado)</option>
+              <option value="PAPER_SHIP">Papel + envío (+{PAPER_SHIPPING_BASE_EUR} €)</option>
+            </select>
+          </div>
+          <div>
+            <label className={label}>WhatsApp del presupuesto (opcional)</label>
+            <input value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="por defecto 951 333 614" className={input} />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Descuento · validez · notas</h2>
         <div className="mt-2 grid gap-3 sm:grid-cols-3">
           <div>
@@ -181,7 +232,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5">
         <div className="text-sm text-slate-600">
-          Subtotal {eur(subtotal)}{discount > 0 ? ` · −${eur(discount)}` : ""} · IVA {Math.round(vatRate * 100)}% ·{" "}
+          Subtotal {eur(subtotal)}{discount > 0 ? ` · −${eur(discount)}` : ""}{shipping > 0 ? ` · envío ${eur(shipping)}` : ""} · IVA {Math.round(vatRate * 100)}% ·{" "}
           <strong className="text-slate-900">Total {eur(total)}</strong>
           <span className="ml-2 text-xs text-slate-400">(el total definitivo lo recalcula el servidor)</span>
         </div>
