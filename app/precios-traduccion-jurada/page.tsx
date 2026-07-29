@@ -153,8 +153,14 @@ export default function PreciosTraduccionJuradaPage() {
             Documentos jurídicos y mercantiles
           </h2>
           <p className="mt-2">
-            Sentencias, autos, poderes notariales, escrituras, estatutos de
-            sociedades, cuentas anuales, actas y otro documento mercantil.
+            Sentencias, autos, poderes notariales, escrituras,{" "}
+            <Link
+              href="/traduccion-jurada-de-estatutos-sociales"
+              className="font-medium text-bleu hover:underline"
+            >
+              traducción jurada de estatutos sociales
+            </Link>
+            , cuentas anuales, actas y otro documento mercantil.
           </p>
           <ul className="mt-2 list-disc pl-5 space-y-1 text-xs">
             <li>

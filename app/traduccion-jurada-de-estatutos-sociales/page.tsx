@@ -7,9 +7,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Traducci\u00F3n Jurada de Estatutos Sociales \u00B7 Registro Mercantil y Notar\u00EDa \u00B7 MAEC",
+    "Traducci\u00F3n Jurada de Estatutos Sociales: desde 80 \u20AC \u00B7 MAEC",
   description:
-    "Traducci\u00F3n jurada de estatutos sociales para el Registro Mercantil, constituci\u00F3n de sucursales y tr\u00E1mites notariales. Traductor jurado oficial acreditado por el MAEC. Presupuesto cerrado al instante, entrega en 2-5 d\u00EDas.",
+    "Traducci\u00F3n jurada de estatutos sociales desde 80 \u20AC para el Registro Mercantil, constituci\u00F3n de sucursales y tr\u00E1mites notariales. Traductor jurado oficial acreditado por el MAEC. Presupuesto cerrado al instante, entrega en 2-5 d\u00EDas.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traduccion-jurada-de-estatutos-sociales",
@@ -73,12 +73,17 @@ export default function TraduccionJuradaEstatutosSocialesPage() {
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducci\u00F3n jurada de estatutos sociales
         </h1>
+        {/* Respuesta-arriba citable (AEO): precio y plazo en la primera frase. */}
+        <p className="mt-3 text-base font-medium text-encre">
+          La traducci\u00F3n jurada de estatutos sociales cuesta desde 80 \u20AC
+          (estatutos breves) y se entrega en 2-5 d\u00EDas laborables, firmada por
+          traductor jurado oficial MAEC n\u00BA 3850.
+        </p>
         <p className="mt-3 text-sm text-sepia sm:text-base">
           Los estatutos sociales de una empresa extranjera necesitan{" "}
           <strong>traducci\u00F3n jurada</strong> para ser v\u00E1lidos ante el Registro Mercantil,
           notar\u00EDas y tribunales espa\u00F1oles. Realizamos la traducci\u00F3n jurada de
-          estatutos de cualquier pa\u00EDs, firmada por traductor jurado oficial MAEC
-          n\u00BA 3850.
+          estatutos de cualquier pa\u00EDs.
         </p>
       </header>
 

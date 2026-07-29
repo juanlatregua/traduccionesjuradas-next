@@ -131,7 +131,15 @@ export default function PaginaIdioma({
             Presupuesto instantáneo de {idioma}
           </h2>
           <p className="mt-1 text-sm text-sepia">
-            Sube tu documento y recibe precio cerrado al instante.
+            Sube tu documento y recibe precio cerrado al instante. Sin agencia
+            de por medio: mira cómo conseguimos{" "}
+            <Link
+              href="/traducciones-juradas-baratas"
+              className="font-medium text-bleu hover:underline"
+            >
+              traducciones juradas baratas
+            </Link>{" "}
+            sin renunciar a la validez legal.
           </p>
           <div className="mt-4">
             <PuertaClient purpose={null} />

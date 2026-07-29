@@ -81,6 +81,7 @@ export default function SiteFooter() {
               <Link href="/traduccion-jurada-frances-malaga" className="hover:text-or transition-colors">Traductor jurado de francés en Málaga</Link>
               <Link href="/traductor-jurado" className="hover:text-or transition-colors">Traductor jurado por ciudades</Link>
               <Link href="/traduccion-jurada-online" className="hover:text-or transition-colors">Traducción jurada online</Link>
+              <Link href="/traducciones-juradas-baratas" className="hover:text-or transition-colors">Traducciones juradas baratas</Link>
               <Link href="/traduccion-jurada-permiso-de-conducir" className="hover:text-or transition-colors">Traducción jurada del permiso de conducir</Link>
               <Link href="/que-traducciones-necesito" className="hover:text-or transition-colors">¿Qué traducciones necesito?</Link>
               <Link href="/regularizacion-2026" className="font-semibold text-or hover:text-cream transition-colors">Regularización 2026 · 25 €/doc</Link>

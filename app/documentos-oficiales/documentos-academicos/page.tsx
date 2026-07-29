@@ -91,7 +91,11 @@ export default function DocumentosAcademicosPage() {
         y otras, para oposiciones, universidades, homologaciones y trámites administrativos en España y en el extranjero.
         </p>   
         <p className="mt-2 text-xs text-sepia">
-          Si tu documentación académica está en francés, puedes ampliar
+          Si vas a homologar tu título extranjero, empieza por la guía de{" "}
+          <a href="/blog/homologacion-titulo-universitario" className="font-semibold text-bleu hover:underline">
+            traducción jurada del título universitario para la homologación
+          </a>
+          . Si tu documentación académica está en francés, puedes ampliar
           información en la guía de{" "}
           <a href="/traductor-jurado-frances" className="font-semibold text-bleu hover:underline">
             traducción jurada en francés
