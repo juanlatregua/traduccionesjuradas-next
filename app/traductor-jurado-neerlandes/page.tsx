@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Neerlandés · Traducción Oficial Holandés↔Español · MAEC",
   description:
-    "Traductor jurado de neerlandés (holandés) acreditado MAEC. Traducción jurada neerlandés-español y español-neerlandés: geboorteakte, strafblad, diploma's, contracten. Válida en España, Países Bajos y Bélgica. Precio cerrado al instante. Desde 35€.",
+    "Traductor jurado de neerlandés (holandés) acreditado MAEC. Traducción jurada neerlandés-español y español-neerlandés: geboorteakte, strafblad, diploma's, contracten. Válida en España, Países Bajos y Bélgica. Precio cerrado al instante. Desde 50 €.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-neerlandes",
   },
@@ -69,6 +69,12 @@ export default function TraductorJuradoNeerlandesPage() {
           descripcion:
             "Uittreksel Kamer van Koophandel, statuten, jaarrekeningen y otros documentos de empresa para operar, invertir o abrir delegaciones en España.",
           enlace: "/documentos-oficiales/documentos-mercantiles",
+        },
+        {
+          titulo: "Guía: documentos de Países Bajos y Bélgica",
+          descripcion:
+            "Apostilla en el rechtbank o vía LegalWeb, el VOG en papel, el Reglamento UE 2016/1191 y los precios de cada documento, explicados paso a paso.",
+          enlace: "/blog/documentos-neerlandeses-espana",
         },
       ]}
     />
