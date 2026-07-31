@@ -124,6 +124,11 @@ export async function POST(req: Request) {
         confidence: a.document_type.confidence,
         basePrice: quote ? quote.basePrice : null,
         totalPrice: quote ? quote.totalPrice : null,
+        // El precio viene del SUELO del par (las palabras dan menos): el
+        // builder lo señala para que el staff lo vea antes de enviar
+        // (expedientes con varios certificados cortos suman un mínimo por doc).
+        minimumApplied: quote ? quote.breakdown.minimumApplied : false,
+        minimumAmount: quote ? quote.breakdown.minimumAmount : null,
         manualPriceReason: priceable ? null : manualPriceReason(a.language.source, foreign),
         warnings: a.warnings || [],
       };

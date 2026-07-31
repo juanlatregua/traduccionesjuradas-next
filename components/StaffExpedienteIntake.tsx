@@ -52,6 +52,8 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     // idioma destino del expediente) hasta que el staff lo edite a mano.
     autoPriced: true,
     priceNote: d.manualPriceReason || undefined,
+    minApplied: !!d.minimumApplied,
+    minAmount: d.minimumAmount ?? undefined,
     blobUrl: d.fileUrl || undefined,
     pageStart: d.pageStart,
     pageEnd: d.pageEnd,
@@ -87,6 +89,10 @@ type DocRow = {
   // Motivo por el que la línea NO lleva precio automático (falta destino,
   // traducción cruzada, idioma sin tarifa) → "analizar a mano".
   priceNote?: string;
+  // El precio viene del SUELO del par (las palabras dan menos): visible para
+  // decidir conscientemente en expedientes con varios certificados cortos.
+  minApplied?: boolean;
+  minAmount?: number;
   // trazabilidad al PDF origen (para ver/descargar cada documento)
   blobUrl?: string;
   pageStart?: number;
@@ -491,18 +497,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           return d.unitPrice === 0 && d.priceNote === note ? d : { ...d, unitPrice: 0, priceNote: note };
         }
         if (!d.documentType || !d.words) return d; // sin métricas no se recalcula
-        const base =
-          Math.round(
-            computeBase({
-              specificType: d.documentType,
-              foreignLang: foreign,
-              words: d.words,
-              pages: d.pages || 1,
-              complexity: d.complexity,
-              countryCode: d.countryCode,
-              hasApostille: d.hasApostille,
-            }).basePrice * 100
-          ) / 100;
+        const r = computeBase({
+          specificType: d.documentType,
+          foreignLang: foreign,
+          words: d.words,
+          pages: d.pages || 1,
+          complexity: d.complexity,
+          countryCode: d.countryCode,
+          hasApostille: d.hasApostille,
+        });
+        const base = Math.round(r.basePrice * 100) / 100;
+        const minApplied = !r.fixedPriceApplied && r.wordPrice < r.minimum;
         // Las filas es→X siguen el destino del expediente: refresca también su
         // dirección para que la descripción cara al cliente cuadre con el precio.
         const tgtPatch =
@@ -510,8 +515,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             ? { targetLang, targetName: langNameOf(targetLang) || undefined }
             : {};
         const unchanged =
-          d.unitPrice === base && !d.priceNote && (!("targetLang" in tgtPatch) || d.targetLang === targetLang);
-        return unchanged ? d : { ...d, ...tgtPatch, unitPrice: base, priceNote: undefined };
+          d.unitPrice === base &&
+          !d.priceNote &&
+          d.minApplied === minApplied &&
+          (!("targetLang" in tgtPatch) || d.targetLang === targetLang);
+        return unchanged
+          ? d
+          : { ...d, ...tgtPatch, unitPrice: base, priceNote: undefined, minApplied, minAmount: r.minimum };
       })
     );
   }, [targetLang]);
@@ -858,6 +868,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                             <span className="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
                           )
                         )}
+                        {!d.priceNote && d.autoPriced !== false && d.minApplied && (
+                          <span className="ml-1 rounded bg-sky-500/15 px-1 text-[10px] text-sky-300" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — en expedientes con varios certificados cortos cada doc suma su mínimo: bájalo a mano si lo ves justo`}>mínimo aplicado</span>
+                        )}
                       </span>
                     )}
                     {d.status === "split" && (
@@ -877,6 +890,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                             knownLangCode(d.targetLang) && d.targetLang !== "es" && (
                               <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio">revisa precio</span>
                             )
+                          )}
+                          {!d.priceNote && d.autoPriced !== false && d.minApplied && (
+                            <span className="rounded bg-sky-500/15 px-1 text-[10px] text-sky-300" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — bájalo a mano si lo ves justo`}>mínimo aplicado</span>
                           )}
                         </div>
                       </div>
