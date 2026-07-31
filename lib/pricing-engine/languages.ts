@@ -31,6 +31,37 @@ export function isAutoPriceable(lang: string | null | undefined): boolean {
   return c === "es" || AUTO_PRICEABLE_FOREIGN.has(c);
 }
 
+// Lado extranjero del par SOLO si forma un par tarificable es↔X (fuente única
+// para diagnosis, checkout y el builder de staff — presupuesto 2026-00045):
+// - Original ES: exige destino conocido y distinto de ES. Sin destino NO hay
+//   tarifa (antes caía al propio "es" y tarificaba en silencio con DEFAULT_RATE).
+// - Original extranjero: destino ES o sin determinar → se asume hacia ES; a un
+//   TERCER idioma (traducción cruzada, p. ej. fr→en) no se auto-tarifica.
+// null = sin par válido → análisis/presupuesto a mano.
+export function resolvePriceablePair(
+  source: string | null | undefined,
+  target: string | null | undefined
+): string | null {
+  const s = (source || "").trim().toLowerCase();
+  const t = (target || "").trim().toLowerCase();
+  const known = (c: string) => !!c && c !== "unknown";
+  if (!known(s)) return null;
+  if (s === "es") return known(t) && t !== "es" ? t : null;
+  if (known(t) && t !== "es") return null;
+  return s;
+}
+
+// Motivo (texto staff) por el que un documento NO lleva precio automático.
+// Fuente única: lo devuelve el endpoint de análisis de staff y lo muestra el
+// builder — si divergieran, el server y el badge dirían cosas distintas.
+export function manualPriceReason(
+  source: string | null | undefined,
+  foreign: string | null
+): string {
+  if ((source || "").trim().toLowerCase() === "es") return "Falta el idioma de destino";
+  return foreign ? "Idioma sin tarifa automática" : "Par sin español (traducción cruzada)";
+}
+
 export const LANGUAGE_NAMES: Record<string, string> = {
   fr: "Francés",
   en: "Inglés",

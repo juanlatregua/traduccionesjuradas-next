@@ -8,7 +8,7 @@
 
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
-import { isAutoPriceable } from "@/lib/pricing-engine/languages";
+import { isAutoPriceable, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { clientPriceFromCost, round2, DEFAULT_VAT_RATE } from "@/lib/quote-math";
 import type { Locale } from "@/lib/i18n/locales";
 
@@ -88,16 +88,12 @@ function deliveryLabel(hours: number, lang: DiagnosisLang): string {
 }
 
 // ── Idioma extranjero del par ───────────────────────────────────────
-// Mismo criterio que pricing-engine/calculator.ts: el lado no-español.
-// Devuelve null cuando el original está en español y el destino aún no
-// se ha determinado (la puerta lo pregunta antes del diagnóstico).
+// Delegado en resolvePriceablePair (fuente única): null cuando el original es
+// español sin destino determinado O cuando el par no incluye español
+// (traducción cruzada) — en ambos casos el flujo va a presupuesto manual.
 
 export function resolveForeignLang(language: DocumentAnalysisResult["language"]): string | null {
-  if (language.source && language.source !== "es") return language.source;
-  if (language.target && language.target !== "es" && language.target !== "unknown") {
-    return language.target;
-  }
-  return null;
+  return resolvePriceablePair(language.source, language.target);
 }
 
 // ── ¿Necesita jurada? ───────────────────────────────────────────────

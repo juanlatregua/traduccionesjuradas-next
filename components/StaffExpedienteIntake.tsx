@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors } from "lucide-react";
 import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
+import { computeBase } from "@/lib/pricing-engine/calculator";
+import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -34,14 +36,22 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     status: isSplit ? "split" : "done",
     include: true,
     documentTypeEs: d.documentTypeEs,
+    documentType: d.documentType,
     sourceLang: d.sourceLang,
     sourceName: d.sourceName,
     targetLang: d.targetLang,
     targetName: d.targetName,
     words: d.words,
     pages: d.pages,
+    complexity: d.complexity,
+    countryCode: d.countryCode ?? undefined,
+    hasApostille: d.hasApostille ?? undefined,
     mode,
     unitPrice: Number(d.basePrice) || 0,
+    // El precio de esta fila lo gestiona el engine (se re-calcula al cambiar el
+    // idioma destino del expediente) hasta que el staff lo edite a mano.
+    autoPriced: true,
+    priceNote: d.manualPriceReason || undefined,
     blobUrl: d.fileUrl || undefined,
     pageStart: d.pageStart,
     pageEnd: d.pageEnd,
@@ -58,15 +68,25 @@ type DocRow = {
   include: boolean;
   // datos extraídos
   documentTypeEs?: string;
+  documentType?: string; // specific_type del engine (para re-pricear)
   sourceLang?: string;
   sourceName?: string;
   targetLang?: string;
   targetName?: string;
   words?: number;
   pages?: number;
+  complexity?: string;
+  countryCode?: string;
+  hasApostille?: boolean;
   mode?: "text" | "vision";
   unitPrice: number; // editable, pre-IVA (coste TOTAL de la linea)
   wordRate?: number; // €/palabra de esta linea (modo "palabra"); unitPrice = words × wordRate
+  // true = precio gestionado por el engine (se re-calcula al cambiar el idioma
+  // destino del expediente); editarlo a mano lo desactiva.
+  autoPriced?: boolean;
+  // Motivo por el que la línea NO lleva precio automático (falta destino,
+  // traducción cruzada, idioma sin tarifa) → "analizar a mano".
+  priceNote?: string;
   // trazabilidad al PDF origen (para ver/descargar cada documento)
   blobUrl?: string;
   pageStart?: number;
@@ -102,6 +122,21 @@ const LANGS: { code: string; name: string }[] = [
 
 const CONCURRENCY = 3;
 const ACCEPTED = ".pdf,.jpg,.jpeg,.png,.heic,.tiff,.tif,.webp";
+
+// Solo códigos de idioma reales del selector: el análisis puede devolver
+// "unknown" y NUNCA debe entrar en el estado ni en textos cara al cliente.
+function knownLangCode(v?: string): string {
+  return v && LANGS.some((l) => l.code === v) ? v : "";
+}
+
+function langNameOf(code?: string): string {
+  return LANGS.find((l) => l.code === code)?.name || "";
+}
+
+// Nombre de idioma apto para el cliente: descarta "Unknown"/"Desconocido".
+function knownLangName(v?: string): string {
+  return v && !/^(unknown|desconocid)/i.test(v.trim()) ? v.trim() : "";
+}
 
 function suggestVolumeDiscountPct(count: number): number {
   if (count >= 10) return 15;
@@ -298,8 +333,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         });
         // Sugerir dirección global desde el primer documento analizado.
         const first = list[0] || {};
-        setSourceLang((cur) => cur || first.sourceLang || "");
-        setTargetLang((cur) => cur || first.targetLang || "");
+        setSourceLang((cur) => cur || knownLangCode(first.sourceLang));
+        setTargetLang((cur) => cur || knownLangCode(first.targetLang));
       } catch (err: any) {
         patch(row.localId, { status: "error", error: "Error de conexión." });
       }
@@ -374,8 +409,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           return [...prev.slice(0, idx), ...built, ...prev.slice(idx + 1)];
         });
         const first = list[0] || {};
-        setSourceLang((cur) => cur || first.sourceLang || "");
-        setTargetLang((cur) => cur || first.targetLang || "");
+        setSourceLang((cur) => cur || knownLangCode(first.sourceLang));
+        setTargetLang((cur) => cur || knownLangCode(first.targetLang));
       } catch {
         patch(d.documentId, { status: "error", error: "Error de conexión." });
       }
@@ -434,11 +469,52 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     setDocs((prev) =>
       prev.map((d) =>
         isPriceable(d.status) && d.words && d.words > 0
-          ? { ...d, wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100 }
+          ? { ...d, wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, autoPriced: false, priceNote: undefined }
           : d
       )
     );
   }, [wordRate]);
+
+  // Re-precio al cambiar el idioma destino del expediente: las filas cuyo
+  // precio gestiona el engine (autoPriced) se recalculan con computeBase —
+  // misma fórmula que el análisis del servidor. Sin par válido (original ES
+  // sin destino, cruzada, idioma sin tarifa) la fila queda SIN precio y con
+  // nota "a mano". Las editadas a mano no se tocan.
+  useEffect(() => {
+    setDocs((prev) =>
+      prev.map((d) => {
+        if (!d.autoPriced || !isPriceable(d.status) || d.status === "manual" || !d.sourceLang) return d;
+        // Destino efectivo: el del expediente; "" = Auto (al español).
+        const foreign = resolvePriceablePair(d.sourceLang, targetLang || "es");
+        if (!foreign || !isAutoPriceable(foreign)) {
+          const note = manualPriceReason(d.sourceLang, foreign);
+          return d.unitPrice === 0 && d.priceNote === note ? d : { ...d, unitPrice: 0, priceNote: note };
+        }
+        if (!d.documentType || !d.words) return d; // sin métricas no se recalcula
+        const base =
+          Math.round(
+            computeBase({
+              specificType: d.documentType,
+              foreignLang: foreign,
+              words: d.words,
+              pages: d.pages || 1,
+              complexity: d.complexity,
+              countryCode: d.countryCode,
+              hasApostille: d.hasApostille,
+            }).basePrice * 100
+          ) / 100;
+        // Las filas es→X siguen el destino del expediente: refresca también su
+        // dirección para que la descripción cara al cliente cuadre con el precio.
+        const tgtPatch =
+          d.sourceLang === "es" && targetLang
+            ? { targetLang, targetName: langNameOf(targetLang) || undefined }
+            : {};
+        const unchanged =
+          d.unitPrice === base && !d.priceNote && (!("targetLang" in tgtPatch) || d.targetLang === targetLang);
+        return unchanged ? d : { ...d, ...tgtPatch, unitPrice: base, priceNote: undefined };
+      })
+    );
+  }, [targetLang]);
 
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
@@ -500,8 +576,16 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     try {
       const lines = includedDocs.map((d) => {
         const baseName = d.documentTypeEs || d.fileName.trim() || "Línea";
-        const dirSrc = d.sourceName || d.sourceLang || sourceLang;
-        const dirTgt = d.targetName || d.targetLang || targetLang;
+        // Dirección cara al cliente: NUNCA "Desconocido"/"Unknown" (presupuesto
+        // 2026-00045) — si el análisis no supo el destino, manda el del
+        // presupuesto; sin dato fiable, se omite la dirección.
+        const dirSrc = knownLangName(d.sourceName) || langNameOf(knownLangCode(d.sourceLang)) || langNameOf(sourceLang);
+        const dirTgt =
+          knownLangName(d.targetName) ||
+          langNameOf(knownLangCode(d.targetLang)) ||
+          langNameOf(targetLang) ||
+          // Original extranjero sin destino explícito → hacia el español.
+          (knownLangCode(d.sourceLang) && d.sourceLang !== "es" ? "Español" : "");
         const parts: string[] = [];
         if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
         if (d.words) parts.push(`${d.words} palabras`);
@@ -607,6 +691,12 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
         </select>
         <span className="text-xs text-slate-500">Elígelo antes de subir si traduces a un tercer idioma (p. ej. todo a inglés). El precio final lo confirmas tú.</span>
+        {docs.some((d) => d.priceNote) && (
+          <span className="flex w-full items-center gap-1 text-xs text-amber-300">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            Hay líneas sin precio automático (falta destino o par sin español): elige aquí el idioma de destino para recalcular, o pon el precio a mano.
+          </span>
+        )}
       </div>
 
       {/* P2: elegir si el conteo IA se lanza al soltar (tiene coste) o se pone a mano */}
@@ -759,8 +849,14 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                         {d.mode === "text" && (
                           <span className="ml-1 rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Analizado por texto (barato)">texto</span>
                         )}
-                        {d.targetLang && d.targetLang !== "es" && (
-                          <span className="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
+                        {d.priceNote ? (
+                          <span className="ml-1 flex items-center gap-0.5 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>
+                            <AlertTriangle className="h-3 w-3" /> a mano: {d.priceNote}
+                          </span>
+                        ) : (
+                          knownLangCode(d.targetLang) && d.targetLang !== "es" && (
+                            <span className="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
+                          )
                         )}
                       </span>
                     )}
@@ -775,8 +871,12 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                         />
                         <div className="flex flex-wrap items-center gap-1">
                           <span className="rounded bg-cyan-500/15 px-1 text-[10px] text-cyan-300" title="Documento detectado dentro de un PDF con varios — revisa y ajusta">auto · varios</span>
-                          {d.targetLang && d.targetLang !== "es" && (
-                            <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio">revisa precio</span>
+                          {d.priceNote ? (
+                            <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>a mano: {d.priceNote}</span>
+                          ) : (
+                            knownLangCode(d.targetLang) && d.targetLang !== "es" && (
+                              <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio">revisa precio</span>
+                            )
                           )}
                         </div>
                       </div>
@@ -784,7 +884,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-300">
                     {d.status === "done" ? (
-                      `${(d.sourceLang || sourceLang || "?").toUpperCase()}→${(d.targetLang || targetLang || "?").toUpperCase()}`
+                      `${(knownLangCode(d.sourceLang) || sourceLang || "?").toUpperCase()}→${(knownLangCode(d.targetLang) || targetLang || "?").toUpperCase()}`
                     ) : d.status === "error" || d.status === "manual" || d.status === "split" ? (
                       <div className="flex items-center gap-1">
                         <select
@@ -822,7 +922,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                           patch(
                             d.localId,
                             priceMode === "word"
-                              ? { words: w, unitPrice: Math.round((w || 0) * (d.wordRate ?? wordRate) * 100) / 100 }
+                              ? { words: w, unitPrice: Math.round((w || 0) * (d.wordRate ?? wordRate) * 100) / 100, autoPriced: false, priceNote: undefined }
                               : { words: w }
                           );
                         }}
@@ -843,7 +943,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                           value={d.wordRate ?? wordRate}
                           onChange={(e) => {
                             const r = Math.max(0, Number(e.target.value));
-                            patch(d.localId, { wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100 });
+                            patch(d.localId, { wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100, autoPriced: false, priceNote: undefined });
                           }}
                           className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
                           title="€ por palabra (coste del traductor) de esta línea"
@@ -863,7 +963,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                           min={0}
                           step="0.01"
                           value={d.unitPrice}
-                          onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value) })}
+                          onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value), autoPriced: false, priceNote: undefined })}
                           className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
                         />
                       )

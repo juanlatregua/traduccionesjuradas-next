@@ -115,62 +115,109 @@ function getEstimatedDays(
   };
 }
 
+// ── Fórmula pura por métricas ───────────────────────────────────────
+// Fuente única del precio base: la usa calculatePrice (sobre el análisis IA) y
+// el builder de staff para RE-pricear una línea cuando cambia el idioma
+// destino del expediente (sin re-analizar). foreignLang = lado no-español del
+// par (resolvePriceablePair); quien llama garantiza que el par es válido.
+
+export type PriceMetricsInput = {
+  specificType: string;
+  foreignLang: string;
+  words: number;
+  pages: number;
+  complexity?: string;
+  countryCode?: string | null;
+  hasApostille?: boolean;
+};
+
+export function computeBase(input: PriceMetricsInput): {
+  basePrice: number;
+  wordPrice: number;
+  effectiveRate: number;
+  minimum: number;
+  complexityMult: number;
+  apostilleSurcharge: number;
+  fixedPriceApplied: boolean;
+} {
+  const { specificType, foreignLang, words, pages } = input;
+  const rate = getRate(foreignLang);
+  // El suelo efectivo es el mayor de: mínimo por tipo, mínimo por idioma y
+  // suelo por página (40 €/pág, salvo certificados simples exentos).
+  const minimum = Math.max(getMinimum(specificType, foreignLang), getPageMinimum(specificType, pages));
+  const complexityMult = getComplexityMultiplier(input.complexity || "standard");
+
+  // Apostille surcharge: fijo según idioma (árabe 10€, resto 25€)
+  const apostilleSurcharge = input.hasApostille ? getApostilleSurcharge(foreignLang) : 0;
+
+  // Morocco special pricing: solo aplica a francés (no árabe)
+  const isMorocco = input.countryCode === "MA" && foreignLang !== "ar";
+  const moroccoMaxPage = Math.max(...Object.keys(MOROCCO_PRICING).map(Number));
+  const moroccoFixedPrice = isMorocco
+    ? MOROCCO_PRICING[Math.min(pages, moroccoMaxPage)] ?? MOROCCO_PRICING[moroccoMaxPage]
+    : undefined;
+
+  // Penales franceses con formulario multilingüe UE (Bulletin n°3 de ~5 páginas):
+  // el anexo distorsiona el conteo. La versión de 1 carilla sigue el cálculo normal.
+  const isFrenchCriminalRecord =
+    specificType === "criminal_record" && foreignLang === "fr" && pages >= 3;
+
+  if (isFrenchCriminalRecord) {
+    return {
+      basePrice: FRENCH_CRIMINAL_RECORD_PRICE + apostilleSurcharge,
+      wordPrice: FRENCH_CRIMINAL_RECORD_PRICE,
+      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true,
+    };
+  }
+  if (isMorocco && moroccoFixedPrice !== undefined) {
+    return {
+      basePrice: moroccoFixedPrice + apostilleSurcharge,
+      wordPrice: moroccoFixedPrice,
+      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true,
+    };
+  }
+  const wordPrice = words * rate * complexityMult;
+  return {
+    basePrice: Math.max(wordPrice, minimum) + apostilleSurcharge,
+    wordPrice,
+    effectiveRate: rate, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: false,
+  };
+}
+
 /**
  * Calcula el presupuesto a partir del análisis IA
  */
 export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
   const { document_type, language, document_metrics, complexity, country, requirements } = analysis;
 
-  // Use the "foreign" language rate (non-Spanish side of the pair)
+  // Use the "foreign" language rate (non-Spanish side of the pair).
+  // OJO: conserva el fallback histórico (es→unknown cae al propio "es" con
+  // DEFAULT_RATE) para no romper llamadores internos (post-mortem, chat). El
+  // GATE de negocio vive en los BORDES con resolvePriceablePair (languages.ts):
+  // cualquier borde nuevo debe gatear ahí ANTES de mostrar/cobrar este precio
+  // (presupuesto 2026-00045: es→unknown tarificado en silencio).
   const foreignLang =
     language.source === "es" && language.target && language.target !== "unknown"
       ? language.target
       : language.source;
-  const rate = getRate(foreignLang);
-  // El suelo efectivo es el mayor de: mínimo por tipo, mínimo por idioma y
-  // suelo por página (40 €/pág, salvo certificados simples exentos).
-  const minimum = Math.max(
-    getMinimum(document_type.specific_type, foreignLang),
-    getPageMinimum(document_type.specific_type, document_metrics.pages)
-  );
-  const complexityMult = getComplexityMultiplier(complexity.level);
 
-  // Apostille surcharge: fijo según idioma (árabe 10€, resto 25€)
-  const apostilleSurcharge = requirements?.has_apostille ? getApostilleSurcharge(foreignLang) : 0;
-
-  // Morocco special pricing: solo aplica a francés (no árabe)
-  const isMorocco = country?.origin === "MA" && foreignLang !== "ar";
-  const moroccoMaxPage = Math.max(...Object.keys(MOROCCO_PRICING).map(Number));
-  const moroccoFixedPrice = isMorocco
-    ? MOROCCO_PRICING[Math.min(document_metrics.pages, moroccoMaxPage)] ?? MOROCCO_PRICING[moroccoMaxPage]
-    : undefined;
-
-  // Penales franceses con formulario multilingüe UE (Bulletin n°3 de ~5 páginas):
-  // el anexo distorsiona el conteo. La versión de 1 carilla sigue el cálculo normal.
-  const isFrenchCriminalRecord =
-    document_type.specific_type === "criminal_record" &&
-    foreignLang === "fr" &&
-    document_metrics.pages >= 3;
-
-  let basePrice: number;
-  let wordPrice: number;
-  let effectiveRate = rate;
-  let fixedPriceApplied = false;
-
-  if (isFrenchCriminalRecord) {
-    basePrice = FRENCH_CRIMINAL_RECORD_PRICE + apostilleSurcharge;
-    wordPrice = FRENCH_CRIMINAL_RECORD_PRICE;
-    effectiveRate = 0;
-    fixedPriceApplied = true;
-  } else if (isMorocco && moroccoFixedPrice !== undefined) {
-    basePrice = moroccoFixedPrice + apostilleSurcharge;
-    wordPrice = moroccoFixedPrice;
-    effectiveRate = 0;
-    fixedPriceApplied = true;
-  } else {
-    wordPrice = document_metrics.estimated_words * rate * complexityMult;
-    basePrice = Math.max(wordPrice, minimum) + apostilleSurcharge;
-  }
+  const {
+    basePrice,
+    wordPrice,
+    effectiveRate,
+    minimum,
+    complexityMult,
+    apostilleSurcharge,
+    fixedPriceApplied,
+  } = computeBase({
+    specificType: document_type.specific_type,
+    foreignLang,
+    words: document_metrics.estimated_words,
+    pages: document_metrics.pages,
+    complexity: complexity.level,
+    countryCode: country?.origin,
+    hasApostille: requirements?.has_apostille,
+  });
 
   const estimatedDays = getEstimatedDays(
     document_type.specific_type,

@@ -11,6 +11,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { runDocumentSegmentation } from "@/lib/ai/run-analysis";
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -90,10 +91,16 @@ export async function POST(req: Request) {
     const run = await runDocumentSegmentation({ buffer, mimeType, fileName, targetLang });
     const analysisMs = Date.now() - started;
 
-    // Un documento por segmento detectado (1..N). Cada uno con su precio.
+    // Un documento por segmento detectado (1..N). Cada uno con su precio —
+    // SOLO si el par de idiomas es tarificable: original ES sin destino o par
+    // sin español (traducción cruzada) NO llevan precio automático, se
+    // analizan a mano (presupuesto 2026-00045: se tarificó es→unknown en
+    // silencio con la tarifa por defecto).
     const documents = run.documents.map((d, i) => {
       const a = d.analysis;
-      const quote = calculatePrice(a);
+      const foreign = resolvePriceablePair(a.language.source, a.language.target);
+      const priceable = !!foreign && isAutoPriceable(foreign);
+      const quote = priceable ? calculatePrice(a) : null;
       return {
         id: doc.id,
         index: i,
@@ -107,14 +114,17 @@ export async function POST(req: Request) {
         targetLang: a.language.target,
         targetName: a.language.target_name,
         countryOrigin: a.country.origin_name,
+        countryCode: a.country?.origin ?? null,
+        hasApostille: !!a.requirements?.has_apostille,
         words: a.document_metrics.estimated_words,
         pages: a.document_metrics.pages,
         pageStart: d.pageStart,
         pageEnd: d.pageEnd,
         complexity: a.complexity.level,
         confidence: a.document_type.confidence,
-        basePrice: quote.basePrice,
-        totalPrice: quote.totalPrice,
+        basePrice: quote ? quote.basePrice : null,
+        totalPrice: quote ? quote.totalPrice : null,
+        manualPriceReason: priceable ? null : manualPriceReason(a.language.source, foreign),
         warnings: a.warnings || [],
       };
     });
@@ -122,8 +132,14 @@ export async function POST(req: Request) {
     // Persistencia del archivo: agregada cuando hay varios documentos.
     const primary = run.documents[0].analysis;
     const totalWords = run.documents.reduce((s, d) => s + (d.analysis.document_metrics.estimated_words || 0), 0);
+    // Agregados SOLO de los documentos tarificables; si ninguno lo es, el
+    // quoteAmount queda null (precio a mano, no 0).
+    const pricedCount = documents.filter((d) => d.basePrice != null).length;
     const totalBase = documents.reduce((s, d) => s + (d.basePrice || 0), 0);
-    const totalUrgent = run.documents.reduce((s, d) => s + (calculatePrice(d.analysis).urgentPrice || 0), 0);
+    const totalUrgent = run.documents.reduce(
+      (s, d, i) => (documents[i].basePrice != null ? s + (calculatePrice(d.analysis).urgentPrice || 0) : s),
+      0
+    );
     const censoredNames = censorExtractedNames(
       run.documents.flatMap((d) => d.analysis.extracted_data?.names || [])
     );
@@ -143,11 +159,18 @@ export async function POST(req: Request) {
         confidence: primary.document_type.confidence,
         extractedNames: censoredNames,
         extractedDates: run.documents.flatMap((d) => d.analysis.extracted_data?.dates || []),
-        quoteAmount: totalBase,
-        quoteUrgent: totalUrgent,
-        estimatedDays: calculatePrice(primary).estimatedDaysStandard,
-        estimatedDaysUrgent: calculatePrice(primary).estimatedDaysUrgent,
-        quoteBreakdown: (run.split ? { segments: documents } : calculatePrice(primary).breakdown) as any,
+        quoteAmount: pricedCount ? totalBase : null,
+        quoteUrgent: pricedCount ? totalUrgent : null,
+        // Sin par tarificable no se persiste plazo ni breakdown del engine:
+        // serían datos calculados con el fallback DEFAULT_RATE junto a un
+        // quoteAmount null (residual engañoso).
+        estimatedDays: documents[0].basePrice != null ? calculatePrice(primary).estimatedDaysStandard : null,
+        estimatedDaysUrgent: documents[0].basePrice != null ? calculatePrice(primary).estimatedDaysUrgent : null,
+        quoteBreakdown: (run.split
+          ? { segments: documents }
+          : documents[0].basePrice != null
+            ? calculatePrice(primary).breakdown
+            : null) as any,
         pageCount: run.pageCount || primary.document_metrics.pages,
       },
     });

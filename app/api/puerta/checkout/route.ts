@@ -12,7 +12,7 @@ import {
 } from "@/lib/session-pricing";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { clientPriceFromCost } from "@/lib/quote-math";
-import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable } from "@/lib/pricing-engine/languages";
+import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 
@@ -29,13 +29,10 @@ const REGULARIZACION_FR_DOC_CENTS = 2500;
 
 type DocInput = { id: string; targetLanguage?: string };
 
-// El lado no-español del par. null = original ES con destino sin determinar.
+// El lado no-español del par (fuente única resolvePriceablePair). null =
+// original ES sin destino determinado O par sin español (traducción cruzada).
 function resolveForeignLang(language: DocumentAnalysisResult["language"]): string | null {
-  if (language.source && language.source !== "es") return language.source;
-  if (language.target && language.target !== "es" && language.target !== "unknown") {
-    return language.target;
-  }
-  return null;
+  return resolvePriceablePair(language.source, language.target);
 }
 
 function blobKeyFromUrl(url: string): string {
@@ -170,8 +167,22 @@ export async function POST(req: Request) {
 
     const foreignLang = resolveForeignLang(analysis.language);
     if (!foreignLang) {
+      // Original ES sin destino → falta el dato; par sin español (traducción
+      // cruzada, p. ej. fr→en) → no se auto-tarifica: presupuesto a mano.
+      if (analysis.language.source === "es") {
+        return NextResponse.json(
+          { ok: false, error: "Indica el idioma de destino de cada documento." },
+          { status: 422 }
+        );
+      }
       return NextResponse.json(
-        { ok: false, error: "Indica el idioma de destino de cada documento." },
+        {
+          ok: false,
+          unsupported: true,
+          error:
+            "Esta combinación de idiomas necesita un presupuesto a medida. Escríbenos por WhatsApp y te lo preparamos al momento.",
+          whatsappUrl: WHATSAPP_URL,
+        },
         { status: 422 }
       );
     }
