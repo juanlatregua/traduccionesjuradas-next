@@ -7,9 +7,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Regularización 2026 · Mali · Traducción jurada francés-español · 25 € · MAEC nº 3850",
+    "Regularización 2026 · Mali · Traducción jurada francés-español · 30 € · MAEC nº 3850",
   description:
-    "Documentos malienses en francés traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire, extrait d'acte de naissance, legalización consular. 25 €/doc. Pago con Bizum.",
+    "Documentos malienses en francés traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire, extrait d'acte de naissance, legalización consular. 30 €/doc. Pago con Bizum.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/regularizacion-2026/mali",
   },
@@ -34,7 +34,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto cuesta la traducción jurada de mis documentos malienses?",
     answer:
-      "25 € por documento (tarifa especial regularización 2026). Incluye PDF firmado digitalmente. Plazo de entrega 24h una vez tenemos el documento legalizado consularmente. Pago con Bizum, tarjeta, PayPal o transferencia.",
+      "30 € por documento (tarifa especial regularización 2026). Incluye PDF firmado digitalmente. Plazo de entrega 24h una vez tenemos el documento legalizado consularmente. Pago con Bizum, tarjeta, PayPal o transferencia.",
   },
   {
     question: "¿Tradúcis directamente del francés?",
@@ -49,7 +49,7 @@ export default function RegularizacionMaliPage() {
       <SchemaService
         id="service-regularizacion-2026-mali"
         serviceName="Traducción jurada francés-español de documentos malienses para la regularización 2026"
-        serviceDescription="Traducción jurada francés-español de casier judiciaire, extrait d'acte de naissance y otros documentos de Mali para la regularización extraordinaria abierta hasta el 30 de junio de 2026. 25 € por documento. Entrega 24h."
+        serviceDescription="Traducción jurada francés-español de casier judiciaire, extrait d'acte de naissance y otros documentos de Mali para la regularización extraordinaria abierta hasta el 30 de junio de 2026. 30 € por documento. Entrega 24h."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026/mali"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -220,7 +220,7 @@ export default function RegularizacionMaliPage() {
 
       <section className="mt-10 rounded-2xl border border-cream bg-card p-5 text-sm text-encre shadow-sm">
         <h2 className="text-lg font-semibold text-encre">
-          Tarifa regularización 2026 · 25 € por documento
+          Tarifa regularización 2026 · 30 € por documento
         </h2>
         <p className="mt-2 text-sepia">
           Tarifa especial para expedientes de regularización extraordinaria 2026
@@ -228,14 +228,14 @@ export default function RegularizacionMaliPage() {
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Casier judiciaire (francés):</strong> 25 € — entrega 24h
+            <strong>Casier judiciaire (francés):</strong> 30 € — entrega 24h
           </li>
           <li>
-            <strong>Extrait d&apos;acte de naissance:</strong> 25 € — entrega
+            <strong>Extrait d&apos;acte de naissance:</strong> 30 € — entrega
             24h
           </li>
           <li>
-            <strong>Acte de mariage:</strong> 25 € — entrega 24-48h
+            <strong>Acte de mariage:</strong> 30 € — entrega 24-48h
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio

@@ -1,5 +1,5 @@
 const SITE_URL = "https://www.traduccionesjuradas.net";
-const PER_DOC_EUR = 25;
+const PER_DOC_EUR = 30;
 const DEADLINE = "2026-06-30";
 const DELIVERY_TIME = "24h";
 const PAYMENT_METHODS = ["bizum", "tarjeta", "paypal", "transferencia"];
@@ -198,7 +198,7 @@ export function recommendArraigoPack(input: RecommendArraigoPackInput) {
     });
   }
   ctas.push({
-    label: "Iniciar pedido con tarifa 25 €/doc",
+    label: "Iniciar pedido con tarifa 30 €/doc",
     url: withUtm("/presupuesto-instantaneo?p=regularizacion-2026"),
   });
 

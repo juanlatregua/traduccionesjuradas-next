@@ -23,9 +23,9 @@ const WHATSAPP_URL = "https://wa.me/34951333614";
 // Idiomas válidos como destino (== claves de PER_WORD_RATE, fuente única).
 const KNOWN_LANGUAGES = AUTO_PRICEABLE_FOREIGN;
 
-// Precio de campaña del arraigo extraordinario: 25 € pre-IVA por documento,
+// Precio de campaña del arraigo extraordinario: 30 € pre-IVA por documento,
 // solo para documentos en francés dentro de una sesión de regularización 2026.
-const REGULARIZACION_FR_DOC_CENTS = 2500;
+const REGULARIZACION_FR_DOC_CENTS = 3000;
 
 type DocInput = { id: string; targetLanguage?: string };
 
