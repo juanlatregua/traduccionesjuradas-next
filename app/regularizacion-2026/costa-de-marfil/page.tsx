@@ -246,7 +246,7 @@ export default function RegularizacionCostaDeMarfilPage() {
 
       <section className="mt-10 rounded-2xl border border-cream bg-card p-5 text-sm text-encre shadow-sm">
         <h2 className="text-lg font-semibold text-encre">
-          Tarifa regularización 2026 · 25 € por documento
+          Tarifa regularización 2026 · 30 € por documento
         </h2>
         <p className="mt-2 text-sepia">
           Tarifa especial para expedientes de regularización extraordinaria 2026
@@ -254,15 +254,15 @@ export default function RegularizacionCostaDeMarfilPage() {
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Casier judiciaire Bulletin nº 3 (francés):</strong> 25 € —
+            <strong>Casier judiciaire Bulletin nº 3 (francés):</strong> 30 € —
             entrega 24h
           </li>
           <li>
-            <strong>Extrait d&apos;acte de naissance:</strong> 25 € — entrega
+            <strong>Extrait d&apos;acte de naissance:</strong> 30 € — entrega
             24h
           </li>
           <li>
-            <strong>Acte de mariage:</strong> 25 € — entrega 24-48h
+            <strong>Acte de mariage:</strong> 30 € — entrega 24-48h
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio

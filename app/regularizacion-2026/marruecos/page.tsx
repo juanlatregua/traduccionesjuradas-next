@@ -244,7 +244,7 @@ export default function RegularizacionMarruecosPage() {
 
       <section className="mt-10 rounded-2xl border border-cream bg-card p-5 text-sm text-encre shadow-sm">
         <h2 className="text-lg font-semibold text-encre">
-          Tarifa regularización 2026 · 25 € por documento
+          Tarifa regularización 2026 · 30 € por documento
         </h2>
         <p className="mt-2 text-sepia">
           Tarifa especial para expedientes de regularización extraordinaria 2026.
@@ -253,15 +253,15 @@ export default function RegularizacionMarruecosPage() {
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Casier judiciaire bulletin nº 3 (francés):</strong> 25 € —
+            <strong>Casier judiciaire bulletin nº 3 (francés):</strong> 30 € —
             entrega 24h
           </li>
           <li>
-            <strong>Acta de nacimiento bilingüe árabe/francés:</strong> 25 € —
+            <strong>Acta de nacimiento bilingüe árabe/francés:</strong> 30 € —
             entrega 24h
           </li>
           <li>
-            <strong>Acta de matrimonio (francés o bilingüe):</strong> 25 € —
+            <strong>Acta de matrimonio (francés o bilingüe):</strong> 30 € —
             entrega 24-48h
           </li>
           <li>

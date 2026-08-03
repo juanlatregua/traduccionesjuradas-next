@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title:
     "Subsanación regularización 2026 · Traducción jurada en 24h · MAEC nº 3850",
   description:
-    "¿Requerimiento de subsanación con 10 días? Traducción jurada de antecedentes penales, actas y apostilla en 24 horas. Francés 25 €/documento (Marruecos, Senegal, Mali…). Traductor jurado MAEC nº 3850.",
+    "¿Requerimiento de subsanación con 10 días? Traducción jurada de antecedentes penales, actas y apostilla en 24 horas. Francés 30 €/documento (Marruecos, Senegal, Mali…). Traductor jurado MAEC nº 3850.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/regularizacion-2026",
   },
@@ -54,7 +54,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto cuesta traducir mis documentos para la regularización?",
     answer:
-      "25 € por documento (tarifa especial regularización 2026, francés). Aplica a antecedentes penales, acta de nacimiento y acta de matrimonio de Marruecos, Senegal, Costa de Marfil, Mali, Guinea, Camerún, Burkina Faso, Togo, Benín, RD Congo. Entrega 24h en PDF firmado digitalmente. Pago con Bizum, tarjeta, PayPal o transferencia.",
+      "30 € por documento (tarifa especial regularización 2026, francés). Aplica a antecedentes penales, acta de nacimiento y acta de matrimonio de Marruecos, Senegal, Costa de Marfil, Mali, Guinea, Camerún, Burkina Faso, Togo, Benín, RD Congo. Entrega 24h en PDF firmado digitalmente. Pago con Bizum, tarjeta, PayPal o transferencia.",
   },
 ];
 
@@ -132,7 +132,7 @@ export default function Regularizacion2026Page() {
         <p className="mt-2 text-sepia">
           Ese plazo sí nos da: <strong>traducción jurada en 24 horas</strong>, en
           PDF con firma electrónica cualificada (válida en la sede electrónica,
-          Orden AUC/213/2025), 25 € por documento en francés. Envíanos el
+          Orden AUC/213/2025), 30 € por documento en francés. Envíanos el
           requerimiento y el documento y te confirmamos al momento qué falta y
           cuándo lo tienes.
         </p>
@@ -397,7 +397,7 @@ export default function Regularizacion2026Page() {
 
       <section className="mt-10 rounded-2xl border border-cream bg-card p-5 text-sm text-encre shadow-sm">
         <h2 className="text-lg font-semibold text-encre">
-          Tarifa regularización 2026 · 25 € por documento
+          Tarifa regularización 2026 · 30 € por documento
         </h2>
         <p className="mt-2 text-sepia">
           Tarifa especial para expedientes de regularización extraordinaria
@@ -406,14 +406,14 @@ export default function Regularizacion2026Page() {
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Antecedentes penales (francés):</strong> 25 € — entrega 24h
+            <strong>Antecedentes penales (francés):</strong> 30 € — entrega 24h
           </li>
           <li>
             <strong>Acta de nacimiento (francés / bilingüe árabe-francés):</strong>{" "}
-            25 € — entrega 24h
+            30 € — entrega 24h
           </li>
           <li>
-            <strong>Acta de matrimonio (francés):</strong> 25 € — entrega 24-48h
+            <strong>Acta de matrimonio (francés):</strong> 30 € — entrega 24-48h
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio

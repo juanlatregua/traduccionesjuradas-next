@@ -59,7 +59,7 @@ const CURATED: SearchEntry[] = [
   { title: "Traducción jurada de permiso de conducir", path: "/traduccion-jurada-permiso-de-conducir", group: "Documentos", keywords: "carnet conducir canje dgt" },
   { title: "Traducción jurada de estatutos sociales", path: "/traduccion-jurada-de-estatutos-sociales", group: "Documentos", keywords: "estatutos sociedad empresa mercantil" },
   { title: "Traducción jurada de certificado de Seguridad Social", path: "/traduccion-jurada-de-certificado-de-seguridad-social", group: "Documentos", keywords: "seguridad social vida laboral" },
-  { title: "Regularización extraordinaria 2026", path: "/regularizacion-2026", group: "Regularización 2026", keywords: "arraigo extraordinario 25 euros plazo 30 junio" },
+  { title: "Regularización extraordinaria 2026", path: "/regularizacion-2026", group: "Regularización 2026", keywords: "arraigo extraordinario 30 euros plazo 30 junio" },
   { title: "Área cliente", path: "/area-cliente", group: "Tu cuenta", keywords: "consultar pedido seguimiento estado" },
   { title: "Consultar mi pedido", path: "/consulta-pedido", group: "Tu cuenta", keywords: "estado pedido referencia buscar" },
   { title: "Zona traductor", path: "/zona-traductor", group: "Tu cuenta", keywords: "staff colaborador acceso bandeja" },

@@ -35,7 +35,7 @@ export async function computeSessionPricing(sessionId: string): Promise<SessionP
   const shippingCents = session?.deliveryType === "paper" ? PAPER_SHIPPING_CENTS : 0;
 
   // Sesiones de la puerta (v2): cada documento trae su precio del
-  // pricing-engine, calculado por idioma (el 25 € de campaña solo se aplica
+  // pricing-engine, calculado por idioma (el 30 € de campaña solo se aplica
   // a documentos FR, en checkout/route.ts). Si todos lo tienen, el subtotal
   // es la suma + el envío en papel (si aplica).
   if (docs.length > 0 && docs.every((d) => d.quotedCents != null)) {
@@ -45,7 +45,7 @@ export async function computeSessionPricing(sessionId: string): Promise<SessionP
   }
 
   // Fallback (funnel viejo /start, ya colapsado): precio plano por documento,
-  // sin precio de campaña. El 25 € de regularización es ciego al idioma aquí,
+  // sin precio de campaña. El 30 € de regularización es ciego al idioma aquí,
   // así que no se aplica en este camino — solo en la puerta, que sí conoce el
   // idioma de cada documento.
   return snapshotFromSubtotal(docs.length * DEFAULT_DOC_PRICE_CENTS + shippingCents);
