@@ -40,6 +40,7 @@ export default function CheckoutPaymentActions({
 }: CheckoutPaymentActionsProps) {
   const t = funnelT[lang].pay;
   const [loadingCard, setLoadingCard] = useState(false);
+  const [declaring, setDeclaring] = useState<"BIZUM" | "TRANSFER" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -66,6 +67,28 @@ export default function CheckoutPaymentActions({
     } catch (err: any) {
       setError(err?.message || t.cardError);
       setLoadingCard(false);
+    }
+  };
+
+  // Pago fuera de banda (Bizum/transferencia): crea el pedido SIN marcarlo
+  // pagado y lleva a la pantalla del pedido para subir el justificante.
+  const declarePaid = async (method: "BIZUM" | "TRANSFER") => {
+    setDeclaring(method);
+    setError(null);
+    try {
+      const res = await fetch("/api/payment/declare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok || !data?.payUrl) {
+        throw new Error(data?.error || t.declareError);
+      }
+      window.location.assign(String(data.payUrl));
+    } catch (err: any) {
+      setError(err?.message || t.declareError);
+      setDeclaring(null);
     }
   };
 
@@ -127,6 +150,24 @@ export default function CheckoutPaymentActions({
           <CopyField label="PayPal cuenta" value={MANUAL.paypalAccount} onCopied={onCopy} />
         )}
         <p className="text-xs text-sepia">{t.manualNote}</p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => declarePaid("BIZUM")}
+            disabled={declaring !== null}
+            className="rounded-2xl border border-encre px-4 py-2 text-sm font-semibold text-encre hover:bg-white disabled:opacity-60"
+          >
+            {declaring === "BIZUM" ? t.declaring : t.declareBizum}
+          </button>
+          <button
+            type="button"
+            onClick={() => declarePaid("TRANSFER")}
+            disabled={declaring !== null}
+            className="rounded-2xl border border-encre px-4 py-2 text-sm font-semibold text-encre hover:bg-white disabled:opacity-60"
+          >
+            {declaring === "TRANSFER" ? t.declaring : t.declareTransfer}
+          </button>
+        </div>
       </div>
 
       {/* Línea de confianza en el momento del pago (audit E-E-A-T) */}

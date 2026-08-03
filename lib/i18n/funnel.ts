@@ -52,6 +52,10 @@ type FunnelDict = {
     beneficiary: string;
     concept: string;
     manualNote: string;
+    declareBizum: string;
+    declareTransfer: string;
+    declaring: string;
+    declareError: string;
     trust: string;
     copied: (label: string) => string;
   };
@@ -107,6 +111,10 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       beneficiary: "Beneficiario",
       concept: "Concepto",
       manualNote: "Los métodos manuales no marcan pago automático inmediato. Se revisan y se notifican por SMS y email.",
+      declareBizum: "Ya he pagado por Bizum",
+      declareTransfer: "Ya he pagado por transferencia",
+      declaring: "Registrando…",
+      declareError: "No se pudo registrar el aviso de pago.",
       trust: "Pago seguro · factura con IVA · traductor jurado acreditado por el MAEC · HBTJ Consultores Lingüísticos S.L.",
       copied: (label) => `Copiado: ${label}`,
     },
@@ -160,6 +168,10 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       beneficiary: "Bénéficiaire",
       concept: "Motif",
       manualNote: "Les moyens manuels ne valident pas le paiement immédiatement. Ils sont vérifiés et confirmés par SMS et e-mail.",
+      declareBizum: "J'ai payé par Bizum",
+      declareTransfer: "J'ai payé par virement",
+      declaring: "Enregistrement…",
+      declareError: "Impossible d'enregistrer votre avis de paiement.",
       trust: "Paiement sécurisé · facture avec TVA · traducteur assermenté accrédité par le MAEC · HBTJ Consultores Lingüísticos S.L.",
       copied: (label) => `Copié : ${label}`,
     },
@@ -213,6 +225,10 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       beneficiary: "Beneficiary",
       concept: "Reference",
       manualNote: "Manual methods don't mark payment automatically. They're reviewed and confirmed by SMS and email.",
+      declareBizum: "I've paid by Bizum",
+      declareTransfer: "I've paid by bank transfer",
+      declaring: "Saving…",
+      declareError: "Could not register your payment notice.",
       trust: "Secure payment · invoice with VAT · sworn translator accredited by the MAEC · HBTJ Consultores Lingüísticos S.L.",
       copied: (label) => `Copied: ${label}`,
     },
@@ -266,6 +282,10 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       beneficiary: "Empfänger",
       concept: "Verwendungszweck",
       manualNote: "Manuelle Methoden markieren die Zahlung nicht automatisch. Sie werden geprüft und per SMS und E-Mail bestätigt.",
+      declareBizum: "Ich habe per Bizum bezahlt",
+      declareTransfer: "Ich habe per Überweisung bezahlt",
+      declaring: "Wird gespeichert…",
+      declareError: "Zahlungshinweis konnte nicht registriert werden.",
       trust: "Sichere Zahlung · Rechnung mit MwSt. · vom MAEC ermächtigter vereidigter Übersetzer · HBTJ Consultores Lingüísticos S.L.",
       copied: (label) => `Kopiert: ${label}`,
     },
@@ -319,6 +339,10 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       beneficiary: "Beneficiário",
       concept: "Descrição",
       manualNote: "Os métodos manuais não marcam pagamento automático imediato. São verificados e notificados por SMS e email.",
+      declareBizum: "Já paguei por Bizum",
+      declareTransfer: "Já paguei por transferência",
+      declaring: "A registar…",
+      declareError: "Não foi possível registar o aviso de pagamento.",
       trust: "Pagamento seguro · fatura com IVA · tradutor ajuramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L.",
       copied: (label) => `Copiado: ${label}`,
     },
