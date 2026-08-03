@@ -285,20 +285,22 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
       doc.setFontSize(7.5);
       detailLines = doc.splitTextToSize(line.detail, contentW - 6) as string[];
     }
-    const rowH = line.detail ? 8 + detailLines.length * 3.2 : 8;
-    doc.setFillColor(...TABLE_BG);
-    doc.rect(cDesc, ty, contentW, rowH, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
+    const descLines = doc.splitTextToSize(line.description, cLang - cDesc - 4) as string[];
+    const descH = 8 + (descLines.length - 1) * 4;
+    const rowH = line.detail ? descH + detailLines.length * 3.2 : descH;
+    doc.setFillColor(...TABLE_BG);
+    doc.rect(cDesc, ty, contentW, rowH, "F");
     doc.setTextColor(...INK);
-    doc.text(doc.splitTextToSize(line.description, cLang - cDesc - 4), cDesc + 2, ty + 5.5);
+    doc.text(descLines, cDesc + 2, ty + 5.5);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text(eur(line.amountCents), cImp - 2, ty + 5.5, { align: "right" });
     if (line.detail) {
       doc.setFontSize(7.5);
       doc.setTextColor(...GREY);
-      doc.text(detailLines, cDesc + 2, ty + 9.5);
+      doc.text(detailLines, cDesc + 2, ty + descH + 1.5);
       doc.setTextColor(...INK);
     }
     ty += rowH;
