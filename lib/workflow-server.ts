@@ -10,6 +10,14 @@ import {
   type WorkflowState,
 } from "@/lib/workflow";
 import { getDocumentsFromOrder } from "@/lib/collaborators";
+import {
+  lavoriRouteFromPair,
+  buildSolicitudPayload,
+  fetchDocAsBase64,
+  sendLavoriSolicitud,
+  type LavoriRoute,
+} from "@/lib/lavori-bridge";
+import { sendMail } from "@/lib/azure-mail";
 import { sendFriendlyQuoteRequest } from "@/lib/collaborator-emails";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 
@@ -269,12 +277,131 @@ export async function assignDefaultFrenchEtaIfNeeded(options: {
   });
 }
 
-const AUTO_ASSIGN_LANGUAGES = new Set(["en", "de", "pt", "it"]);
+// "de" salió del set el 10-ago-2026: los pedidos alemanes pagados van al tablón
+// lavori como solicitud dirigida (lib/lavori-bridge.ts), no a Juan Amor.
+const AUTO_ASSIGN_LANGUAGES = new Set(["en", "pt", "it"]);
 
 function isAutoAssignPair(langPair?: string | null): boolean {
   const normalized = String(langPair || "").trim().toLowerCase();
   const [from, to] = normalized.split("-");
   return AUTO_ASSIGN_LANGUAGES.has(from) || AUTO_ASSIGN_LANGUAGES.has(to);
+}
+
+const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
+
+// Fase 1 del puente: pedido pagado → solicitud dirigida en lavori (contrato
+// research/contrato-fase1-solicitudes-2026-08-10.md del repo lavori). El aviso al
+// traductor lo emite lavori desde hola@lavori.es (regla: el motor nunca escribe a
+// un miembro); a staff solo emails internos del motor.
+async function routeOrderToLavori(opts: {
+  order: {
+    id: string;
+    langPair: string | null;
+    words: number | null;
+    amountCents: number;
+    dueDate: Date | null;
+    events: Array<{ type: string; payload: unknown }>;
+  };
+  route: LavoriRoute;
+  reference: string;
+  actorEmail: string | null;
+}): Promise<{ changed: boolean }> {
+  const { order, route, reference } = opts;
+
+  // Idempotencia local: si ya se envió (o el aviso de fallo ya saltó), no repetir.
+  // El ref del payload es además clave de idempotencia en lavori (repetir es seguro).
+  if (order.events.some((e) => e.type === "lavori.solicitud_enviada")) {
+    return { changed: false };
+  }
+
+  const fallbackToStaff = async (error: string) => {
+    console.error(`[lavori-bridge] solicitud fallida para ${reference}:`, error);
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.solicitud_fallida",
+        message: `No se pudo enviar la solicitud a lavori: ${error}. Solicitar a mano.`,
+        payload: { error, langPair: order.langPair, candidatos: route.candidatos },
+      },
+    });
+    const alertLines = [
+      `El pedido ${reference} (${route.par}) está pagado y el puente a lavori falló: ${error}.`,
+      `Nadie ha sido avisado. Solicítalo a mano en lavori o asigna un colaborador.`,
+      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+    ];
+    await sendMail({
+      to: STAFF_ALERT_EMAIL,
+      subject: `⚠ Pedido ${route.par} pagado SIN traductor — lavori no respondió (${reference})`,
+      text: alertLines.join("\n"),
+      html: alertLines.map((l) => `<p>${l}</p>`).join(""),
+    }).catch((err) => console.error("[lavori-bridge] staff alert failed", err));
+    return { changed: false };
+  };
+
+  try {
+    const docs = getDocumentsFromOrder(order);
+    if (docs.length === 0) {
+      return await fallbackToStaff("el pedido no tiene documentos enlazados");
+    }
+    const documentos = [];
+    for (const doc of docs) {
+      const empaquetado = await fetchDocAsBase64(doc);
+      if (empaquetado) documentos.push(empaquetado);
+    }
+    if (documentos.length === 0) {
+      return await fallbackToStaff("no se pudo descargar ningún documento del pedido");
+    }
+
+    const payload = buildSolicitudPayload({
+      reference,
+      route,
+      amountCents: order.amountCents,
+      words: order.words,
+      dueDate: order.dueDate,
+      documentos,
+    });
+    const result = await sendLavoriSolicitud(payload);
+    if (!result.ok) {
+      return await fallbackToStaff(result.error);
+    }
+
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.solicitud_enviada",
+        message: `Solicitud ${route.par} enviada a lavori (encargo dirigido, ${payload.paraTi} € para el traductor).`,
+        payload: {
+          lavoriEncargoId: result.encargoId,
+          repetido: result.repetido,
+          par: route.par,
+          paraTi: payload.paraTi,
+          precioCliente: payload.precioCliente,
+          candidatos: route.candidatos,
+          documentos: documentos.length,
+          actorEmail: opts.actorEmail,
+        },
+      },
+    });
+    const infoLines = [
+      `El pedido ${reference} se ha solicitado en lavori como encargo dirigido (${payload.paraTi} € para el traductor).`,
+      `Cuando el traductor acepte te llegará el aviso de lavori; entonces asígnalo en la ficha.`,
+      `Si en 24 h nadie acepta, lavori te avisará para el plan B.`,
+      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+    ];
+    await sendMail({
+      to: STAFF_ALERT_EMAIL,
+      subject: `Pedido ${route.par} enviado a lavori (${reference})`,
+      text: infoLines.join("\n"),
+      html: infoLines.map((l) => `<p>${l}</p>`).join(""),
+    }).catch((err) => console.error("[lavori-bridge] staff info failed", err));
+
+    // Sin transición de estado: nadie ha aceptado aún. El pedido sigue contando
+    // como "pagado sin asignar" en la bandeja hasta que Juan asigne tras la
+    // aceptación (vuelta manual v1) — así ningún filtro lo pierde de vista.
+    return { changed: true };
+  } catch (err: any) {
+    return await fallbackToStaff(err?.message || "error inesperado en el puente");
+  }
 }
 
 export async function autoAssignCollaboratorIfNeeded(options: {
@@ -288,6 +415,9 @@ export async function autoAssignCollaboratorIfNeeded(options: {
         id: true,
         langPair: true,
         title: true,
+        words: true,
+        amountCents: true,
+        dueDate: true,
         events: {
           orderBy: { createdAt: "desc" },
           take: 30,
@@ -296,7 +426,24 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       },
     });
 
-    if (!order || isFrenchPair(order.langPair) || !isAutoAssignPair(order.langPair)) {
+    if (!order || isFrenchPair(order.langPair)) {
+      return { changed: false };
+    }
+
+    // Carril lavori (Fase 1): la lengua tiene candidatos en el tablón → solicitud
+    // dirigida en vez de auto-asignación. Un pedido pagado JAMÁS queda en silencio:
+    // si el puente falla, salta el aviso de staff dentro de routeOrderToLavori.
+    const lavoriRoute = lavoriRouteFromPair(order.langPair);
+    if (lavoriRoute) {
+      return await routeOrderToLavori({
+        order,
+        route: lavoriRoute,
+        reference: options.reference,
+        actorEmail: options.actorEmail || null,
+      });
+    }
+
+    if (!isAutoAssignPair(order.langPair)) {
       return { changed: false };
     }
 
