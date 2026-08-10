@@ -18,7 +18,6 @@ import {
   type LavoriRoute,
 } from "@/lib/lavori-bridge";
 import { sendMail } from "@/lib/azure-mail";
-import { sendFriendlyQuoteRequest } from "@/lib/collaborator-emails";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 
 type TransitionOptions = {
@@ -468,23 +467,29 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       data: { orderId: order.id, collaboratorId: collaborator.id },
     });
 
-    const documents = getDocumentsFromOrder(order);
-
-    await sendFriendlyQuoteRequest({
-      collaboratorName: collaborator.fullName,
-      collaboratorEmail: collaborator.email,
-      orderReference: options.reference,
-      orderTitle: order.title,
-      langPair: order.langPair,
-      accessToken: assignment.accessToken,
-      documents,
-    });
+    // Regla de Juan (10-ago-2026): a Juan Amor NO se le envía nada automático
+    // mientras no active su perfil de lavori — su canal es personal
+    // (Juan le escribe desde juansilvamoreno@msn.com). La asignación se crea en
+    // silencio y el aviso va a staff con el enlace del encargo para pegárselo.
+    const encargoUrl = `https://www.traduccionesjuradas.net/encargo/${assignment.accessToken}`;
+    const staffLines = [
+      `El pedido ${options.reference} (${order.langPair}) está pagado y asignado internamente a ${collaborator.fullName}.`,
+      `NO se le ha enviado nada automático (canal personal): escríbele tú y pásale su enlace del encargo:`,
+      encargoUrl,
+      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${options.reference}`,
+    ];
+    await sendMail({
+      to: STAFF_ALERT_EMAIL,
+      subject: `Pedido ${order.langPair} asignado a ${collaborator.fullName} — avísale tú (${options.reference})`,
+      text: staffLines.join("\n"),
+      html: staffLines.map((l) => `<p>${l}</p>`).join(""),
+    }).catch((err) => console.error("[auto-assign] staff notice failed", err));
 
     await prisma.orderEvent.create({
       data: {
         orderId: order.id,
         type: "collaborator.auto_assigned",
-        message: `Colaborador ${collaborator.fullName} asignado automáticamente (${order.langPair}).`,
+        message: `Colaborador ${collaborator.fullName} asignado automáticamente (${order.langPair}) — sin email al colaborador (canal personal); aviso a staff.`,
         payload: {
           collaboratorId: collaborator.id,
           collaboratorEmail: collaborator.email,
