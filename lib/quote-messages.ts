@@ -67,6 +67,9 @@ export function buildWhatsAppPayText(data: {
   sourceLang?: string;
   targetLang?: string;
   payUrl?: string;
+  // Nota fiscal del coste: por defecto "IVA incluido"; para no residentes UE
+  // (vatRate 0) el que llama pasa la no sujeción — mentir "IVA incluido" no vale.
+  vatNote?: string;
 }) {
   const methods = (data.paymentMethods && data.paymentMethods.length > 0
     ? data.paymentMethods
@@ -79,7 +82,7 @@ export function buildWhatsAppPayText(data: {
   const par = src && tgt ? ` del ${src} al ${tgt}` : "";
   const costeLine =
     data.totalEur != null
-      ? `- 💰 El coste de la traducción jurada${par} es de ${data.totalEur.toFixed(2)}€ (IVA incluido).`
+      ? `- 💰 El coste de la traducción jurada${par} es de ${data.totalEur.toFixed(2)}€ (${data.vatNote || "IVA incluido"}).`
       : "";
   const entrega =
     data.deliveryType === "PAPER_SHIP"

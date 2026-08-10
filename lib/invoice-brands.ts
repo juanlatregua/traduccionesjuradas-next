@@ -39,7 +39,9 @@ export const BRANDS: Record<BrandKey, BrandProfile> = {
     city: "29001 Málaga",
     bic: "BBVAESMM",
     iban: "ES66 0182 3370 67 0201616991",
-    logo: { kind: "image", path: "public/brands/holabonjour.png", widthMm: 30, heightMm: 32 },
+    // Logo extraído de la plantilla original de facturas (burbuja "Hola Bonjour"
+    // + señas SOHO). 532×650 px → mantener proporción 0,82 para no deformarlo.
+    logo: { kind: "image", path: "public/brands/holabonjour.png", widthMm: 26, heightMm: 32 },
   },
   // Tercera actividad: desarrollo web y backoffice para terceros (p.ej. la puesta
   // a punto de bechtraducciones.com). Mismo NIF, mismo IBAN y MISMA numeración

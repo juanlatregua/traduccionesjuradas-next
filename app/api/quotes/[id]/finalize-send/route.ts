@@ -127,6 +127,10 @@ export async function POST(req: Request, { params }: Params) {
       sourceLang: quote.sourceLang,
       targetLang: quote.targetLang,
       payUrl,
+      vatNote:
+        Number(quote.vatRate) > 0
+          ? undefined
+          : "operación no sujeta a IVA — residente fuera de la UE",
     });
 
     const now = new Date();

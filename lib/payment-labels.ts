@@ -9,4 +9,7 @@ export const PAYMENT_LABELS: Record<string, string> = {
   bizum654: "por Bizum al 654069126",
   bizum: "por Bizum al 607356273 / 654069126",
   paypal: "por PayPal a hola@traduccionesjuradas.net",
+  // Cuenta internacional (SWIFT): clientes fuera de España/UE.
+  revolut:
+    "por transferencia internacional a Revolut Bank UAB · IBAN ES32 1583 0001 1490 2264 2489 · BIC/SWIFT REVOESM2 · Beneficiario: Juan Antonio Silva Moreno",
 };

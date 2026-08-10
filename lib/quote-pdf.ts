@@ -217,6 +217,12 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   if (methods.includes("paypal")) {
     payLines.push("PayPal: hola@traduccionesjuradas.net");
   }
+  if (methods.includes("revolut")) {
+    // Cuenta internacional: datos COMPLETOS para transferencias SWIFT desde fuera de España.
+    payLines.push("Revolut Bank UAB · IBAN ES32 1583 0001 1490 2264 2489 (ES3215830001149022642489) · BIC/SWIFT REVOESM2 · EUR");
+    payLines.push("Beneficiario: Juan Antonio Silva Moreno · Eugenio Sellés 5, 29017 Málaga, España");
+    payLines.push("Banco: Revolut Bank UAB · Calle Príncipe de Vergara 132, 4ª planta, 28002 Madrid, España");
+  }
   if (payLines.length > 0) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);

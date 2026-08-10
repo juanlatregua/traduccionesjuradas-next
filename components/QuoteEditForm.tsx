@@ -15,6 +15,7 @@ const PAYMENT_METHOD_OPTIONS = [
   { id: "bizum607", label: "Bizum 607356273" },
   { id: "bizum654", label: "Bizum 654069126" },
   { id: "paypal", label: "PayPal" },
+  { id: "revolut", label: "Revolut (internacional/SWIFT)" },
 ];
 
 type Line = {
