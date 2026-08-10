@@ -4,9 +4,11 @@ import { getStripe } from "@/lib/stripe";
 import { getSessionIdFromRequest } from "@/lib/session";
 import { isStripeConfigured } from "@/lib/payment-config";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { computeSessionPricing } from "@/lib/session-pricing";
+import { computeSessionPricing, UnpricedSessionError } from "@/lib/session-pricing";
 
 export const runtime = "nodejs";
+
+const WHATSAPP_URL = "https://wa.me/34951333614";
 
 export async function POST(req: Request) {
   const sessionId = getSessionIdFromRequest(req);
@@ -125,6 +127,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, url: checkout.url });
   } catch (err: any) {
     console.error("[payment/create-intent] error", err);
+    // Kill-switch 40 € planos: sesión con documentos sin tarificar → nunca se
+    // cobra a ciegas; presupuesto manual por WhatsApp.
+    if (err instanceof UnpricedSessionError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          unsupported: true,
+          error:
+            "No podemos calcular el precio de estos documentos automáticamente. Escríbenos por WhatsApp y te preparamos un presupuesto a medida al momento.",
+          whatsappUrl: WHATSAPP_URL,
+        },
+        { status: 422 }
+      );
+    }
     const msg = String(err?.message || "");
     if (msg.includes("STRIPE_SECRET_KEY")) {
       return NextResponse.json(
