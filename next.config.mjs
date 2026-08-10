@@ -91,6 +91,20 @@ const nextConfig = {
         destination: "/uge-ce/es",
         permanent: true,
       },
+      // 404s reales del Coverage de GSC (10-ago-2026), origen investigado:
+      // /es/checker es una URL de uge-ce ANTERIOR al basePath (hoy vive en
+      // /uge-ce/es/checker); /fr no existe como hub pero Google prueba el
+      // directorio padre de los posts /fr/* del sitemap — a la landing FR.
+      {
+        source: "/es/checker",
+        destination: "/uge-ce/es/checker",
+        permanent: true,
+      },
+      {
+        source: "/fr",
+        destination: "/traduction-assermentee",
+        permanent: true,
+      },
       // ?modo=control era el atajo a la vista de control: ahora es la vista
       // Tabla de Pedidos (misma pantalla). OJO: Next conserva los query params
       // del origen en el destino, así que redirigir a /zona-traductor volvería a
