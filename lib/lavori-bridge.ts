@@ -18,8 +18,9 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   de: ["ngus1uku6x5uw2pqbmflpbbt"], // Morton Sebastian Peter Münster (DE>ES / ES>DE, jurado MAEC)
   // Candidato ÚNICO a propósito: el anti-carrera de lavori da el encargo al
   // primero que acepta, y la preferencia de Juan (11-ago) es Olaf por tarifa.
-  // Plan B tras el cron de 24 h (manual, con toque de Juan antes): Anna Julia
-  // Fredriksson (fcsm3y8xbbgepw42nkfjjhlf). Joaquín G. Moya: vacaciones hasta sept.
+  // Plan B tras el cron de 24 h (manual, en este orden): Joaquín G. Moya (de
+  // vacaciones hasta sept) u otro SV del padrón que complete ficha; Anna Julia
+  // Fredriksson (fcsm3y8xbbgepw42nkfjjhlf) LA ÚLTIMA — tarifa alta, decisión Juan.
   sv: ["11liibyp9v5840itb6mth3r9"], // Olaf Medina-Montoya Hellgren (SV, jurado)
 };
 

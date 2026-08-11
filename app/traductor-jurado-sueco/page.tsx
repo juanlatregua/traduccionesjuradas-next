@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Sueco · Traducción Oficial Sueco↔Español · MAEC",
   description:
-    "Traductor jurado de sueco acreditado MAEC. Traducción jurada sueco-español y español-sueco: personbevis, belastningsregister, betyg, anställningsavtal. Válida en España y Suecia. Precio cerrado al instante. Desde 35€.",
+    "Traductor jurado de sueco acreditado MAEC. Traducción jurada sueco-español y español-sueco: personbevis, belastningsregister, betyg, anställningsavtal. Válida en España y Suecia. Precio cerrado al instante. Desde 50 €.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-sueco",
   },
@@ -69,6 +69,12 @@ export default function TraductorJuradoSuecoPage() {
           descripcion:
             "Contratos de trabajo, nóminas, certificados de empresa, documentos mercantiles y societarios suecos.",
           enlace: "/documentos-oficiales/documentos-laborales",
+        },
+        {
+          titulo: "Guía: documentos suecos en España",
+          descripcion:
+            "El personbevis de Skatteverket, la apostilla ante Notarius Publicus, el extracto de penales para el extranjero y los precios de cada documento, explicados paso a paso.",
+          enlace: "/blog/documentos-suecos-espana",
         },
       ]}
     />
