@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
+import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { notifyClientTranslationStarted } from "@/lib/orders";
@@ -174,6 +175,24 @@ export async function POST(req: Request) {
         ? await prisma.collaborator.findUnique({ where: { email } })
         : null;
       const supplier = collaborator?.fullName || String(datos.miembroNombre || miembroId || "Colaborador lavori");
+
+      // Los blobs de lavori son privados (sin URL firmada para máquinas): la
+      // factura viaja en base64 y se persiste en NUESTRO Blob, como en la ida.
+      let attachmentUrl = datos.url ? String(datos.url) : null;
+      let attachmentKey: string | null = null;
+      const nombre = datos.nombre ? String(datos.nombre) : `factura-${encargoId}.pdf`;
+      if (typeof datos.base64 === "string" && datos.base64.length > 0) {
+        const buf = Buffer.from(datos.base64, "base64");
+        if (buf.length === 0 || buf.length > 10 * 1024 * 1024) {
+          return NextResponse.json({ ok: false, error: "datos.base64 vacío o >10MB" }, { status: 400 });
+        }
+        const blob = await put(`orders/${order.reference}/facturas-lavori/${Date.now()}-${nombre}`, buf, {
+          access: "public",
+          contentType: datos.contentType ? String(datos.contentType) : "application/pdf",
+        });
+        attachmentUrl = blob.url;
+        attachmentKey = blob.pathname;
+      }
       const expense = await prisma.expense.create({
         data: {
           date: new Date(),
@@ -188,17 +207,19 @@ export async function POST(req: Request) {
           totalCents: totalCents ?? 0,
           payableCents: totalCents ?? 0,
           needsReview: true,
-          attachmentUrl: datos.url ? String(datos.url) : null,
-          attachmentName: datos.nombre ? String(datos.nombre) : null,
+          attachmentUrl,
+          attachmentKey,
+          attachmentName: nombre,
           notes: `Creado por el webhook lavori (Fase 1.5). Revisar régimen fiscal (IVA/ISP/IRPF) antes de dar por bueno.`,
         },
       });
+      const { base64: _base64, ...datosSinBase64 } = datos;
       await prisma.orderEvent.create({
         data: {
           orderId: order.id,
           type: eventType,
           message: `lavori: factura del sobre recibida (${supplier}${totalCents ? `, ${(totalCents / 100).toFixed(2)} €` : ""}) — gasto en contabilidad pendiente de revisión.`,
-          payload: { encargoId, motorRef, ...datos, expenseId: expense.id },
+          payload: { encargoId, motorRef, ...datosSinBase64, attachmentUrl, expenseId: expense.id },
         },
       });
       await staffMail(`🧾 Factura de ${supplier} (${order.reference}) — revisar en contabilidad`, [
