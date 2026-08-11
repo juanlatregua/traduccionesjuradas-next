@@ -16,18 +16,20 @@ export type SeoDigest = {
 
 export async function buildSeoDigest(): Promise<SeoDigest> {
   const range = defaultDateRange();
-  const [byQuery, byPage] = await Promise.all([
+  // Totales SIN dimensión: GSC omite las consultas anonimizadas de las filas por
+  // query (aquí ~95% de los clics), así que sumar byQuery infrarreporta. La
+  // consulta sin dimensiones devuelve una única fila con los totales reales.
+  const [totalRows, byQuery, byPage] = await Promise.all([
+    querySearchAnalytics({ dimensions: [], ...range, rowLimit: 1 }),
     querySearchAnalytics({ dimensions: ["query"], ...range, rowLimit: 1000 }),
     querySearchAnalytics({ dimensions: ["page"], ...range, rowLimit: 500 }),
   ]);
 
-  const clicks = byQuery.reduce((a, r) => a + r.clicks, 0);
-  const impressions = byQuery.reduce((a, r) => a + r.impressions, 0);
+  const total = totalRows[0];
+  const clicks = total?.clicks ?? 0;
+  const impressions = total?.impressions ?? 0;
   const ctr = impressions ? clicks / impressions : 0;
-  // Posición media ponderada por impresiones (la media simple engaña).
-  const position = impressions
-    ? byQuery.reduce((a, r) => a + r.position * r.impressions, 0) / impressions
-    : 0;
+  const position = total?.position ?? 0;
 
   const topQueries = [...byQuery].sort((a, b) => b.impressions - a.impressions).slice(0, 15);
   const lowCtr = byQuery
