@@ -59,11 +59,35 @@ export type SolicitudPayload = {
   descripcion: string;
   palabras?: number;
   plazo?: string;
-  paraTi: string;
-  precioCliente: string;
+  // Ausentes => SOLICITUD DE PRECIO (adenda 11-ago-2026 del contrato): mismo
+  // carril dirigido, pero el candidato ve los documentos y propone su precio.
+  paraTi?: string;
+  precioCliente?: string;
   candidatos: string[];
   documentos: BridgeDoc[];
 };
+
+/** Solicitud de PRECIO (sin paraTi): el candidato ve los documentos y propone su
+ * precio. Ref con sufijo propio para no chocar con la idempotencia del carril
+ * pagado si el mismo pedido se envía después como encargo con precio. */
+export function buildPriceRequestPayload(opts: {
+  reference: string;
+  route: LavoriRoute;
+  words?: number | null;
+  documentos: BridgeDoc[];
+}): SolicitudPayload {
+  const docs =
+    opts.documentos.length === 1 ? "1 documento PDF" : `${opts.documentos.length} documentos PDF`;
+  const palabras = opts.words ? ` (~${opts.words} palabras)` : "";
+  return {
+    ref: `${opts.reference}-precio`,
+    par: opts.route.par,
+    descripcion: `${docs}${palabras} — traducción jurada ${opts.route.par}. Solicitud de precio de la casa: mira los documentos del sobre y pasa tu precio.`,
+    ...(opts.words ? { palabras: opts.words } : {}),
+    candidatos: opts.route.candidatos,
+    documentos: opts.documentos,
+  };
+}
 
 export function buildSolicitudPayload(opts: {
   reference: string;

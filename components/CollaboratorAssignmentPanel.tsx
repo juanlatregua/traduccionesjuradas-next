@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { lavoriRouteFromPair } from "@/lib/lavori-bridge";
 
 type Collaborator = {
   id: string;
@@ -74,6 +75,10 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
   const [selectingBidId, setSelectingBidId] = useState<string | null>(null);
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState<string | null>(null);
+  const [lavoriSending, setLavoriSending] = useState(false);
+  const [lavoriMsg, setLavoriMsg] = useState<string | null>(null);
+
+  const lavoriRoute = lavoriRouteFromPair(langPair);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -129,6 +134,36 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       setError("Error de conexión.");
     } finally {
       setBroadcasting(false);
+    }
+  }
+
+  async function handleLavoriPriceRequest() {
+    setLavoriMsg(null);
+    setError(null);
+    if (!window.confirm("Enviar los documentos del pedido a lavori como SOLICITUD DE PRECIO (el traductor los ve y propone su precio; el aviso sale de hola@lavori.es). ¿Continuar?")) {
+      return;
+    }
+    setLavoriSending(true);
+    try {
+      const res = await fetch(`/api/orders/${reference}/lavori-price-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setError(data.error || "Error al enviar la solicitud de precio.");
+        return;
+      }
+      setLavoriMsg(
+        data.repetido
+          ? `Ya estaba solicitado (encargo ${data.encargoId ?? "previo"}).`
+          : `Solicitud de precio enviada a lavori (encargo ${data.encargoId}).`
+      );
+      router.refresh();
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setLavoriSending(false);
     }
   }
 
@@ -566,6 +601,33 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
           {broadcasting ? "Solicitando..." : "Solicitar cotización a todos"}
         </button>
       </div>
+
+      {/* Puente lavori: solicitud de precio dirigida (adenda 11-ago-2026) */}
+      {lavoriRoute && (
+        <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">
+            Solicitar precio vía lavori
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Envía los documentos del pedido al candidato de {lavoriRoute.par} en lavori como
+            solicitud de precio: el traductor los ve en su encargo y propone su precio. El aviso
+            le llega desde hola@lavori.es (el motor nunca escribe al traductor).
+          </p>
+          {lavoriMsg && (
+            <p role="status" className="mt-2 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs text-violet-300">
+              {lavoriMsg}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleLavoriPriceRequest}
+            disabled={lavoriSending}
+            className="mt-3 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+          >
+            {lavoriSending ? "Enviando..." : "Solicitar precio vía lavori"}
+          </button>
+        </div>
+      )}
 
       {/* New assignment form */}
       <div>
