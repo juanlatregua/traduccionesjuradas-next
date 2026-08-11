@@ -18,6 +18,12 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   de: ["ngus1uku6x5uw2pqbmflpbbt"], // Morton Sebastian Peter Münster (DE>ES / ES>DE, jurado MAEC)
 };
 
+// Miembro de lavori → email del Collaborator de tj.net (para cerrar la vuelta:
+// asignación al aceptar + devengo al subir factura). Ampliar junto a CANDIDATES.
+export const LAVORI_MEMBER_COLLABORATOR_EMAIL: Record<string, string> = {
+  ngus1uku6x5uw2pqbmflpbbt: "morton.muenster@gmx.de", // Morton Sebastian Peter Münster
+};
+
 export type LavoriRoute = { lang: string; par: string; candidatos: string[] };
 
 /** Decide si un par de lenguas del motor se enruta a lavori, y con qué par direccional. */
