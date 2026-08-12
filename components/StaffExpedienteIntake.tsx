@@ -620,6 +620,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           expedienteRef: expedienteRef || undefined,
           customerHint:
             [customerName.trim(), customerPhone.trim()].filter(Boolean).join(" · ") || undefined,
+          customerPhone: customerPhone.trim() || undefined,
           especificaciones: lavoriSpecs.trim() || undefined,
         }),
       });
@@ -1216,6 +1217,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             Manda {lavoriDocs.length === 1 ? "el documento" : `los ${lavoriDocs.length} documentos`} al
             candidato del par como encargo dirigido sin precio. Sin datos del cliente: solo tipo,
             volumen y los PDF. Útil antes de generar el presupuesto.
+            {customerPhone.trim() ? " Al enviarlo, el cliente recibirá un acuse por WhatsApp/SMS." : ""}
           </p>
           <textarea
             value={lavoriSpecs}

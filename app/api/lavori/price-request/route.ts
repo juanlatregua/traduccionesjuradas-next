@@ -8,6 +8,7 @@ import {
   sendLavoriSolicitud,
   type BridgeDoc,
 } from "@/lib/lavori-bridge";
+import { sendNotification, formatPhoneSpain } from "@/lib/sms";
 
 export const runtime = "nodejs";
 
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
       words?: number;
       expedienteRef?: string;
       customerHint?: string;
+      customerPhone?: string;
       especificaciones?: string;
     } | null;
 
@@ -160,6 +162,19 @@ export async function POST(req: Request) {
         // idempotente en lavori, así que no es un fallo.
         if (err?.code !== "P2002") throw err;
       });
+
+    // Acuse al cliente (petición Juan 12-ago): al salir los documentos hacia el
+    // traductor, el lead recibe un WhatsApp/SMS de cortesía. Fire-and-forget.
+    const customerPhone = String(body?.customerPhone || "").trim();
+    if (customerPhone) {
+      sendNotification({
+        to: formatPhoneSpain(customerPhone),
+        body:
+          "Gracias por su solicitud. Sus documentos van a ser tratados directamente " +
+          "por un traductor jurado nombrado por el MAEC y le indicaremos el precio " +
+          "en breve. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net",
+      }).catch(console.error);
+    }
 
     return NextResponse.json(
       { ok: true, ref, encargoId: result.encargoId, repetido: result.repetido },
