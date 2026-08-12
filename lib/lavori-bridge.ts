@@ -28,6 +28,11 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // auto-asignación en silencio a Juan Amor (mismo movimiento que hizo `de`).
   ro: ["8npqw6hd5vavn4maio2173lq"], // Maria Murariu Ursu (T-IJ 11058, RO>ES/ES>RO)
   en: ["43dwlkzsr6lsltpwcj32m88s"], // Vanessa Bech (T-IJ 8272, EN>ES/ES>EN)
+  // ⚠ E2E TEMPORAL (12-ago-2026): noruego → cuenta demo de lavori para probar la
+  // vuelta con el emisor 491df24 sin molestar a traductores reales. REVERTIR al
+  // cerrar el E2E — si llegara un lead noruego real ANTES del revert, iría a la
+  // demo (la vigila lavori) y el aviso de 24h lo devolvería a plan manual.
+  no: ["48dhwptj01xd9fugwbetq76q"], // cuenta demo "lavori" (hola@lavori.es)
 };
 
 // Miembro de lavori → email del Collaborator de tj.net (para cerrar la vuelta:
