@@ -218,6 +218,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Solicitud de precio vía lavori (leads de WhatsApp sin pedido).
   const [lavoriState, setLavoriState] = useState<{ phase: "idle" | "sending" | "done" | "error"; msg?: string }>({ phase: "idle" });
+  const [lavoriSpecs, setLavoriSpecs] = useState("");
   // Nombre-IA: id de la fila cuyo nombre se está sugiriendo (spinner inline).
   const [namingId, setNamingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -619,6 +620,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           expedienteRef: expedienteRef || undefined,
           customerHint:
             [customerName.trim(), customerPhone.trim()].filter(Boolean).join(" · ") || undefined,
+          especificaciones: lavoriSpecs.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -635,7 +637,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
     }
-  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone]);
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, lavoriSpecs]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -1215,6 +1217,15 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             candidato del par como encargo dirigido sin precio. Sin datos del cliente: solo tipo,
             volumen y los PDF. Útil antes de generar el presupuesto.
           </p>
+          <textarea
+            value={lavoriSpecs}
+            onChange={(e) => setLavoriSpecs(e.target.value)}
+            disabled={lavoriState.phase === "sending" || lavoriState.phase === "done"}
+            maxLength={2000}
+            rows={2}
+            placeholder="Especificaciones del encargo (opcional): apostilla íntegra, plazo deseado, grafía de nombres… Sin datos del cliente."
+            className="w-full rounded-lg border border-violet-700/60 bg-violet-950/40 px-3 py-2 text-sm text-violet-100 placeholder:text-violet-400/60 focus:border-violet-500 focus:outline-none disabled:opacity-40"
+          />
           <div className="flex items-center gap-3">
             <button
               type="button"

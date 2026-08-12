@@ -75,6 +75,7 @@ export async function POST(req: Request) {
       words?: number;
       expedienteRef?: string;
       customerHint?: string;
+      especificaciones?: string;
     } | null;
 
     const docs = Array.isArray(body?.docs) ? body!.docs!.slice(0, MAX_DOCS) : [];
@@ -130,7 +131,11 @@ export async function POST(req: Request) {
     }
 
     const words = Number.isFinite(Number(body?.words)) && Number(body?.words) > 0 ? Math.round(Number(body?.words)) : null;
-    const payload = buildPriceRequestPayload({ reference: ref, route, words, documentos });
+    // Especificaciones del encargo (adenda 12-ago): texto libre del staff, sin PII
+    // del cliente (misma regla madre que la descripción). No entra en la ref: el
+    // mismo lead con especificaciones retocadas sigue siendo el mismo encargo.
+    const especificaciones = String(body?.especificaciones || "").trim().slice(0, 2000) || null;
+    const payload = buildPriceRequestPayload({ reference: ref, route, words, especificaciones, documentos });
     const result = await sendLavoriSolicitud(payload);
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 502 });

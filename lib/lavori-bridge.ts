@@ -88,6 +88,9 @@ export type SolicitudPayload = {
   // carril dirigido, pero el candidato ve los documentos y propone su precio.
   paraTi?: string;
   precioCliente?: string;
+  // Adenda 12-ago-2026: especificaciones del encargo (≤2000 chars); lavori las
+  // concatena a la descripción que ve el candidato. Sin PII del cliente.
+  especificaciones?: string;
   candidatos: string[];
   documentos: BridgeDoc[];
 };
@@ -99,16 +102,19 @@ export function buildPriceRequestPayload(opts: {
   reference: string;
   route: LavoriRoute;
   words?: number | null;
+  especificaciones?: string | null;
   documentos: BridgeDoc[];
 }): SolicitudPayload {
   const docs =
     opts.documentos.length === 1 ? "1 documento PDF" : `${opts.documentos.length} documentos PDF`;
   const palabras = opts.words ? ` (~${opts.words} palabras)` : "";
+  const especificaciones = String(opts.especificaciones || "").trim().slice(0, 2000);
   return {
     ref: `${opts.reference}-precio`,
     par: opts.route.par,
     descripcion: `${docs}${palabras} — traducción jurada ${opts.route.par}. Solicitud de precio de la casa: mira los documentos del sobre y pasa tu precio.`,
     ...(opts.words ? { palabras: opts.words } : {}),
+    ...(especificaciones ? { especificaciones } : {}),
     candidatos: opts.route.candidatos,
     documentos: opts.documentos,
   };

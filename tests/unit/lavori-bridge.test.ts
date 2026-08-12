@@ -5,6 +5,7 @@ import {
   bridgeAmounts,
   bridgeDescription,
   buildSolicitudPayload,
+  buildPriceRequestPayload,
 } from "../../lib/lavori-bridge.ts";
 
 // Fase 1 del puente motor→tablón (carril alemán → Morton). Contrato:
@@ -76,6 +77,23 @@ test("buildSolicitudPayload: forma completa del contrato", () => {
   assert.equal(payload.documentos.length, 1);
   // El título del pedido no existe en el payload: la descripción se genera sin PII
   assert.match(payload.descripcion, /Encargo de la casa/);
+});
+
+test("buildPriceRequestPayload: especificaciones viajan recortadas; fuera si vacías", () => {
+  const route = lavoriRouteFromPair("ro->es")!;
+  const base = {
+    reference: "LEAD-ABC123",
+    route,
+    words: null,
+    documentos: [{ nombre: "doc.pdf", contentType: "application/pdf", base64: "QQ==" }],
+  };
+  const con = buildPriceRequestPayload({ ...base, especificaciones: `  apostilla íntegra ${"x".repeat(2100)}` });
+  assert.equal(con.ref, "LEAD-ABC123-precio");
+  assert.ok(con.especificaciones!.startsWith("apostilla íntegra"));
+  assert.equal(con.especificaciones!.length, 2000);
+  const sin = buildPriceRequestPayload({ ...base, especificaciones: "   " });
+  assert.equal("especificaciones" in sin, false);
+  assert.equal("especificaciones" in buildPriceRequestPayload(base), false);
 });
 
 test("buildSolicitudPayload: opcionales fuera cuando no hay dato", () => {
