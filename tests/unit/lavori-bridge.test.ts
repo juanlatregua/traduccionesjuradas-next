@@ -20,11 +20,21 @@ test("lavoriRouteFromPair: alemán se enruta, en ambas direcciones", () => {
   assert.equal(esDe.par, "ES>DE");
 });
 
+test("lavoriRouteFromPair: carriles 12-ago — rumano (Maria) e inglés (Vanessa)", () => {
+  const roEs = lavoriRouteFromPair("ro->es");
+  assert.ok(roEs);
+  assert.equal(roEs.par, "RO>ES");
+  assert.deepEqual(roEs.candidatos, ["8npqw6hd5vavn4maio2173lq"]);
+  const esEn = lavoriRouteFromPair("es->en");
+  assert.ok(esEn);
+  assert.equal(esEn.par, "ES>EN");
+  assert.deepEqual(esEn.candidatos, ["43dwlkzsr6lsltpwcj32m88s"]);
+});
+
 test("lavoriRouteFromPair: el resto de lenguas NO se enrutan", () => {
   assert.equal(lavoriRouteFromPair("fr->es"), null); // FR es de Juan
-  assert.equal(lavoriRouteFromPair("en->es"), null); // Juan Amor
-  assert.equal(lavoriRouteFromPair("pt->es"), null);
-  assert.equal(lavoriRouteFromPair("it->es"), null);
+  assert.equal(lavoriRouteFromPair("pt->es"), null); // Juan Amor (silencio)
+  assert.equal(lavoriRouteFromPair("it->es"), null); // Juan Amor (silencio)
   assert.equal(lavoriRouteFromPair(null), null);
   assert.equal(lavoriRouteFromPair(""), null);
 });

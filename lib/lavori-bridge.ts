@@ -22,12 +22,20 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // vacaciones hasta sept) u otro SV del padrón que complete ficha; Anna Julia
   // Fredriksson (fcsm3y8xbbgepw42nkfjjhlf) LA ÚLTIMA — tarifa alta, decisión Juan.
   sv: ["11liibyp9v5840itb6mth3r9"], // Olaf Medina-Montoya Hellgren (SV, jurado)
+  // Carriles 12-ago-2026 (decisión Juan: "Rumano prioridad Maria, Inglés
+  // prioridad Vanessa"). Candidata ÚNICA como en el sueco (anti-carrera);
+  // reservas siempre a mano. ⚠ `en` aquí saca el inglés pagado de la
+  // auto-asignación en silencio a Juan Amor (mismo movimiento que hizo `de`).
+  ro: ["8npqw6hd5vavn4maio2173lq"], // Maria Murariu Ursu (T-IJ 11058, RO>ES/ES>RO)
+  en: ["43dwlkzsr6lsltpwcj32m88s"], // Vanessa Bech (T-IJ 8272, EN>ES/ES>EN)
 };
 
 // Miembro de lavori → email del Collaborator de tj.net (para cerrar la vuelta:
 // asignación al aceptar + devengo al subir factura). Ampliar junto a CANDIDATES.
 export const LAVORI_MEMBER_COLLABORATOR_EMAIL: Record<string, string> = {
   ngus1uku6x5uw2pqbmflpbbt: "morton.muenster@gmx.de", // Morton Sebastian Peter Münster
+  "8npqw6hd5vavn4maio2173lq": "tradintro@gmail.com", // Maria Murariu Ursu (Collaborator ro)
+  "43dwlkzsr6lsltpwcj32m88s": "bechtraducciones@gmail.com", // Vanessa Bech (Collaborator en)
 };
 
 export type LavoriRoute = { lang: string; par: string; candidatos: string[] };

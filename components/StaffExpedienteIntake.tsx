@@ -6,6 +6,7 @@ import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors } f
 import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
+import { lavoriRouteFromPair } from "@/lib/lavori-bridge";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -215,6 +216,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Solicitud de precio vía lavori (leads de WhatsApp sin pedido).
+  const [lavoriState, setLavoriState] = useState<{ phase: "idle" | "sending" | "done" | "error"; msg?: string }>({ phase: "idle" });
   // Nombre-IA: id de la fila cuyo nombre se está sugiriendo (spinner inline).
   const [namingId, setNamingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -579,6 +582,60 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   if (!sourceLang) missing.push("idioma origen");
   if (!targetLang) missing.push("idioma destino");
   const canSubmit = !submitting && !busy && missing.length === 0;
+
+  // ── Solicitar PRECIO vía lavori (lead de WhatsApp, sin pedido) ──
+  // Docs con archivo real (las líneas manuales sin documento no viajan).
+  const lavoriDocs = useMemo(
+    () => docs.filter((d) => d.include && d.blobUrl && isPriceable(d.status)),
+    [docs]
+  );
+  const lavoriRoute = useMemo(() => {
+    const src = sourceLang || "";
+    const tgt = targetLang || "es";
+    if (!src || src === tgt) return null;
+    if (src !== "es" && tgt !== "es") return null; // cruzada: a medida, no lavori
+    return lavoriRouteFromPair(`${src}->${tgt}`);
+  }, [sourceLang, targetLang]);
+
+  const sendLavoriPrice = useCallback(async () => {
+    if (!lavoriRoute || lavoriDocs.length === 0) return;
+    setLavoriState({ phase: "sending" });
+    try {
+      const res = await fetch("/api/lavori/price-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          docs: lavoriDocs.map((d) => ({
+            url: d.blobUrl,
+            // Nombre neutro (tipo documental); el fichero original del cliente
+            // puede llevar su nombre y no debe viajar.
+            name: d.documentTypeEs || undefined,
+            pageStart: d.pageStart,
+            pageEnd: d.pageEnd,
+          })),
+          sourceLang: sourceLang || "es",
+          targetLang: targetLang || "es",
+          words: lavoriDocs.reduce((acc, d) => acc + (d.words || 0), 0) || undefined,
+          expedienteRef: expedienteRef || undefined,
+          customerHint:
+            [customerName.trim(), customerPhone.trim()].filter(Boolean).join(" · ") || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setLavoriState({ phase: "error", msg: data.error || "No se pudo enviar la solicitud." });
+        return;
+      }
+      setLavoriState({
+        phase: "done",
+        msg: data.repetido
+          ? "Esta solicitud ya estaba enviada (no se ha duplicado)."
+          : "Solicitud enviada. Cuando el traductor pase su precio te llegará por email con el enlace a este builder.",
+      });
+    } catch {
+      setLavoriState({ phase: "error", msg: "Error de conexión." });
+    }
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -1143,6 +1200,41 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
               <input value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="WhatsApp para este presupuesto (opcional; por defecto 951 333 614)" className="mt-2 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm" />
             </div>
           </div>
+      )}
+
+      {/* Solicitud de PRECIO vía lavori: lead de WhatsApp cuyo par tiene candidato
+          en el tablón (de/sv/ro/en). El traductor ve los documentos y propone su
+          precio; la respuesta llega por email y queda anclada al lead. */}
+      {lavoriRoute && lavoriDocs.length > 0 && (
+        <div className="space-y-2 rounded-xl border border-violet-700/60 bg-violet-950/30 p-4">
+          <h3 className="text-sm font-semibold text-violet-200">
+            Solicitar precio vía lavori · {lavoriRoute.par}
+          </h3>
+          <p className="text-xs text-violet-300/80">
+            Manda {lavoriDocs.length === 1 ? "el documento" : `los ${lavoriDocs.length} documentos`} al
+            candidato del par como encargo dirigido sin precio. Sin datos del cliente: solo tipo,
+            volumen y los PDF. Útil antes de generar el presupuesto.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={lavoriState.phase === "sending" || lavoriState.phase === "done" || busy}
+              onClick={sendLavoriPrice}
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {lavoriState.phase === "sending"
+                ? "Enviando…"
+                : lavoriState.phase === "done"
+                  ? "Solicitud enviada"
+                  : `Solicitar precio (${lavoriDocs.length} doc${lavoriDocs.length > 1 ? "s" : ""})`}
+            </button>
+            {lavoriState.msg && (
+              <span className={`text-xs ${lavoriState.phase === "error" ? "text-amber-400" : "text-violet-300"}`}>
+                {lavoriState.msg}
+              </span>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Totales + acción */}

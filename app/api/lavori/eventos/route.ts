@@ -71,6 +71,9 @@ export async function POST(req: Request) {
     select: { id: true, reference: true, langPair: true },
   });
   if (!order) {
+    // Solicitud de precio de un LEAD (WhatsApp, sin pedido): ancla propia.
+    const lead = await prisma.lavoriPriceRequest.findUnique({ where: { ref: reference } });
+    if (lead) return handleLeadEvento({ lead, evento, encargoId, motorRef, datos });
     return NextResponse.json({ ok: false, error: `pedido "${reference}" no encontrado` }, { status: 404 });
   }
 
@@ -233,6 +236,87 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
   } catch (err) {
     console.error("[lavori-eventos] error", err);
+    return NextResponse.json({ ok: false, error: "error interno procesando el evento" }, { status: 500 });
+  }
+}
+
+/* Eventos sobre una solicitud de precio de LEAD (sin pedido). El único esperado
+   es precio_propuesto → se persiste en LavoriPriceRequest y se avisa a staff con
+   el enlace al builder para montar el presupuesto. Cualquier otro evento sobre
+   un lead no tiene pedido que asignar → aviso a staff para gestionarlo a mano. */
+async function handleLeadEvento(opts: {
+  lead: {
+    id: string;
+    ref: string;
+    par: string;
+    expedienteRef: string | null;
+    customerHint: string | null;
+    status: string;
+    encargoId: string | null;
+    priceCents: number | null;
+  };
+  evento: EventoTipo;
+  encargoId: string;
+  motorRef: string;
+  datos: Record<string, unknown>;
+}): Promise<NextResponse> {
+  const { lead, evento, encargoId, motorRef, datos } = opts;
+  const builderUrl = lead.expedienteRef
+    ? `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?exp=${encodeURIComponent(lead.expedienteRef)}`
+    : "https://www.traduccionesjuradas.net/zona-traductor/presupuesto";
+  const quien = lead.customerHint ? ` — lead: ${lead.customerHint}` : "";
+  const staffMail = (subject: string, lines: string[]) =>
+    sendMail({
+      to: STAFF_ALERT_EMAIL,
+      subject,
+      text: lines.join("\n"),
+      html: lines.map((l) => `<p>${l}</p>`).join(""),
+    }).catch((err) => console.error("[lavori-eventos] staff mail failed", err));
+
+  try {
+    if (evento === "precio_propuesto") {
+      const precioCents = eurosToCents(datos.precio);
+      if (precioCents === null) {
+        return NextResponse.json({ ok: false, error: "datos.precio inválido" }, { status: 400 });
+      }
+      if (lead.status === "PRICED" && lead.encargoId === encargoId && lead.priceCents === precioCents) {
+        return NextResponse.json({ ok: true, repetido: true });
+      }
+      const plazoDias = Number.isFinite(Number(datos.plazoDias)) ? Math.round(Number(datos.plazoDias)) : null;
+      const miembro = String(datos.miembroNombre || datos.miembroId || "el traductor");
+      const netoSugerido = (precioCents / 0.75 / 100).toFixed(2);
+      const precio = (precioCents / 100).toFixed(2);
+      await prisma.lavoriPriceRequest.update({
+        where: { id: lead.id },
+        data: {
+          status: "PRICED",
+          priceCents: precioCents,
+          plazoDias,
+          notas: datos.notas ? String(datos.notas).slice(0, 500) : null,
+          miembroId: datos.miembroId ? String(datos.miembroId) : null,
+          miembroNombre: datos.miembroNombre ? String(datos.miembroNombre) : null,
+          encargoId,
+        },
+      });
+      await staffMail(`💶 Precio de ${miembro} para la solicitud ${lead.par}${quien}: ${precio} €`, [
+        `${miembro} ha propuesto ${precio} € por la solicitud de precio ${lead.ref} (${lead.par})${quien}.`,
+        plazoDias ? `Plazo propuesto: ${plazoDias} días.` : "Sin plazo indicado.",
+        `Neto de cliente sugerido por el modelo 75/25: ${netoSugerido} € (+ IVA y envío).`,
+        datos.notas ? `Notas: ${String(datos.notas)}` : "",
+        `Montar el presupuesto: ${builderUrl}`,
+      ].filter(Boolean));
+      return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
+    }
+
+    const miembro = String(datos.miembroNombre || datos.miembroId || "el traductor");
+    await staffMail(`⚠ lavori: ${evento} sobre la solicitud de lead ${lead.ref}${quien} — gestionar a mano`, [
+      `Ha llegado un evento "${evento}" de ${miembro} sobre la solicitud de precio ${lead.ref} (${lead.par}, encargo ${encargoId}), que no tiene pedido asociado.`,
+      `Si el lead se convirtió en pedido, vincúlalo desde la ficha; si no, gestiona la respuesta por lavori.`,
+      `Builder: ${builderUrl}`,
+    ]);
+    return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
+  } catch (err) {
+    console.error("[lavori-eventos] lead error", err, motorRef);
     return NextResponse.json({ ok: false, error: "error interno procesando el evento" }, { status: 500 });
   }
 }

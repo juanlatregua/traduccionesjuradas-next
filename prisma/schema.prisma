@@ -789,6 +789,29 @@ model TaxPeriodClose {
   closedBy String
 }
 
+// Solicitud de PRECIO a lavori para un LEAD (WhatsApp/teléfono) sin pedido aún:
+// ancla de la ida (idempotencia por ref) y de la vuelta (precio_propuesto).
+model LavoriPriceRequest {
+  id            String   @id @default(cuid())
+  ref           String   @unique // motorRef del sobre sin el sufijo -precio (LEAD-xxxxxxxxxx)
+  par           String
+  candidatos    String[]
+  expedienteRef String?
+  customerHint  String? // nombre/teléfono del lead SOLO para staff; jamás viaja a lavori
+  docsCount     Int      @default(0)
+  words         Int?
+  encargoId     String?
+  status        String   @default("SENT") // SENT | PRICED
+  priceCents    Int?
+  plazoDias     Int?
+  notas         String?
+  miembroId     String?
+  miembroNombre String?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 enum CollaboratorSupplierType {
   AUTONOMO
   EMPRESA
