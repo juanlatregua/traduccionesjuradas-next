@@ -164,16 +164,19 @@ export async function POST(req: Request) {
       });
 
     // Acuse al cliente (petición Juan 12-ago): al salir los documentos hacia el
-    // traductor, el lead recibe un WhatsApp/SMS de cortesía. Fire-and-forget.
+    // traductor, el lead recibe un WhatsApp/SMS de cortesía. Con await: sin él,
+    // la lambda se congela al responder y la llamada a Twilio muere sin salir
+    // (cazado en el E2E del 12-ago). Un fallo del SMS no tumba la solicitud.
     const customerPhone = String(body?.customerPhone || "").trim();
     if (customerPhone) {
-      sendNotification({
+      const acuse = await sendNotification({
         to: formatPhoneSpain(customerPhone),
         body:
           "Gracias por su solicitud. Sus documentos van a ser tratados directamente " +
           "por un traductor jurado nombrado por el MAEC y le indicaremos el precio " +
           "en breve. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net",
-      }).catch(console.error);
+      }).catch((err) => ({ ok: false as const, error: String(err) }));
+      if (!acuse.ok) console.error("[lavori-lead] acuse al cliente fallo:", acuse.error);
     }
 
     return NextResponse.json(
