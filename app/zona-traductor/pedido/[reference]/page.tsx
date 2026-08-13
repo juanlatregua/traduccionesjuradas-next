@@ -40,6 +40,7 @@ import TranslatorNotifyForm from "@/components/TranslatorNotifyForm";
 import ClientMessageComposer from "@/components/order-workspace/ClientMessageComposer";
 import FileThumbnails from "@/components/order-workspace/FileThumbnails";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
+import LavoriEntregasPanel, { type LavoriEntrega } from "@/components/LavoriEntregasPanel";
 import WorkspaceEditor from "@/components/WorkspaceEditor";
 import OrderDocumentItems from "@/components/order-workspace/OrderDocumentItems";
 import ClientMessagesSection, {
@@ -72,6 +73,31 @@ function getDeliveredFiles(order: any): DocRef[] {
     if (single) list.push({ name: order.finalFilename || "Traducción jurada", url: String(single) });
   }
   return list;
+}
+
+// Entregas llegadas por el puente lavori (Fase 2): eventos lavori.entrega_subida.
+// "enviada" = su URL ya está en deliveryFilesJson (salió por el carril /delivery).
+function getLavoriEntregas(order: any): LavoriEntrega[] {
+  const delivered = new Set(
+    (Array.isArray(order.deliveryFilesJson) ? order.deliveryFilesJson : []).map((f: any) =>
+      String(f?.url || "")
+    )
+  );
+  return order.events
+    .filter((e: any) => e.type === "lavori.entrega_subida")
+    .map((e: any) => {
+      const p = (e.payload as any) || {};
+      const url = String(p.attachmentUrl || "");
+      return {
+        url,
+        nombre: String(p.nombre || "traduccion.pdf"),
+        miembro: String(p.miembroNombre || p.miembroId || "traductor lavori"),
+        fecha: e.createdAt instanceof Date ? e.createdAt.toISOString() : String(e.createdAt),
+        mimeType: p.contentType ? String(p.contentType) : null,
+        enviada: delivered.has(url),
+      };
+    })
+    .filter((e: LavoriEntrega) => e.url);
 }
 
 // Documentos fuente con tipo, para el editor de producción (visor pdf/img/docx).
@@ -184,6 +210,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const moves = getNextWorkflowStates(workflowState).map((s) => ({ to: s, label: getWorkflowStateLabel(s) }));
   const sourceDocs = getSourceDocuments(order.events);
   const deliveredFiles = getDeliveredFiles(order);
+  const lavoriEntregas = getLavoriEntregas(order);
   const messages = getClientMessages(order.events);
   const assignment = order.collaboratorAssignments?.[0] || null;
   const workspaceDocs = getWorkspaceDocuments(order.events);
@@ -473,6 +500,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         </section>
 
         <Section id="traduccion" title="Subir y entregar la traducción">
+          {lavoriEntregas.length > 0 && (
+            <LavoriEntregasPanel reference={order.reference} entregas={lavoriEntregas} />
+          )}
           {deliveredFiles.length > 0 ? (
             <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
               <p className="text-xs font-semibold text-emerald-300">

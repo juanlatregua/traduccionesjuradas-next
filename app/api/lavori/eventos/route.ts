@@ -9,15 +9,19 @@ import { LAVORI_MEMBER_COLLABORATOR_EMAIL } from "@/lib/lavori-bridge";
 export const runtime = "nodejs";
 
 /* Fase 1.5 del puente — VUELTA lavori→motor (contrato propuesto 11-ago-2026).
-   Un solo endpoint con 3 eventos, auth simétrica a la ida (MOTOR_LAVORI_SECRET):
+   Un solo endpoint, auth simétrica a la ida (MOTOR_LAVORI_SECRET):
    - precio_propuesto  → OrderEvent + aviso a staff con el precio y el neto 75/25 sugerido
    - encargo_aceptado  → asignación automática del colaborador (cierra la vuelta manual v1)
    - factura_subida    → Expense pendiente de revisión en contabilidad
-   Idempotencia por (evento, encargoId) dentro del pedido: repetir es seguro. */
+   - entrega_subida    → (Fase 2, contrato 12-ago) traducción al expediente; el envío
+     al cliente es SIEMPRE el botón "revisar y enviar" de la ficha (opción B de Juan)
+   Idempotencia por (evento, encargoId) dentro del pedido — para entrega_subida
+   entra también datos.adjuntoId: una entrega de N ficheros son N eventos y una
+   corrección posterior viaja como evento nuevo sin pisar los anteriores. */
 
 const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
-const EVENTO_TIPOS = ["precio_propuesto", "encargo_aceptado", "factura_subida"] as const;
+const EVENTO_TIPOS = ["precio_propuesto", "encargo_aceptado", "factura_subida", "entrega_subida"] as const;
 type EventoTipo = (typeof EVENTO_TIPOS)[number];
 
 function hasAuth(req: Request): boolean {
@@ -78,8 +82,19 @@ export async function POST(req: Request) {
   }
 
   const eventType = `lavori.${evento}`;
+  const adjuntoId = evento === "entrega_subida" ? String(datos.adjuntoId || "").trim() : null;
+  if (evento === "entrega_subida" && !adjuntoId) {
+    return NextResponse.json({ ok: false, error: "datos.adjuntoId obligatorio" }, { status: 400 });
+  }
   const previo = await prisma.orderEvent.findFirst({
-    where: { orderId: order.id, type: eventType, payload: { path: ["encargoId"], equals: encargoId } },
+    where: {
+      orderId: order.id,
+      type: eventType,
+      AND: [
+        { payload: { path: ["encargoId"], equals: encargoId } },
+        ...(adjuntoId ? [{ payload: { path: ["adjuntoId"], equals: adjuntoId } }] : []),
+      ],
+    },
     select: { id: true },
   });
   if (previo) {
@@ -229,6 +244,52 @@ export async function POST(req: Request) {
         `Ha llegado por lavori la factura del encargo ${encargoId} (pedido ${order.reference}).`,
         totalCents ? `Importe: ${(totalCents / 100).toFixed(2)} €.` : "Sin importe legible: revísala.",
         `Gasto creado en contabilidad como PENDIENTE y needsReview (régimen fiscal por confirmar).`,
+        `Ficha: ${ficha}`,
+      ]);
+    }
+
+    if (evento === "entrega_subida") {
+      // Fase 2, opción B (decisión Juan 12-ago): la traducción aterriza en el
+      // expediente y NADA sale solo hacia el cliente — el envío es el botón
+      // "revisar y enviar al cliente" de la ficha. Tope 15MB por fichero
+      // (simétrico con la ida; la factura conserva su tope de 10).
+      if (typeof datos.base64 !== "string" || datos.base64.length === 0) {
+        return NextResponse.json({ ok: false, error: "datos.base64 obligatorio" }, { status: 400 });
+      }
+      const buf = Buffer.from(datos.base64, "base64");
+      if (buf.length === 0 || buf.length > 15 * 1024 * 1024) {
+        return NextResponse.json({ ok: false, error: "datos.base64 vacío o >15MB" }, { status: 400 });
+      }
+      const nombre = datos.nombre ? String(datos.nombre) : `entrega-${encargoId}.pdf`;
+      const contentType = datos.contentType ? String(datos.contentType) : "application/pdf";
+      const blob = await put(`orders/${order.reference}/entregas-lavori/${Date.now()}-${nombre}`, buf, {
+        access: "public",
+        contentType,
+      });
+      const miembro = String(datos.miembroNombre || datos.miembroId || "el traductor");
+      const { base64: _base64, ...datosSinBase64 } = datos;
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: eventType,
+          message: `lavori: entrega de ${miembro} recibida (${nombre}) — pendiente de REVISAR y enviar al cliente desde la ficha.`,
+          payload: {
+            encargoId,
+            motorRef,
+            ...datosSinBase64,
+            adjuntoId,
+            nombre,
+            contentType,
+            attachmentUrl: blob.url,
+            attachmentKey: blob.pathname,
+            bytes: buf.length,
+          },
+        },
+      });
+      await staffMail(`📦 Entrega de ${miembro} (${order.reference}) — revisar y enviar al cliente`, [
+        `${miembro} ha subido la traducción del encargo ${encargoId} (pedido ${order.reference}): ${nombre}.`,
+        `NO se ha enviado nada al cliente. Revísala y usa el botón "Revisar y enviar al cliente" de la ficha.`,
+        `Archivo: ${blob.url}`,
         `Ficha: ${ficha}`,
       ]);
     }
