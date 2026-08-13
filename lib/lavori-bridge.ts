@@ -37,6 +37,12 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
     "whvx8ft5w6wi50hchczh48hp", // Francisco Carballo Cruz (PT>ES, jurado)
     "f4pyspe0hsa1ss99siaokqti", // María García Garmendia (T-IJ 4176, IT+PT; entra con enlace 7 días)
   ],
+  // Carril 13-ago-2026 (caso hermanas Brich, solteria AR>ES). Candidata única
+  // por ahora: Marta López (jurada AR<>ES, operativa desde 3-ago). Si Juan
+  // quiere también a Julud cotizando, añadir su id AQUÍ cuando lavori le dé el
+  // alta — ANTES del clic del builder (no se puede añadir a una solicitud ya
+  // enviada). No confundir con Marta Riosalido (danés).
+  ar: ["g45tpqggq16yn8q4r9ww2m5c"], // Marta López (AR>ES / ES>AR, jurada)
   // ⚠ TEMPORAL E2E Fase 2 (13-ago-2026): carril noruego → cuenta demo de lavori
   // para validar precio_aceptado + entrega_subida en prod. REVERTIR AL CERRAR
   // (mismo patrón que el 12-ago, commits 55153aa/1b96e2a).
