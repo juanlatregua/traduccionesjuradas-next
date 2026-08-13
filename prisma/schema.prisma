@@ -801,15 +801,22 @@ model LavoriPriceRequest {
   docsCount     Int      @default(0)
   words         Int?
   encargoId     String?
-  status        String   @default("SENT") // SENT | PRICED
+  status        String   @default("SENT") // SENT | PRICED | ACCEPTED
   priceCents    Int?
   plazoDias     Int?
   notas         String?
   miembroId     String?
   miembroNombre String?
+  // Vínculo presupuesto↔solicitud (Fase 2, contrato 12-ago-2026): al pagarse el
+  // presupuesto, el emisor precio_aceptado localiza la solicitud por aquí (con
+  // fallback por expedienteRef) y comunica al encargo existente en lavori.
+  quoteId       String?
   createdBy     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([quoteId])
+  @@index([expedienteRef])
 }
 
 enum CollaboratorSupplierType {

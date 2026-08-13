@@ -166,6 +166,15 @@ export async function POST(req: Request) {
       return quote;
     });
 
+    // Vínculo presupuesto↔solicitud de precio lavori (Fase 2): si el presupuesto
+    // nace del expediente de un lead con solicitud en lavori, se ata aquí para que
+    // el pago dispare precio_aceptado sobre el encargo existente. No bloqueante.
+    if (expedienteRef) {
+      await prisma.lavoriPriceRequest
+        .updateMany({ where: { expedienteRef, quoteId: null }, data: { quoteId: created.id } })
+        .catch((err) => console.error("[quotes:create] lavori link failed", err));
+    }
+
     return NextResponse.json({ ok: true, quote: serializeQuote(created) });
   } catch (err: any) {
     console.error("[quotes:create] error", err);

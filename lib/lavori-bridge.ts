@@ -164,6 +164,63 @@ export type SolicitudResult =
   | { ok: true; encargoId: string; repetido: boolean }
   | { ok: false; error: string };
 
+/* Fase 2 (contrato research/contrato-fase2-eventos-2026-08-12.md, repo lavori):
+   el cliente acepta/paga el presupuesto → se comunica al encargo EXISTENTE de
+   lavori con LA CIFRA DEL PROPIO TRADUCTOR (jamás recalculada). 409 = el encargo
+   ya no está publicado (aceptado/cerrado/retirado): lavori no toca nada y el
+   motor avisa a staff con el estado. */
+
+const LAVORI_PRECIO_ACEPTADO_ENDPOINT =
+  process.env.LAVORI_PRECIO_ACEPTADO_URL || "https://lavori.es/api/motor/precio-aceptado";
+
+export type PrecioAceptadoResult =
+  | { ok: true; repetido: boolean }
+  | { ok: false; conflicto: true; estado: string; aceptadoPor: string | null }
+  | { ok: false; conflicto?: false; error: string };
+
+export async function sendLavoriPrecioAceptado(payload: {
+  ref: string; // motor_ref EXACTA del encargo en lavori (leads: LEAD-XXXX-precio)
+  precioParaTi: string; // euros con 2 decimales — la cifra que propuso el traductor
+  nota?: string; // ≤500, va al chat del encargo; sin PII del cliente
+}): Promise<PrecioAceptadoResult> {
+  const secret = process.env.MOTOR_LAVORI_SECRET;
+  if (!secret) {
+    return { ok: false, error: "MOTOR_LAVORI_SECRET no configurado en el motor." };
+  }
+  try {
+    const res = await fetch(LAVORI_PRECIO_ACEPTADO_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ref: payload.ref,
+        precioParaTi: payload.precioParaTi,
+        ...(payload.nota ? { nota: payload.nota.slice(0, 500) } : {}),
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const data = (await res.json().catch(() => null)) as
+      | { ok?: boolean; repetido?: boolean; estado?: string; aceptadoPor?: string; error?: string }
+      | null;
+    if (res.ok && data?.ok) {
+      return { ok: true, repetido: Boolean(data.repetido) };
+    }
+    if (res.status === 409) {
+      return {
+        ok: false,
+        conflicto: true,
+        estado: data?.estado || "desconocido",
+        aceptadoPor: data?.aceptadoPor || null,
+      };
+    }
+    return { ok: false, error: data?.error || `lavori respondió ${res.status}` };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "fallo de red hacia lavori" };
+  }
+}
+
 export async function sendLavoriSolicitud(payload: SolicitudPayload): Promise<SolicitudResult> {
   const secret = process.env.MOTOR_LAVORI_SECRET;
   if (!secret) {

@@ -15,6 +15,7 @@ import {
   buildSolicitudPayload,
   fetchDocAsBase64,
   sendLavoriSolicitud,
+  sendLavoriPrecioAceptado,
   type LavoriRoute,
 } from "@/lib/lavori-bridge";
 import { sendMail } from "@/lib/azure-mail";
@@ -288,6 +289,149 @@ function isAutoAssignPair(langPair?: string | null): boolean {
 
 const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
+// Fase 2 del puente: emisor precio_aceptado (contrato research/
+// contrato-fase2-eventos-2026-08-12.md del repo lavori). Un pedido pagado que
+// proviene de una solicitud de precio ya PROPUESTA no abre encargo nuevo: se
+// comunica la aceptación al encargo existente con la cifra del propio traductor.
+// Localiza la solicitud por dos vías: pedido directo (OrderEvent
+// lavori.precio_propuesto) o lead→presupuesto (LavoriPriceRequest vía quoteId,
+// con fallback por el expedienteRef del presupuesto). handled=false → no aplica
+// y sigue el carril Fase 1 (encargo nuevo con precio 75/25).
+async function emitPrecioAceptadoIfApplicable(opts: {
+  order: {
+    id: string;
+    quoteId: string | null;
+    events: Array<{ type: string; payload: unknown }>;
+  };
+  reference: string;
+}): Promise<{ handled: boolean; changed: boolean }> {
+  const { order, reference } = opts;
+
+  // Idempotencia local: comunicado (o conflicto ya avisado) → nada que repetir.
+  // En lavori además: mismo ref + mismo precio → {repetido:true} sin re-aviso.
+  if (
+    order.events.some(
+      (e) => e.type === "lavori.precio_aceptado_enviado" || e.type === "lavori.precio_aceptado_conflicto"
+    )
+  ) {
+    return { handled: true, changed: false };
+  }
+
+  let ref: string | null = null;
+  let precioCents: number | null = null;
+  let lprId: string | null = null;
+
+  // Caso pedido directo: el precio llegó como evento sobre ESTE pedido. Los
+  // events vienen desc → find da la última propuesta (cubre la corrección 35→40).
+  const propuesto = order.events.find((e) => e.type === "lavori.precio_propuesto");
+  if (propuesto) {
+    const payload = propuesto.payload as { precioCents?: unknown } | null;
+    const cents = Math.round(Number(payload?.precioCents));
+    if (Number.isFinite(cents) && cents > 0) {
+      precioCents = cents;
+      ref = `${reference}-precio`;
+    }
+  }
+
+  // Caso lead→presupuesto→pedido: la solicitud vive en LavoriPriceRequest.
+  if (!ref && order.quoteId) {
+    const quote = await prisma.quote.findUnique({
+      where: { id: order.quoteId },
+      select: { expedienteRef: true },
+    });
+    const or: Array<{ quoteId: string } | { expedienteRef: string }> = [{ quoteId: order.quoteId }];
+    if (quote?.expedienteRef) or.push({ expedienteRef: quote.expedienteRef });
+    const lpr = await prisma.lavoriPriceRequest.findFirst({
+      where: { status: "PRICED", OR: or },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (lpr?.priceCents && lpr.priceCents > 0) {
+      // La motor_ref del encargo en lavori es la ref de la solicitud + "-precio"
+      // (así la creó buildPriceRequestPayload).
+      ref = `${lpr.ref}-precio`;
+      precioCents = lpr.priceCents;
+      lprId = lpr.id;
+    }
+  }
+
+  if (!ref || !precioCents) {
+    return { handled: false, changed: false };
+  }
+
+  const precio = (precioCents / 100).toFixed(2);
+  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+  const staffMail = (subject: string, lines: string[]) =>
+    sendMail({
+      to: STAFF_ALERT_EMAIL,
+      subject,
+      text: lines.join("\n"),
+      html: lines.map((l) => `<p>${l}</p>`).join(""),
+    }).catch((err) => console.error("[lavori-precio-aceptado] staff mail failed", err));
+
+  const result = await sendLavoriPrecioAceptado({
+    ref,
+    precioParaTi: precio,
+    nota: "El cliente ha aceptado y pagado. Adelante con el encargo.",
+  });
+
+  if (result.ok) {
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.precio_aceptado_enviado",
+        message: `lavori: aceptación comunicada al encargo (${precio} € para el traductor). Cuando acepte llegará encargo_aceptado y se asignará solo.`,
+        payload: { ref, precioParaTi: precio, precioCents, repetido: result.repetido, lavoriPriceRequestId: lprId },
+      },
+    });
+    if (lprId) {
+      await prisma.lavoriPriceRequest
+        .update({ where: { id: lprId }, data: { status: "ACCEPTED", ...(opts.order.quoteId ? { quoteId: opts.order.quoteId } : {}) } })
+        .catch((err) => console.error("[lavori-precio-aceptado] lpr update failed", err));
+    }
+    await staffMail(`✅ Precio aceptado comunicado a lavori (${reference})`, [
+      `El pago del pedido ${reference} ha comunicado a lavori la aceptación del precio del traductor (${precio} €).`,
+      `El traductor recibirá el aviso de lavori; al aceptar el encargo, la asignación se hará sola (encargo_aceptado).`,
+      `Ficha: ${ficha}`,
+    ]);
+    return { handled: true, changed: true };
+  }
+
+  if ("conflicto" in result && result.conflicto) {
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.precio_aceptado_conflicto",
+        message: `lavori: el encargo ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}) — gestionar a mano.`,
+        payload: { ref, precioParaTi: precio, estado: result.estado, aceptadoPor: result.aceptadoPor },
+      },
+    });
+    await staffMail(`⚠ Conflicto al aceptar precio en lavori (${reference}) — gestionar a mano`, [
+      `El pedido ${reference} está pagado, pero el encargo de lavori ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}).`,
+      `Lavori no ha tocado nada. Aclara el encargo con el traductor o asígnalo a mano.`,
+      `Ficha: ${ficha}`,
+    ]);
+    return { handled: true, changed: false };
+  }
+
+  const error = "error" in result ? result.error : "error desconocido";
+  console.error(`[lavori-precio-aceptado] fallo para ${reference}:`, error);
+  await prisma.orderEvent.create({
+    data: {
+      orderId: order.id,
+      type: "lavori.precio_aceptado_fallo",
+      message: `No se pudo comunicar la aceptación del precio a lavori: ${error}. Avisar al traductor a mano.`,
+      payload: { ref, precioParaTi: precio, error },
+    },
+  });
+  await staffMail(`⚠ Pedido ${reference} pagado — lavori no recibió la aceptación del precio`, [
+    `El pedido ${reference} está pagado y el aviso precio_aceptado a lavori falló: ${error}.`,
+    `El traductor NO sabe que su precio fue aceptado. Avísale por lavori o gestiona a mano.`,
+    `Ficha: ${ficha}`,
+  ]);
+  // handled=true aunque falle: con solicitud previa jamás se abre encargo nuevo.
+  return { handled: true, changed: false };
+}
+
 // Fase 1 del puente: pedido pagado → solicitud dirigida en lavori (contrato
 // research/contrato-fase1-solicitudes-2026-08-10.md del repo lavori). El aviso al
 // traductor lo emite lavori desde hola@lavori.es (regla: el motor nunca escribe a
@@ -295,6 +439,7 @@ const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.n
 async function routeOrderToLavori(opts: {
   order: {
     id: string;
+    quoteId: string | null;
     langPair: string | null;
     words: number | null;
     amountCents: number;
@@ -311,6 +456,14 @@ async function routeOrderToLavori(opts: {
   // El ref del payload es además clave de idempotencia en lavori (repetir es seguro).
   if (order.events.some((e) => e.type === "lavori.solicitud_enviada")) {
     return { changed: false };
+  }
+
+  // Fase 2 (contrato 12-ago): si este pedido nace de una SOLICITUD DE PRECIO ya
+  // respondida por el traductor, pagar = aceptar su cifra → precio_aceptado al
+  // encargo EXISTENTE. Jamás se abre un segundo encargo con precio recalculado.
+  const aceptado = await emitPrecioAceptadoIfApplicable({ order, reference });
+  if (aceptado.handled) {
+    return { changed: aceptado.changed };
   }
 
   const fallbackToStaff = async (error: string) => {
@@ -412,6 +565,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       where: { reference: options.reference },
       select: {
         id: true,
+        quoteId: true,
         langPair: true,
         title: true,
         words: true,
