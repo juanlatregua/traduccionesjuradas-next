@@ -28,11 +28,15 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // auto-asignación en silencio a Juan Amor (mismo movimiento que hizo `de`).
   ro: ["8npqw6hd5vavn4maio2173lq"], // Maria Murariu Ursu (T-IJ 11058, RO>ES/ES>RO)
   en: ["43dwlkzsr6lsltpwcj32m88s"], // Vanessa Bech (T-IJ 8272, EN>ES/ES>EN)
-  // Carril 13-ago-2026 (reparto Juan: único PT operativo hoy; los demás sin
-  // entrar/sin email/no disponibles). ⚠ Igual que `de`/`en`: saca el portugués
-  // PAGADO de la auto-asignación a Juan Amor. Sin papel único aún (casilla al
-  // abrir). Sin Collaborator en tj.net todavía → al aceptar avisará "mapear".
-  pt: ["whvx8ft5w6wi50hchczh48hp"], // Francisco Carballo Cruz (PT>ES, jurado)
+  // Carril 13-ago-2026 (reparto Juan). ⚠ Igual que `de`/`en`: saca el portugués
+  // PAGADO de la auto-asignación a Juan Amor. DOS candidatos (decisión Juan
+  // 13-ago tarde: que coticen ambos y compara; en LEADS la última cifra pisa la
+  // anterior en LavoriPriceRequest — las dos llegan por email y decide Juan).
+  // Ninguno con papel único aún ni Collaborator en tj.net → "mapear" al aceptar.
+  pt: [
+    "whvx8ft5w6wi50hchczh48hp", // Francisco Carballo Cruz (PT>ES, jurado)
+    "f4pyspe0hsa1ss99siaokqti", // María García Garmendia (T-IJ 4176, IT+PT; entra con enlace 7 días)
+  ],
   // ⚠ TEMPORAL E2E Fase 2 (13-ago-2026): carril noruego → cuenta demo de lavori
   // para validar precio_aceptado + entrega_subida en prod. REVERTIR AL CERRAR
   // (mismo patrón que el 12-ago, commits 55153aa/1b96e2a).
