@@ -72,7 +72,7 @@ export async function POST(req: Request) {
   const reference = motorRef.replace(/-precio$/, "");
   const order = await prisma.order.findUnique({
     where: { reference },
-    select: { id: true, reference: true, langPair: true },
+    select: { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true },
   });
   if (!order) {
     // Solicitud de precio de un LEAD (WhatsApp, sin pedido): ancla propia.
@@ -129,13 +129,43 @@ export async function POST(req: Request) {
           payload: { encargoId, motorRef, ...datos, precioCents, netoSugeridoEur: netoSugerido },
         },
       });
+      // Auto-aceptación "dinero dentro" (13-ago-2026, caso 26_DFAA55): si el
+      // pedido YA está pagado y la cifra del traductor cabe en el modelo 75/25
+      // sobre lo cobrado, se acepta sola hacia lavori. Si pide más, decide staff.
+      const paraTiModeloCents = Math.round((order.amountCents / 1.21) * 0.75);
+      const yaAceptado = await prisma.orderEvent.findFirst({
+        where: {
+          orderId: order.id,
+          type: { in: ["lavori.precio_aceptado_enviado", "lavori.precio_aceptado_conflicto"] },
+        },
+        select: { id: true },
+      });
+      const autoAceptar =
+        order.paymentStatus === "PAID" && !yaAceptado && precioCents <= paraTiModeloCents;
+
       await staffMail(`💶 Precio de ${miembro} para ${order.reference}: ${precio} €`, [
         `${miembro} ha propuesto ${precio} € por el encargo de lavori (${encargoId}).`,
         datos.plazoDias ? `Plazo propuesto: ${datos.plazoDias} días.` : "Sin plazo indicado.",
         `Neto de cliente sugerido por el modelo 75/25: ${netoSugerido} € (+ IVA y envío).`,
         datos.notas ? `Notas: ${String(datos.notas)}` : "",
+        autoAceptar
+          ? `El pedido ya está pagado y la cifra cabe en el modelo (tope ${(paraTiModeloCents / 100).toFixed(2)} €): se acepta AUTOMÁTICAMENTE hacia lavori.`
+          : order.paymentStatus === "PAID" && !yaAceptado
+            ? `⚠ El pedido ya está pagado pero la cifra SUPERA el modelo 75/25 (tope ${(paraTiModeloCents / 100).toFixed(2)} €): NO se auto-acepta — decide tú (coordínalo por lavori o ajusta el precio con el traductor).`
+            : "",
         `Ficha: ${ficha}`,
       ].filter(Boolean));
+
+      if (autoAceptar) {
+        const { deliverPrecioAceptado } = await import("@/lib/workflow-server");
+        await deliverPrecioAceptado({
+          orderId: order.id,
+          reference: order.reference,
+          ref: motorRef, // la motor_ref EXACTA con la que llegó la propuesta
+          precioCents,
+          auto: true,
+        });
+      }
     }
 
     if (evento === "encargo_aceptado") {
@@ -267,12 +297,15 @@ export async function POST(req: Request) {
         contentType,
       });
       const miembro = String(datos.miembroNombre || datos.miembroId || "el traductor");
+      // Adenda papel (13-ago-2026): datos.recogida = texto libre con dirección y
+      // día/horario de disponibilidad para que la mensajería recoja el original.
+      const recogida = datos.recogida ? String(datos.recogida).slice(0, 500) : null;
       const { base64: _base64, ...datosSinBase64 } = datos;
       await prisma.orderEvent.create({
         data: {
           orderId: order.id,
           type: eventType,
-          message: `lavori: entrega de ${miembro} recibida (${nombre}) — pendiente de REVISAR y enviar al cliente desde la ficha.`,
+          message: `lavori: entrega de ${miembro} recibida (${nombre})${recogida ? " — con datos de recogida para la mensajería" : ""} — pendiente de REVISAR en la ficha.`,
           payload: {
             encargoId,
             motorRef,
@@ -280,18 +313,20 @@ export async function POST(req: Request) {
             adjuntoId,
             nombre,
             contentType,
+            recogida,
             attachmentUrl: blob.url,
             attachmentKey: blob.pathname,
             bytes: buf.length,
           },
         },
       });
-      await staffMail(`📦 Entrega de ${miembro} (${order.reference}) — revisar y enviar al cliente`, [
+      await staffMail(`📦 Entrega de ${miembro} (${order.reference}) — revisar en la ficha`, [
         `${miembro} ha subido la traducción del encargo ${encargoId} (pedido ${order.reference}): ${nombre}.`,
-        `NO se ha enviado nada al cliente. Revísala y usa el botón "Revisar y enviar al cliente" de la ficha.`,
+        `NO se ha enviado nada al cliente. Revísala en la ficha (envío por email o carril papel según el pedido).`,
+        recogida ? `Recogida por mensajería: ${recogida}` : "",
         `Archivo: ${blob.url}`,
         `Ficha: ${ficha}`,
-      ]);
+      ].filter(Boolean));
     }
 
     return NextResponse.json({ ok: true, repetido: false }, { status: 201 });

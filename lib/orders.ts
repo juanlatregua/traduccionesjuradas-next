@@ -299,6 +299,9 @@ type CreateOrderFromQuoteInput = {
   currency?: string | null;
   documentCount: number;
   expedienteRef?: string | null;
+  // QuoteDeliveryType del presupuesto: PAPER_SHIP → pedido "paper". Sin esto el
+  // pedido nacía "pdf" aunque el presupuesto fuera papel (caso 26_DFAA55).
+  deliveryType?: string | null;
   lines?: {
     description: string;
     unitPrice: number;
@@ -432,6 +435,7 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
           langPair,
           amountCents: Math.round((input.totalEur || 0) * 100),
           currency: (input.currency || "eur").toLowerCase(),
+          deliveryType: input.deliveryType === "PAPER_SHIP" ? "paper" : "pdf",
           events: {
             create: [
               {

@@ -31,6 +31,7 @@ export async function POST(req: Request, { params }: Params) {
         reference: true,
         langPair: true,
         words: true,
+        deliveryType: true,
         events: {
           where: {
             type: {
@@ -87,10 +88,19 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
+    // Entrega en papel: el candidato debe saber que el original físico viaja por
+    // mensajería y que al entregar tendrá que indicar recogida (petición Juan
+    // 13-ago-2026, caso rumano: jurada solo válida en papel).
+    const especificaciones =
+      order.deliveryType === "paper"
+        ? "ENTREGA EN PAPEL: la traducción jurada solo vale en original físico. Sube al encargo la copia PDF y tu factura; el original se recoge por mensajería — al subir la entrega indica dirección de recogida y día/horario de disponibilidad."
+        : undefined;
+
     const payload = buildPriceRequestPayload({
       reference: order.reference,
       route,
       words: order.words,
+      especificaciones,
       documentos,
     });
     const result = await sendLavoriSolicitud(payload);

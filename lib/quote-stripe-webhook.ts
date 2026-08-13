@@ -210,6 +210,7 @@ export async function processQuoteStripeEvent(event: any) {
           totalEur: amountRaw > 0 ? amountRaw : decimalToNumber(quote.total),
           currency,
           expedienteRef: quote.expedienteRef,
+          deliveryType: quote.deliveryType,
           lines: quote.lines.map((l) => ({
             description: l.description,
             unitPrice: decimalToNumber(l.unitPrice),

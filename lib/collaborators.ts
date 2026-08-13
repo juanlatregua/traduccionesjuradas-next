@@ -365,6 +365,31 @@ export async function applyAcceptedQuoteSideEffects(
   });
 }
 
+// El sobre de lavori rechaza application/octet-stream: los docs que llegan de
+// líneas de presupuesto suelen venir sin tipo → se infiere por la extensión
+// (caso real 26_DFAA55, 13-ago-2026: solicitud fallida por esto).
+const EXT_CONTENT_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  zip: "application/zip",
+};
+
+export function inferDocContentType(opts: { type?: string | null; name?: string | null; url?: string | null }): string {
+  const type = String(opts.type || "").toLowerCase();
+  if (type && type !== "application/octet-stream") return type;
+  const source = `${opts.name || ""} ${String(opts.url || "").split("?")[0]}`.toLowerCase();
+  for (const [ext, contentType] of Object.entries(EXT_CONTENT_TYPES)) {
+    if (source.includes(`.${ext}`)) return contentType;
+  }
+  // Los documentos del funnel/presupuestos son PDF salvo indicación contraria.
+  return "application/pdf";
+}
+
 export function getDocumentsFromOrder(order: {
   events: Array<{ type: string; payload: unknown }>;
 }) {
@@ -373,7 +398,7 @@ export function getDocumentsFromOrder(order: {
     .map((d) => ({
       name: d.name,
       url: String(d.url),
-      type: d.type || "application/octet-stream",
+      type: inferDocContentType({ type: d.type, name: d.name, url: String(d.url) }),
     }));
 }
 

@@ -38,6 +38,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       sourceLang: true,
       targetLang: true,
       expedienteRef: true,
+      deliveryType: true,
       total: true,
       currency: true,
       lines: { select: { description: true, unitPrice: true, sourceFileUrl: true, pageStart: true, pageEnd: true } },
@@ -95,6 +96,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         totalEur,
         currency: quote.currency,
         expedienteRef: quote.expedienteRef,
+        deliveryType: quote.deliveryType,
         lines: quote.lines.map((l) => ({
           description: l.description,
           unitPrice: decimalToNumber(l.unitPrice),

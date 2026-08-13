@@ -19,6 +19,7 @@ export type QuoteForBridge = {
   totalEur: number;
   currency?: string | null;
   expedienteRef?: string | null;
+  deliveryType?: string | null; // QuoteDeliveryType (PAPER_SHIP → pedido en papel)
   // sourceFileUrl viaja hasta el pedido: sin él, un presupuesto hecho con
   // documentos soltados a mano en el builder (sin expediente) creaba un pedido
   // SIN archivos, y el colaborador externo recibía el encargo vacío.
@@ -57,6 +58,7 @@ export async function runQuoteToOrderBridge(input: {
     currency: quote.currency,
     documentCount: quote.lines.length,
     expedienteRef: quote.expedienteRef,
+    deliveryType: quote.deliveryType,
     lines: quote.lines,
   });
 

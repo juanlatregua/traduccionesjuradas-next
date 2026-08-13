@@ -94,6 +94,7 @@ function getLavoriEntregas(order: any): LavoriEntrega[] {
         miembro: String(p.miembroNombre || p.miembroId || "traductor lavori"),
         fecha: e.createdAt instanceof Date ? e.createdAt.toISOString() : String(e.createdAt),
         mimeType: p.contentType ? String(p.contentType) : null,
+        recogida: p.recogida ? String(p.recogida) : null,
         enviada: delivered.has(url),
       };
     })
@@ -501,7 +502,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
 
         <Section id="traduccion" title="Subir y entregar la traducción">
           {lavoriEntregas.length > 0 && (
-            <LavoriEntregasPanel reference={order.reference} entregas={lavoriEntregas} />
+            <LavoriEntregasPanel
+              reference={order.reference}
+              entregas={lavoriEntregas}
+              paper={order.deliveryType === "paper"}
+            />
           )}
           {deliveredFiles.length > 0 ? (
             <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">

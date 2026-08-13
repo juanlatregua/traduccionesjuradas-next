@@ -358,8 +358,35 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     return { handled: false, changed: false };
   }
 
+  const result = await deliverPrecioAceptado({
+    orderId: order.id,
+    reference,
+    ref,
+    precioCents,
+    lprId,
+    quoteId: opts.order.quoteId,
+  });
+  // handled=true aunque falle: con solicitud previa jamás se abre encargo nuevo.
+  return { handled: true, changed: result.ok };
+}
+
+// Envía precio_aceptado a lavori y persiste el desenlace (evento + email staff).
+// Lo usan el emisor del pago (emitPrecioAceptadoIfApplicable) y el receptor de
+// eventos cuando un precio_propuesto llega sobre un pedido YA pagado
+// (auto-aceptación "dinero dentro", caso real 26_DFAA55 del 13-ago-2026).
+export async function deliverPrecioAceptado(opts: {
+  orderId: string;
+  reference: string;
+  ref: string; // motor_ref EXACTA del encargo en lavori
+  precioCents: number;
+  lprId?: string | null;
+  quoteId?: string | null;
+  auto?: boolean; // true si la aceptación es automática post-pago
+}): Promise<{ ok: boolean; conflicto?: boolean }> {
+  const { orderId, reference, ref, precioCents, lprId } = opts;
   const precio = (precioCents / 100).toFixed(2);
   const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+  const auto = opts.auto === true;
   const staffMail = (subject: string, lines: string[]) =>
     sendMail({
       to: STAFF_ALERT_EMAIL,
@@ -377,29 +404,31 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   if (result.ok) {
     await prisma.orderEvent.create({
       data: {
-        orderId: order.id,
+        orderId,
         type: "lavori.precio_aceptado_enviado",
-        message: `lavori: aceptación comunicada al encargo (${precio} € para el traductor). Cuando acepte llegará encargo_aceptado y se asignará solo.`,
-        payload: { ref, precioParaTi: precio, precioCents, repetido: result.repetido, lavoriPriceRequestId: lprId },
+        message: `lavori: aceptación comunicada al encargo (${precio} € para el traductor${auto ? ", automática: pedido ya pagado" : ""}). Cuando acepte llegará encargo_aceptado y se asignará solo.`,
+        payload: { ref, precioParaTi: precio, precioCents, repetido: result.repetido, lavoriPriceRequestId: lprId ?? null, auto },
       },
     });
     if (lprId) {
       await prisma.lavoriPriceRequest
-        .update({ where: { id: lprId }, data: { status: "ACCEPTED", ...(opts.order.quoteId ? { quoteId: opts.order.quoteId } : {}) } })
+        .update({ where: { id: lprId }, data: { status: "ACCEPTED", ...(opts.quoteId ? { quoteId: opts.quoteId } : {}) } })
         .catch((err) => console.error("[lavori-precio-aceptado] lpr update failed", err));
     }
     await staffMail(`✅ Precio aceptado comunicado a lavori (${reference})`, [
-      `El pago del pedido ${reference} ha comunicado a lavori la aceptación del precio del traductor (${precio} €).`,
+      auto
+        ? `El pedido ${reference} ya estaba pagado, así que el precio propuesto por el traductor (${precio} €) se ha aceptado automáticamente hacia lavori.`
+        : `El pago del pedido ${reference} ha comunicado a lavori la aceptación del precio del traductor (${precio} €).`,
       `El traductor recibirá el aviso de lavori; al aceptar el encargo, la asignación se hará sola (encargo_aceptado).`,
       `Ficha: ${ficha}`,
     ]);
-    return { handled: true, changed: true };
+    return { ok: true };
   }
 
   if ("conflicto" in result && result.conflicto) {
     await prisma.orderEvent.create({
       data: {
-        orderId: order.id,
+        orderId,
         type: "lavori.precio_aceptado_conflicto",
         message: `lavori: el encargo ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}) — gestionar a mano.`,
         payload: { ref, precioParaTi: precio, estado: result.estado, aceptadoPor: result.aceptadoPor },
@@ -410,14 +439,14 @@ async function emitPrecioAceptadoIfApplicable(opts: {
       `Lavori no ha tocado nada. Aclara el encargo con el traductor o asígnalo a mano.`,
       `Ficha: ${ficha}`,
     ]);
-    return { handled: true, changed: false };
+    return { ok: false, conflicto: true };
   }
 
   const error = "error" in result ? result.error : "error desconocido";
   console.error(`[lavori-precio-aceptado] fallo para ${reference}:`, error);
   await prisma.orderEvent.create({
     data: {
-      orderId: order.id,
+      orderId,
       type: "lavori.precio_aceptado_fallo",
       message: `No se pudo comunicar la aceptación del precio a lavori: ${error}. Avisar al traductor a mano.`,
       payload: { ref, precioParaTi: precio, error },
@@ -428,8 +457,7 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     `El traductor NO sabe que su precio fue aceptado. Avísale por lavori o gestiona a mano.`,
     `Ficha: ${ficha}`,
   ]);
-  // handled=true aunque falle: con solicitud previa jamás se abre encargo nuevo.
-  return { handled: true, changed: false };
+  return { ok: false };
 }
 
 // Fase 1 del puente: pedido pagado → solicitud dirigida en lavori (contrato
