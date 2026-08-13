@@ -5,6 +5,7 @@ import { getDocumentsFromOrder } from "@/lib/collaborators";
 import {
   lavoriRouteFromPair,
   buildPriceRequestPayload,
+  bridgeDescription,
   fetchDocAsBase64,
   sendLavoriSolicitud,
 } from "@/lib/lavori-bridge";
@@ -13,10 +14,14 @@ export const runtime = "nodejs";
 
 type Params = { params: { reference: string } };
 
-// Solicitud de PRECIO vía lavori (adenda 11-ago-2026 del contrato Fase 1): manda
-// los documentos del pedido al candidato del par como encargo dirigido SIN precio;
-// el aviso le llega desde hola@lavori.es y su respuesta vuelve por el chat de
-// lavori (Fase 1.5: vuelta estructurada). El motor nunca escribe al traductor.
+// Solicitud vía lavori desde la ficha del pedido (adenda 11-ago-2026 + 13-ago):
+// - Sin body.paraTi → solicitud de PRECIO (encargo dirigido SIN precio, ref
+//   "<ref>-precio"): el candidato ve los documentos y propone su cifra.
+// - Con body.paraTi → encargo dirigido CON el precio YA PACTADO fuera (caso
+//   Maria/26_DFAA55: acordado por WhatsApp): ref SIN sufijo, al candidato le
+//   llega "para ti · X €" y su único paso es aceptar. La foto honesta cuando el
+//   precio ya existe — sin ronda de propuesta.
+// El aviso le llega desde hola@lavori.es; el motor nunca escribe al traductor.
 export async function POST(req: Request, { params }: Params) {
   const staff = await requireStaffAccess(req);
   if (!staff.ok) {
@@ -24,6 +29,9 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   try {
+    const body = (await req.json().catch(() => null)) as { paraTi?: string | number } | null;
+    const paraTiNum = Number.parseFloat(String(body?.paraTi ?? ""));
+    const paraTi = Number.isFinite(paraTiNum) && paraTiNum > 0 ? paraTiNum.toFixed(2) : null;
     const order = await prisma.order.findUnique({
       where: { reference: params.reference },
       select: {
@@ -31,6 +39,7 @@ export async function POST(req: Request, { params }: Params) {
         reference: true,
         langPair: true,
         words: true,
+        amountCents: true,
         deliveryType: true,
         events: {
           where: {
@@ -39,6 +48,7 @@ export async function POST(req: Request, { params }: Params) {
                 "presupuesto.submitted",
                 "order.source_document_uploaded",
                 "lavori.solicitud_precio_enviada",
+                "lavori.solicitud_enviada",
               ],
             },
           },
@@ -53,8 +63,12 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
 
-    // Idempotencia local (el ref -precio es además clave de idempotencia en lavori).
-    const previo = order.events.find((e) => e.type === "lavori.solicitud_precio_enviada");
+    // Idempotencia local (la ref es además clave de idempotencia en lavori). El
+    // carril pactado y el de solicitud de precio comparten guardia: un pedido con
+    // encargo ya enviado (en cualquiera de los dos) no se reenvía.
+    const previo = order.events.find(
+      (e) => e.type === "lavori.solicitud_precio_enviada" || e.type === "lavori.solicitud_enviada"
+    );
     if (previo) {
       const encargoId = (previo.payload as { lavoriEncargoId?: string } | null)?.lavoriEncargoId;
       return NextResponse.json({ ok: true, repetido: true, encargoId: encargoId ?? null });
@@ -96,13 +110,30 @@ export async function POST(req: Request, { params }: Params) {
         ? "ENTREGA EN PAPEL: la traducción jurada solo vale en original físico. Sube al encargo la copia PDF y tu factura; el original se recoge por mensajería — al subir la entrega indica dirección de recogida y día/horario de disponibilidad."
         : undefined;
 
-    const payload = buildPriceRequestPayload({
-      reference: order.reference,
-      route,
-      words: order.words,
-      especificaciones,
-      documentos,
-    });
+    const payload = paraTi
+      ? {
+          // Encargo dirigido CON precio pactado: ref SIN sufijo (carril pagado).
+          ref: order.reference,
+          par: route.par,
+          descripcion: bridgeDescription({
+            docCount: documentos.length,
+            words: order.words,
+            par: route.par,
+          }),
+          ...(order.words ? { palabras: order.words } : {}),
+          paraTi,
+          precioCliente: (order.amountCents / 1.21 / 100).toFixed(2),
+          ...(especificaciones ? { especificaciones } : {}),
+          candidatos: route.candidatos,
+          documentos,
+        }
+      : buildPriceRequestPayload({
+          reference: order.reference,
+          route,
+          words: order.words,
+          especificaciones,
+          documentos,
+        });
     const result = await sendLavoriSolicitud(payload);
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 502 });
@@ -111,12 +142,15 @@ export async function POST(req: Request, { params }: Params) {
     await prisma.orderEvent.create({
       data: {
         orderId: order.id,
-        type: "lavori.solicitud_precio_enviada",
-        message: `Solicitud de PRECIO ${route.par} enviada a lavori (el traductor ve los documentos y propone su precio).`,
+        type: paraTi ? "lavori.solicitud_enviada" : "lavori.solicitud_precio_enviada",
+        message: paraTi
+          ? `Encargo dirigido ${route.par} enviado a lavori con precio pactado (${paraTi} € para el traductor); su único paso es aceptar.`
+          : `Solicitud de PRECIO ${route.par} enviada a lavori (el traductor ve los documentos y propone su precio).`,
         payload: {
           lavoriEncargoId: result.encargoId,
           repetido: result.repetido,
           par: route.par,
+          ...(paraTi ? { paraTi } : {}),
           candidatos: route.candidatos,
           documentos: documentos.length,
           actorEmail: staff.email,

@@ -140,7 +140,23 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
   async function handleLavoriPriceRequest() {
     setLavoriMsg(null);
     setError(null);
-    if (!window.confirm("Enviar los documentos del pedido a lavori como SOLICITUD DE PRECIO (el traductor los ve y propone su precio; el aviso sale de hola@lavori.es). ¿Continuar?")) {
+    // Precio ya pactado fuera (WhatsApp/teléfono) → encargo dirigido CON precio:
+    // al traductor le llega "para ti · X €" y su único paso es aceptar. Vacío →
+    // solicitud de PRECIO clásica (él propone su cifra).
+    const pactado = window.prompt(
+      "¿Precio YA PACTADO con el traductor (en €, sin IVA)?\nDéjalo vacío para pedirle precio (él propone)."
+    );
+    if (pactado === null) return; // cancelado
+    const paraTiNum = Number.parseFloat(pactado.replace(",", "."));
+    const paraTi = pactado.trim() && Number.isFinite(paraTiNum) && paraTiNum > 0 ? paraTiNum.toFixed(2) : null;
+    if (pactado.trim() && !paraTi) {
+      setError("Precio pactado no válido. Usa un número en euros, p. ej. 40 o 40,50.");
+      return;
+    }
+    const aviso = paraTi
+      ? `Enviar el encargo a lavori CON precio pactado: ${paraTi} € para el traductor (solo tendrá que aceptar; el aviso sale de hola@lavori.es). ¿Continuar?`
+      : "Enviar los documentos del pedido a lavori como SOLICITUD DE PRECIO (el traductor los ve y propone su precio; el aviso sale de hola@lavori.es). ¿Continuar?";
+    if (!window.confirm(aviso)) {
       return;
     }
     setLavoriSending(true);
@@ -148,6 +164,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       const res = await fetch(`/api/orders/${reference}/lavori-price-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paraTi ? { paraTi } : {}),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -157,7 +174,9 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       setLavoriMsg(
         data.repetido
           ? `Ya estaba solicitado (encargo ${data.encargoId ?? "previo"}).`
-          : `Solicitud de precio enviada a lavori (encargo ${data.encargoId}).`
+          : paraTi
+            ? `Encargo con precio pactado (${paraTi} €) enviado a lavori (${data.encargoId}).`
+            : `Solicitud de precio enviada a lavori (encargo ${data.encargoId}).`
       );
       router.refresh();
     } catch {
