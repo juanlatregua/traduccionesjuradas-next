@@ -502,6 +502,11 @@ model Quote {
   adminSentBy    String?
   expedienteRef  String?           // ref del expediente entrante (exp:REF) que originó el presupuesto
   marginPct      Int?              // margen % aplicado sobre el coste del traductor (solo interno)
+  // Identidad del jurado que realizará la traducción (directriz Juan 12-ago:
+  // "da seriedad") — sale en email/WhatsApp/PDF de la cotización si está.
+  // Autorrellenados desde la solicitud lavori del expediente; editables.
+  translatorName String?
+  translatorMaec String?           // nº MAEC / T-IJ, tal cual se muestra
   paymentMethods String[]          // métodos de pago a mostrar en el PDF: bbva/openbank/bizum/paypal
   contactWhatsapp String?          // WhatsApp/teléfono a mostrar en este presupuesto (override)
   // Presupuesto perdido: motivo dado por el cliente (1 clic desde el email de

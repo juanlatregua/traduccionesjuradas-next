@@ -34,6 +34,8 @@ type QuotePdfData = {
   paid?: boolean; // recibo: sella el presupuesto como PAGADO (marca de agua + indicador)
   notesLegal?: string | null;
   holderNames?: string | null; // titulares de los certificados (informativo)
+  translatorName?: string | null; // jurado que realiza la traducción (directriz 12-ago)
+  translatorMaec?: string | null;
   paymentMethods?: string[]; // bbva/openbank/bizum/paypal — vacío = todas por defecto
   contactWhatsapp?: string | null; // WhatsApp/teléfono override para este presupuesto
 };
@@ -128,7 +130,18 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
     14,
     y
   );
-  y += 8;
+  y += 5;
+  if (data.translatorName) {
+    const juradoLines = doc.splitTextToSize(
+      `Traductor/a jurado/a: ${safe(data.translatorName)}${data.translatorMaec ? ` — nº ${safe(data.translatorMaec)} del MAEC` : " — nombrado/a por el MAEC"}`,
+      182
+    ) as string[];
+    for (const jl of juradoLines) {
+      doc.text(jl, 14, y);
+      y += 5;
+    }
+  }
+  y += 3;
 
   doc.setFont("helvetica", "bold");
   drawRow(doc, y, ["Descripción", "Cantidad", "Precio", "Total"], true);

@@ -132,6 +132,8 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       targetLang: true,
       deliveryType: true,
       holderNames: true,
+      translatorName: true,
+      translatorMaec: true,
       lostReason: true,
       paidAt: true,
       pdfUrl: true,
@@ -203,6 +205,16 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
             {refreshed.holderNames && refreshed.holderNames.trim() && (
               <p className="text-sm text-sepia">
                 Titulares: <strong>{refreshed.holderNames}</strong>
+              </p>
+            )}
+            {refreshed.translatorName && (
+              <p className="rounded-xl border border-cream bg-cream/60 px-3 py-2 text-sm text-encre">
+                🖋 Su traducción la realiza <strong>{refreshed.translatorName}</strong>, traductor/a-intérprete
+                jurado/a{refreshed.translatorMaec ? <> nº <strong>{refreshed.translatorMaec}</strong></> : null} nombrado/a
+                por el Ministerio de Asuntos Exteriores.{" "}
+                <a href="/red-de-traductores-jurados" className="font-semibold text-bleu hover:underline">
+                  Conozca nuestra red directa →
+                </a>
               </p>
             )}
 

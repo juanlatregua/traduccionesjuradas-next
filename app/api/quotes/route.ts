@@ -169,10 +169,39 @@ export async function POST(req: Request) {
     // Vínculo presupuesto↔solicitud de precio lavori (Fase 2): si el presupuesto
     // nace del expediente de un lead con solicitud en lavori, se ata aquí para que
     // el pago dispare precio_aceptado sobre el encargo existente. No bloqueante.
+    // De la misma solicitud sale la identidad del jurado (directriz 12-ago:
+    // nombre + nº MAEC en la cotización) — el nº desde el Collaborator mapeado.
     if (expedienteRef) {
-      await prisma.lavoriPriceRequest
-        .updateMany({ where: { expedienteRef, quoteId: null }, data: { quoteId: created.id } })
-        .catch((err) => console.error("[quotes:create] lavori link failed", err));
+      try {
+        await prisma.lavoriPriceRequest.updateMany({
+          where: { expedienteRef, quoteId: null },
+          data: { quoteId: created.id },
+        });
+        const lpr = await prisma.lavoriPriceRequest.findFirst({
+          where: { quoteId: created.id, status: "PRICED" },
+          orderBy: { updatedAt: "desc" },
+          select: { miembroId: true, miembroNombre: true },
+        });
+        if (lpr?.miembroNombre) {
+          const { LAVORI_MEMBER_COLLABORATOR_EMAIL } = await import("@/lib/lavori-bridge");
+          const email = lpr.miembroId ? LAVORI_MEMBER_COLLABORATOR_EMAIL[lpr.miembroId] : undefined;
+          const collaborator = email
+            ? await prisma.collaborator.findUnique({
+                where: { email },
+                select: { fullName: true, swornNumber: true },
+              })
+            : null;
+          await prisma.quote.update({
+            where: { id: created.id },
+            data: {
+              translatorName: collaborator?.fullName || lpr.miembroNombre,
+              translatorMaec: collaborator?.swornNumber || null,
+            },
+          });
+        }
+      } catch (err) {
+        console.error("[quotes:create] lavori link failed", err);
+      }
     }
 
     return NextResponse.json({ ok: true, quote: serializeQuote(created) });

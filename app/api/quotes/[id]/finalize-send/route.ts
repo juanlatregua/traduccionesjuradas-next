@@ -86,6 +86,8 @@ export async function POST(req: Request, { params }: Params) {
       isDraft: false,
       notesLegal: quote.notesLegal,
       holderNames: quote.holderNames,
+      translatorName: quote.translatorName,
+      translatorMaec: quote.translatorMaec,
       paymentMethods: quote.paymentMethods,
       contactWhatsapp: quote.contactWhatsapp,
     });
@@ -107,6 +109,8 @@ export async function POST(req: Request, { params }: Params) {
     const emailCopy = buildPayLinkEmail({
       name: quote.customerName || "cliente",
       payUrl,
+      translatorName: quote.translatorName,
+      translatorMaec: quote.translatorMaec,
     });
     let sendResult: { providerId?: string | null } = {};
     if (doSendEmail) {
@@ -127,6 +131,8 @@ export async function POST(req: Request, { params }: Params) {
       sourceLang: quote.sourceLang,
       targetLang: quote.targetLang,
       payUrl,
+      translatorName: quote.translatorName,
+      translatorMaec: quote.translatorMaec,
       vatNote:
         Number(quote.vatRate) > 0
           ? undefined

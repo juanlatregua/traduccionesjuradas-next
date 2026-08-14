@@ -6,7 +6,18 @@ export { PAYMENT_LABELS };
 type CommonData = {
   name: string;
   payUrl: string;
+  // Identidad del jurado que hará la traducción (directriz 12-ago: "da
+  // seriedad") — la línea solo sale si hay nombre; el nº MAEC si se conoce.
+  translatorName?: string | null;
+  translatorMaec?: string | null;
 };
+
+function translatorLine(name?: string | null, maec?: string | null): string {
+  if (!name) return "";
+  return maec
+    ? `Su traducción la realiza ${name}, traductor/a-intérprete jurado/a nº ${maec} nombrado/a por el Ministerio de Asuntos Exteriores (MAEC).`
+    : `Su traducción la realiza ${name}, traductor/a-intérprete jurado/a nombrado/a por el Ministerio de Asuntos Exteriores (MAEC).`;
+}
 
 export function renderSimpleEmailHtml(body: string) {
   const escaped = body
@@ -39,9 +50,10 @@ export function renderSimpleEmailHtml(body: string) {
 
 export function buildPayLinkEmail(data: CommonData) {
   const subject = "Presupuesto traducción jurada – Instrucciones de pago";
+  const jurado = translatorLine(data.translatorName, data.translatorMaec);
   const body = `Estimado/a ${data.name},
 Le enviamos el presupuesto correspondiente a su traducción jurada.
-Puede revisarlo y realizar el pago de forma segura aquí: ${data.payUrl}
+${jurado ? `${jurado}\n` : ""}Puede revisarlo y realizar el pago de forma segura aquí: ${data.payUrl}
 Formas de pago: Bizum / Transferencia / PayPal.
 Si ha seleccionado envío en papel, los gastos de envío son 12 € + IVA (incluidos en el total).
 Una vez confirmado el pago, comenzaremos la traducción de inmediato.
@@ -70,6 +82,8 @@ export function buildWhatsAppPayText(data: {
   // Nota fiscal del coste: por defecto "IVA incluido"; para no residentes UE
   // (vatRate 0) el que llama pasa la no sujeción — mentir "IVA incluido" no vale.
   vatNote?: string;
+  translatorName?: string | null;
+  translatorMaec?: string | null;
 }) {
   const methods = (data.paymentMethods && data.paymentMethods.length > 0
     ? data.paymentMethods
@@ -89,9 +103,14 @@ export function buildWhatsAppPayText(data: {
       ? "- 📑 La traducción jurada es oficial y se envía en papel por mensajería."
       : "- 📑 La traducción jurada es oficial y se envía en PDF con firma digital.";
 
+  const jurado = data.translatorName
+    ? `- 🖋 La realiza ${data.translatorName}, traductor/a jurado/a${data.translatorMaec ? ` nº ${data.translatorMaec}` : ""} del MAEC.`
+    : "";
+
   return [
     `Hola ${data.name} 👋`,
     costeLine,
+    jurado,
     data.plazo ? `- 🕙 El plazo es de ${data.plazo}.` : "",
     entrega,
     `- 🤝 Para confirmar su encargo puede hacer el pago:`,
