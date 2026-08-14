@@ -73,6 +73,12 @@ export default function AcheterImmobilierPage() {
           </Link>
         </div>
 
+        <p className="mt-6 text-sm text-sepia">
+          Vous vous installez en Espagne en gardant un patrimoine en France ? Vérifiez vos obligations des deux
+          côtés avec notre{" "}
+          <Link href="/fr/diagnostic-fiscal" className="text-bleu underline">diagnostic fiscal France-Espagne</Link>.
+        </p>
+
         <p className="mt-8 text-xs text-graphite">
           Sources officielles : <a href="https://www.notariado.org" className="text-bleu underline" rel="noopener noreferrer" target="_blank">Notariado</a> ·
           <a href="https://sede.agenciatributaria.gob.es" className="text-bleu underline" rel="noopener noreferrer" target="_blank"> Agencia Tributaria</a>.

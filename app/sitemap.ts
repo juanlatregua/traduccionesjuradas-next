@@ -106,6 +106,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/traducao-certificada":                          "2026-05-30",
   "/fr/acheter-bien-immobilier-espagne":            "2026-05-29",
   "/fr/declaration-non-resident-espagne":           "2026-05-29",
+  "/fr/diagnostic-fiscal":                          "2026-08-14",
   "/traducciones-juradas-baratas":                  "2026-07-22",
   "/traduccion-jurada-online":                      "2026-07-18",
   "/traduccion-jurada-frances-malaga":              "2026-02-15",

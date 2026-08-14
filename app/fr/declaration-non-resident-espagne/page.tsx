@@ -74,6 +74,12 @@ export default function DeclarationNonResidentPage() {
           </Link>
         </div>
 
+        <p className="mt-6 text-sm text-sepia">
+          Situation inverse — vous <strong>résidez en Espagne</strong> avec un bien, un héritage ou une pension
+          restés en France ? Faites le point en 3 minutes avec notre{" "}
+          <Link href="/fr/diagnostic-fiscal" className="text-bleu underline">diagnostic fiscal France-Espagne</Link>.
+        </p>
+
         <p className="mt-8 text-xs text-graphite">
           Sources officielles :{" "}
           <a href="https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente.html" className="text-bleu underline" rel="noopener noreferrer" target="_blank">Agencia Tributaria — IRNR / modèle 210</a> ·
