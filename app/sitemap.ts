@@ -133,7 +133,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/traductor-jurado-frances":                      "2026-07-18",
   "/traductor-jurado-aleman":                       "2026-07-18",
   "/traductor-jurado-ingles":                       "2026-07-18",
-  "/traductor-jurado-neerlandes":                   "2026-07-18",
+  "/traductor-jurado-neerlandes":                   "2026-08-14",
   "/traductor-jurado-italiano":                     "2026-07-18",
   "/traductor-jurado-portugues":                    "2026-07-18",
   "/traductor-jurado-rumano":                       "2026-07-18",

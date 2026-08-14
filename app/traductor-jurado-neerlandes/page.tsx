@@ -27,12 +27,32 @@ export default function TraductorJuradoNeerlandesPage() {
       idiomaSlug="neerlandes"
       combinaciones={["nl-es", "es-nl"]}
       tituloH1="Traductor jurado de neerlandés para España, Países Bajos y Bélgica"
-      descripcion="Realizamos traducciones juradas de neerlandés a español y de español a neerlandés para trámites en España y en países como Países Bajos y Bélgica: empleo, residencia, estudios, empresas y herencias. Cada traducción la firma un traductor jurado de neerlandés, sin plataformas intermediarias."
+      descripcion="Realizamos traducciones juradas de neerlandés a español y de español a neerlandés para trámites en España y en países como Países Bajos y Bélgica: empleo, residencia, estudios, empresas y herencias. Tu documento va directo al traductor jurado de neerlandés por nuestra red directa — con su nombre y nº oficial en el presupuesto, sin plataformas intermediarias."
       faqItems={[
         {
           question: "¿Qué validez tiene una traducción jurada de neerlandés en España?",
           answer:
             "Tiene validez oficial si la firma un traductor jurado nombrado por el MAEC y se entrega con firma y sello conforme a los requisitos del trámite.",
+        },
+        {
+          question: "¿La traducción jurada de neerlandés vale en Bélgica y en Países Bajos?",
+          answer:
+            "Para presentar documentos españoles en Bélgica o Países Bajos suele exigirse traductor habilitado en destino: en nuestra red contamos con jurados con doble credencial (MAEC en España y Wbtv neerlandesa, 'beëdigd vertaler'), de modo que la misma traducción sirve a ambos lados. Para documentos neerlandeses o belgas presentados en España basta el jurado MAEC.",
+        },
+        {
+          question: "¿Cómo conseguir una traducción jurada de neerlandés?",
+          answer:
+            "Sube el documento por la web o WhatsApp: lo ve directamente el traductor jurado de neerlandés de nuestra red, pone precio cerrado y recibes el presupuesto con su nombre y su número oficial. Al pagar, esa misma persona firma y sella tu traducción y la recibes en PDF con firma digital o en papel por mensajería.",
+        },
+        {
+          question: "¿Traducen certificados de nacimiento neerlandeses (geboorteakte)?",
+          answer:
+            "Sí, es uno de los documentos más habituales: geboorteakte, huwelijksakte y VOG para extranjería, matrimonio o nacionalidad en España. Los certificados sencillos suelen entregarse en 24-72 horas laborables.",
+        },
+        {
+          question: "¿Hacen traducción jurídica de neerlandés?",
+          answer:
+            "Sí: contratos, escrituras, sentencias, estatutos y documentación societaria neerlandesa o belga, traducidos por jurados con experiencia jurídica. Si el documento debe surtir efectos oficiales, la entrega es jurada con firma y sello.",
         },
         {
           question: "¿Cuánto cuesta una traducción jurada de neerlandés?",
@@ -75,6 +95,12 @@ export default function TraductorJuradoNeerlandesPage() {
           descripcion:
             "Apostilla en el rechtbank o vía LegalWeb, el VOG en papel, el Reglamento UE 2016/1191 y los precios de cada documento, explicados paso a paso.",
           enlace: "/blog/documentos-neerlandeses-espana",
+        },
+        {
+          titulo: "Así trabajamos: red directa de traductores jurados",
+          descripcion:
+            "Tu documento va directo al jurado de neerlandés, con su nombre y nº oficial en tu presupuesto — sin cadenas de agencias. Conoce cómo funciona la red.",
+          enlace: "/red-de-traductores-jurados",
         },
       ]}
     />
