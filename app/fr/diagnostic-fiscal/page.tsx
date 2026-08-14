@@ -67,7 +67,7 @@ export default function DiagnosticFiscalPage() {
           <p className="text-sm text-encre">
             ⚠ <strong>Avertissement.</strong> Ce diagnostic vous informe et vous organise ; il ne constitue pas
             un conseil fiscal et ne remplace ni votre conseiller ni les administrations. Les règles et dates ont
-            été vérifiées au 14/08/2026 (les valeurs marquées ✻ restent à confirmer) et la fiscalité change
+            été vérifiées au 14/08/2026 contre les sources officielles, et la fiscalité change
             chaque année : vérifiez votre situation auprès d&apos;un professionnel avant toute décision.
           </p>
         </div>

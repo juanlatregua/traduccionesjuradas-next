@@ -5,8 +5,8 @@ import Link from "next/link";
 import { buildIcs, type IcsEvent } from "@/lib/ics";
 
 // Diagnostic fiscal France-Espagne : state machine sans LLM (même patron que
-// le chat UGE de test-uge). Règles et dates vérifiées au 14/08/2026 — les
-// valeurs marquées ✻ restent à confirmer chaque année (Loi de finances / BOE).
+// le chat UGE de test-uge). Règles et dates vérifiées au 14/08/2026 contre
+// BOE/impots.gouv.fr/BOFiP; re-vérifier chaque janvier (Loi de finances / BOE).
 
 type Reponses = {
   res?: string;
@@ -142,14 +142,14 @@ function evaluer(r: Reponses): Piege[] {
       n: "info",
       or: true,
       t: "Le taux minimum sans option",
-      d: "La France applique d'office 20 % (30 % au-delà de ~27 794 € ✻). Si votre taux moyen mondial est inférieur, l'option « taux moyen » réduit la note — il faut justifier vos revenus mondiaux (documents espagnols traduits).",
+      d: "La France applique d'office 20 % (30 % au-delà de 29 579 €, seuil revenus 2025, indexé chaque année). Si votre taux moyen mondial est inférieur, l'option « taux moyen » réduit la note — il faut justifier vos revenus mondiaux (documents espagnols traduits).",
     });
   }
   if (r.usage === "vide" || r.usage === "secondaire") {
     pieges.push({
       n: "ambre",
       t: "Le patrimoine invisible",
-      d: "Un bien vide en France ne génère rien côté français… mais l'Espagne impute un revenu fictif dans votre IRPF (règle DGT ✻). Et selon les valeurs : IFI français (> 1,3 M€ d'immobilier français) ou impôt sur la fortune espagnol.",
+      d: "Un bien vide en France ne génère rien côté français… mais l'Espagne impute un revenu fictif dans votre IRPF (art. 85 LIRPF : 1,1 % sur 50 % de la valeur d'acquisition). Et selon les valeurs : IFI français (> 1,3 M€ d'immobilier français) ou impôt sur la fortune espagnol.",
     });
   }
   if (r.pension === "privee") {
