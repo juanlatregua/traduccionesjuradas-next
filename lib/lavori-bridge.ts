@@ -37,6 +37,15 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
     "whvx8ft5w6wi50hchczh48hp", // Francisco Carballo Cruz (PT>ES, jurado)
     "f4pyspe0hsa1ss99siaokqti", // María García Garmendia (T-IJ 4176, IT+PT; entra con enlace 7 días)
   ],
+  // Carril 14-ago-2026 (demanda GSC: mayor familia sin marca del site).
+  // Candidata única: Dolores Álvarez — DOBLE credencial (MAEC T-IJ 11466 +
+  // Wbtv 40785 NL "beëdigd vertaler"): vale también si el destino es Países
+  // Bajos. Reservas a mano (patrón sueco): Violette Oudkerk (T-IJ 2065,
+  // flzteuv5vv4xoac1siivkrep, entró por interés propio) y Conchita Siedenburg
+  // (T-IJ 2696, 7mr5fqd974h56855ewum2cgh). ⚠ EXCLUSIÓN CONSCIENTE (orden Juan
+  // 14-ago): Inge Luken NO entra al carril — no emite facturas y rompe el
+  // circuito factura_subida→Expense.
+  nl: ["s2vn1450z5rud0s03shffui3"], // María Dolores Álvarez Estévez (NL>ES/ES>NL)
   // Carril 13-ago-2026 (caso hermanas Brich, solteria AR>ES URGENTE 14-ago).
   // Los TRES jurados AR operativos del tablón: a volumen pequeño, tres avisos
   // maximizan que alguien lo coja hoy; las cifras llegan a Juan y decide por
