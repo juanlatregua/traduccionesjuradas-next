@@ -52,6 +52,7 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
     "s2vn1450z5rud0s03shffui3", // María Dolores Álvarez Estévez (T-IJ 11466 + Wbtv 40785)
     "a2x1faeg08r1tiz4gt1d6hfv", // Daniela Cleintuar (T-IJ 11401 + Wbtv 40451, tb. intérprete)
     "vo686ldt55z9yjd7dxrvl7gs", // Maaike Leen Lootens (T-IJ 3684)
+    "fiekx289i4ryrul7r8dx02le", // Roland Bakker (T-IJ 245, veterano; alta 14-ago, ficha completa)
   ],
   // Carril 13-ago-2026 (caso hermanas Brich, solteria AR>ES URGENTE 14-ago).
   // Los TRES jurados AR operativos del tablón: a volumen pequeño, tres avisos
