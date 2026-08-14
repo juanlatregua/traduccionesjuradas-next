@@ -569,6 +569,48 @@ export default function DiagnosticFiscalFR() {
             </div>
           )}
 
+          {reponses.her !== "non" && reponses.her !== undefined && (
+            <div className="mt-6">
+              <h3 className="font-baskerville text-xl text-encre">Packs succession — prix fermé, zéro surprise</h3>
+              <p className="mt-1 text-sm text-sepia">
+                Le lot complet de votre succession traduit par un traducteur assermenté (MAEC nº 3850), à prix
+                fermé connu d&apos;avance.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col rounded-2xl border border-cream bg-card p-5 shadow-paper">
+                  <p className="font-baskerville text-lg font-bold text-encre">Pack Succession Essentiel</p>
+                  <p className="mt-1 text-sm text-sepia">
+                    Acte de décès + acte de notoriété + attestation immobilière (jusqu&apos;à 8 pages au total).
+                  </p>
+                  <p className="mt-3 font-baskerville text-3xl font-bold text-bleu">299&nbsp;€</p>
+                  <Link
+                    href="/traduction-assermentee?origen=diagnostic-fiscal&pack=succession-essentiel"
+                    className="mt-4 inline-block rounded-xl bg-bleu px-4 py-2 text-center text-sm font-semibold text-white hover:bg-bleu-light"
+                  >
+                    Commander ce pack →
+                  </Link>
+                </div>
+                <div className="flex flex-col rounded-2xl border-2 border-bleu/40 bg-card p-5 shadow-paper">
+                  <p className="font-baskerville text-lg font-bold text-encre">Pack Succession Complet</p>
+                  <p className="mt-1 text-sm text-sepia">
+                    L&apos;Essentiel + testament + déclaration de succession (jusqu&apos;à 15 pages au total).
+                  </p>
+                  <p className="mt-3 font-baskerville text-3xl font-bold text-bleu">449&nbsp;€</p>
+                  <Link
+                    href="/traduction-assermentee?origen=diagnostic-fiscal&pack=succession-complet"
+                    className="mt-4 inline-block rounded-xl bg-bleu px-4 py-2 text-center text-sm font-semibold text-white hover:bg-bleu-light"
+                  >
+                    Commander ce pack →
+                  </Link>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-graphite">
+                Page supplémentaire : 20&nbsp;€. Déposez vos documents et indiquez le pack — nous confirmons le
+                prix fermé avant tout paiement.
+              </p>
+            </div>
+          )}
+
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href={`/traduction-assermentee?origen=diagnostic-fiscal${
