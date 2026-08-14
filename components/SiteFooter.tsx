@@ -74,6 +74,7 @@ export default function SiteFooter() {
               <Link href="/politica-de-cookies" className="hover:text-or transition-colors">Cookies</Link>
               <Link href="/devoluciones" className="hover:text-or transition-colors">Devoluciones</Link>
               <Link href="/preguntas-frecuentes" className="hover:text-or transition-colors">Preguntas frecuentes</Link>
+              <Link href="/red-de-traductores-jurados" className="hover:text-or transition-colors">Red directa de traductores</Link>
               <Link href="/como-escanear-bien" className="hover:text-or transition-colors">Cómo escanear bien</Link>
               <Link href="/expediente" className="font-semibold text-cream hover:text-or transition-colors">Subir expediente (4+ docs)</Link>
               <Link href="/traduction-assermentee" className="hover:text-or transition-colors" hrefLang="fr">Traduction assermentée (FR)</Link>

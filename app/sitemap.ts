@@ -68,6 +68,7 @@ function getPriority(route: string): number {
   if (
     route === "/proceso" ||
     route === "/traductores-jurados" ||
+    route === "/red-de-traductores-jurados" ||
     route === "/acreditacion" ||
     route === "/contacto"
   ) {
@@ -109,6 +110,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/traduccion-jurada-online":                      "2026-07-18",
   "/traduccion-jurada-frances-malaga":              "2026-02-15",
   "/traductores-jurados":                           "2026-04-29",
+  "/red-de-traductores-jurados":                    "2026-08-14",
   "/acreditacion":                                  "2026-03-04",
   "/contacto":                                      "2026-01-29",
   "/marruecos":                                     "2026-07-18",

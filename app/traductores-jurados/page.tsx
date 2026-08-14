@@ -72,6 +72,12 @@ export default function TraductoresJuradosPage() {
           traducción jurada para que tus documentos lleguen a tiempo y
           correctamente preparados al organismo donde los tienes que presentar.
         </p>
+        <p className="mt-3 text-sm text-sepia sm:text-base">
+          ¿Quieres saber cómo llega tu documento al jurado de tu idioma?{" "}
+          <Link href="/red-de-traductores-jurados" className="font-semibold text-bleu hover:underline">
+            Así funciona nuestra red directa de traductores jurados →
+          </Link>
+        </p>
       </header>
 
       {/* QUIÉN ESTÁ DETRÁS */}
