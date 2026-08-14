@@ -38,14 +38,21 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
     "f4pyspe0hsa1ss99siaokqti", // María García Garmendia (T-IJ 4176, IT+PT; entra con enlace 7 días)
   ],
   // Carril 14-ago-2026 (demanda GSC: mayor familia sin marca del site).
-  // Candidata única: Dolores Álvarez — DOBLE credencial (MAEC T-IJ 11466 +
-  // Wbtv 40785 NL "beëdigd vertaler"): vale también si el destino es Países
-  // Bajos. Reservas a mano (patrón sueco): Violette Oudkerk (T-IJ 2065,
-  // flzteuv5vv4xoac1siivkrep, entró por interés propio) y Conchita Siedenburg
-  // (T-IJ 2696, 7mr5fqd974h56855ewum2cgh). ⚠ EXCLUSIÓN CONSCIENTE (orden Juan
-  // 14-ago): Inge Luken NO entra al carril — no emite facturas y rompe el
-  // circuito factura_subida→Expense.
-  nl: ["s2vn1450z5rud0s03shffui3"], // María Dolores Álvarez Estévez (NL>ES/ES>NL)
+  // MULTI-CANDIDATO por orden de Juan (14-ago tarde: las 2 altas de la ola NL
+  // entran al carril) — cotizan y Juan compara; en pedidos pagados dirigidos,
+  // la primera que acepta se lo lleva. DOS dobles-credenciales (Dolores y
+  // Daniela: MAEC+Wbtv) → cualquier documento con destino Países Bajos queda
+  // cubierto. Reservas a mano: Violette Oudkerk (T-IJ 2065,
+  // flzteuv5vv4xoac1siivkrep) y Conchita Siedenburg (T-IJ 2696,
+  // 7mr5fqd974h56855ewum2cgh). ⚠ EXCLUSIÓN CONSCIENTE (orden Juan 14-ago):
+  // Inge Luken NO entra — no emite facturas y rompe factura_subida→Expense.
+  // Daniela hace también EN>ES (solo hacia español) — NO añadida al carril en
+  // (prioridad Vanessa, decisión Juan 12-ago) sin nueva orden.
+  nl: [
+    "s2vn1450z5rud0s03shffui3", // María Dolores Álvarez Estévez (T-IJ 11466 + Wbtv 40785)
+    "a2x1faeg08r1tiz4gt1d6hfv", // Daniela Cleintuar (T-IJ 11401 + Wbtv 40451, tb. intérprete)
+    "vo686ldt55z9yjd7dxrvl7gs", // Maaike Leen Lootens (T-IJ 3684)
+  ],
   // Carril 13-ago-2026 (caso hermanas Brich, solteria AR>ES URGENTE 14-ago).
   // Los TRES jurados AR operativos del tablón: a volumen pequeño, tres avisos
   // maximizan que alguien lo coja hoy; las cifras llegan a Juan y decide por
