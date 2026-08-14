@@ -48,10 +48,6 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
     "1f0j9vhune01xff5x3l1gi31", // Manuel Carmelo Feria García (T-IJ 850)
     "1s6cygiljkcwkkzebrfewloj", // María Belén Roncero Moreno
   ],
-  // ⚠ TEMPORAL E2E Fase 2 (13-ago-2026): carril noruego → cuenta demo de lavori
-  // para validar precio_aceptado + entrega_subida en prod. REVERTIR AL CERRAR
-  // (mismo patrón que el 12-ago, commits 55153aa/1b96e2a).
-  no: ["48dhwptj01xd9fugwbetq76q"], // cuenta demo "lavori"
 };
 
 // Miembro de lavori → email del Collaborator de tj.net (para cerrar la vuelta:
