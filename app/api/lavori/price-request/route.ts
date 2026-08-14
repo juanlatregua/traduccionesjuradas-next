@@ -34,7 +34,10 @@ async function packLeadDoc(doc: LeadDoc, index: number): Promise<BridgeDoc | nul
 
   const contentType = res.headers.get("content-type") || "application/pdf";
   const isPdf = contentType.includes("pdf") || doc.url.toLowerCase().includes(".pdf");
-  const start = Math.max(1, Math.round(Number(doc.pageStart) || 0));
+  // Sin pageStart NO hay rango: viaja el PDF ENTERO. El Math.max(1,...) anterior
+  // convertía la ausencia de rango en "página 1..1" y el sobre salía amputado
+  // (caso PT 14-ago: 1 de 8 páginas; lo cazó el propio traductor).
+  const start = Math.round(Number(doc.pageStart) || 0);
   const end = Math.round(Number(doc.pageEnd) || start);
   if (isPdf && start > 0) {
     try {
