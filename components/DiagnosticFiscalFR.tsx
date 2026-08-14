@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { buildIcs, type IcsEvent } from "@/lib/ics";
 
 // Diagnostic fiscal France-Espagne : state machine sans LLM (même patron que
 // le chat UGE de test-uge). Règles et dates vérifiées au 14/08/2026 — les
@@ -210,6 +211,86 @@ function docsDe(r: Reponses): string[] {
   return docs;
 }
 
+// Next occurrence of a fixed annual deadline (month is 1-based).
+function prochaine(mois: number, jour: number): Date {
+  const now = new Date();
+  const cette = new Date(now.getFullYear(), mois - 1, jour);
+  return cette >= now ? cette : new Date(now.getFullYear() + 1, mois - 1, jour);
+}
+
+function icsDe(r: Reponses): IcsEvent[] {
+  const immo = (r.pat ?? []).includes("immo");
+  const seuil = r.seuil === "oui" || r.seuil === "nsp";
+  const events: IcsEvent[] = [];
+  if (seuil) {
+    events.push({
+      uid: "fiscal-fr-es-720@traduccionesjuradas.net",
+      title: "ES · Modelo 720 — biens à l'étranger (date limite)",
+      date: prochaine(3, 31),
+      description: "Déclaration informative espagnole des biens à l'étranger. Diagnostic : traduccionesjuradas.net/fr/diagnostic-fiscal",
+      alarmDaysBefore: 14,
+    });
+  }
+  events.push({
+    uid: "fiscal-fr-es-renta@traduccionesjuradas.net",
+    title: "ES · Déclaration IRPF — date limite (revenus mondiaux)",
+    date: prochaine(6, 30),
+    description: "Renta espagnole avec vos revenus mondiaux (loyers français inclus). Diagnostic : traduccionesjuradas.net/fr/diagnostic-fiscal",
+    alarmDaysBefore: 14,
+  });
+  if (r.usage === "loue") {
+    events.push({
+      uid: "fiscal-fr-es-declafr@traduccionesjuradas.net",
+      title: "FR · Déclaration des revenus (non-résident) — date indicative",
+      date: prochaine(5, 31),
+      description: "Revenus fonciers français : 2042 case 4BE ou 2044. La date exacte varie selon la campagne — vérifiez sur impots.gouv.fr.",
+      alarmDaysBefore: 14,
+    });
+  }
+  if (immo) {
+    events.push({
+      uid: "fiscal-fr-es-tf@traduccionesjuradas.net",
+      title: "FR · Taxe foncière — paiement",
+      date: prochaine(10, 15),
+      description: "Avis disponible fin août sur impots.gouv.fr ; majoration de 10 % en cas de retard.",
+      alarmDaysBefore: 7,
+    });
+  }
+  return events;
+}
+
+function telechargerIcs(events: IcsEvent[]) {
+  if (!events.length || typeof window === "undefined") return;
+  const blob = new Blob([buildIcs(events)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "echeances-fiscales-france-espagne.ics";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const DOC_SLUGS: Record<string, string> = {
+  "Acte de décès": "acte_deces",
+  "Acte de notoriété": "acte_notoriete",
+  "Testament": "testament",
+  "Déclaration de succession": "declaration_succession",
+  "Attestation immobilière": "attestation_immobiliere",
+  "Bail et avis": "bail_avis",
+  "Relevés bancaires": "releves",
+  "Certificat de résidence fiscale": "certificat_residence",
+};
+
+function slugsDe(docs: string[]): string {
+  return docs
+    .map((d) => {
+      const cle = Object.keys(DOC_SLUGS).find((k) => d.startsWith(k));
+      return cle ? DOC_SLUGS[cle] : null;
+    })
+    .filter(Boolean)
+    .join(",");
+}
+
 const EXEMPLE_ISABELLE: Reponses = {
   res: "oui",
   her: "recu",
@@ -227,6 +308,7 @@ export default function DiagnosticFiscalFR() {
   const [multiSel, setMultiSel] = useState<string[]>([]);
   const [fini, setFini] = useState(false);
   const [exemple, setExemple] = useState(false);
+  const [copie, setCopie] = useState(false);
 
   const actives = QUESTIONS.filter((q) => !q.cond || q.cond(reponses));
   const courante = fini ? undefined : actives.find((q) => reponses[q.id] === undefined);
@@ -438,6 +520,16 @@ export default function DiagnosticFiscalFR() {
               </tbody>
             </table>
           </div>
+          <button
+            type="button"
+            onClick={() => telechargerIcs(icsDe(reponses))}
+            className="mt-3 rounded-xl border-2 border-bleu px-4 py-2 text-sm font-semibold text-bleu hover:bg-bleu/[0.08]"
+          >
+            📅 Ajouter mes échéances à mon agenda (.ics)
+          </button>
+          <p className="mt-1 text-xs text-graphite">
+            Rappels 1–2 semaines avant chaque date, dans votre propre calendrier. Aucune donnée envoyée.
+          </p>
 
           {docsDe(reponses).length > 0 && (
             <div className="mt-6">
@@ -453,12 +545,35 @@ export default function DiagnosticFiscalFR() {
                   </li>
                 ))}
               </ul>
+              <button
+                type="button"
+                onClick={() => {
+                  const liste = docsDe(reponses)
+                    .map((d) => "- " + d)
+                    .join("\n");
+                  navigator.clipboard
+                    .writeText("Documents à traduire (diagnostic fiscal France-Espagne) :\n" + liste)
+                    .then(() => {
+                      setCopie(true);
+                      setTimeout(() => setCopie(false), 3000);
+                    })
+                    .catch(() => {});
+                }}
+                className="mt-3 rounded-xl border border-cream px-4 py-2 text-sm font-medium text-sepia hover:bg-parchment"
+              >
+                {copie ? "✓ Liste copiée" : "Copier ma liste de documents"}
+              </button>
+              <p className="mt-1 text-xs text-graphite">
+                Collez-la dans le dépôt de documents ou dans votre message — nous saurons exactement quoi préparer.
+              </p>
             </div>
           )}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href="/traduction-assermentee"
+              href={`/traduction-assermentee?origen=diagnostic-fiscal${
+                docsDe(reponses).length ? `&docs=${slugsDe(docsDe(reponses))}` : ""
+              }`}
               className="rounded-xl bg-bleu px-5 py-2.5 font-semibold text-white hover:bg-bleu-light"
             >
               Devis de traduction assermentée →

@@ -52,6 +52,12 @@ export default function TraductionAssermenteePage() {
               <p className="mt-1 text-sm text-sepia">IRNR, revenu imputé, location, convention France-Espagne et justificatifs à traduire.</p>
               <p className="mt-3 text-sm font-semibold text-bleu group-hover:underline">Voir le guide →</p>
             </Link>
+            <Link href="/fr/diagnostic-fiscal" className="group rounded-2xl border border-cream bg-card p-6 shadow-paper transition hover:border-bleu hover:shadow-md sm:col-span-2">
+              <span className="text-2xl" aria-hidden="true">🧭</span>
+              <h3 className="mt-3 font-baskerville text-lg font-bold text-encre">Vous résidez en Espagne avec un patrimoine en France ?</h3>
+              <p className="mt-1 text-sm text-sepia">Loyers, héritage, comptes, pension : découvrez en 3 minutes vos obligations dans les deux pays, vos dates limites et les documents à traduire.</p>
+              <p className="mt-3 text-sm font-semibold text-bleu group-hover:underline">Faire le diagnostic fiscal →</p>
+            </Link>
           </div>
         </div>
       </section>
