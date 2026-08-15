@@ -8,8 +8,8 @@
 
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
-import { isAutoPriceable, resolvePriceablePair } from "@/lib/pricing-engine/languages";
-import { clientPriceFromCost, round2, DEFAULT_VAT_RATE } from "@/lib/quote-math";
+import { isAutoPriceable, resolvePriceablePair } from "./pricing-engine/languages.ts";
+import { clientPriceFromCost, round2, DEFAULT_VAT_RATE } from "./quote-math.ts";
 import type { Locale } from "@/lib/i18n/locales";
 
 // inbound  = documento extranjero → español (uso en España)

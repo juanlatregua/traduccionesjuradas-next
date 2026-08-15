@@ -32,10 +32,22 @@ test("lavoriRouteFromPair: carriles 12-ago — rumano (Maria) e inglés (Vanessa
   assert.deepEqual(esEn.candidatos, ["43dwlkzsr6lsltpwcj32m88s"]);
 });
 
+test("lavoriRouteFromPair: carriles 13/14-ago — portugués, árabe y neerlandés multi-candidato", () => {
+  const ptEs = lavoriRouteFromPair("pt->es");
+  assert.ok(ptEs);
+  assert.equal(ptEs.candidatos.length, 2); // Carballo + María García (cotizan ambos)
+  const arEs = lavoriRouteFromPair("ar->es");
+  assert.ok(arEs);
+  assert.equal(arEs.candidatos.length, 3); // los 3 jurados AR operativos
+  const nlEs = lavoriRouteFromPair("nl->es");
+  assert.ok(nlEs);
+  assert.equal(nlEs.candidatos.length, 4);
+});
+
 test("lavoriRouteFromPair: el resto de lenguas NO se enrutan", () => {
   assert.equal(lavoriRouteFromPair("fr->es"), null); // FR es de Juan
-  assert.equal(lavoriRouteFromPair("pt->es"), null); // Juan Amor (silencio)
   assert.equal(lavoriRouteFromPair("it->es"), null); // Juan Amor (silencio)
+  assert.equal(lavoriRouteFromPair("ca->es"), null);
   assert.equal(lavoriRouteFromPair(null), null);
   assert.equal(lavoriRouteFromPair(""), null);
 });
