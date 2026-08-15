@@ -71,7 +71,11 @@ export function isEmailConfigured(): boolean {
 }
 
 export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, attachments }: SendMailOptions) {
-  const from = process.env.EMAIL_FROM || "juansilvamoreno@holabonjour.es";
+  // Fallback de la MISMA marca: el anterior era la academia de francés, así que
+  // borrar EMAIL_FROM habría hecho que los emails a clientes de tj.net saliesen
+  // firmados por holabonjour. Canon (Juan, 15-ago): clientes desde
+  // hola@traduccionesjuradas.net, traductores desde hola@lavori.es (los emite lavori).
+  const from = process.env.EMAIL_FROM || "hola@traduccionesjuradas.net";
 
   if (!isEmailConfigured()) {
     console.log(`[AzureMail] Not configured. Subject: ${subject} → ${Array.isArray(to) ? to.join(", ") : to}`);
