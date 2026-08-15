@@ -1,17 +1,15 @@
+import { PER_WORD_RATE } from "./pricing-engine/languages.ts";
+
+// Fallback DELIBERADAMENTE ALTO, no alineado con DEFAULT_RATE (0,10) del motor:
+// aquí solo caen idiomas FUERA de la tabla, que son justo los que no deben
+// auto-tarificarse (ru, uk, zh…). Este valor alimenta también el suelo
+// anti-manipulación de POST /api/orders, donde bajarlo debilitaría la guarda.
+// Ver incidente TJ-20260602-NJ42.
 export const DEFAULT_WORD_RATE = 0.14;
 
-export const WORD_RATE_BY_LANG: Record<string, number> = {
-  fr: 0.08,
-  en: 0.11,
-  de: 0.12,
-  pt: 0.12,
-  it: 0.12,
-  nl: 0.14,
-  ca: 0.08,
-  sv: 0.14,
-  no: 0.14,
-  ro: 0.09,
-};
+// Espejo del motor (antes se duplicaba a mano y se quedó sin árabe: es→ar se
+// tarificaba a 0,14 por este carril y a 0,10 por la puerta).
+export const WORD_RATE_BY_LANG: Record<string, number> = PER_WORD_RATE;
 
 export function getBaseLangFromPair(langOrPair: string) {
   const normalized = String(langOrPair || "").trim().toLowerCase();
