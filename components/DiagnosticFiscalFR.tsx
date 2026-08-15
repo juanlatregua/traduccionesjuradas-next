@@ -369,7 +369,7 @@ export default function DiagnosticFiscalFR() {
         <h2 className="font-baskerville text-2xl text-encre">Votre diagnostic</h2>
         {!fini && (
           <button type="button" onClick={voirExemple} className="text-sm font-semibold text-bleu underline">
-            Voir un exemple (Isabelle) →
+            Voir un exemple (Sophie) →
           </button>
         )}
       </div>
@@ -388,7 +388,7 @@ export default function DiagnosticFiscalFR() {
 
       {exemple && fini && (
         <p className="mt-4 rounded-xl bg-bleu/[0.08] px-3 py-2 text-sm text-encre">
-          <strong>Exemple — Isabelle :</strong> salariée en Espagne, a hérité en France en 2025 (un appartement et des
+          <strong>Exemple — Sophie :</strong> salariée en Espagne, a hérité en France en 2025 (un appartement et des
           comptes), loue l&apos;appartement depuis mai 2026, déclare les loyers en France seulement, n&apos;a jamais
           déposé de modelo 720.
         </p>

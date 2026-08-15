@@ -494,6 +494,38 @@ async function routeOrderToLavori(opts: {
     return { changed: aceptado.changed };
   }
 
+  // Traductor EXTERNO ya fijado en el presupuesto (sello) sin solicitud lavori
+  // de por medio (caso Liliana 15-ago): pagar NO abre encargo en el tablón —
+  // la gestión va fuera del puente. Sin este guarda, el pago duplicaba el
+  // encargo a los candidatos del carril con precio recalculado al 75%.
+  if (order.quoteId) {
+    const quote = await prisma.quote.findUnique({
+      where: { id: order.quoteId },
+      select: { translatorName: true },
+    });
+    if (quote?.translatorName) {
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "lavori.omitido_traductor_externo",
+          message: `Puente lavori omitido: el presupuesto ya fija traductor (${quote.translatorName}) fuera del tablón — gestionar encargo y entrega directamente.`,
+          payload: { translatorName: quote.translatorName, langPair: order.langPair },
+        },
+      });
+      await sendMail({
+        to: STAFF_ALERT_EMAIL,
+        subject: `Pedido ${reference} pagado — traductor externo ${quote.translatorName}, SIN encargo lavori`,
+        text: [
+          `El pedido ${reference} está pagado y su presupuesto fija traductor externo: ${quote.translatorName}.`,
+          `No se ha abierto encargo en lavori. Coordina el encargo y la entrega directamente.`,
+          `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+        ].join("\n"),
+        html: `<p>El pedido ${reference} está pagado y su presupuesto fija traductor externo: <strong>${quote.translatorName}</strong>.</p><p>No se ha abierto encargo en lavori. Coordina el encargo y la entrega directamente.</p>`,
+      }).catch((err) => console.error("[lavori-bridge] external translator mail failed", err));
+      return { changed: false };
+    }
+  }
+
   const fallbackToStaff = async (error: string) => {
     console.error(`[lavori-bridge] solicitud fallida para ${reference}:`, error);
     await prisma.orderEvent.create({
