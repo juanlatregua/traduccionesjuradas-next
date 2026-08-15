@@ -6,7 +6,7 @@ import {
   lavoriRouteFromPair,
   buildPriceRequestPayload,
   bridgeDescription,
-  fetchDocAsBase64,
+  packDocsForSobre,
   sendLavoriSolicitud,
 } from "@/lib/lavori-bridge";
 
@@ -90,17 +90,11 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    const documentos = [];
-    for (const doc of docs) {
-      const empaquetado = await fetchDocAsBase64(doc);
-      if (empaquetado) documentos.push(empaquetado);
+    const sobre = await packDocsForSobre(docs);
+    if (!sobre.ok) {
+      return NextResponse.json({ ok: false, error: sobre.error }, { status: 400 });
     }
-    if (documentos.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: "No se pudo descargar ningún documento del pedido." },
-        { status: 400 }
-      );
-    }
+    const documentos = sobre.documentos;
 
     // Entrega en papel: el candidato debe saber que el original físico viaja por
     // mensajería y que al entregar tendrá que indicar recogida (petición Juan

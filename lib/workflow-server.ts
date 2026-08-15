@@ -13,7 +13,7 @@ import { getDocumentsFromOrder } from "@/lib/collaborators";
 import {
   lavoriRouteFromPair,
   buildSolicitudPayload,
-  fetchDocAsBase64,
+  packDocsForSobre,
   sendLavoriSolicitud,
   sendLavoriPrecioAceptado,
   type LavoriRoute,
@@ -555,14 +555,11 @@ async function routeOrderToLavori(opts: {
     if (docs.length === 0) {
       return await fallbackToStaff("el pedido no tiene documentos enlazados");
     }
-    const documentos = [];
-    for (const doc of docs) {
-      const empaquetado = await fetchDocAsBase64(doc);
-      if (empaquetado) documentos.push(empaquetado);
+    const sobre = await packDocsForSobre(docs);
+    if (!sobre.ok) {
+      return await fallbackToStaff(sobre.error);
     }
-    if (documentos.length === 0) {
-      return await fallbackToStaff("no se pudo descargar ningún documento del pedido");
-    }
+    const documentos = sobre.documentos;
 
     const payload = buildSolicitudPayload({
       reference,
