@@ -1,8 +1,12 @@
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
-import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
-import { getRate, getLanguageName } from "@/lib/pricing-engine/languages";
-import { clientPriceFromCost, round2 } from "@/lib/quote-math";
-import { getMinimum, getApostilleSurcharge } from "@/lib/pricing-engine/rules";
+import { calculatePrice, VAT_RATE } from "../../pricing-engine/calculator.ts";
+import {
+  getRate,
+  getLanguageName,
+  AUTO_PRICEABLE_FOREIGN,
+} from "../../pricing-engine/languages.ts";
+import { clientPriceFromCost, round2 } from "../../quote-math.ts";
+import { getMinimum, getApostilleSurcharge } from "../../pricing-engine/rules.ts";
 
 export type QuoteEstimateInput = {
   language: string;
@@ -34,11 +38,35 @@ export type QuoteEstimateOutput = {
   note: string;
 };
 
+/* Idioma fuera de la tarifa oficial (ru, uk, zh, ja…): el tool NO devuelve
+   cifras. Antes caía al fallback DEFAULT_RATE del motor y el chatbot daba un
+   precio con toda su confianza — el borde que quedaba sin gate tras el
+   presupuesto 2026-00045; misma forma que el incidente TJ-20260602-NJ42. El
+   schema de la tool ya restringe los valores, pero esto es el cinturón: quien
+   decide el argumento es un modelo, no un formulario. */
+export type QuoteEstimateUnpriceable = {
+  auto_priceable: false;
+  language: string;
+  language_name: string;
+  note: string;
+};
+
 const DEFAULT_WORDS_PER_PAGE = 250;
 const MIN_WORDS_FALLBACK = 150;
 
-export function getQuoteEstimate(input: QuoteEstimateInput): QuoteEstimateOutput {
+export function getQuoteEstimate(
+  input: QuoteEstimateInput,
+): QuoteEstimateOutput | QuoteEstimateUnpriceable {
   const language = (input.language ?? "fr").toLowerCase();
+
+  if (!AUTO_PRICEABLE_FOREIGN.has(language)) {
+    return {
+      auto_priceable: false,
+      language,
+      language_name: getLanguageName(language),
+      note: "No tenemos tarifa automática para este idioma: NO des ninguna cifra, ni orientativa ni de rango. Explica que lo presupuestamos a mano y pide que nos escriba por WhatsApp o desde /contacto con el documento.",
+    };
+  }
   const documentType = input.document_type ?? "other";
   const pages = Math.max(1, Math.floor(input.pages ?? 1));
   const country = input.country?.toUpperCase();

@@ -1,7 +1,7 @@
 // lib/pricing-engine/calculator.ts — Motor de cálculo de precios
 
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
-import { getRate } from "./languages";
+import { getRate } from "./languages.ts";
 import {
   getMinimum,
   getPageMinimum,
@@ -10,7 +10,7 @@ import {
   URGENCY_MULTIPLIER,
   MOROCCO_PRICING,
   FRENCH_CRIMINAL_RECORD_PRICE,
-} from "./rules";
+} from "./rules.ts";
 
 export const VAT_RATE = 0.21;
 

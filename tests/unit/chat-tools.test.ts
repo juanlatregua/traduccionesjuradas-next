@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// recommend.ts and verify.ts are dependency-free, so we can import directly.
-// quote.ts imports via @/ alias (resolved by Next, not by node --test), so we
-// reproduce its critical branches here as we do in pricing-engine.test.ts.
+// Todos los módulos bajo prueba usan imports relativos con extensión .ts, que es
+// lo que node --test resuelve (el alias @/ solo lo entiende Next).
 import { recommendPath } from "../../lib/chat/tools/recommend.ts";
 import { verifyTranslatorCredentials } from "../../lib/chat/tools/verify.ts";
+import { getQuoteEstimate } from "../../lib/chat/tools/quote.ts";
+import { PER_WORD_RATE } from "../../lib/pricing-engine/languages.ts";
 
 const UTM = "utm_source=chat&utm_medium=bot&utm_campaign=recommend_path";
 
@@ -91,63 +92,51 @@ test("verify_translator_credentials: otro nº → verified=false con listado MAE
   }
 });
 
-// === get_quote_estimate: lógica reproducida (importar @/ no funciona en node --test) ===
+// === get_quote_estimate sobre el módulo REAL ===
+// Antes se reproducía aquí la tabla de tarifas a mano porque los imports con
+// alias @/ no resuelven en node --test; la copia podía divergir del motor sin
+// que nada fallara. Con los imports relativos ya se prueba el módulo de verdad.
 
-const PER_WORD_RATE: Record<string, number> = {
-  fr: 0.08, en: 0.11, de: 0.12, nl: 0.14, it: 0.12, pt: 0.12,
-  ca: 0.08, sv: 0.14, no: 0.14, ar: 0.10, ro: 0.09,
-};
-const MINIMUM_BY_TYPE: Record<string, number> = {
-  birth_certificate: 42, marriage_certificate: 42, criminal_record: 42, other: 42,
-};
-const MINIMUM_BY_LANGUAGE: Record<string, number> = {
-  en: 50, de: 50, nl: 50, it: 50, pt: 50, ca: 50, sv: 50, no: 50, ro: 50, ar: 55,
-};
-const FRENCH_CRIMINAL_RECORD_PRICE = 61.98;
-const MOROCCO_PRICING: Record<number, number> = { 1: 40, 2: 40, 3: 45, 4: 55, 5: 65 };
-
-function fakeQuote(input: { language: string; document_type?: string; pages?: number; country?: string }) {
-  const lang = input.language;
-  const docType = input.document_type ?? "other";
-  const pages = input.pages ?? 1;
-  const country = input.country?.toUpperCase();
-  const isFrenchCriminal = docType === "criminal_record" && lang === "fr" && pages >= 3;
-  const isMoroccoSpecial = country === "MA" && lang !== "ar";
-  const minimum = Math.max(
-    MINIMUM_BY_TYPE[docType] ?? 42,
-    MINIMUM_BY_LANGUAGE[lang] ?? 0,
-  );
-  return { isFrenchCriminal, isMoroccoSpecial, minimum, rate: PER_WORD_RATE[lang] ?? 0.1 };
+function priced(r: ReturnType<typeof getQuoteEstimate>) {
+  assert.ok(!("auto_priceable" in r), "esperaba precio y salió la puerta de idioma sin tarifa");
+  return r as Exclude<typeof r, { auto_priceable: false }>;
 }
 
-test("get_quote_estimate (lógica): FR + criminal_record + 3 páginas → french criminal record fixed", () => {
-  const r = fakeQuote({ language: "fr", document_type: "criminal_record", pages: 3 });
-  assert.equal(r.isFrenchCriminal, true);
-  assert.ok(Math.abs(FRENCH_CRIMINAL_RECORD_PRICE * 1.21 - 75) < 0.01);
+test("get_quote_estimate: FR + criminal_record + 3 páginas → precio fijo 75 € con IVA", () => {
+  const r = priced(getQuoteEstimate({ language: "fr", document_type: "criminal_record", pages: 3 }));
+  assert.equal(r.is_french_criminal_record, true);
+  assert.equal(r.base_price_with_vat_eur, 75);
 });
 
-test("get_quote_estimate (lógica): MA + fr → Morocco fixed pricing activado", () => {
-  const r = fakeQuote({ language: "fr", country: "MA" });
-  assert.equal(r.isMoroccoSpecial, true);
-  assert.equal(MOROCCO_PRICING[1], 40);
+test("get_quote_estimate: MA + fr → Morocco fixed pricing activado", () => {
+  const r = priced(getQuoteEstimate({ language: "fr", country: "MA" }));
+  assert.equal(r.is_morocco_special, true);
 });
 
-test("get_quote_estimate (lógica): MA + ar → NO Morocco special (árabe se cobra normal)", () => {
-  const r = fakeQuote({ language: "ar", country: "MA" });
-  assert.equal(r.isMoroccoSpecial, false);
+test("get_quote_estimate: MA + ar → NO Morocco special (árabe se cobra normal)", () => {
+  const r = priced(getQuoteEstimate({ language: "ar", country: "MA" }));
+  assert.equal(r.is_morocco_special, false);
 });
 
-test("get_quote_estimate (lógica): mínimo árabe = 55 €", () => {
-  const r = fakeQuote({ language: "ar", document_type: "birth_certificate" });
-  assert.equal(r.minimum, 55);
+test("get_quote_estimate: mínimos por idioma (árabe 55, francés 42, inglés 50)", () => {
+  assert.equal(priced(getQuoteEstimate({ language: "ar", document_type: "birth_certificate" })).minimum_price_eur, 55);
+  assert.equal(priced(getQuoteEstimate({ language: "fr", document_type: "birth_certificate" })).minimum_price_eur, 42);
+  assert.equal(priced(getQuoteEstimate({ language: "en", document_type: "birth_certificate" })).minimum_price_eur, 50);
 });
 
-test("get_quote_estimate (lógica): mínimo francés certificado = 42 €", () => {
-  const r = fakeQuote({ language: "fr", document_type: "birth_certificate" });
-  assert.equal(r.minimum, 42);
+test("get_quote_estimate: la tarifa sale del motor, no de una copia", () => {
+  for (const [lang, rate] of Object.entries(PER_WORD_RATE)) {
+    assert.equal(priced(getQuoteEstimate({ language: lang })).rate_per_word_eur, rate, lang);
+  }
 });
 
-test("get_quote_estimate (lógica): mínimo inglés certificado = 50 €", () => {
-  const r = fakeQuote({ language: "en", document_type: "birth_certificate" });
-  assert.equal(r.minimum, 50);
+// Gate del último borde sin puerta (incidente TJ-20260602-NJ42): un idioma sin
+// tarifa oficial caía al fallback y el chatbot daba una cifra con confianza.
+test("get_quote_estimate: idioma sin tarifa oficial NO devuelve cifras", () => {
+  for (const lang of ["ru", "uk", "zh", "ja", "es", ""]) {
+    const r = getQuoteEstimate({ language: lang });
+    assert.ok("auto_priceable" in r, `${lang} debería quedar fuera del precio automático`);
+    assert.equal(r.auto_priceable, false);
+    assert.ok(!("base_price_eur" in r), `${lang} no puede devolver precio`);
+  }
 });

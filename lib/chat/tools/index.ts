@@ -14,8 +14,9 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
       properties: {
         language: {
           type: "string",
+          enum: ["fr", "en", "de", "it", "pt", "ca", "nl", "sv", "no", "ar", "ro"],
           description:
-            "Código ISO 639-1 del idioma origen no español. Valores admitidos: 'fr' (francés), 'en' (inglés), 'de' (alemán), 'it' (italiano), 'pt' (portugués), 'ca' (catalán), 'nl' (neerlandés), 'sv' (sueco), 'no' (noruego), 'ar' (árabe), 'ro' (rumano).",
+            "Código ISO 639-1 del idioma origen no español. Solo estos tienen tarifa oficial; para cualquier otro (ruso, ucraniano, chino, japonés…) NO llames a esta herramienta: se presupuesta a mano.",
         },
         document_type: {
           type: "string",
