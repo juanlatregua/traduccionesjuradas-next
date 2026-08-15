@@ -4,6 +4,34 @@ import { sendMail } from "@/lib/azure-mail";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
+/* CARRIL VIEJO APAGADO (orden de Juan, 15-ago-2026). El motor NO escribe a un
+   traductor: al jurado se le avisa desde hola@lavori.es y tj.net no aparece
+   (canon del 10-ago). Estas funciones son del flujo manual anterior al puente y
+   escribían desde hola@traduccionesjuradas.net — con Vanessa, Murariu y Morton,
+   que son colaboradores aquí Y miembros del tablón, habrían salido con la marca
+   equivocada. Verificado en BD antes de apagarlo: 6 assignments, todos de Juan
+   Amor, todos por el camino automático, y CERO eventos de las rutas manuales:
+   no se envió ni uno de estos correos en la vida.
+   El mensaje no se pierde — va a staff con el enlace listo para pasárselo a
+   mano, igual que el silencio de Juan Amor (02825c4). */
+async function sendToCollaboratorViaStaff(opts: {
+  collaboratorName: string;
+  collaboratorEmail: string;
+  subject: string;
+  html: string;
+}) {
+  const aviso = `<p style="background:#fef3c7; padding:12px; border-radius:8px;">
+    <strong>Este mensaje NO se ha enviado a ${escapeHtml(opts.collaboratorName)}</strong>
+    (${escapeHtml(opts.collaboratorEmail)}). El motor no escribe a traductores: si es del
+    tablón, el aviso sale de lavori; si no, pásaselo tú por tu canal. Debajo va tal cual.
+  </p><hr>`;
+  await sendMail({
+    to: ADMIN_EMAIL,
+    subject: `[no enviado a ${opts.collaboratorName}] ${opts.subject}`,
+    html: aviso + opts.html,
+  });
+}
+
 export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -60,8 +88,9 @@ export async function sendAssignmentToCollaborator(payload: AssignmentEmailPaylo
     <p style="color:#94a3b8; font-size:13px;">Este enlace es personal e intransferible.</p>
   `;
 
-  await sendMail({
-    to: payload.collaboratorEmail,
+  await sendToCollaboratorViaStaff({
+    collaboratorName: payload.collaboratorName,
+    collaboratorEmail: payload.collaboratorEmail,
     subject: `Nuevo encargo de traducción jurada (${ref})`,
     html: wrapClientEmailHtml(html),
   });
@@ -131,8 +160,9 @@ export async function sendRevisionRequestToCollaborator(payload: RevisionRequest
     <p style="color:#94a3b8; font-size:13px;">Este enlace es personal e intransferible.</p>
   `;
 
-  await sendMail({
-    to: payload.collaboratorEmail,
+  await sendToCollaboratorViaStaff({
+    collaboratorName: payload.collaboratorName,
+    collaboratorEmail: payload.collaboratorEmail,
     subject: `Revisión de presupuesto solicitada (${ref})`,
     html: wrapClientEmailHtml(html),
   });
@@ -177,8 +207,9 @@ export async function sendAcceptanceToCollaborator(payload: AcceptanceEmailPaylo
     <p style="color:#94a3b8; font-size:13px;">Este enlace es personal e intransferible.</p>
   `;
 
-  await sendMail({
-    to: payload.collaboratorEmail,
+  await sendToCollaboratorViaStaff({
+    collaboratorName: payload.collaboratorName,
+    collaboratorEmail: payload.collaboratorEmail,
     subject: `Encargo aceptado (${payload.orderReference})`,
     html: wrapClientEmailHtml(html),
   });
@@ -201,8 +232,9 @@ export async function sendRejectionToCollaborator(payload: RejectionEmailPayload
     <p>Gracias por tu tiempo. Te contactaremos para futuros encargos.</p>
   `;
 
-  await sendMail({
-    to: payload.collaboratorEmail,
+  await sendToCollaboratorViaStaff({
+    collaboratorName: payload.collaboratorName,
+    collaboratorEmail: payload.collaboratorEmail,
     subject: `Encargo ${payload.orderReference} — Presupuesto no aceptado`,
     html: wrapClientEmailHtml(html),
   });
@@ -245,9 +277,9 @@ export async function sendFriendlyQuoteRequest(payload: AutoAssignQuoteRequestPa
     <p>¡Gracias!</p>
   `;
 
-  await sendMail({
-    to: payload.collaboratorEmail,
-    replyTo: ADMIN_EMAIL,
+  await sendToCollaboratorViaStaff({
+    collaboratorName: payload.collaboratorName,
+    collaboratorEmail: payload.collaboratorEmail,
     subject: `Nuevo encargo ${lang || ""} (${ref})`,
     html: wrapClientEmailHtml(html),
   });
