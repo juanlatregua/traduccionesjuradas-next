@@ -116,6 +116,9 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [whatsText, setWhatsText] = useState<string>("");
   const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string; body: string } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewEdited, setPreviewEdited] = useState(false);
+  const [aiInstruction, setAiInstruction] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const payUrl = useMemo(() => {
     const baseUrl = (typeof window !== "undefined" && window.location.origin) || "https://www.traduccionesjuradas.net";
@@ -157,6 +160,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo cargar preview de email.");
       setEmailPreview(data.preview);
+      setPreviewEdited(false);
     } catch (err: any) {
       setMessage(err?.message || "No se pudo cargar preview de email.");
     } finally {
@@ -164,14 +168,49 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
+  // Ajuste IA del email cargado en el preview: reescribe asunto+cuerpo con el
+  // contexto real del presupuesto. Solo cambia el texto en pantalla.
+  async function handleImproveWithAi() {
+    if (!emailPreview) return;
+    setAiLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/email-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: emailPreview.subject,
+          body: emailPreview.body,
+          instruction: aiInstruction,
+          quoteId: quote.id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo ajustar con IA.");
+      setEmailPreview({ ...emailPreview, subject: data.draft.subject, body: data.draft.body });
+      setPreviewEdited(true);
+      setMessage("Borrador ajustado con IA. Revísalo: se usará al confirmar y enviar.");
+    } catch (err: any) {
+      setMessage(err?.message || "No se pudo ajustar con IA.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   async function handleFinalizeSend(skipEmail = false) {
     setLoadingSend(true);
     setMessage(null);
     try {
+      // Si el staff editó el preview (a mano o con IA), ese texto sustituye a
+      // la plantilla estándar en el envío; si no, el backend usa la de siempre.
+      const customCopy =
+        previewEdited && emailPreview
+          ? { subject: emailPreview.subject, body: emailPreview.body }
+          : {};
       const res = await fetch(`/api/quotes/${quote.id}/finalize-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skipEmail }),
+        body: JSON.stringify({ skipEmail, ...customCopy }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo generar el presupuesto.");
@@ -521,18 +560,52 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
             </button>
           </div>
           {!emailPreview ? (
-            <p className="mt-3 text-sm text-slate-600">Pulsa “Cargar preview” para ver asunto y cuerpo antes de enviar.</p>
+            <p className="mt-3 text-sm text-slate-600">
+              Pulsa “Cargar preview” para ver y editar el asunto y el cuerpo antes de enviar.
+            </p>
           ) : (
             <div className="mt-3 space-y-2">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Asunto</p>
-              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
-                {emailPreview.subject}
-              </p>
-              <p className="pt-2 text-xs uppercase tracking-wide text-slate-500">HTML renderizado</p>
-              <div
-                className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white p-3 text-sm"
-                dangerouslySetInnerHTML={{ __html: emailPreview.html }}
+              <p className="text-xs uppercase tracking-wide text-slate-500">Asunto (editable)</p>
+              <input
+                value={emailPreview.subject}
+                onChange={(e) => {
+                  setEmailPreview({ ...emailPreview, subject: e.target.value });
+                  setPreviewEdited(true);
+                }}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800"
               />
+              <p className="pt-2 text-xs uppercase tracking-wide text-slate-500">Cuerpo (editable)</p>
+              <textarea
+                value={emailPreview.body}
+                onChange={(e) => {
+                  setEmailPreview({ ...emailPreview, body: e.target.value });
+                  setPreviewEdited(true);
+                }}
+                rows={10}
+                className="w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={aiInstruction}
+                  onChange={(e) => setAiInstruction(e.target.value)}
+                  placeholder="Instrucción IA (opcional): ej. responde a sus preguntas sobre validez del PDF"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+                />
+                <button
+                  type="button"
+                  onClick={handleImproveWithAi}
+                  disabled={aiLoading}
+                  title="Reescribe asunto y cuerpo con IA usando los datos del presupuesto. No envía nada."
+                  className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
+                >
+                  {aiLoading ? "Generando…" : "Ajustar con IA"}
+                </button>
+              </div>
+              <p className="text-xs text-slate-500">
+                {previewEdited
+                  ? "Texto editado: al pulsar «Confirmar y enviar por email» se envía ESTE texto en lugar de la plantilla."
+                  : "Sin cambios: se enviará la plantilla estándar de siempre."}
+              </p>
             </div>
           )}
         </div>

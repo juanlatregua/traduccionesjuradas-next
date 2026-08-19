@@ -22,9 +22,15 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   let skipEmail = false;
+  // Copy personalizado desde el preview editable del admin: si llegan subject
+  // y body no vacíos sustituyen a la plantilla estándar; si no, todo como antes.
+  let customSubject = "";
+  let customBody = "";
   try {
     const body = await req.json();
     skipEmail = !!body?.skipEmail;
+    customSubject = String(body?.subject || "").trim();
+    customBody = String(body?.body || "").trim();
   } catch {
     /* sin body = enviar email como antes */
   }
@@ -106,12 +112,16 @@ export async function POST(req: Request, { params }: Params) {
     const placeholderEmail = isPlaceholderEmail(quote.customerEmail);
     const doSendEmail = !skipEmail && !placeholderEmail;
 
-    const emailCopy = buildPayLinkEmail({
+    const standardCopy = buildPayLinkEmail({
       name: quote.customerName || "cliente",
       payUrl,
       translatorName: quote.translatorName,
       translatorMaec: quote.translatorMaec,
     });
+    const emailCopy =
+      customSubject && customBody
+        ? { subject: customSubject.slice(0, 200), body: customBody.slice(0, 8000) }
+        : standardCopy;
     let sendResult: { providerId?: string | null } = {};
     if (doSendEmail) {
       sendResult = await sendQuoteEmailWithRetry({

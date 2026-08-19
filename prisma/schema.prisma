@@ -79,6 +79,7 @@ enum QuoteMessageType {
   EXPIRED_NOTICE
   RESEND_PAY_LINK
   TRANSLATOR_REVIEW_OFFER
+  INBOX_REPLY
 }
 
 enum QuoteAccessEventType {
@@ -901,4 +902,44 @@ enum DocAnalysisStatus {
   IN_TRANSLATION
   TRANSLATED
   DELIVERED
+}
+
+enum InboundEmailStatus {
+  NEW
+  DRAFTED
+  REPLIED
+  ARCHIVED
+}
+
+// Bandeja de entrada del buzón (Microsoft Graph, Mail.Read): emails de clientes
+// sincronizados a la app para responder desde /admin/inbox con borrador IA.
+// Sin FKs a Customer/Quote/Order a propósito: el match es best-effort por email
+// y no debe impedir borrar/mover esas entidades.
+model InboundEmail {
+  id                String             @id @default(uuid())
+  graphId           String             @unique // id del mensaje en Graph
+  internetMessageId String?
+  conversationId    String?
+  fromEmail         String
+  fromName          String?
+  subject           String
+  bodyPreview       String
+  bodyText          String? // cuerpo en texto plano (para el LLM y la vista)
+  receivedAt        DateTime
+  status            InboundEmailStatus @default(NEW)
+  customerId        String? // match por email en Customer
+  quoteId           String? // último Quote del cliente al sincronizar
+  orderReference    String? // último Order del cliente al sincronizar
+  draftSubject      String? // último borrador IA (editable en UI)
+  draftBody         String?
+  draftedAt         DateTime?
+  replySubject      String? // respuesta realmente enviada
+  replyBody         String?
+  repliedAt         DateTime?
+  repliedBy         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([status, receivedAt])
+  @@index([fromEmail])
 }

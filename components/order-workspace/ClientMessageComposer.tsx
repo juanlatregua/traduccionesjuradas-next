@@ -30,6 +30,40 @@ export default function ClientMessageComposer({
   const [alsoSms, setAlsoSms] = useState(false);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [aiInstruction, setAiInstruction] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // Ajuste IA del borrador: reescribe asunto+cuerpo con el contexto del pedido.
+  // Solo toca el texto en pantalla; el envío sigue siendo manual.
+  const improveWithAi = async () => {
+    if (!body.trim() && !aiInstruction.trim()) {
+      setFeedback({ ok: false, text: "✗ Escribe un mensaje o una instrucción para la IA." });
+      return;
+    }
+    setAiLoading(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/admin/email-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject,
+          body,
+          instruction: aiInstruction,
+          orderReference: reference,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo generar el borrador.");
+      setSubject(data.draft.subject);
+      setBody(data.draft.body);
+      setFeedback({ ok: true, text: "✓ Borrador ajustado con IA. Revísalo antes de enviar." });
+    } catch (err: any) {
+      setFeedback({ ok: false, text: `✗ ${err?.message || "Error al generar el borrador."}` });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const isWaLead = clientEmail.toLowerCase().endsWith("@whatsapp.local");
   const waPhone = clientPhoneDigits
@@ -92,6 +126,24 @@ export default function ClientMessageComposer({
         placeholder="Ej.: Necesitamos el documento original escaneado con mejor calidad, ¿podrías reenviarlo?"
         className={`${inputCls} resize-y`}
       />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={aiInstruction}
+          onChange={(e) => setAiInstruction(e.target.value)}
+          placeholder="Instrucción IA (opcional): ej. responde a sus dudas sobre el plazo, tono formal"
+          className={`${inputCls} min-w-0 flex-1`}
+        />
+        <button
+          type="button"
+          onClick={improveWithAi}
+          disabled={aiLoading}
+          title="Reescribe el asunto y el cuerpo con IA usando los datos del pedido. No envía nada."
+          className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
+        >
+          {aiLoading ? "Generando…" : "Ajustar con IA"}
+        </button>
+      </div>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1.5">
         <label className="flex items-center gap-2 text-xs text-slate-300">

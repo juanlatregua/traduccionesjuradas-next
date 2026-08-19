@@ -67,13 +67,11 @@ export function wrapClientEmailHtml(content: string) {
 
 // Envío de un mensaje EDITABLE por el staff al cliente (cuerpo de texto plano que
 // el staff escribe/ajusta en la landing del pedido). Opcionalmente con adjuntos.
-export async function sendCustomClientEmail(data: {
-  toEmail: string;
-  subject: string;
-  bodyText: string;
-  attachments?: MailAttachment[];
-}) {
-  const safe = String(data.bodyText)
+// HTML de un mensaje libre del staff al cliente (cuerpo + firma + nota legal).
+// Compartido entre sendCustomClientEmail y la respuesta desde /admin/inbox
+// para que TODO mensaje manual salga con el mismo formato.
+export function renderClientMessageHtml(bodyText: string) {
+  const safe = String(bodyText)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
@@ -87,13 +85,21 @@ export async function sendCustomClientEmail(data: {
     <p style="font-size:12px; color:#6b7280; margin:8px 0 0 0;"><strong>NOTA LEGAL</strong> – Este documento se dirige exclusivamente a su destinatario y puede contener información confidencial sometida a secreto profesional. Si no es el destinatario autorizado, su uso o divulgación está prohibido; por favor comuníquelo y destrúyalo. Las comunicaciones por email pueden ser modificadas o interceptadas; el remitente no asume responsabilidad por errores u omisiones.</p>
     <p style="font-size:12px; color:#6b7280; margin:6px 0 0 0;"><strong>Protección de datos:</strong> Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingüísticos S.L. para gestionar su encargo y comunicaciones. Puede ejercer derechos de acceso, rectificación, supresión y oposición en Calle Esperanto, 9 · 29007 Málaga o en <a href="mailto:hola@traduccionesjuradas.net">hola@traduccionesjuradas.net</a>.</p>
   `;
-  const html = `<div style="white-space:pre-wrap; font-size:14px; line-height:1.5;">${safe}</div>
+  return wrapClientEmailHtml(`<div style="white-space:pre-wrap; font-size:14px; line-height:1.5;">${safe}</div>
     <hr style="margin:16px 0 12px 0; border:0; border-top:1px solid #e5e7eb;" />
-    ${signatureHtml}`;
+    ${signatureHtml}`);
+}
+
+export async function sendCustomClientEmail(data: {
+  toEmail: string;
+  subject: string;
+  bodyText: string;
+  attachments?: MailAttachment[];
+}) {
   await sendMail({
     to: data.toEmail,
     subject: data.subject,
-    html: wrapClientEmailHtml(html),
+    html: renderClientMessageHtml(data.bodyText),
     attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
   });
 }

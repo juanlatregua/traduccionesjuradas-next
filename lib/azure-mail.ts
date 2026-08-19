@@ -43,6 +43,17 @@ async function getAccessToken(): Promise<string> {
   return cachedToken.token;
 }
 
+// Token para otros módulos Graph del mismo tenant (p. ej. lectura del buzón
+// en lib/azure-mail-read.ts) — evita duplicar el flujo client_credentials.
+export async function getGraphAccessToken(): Promise<string> {
+  return getAccessToken();
+}
+
+/** Buzón del negocio: el mismo desde el que se envía (EMAIL_FROM). */
+export function getMailboxAddress(): string {
+  return process.env.EMAIL_FROM || "hola@traduccionesjuradas.net";
+}
+
 export interface MailAttachment {
   name: string;
   contentType: string;
