@@ -34,7 +34,8 @@ function isIgnoredSender(fromEmail: string): boolean {
   if (!email.includes("@")) return true;
   if (email === getMailboxAddress().toLowerCase()) return true;
   if (isStaffEmail(email)) return true;
-  return /^(no-?reply|noreply|notifications?|mailer-daemon|postmaster)@/i.test(email);
+  // microsoftexchange…@dominio-propio = avisos de rebote (NDR) de Exchange.
+  return /^(no-?reply|noreply|notifications?|mailer-daemon|postmaster|microsoftexchange)/i.test(email);
 }
 
 export async function matchClientContext(fromEmail: string): Promise<{
