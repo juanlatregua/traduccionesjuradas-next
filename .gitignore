@@ -48,3 +48,6 @@ qa/
 
 # Exports fiscales con datos de clientes (PII) — nunca commitear
 exports/
+
+# Estado local del ping de IndexNow (qué URL se envió con qué lastmod)
+scripts/.indexnow-sent.json

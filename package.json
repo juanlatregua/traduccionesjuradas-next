@@ -14,7 +14,8 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "gsc:report": "node scripts/gsc-report.mjs",
-    "gsc:inspect": "node scripts/gsc-inspect-urls.mjs"
+    "gsc:inspect": "node scripts/gsc-inspect-urls.mjs",
+    "indexnow": "node scripts/indexnow-ping.mjs"
   },
   "browserslist": {
     "production": [
