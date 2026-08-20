@@ -68,6 +68,37 @@ export async function listInboxMessages(opts: {
   return rows.map(toSummary).filter((m) => m.fromEmail);
 }
 
+export interface SentMessageSummary {
+  graphId: string;
+  conversationId: string | null;
+  subject: string;
+  bodyPreview: string;
+  sentAt: Date;
+  toEmails: string[];
+}
+
+/** Mensajes ENVIADOS desde el buzón desde `since` (para detectar respuestas hechas fuera de la bandeja). */
+export async function listSentMessages(opts: { since: Date; top?: number }): Promise<SentMessageSummary[]> {
+  const mailbox = getMailboxAddress();
+  const top = Math.min(Math.max(opts.top || 50, 1), 200);
+  const filter = encodeURIComponent(`sentDateTime ge ${opts.since.toISOString()}`);
+  const select = "id,subject,bodyPreview,conversationId,sentDateTime,toRecipients";
+  const data = await graphGet(
+    `/users/${encodeURIComponent(mailbox)}/mailFolders/sentitems/messages?$top=${top}&$orderby=sentDateTime desc&$filter=${filter}&$select=${select}`
+  );
+  const rows: any[] = Array.isArray(data.value) ? data.value : [];
+  return rows.map((m) => ({
+    graphId: String(m.id),
+    conversationId: m.conversationId || null,
+    subject: String(m.subject || ""),
+    bodyPreview: String(m.bodyPreview || ""),
+    sentAt: new Date(m.sentDateTime),
+    toEmails: Array.isArray(m.toRecipients)
+      ? m.toRecipients.map((r: any) => String(r?.emailAddress?.address || "").toLowerCase()).filter(Boolean)
+      : [],
+  }));
+}
+
 /** Mensaje completo (cuerpo incluido). */
 export async function getInboxMessage(graphId: string): Promise<InboxMessageFull> {
   const mailbox = getMailboxAddress();

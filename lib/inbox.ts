@@ -11,6 +11,7 @@ import {
   getInboxMessage,
   listInboxAttachments,
   getInboxAttachmentBytes,
+  listSentMessages,
 } from "@/lib/azure-mail-read";
 import { isStaffEmail } from "@/lib/staff-access";
 
@@ -87,7 +88,53 @@ export type InboxSyncResult = {
   imported: number;
   skipped: number;
   scanned: number;
+  repliedExternally: number;
 };
+
+/**
+ * Respuestas hechas FUERA de la bandeja (Outlook, móvil): si en Enviados hay
+ * un mensaje del mismo hilo (conversationId) posterior al email pendiente y
+ * dirigido a su remitente, el email pasa a REPLIED solo. Best-effort.
+ */
+async function markRepliedFromSentItems(): Promise<number> {
+  const pending = await prisma.inboundEmail.findMany({
+    where: { channel: "EMAIL", status: { in: ["NEW", "DRAFTED"] }, conversationId: { not: null } },
+    select: { id: true, conversationId: true, fromEmail: true, receivedAt: true },
+    orderBy: { receivedAt: "asc" },
+    take: 200,
+  });
+  if (pending.length === 0) return 0;
+  const since = new Date(Math.max(pending[0].receivedAt.getTime(), Date.now() - FIRST_SYNC_WINDOW_MS));
+  let sent;
+  try {
+    sent = await listSentMessages({ since, top: 200 });
+  } catch (err) {
+    console.error("[inbox] sent items fetch failed", err);
+    return 0;
+  }
+  let marked = 0;
+  for (const p of pending) {
+    const reply = sent.find(
+      (m) =>
+        m.conversationId === p.conversationId &&
+        m.sentAt.getTime() > p.receivedAt.getTime() &&
+        (m.toEmails.length === 0 || m.toEmails.includes(p.fromEmail.toLowerCase()))
+    );
+    if (!reply) continue;
+    await prisma.inboundEmail.update({
+      where: { id: p.id },
+      data: {
+        status: "REPLIED",
+        replySubject: reply.subject || null,
+        replyBody: reply.bodyPreview || null,
+        repliedAt: reply.sentAt,
+        repliedBy: "buzón (fuera de la bandeja)",
+      },
+    });
+    marked++;
+  }
+  return marked;
+}
 
 export async function syncInboxEmails(): Promise<InboxSyncResult> {
   const latest = await prisma.inboundEmail.findFirst({
@@ -148,7 +195,8 @@ export async function syncInboxEmails(): Promise<InboxSyncResult> {
     imported++;
   }
 
-  return { imported, skipped, scanned: messages.length };
+  const repliedExternally = await markRepliedFromSentItems();
+  return { imported, skipped, scanned: messages.length, repliedExternally };
 }
 
 // ---------------------------------------------------------------------------

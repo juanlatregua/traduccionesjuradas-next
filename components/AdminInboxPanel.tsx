@@ -421,11 +421,11 @@ export default function AdminInboxPanel({
       const res = await fetch("/api/admin/inbox/sync", { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo sincronizar.");
-      setSyncMsg(
-        data.imported > 0
-          ? `✓ ${data.imported} email(s) nuevo(s) importado(s).`
-          : "✓ Buzón al día, sin emails nuevos de clientes."
-      );
+      const bits = [
+        data.imported > 0 ? `${data.imported} email(s) nuevo(s) importado(s)` : "buzón al día, sin emails nuevos de clientes",
+        data.repliedExternally > 0 ? `${data.repliedExternally} marcado(s) como respondido(s) (contestados desde Outlook/móvil)` : null,
+      ].filter(Boolean);
+      setSyncMsg(`✓ ${bits.join(" · ")}.`);
       router.refresh();
     } catch (err: any) {
       setSyncMsg(`✗ ${err?.message || "Error al sincronizar."}`);
