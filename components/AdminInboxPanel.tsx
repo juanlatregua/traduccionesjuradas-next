@@ -416,6 +416,7 @@ function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel
   const [name, setName] = useState("");
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [buildQuote, setBuildQuote] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -443,6 +444,13 @@ function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo dar de alta.");
+      if (buildQuote && data.id) {
+        // Encadena el presupuesto: expediente con los archivos + builder con el
+        // WhatsApp a la vista (misma ruta que el boton de la fila).
+        const r2 = await fetch(`/api/admin/inbox/${data.id}/expediente`, { method: "POST" });
+        const d2 = await r2.json().catch(() => ({}));
+        if (r2.ok && d2?.ok && d2.url) window.open(d2.url, "_blank", "noopener");
+      }
       onDone();
     } catch (e: any) {
       setErr(e?.message || "Error al dar de alta el WhatsApp.");
@@ -476,6 +484,10 @@ function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel
         />
         {files.length > 0 && <span className="text-slate-600">{files.length} archivo(s)</span>}
       </div>
+      <label className="flex items-center gap-2 text-xs text-slate-700">
+        <input type="checkbox" checked={buildQuote} onChange={(e) => setBuildQuote(e.target.checked)} />
+        Montar presupuesto al dar de alta (abre el builder con los archivos y el WhatsApp a la vista)
+      </label>
       {err && <p className="text-xs font-medium text-amber-700">✗ {err}</p>}
       <div className="flex gap-2">
         <button
