@@ -28,6 +28,13 @@ export type InboxRow = {
   replySubject: string | null;
   replyBody: string | null;
   repliedAt: string | null;
+  brief: {
+    summary?: string;
+    urgency?: string | null;
+    provisional?: boolean;
+    provisionalReason?: string | null;
+    questions?: string[];
+  } | null;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -249,6 +256,29 @@ function EmailCard({
               {row.bodyText || row.bodyPreview}
             </p>
           </div>
+
+          {row.brief && (row.brief.summary || row.brief.provisional || (row.brief.questions || []).length > 0) && (
+            <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900">
+              <p className="font-semibold uppercase tracking-wide text-sky-700">Lectura IA del email</p>
+              {row.brief.summary && <p className="mt-1">{row.brief.summary}</p>}
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {row.brief.urgency === "urgent" && (
+                  <span className="rounded bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">Urgente</span>
+                )}
+                {row.brief.provisional && (
+                  <span className="rounded bg-rose-100 px-2 py-0.5 font-semibold text-rose-800">Documento provisional</span>
+                )}
+              </div>
+              {(row.brief.questions || []).length > 0 && (
+                <ul className="mt-1 list-disc pl-5">
+                  {(row.brief.questions || []).map((q, i) => (
+                    <li key={i}>{q}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-1 text-[11px] text-sky-700/80">El borrador IA ya incluye estas preguntas y salvedades.</p>
+            </div>
+          )}
 
           {replied && row.replyBody ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">

@@ -33,6 +33,7 @@ export async function POST(req: Request, { params }: Params) {
     const businessContext = await buildBusinessContext({
       quoteId: inbound.quoteId,
       orderReference: inbound.orderReference,
+      inboundEmailId: inbound.id,
     });
 
     const draft = await generateEmailDraft({

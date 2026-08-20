@@ -55,6 +55,7 @@ export default async function AdminInboxPage({ searchParams }: Props) {
     replySubject: e.replySubject,
     replyBody: e.replyBody,
     repliedAt: e.repliedAt ? e.repliedAt.toISOString() : null,
+    brief: e.briefJson && typeof e.briefJson === "object" ? (e.briefJson as InboxRow["brief"]) : null,
   }));
 
   return (

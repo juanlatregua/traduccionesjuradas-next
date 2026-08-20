@@ -44,6 +44,10 @@ export async function POST(req: Request) {
       body: inbound.bodyText || inbound.bodyPreview,
       docs,
     });
+    await prisma.inboundEmail.update({
+      where: { id: inboxId },
+      data: { briefJson: brief as any, briefAt: new Date() },
+    });
     return NextResponse.json({ ok: true, brief });
   } catch (err: any) {
     console.error("[expediente:email-brief] error", err);

@@ -937,6 +937,8 @@ model InboundEmail {
   replyBody         String?
   repliedAt         DateTime?
   repliedBy         String?
+  briefJson         Json? // lectura IA del email (par, urgencia, provisional, notas, preguntas)
+  briefAt           DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 

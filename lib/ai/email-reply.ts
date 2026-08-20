@@ -3,6 +3,7 @@
 // pedido / preview del presupuesto). El staff SIEMPRE revisa antes de enviar.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
 
@@ -50,9 +51,11 @@ function langPairLabel(source: string, target: string) {
 export async function buildBusinessContext(opts: {
   quoteId?: string | null;
   orderReference?: string | null;
+  inboundEmailId?: string | null;
 }): Promise<string> {
   const parts: string[] = [];
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  let clientEmailForBrief: string | null = null;
 
   if (opts.quoteId) {
     const quote = await prisma.quote.findUnique({
@@ -68,6 +71,7 @@ export async function buildBusinessContext(opts: {
       },
     });
     if (quote) {
+      clientEmailForBrief = quote.customerEmail;
       const vatNote =
         decimalToNumber(quote.vatRate) > 0 ? "IVA incluido" : "operación no sujeta a IVA (residente fuera de la UE)";
       const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
@@ -115,6 +119,7 @@ export async function buildBusinessContext(opts: {
       },
     });
     if (order) {
+      clientEmailForBrief ||= order.clientEmail;
       parts.push(
         [
           `PEDIDO ${order.reference}:`,
@@ -129,6 +134,37 @@ export async function buildBusinessContext(opts: {
           .join("\n")
       );
     }
+  }
+
+  // Lectura IA del email del cliente (bandeja): salvedades y preguntas
+  // pendientes viajan solas al borrador de respuesta y al email del presupuesto.
+  const inbound = opts.inboundEmailId
+    ? await prisma.inboundEmail.findUnique({
+        where: { id: opts.inboundEmailId },
+        select: { briefJson: true, subject: true, receivedAt: true },
+      })
+    : clientEmailForBrief
+      ? await prisma.inboundEmail.findFirst({
+          where: { fromEmail: { equals: clientEmailForBrief, mode: "insensitive" }, briefJson: { not: Prisma.JsonNull } },
+          orderBy: { receivedAt: "desc" },
+          select: { briefJson: true, subject: true, receivedAt: true },
+        })
+      : null;
+  const brief = inbound?.briefJson && typeof inbound.briefJson === "object" ? (inbound.briefJson as Record<string, any>) : null;
+  if (brief) {
+    const questions: string[] = Array.isArray(brief.questions) ? brief.questions.filter((q: unknown) => typeof q === "string") : [];
+    parts.push(
+      [
+        `LECTURA DEL EMAIL DEL CLIENTE (${inbound!.subject}, ${inbound!.receivedAt.toLocaleDateString("es-ES")}):`,
+        brief.summary ? `- Pide: ${brief.summary}` : null,
+        brief.urgency === "urgent" ? `- Urgente${brief.deadline ? ` (${brief.deadline})` : ""}` : null,
+        brief.provisional ? `- DOCUMENTO PROVISIONAL/INCOMPLETO: ${brief.provisionalReason || "el cliente enviará la versión definitiva"}` : null,
+        brief.quoteNotes ? `- Salvedad del presupuesto: ${brief.quoteNotes}` : null,
+        questions.length ? `- Preguntas pendientes que hay que hacerle (inclúyelas en la respuesta si siguen sin contestar):\n${questions.map((q) => `  · ${q}`).join("\n")}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    );
   }
 
   return parts.join("\n\n");
