@@ -246,8 +246,12 @@ export function buildTranslationReadyEmail(data: {
   lang?: "es" | "fr";
   translationAttached?: boolean;
   invoiceAttached?: boolean;
+  // Corrección tras la entrega: la nueva versión sustituye a la anterior. Cambia
+  // asunto/cabecera y no vuelve a pedir reseña.
+  correction?: boolean;
 }): { subject: string; html: string } {
   const fr = data.lang === "fr";
+  const correction = data.correction === true;
   // Ficha de Google de HBTJ (CID de la URL de Maps). El env puede sobreescribirlo
   // (p.ej. con el enlace corto g.page/r/.../review para reseña de un clic), pero
   // solo si es una URL http válida; si no, se usa el fallback fiable.
@@ -257,7 +261,7 @@ export function buildTranslationReadyEmail(data: {
     : "https://www.google.com/maps?cid=1858671208989418611";
 
   // Enlace de reseña directo y prominente.
-  const reviewBlock = reviewUrl
+  const reviewBlock = reviewUrl && !correction
     ? (fr
         ? `<p style="margin-top:20px;">Merci de laisser un commentaire sur notre travail, cela nous aide énormément :</p>
            <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:11px 26px; border-radius:8px; text-decoration:none; font-weight:600;">⭐ Laisser un avis Google</a></p>`
@@ -291,10 +295,17 @@ export function buildTranslationReadyEmail(data: {
         ? `<p>Si vous avez besoin d'une facture ou d'un envoi papier, répondez à cet e-mail.</p>`
         : `<p>Si necesitas factura o envío en papel, responde a este correo.</p>`);
 
+  const correctionLine = correction
+    ? (fr
+        ? `<p>Cette version corrigée <strong>remplace</strong> la traduction envoyée précédemment. Merci de ne conserver que celle-ci.</p>`
+        : `<p>Esta versión corregida <strong>sustituye</strong> a la traducción que te enviamos anteriormente. Conserva solo esta.</p>`)
+    : "";
+
   const html = fr
     ? `
-      <h2>Votre traduction assermentée est prête</h2>
+      <h2>${correction ? "Version corrigée de votre traduction assermentée" : "Votre traduction assermentée est prête"}</h2>
       <p>Référence : <strong>${data.reference}</strong></p>
+      ${correctionLine}
       ${attachLine}
       ${backupLink}
       ${statusLine}
@@ -302,8 +313,9 @@ export function buildTranslationReadyEmail(data: {
       ${reviewBlock}
     `
     : `
-      <h2>Tu traducción jurada está lista</h2>
+      <h2>${correction ? "Versión corregida de tu traducción jurada" : "Tu traducción jurada está lista"}</h2>
       <p>Referencia: <strong>${data.reference}</strong></p>
+      ${correctionLine}
       ${attachLine}
       ${backupLink}
       ${statusLine}
@@ -311,9 +323,13 @@ export function buildTranslationReadyEmail(data: {
       ${reviewBlock}
     `;
 
-  const subject = fr
-    ? `Votre traduction assermentée est prête (${data.reference})`
-    : `Tu traducción jurada está lista (${data.reference})`;
+  const subject = correction
+    ? (fr
+        ? `Version corrigée de votre traduction assermentée (${data.reference})`
+        : `Versión corregida de tu traducción jurada (${data.reference})`)
+    : fr
+      ? `Votre traduction assermentée est prête (${data.reference})`
+      : `Tu traducción jurada está lista (${data.reference})`;
   return { subject, html: wrapClientEmailHtml(html) };
 }
 
@@ -326,6 +342,7 @@ export async function sendTranslationReadyEmail(data: {
   attachments?: MailAttachment[];
   translationAttached?: boolean;
   invoiceAttached?: boolean;
+  correction?: boolean;
 }): Promise<{ subject: string; html: string }> {
   const composed = buildTranslationReadyEmail(data);
   await sendMail({

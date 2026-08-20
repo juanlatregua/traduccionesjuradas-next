@@ -12,6 +12,7 @@ import {
   suggestEtaBusinessDays,
 } from "@/lib/eta";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { getWorkflowState } from "@/lib/workflow";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -130,9 +131,32 @@ export async function POST(req: Request, { params }: Params) {
       }
     }
 
+    // Traducciones ya entregadas (lista multi-archivo + campo único legacy).
+    const existingDelivered: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
+      ? (order.deliveryFilesJson as unknown as DeliveryFile[]).filter(
+          (f) => f && typeof f.url === "string" && f.url.trim()
+        )
+      : [];
+    const knownUrls = new Set(
+      [...existingDelivered.map((f) => f.url), order.finalDeliveryFileUrl, order.translatedFileUrl].filter(
+        (u): u is string => typeof u === "string" && u.trim().length > 0
+      )
+    );
+    const newFiles = deliveryFiles.filter((f) => !knownUrls.has(f.url));
+
+    // CORRECCIÓN tras la entrega: el pedido ya tiene traducción entregada (o está
+    // CERRADO, sumidero del workflow que no admite transición) y llega al menos
+    // un archivo nuevo. No se reabre nada: el cierre es financiero y sigue
+    // valiendo. La nueva versión pasa a ser la principal, queda evento de
+    // auditoría y el aviso al cliente dice "versión corregida" en vez de "lista".
+    // Reenviar el MISMO archivo ya entregado no es corrección (es reenvío).
+    const currentWorkflow = getWorkflowState(order);
+    const alreadyDelivered = currentWorkflow === "CERRADO" || order.deliveryState === "TRADUCIDO";
+    const isCorrection = state === "TRADUCIDO" && alreadyDelivered && newFiles.length > 0;
+
     const nextWorkflowState = state === "TRADUCIDO" ? "TRADUCIDO_ENTREGADO" : "EN_TRADUCCION";
     try {
-      await transitionWorkflowState({
+      if (currentWorkflow !== "CERRADO") await transitionWorkflowState({
         reference: order.reference,
         to: nextWorkflowState,
         actorEmail,
@@ -153,17 +177,25 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    // Persistencia ACUMULATIVA: une las traducciones ya entregadas
-    // (order.deliveryFilesJson) con las nuevas, deduplicando por url. Entregar más
-    // archivos en una segunda tanda NO borra los anteriores del pedido.
-    const existingDelivered: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
-      ? (order.deliveryFilesJson as unknown as DeliveryFile[]).filter(
-          (f) => f && typeof f.url === "string" && f.url.trim()
-        )
-      : [];
+    // Persistencia ACUMULATIVA: une las traducciones ya entregadas con las
+    // nuevas, deduplicando por url. Entregar más archivos en una segunda tanda NO
+    // borra los anteriores del pedido.
+    // En una corrección la nueva versión va PRIMERO (es la principal y la que ve
+    // el cliente arriba) y sustituye a la anterior si el nombre de archivo
+    // coincide; las demás entregas del pedido se conservan.
     const mergedDeliveryFiles: DeliveryFile[] =
       deliveryFiles.length > 0
         ? (() => {
+            if (isCorrection) {
+              const newNames = new Set(
+                deliveryFiles.map((f) => (f.filename || "").trim().toLowerCase()).filter(Boolean)
+              );
+              const newUrls = new Set(deliveryFiles.map((f) => f.url));
+              const kept = existingDelivered.filter(
+                (f) => !newUrls.has(f.url) && !newNames.has((f.filename || "").trim().toLowerCase())
+              );
+              return [...deliveryFiles, ...kept];
+            }
             const seen = new Set(existingDelivered.map((f) => f.url));
             const out = [...existingDelivered];
             for (const f of deliveryFiles) {
@@ -183,9 +215,31 @@ export async function POST(req: Request, { params }: Params) {
       translatedMimeType: deliveryFiles[0]?.mimeType || translatedMimeType || undefined,
       deliveryFiles: mergedDeliveryFiles.length > 0 ? mergedDeliveryFiles : undefined,
       dueDate: state === "EN_PROCESO" ? etaDate : undefined,
-      eventMessage:
-        `Estado de entrega actualizado a ${state}.${mergedDeliveryFiles.length > 1 ? ` ${mergedDeliveryFiles.length} archivos.` : ""}${etaMessage}`.trim(),
+      eventMessage: isCorrection
+        ? `Corrección de la traducción subida tras la entrega (${newFiles.length} archivo${newFiles.length === 1 ? "" : "s"}).`
+        : `Estado de entrega actualizado a ${state}.${mergedDeliveryFiles.length > 1 ? ` ${mergedDeliveryFiles.length} archivos.` : ""}${etaMessage}`.trim(),
     });
+
+    if (isCorrection) {
+      await prisma.orderEvent
+        .create({
+          data: {
+            orderId: order.id,
+            type: "delivery.corrected",
+            message: `Corrección de la traducción${currentWorkflow === "CERRADO" ? " en pedido cerrado" : ""}: ${newFiles
+              .map((f) => f.filename || f.url)
+              .join(", ")}`,
+            payload: {
+              actorEmail,
+              workflowState: currentWorkflow,
+              files: newFiles,
+              replaced: existingDelivered.filter((f) => !mergedDeliveryFiles.some((m) => m.url === f.url)),
+              notifyClient: body.notifyClient === true,
+            },
+          },
+        })
+        .catch((err) => console.error("[orders-delivery] correction event failed", err));
+    }
 
     const statusUrl = buildSignedOrderUrl(order.reference, "estado");
     const deliveryLang = order.clientLocale === "fr" ? "fr" : "es";
@@ -212,13 +266,16 @@ export async function POST(req: Request, { params }: Params) {
         lang: deliveryLang,
         translationAttached: deliveryFiles.length > 0,
         invoiceAttached: false, // el adjunto de factura se resuelve al enviar; el log refleja la traduccion
+        correction: isCorrection,
       });
       await prisma.orderEvent
         .create({
           data: {
             orderId: order.id,
             type: "notification.delivery_ready.sent",
-            message: "Cliente notificado de traduccion lista con enlace de descarga.",
+            message: isCorrection
+              ? "Cliente notificado de la version corregida de la traduccion."
+              : "Cliente notificado de traduccion lista con enlace de descarga.",
             payload: {
               actorEmail,
               channel: "EMAIL",
@@ -227,6 +284,7 @@ export async function POST(req: Request, { params }: Params) {
               bodyHtml: composed.html,
               downloadUrl: primaryFileUrl,
               fileCount: deliveryFiles.length,
+              correction: isCorrection,
             },
           },
         })
@@ -259,6 +317,7 @@ export async function POST(req: Request, { params }: Params) {
             attachments,
             translationAttached: transAttachments.length > 0,
             invoiceAttached: !!invAttach,
+            correction: isCorrection,
           })
         );
       })().catch((e) => console.error("[orders-delivery] ready email failed", e));
@@ -269,6 +328,7 @@ export async function POST(req: Request, { params }: Params) {
 
     return NextResponse.json({
       ok: true,
+      correction: isCorrection,
       etaDate: etaDate ? etaDate.toISOString().slice(0, 10) : null,
     });
   } catch (err: any) {

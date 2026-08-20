@@ -70,8 +70,12 @@ export default function OrderStepper({
       </ol>
 
       {closed ? (
-        <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
-          ✓ Pedido finalizado — sin acciones pendientes.
+        <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+          <p className="font-semibold">✓ Pedido finalizado — sin acciones pendientes.</p>
+          <p className="mt-1 text-xs text-emerald-200/80">
+            ¿Corrección de la traducción? Sube la nueva versión en{" "}
+            <a href="#traduccion" className="underline">Subir y entregar la traducción</a>: no hace falta reabrir el pedido.
+          </p>
         </div>
       ) : (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-700/40 bg-cyan-500/10 px-4 py-3">

@@ -10,6 +10,9 @@ type Props = {
   existingFileUrl: string | null;
   existingFilename: string | null;
   translatorDeliveredAt: string | null;
+  // El pedido ya tiene traducción entregada al cliente (o está CERRADO): la
+  // subida pasa a ser una CORRECCIÓN (nueva versión principal, email "corregida").
+  alreadyDelivered?: boolean;
 };
 
 export default function TranslationWorkspacePanel({
@@ -19,6 +22,7 @@ export default function TranslationWorkspacePanel({
   existingFileUrl,
   existingFilename,
   translatorDeliveredAt,
+  alreadyDelivered = false,
 }: Props) {
   const router = useRouter();
   // Si el traductor ya entregó (pendiente de verificar), arrancamos en TRADUCIDO
@@ -50,7 +54,8 @@ export default function TranslationWorkspacePanel({
   // Si la entrega la acaba de subir el traductor, "Notificar al cliente" arranca
   // DESACTIVADO: obliga a Juan a verificar el archivo y marcarlo a conciencia
   // antes de enviárselo al cliente (el negocio es YMYL, no se envía sin revisar).
-  const [notifyClient, setNotifyClient] = useState(!translatorDeliveredAt);
+  // En una corrección quien sube es Juan (ya revisada): notificar por defecto.
+  const [notifyClient, setNotifyClient] = useState(alreadyDelivered || !translatorDeliveredAt);
   const [autoEta, setAutoEta] = useState(true);
   const [etaDate, setEtaDate] = useState(currentDueDate || "");
   const [files, setFiles] = useState<File[]>([]);
@@ -159,9 +164,15 @@ export default function TranslationWorkspacePanel({
       if (state === "EN_PROCESO" && data?.etaDate) {
         setMessage(`Estado actualizado. ETA: ${data.etaDate}.`);
       } else if (state === "TRADUCIDO" && notifyClient) {
-        setMessage("Entregado y notificado al cliente (email + SMS).");
+        setMessage(
+          data?.correction
+            ? "Corrección guardada y enviada al cliente por email (versión corregida)."
+            : "Entregado y notificado al cliente (email + SMS)."
+        );
         setDelivered(true);
         setNotifyClient(false);
+      } else if (state === "TRADUCIDO" && data?.correction) {
+        setMessage("Corrección guardada como versión principal (cliente sin avisar).");
       } else {
         setMessage("Estado de entrega actualizado.");
       }
@@ -271,7 +282,11 @@ export default function TranslationWorkspacePanel({
       {/* Subir la traducción terminada — siempre visible. Elegir un archivo ya
           marca el pedido como Traducido (listo para entregar al cliente). */}
       <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
-        <p className="text-xs font-semibold text-emerald-300">📄 Entregar al cliente: sube la traducción terminada</p>
+        <p className="text-xs font-semibold text-emerald-300">
+          {alreadyDelivered
+            ? "📄 Subir corrección: la traducción ya se entregó. La nueva versión pasa a ser la principal (sustituye a la anterior si el nombre coincide)."
+            : "📄 Entregar al cliente: sube la traducción terminada"}
+        </p>
         <input
           type="file"
           accept=".pdf,.doc,.docx"
@@ -343,7 +358,9 @@ export default function TranslationWorkspacePanel({
             }}
             className="rounded border-slate-500"
           />
-          Notificar al cliente (le llega email + SMS con la traducción)
+          {alreadyDelivered
+            ? "Notificar al cliente (le llega email con la versión corregida)"
+            : "Notificar al cliente (le llega email + SMS con la traducción)"}
         </label>
       )}
 
@@ -356,10 +373,10 @@ export default function TranslationWorkspacePanel({
         {loading
           ? "Guardando..."
           : delivered
-            ? "✓ Entregado y notificado"
+            ? alreadyDelivered ? "✓ Corrección enviada" : "✓ Entregado y notificado"
             : state === "TRADUCIDO" && notifyClient
-              ? "Entregar y notificar al cliente"
-              : "Guardar entrega"}
+              ? alreadyDelivered ? "Enviar corrección al cliente" : "Entregar y notificar al cliente"
+              : alreadyDelivered && state === "TRADUCIDO" ? "Guardar corrección" : "Guardar entrega"}
       </button>
 
       {message && (

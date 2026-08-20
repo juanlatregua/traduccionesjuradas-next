@@ -546,6 +546,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             existingFileUrl={order.finalDeliveryFileUrl || order.translatedFileUrl || null}
             existingFilename={order.finalFilename || null}
             translatorDeliveredAt={order.translatorDeliveredAt?.toISOString() || null}
+            alreadyDelivered={workflowState === "CERRADO" || order.deliveryState === "TRADUCIDO"}
           />
         </Section>
 
