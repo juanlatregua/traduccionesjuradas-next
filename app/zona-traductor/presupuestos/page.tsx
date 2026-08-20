@@ -87,6 +87,15 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
     else docsByToken.set(doc.sessionToken, [doc]);
   }
 
+  // Solicitudes de precio en lavori aun sin presupuesto: viven en BD + un email de
+  // staff; sin este bloque, la propuesta del traductor no se veia en ningun sitio
+  // (20-ago, Juan: "en tj.net no veo el presupuesto").
+  const lavoriLeads = await prisma.lavoriPriceRequest.findMany({
+    where: { quoteId: null, status: { in: ["SENT", "PRICED"] } },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+
   const invoiceQuoteWhere: any = { docKind: "quote" };
   if (q) {
     invoiceQuoteWhere.OR = [
@@ -156,6 +165,54 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
             </button>
           </form>
         </div>
+
+        {lavoriLeads.length > 0 && (
+          <section className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                Solicitudes de precio en lavori · sin presupuesto ({lavoriLeads.length})
+              </h2>
+              <span className="text-xs text-slate-500">Leads enviados al tablón; «Montar presupuesto» abre el builder ya atado a la solicitud.</span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {lavoriLeads.map((lead) => {
+                const priced = lead.status === "PRICED" && lead.priceCents;
+                const href = `/zona-traductor/presupuesto?lead=${encodeURIComponent(lead.ref)}${lead.expedienteRef ? `&exp=${encodeURIComponent(lead.expedienteRef)}` : ""}`;
+                return (
+                  <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-sm font-semibold text-cyan-300">{lead.ref}</span>
+                        <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs font-semibold text-slate-200">{lead.par}</span>
+                        {priced ? (
+                          <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300">
+                            {lead.miembroNombre || "Traductor"}: {(lead.priceCents! / 100).toFixed(2)} €{lead.plazoDias ? ` · ${lead.plazoDias} días` : ""}
+                          </span>
+                        ) : (
+                          <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                            esperando precio · {lead.candidatos.length} candidato{lead.candidatos.length === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-sm text-slate-200">{lead.customerHint || "(cliente sin identificar)"}</div>
+                      <div className="text-xs text-slate-500">
+                        {lead.docsCount} doc{lead.docsCount === 1 ? "" : "s"}{lead.words ? ` · ~${lead.words} palabras` : ""} · {formatDate(lead.createdAt)}
+                        {priced ? ` · neto 75/25 sugerido: ${(lead.priceCents! / 0.75 / 100).toFixed(2)} € + IVA` : ""}
+                        {lead.expedienteRef ? ` · exp. ${lead.expedienteRef}` : " · sin expediente (suelta los PDF en el builder)"}
+                      </div>
+                    </div>
+                    <Link
+                      href={href}
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${priced ? "bg-emerald-600 hover:bg-emerald-500" : "bg-slate-700 hover:bg-slate-600"}`}
+                    >
+                      Montar presupuesto
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {quotes.length === 0 ? (
           <p className="mt-10 text-slate-500">

@@ -178,6 +178,10 @@ type StaffIntakeInitialData = {
   deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP";
   lineDescription?: string;
   lineAmount?: string;
+  // Coste del traductor (p. ej. el precio propuesto en lavori): siembra la linea con
+  // ese coste y deja el margen en AUTO (a diferencia de lineAmount, que fija el
+  // precio de cliente exacto con margen 0).
+  lineCost?: string;
 };
 
 type Props = {
@@ -186,9 +190,12 @@ type Props = {
   initialCustomer?: { name?: string; email?: string; phone?: string };
   initialData?: StaffIntakeInitialData;
   expedienteRef?: string | null;
+  // Solicitud de precio de lavori de la que nace este presupuesto (lead sin
+  // expediente): viaja a /api/quotes para atar quoteId a la solicitud.
+  lavoriLeadRef?: string | null;
 };
 
-export default function StaffExpedienteIntake({ initialDocs, initialCustomer, initialData, expedienteRef }: Props = {}) {
+export default function StaffExpedienteIntake({ initialDocs, initialCustomer, initialData, expedienteRef, lavoriLeadRef }: Props = {}) {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [customerName, setCustomerName] = useState(initialCustomer?.name || initialData?.customerName || "");
   const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || initialData?.customerEmail || "");
@@ -250,7 +257,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   // staff especifico el precio exacto; lo persistido = lo indicado).
   useEffect(() => {
     if (initialDocs && initialDocs.length) return; // el camino expediente posee docs
-    if (initialData?.lineDescription || initialData?.lineAmount) {
+    if (initialData?.lineDescription || initialData?.lineAmount || initialData?.lineCost) {
+      const amount = initialData.lineAmount || initialData.lineCost;
       setDocs([
         {
           localId: uid(),
@@ -259,9 +267,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           mimeType: "",
           status: "manual",
           include: true,
-          unitPrice: initialData.lineAmount
-            ? Number(String(initialData.lineAmount).replace(",", ".")) || 0
-            : 0,
+          unitPrice: amount ? Number(String(amount).replace(",", ".")) || 0 : 0,
         },
       ]);
     }
@@ -681,6 +687,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           targetLang,
           deliveryType,
           expedienteRef: expedienteRef || undefined,
+          lavoriLeadRef: lavoriLeadRef || undefined,
           discountType: discountPct > 0 ? "PERCENT" : "NONE",
           discountValue: discountPct,
           vatRate: 0.21,
@@ -704,7 +711,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote]);
 
   return (
     <div className="space-y-6 text-slate-200">

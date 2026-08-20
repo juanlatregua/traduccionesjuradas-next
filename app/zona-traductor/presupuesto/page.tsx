@@ -22,6 +22,7 @@ export default async function ZonaTraductorPresupuestoPage({
 }: {
   searchParams: {
     exp?: string;
+    lead?: string;
     customerEmail?: string;
     customerName?: string;
     customerPhone?: string;
@@ -36,6 +37,18 @@ export default async function ZonaTraductorPresupuestoPage({
   await authZonaTraductorOrRedirect();
 
   const expRef = typeof searchParams.exp === "string" ? searchParams.exp : null;
+
+  // Solicitud de precio de lavori (lead sin expediente, p. ej. WhatsApp): el builder
+  // arranca con el par, el cliente, la linea y el COSTE que propuso el traductor
+  // (margen en auto), y el presupuesto que nazca de aqui se ata a la solicitud
+  // (lavoriLeadRef) para que el pago dispare precio_aceptado sin tocar la BD.
+  const leadRef = s(searchParams.lead).trim().slice(0, 40) || null;
+  const lead = leadRef ? await prisma.lavoriPriceRequest.findUnique({ where: { ref: leadRef } }) : null;
+  const leadPair = lead ? lead.par.toLowerCase().split(">") : [];
+  const leadHintParts = (lead?.customerHint || "").split(" · ").map((x) => x.trim()).filter(Boolean);
+  const leadPhone = leadHintParts.find((x) => /\+?\d[\d\s]{6,}/.test(x));
+  const leadName = leadHintParts.find((x) => x !== leadPhone && !x.includes("@"));
+  const leadEmail = leadHintParts.find((x) => x.includes("@"));
 
   // Prefill del builder manual (deep-links desde el panel del pedido, PM, etc.).
   const pair = parseLangPair(s(searchParams.langPair));
@@ -52,6 +65,17 @@ export default async function ZonaTraductorPresupuestoPage({
     lineDescription: s(searchParams.lineDescription) || undefined,
     lineAmount: s(searchParams.lineAmount) || undefined,
   };
+  if (lead) {
+    builderInitial.customerName ||= leadName;
+    builderInitial.customerEmail ||= leadEmail;
+    builderInitial.customerPhone ||= leadPhone?.replace(/\s+/g, "");
+    builderInitial.sourceLang ||= leadPair[0];
+    builderInitial.targetLang ||= leadPair[1];
+    builderInitial.lineDescription ||= `Traducción jurada ${lead.par} · ${lead.docsCount} documento${lead.docsCount === 1 ? "" : "s"}${lead.words ? ` (~${lead.words} palabras)` : ""}`;
+  }
+  const builderInitialConLead = lead
+    ? { ...builderInitial, lineCost: lead.priceCents ? (lead.priceCents / 100).toFixed(2) : undefined }
+    : builderInitial;
   let initialDocs: { documentId: string; fileName: string; fileUrl?: string }[] | undefined;
   let initialCustomer: { name?: string; email?: string; phone?: string } | undefined;
 
@@ -79,8 +103,17 @@ export default async function ZonaTraductorPresupuestoPage({
             ← Expedientes
           </a>
           <h1 className="mt-2 text-2xl font-semibold text-white">
-            Presupuesto{expRef ? ` de expediente · ${expRef}` : ""}
+            Presupuesto{expRef ? ` de expediente · ${expRef}` : lead ? ` de solicitud lavori · ${lead.ref}` : ""}
           </h1>
+          {lead && (
+            <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+              {lead.priceCents
+                ? `${lead.miembroNombre || "El traductor"} propuso ${(lead.priceCents / 100).toFixed(2)} €${lead.plazoDias ? ` · ${lead.plazoDias} días` : ""} (${lead.par}). Coste ya puesto en la línea; neto de cliente 75/25 sugerido: ${(lead.priceCents / 0.75 / 100).toFixed(2)} € + IVA.`
+                : `Solicitud ${lead.par} enviada a lavori; el traductor aún no ha pasado precio.`}
+              {" "}Al crear el presupuesto queda atado a esta solicitud: el pago avisará al traductor.
+              {lead.docsCount > 0 ? " Suelta aquí los documentos del cliente (no hay expediente)." : ""}
+            </p>
+          )}
           <p className="mt-1 text-sm text-slate-400">
             {expRef
               ? "Expediente del cliente. Los documentos se están analizando automáticamente. Revisa la tabla y genera el presupuesto."
@@ -91,8 +124,9 @@ export default async function ZonaTraductorPresupuestoPage({
         <StaffExpedienteIntake
           initialDocs={initialDocs}
           initialCustomer={initialCustomer}
-          initialData={expRef ? undefined : builderInitial}
+          initialData={expRef ? undefined : builderInitialConLead}
           expedienteRef={expRef}
+          lavoriLeadRef={lead?.ref ?? null}
         />
       </div>
     </div>

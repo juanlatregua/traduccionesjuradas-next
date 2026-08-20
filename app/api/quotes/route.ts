@@ -72,6 +72,10 @@ export async function POST(req: Request) {
       typeof body.expedienteRef === "string" && body.expedienteRef.trim()
         ? body.expedienteRef.trim().slice(0, 40)
         : null;
+    const lavoriLeadRef =
+      typeof body.lavoriLeadRef === "string" && body.lavoriLeadRef.trim()
+        ? body.lavoriLeadRef.trim().slice(0, 40)
+        : null;
     const parsed = parseCreateQuoteInput(body);
     if (!parsed.ok) {
       return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 });
@@ -171,10 +175,19 @@ export async function POST(req: Request) {
     // el pago dispare precio_aceptado sobre el encargo existente. No bloqueante.
     // De la misma solicitud sale la identidad del jurado (directriz 12-ago:
     // nombre + nº MAEC en la cotización) — el nº desde el Collaborator mapeado.
-    if (expedienteRef) {
+    // Tambien por lavoriLeadRef (lead SIN expediente, p. ej. WhatsApp: el builder
+    // abierto con ?lead= manda la ref) — sin esto el pago no encontraba la solicitud
+    // y el traductor no se enteraba de que el cliente habia aceptado su precio.
+    if (expedienteRef || lavoriLeadRef) {
       try {
         await prisma.lavoriPriceRequest.updateMany({
-          where: { expedienteRef, quoteId: null },
+          where: {
+            quoteId: null,
+            OR: [
+              ...(lavoriLeadRef ? [{ ref: lavoriLeadRef }] : []),
+              ...(expedienteRef ? [{ expedienteRef }] : []),
+            ],
+          },
           data: { quoteId: created.id },
         });
         const lpr = await prisma.lavoriPriceRequest.findFirst({
