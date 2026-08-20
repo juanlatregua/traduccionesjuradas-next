@@ -44,6 +44,7 @@ export default async function AdminInboxPage({ searchParams }: Props) {
   const rows: InboxRow[] = emails.map((e) => ({
     id: e.id,
     channel: e.channel,
+    isManual: e.graphId.startsWith("manual:"),
     fromPhone: e.fromPhone,
     media: Array.isArray(e.mediaJson) ? (e.mediaJson as InboxRow["media"]) : [],
     fromEmail: e.fromEmail,

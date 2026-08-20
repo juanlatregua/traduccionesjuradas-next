@@ -40,7 +40,12 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     const isWhatsApp = inbound.channel === "WHATSAPP";
-    if (isWhatsApp) {
+    // manual=true: el staff ya lo ha enviado desde su WhatsApp (wa.me); aqui
+    // solo se registra la respuesta y el hilo queda cerrado.
+    const manual = Boolean(payload?.manual);
+    if (isWhatsApp && manual) {
+      /* sin envio */
+    } else if (isWhatsApp) {
       if (!inbound.fromPhone) {
         return NextResponse.json({ ok: false, error: "El mensaje no tiene teléfono de origen." }, { status: 400 });
       }
@@ -60,7 +65,7 @@ export async function POST(req: Request, { params }: Params) {
         replySubject: subject,
         replyBody: bodyText,
         repliedAt: now,
-        repliedBy: access.email,
+        repliedBy: manual ? `${access.email} (WhatsApp manual)` : access.email,
       },
     });
 

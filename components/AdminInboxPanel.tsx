@@ -7,13 +7,15 @@
 // editable y envío en el mismo hilo. La respuesta NUNCA sale sin que el staff
 // la revise y pulse enviar.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
 
 export type InboxRow = {
   id: string;
   channel: "EMAIL" | "WHATSAPP";
+  isManual: boolean; // WhatsApp dado de alta a mano (sin sender API)
   fromPhone: string | null;
   media: { url: string; contentType: string; name: string; size: number }[];
   fromEmail: string;
@@ -106,7 +108,7 @@ function EmailCard({
     }
   }
 
-  async function sendReply() {
+  async function sendReply(manual = false) {
     if (!body.trim()) {
       setFeedback({ ok: false, text: "✗ El mensaje está vacío." });
       return;
@@ -118,7 +120,7 @@ function EmailCard({
       const res = await fetch(`/api/admin/inbox/${row.id}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, body }),
+        body: JSON.stringify({ subject, body, manual }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo enviar.");
@@ -358,21 +360,40 @@ function EmailCard({
                 className={`${inputCls} resize-y`}
               />
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={sendReply}
-                  disabled={sending || !body.trim()}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {sending
-                    ? "Enviando…"
-                    : row.channel === "WHATSAPP"
-                      ? `Enviar por WhatsApp a ${row.fromPhone || ""}`
-                      : `Enviar respuesta a ${row.fromEmail}`}
-                </button>
+                {row.channel === "WHATSAPP" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const digits = (row.fromPhone || "").replace(/\D/g, "");
+                      window.open(`https://wa.me/${digits}?text=${encodeURIComponent(body)}`, "_blank", "noopener");
+                      void sendReply(true);
+                    }}
+                    disabled={sending || !body.trim()}
+                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Abre tu WhatsApp con el texto ya escrito (lo envías tú) y marca el mensaje como respondido"
+                  >
+                    Abrir en mi WhatsApp y marcar respondido
+                  </button>
+                )}
+                {(row.channel !== "WHATSAPP" || !row.isManual) && (
+                  <button
+                    type="button"
+                    onClick={() => void sendReply(false)}
+                    disabled={sending || !body.trim()}
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {sending
+                      ? "Enviando…"
+                      : row.channel === "WHATSAPP"
+                        ? `Enviar por la API a ${row.fromPhone || ""}`
+                        : `Enviar respuesta a ${row.fromEmail}`}
+                  </button>
+                )}
                 <span className="text-xs text-slate-500">
                   {row.channel === "WHATSAPP"
-                    ? "Sale por WhatsApp desde el número del negocio, en texto plano; solo dentro de las 24 h desde su último mensaje."
+                    ? row.isManual
+                      ? "Dado de alta a mano: la respuesta sale desde tu WhatsApp (se abre con el texto) y aquí queda registrada."
+                      : "La API envía desde el número del negocio solo dentro de las 24 h desde su último mensaje; si no, usa tu WhatsApp."
                     : "Se envía desde el buzón del negocio, en el mismo hilo, con la firma habitual."}
                 </span>
               </div>
@@ -387,6 +408,89 @@ function EmailCard({
         </div>
       )}
     </li>
+  );
+}
+
+function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
+  const [text, setText] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const inputCls =
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400";
+
+  async function submit() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const media: { url: string; contentType: string; name: string; size: number }[] = [];
+      for (const f of files.slice(0, 20)) {
+        const safeName = f.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
+        const blob = await upload(`inbox/whatsapp/manual/${Date.now()}-${safeName}`, f, {
+          access: "public",
+          handleUploadUrl: "/api/documents/upload",
+          clientPayload: JSON.stringify({ gdprConsent: true }),
+        });
+        media.push({ url: blob.url, contentType: f.type || "application/octet-stream", name: f.name, size: f.size });
+      }
+      const res = await fetch("/api/admin/inbox/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, name, text, media }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo dar de alta.");
+      onDone();
+    } catch (e: any) {
+      setErr(e?.message || "Error al dar de alta el WhatsApp.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-green-200 bg-green-50/60 p-4">
+      <p className="text-sm font-semibold text-green-900">WhatsApp recibido en el móvil → bandeja</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente (+34…)" className={inputCls} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre (opcional)" className={inputCls} />
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={5}
+        placeholder="Pega aquí el texto del WhatsApp (puedes pegar varios mensajes seguidos)"
+        className={`${inputCls} resize-y`}
+      />
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept="application/pdf,image/*"
+          onChange={(e) => setFiles(Array.from(e.target.files || []))}
+          className="text-slate-700"
+        />
+        {files.length > 0 && <span className="text-slate-600">{files.length} archivo(s)</span>}
+      </div>
+      {err && <p className="text-xs font-medium text-amber-700">✗ {err}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={busy || (!text.trim() && files.length === 0) || !phone.trim()}
+          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-50"
+        >
+          {busy ? "Guardando…" : "Dar de alta en la bandeja"}
+        </button>
+        <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-white">
+          Cancelar
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -409,6 +513,7 @@ export default function AdminInboxPanel({
   }, [initialRows]);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
 
   function updateRow(id: string, patch: Partial<InboxRow>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -453,6 +558,14 @@ export default function AdminInboxPanel({
         >
           {syncing ? "Sincronizando…" : "Sincronizar buzón"}
         </button>
+        <button
+          type="button"
+          onClick={() => setManualOpen((v) => !v)}
+          className="rounded-xl border border-green-600 bg-green-50 px-4 py-2 text-sm font-semibold text-green-800 hover:bg-green-100"
+          title="Trae a la bandeja un WhatsApp recibido en el móvil (texto + fotos/PDF)"
+        >
+          + WhatsApp a mano
+        </button>
         <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
           {VISTAS.map((v) => (
             <Link
@@ -489,6 +602,16 @@ export default function AdminInboxPanel({
       </div>
 
       {syncMsg && <p className="text-sm font-medium text-slate-700">{syncMsg}</p>}
+
+      {manualOpen && (
+        <ManualWhatsAppForm
+          onDone={() => {
+            setManualOpen(false);
+            router.refresh();
+          }}
+          onCancel={() => setManualOpen(false)}
+        />
+      )}
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
