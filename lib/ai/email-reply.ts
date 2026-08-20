@@ -27,6 +27,9 @@ Reglas de redacción:
 
 Devuelve EXCLUSIVAMENTE un JSON válido: {"subject": "...", "body": "..."} sin nada más.`;
 
+export type DraftMedia = { url: string; contentType: string; name: string };
+export type DraftThreadItem = { at: string; who: "cliente" | "nosotros"; text: string };
+
 export type EmailDraftInput = {
   mode: "reply" | "improve";
   clientMessage?: {
@@ -34,6 +37,12 @@ export type EmailDraftInput = {
     fromEmail?: string | null;
     subject?: string | null;
     body?: string | null;
+    channel?: "EMAIL" | "WHATSAPP";
+    // Mensajes anteriores del mismo remitente (y nuestras respuestas), del
+    // más antiguo al más reciente: en WhatsApp cada mensaje es una fila.
+    thread?: DraftThreadItem[];
+    // Adjuntos del cliente (foto/PDF del documento): el modelo los VE.
+    media?: DraftMedia[];
   };
   currentSubject?: string | null;
   currentBody?: string | null;
@@ -198,13 +207,28 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
     sections.push(`CONTEXTO DE NEGOCIO:\n${input.businessContext.trim()}`);
   }
 
-  if (input.clientMessage?.body?.trim()) {
-    const from = [input.clientMessage.fromName, input.clientMessage.fromEmail]
-      .filter(Boolean)
-      .join(" ");
+  const isWhatsApp = input.clientMessage?.channel === "WHATSAPP";
+  const cm = input.clientMessage;
+  if (cm && (cm.body?.trim() || cm.thread?.length || cm.media?.length)) {
+    const from = [cm.fromName, cm.fromEmail].filter(Boolean).join(" ");
+    if (cm.thread?.length) {
+      sections.push(
+        `CONVERSACIÓN RECIENTE CON EL CLIENTE (del más antiguo al más reciente):\n${cm.thread
+          .map((t) => `[${t.at}] ${t.who === "cliente" ? "CLIENTE" : "NOSOTROS"}: ${t.text.slice(0, 1500)}`)
+          .join("\n")}`
+      );
+    }
+    const label = isWhatsApp ? "WHATSAPP DEL CLIENTE (mensaje a responder)" : "EMAIL DEL CLIENTE";
     sections.push(
-      `EMAIL DEL CLIENTE${from ? ` (de ${from})` : ""}:\nAsunto: ${input.clientMessage.subject || "(sin asunto)"}\n<<<\n${input.clientMessage.body.trim().slice(0, 12000)}\n>>>`
+      `${label}${from ? ` (de ${from})` : ""}:${isWhatsApp ? "" : `\nAsunto: ${cm.subject || "(sin asunto)"}`}\n<<<\n${(cm.body || "").trim().slice(0, 12000) || "(sin texto)"}\n>>>`
     );
+    if (cm.media?.length) {
+      sections.push(
+        `ADJUNTOS DEL CLIENTE: ${cm.media.length} archivo(s) — ${cm.media
+          .map((m) => `${m.name} (${m.contentType})`)
+          .join(", ")}. Los ves a continuación: identifica qué documento es (tipo, idioma, país) y úsalo en la respuesta. Si no se lee, pídele una foto/copia mejor.`
+      );
+    }
   }
 
   if (input.currentBody?.trim()) {
@@ -219,9 +243,37 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
 
   sections.push(
     input.mode === "reply"
-      ? "TAREA: redacta la respuesta al email del cliente. Si hay borrador actual, úsalo como base y complétalo con lo que el cliente pregunta."
+      ? isWhatsApp
+        ? "TAREA: redacta la respuesta por WHATSAPP. Formato WhatsApp: breve (máximo ~8 líneas), tono cercano y profesional, trato de usted salvo que el cliente tutee, SIN 'Estimado/a', SIN asunto y SIN bloque de firma ni nota legal: termina con una sola línea 'Juan · Traducciones Juradas .net'. Ve al grano: qué documento ha enviado (si hay foto/PDF), qué falta para darle precio (idioma destino, urgencia, PDF o papel) o el siguiente paso. El campo subject del JSON déjalo vacío."
+        : "TAREA: redacta la respuesta al email del cliente. Si hay borrador actual, úsalo como base y complétalo con lo que el cliente pregunta."
       : "TAREA: reescribe el borrador actual aplicando las instrucciones del staff (y el email del cliente si lo hay), manteniendo los datos correctos del contexto."
   );
+
+  // Adjuntos (foto/PDF del documento) como bloques de visión/documento.
+  const mediaBlocks: Anthropic.Messages.ContentBlockParam[] = [];
+  for (const m of (cm?.media || []).slice(0, 3)) {
+    try {
+      const ct = m.contentType.toLowerCase();
+      const isImage = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"].includes(ct);
+      const isPdf = ct === "application/pdf";
+      if (!isImage && !isPdf) continue;
+      const r = await fetch(m.url);
+      if (!r.ok) continue;
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (buf.length === 0 || buf.length > 4_500_000) continue;
+      const data = buf.toString("base64");
+      if (isImage) {
+        mediaBlocks.push({
+          type: "image",
+          source: { type: "base64", media_type: (ct === "image/jpg" ? "image/jpeg" : ct) as "image/jpeg" | "image/png" | "image/gif" | "image/webp", data },
+        });
+      } else {
+        mediaBlocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data } } as Anthropic.Messages.ContentBlockParam);
+      }
+    } catch (err) {
+      console.error("[email-reply] media block failed", m.url, err);
+    }
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
@@ -231,7 +283,12 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
         model: DRAFT_MODEL,
         max_tokens: 1800,
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: sections.join("\n\n") }],
+        messages: [
+          {
+            role: "user",
+            content: [{ type: "text", text: sections.join("\n\n") }, ...mediaBlocks],
+          },
+        ],
       },
       { signal: controller.signal }
     );

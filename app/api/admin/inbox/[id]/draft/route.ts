@@ -36,13 +36,41 @@ export async function POST(req: Request, { params }: Params) {
       inboundEmailId: inbound.id,
     });
 
+    // Conversación reciente del mismo remitente (72 h): en WhatsApp cada
+    // mensaje es una fila y el texto y la foto suelen llegar separados.
+    const since = new Date(inbound.receivedAt.getTime() - 72 * 60 * 60 * 1000);
+    const siblings = await prisma.inboundEmail.findMany({
+      where: { fromEmail: inbound.fromEmail, id: { not: inbound.id }, receivedAt: { gte: since, lte: inbound.receivedAt } },
+      orderBy: { receivedAt: "asc" },
+      take: 12,
+      select: { receivedAt: true, bodyText: true, bodyPreview: true, replyBody: true, repliedAt: true, mediaJson: true },
+    });
+    const thread = siblings
+      .flatMap((m) => {
+        const items: { at: Date; who: "cliente" | "nosotros"; text: string }[] = [];
+        const nMedia = Array.isArray(m.mediaJson) ? (m.mediaJson as any[]).length : 0;
+        const text = (m.bodyText || m.bodyPreview || "").trim() || (nMedia ? `[${nMedia} archivo(s) adjunto(s)]` : "");
+        if (text) items.push({ at: m.receivedAt, who: "cliente", text });
+        if (m.replyBody && m.repliedAt) items.push({ at: m.repliedAt, who: "nosotros", text: m.replyBody });
+        return items;
+      })
+      .sort((a, b) => a.at.getTime() - b.at.getTime())
+      .map((t) => ({ ...t, at: t.at.toLocaleString("es-ES") }));
+    const media = Array.isArray(inbound.mediaJson)
+      ? (inbound.mediaJson as any[])
+          .filter((m) => m?.url && m?.contentType)
+          .map((m) => ({ url: String(m.url), contentType: String(m.contentType), name: String(m.name || "adjunto") }))
+      : [];
     const draft = await generateEmailDraft({
       mode: "reply",
       clientMessage: {
         fromName: inbound.fromName,
         fromEmail: inbound.fromEmail,
         subject: inbound.subject,
-        body: inbound.bodyText || inbound.bodyPreview,
+        body: inbound.bodyText || (media.length ? "" : inbound.bodyPreview),
+        channel: inbound.channel,
+        thread,
+        media,
       },
       instruction,
       businessContext,
