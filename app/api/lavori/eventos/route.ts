@@ -4,7 +4,7 @@ import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { notifyClientTranslationStarted } from "@/lib/orders";
-import { LAVORI_MEMBER_COLLABORATOR_EMAIL } from "@/lib/lavori-bridge";
+import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES } from "@/lib/lavori-bridge";
 
 export const runtime = "nodejs";
 
@@ -231,8 +231,8 @@ export async function POST(req: Request) {
       const nombre = datos.nombre ? String(datos.nombre) : `factura-${encargoId}.pdf`;
       if (typeof datos.base64 === "string" && datos.base64.length > 0) {
         const buf = Buffer.from(datos.base64, "base64");
-        if (buf.length === 0 || buf.length > 10 * 1024 * 1024) {
-          return NextResponse.json({ ok: false, error: "datos.base64 vacío o >10MB" }, { status: 400 });
+        if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
+          return NextResponse.json({ ok: false, error: `datos.base64 vacío o >${Math.round(SOBRE_MAX_RAW_BYTES / 1e6)}MB` }, { status: 400 });
         }
         const blob = await put(`orders/${order.reference}/facturas-lavori/${Date.now()}-${nombre}`, buf, {
           access: "public",
@@ -281,14 +281,14 @@ export async function POST(req: Request) {
     if (evento === "entrega_subida") {
       // Fase 2, opción B (decisión Juan 12-ago): la traducción aterriza en el
       // expediente y NADA sale solo hacia el cliente — el envío es el botón
-      // "revisar y enviar al cliente" de la ficha. Tope 15MB por fichero
-      // (simétrico con la ida; la factura conserva su tope de 10).
+      // "revisar y enviar al cliente" de la ficha. Tope 3 MB en crudo por POST
+      // (Vercel corta con 413 a ~4,5 MB de cuerpo; mismo número que la ida y que lavori).
       if (typeof datos.base64 !== "string" || datos.base64.length === 0) {
         return NextResponse.json({ ok: false, error: "datos.base64 obligatorio" }, { status: 400 });
       }
       const buf = Buffer.from(datos.base64, "base64");
-      if (buf.length === 0 || buf.length > 15 * 1024 * 1024) {
-        return NextResponse.json({ ok: false, error: "datos.base64 vacío o >15MB" }, { status: 400 });
+      if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
+        return NextResponse.json({ ok: false, error: `datos.base64 vacío o >${Math.round(SOBRE_MAX_RAW_BYTES / 1e6)}MB` }, { status: 400 });
       }
       const nombre = datos.nombre ? String(datos.nombre) : `entrega-${encargoId}.pdf`;
       const contentType = datos.contentType ? String(datos.contentType) : "application/pdf";

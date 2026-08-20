@@ -16,7 +16,7 @@ const LAVORI_ENDPOINT =
 // El 413 lo corta la plataforma con x-vercel-error: FUNCTION_PAYLOAD_TOO_LARGE:
 // su handler NO llega a ejecutarse, así que al otro lado no hay ni auditoría ni
 // aviso. Si nos pasamos, el envío se pierde para ellos: hay que no enviarlo.
-const SOBRE_MAX_RAW_BYTES = 3_000_000;
+export const SOBRE_MAX_RAW_BYTES = 3_000_000;
 
 // Candidatos por lengua (ids de miembro en lavori). v1: alemán → Morton
 // (decisión de Juan 10-ago-2026: "cuando llega algo de alemán va directamente a
