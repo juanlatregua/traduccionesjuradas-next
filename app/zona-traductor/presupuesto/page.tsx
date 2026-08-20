@@ -161,6 +161,11 @@ export default async function ZonaTraductorPresupuestoPage({
           initialData={expRef ? undefined : builderInitialConLead}
           expedienteRef={expRef}
           lavoriLeadRef={lead?.ref ?? null}
+          emailContext={
+            inboundEmail
+              ? { id: inboundEmail.id, fromName: inboundEmail.fromName, fromEmail: inboundEmail.fromEmail, subject: inboundEmail.subject }
+              : null
+          }
         />
       </div>
     </div>

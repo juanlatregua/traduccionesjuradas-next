@@ -7,6 +7,7 @@ import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { lavoriRouteFromPair } from "@/lib/lavori-bridge";
+import type { EmailBrief } from "@/lib/ai/email-brief";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -193,9 +194,12 @@ type Props = {
   // Solicitud de precio de lavori de la que nace este presupuesto (lead sin
   // expediente): viaja a /api/quotes para atar quoteId a la solicitud.
   lavoriLeadRef?: string | null;
+  // Email de la bandeja del que nace el presupuesto: la IA lo lee (par,
+  // urgencia, entrega, documento provisional, notas, preguntas) y prerrellena.
+  emailContext?: { id: string; fromName: string | null; fromEmail: string; subject: string } | null;
 };
 
-export default function StaffExpedienteIntake({ initialDocs, initialCustomer, initialData, expedienteRef, lavoriLeadRef }: Props = {}) {
+export default function StaffExpedienteIntake({ initialDocs, initialCustomer, initialData, expedienteRef, lavoriLeadRef, emailContext }: Props = {}) {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [customerName, setCustomerName] = useState(initialCustomer?.name || initialData?.customerName || "");
   const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || initialData?.customerEmail || "");
@@ -226,6 +230,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   // Solicitud de precio vía lavori (leads de WhatsApp sin pedido).
   const [lavoriState, setLavoriState] = useState<{ phase: "idle" | "sending" | "done" | "error"; msg?: string }>({ phase: "idle" });
   const [lavoriSpecs, setLavoriSpecs] = useState("");
+
+  // Lectura IA del email (solo cuando el presupuesto nace de la bandeja).
+  const [brief, setBrief] = useState<EmailBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
+  const [briefCopied, setBriefCopied] = useState(false);
+  const briefRunsRef = useRef(0);
   // Nombre-IA: id de la fila cuyo nombre se está sugiriendo (spinner inline).
   const [namingId, setNamingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -300,6 +311,61 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     },
     [patch]
   );
+
+  const readEmail = useCallback(
+    async (withDocs: DocRow[]) => {
+      if (!emailContext) return;
+      setBriefLoading(true);
+      setBriefError(null);
+      try {
+        const res = await fetch("/api/zona-traductor/expediente/email-brief", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            inboxId: emailContext.id,
+            docs: withDocs
+              .filter((d) => d.status === "done" || d.status === "split" || d.status === "manual")
+              .map((d) => ({
+                fileName: d.fileName,
+                documentTypeEs: d.documentTypeEs || null,
+                sourceLang: d.sourceLang || null,
+                targetLang: d.targetLang || null,
+                words: typeof d.words === "number" ? d.words : null,
+                pages: typeof d.pages === "number" ? d.pages : null,
+              })),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo leer el email.");
+        const b: EmailBrief = data.brief;
+        setBrief(b);
+        // Prerrellena SOLO lo vacío: el staff manda.
+        if (b.sourceLang) setSourceLang((cur) => cur || knownLangCode(b.sourceLang || ""));
+        if (b.targetLang) setTargetLang((cur) => cur || knownLangCode(b.targetLang || ""));
+        if (b.deliveryHint === "PAPER_SHIP") setDeliveryType("PAPER_SHIP");
+        if (b.quoteNotes) setNotesLegal((cur) => cur || b.quoteNotes || "");
+      } catch (err: any) {
+        setBriefError(err?.message || "No se pudo leer el email.");
+      } finally {
+        setBriefLoading(false);
+      }
+    },
+    [emailContext]
+  );
+
+  // 1ª lectura al abrir (solo email); 2ª cuando los documentos terminan de
+  // analizarse (para que vea tipos/palabras y detecte lo que falta).
+  useEffect(() => {
+    if (!emailContext || briefRunsRef.current > 0) return;
+    briefRunsRef.current = 1;
+    void readEmail([]);
+  }, [emailContext, readEmail]);
+  useEffect(() => {
+    if (!emailContext || briefRunsRef.current !== 1 || docs.length === 0) return;
+    if (docs.some((d) => d.status === "uploading" || d.status === "analyzing")) return;
+    briefRunsRef.current = 2;
+    void readEmail(docs);
+  }, [emailContext, docs, readEmail]);
 
   const processFile = useCallback(
     async (row: DocRow, file: File) => {
@@ -753,6 +819,88 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           onChange={(e) => setHolderNames(e.target.value)}
         />
       </div>
+
+      {emailContext && (
+        <div className="space-y-3 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold text-sky-200">Lectura del email (IA)</h3>
+            {briefLoading && <Loader2 className="h-4 w-4 animate-spin text-sky-300" />}
+            <button
+              type="button"
+              onClick={() => void readEmail(docs)}
+              disabled={briefLoading}
+              className="ml-auto rounded border border-sky-500/40 px-2 py-1 text-xs text-sky-200 hover:bg-sky-500/10 disabled:opacity-50"
+            >
+              Releer con los documentos
+            </button>
+          </div>
+          {briefError && <p className="text-xs text-amber-300">✗ {briefError}</p>}
+          {!brief && !briefError && briefLoading && (
+            <p className="text-xs text-sky-200/80">Leyendo qué pide el cliente…</p>
+          )}
+          {brief && (
+            <div className="space-y-2 text-sm">
+              <p className="text-sky-50">{brief.summary}</p>
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                {(brief.sourceLang || brief.targetLang) && (
+                  <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-200">
+                    Par: {(brief.sourceLang || "?").toUpperCase()} → {(brief.targetLang || "?").toUpperCase()}
+                  </span>
+                )}
+                {brief.urgency && (
+                  <span className={`rounded px-2 py-0.5 ${brief.urgency === "urgent" ? "bg-amber-500/20 text-amber-200" : "bg-slate-800 text-slate-200"}`}>
+                    {brief.urgency === "urgent" ? "Urgente" : "Plazo normal"}{brief.deadline ? ` · ${brief.deadline}` : ""}
+                  </span>
+                )}
+                {brief.deliveryHint && (
+                  <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-200">
+                    {brief.deliveryHint === "PAPER_SHIP" ? "Pide papel" : "Pide PDF"}
+                  </span>
+                )}
+                {brief.provisional && (
+                  <span className="rounded bg-rose-500/20 px-2 py-0.5 font-semibold text-rose-200">
+                    Documento provisional / incompleto
+                  </span>
+                )}
+              </div>
+              {brief.provisional && brief.provisionalReason && (
+                <p className="text-xs text-rose-200/90">{brief.provisionalReason}</p>
+              )}
+              {brief.quoteNotes && (
+                <p className="text-xs text-sky-200/80">
+                  Nota añadida al presupuesto (editable abajo en «Notas legales»): <em>{brief.quoteNotes}</em>
+                </p>
+              )}
+              {brief.questions.length > 0 && (
+                <div className="rounded-lg border border-sky-500/20 bg-slate-900/50 p-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">Preguntas al cliente</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(brief.questions.map((q) => `- ${q}`).join("\n"));
+                        setBriefCopied(true);
+                        setTimeout(() => setBriefCopied(false), 1500);
+                      }}
+                      className="ml-auto rounded border border-slate-600 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
+                    >
+                      {briefCopied ? "Copiadas ✓" : "Copiar"}
+                    </button>
+                  </div>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-slate-200">
+                    {brief.questions.map((q, i) => (
+                      <li key={i}>{q}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Pégalas en la instrucción del borrador IA de la bandeja o en el email del presupuesto.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Idioma destino del expediente — elígelo ANTES de subir si traduces a
           un tercer idioma (p. ej. todo a inglés). Pre-rellena la dirección de
