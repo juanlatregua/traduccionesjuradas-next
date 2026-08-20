@@ -4,6 +4,7 @@
 
 import { createHash } from "node:crypto";
 import { put } from "@vercel/blob";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMailboxAddress } from "@/lib/azure-mail";
 import {
@@ -89,7 +90,73 @@ export type InboxSyncResult = {
   skipped: number;
   scanned: number;
   repliedExternally: number;
+  attachmentsBackfilled: number;
 };
+
+export type InboundMedia = { url: string; contentType: string; name: string; size: number };
+
+const INBOX_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
+const INBOX_ATTACHMENT_BACKFILL_PER_SYNC = 15;
+
+/**
+ * Adjuntos reales de un email (sin inline: firmas, logos) → nuestro Blob, en la
+ * misma forma que las medias de WhatsApp (`mediaJson`). Así la fila de la
+ * bandeja los enseña, el borrador IA los ve y "Montar presupuesto" los reutiliza
+ * sin volver a bajarlos de Graph.
+ */
+async function ingestEmailAttachments(graphId: string): Promise<InboundMedia[]> {
+  const attachments = await listInboxAttachments(graphId);
+  const usable = attachments.filter((a) => {
+    if (a.isInline || a.size <= 0 || a.size > INBOX_ATTACHMENT_MAX_BYTES) return false;
+    if (a.contentType.startsWith("image/") && a.size < EXPEDIENTE_MIN_IMAGE_BYTES) return false; // firma/logo sin marcar inline
+    return true;
+  });
+  const media: InboundMedia[] = [];
+  for (const a of usable.slice(0, EXPEDIENTE_MAX_DOCS)) {
+    const buf = await getInboxAttachmentBytes(graphId, a.id);
+    const safeName = a.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
+    const blob = await put(`inbox/${Date.now()}-${safeName}`, buf, {
+      access: "public",
+      contentType: a.contentType,
+    });
+    media.push({ url: blob.url, contentType: a.contentType, name: a.name.slice(0, 255), size: buf.length });
+  }
+  return media;
+}
+
+/**
+ * Emails ya sincronizados ANTES de que la bandeja mirase adjuntos (mediaJson
+ * null): se completan poco a poco en cada sincronización. Un email sin adjuntos
+ * queda con [] para no volver a consultarlo; si Graph ya no tiene el mensaje
+ * (404) también se cierra con [].
+ */
+async function backfillEmailAttachments(): Promise<number> {
+  const rows = await prisma.inboundEmail.findMany({
+    where: {
+      channel: "EMAIL",
+      mediaJson: { equals: Prisma.AnyNull },
+      NOT: { graphId: { startsWith: "manual:" } },
+      receivedAt: { gte: new Date(Date.now() - FIRST_SYNC_WINDOW_MS) },
+    },
+    orderBy: { receivedAt: "desc" },
+    take: INBOX_ATTACHMENT_BACKFILL_PER_SYNC,
+    select: { id: true, graphId: true },
+  });
+  let done = 0;
+  for (const row of rows) {
+    try {
+      const media = await ingestEmailAttachments(row.graphId);
+      await prisma.inboundEmail.update({ where: { id: row.id }, data: { mediaJson: media } });
+      done++;
+    } catch (err: any) {
+      console.error("[inbox] attachment backfill failed", row.id, err);
+      if (/Graph \w+ 404/.test(String(err?.message || ""))) {
+        await prisma.inboundEmail.update({ where: { id: row.id }, data: { mediaJson: [] } }).catch(() => {});
+      }
+    }
+  }
+  return done;
+}
 
 /**
  * Respuestas hechas FUERA de la bandeja (Outlook, móvil): si en Enviados hay
@@ -175,6 +242,15 @@ export async function syncInboxEmails(): Promise<InboxSyncResult> {
       console.error("[inbox] body fetch failed", msg.graphId, err);
     }
 
+    // Adjuntos: si falla, la fila se crea igual con mediaJson null y el
+    // backfill lo reintenta en la siguiente sincronización.
+    let media: InboundMedia[] | null = null;
+    try {
+      media = await ingestEmailAttachments(msg.graphId);
+    } catch (err) {
+      console.error("[inbox] attachments fetch failed", msg.graphId, err);
+    }
+
     const match = await matchClientContext(msg.fromEmail);
     await prisma.inboundEmail.create({
       data: {
@@ -186,6 +262,7 @@ export async function syncInboxEmails(): Promise<InboxSyncResult> {
         subject: msg.subject,
         bodyPreview: msg.bodyPreview.slice(0, 500),
         bodyText: bodyText ? bodyText.slice(0, 20000) : null,
+        ...(media ? { mediaJson: media } : {}),
         receivedAt: msg.receivedAt,
         customerId: match.customerId,
         quoteId: match.quoteId,
@@ -196,7 +273,8 @@ export async function syncInboxEmails(): Promise<InboxSyncResult> {
   }
 
   const repliedExternally = await markRepliedFromSentItems();
-  return { imported, skipped, scanned: messages.length, repliedExternally };
+  const attachmentsBackfilled = await backfillEmailAttachments();
+  return { imported, skipped, scanned: messages.length, repliedExternally, attachmentsBackfilled };
 }
 
 // ---------------------------------------------------------------------------
@@ -250,9 +328,11 @@ export async function buildExpedienteFromInbound(inbound: {
   const existing = await prisma.documentAnalysis.count({ where: { sessionToken } });
   if (existing > 0) return { ref, docs: existing, skipped: [], reused: true };
 
-  // WhatsApp: las medias ya están en nuestro Blob (las bajó el webhook).
-  if (inbound.channel === "WHATSAPP") {
-    const media = Array.isArray(inbound.mediaJson) ? (inbound.mediaJson as any[]) : [];
+  // Medias ya en nuestro Blob: WhatsApp (las bajó el webhook) o email cuya
+  // sincronización ya ingirió los adjuntos (mediaJson). Solo los emails viejos
+  // sin mediaJson bajan de Graph aquí.
+  const media = Array.isArray(inbound.mediaJson) ? (inbound.mediaJson as any[]) : [];
+  if (inbound.channel === "WHATSAPP" || media.length > 0) {
     const skippedWa: string[] = [];
     const rowsWa = media
       .filter((m) => {

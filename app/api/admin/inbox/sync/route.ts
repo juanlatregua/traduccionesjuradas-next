@@ -8,6 +8,8 @@ import { isInboxConfigured } from "@/lib/azure-mail-read";
 import { syncInboxEmails } from "@/lib/inbox";
 
 export const runtime = "nodejs";
+// Bajar adjuntos de los emails nuevos (+ backfill) puede pasar de los 10 s por defecto.
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const access = await requireStaffAccess(req);

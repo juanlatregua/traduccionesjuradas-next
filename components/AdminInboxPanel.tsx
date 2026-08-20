@@ -541,6 +541,7 @@ export default function AdminInboxPanel({
       const bits = [
         data.imported > 0 ? `${data.imported} email(s) nuevo(s) importado(s)` : "buzón al día, sin emails nuevos de clientes",
         data.repliedExternally > 0 ? `${data.repliedExternally} marcado(s) como respondido(s) (contestados desde Outlook/móvil)` : null,
+        data.attachmentsBackfilled > 0 ? `adjuntos recuperados en ${data.attachmentsBackfilled} email(s) anteriores` : null,
       ].filter(Boolean);
       setSyncMsg(`✓ ${bits.join(" · ")}.`);
       router.refresh();
