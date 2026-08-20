@@ -915,9 +915,17 @@ enum InboundEmailStatus {
 // sincronizados a la app para responder desde /admin/inbox con borrador IA.
 // Sin FKs a Customer/Quote/Order a propósito: el match es best-effort por email
 // y no debe impedir borrar/mover esas entidades.
+enum InboundChannel {
+  EMAIL
+  WHATSAPP
+}
+
 model InboundEmail {
   id                String             @id @default(uuid())
-  graphId           String             @unique // id del mensaje en Graph
+  graphId           String             @unique // id externo del mensaje (Graph id o Twilio MessageSid)
+  channel           InboundChannel     @default(EMAIL)
+  fromPhone         String? // E.164 (WhatsApp)
+  mediaJson         Json? // WhatsApp: [{url, contentType, name, size}] ya en nuestro Blob
   internetMessageId String?
   conversationId    String?
   fromEmail         String
@@ -944,4 +952,5 @@ model InboundEmail {
 
   @@index([status, receivedAt])
   @@index([fromEmail])
+  @@index([fromPhone])
 }

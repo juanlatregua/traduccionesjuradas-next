@@ -45,24 +45,33 @@ function isIgnoredSender(fromEmail: string): boolean {
   return /^(no-?reply|noreply|notifications?|mailer-daemon|postmaster|microsoftexchange)/i.test(email);
 }
 
-export async function matchClientContext(fromEmail: string): Promise<{
+export async function matchClientContext(fromEmail: string, fromPhone?: string | null): Promise<{
   customerId: string | null;
   quoteId: string | null;
   orderReference: string | null;
 }> {
   const email = fromEmail.toLowerCase();
+  // Teléfono (WhatsApp): los números se guardan con formatos variados
+  // ("+34 600 123 456", "600123456"); casamos por los 9 últimos dígitos.
+  const digits = (fromPhone || "").replace(/\D/g, "");
+  const last9 = digits.length >= 9 ? digits.slice(-9) : null;
+  const phoneOr = (field: string) =>
+    last9 ? [{ [field]: { endsWith: last9 } }, { [field]: { contains: last9 } }] : [];
   const [customer, quote, order] = await Promise.all([
     prisma.customer.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
+      where: { OR: [{ email: { equals: email, mode: "insensitive" } }, ...phoneOr("phone")] },
       select: { id: true },
     }),
     prisma.quote.findFirst({
-      where: { customerEmail: { equals: email, mode: "insensitive" }, deletedAt: null },
+      where: {
+        deletedAt: null,
+        OR: [{ customerEmail: { equals: email, mode: "insensitive" } }, ...phoneOr("customerPhone")],
+      },
       orderBy: { createdAt: "desc" },
       select: { id: true },
     }),
     prisma.order.findFirst({
-      where: { clientEmail: { equals: email, mode: "insensitive" } },
+      where: { OR: [{ clientEmail: { equals: email, mode: "insensitive" } }, ...phoneOr("clientPhone")] },
       orderBy: { createdAt: "desc" },
       select: { reference: true },
     }),
@@ -181,14 +190,53 @@ export type InboundExpedienteResult = {
 export async function buildExpedienteFromInbound(inbound: {
   id: string;
   graphId: string;
+  channel?: "EMAIL" | "WHATSAPP";
   fromEmail: string;
   fromName: string | null;
+  fromPhone?: string | null;
+  mediaJson?: unknown;
 }): Promise<InboundExpedienteResult> {
   const ref = expedienteRefForInbound(inbound.id);
   const sessionToken = `exp:${ref}`;
 
   const existing = await prisma.documentAnalysis.count({ where: { sessionToken } });
   if (existing > 0) return { ref, docs: existing, skipped: [], reused: true };
+
+  // WhatsApp: las medias ya están en nuestro Blob (las bajó el webhook).
+  if (inbound.channel === "WHATSAPP") {
+    const media = Array.isArray(inbound.mediaJson) ? (inbound.mediaJson as any[]) : [];
+    const skippedWa: string[] = [];
+    const rowsWa = media
+      .filter((m) => {
+        const ct = String(m?.contentType || "").toLowerCase();
+        if (!EXPEDIENTE_ALLOWED_TYPES.has(ct)) {
+          skippedWa.push(`${m?.name || "archivo"} (${ct || "?"})`);
+          return false;
+        }
+        return Boolean(m?.url);
+      })
+      .slice(0, EXPEDIENTE_MAX_DOCS)
+      .map((m) => ({
+        fileName: String(m.name || "documento").slice(0, 255),
+        fileUrl: String(m.url),
+        fileSize: Number(m.size) || 0,
+        mimeType: String(m.contentType).toLowerCase(),
+      }));
+    if (rowsWa.length === 0) return { ref: null, docs: 0, skipped: skippedWa, reused: false };
+    await prisma.documentAnalysis.createMany({
+      data: rowsWa.map((d) => ({
+        ...d,
+        sessionToken,
+        clientName: inbound.fromName,
+        clientEmail: inbound.fromEmail,
+        clientPhone: inbound.fromPhone || null,
+        gdprConsent: true,
+        gdprConsentAt: new Date(),
+        status: "UPLOADED" as const,
+      })),
+    });
+    return { ref, docs: rowsWa.length, skipped: skippedWa, reused: false };
+  }
 
   const attachments = await listInboxAttachments(inbound.graphId);
   const skipped: string[] = [];
@@ -246,12 +294,13 @@ export async function buildExpedienteFromInbound(inbound: {
 export async function rematchInboundIfUnlinked<T extends {
   id: string;
   fromEmail: string;
+  fromPhone?: string | null;
   customerId: string | null;
   quoteId: string | null;
   orderReference: string | null;
 }>(inbound: T): Promise<T> {
   if (inbound.quoteId && inbound.orderReference) return inbound;
-  const match = await matchClientContext(inbound.fromEmail);
+  const match = await matchClientContext(inbound.fromEmail, inbound.fromPhone);
   const patch = {
     customerId: inbound.customerId || match.customerId,
     quoteId: inbound.quoteId || match.quoteId,

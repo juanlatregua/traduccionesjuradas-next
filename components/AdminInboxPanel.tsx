@@ -13,6 +13,9 @@ import { useRouter } from "next/navigation";
 
 export type InboxRow = {
   id: string;
+  channel: "EMAIL" | "WHATSAPP";
+  fromPhone: string | null;
+  media: { url: string; contentType: string; name: string; size: number }[];
   fromEmail: string;
   fromName: string | null;
   subject: string;
@@ -191,9 +194,15 @@ function EmailCard({
         <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[row.status] || ""}`}>
           {STATUS_LABEL[row.status] || row.status}
         </span>
+        {row.channel === "WHATSAPP" && (
+          <span className="rounded-md bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800">WhatsApp</span>
+        )}
         <span className="text-sm font-semibold text-slate-900">
-          {row.fromName || row.fromEmail}
+          {row.fromName || (row.channel === "WHATSAPP" ? row.fromPhone : row.fromEmail)}
         </span>
+        {row.media.length > 0 && (
+          <span className="text-xs text-slate-500">📎 {row.media.length}</span>
+        )}
         <span className="min-w-0 flex-1 truncate text-sm text-slate-600">{row.subject}</span>
         <span className="text-xs text-slate-400">
           {new Date(row.receivedAt).toLocaleString("es-ES")}
@@ -204,7 +213,10 @@ function EmailCard({
         <div className="space-y-4 border-t border-slate-100 px-4 py-4">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="text-slate-500">
-              De: <strong className="text-slate-800">{row.fromEmail}</strong>
+              De:{" "}
+              <strong className="text-slate-800">
+                {row.channel === "WHATSAPP" ? row.fromPhone || row.fromEmail : row.fromEmail}
+              </strong>
             </span>
             {row.quoteId && (
               <Link
@@ -255,6 +267,22 @@ function EmailCard({
             <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm text-slate-800">
               {row.bodyText || row.bodyPreview}
             </p>
+            {row.media.length > 0 && (
+              <ul className="mt-2 flex flex-wrap gap-2 text-xs">
+                {row.media.map((m, i) => (
+                  <li key={i}>
+                    <a
+                      href={m.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md border border-slate-300 bg-white px-2 py-1 font-medium text-slate-700 hover:bg-slate-100"
+                    >
+                      📎 {m.name} · {Math.max(1, Math.round(m.size / 1024))} KB
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {row.brief && (row.brief.summary || row.brief.provisional || (row.brief.questions || []).length > 0) && (
@@ -313,12 +341,14 @@ function EmailCard({
                 </button>
               </div>
 
-              <input
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="Asunto de la respuesta"
-                className={inputCls}
-              />
+              {row.channel !== "WHATSAPP" && (
+                <input
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Asunto de la respuesta"
+                  className={inputCls}
+                />
+              )}
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -334,10 +364,16 @@ function EmailCard({
                   disabled={sending || !body.trim()}
                   className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {sending ? "Enviando…" : `Enviar respuesta a ${row.fromEmail}`}
+                  {sending
+                    ? "Enviando…"
+                    : row.channel === "WHATSAPP"
+                      ? `Enviar por WhatsApp a ${row.fromPhone || ""}`
+                      : `Enviar respuesta a ${row.fromEmail}`}
                 </button>
                 <span className="text-xs text-slate-500">
-                  Se envía desde el buzón del negocio, en el mismo hilo, con la firma habitual.
+                  {row.channel === "WHATSAPP"
+                    ? "Sale por WhatsApp desde el número del negocio, en texto plano; solo dentro de las 24 h desde su último mensaje."
+                    : "Se envía desde el buzón del negocio, en el mismo hilo, con la firma habitual."}
                 </span>
               </div>
             </div>
@@ -357,10 +393,12 @@ function EmailCard({
 export default function AdminInboxPanel({
   initialRows,
   vista,
+  canal = "todos",
   counts,
 }: {
   initialRows: InboxRow[];
   vista: string;
+  canal?: "todos" | "email" | "whatsapp";
   counts: { pendientes: number; respondidos: number; archivados: number };
 }) {
   const router = useRouter();
@@ -419,13 +457,32 @@ export default function AdminInboxPanel({
           {VISTAS.map((v) => (
             <Link
               key={v.key}
-              href={`/admin/inbox?vista=${v.key}`}
+              href={`/admin/inbox?vista=${v.key}${canal !== "todos" ? `&canal=${canal}` : ""}`}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
                 vista === v.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               {v.label}
               {countLabel[v.key] != null ? ` (${countLabel[v.key]})` : ""}
+            </Link>
+          ))}
+        </div>
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+          {(
+            [
+              { key: "todos", label: "Todos" },
+              { key: "email", label: "Email" },
+              { key: "whatsapp", label: "WhatsApp" },
+            ] as const
+          ).map((c) => (
+            <Link
+              key={c.key}
+              href={`/admin/inbox?vista=${vista}${c.key !== "todos" ? `&canal=${c.key}` : ""}`}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                canal === c.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {c.label}
             </Link>
           ))}
         </div>

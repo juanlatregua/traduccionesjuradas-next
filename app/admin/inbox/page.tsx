@@ -11,20 +11,23 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams?: { vista?: string } };
+type Props = { searchParams?: { vista?: string; canal?: string } };
 
 export default async function AdminInboxPage({ searchParams }: Props) {
   await requireAdminPageAccess("/admin/inbox");
 
   const vista = searchParams?.vista || "pendientes";
-  const where =
-    vista === "respondidos"
+  const canal = searchParams?.canal === "whatsapp" ? "WHATSAPP" : searchParams?.canal === "email" ? "EMAIL" : null;
+  const where = {
+    ...(vista === "respondidos"
       ? { status: "REPLIED" as const }
       : vista === "archivados"
         ? { status: "ARCHIVED" as const }
         : vista === "todos"
           ? {}
-          : { status: { in: ["NEW", "DRAFTED"] as ("NEW" | "DRAFTED")[] } };
+          : { status: { in: ["NEW", "DRAFTED"] as ("NEW" | "DRAFTED")[] } }),
+    ...(canal ? { channel: canal as "EMAIL" | "WHATSAPP" } : {}),
+  };
 
   const emails = await prisma.inboundEmail.findMany({
     where,
@@ -40,6 +43,9 @@ export default async function AdminInboxPage({ searchParams }: Props) {
 
   const rows: InboxRow[] = emails.map((e) => ({
     id: e.id,
+    channel: e.channel,
+    fromPhone: e.fromPhone,
+    media: Array.isArray(e.mediaJson) ? (e.mediaJson as InboxRow["media"]) : [],
     fromEmail: e.fromEmail,
     fromName: e.fromName,
     subject: e.subject,
@@ -64,6 +70,7 @@ export default async function AdminInboxPage({ searchParams }: Props) {
       <AdminInboxPanel
         initialRows={rows}
         vista={vista}
+        canal={canal === "WHATSAPP" ? "whatsapp" : canal === "EMAIL" ? "email" : "todos"}
         counts={{
           pendientes: (countMap.NEW || 0) + (countMap.DRAFTED || 0),
           respondidos: countMap.REPLIED || 0,

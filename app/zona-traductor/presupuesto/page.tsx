@@ -49,7 +49,7 @@ export default async function ZonaTraductorPresupuestoPage({
   const inboundEmail = inboxId
     ? await prisma.inboundEmail.findUnique({
         where: { id: inboxId },
-        select: { id: true, fromName: true, fromEmail: true, subject: true, bodyText: true, bodyPreview: true, receivedAt: true },
+        select: { id: true, channel: true, fromName: true, fromEmail: true, fromPhone: true, subject: true, bodyText: true, bodyPreview: true, receivedAt: true },
       })
     : null;
   const leadRef = s(searchParams.lead).trim().slice(0, 40) || null;
@@ -92,6 +92,7 @@ export default async function ZonaTraductorPresupuestoPage({
   if (inboundEmail) {
     builderInitial.customerName ||= inboundEmail.fromName || undefined;
     builderInitial.customerEmail ||= inboundEmail.fromEmail;
+    builderInitial.customerPhone ||= inboundEmail.fromPhone || undefined;
   }
 
   if (expRef) {
@@ -135,7 +136,7 @@ export default async function ZonaTraductorPresupuestoPage({
               className="mt-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100"
             >
               <summary className="cursor-pointer font-semibold text-sky-200">
-                Email del cliente · {inboundEmail.fromName || inboundEmail.fromEmail} · {inboundEmail.subject}
+                {inboundEmail.channel === "WHATSAPP" ? "WhatsApp del cliente" : "Email del cliente"} · {inboundEmail.fromName || inboundEmail.fromPhone || inboundEmail.fromEmail} · {inboundEmail.subject}
                 <span className="ml-2 font-normal text-sky-300/80">
                   {inboundEmail.receivedAt.toLocaleString("es-ES")}
                 </span>

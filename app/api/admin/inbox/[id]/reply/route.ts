@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { replyToInboxMessage } from "@/lib/azure-mail-read";
 import { renderClientMessageHtml } from "@/lib/email";
+import { sendWhatsAppInboxReply } from "@/lib/whatsapp-inbox";
 
 export const runtime = "nodejs";
 
@@ -38,10 +39,18 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    await replyToInboxMessage(inbound.graphId, {
-      html: renderClientMessageHtml(bodyText),
-      subject,
-    });
+    const isWhatsApp = inbound.channel === "WHATSAPP";
+    if (isWhatsApp) {
+      if (!inbound.fromPhone) {
+        return NextResponse.json({ ok: false, error: "El mensaje no tiene teléfono de origen." }, { status: 400 });
+      }
+      await sendWhatsAppInboxReply(inbound.fromPhone, bodyText);
+    } else {
+      await replyToInboxMessage(inbound.graphId, {
+        html: renderClientMessageHtml(bodyText),
+        subject,
+      });
+    }
 
     const now = new Date();
     await prisma.inboundEmail.update({
@@ -60,9 +69,9 @@ export async function POST(req: Request, { params }: Params) {
         .create({
           data: {
             quoteId: inbound.quoteId,
-            channel: "EMAIL",
+            channel: isWhatsApp ? "WHATSAPP" : "EMAIL",
             type: "INBOX_REPLY",
-            recipient: inbound.fromEmail,
+            recipient: isWhatsApp ? inbound.fromPhone || inbound.fromEmail : inbound.fromEmail,
             subject,
             body: bodyText,
             sentAt: now,
@@ -85,8 +94,9 @@ export async function POST(req: Request, { params }: Params) {
               type: "notification.inbox_reply.sent",
               message: "Respuesta enviada al cliente desde la bandeja de entrada.",
               payload: {
-                channel: "EMAIL",
+                channel: isWhatsApp ? "WHATSAPP" : "EMAIL",
                 toEmail: inbound.fromEmail,
+                toPhone: inbound.fromPhone,
                 subject,
                 bodyText,
                 actorEmail: access.email,

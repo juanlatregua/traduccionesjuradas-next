@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: Params) {
   try {
     const inbound = await prisma.inboundEmail.findUnique({
       where: { id: params.id },
-      select: { id: true, graphId: true, fromEmail: true, fromName: true },
+      select: { id: true, graphId: true, channel: true, fromEmail: true, fromName: true, fromPhone: true, mediaJson: true },
     });
     if (!inbound) {
       return NextResponse.json({ ok: false, error: "Email no encontrado." }, { status: 404 });
@@ -33,6 +33,7 @@ export async function POST(req: Request, { params }: Params) {
     } else {
       if (inbound.fromName) builder.searchParams.set("customerName", inbound.fromName);
       builder.searchParams.set("customerEmail", inbound.fromEmail);
+      if (inbound.fromPhone) builder.searchParams.set("customerPhone", inbound.fromPhone);
     }
     return NextResponse.json({
       ok: true,

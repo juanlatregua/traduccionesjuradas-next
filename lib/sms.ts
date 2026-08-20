@@ -24,7 +24,7 @@ function getTwilioAuth(): { user: string; pass: string } {
   return { user: process.env.TWILIO_ACCOUNT_SID!, pass: "" };
 }
 
-async function twilioSend(
+export async function twilioSend(
   to: string,
   from: string,
   body: string
