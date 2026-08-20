@@ -57,6 +57,10 @@ function quickReplies(lang: "es" | "fr") {
 const MAX_MESSAGES = 20;
 const SESSION_KEY = "chatbot_session";
 const MESSAGES_KEY = "chatbot_messages";
+// Puerta: sin email (+ consentimiento) no hay asistente. Se guarda en
+// localStorage para no volver a pedirlo en visitas siguientes.
+const EMAIL_KEY = "chatbot_email";
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -89,6 +93,31 @@ export default function ChatWidget() {
   });
   const [showQuickReplies, setShowQuickReplies] = useState(true);
   const [rateLimited, setRateLimited] = useState(false);
+  const [chatEmail, setChatEmail] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(EMAIL_KEY) || "";
+  });
+  const [gateEmail, setGateEmail] = useState("");
+  const [gateConsent, setGateConsent] = useState(false);
+  const [gateError, setGateError] = useState<string | null>(null);
+  const gateInputRef = useRef<HTMLInputElement>(null);
+
+  const submitGate = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const email = gateEmail.trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) {
+      setGateError(uiLang === "fr" ? "Indiquez un e-mail valide." : "Indica un email válido.");
+      return;
+    }
+    if (!gateConsent) {
+      setGateError(uiLang === "fr" ? "Acceptez le traitement de vos données pour continuer." : "Acepta el tratamiento de tus datos para continuar.");
+      return;
+    }
+    localStorage.setItem(EMAIL_KEY, email);
+    setChatEmail(email);
+    setGateError(null);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
   const QR = quickReplies(uiLang);
   const whatsappLink = useMemo(
     () => buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname) }),
@@ -206,6 +235,12 @@ export default function ChatWidget() {
         setRateLimited(true);
         return;
       }
+      if (!chatEmail) {
+        // Sin email no se llama al asistente: llevar el foco a la puerta.
+        setGateError(uiLang === "fr" ? "Indiquez d'abord votre e-mail pour utiliser l'assistant." : "Indica primero tu email para usar el asistente.");
+        gateInputRef.current?.focus();
+        return;
+      }
 
       setShowQuickReplies(false);
       const userMsg: Message = {
@@ -250,13 +285,17 @@ export default function ChatWidget() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages, sessionId }),
+          body: JSON.stringify({ messages: apiMessages, sessionId, email: chatEmail }),
         });
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          if (res.status === 429) {
+          if (res.status === 429 || res.status === 503) {
             setRateLimited(true);
+          }
+          if (res.status === 401 && err?.needEmail) {
+            localStorage.removeItem(EMAIL_KEY);
+            setChatEmail("");
           }
           const errorText =
             err.error || (uiLang === "fr" ? "Désolé, une erreur s'est produite. Réessayez." : "Lo siento, ha ocurrido un error. Inténtalo de nuevo.");
@@ -328,7 +367,7 @@ export default function ChatWidget() {
         setIsStreaming(false);
       }
     },
-    [messages, isStreaming, sessionId, userMessageCount, rateLimited]
+    [messages, isStreaming, sessionId, userMessageCount, rateLimited, chatEmail, uiLang]
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -585,8 +624,57 @@ export default function ChatWidget() {
             </div>
           </div>
 
+          {/* Puerta: email + consentimiento antes del primer mensaje */}
+          {!rateLimited && !chatEmail && (
+            <form
+              onSubmit={submitGate}
+              className="flex flex-col gap-2 border-t border-cream bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-3"
+            >
+              <p className="text-xs font-medium text-sepia">
+                {uiLang === "fr"
+                  ? "Pour utiliser l'assistant, indiquez votre e-mail :"
+                  : "Para usar el asistente, indícanos tu email:"}
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={gateInputRef}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={gateEmail}
+                  onChange={(e) => setGateEmail(e.target.value)}
+                  placeholder={uiLang === "fr" ? "votre@email.fr" : "tu@email.com"}
+                  aria-label="Email"
+                  className="flex-1 rounded-lg border border-cream/50 bg-parchment px-3 py-2 text-sm text-sepia placeholder:text-graphite/50 focus:border-bleu/30 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  className="shrink-0 rounded-lg bg-bleu px-3 py-2 text-sm font-medium text-parchment transition-colors hover:bg-bleu-dark"
+                >
+                  {uiLang === "fr" ? "Commencer" : "Empezar"}
+                </button>
+              </div>
+              <label className="flex items-start gap-2 text-[11px] leading-snug text-graphite">
+                <input
+                  type="checkbox"
+                  checked={gateConsent}
+                  onChange={(e) => setGateConsent(e.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-graphite/40 text-bleu"
+                />
+                <span>
+                  {uiLang === "fr" ? (
+                    <>J&apos;accepte le traitement de mes données pour répondre à ma demande. <a href="/privacidad" target="_blank" className="text-bleu underline">Politique de confidentialité</a>.</>
+                  ) : (
+                    <>Consiento el tratamiento de mis datos para atender mi consulta. <a href="/privacidad" target="_blank" className="text-bleu underline">Política de privacidad</a>.</>
+                  )}
+                </span>
+              </label>
+              {gateError && <p className="text-xs text-red-600">{gateError}</p>}
+            </form>
+          )}
+
           {/* Input */}
-          {!rateLimited && (
+          {!rateLimited && chatEmail && (
             <form
               onSubmit={handleSubmit}
               className="flex flex-col gap-2 border-t border-cream bg-card px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-2"

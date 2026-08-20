@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { sendMail } from "@/lib/azure-mail";
 import { SYSTEM_PROMPT } from "@/lib/chat/system-prompt";
 import { sanitizeMessage, isPromptInjection } from "@/lib/chat/sanitize";
 import { detectLanguage } from "@/lib/chat/detect-language";
@@ -29,6 +30,25 @@ type ChatMessage = {
 
 const anthropic = new Anthropic();
 const MAX_TOOL_ITERATIONS = 5;
+// Puerta del asistente (20-ago-2026, decisión de Juan: "gratis solo si dan el
+// email previamente"): sin email válido no se llama a la API. Topes: 30
+// mensajes/día por IP y kill-switch global diario (env CHAT_DAILY_LIMIT, 300
+// por defecto) que corta la IA y avisa a staff una vez al día.
+const CHAT_IP_DAILY_LIMIT = 30;
+const CHAT_GLOBAL_DAILY_LIMIT = Math.max(1, Number(process.env.CHAT_DAILY_LIMIT) || 300);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
+
+async function alertStaffChatLimit(limit: number) {
+  // Una sola vez por ventana de 24 h, por el transporte que no está saturado.
+  const once = await checkRateLimit({ key: "chat:global:alert", limit: 1, windowMs: 86_400_000 });
+  if (!once.ok) return;
+  await sendMail({
+    to: STAFF_ALERT_EMAIL,
+    subject: `⚠️ Chatbot: tope diario alcanzado (${limit} mensajes)`,
+    html: `<p>El asistente de la web ha llegado al tope global de <strong>${limit} mensajes en 24 h</strong> y ha dejado de llamar a la IA: a los visitantes se les deriva a WhatsApp.</p><p>Si es tráfico legítimo, sube <code>CHAT_DAILY_LIMIT</code> en Vercel; si es abuso, revisa las sesiones en ChatSession (ipHash/userEmail).</p>`,
+  });
+}
 const MODEL = "claude-sonnet-4-6"; // Sonnet 4 (20250514) retirado 15-jun-2026 → 404
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES: ImageBlock["source"]["media_type"][] = [
@@ -50,6 +70,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const rawMessages: ChatMessage[] = body.messages ?? [];
     const sessionId: string = body.sessionId ?? crypto.randomUUID();
+    const userEmail = String(body.email || "").trim().toLowerCase().slice(0, 254);
+    if (!EMAIL_RE.test(userEmail)) {
+      return Response.json(
+        { ok: false, error: "Indica tu email para usar el asistente.", needEmail: true },
+        { status: 401 },
+      );
+    }
 
     if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
       return Response.json({ ok: false, error: "Messages required" }, { status: 400 });
@@ -128,7 +155,7 @@ export async function POST(req: NextRequest) {
 
     const ipLimit = await checkRateLimit({
       key: `chat:ip:${ipHash}`,
-      limit: 100,
+      limit: CHAT_IP_DAILY_LIMIT,
       windowMs: 86_400_000,
     });
 
@@ -143,6 +170,23 @@ export async function POST(req: NextRequest) {
           "X-RateLimit-Remaining": "0",
           "Retry-After": String(ipLimit.retryAfterSec),
         },
+      });
+    }
+
+    const globalLimit = await checkRateLimit({
+      key: "chat:global:day",
+      limit: CHAT_GLOBAL_DAILY_LIMIT,
+      windowMs: 86_400_000,
+    });
+    if (!globalLimit.ok) {
+      alertStaffChatLimit(CHAT_GLOBAL_DAILY_LIMIT).catch((e) => console.error("[chat] staff alert failed", e));
+      return Response.json({
+        ok: false,
+        error: "El asistente ha alcanzado su capacidad de hoy. Escríbenos por WhatsApp al +34 951 333 614 y te atendemos.",
+        referToWhatsApp: true,
+      }, {
+        status: 503,
+        headers: { "Retry-After": String(globalLimit.retryAfterSec) },
       });
     }
 
@@ -281,6 +325,7 @@ export async function POST(req: NextRequest) {
               where: { sessionId },
               create: {
                 sessionId,
+                userEmail,
                 messages: savedMessages,
                 detectedLanguage,
                 detectedIntent,
@@ -291,6 +336,7 @@ export async function POST(req: NextRequest) {
               },
               update: {
                 messages: savedMessages,
+                userEmail,
                 detectedLanguage,
                 detectedIntent,
                 messageCount: savedMessages.length,
@@ -320,6 +366,7 @@ export async function POST(req: NextRequest) {
               where: { sessionId },
               create: {
                 sessionId,
+                userEmail,
                 messages: messagesForDb,
                 detectedLanguage,
                 ipHash,
