@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { buildBusinessContext, generateEmailDraft } from "@/lib/ai/email-reply";
+import { rematchInboundIfUnlinked } from "@/lib/inbox";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -18,10 +19,13 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   try {
-    const inbound = await prisma.inboundEmail.findUnique({ where: { id: params.id } });
-    if (!inbound) {
+    const found = await prisma.inboundEmail.findUnique({ where: { id: params.id } });
+    if (!found) {
       return NextResponse.json({ ok: false, error: "Email no encontrado." }, { status: 404 });
     }
+    // El presupuesto puede haberse montado DESPUÉS de sincronizar (botón
+    // "Montar presupuesto"): re-casa antes de construir el contexto.
+    const inbound = await rematchInboundIfUnlinked(found);
 
     const body = await req.json().catch(() => ({}));
     const instruction = String(body?.instruction || "").trim() || null;

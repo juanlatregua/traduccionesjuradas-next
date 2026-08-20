@@ -65,6 +65,7 @@ function EmailCard({
   const [drafting, setDrafting] = useState(false);
   const [sending, setSending] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [building, setBuilding] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   const replied = row.status === "REPLIED";
@@ -139,6 +140,37 @@ function EmailCard({
     }
   }
 
+  // Email → builder: trae los adjuntos como expediente y abre el presupuesto
+  // con el cliente y el propio email a la vista. Idempotente en el servidor.
+  async function buildQuote() {
+    setBuilding(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/admin/inbox/${row.id}/expediente`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo preparar el presupuesto.");
+      const parts: string[] = [];
+      if (data.ref) {
+        parts.push(
+          data.reused
+            ? `Expediente ${data.ref} ya existía (${data.docs} doc.)`
+            : `Expediente ${data.ref} con ${data.docs} documento${data.docs === 1 ? "" : "s"} del email`
+        );
+      } else {
+        parts.push("El email no trae documentos utilizables: builder con el cliente prerrellenado");
+      }
+      if (Array.isArray(data.skipped) && data.skipped.length) {
+        parts.push(`omitidos: ${data.skipped.join(", ")}`);
+      }
+      setFeedback({ ok: true, text: `✓ ${parts.join(" · ")}. Builder abierto en otra pestaña.` });
+      window.open(data.url, "_blank", "noopener");
+    } catch (err: any) {
+      setFeedback({ ok: false, text: `✗ ${err?.message || "Error al preparar el presupuesto."}` });
+    } finally {
+      setBuilding(false);
+    }
+  }
+
   const inputCls =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400";
 
@@ -188,11 +220,22 @@ function EmailCard({
                 Sin ficha de cliente conocida
               </span>
             )}
+            {!replied && (
+              <button
+                type="button"
+                onClick={buildQuote}
+                disabled={building}
+                className="ml-auto rounded-md border border-sky-300 bg-sky-50 px-2 py-0.5 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
+                title="Trae los adjuntos del email como expediente y abre el builder con el cliente y el email a la vista"
+              >
+                {building ? "Preparando…" : "Montar presupuesto desde este email →"}
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleArchive}
               disabled={archiving}
-              className="ml-auto rounded-md border border-slate-300 px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              className={`${replied ? "ml-auto " : ""}rounded-md border border-slate-300 px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50`}
             >
               {row.status === "ARCHIVED" ? "Desarchivar" : "Archivar"}
             </button>

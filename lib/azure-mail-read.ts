@@ -115,3 +115,44 @@ export async function replyToInboxMessage(
     throw new Error(`Graph reply ${res.status}: ${body.slice(0, 500)}`);
   }
 }
+
+export interface InboxAttachmentSummary {
+  id: string;
+  name: string;
+  contentType: string;
+  size: number;
+  isInline: boolean;
+}
+
+/** Adjuntos de archivo de un mensaje (sin los inline: firmas, logos). */
+export async function listInboxAttachments(graphId: string): Promise<InboxAttachmentSummary[]> {
+  const mailbox = getMailboxAddress();
+  const data = await graphGet(
+    `/users/${encodeURIComponent(mailbox)}/messages/${encodeURIComponent(graphId)}/attachments?$select=id,name,contentType,size,isInline`
+  );
+  const rows: any[] = Array.isArray(data.value) ? data.value : [];
+  return rows
+    .filter((a) => a["@odata.type"] === "#microsoft.graph.fileAttachment")
+    .map((a) => ({
+      id: String(a.id),
+      name: String(a.name || "adjunto"),
+      contentType: String(a.contentType || "application/octet-stream").toLowerCase(),
+      size: Number(a.size) || 0,
+      isInline: Boolean(a.isInline),
+    }));
+}
+
+/** Bytes de un adjunto (descarga directa, sin base64 en JSON). */
+export async function getInboxAttachmentBytes(graphId: string, attachmentId: string): Promise<Buffer> {
+  const mailbox = getMailboxAddress();
+  const token = await getGraphAccessToken();
+  const res = await fetch(
+    `${GRAPH}/users/${encodeURIComponent(mailbox)}/messages/${encodeURIComponent(graphId)}/attachments/${encodeURIComponent(attachmentId)}/$value`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Graph attachment ${res.status}: ${body.slice(0, 300)}`);
+  }
+  return Buffer.from(await res.arrayBuffer());
+}

@@ -23,6 +23,7 @@ export default async function ZonaTraductorPresupuestoPage({
   searchParams: {
     exp?: string;
     lead?: string;
+    inbox?: string;
     customerEmail?: string;
     customerName?: string;
     customerPhone?: string;
@@ -42,6 +43,15 @@ export default async function ZonaTraductorPresupuestoPage({
   // arranca con el par, el cliente, la linea y el COSTE que propuso el traductor
   // (margen en auto), y el presupuesto que nazca de aqui se ata a la solicitud
   // (lavoriLeadRef) para que el pago dispare precio_aceptado sin tocar la BD.
+  // Email de la bandeja (/admin/inbox → "Montar presupuesto"): se muestra
+  // entero encima de los documentos para fijar precio/plazo leyendo lo que pide.
+  const inboxId = s(searchParams.inbox).trim().slice(0, 64) || null;
+  const inboundEmail = inboxId
+    ? await prisma.inboundEmail.findUnique({
+        where: { id: inboxId },
+        select: { id: true, fromName: true, fromEmail: true, subject: true, bodyText: true, bodyPreview: true, receivedAt: true },
+      })
+    : null;
   const leadRef = s(searchParams.lead).trim().slice(0, 40) || null;
   const lead = leadRef ? await prisma.lavoriPriceRequest.findUnique({ where: { ref: leadRef } }) : null;
   const leadPair = lead ? lead.par.toLowerCase().split(">") : [];
@@ -79,6 +89,11 @@ export default async function ZonaTraductorPresupuestoPage({
   let initialDocs: { documentId: string; fileName: string; fileUrl?: string }[] | undefined;
   let initialCustomer: { name?: string; email?: string; phone?: string } | undefined;
 
+  if (inboundEmail) {
+    builderInitial.customerName ||= inboundEmail.fromName || undefined;
+    builderInitial.customerEmail ||= inboundEmail.fromEmail;
+  }
+
   if (expRef) {
     const rows = await prisma.documentAnalysis.findMany({
       where: { sessionToken: `exp:${expRef}` },
@@ -113,6 +128,25 @@ export default async function ZonaTraductorPresupuestoPage({
               {" "}Al crear el presupuesto queda atado a esta solicitud: el pago avisará al traductor.
               {lead.docsCount > 0 ? " Suelta aquí los documentos del cliente (no hay expediente)." : ""}
             </p>
+          )}
+          {inboundEmail && (
+            <details
+              open
+              className="mt-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100"
+            >
+              <summary className="cursor-pointer font-semibold text-sky-200">
+                Email del cliente · {inboundEmail.fromName || inboundEmail.fromEmail} · {inboundEmail.subject}
+                <span className="ml-2 font-normal text-sky-300/80">
+                  {inboundEmail.receivedAt.toLocaleString("es-ES")}
+                </span>
+              </summary>
+              <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-sky-50/90">
+                {inboundEmail.bodyText || inboundEmail.bodyPreview}
+              </p>
+              <p className="mt-2 text-xs text-sky-300/80">
+                Al enviar el presupuesto, la respuesta desde la bandeja ya lo citará (número, total y enlace de pago).
+              </p>
+            </details>
           )}
           <p className="mt-1 text-sm text-slate-400">
             {expRef
