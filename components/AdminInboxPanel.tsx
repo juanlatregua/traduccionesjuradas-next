@@ -7,7 +7,7 @@
 // editable y envío en el mismo hilo. La respuesta NUNCA sale sin que el staff
 // la revise y pulse enviar.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -292,6 +292,10 @@ export default function AdminInboxPanel({
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
+  // Tras router.refresh() el servidor manda filas nuevas: useState no las recoge solo.
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
