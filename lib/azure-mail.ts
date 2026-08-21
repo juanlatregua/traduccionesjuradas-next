@@ -64,6 +64,13 @@ export interface MailAttachment {
 
 interface SendMailOptions {
   to: string | string[];
+  // Copia en Enviados del buzón. Por defecto SÍ salvo que todos los destinatarios
+  // sean la propia casa (avisos a staff: llegan a la bandeja de hola@ y una copia
+  // en Enviados sería ruido). Petición Juan 21-ago: "no veo en Outlook si se ha
+  // enviado o no" — con false Exchange envía pero no deja rastro, y además el
+  // detector de respondidos de la bandeja (Enviados por conversationId) no ve
+  // los envíos de la web.
+  saveToSentItems?: boolean;
   cc?: string[];
   bcc?: string[];
   replyTo?: string;
@@ -81,7 +88,7 @@ export function isEmailConfigured(): boolean {
   );
 }
 
-export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, attachments }: SendMailOptions) {
+export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, attachments, saveToSentItems }: SendMailOptions) {
   // Fallback de la MISMA marca: el anterior era la academia de francés, así que
   // borrar EMAIL_FROM habría hecho que los emails a clientes de tj.net saliesen
   // firmados por holabonjour. Canon (Juan, 15-ago): clientes desde
@@ -96,6 +103,13 @@ export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, atta
   const token = await getAccessToken();
 
   const toArray = Array.isArray(to) ? to : [to];
+  const casa = new Set(
+    [from, process.env.ADMIN_EMAIL, "info@traduccionesjuradas.net", "hola@traduccionesjuradas.net"]
+      .filter(Boolean)
+      .map((a) => String(a).trim().toLowerCase())
+  );
+  const soloCasa = toArray.every((a) => casa.has(String(a).trim().toLowerCase()));
+  const keepCopy = saveToSentItems ?? !soloCasa;
 
   const message: Record<string, unknown> = {
     message: {
@@ -125,7 +139,7 @@ export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, atta
         })),
       }),
     },
-    saveToSentItems: false,
+    saveToSentItems: keepCopy,
   };
 
   const res = await fetch(

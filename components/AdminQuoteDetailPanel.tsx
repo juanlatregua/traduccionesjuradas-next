@@ -112,13 +112,23 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     if (m.some((x) => x === "bbva" || x === "openbank")) return "TRANSFER";
     return "BIZUM";
   });
-  const [message, setMessage] = useState<string | null>(null);
+  // Acuse pegado a los botones (petición Juan 21-ago: "mensaje enviado arriba,
+  // más claro que abajo, y luego enviar otro mensaje"). Misma lección del
+  // 12-ago: acción sin acuse visible = acción que parece no haber pasado.
+  const [ack, setAck] = useState<{ kind: "ok" | "error"; text: string; at: Date } | null>(null);
+  const setMessage = (text: string | null, kind: "ok" | "error" = "ok") =>
+    setAck(text ? { kind, text, at: new Date() } : null);
   const [whatsText, setWhatsText] = useState<string>("");
   const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string; body: string } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewEdited, setPreviewEdited] = useState(false);
   const [aiInstruction, setAiInstruction] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+
+  const waPhone = useMemo(() => {
+    const digits = String(quote.customerPhone || "").replace(/\D/g, "");
+    return digits ? (digits.length === 9 ? `34${digits}` : digits) : "";
+  }, [quote.customerPhone]);
 
   const payUrl = useMemo(() => {
     const baseUrl = (typeof window !== "undefined" && window.location.origin) || "https://www.traduccionesjuradas.net";
@@ -162,7 +172,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       setEmailPreview(data.preview);
       setPreviewEdited(false);
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo cargar preview de email.");
+      setMessage(err?.message || "No se pudo cargar preview de email.", "error");
     } finally {
       setLoadingPreview(false);
     }
@@ -191,7 +201,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       setPreviewEdited(true);
       setMessage("Borrador ajustado con IA. Revísalo: se usará al confirmar y enviar.");
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo ajustar con IA.");
+      setMessage(err?.message || "No se pudo ajustar con IA.", "error");
     } finally {
       setAiLoading(false);
     }
@@ -217,12 +227,12 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       setWhatsText(String(data.whatsappText || ""));
       setMessage(
         data.emailSent
-          ? "Presupuesto generado y enviado por email al cliente."
-          : "Presupuesto generado. Descarga el PDF y copia el texto de WhatsApp para enviárselo tú."
+          ? `Email enviado a ${quote.customerEmail}`
+          : "Presupuesto generado (sin email). Descarga el PDF o mándale el mensaje de WhatsApp de abajo."
       );
       await reloadQuote();
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo generar el presupuesto.");
+      setMessage(err?.message || "No se pudo generar el presupuesto.", "error");
     } finally {
       setLoadingSend(false);
     }
@@ -240,10 +250,10 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo reenviar.");
       setWhatsText(String(data.whatsappText || ""));
-      setMessage("Email reenviado correctamente.");
+      setMessage(`Email reenviado a ${quote.customerEmail}`);
       await reloadQuote();
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo reenviar.");
+      setMessage(err?.message || "No se pudo reenviar.", "error");
     } finally {
       setLoadingResend(false);
     }
@@ -259,7 +269,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       setMessage("Presupuesto marcado como entregado.");
       await reloadQuote();
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo marcar como entregado.");
+      setMessage(err?.message || "No se pudo marcar como entregado.", "error");
     } finally {
       setLoadingDeliver(false);
     }
@@ -275,7 +285,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       setMessage("Presupuesto marcado en progreso.");
       await reloadQuote();
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo marcar en progreso.");
+      setMessage(err?.message || "No se pudo marcar en progreso.", "error");
     } finally {
       setLoadingProgress(false);
     }
@@ -302,7 +312,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       );
       await reloadQuote();
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo registrar el pago.");
+      setMessage(err?.message || "No se pudo registrar el pago.", "error");
     } finally {
       setLoadingPaid(false);
     }
@@ -315,10 +325,10 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       const res = await fetch(`/api/quotes/${quote.id}/send-paid-receipt`, { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo enviar el recibo.");
-      setMessage("Recibo PAGADO enviado al cliente por email.");
+      setMessage(`Recibo PAGADO enviado a ${quote.customerEmail}`);
       await reloadQuote();
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo enviar el recibo.");
+      setMessage(err?.message || "No se pudo enviar el recibo.", "error");
     } finally {
       setLoadingReceipt(false);
     }
@@ -329,7 +339,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       await navigator.clipboard.writeText(value);
       setMessage(okMessage);
     } catch {
-      setMessage("No se pudo copiar automáticamente.");
+      setMessage("No se pudo copiar automáticamente.", "error");
     }
   }
 
@@ -371,7 +381,61 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        {ack && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
+              ack.kind === "ok"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                : "border-red-300 bg-red-50 text-red-800"
+            }`}
+          >
+            <p className="text-sm font-semibold">
+              {ack.kind === "ok" ? "✓ " : "✕ "}
+              {ack.text}
+              <span className="ml-2 font-normal opacity-70">
+                · {ack.at.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </p>
+            {ack.kind === "ok" && !["DELIVERED", "EXPIRED"].includes(quote.status) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700/80">
+                  Enviar otro mensaje
+                </span>
+                {!["PAID", "IN_PROGRESS"].includes(quote.status) && (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={loadingResend}
+                    className="rounded-lg border border-emerald-500/40 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+                  >
+                    {loadingResend ? "Reenviando..." : "Reenviar email"}
+                  </button>
+                )}
+                {waPhone && (
+                  <a
+                    href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+                  >
+                    WhatsApp al cliente
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => copyText(payUrl, "Enlace de pago copiado.")}
+                  className="rounded-lg border border-emerald-500/40 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                >
+                  Copiar pay URL
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-2">
           {(quote.orders || []).map((o: any) => (
             <a
               key={o.reference}
@@ -475,8 +539,6 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
           </a>
         </div>
 
-        {message && <p className="mt-3 text-sm font-semibold text-slate-800">{message}</p>}
-
         {whatsText && (
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -500,21 +562,16 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-900">{waMsg}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {(() => {
-                const digits = String(quote.customerPhone || "").replace(/\D/g, "");
-                const phone = digits ? (digits.length === 9 ? `34${digits}` : digits) : "";
-                if (!phone) return null;
-                return (
-                  <a
-                    href={`https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
-                  >
-                    Enviar por WhatsApp al cliente
-                  </a>
-                );
-              })()}
+              {waPhone && (
+                <a
+                  href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+                >
+                  Enviar por WhatsApp al cliente
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => copyText(waMsg, "Mensaje copiado.")}
