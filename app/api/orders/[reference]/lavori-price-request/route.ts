@@ -8,6 +8,8 @@ import {
   bridgeDescription,
   packDocsForSobre,
   sendLavoriSolicitud,
+  resolveLavoriCandidatos,
+  lavoriMemberName,
 } from "@/lib/lavori-bridge";
 
 export const runtime = "nodejs";
@@ -21,6 +23,9 @@ type Params = { params: { reference: string } };
 //   Maria/26_DFAA55: acordado por WhatsApp): ref SIN sufijo, al candidato le
 //   llega "para ti · X €" y su único paso es aceptar. La foto honesta cuando el
 //   precio ya existe — sin ronda de propuesta.
+// - body.candidatos (21-ago-2026): ids de la cartera de la lengua elegidos a
+//   mano ("todos los de la lengua" o "uno en concreto", p. ej. inglés →
+//   Vanessa). Ausente → carril por defecto.
 // El aviso le llega desde hola@lavori.es; el motor nunca escribe al traductor.
 export async function POST(req: Request, { params }: Params) {
   const staff = await requireStaffAccess(req);
@@ -29,7 +34,10 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   try {
-    const body = (await req.json().catch(() => null)) as { paraTi?: string | number } | null;
+    const body = (await req.json().catch(() => null)) as {
+      paraTi?: string | number;
+      candidatos?: string[];
+    } | null;
     const paraTiNum = Number.parseFloat(String(body?.paraTi ?? ""));
     const paraTi = Number.isFinite(paraTiNum) && paraTiNum > 0 ? paraTiNum.toFixed(2) : null;
     const order = await prisma.order.findUnique({
@@ -81,6 +89,11 @@ export async function POST(req: Request, { params }: Params) {
         { status: 400 }
       );
     }
+    const eleccion = resolveLavoriCandidatos(route, body?.candidatos);
+    if (!eleccion.ok) {
+      return NextResponse.json({ ok: false, error: eleccion.error }, { status: 400 });
+    }
+    const candidatos = eleccion.candidatos;
 
     const docs = getDocumentsFromOrder(order);
     if (docs.length === 0) {
@@ -118,12 +131,12 @@ export async function POST(req: Request, { params }: Params) {
           paraTi,
           precioCliente: (order.amountCents / 1.21 / 100).toFixed(2),
           ...(especificaciones ? { especificaciones } : {}),
-          candidatos: route.candidatos,
+          candidatos,
           documentos,
         }
       : buildPriceRequestPayload({
           reference: order.reference,
-          route,
+          route: { ...route, candidatos },
           words: order.words,
           especificaciones,
           documentos,
@@ -137,15 +150,18 @@ export async function POST(req: Request, { params }: Params) {
       data: {
         orderId: order.id,
         type: paraTi ? "lavori.solicitud_enviada" : "lavori.solicitud_precio_enviada",
-        message: paraTi
-          ? `Encargo dirigido ${route.par} enviado a lavori con precio pactado (${paraTi} € para el traductor); su único paso es aceptar.`
-          : `Solicitud de PRECIO ${route.par} enviada a lavori (el traductor ve los documentos y propone su precio).`,
+        message:
+          (paraTi
+            ? `Encargo dirigido ${route.par} enviado a lavori con precio pactado (${paraTi} € para el traductor); su único paso es aceptar.`
+            : `Solicitud de PRECIO ${route.par} enviada a lavori (el traductor ve los documentos y propone su precio).`) +
+          ` Candidatos: ${candidatos.map(lavoriMemberName).join(", ")}${eleccion.elegidos ? " (elegidos a mano)" : ""}.`,
         payload: {
           lavoriEncargoId: result.encargoId,
           repetido: result.repetido,
           par: route.par,
           ...(paraTi ? { paraTi } : {}),
-          candidatos: route.candidatos,
+          candidatos,
+          elegidos: eleccion.elegidos,
           documentos: documentos.length,
           actorEmail: staff.email,
         },

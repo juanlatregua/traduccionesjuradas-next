@@ -72,7 +72,84 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
     "1f0j9vhune01xff5x3l1gi31", // Manuel Carmelo Feria García (T-IJ 850)
     "1s6cygiljkcwkkzebrfewloj", // María Belén Roncero Moreno
   ],
+  // Carril 21-ago-2026 (orden Juan "sí" a abrir el italiano). Padrón IT del
+  // tablón consultado en la BD de lavori ese día: SOLO dos jurados de italiano.
+  // Juan Amor (T-IJ 132, email sí, nunca ha entrado; pase de 7 días el 21-ago)
+  // es el único con canal real → candidato del carril. María García Garmendia
+  // (IT+PT, ya en `pt`) NO entra por defecto: sin email ni push, "buzón vacío"
+  // (lección 15-ago). Sigue en la cartera para elegirla a mano.
+  it: ["rk1x2kq63rm6ba6mco7c6u2k"], // Juan Amor Fernández (T-IJ 132; IT>ES / ES>IT)
 };
+
+// CARTERA del tablón: todos los jurados de cada lengua (padrón de lavori,
+// 21-ago-2026, consultado en su BD). Distinta de LAVORI_CANDIDATES: esa tabla
+// es el carril POR DEFECTO (quién recibe el pedido pagado y la solicitud si
+// no se elige a nadie); esta es el universo del que se puede elegir a mano
+// desde la ficha del pedido o el builder ("todos los de la lengua" / "uno en
+// concreto", orden Juan 21-ago: "inglés a Vanessa"). Solo pares jurados con
+// español; fuera: lenguas no juradas del miembro (no pueden firmar jurada),
+// cuentas de prueba e Inge Luken (exclusión consciente 14-ago). Las lenguas
+// de cartera sin carril fijo (sin entrada en LAVORI_CANDIDATES) se enrutan a
+// TODA su cartera. FR no está: el francés es de Juan.
+export type LavoriMember = { id: string; nombre: string; tij?: string; langs: string[]; nota?: string };
+export const LAVORI_MEMBERS: LavoriMember[] = [
+  { id: "ngus1uku6x5uw2pqbmflpbbt", nombre: "Morton Münster", langs: ["de"] },
+  { id: "sorcf8djafz6p03lgz2o7dco", nombre: "Francisco Báez de Aguilar", tij: "3865", langs: ["de"], nota: "no disponible" },
+  { id: "cspzplwhvout73fhkus1htt3", nombre: "M. Blanca Iturriagagoitia", tij: "1352", langs: ["de"] },
+  { id: "11liibyp9v5840itb6mth3r9", nombre: "Olaf Medina-Montoya Hellgren", langs: ["sv"] },
+  { id: "fcsm3y8xbbgepw42nkfjjhlf", nombre: "Anna Julia Fredriksson", langs: ["sv"], nota: "tarifa alta" },
+  { id: "8npqw6hd5vavn4maio2173lq", nombre: "Maria Murariu Ursu", tij: "11058", langs: ["ro"] },
+  { id: "43dwlkzsr6lsltpwcj32m88s", nombre: "Vanessa Bech", tij: "8272", langs: ["en"] },
+  { id: "nn9ffizgaso8zm2d8276aep2", nombre: "Antonio Adolfo", tij: "3791", langs: ["en"] },
+  { id: "whvx8ft5w6wi50hchczh48hp", nombre: "Francisco Carballo Cruz", langs: ["pt"] },
+  { id: "f4pyspe0hsa1ss99siaokqti", nombre: "María García Garmendia", tij: "4176", langs: ["it", "pt"], nota: "sin email ni push" },
+  { id: "rk1x2kq63rm6ba6mco7c6u2k", nombre: "Juan Amor Fernández", tij: "132", langs: ["de", "en", "it", "pt"], nota: "nunca ha entrado; email sí" },
+  { id: "s2vn1450z5rud0s03shffui3", nombre: "María Dolores Álvarez Estévez", tij: "11466", langs: ["nl"] },
+  { id: "a2x1faeg08r1tiz4gt1d6hfv", nombre: "Daniela Cleintuar", tij: "11401", langs: ["nl", "en"], nota: "EN solo hacia español" },
+  { id: "vo686ldt55z9yjd7dxrvl7gs", nombre: "Maaike Leen Lootens", tij: "3684", langs: ["nl"] },
+  { id: "fiekx289i4ryrul7r8dx02le", nombre: "Roland Bakker", tij: "245", langs: ["nl"] },
+  { id: "flzteuv5vv4xoac1siivkrep", nombre: "Violette Oudkerk", tij: "2065", langs: ["nl"] },
+  { id: "7mr5fqd974h56855ewum2cgh", nombre: "Conchita Siedenburg", tij: "2696", langs: ["nl"] },
+  { id: "g45tpqggq16yn8q4r9ww2m5c", nombre: "Marta López", langs: ["ar"] },
+  { id: "1f0j9vhune01xff5x3l1gi31", nombre: "Manuel Carmelo Feria García", tij: "850", langs: ["ar"] },
+  { id: "1s6cygiljkcwkkzebrfewloj", nombre: "María Belén Roncero Moreno", langs: ["ar"] },
+];
+
+/** Jurados de la cartera para una lengua (orden: primero los del carril por defecto). */
+export function lavoriCarteraForLang(lang: string): LavoriMember[] {
+  const l = String(lang || "").trim().toLowerCase();
+  const defaults = LAVORI_CANDIDATES[l] || [];
+  return LAVORI_MEMBERS.filter((m) => m.langs.includes(l)).sort(
+    (a, b) => Number(defaults.includes(b.id)) - Number(defaults.includes(a.id))
+  );
+}
+
+export function lavoriMemberName(id: string): string {
+  return LAVORI_MEMBERS.find((m) => m.id === id)?.nombre || id;
+}
+
+/** Resuelve los candidatos de una solicitud manual. Sin selección → carril por
+ * defecto. Con selección → solo ids de la cartera de ESA lengua (un id de otra
+ * lengua, desconocido o una lista vacía se rechazan: nadie recibe un sobre por
+ * error). */
+export function resolveLavoriCandidatos(
+  route: LavoriRoute,
+  requested?: unknown
+): { ok: true; candidatos: string[]; elegidos: boolean } | { ok: false; error: string } {
+  if (requested === undefined || requested === null) {
+    return { ok: true, candidatos: route.candidatos, elegidos: false };
+  }
+  if (!Array.isArray(requested) || requested.length === 0) {
+    return { ok: false, error: "Elige al menos un jurado del tablón." };
+  }
+  const cartera = new Set(lavoriCarteraForLang(route.lang).map((m) => m.id));
+  const ids = Array.from(new Set(requested.map((x) => String(x || "").trim()).filter(Boolean)));
+  const fuera = ids.filter((id) => !cartera.has(id));
+  if (ids.length === 0 || fuera.length > 0) {
+    return { ok: false, error: `Candidato fuera de la cartera de ${route.lang.toUpperCase()}: ${fuera.join(", ") || "(vacío)"}.` };
+  }
+  return { ok: true, candidatos: ids, elegidos: true };
+}
 
 // Miembro de lavori → email del Collaborator de tj.net (para cerrar la vuelta:
 // asignación al aceptar + devengo al subir factura). Ampliar junto a CANDIDATES.
@@ -89,11 +166,19 @@ export function lavoriRouteFromPair(langPair?: string | null): LavoriRoute | nul
   const normalized = String(langPair || "").trim().toLowerCase();
   if (!normalized) return null;
   const [from, to = "es"] = normalized.split("->");
-  if (LAVORI_CANDIDATES[from]) {
-    return { lang: from, par: `${from.toUpperCase()}>ES`, candidatos: LAVORI_CANDIDATES[from] };
+  // Carril fijo si existe; si no, toda la cartera de la lengua (21-ago-2026).
+  const candidatosDe = (lang: string): string[] | null => {
+    if (LAVORI_CANDIDATES[lang]) return LAVORI_CANDIDATES[lang];
+    const cartera = LAVORI_MEMBERS.filter((m) => m.langs.includes(lang)).map((m) => m.id);
+    return cartera.length > 0 ? cartera : null;
+  };
+  if (from !== "es") {
+    const c = candidatosDe(from);
+    if (c) return { lang: from, par: `${from.toUpperCase()}>ES`, candidatos: c };
   }
-  if (LAVORI_CANDIDATES[to]) {
-    return { lang: to, par: `ES>${to.toUpperCase()}`, candidatos: LAVORI_CANDIDATES[to] };
+  if (to !== "es") {
+    const c = candidatosDe(to);
+    if (c) return { lang: to, par: `ES>${to.toUpperCase()}`, candidatos: c };
   }
   return null;
 }

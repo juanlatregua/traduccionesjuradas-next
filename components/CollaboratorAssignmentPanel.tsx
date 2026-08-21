@@ -3,6 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { lavoriRouteFromPair } from "@/lib/lavori-bridge";
+import LavoriCandidatePicker, {
+  describeLavoriPick,
+  lavoriPickToCandidatos,
+  type LavoriPick,
+} from "@/components/LavoriCandidatePicker";
 
 type Collaborator = {
   id: string;
@@ -77,6 +82,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
   const [broadcastMsg, setBroadcastMsg] = useState<string | null>(null);
   const [lavoriSending, setLavoriSending] = useState(false);
   const [lavoriMsg, setLavoriMsg] = useState<string | null>(null);
+  const [lavoriPick, setLavoriPick] = useState<LavoriPick>({ mode: "carril" });
 
   const lavoriRoute = lavoriRouteFromPair(langPair);
 
@@ -153,9 +159,15 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       setError("Precio pactado no válido. Usa un número en euros, p. ej. 40 o 40,50.");
       return;
     }
+    const candidatos = lavoriRoute ? lavoriPickToCandidatos(lavoriPick, lavoriRoute) : undefined;
+    if (lavoriPick.mode === "uno" && !candidatos) {
+      setError("Elige el jurado al que enviar la solicitud.");
+      return;
+    }
+    const destinatarios = lavoriRoute ? ` Destinatarios: ${describeLavoriPick(lavoriPick, lavoriRoute)}.` : "";
     const aviso = paraTi
-      ? `Enviar el encargo a lavori CON precio pactado: ${paraTi} € para el traductor (solo tendrá que aceptar; el aviso sale de hola@lavori.es). ¿Continuar?`
-      : "Enviar los documentos del pedido a lavori como SOLICITUD DE PRECIO (el traductor los ve y propone su precio; el aviso sale de hola@lavori.es). ¿Continuar?";
+      ? `Enviar el encargo a lavori CON precio pactado: ${paraTi} € para el traductor (solo tendrá que aceptar; el aviso sale de hola@lavori.es).${destinatarios} ¿Continuar?`
+      : `Enviar los documentos del pedido a lavori como SOLICITUD DE PRECIO (el traductor los ve y propone su precio; el aviso sale de hola@lavori.es).${destinatarios} ¿Continuar?`;
     if (!window.confirm(aviso)) {
       return;
     }
@@ -164,7 +176,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       const res = await fetch(`/api/orders/${reference}/lavori-price-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(paraTi ? { paraTi } : {}),
+        body: JSON.stringify({ ...(paraTi ? { paraTi } : {}), ...(candidatos ? { candidatos } : {}) }),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -628,10 +640,18 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
             Solicitar precio vía lavori
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            Envía los documentos del pedido al candidato de {lavoriRoute.par} en lavori como
+            Envía los documentos del pedido a jurados de {lavoriRoute.par} en lavori como
             solicitud de precio: el traductor los ve en su encargo y propone su precio. El aviso
             le llega desde hola@lavori.es (el motor nunca escribe al traductor).
           </p>
+          <div className="mt-3">
+            <LavoriCandidatePicker
+              route={lavoriRoute}
+              value={lavoriPick}
+              onChange={setLavoriPick}
+              disabled={lavoriSending}
+            />
+          </div>
           {lavoriMsg && (
             <p role="status" className="mt-2 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs text-violet-300">
               {lavoriMsg}

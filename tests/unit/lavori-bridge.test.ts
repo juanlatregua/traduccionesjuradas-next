@@ -6,6 +6,10 @@ import {
   bridgeDescription,
   buildSolicitudPayload,
   buildPriceRequestPayload,
+  lavoriCarteraForLang,
+  resolveLavoriCandidatos,
+  LAVORI_CANDIDATES,
+  LAVORI_MEMBERS,
 } from "../../lib/lavori-bridge.ts";
 
 // Fase 1 del puente motor→tablón (carril alemán → Morton). Contrato:
@@ -44,12 +48,51 @@ test("lavoriRouteFromPair: carriles 13/14-ago — portugués, árabe y neerland�
   assert.equal(nlEs.candidatos.length, 4);
 });
 
+test("lavoriRouteFromPair: carril 21-ago — italiano (Juan Amor, único con canal)", () => {
+  const itEs = lavoriRouteFromPair("it->es");
+  assert.ok(itEs);
+  assert.equal(itEs.par, "IT>ES");
+  assert.deepEqual(itEs.candidatos, ["rk1x2kq63rm6ba6mco7c6u2k"]);
+  // La cartera IT tiene además a María García Garmendia (elegible a mano).
+  const cartera = lavoriCarteraForLang("it").map((m) => m.id);
+  assert.deepEqual(cartera, ["rk1x2kq63rm6ba6mco7c6u2k", "f4pyspe0hsa1ss99siaokqti"]);
+});
+
 test("lavoriRouteFromPair: el resto de lenguas NO se enrutan", () => {
   assert.equal(lavoriRouteFromPair("fr->es"), null); // FR es de Juan
-  assert.equal(lavoriRouteFromPair("it->es"), null); // Juan Amor (silencio)
   assert.equal(lavoriRouteFromPair("ca->es"), null);
+  assert.equal(lavoriRouteFromPair("es->es"), null);
   assert.equal(lavoriRouteFromPair(null), null);
   assert.equal(lavoriRouteFromPair(""), null);
+});
+
+test("cartera: todo candidato del carril por defecto está en la cartera con esa lengua", () => {
+  for (const [lang, ids] of Object.entries(LAVORI_CANDIDATES)) {
+    const cartera = lavoriCarteraForLang(lang).map((m) => m.id);
+    for (const id of ids) assert.ok(cartera.includes(id), `${id} (${lang}) falta en LAVORI_MEMBERS`);
+    // Los del carril van primero en la cartera (la UI los enseña como defecto).
+    assert.deepEqual(cartera.slice(0, ids.length).sort(), [...ids].sort());
+  }
+  // Sin ids repetidos en la cartera.
+  assert.equal(new Set(LAVORI_MEMBERS.map((m) => m.id)).size, LAVORI_MEMBERS.length);
+});
+
+test("resolveLavoriCandidatos: sin elección → carril; elección válida → solo esos; fuera de cartera → error", () => {
+  const en = lavoriRouteFromPair("en->es")!;
+  assert.deepEqual(resolveLavoriCandidatos(en, undefined), { ok: true, candidatos: en.candidatos, elegidos: false });
+  // "Todos los de la lengua": la cartera EN completa.
+  const todosEn = lavoriCarteraForLang("en").map((m) => m.id);
+  assert.ok(todosEn.length > 1);
+  const todos = resolveLavoriCandidatos(en, todosEn);
+  assert.ok(todos.ok && todos.elegidos && todos.candidatos.length === todosEn.length);
+  // "Uno en concreto": inglés → Vanessa.
+  const uno = resolveLavoriCandidatos(en, ["43dwlkzsr6lsltpwcj32m88s"]);
+  assert.ok(uno.ok && uno.elegidos);
+  assert.deepEqual(uno.ok && uno.candidatos, ["43dwlkzsr6lsltpwcj32m88s"]);
+  // Un id de OTRA lengua (Morton, DE) no vale para inglés; ni lista vacía ni basura.
+  assert.equal(resolveLavoriCandidatos(en, ["ngus1uku6x5uw2pqbmflpbbt"]).ok, false);
+  assert.equal(resolveLavoriCandidatos(en, []).ok, false);
+  assert.equal(resolveLavoriCandidatos(en, "43dwlkzsr6lsltpwcj32m88s").ok, false);
 });
 
 test("bridgeAmounts: paraTi = 75% del neto, precioCliente = neto", () => {

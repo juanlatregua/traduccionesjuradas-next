@@ -7,6 +7,7 @@ import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { lavoriRouteFromPair } from "@/lib/lavori-bridge";
+import LavoriCandidatePicker, { lavoriPickToCandidatos, type LavoriPick } from "@/components/LavoriCandidatePicker";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
@@ -230,6 +231,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   // Solicitud de precio vía lavori (leads de WhatsApp sin pedido).
   const [lavoriState, setLavoriState] = useState<{ phase: "idle" | "sending" | "done" | "error"; msg?: string }>({ phase: "idle" });
   const [lavoriSpecs, setLavoriSpecs] = useState("");
+  const [lavoriPick, setLavoriPick] = useState<LavoriPick>({ mode: "carril" });
 
   // Lectura IA del email (solo cuando el presupuesto nace de la bandeja).
   const [brief, setBrief] = useState<EmailBrief | null>(null);
@@ -672,6 +674,11 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
 
   const sendLavoriPrice = useCallback(async () => {
     if (!lavoriRoute || lavoriDocs.length === 0) return;
+    const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriRoute);
+    if (lavoriPick.mode === "uno" && !candidatos) {
+      setLavoriState({ phase: "error", msg: "Elige el jurado al que enviar la solicitud." });
+      return;
+    }
     setLavoriState({ phase: "sending" });
     try {
       const res = await fetch("/api/lavori/price-request", {
@@ -694,6 +701,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             [customerName.trim(), customerPhone.trim()].filter(Boolean).join(" · ") || undefined,
           customerPhone: customerPhone.trim() || undefined,
           especificaciones: lavoriSpecs.trim() || undefined,
+          ...(candidatos ? { candidatos } : {}),
         }),
       });
       const data = await res.json();
@@ -710,7 +718,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
     }
-  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, lavoriSpecs]);
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, lavoriSpecs, lavoriPick]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -1360,20 +1368,27 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           </div>
       )}
 
-      {/* Solicitud de PRECIO vía lavori: lead de WhatsApp cuyo par tiene candidato
-          en el tablón (de/sv/ro/en). El traductor ve los documentos y propone su
-          precio; la respuesta llega por email y queda anclada al lead. */}
+      {/* Solicitud de PRECIO vía lavori: lead de WhatsApp cuyo par tiene cartera
+          en el tablón. El traductor ve los documentos y propone su precio; la
+          respuesta llega por email y queda anclada al lead. Destinatarios: carril
+          por defecto, toda la lengua o uno en concreto (21-ago-2026). */}
       {lavoriRoute && lavoriDocs.length > 0 && (
         <div className="space-y-2 rounded-xl border border-violet-700/60 bg-violet-950/30 p-4">
           <h3 className="text-sm font-semibold text-violet-200">
             Solicitar precio vía lavori · {lavoriRoute.par}
           </h3>
           <p className="text-xs text-violet-300/80">
-            Manda {lavoriDocs.length === 1 ? "el documento" : `los ${lavoriDocs.length} documentos`} al
-            candidato del par como encargo dirigido sin precio. Sin datos del cliente: solo tipo,
+            Manda {lavoriDocs.length === 1 ? "el documento" : `los ${lavoriDocs.length} documentos`} a
+            jurados del par como encargo dirigido sin precio. Sin datos del cliente: solo tipo,
             volumen y los PDF. Útil antes de generar el presupuesto.
             {customerPhone.trim() ? " Al enviarlo, el cliente recibirá un acuse por WhatsApp/SMS." : ""}
           </p>
+          <LavoriCandidatePicker
+            route={lavoriRoute}
+            value={lavoriPick}
+            onChange={setLavoriPick}
+            disabled={lavoriState.phase === "sending" || lavoriState.phase === "done"}
+          />
           <textarea
             value={lavoriSpecs}
             onChange={(e) => setLavoriSpecs(e.target.value)}

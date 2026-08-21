@@ -279,6 +279,9 @@ export async function assignDefaultFrenchEtaIfNeeded(options: {
 
 // "de" salió del set el 10-ago-2026: los pedidos alemanes pagados van al tablón
 // lavori como solicitud dirigida (lib/lavori-bridge.ts), no a Juan Amor.
+// 21-ago-2026: en/pt/it tienen TODOS carril lavori (lavoriRouteFromPair corta
+// antes), así que este set ya no alcanza ningún pedido; queda como red por si
+// se vacía un carril.
 const AUTO_ASSIGN_LANGUAGES = new Set(["en", "pt", "it"]);
 
 function isAutoAssignPair(langPair?: string | null): boolean {

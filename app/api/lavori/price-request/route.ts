@@ -6,6 +6,7 @@ import {
   lavoriRouteFromPair,
   buildPriceRequestPayload,
   sendLavoriSolicitud,
+  resolveLavoriCandidatos,
   type BridgeDoc,
 } from "@/lib/lavori-bridge";
 import { sendNotification, formatPhoneSpain } from "@/lib/sms";
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
       customerHint?: string;
       customerPhone?: string;
       especificaciones?: string;
+      candidatos?: string[];
     } | null;
 
     const docs = Array.isArray(body?.docs) ? body!.docs!.slice(0, MAX_DOCS) : [];
@@ -110,13 +112,25 @@ export async function POST(req: Request) {
       );
     }
 
+    // Candidatos elegidos a mano (21-ago-2026): "todos los de la lengua" o "uno
+    // en concreto"; ausente → carril por defecto.
+    const eleccion = resolveLavoriCandidatos(route, body?.candidatos);
+    if (!eleccion.ok) {
+      return NextResponse.json({ ok: false, error: eleccion.error }, { status: 400 });
+    }
+    const candidatos = eleccion.candidatos;
+
     // Ref estable a partir del contenido de la solicitud: repetir el clic con los
     // mismos documentos y par NO duplica el encargo (idempotencia local + lavori).
+    // Una elección de candidatos distinta del carril por defecto SÍ es otra
+    // solicitud (mandar a Vanessa y luego a todos son dos encargos a propósito);
+    // solo entra en la ref cuando se eligió, para no mover las refs antiguas.
     const docKeys = docs
       .map((d) => `${d.url}#${Number(d.pageStart) || 1}-${Number(d.pageEnd) || ""}`)
       .sort()
       .join("|");
-    const ref = `LEAD-${createHash("sha256").update(`${docKeys}|${route.par}`).digest("hex").slice(0, 10).toUpperCase()}`;
+    const refSeed = `${docKeys}|${route.par}${eleccion.elegidos ? `|${[...candidatos].sort().join(",")}` : ""}`;
+    const ref = `LEAD-${createHash("sha256").update(refSeed).digest("hex").slice(0, 10).toUpperCase()}`;
 
     const previo = await prisma.lavoriPriceRequest.findUnique({ where: { ref } });
     if (previo) {
@@ -140,7 +154,13 @@ export async function POST(req: Request) {
     // del cliente (misma regla madre que la descripción). No entra en la ref: el
     // mismo lead con especificaciones retocadas sigue siendo el mismo encargo.
     const especificaciones = String(body?.especificaciones || "").trim().slice(0, 2000) || null;
-    const payload = buildPriceRequestPayload({ reference: ref, route, words, especificaciones, documentos });
+    const payload = buildPriceRequestPayload({
+      reference: ref,
+      route: { ...route, candidatos },
+      words,
+      especificaciones,
+      documentos,
+    });
     const result = await sendLavoriSolicitud(payload);
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 502 });
@@ -151,7 +171,7 @@ export async function POST(req: Request) {
         data: {
           ref,
           par: route.par,
-          candidatos: route.candidatos,
+          candidatos,
           expedienteRef: body?.expedienteRef ? String(body.expedienteRef).slice(0, 60) : null,
           customerHint: body?.customerHint ? String(body.customerHint).slice(0, 160) : null,
           docsCount: documentos.length,
