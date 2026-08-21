@@ -88,6 +88,11 @@ export function isEmailConfigured(): boolean {
   );
 }
 
+/** Email-marcador de los clientes solo-WhatsApp: nunca se le escribe. */
+export function isPlaceholderEmail(addr: string | null | undefined): boolean {
+  return /@whatsapp\.local$/i.test(String(addr || "").trim());
+}
+
 export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, attachments, saveToSentItems }: SendMailOptions) {
   // Fallback de la MISMA marca: el anterior era la academia de francés, así que
   // borrar EMAIL_FROM habría hecho que los emails a clientes de tj.net saliesen
@@ -102,7 +107,17 @@ export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, atta
 
   const token = await getAccessToken();
 
-  const toArray = Array.isArray(to) ? to : [to];
+  // Clientes solo-WhatsApp llevan email-marcador <dígitos>@whatsapp.local (convenio
+  // de la casa): NO es una dirección real y Exchange devuelve rebote "dominio no
+  // existe" al buzón (incidente 21-ago, "Pago confirmado 26_2DF935"). Se filtra
+  // AQUÍ, en el chokepoint, para que ningún llamador tenga que acordarse; si no
+  // queda destinatario real, no se envía y se deja traza.
+  const rawTo = Array.isArray(to) ? to : [to];
+  const toArray = rawTo.filter((addr) => !isPlaceholderEmail(addr));
+  if (toArray.length === 0) {
+    console.log(`[AzureMail] Sin destinatario real (solo @whatsapp.local). Subject: ${subject} → ${rawTo.join(", ")}`);
+    return;
+  }
   const casa = new Set(
     [from, process.env.ADMIN_EMAIL, "info@traduccionesjuradas.net", "hola@traduccionesjuradas.net"]
       .filter(Boolean)
