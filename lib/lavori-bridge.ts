@@ -81,74 +81,234 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   it: ["rk1x2kq63rm6ba6mco7c6u2k"], // Juan Amor Fernández (T-IJ 132; IT>ES / ES>IT)
 };
 
-// CARTERA del tablón: todos los jurados de cada lengua (padrón de lavori,
-// 21-ago-2026, consultado en su BD). Distinta de LAVORI_CANDIDATES: esa tabla
-// es el carril POR DEFECTO (quién recibe el pedido pagado y la solicitud si
-// no se elige a nadie); esta es el universo del que se puede elegir a mano
-// desde la ficha del pedido o el builder ("todos los de la lengua" / "uno en
-// concreto", orden Juan 21-ago: "inglés a Vanessa"). Solo pares jurados con
-// español; fuera: lenguas no juradas del miembro (no pueden firmar jurada),
-// cuentas de prueba e Inge Luken (exclusión consciente 14-ago). Las lenguas
-// de cartera sin carril fijo (sin entrada en LAVORI_CANDIDATES) se enrutan a
-// TODA su cartera. FR no está: el francés es de Juan.
-export type LavoriMember = { id: string; nombre: string; tij?: string; langs: string[]; nota?: string };
+// CARTERA del tablón: jurados por lengua. FUENTE VIVA = lavori
+// (GET /api/motor/miembros, solo lectura, mismo token que las solicitudes;
+// montado por lavori el 21-ago-2026 a petición de este repo). La tabla estática
+// de abajo es SOLO respaldo si lavori no responde, y cubre las lenguas con
+// carril fijo (padrón del 21-ago). Distinta de LAVORI_CANDIDATES: esa es el
+// carril POR DEFECTO (quién recibe el pedido pagado y la solicitud si no se
+// elige a nadie); la cartera es el universo del que se elige a mano desde la
+// ficha del pedido o el builder ("todos los de la lengua" / "uno en concreto",
+// orden Juan 21-ago: "inglés a Vanessa"). Fuera: lenguas no juradas del
+// miembro, cuentas de prueba, plazas de equipo. FR no entra: el francés es de Juan.
+export type LavoriMember = {
+  id: string;
+  nombre: string;
+  tij?: string;
+  langs: string[];
+  // Señales de lavori (solo en vivo): canal=false es "buzón vacío" (ni email ni
+  // push, lección 15-ago); enPaz = no molestar; disponible = su propio flag.
+  canal?: boolean;
+  enPaz?: boolean;
+  disponible?: boolean;
+  papelUnico?: boolean;
+  nota?: string;
+};
 export const LAVORI_MEMBERS: LavoriMember[] = [
-  { id: "ngus1uku6x5uw2pqbmflpbbt", nombre: "Morton Münster", langs: ["de"] },
-  { id: "sorcf8djafz6p03lgz2o7dco", nombre: "Francisco Báez de Aguilar", tij: "3865", langs: ["de"], nota: "no disponible" },
-  { id: "cspzplwhvout73fhkus1htt3", nombre: "M. Blanca Iturriagagoitia", tij: "1352", langs: ["de"] },
-  { id: "11liibyp9v5840itb6mth3r9", nombre: "Olaf Medina-Montoya Hellgren", langs: ["sv"] },
-  { id: "fcsm3y8xbbgepw42nkfjjhlf", nombre: "Anna Julia Fredriksson", langs: ["sv"], nota: "tarifa alta" },
-  { id: "8npqw6hd5vavn4maio2173lq", nombre: "Maria Murariu Ursu", tij: "11058", langs: ["ro"] },
+  // de
+  { id: "ngus1uku6x5uw2pqbmflpbbt", nombre: "Morton Sebastian Peter Münster", tij: "11492", langs: ["de"], papelUnico: true },
+  { id: "9eljdeppotd42zsco9ku4u9o", nombre: "Ana Lucía Martín", tij: "10003", langs: ["de"], disponible: false },
+  { id: "sorcf8djafz6p03lgz2o7dco", nombre: "Francisco Báez De Aguilar González", tij: "3865", langs: ["de"], disponible: false },
+  { id: "wlhz5dsun5d4r4537p7xw1se", nombre: "Isabel Wild", tij: "11409", langs: ["de"] },
+  { id: "euel8mucj27x8cmtnpk5t8ke", nombre: "Jasmin Petersen", tij: "2227", langs: ["de"] },
+  { id: "v7iyzs3y767ezplxfmw5mev4", nombre: "Josefina Corral", tij: "620", langs: ["de"] },
+  { id: "6uc26g28spse8tjnalv7sv1w", nombre: "Marta Gómez-Monedero Pérez", tij: "11296", langs: ["de"], disponible: false },
+  { id: "cspzplwhvout73fhkus1htt3", nombre: "María Blanca Iturriagagoitia Bassas", tij: "1352", langs: ["de"] },
+  { id: "1p4auj9v5gydceol8cdtfxda", nombre: "Monika Miofsky Günter", tij: "1839", langs: ["de"], disponible: false },
+  { id: "gaqmtpl22g4wy0x129rf2m9h", nombre: "Nicoletta Hedwig Jamin", tij: "5495", langs: ["de"] },
+  { id: "89cqc4uiaxdx7awdxlmlzwmd", nombre: "Sabine Ulrike Buckmann de Villegas", tij: "408", langs: ["de"] },
+  { id: "9tuk78v308erfd0r6eopvnts", nombre: "Sandra Ladero Gärtner", tij: "7928", langs: ["de"] },
+  { id: "5no05rbjknmhyp379p2wr4br", nombre: "Silvia Arenas Cortés", tij: "6796", langs: ["de"] },
+  { id: "vpr2xl4ftnbaiyewmjyw6sip", nombre: "Ángela Flores Delgado", tij: "7663", langs: ["de"] },
+  // sv
+  { id: "11liibyp9v5840itb6mth3r9", nombre: "Olaf Medina-Montoya Hellgren", tij: "1782", langs: ["sv"] },
+  { id: "fcsm3y8xbbgepw42nkfjjhlf", nombre: "Anna Julia Fredriksson", tij: "11267", langs: ["sv"], nota: "tarifa alta" },
+  { id: "ekrf1kzniamzr6v70f4jy6xy", nombre: "Cristina Barros De Lis Y Tubbe", tij: "284", langs: ["sv"] },
+  { id: "bve1cp6a8gabkkhrirbtp9k4", nombre: "Ingrid Ringmar", tij: "6121", langs: ["sv"] },
+  { id: "m01qzcgph8azbseamydykols", nombre: "Joaquín Gonzalez Moya", tij: "11420", langs: ["sv"], disponible: false },
+  { id: "6fxlns5odn3iog7ohe82ld4s", nombre: "Kristina Stenhammar Olsson", tij: "2744", langs: ["sv"] },
+  // ro
+  { id: "8npqw6hd5vavn4maio2173lq", nombre: "Maria Murariu Ursu", tij: "11058", langs: ["ro"], papelUnico: true },
+  // en
   { id: "43dwlkzsr6lsltpwcj32m88s", nombre: "Vanessa Bech", tij: "8272", langs: ["en"] },
+  { id: "jhpkcc0kjnhvp1f1q8vpxk7x", nombre: "Alberto López (PALABRAS, SL)", tij: "1541", langs: ["en"] },
+  { id: "s8ujfmeoxzrtch48bqkxdk4w", nombre: "Alfonso García Moreno", tij: "1042", langs: ["en"] },
   { id: "nn9ffizgaso8zm2d8276aep2", nombre: "Antonio Adolfo", tij: "3791", langs: ["en"] },
-  { id: "whvx8ft5w6wi50hchczh48hp", nombre: "Francisco Carballo Cruz", langs: ["pt"] },
-  { id: "f4pyspe0hsa1ss99siaokqti", nombre: "María García Garmendia", tij: "4176", langs: ["it", "pt"], nota: "sin email ni push" },
+  { id: "myowfodr5vu1v0lexo9plxku", nombre: "Daniel Fernández Mellado", tij: "4624", langs: ["en"] },
+  { id: "7uequciajq9t53t04bbz6qmq", nombre: "Karen Rosenberg", tij: "4186", langs: ["en"], enPaz: true },
+  { id: "7ppqkolbpp77s85af3xadtp7", nombre: "Marta Moreno Perez", tij: "11502", langs: ["en", "nl"] },
+  { id: "7ls14dacbfhk4adsywfke384", nombre: "María Fernández Álviz", tij: "853", langs: ["en"] },
+  { id: "pbxr95jn67vehh9ek8v6n7o2", nombre: "María del Mar Rodríguez Vallejo", tij: "2446", langs: ["en"] },
+  { id: "eefnoof6rfmnijfjovfk24py", nombre: "Nieves Andraca Díaz", tij: "140", langs: ["en"] },
+  { id: "dkz2jykasewuhh0akjsguh6k", nombre: "Pilar Guzmán Gil", tij: "1267", langs: ["en"] },
+  { id: "y5hu9dqd2u8jgjgaiethvey0", nombre: "Raquel Cascallana González", tij: "7073", langs: ["en"] },
+  { id: "k3da8c8rw9avmc3ngz55vbmd", nombre: "Remedios Venegas Llucia", tij: "2896", langs: ["en"] },
+  { id: "qetmckaaselyjwn072805xue", nombre: "Ángeles Garrido", tij: "1087", langs: ["en"] },
+  // pt / it
+  { id: "whvx8ft5w6wi50hchczh48hp", nombre: "Francisco Carballo Cruz", tij: "3783", langs: ["pt"], papelUnico: true },
+  { id: "f4pyspe0hsa1ss99siaokqti", nombre: "María García Garmendia", tij: "4176", langs: ["it", "pt"], canal: false, nota: "sin email ni push" },
+  { id: "imk4gzmqp0uhyfqku9fqs0mb", nombre: "Silvia Capón Sánchez", tij: "9161", langs: ["pt"], disponible: false },
   { id: "rk1x2kq63rm6ba6mco7c6u2k", nombre: "Juan Amor Fernández", tij: "132", langs: ["de", "en", "it", "pt"], nota: "nunca ha entrado; email sí" },
+  // nl
   { id: "s2vn1450z5rud0s03shffui3", nombre: "María Dolores Álvarez Estévez", tij: "11466", langs: ["nl"] },
-  { id: "a2x1faeg08r1tiz4gt1d6hfv", nombre: "Daniela Cleintuar", tij: "11401", langs: ["nl", "en"], nota: "EN solo hacia español" },
+  { id: "a2x1faeg08r1tiz4gt1d6hfv", nombre: "Daniela Cleintuar", tij: "11401", langs: ["nl"] },
   { id: "vo686ldt55z9yjd7dxrvl7gs", nombre: "Maaike Leen Lootens", tij: "3684", langs: ["nl"] },
   { id: "fiekx289i4ryrul7r8dx02le", nombre: "Roland Bakker", tij: "245", langs: ["nl"] },
-  { id: "flzteuv5vv4xoac1siivkrep", nombre: "Violette Oudkerk", tij: "2065", langs: ["nl"] },
   { id: "7mr5fqd974h56855ewum2cgh", nombre: "Conchita Siedenburg", tij: "2696", langs: ["nl"] },
-  { id: "g45tpqggq16yn8q4r9ww2m5c", nombre: "Marta López", langs: ["ar"] },
-  { id: "1f0j9vhune01xff5x3l1gi31", nombre: "Manuel Carmelo Feria García", tij: "850", langs: ["ar"] },
-  { id: "1s6cygiljkcwkkzebrfewloj", nombre: "María Belén Roncero Moreno", langs: ["ar"] },
+  { id: "pa7e2eybfaor24x5pml85qk0", nombre: "Fabienne Annys", tij: "11471", langs: ["nl"] },
+  { id: "fudopxw1a5rppkfazwztjfds", nombre: "Inge Luken", tij: "1117", langs: ["nl"], nota: "no emite facturas (exclusión 14-ago)" },
+  { id: "flzteuv5vv4xoac1siivkrep", nombre: "Violette Renée Oudkerk", tij: "2065", langs: ["nl"] },
+  // ar
+  { id: "g45tpqggq16yn8q4r9ww2m5c", nombre: "Marta López", tij: "9514", langs: ["ar"], papelUnico: true },
+  { id: "1f0j9vhune01xff5x3l1gi31", nombre: "Manuel Carmelo Feria García", tij: "850", langs: ["ar"], disponible: false },
+  { id: "1s6cygiljkcwkkzebrfewloj", nombre: "María Belén Roncero Moreno", tij: "10449", langs: ["ar"] },
 ];
 
-/** Jurados de la cartera para una lengua (orden: primero los del carril por defecto). */
-export function lavoriCarteraForLang(lang: string): LavoriMember[] {
-  const l = String(lang || "").trim().toLowerCase();
-  const defaults = LAVORI_CANDIDATES[l] || [];
-  return LAVORI_MEMBERS.filter((m) => m.langs.includes(l)).sort(
-    (a, b) => Number(defaults.includes(b.id)) - Number(defaults.includes(a.id))
+function sortDefaultsFirst(lang: string, miembros: LavoriMember[]): LavoriMember[] {
+  const defaults = LAVORI_CANDIDATES[lang] || [];
+  return [...miembros].sort(
+    (a, b) =>
+      Number(defaults.includes(b.id)) - Number(defaults.includes(a.id)) ||
+      a.nombre.localeCompare(b.nombre, "es")
   );
 }
 
-export function lavoriMemberName(id: string): string {
-  return LAVORI_MEMBERS.find((m) => m.id === id)?.nombre || id;
+/** Cartera ESTÁTICA (respaldo) de una lengua; los del carril por defecto primero. */
+export function lavoriCarteraForLang(lang: string): LavoriMember[] {
+  const l = String(lang || "").trim().toLowerCase();
+  return sortDefaultsFirst(l, LAVORI_MEMBERS.filter((m) => m.langs.includes(l)));
+}
+
+export function lavoriMemberName(id: string, cartera: LavoriMember[] = LAVORI_MEMBERS): string {
+  return cartera.find((m) => m.id === id)?.nombre || LAVORI_MEMBERS.find((m) => m.id === id)?.nombre || id;
+}
+
+/** Lengua no española de un par del motor ("en->es" / "es->en" → en, EN>ES / ES>EN).
+ * NO decide si se enruta (eso es lavoriRouteFromPair): solo parsea. */
+export function lavoriLangFromPair(langPair?: string | null): { lang: string; par: string } | null {
+  const normalized = String(langPair || "").trim().toLowerCase();
+  if (!normalized) return null;
+  const [from, to = "es"] = normalized.split("->");
+  if (from && from !== "es" && /^[a-z]{2,3}$/.test(from)) return { lang: from, par: `${from.toUpperCase()}>ES` };
+  if (to && to !== "es" && /^[a-z]{2,3}$/.test(to)) return { lang: to, par: `ES>${to.toUpperCase()}` };
+  return null;
+}
+
+const LAVORI_MIEMBROS_ENDPOINT =
+  process.env.LAVORI_MIEMBROS_URL || "https://lavori.es/api/motor/miembros";
+
+type LavoriMiembroWire = {
+  id?: string;
+  nombre?: string;
+  tij?: string | null;
+  pares?: string[];
+  jurado?: boolean;
+  email?: boolean;
+  push?: number;
+  papelUnico?: boolean;
+  disponible?: boolean;
+  enPaz?: boolean;
+  canal?: boolean;
+};
+
+/** Mapea un miembro del endpoint de lavori a la forma de la cartera. Solo jurados
+ * con pares con español; `langs` = lenguas no-ES de sus pares jurados. */
+export function mapLavoriMiembro(w: LavoriMiembroWire): LavoriMember | null {
+  const id = String(w?.id || "").trim();
+  const nombre = String(w?.nombre || "").trim();
+  if (!id || !nombre || w.jurado === false) return null;
+  const langs = Array.from(
+    new Set(
+      (Array.isArray(w.pares) ? w.pares : [])
+        .map((p) => String(p).toUpperCase().split(">"))
+        .filter((parts) => parts.length === 2 && parts.includes("ES"))
+        .map((parts) => (parts[0] === "ES" ? parts[1] : parts[0]).toLowerCase())
+        .filter((l) => l && l !== "es")
+    )
+  );
+  if (langs.length === 0) return null;
+  return {
+    id,
+    nombre,
+    ...(w.tij ? { tij: String(w.tij) } : {}),
+    langs,
+    canal: typeof w.canal === "boolean" ? w.canal : Boolean(w.email) || Number(w.push) > 0,
+    enPaz: Boolean(w.enPaz),
+    disponible: w.disponible !== false,
+    papelUnico: Boolean(w.papelUnico),
+  };
+}
+
+/** Cartera de una lengua EN VIVO desde lavori; si no responde, la estática
+ * (`live:false`). Nunca lanza: quien llama decide si puede seguir sin lavori. */
+export async function fetchLavoriCartera(
+  lang: string
+): Promise<{ live: boolean; miembros: LavoriMember[]; error?: string }> {
+  const l = String(lang || "").trim().toLowerCase();
+  const fallback = (error: string) => ({ live: false, miembros: lavoriCarteraForLang(l), error });
+  if (!/^[a-z]{2,3}$/.test(l)) return fallback("lengua ilegible");
+  const secret = process.env.MOTOR_LAVORI_SECRET;
+  if (!secret) return fallback("MOTOR_LAVORI_SECRET no configurado en el motor.");
+  try {
+    const res = await fetch(`${LAVORI_MIEMBROS_ENDPOINT}?lengua=${encodeURIComponent(l.toUpperCase())}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const data = (await res.json().catch(() => null)) as { miembros?: LavoriMiembroWire[]; error?: string } | null;
+    if (!res.ok || !Array.isArray(data?.miembros)) {
+      return fallback(data?.error || `lavori respondió ${res.status}`);
+    }
+    const miembros = data.miembros
+      .map(mapLavoriMiembro)
+      .filter((m): m is LavoriMember => Boolean(m && m.langs.includes(l)));
+    return { live: true, miembros: sortDefaultsFirst(l, miembros) };
+  } catch (err) {
+    return fallback(err instanceof Error ? err.message : String(err));
+  }
 }
 
 /** Resuelve los candidatos de una solicitud manual. Sin selección → carril por
  * defecto. Con selección → solo ids de la cartera de ESA lengua (un id de otra
  * lengua, desconocido o una lista vacía se rechazan: nadie recibe un sobre por
- * error). */
+ * error). La cartera la pasa quien llama (viva o estática). */
 export function resolveLavoriCandidatos(
   route: LavoriRoute,
-  requested?: unknown
+  requested: unknown,
+  cartera: LavoriMember[]
 ): { ok: true; candidatos: string[]; elegidos: boolean } | { ok: false; error: string } {
   if (requested === undefined || requested === null) {
+    if (route.candidatos.length === 0) return { ok: false, error: "Elige al menos un jurado del tablón." };
     return { ok: true, candidatos: route.candidatos, elegidos: false };
   }
   if (!Array.isArray(requested) || requested.length === 0) {
     return { ok: false, error: "Elige al menos un jurado del tablón." };
   }
-  const cartera = new Set(lavoriCarteraForLang(route.lang).map((m) => m.id));
   const ids = Array.from(new Set(requested.map((x) => String(x || "").trim()).filter(Boolean)));
-  const fuera = ids.filter((id) => !cartera.has(id));
+  const validos = new Set(cartera.filter((m) => m.langs.includes(route.lang)).map((m) => m.id));
+  const fuera = ids.filter((id) => !validos.has(id));
   if (ids.length === 0 || fuera.length > 0) {
-    return { ok: false, error: `Candidato fuera de la cartera de ${route.lang.toUpperCase()}: ${fuera.join(", ") || "(vacío)"}.` };
+    return {
+      ok: false,
+      error: `Candidato fuera de la cartera de ${route.lang.toUpperCase()}: ${fuera.join(", ") || "(vacío)"}.`,
+    };
   }
   return { ok: true, candidatos: ids, elegidos: true };
+}
+
+/** Ruta para una solicitud MANUAL: el carril fijo si existe; si no, toda la
+ * cartera viva de la lengua que pueda recibir (con canal, no en paz). Así una
+ * lengua sin carril (p. ej. polaco) se puede pedir a mano desde la ficha sin
+ * abrir un carril automático para los pedidos pagados. */
+export function lavoriManualRoute(langPair: string | null | undefined, cartera: LavoriMember[]): LavoriRoute | null {
+  const fixed = lavoriRouteFromPair(langPair);
+  if (fixed) return fixed;
+  const parsed = lavoriLangFromPair(langPair);
+  if (!parsed) return null;
+  const candidatos = cartera
+    .filter((m) => m.langs.includes(parsed.lang) && m.canal !== false && !m.enPaz)
+    .map((m) => m.id);
+  return { lang: parsed.lang, par: parsed.par, candidatos };
 }
 
 // Miembro de lavori → email del Collaborator de tj.net (para cerrar la vuelta:
@@ -161,24 +321,18 @@ export const LAVORI_MEMBER_COLLABORATOR_EMAIL: Record<string, string> = {
 
 export type LavoriRoute = { lang: string; par: string; candidatos: string[] };
 
-/** Decide si un par de lenguas del motor se enruta a lavori, y con qué par direccional. */
+/** Decide si un par de lenguas del motor se enruta a lavori AUTOMÁTICAMENTE
+ * (pedido pagado), y con qué par direccional: solo carriles fijos. Para pedir a
+ * mano a cualquier lengua con cartera, ver lavoriManualRoute. */
 export function lavoriRouteFromPair(langPair?: string | null): LavoriRoute | null {
   const normalized = String(langPair || "").trim().toLowerCase();
   if (!normalized) return null;
   const [from, to = "es"] = normalized.split("->");
-  // Carril fijo si existe; si no, toda la cartera de la lengua (21-ago-2026).
-  const candidatosDe = (lang: string): string[] | null => {
-    if (LAVORI_CANDIDATES[lang]) return LAVORI_CANDIDATES[lang];
-    const cartera = LAVORI_MEMBERS.filter((m) => m.langs.includes(lang)).map((m) => m.id);
-    return cartera.length > 0 ? cartera : null;
-  };
-  if (from !== "es") {
-    const c = candidatosDe(from);
-    if (c) return { lang: from, par: `${from.toUpperCase()}>ES`, candidatos: c };
+  if (LAVORI_CANDIDATES[from]) {
+    return { lang: from, par: `${from.toUpperCase()}>ES`, candidatos: LAVORI_CANDIDATES[from] };
   }
-  if (to !== "es") {
-    const c = candidatosDe(to);
-    if (c) return { lang: to, par: `ES>${to.toUpperCase()}`, candidatos: c };
+  if (LAVORI_CANDIDATES[to]) {
+    return { lang: to, par: `ES>${to.toUpperCase()}`, candidatos: LAVORI_CANDIDATES[to] };
   }
   return null;
 }

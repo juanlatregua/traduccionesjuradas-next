@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import {
-  lavoriRouteFromPair,
+  lavoriManualRoute,
+  fetchLavoriCartera,
   buildPriceRequestPayload,
   sendLavoriSolicitud,
   resolveLavoriCandidatos,
@@ -104,17 +105,20 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const route = lavoriRouteFromPair(`${sourceLang}->${targetLang}`);
-    if (!route) {
+    // Cartera viva de la lengua (respaldo estático si lavori no responde): el
+    // carril fijo si existe; si no, toda la cartera con canal.
+    const cartera = await fetchLavoriCartera(sourceLang === "es" ? targetLang : sourceLang);
+    const route = lavoriManualRoute(`${sourceLang}->${targetLang}`, cartera.miembros);
+    if (!route || (route.candidatos.length === 0 && !Array.isArray(body?.candidatos))) {
       return NextResponse.json(
-        { ok: false, error: `El par ${sourceLang}→${targetLang} no tiene candidatos en lavori.` },
+        { ok: false, error: `El par ${sourceLang}→${targetLang} no tiene jurados en el tablón de lavori.` },
         { status: 400 }
       );
     }
 
     // Candidatos elegidos a mano (21-ago-2026): "todos los de la lengua" o "uno
     // en concreto"; ausente → carril por defecto.
-    const eleccion = resolveLavoriCandidatos(route, body?.candidatos);
+    const eleccion = resolveLavoriCandidatos(route, body?.candidatos, cartera.miembros);
     if (!eleccion.ok) {
       return NextResponse.json({ ok: false, error: eleccion.error }, { status: 400 });
     }

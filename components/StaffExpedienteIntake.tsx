@@ -6,8 +6,8 @@ import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors } f
 import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
-import { lavoriRouteFromPair } from "@/lib/lavori-bridge";
-import LavoriCandidatePicker, { lavoriPickToCandidatos, type LavoriPick } from "@/components/LavoriCandidatePicker";
+import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
+import LavoriCandidatePicker, { lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
@@ -664,18 +664,34 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     () => docs.filter((d) => d.include && d.blobUrl && isPriceable(d.status)),
     [docs]
   );
-  const lavoriRoute = useMemo(() => {
+  // Carril fijo si existe; si no, la lengua con cartera en el tablón (cualquier
+  // jurada no francesa) — la cartera viva decide si hay a quién enviar.
+  const lavoriPair = useMemo(() => {
     const src = sourceLang || "";
     const tgt = targetLang || "es";
     if (!src || src === tgt) return null;
     if (src !== "es" && tgt !== "es") return null; // cruzada: a medida, no lavori
-    return lavoriRouteFromPair(`${src}->${tgt}`);
+    return `${src}->${tgt}`;
   }, [sourceLang, targetLang]);
+  const lavoriFixed = useMemo(() => lavoriRouteFromPair(lavoriPair), [lavoriPair]);
+  const lavoriLang = useMemo(() => lavoriLangFromPair(lavoriPair), [lavoriPair]);
+  const lavoriCartera = useLavoriCartera(lavoriLang && lavoriLang.lang !== "fr" ? lavoriLang.lang : null);
+  const lavoriRoute = useMemo<LavoriRoute | null>(
+    () =>
+      lavoriFixed ||
+      (lavoriLang && lavoriLang.lang !== "fr" && lavoriCartera.miembros.length > 0
+        ? { ...lavoriLang, candidatos: [] }
+        : null),
+    [lavoriFixed, lavoriLang, lavoriCartera.miembros.length]
+  );
+  useEffect(() => {
+    setLavoriPick(lavoriFixed ? { mode: "carril" } : { mode: "todos" });
+  }, [lavoriFixed]);
 
   const sendLavoriPrice = useCallback(async () => {
     if (!lavoriRoute || lavoriDocs.length === 0) return;
-    const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriRoute);
-    if (lavoriPick.mode === "uno" && !candidatos) {
+    const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros);
+    if ((lavoriPick.mode === "uno" || lavoriPick.mode === "todos") && (!candidatos || candidatos.length === 0)) {
       setLavoriState({ phase: "error", msg: "Elige el jurado al que enviar la solicitud." });
       return;
     }
@@ -718,7 +734,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
     }
-  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, lavoriSpecs, lavoriPick]);
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, lavoriSpecs, lavoriPick, lavoriCartera.miembros]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -1385,6 +1401,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           </p>
           <LavoriCandidatePicker
             route={lavoriRoute}
+            cartera={lavoriCartera}
             value={lavoriPick}
             onChange={setLavoriPick}
             disabled={lavoriState.phase === "sending" || lavoriState.phase === "done"}

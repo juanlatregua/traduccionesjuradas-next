@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { lavoriRouteFromPair } from "@/lib/lavori-bridge";
+import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
 import LavoriCandidatePicker, {
   describeLavoriPick,
   lavoriPickToCandidatos,
+  useLavoriCartera,
   type LavoriPick,
 } from "@/components/LavoriCandidatePicker";
 
@@ -82,9 +83,17 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
   const [broadcastMsg, setBroadcastMsg] = useState<string | null>(null);
   const [lavoriSending, setLavoriSending] = useState(false);
   const [lavoriMsg, setLavoriMsg] = useState<string | null>(null);
-  const [lavoriPick, setLavoriPick] = useState<LavoriPick>({ mode: "carril" });
-
-  const lavoriRoute = lavoriRouteFromPair(langPair);
+  // Carril fijo si existe; si no, la lengua con cartera en el tablón (cualquier
+  // jurada no francesa) — la cartera viva decide si hay a quién enviar.
+  const lavoriFixed = lavoriRouteFromPair(langPair);
+  const lavoriLang = lavoriLangFromPair(langPair);
+  const lavoriCartera = useLavoriCartera(lavoriLang && lavoriLang.lang !== "fr" ? lavoriLang.lang : null);
+  const lavoriRoute: LavoriRoute | null =
+    lavoriFixed ||
+    (lavoriLang && lavoriLang.lang !== "fr" && lavoriCartera.miembros.length > 0
+      ? { ...lavoriLang, candidatos: [] }
+      : null);
+  const [lavoriPick, setLavoriPick] = useState<LavoriPick>(lavoriFixed ? { mode: "carril" } : { mode: "todos" });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -159,12 +168,13 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       setError("Precio pactado no válido. Usa un número en euros, p. ej. 40 o 40,50.");
       return;
     }
-    const candidatos = lavoriRoute ? lavoriPickToCandidatos(lavoriPick, lavoriRoute) : undefined;
-    if (lavoriPick.mode === "uno" && !candidatos) {
+    if (!lavoriRoute) return;
+    const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros);
+    if ((lavoriPick.mode === "uno" || lavoriPick.mode === "todos") && (!candidatos || candidatos.length === 0)) {
       setError("Elige el jurado al que enviar la solicitud.");
       return;
     }
-    const destinatarios = lavoriRoute ? ` Destinatarios: ${describeLavoriPick(lavoriPick, lavoriRoute)}.` : "";
+    const destinatarios = ` Destinatarios: ${describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros)}.`;
     const aviso = paraTi
       ? `Enviar el encargo a lavori CON precio pactado: ${paraTi} € para el traductor (solo tendrá que aceptar; el aviso sale de hola@lavori.es).${destinatarios} ¿Continuar?`
       : `Enviar los documentos del pedido a lavori como SOLICITUD DE PRECIO (el traductor los ve y propone su precio; el aviso sale de hola@lavori.es).${destinatarios} ¿Continuar?`;
@@ -647,6 +657,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
           <div className="mt-3">
             <LavoriCandidatePicker
               route={lavoriRoute}
+              cartera={lavoriCartera}
               value={lavoriPick}
               onChange={setLavoriPick}
               disabled={lavoriSending}

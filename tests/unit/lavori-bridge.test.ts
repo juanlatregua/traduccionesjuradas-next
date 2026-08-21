@@ -7,6 +7,9 @@ import {
   buildSolicitudPayload,
   buildPriceRequestPayload,
   lavoriCarteraForLang,
+  lavoriLangFromPair,
+  lavoriManualRoute,
+  mapLavoriMiembro,
   resolveLavoriCandidatos,
   LAVORI_CANDIDATES,
   LAVORI_MEMBERS,
@@ -79,20 +82,71 @@ test("cartera: todo candidato del carril por defecto está en la cartera con esa
 
 test("resolveLavoriCandidatos: sin elección → carril; elección válida → solo esos; fuera de cartera → error", () => {
   const en = lavoriRouteFromPair("en->es")!;
-  assert.deepEqual(resolveLavoriCandidatos(en, undefined), { ok: true, candidatos: en.candidatos, elegidos: false });
+  const cartera = lavoriCarteraForLang("en");
+  assert.deepEqual(resolveLavoriCandidatos(en, undefined, cartera), { ok: true, candidatos: en.candidatos, elegidos: false });
   // "Todos los de la lengua": la cartera EN completa.
-  const todosEn = lavoriCarteraForLang("en").map((m) => m.id);
+  const todosEn = cartera.map((m) => m.id);
   assert.ok(todosEn.length > 1);
-  const todos = resolveLavoriCandidatos(en, todosEn);
+  const todos = resolveLavoriCandidatos(en, todosEn, cartera);
   assert.ok(todos.ok && todos.elegidos && todos.candidatos.length === todosEn.length);
   // "Uno en concreto": inglés → Vanessa.
-  const uno = resolveLavoriCandidatos(en, ["43dwlkzsr6lsltpwcj32m88s"]);
+  const uno = resolveLavoriCandidatos(en, ["43dwlkzsr6lsltpwcj32m88s"], cartera);
   assert.ok(uno.ok && uno.elegidos);
   assert.deepEqual(uno.ok && uno.candidatos, ["43dwlkzsr6lsltpwcj32m88s"]);
   // Un id de OTRA lengua (Morton, DE) no vale para inglés; ni lista vacía ni basura.
-  assert.equal(resolveLavoriCandidatos(en, ["ngus1uku6x5uw2pqbmflpbbt"]).ok, false);
-  assert.equal(resolveLavoriCandidatos(en, []).ok, false);
-  assert.equal(resolveLavoriCandidatos(en, "43dwlkzsr6lsltpwcj32m88s").ok, false);
+  assert.equal(resolveLavoriCandidatos(en, ["ngus1uku6x5uw2pqbmflpbbt"], cartera).ok, false);
+  assert.equal(resolveLavoriCandidatos(en, [], cartera).ok, false);
+  assert.equal(resolveLavoriCandidatos(en, "43dwlkzsr6lsltpwcj32m88s", cartera).ok, false);
+  // Con la cartera VIVA la validación sigue a la cartera, no a la tabla estática.
+  const viva = [{ id: "nuevo-en-lavori", nombre: "Alta de hoy", langs: ["en"], canal: true }];
+  assert.ok(resolveLavoriCandidatos(en, ["nuevo-en-lavori"], viva).ok);
+  assert.equal(resolveLavoriCandidatos(en, ["43dwlkzsr6lsltpwcj32m88s"], viva).ok, false);
+});
+
+test("lavoriLangFromPair parsea cualquier lengua; lavoriManualRoute: carril fijo o cartera con canal", () => {
+  assert.deepEqual(lavoriLangFromPair("pl->es"), { lang: "pl", par: "PL>ES" });
+  assert.deepEqual(lavoriLangFromPair("es->pl"), { lang: "pl", par: "ES>PL" });
+  assert.equal(lavoriLangFromPair("es->es"), null);
+  assert.equal(lavoriLangFromPair(""), null);
+  // Polaco: sin carril automático (lavoriRouteFromPair null)…
+  assert.equal(lavoriRouteFromPair("pl->es"), null);
+  // …pero a mano se puede pedir a la cartera viva con canal (no en paz, no buzón vacío).
+  const carteraPl = [
+    { id: "pl1", nombre: "A", langs: ["pl"], canal: true },
+    { id: "pl2", nombre: "B", langs: ["pl"], canal: false },
+    { id: "pl3", nombre: "C", langs: ["pl"], canal: true, enPaz: true },
+  ];
+  assert.deepEqual(lavoriManualRoute("pl->es", carteraPl), { lang: "pl", par: "PL>ES", candidatos: ["pl1"] });
+  // Con carril fijo, manda el carril (inglés → Vanessa) aunque la cartera sea mayor.
+  assert.deepEqual(lavoriManualRoute("en->es", lavoriCarteraForLang("en")), lavoriRouteFromPair("en->es"));
+  assert.equal(lavoriManualRoute("es->es", []), null);
+});
+
+test("mapLavoriMiembro: del endpoint de lavori a la cartera (solo jurados con pares con español)", () => {
+  const m = mapLavoriMiembro({
+    id: "rk1x2kq63rm6ba6mco7c6u2k",
+    nombre: "Juan Amor Fernández",
+    tij: "132",
+    pares: ["DE>ES", "ES>DE", "IT>ES", "ES>IT", "CA>EN"],
+    jurado: true,
+    email: true,
+    push: 0,
+    papelUnico: false,
+    disponible: true,
+    enPaz: false,
+    canal: true,
+  });
+  assert.ok(m);
+  assert.deepEqual(m.langs, ["de", "it"]); // CA>EN no lleva español: fuera
+  assert.equal(m.canal, true);
+  assert.equal(m.tij, "132");
+  // Sin canal explícito se deriva de email/push.
+  assert.equal(mapLavoriMiembro({ id: "x", nombre: "X", pares: ["PT>ES"], email: false, push: 0 })?.canal, false);
+  assert.equal(mapLavoriMiembro({ id: "x", nombre: "X", pares: ["PT>ES"], email: false, push: 2 })?.canal, true);
+  // No jurado o sin pares con español → null.
+  assert.equal(mapLavoriMiembro({ id: "x", nombre: "X", pares: ["IT>ES"], jurado: false }), null);
+  assert.equal(mapLavoriMiembro({ id: "x", nombre: "X", pares: ["CA>EN"] }), null);
+  assert.equal(mapLavoriMiembro({ id: "", nombre: "X", pares: ["IT>ES"] }), null);
 });
 
 test("bridgeAmounts: paraTi = 75% del neto, precioCliente = neto", () => {

@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getDocumentsFromOrder } from "@/lib/collaborators";
 import {
-  lavoriRouteFromPair,
+  lavoriLangFromPair,
+  lavoriManualRoute,
+  fetchLavoriCartera,
   buildPriceRequestPayload,
   bridgeDescription,
   packDocsForSobre,
@@ -82,14 +84,18 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: true, repetido: true, encargoId: encargoId ?? null });
     }
 
-    const route = lavoriRouteFromPair(order.langPair);
-    if (!route) {
+    // Cartera viva de la lengua (respaldo estático si lavori no responde): el
+    // carril fijo si existe; si no, toda la cartera con canal.
+    const parsed = lavoriLangFromPair(order.langPair);
+    const cartera = parsed ? await fetchLavoriCartera(parsed.lang) : null;
+    const route = cartera ? lavoriManualRoute(order.langPair, cartera.miembros) : null;
+    if (!route || (route.candidatos.length === 0 && !Array.isArray(body?.candidatos))) {
       return NextResponse.json(
-        { ok: false, error: `El par "${order.langPair}" no tiene candidatos en lavori.` },
+        { ok: false, error: `El par "${order.langPair}" no tiene jurados en el tablón de lavori.` },
         { status: 400 }
       );
     }
-    const eleccion = resolveLavoriCandidatos(route, body?.candidatos);
+    const eleccion = resolveLavoriCandidatos(route, body?.candidatos, cartera!.miembros);
     if (!eleccion.ok) {
       return NextResponse.json({ ok: false, error: eleccion.error }, { status: 400 });
     }
@@ -154,7 +160,7 @@ export async function POST(req: Request, { params }: Params) {
           (paraTi
             ? `Encargo dirigido ${route.par} enviado a lavori con precio pactado (${paraTi} € para el traductor); su único paso es aceptar.`
             : `Solicitud de PRECIO ${route.par} enviada a lavori (el traductor ve los documentos y propone su precio).`) +
-          ` Candidatos: ${candidatos.map(lavoriMemberName).join(", ")}${eleccion.elegidos ? " (elegidos a mano)" : ""}.`,
+          ` Candidatos: ${candidatos.map((id) => lavoriMemberName(id, cartera!.miembros)).join(", ")}${eleccion.elegidos ? " (elegidos a mano)" : ""}.`,
         payload: {
           lavoriEncargoId: result.encargoId,
           repetido: result.repetido,
