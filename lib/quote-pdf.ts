@@ -44,20 +44,16 @@ function toMoney(value: number) {
   return `${value.toFixed(2)} EUR`;
 }
 
-// La fuente estándar de jsPDF (helvetica/WinAnsi) no tiene varios caracteres
-// Unicode (p.ej. la flecha →) → salen como garabatos. Los normalizamos.
+// La helvetica estándar de jsPDF (WinAnsi) SÍ tiene ñ, tildes, ç, «», — y …
+// (verificado 21-ago-2026: mismo ancho medido con y sin tildes, y el texto sale
+// correcto). Antes se quitaban los diacríticos "por si infra-medía" y el PDF
+// salía con "Espanol"/"Paginas" (queja de Juan, presupuesto 2026-00081). Lo
+// único que no está en WinAnsi es la flecha → (salía como garabato): se cambia
+// por › (sí está).
 function safe(s: string) {
   return String(s ?? "")
-    // Quitar TILDES/diacríticos (é, û, à, ç…): la helvetica estándar de jsPDF los
-    // infra-mide, así que splitTextToSize cree que la línea cabe y luego renderiza
-    // más ancha → el texto pisa las columnas Cantidad/Precio/Total. A ASCII.
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/→/g, "->")
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/[–—]/g, "-")
-    .replace(/…/g, "...");
+    .replace(/\s*→\s*/g, " › ")
+    .replace(/[\u2190\u2192\u2194]/g, "-");
 }
 
 function drawRow(doc: jsPDF, y: number, cols: [string, string, string, string], bold = false) {

@@ -741,7 +741,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     setSubmitting(true);
     try {
       const lines = includedDocs.map((d) => {
-        const baseName = d.documentTypeEs || d.fileName.trim() || "Línea";
+        // Sin tipo documental cae al nombre del fichero: al menos sin extensión.
+        const baseName = d.documentTypeEs || d.fileName.trim().replace(/\.(pdf|jpe?g|png|heic|docx?)$/i, "") || "Línea";
         // Dirección cara al cliente: NUNCA "Desconocido"/"Unknown" (presupuesto
         // 2026-00045) — si el análisis no supo el destino, manda el del
         // presupuesto; sin dato fiable, se omite la dirección.
