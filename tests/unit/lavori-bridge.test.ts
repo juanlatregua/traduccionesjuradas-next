@@ -51,11 +51,15 @@ test("lavoriRouteFromPair: carriles 13/14-ago — portugués, árabe y neerland�
   assert.equal(nlEs.candidatos.length, 4);
 });
 
-test("lavoriRouteFromPair: carril 21-ago — italiano (Juan Amor, único con canal)", () => {
+test("lavoriRouteFromPair: carriles 21-ago — italiano y catalán (Juan Amor, único con canal)", () => {
   const itEs = lavoriRouteFromPair("it->es");
   assert.ok(itEs);
   assert.equal(itEs.par, "IT>ES");
   assert.deepEqual(itEs.candidatos, ["rk1x2kq63rm6ba6mco7c6u2k"]);
+  const esCa = lavoriRouteFromPair("es->ca");
+  assert.ok(esCa);
+  assert.equal(esCa.par, "ES>CA");
+  assert.deepEqual(esCa.candidatos, ["rk1x2kq63rm6ba6mco7c6u2k"]);
   // La cartera IT tiene además a María García Garmendia (elegible a mano).
   const cartera = lavoriCarteraForLang("it").map((m) => m.id);
   assert.deepEqual(cartera, ["rk1x2kq63rm6ba6mco7c6u2k", "f4pyspe0hsa1ss99siaokqti"]);
@@ -63,7 +67,7 @@ test("lavoriRouteFromPair: carril 21-ago — italiano (Juan Amor, único con can
 
 test("lavoriRouteFromPair: el resto de lenguas NO se enrutan", () => {
   assert.equal(lavoriRouteFromPair("fr->es"), null); // FR es de Juan
-  assert.equal(lavoriRouteFromPair("ca->es"), null);
+  assert.equal(lavoriRouteFromPair("pl->es"), null); // sin carril fijo (solo a mano)
   assert.equal(lavoriRouteFromPair("es->es"), null);
   assert.equal(lavoriRouteFromPair(null), null);
   assert.equal(lavoriRouteFromPair(""), null);

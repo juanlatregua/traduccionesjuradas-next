@@ -79,6 +79,10 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // (IT+PT, ya en `pt`) NO entra por defecto: sin email ni push, "buzón vacío"
   // (lección 15-ago). Sigue en la cartera para elegirla a mano.
   it: ["rk1x2kq63rm6ba6mco7c6u2k"], // Juan Amor Fernández (T-IJ 132; IT>ES / ES>IT)
+  // Carril 21-ago-2026 (orden Juan: "solo en IT de momento y cat"): catalán
+  // también a Juan Amor (CA>ES / ES>CA jurado). NO en pt/de/en (EN = Vanessa,
+  // DE = Morton; decisión explícita de Juan ese día).
+  ca: ["rk1x2kq63rm6ba6mco7c6u2k"], // Juan Amor Fernández (T-IJ 132; CA>ES / ES>CA)
 };
 
 // CARTERA del tablón: jurados por lengua. FUENTE VIVA = lavori
@@ -148,7 +152,7 @@ export const LAVORI_MEMBERS: LavoriMember[] = [
   { id: "whvx8ft5w6wi50hchczh48hp", nombre: "Francisco Carballo Cruz", tij: "3783", langs: ["pt"], papelUnico: true },
   { id: "f4pyspe0hsa1ss99siaokqti", nombre: "María García Garmendia", tij: "4176", langs: ["it", "pt"], canal: false, nota: "sin email ni push" },
   { id: "imk4gzmqp0uhyfqku9fqs0mb", nombre: "Silvia Capón Sánchez", tij: "9161", langs: ["pt"], disponible: false },
-  { id: "rk1x2kq63rm6ba6mco7c6u2k", nombre: "Juan Amor Fernández", tij: "132", langs: ["de", "en", "it", "pt"], nota: "nunca ha entrado; email sí" },
+  { id: "rk1x2kq63rm6ba6mco7c6u2k", nombre: "Juan Amor Fernández", tij: "132", langs: ["de", "en", "it", "pt", "ca"], nota: "nunca ha entrado; email sí" },
   // nl
   { id: "s2vn1450z5rud0s03shffui3", nombre: "María Dolores Álvarez Estévez", tij: "11466", langs: ["nl"] },
   { id: "a2x1faeg08r1tiz4gt1d6hfv", nombre: "Daniela Cleintuar", tij: "11401", langs: ["nl"] },
