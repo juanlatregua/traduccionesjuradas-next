@@ -4,6 +4,7 @@
 // logica vivia inline en /confirm-payment; extraerla evita que los dos caminos
 // diverjan (mismo PAID + transicion + ETA + colaborador + email + SMS).
 import { confirmManualPayment, getOrderDetail } from "@/lib/orders";
+import { excludeFromBillingIfBizum } from "@/lib/billing-exclusion";
 import { sendPaymentConfirmedEmail } from "@/lib/email";
 import {
   assignDefaultFrenchEtaIfNeeded,
@@ -20,6 +21,12 @@ export async function confirmManualPaymentWithSideEffects(
   const paymentUpdate = await confirmManualPayment(reference, method, actorEmail);
   if (!paymentUpdate.changed) {
     return { changed: false, duplicate: paymentUpdate.duplicate };
+  }
+
+  // Bizum ⇒ sin factura (regla Juan 21-ago-2026).
+  {
+    const o = await prisma.order.findUnique({ where: { reference }, select: { id: true } });
+    if (o) await excludeFromBillingIfBizum(o.id, method).catch((e) => console.error("[confirm-payment] billing exclusion failed", e));
   }
 
   await transitionWorkflowState({

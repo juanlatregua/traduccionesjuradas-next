@@ -22,6 +22,8 @@ async function loadOrder(reference: string) {
       clientName: true,
       billing: true,
       clientInvoice: true,
+      billingExcluded: true,
+      billingExcludedReason: true,
     },
   });
 }
@@ -58,6 +60,15 @@ export async function POST(req: Request, { params }: Params) {
 
   const order = await loadOrder(params.reference);
   if (!order) return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
+  if (order.billingExcluded && !order.clientInvoice) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Pedido excluido de facturación (${order.billingExcludedReason || "sin motivo"}). Si de verdad hay que facturarlo, quita la exclusión en la ficha y vuelve a emitir.`,
+      },
+      { status: 409 }
+    );
+  }
 
   const b = order.billing;
   const billing = {

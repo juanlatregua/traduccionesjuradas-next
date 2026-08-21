@@ -5,6 +5,7 @@
 
 import { createOrderShellFromQuote, updateOrderPayment } from "@/lib/orders";
 import { isPlaceholderEmail } from "@/lib/azure-mail";
+import { excludeFromBillingIfBizum } from "@/lib/billing-exclusion";
 import { sendNewOrderStaffEmail, sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import type { PaymentMethod } from "@prisma/client";
@@ -69,6 +70,10 @@ export async function runQuoteToOrderBridge(input: {
   });
 
   if (paymentUpdate.changed) {
+    // Bizum ⇒ sin factura (regla Juan 21-ago-2026).
+    await excludeFromBillingIfBizum(order.id, input.provider).catch((e) =>
+      console.error("[quote-to-order] billing exclusion failed", e)
+    );
     const { transitionWorkflowState, assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded } =
       await import("@/lib/workflow-server");
     await transitionWorkflowState({

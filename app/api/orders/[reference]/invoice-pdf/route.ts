@@ -54,6 +54,18 @@ export async function GET(req: Request, { params }: Params) {
       country: order.billing.country,
       email: order.billing.email,
     };
+    // Excluido de facturación (p. ej. Bizum, regla 21-ago-2026): no se crea
+    // factura al vuelo; si ya existe emitida se sirve igual.
+    const excl = await prisma.order.findUnique({
+      where: { id: order.id },
+      select: { billingExcluded: true, clientInvoice: { select: { status: true } } },
+    });
+    if (excl?.billingExcluded && excl.clientInvoice?.status !== "ISSUED") {
+      return NextResponse.json(
+        { ok: false, error: "Pedido excluido de facturación: no hay factura que emitir." },
+        { status: 409 }
+      );
+    }
     const { invoice, created, quotePending } = await getOrCreateClientInvoice({
       orderId: order.id,
       amountCents: order.amountCents,
