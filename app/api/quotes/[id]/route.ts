@@ -123,6 +123,7 @@ export async function PATCH(req: Request, { params }: Params) {
           marginPct: parsed.data.marginPct,
           paymentMethods: parsed.data.paymentMethods,
           contactWhatsapp: parsed.data.contactWhatsapp,
+          pdfLang: parsed.data.pdfLang,
           validityDays: parsed.data.validityDays,
           validUntil,
           subtotal: totals.subtotal,

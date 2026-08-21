@@ -510,6 +510,7 @@ model Quote {
   translatorMaec String?           // nº MAEC / T-IJ, tal cual se muestra
   paymentMethods String[]          // métodos de pago a mostrar en el PDF: bbva/openbank/bizum/paypal
   contactWhatsapp String?          // WhatsApp/teléfono a mostrar en este presupuesto (override)
+  pdfLang         String?          // idioma del PDF del presupuesto (es|en|fr|it|pt|de); null = es. Petición Juan 21-ago
   // Presupuesto perdido: motivo dado por el cliente (1 clic desde el email de
   // expirado, confirmado con POST en /q/[token]) + post-mortem determinista
   // calculado al expirar (cron reminders); el digest los lee, no los recalcula.

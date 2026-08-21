@@ -1,3 +1,4 @@
+import { QUOTE_PDF_LANGS } from "@/lib/quote-pdf-langs";
 import {
   DEFAULT_VAT_RATE,
   PAPER_SHIPPING_BASE_EUR,
@@ -55,6 +56,7 @@ type ParsedCommon = {
   marginPct: number | null;
   paymentMethods: string[];
   contactWhatsapp: string | null;
+  pdfLang: string | null;
   lines: Array<{
     description: string;
     quantity: number;
@@ -95,6 +97,8 @@ function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; 
   const marginPct = Number.isFinite(rawMargin) && rawMargin >= 0 ? Math.round(rawMargin) : null;
   const paymentMethods = normalizePaymentMethods(raw.paymentMethods);
   const contactWhatsapp = normalizeText(raw.contactWhatsapp) || null;
+  const pdfLangRaw = normalizeText(raw.pdfLang).toLowerCase();
+  const pdfLang = (QUOTE_PDF_LANGS as readonly string[]).includes(pdfLangRaw) ? pdfLangRaw : null;
 
   if (!customerName) return { ok: false, error: "Nombre de cliente requerido." };
   // Email O teléfono: basta uno (el cliente puede entrar solo por WhatsApp).
@@ -138,6 +142,7 @@ function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; 
       marginPct,
       paymentMethods,
       contactWhatsapp,
+      pdfLang,
       lines: parsedLines.lines,
     },
   };

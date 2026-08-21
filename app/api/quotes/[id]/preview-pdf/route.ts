@@ -57,6 +57,7 @@ export async function GET(req: Request, { params }: Params) {
     holderNames: quote.holderNames,
     paymentMethods: quote.paymentMethods,
     contactWhatsapp: quote.contactWhatsapp,
+    lang: quote.pdfLang,
   });
 
   return new NextResponse(buffer, {

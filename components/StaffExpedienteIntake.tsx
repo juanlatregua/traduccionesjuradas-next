@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS } from "@/lib/quote-pdf-langs";
 import { upload } from "@vercel/blob/client";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors } from "lucide-react";
 import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
@@ -220,6 +221,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [wordRate, setWordRate] = useState<number>(0.07);
   // P2: si false, soltar documentos NO lanza el conteo IA (precio a mano / fijo).
   const [autoCount, setAutoCount] = useState(true);
+  const [pdfLang, setPdfLang] = useState<string>("es");
   const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">(
     initialData?.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
   );
@@ -779,6 +781,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           deliveryType,
           expedienteRef: expedienteRef || undefined,
           lavoriLeadRef: lavoriLeadRef || undefined,
+          pdfLang,
           discountType: discountPct > 0 ? "PERCENT" : "NONE",
           discountValue: discountPct,
           vatRate: 0.21,
@@ -802,7 +805,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
 
   return (
     <div className="space-y-6 text-slate-200">
@@ -1292,6 +1295,14 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                 <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "DIGITAL_PDF" | "PAPER_SHIP")} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
                   <option value="DIGITAL_PDF">PDF con certificado digital</option>
                   <option value="PAPER_SHIP">Envío en papel (+12 € + IVA)</option>
+                </select>
+              </label>
+              <label className="text-xs text-slate-400">
+                Idioma del PDF
+                <select value={pdfLang} onChange={(e) => setPdfLang(e.target.value)} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
+                  {QUOTE_PDF_LANGS.map((l) => (
+                    <option key={l} value={l}>{QUOTE_PDF_LANG_LABELS[l]}</option>
+                  ))}
                 </select>
               </label>
               <label className="text-xs text-slate-400">

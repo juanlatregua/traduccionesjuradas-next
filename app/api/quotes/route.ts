@@ -148,6 +148,7 @@ export async function POST(req: Request) {
           marginPct: parsed.data.marginPct,
           paymentMethods: parsed.data.paymentMethods,
           contactWhatsapp: parsed.data.contactWhatsapp,
+          pdfLang: parsed.data.pdfLang,
           lines: {
             create: totals.lines.map((line) => ({
               description: line.description,

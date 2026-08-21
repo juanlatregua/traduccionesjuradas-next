@@ -4,6 +4,7 @@
 // (workflow PAGO_VALIDADO, ETA francés, auto-asignación de colaborador).
 
 import { createOrderShellFromQuote, updateOrderPayment } from "@/lib/orders";
+import { isPlaceholderEmail } from "@/lib/azure-mail";
 import { sendNewOrderStaffEmail, sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import type { PaymentMethod } from "@prisma/client";
@@ -90,7 +91,35 @@ export async function runQuoteToOrderBridge(input: {
     // ya mandó su propio email de pago (webhook Stripe-quotes) para no duplicar.
     // NOTA: order.clientLocale aún no se propaga desde el Quote (default "es");
     // los presupuestos FR saldrían en es hasta que se propague el locale.
-    if (quote.customerEmail && input.sendClientPaidEmail !== false) {
+    // Cliente solo-WhatsApp (email-marcador @whatsapp.local, que sendMail filtra):
+    // el "pago confirmado" va por SMS al teléfono, con la misma plantilla que los
+    // pagos online (incidente 21-ago: Anton, 26_2DF935, pagó por Bizum y no
+    // recibió nada; el email rebotó al buzón de la casa).
+    if (isPlaceholderEmail(quote.customerEmail) && input.sendClientPaidEmail !== false) {
+      try {
+        const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+        const { smsPagoConfirmado, formatDeliveryPlazo } = await import("@/lib/sms-templates");
+        const { buildSignedOrderUrl } = await import("@/lib/order-token");
+        const phone = await getOrderPhone(order.id).catch(() => null);
+        if (phone) {
+          const lang = order.clientLocale === "fr" ? "fr" : "es";
+          const res = await sendNotification({
+            to: formatPhoneSpain(phone),
+            body: smsPagoConfirmado({
+              ref: order.reference,
+              plazo: formatDeliveryPlazo(order.dueDate, lang),
+              url: buildSignedOrderUrl(order.reference, "estado"),
+              lang,
+            }),
+          });
+          if (!res.ok) console.error("[quote-to-order] SMS pago confirmado falló:", res.error);
+        }
+      } catch (e) {
+        console.error("[quote-to-order] SMS pago confirmado error", e);
+      }
+    }
+
+    if (quote.customerEmail && !isPlaceholderEmail(quote.customerEmail) && input.sendClientPaidEmail !== false) {
       const lang = order.clientLocale === "fr" ? "fr" : "es";
       sendEmailWithRetry(() =>
         sendPaymentConfirmedEmail({

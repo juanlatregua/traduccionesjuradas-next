@@ -96,6 +96,7 @@ export async function POST(req: Request, { params }: Params) {
       translatorMaec: quote.translatorMaec,
       paymentMethods: quote.paymentMethods,
       contactWhatsapp: quote.contactWhatsapp,
+      lang: quote.pdfLang,
     });
 
     const [pdfUrl, pdfHash] = await Promise.all([

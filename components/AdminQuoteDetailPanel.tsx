@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS, type QuotePdfLang } from "@/lib/quote-pdf-langs";
 import { PAYMENT_LABELS } from "@/lib/payment-labels";
 
 type QuoteLine = {
@@ -51,6 +52,7 @@ type QuoteData = {
   marginPct?: number | null;
   paymentMethods?: string[];
   contactWhatsapp?: string | null;
+  pdfLang?: string | null;
   lines: QuoteLine[];
   messageLogs?: Array<{
     id: string;
@@ -123,6 +125,30 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewEdited, setPreviewEdited] = useState(false);
   const [aiInstruction, setAiInstruction] = useState("");
+  const [pdfLang, setPdfLang] = useState<string>(initialQuote.pdfLang || "es");
+  const [pdfLangSaving, setPdfLangSaving] = useState(false);
+
+  async function changePdfLang(lang: string) {
+    const prev = pdfLang;
+    setPdfLang(lang);
+    setPdfLangSaving(true);
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}/pdf-lang`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lang }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo cambiar el idioma.");
+      setQuote((q) => ({ ...q, pdfLang: lang }));
+      setMessage(`PDF del presupuesto en ${QUOTE_PDF_LANG_LABELS[lang as QuotePdfLang] || lang}: se regenera al previsualizar, confirmar o reenviar.`);
+    } catch (err: any) {
+      setPdfLang(prev);
+      setMessage(err?.message || "No se pudo cambiar el idioma.", "error");
+    } finally {
+      setPdfLangSaving(false);
+    }
+  }
   const [aiLoading, setAiLoading] = useState(false);
 
   const waPhone = useMemo(() => {
@@ -588,6 +614,21 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Preview PDF</h2>
+            <label className="flex items-center gap-2 text-xs text-slate-600">
+              Idioma del PDF
+              <select
+                value={pdfLang}
+                disabled={pdfLangSaving}
+                onChange={(e) => changePdfLang(e.target.value)}
+                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800"
+              >
+                {QUOTE_PDF_LANGS.map((l) => (
+                  <option key={l} value={l}>
+                    {QUOTE_PDF_LANG_LABELS[l]}
+                  </option>
+                ))}
+              </select>
+            </label>
             <a
               href={`/api/quotes/${quote.id}/preview-pdf`}
               target="_blank"

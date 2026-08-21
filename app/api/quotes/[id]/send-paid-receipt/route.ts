@@ -62,6 +62,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     holderNames: quote.holderNames,
     paymentMethods: quote.paymentMethods,
     contactWhatsapp: quote.contactWhatsapp,
+    lang: quote.pdfLang,
   });
 
   const firstName = (quote.customerName || "").trim().split(/\s+/)[0] || "";
