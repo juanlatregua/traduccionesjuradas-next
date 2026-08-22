@@ -11,7 +11,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { runDocumentSegmentation } from "@/lib/ai/run-analysis";
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
-import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
+import { getLanguageName, isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -98,6 +98,14 @@ export async function POST(req: Request) {
     // silencio con la tarifa por defecto).
     const documents = run.documents.map((d, i) => {
       const a = d.analysis;
+      // Original ES sin destino detectado + destino fijado por el staff → el
+      // destino del expediente manda (el camino de 1 documento no se lo pasa al
+      // modelo; sin esto la fila llegaba "a mano" con el par ES→EN a la vista).
+      const srcIsEs = (a.language.source || "").toLowerCase() === "es";
+      const tgtUnknown = !a.language.target || a.language.target === "unknown";
+      if (targetLang && targetLang !== "es" && srcIsEs && tgtUnknown) {
+        a.language = { ...a.language, target: targetLang, target_name: getLanguageName(targetLang) };
+      }
       const foreign = resolvePriceablePair(a.language.source, a.language.target);
       const priceable = !!foreign && isAutoPriceable(foreign);
       const quote = priceable ? calculatePrice(a) : null;

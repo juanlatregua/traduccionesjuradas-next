@@ -8,7 +8,7 @@ import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
-import LavoriCandidatePicker, { lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
+import LavoriCandidatePicker, { describeLavoriPick, lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
@@ -565,10 +565,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   // precio gestiona el engine (autoPriced) se recalculan con computeBase —
   // misma fórmula que el análisis del servidor. Sin par válido (original ES
   // sin destino, cruzada, idioma sin tarifa) la fila queda SIN precio y con
-  // nota "a mano". Las editadas a mano no se tocan.
+  // nota "a mano". Las editadas a mano no se tocan. Corre también al LLEGAR
+  // filas (deps: docs): si el destino ya estaba fijado antes de subir el PDF
+  // y el análisis vino sin destino, la fila se re-precia aquí en vez de quedar
+  // "a mano" con el par a la vista (caso Ana Suárez 22-ago, ES→EN sin precio).
   useEffect(() => {
-    setDocs((prev) =>
-      prev.map((d) => {
+    setDocs((prev) => {
+      const next = prev.map((d) => {
         if (!d.autoPriced || !isPriceable(d.status) || d.status === "manual" || !d.sourceLang) return d;
         // Destino efectivo: el del expediente; "" = Auto (al español).
         const foreign = resolvePriceablePair(d.sourceLang, targetLang || "es");
@@ -602,9 +605,11 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         return unchanged
           ? d
           : { ...d, ...tgtPatch, unitPrice: base, priceNote: undefined, minApplied, minAmount: r.minimum };
-      })
-    );
-  }, [targetLang]);
+      });
+      // Misma referencia si nada cambió: evita el bucle setDocs → docs → effect.
+      return next.every((row, i) => row === prev[i]) ? prev : next;
+    });
+  }, [targetLang, docs]);
 
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
@@ -727,11 +732,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         setLavoriState({ phase: "error", msg: data.error || "No se pudo enviar la solicitud." });
         return;
       }
+      const aQuien = describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros);
+      const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       setLavoriState({
         phase: "done",
         msg: data.repetido
-          ? "Esta solicitud ya estaba enviada (no se ha duplicado)."
-          : "Solicitud enviada. Cuando el traductor pase su precio te llegará por email con el enlace a este builder.",
+          ? `Esta solicitud ya estaba enviada a ${aQuien} (no se ha duplicado).`
+          : `✓ Enviada a ${aQuien} · ${hora}. Cuando el traductor pase su precio te llegará por email con el enlace a este builder.`,
       });
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
