@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { escapeHtml, sanitizeUrl } from "@/lib/collaborator-emails";
+import { QUOTE_LOST_REASON_LABELS } from "@/lib/quote-lost-reasons";
 
 export const FUNNEL_STAGES = [
   { key: "analizado", label: "Documento analizado" },
@@ -53,13 +54,7 @@ export type LostQuoteEntry = {
   docs: { fileName: string; fileUrl: string }[];
 };
 
-const LOST_REASON_LABELS: Record<string, string> = {
-  PRICE: "el precio",
-  DEADLINE: "el plazo",
-  NO_LONGER_NEEDED: "ya no lo necesita",
-  SOLVED_ELSEWHERE: "lo resolvió con otro traductor",
-  OTHER: "otro motivo",
-};
+const LOST_REASON_LABELS: Record<string, string> = QUOTE_LOST_REASON_LABELS;
 
 export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);

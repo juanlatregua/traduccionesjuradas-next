@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS, type QuotePdfLang } from "@/lib/quote-pdf-langs";
 import { PAYMENT_LABELS } from "@/lib/payment-labels";
+import { QUOTE_LOST_REASONS, QUOTE_LOST_REASON_LABELS, quoteLostReasonLabel } from "@/lib/quote-lost-reasons";
 
 type QuoteLine = {
   id: string;
@@ -53,6 +54,8 @@ type QuoteData = {
   paymentMethods?: string[];
   contactWhatsapp?: string | null;
   pdfLang?: string | null;
+  lostReason?: string | null;
+  lostReasonNote?: string | null;
   lines: QuoteLine[];
   messageLogs?: Array<{
     id: string;
@@ -127,6 +130,12 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [aiInstruction, setAiInstruction] = useState("");
   const [pdfLang, setPdfLang] = useState<string>(initialQuote.pdfLang || "es");
   const [pdfLangSaving, setPdfLangSaving] = useState(false);
+  // "No aceptado" (Juan 22-ago): el staff cierra el presupuesto como perdido con
+  // motivo, sin esperar a que caduque ni a que el cliente lo diga en /q/[token].
+  const [lostOpen, setLostOpen] = useState(false);
+  const [lostReason, setLostReason] = useState<string>("PRICE");
+  const [lostNote, setLostNote] = useState("");
+  const [loadingLost, setLoadingLost] = useState(false);
 
   async function changePdfLang(lang: string) {
     const prev = pdfLang;
@@ -301,6 +310,27 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
+  async function markLost() {
+    setLoadingLost(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}/mark-lost`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: lostReason, note: lostNote.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo marcar como no aceptado.");
+      setLostOpen(false);
+      setMessage(`Presupuesto marcado como NO ACEPTADO (${quoteLostReasonLabel(lostReason)}).`);
+      await reloadQuote();
+    } catch (err: any) {
+      setMessage(err?.message || "No se pudo marcar como no aceptado.", "error");
+    } finally {
+      setLoadingLost(false);
+    }
+  }
+
   async function markInProgress() {
     setLoadingProgress(true);
     setMessage(null);
@@ -377,7 +407,13 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
           {quote.customerName} · {quote.sourceLang} → {quote.targetLang}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Estado: <strong>{statusLabel(quote.status)}</strong> · Email: <strong>{quote.customerEmail}</strong>
+          Estado:{" "}
+          <strong>
+            {quote.status === "EXPIRED" && quote.lostReason
+              ? `No aceptado · ${quoteLostReasonLabel(quote.lostReason)}${quote.lostReasonNote ? ` (${quote.lostReasonNote})` : ""}`
+              : statusLabel(quote.status)}
+          </strong>{" "}
+          · Email: <strong>{quote.customerEmail}</strong>
         </p>
         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
           <p className="font-semibold uppercase tracking-wide text-slate-500">Timeline</p>
@@ -505,6 +541,56 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
           >
             Copiar pay URL
           </button>
+          {["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(quote.status) && !lostOpen && (
+            <button
+              type="button"
+              onClick={() => setLostOpen(true)}
+              className="rounded-xl border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+              title="Cerrar como perdido con motivo: deja de recibir recordatorios y entra en el digest"
+            >
+              No aceptado
+            </button>
+          )}
+          {lostOpen && (
+            <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-rose-700">No aceptado por</span>
+              <select
+                value={lostReason}
+                onChange={(e) => setLostReason(e.target.value)}
+                className="rounded-lg border border-rose-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+              >
+                {QUOTE_LOST_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {QUOTE_LOST_REASON_LABELS[r]}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={lostNote}
+                onChange={(e) => setLostNote(e.target.value)}
+                maxLength={500}
+                placeholder="Nota (opcional)"
+                className="min-w-[12rem] flex-1 rounded-lg border border-rose-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+              />
+              <button
+                type="button"
+                onClick={markLost}
+                disabled={loadingLost}
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+              >
+                {loadingLost ? "Guardando..." : "Confirmar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLostOpen(false)}
+                disabled={loadingLost}
+                className="text-sm font-semibold text-slate-600 hover:underline"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
           {!["PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED"].includes(quote.status) && (
             <button
               type="button"

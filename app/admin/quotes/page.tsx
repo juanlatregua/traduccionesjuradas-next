@@ -5,6 +5,7 @@ import { requireAdminPageAccess } from "@/lib/admin-page-access";
 import { AdminNav } from "@/components/AdminNav";
 import { decimalToNumber, QUOTE_STATUS_LABELS, type QuoteStatus } from "@/lib/quotes";
 import QuoteRowActions from "@/components/QuoteRowActions";
+import { quoteLostReasonLabel } from "@/lib/quote-lost-reasons";
 
 export const metadata: Metadata = {
   title: "Admin · Presupuestos",
@@ -142,7 +143,11 @@ export default async function AdminQuotesListPage({ searchParams }: Props) {
                           <td className="px-4 py-3">
                             {quote.sourceLang} → {quote.targetLang}
                           </td>
-                          <td className="px-4 py-3">{QUOTE_STATUS_LABELS[(quote.status as QuoteStatus) || "DRAFT"]}</td>
+                          <td className="px-4 py-3">
+                            {quote.status === "EXPIRED" && quote.lostReason
+                              ? `No aceptado · ${quoteLostReasonLabel(quote.lostReason)}`
+                              : QUOTE_STATUS_LABELS[(quote.status as QuoteStatus) || "DRAFT"]}
+                          </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-900">
                             {formatMoney(decimalToNumber(quote.total))}
                           </td>
