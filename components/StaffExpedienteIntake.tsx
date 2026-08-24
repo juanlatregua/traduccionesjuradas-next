@@ -128,6 +128,13 @@ const LANGS: { code: string; name: string }[] = [
   { code: "no", name: "Noruego" },
   { code: "ar", name: "Árabe" },
   { code: "ro", name: "Rumano" },
+  // Lenguas SIN tarifa automática pero con jurados en el tablón de lavori:
+  // el builder debe poder fijar el par para pedir precio a mano
+  // (lavoriManualRoute vale para cualquier lengua con cartera). Caso Yafit
+  // 24-ago: el análisis devolvió "he" y knownLangCode lo descartaba → origen
+  // "—" y el panel de lavori ni se pintaba.
+  { code: "he", name: "Hebreo" },
+  { code: "pl", name: "Polaco" },
 ];
 
 const CONCURRENCY = 3;

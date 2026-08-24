@@ -87,6 +87,9 @@ export const LANGUAGE_NAMES: Record<string, string> = {
   ar: "Árabe",
   ro: "Rumano",
   es: "Español",
+  // Sin tarifa automática — solo nombre (peticiones a mano vía lavori).
+  he: "Hebreo",
+  pl: "Polaco",
 };
 
 export function getLanguageName(code: string): string {
