@@ -110,6 +110,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [loadingDeliver, setLoadingDeliver] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(false);
   const [loadingPaid, setLoadingPaid] = useState(false);
+  const [showPayPicker, setShowPayPicker] = useState(false);
   const [loadingReceipt, setLoadingReceipt] = useState(false);
   const [payMethod, setPayMethod] = useState<"BIZUM" | "STRIPE" | "TRANSFER">(() => {
     const m = initialQuote.paymentMethods || [];
@@ -358,10 +359,11 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
-  async function markPaidManual() {
-    const method = window.confirm("¿Pago por BIZUM? (Aceptar = Bizum · Cancelar = Transferencia)")
-      ? "BIZUM"
-      : "TRANSFER";
+  // Elección EXPLÍCITA del método (incidente 24-ago, quote 2026-00085): antes
+  // era un window.confirm donde "Cancelar" significaba TRANSFERENCIA — cerrar
+  // el diálogo con Esc registraba un pago sin querer y disparaba el puente.
+  async function markPaidManual(method: "BIZUM" | "TRANSFER") {
+    setShowPayPicker(false);
     setLoadingPaid(true);
     setMessage(null);
     try {
@@ -623,16 +625,44 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
               {loadingReceipt ? "Enviando..." : "Enviar recibo PAGADO"}
             </button>
           )}
-          {(QUOTE_NEXT[quote.status] || []).includes("PAID") && (
-            <button
-              type="button"
-              onClick={markPaidManual}
-              disabled={loadingPaid}
-              className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
-            >
-              {loadingPaid ? "Registrando..." : "Marcar pagado (Bizum/transfer)"}
-            </button>
-          )}
+          {(QUOTE_NEXT[quote.status] || []).includes("PAID") &&
+            (showPayPicker ? (
+              <span className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-2 py-1">
+                <span className="text-xs font-semibold text-emerald-800">He recibido:</span>
+                <button
+                  type="button"
+                  onClick={() => markPaidManual("TRANSFER")}
+                  disabled={loadingPaid}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+                >
+                  ✓ Transferencia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => markPaidManual("BIZUM")}
+                  disabled={loadingPaid}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+                >
+                  ✓ Bizum
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPayPicker(false)}
+                  className="rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+                >
+                  Cerrar sin registrar
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowPayPicker(true)}
+                disabled={loadingPaid}
+                className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+              >
+                {loadingPaid ? "Registrando..." : "Marcar pagado (Bizum/transfer)"}
+              </button>
+            ))}
           {(QUOTE_NEXT[quote.status] || []).includes("IN_PROGRESS") && (
             <button
               type="button"
