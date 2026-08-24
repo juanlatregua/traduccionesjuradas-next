@@ -12,6 +12,7 @@ import { PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 const PAYMENT_METHOD_OPTIONS = [
   { id: "bbva", label: "BBVA" },
   { id: "openbank", label: "Openbank" },
+  { id: "sabadell", label: "Banco Sabadell" },
   { id: "bizum607", label: "Bizum 607356273" },
   { id: "bizum654", label: "Bizum 654069126" },
   { id: "paypal", label: "PayPal" },

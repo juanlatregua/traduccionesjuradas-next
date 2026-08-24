@@ -114,7 +114,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [payMethod, setPayMethod] = useState<"BIZUM" | "STRIPE" | "TRANSFER">(() => {
     const m = initialQuote.paymentMethods || [];
     if (m.some((x) => x.startsWith("bizum"))) return "BIZUM";
-    if (m.some((x) => x === "bbva" || x === "openbank")) return "TRANSFER";
+    if (m.some((x) => x === "bbva" || x === "openbank" || x === "sabadell")) return "TRANSFER";
     return "BIZUM";
   });
   // Acuse pegado a los botones (petición Juan 21-ago: "mensaje enviado arriba,
@@ -182,7 +182,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       return `${head} Puedes abonarlo ${PAYMENT_LABELS[k]} (TraduccionesJuradas). En cuanto me confirmes el pago, comienzo con la traducción. Quedo a tu disposición. Un saludo.`;
     }
     if (payMethod === "TRANSFER") {
-      const ks = PAY.filter((m) => m === "bbva" || m === "openbank");
+      const ks = PAY.filter((m) => m === "bbva" || m === "openbank" || m === "sabadell");
       const instr = (ks.length ? ks : ["bbva"]).map((k) => PAYMENT_LABELS[k]).join("; o ");
       return `${head} Puedes abonarlo ${instr} (titular HBTJ Consultores Lingüísticos S.L.). En cuanto me confirmes el pago, comienzo. Un saludo.`;
     }

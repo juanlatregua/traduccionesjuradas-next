@@ -68,7 +68,7 @@ type ParsedCommon = {
   }>;
 };
 
-const ALLOWED_PAYMENT_METHODS = ["bbva", "openbank", "bizum", "bizum607", "bizum654", "paypal", "revolut"];
+const ALLOWED_PAYMENT_METHODS = ["bbva", "openbank", "sabadell", "bizum", "bizum607", "bizum654", "paypal", "revolut"];
 
 function normalizePaymentMethods(value: unknown): string[] {
   if (!Array.isArray(value)) return [];

@@ -226,7 +226,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     initialData?.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
   );
   const [deliveryNote, setDeliveryNote] = useState("");
-  const [paymentMethods, setPaymentMethods] = useState<string[]>(["bbva", "openbank", "bizum607"]);
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(["bbva", "openbank", "sabadell", "bizum607"]);
   const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -1390,6 +1390,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                 {[
                   { id: "bbva", label: "BBVA" },
                   { id: "openbank", label: "Openbank" },
+                  { id: "sabadell", label: "Banco Sabadell" },
                   { id: "bizum607", label: "Bizum 607356273" },
                   { id: "bizum654", label: "Bizum 654069126" },
                   { id: "paypal", label: "PayPal" },

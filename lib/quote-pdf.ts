@@ -319,6 +319,9 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   if (methods.includes("openbank")) {
     payLines.push("Openbank · BIC OPENESMM · IBAN ES33 0073 0100 5207 9242 5264 · Juan Silva");
   }
+  if (methods.includes("sabadell")) {
+    payLines.push("Banco Sabadell · BIC BSABESBB · IBAN ES47 0081 0240 1100 0378 7991 · HBTJ Consultores Lingüísticos");
+  }
   const bizumBoth = methods.includes("bizum");
   if (bizumBoth || methods.includes("bizum607")) payLines.push("Bizum: 607356273");
   if (bizumBoth || methods.includes("bizum654")) payLines.push("Bizum: 654069126");
