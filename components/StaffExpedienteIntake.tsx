@@ -128,13 +128,30 @@ const LANGS: { code: string; name: string }[] = [
   { code: "no", name: "Noruego" },
   { code: "ar", name: "Árabe" },
   { code: "ro", name: "Rumano" },
-  // Lenguas SIN tarifa automática pero con jurados en el tablón de lavori:
-  // el builder debe poder fijar el par para pedir precio a mano
-  // (lavoriManualRoute vale para cualquier lengua con cartera). Caso Yafit
-  // 24-ago: el análisis devolvió "he" y knownLangCode lo descartaba → origen
-  // "—" y el panel de lavori ni se pintaba.
+  // Lenguas SIN tarifa automática pero con jurados en el tablón de lavori
+  // (padrón 24-ago-2026, 28 lenguas): el builder debe poder fijar el par para
+  // pedir precio a mano (lavoriManualRoute vale para cualquier lengua con
+  // cartera). Caso Yafit 24-ago: el análisis devolvió "he" y knownLangCode lo
+  // descartaba → origen "—" y el panel de lavori ni se pintaba, en silencio.
+  // ⚠ Mantener alineada con el tablón (GET lavori.es/api/motor/miembros): una
+  // lengua nueva allí que falte aquí reproduce el bug.
   { code: "he", name: "Hebreo" },
   { code: "pl", name: "Polaco" },
+  { code: "ru", name: "Ruso" },
+  { code: "uk", name: "Ucraniano" },
+  { code: "bg", name: "Búlgaro" },
+  { code: "da", name: "Danés" },
+  { code: "el", name: "Griego" },
+  { code: "hu", name: "Húngaro" },
+  { code: "tr", name: "Turco" },
+  { code: "fa", name: "Persa" },
+  { code: "fi", name: "Finés" },
+  { code: "hr", name: "Croata" },
+  { code: "la", name: "Latín" },
+  { code: "mk", name: "Macedonio" },
+  { code: "sl", name: "Esloveno" },
+  { code: "sr", name: "Serbio" },
+  { code: "zh", name: "Chino" },
 ];
 
 const CONCURRENCY = 3;

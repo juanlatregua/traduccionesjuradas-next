@@ -87,9 +87,25 @@ export const LANGUAGE_NAMES: Record<string, string> = {
   ar: "Árabe",
   ro: "Rumano",
   es: "Español",
-  // Sin tarifa automática — solo nombre (peticiones a mano vía lavori).
+  // Sin tarifa automática — solo nombre (peticiones a mano vía lavori;
+  // padrón del tablón 24-ago-2026, mantener junto a LANGS del builder).
   he: "Hebreo",
   pl: "Polaco",
+  ru: "Ruso",
+  uk: "Ucraniano",
+  bg: "Búlgaro",
+  da: "Danés",
+  el: "Griego",
+  hu: "Húngaro",
+  tr: "Turco",
+  fa: "Persa",
+  fi: "Finés",
+  hr: "Croata",
+  la: "Latín",
+  mk: "Macedonio",
+  sl: "Esloveno",
+  sr: "Serbio",
+  zh: "Chino",
 };
 
 export function getLanguageName(code: string): string {
