@@ -107,11 +107,12 @@ export function inferFlowProfile(input: {
   if (isFrench && input.hasMixedCart) return "FR_B" as const;
   if (isFrench) return "FR_A" as const;
 
+  // Doctrina 24-ago-2026 ("automático solo francés; el resto al funnel de
+  // lavori"): CUALQUIER par no-francés con idioma declarado pasa por revisión
+  // interna antes de cobrar. Antes el set era {en,de,pt,it,ca} y sv/ro/nl/ar
+  // autopagaban a precio de máquina por el carril del estimador.
   const [from, to] = langPair.split("-");
-  const nonFrenchReviewLanguages = new Set(["en", "de", "pt", "it", "ca"]);
-  if (nonFrenchReviewLanguages.has(from) || nonFrenchReviewLanguages.has(to)) {
-    return "LANG_REVIEW" as const;
-  }
+  if (from || to) return "LANG_REVIEW" as const;
 
   if (input.containsWordCountItem) return "LANG_REVIEW" as const;
   return "GENERAL" as const;

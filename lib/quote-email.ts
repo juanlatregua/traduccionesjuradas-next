@@ -2,6 +2,7 @@ import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendMail, isEmailConfigured } from "@/lib/azure-mail";
 import { sendNotification, formatPhoneSpain } from "@/lib/sms";
 import { smsAcuseSolicitudPrecio, type SmsLang } from "@/lib/sms-templates";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export function isQuoteEmailConfigured() {
   return isEmailConfigured();
@@ -77,6 +78,15 @@ export async function sendPriceRequestAckToClient(opts: {
   const email = (opts.email || "").trim();
   const phone = (opts.phone || "").trim() || phoneFromPlaceholder(email);
   try {
+    // Dedupe 24 h por destinatario (guardián 24-ago): el mismo cliente puede
+    // disparar el acuse dos veces por caminos distintos (pide presupuesto en la
+    // puerta y luego Juan lanza la solicitud lavori desde el builder). El store
+    // del rate-limit es la BD en prod: vale como memoria entre lambdas.
+    const dedupeKey = `acuse-solicitud:${(email || phone || "").toLowerCase()}`;
+    if (email || phone) {
+      const first = await checkRateLimit({ key: dedupeKey, limit: 1, windowMs: 24 * 60 * 60 * 1000 });
+      if (!first.ok) return { channel: null };
+    }
     if (email && !isPlaceholderEmail(email)) {
       const name = (opts.name || "").trim();
       const body =

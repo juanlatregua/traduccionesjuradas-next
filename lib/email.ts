@@ -5,6 +5,7 @@ import { WHATSAPP_DISPLAY, buildWhatsAppLinkFromText, SITE_BASE_URL } from "@/li
 import { sendMail } from "@/lib/azure-mail";
 import type { MailAttachment } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { escapeHtml } from "@/lib/collaborator-emails";
 
 // Copia de archivo: toda entrega al cliente (traducción y/o factura adjunta) se
 // manda en copia oculta a esta dirección para dejar constancia exacta de lo que
@@ -1028,7 +1029,8 @@ export async function sendLeadReminderEmail(data: {
             d.priceEur != null
               ? ` — <strong>${(Math.round(d.priceEur * 1.21 * 100) / 100).toFixed(2)} € IVA incluido</strong>`
               : " — precio a confirmar por tu traductor jurado";
-          return `<li style="margin-bottom:4px;">${d.label}${price}</li>`;
+          // label puede arrastrar el fileName del cliente: escapar SIEMPRE.
+          return `<li style="margin-bottom:4px;">${escapeHtml(d.label)}${price}</li>`;
         })
         .join("")}</ul>`
     : "";

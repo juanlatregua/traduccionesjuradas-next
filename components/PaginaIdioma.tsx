@@ -7,7 +7,7 @@ import { SchemaProduct } from "@/components/SchemaProduct";
 import { SchemaService } from "@/components/SchemaService";
 import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
-import { MINIMUM_BY_LANGUAGE, DEFAULT_MINIMUM } from "@/lib/pricing-engine/rules";
+import { getMinimum } from "@/lib/pricing-engine/rules";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 
 const PuertaClient = dynamic(
@@ -61,7 +61,8 @@ export default function PaginaIdioma({
   // Precios dinámicos para SchemaProduct (aplicando mínimo del idioma)
   const lang = langCode || LANGUAGE_CONFIGS[idiomaSlug]?.langCode || idiomaSlug;
   const rate = getWordRateForLangOrPair(lang);
-  const minPrice = MINIMUM_BY_LANGUAGE[lang] ?? DEFAULT_MINIMUM;
+  // Fuente única de mínimos (fr = suelos nuevos 24-ago: 35 el doc suelto).
+  const minPrice = getMinimum("other", lang);
   const priceDoc = Math.max(300 * rate * 1.1, minPrice).toFixed(2);  // certificado breve ~300 palabras
   const priceStd = Math.max(800 * rate * 1.1, minPrice).toFixed(2);  // documento estándar ~800 palabras
   const priceExp = Math.max(2000 * rate * 1.1, minPrice).toFixed(2); // expediente ~2000 palabras
@@ -131,8 +132,10 @@ export default function PaginaIdioma({
             Presupuesto instantáneo de {idioma}
           </h2>
           <p className="mt-1 text-sm text-sepia">
-            Sube tu documento y recibe precio cerrado al instante. Sin agencia
-            de por medio: mira cómo conseguimos{" "}
+            {lang === "fr"
+              ? "Sube tu documento y recibe precio cerrado al instante. "
+              : "Sube tu documento: lo analizamos al instante y tu traductor jurado te confirma el precio, normalmente hoy mismo. "}
+            Sin agencia de por medio: mira cómo conseguimos{" "}
             <Link
               href="/traducciones-juradas-baratas"
               className="font-medium text-bleu hover:underline"

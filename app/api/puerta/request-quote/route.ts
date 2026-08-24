@@ -70,14 +70,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Persistir el contacto que llegue nuevo (sin pisar el existente).
-    if (email || phone) {
+    // Persistir el contacto nuevo SOLO donde falta (el capturado en el spinner
+    // no se pisa: es el que dio el cliente con su consentimiento).
+    if (email) {
       await prisma.documentAnalysis.updateMany({
-        where: { sessionToken: token },
-        data: {
-          ...(email ? { clientEmail: email } : {}),
-          ...(phone ? { clientPhone: phone } : {}),
-        },
+        where: { sessionToken: token, clientEmail: null },
+        data: { clientEmail: email },
+      });
+    }
+    if (phone) {
+      await prisma.documentAnalysis.updateMany({
+        where: { sessionToken: token, clientPhone: null },
+        data: { clientPhone: phone },
       });
     }
 

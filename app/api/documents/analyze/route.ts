@@ -228,11 +228,20 @@ export async function POST(req: Request) {
     // la request— casi siempre era null aquí: releer fresco (auditoría 24-ago).
     // Y el precio del email es el del CLIENTE (diagnosis.price, coste+margen),
     // el mismo que ve en la web — no el coste interno del motor.
+    // Gate del escaparate también aquí (guardián 24-ago): sin él, un doc alemán
+    // vería en pantalla "te lo confirma el traductor" y recibiría a la vez un
+    // email con cifra de máquina en el asunto. Solo se manda con precio público
+    // limpio (fr, sin riesgo, con destino resuelto).
     const contact = await prisma.documentAnalysis.findUnique({
       where: { id: documentId },
       select: { clientEmail: true, clientName: true },
     });
-    if (contact?.clientEmail) {
+    if (
+      contact?.clientEmail &&
+      diagnosis.publicAutoPriceable &&
+      !diagnosis.priceRisky &&
+      !diagnosis.askTargetLanguage
+    ) {
       sendQuoteFollowupEmail({
         email: contact.clientEmail,
         name: contact.clientName,
