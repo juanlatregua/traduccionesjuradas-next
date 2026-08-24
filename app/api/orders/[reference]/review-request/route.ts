@@ -14,13 +14,14 @@ export async function POST(req: Request, { params }: Params) {
   }
   const actorEmail = staff.email;
 
-  const reviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "";
-  if (!reviewUrl) {
-    return NextResponse.json(
-      { ok: false, error: "NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ no configurada." },
-      { status: 500 }
-    );
-  }
+  // Mismo fallback que el email de entrega (lib/email.ts): la env con el enlace
+  // corto de un clic manda si existe; si no, la ficha de Google (fiable). Antes
+  // este endpoint devolvía 500 con la env vacía — el botón llevaba roto en prod
+  // y agosto cerró con CERO peticiones de reseña (auditoría 24-ago).
+  const envReview = (process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "").trim();
+  const reviewUrl = envReview.startsWith("http")
+    ? envReview
+    : "https://www.google.com/maps?cid=1858671208989418611";
 
   try {
     const order = await prisma.order.findUnique({
