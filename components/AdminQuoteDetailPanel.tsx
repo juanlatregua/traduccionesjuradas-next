@@ -175,7 +175,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   // elegidos en el presupuesto (Bizum 607/654, BBVA/Openbank…) vía PAYMENT_LABELS,
   // la misma fuente que el PDF — nada hardcodeado.
   const waMsg = useMemo(() => {
-    const PAY = quote.paymentMethods && quote.paymentMethods.length ? quote.paymentMethods : ["bbva", "bizum607"];
+    const PAY = quote.paymentMethods && quote.paymentMethods.length ? quote.paymentMethods : ["sabadell", "bizum607"];
     const firstName = (quote.customerName || "").trim().split(/\s+/)[0] || "";
     const head = `Hola ${firstName}: te envío el presupuesto ${quote.quoteNumber} de tu traducción jurada: ${formatMoney(quote.total)} (IVA incluido).`;
     if (payMethod === "BIZUM") {
@@ -184,7 +184,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
     if (payMethod === "TRANSFER") {
       const ks = PAY.filter((m) => m === "bbva" || m === "openbank" || m === "sabadell");
-      const instr = (ks.length ? ks : ["bbva"]).map((k) => PAYMENT_LABELS[k]).join("; o ");
+      const instr = (ks.length ? ks : ["sabadell"]).map((k) => PAYMENT_LABELS[k]).join("; o ");
       return `${head} Puedes abonarlo ${instr} (titular HBTJ Consultores Lingüísticos S.L.). En cuanto me confirmes el pago, comienzo. Un saludo.`;
     }
     return `${head} Puedes abonarlo de forma segura con tarjeta aquí: ${payUrl}. En cuanto se registre el pago, comienzo. Un saludo.`;

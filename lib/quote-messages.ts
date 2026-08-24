@@ -87,7 +87,7 @@ export function buildWhatsAppPayText(data: {
 }) {
   const methods = (data.paymentMethods && data.paymentMethods.length > 0
     ? data.paymentMethods
-    : ["bbva", "bizum607"]
+    : ["sabadell", "bizum607"]
   ).filter((m) => PAYMENT_LABELS[m]);
   const payLines = methods.map((m, i) => `${i + 1}️⃣ ${PAYMENT_LABELS[m]}`).join("\n");
 

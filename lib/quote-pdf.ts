@@ -311,7 +311,8 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   const methods =
     data.paymentMethods && data.paymentMethods.length > 0
       ? data.paymentMethods
-      : ["bbva", "openbank", "bizum"];
+      // Fallback sin métodos guardados: Sabadell (BBVA en cierre, orden 24-ago).
+      : ["sabadell", "bizum"];
   const payLines: string[] = [];
   if (methods.includes("bbva")) {
     payLines.push("BBVA · BIC BBVAESMM · IBAN ES66 0182 3370 67 0201616991 · HBTJ Consultores Lingüísticos");
