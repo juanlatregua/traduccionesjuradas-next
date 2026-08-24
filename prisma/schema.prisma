@@ -69,6 +69,7 @@ enum QuotePaymentProvider {
 enum QuoteMessageChannel {
   EMAIL
   WHATSAPP
+  SMS
 }
 
 enum QuoteMessageType {

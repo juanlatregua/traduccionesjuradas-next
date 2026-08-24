@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getDocumentsFromOrder } from "@/lib/collaborators";
+import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 import {
   lavoriLangFromPair,
   lavoriManualRoute,
@@ -51,6 +52,10 @@ export async function POST(req: Request, { params }: Params) {
         words: true,
         amountCents: true,
         deliveryType: true,
+        clientName: true,
+        clientEmail: true,
+        clientPhone: true,
+        clientLocale: true,
         events: {
           where: {
             type: {
@@ -173,6 +178,18 @@ export async function POST(req: Request, { params }: Params) {
         },
       },
     });
+
+    // Acuse al cliente (24-ago): solo en solicitud de PRECIO. En el carril paraTi
+    // el precio ya está pactado fuera — "le indicaremos el precio en breve" sería
+    // mentira. Con await + catch interno: un fallo del acuse no tumba el POST.
+    if (!paraTi) {
+      await sendPriceRequestAckToClient({
+        name: order.clientName,
+        email: order.clientEmail,
+        phone: order.clientPhone,
+        locale: order.clientLocale,
+      });
+    }
 
     return NextResponse.json(
       { ok: true, encargoId: result.encargoId, repetido: result.repetido },

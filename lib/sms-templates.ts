@@ -42,6 +42,27 @@ export function smsRecordatorioPago(data: {
   return `TraduccionesJuradas.net: Tu presupuesto ${data.ref} (${data.precio}€) caduca pronto. Paga: ${data.url}`;
 }
 
+/** Acuse al cliente al salir su solicitud de precio hacia el traductor (lavori).
+ *  Texto único del carril del lead (12-ago); lo comparten lead y ficha del pedido. */
+export function smsAcuseSolicitudPrecio(lang: SmsLang = "es"): string {
+  if (lang === "fr") {
+    return (
+      "Merci pour votre demande. Vos documents seront traités directement par un " +
+      "traducteur assermenté nommé par le MAEC et nous vous indiquerons le prix " +
+      "très prochainement. Merci de votre confiance.\n— Traducciones Juradas · traduccionesjuradas.net"
+    );
+  }
+  return (
+    "Gracias por su solicitud. Sus documentos van a ser tratados directamente " +
+    "por un traductor jurado nombrado por el MAEC y le indicaremos el precio " +
+    "en breve. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net"
+  );
+}
+
+export function smsPresupuestoCaducado(data: { ref: string; url: string }): string {
+  return `TraduccionesJuradas.net: Tu presupuesto ${data.ref} ha caducado. Si sigues interesado podemos retomarlo, o dinos el motivo: ${data.url}`;
+}
+
 export function smsPagoConfirmado(data: {
   ref: string;
   plazo: string;

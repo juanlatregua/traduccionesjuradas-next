@@ -6,8 +6,9 @@ import {
   buildReminderEmail,
   buildWhatsAppReminderText,
 } from "@/lib/quote-messages";
-import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
-import { sendStaffAlertSMS } from "@/lib/sms";
+import { sendQuoteEmailWithRetry, isPlaceholderEmail, phoneFromPlaceholder } from "@/lib/quote-email";
+import { sendStaffAlertSMS, sendNotification, formatPhoneSpain } from "@/lib/sms";
+import { smsRecordatorioPago, smsPresupuestoCaducado } from "@/lib/sms-templates";
 import { buildQuotePostMortem } from "@/lib/quote-post-mortem";
 
 export const runtime = "nodejs";
@@ -33,11 +34,10 @@ export async function GET(req: Request) {
 
   let remindersSent = 0;
   let remindersFailed = 0;
-  let remindersWhatsapp = 0; // leads @whatsapp.local: no email, borrador para envío manual
+  let remindersWhatsapp = 0; // leads @whatsapp.local: recordatorio enviado por SMS
   let expiredUpdated = 0;
   let expiredFailed = 0;
   const failedQuotes: string[] = [];
-  const whatsappPending: string[] = [];
 
   const candidates = await prisma.quote.findMany({
     where: {
@@ -53,9 +53,13 @@ export async function GET(req: Request) {
       },
     },
     include: {
+      // Solo un recordatorio ENVIADO cuenta como hecho: los borradores WHATSAPP
+      // que dejaba el cron para "envío manual" nunca salían (auditoría 24-ago:
+      // 0 WhatsApp SENT en toda la tabla) y aun así bloqueaban el reproceso.
       messageLogs: {
         where: {
           type: "REMINDER",
+          status: "SENT",
         },
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -72,22 +76,39 @@ export async function GET(req: Request) {
       payUrl,
     });
 
-    // Lead de WhatsApp (email no entregable): no se intenta email. Se deja un
-    // borrador de WhatsApp para envío manual y se cuenta como REMINDER (para no
-    // reprocesarlo cada día). Se avisa al staff al final.
+    // Lead de WhatsApp (email no entregable): recordatorio por SMS al número del
+    // cliente (medida 1 de la auditoría del funnel 24-ago: ~2.600 € expirados sin
+    // un solo recordatorio entregado — el borrador "para envío manual" no salía
+    // nunca). Si el SMS falla (p. ej. país sin permiso en Twilio) queda FAILED y
+    // se reintenta mañana + aviso a staff.
     if (isPlaceholderEmail(quote.customerEmail)) {
+      const phone = (quote.customerPhone || "").trim() || phoneFromPlaceholder(quote.customerEmail);
+      if (!phone) continue;
+      const smsBody = smsRecordatorioPago({
+        ref: quote.quoteNumber,
+        precio: Number(quote.total).toFixed(2),
+        url: payUrl,
+      });
+      const sent = await sendNotification({ to: formatPhoneSpain(phone), body: smsBody }).catch(
+        (err) => ({ ok: false as const, error: String(err) })
+      );
       await prisma.messageLog.create({
         data: {
           quoteId: quote.id,
-          channel: "WHATSAPP",
+          channel: "SMS",
           type: "REMINDER",
-          recipient: quote.customerPhone || quote.customerEmail,
-          body: waText,
-          status: "DRAFT",
+          recipient: phone,
+          body: sent.ok ? smsBody : `${smsBody}\n\n[ERROR]: ${("error" in sent && sent.error) || "unknown"}`,
+          sentAt: sent.ok ? new Date() : null,
+          status: sent.ok ? "SENT" : "FAILED",
         },
       });
-      remindersWhatsapp += 1;
-      whatsappPending.push(quote.quoteNumber);
+      if (sent.ok) {
+        remindersWhatsapp += 1;
+      } else {
+        remindersFailed += 1;
+        failedQuotes.push(quote.quoteNumber);
+      }
       continue;
     }
 
@@ -199,10 +220,39 @@ export async function GET(req: Request) {
       console.error("[quotes:reminders] post-mortem failed", quote.quoteNumber, err);
     }
 
-    const wasDelivered = quote.messageLogs.length > 0 && !isPlaceholderEmail(quote.customerEmail);
-    if (!wasDelivered) continue;
-
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
+
+    // Lead solo-WhatsApp: aviso de caducidad por SMS con el enlace a /q (allí
+    // puede retomar o dejar el motivo — medida 2 del funnel 24-ago: hasta hoy
+    // morían mudos, lostReason siempre null). Solo si ABRIÓ el presupuesto:
+    // un "ha caducado" como primer contacto no tiene sentido.
+    if (isPlaceholderEmail(quote.customerEmail)) {
+      const phone = (quote.customerPhone || "").trim() || phoneFromPlaceholder(quote.customerEmail);
+      if (!phone || !quote.openedAt) continue;
+      const smsBody = smsPresupuestoCaducado({ ref: quote.quoteNumber, url: payUrl });
+      const sent = await sendNotification({ to: formatPhoneSpain(phone), body: smsBody }).catch(
+        (err) => ({ ok: false as const, error: String(err) })
+      );
+      await prisma.messageLog.create({
+        data: {
+          quoteId: quote.id,
+          channel: "SMS",
+          type: "EXPIRED_NOTICE",
+          recipient: phone,
+          body: sent.ok ? smsBody : `${smsBody}\n\n[ERROR]: ${("error" in sent && sent.error) || "unknown"}`,
+          sentAt: sent.ok ? new Date() : null,
+          status: sent.ok ? "SENT" : "FAILED",
+        },
+      });
+      if (!sent.ok) {
+        expiredFailed += 1;
+        failedQuotes.push(quote.quoteNumber);
+      }
+      continue;
+    }
+
+    const wasDelivered = quote.messageLogs.length > 0;
+    if (!wasDelivered) continue;
     const expired = buildExpiredEmail({
       name: quote.customerName || "cliente",
       quoteNumber: quote.quoteNumber,
@@ -245,18 +295,11 @@ export async function GET(req: Request) {
     }
   }
 
-  // Aviso al staff: lo que requiere acción manual (envíos fallidos + leads de
-  // WhatsApp que esperan un recordatorio a mano). Best-effort, no bloquea.
-  if (remindersFailed > 0 || expiredFailed > 0 || remindersWhatsapp > 0) {
-    const parts: string[] = [];
-    if (remindersFailed + expiredFailed > 0) {
-      parts.push(`${remindersFailed + expiredFailed} envío(s) fallido(s) [${failedQuotes.join(", ")}]`);
-    }
-    if (remindersWhatsapp > 0) {
-      parts.push(`${remindersWhatsapp} lead(s) WhatsApp pendiente(s) de recordatorio manual [${whatsappPending.join(", ")}]`);
-    }
+  // Aviso al staff solo con fallos (los recordatorios a leads WhatsApp ya salen
+  // solos por SMS). Best-effort, no bloquea.
+  if (remindersFailed > 0 || expiredFailed > 0) {
     await sendStaffAlertSMS(
-      `TraduccionesJuradas (cron presupuestos): ${parts.join("; ")}.`,
+      `TraduccionesJuradas (cron presupuestos): ${remindersFailed + expiredFailed} envío(s) fallido(s) [${failedQuotes.join(", ")}].`,
       "quotes_reminders"
     ).catch(() => {});
   }

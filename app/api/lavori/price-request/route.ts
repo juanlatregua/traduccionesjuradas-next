@@ -10,7 +10,7 @@ import {
   resolveLavoriCandidatos,
   type BridgeDoc,
 } from "@/lib/lavori-bridge";
-import { sendNotification, formatPhoneSpain } from "@/lib/sms";
+import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 
 export const runtime = "nodejs";
 
@@ -82,6 +82,8 @@ export async function POST(req: Request) {
       expedienteRef?: string;
       customerHint?: string;
       customerPhone?: string;
+      customerEmail?: string;
+      customerName?: string;
       especificaciones?: string;
       candidatos?: string[];
     } | null;
@@ -190,21 +192,15 @@ export async function POST(req: Request) {
         if (err?.code !== "P2002") throw err;
       });
 
-    // Acuse al cliente (petición Juan 12-ago): al salir los documentos hacia el
-    // traductor, el lead recibe un WhatsApp/SMS de cortesía. Con await: sin él,
-    // la lambda se congela al responder y la llamada a Twilio muere sin salir
-    // (cazado en el E2E del 12-ago). Un fallo del SMS no tumba la solicitud.
-    const customerPhone = String(body?.customerPhone || "").trim();
-    if (customerPhone) {
-      const acuse = await sendNotification({
-        to: formatPhoneSpain(customerPhone),
-        body:
-          "Gracias por su solicitud. Sus documentos van a ser tratados directamente " +
-          "por un traductor jurado nombrado por el MAEC y le indicaremos el precio " +
-          "en breve. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net",
-      }).catch((err) => ({ ok: false as const, error: String(err) }));
-      if (!acuse.ok) console.error("[lavori-lead] acuse al cliente fallo:", acuse.error);
-    }
+    // Acuse al cliente (12-ago SMS; 24-ago también email): al salir los documentos
+    // hacia el traductor, el cliente recibe UN aviso — email si es real, SMS/WhatsApp
+    // si es lead solo-WhatsApp. Con await: sin él, la lambda se congela al responder
+    // y la llamada muere sin salir (E2E 12-ago). Un fallo del acuse no tumba el POST.
+    await sendPriceRequestAckToClient({
+      name: body?.customerName,
+      email: body?.customerEmail,
+      phone: body?.customerPhone,
+    });
 
     return NextResponse.json(
       { ok: true, ref, encargoId: result.encargoId, repetido: result.repetido },

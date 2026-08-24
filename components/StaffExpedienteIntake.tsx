@@ -723,6 +723,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           customerHint:
             [customerName.trim(), customerPhone.trim()].filter(Boolean).join(" · ") || undefined,
           customerPhone: customerPhone.trim() || undefined,
+          customerEmail: customerEmail.trim() || undefined,
+          customerName: customerName.trim() || undefined,
           especificaciones: lavoriSpecs.trim() || undefined,
           ...(candidatos ? { candidatos } : {}),
         }),
@@ -743,7 +745,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
     }
-  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, lavoriSpecs, lavoriPick, lavoriCartera.miembros]);
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -1416,7 +1418,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             Manda {lavoriDocs.length === 1 ? "el documento" : `los ${lavoriDocs.length} documentos`} a
             jurados del par como encargo dirigido sin precio. Sin datos del cliente: solo tipo,
             volumen y los PDF. Útil antes de generar el presupuesto.
-            {customerPhone.trim() ? " Al enviarlo, el cliente recibirá un acuse por WhatsApp/SMS." : ""}
+            {customerEmail.trim() || customerPhone.trim()
+              ? " Al enviarlo, el cliente recibirá un acuse (email si lo tiene; si no, WhatsApp/SMS)."
+              : ""}
           </p>
           <LavoriCandidatePicker
             route={lavoriRoute}

@@ -331,6 +331,17 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
+  // Al abrir wa.me se registra el envío (DRAFT→SENT): sin esto es imposible
+  // saber en BD qué WhatsApps salieron de verdad (medida 3, funnel 24-ago).
+  // Fire-and-forget: el clic ya está navegando a WhatsApp.
+  function markWhatsAppSent() {
+    fetch(`/api/quotes/${quote.id}/whatsapp-sent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: waMsg }),
+    }).catch(() => {});
+  }
+
   async function markInProgress() {
     setLoadingProgress(true);
     setMessage(null);
@@ -480,6 +491,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                     href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={markWhatsAppSent}
                     className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
                   >
                     WhatsApp al cliente
@@ -679,6 +691,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                   href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={markWhatsAppSent}
                   className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
                 >
                   Enviar por WhatsApp al cliente
