@@ -12,7 +12,7 @@ import {
 } from "@/lib/session-pricing";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { clientPriceFromCost } from "@/lib/quote-math";
-import { AUTO_PRICEABLE_FOREIGN, isAutoPriceable, resolvePriceablePair } from "@/lib/pricing-engine/languages";
+import { AUTO_PRICEABLE_FOREIGN, isPublicAutoPriceable, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 
@@ -187,11 +187,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // GATE DURO: idioma fuera del set auto-tarificable (p.ej. ruso, ucraniano)
-    // NO crea OrderSession ni llega a Stripe. Defensa en profundidad: aunque el
-    // diagnóstico/frontend fallen, ningún idioma no soportado se cobra.
+    // GATE DURO: idioma fuera del precio instantáneo PÚBLICO (24-ago: solo
+    // francés; el resto "previa cotización en lavori") NO crea OrderSession ni
+    // llega a Stripe. Defensa en profundidad: aunque el diagnóstico/frontend
+    // fallen, ningún idioma sin precio de escaparate se cobra.
     // Incidente TJ-20260602-NJ42 (ruso malclasificado "uk", cobrado 50,82€).
-    if (!isAutoPriceable(foreignLang)) {
+    if (!isPublicAutoPriceable(foreignLang)) {
       return NextResponse.json(
         {
           ok: false,

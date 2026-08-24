@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Mail,
   Phone,
+  CheckCircle2,
 } from "lucide-react";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
@@ -71,6 +72,7 @@ export default function PuertaClient({
   const [currentFileName, setCurrentFileName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [requestState, setRequestState] = useState<"idle" | "sending" | "done">("idle");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -217,6 +219,35 @@ export default function PuertaClient({
     [lang]
   );
 
+  // Solicitud de presupuesto humano (24-ago): idiomas sin precio instantáneo,
+  // documentos de riesgo y tickets altos. Avisa a staff y acusa al cliente.
+  const handleRequestQuote = useCallback(async () => {
+    setRequestState("sending");
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/puerta/request-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionToken,
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
+          lang,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setRequestState("idle");
+        setCheckoutError(data.error || t.checkoutErrorDefault);
+        return;
+      }
+      setRequestState("done");
+    } catch {
+      setRequestState("idle");
+      setCheckoutError(t.checkoutErrorDefault);
+    }
+  }, [sessionToken, email, phone, lang, t]);
+
   // El puente: crea la OrderSession checkout-ready y redirige al checkout.
   const handleCheckout = useCallback(async () => {
     setCheckingOut(true);
@@ -260,9 +291,18 @@ export default function PuertaClient({
   // no soportado, pero NO es "falta idioma" → su mensaje lo da la DiagnosisCard.
   const hasRiskyDoc = documents.some((d) => d.diagnosis.priceRisky);
   const pendingTargetLanguage = documents.some(
-    (d) => !d.diagnosis.priceRisky && d.diagnosis.delivery.hours === null
+    (d) => !d.diagnosis.priceRisky && d.diagnosis.askTargetLanguage
   );
-  const blockCheckout = pendingTargetLanguage || hasRiskyDoc;
+  // Escaparate 24-ago: idioma sin precio instantáneo (todo salvo fr) → sin
+  // checkout; el CTA pasa a "Solicitar presupuesto" (lo cotiza el traductor).
+  const hasHumanQuoteDoc = documents.some(
+    (d) => !d.diagnosis.priceRisky && !d.diagnosis.askTargetLanguage && !d.diagnosis.publicAutoPriceable
+  );
+  const humanQuoteFlow = hasHumanQuoteDoc || hasRiskyDoc;
+  const blockCheckout = pendingTargetLanguage || humanQuoteFlow;
+  // Ticket alto (>70 € netos): el autopago no convierte ahí (auditoría 24-ago:
+  // cero pagos por encima); se ofrece ADEMÁS la confirmación del traductor.
+  const bigTicket = !blockCheckout && docsTotal / 1.21 > 70;
 
   return (
     <div className="space-y-6">
@@ -409,7 +449,7 @@ export default function PuertaClient({
             />
           ))}
 
-          {documents.length > 1 && (
+          {documents.length > 1 && !humanQuoteFlow && (
             <div className="flex items-center justify-between rounded-xl border border-bleu/15 bg-cream px-5 py-4">
               <span className="text-sm font-medium text-encre">
                 {t.totalLabel(documents.length)}
@@ -510,15 +550,53 @@ export default function PuertaClient({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={handleCheckout}
-              disabled={checkingOut || blockCheckout || !contactValid}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
-            >
-              {checkingOut && <Loader2 className="h-4 w-4 animate-spin" />}
-              {checkingOut ? t.preparingPay : t.continuePay}
-            </button>
+            {humanQuoteFlow ? (
+              requestState === "done" ? (
+                <p className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-vert/30 bg-vert/5 px-5 py-3 text-center text-sm font-medium text-vert">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  {t.requestQuoteDone}
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRequestQuote}
+                  disabled={requestState === "sending" || pendingTargetLanguage}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
+                >
+                  {requestState === "sending" && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {requestState === "sending" ? t.requestQuoteSending : t.requestQuoteCta}
+                </button>
+              )
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCheckout}
+                  disabled={checkingOut || blockCheckout || !contactValid}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
+                >
+                  {checkingOut && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {checkingOut ? t.preparingPay : t.continuePay}
+                </button>
+                {bigTicket &&
+                  (requestState === "done" ? (
+                    <p className="mt-2 flex items-center justify-center gap-2 text-center text-xs font-medium text-vert">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      {t.requestQuoteDone}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleRequestQuote}
+                      disabled={requestState === "sending"}
+                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-bleu/20 px-5 py-2.5 text-sm font-medium text-bleu transition-colors hover:bg-bleu/5 disabled:opacity-50"
+                    >
+                      {requestState === "sending" && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {requestState === "sending" ? t.requestQuoteSending : t.preferHuman}
+                    </button>
+                  ))}
+              </>
+            )}
             {pendingTargetLanguage && (
               <p className="mt-2 text-center text-xs text-graphite">{t.hintTargetLang}</p>
             )}

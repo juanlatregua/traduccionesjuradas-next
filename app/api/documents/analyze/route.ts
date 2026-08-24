@@ -223,13 +223,22 @@ export async function POST(req: Request) {
     // Envío del presupuesto por email (fire-and-forget). El gate exigía además
     // clientName, que la puerta NUNCA escribe → este email jamás salía para sus
     // leads, pese a que el formulario promete enviarlo. Basta el email.
-    if (doc.clientEmail) {
+    // OJO: el email se guarda EN PARALELO mientras corre el análisis (la puerta
+    // lo pide durante el spinner), así que `doc.clientEmail` —leído al arrancar
+    // la request— casi siempre era null aquí: releer fresco (auditoría 24-ago).
+    // Y el precio del email es el del CLIENTE (diagnosis.price, coste+margen),
+    // el mismo que ve en la web — no el coste interno del motor.
+    const contact = await prisma.documentAnalysis.findUnique({
+      where: { id: documentId },
+      select: { clientEmail: true, clientName: true },
+    });
+    if (contact?.clientEmail) {
       sendQuoteFollowupEmail({
-        email: doc.clientEmail,
-        name: doc.clientName,
+        email: contact.clientEmail,
+        name: contact.clientName,
         documentType: analysis.document_type.specific_type_es,
-        price: quote.basePrice,
-        totalPrice: quote.totalPrice,
+        price: diagnosis.price.base,
+        totalPrice: diagnosis.price.total,
         langPair: `${analysis.language.source_name} → ${analysis.language.target_name}`,
         estimatedDays: quote.estimatedDaysStandard,
         apostilleSurcharge: quote.breakdown.apostilleSurcharge || undefined,

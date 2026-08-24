@@ -144,7 +144,10 @@ export function computeBase(input: PriceMetricsInput): {
   const rate = getRate(foreignLang);
   // El suelo efectivo es el mayor de: mínimo por tipo, mínimo por idioma y
   // suelo por página (40 €/pág, salvo certificados simples exentos).
-  const minimum = Math.max(getMinimum(specificType, foreignLang), getPageMinimum(specificType, pages));
+  const minimum = Math.max(
+    getMinimum(specificType, foreignLang, pages),
+    getPageMinimum(specificType, pages, foreignLang)
+  );
   const complexityMult = getComplexityMultiplier(input.complexity || "standard");
 
   // Apostille surcharge: fijo según idioma (árabe 10€, resto 25€)

@@ -31,6 +31,18 @@ export function isAutoPriceable(lang: string | null | undefined): boolean {
   return c === "es" || AUTO_PRICEABLE_FOREIGN.has(c);
 }
 
+/** Precio INSTANTÁNEO de cara al PÚBLICO (puerta, chatbot, checkout de la
+ * puerta): SOLO francés (decisión Juan 24-ago-2026, auditoría del funnel:
+ * cero autopagos por encima de 70 € y el motor tarificaba muy por encima del
+ * cierre real — "necesito volumen en fr; el resto previa cotización en lavori").
+ * El STAFF sigue tarificando todos los idiomas de PER_WORD_RATE con
+ * isAutoPriceable/resolvePriceablePair: este gate es solo del escaparate. */
+export function isPublicAutoPriceable(lang: string | null | undefined): boolean {
+  if (!lang) return false;
+  const c = lang.toLowerCase();
+  return c === "es" || c === "fr";
+}
+
 // Lado extranjero del par SOLO si forma un par tarificable es↔X (fuente única
 // para diagnosis, checkout y el builder de staff — presupuesto 2026-00045):
 // - Original ES: exige destino conocido y distinto de ES. Sin destino NO hay

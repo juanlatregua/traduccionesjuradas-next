@@ -62,6 +62,11 @@ export type PuertaStrings = {
   qValidity: string;
   pricePending: string;
   manualQuoteNote: string;
+  humanQuoteNote: string;
+  requestQuoteCta: string;
+  requestQuoteSending: string;
+  requestQuoteDone: string;
+  preferHuman: string;
   orientativoSuffix: string;
   lowConfNote: string;
   ivaIncl: string;
@@ -146,6 +151,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     pricePending: "Indícanos abajo el idioma de destino y calculamos el precio.",
     manualQuoteNote:
       "Este documento (formulario fiscal/financiero o con varias copias) necesita un presupuesto a medida. Escríbenos por WhatsApp y te lo preparamos al momento.",
+    humanQuoteNote:
+      "Documento analizado. En este idioma el precio te lo confirma directamente tu traductor jurado nombrado por el MAEC — normalmente hoy mismo. Si tienes prisa, escríbenos por WhatsApp.",
+    requestQuoteCta: "Solicitar presupuesto — te respondemos hoy",
+    requestQuoteSending: "Enviando solicitud…",
+    requestQuoteDone: "Solicitud recibida. Tu traductor jurado te confirmará el precio en breve.",
+    preferHuman: "Prefiero que me lo confirme el traductor",
     orientativoSuffix: "(orientativo)",
     lowConfNote: "No hemos podido leer el documento con seguridad. Confirmaremos el precio final antes de empezar.",
     ivaIncl: "IVA incluido",
@@ -207,6 +218,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     pricePending: "Indiquez ci-dessous la langue cible et nous calculons le prix.",
     manualQuoteNote:
       "Ce document (formulaire fiscal/financier ou comportant plusieurs copies) nécessite un devis sur mesure. Écrivez-nous sur WhatsApp et nous le préparons aussitôt.",
+    humanQuoteNote:
+      "Document analysé. Pour cette langue, le prix vous est confirmé directement par votre traducteur assermenté nommé par le MAEC — normalement aujourd'hui même. Pressé ? Écrivez-nous sur WhatsApp.",
+    requestQuoteCta: "Demander un devis — réponse aujourd'hui",
+    requestQuoteSending: "Envoi de la demande…",
+    requestQuoteDone: "Demande reçue. Votre traducteur assermenté vous confirmera le prix très prochainement.",
+    preferHuman: "Je préfère une confirmation du traducteur",
     orientativoSuffix: "(indicatif)",
     lowConfNote: "Nous n'avons pas pu lire le document avec certitude. Nous confirmerons le prix final avant de commencer.",
     ivaIncl: "TVA incluse",
@@ -268,6 +285,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     pricePending: "Tell us the target language below and we'll calculate the price.",
     manualQuoteNote:
       "This document (a tax/financial form or one with several copies) needs a tailored quote. Message us on WhatsApp and we'll prepare it right away.",
+    humanQuoteNote:
+      "Document analysed. For this language, the price is confirmed directly by your MAEC-appointed sworn translator — usually the same day. In a hurry? Message us on WhatsApp.",
+    requestQuoteCta: "Request a quote — we reply today",
+    requestQuoteSending: "Sending request…",
+    requestQuoteDone: "Request received. Your sworn translator will confirm the price shortly.",
+    preferHuman: "I'd rather have the translator confirm it",
     orientativoSuffix: "(estimate)",
     lowConfNote: "We couldn't read the document with certainty. We'll confirm the final price before starting.",
     ivaIncl: "VAT included",
@@ -329,6 +352,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     pricePending: "Geben Sie unten die Zielsprache an, und wir berechnen den Preis.",
     manualQuoteNote:
       "Dieses Dokument (ein Steuer-/Finanzformular oder mit mehreren Kopien) braucht ein individuelles Angebot. Schreiben Sie uns per WhatsApp und wir erstellen es sofort.",
+    humanQuoteNote:
+      "Dokument analysiert. Für diese Sprache bestätigt Ihnen Ihr vom MAEC ermächtigter vereidigter Übersetzer den Preis direkt — normalerweise noch am selben Tag. Eilig? Schreiben Sie uns per WhatsApp.",
+    requestQuoteCta: "Angebot anfordern — Antwort noch heute",
+    requestQuoteSending: "Anfrage wird gesendet…",
+    requestQuoteDone: "Anfrage erhalten. Ihr vereidigter Übersetzer bestätigt Ihnen den Preis in Kürze.",
+    preferHuman: "Ich möchte lieber die Bestätigung des Übersetzers",
     orientativoSuffix: "(Richtwert)",
     lowConfNote: "Wir konnten das Dokument nicht sicher lesen. Wir bestätigen den Endpreis vor Beginn.",
     ivaIncl: "inkl. MwSt.",
@@ -390,6 +419,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     pricePending: "Indique abaixo o idioma de destino e calculamos o preço.",
     manualQuoteNote:
       "Este documento (formulário fiscal/financeiro ou com várias cópias) precisa de um orçamento à medida. Escreva-nos pelo WhatsApp e preparamo-lo de imediato.",
+    humanQuoteNote:
+      "Documento analisado. Nesta língua o preço é confirmado diretamente pelo seu tradutor ajuramentado nomeado pelo MAEC — normalmente no próprio dia. Com pressa? Escreva-nos pelo WhatsApp.",
+    requestQuoteCta: "Pedir orçamento — respondemos hoje",
+    requestQuoteSending: "A enviar o pedido…",
+    requestQuoteDone: "Pedido recebido. O seu tradutor ajuramentado confirmará o preço em breve.",
+    preferHuman: "Prefiro a confirmação do tradutor",
     orientativoSuffix: "(indicativo)",
     lowConfNote: "Não conseguimos ler o documento com segurança. Confirmaremos o preço final antes de começar.",
     ivaIncl: "IVA incluído",

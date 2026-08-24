@@ -8,7 +8,7 @@
 
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
-import { isAutoPriceable, resolvePriceablePair } from "./pricing-engine/languages.ts";
+import { isAutoPriceable, isPublicAutoPriceable, resolvePriceablePair } from "./pricing-engine/languages.ts";
 import { clientPriceFromCost, round2, DEFAULT_VAT_RATE } from "./quote-math.ts";
 import type { Locale } from "@/lib/i18n/locales";
 
@@ -53,6 +53,14 @@ export type Diagnosis = {
   // false = idioma fuera del set auto-tarificable (ruso, ucraniano, etc.): no se
   // muestra precio instantáneo ni se permite checkout; se enruta a manual.
   autoPriceable: boolean;
+  // Gate del ESCAPARATE (24-ago-2026): solo el francés enseña precio instantáneo
+  // al público; el resto ("previa cotización en lavori") va a presupuesto humano
+  // aunque el motor sepa tarificarlo para el staff.
+  publicAutoPriceable: boolean;
+  // true = original en español sin destino: la UI pide el idioma de destino.
+  // (Antes se infería de hours===null y a un documento ruso se le decía
+  // falsamente "tu documento está en español".)
+  askTargetLanguage: boolean;
   // true = documento de riesgo de infraconteo (fiscal/financiero, multi-copia):
   // se enruta a presupuesto manual con un mensaje DISTINTO al de "elige idioma".
   priceRisky: boolean;
@@ -298,6 +306,9 @@ export function buildDiagnosis(
   // de infraconteo (fiscal/financiero, multi-copia, texto pegado): en ese caso
   // se manda a presupuesto manual en vez de cobrar mal (incidente 1099-MISC).
   const autoPriceable = isAutoPriceable(foreignLang) && !analysis.price_risk?.risky;
+  const publicAutoPriceable = autoPriceable && isPublicAutoPriceable(foreignLang);
+  const askTargetLanguage =
+    language.source === "es" && (!language.target || language.target === "unknown");
 
   // Sin plazo determinista para idiomas no auto-tarificables: no anunciamos
   // "72h" de un idioma que se gestiona manualmente (o que no ofrecemos).
@@ -336,6 +347,8 @@ export function buildDiagnosis(
       originalDocument: originalDocumentValidity(document_type.specific_type, lang),
     },
     autoPriceable,
+    publicAutoPriceable,
+    askTargetLanguage,
     priceRisky: Boolean(analysis.price_risk?.risky),
   };
 }

@@ -59,12 +59,15 @@ export function getQuoteEstimate(
 ): QuoteEstimateOutput | QuoteEstimateUnpriceable {
   const language = (input.language ?? "fr").toLowerCase();
 
-  if (!AUTO_PRICEABLE_FOREIGN.has(language)) {
+  // Escaparate 24-ago: cifras públicas SOLO en francés ("el resto previa
+  // cotización en lavori"). El set del motor sigue siendo más amplio, pero el
+  // chatbot es público: mismo gate que la puerta.
+  if (language !== "fr" || !AUTO_PRICEABLE_FOREIGN.has(language)) {
     return {
       auto_priceable: false,
       language,
       language_name: getLanguageName(language),
-      note: "No tenemos tarifa automática para este idioma: NO des ninguna cifra, ni orientativa ni de rango. Explica que lo presupuestamos a mano y pide que nos escriba por WhatsApp o desde /contacto con el documento.",
+      note: "El precio de este idioma lo confirma directamente el traductor jurado: NO des ninguna cifra, ni orientativa ni de rango. Explica que respondemos con el presupuesto normalmente el mismo día y pide que nos escriba por WhatsApp o suba el documento en /presupuesto-instantaneo.",
     };
   }
   const documentType = input.document_type ?? "other";
@@ -126,7 +129,8 @@ export function getQuoteEstimate(
   const partialInfo = input.pages === undefined || input.document_type === undefined;
   const isFrenchCriminalRecord =
     documentType === "criminal_record" && language === "fr" && pages >= 3;
-  const isMoroccoSpecial = country === "MA" && language !== "ar";
+  // Aquí solo llega francés (gate de arriba): Marruecos especial aplica siempre.
+  const isMoroccoSpecial = country === "MA";
 
   let note: string;
   if (isFrenchCriminalRecord) {
@@ -148,7 +152,7 @@ export function getQuoteEstimate(
     document_type: documentType,
     pages,
     estimated_words: words,
-    minimum_price_eur: getMinimum(documentType, language),
+    minimum_price_eur: getMinimum(documentType, language, pages),
     rate_per_word_eur: getRate(language),
     apostille_surcharge_eur: input.has_apostille ? getApostilleSurcharge(language) : 0,
     // Precio CLIENTE = coste × (1 + margen tiered); FR sin margen. IVA encima.

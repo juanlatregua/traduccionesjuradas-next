@@ -113,20 +113,28 @@ test("get_quote_estimate: MA + fr → Morocco fixed pricing activado", () => {
   assert.equal(r.is_morocco_special, true);
 });
 
-test("get_quote_estimate: MA + ar → NO Morocco special (árabe se cobra normal)", () => {
-  const r = priced(getQuoteEstimate({ language: "ar", country: "MA" }));
-  assert.equal(r.is_morocco_special, false);
+// Escaparate 24-ago-2026: cifras públicas SOLO en francés ("el resto previa
+// cotización en lavori"). El árabe MA ya no recibe cifra del chatbot.
+test("get_quote_estimate: MA + ar → sin cifras (previa cotización en lavori)", () => {
+  const r = getQuoteEstimate({ language: "ar", country: "MA" });
+  assert.ok("auto_priceable" in r);
+  assert.equal((r as { auto_priceable: boolean }).auto_priceable, false);
 });
 
-test("get_quote_estimate: mínimos por idioma (árabe 55, francés 42, inglés 50)", () => {
-  assert.equal(priced(getQuoteEstimate({ language: "ar", document_type: "birth_certificate" })).minimum_price_eur, 55);
-  assert.equal(priced(getQuoteEstimate({ language: "fr", document_type: "birth_certificate" })).minimum_price_eur, 42);
-  assert.equal(priced(getQuoteEstimate({ language: "en", document_type: "birth_certificate" })).minimum_price_eur, 50);
+test("get_quote_estimate: mínimos FR 24-ago (suelto 35, 2+ págs 55, apostilla +5)", () => {
+  assert.equal(priced(getQuoteEstimate({ language: "fr", document_type: "birth_certificate" })).minimum_price_eur, 35);
+  assert.equal(priced(getQuoteEstimate({ language: "fr", document_type: "other", pages: 2 })).minimum_price_eur, 55);
 });
 
-test("get_quote_estimate: la tarifa sale del motor, no de una copia", () => {
-  for (const [lang, rate] of Object.entries(PER_WORD_RATE)) {
-    assert.equal(priced(getQuoteEstimate({ language: lang })).rate_per_word_eur, rate, lang);
+test("get_quote_estimate: idiomas del motor distintos de fr NO devuelven cifras al público", () => {
+  for (const lang of Object.keys(PER_WORD_RATE)) {
+    const r = getQuoteEstimate({ language: lang });
+    if (lang === "fr") {
+      assert.equal(priced(r).rate_per_word_eur, PER_WORD_RATE.fr);
+    } else {
+      assert.ok("auto_priceable" in r, `${lang} no debe dar cifra pública`);
+      assert.equal((r as { auto_priceable: boolean }).auto_priceable, false);
+    }
   }
 });
 

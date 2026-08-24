@@ -22,6 +22,16 @@ export const MINIMUM_BY_TYPE: Record<string, number> = {
 
 export const DEFAULT_MINIMUM = 42;
 
+// Suelos FRANCÉS (orden Juan 24-ago-2026, "necesito volumen en fr"; auditoría
+// del funnel: cero autopagos por encima de 70 € y cierre real a 35-55):
+// documento suelto 35 · apostillado 40 (recargo 5) · certificado de 2-3 páginas
+// (libro de familia, actas pluripágina) 55. Por palabra (0,08) manda en cuanto
+// supera el suelo. Los MINIMUM_BY_TYPE de arriba siguen valiendo para el resto
+// de idiomas (builder del staff); el fr ya no los usa.
+export const FR_MINIMUM = 35;
+export const FR_MULTIPAGE_MINIMUM = 55; // 2 páginas o más
+export const FR_APOSTILLE_SURCHARGE = 5; // suelto 35 + 5 = 40 apostillado
+
 export const MINIMUM_BY_LANGUAGE: Record<string, number> = {
   en: 50,
   de: 50,
@@ -66,7 +76,10 @@ const PAGE_MINIMUM_EXEMPT_TYPES = new Set([
   "apostille",
 ]);
 
-export function getPageMinimum(specificType: string, pages: number): number {
+export function getPageMinimum(specificType: string, pages: number, langCode?: string): number {
+  // El francés tiene su propio suelo plurpágina (FR_MULTIPAGE_MINIMUM, 55 €) —
+  // el 40 €/pág le pondría 80 € a un libro de familia y mata el volumen.
+  if (langCode === "fr") return 0;
   if (PAGE_MINIMUM_EXEMPT_TYPES.has(specificType)) return 0;
   const billablePages = Math.min(PAGE_MINIMUM_MAX_PAGES, Math.max(1, Math.floor(pages || 1)));
   return PAGE_MINIMUM_PER_PAGE * billablePages;
@@ -101,13 +114,17 @@ export const FRENCH_CRIMINAL_RECORD_PRICE = 61.98;
 
 export const APOSTILLE_SURCHARGE = 25;
 
-export function getMinimum(specificType: string, langCode?: string): number {
+export function getMinimum(specificType: string, langCode?: string, pages?: number): number {
+  if (langCode === "fr") {
+    return (pages || 1) >= 2 ? FR_MULTIPAGE_MINIMUM : FR_MINIMUM;
+  }
   const typeMin = MINIMUM_BY_TYPE[specificType] || DEFAULT_MINIMUM;
   const langMin = langCode ? MINIMUM_BY_LANGUAGE[langCode] ?? 0 : 0;
   return Math.max(typeMin, langMin);
 }
 
 export function getApostilleSurcharge(langCode?: string): number {
+  if (langCode === "fr") return FR_APOSTILLE_SURCHARGE;
   if (langCode && APOSTILLE_SURCHARGE_BY_LANGUAGE[langCode] !== undefined) {
     return APOSTILLE_SURCHARGE_BY_LANGUAGE[langCode];
   }

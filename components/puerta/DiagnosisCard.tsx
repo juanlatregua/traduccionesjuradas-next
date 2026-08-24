@@ -76,7 +76,12 @@ export default function DiagnosisCard({
   // Documento de riesgo (fiscal/multi-copia): NO es "falta idioma destino";
   // se enruta a presupuesto manual con su propio mensaje.
   const priceRisky = diagnosis.priceRisky;
-  const needsTargetLanguage = !priceRisky && delivery.hours === null;
+  // Pregunta de destino SOLO si el original es español sin destino (antes se
+  // infería de hours===null y a un doc ruso se le decía "está en español").
+  const needsTargetLanguage = !priceRisky && diagnosis.askTargetLanguage;
+  // Escaparate 24-ago: fuera del francés no se enseña precio de máquina — el
+  // precio lo confirma el traductor jurado (previa cotización en lavori).
+  const humanQuote = !priceRisky && !needsTargetLanguage && !diagnosis.publicAutoPriceable;
   const waUrl = `https://wa.me/34951333614?text=${encodeURIComponent(t.whatsappPrefill)}`;
 
   const deliveryDate = delivery.hours
@@ -122,6 +127,18 @@ export default function DiagnosisCard({
                 WhatsApp
               </a>
             </p>
+          ) : humanQuote ? (
+            <p className="text-graphite">
+              {t.humanQuoteNote}{" "}
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-vert underline underline-offset-2"
+              >
+                WhatsApp
+              </a>
+            </p>
           ) : needsTargetLanguage ? (
             <p className="text-graphite">{t.pricePending}</p>
           ) : lowConfidence ? (
@@ -144,8 +161,9 @@ export default function DiagnosisCard({
           )}
         </Row>
 
-        {/* 3 · Plazo — se oculta en documentos de riesgo (presupuesto manual) */}
-        {!priceRisky && (
+        {/* 3 · Plazo — se oculta en riesgo y en presupuesto humano (sin precio
+            de máquina tampoco anunciamos plazo de máquina) */}
+        {!priceRisky && !humanQuote && (
         <Row icon={Clock} label={t.qDelivery}>
           {needsTargetLanguage ? (
             <div>
