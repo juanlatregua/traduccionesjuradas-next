@@ -40,6 +40,24 @@ export type StaffDigest = {
   topLanguages: { lang: string; count: number }[];
   failedEmails: { error: string; attempt: number; at: string }[];
   lostQuotes: LostQuoteEntry[];
+  leads: LeadEntry[];
+};
+
+// Lead del presupuesto automático: dejó su email en la puerta y no compró.
+// Auditoría 24-ago: ningún lead individual llegaba jamás a ojos del staff (solo
+// conteos agregados) — el único tocado por un humano facturó más que los 9
+// autopagos de 90 días juntos. Este bloque es la red humana.
+export type LeadEntry = {
+  email: string;
+  name: string | null;
+  phone: string | null;
+  docs: {
+    fileName: string;
+    docType: string | null;
+    langPair: string;
+    words: number | null;
+    priceEur: number | null;
+  }[];
 };
 
 export type LostQuoteEntry = {
@@ -59,7 +77,7 @@ const LOST_REASON_LABELS: Record<string, string> = QUOTE_LOST_REASON_LABELS;
 export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
-  const [day, week, paid, recentAnalyses, failed, lost] = await Promise.all([
+  const [day, week, paid, recentAnalyses, failed, lost, leadDocs] = await Promise.all([
     funnelForWindow(windowHours / 24),
     funnelForWindow(7),
     prisma.order.findMany({
@@ -103,7 +121,55 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
         postMortemJson: true,
       },
     }),
+    // Leads de la puerta en la ventana: dejaron email, sin pedido. Fuera las
+    // sesiones del propio staff (exp:/staff:) y los docs ya convertidos.
+    prisma.documentAnalysis.findMany({
+      where: {
+        createdAt: { gte: since },
+        clientEmail: { not: null },
+        orderId: null,
+        NOT: [
+          { sessionToken: { startsWith: "exp:" } },
+          { sessionToken: { startsWith: "staff:" } },
+        ],
+      },
+      orderBy: { createdAt: "asc" },
+      take: 60,
+      select: {
+        clientEmail: true,
+        clientName: true,
+        clientPhone: true,
+        fileName: true,
+        documentType: true,
+        sourceLanguage: true,
+        targetLanguage: true,
+        estimatedWords: true,
+        quoteAmount: true,
+      },
+    }),
   ]);
+
+  const leadMap = new Map<string, LeadEntry>();
+  for (const d of leadDocs) {
+    const email = (d.clientEmail || "").toLowerCase();
+    if (!email) continue;
+    const entry = leadMap.get(email) || {
+      email,
+      name: d.clientName,
+      phone: d.clientPhone,
+      docs: [],
+    };
+    entry.name ||= d.clientName;
+    entry.phone ||= d.clientPhone;
+    entry.docs.push({
+      fileName: d.fileName,
+      docType: d.documentType,
+      langPair: `${d.sourceLanguage || "?"}→${d.targetLanguage || "?"}`,
+      words: d.estimatedWords,
+      priceEur: d.quoteAmount == null ? null : Number(d.quoteAmount),
+    });
+    leadMap.set(email, entry);
+  }
 
   const langTally = new Map<string, number>();
   for (const a of recentAnalyses) {
@@ -145,6 +211,7 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
         docs: pm?.docs || [],
       };
     }),
+    leads: [...leadMap.values()],
   };
 }
 
@@ -185,6 +252,27 @@ export function buildDigestHtml(d: StaffDigest): string {
       </div>`
     : "";
 
+  const leadsHtml = d.leads.length
+    ? `<div style="margin:10px 0; padding:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
+        <p style="margin:0 0 6px; font-weight:600; color:#1e40af;">📇 ${d.leads.length} lead(s) del presupuesto automático (últimas ${d.windowHours} h) — sin pedido</p>
+        <ul style="margin:0; padding-left:18px; font-size:13px; color:#1e3a8a;">${d.leads
+          .map((l) => {
+            const builderUrl =
+              `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?customerEmail=${encodeURIComponent(l.email)}` +
+              (l.name ? `&customerName=${encodeURIComponent(l.name)}` : "") +
+              (l.phone ? `&customerPhone=${encodeURIComponent(l.phone)}` : "");
+            const docsLine = l.docs
+              .map((doc) => {
+                const ref = doc.priceEur != null ? ` · motor ${doc.priceEur.toFixed(2)} € (ref. interna)` : "";
+                return `${escapeHtml(doc.fileName)} (${escapeHtml(doc.langPair)}, ${doc.words ?? "?"} pal.)${ref}`;
+              })
+              .join(" · ");
+            return `<li style="margin-bottom:6px;"><strong>${escapeHtml(l.email)}</strong>${l.name ? ` · ${escapeHtml(l.name)}` : ""}${l.phone ? ` · ${escapeHtml(l.phone)}` : ""}<br/>${docsLine}<br/><a href="${builderUrl}" style="font-weight:600; color:#1e40af;">Montar presupuesto</a></li>`;
+          })
+          .join("")}</ul>
+      </div>`
+    : "";
+
   const failHtml = d.failedEmails.length
     ? `<div style="margin:10px 0; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;">
         <p style="margin:0 0 6px; font-weight:600; color:#991b1b;">⚠ ${d.failedEmails.length} email(s) fallaron en 24 h</p>
@@ -200,6 +288,8 @@ export function buildDigestHtml(d: StaffDigest): string {
     ${paidHtml}
 
     ${failHtml}
+
+    ${leadsHtml}
 
     ${lostHtml}
 

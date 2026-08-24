@@ -1007,18 +1007,42 @@ export async function sendProjectManagerFinanceUpdateEmail(data: {
 export async function sendLeadReminderEmail(data: {
   toEmail: string;
   clientName?: string | null;
+  // Personalización (auditoría 24-ago: el recordatorio genérico convirtió 0 de
+  // 46): qué subió y, si el idioma tiene precio público (fr), su precio.
+  // priceEur = NETO; se muestra con IVA. null = lo confirma el traductor.
+  docs?: { label: string; priceEur: number | null }[];
 }) {
   // La puerta captura el email pero NO el nombre → sin esto el saludo salía
   // "Hola ," a todos los leads que recupera este aviso.
   const greeting = data.clientName?.trim() ? `Hola ${data.clientName.trim()},` : "Hola,";
   const presupuestoUrl = `${SITE_BASE_URL}/presupuesto-instantaneo`;
   const subject = "Tu presupuesto de traduccion jurada sigue disponible";
+  const docs = data.docs || [];
+  const priced = docs.filter((d) => d.priceEur != null);
+  const unpriced = docs.filter((d) => d.priceEur == null);
+
+  const docsHtml = docs.length
+    ? `<ul style="margin:10px 0; padding-left:18px;">${docs
+        .map((d) => {
+          const price =
+            d.priceEur != null
+              ? ` — <strong>${(Math.round(d.priceEur * 1.21 * 100) / 100).toFixed(2)} € IVA incluido</strong>`
+              : " — precio a confirmar por tu traductor jurado";
+          return `<li style="margin-bottom:4px;">${d.label}${price}</li>`;
+        })
+        .join("")}</ul>`
+    : "";
 
   const html = `
     <h2>Tu presupuesto sigue disponible</h2>
     <p>${greeting}</p>
-    <p>Hace unos dias subiste un documento para obtener un presupuesto de traduccion jurada y no llegaste a completar el pedido.</p>
-    <p>Tu presupuesto sigue disponible. Puedes retomarlo en cualquier momento:</p>
+    <p>Hace unos dias subiste ${docs.length === 1 ? "un documento" : "tus documentos"} para una traduccion jurada y no llegaste a completar el pedido.</p>
+    ${docsHtml}
+    ${
+      unpriced.length
+        ? `<p>El precio ${priced.length ? "de los documentos pendientes " : ""}te lo confirma directamente tu traductor jurado nombrado por el MAEC — <strong>responde a este correo</strong> y te lo enviamos hoy mismo, o escribenos por <a href="https://wa.me/34951333614" style="color:#059669; font-weight:600;">WhatsApp</a>.</p>`
+        : `<p>Tu presupuesto sigue disponible. Puedes retomarlo en cualquier momento:</p>`
+    }
     <p><a href="${presupuestoUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Retomar presupuesto</a></p>
     <p style="font-size:13px; color:#6b7280;">Si ya no lo necesitas, simplemente ignora este correo.</p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>

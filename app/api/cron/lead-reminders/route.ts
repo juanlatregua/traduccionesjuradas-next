@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendLeadReminderEmail } from "@/lib/email";
+import { getLanguageName, isPublicAutoPriceable } from "@/lib/pricing-engine/languages";
 
 export const runtime = "nodejs";
 
@@ -68,6 +69,23 @@ export async function GET(req: Request) {
         // El nombre casi nunca está (la puerta no lo pide); si alguna fila del
         // grupo lo trae, se usa.
         clientName: group.find((l) => l.clientName)?.clientName ?? null,
+        // Personalización (24-ago): sus documentos, y el precio solo si el
+        // idioma tiene precio público (fr) — el resto lo confirma el traductor.
+        docs: group.map((l) => {
+          const src = (l.sourceLanguage || "").toLowerCase();
+          const tgt = (l.targetLanguage || "").toLowerCase();
+          const foreign = src && src !== "es" ? src : tgt;
+          const par =
+            src && tgt ? ` (${getLanguageName(src)} → ${getLanguageName(tgt)})` : "";
+          const words = l.estimatedWords ? `, ${l.estimatedWords} palabras` : "";
+          return {
+            label: `${l.documentType || l.fileName}${par}${words}`,
+            priceEur:
+              l.quoteAmount != null && foreign && isPublicAutoPriceable(foreign)
+                ? Number(l.quoteAmount)
+                : null,
+          };
+        }),
       });
       // Marcar TODAS las filas del grupo: si solo se marcase la enviada, las
       // hermanas seguirían siendo candidatas y reenviarían mañana (la ventana
