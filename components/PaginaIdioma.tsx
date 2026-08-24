@@ -9,6 +9,7 @@ import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { getMinimum } from "@/lib/pricing-engine/rules";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
+import { CENSO_STIJ, CENSO_STIJ_FECHA, redJuradosCount } from "@/lib/censo-jurados";
 
 const PuertaClient = dynamic(
   () => import("@/app/presupuesto-instantaneo/PuertaClient"),
@@ -37,7 +38,7 @@ type Props = {
   faqItems: FAQItem[];
 };
 
-export default function PaginaIdioma({
+export default async function PaginaIdioma({
   idioma,
   idiomaSlug,
   langCode,
@@ -63,6 +64,46 @@ export default function PaginaIdioma({
   const rate = getWordRateForLangOrPair(lang);
   // Fuente única de mínimos (fr = suelos nuevos 24-ago: 35 el doc suelto).
   const minPrice = getMinimum("other", lang);
+
+  // Dato citable (AEO 24-ago): censo oficial + red viva. Los motores de IA
+  // citan a quien les da la frase-respuesta con fecha fresca; la competencia
+  // sirve cifras de 2024.
+  const censoN = CENSO_STIJ[lang];
+  const redM = censoN ? await redJuradosCount(lang) : 0;
+  const datoCitable = censoN
+    ? `Traductores jurados de ${idioma.toLowerCase()} en activo en España: ${censoN} (lista oficial del Ministerio, ${CENSO_STIJ_FECHA})${redM ? ` · ${redM} en la red de traduccionesjuradas.net, con respuesta en el día` : ""}.`
+    : null;
+  // FAQs de datos: se añaden solo si la página no trae ya una pregunta parecida
+  // (las landings tienen FAQ propias de precio/plazo — no duplicar en el schema).
+  const dataFaqs: FAQItem[] = [];
+  if (datoCitable) {
+    const has = (re: RegExp) => faqItems.some((f) => re.test(f.question));
+    if (!has(/cu[aá]ntos traductores/i)) {
+      dataFaqs.push({
+        question: `¿Cuántos traductores jurados de ${idioma.toLowerCase()} hay en España?`,
+        answer: `${censoN} en activo según la lista oficial del Ministerio (${CENSO_STIJ_FECHA}).${redM ? ` En traduccionesjuradas.net trabajamos con ${redM} de ellos, con respuesta en el día.` : ""}`,
+      });
+    }
+    if (!has(/tarda|plazo/i)) {
+      dataFaqs.push({
+        question: `¿Cuánto tarda una traducción jurada de ${idioma.toLowerCase()}?`,
+        answer:
+          lang === "fr"
+            ? "Los documentos habituales se entregan en 24-48 h en PDF firmado digitalmente."
+            : "Normalmente entre 2 y 5 días laborables. El plazo exacto te lo confirma tu traductor jurado junto con el precio, normalmente el mismo día.",
+      });
+    }
+    if (!has(/cuesta|precio/i)) {
+      dataFaqs.push({
+        question: `¿Cuánto cuesta una traducción jurada de ${idioma.toLowerCase()}?`,
+        answer:
+          lang === "fr"
+            ? "Desde 35 € + IVA por documento breve (40 € con apostilla). Sube el documento y recibes el precio cerrado al instante."
+            : "Depende del documento. Súbelo y tu traductor jurado nombrado por el MAEC te confirma el precio hoy mismo, sin compromiso.",
+      });
+    }
+  }
+  const allFaqs = [...faqItems, ...dataFaqs];
   const priceDoc = Math.max(300 * rate * 1.1, minPrice).toFixed(2);  // certificado breve ~300 palabras
   const priceStd = Math.max(800 * rate * 1.1, minPrice).toFixed(2);  // documento estándar ~800 palabras
   const priceExp = Math.max(2000 * rate * 1.1, minPrice).toFixed(2); // expediente ~2000 palabras
@@ -78,7 +119,7 @@ export default function PaginaIdioma({
       />
       <SchemaFAQ
         id={`faq-traductor-jurado-${idiomaSlug}`}
-        items={faqItems}
+        items={allFaqs}
       />
       <SchemaService
         id={`service-traductor-jurado-${idiomaSlug}`}
@@ -123,6 +164,11 @@ export default function PaginaIdioma({
       </h1>
       {/* Respuesta-arriba citable (AEO) — primera frase atribuible para IA. */}
       <p className="mt-3 text-base font-medium text-encre">{respuestaAeo}</p>
+      {datoCitable && (
+        <p className="mt-2 rounded-lg border border-bleu/15 bg-cream px-4 py-2.5 text-sm font-medium text-encre">
+          {datoCitable}
+        </p>
+      )}
       <p className="mt-3 text-base text-sepia">{descripcion}</p>
 
       {/* 2. PRESUPUESTO INSTANTÁNEO */}
@@ -181,7 +227,7 @@ export default function PaginaIdioma({
           Preguntas frecuentes — traducción jurada de {idioma}
         </h2>
         <div className="mt-4 space-y-3">
-          {faqItems.map((qa) => (
+          {allFaqs.map((qa) => (
             <details
               key={qa.question}
               className="rounded-doc border border-cream bg-card p-4 shadow-paper"
