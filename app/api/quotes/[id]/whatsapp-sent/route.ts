@@ -31,7 +31,10 @@ export async function POST(req: Request, { params }: Params) {
   const text = String(body?.body || "").trim().slice(0, 4000);
 
   const draft = await prisma.messageLog.findFirst({
-    where: { quoteId: quote.id, channel: "WHATSAPP", status: "DRAFT" },
+    // Solo el borrador del pay-link: sin el type, el clic podía flippear un
+    // REMINDER legacy (y el cron daría el recordatorio por hecho) o una oferta
+    // TRANSLATOR_REVIEW_OFFER de capture-leads.
+    where: { quoteId: quote.id, channel: "WHATSAPP", type: "DRAFT_WHATSAPP", status: "DRAFT" },
     orderBy: { createdAt: "desc" },
     select: { id: true },
   });

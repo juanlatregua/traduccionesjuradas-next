@@ -196,11 +196,14 @@ export async function POST(req: Request) {
     // hacia el traductor, el cliente recibe UN aviso — email si es real, SMS/WhatsApp
     // si es lead solo-WhatsApp. Con await: sin él, la lambda se congela al responder
     // y la llamada muere sin salir (E2E 12-ago). Un fallo del acuse no tumba el POST.
-    await sendPriceRequestAckToClient({
-      name: body?.customerName,
-      email: body?.customerEmail,
-      phone: body?.customerPhone,
-    });
+    // Solo si el encargo es NUEVO: en un reintento (repetido) el cliente ya lo recibió.
+    if (!result.repetido) {
+      await sendPriceRequestAckToClient({
+        name: body?.customerName,
+        email: body?.customerEmail,
+        phone: body?.customerPhone,
+      });
+    }
 
     return NextResponse.json(
       { ok: true, ref, encargoId: result.encargoId, repetido: result.repetido },

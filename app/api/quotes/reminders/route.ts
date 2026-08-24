@@ -71,10 +71,6 @@ export async function GET(req: Request) {
   for (const quote of candidates) {
     if (quote.messageLogs.length > 0) continue;
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
-    const waText = buildWhatsAppReminderText({
-      name: quote.customerName || "cliente",
-      payUrl,
-    });
 
     // Lead de WhatsApp (email no entregable): recordatorio por SMS al número del
     // cliente (medida 1 de la auditoría del funnel 24-ago: ~2.600 € expirados sin
@@ -112,6 +108,10 @@ export async function GET(req: Request) {
       continue;
     }
 
+    const waText = buildWhatsAppReminderText({
+      name: quote.customerName || "cliente",
+      payUrl,
+    });
     const msg = buildReminderEmail({
       name: quote.customerName || "cliente",
       quoteNumber: quote.quoteNumber,

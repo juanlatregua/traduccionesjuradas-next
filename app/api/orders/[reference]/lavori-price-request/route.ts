@@ -181,8 +181,9 @@ export async function POST(req: Request, { params }: Params) {
 
     // Acuse al cliente (24-ago): solo en solicitud de PRECIO. En el carril paraTi
     // el precio ya está pactado fuera — "le indicaremos el precio en breve" sería
-    // mentira. Con await + catch interno: un fallo del acuse no tumba el POST.
-    if (!paraTi) {
+    // mentira. Solo si el encargo es NUEVO (un reintento repetido ya acusó).
+    // Con await + catch interno: un fallo del acuse no tumba el POST.
+    if (!paraTi && !result.repetido) {
       await sendPriceRequestAckToClient({
         name: order.clientName,
         email: order.clientEmail,
