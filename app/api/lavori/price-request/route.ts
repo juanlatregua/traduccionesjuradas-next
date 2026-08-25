@@ -8,8 +8,12 @@ import {
   buildPriceRequestPayload,
   sendLavoriSolicitud,
   resolveLavoriCandidatos,
+  checkDocForSobre,
+  describeDocForSobre,
+  SOBRE_MAX_FILE_BYTES,
   type BridgeDoc,
 } from "@/lib/lavori-bridge";
+import { put } from "@vercel/blob";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 
 export const runtime = "nodejs";
@@ -22,49 +26,61 @@ export const runtime = "nodejs";
    customerHint se queda en NUESTRA base para que el staff sepa de quién era. */
 
 const BLOB_HOST_RE = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//;
-const MAX_DOC_BYTES = 15 * 1024 * 1024;
 const MAX_DOCS = 10;
 
 type LeadDoc = { url: string; name?: string; pageStart?: number; pageEnd?: number };
 
-/** Descarga el blob y, si es un trozo de PDF multi-documento, extrae su rango. */
-async function packLeadDoc(doc: LeadDoc, index: number): Promise<BridgeDoc | null> {
-  const res = await fetch(doc.url, { signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) return null;
-  let buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length === 0 || buf.length > MAX_DOC_BYTES) return null;
+/** Nombre neutro: tipo documental si lo hay; jamás el fichero original del
+ * cliente (los adjuntos de WhatsApp suelen llevar su nombre). */
+function neutralName(doc: LeadDoc, index: number): string {
+  const safe = String(doc.name || "").replace(/[^\w.\- ]+/g, "_").trim().slice(0, 80);
+  return `${safe || `documento-${index + 1}`}${/\.pdf$/i.test(safe) ? "" : ".pdf"}`;
+}
 
-  const contentType = res.headers.get("content-type") || "application/pdf";
-  const isPdf = contentType.includes("pdf") || doc.url.toLowerCase().includes(".pdf");
-  // Sin pageStart NO hay rango: viaja el PDF ENTERO. El Math.max(1,...) anterior
-  // convertía la ausencia de rango en "página 1..1" y el sobre salía amputado
-  // (caso PT 14-ago: 1 de 8 páginas; lo cazó el propio traductor).
+/** Prepara un documento del lead para el sobre (por URL, adenda 25-ago-2026).
+ * Sin rango de páginas viaja la URL del blob original tal cual. Con rango (PDF
+ * multi-documento segmentado), el recorte se sube a nuestro Blob y viaja ESA URL.
+ * Sin pageStart NO hay rango: el Math.max(1,...) antiguo convertía la ausencia
+ * en "página 1..1" y el sobre salía amputado (caso PT 14-ago). */
+async function packLeadDoc(doc: LeadDoc, index: number): Promise<BridgeDoc | null> {
+  const nombre = neutralName(doc, index);
   const start = Math.round(Number(doc.pageStart) || 0);
   const end = Math.round(Number(doc.pageEnd) || start);
-  if (isPdf && start > 0) {
-    try {
-      const { PDFDocument } = require("pdf-lib");
-      const src = await PDFDocument.load(buf, { ignoreEncryption: true });
-      const total = src.getPageCount();
-      const from = Math.min(start, total);
-      const to = Math.min(Math.max(end, from), total);
-      if (!(from === 1 && to === total)) {
-        const out = await PDFDocument.create();
-        const indices = Array.from({ length: to - from + 1 }, (_, i) => from - 1 + i);
-        const copied = await out.copyPages(src, indices);
-        copied.forEach((p: any) => out.addPage(p));
-        buf = Buffer.from(await out.save());
-      }
-    } catch (err) {
-      console.error("[lavori-lead] pdf-lib error, se envía el original:", err);
-    }
+  const isPdf = doc.url.toLowerCase().includes(".pdf") || start > 0;
+
+  if (!(isPdf && start > 0)) {
+    const r = await checkDocForSobre({ url: doc.url, name: nombre, type: "application/pdf" });
+    return r.ok ? r.doc : null;
   }
 
-  // Nombre neutro: tipo documental si lo hay; jamás el fichero original del
-  // cliente (los adjuntos de WhatsApp suelen llevar su nombre).
-  const safe = String(doc.name || "").replace(/[^\w.\- ]+/g, "_").trim().slice(0, 80);
-  const nombre = `${safe || `documento-${index + 1}`}${/\.pdf$/i.test(safe) ? "" : ".pdf"}`;
-  return { nombre, contentType: isPdf ? "application/pdf" : contentType, base64: buf.toString("base64") };
+  const res = await fetch(doc.url, { signal: AbortSignal.timeout(30_000) });
+  if (!res.ok) return null;
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length === 0 || buf.length > SOBRE_MAX_FILE_BYTES) return null;
+  const entero = describeDocForSobre({ url: doc.url, name: nombre, type: "application/pdf", buf });
+  try {
+    const { PDFDocument } = require("pdf-lib");
+    const src = await PDFDocument.load(buf, { ignoreEncryption: true });
+    const total = src.getPageCount();
+    const from = Math.min(start, total);
+    const to = Math.min(Math.max(end, from), total);
+    if (from === 1 && to === total) return entero.ok ? entero.doc : null;
+    const out = await PDFDocument.create();
+    const indices = Array.from({ length: to - from + 1 }, (_, i) => from - 1 + i);
+    const copied = await out.copyPages(src, indices);
+    copied.forEach((p: any) => out.addPage(p));
+    const slice = Buffer.from(await out.save());
+    const key = createHash("sha256").update(`${doc.url}#${from}-${to}`).digest("hex").slice(0, 16);
+    const blob = await put(`lavori-sobre/${key}-${nombre}`, slice, {
+      access: "public",
+      contentType: "application/pdf",
+    });
+    const recorte = describeDocForSobre({ url: blob.url, name: nombre, type: "application/pdf", buf: slice });
+    return recorte.ok ? recorte.doc : null;
+  } catch (err) {
+    console.error("[lavori-lead] pdf-lib error, se envía el original:", err);
+    return entero.ok ? entero.doc : null;
+  }
 }
 
 export async function POST(req: Request) {

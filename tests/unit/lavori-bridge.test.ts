@@ -178,7 +178,7 @@ test("buildSolicitudPayload: forma completa del contrato", () => {
     amountCents: 7502,
     words: 520,
     dueDate: new Date("2026-08-14T10:00:00Z"),
-    documentos: [{ nombre: "doc.pdf", contentType: "application/pdf", base64: "QQ==" }],
+    documentos: [{ nombre: "doc.pdf", contentType: "application/pdf", url: "https://x.public.blob.vercel-storage.com/doc.pdf", bytes: 1, sha256: "a".repeat(64) }],
   });
   assert.equal(payload.ref, "TJ-20260810-TEST");
   assert.equal(payload.par, "DE>ES");
@@ -198,7 +198,7 @@ test("buildPriceRequestPayload: especificaciones viajan recortadas; fuera si vac
     reference: "LEAD-ABC123",
     route,
     words: null,
-    documentos: [{ nombre: "doc.pdf", contentType: "application/pdf", base64: "QQ==" }],
+    documentos: [{ nombre: "doc.pdf", contentType: "application/pdf", url: "https://x.public.blob.vercel-storage.com/doc.pdf", bytes: 1, sha256: "a".repeat(64) }],
   };
   const con = buildPriceRequestPayload({ ...base, especificaciones: `  apostilla íntegra ${"x".repeat(2100)}` });
   assert.equal(con.ref, "LEAD-ABC123-precio");

@@ -6,17 +6,24 @@
 // Regla madre: en el payload no viaja PII del cliente — la descripción se
 // construye aquí a partir de tipo/volumen, nunca del título del pedido.
 
+import { createHash } from "node:crypto";
+
 const LAVORI_ENDPOINT =
   process.env.LAVORI_BRIDGE_URL || "https://lavori.es/api/motor/solicitudes";
 
-// Tope del sobre: es POR POST, no por fichero. Medido contra prod por la sesión
-// de lavori (15-ago-2026): 4.403.150 bytes de cuerpo pasan, 4.505.550 dan 413 —
-// el límite de Vercel (4,5 MB). Descontando el JSON del sobre y el 33% que
-// infla el base64 quedan ~3 MB en crudo SUMANDO TODOS los documentos.
-// El 413 lo corta la plataforma con x-vercel-error: FUNCTION_PAYLOAD_TOO_LARGE:
-// su handler NO llega a ejecutarse, así que al otro lado no hay ni auditoría ni
-// aviso. Si nos pasamos, el envío se pierde para ellos: hay que no enviarlo.
+// Tope de un POST en Vercel: 4,5 MB (medido contra lavori prod 15-ago-2026:
+// 4.403.150 bytes pasan, 4.505.550 dan 413 de PLATAFORMA, sin que el handler
+// llegue a ejecutarse). Sigue vigente para lo que nos llega de lavori en base64
+// por /api/lavori/eventos (entregas, facturas).
 export const SOBRE_MAX_RAW_BYTES = 3_000_000;
+
+// Documentos del motor → lavori: desde el 25-ago-2026 viajan POR URL (adenda al
+// contrato de Fase 1), no en base64 dentro del POST. Incidente 26_3BBE08: seis
+// certificados escaneados (12,8 MB) tumbaron el puente antes de salir; orden de
+// Juan: "no puede haber errores de este tipo, los documentos son siempre
+// grandes". lavori descarga cada URL server-side y la sube a SU sobre; la URL
+// no se persiste allí. Único tope que queda: el de lavori por fichero (15 MB).
+export const SOBRE_MAX_FILE_BYTES = 15 * 1024 * 1024;
 
 // Candidatos por lengua (ids de miembro en lavori). v1: alemán → Morton
 // (decisión de Juan 10-ago-2026: "cuando llega algo de alemán va directamente a
@@ -358,7 +365,13 @@ export function bridgeDescription(opts: { docCount: number; words?: number | nul
   return `${docs}${palabras} — traducción jurada ${opts.par}. Encargo de la casa; el documento va en el sobre.`;
 }
 
-export type BridgeDoc = { nombre: string; contentType: string; base64: string };
+export type BridgeDoc = {
+  nombre: string;
+  contentType: string;
+  url: string; // lavori la descarga server-side y no la persiste
+  bytes: number; // lavori verifica tamaño y hash: si no cuadran, 422 y no crea nada
+  sha256: string;
+};
 
 export type SolicitudPayload = {
   ref: string;
@@ -428,52 +441,65 @@ export function buildSolicitudPayload(opts: {
   };
 }
 
-/** Descarga un documento del Blob del motor y lo empaqueta en base64 para el sobre. */
-export async function fetchDocAsBase64(doc: {
+/** Prepara un documento del Blob del motor para el sobre: se descarga aquí solo
+ * para medirlo y firmarlo (bytes + sha256); lavori lo vuelve a descargar por URL
+ * y rechaza el envío si no cuadra. Tope por fichero = el de lavori (15 MB). */
+export async function checkDocForSobre(doc: {
   url: string;
   name: string;
   type: string;
-}): Promise<BridgeDoc | null> {
-  const res = await fetch(doc.url, { signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) return null;
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) return null;
+}): Promise<{ ok: true; doc: BridgeDoc } | { ok: false; error: string }> {
+  let buf: Buffer;
+  try {
+    const res = await fetch(doc.url, { signal: AbortSignal.timeout(30_000) });
+    if (!res.ok) return { ok: false, error: `"${doc.name}": el documento no está disponible (${res.status})` };
+    buf = Buffer.from(await res.arrayBuffer());
+  } catch {
+    return { ok: false, error: `"${doc.name}": no se pudo descargar del Blob` };
+  }
+  return describeDocForSobre({ url: doc.url, name: doc.name, type: doc.type, buf });
+}
+
+/** Firma unos bytes ya descargados para el sobre (mismo tope que checkDocForSobre). */
+export function describeDocForSobre(doc: {
+  url: string;
+  name: string;
+  type: string;
+  buf: Buffer;
+}): { ok: true; doc: BridgeDoc } | { ok: false; error: string } {
+  if (doc.buf.length === 0) return { ok: false, error: `"${doc.name}": el documento llegó vacío` };
+  if (doc.buf.length > SOBRE_MAX_FILE_BYTES) {
+    return {
+      ok: false,
+      error: `"${doc.name}" pesa ${(doc.buf.length / 1e6).toFixed(1)} MB y lavori admite ${Math.round(SOBRE_MAX_FILE_BYTES / 1e6)} MB por fichero`,
+    };
+  }
   return {
-    // Nombre neutro si el original pudiera llevar el del cliente lo decide quien
-    // llama; aquí se respeta el que llega.
-    nombre: doc.name,
-    contentType: doc.type || "application/pdf",
-    base64: buf.toString("base64"),
+    ok: true,
+    doc: {
+      nombre: doc.name,
+      contentType: doc.type || "application/pdf",
+      url: doc.url,
+      bytes: doc.buf.length,
+      sha256: createHash("sha256").update(doc.buf).digest("hex"),
+    },
   };
 }
 
-/* Empaqueta TODOS los documentos de una solicitud dentro del presupuesto del
-   sobre. Carril único: antes cada llamador repetía el bucle y solo miraba el
-   tamaño de cada fichero por separado, así que tres PDF de 2 MB pasaban la
-   guarda y se estrellaban juntos contra el 413.
-   Si no caben NO se manda un expediente incompleto: el traductor cotizaría a
-   ciegas. Se devuelve error y el llamador avisa a staff para comprimir. */
+/* Prepara TODOS los documentos de una solicitud para el sobre. Todo o nada: si
+   uno no es descargable o pasa del tope por fichero NO se manda un expediente
+   incompleto (el traductor cotizaría a ciegas); el llamador avisa a staff. */
 export async function packDocsForSobre(
   docs: { url: string; name: string; type: string }[],
 ): Promise<{ ok: true; documentos: BridgeDoc[] } | { ok: false; error: string }> {
   const documentos: BridgeDoc[] = [];
-  let rawBytes = 0;
-
   for (const doc of docs) {
-    const empaquetado = await fetchDocAsBase64(doc);
-    if (!empaquetado) continue;
-    rawBytes += Math.floor((empaquetado.base64.length * 3) / 4);
-    if (rawBytes > SOBRE_MAX_RAW_BYTES) {
-      return {
-        ok: false,
-        error: `los documentos suman más de ${Math.round(SOBRE_MAX_RAW_BYTES / 1e6)} MB y el sobre de lavori no los admite en un solo envío — comprimir los PDF antes de reenviar`,
-      };
-    }
-    documentos.push(empaquetado);
+    const r = await checkDocForSobre(doc);
+    if (!r.ok) return r;
+    documentos.push(r.doc);
   }
-
   if (documentos.length === 0) {
-    return { ok: false, error: "no se pudo descargar ningún documento del pedido" };
+    return { ok: false, error: "el pedido no tiene documentos descargables" };
   }
   return { ok: true, documentos };
 }
