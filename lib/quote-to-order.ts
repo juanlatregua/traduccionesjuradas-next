@@ -143,7 +143,10 @@ export async function runQuoteToOrderBridge(input: {
     // si agota reintentos persiste en FailedEmail (lo reporta el digest diario).
     const langPair =
       [quote.sourceLang, quote.targetLang].filter(Boolean).join("→") || undefined;
-    sendEmailWithRetry(() =>
+    // CON await (25-ago-2026, caso 26_34F612): en la lambda del webhook de Stripe
+    // el fire-and-forget moría al responder y el SMS «PAGO …» nunca salía; Juan se
+    // enteró del pedido por lavori. Lección del E2E del 12-ago, misma causa.
+    await sendEmailWithRetry(() =>
       sendNewOrderStaffEmail({
         reference: order.reference,
         title: `Presupuesto ${quote.quoteNumber}`,
@@ -153,7 +156,7 @@ export async function runQuoteToOrderBridge(input: {
       })
     ).catch((e) => console.error("[quote-to-order] staff new-order email failed", e));
 
-    void import("@/lib/sms")
+    await import("@/lib/sms")
       .then(({ sendStaffNewOrderSMS }) =>
         sendStaffNewOrderSMS({
           reference: order.reference,

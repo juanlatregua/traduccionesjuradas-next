@@ -123,13 +123,43 @@ export async function getOrderPhone(orderId: string): Promise<string | null> {
  */
 async function sendStaffSMS(body: string, context: string): Promise<void> {
   const staff = process.env.STAFF_PHONE;
+  let res: { ok: boolean; id?: string; error?: string };
   if (!staff) {
     console.error(`[staff-sms] STAFF_PHONE no configurado — aviso "${context}" no enviado`);
-    return;
+    res = { ok: false, error: "STAFF_PHONE no configurado" };
+  } else {
+    res = await sendSMS({ to: formatPhoneSpain(staff), body, channel: "sms" }).catch((e) => ({
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+    }));
   }
-  const res = await sendSMS({ to: formatPhoneSpain(staff), body, channel: "sms" });
+  if (!res.ok) console.error(`[staff-sms] fallo enviando aviso "${context}"`, res.error);
+
+  // Rastro + red (25-ago-2026, caso 26_34F612: el SMS de PAGO se perdió en silencio
+  // y Juan se enteró del pedido por lavori). Si el contexto nombra un pedido, el
+  // intento queda en su ficha con SID/estado; y si Twilio falla, el mismo texto
+  // va por email a staff — dos transportes, nunca una pérdida muda.
+  const ref = context.match(/\b(\d{2}_[A-Z0-9]{6}|TJ-\d{8}-[A-Z0-9]+)\b/)?.[1];
+  if (ref) {
+    await prisma.orderEvent
+      .create({
+        data: {
+          order: { connect: { reference: ref } },
+          type: res.ok ? "staff.sms_sent" : "staff.sms_failed",
+          message: `SMS a staff ${res.ok ? "enviado" : "FALLIDO"} (${context})${res.id ? ` · SID ${res.id}` : ""}${res.error ? ` · ${String(res.error).slice(0, 160)}` : ""}`,
+          payload: { context, ok: res.ok, sid: res.id ?? null, error: res.error ?? null, body },
+        },
+      })
+      .catch(() => {});
+  }
   if (!res.ok) {
-    console.error(`[staff-sms] fallo enviando aviso "${context}"`, res.error);
+    const { sendMail } = await import("@/lib/azure-mail");
+    await sendMail({
+      to: process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net",
+      subject: `[SMS no enviado] ${body.slice(0, 80)}`,
+      text: `${body}\n\nEl SMS a staff no salió (${context}): ${res.error || "sin detalle"}.`,
+      html: `<p>${body}</p><p>El SMS a staff no salió (${context}): ${res.error || "sin detalle"}.</p>`,
+    }).catch((e) => console.error("[staff-sms] fallback email failed", e));
   }
 }
 

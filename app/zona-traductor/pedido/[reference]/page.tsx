@@ -321,6 +321,14 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
+              {/* Carpeta del expediente para el Mac / TraduCAT (Juan, 25-ago-2026) */}
+              <a
+                href={`/api/orders/${encodeURIComponent(order.reference)}/expediente`}
+                className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-cyan-300 hover:bg-cyan-500/20"
+                title="ZIP con la carpeta del expediente: originales, traducción, expediente.md y expediente.json"
+              >
+                ⤓ Descargar expediente
+              </a>
               <span className="rounded-md bg-slate-700/50 px-2 py-1 text-slate-100">
                 {getWorkflowStateLabel(workflowState)}
               </span>
