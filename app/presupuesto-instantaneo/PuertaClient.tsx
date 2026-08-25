@@ -73,6 +73,7 @@ export default function PuertaClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [requestState, setRequestState] = useState<"idle" | "sending" | "done">("idle");
+  const [requestDoneMsg, setRequestDoneMsg] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -242,6 +243,15 @@ export default function PuertaClient({
         setRequestState("idle");
         setCheckoutError(data.error || t.checkoutErrorDefault);
         return;
+      }
+      if (data.lavori?.sent && data.lavori.lang) {
+        let langName = String(data.lavori.langName || data.lavori.lang);
+        try {
+          langName = new Intl.DisplayNames([lang], { type: "language" }).of(data.lavori.lang) || langName;
+        } catch {}
+        setRequestDoneMsg(t.requestQuoteDoneLavori.replace("{lang}", langName));
+      } else {
+        setRequestDoneMsg(null);
       }
       setRequestState("done");
     } catch {
@@ -556,7 +566,7 @@ export default function PuertaClient({
               requestState === "done" ? (
                 <p className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-vert/30 bg-vert/5 px-5 py-3 text-center text-sm font-medium text-vert">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  {t.requestQuoteDone}
+                  {requestDoneMsg || t.requestQuoteDone}
                 </p>
               ) : (
                 <button
@@ -584,7 +594,7 @@ export default function PuertaClient({
                   (requestState === "done" ? (
                     <p className="mt-2 flex items-center justify-center gap-2 text-center text-xs font-medium text-vert">
                       <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                      {t.requestQuoteDone}
+                      {requestDoneMsg || t.requestQuoteDone}
                     </p>
                   ) : (
                     <button
@@ -628,7 +638,7 @@ export default function PuertaClient({
           {sessionToken && (
             <div className="mx-auto mt-5 max-w-md rounded-lg border border-bleu/15 bg-cream/40 p-4 text-left">
               {requestState === "done" ? (
-                <p className="text-sm font-medium text-vert">{t.requestQuoteDone}</p>
+                <p className="text-sm font-medium text-vert">{requestDoneMsg || t.requestQuoteDone}</p>
               ) : (
                 <>
                   <p className="text-sm text-encre">{t.errorAskHuman}</p>

@@ -67,6 +67,7 @@ export type PuertaStrings = {
   requestQuoteCta: string;
   requestQuoteSending: string;
   requestQuoteDone: string;
+  requestQuoteDoneLavori: string;
   preferHuman: string;
   orientativoSuffix: string;
   lowConfNote: string;
@@ -158,6 +159,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     requestQuoteCta: "Solicitar presupuesto — te respondemos hoy",
     requestQuoteSending: "Enviando solicitud…",
     requestQuoteDone: "Solicitud recibida. Tu traductor jurado te confirmará el precio en breve.",
+    requestQuoteDoneLavori: "Tu documento ya está con un traductor jurado de {lang} del colectivo. Te enviamos el presupuesto en breve, normalmente en el día.",
     preferHuman: "Prefiero que me lo confirme el traductor",
     orientativoSuffix: "(orientativo)",
     lowConfNote: "No hemos podido leer el documento con seguridad. Confirmaremos el precio final antes de empezar.",
@@ -226,6 +228,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     requestQuoteCta: "Demander un devis — réponse aujourd'hui",
     requestQuoteSending: "Envoi de la demande…",
     requestQuoteDone: "Demande reçue. Votre traducteur assermenté vous confirmera le prix très prochainement.",
+    requestQuoteDoneLavori: "Votre document est déjà entre les mains d'un traducteur assermenté ({lang}) du collectif. Vous recevrez le devis très prochainement, en général dans la journée.",
     preferHuman: "Je préfère une confirmation du traducteur",
     orientativoSuffix: "(indicatif)",
     lowConfNote: "Nous n'avons pas pu lire le document avec certitude. Nous confirmerons le prix final avant de commencer.",
@@ -294,6 +297,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     requestQuoteCta: "Request a quote — we reply today",
     requestQuoteSending: "Sending request…",
     requestQuoteDone: "Request received. Your sworn translator will confirm the price shortly.",
+    requestQuoteDoneLavori: "Your document is already with a sworn {lang} translator from the collective. We will send you the quote shortly, usually the same day.",
     preferHuman: "I'd rather have the translator confirm it",
     orientativoSuffix: "(estimate)",
     lowConfNote: "We couldn't read the document with certainty. We'll confirm the final price before starting.",
@@ -362,6 +366,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     requestQuoteCta: "Angebot anfordern — Antwort noch heute",
     requestQuoteSending: "Anfrage wird gesendet…",
     requestQuoteDone: "Anfrage erhalten. Ihr vereidigter Übersetzer bestätigt Ihnen den Preis in Kürze.",
+    requestQuoteDoneLavori: "Ihr Dokument liegt bereits einem vereidigten Übersetzer ({lang}) des Kollektivs vor. Sie erhalten das Angebot in Kürze, in der Regel noch am selben Tag.",
     preferHuman: "Ich möchte lieber die Bestätigung des Übersetzers",
     orientativoSuffix: "(Richtwert)",
     lowConfNote: "Wir konnten das Dokument nicht sicher lesen. Wir bestätigen den Endpreis vor Beginn.",
@@ -430,6 +435,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     requestQuoteCta: "Pedir orçamento — respondemos hoje",
     requestQuoteSending: "A enviar o pedido…",
     requestQuoteDone: "Pedido recebido. O seu tradutor ajuramentado confirmará o preço em breve.",
+    requestQuoteDoneLavori: "O seu documento já está com um tradutor ajuramentado de {lang} do coletivo. Enviamos-lhe o orçamento em breve, normalmente no próprio dia.",
     preferHuman: "Prefiro a confirmação do tradutor",
     orientativoSuffix: "(indicativo)",
     lowConfNote: "Não conseguimos ler o documento com segurança. Confirmaremos o preço final antes de começar.",

@@ -114,12 +114,16 @@ export async function POST(req: Request) {
       ? carril.route.candidatos.map((id) => carril.cartera.find((m) => m.id === id)?.nombre || id).join(", ")
       : "";
     const leadLang = lead?.sourceLang === "es" ? lead?.targetLang : lead?.sourceLang;
-    const autoLangs = new Set(
-      String(process.env.LAVORI_LEAD_AUTO_LANGS || "").toLowerCase().split(",").map((x) => x.trim()).filter(Boolean)
-    );
+    // Aclaración de Juan (25-ago 20:00): el cliente no-FR debe ver «tu documento ya
+    // está con un traductor jurado de X» — la solicitud sale SOLA en cuanto pide
+    // presupuesto. LAVORI_LEAD_AUTO_LANGS restringe por lengua ("de,he") o apaga ("none");
+    // sin definir = todas las lenguas con carril.
+    const autoRaw = String(process.env.LAVORI_LEAD_AUTO_LANGS || "").toLowerCase().trim();
+    const autoLangs = new Set(autoRaw ? autoRaw.split(",").map((x) => x.trim()).filter(Boolean) : leadLang ? [leadLang] : []);
     const resumen = `${(lead?.tipos || []).slice(0, 3).join(" + ") || `${docs.length} doc`}${lead?.words ? ` · ${lead.words} pal.` : ""}`;
     let lavoriEmail = "";
     let lavoriSms = "";
+    let lavoriSent: { lang: string; langName: string } | null = null;
     if (carril && lead && leadLang && autoLangs.has(leadLang)) {
       const auto = await sendLeadPriceRequest({
         docs: lead.docs,
@@ -131,6 +135,7 @@ export async function POST(req: Request) {
         createdBy: "puerta-auto",
       }).catch(() => null);
       if (auto?.ok) {
+        lavoriSent = { lang: leadLang, langName: getLanguageName(leadLang) };
         lavoriEmail = `✓ Solicitud de precio ENVIADA automáticamente a ${auto.nombres.join(", ")} en lavori (ref ${auto.ref}). Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
         lavoriSms = `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
       } else {
@@ -170,9 +175,10 @@ export async function POST(req: Request) {
       email: contactEmail,
       phone: contactPhone,
       locale,
+      translatorLangName: lavoriSent?.langName ?? null,
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, lavori: lavoriSent ? { sent: true, ...lavoriSent } : { sent: false } });
   } catch (err: any) {
     console.error("[puerta:request-quote] error", err?.message || err);
     return NextResponse.json({ ok: false, error: "No se pudo enviar la solicitud." }, { status: 500 });

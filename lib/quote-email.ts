@@ -73,8 +73,11 @@ export async function sendPriceRequestAckToClient(opts: {
   email?: string | null;
   phone?: string | null;
   locale?: string | null;
+  /** Lengua del jurado que ya tiene el documento (carril lavori disparado): "alemán" */
+  translatorLangName?: string | null;
 }): Promise<{ channel: "email" | "sms" | null }> {
   const lang: SmsLang = opts.locale === "fr" ? "fr" : "es";
+  const tl = (opts.translatorLangName || "").trim().toLowerCase();
   const email = (opts.email || "").trim();
   const phone = (opts.phone || "").trim() || phoneFromPlaceholder(email);
   try {
@@ -92,11 +95,11 @@ export async function sendPriceRequestAckToClient(opts: {
       const body =
         lang === "fr"
           ? `Bonjour${name ? ` ${name}` : ""},\n` +
-            "Nous avons bien reçu votre demande de devis : un traducteur assermenté nommé par le MAEC étudie vos documents et prépare sa proposition.\n" +
+            `Nous avons bien reçu votre demande de devis : ${tl ? `votre document est déjà entre les mains d'un traducteur assermenté (${tl}) nommé par le MAEC, qui` : "un traducteur assermenté nommé par le MAEC"} étudie vos documents et prépare sa proposition.\n` +
             "Vous recevrez très prochainement le devis avec le prix et le délai. Vous n'avez rien d'autre à faire.\n" +
             "Merci de votre confiance."
           : `Hola${name ? ` ${name}` : ""},\n` +
-            "Hemos recibido tu solicitud de presupuesto y ya está en marcha: un traductor jurado nombrado por el MAEC está estudiando tus documentos y preparando su propuesta.\n" +
+            `Hemos recibido tu solicitud de presupuesto y ya está en marcha: ${tl ? `tu documento ya está con un traductor jurado de ${tl} del colectivo, nombrado por el MAEC, que` : "un traductor jurado nombrado por el MAEC"} está estudiando tus documentos y preparando su propuesta.\n` +
             "En breve recibirás el presupuesto con el precio y el plazo. No tienes que hacer nada más.\n" +
             "Gracias por tu confianza.";
       await sendMail({
