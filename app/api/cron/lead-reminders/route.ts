@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendLeadReminderEmail } from "@/lib/email";
 import { getLanguageName, isPublicAutoPriceable } from "@/lib/pricing-engine/languages";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { sendMail, isPlaceholderEmail } from "@/lib/azure-mail";
+import { renderSimpleEmailHtml } from "@/lib/quote-messages";
+import { sendSMS, sendStaffAlertSMS, formatPhoneSpain } from "@/lib/sms";
+
 
 export const runtime = "nodejs";
 
@@ -101,7 +106,58 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, scanned: candidates.length, leads: byEmail.size, sent, failed });
+  // Solicitudes de precio nacidas de la PUERTA (carril automático 25-ago) que a las
+  // 24 h siguen SIN cifra del jurado: segundo mensaje honesto al cliente + aviso
+  // rojo a Juan (SMS + email con enlace al builder). Una sola vez por lead.
+  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  const paradas = await prisma.lavoriPriceRequest.findMany({
+    where: {
+      status: "SENT",
+      createdBy: { in: ["puerta-auto", "one-tap"] },
+      createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000), gt: new Date(now.getTime() - 72 * 60 * 60 * 1000) },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+  });
+  let paradasAvisadas = 0;
+  for (const lpr of paradas) {
+    const gate = await checkRateLimit({ key: `lead-24h:${lpr.ref}`, limit: 1, windowMs: 7 * 24 * 60 * 60 * 1000 });
+    if (!gate.ok) continue;
+    const parts = (lpr.customerHint || "").split(" · ").map((x) => x.trim()).filter(Boolean);
+    const email = parts.find((x) => x.includes("@") && !isPlaceholderEmail(x)) || null;
+    const phone = parts.find((x) => /\+?\d[\d\s]{6,}/.test(x)) || null;
+    const name = parts.find((x) => x !== email && x !== phone) || "";
+    const horas = Math.round((now.getTime() - lpr.createdAt.getTime()) / 3600000);
+    const builder = `${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(lpr.ref)}`;
+    if (email) {
+      await sendMail({
+        to: email,
+        subject: "Seguimos con tu presupuesto de traducción jurada",
+        text: `Hola${name ? ` ${name}` : ""},\nseguimos con tu presupuesto: el traductor jurado que tiene tus documentos aún no nos ha pasado su cifra. Te lo enviamos mañana como muy tarde; si tienes prisa, responde a este email o escríbenos por WhatsApp al 951 333 614.\nJuan Silva Moreno · traductor jurado nº 3850 · traduccionesjuradas.net`,
+        html: renderSimpleEmailHtml(`Hola${name ? ` ${name}` : ""},\nseguimos con tu presupuesto: el traductor jurado que tiene tus documentos aún no nos ha pasado su cifra. Te lo enviamos mañana como muy tarde; si tienes prisa, responde a este email o escríbenos por WhatsApp al 951 333 614.\nJuan Silva Moreno · traductor jurado nº 3850 · traduccionesjuradas.net`),
+      }).catch((err) => console.error("[lead-24h] email cliente fallo:", err));
+    } else if (phone) {
+      await sendSMS({
+        to: formatPhoneSpain(phone),
+        body: "Seguimos con su presupuesto de traduccion jurada: se lo enviamos manana como muy tarde. Si tiene prisa, WhatsApp 951 333 614. Juan Silva Moreno, traductor jurado 3850.",
+        channel: "sms",
+      }).catch((err) => console.error("[lead-24h] sms cliente fallo:", err));
+    }
+    await sendMail({
+      to: process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net",
+      subject: `🔴 Lead ${lpr.par} sin precio ${horas} h (${lpr.ref})`,
+      text: [
+        `La solicitud de precio ${lpr.ref} (${lpr.par}, ${lpr.docsCount} doc${lpr.words ? `, ${lpr.words} palabras` : ""}) lleva ${horas} h sin cifra del jurado.`,
+        `Cliente: ${lpr.customerHint || "(sin datos)"} — ya le hemos dicho que lo recibe mañana como muy tarde.`,
+        `Opciones: tarificarlo tú ahora en el builder (${builder}) o insistir al jurado en lavori.`,
+      ].join("\n"),
+      html: renderSimpleEmailHtml(`La solicitud de precio ${lpr.ref} (${lpr.par}, ${lpr.docsCount} doc${lpr.words ? `, ${lpr.words} palabras` : ""}) lleva ${horas} h sin cifra del jurado.\nCliente: ${lpr.customerHint || "(sin datos)"} — ya le hemos dicho que lo recibe mañana como muy tarde.\nOpciones: tarificarlo tú ahora en el builder (${builder}) o insistir al jurado en lavori.`),
+    }).catch((err) => console.error("[lead-24h] email staff fallo:", err));
+    await sendStaffAlertSMS(`ROJO: lead ${lpr.par} ${horas}h sin precio del jurado (${lpr.ref}). Tarificar: ${builder}`, `lead_24h ${lpr.ref}`).catch(() => {});
+    paradasAvisadas += 1;
+  }
+
+  return NextResponse.json({ ok: true, scanned: candidates.length, leads: byEmail.size, sent, failed, leads24h: paradas.length, leads24hAvisados: paradasAvisadas });
 }
 
 export const POST = GET;

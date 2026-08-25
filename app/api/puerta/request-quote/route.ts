@@ -147,7 +147,7 @@ export async function POST(req: Request) {
       lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
     } else {
       lavoriEmail = `Sin carril en lavori para este par${leadLang ? ` (${leadLang.toUpperCase()})` : ""}: presupuestar a mano.`;
-      lavoriSms = "Sin carril lavori. Mira el email.";
+      lavoriSms = `Sin carril lavori. Montar presupuesto (docs dentro): ${builderUrl}`;
     }
 
     // Aviso a staff — dos transportes independientes; con await (lambda).

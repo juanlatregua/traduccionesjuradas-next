@@ -48,14 +48,14 @@ export function smsAcuseSolicitudPrecio(lang: SmsLang = "es"): string {
   if (lang === "fr") {
     return (
       "Merci pour votre demande. Vos documents seront traités directement par un " +
-      "traducteur assermenté nommé par le MAEC et nous vous indiquerons le prix " +
-      "très prochainement. Merci de votre confiance.\n— Traducciones Juradas · traduccionesjuradas.net"
+      "traducteur assermenté nommé par le MAEC ; Juan Silva Moreno (nº 3850) vous enverra le devis " +
+      "en général dans la journée. Merci de votre confiance.\n— Traducciones Juradas · traduccionesjuradas.net"
     );
   }
   return (
     "Gracias por su solicitud. Sus documentos van a ser tratados directamente " +
-    "por un traductor jurado nombrado por el MAEC y le indicaremos el precio " +
-    "en breve. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net"
+    "por un traductor jurado nombrado por el MAEC; Juan Silva Moreno (nº 3850) le enviará el " +
+    "presupuesto normalmente en el día. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net"
   );
 }
 
