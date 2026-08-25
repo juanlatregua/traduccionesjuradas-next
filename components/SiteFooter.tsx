@@ -94,6 +94,7 @@ export default function SiteFooter() {
             <div className="flex flex-col gap-2 text-sm text-cream/85">
               <a href="https://www.traduccionesjuradas.net" className="hover:text-or transition-colors">traduccionesjuradas.net</a>
               <a href="https://www.holabonjour.es" className="hover:text-or transition-colors">holabonjour.es</a>
+              <a href="https://lavori.es/quienes-somos" className="hover:text-or transition-colors">LAVORI · el tablón de los traductores jurados</a>
             </div>
           </div>
         </div>

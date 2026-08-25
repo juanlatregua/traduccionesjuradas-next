@@ -135,6 +135,12 @@ export default function ComoFuncionaPage() {
               Revisión final antes de la entrega para evitar errores y
               discrepancias entre el original y la traducción.
             </li>
+            <li>
+              El francés lo traduce Juan Silva Moreno (MAEC nº 3850). Los demás
+              idiomas los realiza un jurado del colectivo{" "}
+              <a href="https://lavori.es/quienes-somos" className="underline hover:text-bleu">LAVORI</a>,
+              el tablón de los traductores jurados: el que firma es el que traduce.
+            </li>
           </ul>
         </div>
 
