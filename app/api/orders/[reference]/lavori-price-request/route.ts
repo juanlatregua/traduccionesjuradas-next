@@ -9,11 +9,11 @@ import {
   fetchLavoriCartera,
   buildPriceRequestPayload,
   bridgeDescription,
-  packDocsForSobre,
   sendLavoriSolicitud,
   resolveLavoriCandidatos,
   lavoriMemberName,
 } from "@/lib/lavori-bridge";
+import { packDocsForSobre } from "@/lib/lavori-sobre";
 
 export const runtime = "nodejs";
 

@@ -8,11 +8,10 @@ import {
   buildPriceRequestPayload,
   sendLavoriSolicitud,
   resolveLavoriCandidatos,
-  checkDocForSobre,
-  describeDocForSobre,
   SOBRE_MAX_FILE_BYTES,
   type BridgeDoc,
 } from "@/lib/lavori-bridge";
+import { checkDocForSobre, describeDocForSobre } from "@/lib/lavori-sobre";
 import { put } from "@vercel/blob";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 

@@ -13,11 +13,11 @@ import { getDocumentsFromOrder } from "@/lib/collaborators";
 import {
   lavoriRouteFromPair,
   buildSolicitudPayload,
-  packDocsForSobre,
   sendLavoriSolicitud,
   sendLavoriPrecioAceptado,
   type LavoriRoute,
 } from "@/lib/lavori-bridge";
+import { packDocsForSobre } from "@/lib/lavori-sobre";
 import { sendMail } from "@/lib/azure-mail";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 
