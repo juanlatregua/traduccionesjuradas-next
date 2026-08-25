@@ -23,6 +23,7 @@ export default async function ZonaTraductorPresupuestoPage({
   searchParams: {
     exp?: string;
     lead?: string;
+    session?: string;
     inbox?: string;
     customerEmail?: string;
     customerName?: string;
@@ -95,9 +96,16 @@ export default async function ZonaTraductorPresupuestoPage({
     builderInitial.customerPhone ||= inboundEmail.fromPhone || undefined;
   }
 
-  if (expRef) {
+  // Lead de la PUERTA (25-ago-2026): ?session=<token> o una solicitud lavori nacida
+  // de la puerta (expedienteRef "puerta:<token>") → los documentos ya subidos por
+  // el cliente entran en el builder sin volver a soltar el PDF.
+  const puertaSession =
+    s(searchParams.session).trim().slice(0, 80) ||
+    (lead?.expedienteRef?.startsWith("puerta:") ? lead.expedienteRef.slice("puerta:".length) : "");
+  const sessionKey = expRef ? `exp:${expRef}` : puertaSession || null;
+  if (sessionKey) {
     const rows = await prisma.documentAnalysis.findMany({
-      where: { sessionToken: `exp:${expRef}` },
+      where: { sessionToken: sessionKey },
       orderBy: { createdAt: "asc" },
       select: { id: true, fileName: true, fileUrl: true, clientName: true, clientEmail: true, clientPhone: true },
     });

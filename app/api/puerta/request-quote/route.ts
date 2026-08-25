@@ -14,6 +14,8 @@ import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { getLanguageName } from "@/lib/pricing-engine/languages";
+import { leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
+import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 
 export const runtime = "nodejs";
 
@@ -92,10 +94,56 @@ export async function POST(req: Request) {
       const ref = d.quoteAmount ? ` · motor (referencia interna): ${Number(d.quoteAmount).toFixed(2)} € netos` : "";
       return `· ${d.fileName} — ${d.documentType || "documento"} · ${par} · ${d.estimatedWords ?? "?"} palabras / ${d.pageCount ?? "?"} págs${ref}`;
     });
+    // El builder importa los documentos de la puerta por sesión (25-ago-2026):
+    // ya no hay que volver a soltar el PDF.
     const builderUrl =
-      `${baseUrl}/zona-traductor/presupuesto?customerEmail=${encodeURIComponent(contactEmail)}` +
+      `${baseUrl}/zona-traductor/presupuesto?session=${encodeURIComponent(token)}` +
+      `&customerEmail=${encodeURIComponent(contactEmail)}` +
       (docs[0]?.clientName ? `&customerName=${encodeURIComponent(docs[0].clientName)}` : "") +
       (contactPhone ? `&customerPhone=${encodeURIComponent(contactPhone)}` : "");
+
+    // Carril directo a lavori (orden de Juan 25-ago: «un carril y un aviso directo»):
+    // si el par tiene jurados con canal en el tablón, el aviso lleva un enlace de
+    // UN TOQUE que dispara la solicitud de precio con estos mismos documentos.
+    // Con LAVORI_LEAD_AUTO_LANGS (p. ej. "de,he") la solicitud sale sola al llegar
+    // el lead y el aviso ya dice a quién fue. Sin PII en el sobre (regla madre).
+    const lead = await leadFromPuertaSession(token);
+    const resolved = lead?.sourceLang ? await resolveLeadRoute(lead.sourceLang, lead.targetLang).catch(() => null) : null;
+    const carril = resolved && resolved.route.candidatos.length > 0 ? resolved : null;
+    const quien = carril
+      ? carril.route.candidatos.map((id) => carril.cartera.find((m) => m.id === id)?.nombre || id).join(", ")
+      : "";
+    const leadLang = lead?.sourceLang === "es" ? lead?.targetLang : lead?.sourceLang;
+    const autoLangs = new Set(
+      String(process.env.LAVORI_LEAD_AUTO_LANGS || "").toLowerCase().split(",").map((x) => x.trim()).filter(Boolean)
+    );
+    const resumen = `${(lead?.tipos || []).slice(0, 3).join(" + ") || `${docs.length} doc`}${lead?.words ? ` · ${lead.words} pal.` : ""}`;
+    let lavoriEmail = "";
+    let lavoriSms = "";
+    if (carril && lead && leadLang && autoLangs.has(leadLang)) {
+      const auto = await sendLeadPriceRequest({
+        docs: lead.docs,
+        sourceLang: lead.sourceLang!,
+        targetLang: lead.targetLang,
+        words: lead.words,
+        expedienteRef: `puerta:${token}`,
+        customerHint: [lead.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
+        createdBy: "puerta-auto",
+      }).catch(() => null);
+      if (auto?.ok) {
+        lavoriEmail = `✓ Solicitud de precio ENVIADA automáticamente a ${auto.nombres.join(", ")} en lavori (ref ${auto.ref}). Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
+        lavoriSms = `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
+      } else {
+        lavoriEmail = `⚠ El envío automático a lavori falló${auto && !auto.ok ? `: ${auto.error}` : ""}. Pedir precio en lavori (${quien}) → ${lavoriOneTapUrl(token)}`;
+        lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
+      }
+    } else if (carril) {
+      lavoriEmail = `Pedir precio en lavori (${quien}) con un toque: ${lavoriOneTapUrl(token)}`;
+      lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
+    } else {
+      lavoriEmail = `Sin carril en lavori para este par${leadLang ? ` (${leadLang.toUpperCase()})` : ""}: presupuestar a mano.`;
+      lavoriSms = "Sin carril lavori. Mira el email.";
+    }
 
     // Aviso a staff — dos transportes independientes; con await (lambda).
     await sendMail({
@@ -106,12 +154,13 @@ export async function POST(req: Request) {
           "Un lead de la puerta ha pedido presupuesto humano (idioma sin precio instantáneo o importe alto).",
           `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
           ...lineas,
-          `Montar presupuesto: ${builderUrl}`,
+          lavoriEmail,
+          `Montar presupuesto (documentos ya dentro): ${builderUrl}`,
         ].join("\n")
       ),
     }).catch((err) => console.error("[puerta:request-quote] aviso staff fallo:", err));
     await sendStaffAlertSMS(
-      `TraduccionesJuradas: lead pide presupuesto humano (${docs.length} doc, ${docs[0]?.sourceLanguage || "?"}>${docs[0]?.targetLanguage || "?"}). Mira el email.`,
+      `Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
       "puerta_request_quote"
     ).catch(() => {});
 
