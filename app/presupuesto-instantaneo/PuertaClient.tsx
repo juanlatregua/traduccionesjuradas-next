@@ -189,6 +189,8 @@ export default function PuertaClient({
     setDocuments([]);
     setCurrentDocId(null);
     setErrorMessage(null);
+    setRequestState("idle");
+    setCheckoutError(null);
   }, []);
 
   // Original en español: al elegir idioma de destino, recalcular precio y
@@ -620,6 +622,38 @@ export default function PuertaClient({
           <p className="mt-2 text-sm text-graphite">
             {errorMessage || t.errorDefault}
           </p>
+          {/* El documento YA está en nuestra BD: que el fallo de la IA no pierda
+              el lead (25-ago, Maider: la IA cayó por cuenta y ella se fue a por
+              el email). Reusa el carril "Solicitar presupuesto" de la puerta. */}
+          {sessionToken && (
+            <div className="mx-auto mt-5 max-w-md rounded-lg border border-bleu/15 bg-cream/40 p-4 text-left">
+              {requestState === "done" ? (
+                <p className="text-sm font-medium text-vert">{t.requestQuoteDone}</p>
+              ) : (
+                <>
+                  <p className="text-sm text-encre">{t.errorAskHuman}</p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={t.emailPlaceholder}
+                      className="flex-1 rounded-lg border border-bleu/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu"
+                    />
+                    <button
+                      type="button"
+                      disabled={!emailValid || requestState === "sending"}
+                      onClick={handleRequestQuote}
+                      className="rounded-lg bg-bleu px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
+                    >
+                      {requestState === "sending" ? t.requestQuoteSending : t.requestQuoteCta}
+                    </button>
+                  </div>
+                  {checkoutError && <p className="mt-2 text-xs text-rouge">{checkoutError}</p>}
+                </>
+              )}
+            </div>
+          )}
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <button
               type="button"

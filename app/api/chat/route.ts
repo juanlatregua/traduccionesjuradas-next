@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { alertStaffAiOutage, isAiAccountError } from "@/lib/ai/outage-alert";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendMail } from "@/lib/azure-mail";
 import { SYSTEM_PROMPT } from "@/lib/chat/system-prompt";
@@ -361,6 +362,9 @@ export async function POST(req: NextRequest) {
             stack: err instanceof Error ? err.stack?.split("\n").slice(0, 5).join("\n") : undefined,
             at: new Date().toISOString(),
           };
+          if (isAiAccountError(err)) {
+            await alertStaffAiOutage("el chat", String((err as any)?.message || err).slice(0, 300));
+          }
           await prisma.chatSession
             .upsert({
               where: { sessionId },

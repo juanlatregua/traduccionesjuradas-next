@@ -11,6 +11,7 @@ import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { buildDiagnosis, resolveForeignLang } from "@/lib/diagnosis";
 import { clientPriceFromCost } from "@/lib/quote-math";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
+import { alertStaffAiOutage, isAiAccountError } from "@/lib/ai/outage-alert";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // Allow up to 120s for IA analysis (PDFs pesados)
@@ -162,6 +163,9 @@ export async function POST(req: Request) {
         ? `API ${err.status}: ${err.error?.error?.message || err.message}`
         : err.message;
       console.error("[documents/analyze] Claude error:", errorDetail, "| mimeType:", doc.mimeType, "| fileSize:", doc.fileSize);
+      // Fallo de CUENTA (límite mensual, crédito, clave): avisar a staff — el
+      // cliente ve el error y nadie se enteraba (Maider, 25-ago). Con await: lambda.
+      if (isAiAccountError(err)) await alertStaffAiOutage("la puerta (análisis de documento)", errorDetail);
       await prisma.documentAnalysis.update({
         where: { id: documentId },
         data: { status: "ANALYSIS_FAILED" },

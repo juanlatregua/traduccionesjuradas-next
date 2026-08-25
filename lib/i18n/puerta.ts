@@ -38,6 +38,7 @@ export type PuertaStrings = {
   hintContact: string;
   checkoutErrorDefault: string;
   errorTitle: string;
+  errorAskHuman: string;
   errorDefault: string;
   retry: string;
   contactWhatsApp: string;
@@ -126,6 +127,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     hintContact: "Indica tu email y teléfono para continuar.",
     checkoutErrorDefault: "No se pudo continuar al pago.",
     errorTitle: "No hemos podido analizar el documento",
+    errorAskHuman: "O deja tu email y te mandamos el presupuesto hoy: tu documento ya está subido.",
     errorDefault: "Ha ocurrido un error inesperado.",
     retry: "Intentar de nuevo",
     contactWhatsApp: "Contactar por WhatsApp",
@@ -193,6 +195,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     hintContact: "Indiquez votre email et téléphone pour continuer.",
     checkoutErrorDefault: "Impossible de continuer vers le paiement.",
     errorTitle: "Nous n'avons pas pu analyser le document",
+    errorAskHuman: "Ou laissez votre e-mail et nous vous envoyons le devis aujourd'hui : votre document est déjà transmis.",
     errorDefault: "Une erreur inattendue s'est produite.",
     retry: "Réessayer",
     contactWhatsApp: "Nous contacter sur WhatsApp",
@@ -260,6 +263,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     hintContact: "Enter your email and phone to continue.",
     checkoutErrorDefault: "We couldn't continue to payment.",
     errorTitle: "We couldn't analyse the document",
+    errorAskHuman: "Or leave your email and we'll send you the quote today: your document is already uploaded.",
     errorDefault: "An unexpected error occurred.",
     retry: "Try again",
     contactWhatsApp: "Contact us on WhatsApp",
@@ -327,6 +331,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     hintContact: "Geben Sie Ihre E-Mail und Ihr Telefon ein, um fortzufahren.",
     checkoutErrorDefault: "Weiterleitung zur Zahlung nicht möglich.",
     errorTitle: "Wir konnten das Dokument nicht analysieren",
+    errorAskHuman: "Oder hinterlassen Sie Ihre E-Mail und wir schicken Ihnen das Angebot heute: Ihr Dokument ist bereits hochgeladen.",
     errorDefault: "Ein unerwarteter Fehler ist aufgetreten.",
     retry: "Erneut versuchen",
     contactWhatsApp: "Über WhatsApp kontaktieren",
@@ -394,6 +399,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     hintContact: "Indique o seu email e telefone para continuar.",
     checkoutErrorDefault: "Não foi possível continuar para o pagamento.",
     errorTitle: "Não conseguimos analisar o documento",
+    errorAskHuman: "Ou deixe o seu email e enviamos-lhe o orçamento hoje: o seu documento já está carregado.",
     errorDefault: "Ocorreu um erro inesperado.",
     retry: "Tentar novamente",
     contactWhatsApp: "Contactar por WhatsApp",
