@@ -304,6 +304,10 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   order: {
     id: string;
     quoteId: string | null;
+    langPair?: string | null;
+    clientEmail?: string | null;
+    clientName?: string | null;
+    clientPhone?: string | null;
     events: Array<{ type: string; payload: unknown }>;
   };
   reference: string;
@@ -354,6 +358,49 @@ async function emitPrecioAceptadoIfApplicable(opts: {
       ref = `${lpr.ref}-precio`;
       precioCents = lpr.priceCents;
       lprId = lpr.id;
+    }
+  }
+
+  // Caso 26_34F612 (25-ago-2026): Juan montó el presupuesto ANTES de que llegara
+  // la cifra del jurado y sin ?lead=, así que la solicitud quedó sin atar
+  // (quoteId null) y el pago abrió un encargo NUEVO al 75 % (45 €) en vez de
+  // aceptar los 25 € que Morton ya había propuesto. Último recurso: solicitud
+  // PRICED sin atar, mismo par, ≤14 días, mismo cliente (email/teléfono/nombre
+  // dentro del customerHint). El jurado cotiza UNA vez y su cifra se reutiliza.
+  if (!ref && order.langPair) {
+    const par = order.langPair.replace("->", ">").toUpperCase();
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const norm = (x: string | null | undefined) => String(x || "").trim().toLowerCase();
+    const digits = (x: string | null | undefined) => String(x || "").replace(/\D/g, "").slice(-9);
+    const email = norm(order.clientEmail);
+    const name = norm(order.clientName);
+    const phone = digits(order.clientPhone);
+    const candidatas = await prisma.lavoriPriceRequest.findMany({
+      where: { status: "PRICED", quoteId: null, par, createdAt: { gte: since } },
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+    });
+    const lpr = candidatas.find((c) => {
+      const parts = (c.customerHint || "").split(" · ").map((x) => x.trim()).filter(Boolean);
+      return parts.some(
+        (part) =>
+          (email && !email.endsWith("@whatsapp.local") && norm(part) === email) ||
+          (phone && phone.length >= 9 && digits(part) === phone) ||
+          (name && name.length >= 5 && norm(part) === name)
+      );
+    });
+    if (lpr?.priceCents && lpr.priceCents > 0) {
+      ref = `${lpr.ref}-precio`;
+      precioCents = lpr.priceCents;
+      lprId = lpr.id;
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "lavori.solicitud_emparejada",
+          message: `Solicitud de precio ${lpr.ref} emparejada por cliente (${lpr.miembroNombre || "jurado"} propuso ${(lpr.priceCents / 100).toFixed(2)} €): se acepta SU cifra, no se abre encargo nuevo.`,
+          payload: { lavoriPriceRequestId: lpr.id, ref: lpr.ref, priceCents: lpr.priceCents, matchedBy: "customerHint" },
+        },
+      });
     }
   }
 
@@ -631,6 +678,9 @@ export async function autoAssignCollaboratorIfNeeded(options: {
         words: true,
         amountCents: true,
         dueDate: true,
+        clientEmail: true,
+        clientName: true,
+        clientPhone: true,
         events: {
           orderBy: { createdAt: "desc" },
           take: 30,
