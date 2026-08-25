@@ -4,6 +4,7 @@ import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { notifyClientTranslationStarted } from "@/lib/orders";
+import { applyAcceptedQuoteSideEffects } from "@/lib/collaborators";
 import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES } from "@/lib/lavori-bridge";
 
 export const runtime = "nodejs";
@@ -177,12 +178,59 @@ export async function POST(req: Request) {
       const miembro = String(datos.miembroNombre || miembroId || "el traductor");
 
       if (collaborator) {
-        await prisma.collaboratorAssignment.upsert({
+        // Cifra que la casa debe al jurado: la aceptada (Fase 2, precio_aceptado_enviado)
+        // o la del dirigido (solicitud_enviada.paraTi). Con ella la aceptación deja
+        // coste, devengo en su cuenta y snapshot de margen por el chokepoint de
+        // siempre (25-ago-2026, caso 26_34F612: antes la asignación automática
+        // quedaba sin precio, sin isWinning y sin devengo).
+        const recent = await prisma.orderEvent.findMany({
+          where: { orderId: order.id, type: { in: ["lavori.precio_aceptado_enviado", "lavori.solicitud_enviada", "collaborator.quote.accepted"] } },
+          orderBy: { createdAt: "desc" },
+          select: { type: true, payload: true },
+        });
+        const aceptadoEv = recent.find((e) => e.type === "lavori.precio_aceptado_enviado")?.payload as { precioCents?: unknown } | undefined;
+        const enviadaEv = recent.find((e) => e.type === "lavori.solicitud_enviada")?.payload as { paraTi?: unknown } | undefined;
+        const paraTiCents =
+          Number.isFinite(Number(aceptadoEv?.precioCents)) && Number(aceptadoEv?.precioCents) > 0
+            ? Math.round(Number(aceptadoEv?.precioCents))
+            : Number.isFinite(Number(enviadaEv?.paraTi)) && Number(enviadaEv?.paraTi) > 0
+              ? Math.round(Number(enviadaEv?.paraTi) * 100)
+              : null;
+        const yaContabilizado = recent.some((e) => e.type === "collaborator.quote.accepted");
+        const assignment = await prisma.collaboratorAssignment.upsert({
           where: { orderId_collaboratorId: { orderId: order.id, collaboratorId: collaborator.id } },
-          create: { orderId: order.id, collaboratorId: collaborator.id, status: "ACCEPTED", acceptedAt: new Date() },
-          update: { status: "ACCEPTED", acceptedAt: new Date(), rejectedAt: null, rejectionReason: null },
+          create: {
+            orderId: order.id,
+            collaboratorId: collaborator.id,
+            status: "ACCEPTED",
+            acceptedAt: new Date(),
+            isWinning: true,
+            ...(paraTiCents ? { quotedPriceCents: paraTiCents, quotedAt: new Date() } : {}),
+          },
+          update: {
+            status: "ACCEPTED",
+            acceptedAt: new Date(),
+            rejectedAt: null,
+            rejectionReason: null,
+            isWinning: true,
+            ...(paraTiCents ? { quotedPriceCents: paraTiCents } : {}),
+          },
         });
         await prisma.order.update({ where: { id: order.id }, data: { assignedTo: collaborator.fullName } });
+        if (paraTiCents && !yaContabilizado) {
+          const full = await prisma.order.findUniqueOrThrow({
+            where: { id: order.id },
+            select: { id: true, amountCents: true, paymentStatus: true, marginPct: true },
+          });
+          await applyAcceptedQuoteSideEffects(prisma, {
+            order: full,
+            assignmentId: assignment.id,
+            supplierCostCents: paraTiCents,
+            collaborator: { fullName: collaborator.fullName, companyName: collaborator.companyName, supplierType: collaborator.supplierType },
+            actorEmail: "lavori-bridge",
+            isWinning: true,
+          }).catch((err) => console.error("[lavori-eventos] side effects failed", err));
+        }
         notifyClientTranslationStarted({
           reference: order.reference,
           translatorName: collaborator.fullName,
