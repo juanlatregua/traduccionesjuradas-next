@@ -358,6 +358,16 @@ function getOrderDateForBase(order: any, base: DateBaseKey) {
   return new Date(order.createdAt);
 }
 
+// Entrega del traductor ya recibida: evento del sobre de lavori (entrega_subida),
+// asignación con deliveredAt o translatorDeliveredAt del pedido. Caso Stephan
+// 26_DFAA55 (26-ago): Maria entregó el 18 y la agenda decía "En proceso · Maria".
+export function getTranslatorDeliveredAt(order: any): string | null {
+  const evt = (order.events || []).find((e: any) => e.type === "lavori.entrega_subida");
+  const fromAssignment = (order.collaboratorAssignments || []).find((a: any) => a.deliveredAt)?.deliveredAt;
+  const d = evt?.createdAt || fromAssignment || order.translatorDeliveredAt || null;
+  return d ? new Date(d).toISOString() : null;
+}
+
 function getArchiveState(order: any) {
   const evt = (order.events || []).find(
     (e: any) => e.type === "order.archived" || e.type === "order.unarchived"
@@ -413,6 +423,8 @@ function toBandejaOrder(order: EnrichedOrder): BandejaOrder {
     createdAt: order.createdAt.toISOString(),
     assignedTo: order.assignedTo,
     dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split("T")[0] : null,
+    translatorDeliveredAt: getTranslatorDeliveredAt(order),
+    deliveryType: (order as any).deliveryType ?? null,
     amountCents: order.amountCents,
     paymentProofs: getPaymentProofs(order),
     documents: getSubmittedDocuments(order),
@@ -434,6 +446,7 @@ function toBandejaOrder(order: EnrichedOrder): BandejaOrder {
       deliveredFileUrl: a.deliveredFileUrl,
       deliveredFilename: a.deliveredFilename,
       deliveredAt: a.deliveredAt ? new Date(a.deliveredAt).toISOString() : null,
+      isWinning: Boolean(a.isWinning),
       adminNotes: a.adminNotes,
       collaborator: {
         fullName: a.collaborator.fullName,

@@ -19,6 +19,10 @@ export type BandejaOrder = {
   createdAt: string;
   assignedTo: string | null;
   dueDate: string | null;
+  // El traductor ya entregó (sobre de lavori, asignación o campo del pedido) aunque el
+  // pedido siga sin DELIVERED: lo que falta es de Juan (papel, verificar). Agenda 26-ago.
+  translatorDeliveredAt?: string | null;
+  deliveryType?: string | null;
   amountCents: number;
   paymentProofs: Array<{ fileUrl: string; fileName: string; uploadedAt?: string }>;
   documents: Array<{ name: string; type: string; size: number; url?: string; uploadedAt?: string }>;
@@ -72,6 +76,7 @@ export type BandejaOrder = {
     deliveredFileUrl: string | null;
     deliveredFilename: string | null;
     deliveredAt: string | null;
+    isWinning?: boolean;
     adminNotes: string | null;
     collaborator: { fullName: string; email: string };
   }>;

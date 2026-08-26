@@ -33,7 +33,7 @@ npm run build                      # prisma generate + next build
 npm run test:unit                  # tests unitarios (node --test)
 npx tsc --noEmit --skipLibCheck    # type-check
 vercel --prod --yes                # deploy manual a producción
-node --env-file=.env.local scripts/vigia-pedidos.mjs   # qué recuperar hoy (agente vigia-pedidos)
+npx tsx --env-file=.env.local scripts/vigia-pedidos.ts   # agenda de hoy + qué recuperar (agente vigia-pedidos; cron 8:00 = /api/cron/vigia-agenda)
 prisma db push                     # aplicar schema (NO migrate dev — shadow DB falla)
 ```
 

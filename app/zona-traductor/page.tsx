@@ -19,6 +19,7 @@ import {
   requiresMarginApproval,
   hasMonthlyBatchPending,
   topFinancialAlert,
+  getTranslatorDeliveredAt,
 } from "@/lib/zona-traductor-data";
 
 export const metadata: Metadata = {
@@ -208,13 +209,23 @@ export default async function ZonaTraductorPedidosPage({
         )}
 
         <TranslatorAgenda
-          items={periodOrders.map((o) => ({
-            reference: o.reference,
-            title: o.title,
-            dueDate: o.dueDate,
-            deliveryState: o.deliveryState,
-            assignedTo: o.assignedTo,
-          }))}
+          items={periodOrders
+            // Solo lo vivo: pagado y no archivado (26-ago: la agenda enseñaba un
+            // presupuesto de abril sin pagar y un pedido archivado).
+            .filter((o) => o.paymentStatus === "PAID" && !o.isArchived)
+            .map((o) => ({
+              reference: o.reference,
+              title: o.title,
+              dueDate: o.dueDate,
+              deliveryState: o.deliveryState,
+              assignedTo:
+                o.assignedTo ||
+                (o.collaboratorAssignments as any[]).find((a) => a.isWinning || a.status === "ACCEPTED")?.collaborator?.fullName ||
+                null,
+              translatorDeliveredAt: getTranslatorDeliveredAt(o),
+              deliveryType: o.deliveryType ?? null,
+              langPair: o.langPair,
+            }))}
         />
 
         <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">

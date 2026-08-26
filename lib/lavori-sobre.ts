@@ -41,7 +41,7 @@ export function describeDocForSobre(doc: {
     ok: true,
     doc: {
       nombre: doc.name,
-      contentType: doc.type || "application/pdf",
+      contentType: sniffContentType(doc.buf, doc.name, doc.type),
       url: doc.url,
       bytes: doc.buf.length,
       sha256: createHash("sha256").update(doc.buf).digest("hex"),
@@ -65,4 +65,24 @@ export async function packDocsForSobre(
     return { ok: false, error: "el pedido no tiene documentos descargables" };
   }
   return { ok: true, documentos };
+}
+
+// Tipo real del documento: primero por bytes (magic), luego por extensión, y por
+// último lo declarado. Antes `doc.type || "application/pdf"` mandaba un JPG sin
+// tipo como PDF y lavori lo rechazaba por el magic %PDF- (caso 26-ago, JPG de la
+// puerta). image/jpg (no estándar) se normaliza a image/jpeg.
+export function sniffContentType(buf: Buffer, name: string, declared?: string | null): string {
+  if (buf.length >= 4) {
+    if (buf.subarray(0, 5).toString("latin1") === "%PDF-") return "application/pdf";
+    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+    if (buf[0] === 0x89 && buf.subarray(1, 4).toString("latin1") === "PNG") return "image/png";
+    if (buf.subarray(0, 4).toString("latin1") === "RIFF" && buf.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
+    if (buf.length >= 12 && buf.subarray(4, 8).toString("latin1") === "ftyp" && /^(heic|heix|mif1|heif)/.test(buf.subarray(8, 12).toString("latin1"))) return "image/heic";
+  }
+  const ext = (name.toLowerCase().match(/\.([a-z0-9]+)$/) || [])[1];
+  const byExt: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", heic: "image/heic", heif: "image/heic" };
+  if (ext && byExt[ext]) return byExt[ext];
+  const d = String(declared || "").toLowerCase().trim();
+  if (d === "image/jpg") return "image/jpeg";
+  return d || "application/pdf";
 }

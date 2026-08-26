@@ -71,15 +71,21 @@ export async function POST(req: Request) {
 
   // Las solicitudes de precio viajan con ref "<referencia>-precio".
   const reference = motorRef.replace(/-precio$/, "");
-  const order = await prisma.order.findUnique({
-    where: { reference },
-    select: { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true },
-  });
+  const orderSelect = { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true } as const;
+  let order = await prisma.order.findUnique({ where: { reference }, select: orderSelect });
   if (!order) {
     // Solicitud de precio de un LEAD (WhatsApp, sin pedido): ancla propia.
     const lead = await prisma.lavoriPriceRequest.findUnique({ where: { ref: reference } });
-    if (lead) return handleLeadEvento({ lead, evento, encargoId, motorRef, datos });
-    return NextResponse.json({ ok: false, error: `pedido "${reference}" no encontrado` }, { status: 404 });
+    // Ref de LEAD cuyo presupuesto ya se convirtió en pedido (caso Ofir 26_308488,
+    // 26-ago): el encargo de lavori nació con la ref del lead, pero la entrega y la
+    // aceptación tienen que caer en el pedido real, no en un email "gestionar a mano".
+    if (lead?.quoteId) {
+      order = await prisma.order.findFirst({ where: { quoteId: lead.quoteId }, orderBy: { createdAt: "desc" }, select: orderSelect });
+    }
+    if (!order) {
+      if (lead) return handleLeadEvento({ lead, evento, encargoId, motorRef, datos });
+      return NextResponse.json({ ok: false, error: `pedido "${reference}" no encontrado` }, { status: 404 });
+    }
   }
 
   const eventType = `lavori.${evento}`;
@@ -453,6 +459,20 @@ async function handleLeadEvento(opts: {
     }
 
     const miembro = String(datos.miembroNombre || datos.miembroId || "el traductor");
+    // Aceptación antes de que exista el pedido (Juan confirma en la app de lavori y
+    // marca el pago después): que quede en la solicitud para que la ficha lo enseñe y
+    // el pago posterior no lance otro encargo. La asignación se completa al pagar.
+    if (evento === "encargo_aceptado") {
+      await prisma.lavoriPriceRequest.update({
+        where: { id: lead.id },
+        data: {
+          status: "ACCEPTED",
+          encargoId,
+          ...(datos.miembroId ? { miembroId: String(datos.miembroId) } : {}),
+          ...(datos.miembroNombre ? { miembroNombre: String(datos.miembroNombre) } : {}),
+        },
+      });
+    }
     await staffMail(`⚠ lavori: ${evento} sobre la solicitud de lead ${lead.ref}${quien} — gestionar a mano`, [
       `Ha llegado un evento "${evento}" de ${miembro} sobre la solicitud de precio ${lead.ref} (${lead.par}, encargo ${encargoId}), que no tiene pedido asociado.`,
       `Si el lead se convirtió en pedido, vincúlalo desde la ficha; si no, gestiona la respuesta por lavori.`,

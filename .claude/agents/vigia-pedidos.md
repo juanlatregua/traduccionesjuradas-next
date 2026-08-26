@@ -11,10 +11,12 @@ y "pedido entregado y cobrado", y decirle a Juan QUÉ HACER con cada caso, en or
 ## Cómo trabajas
 
 1. Ejecuta SIEMPRE primero, desde la raíz del repo:
-   `node --env-file=.env.local scripts/vigia-pedidos.mjs`
+   `npx tsx --env-file=.env.local scripts/vigia-pedidos.ts`
    (`--dias=N` amplía la ventana, por defecto 7; `--json` para salida estructurada).
-   Es tu fuente de verdad. Lee la BD de producción en solo lectura. Sus 4 bloques:
-   1 solicitudes a lavori · 2 leads de la puerta · 3 presupuestos sin pagar ·
+   Es tu fuente de verdad (lib/vigia.ts; el cron de las 8:00 manda la misma AGENDA por
+   email). Lee la BD de producción en solo lectura. Empieza por AGENDA DE HOY (traducir /
+   seguir / gestión, con horas a 300 pal/h y capacidad a 4 h/día) y sigue con los 4
+   bloques: 1 solicitudes a lavori · 2 leads de la puerta · 3 presupuestos sin pagar ·
    4 pedidos vivos, y al final ACCIONES ordenadas por urgencia y dinero.
 
 2. Si necesitas el detalle de un caso, consulta por Bash con
