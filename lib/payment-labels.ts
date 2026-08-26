@@ -14,3 +14,31 @@ export const PAYMENT_LABELS: Record<string, string> = {
   revolut:
     "por transferencia internacional a Revolut Bank UAB · IBAN ES32 1583 0001 1490 2264 2489 · BIC/SWIFT REVOESM2 · Beneficiario: Juan Antonio Silva Moreno",
 };
+
+// Datos estructurados por método, para la página pública /q/<token> (pestañas
+// Bizum / Transferencia). Misma verdad que PAYMENT_LABELS y que el PDF
+// (lib/quote-pdf.ts): la página enseñaba BBVA (en cierre) por constantes por
+// defecto mientras el PDF decía Sabadell (26-ago, caso Lorna 2026-00092).
+export type PaymentAccount =
+  | { kind: "bizum"; phone: string }
+  | { kind: "transfer"; bank: string; holder: string; iban: string; bic: string }
+  | { kind: "paypal"; email: string };
+
+export const PAYMENT_ACCOUNTS: Record<string, PaymentAccount> = {
+  bizum607: { kind: "bizum", phone: "607 356 273" },
+  bizum654: { kind: "bizum", phone: "654 069 126" },
+  sabadell: { kind: "transfer", bank: "Banco Sabadell", holder: "HBTJ Consultores Lingüísticos S.L.", iban: "ES47 0081 0240 1100 0378 7991", bic: "BSABESBB" },
+  bbva: { kind: "transfer", bank: "BBVA", holder: "HBTJ Consultores Lingüísticos S.L.", iban: "ES66 0182 3370 67 0201616991", bic: "BBVAESMM" },
+  openbank: { kind: "transfer", bank: "Openbank", holder: "Juan Silva", iban: "ES33 0073 0100 5207 9242 5264", bic: "OPENESMM" },
+  revolut: { kind: "transfer", bank: "Revolut Bank UAB", holder: "Juan Antonio Silva Moreno", iban: "ES32 1583 0001 1490 2264 2489", bic: "REVOESM2" },
+  paypal: { kind: "paypal", email: "hola@traduccionesjuradas.net" },
+};
+
+/** Expande "bizum" (ambos números) y descarta claves desconocidas. */
+export function resolvePaymentAccounts(methods: string[] | null | undefined): { key: string; account: PaymentAccount }[] {
+  const list = methods && methods.length ? methods : ["sabadell", "bizum607"];
+  const keys = list.flatMap((m) => (m === "bizum" ? ["bizum607", "bizum654"] : [m]));
+  return Array.from(new Set(keys))
+    .filter((k) => PAYMENT_ACCOUNTS[k])
+    .map((k) => ({ key: k, account: PAYMENT_ACCOUNTS[k] }));
+}

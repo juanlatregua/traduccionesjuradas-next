@@ -21,6 +21,7 @@ type Props = {
     paid?: string;
     canceled?: string;
     fb?: string;
+    pago?: string;
   };
 };
 
@@ -103,6 +104,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       if (searchParams?.paid) qs.set("paid", String(searchParams.paid));
       if (searchParams?.canceled) qs.set("canceled", String(searchParams.canceled));
       if (searchParams?.fb) qs.set("fb", String(searchParams.fb));
+      if (searchParams?.pago) qs.set("pago", String(searchParams.pago));
       const suffix = qs.toString() ? `?${qs.toString()}` : "";
       redirect(`https://www.traduccionesjuradas.net/q/${encodeURIComponent(params.token)}${suffix}`);
     }
@@ -124,6 +126,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   const refreshed = await prisma.quote.findUnique({
     where: { id: quote.id },
     select: {
+      paymentMethods: true,
       id: true,
       quoteNumber: true,
       status: true,
@@ -274,6 +277,8 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               isPayable={isPayable}
               quoteNumber={refreshed.quoteNumber}
               totalLabel={formatMoney(total)}
+              autoStartCard={searchParams?.pago === "tarjeta"}
+              paymentMethods={refreshed.paymentMethods}
             />
           </aside>
         </div>

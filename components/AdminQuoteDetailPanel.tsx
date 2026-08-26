@@ -177,17 +177,22 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const waMsg = useMemo(() => {
     const PAY = quote.paymentMethods && quote.paymentMethods.length ? quote.paymentMethods : ["sabadell", "bizum607"];
     const firstName = (quote.customerName || "").trim().split(/\s+/)[0] || "";
-    const head = `Hola ${firstName}: te envío el presupuesto ${quote.quoteNumber} de tu traducción jurada: ${formatMoney(quote.total)} (IVA incluido).`;
-    if (payMethod === "BIZUM") {
-      const k = PAY.find((m) => m.startsWith("bizum")) || "bizum607";
-      return `${head} Puedes abonarlo ${PAYMENT_LABELS[k]} (TraduccionesJuradas). En cuanto me confirmes el pago, comienzo con la traducción. Quedo a tu disposición. Un saludo.`;
-    }
-    if (payMethod === "TRANSFER") {
-      const ks = PAY.filter((m) => m === "bbva" || m === "openbank" || m === "sabadell");
-      const instr = (ks.length ? ks : ["sabadell"]).map((k) => PAYMENT_LABELS[k]).join("; o ");
-      return `${head} Puedes abonarlo ${instr} (titular HBTJ Consultores Lingüísticos S.L.). En cuanto me confirmes el pago, comienzo. Un saludo.`;
-    }
-    return `${head} Puedes abonarlo de forma segura con tarjeta aquí: ${payUrl}. En cuanto se registre el pago, comienzo. Un saludo.`;
+    // Siempre TODAS las opciones (Juan 26-ago: "las distintas opciones y sobre todo
+    // el link a Stripe y a la página del PDF"); el selector solo decide cuál va primero.
+    const manual = PAY.filter((m) => PAYMENT_LABELS[m]);
+    const first = payMethod === "BIZUM" ? manual.filter((m) => m.startsWith("bizum")) : payMethod === "TRANSFER" ? manual.filter((m) => !m.startsWith("bizum")) : [];
+    const rest = manual.filter((m) => !first.includes(m));
+    const card = `con tarjeta (pago seguro, Stripe): ${payUrl}?pago=tarjeta`;
+    const options = (payMethod === "STRIPE" ? [card, ...manual.map((m) => PAYMENT_LABELS[m])] : [...first, ...rest].map((m) => PAYMENT_LABELS[m]).concat(card)).map(
+      (t, i) => `${i + 1}) ${t}`
+    );
+    return [
+      `Hola ${firstName}: te envío el presupuesto ${quote.quoteNumber} de tu traducción jurada: ${formatMoney(quote.total)} (IVA incluido).`,
+      `Puedes verlo y descargar el PDF aquí: ${payUrl}`,
+      `Formas de pago (titular HBTJ Consultores Lingüísticos S.L.):`,
+      ...options,
+      `En cuanto me confirmes el pago (con tarjeta se registra solo), empiezo con la traducción. Quedo a tu disposición. Un saludo.`,
+    ].join("\n");
   }, [payMethod, quote.paymentMethods, quote.customerName, quote.quoteNumber, quote.total, payUrl]);
 
   async function reloadQuote() {

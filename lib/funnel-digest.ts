@@ -51,6 +51,7 @@ export type LeadEntry = {
   email: string;
   name: string | null;
   phone: string | null;
+  sessionToken: string | null; // token de la puerta: el builder importa los documentos con ?session=
   docs: {
     fileName: string;
     docType: string | null;
@@ -145,22 +146,28 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
         targetLanguage: true,
         estimatedWords: true,
         quoteAmount: true,
+        sessionToken: true,
       },
     }),
   ]);
 
+  // Quien ya pagó en la ventana no es un lead (26-ago: Joaquim salía en "pagados"
+  // y a la vez en "leads sin pedido").
+  const paidEmails = new Set(paid.map((o) => o.clientEmail.toLowerCase()));
   const leadMap = new Map<string, LeadEntry>();
   for (const d of leadDocs) {
     const email = (d.clientEmail || "").toLowerCase();
-    if (!email) continue;
+    if (!email || paidEmails.has(email)) continue;
     const entry = leadMap.get(email) || {
       email,
       name: d.clientName,
       phone: d.clientPhone,
+      sessionToken: d.sessionToken,
       docs: [],
     };
     entry.name ||= d.clientName;
     entry.phone ||= d.clientPhone;
+    entry.sessionToken ||= d.sessionToken;
     entry.docs.push({
       fileName: d.fileName,
       docType: d.documentType,
@@ -257,10 +264,13 @@ export function buildDigestHtml(d: StaffDigest): string {
         <p style="margin:0 0 6px; font-weight:600; color:#1e40af;">📇 ${d.leads.length} lead(s) del presupuesto automático (últimas ${d.windowHours} h) — sin pedido</p>
         <ul style="margin:0; padding-left:18px; font-size:13px; color:#1e3a8a;">${d.leads
           .map((l) => {
-            const builderUrl =
-              `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?customerEmail=${encodeURIComponent(l.email)}` +
-              (l.name ? `&customerName=${encodeURIComponent(l.name)}` : "") +
-              (l.phone ? `&customerPhone=${encodeURIComponent(l.phone)}` : "");
+            // Con ?session= el builder importa los documentos de la puerta; con solo
+            // customerEmail abría vacío ("no hay documentos asociados", Juan 26-ago).
+            const builderUrl = l.sessionToken
+              ? `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?session=${encodeURIComponent(l.sessionToken)}`
+              : `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?customerEmail=${encodeURIComponent(l.email)}` +
+                (l.name ? `&customerName=${encodeURIComponent(l.name)}` : "") +
+                (l.phone ? `&customerPhone=${encodeURIComponent(l.phone)}` : "");
             const docsLine = l.docs
               .map((doc) => {
                 const ref = doc.priceEur != null ? ` · motor ${doc.priceEur.toFixed(2)} € (ref. interna)` : "";
