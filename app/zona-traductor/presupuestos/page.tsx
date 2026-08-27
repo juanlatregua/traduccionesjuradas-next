@@ -177,7 +177,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
             <div className="mt-3 space-y-2">
               {lavoriLeads.map((lead) => {
                 const priced = lead.status === "PRICED" && lead.priceCents;
-                const href = `/zona-traductor/presupuesto?lead=${encodeURIComponent(lead.ref)}${lead.expedienteRef ? `&exp=${encodeURIComponent(lead.expedienteRef)}` : ""}`;
+                const href = `/zona-traductor/presupuesto?lead=${encodeURIComponent(lead.ref)}${lead.expedienteRef && !lead.expedienteRef.startsWith("puerta:") ? `&exp=${encodeURIComponent(lead.expedienteRef)}` : ""}`;
                 return (
                   <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
                     <div className="min-w-0">
@@ -198,7 +198,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                       <div className="text-xs text-slate-500">
                         {lead.docsCount} doc{lead.docsCount === 1 ? "" : "s"}{lead.words ? ` · ~${lead.words} palabras` : ""} · {formatDate(lead.createdAt)}
                         {priced ? ` · neto 75/25 sugerido: ${(lead.priceCents! / 0.75 / 100).toFixed(2)} € + IVA` : ""}
-                        {lead.expedienteRef ? ` · exp. ${lead.expedienteRef}` : " · sin expediente (suelta los PDF en el builder)"}
+                        {lead.expedienteRef?.startsWith("puerta:") ? " · documentos de la puerta (entran solos en el builder)" : lead.expedienteRef ? ` · exp. ${lead.expedienteRef}` : " · sin expediente (suelta los PDF en el builder)"}
                       </div>
                     </div>
                     <Link

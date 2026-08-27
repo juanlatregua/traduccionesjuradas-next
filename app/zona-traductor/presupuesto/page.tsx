@@ -38,7 +38,12 @@ export default async function ZonaTraductorPresupuestoPage({
 }) {
   await authZonaTraductorOrRedirect();
 
-  const expRef = typeof searchParams.exp === "string" ? searchParams.exp : null;
+  // "puerta:<token>" no es un expediente: es la sesion de la puerta (lead automatico
+  // a lavori). Si llega por ?exp= se trata como ?session= (27-ago: los docs del lead
+  // no se veian porque el builder buscaba exp:puerta:<token>).
+  const expRaw = typeof searchParams.exp === "string" ? searchParams.exp.trim() : "";
+  const expRef = expRaw && !expRaw.startsWith("puerta:") ? expRaw : null;
+  const expPuertaSession = expRaw.startsWith("puerta:") ? expRaw.slice("puerta:".length) : "";
 
   // Solicitud de precio de lavori (lead sin expediente, p. ej. WhatsApp): el builder
   // arranca con el par, el cliente, la linea y el COSTE que propuso el traductor
@@ -101,6 +106,7 @@ export default async function ZonaTraductorPresupuestoPage({
   // el cliente entran en el builder sin volver a soltar el PDF.
   const puertaSession =
     s(searchParams.session).trim().slice(0, 80) ||
+    expPuertaSession.slice(0, 80) ||
     (lead?.expedienteRef?.startsWith("puerta:") ? lead.expedienteRef.slice("puerta:".length) : "");
   const sessionKey = expRef ? `exp:${expRef}` : puertaSession || null;
   if (sessionKey) {
@@ -135,7 +141,7 @@ export default async function ZonaTraductorPresupuestoPage({
                 ? `${lead.miembroNombre || "El traductor"} propuso ${(lead.priceCents / 100).toFixed(2)} €${lead.plazoDias ? ` · ${lead.plazoDias} días` : ""} (${lead.par}). Coste ya puesto en la línea; neto de cliente 75/25 sugerido: ${(lead.priceCents / 0.75 / 100).toFixed(2)} € + IVA.`
                 : `Solicitud ${lead.par} enviada a lavori; el traductor aún no ha pasado precio.`}
               {" "}Al crear el presupuesto queda atado a esta solicitud: el pago avisará al traductor.
-              {lead.docsCount > 0 ? " Suelta aquí los documentos del cliente (no hay expediente)." : ""}
+              {initialDocs?.length ? ` Los ${initialDocs.length} documento${initialDocs.length === 1 ? "" : "s"} de la puerta ya están abajo.` : lead.docsCount > 0 ? " Suelta aquí los documentos del cliente (no hay expediente)." : ""}
             </p>
           )}
           {inboundEmail && (
