@@ -958,6 +958,8 @@ export async function getAllOrdersForStaff() {
     include: {
       billing: true,
       events: { orderBy: { createdAt: "desc" }, take: 150 },
+      // Para saber si el pedido está en libros (Bizum con factura emitida sí; sin ella no).
+      clientInvoice: { select: { status: true } },
       documentAnalyses: {
         select: { fileName: true, fileUrl: true, mimeType: true, fileSize: true, createdAt: true },
       },

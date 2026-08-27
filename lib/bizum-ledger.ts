@@ -19,6 +19,16 @@ export function inBooksOrderWhere(): Prisma.OrderWhereInput {
   };
 }
 
+/** Misma regla que inBooksOrderWhere, sobre un pedido ya cargado (portada, estadísticas). */
+export function isOrderInBooks(o: {
+  paymentMethod?: string | null;
+  billingExcluded?: boolean | null;
+  clientInvoice?: { status?: string | null } | null;
+}): boolean {
+  if (o.clientInvoice?.status === "ISSUED") return true;
+  return !o.billingExcluded && String(o.paymentMethod || "").toUpperCase() !== "BIZUM";
+}
+
 /** Pedidos fuera de libros: Bizum sin factura emitida + apartados a mano. */
 export function outOfBooksOrderWhere(): Prisma.OrderWhereInput {
   return {

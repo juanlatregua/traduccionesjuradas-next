@@ -7,6 +7,7 @@ import { isStaffEmail } from "@/lib/staff-access";
 import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import { prisma } from "@/lib/prisma";
 import { getAllOrdersForStaff } from "@/lib/orders";
+import { isOrderInBooks } from "@/lib/bizum-ledger";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState } from "@/lib/workflow";
 import {
@@ -610,9 +611,10 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     "sla-riesgo": activeScopedOrders.filter((o) => o.dueDate && (isDueSoon(o.dueDate) || isOverdue(o.dueDate)) && o.deliveryState !== "TRADUCIDO").length,
     "pendientes-pago": activeScopedOrders.filter((o) => o.paymentStatus === "PENDING").length,
     traducidos: activeScopedOrders.filter((o) => o.deliveryState === "TRADUCIDO").length,
-    "riesgo-financiero": activeScopedOrders.filter((o) => hasFinancialRisk(o)).length,
-    "margen-aprobacion": activeScopedOrders.filter((o) => requiresMarginApproval(o)).length,
-    "lote-pendiente": activeScopedOrders.filter((o) => hasMonthlyBatchPending(o)).length,
+    // Cifras financieras SIN Bizum ni apartados (regla Juan 27-ago-2026: «nada que sea Bizum»).
+    "riesgo-financiero": activeScopedOrders.filter((o) => isOrderInBooks(o) && hasFinancialRisk(o)).length,
+    "margen-aprobacion": activeScopedOrders.filter((o) => isOrderInBooks(o) && requiresMarginApproval(o)).length,
+    "lote-pendiente": activeScopedOrders.filter((o) => isOrderInBooks(o) && hasMonthlyBatchPending(o)).length,
     archivados: scopedOrders.filter((o) => o.isArchived).length,
   };
 
@@ -625,21 +627,23 @@ export async function loadControlState(searchParams: ControlSearchParams) {
   const marginApprovalPendingCount = counts["margen-aprobacion"];
   const monthlyBatchPendingCount = counts["lote-pendiente"];
   const financeClosedCount = activeScopedOrders.filter((o) => o.financeSnapshot.hasFinanceCloseEvent).length;
-  const paidRevenueCents = activeScopedOrders
+  // Ingresos y margen: solo pedidos EN LIBROS (Bizum sin factura y apartados fuera).
+  const booksOrders = activeScopedOrders.filter((o) => isOrderInBooks(o));
+  const paidRevenueCents = booksOrders
     .filter((o) => o.paymentStatus === "PAID")
     .reduce((acc, order) => acc + order.amountCents, 0);
-  const supplierPaymentPendingCount = activeScopedOrders.filter(
+  const supplierPaymentPendingCount = booksOrders.filter(
     (o) => o.paymentStatus === "PAID" && o.financeSnapshot.supplierInvoiceStatus !== "PAID"
   ).length;
 
-  const marginValues = activeScopedOrders
+  const marginValues = booksOrders
     .map((o) => o.financeSnapshot.marginPct)
     .filter((v): v is number => typeof v === "number");
   const avgMarginPct = marginValues.length
     ? Number((marginValues.reduce((acc, v) => acc + v, 0) / marginValues.length).toFixed(2))
     : null;
 
-  const criticalFinanceOrders = activeScopedOrders
+  const criticalFinanceOrders = booksOrders
     .filter(
       (o) =>
         hasFinancialRisk(o) ||
