@@ -70,6 +70,10 @@ export async function runQuoteToOrderBridge(input: {
   });
 
   if (paymentUpdate.changed) {
+    // Tarifario aprendido: lo que pagó el cliente por cada documento entra en el bucle.
+    await import("@/lib/learned-rates")
+      .then((m) => m.learnFromPaidQuote(quote.id))
+      .catch((e) => console.error("[quote-to-order] tarifario no aprendio", e));
     // Bizum ⇒ sin factura (regla Juan 21-ago-2026).
     await excludeFromBillingIfBizum(order.id, input.provider).catch((e) =>
       console.error("[quote-to-order] billing exclusion failed", e)

@@ -244,7 +244,10 @@ export default function PuertaClient({
         setCheckoutError(data.error || t.checkoutErrorDefault);
         return;
       }
-      if (data.lavori?.sent && data.lavori.lang) {
+      if (data.quote?.sent) {
+        // Agente de precios: el presupuesto ya salió con precio cerrado.
+        setRequestDoneMsg(t.requestQuoteDoneAuto);
+      } else if (data.lavori?.sent && data.lavori.lang) {
         let langName = String(data.lavori.langName || data.lavori.lang);
         try {
           langName = new Intl.DisplayNames([lang], { type: "language" }).of(data.lavori.lang) || langName;

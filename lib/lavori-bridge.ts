@@ -420,8 +420,17 @@ export function buildSolicitudPayload(opts: {
   words?: number | null;
   dueDate?: Date | null;
   documentos: BridgeDoc[];
+  /** Tarifario aprendido: cifra YA acordada con el jurado (no se aplica el 75/25). */
+  paraTiCents?: number | null;
+  especificaciones?: string | null;
 }): SolicitudPayload {
-  const { paraTi, precioCliente } = bridgeAmounts(opts.amountCents);
+  const { paraTi, precioCliente } = opts.paraTiCents
+    ? {
+        paraTi: (opts.paraTiCents / 100).toFixed(2),
+        precioCliente: (Math.round(opts.amountCents / 1.21) / 100).toFixed(2),
+      }
+    : bridgeAmounts(opts.amountCents);
+  const especificaciones = String(opts.especificaciones || "").trim().slice(0, 2000);
   return {
     ref: opts.reference,
     par: opts.route.par,
@@ -432,6 +441,7 @@ export function buildSolicitudPayload(opts: {
     }),
     ...(opts.words ? { palabras: opts.words } : {}),
     ...(opts.dueDate ? { plazo: opts.dueDate.toISOString().slice(0, 10) } : {}),
+    ...(especificaciones ? { especificaciones } : {}),
     paraTi,
     precioCliente,
     candidatos: opts.route.candidatos,

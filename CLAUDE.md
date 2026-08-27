@@ -34,6 +34,7 @@ npm run test:unit                  # tests unitarios (node --test)
 npx tsc --noEmit --skipLibCheck    # type-check
 vercel --prod --yes                # deploy manual a producción
 npx tsx --env-file=.env.local scripts/vigia-pedidos.ts   # agenda de hoy + qué recuperar (agente vigia-pedidos; cron 8:00 = /api/cron/vigia-agenda)
+npx tsx --env-file=.env.local scripts/tarifario.ts       # tarifario aprendido: lista | semillas | backfill | aprobar <id> | vetar <id> | fijar <id> (agente agente-precios; UI /zona-traductor/tarifario; kill-switch LEARNED_RATES_LIVE=off)
 prisma db push                     # aplicar schema (NO migrate dev — shadow DB falla)
 ```
 

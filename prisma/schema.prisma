@@ -513,6 +513,12 @@ model Quote {
   paymentMethods String[]          // métodos de pago a mostrar en el PDF: bbva/openbank/bizum/paypal
   contactWhatsapp String?          // WhatsApp/teléfono a mostrar en este presupuesto (override)
   pdfLang         String?          // idioma del PDF del presupuesto (es|en|fr|it|pt|de); null = es. Petición Juan 21-ago
+  // Tarifario aprendido (27-ago-2026): presupuesto emitido solo por el agente de
+  // precios con tarifa aprobada; el jurado que la dio recibe el encargo al pagar
+  // con su cifra ya cerrada (paraTi = suma de supplierUnitCost de las líneas).
+  autoPricedBy        String?
+  lavoriMiembroId     String?
+  lavoriMiembroNombre String?
   // Presupuesto perdido: motivo dado por el cliente (1 clic desde el email de
   // expirado, confirmado con POST en /q/[token]) + post-mortem determinista
   // calculado al expirar (cron reminders); el digest los lee, no los recalcula.
@@ -956,4 +962,52 @@ model InboundEmail {
   @@index([status, receivedAt])
   @@index([fromEmail])
   @@index([fromPhone])
+}
+
+// ── Tarifario aprendido (agente de precios, 27-ago-2026) ─────────────────────
+// Memoria de lo que ya ha pasado por tipo de documento y par: coste del jurado
+// (precio_propuesto de lavori) y precio neto que pagó el cliente. Con una tarifa
+// APPROVED, la puerta presupuesta sola y no vuelve a preguntar al traductor.
+model LearnedRate {
+  id            String   @id @default(cuid())
+  lang          String   // lengua no española del par (en, de, pt, he…); nunca fr
+  direction     String   // "to_es" | "from_es"
+  docType       String   // documentType de DocumentAnalysis normalizado; "any" = comodín por palabra
+  apostille     Boolean  @default(false)
+  unit          String   // "doc" (por documento) | "kword" (por 1000 palabras)
+  costCents     Int      // coste del jurado por unidad, sin IVA
+  clientCents   Int?     // precio neto al cliente por unidad (último pagado / enviado)
+  wordsRef      Int?     // tamaño medio (palabras/doc) de las muestras; tolerancia ±30 % para unit=doc
+  plazoDias     Int?
+  miembroId     String?
+  miembroNombre String?
+  status        String   @default("CANDIDATE") // CANDIDATE | APPROVED | VETOED
+  samples       Int      @default(0)
+  lastSampleAt  DateTime?
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sampleRows    LearnedRateSample[]
+
+  @@unique([lang, direction, docType, apostille])
+  @@index([status])
+}
+
+model LearnedRateSample {
+  id          String   @id @default(cuid())
+  rateId      String
+  kind        String   // translator_price | client_paid | seed | manual | auto_quote
+  costCents   Int?
+  clientCents Int?
+  words       Int?
+  pages       Int?
+  quoteId     String?
+  leadRef     String?
+  orderRef    String?
+  miembroId   String?
+  note        String?
+  createdAt   DateTime @default(now())
+  rate LearnedRate @relation(fields: [rateId], references: [id], onDelete: Cascade)
+
+  @@index([rateId, createdAt])
 }

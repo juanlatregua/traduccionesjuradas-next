@@ -12,6 +12,7 @@ import {
 import { getDocumentsFromOrder } from "@/lib/collaborators";
 import {
   lavoriRouteFromPair,
+  lavoriLangFromPair,
   buildSolicitudPayload,
   sendLavoriSolicitud,
   sendLavoriPrecioAceptado,
@@ -527,6 +528,9 @@ async function routeOrderToLavori(opts: {
   route: LavoriRoute;
   reference: string;
   actorEmail: string | null;
+  /** Tarifario aprendido: precio ya cerrado con el jurado (paraTi fijo, sin 75/25). */
+  paraTiCents?: number | null;
+  especificaciones?: string | null;
 }): Promise<{ changed: boolean }> {
   const { order, route, reference } = opts;
 
@@ -618,6 +622,8 @@ async function routeOrderToLavori(opts: {
       words: order.words,
       dueDate: order.dueDate,
       documentos,
+      paraTiCents: opts.paraTiCents ?? null,
+      especificaciones: opts.especificaciones ?? null,
     });
     const result = await sendLavoriSolicitud(payload);
     if (!result.ok) {
@@ -691,6 +697,33 @@ export async function autoAssignCollaboratorIfNeeded(options: {
 
     if (!order || isFrenchPair(order.langPair)) {
       return { changed: false };
+    }
+
+    // Tarifario aprendido (27-ago-2026): el presupuesto lo emitió el agente de
+    // precios con la tarifa de un jurado concreto → encargo dirigido SOLO a él y
+    // con su cifra ya cerrada (suma de supplierUnitCost). No se le pide precio.
+    if (order.quoteId) {
+      const q = await prisma.quote.findUnique({
+        where: { id: order.quoteId },
+        select: {
+          lavoriMiembroId: true,
+          lavoriMiembroNombre: true,
+          quoteNumber: true,
+          lines: { select: { supplierUnitCost: true } },
+        },
+      });
+      const parsed = lavoriLangFromPair(order.langPair);
+      const paraTiCents = q?.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0) || 0;
+      if (q?.lavoriMiembroId && parsed && paraTiCents > 0) {
+        return await routeOrderToLavori({
+          order,
+          route: { lang: parsed.lang, par: parsed.par, candidatos: [q.lavoriMiembroId] },
+          reference: options.reference,
+          actorEmail: options.actorEmail || null,
+          paraTiCents,
+          especificaciones: `Precio ya acordado contigo por documento (tarifario de la casa, presupuesto ${q.quoteNumber}): ${(paraTiCents / 100).toFixed(2)} €. Solo acepta y traduce.`,
+        });
+      }
     }
 
     // Carril lavori (Fase 1): la lengua tiene candidatos en el tablón → solicitud

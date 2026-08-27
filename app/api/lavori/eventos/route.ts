@@ -150,6 +150,20 @@ export async function POST(req: Request) {
       const autoAceptar =
         order.paymentStatus === "PAID" && !yaAceptado && precioCents <= paraTiModeloCents;
 
+      // Tarifario aprendido: el coste del jurado por tipo de documento entra en el bucle.
+      await import("@/lib/learned-rates")
+        .then((m) =>
+          m.learnFromOrderPrice({
+            orderId: order.id,
+            reference: order.reference,
+            priceCents: precioCents,
+            plazoDias: Number.isFinite(Number(datos.plazoDias)) ? Math.round(Number(datos.plazoDias)) : null,
+            miembroId: datos.miembroId ? String(datos.miembroId) : null,
+            miembroNombre: datos.miembroNombre ? String(datos.miembroNombre) : null,
+          })
+        )
+        .catch((err) => console.error("[lavori-eventos] tarifario no aprendio:", err));
+
       await staffMail(`💶 Precio de ${miembro} para ${order.reference}: ${precio} €`, [
         `${miembro} ha propuesto ${precio} € por el encargo de lavori (${encargoId}).`,
         datos.plazoDias ? `Plazo propuesto: ${datos.plazoDias} días.` : "Sin plazo indicado.",
@@ -448,8 +462,15 @@ async function handleLeadEvento(opts: {
           encargoId,
         },
       });
+      // Tarifario aprendido: el coste del jurado por tipo de documento entra en el bucle.
+      const aprendido = await import("@/lib/learned-rates")
+        .then((m) => m.learnFromLeadPrice(lead.id))
+        .catch((err) => ({ learned: false, reason: String(err?.message || err) }));
       await staffMail(`💶 Precio de ${miembro} para la solicitud ${lead.par}${quien}: ${precio} €`, [
         `${miembro} ha propuesto ${precio} € por la solicitud de precio ${lead.ref} (${lead.par})${quien}.`,
+        aprendido.learned
+          ? `Tarifario: tarifa aprendida (${lead.par}). Apruébala en https://www.traduccionesjuradas.net/zona-traductor/tarifario y la próxima vez el presupuesto saldrá solo.`
+          : `Tarifario: no aprendido (${"reason" in aprendido ? aprendido.reason : "sin motivo"}).`,
         plazoDias ? `Plazo propuesto: ${plazoDias} días.` : "Sin plazo indicado.",
         `Neto de cliente sugerido por el modelo 75/25: ${netoSugerido} € (+ IVA y envío).`,
         datos.notas ? `Notas: ${String(datos.notas)}` : "",

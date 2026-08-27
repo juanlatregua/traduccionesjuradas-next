@@ -16,6 +16,7 @@ import { sendStaffAlertSMS } from "@/lib/sms";
 import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
+import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
 
 export const runtime = "nodejs";
 
@@ -108,6 +109,46 @@ export async function POST(req: Request) {
     // Con LAVORI_LEAD_AUTO_LANGS (p. ej. "de,he") la solicitud sale sola al llegar
     // el lead y el aviso ya dice a quién fue. Sin PII en el sobre (regla madre).
     const lead = await leadFromPuertaSession(token);
+
+    // AGENTE DE PRECIOS (27-ago-2026): documento ya conocido con tarifa APROBADA →
+    // el presupuesto sale solo, sin molestar al jurado; al pagar, el encargo le
+    // llega con su cifra cerrada. Si falta tarifa, sigue el carril de lavori.
+    const auto = await autoQuoteFromPuertaSession({
+      sessionToken: token,
+      contactEmail,
+      contactPhone,
+      contactName: docs[0]?.clientName,
+      locale,
+    }).catch((err) => ({ ok: false as const, reason: String(err?.message || err) }));
+    if (auto.ok) {
+      const n = docs.length;
+      await sendMail({
+        to: adminEmail,
+        subject: `🤖 Presupuesto automático ${auto.quoteNumber} — ${auto.totalEur.toFixed(2)} € (${getLanguageName(docs[0]?.sourceLanguage || "?")})`,
+        html: renderSimpleEmailHtml(
+          [
+            `El agente de precios ha emitido y enviado el presupuesto ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido.`,
+            `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"} · ${auto.emailSent ? "email enviado" : auto.smsSent ? "SMS enviado" : "⚠ sin canal de envío"}`,
+            auto.miembroNombre
+              ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
+              : "Sin jurado asociado a la tarifa: al pagar irá por el carril normal de lavori.",
+            ...lineas,
+            `Ficha: ${baseUrl}/admin/quotes/${auto.quoteId}`,
+          ].join("\n")
+        ),
+      }).catch((err) => console.error("[puerta:request-quote] aviso auto fallo:", err));
+      await sendStaffAlertSMS(
+        `🤖 Presupuesto auto ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€ · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
+        "puerta_auto_quote"
+      ).catch(() => {});
+      return NextResponse.json({
+        ok: true,
+        lavori: { sent: false },
+        quote: { sent: true, number: auto.quoteNumber, total: auto.totalEur },
+      });
+    }
+    console.log("[puerta:request-quote] tarifario no aplica:", auto.reason);
+
     const resolved = lead?.sourceLang ? await resolveLeadRoute(lead.sourceLang, lead.targetLang).catch(() => null) : null;
     const carril = resolved && resolved.route.candidatos.length > 0 ? resolved : null;
     const quien = carril
