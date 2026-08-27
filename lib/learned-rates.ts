@@ -21,7 +21,7 @@ import { QUOTE_PDF_LANGS } from "@/lib/quote-pdf-langs";
 
 export const LEARNED_MARGIN_PCT = 12; // margen sobre coste del jurado (horquilla Juan 10-15 %)
 export const DOC_FLOOR_CENTS = 4000; // 40 € netos mínimo por documento (regla Juan 26-ago)
-export const WORD_UNIT_MIN_WORDS = 600; // desde aquí la tarifa se aprende por 1000 palabras
+export const WORD_UNIT_MIN_WORDS = 1000; // desde aquí (y más de 2 páginas) la tarifa se aprende por 1000 palabras
 export const SIZE_TOLERANCE = 0.3; // ±30 % de tamaño para reutilizar una tarifa por documento
 export const AUTO_QUOTE_MAX_CENTS = 60000; // por encima de 600 € netos, siempre humano
 
@@ -104,8 +104,18 @@ export function docInfoFromAnalysis(row: AnalysisRow): DocInfo | null {
   };
 }
 
-export function unitFor(words: number | null | undefined): "doc" | "kword" {
+/** Regla Juan 26-ago: los certificados (1-2 páginas) no se cuentan por palabra. */
+export function unitFor(words: number | null | undefined, pages?: number | null): "doc" | "kword" {
+  if (pages && pages <= 2) return "doc";
   return words && words >= WORD_UNIT_MIN_WORDS ? "kword" : "doc";
+}
+
+/** Convierte un total (N documentos, W palabras) a la unidad de la tarifa. */
+function perUnit(totalCents: number | null | undefined, unit: "doc" | "kword", docs: number, totalWords: number | null | undefined) {
+  if (totalCents == null || totalCents <= 0) return null;
+  if (unit === "doc") return totalCents / Math.max(1, docs);
+  if (!totalWords || totalWords <= 0) return null;
+  return (totalCents / totalWords) * 1000;
 }
 
 export function rateKeyLabel(k: { lang: string; direction: string; docType: string; apostille: boolean; unit?: string }) {
@@ -121,14 +131,18 @@ function sameKey(docs: DocInfo[]): RateKey | null {
 }
 
 /** Sube una muestra a la tarifa de su clave (la crea como CANDIDATE si no existe).
- * costCents/clientCents son POR UNIDAD (doc o 1000 palabras). El coste y el precio
- * guardados en la tarifa son los ÚLTIMOS confirmados (no medias): es lo que el
- * jurado cobra hoy. wordsRef sí es media, para la tolerancia de tamaño. */
+ * Con `perUnit: true` (semillas, edición a mano) costCents/clientCents ya vienen por
+ * unidad; si no, son TOTALES de `docs` documentos y `words` palabras y se convierten
+ * a la unidad de la tarifa (una muestra nunca cambia la unidad de una tarifa que ya
+ * existe). El coste y el precio guardados son los ÚLTIMOS confirmados (no medias):
+ * es lo que el jurado cobra hoy. wordsRef sí es media, para la tolerancia de tamaño. */
 export async function recordSample(
   key: RateKey,
   sample: {
     unit: "doc" | "kword";
     kind: "translator_price" | "client_paid" | "seed" | "manual" | "auto_quote";
+    perUnit?: boolean;
+    docs?: number;
     costCents?: number | null;
     clientCents?: number | null;
     words?: number | null;
@@ -144,8 +158,16 @@ export async function recordSample(
 ) {
   const where = { lang_direction_docType_apostille: key };
   const existing = await prisma.learnedRate.findUnique({ where });
-  const cost = sample.costCents != null && sample.costCents > 0 ? Math.round(sample.costCents) : null;
-  const client = sample.clientCents != null && sample.clientCents > 0 ? Math.round(sample.clientCents) : null;
+  const unit = (existing?.unit as "doc" | "kword" | undefined) || sample.unit;
+  const docs = Math.max(1, sample.docs || 1);
+  const totalWords = sample.words ? sample.words * (sample.perUnit ? 1 : docs) : null;
+  const toUnit = (v: number | null | undefined) => {
+    if (v == null || v <= 0) return null;
+    const c = sample.perUnit ? v : perUnit(v, unit, docs, totalWords);
+    return c == null ? null : Math.round(c);
+  };
+  const cost = toUnit(sample.costCents);
+  const client = toUnit(sample.clientCents);
   const countsAsSample = sample.kind !== "auto_quote";
   let rate;
   if (!existing) {
@@ -153,7 +175,7 @@ export async function recordSample(
     rate = await prisma.learnedRate.create({
       data: {
         ...key,
-        unit: sample.unit,
+        unit,
         costCents: cost ?? Math.round((client as number) / (1 + LEARNED_MARGIN_PCT / 100)),
         clientCents: client,
         wordsRef: sample.words ?? null,
@@ -179,7 +201,6 @@ export async function recordSample(
       data: {
         ...(cost != null && sample.kind !== "auto_quote" ? { costCents: cost } : {}),
         ...(client != null && sample.kind !== "auto_quote" ? { clientCents: client } : {}),
-        ...(sample.unit && sample.kind === "translator_price" ? { unit: sample.unit } : {}),
         wordsRef,
         ...(sample.plazoDias ? { plazoDias: sample.plazoDias } : {}),
         ...(sample.miembroId ? { miembroId: sample.miembroId, miembroNombre: sample.miembroNombre ?? existing.miembroNombre } : {}),
@@ -231,15 +252,14 @@ async function learnCostFromDocs(opts: {
   if (!key) return { learned: false, reason: `documentos de tipos distintos (${Array.from(new Set(infos.map((i) => i.docType))).join(", ")})` };
   const totalWords = infos.reduce((a, d) => a + (d.words || 0), 0);
   const avgWords = infos.length ? Math.round(totalWords / infos.length) : null;
-  const unit = unitFor(avgWords);
-  const costPerUnit = unit === "doc" ? opts.priceCents / infos.length : totalWords > 0 ? (opts.priceCents / totalWords) * 1000 : null;
-  if (!costPerUnit) return { learned: false, reason: "sin palabras para tarifa por palabra" };
+  const maxPages = Math.max(0, ...infos.map((d) => d.pages || 0)) || null;
   const rate = await recordSample(key, {
-    unit,
+    unit: unitFor(avgWords, maxPages),
     kind: "translator_price",
-    costCents: costPerUnit,
+    docs: infos.length,
+    costCents: opts.priceCents,
     words: avgWords,
-    pages: infos[0].pages,
+    pages: maxPages,
     plazoDias: opts.plazoDias ?? null,
     miembroId: opts.miembroId ?? null,
     miembroNombre: opts.miembroNombre ?? null,
@@ -248,7 +268,7 @@ async function learnCostFromDocs(opts: {
     quoteId: opts.quoteId ?? null,
     note: `${infos.length} doc · ${(opts.priceCents / 100).toFixed(2)} € total`,
   });
-  return rate ? { learned: true, rateId: rate.id } : { learned: false, reason: "sin importe" };
+  return rate ? { learned: true, rateId: rate.id } : { learned: false, reason: "sin importe o sin palabras para tarifa por palabra" };
 }
 
 /** Entrada 1a: precio_propuesto sobre una SOLICITUD (lead). */
@@ -311,7 +331,10 @@ export async function learnFromPaidQuote(quoteId: string) {
   if (urls.length === 0) return { learned: 0 };
   const rows = await prisma.documentAnalysis.findMany({ where: { fileUrl: { in: urls } }, select: ANALYSIS_SELECT });
   const byUrl = new Map(rows.map((r) => [r.fileUrl, r]));
-  const infos = quote.lines.map((l) => (l.sourceFileUrl ? docInfoFromAnalysis(byUrl.get(l.sourceFileUrl)!) : null));
+  const infos = quote.lines.map((l) => {
+    const row = l.sourceFileUrl ? byUrl.get(l.sourceFileUrl) : null;
+    return row ? docInfoFromAnalysis(row) : null;
+  });
   const single = sameKey(infos.filter(Boolean) as DocInfo[]);
   // Coste del jurado: la cifra de lavori repartida (si todas las líneas son de la
   // misma clave); si no, el coste que Juan puso en la línea.
@@ -321,18 +344,19 @@ export async function learnFromPaidQuote(quoteId: string) {
     const info = infos[i];
     const line = quote.lines[i];
     if (!info) continue;
-    const unit = unitFor(info.words);
     const priceCents = Math.round(decimalToNumber(line.unitPrice) * 100);
-    const lineCost = line.supplierUnitCost != null ? Math.round(decimalToNumber(line.supplierUnitCost) * 100) : null;
-    const costDoc = leadCostPerDoc ?? lineCost;
-    const perUnit = (cents: number | null) => (cents == null ? null : unit === "doc" ? cents : info.words ? (cents / info.words) * 1000 : null);
+    // Coste de la línea = precio → Juan copió la cifra (margen cero): no es un
+    // coste real del jurado y no debe pisar el que vino de lavori.
+    const rawCost = line.supplierUnitCost != null ? Math.round(decimalToNumber(line.supplierUnitCost) * 100) : null;
+    const lineCost = rawCost != null && rawCost !== priceCents ? rawCost : null;
     await recordSample(
       { lang: info.lang, direction: info.direction, docType: info.docType, apostille: info.apostille },
       {
-        unit,
+        unit: unitFor(info.words, info.pages),
         kind: "client_paid",
-        clientCents: perUnit(priceCents),
-        costCents: perUnit(costDoc),
+        docs: 1,
+        clientCents: priceCents,
+        costCents: leadCostPerDoc ?? lineCost,
         words: info.words,
         pages: info.pages,
         plazoDias: lead?.plazoDias ?? null,
@@ -362,7 +386,7 @@ export async function findApprovedRate(info: DocInfo) {
     if (exact.unit === "kword" && !info.words) return null;
     return exact;
   }
-  if (info.words && info.words >= WORD_UNIT_MIN_WORDS) {
+  if (unitFor(info.words, info.pages) === "kword") {
     const any = await prisma.learnedRate.findUnique({
       where: { lang_direction_docType_apostille: { lang: info.lang, direction: info.direction, docType: "any", apostille: false } },
     });
@@ -547,7 +571,7 @@ export async function autoQuoteFromPuertaSession(opts: {
   for (const p of priced) {
     await recordSample(
       { lang: p.info.lang, direction: p.info.direction, docType: p.rate.docType, apostille: p.rate.apostille },
-      { unit: p.rate.unit as "doc" | "kword", kind: "auto_quote", clientCents: p.clientCents, costCents: p.costCents, words: p.info.words, pages: p.info.pages, quoteId: created.id, note: `auto ${quoteNumber}` }
+      { unit: p.rate.unit as "doc" | "kword", kind: "auto_quote", perUnit: true, clientCents: p.clientCents, costCents: p.costCents, words: p.info.words, pages: p.info.pages, quoteId: created.id, note: `auto ${quoteNumber}` }
     ).catch(() => null);
   }
 

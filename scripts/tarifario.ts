@@ -42,29 +42,34 @@ async function semillas() {
   const seeds: Parameters<typeof recordSample>[] = [
     [
       { lang: "pt", direction: "to_es", docType: "criminal_record", apostille: true },
-      { unit: "doc", kind: "seed", costCents: 5050, miembroId: "rk1x2kq63rm6ba6mco7c6u2k", miembroNombre: "Juan Amor Fernández", note: "semilla Juan 25-ago: PT certificado apostillado 50,50 €/doc (Amor, 303/6)" },
+      { unit: "doc", kind: "seed", perUnit: true,costCents: 5050, miembroId: "rk1x2kq63rm6ba6mco7c6u2k", miembroNombre: "Juan Amor Fernández", note: "semilla Juan 25-ago: PT certificado apostillado 50,50 €/doc (Amor, 303/6)" },
     ],
     [
       { lang: "en", direction: "from_es", docType: "any", apostille: false },
-      { unit: "kword", kind: "seed", costCents: 8000, clientCents: 9500, plazoDias: 3, miembroId: "43dwlkzsr6lsltpwcj32m88s", miembroNombre: "Vanessa Bech", note: "semilla Juan 26-ago: EN 0,08 €/pal coste · 0,095 €/pal cliente (Vanessa)" },
+      { unit: "kword", kind: "seed", perUnit: true,costCents: 8000, clientCents: 9500, plazoDias: 3, miembroId: "43dwlkzsr6lsltpwcj32m88s", miembroNombre: "Vanessa Bech", note: "semilla Juan 26-ago: EN 0,08 €/pal coste · 0,095 €/pal cliente (Vanessa)" },
     ],
     [
       { lang: "en", direction: "to_es", docType: "any", apostille: false },
-      { unit: "kword", kind: "seed", costCents: 8000, clientCents: 9500, plazoDias: 3, miembroId: "43dwlkzsr6lsltpwcj32m88s", miembroNombre: "Vanessa Bech", note: "semilla Juan 26-ago: EN 0,08 €/pal coste · 0,095 €/pal cliente (Vanessa)" },
+      { unit: "kword", kind: "seed", perUnit: true,costCents: 8000, clientCents: 9500, plazoDias: 3, miembroId: "43dwlkzsr6lsltpwcj32m88s", miembroNombre: "Vanessa Bech", note: "semilla Juan 26-ago: EN 0,08 €/pal coste · 0,095 €/pal cliente (Vanessa)" },
     ],
     [
       { lang: "de", direction: "to_es", docType: "criminal_record", apostille: true },
-      { unit: "doc", kind: "seed", costCents: 2500, plazoDias: 1, miembroId: "ngus1uku6x5uw2pqbmflpbbt", miembroNombre: "Morton Sebastian Peter Münster", note: "semilla Juan 25-ago: DE penales + apostilla 25 €/doc (Morton); LEAD-E46D41F6CA 399 pal" },
+      { unit: "doc", kind: "seed", perUnit: true,costCents: 2500, plazoDias: 1, miembroId: "ngus1uku6x5uw2pqbmflpbbt", miembroNombre: "Morton Sebastian Peter Münster", note: "semilla Juan 25-ago: DE penales + apostilla 25 €/doc (Morton); LEAD-E46D41F6CA 399 pal" },
     ],
     [
       { lang: "he", direction: "to_es", docType: "degree", apostille: false },
-      { unit: "doc", kind: "seed", costCents: 32000, clientCents: 43366, miembroId: "lk1bhu4l6f3vii81685l65ur", miembroNombre: "Cristina Herráez Llop", note: "semilla Juan 25-ago: HE título 320 €/doc (Cristina), cliente 320 + 12 % = 433,66 (Yafit)" },
+      { unit: "doc", kind: "seed", perUnit: true,costCents: 32000, clientCents: 43366, miembroId: "lk1bhu4l6f3vii81685l65ur", miembroNombre: "Cristina Herráez Llop", note: "semilla Juan 25-ago: HE título 320 €/doc (Cristina), cliente 320 + 12 % = 433,66 (Yafit)" },
     ],
   ];
   for (const [key, sample] of seeds) {
     const r = await recordSample(key, sample);
     console.log(`sembrada ${rateKeyLabel(key)} → ${r?.id} (${r?.status})`);
   }
+}
+
+async function reset() {
+  const n = await prisma.learnedRate.deleteMany({});
+  console.log(`tarifario vaciado: ${n.count} tarifas (y sus muestras)`);
 }
 
 async function backfill() {
@@ -99,6 +104,7 @@ async function fijar(id: string, args: string[]) {
     {
       unit: r.unit as "doc" | "kword",
       kind: "manual",
+      perUnit: true,
       costCents: coste != null ? Math.round(coste * 100) : null,
       clientCents: cliente != null ? Math.round(cliente * 100) : null,
       plazoDias: plazo != null ? Math.round(plazo) : null,
@@ -114,6 +120,7 @@ async function fijar(id: string, args: string[]) {
     if (!cmd) await list();
     else if (cmd === "semillas") await semillas();
     else if (cmd === "backfill") await backfill();
+    else if (cmd === "reset" && id === "--si") await reset();
     else if (cmd === "aprobar" && id) await setStatus(id, "APPROVED");
     else if (cmd === "vetar" && id) await setStatus(id, "VETOED");
     else if (cmd === "fijar" && id) await fijar(id, rest);
