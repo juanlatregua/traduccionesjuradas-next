@@ -28,6 +28,8 @@ export type InboxRow = {
   customerId: string | null;
   quoteId: string | null;
   orderReference: string | null;
+  /** Traducciones ya entregadas en el pedido casado: se adjuntan por defecto al responder. */
+  deliveredFileCount?: number;
   draftSubject: string | null;
   draftBody: string | null;
   replySubject: string | null;
@@ -73,6 +75,7 @@ function EmailCard({
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState(row.draftSubject || `RE: ${row.subject}`);
   const [body, setBody] = useState(row.draftBody || "");
+  const [attachFiles, setAttachFiles] = useState((row.deliveredFileCount || 0) > 0);
   const [instruction, setInstruction] = useState("");
   const [drafting, setDrafting] = useState(false);
   const [sending, setSending] = useState(false);
@@ -120,7 +123,7 @@ function EmailCard({
       const res = await fetch(`/api/admin/inbox/${row.id}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, body, manual }),
+        body: JSON.stringify({ subject, body, manual, attachFiles }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo enviar.");
@@ -130,7 +133,8 @@ function EmailCard({
         replyBody: body,
         repliedAt: new Date().toISOString(),
       });
-      setFeedback({ ok: true, text: "✓ Respuesta enviada en el mismo hilo." });
+      const n = Number(data?.fileCount || 0);
+      setFeedback({ ok: true, text: n > 0 ? `✓ Respuesta enviada en el mismo hilo con ${n} adjunto${n === 1 ? "" : "s"}.` : "✓ Respuesta enviada en el mismo hilo." });
     } catch (err: any) {
       setFeedback({ ok: false, text: `✗ ${err?.message || "Error al enviar."}` });
     } finally {
@@ -359,6 +363,15 @@ function EmailCard({
                 placeholder="Escribe la respuesta o genera un borrador con IA y edítalo aquí."
                 className={`${inputCls} resize-y`}
               />
+              {row.channel !== "WHATSAPP" && (row.deliveredFileCount || 0) > 0 && (
+                <label className="flex items-center gap-2 text-sm text-slate-200">
+                  <input type="checkbox" checked={attachFiles} onChange={(e) => setAttachFiles(e.target.checked)} />
+                  Adjuntar las {row.deliveredFileCount} traducción{row.deliveredFileCount === 1 ? "" : "es"} entregada{row.deliveredFileCount === 1 ? "" : "s"} + factura (si está emitida)
+                </label>
+              )}
+              {row.channel !== "WHATSAPP" && row.orderReference && !(row.deliveredFileCount || 0) && (
+                <p className="text-xs text-amber-300">Este pedido aún no tiene traducción entregada: la respuesta saldrá sin PDF.</p>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 {row.channel === "WHATSAPP" && (
                   <button

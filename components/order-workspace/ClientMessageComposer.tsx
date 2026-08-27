@@ -78,6 +78,15 @@ export default function ClientMessageComposer({
       setFeedback({ ok: false, text: "✗ Escribe un mensaje." });
       return;
     }
+    // Caso Maider 27-ago: el email de entrega salió SIN los PDF porque la
+    // traducción aún no estaba subida. Aquí solo se adjunta lo ya entregado.
+    if (attachFiles && !hasDeliveryFiles) {
+      setFeedback({
+        ok: false,
+        text: "✗ Todavía no hay traducción entregada en este pedido: súbela en «Subir y entregar la traducción» (con «Notificar al cliente» desmarcado si quieres usar este mensaje) y vuelve aquí; entonces se adjuntarán los PDF. Si de verdad quieres enviar sin adjuntos, desmarca la casilla.",
+      });
+      return;
+    }
     setSending(true);
     setFeedback(null);
     try {
@@ -152,7 +161,8 @@ export default function ClientMessageComposer({
             checked={attachFiles}
             onChange={(e) => setAttachFiles(e.target.checked)}
           />
-          Adjuntar traducciones + factura{hasDeliveryFiles ? "" : " (aún no hay entrega)"}
+          Adjuntar traducciones + factura
+          {hasDeliveryFiles ? "" : <span className="text-amber-300"> — aún no hay traducción subida: saldría SIN PDF</span>}
         </label>
         <label className="flex items-center gap-2 text-xs text-slate-300">
           <input type="checkbox" checked={alsoSms} onChange={(e) => setAlsoSms(e.target.checked)} />

@@ -41,8 +41,29 @@ export default async function AdminInboxPage({ searchParams }: Props) {
   });
   const countMap = Object.fromEntries(counts.map((c) => [c.status, c._count._all]));
 
+  // Traducciones ya entregadas del pedido casado (por referencia o por presupuesto):
+  // la respuesta las adjunta por defecto y el panel lo enseña.
+  const refs = Array.from(new Set(emails.map((e) => e.orderReference).filter(Boolean))) as string[];
+  const quoteIds = Array.from(new Set(emails.filter((e) => !e.orderReference && e.quoteId).map((e) => e.quoteId))) as string[];
+  const ordersForFiles =
+    refs.length || quoteIds.length
+      ? await prisma.order.findMany({
+          where: { OR: [...(refs.length ? [{ reference: { in: refs } }] : []), ...(quoteIds.length ? [{ quoteId: { in: quoteIds } }] : [])] },
+          select: { reference: true, quoteId: true, deliveryFilesJson: true, translatedFileUrl: true },
+        })
+      : [];
+  const countFiles = (o: (typeof ordersForFiles)[number]) =>
+    Array.isArray(o.deliveryFilesJson)
+      ? (o.deliveryFilesJson as unknown as { url?: string }[]).filter((f) => f?.url).length
+      : o.translatedFileUrl
+        ? 1
+        : 0;
+  const filesByRef = new Map(ordersForFiles.map((o) => [o.reference, countFiles(o)]));
+  const filesByQuote = new Map(ordersForFiles.filter((o) => o.quoteId).map((o) => [o.quoteId as string, countFiles(o)]));
+
   const rows: InboxRow[] = emails.map((e) => ({
     id: e.id,
+    deliveredFileCount: e.orderReference ? filesByRef.get(e.orderReference) || 0 : e.quoteId ? filesByQuote.get(e.quoteId) || 0 : 0,
     channel: e.channel,
     isManual: e.graphId.startsWith("manual:"),
     fromPhone: e.fromPhone,

@@ -43,6 +43,7 @@ export async function POST(req: Request) {
         {
           unit: rate.unit as "doc" | "kword",
           kind: "manual",
+          perUnit: true,
           costCents: costEur != null ? Math.round(costEur * 100) : null,
           clientCents: clientEur != null ? Math.round(clientEur * 100) : null,
           plazoDias: plazoDias != null ? Math.round(plazoDias) : null,

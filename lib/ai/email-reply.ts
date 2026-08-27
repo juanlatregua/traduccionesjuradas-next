@@ -125,10 +125,22 @@ export async function buildBusinessContext(opts: {
         dueDate: true,
         clientName: true,
         clientEmail: true,
+        deliveryFilesJson: true,
+        translatedFileUrl: true,
+        finalFilename: true,
       },
     });
     if (order) {
       clientEmailForBrief ||= order.clientEmail;
+      const delivered: { url: string; filename?: string | null }[] = Array.isArray(order.deliveryFilesJson)
+        ? (order.deliveryFilesJson as unknown as { url: string; filename?: string | null }[]).filter((f) => f?.url)
+        : order.translatedFileUrl
+          ? [{ url: order.translatedFileUrl, filename: order.finalFilename || null }]
+          : [];
+      const { buildSignedOrderUrl } = await import("@/lib/order-token");
+      const { buildClientPortalUrl } = await import("@/lib/client-token");
+      const estadoUrl = buildSignedOrderUrl(order.reference, "estado");
+      const espacioUrl = order.clientEmail && !order.clientEmail.endsWith("@whatsapp.local") ? buildClientPortalUrl(order.clientEmail) : null;
       parts.push(
         [
           `PEDIDO ${order.reference}:`,
@@ -138,6 +150,12 @@ export async function buildBusinessContext(opts: {
           `- Estado: ${order.status} · Pago: ${order.paymentStatus} · Producción: ${order.deliveryState}`,
           order.amountCents ? `- Importe: ${(order.amountCents / 100).toFixed(2)} EUR (IVA incluido)` : null,
           order.dueDate ? `- Fecha de entrega prevista: ${order.dueDate.toLocaleDateString("es-ES")}` : null,
+          delivered.length
+            ? `- TRADUCCIONES ENTREGADAS (${delivered.length} archivo(s)): ${delivered.map((f, i) => f.filename || `traducción ${i + 1}`).join(", ")}. Al responder por email VAN ADJUNTAS automáticamente (PDF firmado electrónicamente): dilo en el mensaje («le adjunto de nuevo…»).`
+            : `- Todavía NO hay traducción entregada: no prometas adjuntos.`,
+          `- Enlace directo al estado del pedido (sin contraseña): ${estadoUrl}`,
+          espacioUrl ? `- Enlace a SU ESPACIO de cliente (todos sus pedidos, presupuestos y descargas; caduca): ${espacioUrl}` : null,
+          `- Incluye SIEMPRE uno de esos dos enlaces en la respuesta cuando el cliente pregunte por sus documentos, el estado o la entrega.`,
         ]
           .filter(Boolean)
           .join("\n")

@@ -9,6 +9,8 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { replyToInboxMessage } from "@/lib/azure-mail-read";
 import { renderClientMessageHtml } from "@/lib/email";
 import { sendWhatsAppInboxReply } from "@/lib/whatsapp-inbox";
+import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
+import type { MailAttachment } from "@/lib/azure-mail";
 
 export const runtime = "nodejs";
 
@@ -43,6 +45,43 @@ export async function POST(req: Request, { params }: Params) {
     // manual=true: el staff ya lo ha enviado desde su WhatsApp (wa.me); aqui
     // solo se registra la respuesta y el hilo queda cerrado.
     const manual = Boolean(payload?.manual);
+
+    // Traducciones entregadas + factura emitida, adjuntas por defecto cuando el
+    // hilo está casado con un pedido que ya tiene entrega (caso Maider 27-ago:
+    // la respuesta salía sin los PDF). attachFiles=false lo desactiva.
+    const attachFiles = payload?.attachFiles !== false;
+    let attachments: MailAttachment[] = [];
+    let orderRefForFiles = inbound.orderReference;
+    if (!orderRefForFiles && inbound.quoteId) {
+      const o = await prisma.order.findFirst({ where: { quoteId: inbound.quoteId }, select: { reference: true } });
+      orderRefForFiles = o?.reference ?? null;
+    }
+    if (!isWhatsApp && attachFiles && orderRefForFiles) {
+      const order = await prisma.order.findUnique({
+        where: { reference: orderRefForFiles },
+        select: { reference: true, deliveryFilesJson: true, translatedFileUrl: true, finalFilename: true },
+      });
+      if (order) {
+        const files: { url: string; filename?: string | null }[] = Array.isArray(order.deliveryFilesJson)
+          ? (order.deliveryFilesJson as unknown as { url: string; filename?: string | null }[]).filter(
+              (f) => f && typeof f.url === "string" && f.url.trim()
+            )
+          : order.translatedFileUrl
+            ? [{ url: order.translatedFileUrl, filename: order.finalFilename || null }]
+            : [];
+        const multi = files.length > 1;
+        const [fileAtts, invAtt] = await Promise.all([
+          Promise.all(
+            files.map((f, i) =>
+              fetchFileAsAttachment(f.url, f.filename || `Traduccion-jurada-${order.reference}${multi ? `-${i + 1}` : ""}.pdf`)
+            )
+          ),
+          buildIssuedInvoiceAttachment(order.reference),
+        ]);
+        attachments = [...(fileAtts.filter(Boolean) as MailAttachment[]), ...(invAtt ? [invAtt] : [])];
+      }
+    }
+
     if (isWhatsApp && manual) {
       /* sin envio */
     } else if (isWhatsApp) {
@@ -54,6 +93,7 @@ export async function POST(req: Request, { params }: Params) {
       await replyToInboxMessage(inbound.graphId, {
         html: renderClientMessageHtml(bodyText),
         subject,
+        attachments,
       });
     }
 
@@ -104,6 +144,7 @@ export async function POST(req: Request, { params }: Params) {
                 toPhone: inbound.fromPhone,
                 subject,
                 bodyText,
+                fileCount: attachments.length,
                 actorEmail: access.email,
                 inboundEmailId: inbound.id,
               },
@@ -113,7 +154,7 @@ export async function POST(req: Request, { params }: Params) {
       }
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, fileCount: attachments.length });
   } catch (err: any) {
     console.error("[inbox:reply] error", err);
     return NextResponse.json(

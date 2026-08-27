@@ -120,7 +120,12 @@ export async function getInboxMessage(graphId: string): Promise<InboxMessageFull
  */
 export async function replyToInboxMessage(
   graphId: string,
-  opts: { html: string; subject?: string }
+  opts: {
+    html: string;
+    subject?: string;
+    /** Adjuntos (traducciones entregadas + factura) en la respuesta del hilo. */
+    attachments?: { name: string; contentType: string; contentBytes: string }[];
+  }
 ): Promise<void> {
   const mailbox = getMailboxAddress();
   const token = await getGraphAccessToken();
@@ -128,6 +133,16 @@ export async function replyToInboxMessage(
     message: {
       body: { contentType: "HTML", content: opts.html },
       ...(opts.subject ? { subject: opts.subject } : {}),
+      ...(opts.attachments && opts.attachments.length > 0
+        ? {
+            attachments: opts.attachments.map((a) => ({
+              "@odata.type": "#microsoft.graph.fileAttachment",
+              name: a.name,
+              contentType: a.contentType,
+              contentBytes: a.contentBytes,
+            })),
+          }
+        : {}),
     },
   };
   const res = await fetch(
