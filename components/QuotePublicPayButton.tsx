@@ -128,12 +128,21 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
                 <CopyField label="Beneficiario" value={b.account.holder} mono={false} onCopied={onCopy} />
                 <CopyField label="IBAN" value={b.account.iban} onCopied={onCopy} />
                 <CopyField label="BIC/SWIFT" value={b.account.bic} onCopied={onCopy} />
+                {b.account.holderAddress && (
+                  <CopyField label="Dirección del beneficiario" value={b.account.holderAddress} mono={false} onCopied={onCopy} />
+                )}
+                {b.account.bankAddress && (
+                  <CopyField label="Dirección del banco" value={b.account.bankAddress} mono={false} onCopied={onCopy} />
+                )}
               </div>
             ) : null
           )}
           <CopyField label="Concepto" value={quoteNumber} onCopied={onCopy} />
           <p className="text-[11px] text-graphite">
             Indica el número de presupuesto en el concepto. Se confirma en menos de 24 h laborables.
+          </p>
+          <p className="text-[11px] text-graphite">
+            Desde fuera de la zona SEPA: transferencia SWIFT en EUR con BIC, IBAN y las direcciones de arriba (gastos compartidos, SHA).
           </p>
         </div>
       )}

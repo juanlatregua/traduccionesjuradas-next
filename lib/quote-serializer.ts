@@ -33,6 +33,7 @@ export function serializeQuote(quote: any) {
     discountType: quote.discountType,
     discountValue: decimalToNumber(quote.discountValue),
     notesLegal: quote.notesLegal,
+    deliveryTerm: quote.deliveryTerm ?? null,
     holderNames: quote.holderNames ?? null,
     validityDays: quote.validityDays,
     issuedAt: quote.issuedAt,

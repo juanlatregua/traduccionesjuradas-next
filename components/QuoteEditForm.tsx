@@ -43,6 +43,7 @@ type Quote = {
   vatRate?: number;
   validityDays?: number;
   notesLegal?: string | null;
+  deliveryTerm?: string | null;
   holderNames?: string | null;
   marginPct?: number | null;
   paymentMethods?: string[];
@@ -77,6 +78,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
   const [discountValue, setDiscountValue] = useState(quote.discountValue ?? 0);
   const [validityDays, setValidityDays] = useState(quote.validityDays ?? 15);
   const [notesLegal, setNotesLegal] = useState(quote.notesLegal || "");
+  const [deliveryTerm, setDeliveryTerm] = useState(quote.deliveryTerm || "");
   const [holderNames, setHolderNames] = useState(quote.holderNames || "");
   const [deliveryType, setDeliveryType] = useState(quote.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF");
   const [paymentMethods, setPaymentMethods] = useState<string[]>(quote.paymentMethods || []);
@@ -125,6 +127,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
           vatRate,
           validityDays: Number(validityDays) || 15,
           notesLegal: notesLegal.trim() || null,
+          deliveryTerm: deliveryTerm.trim() || null,
           holderNames: holderNames.trim() || null,
           marginPct: quote.marginPct ?? undefined,
           paymentMethods,
@@ -206,6 +209,10 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
               <option value="DIGITAL_PDF">Digital (PDF firmado)</option>
               <option value="PAPER_SHIP">Papel + envío (+{PAPER_SHIPPING_BASE_EUR} €)</option>
             </select>
+          </div>
+          <div>
+            <label className={label}>Plazo de entrega</label>
+            <input value={deliveryTerm} onChange={(e) => setDeliveryTerm(e.target.value)} placeholder="ej. 2-3 días hábiles" className={input} />
           </div>
           <div>
             <label className={label}>WhatsApp del presupuesto (opcional)</label>

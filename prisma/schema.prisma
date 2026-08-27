@@ -477,6 +477,7 @@ model Quote {
   sourceLang     String
   targetLang     String
   deliveryType   QuoteDeliveryType @default(DIGITAL_PDF)
+  deliveryTerm   String?           // plazo de entrega ("2-3 días hábiles"): bloque Entrega, no notas legales
   shippingBase   Decimal           @default(0) @db.Decimal(12, 2)
   vatRate        Decimal           @default(0.21) @db.Decimal(5, 4)
   currency       String            @default("EUR")

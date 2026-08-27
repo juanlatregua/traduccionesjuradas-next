@@ -133,6 +133,7 @@ export async function POST(req: Request) {
           discountType: parsed.data.discountType,
           discountValue: parsed.data.discountValue,
           notesLegal: parsed.data.notesLegal,
+          deliveryTerm: parsed.data.deliveryTerm,
           holderNames: parsed.data.holderNames,
           validityDays: parsed.data.validityDays,
           issuedAt,

@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { resolvePaymentAccounts } from "@/lib/payment-labels";
 import { jsPDF } from "jspdf";
 import { put } from "@vercel/blob";
 import { isBlobConfigured } from "@/lib/payment-config";
@@ -32,6 +33,7 @@ type QuotePdfData = {
   isDraft?: boolean;
   paid?: boolean; // recibo: sella el presupuesto como PAGADO (marca de agua + indicador)
   notesLegal?: string | null;
+  deliveryTerm?: string | null; // plazo ("2-3 días hábiles") — bloque Entrega
   holderNames?: string | null; // titulares de los certificados (informativo)
   translatorName?: string | null; // jurado que realiza la traducción (directriz 12-ago)
   translatorMaec?: string | null;
@@ -53,7 +55,7 @@ type PdfStrings = {
   holders: string; languages: string; delivery: string; deliveryDigital: string; deliveryPaper: string;
   translator: string; maecNo: (n: string) => string; maecAppointed: string;
   cols: [string, string, string, string]; subtotal: string; discount: string; shipping: string;
-  vat: (pct: string) => string; total: string; paperNote: string; legalNotes: string; payTitle: string;
+  vat: (pct: string) => string; total: string; paperNote: string; legalNotes: string; deadline: string; payTitle: string;
   beneficiary: string; bank: string; questions: string;
 };
 const PDF_STRINGS: Record<QuotePdfLang, PdfStrings> = {
@@ -64,7 +66,7 @@ const PDF_STRINGS: Record<QuotePdfLang, PdfStrings> = {
     maecNo: (n) => `nº ${n} del MAEC`, maecAppointed: "nombrado/a por el MAEC",
     cols: ["Descripción", "Cantidad", "Precio", "Total"], subtotal: "Subtotal", discount: "Descuento", shipping: "Envío",
     vat: (p) => `IVA (${p}%)`, total: "TOTAL",
-    paperNote: "El coste de envío en papel (12 € + IVA) está incluido en el total.", legalNotes: "Notas legales",
+    paperNote: "El coste de envío en papel (12 € + IVA) está incluido en el total.", legalNotes: "Notas legales", deadline: "Plazo",
     payTitle: "Pago por transferencia, Bizum o PayPal (opcional):", beneficiary: "Beneficiario", bank: "Banco",
     questions: "Dudas: WhatsApp / teléfono",
   },
@@ -75,7 +77,7 @@ const PDF_STRINGS: Record<QuotePdfLang, PdfStrings> = {
     maecNo: (n) => `MAEC no. ${n}`, maecAppointed: "appointed by the Spanish Ministry of Foreign Affairs (MAEC)",
     cols: ["Description", "Qty", "Price", "Total"], subtotal: "Subtotal", discount: "Discount", shipping: "Shipping",
     vat: (p) => `VAT (${p}%)`, total: "TOTAL",
-    paperNote: "The paper shipping cost (€12 + VAT) is included in the total.", legalNotes: "Legal notes",
+    paperNote: "The paper shipping cost (€12 + VAT) is included in the total.", legalNotes: "Legal notes", deadline: "Delivery time",
     payTitle: "Payment by bank transfer, Bizum or PayPal (optional):", beneficiary: "Beneficiary", bank: "Bank",
     questions: "Questions: WhatsApp / phone",
   },
@@ -86,7 +88,7 @@ const PDF_STRINGS: Record<QuotePdfLang, PdfStrings> = {
     maecNo: (n) => `n° ${n} du MAEC`, maecAppointed: "nommé(e) par le Ministère espagnol des Affaires étrangères (MAEC)",
     cols: ["Description", "Quantité", "Prix", "Total"], subtotal: "Sous-total", discount: "Remise", shipping: "Frais d'envoi",
     vat: (p) => `TVA (${p} %)`, total: "TOTAL",
-    paperNote: "Les frais d'envoi papier (12 € + TVA) sont inclus dans le total.", legalNotes: "Mentions légales",
+    paperNote: "Les frais d'envoi papier (12 € + TVA) sont inclus dans le total.", legalNotes: "Mentions légales", deadline: "Délai",
     payTitle: "Paiement par virement, Bizum ou PayPal (facultatif) :", beneficiary: "Bénéficiaire", bank: "Banque",
     questions: "Questions : WhatsApp / téléphone",
   },
@@ -97,7 +99,7 @@ const PDF_STRINGS: Record<QuotePdfLang, PdfStrings> = {
     maecNo: (n) => `n. ${n} del MAEC`, maecAppointed: "nominato/a dal Ministero degli Esteri spagnolo (MAEC)",
     cols: ["Descrizione", "Quantità", "Prezzo", "Totale"], subtotal: "Subtotale", discount: "Sconto", shipping: "Spedizione",
     vat: (p) => `IVA (${p}%)`, total: "TOTALE",
-    paperNote: "Il costo della spedizione cartacea (12 € + IVA) è incluso nel totale.", legalNotes: "Note legali",
+    paperNote: "Il costo della spedizione cartacea (12 € + IVA) è incluso nel totale.", legalNotes: "Note legali", deadline: "Tempi di consegna",
     payTitle: "Pagamento con bonifico, Bizum o PayPal (facoltativo):", beneficiary: "Beneficiario", bank: "Banca",
     questions: "Domande: WhatsApp / telefono",
   },
@@ -108,7 +110,7 @@ const PDF_STRINGS: Record<QuotePdfLang, PdfStrings> = {
     maecNo: (n) => `n.º ${n} do MAEC`, maecAppointed: "nomeado/a pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC)",
     cols: ["Descrição", "Quantidade", "Preço", "Total"], subtotal: "Subtotal", discount: "Desconto", shipping: "Envio",
     vat: (p) => `IVA (${p}%)`, total: "TOTAL",
-    paperNote: "O custo do envio em papel (12 € + IVA) está incluído no total.", legalNotes: "Notas legais",
+    paperNote: "O custo do envio em papel (12 € + IVA) está incluído no total.", legalNotes: "Notas legais", deadline: "Prazo",
     payTitle: "Pagamento por transferência, Bizum ou PayPal (opcional):", beneficiary: "Beneficiário", bank: "Banco",
     questions: "Dúvidas: WhatsApp / telefone",
   },
@@ -119,7 +121,7 @@ const PDF_STRINGS: Record<QuotePdfLang, PdfStrings> = {
     maecNo: (n) => `Nr. ${n} des MAEC`, maecAppointed: "ernannt vom spanischen Außenministerium (MAEC)",
     cols: ["Beschreibung", "Menge", "Preis", "Gesamt"], subtotal: "Zwischensumme", discount: "Rabatt", shipping: "Versand",
     vat: (p) => `MwSt. (${p} %)`, total: "GESAMT",
-    paperNote: "Die Versandkosten in Papierform (12 € + MwSt.) sind im Gesamtbetrag enthalten.", legalNotes: "Rechtliche Hinweise",
+    paperNote: "Die Versandkosten in Papierform (12 € + MwSt.) sind im Gesamtbetrag enthalten.", legalNotes: "Rechtliche Hinweise", deadline: "Lieferfrist",
     payTitle: "Zahlung per Überweisung, Bizum oder PayPal (optional):", beneficiary: "Begünstigter", bank: "Bank",
     questions: "Fragen: WhatsApp / Telefon",
   },
@@ -221,7 +223,9 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   doc.text(`${t.languages}: ${data.sourceLang.toUpperCase()} › ${data.targetLang.toUpperCase()}`, 14, y);
   y += 5;
   doc.text(
-    `${t.delivery}: ${data.deliveryType === "DIGITAL_PDF" ? t.deliveryDigital : t.deliveryPaper}`,
+    `${t.delivery}: ${data.deliveryType === "DIGITAL_PDF" ? t.deliveryDigital : t.deliveryPaper}${
+      data.deliveryTerm ? ` · ${t.deadline}: ${safe(data.deliveryTerm)}` : ""
+    }`,
     14,
     y
   );
@@ -313,27 +317,20 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
       ? data.paymentMethods
       // Fallback sin métodos guardados: Sabadell (BBVA en cierre, orden 24-ago).
       : ["sabadell", "bizum"];
+  // Fuente única de cuentas: lib/payment-labels (misma verdad que /q y WhatsApp).
+  // Transferencias con datos COMPLETOS (BIC/SWIFT + direcciones): fuera de la
+  // zona SEPA el banco del cliente los exige (27-ago, caso EE. UU.).
   const payLines: string[] = [];
-  if (methods.includes("bbva")) {
-    payLines.push("BBVA · BIC BBVAESMM · IBAN ES66 0182 3370 67 0201616991 · HBTJ Consultores Lingüísticos");
-  }
-  if (methods.includes("openbank")) {
-    payLines.push("Openbank · BIC OPENESMM · IBAN ES33 0073 0100 5207 9242 5264 · Juan Silva");
-  }
-  if (methods.includes("sabadell")) {
-    payLines.push("Banco Sabadell · BIC BSABESBB · IBAN ES47 0081 0240 1100 0378 7991 · HBTJ Consultores Lingüísticos");
-  }
-  const bizumBoth = methods.includes("bizum");
-  if (bizumBoth || methods.includes("bizum607")) payLines.push("Bizum: 607356273");
-  if (bizumBoth || methods.includes("bizum654")) payLines.push("Bizum: 654069126");
-  if (methods.includes("paypal")) {
-    payLines.push("PayPal: hola@traduccionesjuradas.net");
-  }
-  if (methods.includes("revolut")) {
-    // Cuenta internacional: datos COMPLETOS para transferencias SWIFT desde fuera de España.
-    payLines.push("Revolut Bank UAB · IBAN ES32 1583 0001 1490 2264 2489 (ES3215830001149022642489) · BIC/SWIFT REVOESM2 · EUR");
-    payLines.push(`${t.beneficiary}: Juan Antonio Silva Moreno · Eugenio Sellés 5, 29017 Málaga, España`);
-    payLines.push(`${t.bank}: Revolut Bank UAB · Calle Príncipe de Vergara 132, 4ª planta, 28002 Madrid, España`);
+  for (const { account } of resolvePaymentAccounts(methods)) {
+    if (account.kind === "transfer") {
+      payLines.push(`${account.bank} · IBAN ${account.iban} · BIC/SWIFT ${account.bic} · EUR`);
+      payLines.push(`${t.beneficiary}: ${account.holder}${account.holderAddress ? ` · ${account.holderAddress}` : ""}`);
+      if (account.bankAddress) payLines.push(`${t.bank}: ${account.bank} · ${account.bankAddress}`);
+    } else if (account.kind === "bizum") {
+      payLines.push(`Bizum: ${account.phone.replace(/\s+/g, "")}`);
+    } else if (account.kind === "paypal") {
+      payLines.push(`PayPal: ${account.email}`);
+    }
   }
   if (payLines.length > 0) {
     doc.setFont("helvetica", "bold");
@@ -342,8 +339,14 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
     y += 5;
     doc.setFont("helvetica", "normal");
     for (const line of payLines) {
-      doc.text(line, 14, y, { maxWidth: 180 });
-      y += 4.5;
+      for (const part of doc.splitTextToSize(line, 180) as string[]) {
+        if (y > 285) {
+          doc.addPage();
+          y = 18;
+        }
+        doc.text(part, 14, y);
+        y += 4.5;
+      }
     }
     y += 0.5;
   }

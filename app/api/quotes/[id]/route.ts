@@ -119,6 +119,7 @@ export async function PATCH(req: Request, { params }: Params) {
           discountType: parsed.data.discountType,
           discountValue: parsed.data.discountValue,
           notesLegal: parsed.data.notesLegal,
+          deliveryTerm: parsed.data.deliveryTerm,
           holderNames: parsed.data.holderNames,
           marginPct: parsed.data.marginPct,
           paymentMethods: parsed.data.paymentMethods,

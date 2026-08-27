@@ -51,6 +51,7 @@ type ParsedCommon = {
   discountValue: number;
   vatRate: number;
   notesLegal: string | null;
+  deliveryTerm: string | null;
   holderNames: string | null;
   validityDays: number;
   marginPct: number | null;
@@ -90,6 +91,7 @@ function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; 
   const discountValue = normalizeNumber(raw.discountValue, 0);
   const vatRate = normalizeNumber(raw.vatRate, DEFAULT_VAT_RATE);
   const notesLegal = normalizeText(raw.notesLegal) || null;
+  const deliveryTerm = normalizeText(raw.deliveryTerm).slice(0, 120) || null;
   const holderNames = normalizeText(raw.holderNames) || null;
   const validityDays = Math.max(1, Math.round(normalizeNumber(raw.validityDays, 15)));
   const customerPhone = normalizePhone(raw.customerPhone);
@@ -137,6 +139,7 @@ function parseCommon(raw: any): { ok: true; data: ParsedCommon } | { ok: false; 
       discountValue,
       vatRate,
       notesLegal,
+      deliveryTerm,
       holderNames,
       validityDays,
       marginPct,
