@@ -1,0 +1,279 @@
+<title>Una sola cáscara</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap">
+<style>
+  :root {
+    --ground: #F7F1E6;
+    --paper: #FFFDF8;
+    --ink: #1A2E4A;
+    --body: #3D3630;
+    --muted: #6B625A;
+    --line: #DDD4C4;
+    --accent: #3D6FA8;
+    --accent-soft: #E4ECF6;
+    --alta: #8B2500;
+    --alta-soft: #F6E3DC;
+    --media: #8A6A1A;
+    --media-soft: #F3E9CF;
+    --baja: #5F564E;
+    --baja-soft: #ECE6DB;
+    --ok: #2D5016;
+    --ok-soft: #E1EAD7;
+    --code-bg: #EFE8DA;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0F1E30;
+      --paper: #16283F;
+      --ink: #F1EADB;
+      --body: #D9D0BF;
+      --muted: #9CA8B8;
+      --line: #2C4160;
+      --accent: #8FB4E3;
+      --accent-soft: #1E3552;
+      --alta: #F0A184;
+      --alta-soft: #47251A;
+      --media: #E5C46A;
+      --media-soft: #3E3416;
+      --baja: #B9B0A4;
+      --baja-soft: #2A3345;
+      --ok: #A9CF8A;
+      --ok-soft: #22361A;
+      --code-bg: #0B1727;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0F1E30;
+    --paper: #16283F;
+    --ink: #F1EADB;
+    --body: #D9D0BF;
+    --muted: #9CA8B8;
+    --line: #2C4160;
+    --accent: #8FB4E3;
+    --accent-soft: #1E3552;
+    --alta: #F0A184;
+    --alta-soft: #47251A;
+    --media: #E5C46A;
+    --media-soft: #3E3416;
+    --baja: #B9B0A4;
+    --baja-soft: #2A3345;
+    --ok: #A9CF8A;
+    --ok-soft: #22361A;
+    --code-bg: #0B1727;
+  }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--body);
+    font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 76ch; margin: 0 auto; padding: 3rem 1.25rem 5rem; }
+  h1, h2, h3 { font-family: "Source Serif 4", Georgia, "Times New Roman", serif; color: var(--ink); text-wrap: balance; margin: 0; }
+  h1 { font-size: 2.6rem; line-height: 1.08; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 1.5rem; font-weight: 600; margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.12rem; font-weight: 600; margin-top: 1.5rem; }
+  p { margin: 0.75rem 0 0; max-width: 68ch; }
+  .eyebrow { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .lede { font-size: 1.15rem; color: var(--body); margin-top: 1rem; max-width: 62ch; }
+  code, .mono { font-family: "Source Code Pro", ui-monospace, Menlo, monospace; font-size: 0.86em; }
+  code { background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 3px; color: var(--ink); overflow-wrap: anywhere; }
+  .verdict { margin-top: 2rem; display: grid; grid-template-columns: auto 1fr; gap: 0 1rem; align-items: start; background: var(--paper); border: 1px solid var(--line); border-left: 5px solid var(--alta); padding: 1.1rem 1.25rem; border-radius: 6px; }
+  .verdict .word { font-family: "Source Serif 4", Georgia, serif; font-size: 1.9rem; font-weight: 700; color: var(--alta); line-height: 1; padding-top: 0.15rem; }
+  .verdict p { margin-top: 0.35rem; }
+  .verdict p:first-child { margin-top: 0; }
+  .good { color: var(--ok); font-weight: 600; }
+
+  .shells { margin-top: 1.5rem; overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); }
+  th { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--ground); }
+  tr:last-child td { border-bottom: none; }
+  td.k { color: var(--ink); font-weight: 600; white-space: nowrap; width: 9rem; }
+  .cross { color: var(--alta); font-weight: 600; }
+
+  .finding { margin-top: 1.25rem; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 1rem 1.2rem 1.1rem 1.35rem; position: relative; }
+  .finding::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; border-radius: 6px 0 0 6px; background: var(--sev); }
+  .finding.alta { --sev: var(--alta); }
+  .finding.media { --sev: var(--media); }
+  .finding.baja { --sev: var(--baja); }
+  .finding h3 { margin-top: 0; }
+  .finding .ref { font-family: "Source Code Pro", ui-monospace, monospace; font-size: 0.8rem; color: var(--sev); font-weight: 600; letter-spacing: 0.04em; }
+  .finding dl { margin: 0.75rem 0 0; display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.35rem 0.8rem; font-size: 0.95rem; }
+  .finding dt { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; padding-top: 0.2em; }
+  .finding dd { margin: 0; overflow-wrap: anywhere; }
+  .finding dd code { font-size: 0.8em; }
+
+  .pill { display: inline-block; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; padding: 0.15em 0.55em; border-radius: 999px; vertical-align: middle; margin-left: 0.4rem; }
+  .pill.alta { background: var(--alta-soft); color: var(--alta); }
+  .pill.media { background: var(--media-soft); color: var(--media); }
+  .pill.baja { background: var(--baja-soft); color: var(--baja); }
+
+  .sessions { list-style: none; margin: 1.25rem 0 0; padding: 0; counter-reset: s; display: grid; gap: 0.9rem; }
+  .sessions li { counter-increment: s; display: grid; grid-template-columns: 3.2rem 1fr; gap: 0 0.9rem; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 0.9rem 1.1rem; }
+  .sessions li::before { content: "S" counter(s); font-family: "Source Serif 4", Georgia, serif; font-size: 1.7rem; font-weight: 700; color: var(--accent); line-height: 1; }
+  .sessions strong { color: var(--ink); }
+  .sessions p { margin-top: 0.35rem; font-size: 0.97rem; }
+  .dep { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; margin-left: 0.5rem; }
+
+  ul.plain { margin: 0.6rem 0 0; padding-left: 1.2rem; }
+  ul.plain li { margin-top: 0.35rem; }
+  .check { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: 0.5rem; }
+  .check li { display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.5rem; align-items: start; }
+  .check li::before { content: "☐"; color: var(--accent); font-size: 1.1rem; line-height: 1.3; }
+  .done { margin-top: 1.25rem; background: var(--ok-soft); border: 1px solid var(--line); border-radius: 6px; padding: 0.9rem 1.1rem; font-size: 0.95rem; }
+  .done strong { color: var(--ok); }
+  .foot { margin-top: 3rem; font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 560px) {
+    h1 { font-size: 2rem; }
+    .finding dl { grid-template-columns: 1fr; gap: 0.15rem 0; }
+    .verdict { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page">
+  <p class="eyebrow">traduccionesjuradas.net · zona traductor · auditoría de coherencia · 27 ago 2026</p>
+  <h1>Una sola cáscara</h1>
+  <p class="lede">¿Se puede enseñar el backoffice a un jurado de lavori como suite de presupuestos, pedidos y facturas sin explicarle nada? Recorrido de rutas, enlaces y estados con evidencia en el código, y el plan en cuatro sesiones para que la respuesta sea sí.</p>
+
+  <div class="verdict">
+    <div class="word">No</div>
+    <div>
+      <p><strong>No es vendible tal cual.</strong> El ciclo central del presupuesto (lista → ficha → editar → volver) cruza de cáscara en los dos sentidos y la ficha ni siquiera tiene menú: un traductor vería dos productos distintos en una misma sesión.</p>
+      <p>Hay tres cosas llamadas «presupuesto» con tres numeraciones y tres juegos de estados en la misma pantalla, y el origen (puerta → solicitud lavori → presupuesto) se pierde en cuanto la solicitud queda atada.</p>
+      <p><span class="good">Lo bueno:</span> el pedido ya tiene un detalle canónico y casi todo lo que hace falta existe como componente. Es trabajo de mover y reenlazar, no de construir.</p>
+    </div>
+  </div>
+
+  <h2>Las dos cáscaras, hoy</h2>
+  <p>Dos interfaces montadas en épocas distintas. La clara nació como <code>/admin</code>; la oscura es la zona traductor. El presupuesto vive a caballo.</p>
+  <div class="shells">
+    <table>
+      <thead><tr><th></th><th>/admin/* · clara</th><th>/zona-traductor/* · oscura</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Menú</td><td>Bandeja · Presupuestos · Pedidos · Métricas v2 · Funnel · Colaboradores · Chat AI</td><td>Pedidos · Presupuestos · Clientes · Facturas · Contabilidad · Ajustes</td></tr>
+        <tr><td class="k">Lista</td><td><code>/admin/quotes</code>: solo la tabla Quote, con Eliminados y No aceptado</td><td><code>/zona-traductor/presupuestos</code>: solicitudes lavori + Quote + «presupuestos del módulo de facturas»; sin filtrar borrados</td></tr>
+        <tr><td class="k">Crear</td><td><code>/admin/quotes/new</code> <span class="cross">→ redirige a la oscura</span></td><td><code>/zona-traductor/presupuesto</code> (builder) <span class="cross">→ al crear salta a la clara</span></td></tr>
+        <tr><td class="k">Ficha y editar</td><td><code>/admin/quotes/[id]</code> y <code>/editar</code>: sin ningún menú montado</td><td>No existe. «Abrir» <span class="cross">cruza a la clara</span></td></tr>
+        <tr><td class="k">Volver</td><td>«← Volver a presupuestos» <span class="cross">→ /admin/quotes</span>, no a la lista de la que venías</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Bloque 1 · Alta<span class="pill alta">rompe la continuidad</span></h2>
+
+  <article class="finding alta">
+    <div class="ref">1.1</div>
+    <h3>La ficha del presupuesto vive en la otra cáscara y sin menú</h3>
+    <dl>
+      <dt>Síntoma</dt><dd>El recorrido de hoy: lista oscura → Abrir → ficha clara → Volver → otra lista con otro menú.</dd>
+      <dt>Evidencia</dt><dd><code>zona-traductor/presupuestos/page.tsx:291</code> enlaza a <code>/admin/quotes/${id}</code> · <code>admin/quotes/[id]/page.tsx:35</code> vuelve a <code>/admin/quotes</code> · ni la ficha ni <code>/editar</code> montan <code>AdminNav</code> o <code>ZonaTraductorNav</code> · <code>QuoteEditForm.tsx:145</code> y <code>StaffExpedienteIntake.tsx:838</code> saltan a la clara. Entradas cruzadas desde la oscura: <code>pedido/[reference]/page.tsx:401</code>, <code>OrderManagementActions.tsx:157</code>, <code>clientes/[email]/page.tsx:257,280</code>, <code>periodos/page.tsx:160</code>, <code>AdminInboxPanel.tsx:225</code>, <code>QuoteRowActions.tsx:52</code>, email de staff <code>lib/email.ts:124</code>.</dd>
+      <dt>Cambio</dt><dd>Crear <code>/zona-traductor/presupuestos/[id]</code> y <code>/[id]/editar</code> montando los mismos <code>AdminQuoteDetailPanel</code> y <code>QuoteEditForm</code> (repintados a la paleta de la zona). <code>/admin/quotes/[id]</code> y <code>/editar</code> pasan a redirect. «Volver» → la lista oscura. Corregir los diez enlaces citados.</dd>
+    </dl>
+  </article>
+
+  <article class="finding alta">
+    <div class="ref">1.2</div>
+    <h3>Todas las acciones del presupuesto están en la cáscara clara</h3>
+    <dl>
+      <dt>Síntoma</dt><dd>La lista oscura solo sabe Ver PDF · Detalle · Pedido. No aceptado, Eliminar, Restaurar, Eliminados, enviar, reenviar, pagado, en curso, entregado, recibo, WhatsApp e idioma del PDF solo existen en la clara.</dd>
+      <dt>Evidencia</dt><dd><code>presupuestos/page.tsx:283-305</code> · <code>QuoteRowActions.tsx:40-90</code> · <code>admin/quotes/page.tsx:106-107</code> · <code>AdminQuoteDetailPanel.tsx:261-399</code>. La lista oscura no filtra <code>deletedAt</code> (<code>presupuestos/page.tsx:46</code>) y pinta «Eliminado» (<code>:236</code>) sin poder restaurar.</dd>
+      <dt>Cambio</dt><dd><code>QuoteRowActions</code> en la lista oscura, filtro <code>deletedAt: null</code> y vista <code>?view=deleted</code>. <code>/admin/quotes</code> → redirect.</dd>
+    </dl>
+  </article>
+
+  <article class="finding alta">
+    <div class="ref">1.3</div>
+    <h3>Tres «presupuestos» en una pantalla</h3>
+    <dl>
+      <dt>Síntoma</dt><dd>Solicitud lavori (<code>LEAD-…</code>, estados SENT · PRICED · ACCEPTED), Quote (ocho estados, serie 2026-000NN) y factura con <code>docKind = quote</code> (serie P·AA_NNN, otro PDF). Tres numeraciones, tres ciclos, una lista.</dd>
+      <dt>Evidencia</dt><dd><code>presupuestos/page.tsx:169-213</code> y <code>:311-370</code> · <code>schema.prisma:812</code> (LavoriPriceRequest) y <code>:213</code> (docKind) · se crea en <code>InvoiceManager.tsx:478</code> con <code>lib/invoice-pdf</code>.</dd>
+      <dt>Cambio</dt><dd>Retirar la creación de <code>docKind = quote</code> (<code>InvoiceManager.tsx:476-480</code>); los existentes, solo lectura en un bloque «Histórico» plegado. La solicitud lavori pasa a ser la etapa <em>Solicitud</em> del mismo listado.</dd>
+    </dl>
+  </article>
+
+  <article class="finding alta">
+    <div class="ref">1.4</div>
+    <h3>Saltos ciegos de origen</h3>
+    <dl>
+      <dt>Síntoma</dt><dd>Puerta → solicitud → presupuesto → pedido → factura no se puede recorrer ida y vuelta desde la interfaz.</dd>
+      <dt>Evidencia</dt><dd>(a) La puerta no tiene listado; el enlace <code>?session=</code> solo sale por email y por el vigía (<code>lib/funnel-digest.ts</code>, <code>lib/vigia.ts</code>, <code>api/puerta/request-quote</code>). (b) La lista solo enseña solicitudes con <code>quoteId: null</code> (<code>presupuestos/page.tsx:94</code>): al atarse desaparecen, y la ficha del Quote no menciona solicitud, traductor, precio ni plazo (<code>AdminQuoteDetailPanel.tsx</code> no contiene «lavori», «lead» ni «coste»). (c) Quote → pedido bien (<code>:523</code>); pedido → Quote cruza cáscara. (d) Pedido → factura va a la lista, no a la factura (<code>pedido/[reference]/page.tsx:648</code>); <code>ClientInvoice</code> no tiene <code>quoteId</code>. (e) Bandeja → Quote sí; Quote → bandeja no.</dd>
+      <dt>Cambio</dt><dd>Sección <strong>Origen</strong> en la ficha: solicitud lavori con traductor, precio y plazo; expediente o puerta con sus documentos; email de bandeja. Alimentada desde <code>getQuoteByIdForAdmin</code> (<code>lib/quote-db.ts</code>) con <code>lavoriPriceRequest.findFirst({ quoteId })</code>. <code>OrderFinancePanel</code> enlaza a la factura concreta.</dd>
+    </dl>
+  </article>
+
+  <h2>Bloque 2 · Media<span class="pill media">vocabulario, estados, duplicados</span></h2>
+
+  <article class="finding media">
+    <div class="ref">2.1</div>
+    <h3>Un mismo estado, varios nombres</h3>
+    <div class="shells" style="margin-top:0.75rem">
+      <table>
+        <thead><tr><th>Concepto</th><th>Dónde</th><th>Discrepancia</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Quote EXPIRED</td><td><code>lib/quotes.ts:69</code>, <code>AdminQuoteDetailPanel.tsx:89</code>, <code>area-cliente.ts:300</code>, <code>presupuestos/page.tsx:234</code></td><td>«Expirado»; «No aceptado» solo si hay <code>lostReason</code> y solo en la clara; el email al cliente dice «Presupuesto expirado» (<code>quote-messages.ts:160</code>).</td></tr>
+          <tr><td class="k">Quote IN_PROGRESS</td><td><code>lib/quotes.ts:67</code> vs <code>area-cliente.ts:299</code></td><td>«En progreso» vs «En proceso»; <code>statusLabel</code> duplicado en <code>AdminQuoteDetailPanel.tsx:80-92</code>.</td></tr>
+          <tr><td class="k">Cliente</td><td><code>app/q/[token]/page.tsx:178</code></td><td>Ve el mapa interno («Borrador», «En progreso», «Expirado») en vez de <code>area-cliente.quoteStatus</code>.</td></tr>
+          <tr><td class="k">Pedido</td><td><code>AdminOrdersList.tsx:36-40,269</code>, <code>OrderTableWithBulkActions.tsx:64-66</code>, <code>lib/workflow.ts:147-155</code>, <code>area-cliente.ts:289</code>, <code>OrderStepper.tsx:11-17</code>, <code>TranslatorAgenda.tsx:31-38</code></td><td>Cuatro familias de etiquetas; «PAID» en inglés en la lista; «Traducido entregado» vs «Traducido y entregado»; badge «Presupuesto» en un pedido pagado (lo admite el propio comentario de <code>TranslatorAgenda.tsx:28-29</code>).</td></tr>
+          <tr><td class="k">Solicitud lavori</td><td><code>presupuestos/page.tsx:181-189</code> vs <code>lib/vigia.ts:261</code></td><td>«esperando precio» vs «SIN TRADUCTOR»: unificar en Solicitud enviada · Con precio · Aceptada.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="finding media">
+    <div class="ref">2.2</div>
+    <h3>Pantallas dobles y saltos dobles</h3>
+    <ul class="plain">
+      <li><code>/admin/orders</code> duplica Pedidos con estadísticas propias y un salto doble (<code>AdminOrdersList.tsx:290</code> → <code>/admin/orders/[ref]</code> → redirect).</li>
+      <li><code>PMQuickCreatePanel.tsx:118</code> y <code>BandejaEntrada.tsx:136</code> enlazan a <code>/admin/quotes/new</code>, que redirige: apuntar directo al builder.</li>
+      <li>Sin equivalente oscuro: bandeja (enlazada desde <code>ZonaTraductorNav.tsx:91</code>), colaboradores (ya pintada en oscuro dentro de la cáscara clara, <code>admin/collaborators/page.tsx:22-26</code>), métricas, funnel, chat.</li>
+      <li>Dos puertas OTP con la misma cookie: <code>lib/admin-page-access.ts:16</code> → <code>/acceso</code>; <code>lib/zona-traductor-data.ts:503,509</code> → <code>/zona-traductor/verificar</code>.</li>
+      <li>El builder vuelve siempre a «← Expedientes» (<code>presupuesto/page.tsx:132</code>) aunque vengas de presupuestos, de un lead o de la bandeja. El contador «Presupuestos» del menú suma borradores y expedientes (<code>zona-traductor-data.ts:550-556</code>), no las solicitudes con precio sin presupuesto, que es lo accionable.</li>
+    </ul>
+  </article>
+
+  <h2>Bloque 3 · Baja<span class="pill baja">cosmética</span></h2>
+  <article class="finding baja">
+    <ul class="plain" style="margin-top:0">
+      <li><code>ZonaTraductorThemeToggle</code> (<code>zona-traductor/page.tsx:13</code>) permite tema claro en la zona: con una sola cáscara sobra.</li>
+      <li>Jerga interna en la portada de Pedidos («Flujo WhatsApp… <code>src=wa</code>», <code>zona-traductor/page.tsx:163-181</code>) y en la lista («neto 75/25 sugerido», <code>presupuestos/page.tsx:195</code>).</li>
+      <li><code>workspace/[reference]</code> sigue accesible fuera del menú; <code>as any</code> en <code>admin/quotes/[id]/page.tsx:43</code> y <code>orders: any</code> en <code>AdminQuoteDetailPanel.tsx:520</code>.</li>
+    </ul>
+  </article>
+
+  <h2>Plan en cuatro sesiones</h2>
+  <p>El orden importa: S2 depende de S1; S3 es independiente de S2; S4 cierra. Cada sesión termina con build, type-check y la lista de comprobación del final.</p>
+  <ol class="sessions">
+    <li><div><strong>El presupuesto en una cáscara</strong><span class="dep">sin dependencias</span>
+      <p>Crear <code>/zona-traductor/presupuestos/[id]</code> y <code>/[id]/editar</code> reutilizando <code>AdminQuoteDetailPanel</code> y <code>QuoteEditForm</code> repintados. <code>QuoteRowActions</code>, filtro <code>deletedAt</code> y vista Eliminados en la lista oscura. <code>/admin/quotes</code>, <code>/[id]</code> y <code>/editar</code> → redirect. Corregir los diez enlaces de 1.1 y <code>lib/email.ts:124</code>. El builder vuelve a la lista oscura (o a <code>?back=</code>). El contador del menú suma las solicitudes con precio sin presupuesto.</p></div></li>
+    <li><div><strong>Un solo concepto</strong><span class="dep">depende de S1</span>
+      <p>Sección Origen en la ficha (1.4). Las solicitudes pasan a ser la etapa Solicitud del listado, incluidas las atadas, plegadas. Se congela la creación de <code>docKind = quote</code>. Se borra el <code>statusLabel</code> duplicado; <code>EXPIRED</code> = «No aceptado», <code>IN_PROGRESS</code> = «En proceso»; <code>/q/[token]</code> usa el mapa de cliente; el email de <code>quote-messages.ts:160</code> dice «no aceptado / caducado».</p></div></li>
+    <li><div><strong>Pedidos y factura</strong><span class="dep">independiente de S2</span>
+      <p><code>/admin/orders</code> → redirect a <code>/zona-traductor?vista=tabla</code> tras comprobar que los filtros de estado y pago y <code>/api/orders/export</code> existen en <code>ZonaTraductorFilters</code> / <code>OrderTableWithBulkActions</code> (si no, portar solo el enlace de exportación). Un único mapa de estados de staff. <code>OrderFinancePanel</code> enlaza a la factura concreta. Retirar el badge «Presupuesto» en pedidos pagados.</p></div></li>
+    <li><div><strong>El resto de /admin</strong><span class="dep">cierre</span>
+      <p>Bandeja → <code>/zona-traductor/bandeja</code> como primera pestaña. Colaboradores bajo Ajustes. Métricas, funnel y chat bajo Ajustes → «Métricas» (internas, no vendibles). Borrar <code>AdminNav</code>, el conmutador de tema y <code>workspace/[reference]</code>. <code>/acceso</code> → redirect a <code>/verificar</code>. Regla final: <code>grep -rn '"/admin/' app components lib</code> devuelve cero salvo redirects.</p></div></li>
+  </ol>
+
+  <h2>Al terminar cada sesión</h2>
+  <p><code>npm run build</code> · <code>npx tsc --noEmit --skipLibCheck</code> · <code>npm run test:unit</code>, y después, en dev:</p>
+  <ul class="check">
+    <li>Presupuestos → ficha → Editar → Guardar → Volver aterriza en la lista oscura con el mismo menú.</li>
+    <li>Crear desde el builder (manual, <code>?lead=</code>, <code>?exp=</code>, <code>?session=</code>) lleva a la ficha oscura con sección Origen.</li>
+    <li>Pedido ↔ Presupuesto ↔ Factura, ida y vuelta, sin cambiar de tema.</li>
+    <li>No aceptado, Eliminar y Restaurar funcionan desde la lista oscura.</li>
+    <li><code>/admin/quotes</code>, <code>/admin/orders</code> y <code>/admin/quotes/[id]</code> responden 307 hacia la zona.</li>
+    <li><code>grep -rn "AdminNav" components app</code> devuelve cero.</li>
+    <li><code>/q/[token]</code> y el área de cliente enseñan «No aceptado» y «En proceso», nunca «Borrador».</li>
+  </ul>
+
+  <div class="done">
+    <strong>Ya hecho hoy, fuera del plan:</strong> los documentos de un lead automático de la puerta entran en el builder (<code>fb0aca5</code>); plazo de entrega con campo propio en el bloque Entrega del PDF, la página pública, la ficha y el WhatsApp, editable en el builder y en Editar, con los 44 presupuestos existentes migrados; transferencias con BIC y direcciones completas desde una sola fuente; sección «Documentos del cliente» arriba en la ficha (<code>df5cb6d</code>).
+  </div>
+
+  <p class="foot">Auditoría de solo lectura del agente guardian-flujos sobre <code>main</code> el 27 de agosto de 2026, con rutas verificadas una a una. Los números de línea corresponden a ese estado del repositorio.</p>
+</div>
