@@ -5,11 +5,11 @@ import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getStaffRole } from "@/lib/staff-access";
-import { listPaidUnbilledOrders, listExcludedFromBilling } from "@/lib/reconcile-invoices";
+import { listPaidUnbilledOrders } from "@/lib/reconcile-invoices";
+import { inBooksOrderWhere } from "@/lib/bizum-ledger";
 import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense, type AcUnbilled } from "@/components/ContabilidadClient";
 import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 import ReconcilePanel from "@/components/ReconcilePanel";
-import ExcludedOrdersPanel from "@/components/ExcludedOrdersPanel";
 import BankReconcilePanel from "@/components/BankReconcilePanel";
 import CollaboratorAccountPanel, { type CollaboratorAccountGroup } from "@/components/CollaboratorAccountPanel";
 
@@ -25,8 +25,10 @@ export default async function ZonaTraductorContabilidadPage() {
 
   const [rawInvoices, rawOrders, rawExpenses, unbilled, rawTaxCloses, rawAccruals] = await Promise.all([
     prisma.clientInvoice.findMany({ where: { status: "ISSUED", docKind: "invoice" }, orderBy: { issuedAt: "desc" }, take: 3000, include: { order: { select: { reference: true } } } }),
+    // Bizum y apartados NO entran en la contabilidad general (regla 27-ago-2026):
+    // viven en /zona-traductor/contabilidad/bizum con su propia relación.
     prisma.order.findMany({
-      where: { paymentStatus: "PAID" },
+      where: { paymentStatus: "PAID", AND: [inBooksOrderWhere()] },
       select: { reference: true, paidAt: true, createdAt: true, amountCents: true, paymentStatus: true, events: { select: { type: true, payload: true, createdAt: true } } },
       take: 3000,
     }),
@@ -77,7 +79,6 @@ export default async function ZonaTraductorContabilidadPage() {
     });
   }
   const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
-  const excludedFromBilling = await listExcludedFromBilling();
 
   const unbilledIncome: AcUnbilled[] = unbilled.map((r) => ({ date: r.paidAt ?? r.createdAt, baseCents: r.bookableBaseCents }));
 
@@ -165,7 +166,13 @@ export default async function ZonaTraductorContabilidadPage() {
           sinFacturaSlot={
             <>
               <ReconcilePanel rows={unbilled} totalAmountCents={unbilledTotal} canIssue={canIssue} />
-              <ExcludedOrdersPanel rows={excludedFromBilling} />
+              <p className="mt-3 text-xs text-slate-500">
+                Los cobros por Bizum y los pedidos apartados no aparecen aquí: están en{" "}
+                <a href="/zona-traductor/contabilidad/bizum" className="text-cyan-400 hover:underline">
+                  Bizum (fuera de contabilidad)
+                </a>
+                .
+              </p>
             </>
           }
           bancoSlot={<BankReconcilePanel canIssue={canIssue} />}

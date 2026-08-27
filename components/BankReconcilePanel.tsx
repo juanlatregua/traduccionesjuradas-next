@@ -258,7 +258,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
               )}
 
               <div className="grid gap-2 text-xs sm:grid-cols-3">
-                <div className="rounded-lg border border-slate-700 p-2">Ingresos extracto: <b className="tabular-nums">{eur(t.bankIn)}</b> · cuadrados {eur(t.matchedIn)} · sin factura {eur(t.gapIn)}</div>
+                <div className="rounded-lg border border-slate-700 p-2">Ingresos extracto: <b className="tabular-nums">{eur(t.bankIn)}</b> · cuadrados {eur(t.matchedIn)} · sin factura {eur(t.gapIn)}{t.bizumIn ? <> · Bizum (fuera) {eur(t.bizumIn)}</> : null}</div>
                 <div className="rounded-lg border border-slate-700 p-2">Cargos extracto: <b className="tabular-nums">{eur(t.bankOut)}</b> · cuadrados {eur(t.matchedOut)} · sin gasto {eur(t.gapOut)}</div>
                 <div className="rounded-lg border border-slate-700 p-2">Cuadrados {result.matched.length} · Ambiguos {result.ambiguous.length} · Internos {result.internal.length} · Ignorados {result.ignored.length}</div>
               </div>
@@ -306,6 +306,18 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                   </Row>
                 ))}
               </Section>
+
+              {result.bizum?.length > 0 && (
+                <Section title={`Bizum (${result.bizum.length}) → fuera de contabilidad`} color="slate">
+                  <p className="mb-2 text-xs text-slate-400">
+                    Cobros por Bizum: no se facturan ni entran en el libro. Su relación con los pedidos está en{" "}
+                    <a href="/zona-traductor/contabilidad/bizum" className="text-cyan-400 hover:underline">Bizum (fuera)</a>.
+                  </p>
+                  {result.bizum.map((it: any, i: number) => (
+                    <Row key={i} txn={it.txn} extra="Bizum" />
+                  ))}
+                </Section>
+              )}
 
               <Section title={`Ingresos sin identificar (${result.unmatchedIncome.length})`} color="slate">
                 {result.unmatchedIncome.map((it: any, i: number) => (

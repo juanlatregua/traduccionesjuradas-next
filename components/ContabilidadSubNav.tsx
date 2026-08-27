@@ -9,6 +9,7 @@ export default function ContabilidadSubNav() {
         { href: "/zona-traductor/contabilidad", label: "Resumen fiscal" },
         { href: "/zona-traductor/recurrentes", label: "Recurrentes" },
         { href: "/zona-traductor/periodos", label: "Periodos y cierre" },
+        { href: "/zona-traductor/contabilidad/bizum", label: "Bizum (fuera)" },
       ]}
     />
   );

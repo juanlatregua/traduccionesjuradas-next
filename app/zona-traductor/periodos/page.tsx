@@ -4,6 +4,7 @@ import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
+import { inBooksOrderWhere } from "@/lib/bizum-ledger";
 import { decimalToNumber, moneyToCents, QUOTE_STATUS_LABELS, type QuoteStatus } from "@/lib/quotes";
 import {
   groupByPeriod,
@@ -189,7 +190,9 @@ async function loadPresupuestos(): Promise<Dataset> {
 }
 
 async function loadPedidos(base: "created" | "paid"): Promise<Dataset> {
+  // Bizum y apartados fuera de los periodos contables (regla 27-ago-2026).
   const raw = await prisma.order.findMany({
+    where: inBooksOrderWhere(),
     orderBy: { createdAt: "desc" },
     take: 5000,
     select: {

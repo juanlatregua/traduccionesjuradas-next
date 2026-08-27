@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { reconcile, type AccountingSnapshot } from "@/lib/bank-reconcile";
+import { inBooksOrderWhere } from "@/lib/bizum-ledger";
 import type { BankTxn } from "@/lib/bank-parse";
 
 export const runtime = "nodejs";
@@ -39,8 +40,9 @@ export async function POST(req: Request) {
       select: { id: true, number: true, totalCents: true, issuedAt: true, createdAt: true, fiscalName: true, nif: true, paidAt: true },
       take: 5000,
     }),
+    // Bizum y apartados quedan fuera de la conciliación (van a su apartado propio).
     prisma.order.findMany({
-      where: { paymentStatus: { in: ["PAID", "REFUNDED"] } },
+      where: { paymentStatus: { in: ["PAID", "REFUNDED"] }, AND: [inBooksOrderWhere()] },
       select: { reference: true, amountCents: true, paidAt: true, createdAt: true, clientName: true, paymentStatus: true },
       take: 5000,
     }),

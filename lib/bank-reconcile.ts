@@ -45,9 +45,12 @@ export type ReconResult = {
   chargeNoExpense: GapItem[];
   internal: GapItem[];
   unmatchedIncome: GapItem[];
+  // Ingresos por Bizum: fuera de la contabilidad general (apartado propio), no
+  // cuentan como "sin factura" ni entran en gapIn.
+  bizum: GapItem[];
   ambiguous: AmbiguousItem[];
   ignored: IgnoredItem[];
-  totals: { bankIn: number; bankOut: number; matchedIn: number; matchedOut: number; gapIn: number; gapOut: number };
+  totals: { bankIn: number; bankOut: number; matchedIn: number; matchedOut: number; gapIn: number; gapOut: number; bizumIn: number };
   balanceCheck: { ok: boolean; message: string };
   // Para vincular a mano un ingreso/cargo a un registro EXISTENTE no cobrado/pagado.
   availableInvoices: { id: string; label: string; totalCents: number }[];
@@ -70,9 +73,10 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
     chargeNoExpense: [],
     internal: [],
     unmatchedIncome: [],
+    bizum: [],
     ambiguous: [],
     ignored: [],
-    totals: { bankIn: 0, bankOut: 0, matchedIn: 0, matchedOut: 0, gapIn: 0, gapOut: 0 },
+    totals: { bankIn: 0, bankOut: 0, matchedIn: 0, matchedOut: 0, gapIn: 0, gapOut: 0, bizumIn: 0 },
     balanceCheck: { ok: true, message: "" },
     availableInvoices: [],
     availableExpenses: [],
@@ -174,8 +178,12 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
 
       // 3) Sin candidato.
       if (INTERNAL_RE.test(desc)) res.internal.push({ txn, lineHash, label: "Interno" });
-      else {
-        res.unmatchedIncome.push({ txn, lineHash, label: BIZUM_RE.test(desc) ? "Bizum" : undefined });
+      else if (BIZUM_RE.test(desc)) {
+        // Bizum: fuera de libros (regla 27-ago-2026) → apartado propio, sin hueco.
+        res.bizum.push({ txn, lineHash, label: "Bizum" });
+        res.totals.bizumIn += txn.amountCents;
+      } else {
+        res.unmatchedIncome.push({ txn, lineHash });
         res.totals.gapIn += txn.amountCents;
       }
     } else {
