@@ -196,8 +196,8 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     else if (d >= 3 && !opened) accion = `${d} días sin abrir → WhatsApp corto: "¿lo recibiste?"`;
     else if (d >= 3 && opened) accion = `abierto y sin pagar ${d} días → preguntar qué le frena (precio/plazo)`;
     else accion = `reciente (${d} d) → esperar; el cron recuerda solo`;
-    if (d >= 2) act(Number(q.total), caducado ? 1 : 2, `Presupuesto ${q.quoteNumber} ${eur(Number(q.total))} (${q.customerName}, ${pairOf(q.sourceLang, q.targetLang)}): ${accion.split("→")[1]?.trim() || accion}`, waLink(phone) || `${SITE}/admin/quotes/${q.id}`);
-    return { numero: q.quoteNumber, cliente: q.customerName, email: q.customerEmail, phone, wa: waLink(phone), par: pairOf(q.sourceLang, q.targetLang), total: Number(q.total), status: q.status, enviado: madrid(sent), dias: d, abierto: opened, recordatorios: reminders, smsFallido: smsFailed, caducado, accion, link: `${SITE}/admin/quotes/${q.id}` };
+    if (d >= 2) act(Number(q.total), caducado ? 1 : 2, `Presupuesto ${q.quoteNumber} ${eur(Number(q.total))} (${q.customerName}, ${pairOf(q.sourceLang, q.targetLang)}): ${accion.split("→")[1]?.trim() || accion}`, waLink(phone) || `${SITE}/zona-traductor/presupuestos/${q.id}`);
+    return { numero: q.quoteNumber, cliente: q.customerName, email: q.customerEmail, phone, wa: waLink(phone), par: pairOf(q.sourceLang, q.targetLang), total: Number(q.total), status: q.status, enviado: madrid(sent), dias: d, abierto: opened, recordatorios: reminders, smsFallido: smsFailed, caducado, accion, link: `${SITE}/zona-traductor/presupuestos/${q.id}` };
   });
   const lost = await prisma.quote.findMany({ where: { deletedAt: null, status: "EXPIRED", updatedAt: { gte: SINCE } }, select: { quoteNumber: true, total: true, customerName: true, lostReason: true, sourceLang: true, targetLang: true } });
 

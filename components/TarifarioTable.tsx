@@ -197,7 +197,7 @@ export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
                             {s.quoteId ? (
                               <>
                                 {" · "}
-                                <a href={`/admin/quotes/${s.quoteId}`} className="text-cyan-400 hover:underline">presupuesto</a>
+                                <a href={`/zona-traductor/presupuestos/${s.quoteId}`} className="text-cyan-400 hover:underline">presupuesto</a>
                               </>
                             ) : s.ref ? ` · ${s.ref}` : ""}
                             {s.note ? ` · ${s.note}` : ""}

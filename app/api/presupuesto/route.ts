@@ -428,7 +428,7 @@ export async function POST(req: Request) {
 
     // SMS al staff: nueva solicitud de presupuesto desde el estimador.
     sendStaffAlertSMS(
-      `Nueva solicitud de presupuesto ${order.reference} de ${email} (${langPair}). Quote DRAFT en /admin/quotes.`,
+      `Nueva solicitud de presupuesto ${order.reference} de ${email} (${langPair}). Quote DRAFT en /zona-traductor/presupuestos.`,
       `presupuesto ${order.reference}`
     ).catch(() => {});
 

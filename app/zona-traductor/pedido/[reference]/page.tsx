@@ -398,7 +398,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                 </p>
               </div>
               <a
-                href={`/admin/quotes/${order.quote!.id}`}
+                href={`/zona-traductor/presupuestos/${order.quote!.id}`}
                 className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
               >
                 Abrir presupuesto →

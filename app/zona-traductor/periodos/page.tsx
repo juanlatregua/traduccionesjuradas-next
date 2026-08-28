@@ -158,7 +158,7 @@ async function loadPresupuestos(): Promise<Dataset> {
     amountCents: moneyToCents(decimalToNumber(q.total)),
     state: q.status,
     cells: [
-      <a key="num" href={`/admin/quotes/${q.id}`} className="font-mono text-cyan-300 hover:text-cyan-200">
+      <a key="num" href={`/zona-traductor/presupuestos/${q.id}`} className="font-mono text-cyan-300 hover:text-cyan-200">
         {q.quoteNumber}
       </a>,
       <span key="date" className="text-slate-400">{fmtDate(q.createdAt)}</span>,

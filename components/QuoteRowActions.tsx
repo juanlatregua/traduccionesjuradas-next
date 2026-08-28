@@ -49,7 +49,7 @@ export default function QuoteRowActions({ id, status, deleted }: { id: string; s
   return (
     <div className="flex items-center gap-2">
       <Link
-        href={`/admin/quotes/${id}`}
+        href={`/zona-traductor/presupuestos/${id}`}
         className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
       >
         Abrir

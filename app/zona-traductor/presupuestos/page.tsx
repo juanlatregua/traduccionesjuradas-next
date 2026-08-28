@@ -294,7 +294,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                       <FileText className="h-3.5 w-3.5" /> Ver PDF{quote.pdfUrl ? "" : " (borrador)"}
                     </a>
                     <Link
-                      href={`/admin/quotes/${quote.id}`}
+                      href={`/zona-traductor/presupuestos/${quote.id}`}
                       className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
                     >
                       <ExternalLink className="h-3.5 w-3.5" /> Detalle

@@ -248,7 +248,7 @@ export function buildDigestHtml(d: StaffDigest): string {
         <ul style="margin:0; padding-left:18px; font-size:13px; color:#78350f;">${d.lostQuotes
           .map((q) => {
             const bits: string[] = [
-              `<a href="https://www.traduccionesjuradas.net/admin/quotes/${encodeURIComponent(q.id)}" style="font-weight:600; color:#92400e;">${escapeHtml(q.quoteNumber)}</a> · ${q.totalEur.toFixed(2)} € · ${escapeHtml(q.langPair)} · ${escapeHtml(q.customerEmail)}`,
+              `<a href="https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${encodeURIComponent(q.id)}" style="font-weight:600; color:#92400e;">${escapeHtml(q.quoteNumber)}</a> · ${q.totalEur.toFixed(2)} € · ${escapeHtml(q.langPair)} · ${escapeHtml(q.customerEmail)}`,
             ];
             if (q.reason) bits.push(`Motivo del cliente: <strong>${escapeHtml(q.reason)}</strong>${q.reasonNote ? ` — «${escapeHtml(q.reasonNote)}»` : ""}`);
             if (q.findings.length) bits.push(`⚠ ${escapeHtml(q.findings.join(" · "))}`);

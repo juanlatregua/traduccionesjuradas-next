@@ -121,7 +121,7 @@ export async function sendPresupuestoEmail(payload: PresupuestoPayload) {
 
   const baseUrl = "https://www.traduccionesjuradas.net";
   const quoteLink = payload.quoteId
-    ? `<p><a href="${baseUrl}/admin/quotes/${payload.quoteId}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Revisar presupuesto y enviar</a></p>`
+    ? `<p><a href="${baseUrl}/zona-traductor/presupuestos/${payload.quoteId}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Revisar presupuesto y enviar</a></p>`
     : `<p><a href="${baseUrl}/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona operativa</a></p>`;
 
   const html = `
@@ -668,7 +668,7 @@ export async function sendOrderReviewRoutingEmail(data: {
     ? `Nuevo pedido ${data.reference} — Presupuesto listo para revisar`
     : `Revision interna requerida - ${data.reference}`;
   const ctaUrl = hasQuote
-    ? `${baseUrl}/admin/quotes/${data.quoteId}`
+    ? `${baseUrl}/zona-traductor/presupuestos/${data.quoteId}`
     : `${baseUrl}/zona-traductor`;
   const ctaLabel = hasQuote ? "Revisar presupuesto y enviar" : "Abrir zona operativa";
 

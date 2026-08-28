@@ -145,7 +145,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
       });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo guardar.");
-      router.push(`/admin/quotes/${quote.id}`);
+      router.push(`/zona-traductor/presupuestos/${quote.id}`);
       router.refresh();
     } catch (e: any) {
       setError(e?.message || "Error al guardar.");

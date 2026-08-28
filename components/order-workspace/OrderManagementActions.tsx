@@ -154,7 +154,7 @@ export default function OrderManagementActions({
       )}
 
       {quote && (
-        <a href={`/admin/quotes/${quote.id}`} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
+        <a href={`/zona-traductor/presupuestos/${quote.id}`} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
           Presupuesto {quote.quoteNumber}
         </a>
       )}

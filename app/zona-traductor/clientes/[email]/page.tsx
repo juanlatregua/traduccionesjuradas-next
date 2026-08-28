@@ -254,7 +254,7 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
                           <p className="text-slate-600">sin factura</p>
                         )}
                         {o.quote && (
-                          <a href={`/admin/quotes/${o.quote.id}`} className="block text-slate-300 hover:underline">
+                          <a href={`/zona-traductor/presupuestos/${o.quote.id}`} className="block text-slate-300 hover:underline">
                             Presupuesto {o.quote.quoteNumber}
                           </a>
                         )}
@@ -277,7 +277,7 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
               {quotes.map((q) => (
                 <a
                   key={q.id}
-                  href={`/admin/quotes/${q.id}`}
+                  href={`/zona-traductor/presupuestos/${q.id}`}
                   className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-900/40"
                 >
                   <span className="font-mono font-semibold text-cyan-400">{q.quoteNumber}</span>

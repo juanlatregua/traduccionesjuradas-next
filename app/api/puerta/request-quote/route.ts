@@ -133,7 +133,7 @@ export async function POST(req: Request) {
               ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
               : "Sin jurado asociado a la tarifa: al pagar irá por el carril normal de lavori.",
             ...lineas,
-            `Ficha: ${baseUrl}/admin/quotes/${auto.quoteId}`,
+            `Ficha: ${baseUrl}/zona-traductor/presupuestos/${auto.quoteId}`,
           ].join("\n")
         ),
       }).catch((err) => console.error("[puerta:request-quote] aviso auto fallo:", err));

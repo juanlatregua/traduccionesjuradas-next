@@ -836,7 +836,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         setSubmitting(false);
         return;
       }
-      window.location.href = `/admin/quotes/${data.quote.id}`;
+      window.location.href = `/zona-traductor/presupuestos/${data.quote.id}`;
     } catch {
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
@@ -1514,7 +1514,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           {!canSubmit && !submitting && missing.length > 0 && (
             <p className="text-xs text-amber-400">Falta: {missing.join(", ")}.</p>
           )}
-          <p className="text-xs text-slate-500">Se crea como borrador en /admin/quotes para revisar y enviar.</p>
+          <p className="text-xs text-slate-500">Se crea como borrador en Presupuestos para revisar y enviar.</p>
         </div>
       )}
     </div>

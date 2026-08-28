@@ -226,7 +226,7 @@ function EmailCard({
             </span>
             {row.quoteId && (
               <Link
-                href={`/admin/quotes/${row.quoteId}`}
+                href={`/zona-traductor/presupuestos/${row.quoteId}`}
                 className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700 hover:bg-emerald-100"
               >
                 Ver presupuesto →
