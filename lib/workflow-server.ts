@@ -6,6 +6,7 @@ import {
   getFlowProfile,
   getWorkflowState,
   isFrenchPair,
+  normalizeLangPair,
   milestoneSmsFor,
   type WorkflowState,
 } from "@/lib/workflow";
@@ -291,7 +292,10 @@ export async function assignDefaultFrenchEtaIfNeeded(options: {
 const AUTO_ASSIGN_LANGUAGES = new Set(["en", "pt", "it"]);
 
 function isAutoAssignPair(langPair?: string | null): boolean {
-  const normalized = String(langPair || "").trim().toLowerCase();
+  // normalizeLangPair: "fr->es" y "fr-es" son el mismo par. Sin esto, un par con
+  // flecha partia mal y esta funcion decia true donde lavoriRouteFromPair decia
+  // null, que es como un pedido acababa auto-asignado saltandose el carril.
+  const normalized = normalizeLangPair(langPair);
   const [from, to] = normalized.split("-");
   return AUTO_ASSIGN_LANGUAGES.has(from) || AUTO_ASSIGN_LANGUAGES.has(to);
 }

@@ -92,8 +92,22 @@ export function getFlowProfile(events: WorkflowEventLike[]): FlowProfile {
   return "GENERAL";
 }
 
+/**
+ * El par se guarda con DOS separadores segun por donde entre: "fr-es" (alta a
+ * mano de la zona traductor, que valida ^[a-z]{2}-[a-z]{2}$) y "fr->es" (creado
+ * desde presupuesto, lib/orders.ts concatena origen y destino con la flecha).
+ * Comparar solo con guion dejaba fuera la mayoria: medido el 28-ago-2026, 11 de
+ * los 12 pedidos de frances de produccion NO se reconocian como franceses, entre
+ * ellos uno de 786,50 € guardado como LANG_REVIEW. Consecuencias: perfil de flujo
+ * equivocado (y por tanto revision interna antes de cobrar), sin ETA por defecto
+ * de frances, y el frances dejaba de estar excluido del carril de reparto.
+ */
+export function normalizeLangPair(langPair?: string | null) {
+  return String(langPair || "").trim().toLowerCase().replace(/->/g, "-");
+}
+
 export function isFrenchPair(langPair?: string | null) {
-  const normalized = String(langPair || "").trim().toLowerCase();
+  const normalized = normalizeLangPair(langPair);
   return normalized === "fr-es" || normalized === "es-fr";
 }
 
@@ -102,7 +116,7 @@ export function inferFlowProfile(input: {
   hasMixedCart?: boolean;
   containsWordCountItem?: boolean;
 }) {
-  const langPair = String(input.langPair || "").trim().toLowerCase();
+  const langPair = normalizeLangPair(input.langPair);
   const isFrench = isFrenchPair(langPair);
   if (isFrench && input.hasMixedCart) return "FR_B" as const;
   if (isFrench) return "FR_A" as const;

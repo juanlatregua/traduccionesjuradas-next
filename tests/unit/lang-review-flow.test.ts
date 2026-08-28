@@ -4,6 +4,7 @@ import {
   inferFlowProfile,
   requiresInternalReview,
   canTransitionWorkflow,
+  isFrenchPair,
 } from "../../lib/workflow.ts";
 import { computeQuoteTotals } from "../../lib/quotes.ts";
 import { getWordRateForLangOrPair } from "../../lib/pricing.ts";
@@ -158,4 +159,27 @@ test("auto-quote totals para 1000 palabras aleman", () => {
   assert.equal(totals.subtotal, 120); // 1000 * 0.12
   assert.equal(totals.vatAmount, 25.2); // 120 * 0.21
   assert.equal(totals.total, 145.2);
+});
+
+// ─── El par con FLECHA es el mismo par (28-ago-2026) ───
+// Medido en producción: 11 de los 12 pedidos de francés llevan "fr->es" y NO se
+// reconocían como franceses, entre ellos uno de 786,50 € guardado como
+// LANG_REVIEW en vez de FR_A.
+
+test("isFrenchPair reconoce el francés con los DOS separadores", () => {
+  for (const p of ["fr-es", "es-fr", "fr->es", "es->fr", "FR->ES", " fr->es "]) {
+    assert.equal(isFrenchPair(p), true, `${p} debería ser francés`);
+  }
+  for (const p of ["en-es", "en->es", "pt->es", "", null]) {
+    assert.equal(isFrenchPair(p as any), false, `${p} no debería ser francés`);
+  }
+});
+
+test("un pedido de francés con flecha es FR_A, no LANG_REVIEW", () => {
+  assert.equal(inferFlowProfile({ langPair: "fr->es" }), "FR_A");
+  assert.equal(inferFlowProfile({ langPair: "es->fr" }), "FR_A");
+  assert.equal(inferFlowProfile({ langPair: "fr->es", hasMixedCart: true }), "FR_B");
+  // y el resto sigue yendo a revisión, con flecha o sin ella
+  assert.equal(inferFlowProfile({ langPair: "en->es" }), "LANG_REVIEW");
+  assert.equal(inferFlowProfile({ langPair: "pt-es" }), "LANG_REVIEW");
 });
