@@ -18,6 +18,8 @@ export class QuoteSendError extends Error {
   }
 }
 
+const MAX_EMAIL_ATTACH_BYTES = 15 * 1024 * 1024;
+
 export async function finalizeAndSendQuote(opts: {
   quoteId: string;
   actorEmail: string;
@@ -93,13 +95,28 @@ export async function finalizeAndSendQuote(opts: {
     payUrl,
     translatorName: quote.translatorName,
     translatorMaec: quote.translatorMaec,
+    paymentMethods: quote.paymentMethods,
   });
   const customSubject = String(opts.customSubject || "").trim();
   const customBody = String(opts.customBody || "").trim();
   const emailCopy = customSubject && customBody ? { subject: customSubject.slice(0, 200), body: customBody.slice(0, 8000) } : standardCopy;
   let sendResult: { providerId?: string | null } = {};
   if (doSendEmail) {
-    sendResult = await sendQuoteEmailWithRetry({ to: quote.customerEmail, subject: emailCopy.subject, body: emailCopy.body });
+    // El PDF va ADJUNTO, no solo enlazado: el cliente lo quiere para guardarlo,
+    // imprimirlo o reenviarlo a su gestor, y el enlace obliga a un paso mas (y no
+    // sirve sin conexion). Ya lo tenemos en memoria, no hay que volver a bajarlo.
+    const attachments =
+      pdfBuffer.length > 0 && pdfBuffer.length <= MAX_EMAIL_ATTACH_BYTES
+        ? [{
+            name: `Presupuesto-${quote.quoteNumber}.pdf`,
+            contentType: "application/pdf",
+            contentBytes: pdfBuffer.toString("base64"),
+          }]
+        : [];
+    if (!attachments.length) {
+      console.warn(`[quote-send] ${quote.quoteNumber}: PDF de ${pdfBuffer.length} bytes, se envia el email SOLO con enlace.`);
+    }
+    sendResult = await sendQuoteEmailWithRetry({ to: quote.customerEmail, subject: emailCopy.subject, body: emailCopy.body, attachments });
   }
 
   const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);

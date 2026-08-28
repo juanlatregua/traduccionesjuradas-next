@@ -1,5 +1,5 @@
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
-import { sendMail, isEmailConfigured } from "@/lib/azure-mail";
+import { sendMail, isEmailConfigured, type MailAttachment } from "@/lib/azure-mail";
 import { sendNotification, formatPhoneSpain } from "@/lib/sms";
 import { smsAcuseSolicitudPrecio, type SmsLang } from "@/lib/sms-templates";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -19,7 +19,7 @@ export function isPlaceholderEmail(email: string | null | undefined) {
  * que el llamador pueda registrar el fallo (MessageLog FAILED) y avisar al staff.
  */
 export async function sendQuoteEmailWithRetry(
-  params: { to: string; subject: string; body: string },
+  params: { to: string; subject: string; body: string; attachments?: MailAttachment[] },
   maxRetries = 3
 ) {
   let lastErr: unknown;
@@ -40,6 +40,7 @@ export async function sendQuoteEmail(params: {
   to: string;
   subject: string;
   body: string;
+  attachments?: MailAttachment[];
 }) {
   const html = renderSimpleEmailHtml(params.body);
 
@@ -47,6 +48,7 @@ export async function sendQuoteEmail(params: {
     to: params.to,
     subject: params.subject,
     html,
+    attachments: params.attachments?.length ? params.attachments : undefined,
   });
 
   // Graph API does not return a provider message ID

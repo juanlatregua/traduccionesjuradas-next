@@ -48,13 +48,24 @@ export function renderSimpleEmailHtml(body: string) {
   `;
 }
 
-export function buildPayLinkEmail(data: CommonData) {
+export function buildPayLinkEmail(data: CommonData & { paymentMethods?: string[] }) {
   const subject = "Presupuesto traducción jurada – Instrucciones de pago";
   const jurado = translatorLine(data.translatorName, data.translatorMaec);
+  // Las formas de pago son LAS DEL PRESUPUESTO, no una lista fija. Antes aquí
+  // iba escrito a fuego "Bizum / Transferencia / PayPal", así que el email
+  // ofrecía PayPal aunque Juan hubiera elegido solo Sabadell y Bizum, y se
+  // callaba las cuentas concretas. El WhatsApp sí las leía (buildWhatsAppPayText):
+  // esta era la única de las dos vías que mentía.
+  const methods = (data.paymentMethods && data.paymentMethods.length > 0
+    ? data.paymentMethods
+    : ["sabadell", "bizum607"]
+  ).filter((m) => PAYMENT_LABELS[m]);
+  const payLines = methods.map((m, i) => `${i + 1}. ${PAYMENT_LABELS[m]}`).join("\n");
   const body = `Estimado/a ${data.name},
 Le enviamos el presupuesto correspondiente a su traducción jurada.
 ${jurado ? `${jurado}\n` : ""}Puede revisarlo y realizar el pago de forma segura aquí: ${data.payUrl}
-Formas de pago: Bizum / Transferencia / PayPal.
+Formas de pago:
+${payLines}
 Si ha seleccionado envío en papel, los gastos de envío son 12 € + IVA (incluidos en el total).
 Una vez confirmado el pago, comenzaremos la traducción de inmediato.
 Si el PDF que nos envió no era totalmente legible, aquí le explicamos cómo escanear mejor la próxima vez: https://www.traduccionesjuradas.net/como-escanear-bien
