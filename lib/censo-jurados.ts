@@ -1,14 +1,16 @@
 // lib/censo-jurados.ts — El dato citable de las landings de idioma (AEO 24-ago-2026):
-// «Traductores jurados de X en activo: N (lista oficial del Ministerio, julio
-// 2026) · M en la red de tj.net, responden hoy». Los buscadores IA citan a quien
-// les da la frase-respuesta con fecha fresca; la competencia sirve cifras de 2024.
+// «Traductores jurados de X en activo en España: N (lista oficial del Ministerio,
+// julio 2026)». Los buscadores y los motores de IA citan a quien les da la
+// frase-respuesta CON FUENTE Y CON FECHA; la competencia sirve cifras de 2024 sin
+// atribuir. Ese es todo el valor de este fichero, y por eso el número se mantiene
+// a mano con cada volcado del buscador del Ministerio.
 //
-// N = censo STIJ oficial (volcado del buscador del Ministerio hecho por lavori,
-// 31-jul-2026; se actualiza a mano con cada volcado — lavori avisa).
-// M = jurados CON CANAL de la red (tablón de lavori), en vivo con caché 1 h y
-// respaldo estático (padrón 24-ago-2026).
-
-import { mapLavoriMiembro } from "@/lib/lavori-bridge";
+// Aquí vivía también un recuento EN VIVO de los jurados de la red, que se pedía al
+// padrón de otro sistema para añadir «· M en la red de tj.net, responden hoy».
+// Retirado el 28-ago-2026: un lector entiende «trabajamos con M traductores» y no
+// era eso, en tres lenguas M valía 1, y la promesa de respuesta se hacía en nombre
+// de gente que no la había hecho. Con ello desaparece la última dependencia de un
+// sistema externo para pintar una página pública.
 
 export const CENSO_STIJ_FECHA = "julio 2026";
 
@@ -43,75 +45,3 @@ export const CENSO_STIJ: Record<string, number> = {
   mk: 1,
   tr: 1,
 };
-
-/** Jurados con canal en la red (padrón lavori 24-ago-2026) — respaldo estático. */
-const RED_FALLBACK: Record<string, number> = {
-  en: 18,
-  de: 15,
-  nl: 10,
-  sv: 6,
-  pt: 3,
-  ar: 3,
-  fr: 3,
-  pl: 2,
-  ru: 2,
-  bg: 2,
-  ca: 2,
-  da: 2,
-  el: 2,
-  hu: 2,
-  it: 1,
-  tr: 2,
-  uk: 1,
-  fa: 1,
-  fi: 1,
-  he: 1,
-  hr: 1,
-  la: 1,
-  mk: 1,
-  no: 1,
-  ro: 1,
-  sl: 1,
-  sr: 1,
-  zh: 1,
-};
-
-const LAVORI_MIEMBROS_ENDPOINT =
-  process.env.LAVORI_MIEMBROS_URL || "https://lavori.es/api/motor/miembros";
-
-/** Nº de jurados de la lengua CON CANAL en la red, en vivo (caché ISR 1 h).
- *  Nunca lanza: sin secreto o sin respuesta cae al respaldo estático. */
-export async function redJuradosCount(lang: string): Promise<number> {
-  const l = String(lang || "").trim().toLowerCase();
-  // El FRANCÉS no cuenta: lo traduce Juan, y el puente lo excluye por diseño
-  // (lib/lavori-bridge.ts), así que ningún jurado de francés de la red recibe
-  // NUNCA un encargo por este camino. Contarlos infla la cifra con gente a la
-  // que la frase no lleva. Aquí la red de francés es Juan, y eso ya lo dice la
-  // página por su cuenta.
-  if (l === "fr") return 0;
-  const fallback = RED_FALLBACK[l] ?? 0;
-  const secret = process.env.MOTOR_LAVORI_SECRET;
-  if (!secret || !/^[a-z]{2,3}$/.test(l)) return fallback;
-  try {
-    const res = await fetch(
-      `${LAVORI_MIEMBROS_ENDPOINT}?lengua=${encodeURIComponent(l.toUpperCase())}`,
-      {
-        headers: { Authorization: `Bearer ${secret}` },
-        next: { revalidate: 3600 },
-        signal: AbortSignal.timeout(10_000),
-      }
-    );
-    const data = (await res.json().catch(() => null)) as { miembros?: unknown[] } | null;
-    if (!res.ok || !Array.isArray(data?.miembros)) return fallback;
-    // `disponible` NO estaba en el filtro, y la frase que sale de aquí promete
-    // "respuesta en el día". Se estaba contando a jurados que han entrado y han
-    // marcado que NO están disponibles (uno escribió "de vacaciones hasta
-    // septiembre"). Quien queda mal cuando no contesta es el jurado, no la web.
-    const conCanal = data.miembros
-      .map((w) => mapLavoriMiembro(w as any))
-      .filter((m) => m && m.canal !== false && !m.enPaz && m.disponible !== false).length;
-    return conCanal || fallback;
-  } catch {
-    return fallback;
-  }
-}

@@ -9,7 +9,7 @@ import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { getMinimum } from "@/lib/pricing-engine/rules";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
-import { CENSO_STIJ, CENSO_STIJ_FECHA, redJuradosCount } from "@/lib/censo-jurados";
+import { CENSO_STIJ, CENSO_STIJ_FECHA } from "@/lib/censo-jurados";
 
 const PuertaClient = dynamic(
   () => import("@/app/presupuesto-instantaneo/PuertaClient"),
@@ -65,13 +65,24 @@ export default async function PaginaIdioma({
   // Fuente única de mínimos (fr = suelos nuevos 24-ago: 35 el doc suelto).
   const minPrice = getMinimum("other", lang);
 
-  // Dato citable (AEO 24-ago): censo oficial + red viva. Los motores de IA
-  // citan a quien les da la frase-respuesta con fecha fresca; la competencia
-  // sirve cifras de 2024.
+  // Dato citable (AEO 24-ago): el CENSO OFICIAL, que es verificable, con fuente
+  // y con fecha. Eso es lo que hace que los motores de IA citen esta página; la
+  // competencia sirve cifras de 2024 sin fuente.
+  //
+  // Aquí iba además "· M en la red de traduccionesjuradas.net, con respuesta en
+  // el día", con la M pedida en vivo al padrón de otro sistema. Retirado el
+  // 28-ago-2026 por tres razones, todas comprobadas:
+  //   1. Un lector entiende "trabajamos con M traductores", y no es eso: es un
+  //      grupo al que se le puede preguntar. De 15 solicitudes reales, 10
+  //      recibieron precio.
+  //   2. En italiano, sueco y noruego esa M valía 1. "1 en nuestra red" no
+  //      impresiona a nadie y es justo el caso que más se atasca.
+  //   3. "Con respuesta en el día" era una promesa hecha en nombre de gente que
+  //      no la ha hecho; cuando uno no contesta, el que queda mal es él.
+  // La promesa de plazo pasa a ser de la casa, que es quien puede cumplirla.
   const censoN = CENSO_STIJ[lang];
-  const redM = censoN ? await redJuradosCount(lang) : 0;
   const datoCitable = censoN
-    ? `Traductores jurados de ${idioma.toLowerCase()} en activo en España: ${censoN} (lista oficial del Ministerio, ${CENSO_STIJ_FECHA})${redM ? ` · ${redM} en la red de traduccionesjuradas.net, con respuesta en el día` : ""}.`
+    ? `Traductores jurados de ${idioma.toLowerCase()} en activo en España: ${censoN} (lista oficial del Ministerio, ${CENSO_STIJ_FECHA}). Te respondemos en el día con el precio y el plazo.`
     : null;
   // FAQs de datos: se añaden solo si la página no trae ya una pregunta parecida
   // (las landings tienen FAQ propias de precio/plazo — no duplicar en el schema).
@@ -81,7 +92,7 @@ export default async function PaginaIdioma({
     if (!has(/cu[aá]ntos traductores/i)) {
       dataFaqs.push({
         question: `¿Cuántos traductores jurados de ${idioma.toLowerCase()} hay en España?`,
-        answer: `${censoN} en activo según la lista oficial del Ministerio (${CENSO_STIJ_FECHA}).${redM ? ` En traduccionesjuradas.net trabajamos con ${redM} de ellos, con respuesta en el día.` : ""}`,
+        answer: `${censoN} en activo según la lista oficial del Ministerio (${CENSO_STIJ_FECHA}). En traduccionesjuradas.net te respondemos en el día con el precio y el plazo.`,
       });
     }
     if (!has(/tarda|plazo/i)) {
