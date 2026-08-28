@@ -7,6 +7,7 @@ import {
   type LanguageConfig,
 } from "@/lib/language-config";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
+import { MAX_INLINE_UPLOAD_BYTES, FILE_TOO_LARGE_MSG, parseEstimadorResponse } from "@/lib/upload-limits";
 
 type Step = 1 | 2 | 3;
 
@@ -69,6 +70,12 @@ export default function LanguageOfferPanel({ config }: Props) {
   };
 
   const estimateFromFile = async (f: File) => {
+    // Mismo tope que el estimador: este carril tambien manda el fichero dentro
+    // de la peticion, asi que por encima de 4 MB la funcion devuelve 413.
+    if (f.size > MAX_INLINE_UPLOAD_BYTES) {
+      setError(FILE_TOO_LARGE_MSG);
+      return;
+    }
     setEstimating(true);
     setError(null);
     try {
@@ -76,7 +83,7 @@ export default function LanguageOfferPanel({ config }: Props) {
       fd.append("file", f);
       fd.append("langPair", direction);
       const res = await fetch("/api/estimador", { method: "POST", body: fd });
-      const data = await res.json();
+      const data = await parseEstimadorResponse(res);
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo analizar el archivo.");
       setWordCount(data.words || 0);
       setEstimationMeta({
