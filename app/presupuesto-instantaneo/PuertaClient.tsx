@@ -201,6 +201,13 @@ export default function PuertaClient({
     setErrorMessage(null);
     setRequestState("idle");
     setCheckoutError(null);
+    setPending(null);
+    // Y SE SUELTA LA SESIÓN. Vaciar solo la lista del cliente dejaba vivo el
+    // sessionToken, y la solicitud de presupuesto pide TODOS los documentos de
+    // esa sesión (api/puerta/request-quote): quien pulsaba «empezar de nuevo» y
+    // subía otro documento mandaba también el que había descartado. El registro
+    // crea un token nuevo cuando no se le pasa ninguno (documents/register:52).
+    setSessionToken(null);
   }, []);
 
   // Original en español: al elegir idioma de destino, recalcular precio y

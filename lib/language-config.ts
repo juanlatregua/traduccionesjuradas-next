@@ -1,4 +1,3 @@
-import { getWordRateForLangOrPair } from "@/lib/pricing";
 
 export type LanguageConfig = {
   slug: string;
@@ -151,15 +150,3 @@ export const DOCUMENT_CATEGORIES: DocCategory[] = [
     examples: "Cualquier documento no listado arriba",
   },
 ];
-
-export function getEstimatedPrice(langPair: string, words: number) {
-  const rate = getWordRateForLangOrPair(langPair);
-  const subtotal = words * rate;
-  const withMargin = Math.round(subtotal * 1.1 * 100) / 100;
-  return {
-    rate,
-    subtotal,
-    total: withMargin,
-    totalCents: Math.round(withMargin * 100),
-  };
-}
