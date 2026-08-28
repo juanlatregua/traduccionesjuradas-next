@@ -41,6 +41,7 @@ export type SnapPayout = {
   netCents: number;
   grossCents: number;
   feeCents: number;
+  refundCents?: number; // devoluciones incluidas: bruto − comisión − devuelto = neto
   orders: { reference: string; amountCents: number; clientName: string | null }[];
 };
 export type AccountingSnapshot = { invoices: SnapInvoice[]; orders: SnapOrder[]; expenses: SnapExpense[]; decisions: SnapDecision[]; payouts?: SnapPayout[] };
@@ -153,7 +154,7 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
           lineHash,
           kind: "stripe_payout",
           targetId: p.id,
-          label: `Liquidación Stripe · ${p.orders.length} cobro${p.orders.length === 1 ? "" : "s"} · bruto ${(p.grossCents / 100).toFixed(2)} € − comisión ${(p.feeCents / 100).toFixed(2)} €`,
+          label: `Liquidación Stripe · ${p.orders.length} cobro${p.orders.length === 1 ? "" : "s"} · bruto ${(p.grossCents / 100).toFixed(2)} € − comisión ${(p.feeCents / 100).toFixed(2)} €${p.refundCents ? ` − devuelto ${(p.refundCents / 100).toFixed(2)} €` : ""}`,
           diffCents: diff,
           flags: p.orders.length > 1 ? ["agrupado"] : [],
           payout: { id: p.id, grossCents: p.grossCents, feeCents: p.feeCents, orders: p.orders },

@@ -26,14 +26,28 @@ export type StripeCharge = {
   description: string | null;
 };
 
+export type StripeRefund = {
+  chargeId: string;
+  amountCents: number; // positivo: lo devuelto al cliente
+  created: string;
+  description: string | null;
+};
+
 export type StripePayout = {
   id: string;
   arrivalDate: string; // ISO — el día que aparece en el extracto
   netCents: number; // lo que ingresa el banco: es el importe a casar
   grossCents: number; // suma de los cobros
   feeCents: number; // comisión total del payout
+  refundCents: number; // devoluciones incluidas en ESTA liquidación
+  // Aportación climática de Stripe (Climate contribution): NO es comisión, es
+  // una aportación voluntaria a captura de carbono que Stripe descuenta del
+  // mismo ingreso. Va aparte porque contablemente no es lo mismo que la
+  // comisión del servicio de pago, y el asesor lo va a preguntar.
+  climateCents: number;
   status: string;
   charges: StripeCharge[];
+  refunds: StripeRefund[];
 };
 
 /** Payouts con su composición. `since` en ISO (por defecto, 120 días atrás). */
@@ -46,7 +60,29 @@ export async function fetchStripePayouts(since?: Date): Promise<StripePayout[]> 
   for (const p of payouts.data) {
     const txs = await stripe.balanceTransactions.list({ payout: p.id, limit: 100, expand: ["data.source"] });
     const charges: StripeCharge[] = [];
+    const refunds: StripeRefund[] = [];
+    let climate = 0;
     for (const t of txs.data) {
+      // Las DEVOLUCIONES viajan dentro de la misma liquidación como apunte
+      // negativo y hay que restarlas, o el bruto no cuadra con lo ingresado.
+      // Caso real (15-jun-2026): 502,95 de cargos − 8,04 de comisión = 494,91,
+      // pero al banco entraron 444,09. Los 50,82 que faltaban eran el reembolso
+      // de un encargo en ucraniano que Juan rechazó por estar fuera de su
+      // habilitación y devolvió el mismo día.
+      if (t.type === "refund" || t.type === "payment_refund") {
+        const src: any = t.source;
+        refunds.push({
+          chargeId: typeof src?.charge === "string" ? src.charge : String(src?.id || ""),
+          amountCents: Math.abs(t.amount),
+          created: new Date(t.created * 1000).toISOString(),
+          description: src?.reason ?? t.description ?? null,
+        });
+        continue;
+      }
+      if (t.type === "contribution") {
+        climate += Math.abs(t.amount);
+        continue;
+      }
       if (t.type !== "charge" && t.type !== "payment") continue;
       const src = t.source as any;
       charges.push({
@@ -65,8 +101,11 @@ export async function fetchStripePayouts(since?: Date): Promise<StripePayout[]> 
       netCents: p.amount,
       grossCents: charges.reduce((a, c) => a + c.amountCents, 0),
       feeCents: charges.reduce((a, c) => a + c.feeCents, 0),
+      refundCents: refunds.reduce((a, r) => a + r.amountCents, 0),
+      climateCents: climate,
       status: p.status,
       charges,
+      refunds,
     });
   }
   return out.sort((a, b) => a.arrivalDate.localeCompare(b.arrivalDate));
@@ -87,7 +126,8 @@ export function stripeFeeMarker(payoutId: string) {
  */
 export async function registerStripeFeeExpense(payout: StripePayout) {
   const { prisma } = await import("@/lib/prisma");
-  if (payout.feeCents <= 0) return { created: false, reason: "sin comisión" };
+  const cargoTotal = payout.feeCents + payout.climateCents;
+  if (cargoTotal <= 0) return { created: false, reason: "sin comisión" };
   const marker = stripeFeeMarker(payout.id);
   const ya = await prisma.expense.findFirst({ where: { supplierInvoiceNumber: marker }, select: { id: true } });
   if (ya) return { created: false, reason: "ya registrado", id: ya.id };
@@ -97,20 +137,20 @@ export async function registerStripeFeeExpense(payout: StripePayout) {
       brand: "traduccionesjuradas",
       supplier: "Stripe Technology Europe Ltd",
       supplierInvoiceNumber: marker,
-      concept: `Comisión Stripe · liquidación ${payout.arrivalDate.slice(0, 10)} (${payout.charges.length} cobro${payout.charges.length === 1 ? "" : "s"}, bruto ${(payout.grossCents / 100).toFixed(2)} €)`,
+      concept: `Comisión Stripe · liquidación ${payout.arrivalDate.slice(0, 10)} (${payout.charges.length} cobro${payout.charges.length === 1 ? "" : "s"}, bruto ${(payout.grossCents / 100).toFixed(2)} €${payout.refundCents > 0 ? `, devuelto ${(payout.refundCents / 100).toFixed(2)} €` : ""})`,
       category: "comisiones",
-      baseCents: payout.feeCents,
+      baseCents: payout.feeCents + payout.climateCents,
       vatRate: 0,
       vatCents: 0,
       taxTreatment: "isp_intracom",
       ivaDeducible: true,
       irpfRetentionPct: 0,
       irpfCents: 0,
-      totalCents: payout.feeCents,
+      totalCents: payout.feeCents + payout.climateCents,
       payableCents: 0, // ya descontada del ingreso: no hay nada que transferir
       paymentStatus: "PAID",
       paidAt: new Date(payout.arrivalDate),
-      notes: `Descontada por Stripe del propio ingreso (payout ${payout.id}). Bruto ${(payout.grossCents / 100).toFixed(2)} € − comisión ${(payout.feeCents / 100).toFixed(2)} € = ${(payout.netCents / 100).toFixed(2)} € ingresados.`,
+      notes: `Descontado por Stripe del propio ingreso (payout ${payout.id}). Bruto ${(payout.grossCents / 100).toFixed(2)} € − comisión ${(payout.feeCents / 100).toFixed(2)} €${payout.climateCents > 0 ? ` − aportación climática ${(payout.climateCents / 100).toFixed(2)} €` : ""}${payout.refundCents > 0 ? ` − devoluciones ${(payout.refundCents / 100).toFixed(2)} €` : ""} = ${(payout.netCents / 100).toFixed(2)} € ingresados. La aportación climática NO es comisión del servicio de pago: es una aportación voluntaria a captura de carbono.`,
     },
   });
   return { created: true, id: e.id };
@@ -139,6 +179,8 @@ export async function buildPayoutSnapshot(since?: Date) {
     netCents: p.netCents,
     grossCents: p.grossCents,
     feeCents: p.feeCents,
+    refundCents: p.refundCents,
+    climateCents: p.climateCents,
     orders: p.charges.map((c) => {
       const o = c.paymentIntentId ? porPi.get(c.paymentIntentId) : null;
       return {
