@@ -59,6 +59,13 @@ const SAFETY_MARGIN_MULTIPLIER = 1.1;
 const SAFETY_MARGIN_PCT = 10;
 const CART_STORAGE_KEY = "tj-price-estimator-cart";
 
+// Tope real de la función que recibe el fichero (FUNCTION_PAYLOAD_TOO_LARGE).
+// Medido contra producción 28-ago-2026: 4 MB pasa, 5 MB devuelve 413. Se deja
+// margen para el resto del multipart (idioma, urgencia, cabeceras).
+const MAX_ESTIMATOR_FILE_SIZE = 4 * 1024 * 1024;
+const FILE_TOO_LARGE_MSG =
+  "El documento pesa demasiado para calcularlo aquí (máx. 4 MB). Súbelo en el presupuesto instantáneo, que admite hasta 20 MB: /presupuesto-instantaneo";
+
 const DOC_TYPE_LABELS: Record<string, string> = {
   registro_civil: "Registro civil",
   academico: "Académico",
@@ -270,6 +277,14 @@ export default function PriceEstimator() {
       setMessage("Adjunta un archivo (PDF, DOCX o TXT) para calcular.");
       return;
     }
+    // Este carril manda el fichero DENTRO de la petición, y la función corta en
+    // 4,5 MB (medido en producción: 4 MB pasa, 5 MB devuelve 413). Se avisa
+    // antes de subir y se manda al cliente a la puerta, que sube directo a Blob
+    // y admite hasta 20 MB, en vez de dejarle con un error y sin salida.
+    if (fileUpload.size > MAX_ESTIMATOR_FILE_SIZE) {
+      setMessage(FILE_TOO_LARGE_MSG);
+      return;
+    }
 
     setLoading(true);
     setMessage(null);
@@ -280,7 +295,13 @@ export default function PriceEstimator() {
       fd.append("urgency", fileUrgency);
 
       const res = await fetch("/api/estimador", { method: "POST", body: fd });
-      const data = await res.json();
+      // El cuerpo NO siempre es JSON: por encima del tope de la función la
+      // plataforma responde 413 con texto plano ("Request Entity Too Large").
+      // Parsear eso a ciegas reventaba con un SyntaxError que se le enseñaba
+      // tal cual al cliente ("Unexpected token 'R'..."), sin decirle qué hacer.
+      if (res.status === 413) throw new Error(FILE_TOO_LARGE_MSG);
+      const data = await res.json().catch(() => null);
+      if (!data) throw new Error("No hemos podido leer la respuesta del servidor. Vuelve a intentarlo.");
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo analizar el archivo.");
 
       setResult({
