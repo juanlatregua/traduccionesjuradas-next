@@ -442,6 +442,14 @@ export async function autoQuoteFromPuertaSession(opts: {
   });
   const infos: DocInfo[] = [];
   for (const r of uniqueRows) {
+    // Documento extenso: su conteo de palabras NO está contado, está extrapolado
+    // sobre una muestra de las primeras páginas, y esa cifra se mueve entre
+    // llamadas idénticas. Este carril no solo tarifica: EMITE Y ENVÍA el
+    // presupuesto al cliente sin que nadie lo mire. Sobre una estimación así, no.
+    const risk = (r.analysisJson as any)?.price_risk;
+    if (Array.isArray(risk?.reasons) && risk.reasons.includes("oversized_estimate")) {
+      return { ok: false, reason: `documento extenso: el conteo es extrapolado (${r.fileName})` };
+    }
     const info = docInfoFromAnalysis(r);
     if (!info) return { ok: false, reason: `documento no aprendible (${r.fileName})` };
     infos.push(info);

@@ -18,8 +18,17 @@ const TEXT_MODEL = "claude-haiku-4-5-20251001";
 export const VISION_MODEL = MODEL;
 export const TEXT_MODEL_ID = TEXT_MODEL;
 const MAX_TOKENS = 16_384;
-const MAX_TOKENS_LARGE = 8_192;
+// El documento extenso muestrea (LARGE_DOCUMENT_ADDENDUM), así que su respuesta
+// es MÁS corta que la de uno normal — pero es también el que más riesgo tiene de
+// desbordar si el modelo decide transcribirlo todo, y desbordar aquí costaba el
+// análisis entero. Ya no se le recorta el margen: mismo techo que el resto.
+const MAX_TOKENS_LARGE = MAX_TOKENS;
 const LARGE_DOC_THRESHOLD = 5; // pages
+// Páginas que se le mandan al modelo de un PDF extenso (lo recorta run-analysis).
+// Vive aquí, y no allí, porque la extrapolación de palabras la hace este módulo:
+// tener el recorte y su divisor en ficheros distintos fue justo el origen del
+// desajuste (se recortaba a 3 y se dividía por un 3 escrito a mano aparte).
+export const TRUNCATE_TO_PAGES = 3;
 const TIMEOUT_MS = 110_000;
 // El SDK reintenta solo en 408/409/429 y >=500 (incluye 529 overloaded) con
 // backoff exponencial + jitter, respetando la cabecera retry-after. Subimos de
@@ -62,6 +71,10 @@ export type DocumentAnalysisResult = {
     // paralelo (castellano + català/gallego/euskera, etc.): se traduce un solo
     // idioma. El conteo de palabras se divide entre 2. Ver lib/ai/word-counter.ts.
     is_bilingual_duplicate?: boolean;
+    // Páginas realmente transcritas en extracted_text. En documento extenso el
+    // modelo muestrea y este es el divisor REAL de la extrapolación (antes se
+    // dividía siempre entre 3, aunque hubiera transcrito 2 → −33 % de palabras).
+    transcribed_pages?: number;
   };
   extracted_data: {
     names: string[];
@@ -276,8 +289,8 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  try {
-    const response = await client.messages.create(
+  const callModel = (blocks: typeof contentBlocks) =>
+    client.messages.create(
       {
         model: MODEL,
         max_tokens: isLargeDoc ? MAX_TOKENS_LARGE : MAX_TOKENS,
@@ -291,20 +304,46 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
         messages: [
           {
             role: "user",
-            content: contentBlocks,
+            content: blocks,
           },
         ],
       },
       { signal: controller.signal }
     );
 
-    clearTimeout(timeout);
+  try {
+    let response = await callModel(contentBlocks);
 
-    // Check for truncated response (max_tokens hit)
+    // Respuesta truncada: el modelo se quedó sin margen transcribiendo. Antes se
+    // lanzaba aquí y el análisis moría entero (documento escaneado largo = lead
+    // perdido). Ahora se degrada: UN segundo intento con la petición CAMBIADA
+    // —reintentar igual volvería a truncar— pidiendo solo la clasificación sin
+    // transcripción. Se pierde el conteo fino, no el análisis: el precio cae en
+    // el suelo determinista de finalizeAnalysis y el documento queda marcado
+    // como extenso, que ya no autotarifica (price-risk: oversized_estimate).
     if (response.stop_reason === "max_tokens") {
-      console.error("[analyzeDocument] Response truncated (max_tokens). Usage:", JSON.stringify(response.usage));
-      throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");
+      console.error(
+        "[analyzeDocument] Response truncated (max_tokens), reintentando sin transcripción. Usage:",
+        JSON.stringify(response.usage)
+      );
+      response = await callModel([
+        ...contentBlocks,
+        {
+          type: "text",
+          text:
+            "IMPORTANTE: la respuesta anterior se cortó por longitud. Devuelve SOLO el JSON de " +
+            'clasificación con "extracted_text": "" (cadena vacía) y "transcribed_pages": 0. ' +
+            'Estima "estimated_words" a ojo sobre el documento completo y añade en "extracted_data.notes" ' +
+            'que el conteo es aproximado. No transcribas NADA.',
+        },
+      ]);
+      if (response.stop_reason === "max_tokens") {
+        console.error("[analyzeDocument] Truncado de nuevo tras degradar. Usage:", JSON.stringify(response.usage));
+        throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");
+      }
     }
+
+    clearTimeout(timeout);
 
     // Extract text from response
     const textContent = response.content.find((block) => block.type === "text");
@@ -332,12 +371,21 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
       if (isLargeDoc && totalPages > LARGE_DOC_THRESHOLD) {
         // Document was truncated — extracted_text only covers first pages.
         // Use local word count as sample and extrapolate to total pages.
-        const analyzedPages = Math.min(3, totalPages);
+        // Divisor = páginas REALMENTE transcritas, que el modelo declara en
+        // transcribed_pages. El addendum le autoriza a transcribir "2-3": con el
+        // 3 fijo de antes, transcribir 2 y dividir entre 3 dejaba el conteo un
+        // 33 % corto — y en contra del traductor. Si no lo declara (respuesta
+        // vieja o degradada), se cae al tope de páginas truncadas de siempre.
+        const declared = Math.round(result.document_metrics.transcribed_pages || 0);
+        const analyzedPages = Math.min(
+          declared > 0 ? declared : TRUNCATE_TO_PAGES,
+          totalPages
+        );
         const wordsPerPage = localWords / analyzedPages;
         const extrapolated = Math.round(wordsPerPage * totalPages);
         // Use the higher of Claude's extrapolation and our own
         result.document_metrics.estimated_words = Math.max(claudeWords, extrapolated);
-        console.log(`[analyzeDocument] Large doc: ${localWords} words in ${analyzedPages} pages → extrapolated ${extrapolated}, Claude said ${claudeWords}, using ${result.document_metrics.estimated_words}`);
+        console.log(`[analyzeDocument] Large doc: ${localWords} words in ${analyzedPages} pages (declaradas: ${declared || "—"}) → extrapolated ${extrapolated}, Claude said ${claudeWords}, using ${result.document_metrics.estimated_words}`);
       } else {
         // Use the higher of both: Claude's extracted_text is sometimes a
         // partial sample (especially for non-Latin scripts like Arabic),

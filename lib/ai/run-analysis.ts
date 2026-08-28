@@ -9,7 +9,7 @@
 // Lo usan el endpoint público (/api/documents/analyze) y el endpoint de staff
 // (/api/zona-traductor/expediente/analyze) para extraer datos del expediente.
 
-import { analyzeDocument, analyzeDocumentText } from "./analyze-document";
+import { analyzeDocument, analyzeDocumentText, TRUNCATE_TO_PAGES } from "./analyze-document";
 import type { DocumentAnalysisResult } from "./analyze-document";
 import { extractPdfText, extractPdfPages } from "./extract-text";
 import { segmentDocumentText, makePlaceholderSegment } from "./segment-document";
@@ -40,7 +40,6 @@ function finalizeAnalysis(
 }
 
 const LARGE_DOC_THRESHOLD = 5; // pages
-const TRUNCATE_TO_PAGES = 3;
 
 export type AnalysisRun = {
   analysis: DocumentAnalysisResult;
@@ -96,13 +95,27 @@ export async function runDocumentAnalysis(input: {
   }
 
   // Camino visión: escaneo / imagen embebida. Truncar PDFs grandes.
+  //
+  // Tamaño DESCONOCIDO = tratar como grande. Si pdf-lib y pdf-parse fallan los
+  // dos (PDF cifrado o corrupto), `pageCount` queda undefined y la guarda vieja
+  // —`pageCount && pageCount > LARGE_DOC_THRESHOLD`— se apagaba justo ahí: se
+  // mandaba el PDF ENTERO, que es el escenario nº1 de respuesta truncada. Un
+  // documento que no se puede medir se trata como sospechoso, no como pequeño.
   let analyzeBuffer = buffer;
-  if (pageCount && pageCount > LARGE_DOC_THRESHOLD) {
+  const tamanoDesconocido = !pageCount;
+  if (tamanoDesconocido || pageCount! > LARGE_DOC_THRESHOLD) {
     try {
       const { PDFDocument } = require("pdf-lib");
       const src = await PDFDocument.load(buffer, { ignoreEncryption: true });
       const truncated = await PDFDocument.create();
-      const pagesToCopy = Math.min(TRUNCATE_TO_PAGES, pageCount);
+      // pdf-lib abre aquí lo que antes no se pudo medir: se aprovecha para
+      // recuperar el total real, que es el multiplicador de la extrapolación.
+      if (!pageCount) pageCount = src.getPageCount() as number;
+      // `||`, no `??`: getPageCount() puede devolver 0 (PDF con árbol de páginas
+      // vacío) y `??` no cubre el 0 → Math.min(3, 0) = 0 → se enviaba un PDF SIN
+      // PÁGINAS al modelo, que clasificaba sobre la nada.
+      const pagesToCopy = Math.max(1, Math.min(TRUNCATE_TO_PAGES, pageCount || TRUNCATE_TO_PAGES));
+      if (src.getPageCount() < 1) throw new Error("PDF sin páginas legibles");
       const copied = await truncated.copyPages(
         src,
         Array.from({ length: pagesToCopy }, (_, i) => i)

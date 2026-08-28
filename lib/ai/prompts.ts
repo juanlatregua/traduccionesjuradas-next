@@ -33,6 +33,7 @@ Analiza el documento que te proporcionan y devuelve un JSON estructurado con la 
     "estimated_words": 280,
     "extracted_text": "RÉPUBLIQUE FRANÇAISE\nExtrait d'acte de naissance\n...(transcripción completa del documento)...",
     "pages": 1,
+    "transcribed_pages": 1,
     "has_tables": false,
     "has_stamps_seals": true,
     "has_handwriting": false,
@@ -82,8 +83,10 @@ Si el documento está en español, intenta deducir el idioma destino del context
 - medical: informes médicos, certificados vacunación, historiales
 - other: todo lo que no encaje en las categorías anteriores
 
-### Transcripción completa del documento — OBLIGATORIO:
+### Transcripción del documento — OBLIGATORIO:
 Debes incluir en "extracted_text" una transcripción COMPLETA de TODO el texto visible del documento en el idioma source (el que se traduce). Este texto se usa para contar palabras automáticamente y calcular el precio. EL PRECIO DEPENDE DIRECTAMENTE DE LA COMPLETITUD DE ESTA TRANSCRIPCIÓN.
+
+**EXCEPCIÓN, y manda sobre lo anterior:** si el turno de usuario te da instrucciones de MUESTREO (documento extenso: transcribir solo las primeras páginas y extrapolar) o te pide que NO incluyas "extracted_text", obedece a esas instrucciones y no a la transcripción completa. En esos casos transcribir todo agota el límite de respuesta y el análisis se pierde entero, que es peor que una muestra. Di en cuántas páginas te basaste (campo "transcribed_pages").
 
 **Reglas de transcripción:**
 1. Incluye TODO el texto visible: encabezados, títulos, nombres propios, fórmulas de firma ("Dou fé", "Certifico y doy fe"), averbaciones/anotaciones marginales, texto de sellos legibles, texto de apostillas (aunque estén rotadas 90°), pies de página, texto legal impreso.
@@ -184,6 +187,7 @@ Este es un documento largo. Para optimizar el análisis:
 1. Clasifica el documento normalmente (tipo, idioma, país, complejidad) analizando las primeras páginas.
 2. NO transcribas todo el documento en "extracted_text". En su lugar:
    - Transcribe solo las 2-3 primeras páginas completas en "extracted_text".
+   - Pon en "transcribed_pages" CUÁNTAS páginas has transcrito de verdad (2 o 3). El sistema divide entre ese número para extrapolar: si mientes, el precio sale mal.
    - Cuenta las palabras de esas páginas transcriptas.
    - Hojea el resto del documento para comprobar si el formato es similar.
    - Calcula "estimated_words" extrapolando: (palabras de páginas transcriptas / páginas transcriptas) × total de páginas.

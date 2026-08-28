@@ -19,7 +19,8 @@ export type PriceRiskReason =
   | "fiscal_financial" // formulario fiscal/financiero (denso, multi-casilla)
   | "repeated_copies" // la MISMA plantilla repetida N veces (multi-copia)
   | "suspicious_text" // capa de texto pegada/concatenada → conteo poco fiable
-  | "bilingual_duplicate"; // co-oficial ca/es: el conteo se divide /2 por una señal del modelo → revisar antes de cobrar
+  | "bilingual_duplicate" // co-oficial ca/es: el conteo se divide /2 por una señal del modelo → revisar antes de cobrar
+  | "oversized_estimate"; // documento extenso: el conteo es una EXTRAPOLACIÓN sobre una muestra, no una cuenta
 
 export type PriceRisk = { risky: boolean; reasons: PriceRiskReason[] };
 
@@ -38,6 +39,14 @@ const FISCAL_FORM_PATTERNS: RegExp[] = [
   // Modelos tributarios españoles REALES (no "modelo 3 del coche").
   /\bmodelo\s?(030|036|037|10[0-9]|111|11[35]|123|13[0-1]|18[04]|190|20[02]|303|34[79]|390|714|720)\b/i,
 ];
+
+// Por encima de estas páginas el camino de visión trunca el PDF y el conteo
+// pasa a ser una extrapolación (mismo umbral que LARGE_DOC_THRESHOLD en
+// lib/ai/run-analysis.ts y lib/ai/analyze-document.ts). Y este techo de palabras
+// es el punto a partir del cual un error de estimación deja de ser calderilla:
+// a tarifa normal son varios cientos de euros.
+const EXTRAPOLATION_PAGES = 5;
+const MAX_AUTO_WORDS = 3000;
 
 // Una plantilla repetida N veces (multi-copia) produce DECENAS de trigramas
 // distintos que reaparecen; el boilerplate normal de un contrato/expediente,
@@ -117,6 +126,22 @@ export function assessAutoPriceRisk(input: {
   //    humano confirma el precio antes de cobrar. Ver incidente Candela y #149.
   if (analysis.document_metrics?.is_bilingual_duplicate === true) {
     reasons.push("bilingual_duplicate");
+  }
+
+  // 5. Documento extenso: por encima de EXTRAPOLATION_PAGES el análisis NO ha
+  //    contado el documento, ha extrapolado a partir de una muestra de las
+  //    primeras páginas (ver LARGE_DOCUMENT_ADDENDUM y la extrapolación de
+  //    analyze-document.ts). Esa cifra se mueve entre llamadas idénticas: medido
+  //    27-ago-2026, la MISMA sentencia de 4 páginas dio entre 950 y 1.350
+  //    palabras en 19 pasadas. Autotarificar sobre una estimación así es cobrar
+  //    a ojo, y el error escala con el tamaño: el PDF real de 291 páginas
+  //    (26-ago) se autotarificó en 24.552 € con el semáforo en verde.
+  //    Aquí no se rechaza nada: se manda a presupuesto manual, que es donde
+  //    debe estar un encargo de ese tamaño.
+  const pages = analysis.document_metrics?.pages || 0;
+  const words = analysis.document_metrics?.estimated_words || 0;
+  if (pages > EXTRAPOLATION_PAGES || words > MAX_AUTO_WORDS) {
+    reasons.push("oversized_estimate");
   }
 
   return { risky: reasons.length > 0, reasons };

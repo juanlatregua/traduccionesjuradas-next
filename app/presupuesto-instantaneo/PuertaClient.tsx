@@ -4,7 +4,7 @@
 // Entrada de documentos + fecha límite → diagnóstico completo → puente al
 // checkout. Es el funnel canónico desde el Bloque 1.4.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   CalendarClock,
@@ -128,22 +128,31 @@ export default function PuertaClient({
     setStep("diagnosis");
   }, []);
 
+  // El resultado SIEMPRE se aparca en `pending`; quien decide revelarlo es el
+  // efecto de abajo. DocumentAnalysis lanza su fetch en un efecto con deps
+  // [documentId] (components/ia/DocumentAnalysis.tsx:151), así que se queda con
+  // el callback del PRIMER render: si aquí se leyera `contactSaved`, el valor
+  // sería el de entonces (false) aunque el usuario ya hubiera dado el email
+  // mientras giraba el spinner — y el resultado se quedaba aparcado para
+  // siempre con el formulario ya oculto: pantalla vacía.
   const handleAnalysisComplete = useCallback(
     (analysis: DocumentAnalysisResult, quote: Quote) => {
       if (!currentDocId) return;
-      const entry: DocEntry = {
+      setPending({
         id: currentDocId,
         fileName: currentFileName,
         analysis,
         quote,
         diagnosis: buildDiagnosis(analysis, quote, lang),
-      };
-      // Ya dio el contacto (o es el 2º documento de la sesión): directo.
-      if (contactSaved) revealDocument(entry);
-      else setPending(entry);
+      });
     },
-    [currentDocId, currentFileName, lang, contactSaved, revealDocument]
+    [currentDocId, currentFileName, lang]
   );
+
+  // Hay resultado y hay contacto: se revela, llegue en el orden que llegue.
+  useEffect(() => {
+    if (pending && contactSaved) revealDocument(pending);
+  }, [pending, contactSaved, revealDocument]);
 
   const handleSaveContact = useCallback(async () => {
     if (!emailValid || !marketingConsent || !sessionToken) return;
@@ -376,6 +385,16 @@ export default function PuertaClient({
               onAnalysisComplete={handleAnalysisComplete}
               onError={handleError}
             />
+          )}
+
+          {/* Red de seguridad: con resultado en espera Y contacto dado, este
+              paso no pinta ni spinner ni formulario y quedaría VACÍO durante el
+              frame que tarda el efecto en revelar. Nunca una pantalla en blanco. */}
+          {pending && contactSaved && (
+            <div className="flex items-center gap-2 rounded-xl border border-bleu/15 bg-card p-5 text-sm text-graphite shadow-paper">
+              <Loader2 className="h-4 w-4 animate-spin text-bleu" />
+              {t.spinnerEmailReady}
+            </div>
           )}
 
           {/* El componente se desmonta al llegar el resultado (arriba), pero su

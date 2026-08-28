@@ -20,6 +20,64 @@ export function isAiAccountError(err: any): boolean {
   return ACCOUNT_ERROR_RE.test(msg);
 }
 
+/**
+ * Aviso de un análisis que se PIERDE por el documento (truncado, JSON inválido,
+ * timeout, PDF cifrado…), no por la cuenta. Hueco real: `isAiAccountError` solo
+ * reconoce fallos de cuenta, así que un "TRUNCATED" no avisaba a nadie — y en la
+ * BD había 36 análisis fallidos de 216, con 29 de esos clientes yéndose sin
+ * dejar email. Cada uno es un lead perdido en silencio.
+ *
+ * Email siempre; SMS solo cuando hay contacto que rescatar (si no hay email del
+ * cliente no hay nada que perseguir y no merece despertar a nadie). Un aviso
+ * cada media hora como mucho: un lote que falla entero avisa una vez.
+ */
+export async function alertStaffAnalysisFailure(input: {
+  where: string;
+  detail: string;
+  documentId?: string | null;
+  fileName?: string | null;
+  clientEmail?: string | null;
+}): Promise<void> {
+  try {
+    const gate = await checkRateLimit({
+      key: "ai-analysis-failure-alert",
+      limit: 1,
+      windowMs: 30 * 60 * 1000,
+    });
+    if (!gate.ok) return;
+    const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
+    const contacto = input.clientEmail?.trim();
+    const texto = [
+      `Un análisis ha fallado en ${input.where} y el cliente ha visto el error.`,
+      "",
+      `Documento: ${input.fileName || "(sin nombre)"}${input.documentId ? ` · id ${input.documentId}` : ""}`,
+      `Cliente: ${contacto || "SIN EMAIL — este lead se pierde entero"}`,
+      `Causa: ${input.detail.slice(0, 400)}`,
+      "",
+      contacto
+        ? "Se puede rescatar: escríbele tú y pídele el documento por email o WhatsApp."
+        : "No hay a quién escribir. Si se repite, hay un problema de fondo.",
+      "Este aviso se repite como mucho una vez cada 30 minutos.",
+    ].join("\n");
+    await Promise.all([
+      sendMail({
+        to: adminEmail,
+        subject: `⚠ Análisis fallido en la puerta${contacto ? " — hay lead que rescatar" : ""}`,
+        text: texto,
+        html: renderSimpleEmailHtml(texto),
+      }).catch((err) => console.error("[analysis-failure] email fallo:", err)),
+      contacto
+        ? sendStaffAlertSMS(
+            `TraduccionesJuradas: analisis fallido en la puerta. Lead con email (${contacto.slice(0, 40)}) que se puede rescatar. Mira el correo.`,
+            "analysis_failure"
+          ).catch(() => {})
+        : Promise.resolve(),
+    ]);
+  } catch (err) {
+    console.error("[analysis-failure] aviso fallo:", err);
+  }
+}
+
 export async function alertStaffAiOutage(where: string, detail: string): Promise<void> {
   try {
     const gate = await checkRateLimit({ key: "ai-outage-alert", limit: 1, windowMs: 60 * 60 * 1000 });

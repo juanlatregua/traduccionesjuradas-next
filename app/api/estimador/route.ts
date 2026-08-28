@@ -831,10 +831,20 @@ export async function POST(req: Request) {
     // tarifica plano sin el gate de la puerta. Marcamos los documentos de riesgo
     // (fiscal/financiero, multi-copia, texto pegado) para que el frontend fuerce
     // revisión manual en vez de autopago. El gate DURO está en /api/orders.
+    // El sintético lleva TAMBIÉN páginas y palabras: sin ellas, la red de
+    // documento extenso (oversized_estimate) leía 0 y 0 y no disparaba nunca en
+    // este carril, mientras que la puerta sí la aplicaba. Los datos ya estaban
+    // aquí. Sin esto, un PDF de cientos de páginas seguía llegando a "Pagar y
+    // confirmar pedido" por este camino — y el par francés no cae en revisión
+    // interna por perfil de flujo, así que nada más lo frenaba.
     const priceRisk = assessAutoPriceRisk({
       analysis: {
         document_type: { category: "", specific_type: "" },
-        document_metrics: { extracted_text: extraction.text },
+        document_metrics: {
+          extracted_text: extraction.text,
+          estimated_words: words,
+          pages: numPages || 0,
+        },
       } as any,
       extractedText: extraction.text,
     }).risky;

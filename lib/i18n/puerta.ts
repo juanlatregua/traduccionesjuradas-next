@@ -154,7 +154,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qValidity: "Validez",
     pricePending: "Indícanos abajo el idioma de destino y calculamos el precio.",
     manualQuoteNote:
-      "Este documento (formulario fiscal/financiero o con varias copias) necesita un presupuesto a medida. Escríbenos por WhatsApp y te lo preparamos al momento.",
+      "Por su contenido, este documento necesita un presupuesto a medida. Escríbenos por WhatsApp y te lo preparamos al momento.",
     humanQuoteNote:
       "Documento analizado. En este idioma el precio te lo confirma directamente tu traductor jurado nombrado por el MAEC — normalmente hoy mismo. Si tienes prisa, escríbenos por WhatsApp.",
     requestQuoteCta: "Solicitar presupuesto — te respondemos hoy",
@@ -224,7 +224,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qValidity: "Validité",
     pricePending: "Indiquez ci-dessous la langue cible et nous calculons le prix.",
     manualQuoteNote:
-      "Ce document (formulaire fiscal/financier ou comportant plusieurs copies) nécessite un devis sur mesure. Écrivez-nous sur WhatsApp et nous le préparons aussitôt.",
+      "Par son contenu, ce document nécessite un devis sur mesure. Écrivez-nous sur WhatsApp et nous le préparons aussitôt.",
     humanQuoteNote:
       "Document analysé. Pour cette langue, le prix vous est confirmé directement par votre traducteur assermenté nommé par le MAEC — normalement aujourd'hui même. Pressé ? Écrivez-nous sur WhatsApp.",
     requestQuoteCta: "Demander un devis — réponse aujourd'hui",
@@ -294,7 +294,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qValidity: "Validity",
     pricePending: "Tell us the target language below and we'll calculate the price.",
     manualQuoteNote:
-      "This document (a tax/financial form or one with several copies) needs a tailored quote. Message us on WhatsApp and we'll prepare it right away.",
+      "Because of its content, this document needs a tailored quote. Message us on WhatsApp and we'll prepare it right away.",
     humanQuoteNote:
       "Document analysed. For this language, the price is confirmed directly by your MAEC-appointed sworn translator — usually the same day. In a hurry? Message us on WhatsApp.",
     requestQuoteCta: "Request a quote — we reply today",
@@ -364,7 +364,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qValidity: "Gültigkeit",
     pricePending: "Geben Sie unten die Zielsprache an, und wir berechnen den Preis.",
     manualQuoteNote:
-      "Dieses Dokument (ein Steuer-/Finanzformular oder mit mehreren Kopien) braucht ein individuelles Angebot. Schreiben Sie uns per WhatsApp und wir erstellen es sofort.",
+      "Aufgrund seines Inhalts braucht dieses Dokument ein individuelles Angebot. Schreiben Sie uns per WhatsApp und wir erstellen es sofort.",
     humanQuoteNote:
       "Dokument analysiert. Für diese Sprache bestätigt Ihnen Ihr vom MAEC ermächtigter vereidigter Übersetzer den Preis direkt — normalerweise noch am selben Tag. Eilig? Schreiben Sie uns per WhatsApp.",
     requestQuoteCta: "Angebot anfordern — Antwort noch heute",
@@ -434,7 +434,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     qValidity: "Validade",
     pricePending: "Indique abaixo o idioma de destino e calculamos o preço.",
     manualQuoteNote:
-      "Este documento (formulário fiscal/financeiro ou com várias cópias) precisa de um orçamento à medida. Escreva-nos pelo WhatsApp e preparamo-lo de imediato.",
+      "Pelo seu conteúdo, este documento precisa de um orçamento à medida. Escreva-nos pelo WhatsApp e preparamo-lo de imediato.",
     humanQuoteNote:
       "Documento analisado. Nesta língua o preço é confirmado diretamente pelo seu tradutor ajuramentado nomeado pelo MAEC — normalmente no próprio dia. Com pressa? Escreva-nos pelo WhatsApp.",
     requestQuoteCta: "Pedir orçamento — respondemos hoje",

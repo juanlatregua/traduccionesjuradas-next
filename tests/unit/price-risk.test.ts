@@ -132,3 +132,41 @@ test("'modelo 3 del vehículo' NO dispara el matcher fiscal", () => {
   const risk = assessAutoPriceRisk({ analysis: fakeAnalysis(), extractedText: "permiso de circulación modelo 3 del vehículo marca Tesla" });
   assert.equal(risk.risky, false);
 });
+
+// ─── Documento extenso: el conteo es extrapolado, no contado ───
+// Incidente real (26-ago-2026): un PDF de 291 páginas se autotarificó en
+// 24.552 € con el semáforo en verde, pese a que el propio modelo pedía
+// cotización manual. Y medido el 27-ago: la MISMA sentencia de 4 páginas dio
+// entre 950 y 1.350 palabras en 19 pasadas idénticas.
+
+test("documento de muchas páginas NO autotarifica (conteo extrapolado)", () => {
+  const risk = assessAutoPriceRisk({
+    analysis: fakeAnalysis({ document_metrics: { estimated_words: 800, pages: 291 } }),
+  });
+  assert.equal(risk.risky, true);
+  assert.ok(risk.reasons.includes("oversized_estimate"));
+});
+
+test("documento con muchas palabras NO autotarifica aunque tenga pocas páginas", () => {
+  const risk = assessAutoPriceRisk({
+    analysis: fakeAnalysis({ document_metrics: { estimated_words: 12000, pages: 3 } }),
+  });
+  assert.equal(risk.risky, true);
+  assert.ok(risk.reasons.includes("oversized_estimate"));
+});
+
+test("justo en el límite (5 págs, 3000 palabras) SIGUE autotarificando", () => {
+  const risk = assessAutoPriceRisk({
+    analysis: fakeAnalysis({ document_metrics: { estimated_words: 3000, pages: 5 } }),
+  });
+  assert.equal(risk.reasons.includes("oversized_estimate"), false);
+});
+
+test("el certificado normal de 1-2 páginas no se ve afectado", () => {
+  for (const [pages, words] of [[1, 280], [2, 620], [4, 1500]] as const) {
+    const risk = assessAutoPriceRisk({
+      analysis: fakeAnalysis({ document_metrics: { estimated_words: words, pages } }),
+    });
+    assert.equal(risk.risky, false, `${pages} págs / ${words} palabras no debería ser de riesgo`);
+  }
+});
