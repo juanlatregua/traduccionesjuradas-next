@@ -14,6 +14,9 @@ type Body = {
   to?: WorkflowState;
   reason?: string;
   notifyClient?: boolean;
+  // Entrega YA hecha fuera de la app (correo propio, en mano, papel): registra
+  // el hecho sin exigir fichero y sin avisar al cliente. Exige motivo.
+  deliveredOutsideApp?: boolean;
 };
 
 function isWorkflowState(value: unknown): value is WorkflowState {
@@ -33,11 +36,20 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Estado de workflow no valido." }, { status: 400 });
     }
 
+    const outsideApp = body.deliveredOutsideApp === true && body.to === "TRADUCIDO_ENTREGADO";
+    if (outsideApp && !body.reason) {
+      return NextResponse.json(
+        { ok: false, error: "Indica el motivo: se registra una entrega hecha fuera de la app." },
+        { status: 400 }
+      );
+    }
+
     const transition = await transitionWorkflowState({
       reference: params.reference,
       to: body.to,
       actorEmail,
       reason: body.reason || null,
+      ...(outsideApp ? { payload: { deliveredOutsideApp: true } } : {}),
     });
     let finalTo = transition.to;
 

@@ -57,10 +57,11 @@ export default function TranslatorAgenda({ items }: Props) {
   }
 
   // "Entregado" desde la agenda, por si se olvidó marcarlo en la ficha (Juan 26-ago).
-  // Va por el chokepoint de workflow (TRADUCIDO_ENTREGADO → DELIVERED): el SMS de
-  // "lista, descárgala" solo sale si hay entregable, así que no promete nada falso.
+  // Va por el chokepoint de workflow (TRADUCIDO_ENTREGADO → DELIVERED) con
+  // deliveredOutsideApp: registra una entrega YA hecha por otra vía, así que no
+  // exige fichero (antes el guard lo cortaba con 400) y NO avisa al cliente.
   async function markDelivered(row: AgendaItem) {
-    const ok = window.confirm(`¿Marcar ${row.reference} como ENTREGADO al cliente?\n\nNo envía la traducción: solo cierra el pedido como entregado (para cuando ya se entregó por otra vía o se olvidó marcar).`);
+    const ok = window.confirm(`¿Marcar ${row.reference} como ENTREGADO al cliente?\n\nNo envía nada al cliente (ni email ni SMS): solo registra que ya se entregó por otra vía.`);
     if (!ok) return;
     setBusy(row.reference);
     setError(null);
@@ -68,7 +69,11 @@ export default function TranslatorAgenda({ items }: Props) {
       const res = await fetch(`/api/orders/${encodeURIComponent(row.reference)}/workflow`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: "TRADUCIDO_ENTREGADO", reason: "Marcado como entregado desde la agenda de plazos." }),
+        body: JSON.stringify({
+          to: "TRADUCIDO_ENTREGADO",
+          reason: "Entregado por otra vía; marcado desde la agenda de plazos.",
+          deliveredOutsideApp: true,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.ok === false) throw new Error(data?.error || "No se pudo marcar como entregado.");
@@ -94,7 +99,7 @@ export default function TranslatorAgenda({ items }: Props) {
   return (
     <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
       <h2 className="text-lg font-semibold text-white">Agenda de plazos</h2>
-      <p className="mt-1 text-xs text-slate-400">Pedidos pagados con fecha de entrega. «Entregado» cierra el pedido sin enviar nada.</p>
+      <p className="mt-1 text-xs text-slate-400">Pedidos pagados con fecha de entrega. «Entregado» registra una entrega ya hecha por otra vía: no envía nada al cliente.</p>
       {error && <p className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{error}</p>}
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {Array.from(grouped.entries()).map(([day, rows]) => {

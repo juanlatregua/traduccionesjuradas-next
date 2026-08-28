@@ -85,6 +85,10 @@ async function notifyClientMilestone(
   payload?: Record<string, unknown>
 ) {
   if (to !== "EN_TRADUCCION" && to !== "TRADUCIDO_ENTREGADO") return;
+  // Registro de una entrega que ya ocurrio fuera de la app: el cliente YA tiene
+  // su traduccion, avisarle ahora seria un aviso tardio y falso. Ni SMS ni
+  // WhatsApp, aunque el pedido tenga fichero subido.
+  if (payload?.deliveredOutsideApp === true) return;
   try {
     const order = await prisma.order.findUnique({
       where: { reference },
@@ -177,6 +181,7 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
       paymentStatus: order.paymentStatus,
       translatedFileUrl: order.translatedFileUrl,
       delivered: options.payload?.delivered === true,
+      deliveredOutsideApp: options.payload?.deliveredOutsideApp === true,
     });
 
     if (!canTransitionWorkflow(from, to)) {
