@@ -83,6 +83,12 @@ const LAVORI_MIEMBROS_ENDPOINT =
  *  Nunca lanza: sin secreto o sin respuesta cae al respaldo estático. */
 export async function redJuradosCount(lang: string): Promise<number> {
   const l = String(lang || "").trim().toLowerCase();
+  // El FRANCÉS no cuenta: lo traduce Juan, y el puente lo excluye por diseño
+  // (lib/lavori-bridge.ts), así que ningún jurado de francés de la red recibe
+  // NUNCA un encargo por este camino. Contarlos infla la cifra con gente a la
+  // que la frase no lleva. Aquí la red de francés es Juan, y eso ya lo dice la
+  // página por su cuenta.
+  if (l === "fr") return 0;
   const fallback = RED_FALLBACK[l] ?? 0;
   const secret = process.env.MOTOR_LAVORI_SECRET;
   if (!secret || !/^[a-z]{2,3}$/.test(l)) return fallback;
@@ -97,9 +103,13 @@ export async function redJuradosCount(lang: string): Promise<number> {
     );
     const data = (await res.json().catch(() => null)) as { miembros?: unknown[] } | null;
     if (!res.ok || !Array.isArray(data?.miembros)) return fallback;
+    // `disponible` NO estaba en el filtro, y la frase que sale de aquí promete
+    // "respuesta en el día". Se estaba contando a jurados que han entrado y han
+    // marcado que NO están disponibles (uno escribió "de vacaciones hasta
+    // septiembre"). Quien queda mal cuando no contesta es el jurado, no la web.
     const conCanal = data.miembros
       .map((w) => mapLavoriMiembro(w as any))
-      .filter((m) => m && m.canal !== false && !m.enPaz).length;
+      .filter((m) => m && m.canal !== false && !m.enPaz && m.disponible !== false).length;
     return conCanal || fallback;
   } catch {
     return fallback;

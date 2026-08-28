@@ -139,22 +139,6 @@ export default function RedDirectaPage() {
         </div>
       </section>
 
-      {/* TRADUCTORES → LAVORI (discreto, al final) */}
-      <section className="mt-12 rounded-2xl border border-cream bg-cream/50 p-5">
-        <h2 className="text-base font-semibold text-encre">¿Eres traductor o intérprete jurado?</h2>
-        <p className="mt-1 text-sm text-sepia">
-          La red se coordina en lavori, el tablón profesional donde los traductores se pasan encargos
-          directamente, sin agencias ni comisiones. Gratis y sin compromiso.
-        </p>
-        <a
-          href="https://lavori.es/entrar?utm_source=tjnet&utm_medium=landing&utm_campaign=red-directa"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-block rounded-xl border border-bleu px-4 py-2 text-sm font-semibold text-bleu hover:bg-card"
-        >
-          Únete a lavori →
-        </a>
-      </section>
     </main>
   );
 }
