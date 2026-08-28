@@ -9,6 +9,10 @@ import type { BankTxn } from "@/lib/bank-parse";
 const DAY = 86400000;
 const WINDOW_INCOME = 7 * DAY;
 const WINDOW_EXPENSE = 14 * DAY;
+// La liquidación se casa por su fecha de LLEGADA, que es la del extracto: basta
+// un margen corto para el día de valor. No confundir con la distancia al cobro,
+// que puede ser de 10 días y es justo lo que rompía el emparejamiento.
+const WINDOW_PAYOUT = 3 * DAY;
 const GATEWAY_FEE_MAX_PCT = 0.04;
 export const TOLERANCE_CENTS = Math.min(500, Math.max(100, Number(process.env.RECONCILIATION_TOLERANCE_CENTS) || 300));
 
@@ -29,11 +33,21 @@ export type SnapInvoice = { id: string; number: string | null; totalCents: numbe
 export type SnapOrder = { reference: string; amountCents: number; paidAt: string | null; createdAt: string; clientName: string | null; paymentStatus: string };
 export type SnapExpense = { id: string; totalCents: number; date: string; supplier: string | null; concept: string; paidAt: string | null };
 export type SnapDecision = { lineHash: string; status: string; matchedType: string | null; matchedId: string | null; note: string | null };
-export type AccountingSnapshot = { invoices: SnapInvoice[]; orders: SnapOrder[]; expenses: SnapExpense[]; decisions: SnapDecision[] };
+// Un payout de Stripe: lo que de verdad aparece en el extracto. `netCents` es el
+// importe a casar (bruto − comisión) y `orders` las referencias que lo componen.
+export type SnapPayout = {
+  id: string;
+  arrivalDate: string;
+  netCents: number;
+  grossCents: number;
+  feeCents: number;
+  orders: { reference: string; amountCents: number; clientName: string | null }[];
+};
+export type AccountingSnapshot = { invoices: SnapInvoice[]; orders: SnapOrder[]; expenses: SnapExpense[]; decisions: SnapDecision[]; payouts?: SnapPayout[] };
 
 type Cand = { type: "invoice" | "order" | "expense"; id: string; label: string; diffCents: number; dateDist: number; flags: string[] };
 
-export type MatchedItem = { txn: BankTxn; lineHash: string; kind: string; targetId: string; label: string; diffCents: number; flags: string[] };
+export type MatchedItem = { txn: BankTxn; lineHash: string; kind: string; targetId: string; label: string; diffCents: number; flags: string[]; payout?: { id: string; grossCents: number; feeCents: number; orders: { reference: string; amountCents: number; clientName: string | null }[] } };
 export type IncomeNoInvoice = { txn: BankTxn; lineHash: string; candidateOrder?: { reference: string; amountCents: number }; flags: string[] };
 export type GapItem = { txn: BankTxn; lineHash: string; label?: string };
 export type AmbiguousItem = { txn: BankTxn; lineHash: string; candidates: { type: string; id: string; label: string; diffCents: number }[] };
@@ -66,6 +80,7 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
   const usedInvoice = new Set<string>();
   const usedOrder = new Set<string>();
   const usedExpense = new Set<string>();
+  const usedPayout = new Set<string>();
 
   const res: ReconResult = {
     matched: [],
@@ -118,6 +133,35 @@ export function reconcile(txns: BankTxn[], snap: AccountingSnapshot): ReconResul
 
     if (txn.amountCents > 0) {
       // ── INGRESO ──────────────────────────────────────────
+      // 0) LIQUIDACIÓN DE STRIPE. Va la PRIMERA porque explica la línea entera:
+      //    importe neto exacto (bruto − comisión) y los N pedidos que lleva
+      //    dentro. Antes se intentaba casar contra UN pedido con ±4 % y ventana
+      //    de 7 días, y fallaba por las dos cosas: el payout agrupa varios
+      //    cobros y llega hasta 10 días después. Aquí la fecha es la de LLEGADA
+      //    al banco, que es la que trae el extracto.
+      const payoutCands = (snap.payouts || [])
+        .filter((p) => !usedPayout.has(p.id))
+        .map((p) => ({ p, diff: Math.abs(txn.amountCents - p.netCents), dist: Math.abs(t - new Date(p.arrivalDate).getTime()) }))
+        .filter((c) => c.diff <= TOLERANCE_CENTS && c.dist <= WINDOW_PAYOUT)
+        .sort((a, b) => a.diff - b.diff || a.dist - b.dist);
+      if (payoutCands.length >= 1) {
+        const { p, diff } = payoutCands[0];
+        usedPayout.add(p.id);
+        for (const o of p.orders) usedOrder.add(o.reference);
+        res.matched.push({
+          txn,
+          lineHash,
+          kind: "stripe_payout",
+          targetId: p.id,
+          label: `Liquidación Stripe · ${p.orders.length} cobro${p.orders.length === 1 ? "" : "s"} · bruto ${(p.grossCents / 100).toFixed(2)} € − comisión ${(p.feeCents / 100).toFixed(2)} €`,
+          diffCents: diff,
+          flags: p.orders.length > 1 ? ["agrupado"] : [],
+          payout: { id: p.id, grossCents: p.grossCents, feeCents: p.feeCents, orders: p.orders },
+        });
+        res.totals.matchedIn += txn.amountCents;
+        continue;
+      }
+
       // 1) Facturas emitidas (objetivo fiscal).
       const invCands: Cand[] = snap.invoices
         .filter((i) => !usedInvoice.has(i.id) && within(txn.amountCents, i.totalCents, TOLERANCE_CENTS) && Math.abs(t - new Date(i.issuedAt).getTime()) <= WINDOW_INCOME)
