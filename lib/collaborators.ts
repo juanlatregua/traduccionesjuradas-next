@@ -343,10 +343,23 @@ export async function applyAcceptedQuoteSideEffects(
   // El IVA es repercutido (no es margen).
   const revenueNetCents = netFromGross(customerPriceCents);
   const marginCents = revenueNetCents - supplierCostCents;
-  if (marginCents < 0) {
-    console.warn(
-      `[MARGEN NEGATIVO] Assignment ${assignmentId}: coste ${supplierCostCents}¢ > ingreso neto ${revenueNetCents}¢`
-    );
+  // "Nunca puedo perder" (Juan, 28-ago-2026). Adjudicar un encargo que deja la
+  // casa a cero o en negativo tiene que AVISAR, no escribir una linea en un log
+  // de Vercel que no lee nadie: cuando se llega aqui el cliente ya ha pagado y
+  // el jurado ya tiene su cifra, asi que la unica salida es enterarse a tiempo
+  // y renegociar. Casos reales del 28-ago: tres presupuestos vivos con coste
+  // igual a precio (Adolfo 214,63/214,63, Alves 70/70) y un pedido al 19 %.
+  if (marginCents <= 0) {
+    void import("@/lib/ai/outage-alert").then((m) =>
+      m.alertStaffMargin({
+        orderId: order.id,
+        assignmentId,
+        supplier: collaborator.companyName || collaborator.fullName,
+        revenueNetCents,
+        supplierCostCents,
+        marginCents,
+      })
+    ).catch((err) => console.error("[margen] aviso fallo:", err));
   }
 
   await db.orderEvent.create({

@@ -18,12 +18,31 @@
 import { prisma } from "@/lib/prisma";
 import { computeQuoteTotals, calculateValidUntil, generateQuoteNumber, generateQuoteToken, decimalToNumber } from "@/lib/quotes";
 import { QUOTE_PDF_LANGS } from "@/lib/quote-pdf-langs";
+import {
+  LEARNED_MARGIN_PCT,
+  DOC_FLOOR_CENTS,
+  WORD_UNIT_MIN_WORDS,
+  SIZE_TOLERANCE,
+  AUTO_QUOTE_MAX_CENTS,
+  MIN_AUTO_MARGIN_PCT,
+  unitFor,
+  priceDocWithRate,
+  marginPctOf,
+} from "@/lib/learned-rates-math";
 
-export const LEARNED_MARGIN_PCT = 12; // margen sobre coste del jurado (horquilla Juan 10-15 %)
-export const DOC_FLOOR_CENTS = 4000; // 40 € netos mínimo por documento (regla Juan 26-ago)
-export const WORD_UNIT_MIN_WORDS = 1000; // desde aquí (y más de 2 páginas) la tarifa se aprende por 1000 palabras
-export const SIZE_TOLERANCE = 0.3; // ±30 % de tamaño para reutilizar una tarifa por documento
-export const AUTO_QUOTE_MAX_CENTS = 60000; // por encima de 600 € netos, siempre humano
+// Re-export para no romper a quien ya los importaba de aquí.
+export {
+  LEARNED_MARGIN_PCT,
+  DOC_FLOOR_CENTS,
+  WORD_UNIT_MIN_WORDS,
+  SIZE_TOLERANCE,
+  AUTO_QUOTE_MAX_CENTS,
+  MIN_AUTO_MARGIN_PCT,
+  unitFor,
+  priceDocWithRate,
+};
+
+
 
 export type RateDirection = "to_es" | "from_es";
 export type RateKey = { lang: string; direction: RateDirection; docType: string; apostille: boolean };
@@ -104,11 +123,6 @@ export function docInfoFromAnalysis(row: AnalysisRow): DocInfo | null {
   };
 }
 
-/** Regla Juan 26-ago: los certificados (1-2 páginas) no se cuentan por palabra. */
-export function unitFor(words: number | null | undefined, pages?: number | null): "doc" | "kword" {
-  if (pages && pages <= 2) return "doc";
-  return words && words >= WORD_UNIT_MIN_WORDS ? "kword" : "doc";
-}
 
 /** Convierte un total (N documentos, W palabras) a la unidad de la tarifa. */
 function perUnit(totalCents: number | null | undefined, unit: "doc" | "kword", docs: number, totalWords: number | null | undefined) {
@@ -171,12 +185,21 @@ export async function recordSample(
   const countsAsSample = sample.kind !== "auto_quote";
   let rate;
   if (!existing) {
-    if (cost == null && client == null) return null;
+    // NO se inventa el coste. Antes, si solo habia precio del cliente, se
+    // guardaba cliente ÷ 1,12 como si fuera lo que cobra el jurado. Eso no es un
+    // coste aprendido: es el precio del cliente menos el margen MINIMO de la
+    // horquilla, asi que la tarifa nacia dejando el 12 % y nada mas — y si el
+    // jurado real cobra menos, se le ofrece de mas; si cobra mas, el presupuesto
+    // ya salio y la casa pierde. Caso medido el 28-ago: apostilla EN>ES guardada
+    // con coste 49,11 € cuando la tarifa de Vanessa (0,08 €/palabra sobre 307
+    // palabras) son 24,56 €. Sin coste real la tarifa se queda SIN coste y no
+    // puede tarificar sola: sirve para saber lo que paga el cliente y nada mas.
+    if (cost == null) return null;
     rate = await prisma.learnedRate.create({
       data: {
         ...key,
         unit,
-        costCents: cost ?? Math.round((client as number) / (1 + LEARNED_MARGIN_PCT / 100)),
+        costCents: cost,
         clientCents: client,
         wordsRef: sample.words ?? null,
         plazoDias: sample.plazoDias ?? null,
@@ -395,21 +418,7 @@ export async function findApprovedRate(info: DocInfo) {
   return null;
 }
 
-function roundUp50(cents: number) {
-  return Math.ceil(cents / 50) * 50;
-}
 
-/** Precio neto al cliente y coste del jurado para un documento con su tarifa. */
-export function priceDocWithRate(rate: { unit: string; costCents: number; clientCents: number | null }, words: number | null) {
-  const perUnitClient = rate.clientCents ?? Math.round(rate.costCents * (1 + LEARNED_MARGIN_PCT / 100));
-  if (rate.unit === "kword") {
-    const w = Math.max(1, words || 0);
-    const client = Math.max(DOC_FLOOR_CENTS, roundUp50((w * perUnitClient) / 1000));
-    const cost = Math.round((w * rate.costCents) / 1000);
-    return { clientCents: client, costCents: cost };
-  }
-  return { clientCents: Math.max(DOC_FLOOR_CENTS, roundUp50(perUnitClient)), costCents: rate.costCents };
-}
 
 export type AutoQuoteResult =
   | { ok: true; quoteId: string; quoteNumber: string; totalEur: number; payUrl: string; miembroNombre: string | null; lines: number; emailSent: boolean; smsSent: boolean }
@@ -459,6 +468,19 @@ export async function autoQuoteFromPuertaSession(opts: {
     const rate = await findApprovedRate(info);
     if (!rate) return { ok: false, reason: `sin tarifa aprobada para ${rateKeyLabel(info)}${info.words ? ` (${info.words} pal.)` : ""}` };
     const p = priceDocWithRate(rate, info.words);
+    // REGLA DE JUAN, 28-ago-2026: "nunca puedo perder". No es una intención, es
+    // un freno: por debajo del suelo el presupuesto NO sale solo, va a mano. Sin
+    // esto, una tarifa con el coste mal puesto emite y envía al cliente un
+    // precio que deja a la casa a cero o en negativo, y cuando se detecta el
+    // cliente ya tiene su cifra por escrito.
+    const margen = p.clientCents - p.costCents;
+    const margenPct = p.costCents > 0 ? (margen / p.costCents) * 100 : 0;
+    if (margen <= 0 || margenPct < MIN_AUTO_MARGIN_PCT) {
+      return {
+        ok: false,
+        reason: `margen insuficiente en ${rateKeyLabel(info)}: cliente ${(p.clientCents / 100).toFixed(2)} € − coste ${(p.costCents / 100).toFixed(2)} € = ${(margen / 100).toFixed(2)} € (${margenPct.toFixed(0)} %, mínimo ${MIN_AUTO_MARGIN_PCT} %)`,
+      };
+    }
     priced.push({ info, rate, ...p });
   }
   const miembros = Array.from(new Set(priced.map((p) => p.rate.miembroId).filter(Boolean))) as string[];

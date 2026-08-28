@@ -106,3 +106,58 @@ export async function alertStaffAiOutage(where: string, detail: string): Promise
     console.error("[ai-outage] aviso fallo:", err);
   }
 }
+
+/**
+ * "Nunca puedo perder" (Juan, 28-ago-2026): un encargo adjudicado que deja la
+ * casa a cero o en negativo avisa por los DOS canales. Cuando esto salta, el
+ * cliente ya pagó y el jurado ya tiene su cifra: no hay freno posible, solo
+ * enterarse a tiempo para renegociar. Sin límite de frecuencia — cada euro
+ * perdido es un caso distinto y no se agrupan.
+ */
+export async function alertStaffMargin(input: {
+  orderId: string;
+  assignmentId: string;
+  supplier: string;
+  revenueNetCents: number;
+  supplierCostCents: number;
+  marginCents: number;
+}): Promise<void> {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const order = await prisma.order
+      .findUnique({ where: { id: input.orderId }, select: { reference: true, clientName: true, langPair: true } })
+      .catch(() => null);
+    const ref = order?.reference || input.orderId;
+    const eur = (c: number) => `${(c / 100).toFixed(2)} €`;
+    const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
+    const texto = [
+      `El pedido ${ref} se ha adjudicado SIN MARGEN.`,
+      "",
+      `Cliente: ${order?.clientName || "—"} · ${order?.langPair || "—"}`,
+      `Traductor: ${input.supplier}`,
+      `Ingreso neto: ${eur(input.revenueNetCents)}`,
+      `Coste del traductor: ${eur(input.supplierCostCents)}`,
+      `MARGEN: ${eur(input.marginCents)}`,
+      "",
+      input.marginCents < 0
+        ? "Estás pagando más de lo que cobras por este encargo."
+        : "Haces la gestión, adelantas el dinero y asumes el riesgo por cero.",
+      "El cliente ya pagó y el traductor ya tiene su cifra: si hay que mover algo, hay que hacerlo ahora.",
+      `https://www.traduccionesjuradas.net/zona-traductor/pedido/${ref}`,
+    ].join("\n");
+    await Promise.all([
+      sendMail({
+        to: adminEmail,
+        subject: `⚠ ${ref} adjudicado sin margen (${eur(input.marginCents)})`,
+        text: texto,
+        html: renderSimpleEmailHtml(texto),
+      }).catch((err) => console.error("[margen] email fallo:", err)),
+      sendStaffAlertSMS(
+        `TraduccionesJuradas: ${ref} adjudicado SIN MARGEN (${eur(input.marginCents)}). ${input.supplier}. Mira el email.`,
+        "margen_cero"
+      ).catch(() => {}),
+    ]);
+  } catch (err) {
+    console.error("[margen] aviso fallo:", err);
+  }
+}
