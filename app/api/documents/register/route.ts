@@ -31,7 +31,12 @@ export async function POST(req: Request) {
       await req.json();
 
     // Origen de captación (atribución del funnel). Whitelist para no guardar basura.
-    const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lector"]);
+    // OJO: tiene que ir en paralelo con la de app/presupuesto-instantaneo/page.tsx:13,
+    // que es quien traduce ?p=<preset> a este `source`. Estuvieron desincronizadas:
+    // la página aceptaba "lavori" y aquí no estaba, así que TODA la atribución del
+    // enlace de lavori se tiraba en silencio —sin error, sin log— y el carril
+    // parecía no traer a nadie cuando en realidad no se estaba midiendo.
+    const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lector", "lavori"]);
     const normalizedSource =
       typeof source === "string" && KNOWN_SOURCES.has(source) ? source : null;
 
