@@ -3,7 +3,17 @@ import Link from "next/link";
 import { WHATSAPP_LINK } from "@/lib/contact";
 import dynamic from "next/dynamic";
 
-const PriceEstimator = dynamic(() => import("@/components/PriceEstimator"), {
+// La MISMA puerta que la home (components/HomeV2.tsx:8) y /presupuesto-instantaneo.
+// Antes esta página tenía su propia calculadora (components/PriceEstimator) con
+// motor de precio propio: no aplicaba los suelos del francés, ni los mínimos por
+// idioma, ni el recargo de apostilla, así que el mismo PDF salía a 19 € aquí y a
+// 42,35 € en la home. Decisión de Juan (28-ago): manda el motor, y calcula la
+// página que tiene el motor y el puente con lavori.
+//
+// Sigue con ssr:false a propósito: así el widget aporta CERO bytes al HTML y el
+// SEO de la página (metadata, h1, los 8 h2, la prosa) queda exactamente igual
+// que antes del cambio. Eso es lo que hace este trasplante neutro para Google.
+const PuertaClient = dynamic(() => import("@/app/presupuesto-instantaneo/PuertaClient"), {
   ssr: false,
 });
 const mailLink =
@@ -219,8 +229,10 @@ export default function PreciosTraduccionJuradaPage() {
         </p>
       </section>
 
-      {/* ESTIMADOR ORIENTATIVO */}
-      <PriceEstimator />
+      {/* LA PUERTA — misma que la home. `source` para saber por fin si esta
+          página convierte: hasta hoy la atribución no se guardaba (ver la nota
+          de app/api/documents/register/route.ts). */}
+      <PuertaClient purpose={null} source="precios" />
 
       {/* CTA FINAL */}
       <section className="mt-12 rounded-3xl border border-cream bg-cream p-6 text-sm">

@@ -10,7 +10,7 @@ const PURPOSE_PRESETS: Record<string, string> = {
 
 // Orígenes de captación válidos (atribución del funnel). No tocan el precio;
 // solo etiquetan de dónde llega el lead (p. ej. el handoff del bloque uge-ce).
-const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lavori"]);
+const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lavori", "precios"]);
 
 export const metadata: Metadata = {
   title: "Presupuesto de traducción jurada: al instante en francés, en el día en los demás idiomas",

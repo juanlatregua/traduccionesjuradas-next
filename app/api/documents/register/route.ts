@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     // la página aceptaba "lavori" y aquí no estaba, así que TODA la atribución del
     // enlace de lavori se tiraba en silencio —sin error, sin log— y el carril
     // parecía no traer a nadie cuando en realidad no se estaba midiendo.
-    const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lector", "lavori"]);
+    const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lector", "lavori", "precios"]);
     const normalizedSource =
       typeof source === "string" && KNOWN_SOURCES.has(source) ? source : null;
 
