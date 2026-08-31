@@ -22,13 +22,13 @@ export async function getCaseMembers(caseRef: string | null, fallbackOrderId: st
   if (!caseRef) {
     const one = await prisma.order.findUnique({
       where: { id: fallbackOrderId },
-      select: { id: true, reference: true, deliveryType: true, shippedAt: true, clientEmail: true, clientLocale: true },
+      select: { id: true, reference: true, deliveryType: true, shippedAt: true, paymentStatus: true, clientEmail: true, clientLocale: true },
     });
     return one ? [one] : [];
   }
   return prisma.order.findMany({
     where: { caseRef },
-    select: { id: true, reference: true, deliveryType: true, shippedAt: true, clientEmail: true, clientLocale: true },
+    select: { id: true, reference: true, deliveryType: true, shippedAt: true, paymentStatus: true, clientEmail: true, clientLocale: true },
     orderBy: { createdAt: "asc" },
   });
 }

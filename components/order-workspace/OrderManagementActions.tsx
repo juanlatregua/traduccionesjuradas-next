@@ -121,6 +121,26 @@ export default function OrderManagementActions({
     }
   }
 
+  async function leaveCase() {
+    if (!window.confirm(`Sacar ${reference} del trámite ${caseRef}? Los demás pedidos siguen agrupados.`)) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/orders/${reference}/case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ungroup: true }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo desagrupar.");
+      flash(`${reference} ya no está en ningún trámite.`);
+      router.refresh();
+    } catch (e: any) {
+      flash(e?.message || "No se pudo desagrupar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function groupIntoCase() {
     const raw = window.prompt(
       caseRef
@@ -200,6 +220,12 @@ export default function OrderManagementActions({
       <button type="button" onClick={groupIntoCase} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
         {caseRef ? `🗂 Trámite ${caseRef}` : "🗂 Agrupar en un trámite"}
       </button>
+
+      {caseRef && (
+        <button type="button" onClick={leaveCase} disabled={busy} className={`${btn} border border-slate-700 text-slate-400 hover:bg-slate-800`}>
+          Sacar del trámite
+        </button>
+      )}
 
       {quote && (
         <a href={`/zona-traductor/presupuestos/${quote.id}`} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>

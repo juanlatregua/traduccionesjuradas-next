@@ -38,21 +38,23 @@ export async function POST(req: Request, { params }: { params: { reference: stri
 
   const order = await prisma.order.findUnique({
     where: { reference: params.reference },
-    select: { id: true, reference: true, clientEmail: true, clientLocale: true, caseRef: true, deliveryType: true, shippedAt: true },
+    select: { id: true, reference: true, clientEmail: true, clientLocale: true, caseRef: true, deliveryType: true, shippedAt: true, paymentStatus: true },
   });
   if (!order) {
     return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
   }
 
-  // Del trámite solo entran en el sobre los de papel sin sellar: un digital ya
-  // entregado no se anuncia por mensajería y un envío hecho no se reescribe.
+  // Del trámite solo entran en el sobre los de papel, sin sellar y COBRADOS: un
+  // digital ya entregado no se anuncia por mensajería, un envío hecho no se
+  // reescribe, y un hermano sin pagar no se le anuncia al cliente como enviado
+  // (misma regla que /api/orders/[ref]/delivery: no se entrega sin cobrar).
   const members = await getCaseMembers(order.caseRef, order.id);
   const shippable = selectShippableMembers(members);
   // El pedido pulsado manda aunque su deliveryType diga otra cosa: hoy el botón
   // lo decide el staff y hay pedidos de papel nacidos como "pdf".
   const targets = shippable.some((m) => m.id === order.id)
     ? shippable
-    : [{ id: order.id, reference: order.reference, deliveryType: order.deliveryType, shippedAt: order.shippedAt }, ...shippable];
+    : [{ id: order.id, reference: order.reference, deliveryType: order.deliveryType, shippedAt: order.shippedAt, paymentStatus: order.paymentStatus }, ...shippable];
   if (targets.length === 0) {
     return NextResponse.json({ ok: false, error: "No queda ningún pedido por enviar en este trámite." }, { status: 409 });
   }

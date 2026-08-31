@@ -18,12 +18,18 @@ export type ShippableMember = {
   reference: string;
   deliveryType: string;
   shippedAt: Date | null;
+  paymentStatus: string;
 };
 
-// Qué pedidos del trámite entran REALMENTE en el sobre. Filtra dos cosas que con
-// los datos de Ana Suárez habrían dado un email mentiroso: los digitales
-// (26_3259FE ya fue por PDF el 7-ago) y los ya sellados (un envío hecho no se
-// reescribe — el cierre de un pedido no se reabre).
+// Qué pedidos del trámite entran REALMENTE en el sobre. Filtra tres cosas que
+// habrían dado un email mentiroso al cliente:
+//  · los digitales — 26_3259FE ya fue por PDF el 7-ago; anunciarlo por
+//    mensajería sería mentir;
+//  · los ya sellados — un envío hecho no se reescribe;
+//  · los NO COBRADOS — misma regla que /api/orders/[ref]/delivery y
+//    lib/client-delivery.ts:18: no se entrega sin cobrar. Un hermano recién
+//    creado y aún sin pagar se queda fuera EN SILENCIO (no se le pone
+//    shippedAt), así que sigue siendo enviable en cuanto entre su pago.
 export function selectShippableMembers<T extends ShippableMember>(members: T[]): T[] {
-  return members.filter((m) => m.deliveryType === "paper" && m.shippedAt == null);
+  return members.filter((m) => m.deliveryType === "paper" && m.shippedAt == null && m.paymentStatus === "PAID");
 }

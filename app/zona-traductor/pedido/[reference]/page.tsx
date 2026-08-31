@@ -27,6 +27,7 @@ import {
 } from "@/lib/zona-traductor-data";
 import OrderStepper from "@/components/order-workspace/OrderStepper";
 import OrderManagementActions from "@/components/order-workspace/OrderManagementActions";
+import { getCaseAccrualRollup } from "@/lib/order-case";
 import CollaboratorAssignmentPanel from "@/components/CollaboratorAssignmentPanel";
 import AssignOrderForm from "@/components/AssignOrderForm";
 import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
@@ -211,12 +212,17 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const caseSiblingsToShip = order.caseRef
     ? (
         await prisma.order.findMany({
-          where: { caseRef: order.caseRef, deliveryType: "paper", shippedAt: null, NOT: { id: order.id } },
+          where: { caseRef: order.caseRef, deliveryType: "paper", shippedAt: null, paymentStatus: "PAID", NOT: { id: order.id } },
           select: { reference: true },
           orderBy: { createdAt: "asc" },
         })
       ).map((o) => o.reference)
     : [];
+
+  // Coste del TRÁMITE entero (solo lectura: no alimenta ningún freno — el
+  // margen se sigue midiendo por pedido, si no un pedido en pérdidas se
+  // escondería detrás de un hermano rentable).
+  const caseRollup = order.caseRef ? await getCaseAccrualRollup(order.caseRef) : null;
 
   const workflowState = getWorkflowState(order);
   const moves = getNextWorkflowStates(workflowState).map((s) => ({ to: s, label: getWorkflowStateLabel(s) }));
@@ -371,6 +377,14 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         {/* Acciones de gestión (antes solo en el Cockpit): avanzar, factura, envío, cobro */}
         <div className="rounded-3xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Acciones del pedido</p>
+          {caseRollup && caseRollup.orders > 1 && (
+            <p className="mb-3 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
+              <span className="font-semibold text-cyan-300">Trámite {order.caseRef}</span> · {caseRollup.orders} pedidos ·
+              coste devengado del conjunto{" "}
+              <strong className="text-slate-100">{(caseRollup.accrualCents / 100).toFixed(2)} €</strong>
+              <span className="ml-1 text-slate-500">(el margen se sigue midiendo pedido a pedido)</span>
+            </p>
+          )}
           <OrderManagementActions
             reference={order.reference}
             clientName={order.clientName || order.clientEmail || "cliente"}

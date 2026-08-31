@@ -60,7 +60,10 @@ export async function POST(req: Request, { params }: { params: { reference: stri
 
   // Un trámite es de UN cliente. Agrupar pedidos de clientes distintos filtraría
   // los documentos de uno en la carpeta del otro y en su email de envío.
-  const foreign = others.filter((o) => o.clientEmail !== order.clientEmail);
+  // Comparación insensible a mayúsculas: hay datos antiguos con otra
+  // capitalización y el resto del sistema empareja así (lib/client-portal.ts).
+  const sameClient = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const foreign = others.filter((o) => !sameClient(o.clientEmail, order.clientEmail));
   if (foreign.length > 0) {
     return NextResponse.json(
       { ok: false, error: `Son de otro cliente: ${foreign.map((o) => o.reference).join(", ")}.` },
