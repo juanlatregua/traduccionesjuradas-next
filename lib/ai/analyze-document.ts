@@ -67,6 +67,10 @@ export type DocumentAnalysisResult = {
     has_handwriting: boolean;
     scan_quality: "good" | "medium" | "poor";
     is_legible: boolean;
+    // true si el archivo es SOLO la apostilla de La Haya, sin el documento que
+    // certifica (caso Bernardo 31-ago: apostilla suelta clasificada y tarifada
+    // como el documento ausente).
+    is_apostille_only?: boolean;
     // true en documentos oficiales con el MISMO contenido en dos idiomas en
     // paralelo (castellano + català/gallego/euskera, etc.): se traduce un solo
     // idioma. El conteo de palabras se divide entre 2. Ver lib/ai/word-counter.ts.

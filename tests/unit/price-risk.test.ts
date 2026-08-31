@@ -170,3 +170,48 @@ test("el certificado normal de 1-2 páginas no se ve afectado", () => {
     assert.equal(risk.risky, false, `${pages} págs / ${words} palabras no debería ser de riesgo`);
   }
 });
+
+// --- Apostilla SOLA (caso Bernardo, 31-ago-2026) ----------------------------
+
+test("apostilla suelta clasificada como el documento ausente: FRENA (caso Bernardo)", () => {
+  // El clasificador leyo "Tipo de Documento: Antecedentes Criminais" DE la
+  // apostilla y tarifico 97,81 € por un documento que no estaba.
+  const r = assessAutoPriceRisk({
+    analysis: fakeAnalysis({
+      document_type: { category: "legal", specific_type: "criminal_record", specific_type_es: "antecedentes penales" },
+      document_metrics: { estimated_words: 502, pages: 1 },
+    }),
+    extractedText: "BRASIL APOSTILLE (Convention de La Haye du 5 octobre 1961) 1. Pais ... Tipo de Documento: Declaracao/Antecedentes Criminais",
+  });
+  assert.equal(r.risky, true);
+  assert.ok(r.reasons.includes("apostille_only"));
+});
+
+test("el flag del modelo frena aunque el texto no llegue", () => {
+  const r = assessAutoPriceRisk({
+    analysis: fakeAnalysis({ document_metrics: { estimated_words: 400, pages: 1, is_apostille_only: true } }),
+  });
+  assert.ok(r.reasons.includes("apostille_only"));
+});
+
+test("documento CON su apostilla adjunta NO frena (personbevis sueco, 3 pags)", () => {
+  const r = assessAutoPriceRisk({
+    analysis: fakeAnalysis({
+      document_type: { category: "civil", specific_type: "population_register", specific_type_es: "padron" },
+      document_metrics: { estimated_words: 420, pages: 3 },
+    }),
+    extractedText: "Swedish Tax Agency EXTRACT OF THE POPULATION REGISTER ... APOSTILLE (Convention de La Haye du 5 octobre 1961) Certified",
+  });
+  assert.equal(r.reasons.includes("apostille_only"), false);
+});
+
+test("apostilla bien clasificada como apostilla (analisis viejo, 1 pag): la heuristica no la re-frena", () => {
+  const r = assessAutoPriceRisk({
+    analysis: fakeAnalysis({
+      document_type: { category: "legal", specific_type: "apostille", specific_type_es: "apostilla" },
+      document_metrics: { estimated_words: 489, pages: 1 },
+    }),
+    extractedText: "APOSTILLE (Convention de La Haye du 5 octobre 1961) ...",
+  });
+  assert.equal(r.reasons.includes("apostille_only"), false);
+});

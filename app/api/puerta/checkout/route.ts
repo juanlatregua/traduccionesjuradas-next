@@ -209,15 +209,17 @@ export async function POST(req: Request) {
     // formularios fiscales/financieros, multi-copia o con texto pegado
     // infracuentan palabras → infracobro. No llegan a Stripe; presupuesto manual.
     // Se confía en price_risk persistido y se re-evalúa por si el análisis es viejo.
-    if (analysis.price_risk?.risky || assessAutoPriceRisk({ analysis, fileName: rec.fileName }).risky) {
+    const riskNow = assessAutoPriceRisk({ analysis, fileName: rec.fileName });
+    if (analysis.price_risk?.risky || riskNow.risky) {
+      const allReasons = [...(analysis.price_risk?.reasons || []), ...riskNow.reasons];
+      // Apostilla SOLA: no es "documento complejo", es que FALTA el documento.
+      // Decirselo aqui evita el bucle de Bernardo (apostilla suelta, presupuesto
+      // fantasma, y el cliente creyendo que ya lo envio todo).
+      const error = allReasons.includes("apostille_only")
+        ? "Has subido solo la apostilla de La Haya. Falta el documento al que acompaña (certificado, título…), que es lo que se traduce: súbelo junto a la apostilla y te damos precio."
+        : "Este documento necesita un presupuesto a medida (formularios fiscales/financieros o con varias copias). Escríbenos por WhatsApp y te lo preparamos al momento.";
       return NextResponse.json(
-        {
-          ok: false,
-          unsupported: true,
-          error:
-            "Este documento necesita un presupuesto a medida (formularios fiscales/financieros o con varias copias). Escríbenos por WhatsApp y te lo preparamos al momento.",
-          whatsappUrl: WHATSAPP_URL,
-        },
+        { ok: false, unsupported: true, error, whatsappUrl: WHATSAPP_URL },
         { status: 422 }
       );
     }

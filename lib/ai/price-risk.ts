@@ -20,7 +20,8 @@ export type PriceRiskReason =
   | "repeated_copies" // la MISMA plantilla repetida N veces (multi-copia)
   | "suspicious_text" // capa de texto pegada/concatenada → conteo poco fiable
   | "bilingual_duplicate" // co-oficial ca/es: el conteo se divide /2 por una señal del modelo → revisar antes de cobrar
-  | "oversized_estimate"; // documento extenso: el conteo es una EXTRAPOLACIÓN sobre una muestra, no una cuenta
+  | "oversized_estimate" // documento extenso: el conteo es una EXTRAPOLACIÓN sobre una muestra, no una cuenta
+  | "apostille_only"; // el archivo es SOLO la apostilla, sin el documento que certifica
 
 export type PriceRisk = { risky: boolean; reasons: PriceRiskReason[] };
 
@@ -126,6 +127,22 @@ export function assessAutoPriceRisk(input: {
   //    humano confirma el precio antes de cobrar. Ver incidente Candela y #149.
   if (analysis.document_metrics?.is_bilingual_duplicate === true) {
     reasons.push("bilingual_duplicate");
+  }
+
+  // 5. Apostilla SOLA (caso Bernardo, 31-ago-2026): el cliente sube la apostilla
+  //    sin el documento que certifica; el clasificador leía el campo "Tipo de
+  //    Documento" DE la apostilla y tarificaba el documento AUSENTE (97,81 € por
+  //    traducir lo que no está). Señal primaria: el flag del modelo, que VE la
+  //    página. Respaldo determinista para análisis viejos sin el flag: la
+  //    plantilla de La Haya presente Y una sola página — un documento CON su
+  //    apostilla adjunta tiene más páginas (el personbevis sueco: 3) y no cae.
+  const apostilleTemplate = /convention\s+de\s+la\s+haye\s+du\s+5\s+octobre\s+1961/i;
+  const singlePage = (analysis.document_metrics?.pages ?? 0) === 1;
+  if (
+    analysis.document_metrics?.is_apostille_only === true ||
+    (singlePage && analysis.document_type?.specific_type !== "apostille" && apostilleTemplate.test(text))
+  ) {
+    reasons.push("apostille_only");
   }
 
   // 5. Documento extenso: por encima de EXTRAPOLATION_PAGES el análisis NO ha

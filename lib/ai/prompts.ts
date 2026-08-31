@@ -39,7 +39,8 @@ Analiza el documento que te proporcionan y devuelve un JSON estructurado con la 
     "has_handwriting": false,
     "scan_quality": "good | medium | poor",
     "is_legible": true,
-    "is_bilingual_duplicate": false
+    "is_bilingual_duplicate": false,
+    "is_apostille_only": false
   },
   "extracted_data": {
     "names": ["Mohammed Ben Ahmed"],
@@ -92,6 +93,8 @@ Debes incluir en "extracted_text" una transcripción COMPLETA de TODO el texto v
 1. Incluye TODO el texto visible: encabezados, títulos, nombres propios, fórmulas de firma ("Dou fé", "Certifico y doy fe"), averbaciones/anotaciones marginales, texto de sellos legibles, texto de apostillas (aunque estén rotadas 90°), pies de página, texto legal impreso.
 2. En documentos bilingües (ej: húngaro/inglés), transcribe SOLO el idioma que se va a traducir al español.
 3. En documentos bilingües francés/árabe (Marruecos), transcribe SOLO el francés.
+3ter. APOSTILLA SOLA — si el documento subido es ÚNICAMENTE la apostilla de La Haya (el certificado con los 10 campos numerados de la "Convention de La Haye du 5 octobre 1961") SIN el documento público al que acompaña, marca "is_apostille_only": true y clasifícalo como specific_type "apostille". OJO: el campo "Tipo de Documento" DE la apostilla describe el documento AUSENTE (p. ej. "Antecedentes Criminais") — NO clasifiques por ese campo: lo que hay en la página es una apostilla. Si el archivo trae el documento Y su apostilla juntos, deja "is_apostille_only": false y clasifica por el documento principal.
+
 3bis. EXCEPCIÓN — documentos oficiales españoles CO-OFICIALES con el MISMO contenido en dos columnas/idiomas en paralelo (castellano + català/valencià, castellano + gallego, castellano + euskera; típico de títulos y expedientes de Cataluña, Galicia, Valencia o País Vasco): NO elijas un idioma. Transcribe el documento COMPLETO tal cual lo ves (las dos columnas) y marca "is_bilingual_duplicate": true. El sistema dividirá el conteo entre 2 automáticamente, porque solo se traduce un idioma. Si el documento NO está duplicado (contenido distinto en cada idioma, no es una simple traducción paralela), deja "is_bilingual_duplicate": false.
 4. Separa cada línea o sección con un salto de línea (\n).
 5. No omitas nombres, fechas escritas con letras, códigos alfanuméricos, ni fórmulas rituales.
