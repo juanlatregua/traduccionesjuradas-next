@@ -16,6 +16,7 @@
 // Nunca francés (motor de reglas de Juan) ni pares sin español.
 
 import { prisma } from "@/lib/prisma";
+import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import { computeQuoteTotals, calculateValidUntil, generateQuoteNumber, generateQuoteToken, decimalToNumber } from "@/lib/quotes";
 import { QUOTE_PDF_LANGS } from "@/lib/quote-pdf-langs";
 import {
@@ -455,9 +456,19 @@ export async function autoQuoteFromPuertaSession(opts: {
     // sobre una muestra de las primeras páginas, y esa cifra se mueve entre
     // llamadas idénticas. Este carril no solo tarifica: EMITE Y ENVÍA el
     // presupuesto al cliente sin que nadie lo mire. Sobre una estimación así, no.
+    // GATE COMPLETO de riesgo, el mismo que el carril de cobro público
+    // (app/api/puerta/checkout/route.ts): CUALQUIER señal de price_risk frena,
+    // no solo oversized. Las otras cuatro (bilingual_duplicate, repeated_copies,
+    // suspicious_text, fiscal_financial) existen porque el conteo INFRACUENTA, y
+    // el freno de margen de más abajo no puede verlas: un conteo malo divide
+    // precio y coste a la vez y el porcentaje sale sano (incidente 1099-MISC:
+    // 898 palabras contadas contra 2.738 reales). Se re-evalúa por si el
+    // análisis persistido es viejo.
     const risk = (r.analysisJson as any)?.price_risk;
-    if (Array.isArray(risk?.reasons) && risk.reasons.includes("oversized_estimate")) {
-      return { ok: false, reason: `documento extenso: el conteo es extrapolado (${r.fileName})` };
+    const reevaluated = assessAutoPriceRisk({ analysis: r.analysisJson as any, fileName: r.fileName });
+    if (risk?.risky || (Array.isArray(risk?.reasons) && risk.reasons.length > 0) || reevaluated.risky) {
+      const motivos = [...new Set([...(Array.isArray(risk?.reasons) ? risk.reasons : []), ...(reevaluated.reasons || [])])];
+      return { ok: false, reason: `riesgo de conteo/precio (${motivos.join(", ") || "detectado al re-evaluar"}) (${r.fileName})` };
     }
     const info = docInfoFromAnalysis(r);
     if (!info) return { ok: false, reason: `documento no aprendible (${r.fileName})` };
@@ -581,7 +592,7 @@ export async function autoQuoteFromPuertaSession(opts: {
   });
 
   const { finalizeAndSendQuote } = await import("@/lib/quote-send");
-  const sent = await finalizeAndSendQuote({ quoteId: created.id, actorEmail: "system:tarifario" });
+  const sent = await finalizeAndSendQuote({ quoteId: created.id, actorEmail: "system:tarifario", channelPriceSource: "learned-rate" });
 
   // Cliente solo-WhatsApp: el enlace de pago va por SMS (el email-marcador no llega).
   let smsSent = false;

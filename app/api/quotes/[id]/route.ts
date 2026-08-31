@@ -4,6 +4,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { computeQuoteTotals, calculateValidUntil, PAPER_SHIPPING_BASE_EUR } from "@/lib/quotes";
 import { parseUpdateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
+import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
 
 export const runtime = "nodejs";
 
@@ -83,6 +84,27 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const validUntil = calculateValidUntil(current.issuedAt, parsed.data.validityDays);
 
+    // FRENO DE MARGEN también al EDITAR: bajar el precio de un presupuesto ya
+    // enviado por debajo del coste guardado cobraría el total nuevo en Stripe
+    // sin que saltara nada (hallazgo auditoría 31-ago).
+    const marginCheck = checkQuoteLinesMargin({
+      sourceLang: parsed.data.sourceLang,
+      targetLang: parsed.data.targetLang,
+      discountCents: Math.round(Number(totals.discountAmount || 0) * 100),
+      lines: parsed.data.lines.map((l) => ({
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        supplierUnitCost: l.supplierUnitCost ?? null,
+      })),
+    });
+    const overrideLowMargin = !!(body as any)?.overrideLowMargin;
+    if (!marginCheck.ok && !overrideLowMargin) {
+      return NextResponse.json(
+        { ok: false, code: MARGIN_BLOCK_CODE, error: `${MARGIN_BLOCK_CODE}: ${marginCheck.detail}` },
+        { status: 409 }
+      );
+    }
+
     const quote = await prisma.$transaction(async (tx) => {
       const customer = await tx.customer.upsert({
         where: { email: parsed.data.customerEmail },
@@ -158,6 +180,19 @@ export async function PATCH(req: Request, { params }: Params) {
       return updated;
     });
 
+    // En DRAFT no se avisa (nada ha salido al cliente; el freno de envio volvera a
+    // saltar). En SENT/OPENED/ACCEPTED si: el enlace /q vivo cobra el total nuevo.
+    if (!marginCheck.ok && overrideLowMargin && current.status !== "DRAFT") {
+      await notifyMarginOverride({
+        kind: "presupuesto",
+        action: "guardado",
+        quoteId: params.id,
+        label: (quote as any).quoteNumber || params.id,
+        actorEmail: access.email,
+        detail: marginCheck.detail,
+        url: `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${params.id}`,
+      });
+    }
     return NextResponse.json({ ok: true, quote: serializeQuote(quote) });
   } catch (err: any) {
     console.error("[quotes:update] error", err);

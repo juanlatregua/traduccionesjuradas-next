@@ -74,6 +74,9 @@ export async function POST(req: Request, { params }: Params) {
     const priceCents = chosen.quotedPriceCents;
 
     // Transacción: aceptar la elegida + rechazar el resto + side-effects de finanzas.
+    // El aviso de margen sale FUERA de la transacción: email+SMS tardan segundos
+    // y dentro del $transaction tumbarían la adjudicación por timeout.
+    const pendingMargin: { alert: null | (() => Promise<void>) } = { alert: null };
     await prisma.$transaction(async (tx) => {
       await tx.collaboratorAssignment.update({
         where: { id: chosen.id },
@@ -98,20 +101,22 @@ export async function POST(req: Request, { params }: Params) {
         });
       }
 
-      await applyAcceptedQuoteSideEffects(tx, {
-        order: {
-          id: order.id,
-          amountCents: order.amountCents,
-          paymentStatus: order.paymentStatus,
-          marginPct: order.marginPct,
-        },
-        assignmentId: chosen.id,
-        supplierCostCents: priceCents,
-        quotedDeadline: chosen.quotedDeadline,
-        collaborator: chosen.collaborator,
-        actorEmail: staff.email,
-        isWinning: true,
-      });
+      pendingMargin.alert = (
+        await applyAcceptedQuoteSideEffects(tx, {
+          order: {
+            id: order.id,
+            amountCents: order.amountCents,
+            paymentStatus: order.paymentStatus,
+            marginPct: order.marginPct,
+          },
+          assignmentId: chosen.id,
+          supplierCostCents: priceCents,
+          quotedDeadline: chosen.quotedDeadline,
+          collaborator: chosen.collaborator,
+          actorEmail: staff.email,
+          isWinning: true,
+        })
+      ).marginAlert;
 
       await tx.orderEvent.create({
         data: {
@@ -128,6 +133,9 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
     });
+
+    // El aviso de margen, con await, ya fuera de la transacción.
+    if (pendingMargin.alert) await pendingMargin.alert();
 
     // Aviso al CLIENTE (en proceso + nº jurado) + transición EN_TRADUCCION
     // (dispara el SMS de hito). Fire-and-forget, idempotente por estado.

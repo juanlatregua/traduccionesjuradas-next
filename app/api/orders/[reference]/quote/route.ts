@@ -4,6 +4,9 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { getWorkflowState } from "@/lib/workflow";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { sendOrderCreatedEmail } from "@/lib/email";
+import { netFromGross } from "@/lib/quotes";
+import { isFrenchPair } from "@/lib/workflow";
+import { notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
 
 export const runtime = "nodejs";
 
@@ -18,6 +21,7 @@ type QuoteLineInput = {
 type Body = {
   lines?: QuoteLineInput[];
   sendToClient?: boolean;
+  overrideLowMargin?: boolean;
   quotePreviewFileKey?: string | null;
   quotePreviewFileUrl?: string | null;
 };
@@ -101,6 +105,8 @@ export async function POST(req: Request, { params }: Params) {
         amountCents: true,
         paymentStatus: true,
         deliveryState: true,
+        langPair: true,
+        supplierCostCents: true,
         events: {
           orderBy: { createdAt: "desc" },
           take: 80,
@@ -115,6 +121,33 @@ export async function POST(req: Request, { params }: Params) {
 
     if (!order) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
+    }
+
+    // FRENO DE MARGEN contra el coste YA COMPROMETIDO (auditoría 31-ago): para
+    // cuando se reajusta aquí el precio, el puente de lavori o una adjudicación
+    // pueden haber fijado supplierCostCents. Bajar el precio por debajo de ese
+    // coste y enviarlo cobraría en pérdidas sin que saltara nada. Francés exento
+    // (Juan es el traductor). Se compara neto contra neto.
+    const committedCost = order.supplierCostCents ?? 0;
+    const marginVsCommitted = committedCost > 0 ? netFromGross(totalCents) - committedCost : null;
+    // El gate aplica a CUALQUIER guardado, no solo al reenvío: el update de
+    // amountCents es inmediato y el enlace de pago firmado ya en manos del
+    // cliente cobra el importe VIVO — guardar ya es repreciar.
+    if (
+      marginVsCommitted != null &&
+      marginVsCommitted <= 0 &&
+      !isFrenchPair(order.langPair) &&
+      !body.overrideLowMargin
+    ) {
+      const eur = (c: number) => `${(c / 100).toFixed(2)} €`;
+      return NextResponse.json(
+        {
+          ok: false,
+          code: MARGIN_BLOCK_CODE,
+          error: `${MARGIN_BLOCK_CODE}: el traductor ya tiene comprometidos ${eur(committedCost)} y este total deja ${eur(marginVsCommitted)} de margen neto.`,
+        },
+        { status: 409 }
+      );
     }
 
     let workflowState = getWorkflowState(order);
@@ -148,6 +181,55 @@ export async function POST(req: Request, { params }: Params) {
           : undefined,
       },
     });
+
+    // El snapshot de margen se refresca con el importe NUEVO: sin esto, el panel
+    // seguiría enseñando el margen bueno calculado con el importe antiguo.
+    if (committedCost > 0) {
+      // netFromGross asume el IVA por defecto (21%): en un pedido exento
+      // (extra-UE) el neto se infravalora y el freno es MAS conservador de lo
+      // necesario — preferible a lo contrario; Order no guarda su IVA.
+      const revenueNetCents = netFromGross(totalCents);
+      const marginCents = revenueNetCents - committedCost;
+      // El snapshot nuevo ARRASTRA los costes manuales del anterior
+      // (gatewayFeeCents/otherCostCents/marginPct): getMargin lee SOLO el
+      // último snapshot con default 0 — sin esto, guardar aquí borraría la
+      // comisión de pasarela registrada a mano.
+      const prevSnap = await prisma.orderEvent.findFirst({
+        where: { orderId: order.id, type: "finance.margin.snapshot" },
+        orderBy: { createdAt: "desc" },
+        select: { payload: true },
+      });
+      const prev = (prevSnap?.payload ?? {}) as Record<string, unknown>;
+      const carried: Record<string, unknown> = {};
+      for (const k of ["gatewayFeeCents", "otherCostCents", "marginPct"]) {
+        if (prev[k] != null) carried[k] = prev[k];
+      }
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "finance.margin.snapshot",
+          message: `Snapshot de margen (precio reajustado): ingreso neto ${(revenueNetCents / 100).toFixed(2)}€ − coste ${(committedCost / 100).toFixed(2)}€ = ${(marginCents / 100).toFixed(2)}€.`,
+          payload: {
+            ...carried,
+            supplierCostCents: committedCost,
+            revenueCents: revenueNetCents,
+            grossRevenueCents: totalCents,
+            marginCents,
+            marginBasis: "net_of_vat",
+          },
+        },
+      });
+      if (marginCents <= 0 && body.overrideLowMargin) {
+        await notifyMarginOverride({
+          kind: "pedido",
+          action: body.sendToClient ? "enviado" : "guardado",
+          label: order.reference,
+          actorEmail,
+          detail: `precio nuevo ${(revenueNetCents / 100).toFixed(2)} € netos − coste comprometido ${(committedCost / 100).toFixed(2)} € = ${(marginCents / 100).toFixed(2)} €`,
+          url: `https://www.traduccionesjuradas.net/zona-traductor/pedido/${order.reference}`,
+        });
+      }
+    }
 
     await prisma.orderEvent.create({
       data: {

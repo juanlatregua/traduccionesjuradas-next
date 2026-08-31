@@ -349,18 +349,26 @@ export async function applyAcceptedQuoteSideEffects(
   // el jurado ya tiene su cifra, asi que la unica salida es enterarse a tiempo
   // y renegociar. Casos reales del 28-ago: tres presupuestos vivos con coste
   // igual a precio (Adolfo 214,63/214,63, Alves 70/70) y un pedido al 19 %.
-  if (marginCents <= 0) {
-    void import("@/lib/ai/outage-alert").then((m) =>
-      m.alertStaffMargin({
-        orderId: order.id,
-        assignmentId,
-        supplier: collaborator.companyName || collaborator.fullName,
-        revenueNetCents,
-        supplierCostCents,
-        marginCents,
-      })
-    ).catch((err) => console.error("[margen] aviso fallo:", err));
-  }
+  // El aviso NO se envía aquí: esta función corre a veces DENTRO de un
+  // $transaction (select-bid) y un email lento tumbaría la adjudicación.
+  // Se devuelve como tarea pendiente y el llamador la AWAITEA fuera de su
+  // transacción (patrón caso 26_34F612: fire-and-forget en lambda = aviso mudo).
+  const marginAlert =
+    marginCents <= 0
+      ? () =>
+          import("@/lib/ai/outage-alert")
+            .then((m) =>
+              m.alertStaffMargin({
+                orderId: order.id,
+                assignmentId,
+                supplier: collaborator.companyName || collaborator.fullName,
+                revenueNetCents,
+                supplierCostCents,
+                marginCents,
+              })
+            )
+            .catch((err) => console.error("[margen] aviso fallo:", err))
+      : null;
 
   await db.orderEvent.create({
     data: {
@@ -376,6 +384,8 @@ export async function applyAcceptedQuoteSideEffects(
       },
     },
   });
+
+  return { marginAlert };
 }
 
 // El sobre de lavori rechaza application/octet-stream: los docs que llegan de

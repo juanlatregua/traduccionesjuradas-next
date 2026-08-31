@@ -9,6 +9,7 @@ import { buildQuotePdfBuffer, hashPdf, uploadFinalQuotePdf } from "@/lib/quote-p
 import { buildPayLinkEmail, buildWhatsAppPayText } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { checkQuoteLinesMargin, verifyTranslatorChannelPrice, notifyMarginOverride, MARGIN_BLOCK_CODE, CHANNEL_BLOCK_CODE } from "@/lib/quote-margin";
 
 export class QuoteSendError extends Error {
   status: number;
@@ -26,6 +27,13 @@ export async function finalizeAndSendQuote(opts: {
   skipEmail?: boolean;
   customSubject?: string;
   customBody?: string;
+  // Confirmación explícita del staff para enviar por debajo del suelo de margen
+  // o sin precio verificado en el canal (con aviso por email + SMS). Nunca se
+  // pone sola: la pide el 409 del freno.
+  overrideLowMargin?: boolean;
+  // "learned-rate" = auto-presupuesto del tarifario: la tarifa APROBADA por Juan
+  // ya es la verificación del canal (aprendida de precios reales de lavori).
+  channelPriceSource?: "learned-rate";
 }): Promise<{ pdfUrl: string; payUrl: string; whatsappText: string; emailSent: boolean }> {
   const quote = await prisma.quote.findUnique({
     where: { id: opts.quoteId },
@@ -37,6 +45,57 @@ export async function finalizeAndSendQuote(opts: {
   }
 
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+
+  // FRENO DE MARGEN (Juan, 31-ago-2026): este es el único camino por el que un
+  // presupuesto llega al cliente, y hasta hoy no miraba el coste ni una vez.
+  const marginCheck = checkQuoteLinesMargin({
+    sourceLang: quote.sourceLang,
+    targetLang: quote.targetLang,
+    discountCents: Math.round(decimalToNumber(quote.discountAmount) * 100),
+    lines: quote.lines.map((l) => ({
+      quantity: Number(l.quantity) || 1,
+      unitPrice: decimalToNumber(l.unitPrice),
+      supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost),
+    })),
+  });
+  // SEGUNDA GUARDA — PROCEDENCIA (Juan, 31-ago-2026, "lo más importante"): en
+  // no-francés el precio previo del traductor tiene que existir EN EL CANAL.
+  // La aritmética no ve un coste inventado; esta sí.
+  const channelCheck =
+    opts.channelPriceSource === "learned-rate"
+      ? ({ ok: true } as const)
+      : await verifyTranslatorChannelPrice({
+          quoteId: quote.id,
+          expedienteRef: quote.expedienteRef,
+          sourceLang: quote.sourceLang,
+          targetLang: quote.targetLang,
+          lines: quote.lines.map((l) => ({
+            quantity: Number(l.quantity) || 1,
+            unitPrice: decimalToNumber(l.unitPrice),
+            supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost),
+          })),
+        });
+
+  const bloqueo = !marginCheck.ok
+    ? { code: MARGIN_BLOCK_CODE, detail: marginCheck.detail }
+    : !channelCheck.ok
+      ? { code: CHANNEL_BLOCK_CODE, detail: channelCheck.detail }
+      : null;
+  if (bloqueo) {
+    if (!opts.overrideLowMargin) {
+      throw new QuoteSendError(`${bloqueo.code}: ${bloqueo.detail}`, 409);
+    }
+    // Override: se avisa por dos canales ANTES de enviar, con await.
+    await notifyMarginOverride({
+      kind: "presupuesto",
+      label: quote.quoteNumber,
+      actorEmail: opts.actorEmail,
+      detail: bloqueo.detail,
+      url: `${baseUrl}/zona-traductor/presupuestos/${quote.id}`,
+      action: "enviado",
+      quoteId: quote.id,
+    });
+  }
 
   // Pedidos enlazados: el pago va por el enlace firmado del pedido, no por /q.
   const linkedOrders = await prisma.order.findMany({

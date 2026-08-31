@@ -81,6 +81,7 @@ enum QuoteMessageType {
   RESEND_PAY_LINK
   TRANSLATOR_REVIEW_OFFER
   INBOX_REPLY
+  MARGIN_OVERRIDE
 }
 
 enum QuoteAccessEventType {

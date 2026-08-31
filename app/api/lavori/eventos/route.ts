@@ -242,14 +242,18 @@ export async function POST(req: Request) {
             where: { id: order.id },
             select: { id: true, amountCents: true, paymentStatus: true, marginPct: true },
           });
-          await applyAcceptedQuoteSideEffects(prisma, {
+          const sideFx = await applyAcceptedQuoteSideEffects(prisma, {
             order: full,
             assignmentId: assignment.id,
             supplierCostCents: paraTiCents,
             collaborator: { fullName: collaborator.fullName, companyName: collaborator.companyName, supplierType: collaborator.supplierType },
             actorEmail: "lavori-bridge",
             isWinning: true,
-          }).catch((err) => console.error("[lavori-eventos] side effects failed", err));
+          }).catch((err) => {
+            console.error("[lavori-eventos] side effects failed", err);
+            return { marginAlert: null as null | (() => Promise<void>) };
+          });
+          if (sideFx.marginAlert) await sideFx.marginAlert();
         }
         notifyClientTranslationStarted({
           reference: order.reference,

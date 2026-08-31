@@ -128,7 +128,7 @@ export async function POST(req: Request, { params }: Params) {
       });
 
       // Audit + pricing (margen+IVA) + finanzas — compartido con select-bid de Fase 2.
-      await applyAcceptedQuoteSideEffects(prisma, {
+      const sideFx = await applyAcceptedQuoteSideEffects(prisma, {
         order: {
           id: assignment.order.id,
           amountCents: assignment.order.amountCents,
@@ -142,6 +142,7 @@ export async function POST(req: Request, { params }: Params) {
         actorEmail: staff.email,
         isWinning: true,
       });
+      if (sideFx.marginAlert) await sideFx.marginAlert();
 
       return NextResponse.json({ ok: true, assignment });
     }

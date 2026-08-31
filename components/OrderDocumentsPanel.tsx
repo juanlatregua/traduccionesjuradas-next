@@ -150,7 +150,7 @@ export default function OrderDocumentsPanel({
   }
 
 
-  async function saveQuote(sendToClient: boolean) {
+  async function saveQuote(sendToClient: boolean, overrideLowMargin = false) {
     setMessage(null);
     const normalized = rows
       .map((row) => {
@@ -185,9 +185,24 @@ export default function OrderDocumentsPanel({
         body: JSON.stringify({
           lines: normalized,
           sendToClient,
+          ...(overrideLowMargin ? { overrideLowMargin: true } : {}),
         }),
       });
       const data = await res.json();
+      // Freno de margen contra el coste ya comprometido con el traductor: el
+      // servidor no reprecia por debajo salvo confirmación (y entonces avisa).
+      if (res.status === 409 && data?.code === "MARGEN_INSUFICIENTE") {
+        setLoading(false);
+        const go = window.confirm(
+          `FRENO DE MARGEN:\n\n${String(data.error || "").replace("MARGEN_INSUFICIENTE: ", "")}\n\n¿Continuar igualmente? (se avisará por email y SMS)`
+        );
+        if (go) {
+          setTimeout(() => void saveQuote(sendToClient, true), 0);
+          return;
+        }
+        setMessage("Frenado: el total no cubre el coste ya comprometido con el traductor.");
+        return;
+      }
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "No se pudo guardar el presupuesto.");
       }

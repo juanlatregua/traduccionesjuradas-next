@@ -15,6 +15,7 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   let skipEmail = false;
+  let overrideLowMargin = false;
   // Copy personalizado desde el preview editable del admin: si llegan subject
   // y body no vacíos sustituyen a la plantilla estándar; si no, todo como antes.
   let customSubject = "";
@@ -22,6 +23,7 @@ export async function POST(req: Request, { params }: Params) {
   try {
     const body = await req.json();
     skipEmail = !!body?.skipEmail;
+    overrideLowMargin = !!body?.overrideLowMargin;
     customSubject = String(body?.subject || "").trim();
     customBody = String(body?.body || "").trim();
   } catch {
@@ -35,11 +37,20 @@ export async function POST(req: Request, { params }: Params) {
       skipEmail,
       customSubject,
       customBody,
+      overrideLowMargin,
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (err: any) {
     if (err instanceof QuoteSendError) {
-      return NextResponse.json({ ok: false, error: err.message }, { status: err.status });
+      const code =
+        err.status === 409
+          ? err.message.startsWith("MARGEN_INSUFICIENTE")
+            ? "MARGEN_INSUFICIENTE"
+            : err.message.startsWith("CANAL_SIN_VERIFICAR")
+              ? "CANAL_SIN_VERIFICAR"
+              : undefined
+          : undefined;
+      return NextResponse.json({ ok: false, error: err.message, ...(code ? { code } : {}) }, { status: err.status });
     }
     console.error("[quotes:finalize-send] error", err);
     return NextResponse.json(

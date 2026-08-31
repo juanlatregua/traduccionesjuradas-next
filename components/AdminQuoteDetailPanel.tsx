@@ -248,7 +248,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
-  async function handleFinalizeSend(skipEmail = false) {
+  async function handleFinalizeSend(skipEmail = false, overrideLowMargin = false) {
     setLoadingSend(true);
     setMessage(null);
     try {
@@ -261,9 +261,31 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       const res = await fetch(`/api/quotes/${quote.id}/finalize-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skipEmail, ...customCopy }),
+        body: JSON.stringify({ skipEmail, ...(overrideLowMargin ? { overrideLowMargin: true } : {}), ...customCopy }),
       });
       const data = await res.json();
+      // Freno de margen: el servidor NO envía por debajo del suelo. Solo sale si
+      // el staff lo confirma aquí, y entonces avisa por email + SMS.
+      if (res.status === 409 && (data?.code === "MARGEN_INSUFICIENTE" || data?.code === "CANAL_SIN_VERIFICAR")) {
+        setLoadingSend(false);
+        const titulo = data.code === "CANAL_SIN_VERIFICAR" ? "FRENO DE CANAL — sin precio verificado del traductor" : "FRENO DE MARGEN — por debajo del suelo";
+        const go = window.confirm(
+          `${titulo}:\n\n${String(data.error || "").replace(/^(MARGEN_INSUFICIENTE|CANAL_SIN_VERIFICAR): /, "")}\n\n¿Enviarlo igualmente? (se avisará por email y SMS)`
+        );
+        if (go) {
+          // Reintento FUERA de este try: si se llama aquí dentro, el finally del
+          // invocador apaga loadingSend mientras el reenvío con override corre.
+          setTimeout(() => void handleFinalizeSend(skipEmail, true), 0);
+          return;
+        }
+        setMessage(
+          data.code === "CANAL_SIN_VERIFICAR"
+            ? "Envío frenado: pide el precio al traductor por lavori antes de enviar."
+            : "Envío frenado por margen insuficiente. Ajusta precio o coste.",
+          "error"
+        );
+        return;
+      }
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo generar el presupuesto.");
       setWhatsText(String(data.whatsappText || ""));
       setMessage(

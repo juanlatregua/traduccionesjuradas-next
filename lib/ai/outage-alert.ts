@@ -154,7 +154,7 @@ export async function alertStaffMargin(input: {
       }).catch((err) => console.error("[margen] email fallo:", err)),
       sendStaffAlertSMS(
         `TraduccionesJuradas: ${ref} adjudicado SIN MARGEN (${eur(input.marginCents)}). ${input.supplier}. Mira el email.`,
-        "margen_cero"
+        `margen_cero ${ref}`
       ).catch(() => {}),
     ]);
   } catch (err) {

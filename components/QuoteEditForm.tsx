@@ -106,7 +106,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
     setPaymentMethods((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
   }
 
-  async function save() {
+  async function save(overrideLowMargin = false) {
     setError(null);
     if (!customerName.trim()) return setError("El nombre del cliente es obligatorio.");
     if (lines.length === 0) return setError("Añade al menos una línea.");
@@ -116,6 +116,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(overrideLowMargin ? { overrideLowMargin: true } : {}),
           customerName: customerName.trim(),
           customerEmail: customerEmail.trim(),
           customerPhone: customerPhone.trim() || undefined,
@@ -144,6 +145,17 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
         }),
       });
       const d = await res.json();
+      // Freno de margen: el servidor no guarda un precio por debajo del coste
+      // salvo confirmación explícita (y entonces avisa por email + SMS).
+      if (res.status === 409 && d?.code === "MARGEN_INSUFICIENTE") {
+        setSaving(false);
+        const go = window.confirm(
+          `FRENO DE MARGEN:\n\n${String(d.error || "").replace("MARGEN_INSUFICIENTE: ", "")}\n\n¿Guardar igualmente? (se avisará por email y SMS)`
+        );
+        if (go) return save(true);
+        setError("Guardado frenado por margen insuficiente. Ajusta precio o coste.");
+        return;
+      }
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo guardar.");
       router.push(`/zona-traductor/presupuestos/${quote.id}`);
       router.refresh();
@@ -247,7 +259,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
         </div>
         <div className="flex items-center gap-2">
           {error && <span className="text-xs font-medium text-rose-600">{error}</span>}
-          <button type="button" onClick={save} disabled={saving} className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
+          <button type="button" onClick={() => save()} disabled={saving} className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
             {saving ? "Guardando…" : "Guardar cambios"}
           </button>
         </div>
