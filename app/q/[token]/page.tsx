@@ -153,6 +153,10 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
           quantity: true,
           unitPrice: true,
           lineTotal: true,
+          // El cliente tiene que poder ABRIR el documento de cada linea: leer
+          // "Apostilla" dos veces sin poder comprobar a cual corresponde es la
+          // duda que deja un presupuesto sin pagar (caso RODRIGO 2026-00074).
+          sourceFileUrl: true,
         },
       },
     },
@@ -234,7 +238,28 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 <tbody>
                   {refreshed.lines.map((line) => (
                     <tr key={line.id} className="border-t border-cream">
-                      <td className="px-3 py-2">{line.description}</td>
+                      <td className="px-3 py-2">
+                        {line.description}
+                        {line.sourceFileUrl && (
+                          <span className="ml-2 whitespace-nowrap text-[11px]">
+                            <a
+                              href={`/api/q/${params.token}/document?line=${encodeURIComponent(line.id)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-bleu hover:underline"
+                            >
+                              ver documento
+                            </a>
+                            <span className="text-graphite"> · </span>
+                            <a
+                              href={`/api/q/${params.token}/document?line=${encodeURIComponent(line.id)}&download=1`}
+                              className="font-semibold text-bleu hover:underline"
+                            >
+                              descargar
+                            </a>
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right">{decimalToNumber(line.quantity)}</td>
                       <td className="px-3 py-2 text-right">{formatMoney(decimalToNumber(line.unitPrice))}</td>
                       <td className="px-3 py-2 text-right">{formatMoney(decimalToNumber(line.lineTotal))}</td>
