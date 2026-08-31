@@ -39,10 +39,12 @@ test("lavoriRouteFromPair: carriles 12-ago — rumano (Maria) e inglés (Vanessa
   assert.deepEqual(esEn.candidatos, ["43dwlkzsr6lsltpwcj32m88s"]);
 });
 
-test("lavoriRouteFromPair: carriles 13/14-ago — portugués, árabe y neerlandés multi-candidato", () => {
+test("lavoriRouteFromPair: carriles — pt a Juan Amor (31-ago), árabe y neerlandés multi-candidato", () => {
   const ptEs = lavoriRouteFromPair("pt->es");
   assert.ok(ptEs);
-  assert.equal(ptEs.candidatos.length, 2); // Carballo + María García (cotizan ambos)
+  // 31-ago (Juan): el portugués VA A JUAN AMOR — Carballo fuera (tarda mucho).
+  assert.equal(ptEs.candidatos.length, 1);
+  assert.equal(ptEs.candidatos[0], "rk1x2kq63rm6ba6mco7c6u2k"); // Juan Amor
   const arEs = lavoriRouteFromPair("ar->es");
   assert.ok(arEs);
   assert.equal(arEs.candidatos.length, 3); // los 3 jurados AR operativos

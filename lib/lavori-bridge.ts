@@ -45,9 +45,13 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // 13-ago tarde: que coticen ambos y compara; en LEADS la última cifra pisa la
   // anterior en LavoriPriceRequest — las dos llegan por email y decide Juan).
   // Ninguno con papel único aún ni Collaborator en tj.net → "mapear" al aceptar.
+  // Carril 31-ago-2026 (decisión Juan): el portugués VA A JUAN AMOR. Francisco
+  // Carballo fuera del carril — tarda demasiado en cotizar (orden literal: "no
+  // le mandes a Francisco cosas de portugués, tarda mucho"). María García
+  // Garmendia también fuera al fijarse destino único. Historia: 13-ago eran
+  // Francisco + María cotizando en paralelo.
   pt: [
-    "whvx8ft5w6wi50hchczh48hp", // Francisco Carballo Cruz (PT>ES, jurado)
-    "f4pyspe0hsa1ss99siaokqti", // María García Garmendia (T-IJ 4176, IT+PT; entra con enlace 7 días)
+    "rk1x2kq63rm6ba6mco7c6u2k", // Juan Amor Fernández (T-IJ 132, de/en/it/pt/ca)
   ],
   // Carril 14-ago-2026 (demanda GSC: mayor familia sin marca del site).
   // MULTI-CANDIDATO por orden de Juan (14-ago tarde: las 2 altas de la ola NL
