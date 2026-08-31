@@ -7,7 +7,7 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Regularización 2026 · Camerún · Traducción jurada francés-español · 25 € · MAEC nº 3850",
+    "Regularización 2026 Camerún: traducción jurada francés-español",
   description:
     "Documentos cameruneses traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Bulletin nº 3, extrait d'acte de naissance, legalización consular. 25 €/doc. Pago con Bizum.",
   alternates: {

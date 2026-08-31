@@ -305,6 +305,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Alicante",
     comunidad: "Comunidad Valenciana",
     poblacion: 330000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Alicante",
+      direccion: "C/ Los Doscientos 3, 03007 Alicante",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Alicante",
+      direccion: "C/ Ebanistería 4-6 (Polígono de Babel), 03071 Alicante",
+    },
     datosUnicos: [
       "Alicante tiene una de las mayores comunidades de residentes franceses de la costa mediterránea, con miles de ciudadanos que han adquirido propiedades y necesitan documentos traducidos para trámites inmobiliarios y fiscales.",
       "La provincia de Alicante es destino preferente de jubilados franceses que se establecen en localidades costeras y necesitan traducciones de documentos de pensión, seguros y herencias.",
@@ -322,6 +330,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Córdoba",
     comunidad: "Andalucía",
     poblacion: 320000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Córdoba",
+      direccion: "C/ Isla Mallorca s/n, Ciudad de la Justicia, 14011 Córdoba",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Córdoba (Subdelegación del Gobierno en Córdoba)",
+      direccion: "Plaza de la Constitución 1, 14004 Córdoba",
+    },
     datosUnicos: [
       "Córdoba atrae a un importante flujo de turistas e investigadores francófonos vinculados al patrimonio histórico andalusí, generando demanda de traducciones de documentos académicos y de investigación.",
       "El sector oleícola cordobés exporta a Francia y países francófonos, lo que requiere traducciones de documentación mercantil, certificaciones de calidad y contratos comerciales.",
@@ -339,6 +355,10 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Valladolid",
     comunidad: "Castilla y León",
     poblacion: 300000,
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Valladolid",
+      direccion: "C/ Arzobispo José Delicado 7, 47014 Valladolid",
+    },
     datosUnicos: [
       "Valladolid es sede de Renault España, lo que genera una demanda constante de traducciones de documentación laboral, técnica y corporativa entre francés y español vinculada al sector del automóvil.",
       "La Universidad de Valladolid mantiene acuerdos de intercambio con universidades francesas, creando necesidad de traducciones de títulos, expedientes y certificados académicos.",
@@ -356,6 +376,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Pontevedra",
     comunidad: "Galicia",
     poblacion: 295000,
+    registroCivil: {
+      nombre: "Registro Civil de Vigo (Oficina General del Registro Civil)",
+      direccion: "Rúa San Sebastián 13, 36202 Vigo",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería — Sede en Vigo",
+      direccion: "C/ Teófilo Llorente 4, 36202 Vigo",
+    },
     datosUnicos: [
       "Vigo es sede de Stellantis (antigua PSA-Citroën), la mayor fábrica de automóviles de España, lo que genera una demanda continua de traducciones de documentación técnica, laboral y corporativa en francés.",
       "El sector pesquero y conservero de Vigo exporta a Francia y necesita traducciones de certificaciones sanitarias, documentos comerciales y contratos de suministro.",
@@ -373,6 +401,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Asturias",
     comunidad: "Asturias",
     poblacion: 270000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Gijón",
+      direccion: "Plaza del Decano Eduardo Ibaseta, s/n, 33271 Gijón",
+    },
+    extranjeria: {
+      nombre: "Comisaría Local de Gijón (Policía Nacional) — trámites de extranjería: NIE, TIE, certificados",
+      direccion: "Plaza Padre Máximo González, s/n, 33212 Gijón",
+    },
     datosUnicos: [
       "Gijón mantiene vínculos industriales con empresas francesas del sector siderúrgico y energético que requieren documentación técnica y contratos traducidos al francés.",
       "La Universidad de Oviedo, con campus en Gijón, tiene convenios con universidades francesas que generan demanda de traducciones de títulos y expedientes académicos.",
@@ -391,6 +427,14 @@ export const CIUDADES: Ciudad[] = [
     comunidad: "Andalucía",
     poblacion: 230000,
     altaInmigracionMarroqui: true,
+    registroCivil: {
+      nombre: "Registro Civil de Granada",
+      direccion: "Avda. del Sur 1, 18014 Granada",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Granada",
+      direccion: "C/ San Agapito 2, 18071 Granada",
+    },
     datosUnicos: [
       "Granada tiene una importante comunidad magrebí que necesita traducciones juradas de documentos marroquíes — actas de nacimiento, certificados de matrimonio y antecedentes penales — del árabe y francés al español.",
       "La Universidad de Granada es una de las más internacionales de España, con un alto volumen de estudiantes francófonos que precisan traducciones de títulos y expedientes para homologaciones.",
@@ -410,6 +454,10 @@ export const CIUDADES: Ciudad[] = [
     provincia: "A Coruña",
     comunidad: "Galicia",
     poblacion: 245000,
+    extranjeria: {
+      nombre: "Oficina de Extranjería en A Coruña (Subdelegación del Gobierno en A Coruña)",
+      direccion: "C/ Real 53, 15003 A Coruña",
+    },
     datosUnicos: [
       "A Coruña es sede de Inditex y tiene un tejido empresarial con vínculos comerciales con Francia, generando demanda de traducciones de documentos mercantiles, contratos de distribución y acuerdos internacionales.",
       "El puerto de A Coruña gestiona tráfico marítimo con puertos franceses del Atlántico, lo que requiere traducciones de documentación aduanera y certificados de transporte.",
@@ -427,6 +475,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Álava",
     comunidad: "País Vasco",
     poblacion: 250000,
+    registroCivil: {
+      nombre: "Registro Civil de Vitoria-Gasteiz",
+      direccion: "Avda. Gasteiz 18, 01008 Vitoria-Gasteiz",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Álava (Subdelegación del Gobierno en Álava — Área Funcional de Trabajo e Inmigración)",
+      direccion: "C/ Olaguibel 1, 01071 Vitoria-Gasteiz",
+    },
     datosUnicos: [
       "Vitoria-Gasteiz, capital del País Vasco, tiene un sector industrial con presencia de empresas francesas del sector aeronáutico y energético que necesitan documentación técnica traducida.",
       "La proximidad de Vitoria a la frontera francesa genera un flujo de familias transfronterizas y trabajadores que requieren traducciones de documentos civiles y laborales.",
@@ -444,6 +500,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Asturias",
     comunidad: "Asturias",
     poblacion: 220000,
+    registroCivil: {
+      nombre: "Registro Civil de Oviedo",
+      direccion: "C/ Carlos López Otón 3, 33005 Oviedo",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Oviedo (Delegación del Gobierno en Asturias, Área Funcional de Trabajo e Inmigración)",
+      direccion: "Plaza de España 3, 33007 Oviedo",
+    },
     datosUnicos: [
       "Oviedo es capital del Principado de Asturias y concentra los trámites administrativos de la región, incluyendo expedientes de extranjería que requieren traducciones juradas de documentos francófonos.",
       "La Universidad de Oviedo tiene acuerdos de intercambio con universidades de Francia y Bélgica, generando demanda de traducciones de títulos y certificados académicos.",
@@ -462,6 +526,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Cantabria",
     comunidad: "Cantabria",
     poblacion: 170000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Santander",
+      direccion: "Avda. Pedro San Martín, s/n, 39010 Santander",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Santander (Delegación del Gobierno en Cantabria)",
+      direccion: "C/ Luis Hoyos Sainz 4, 39001 Santander",
+    },
     datosUnicos: [
       "Santander conecta con Francia a través del ferry Brittany Ferries, generando un flujo de residentes y empresas que necesitan documentos traducidos para trámites transfronterizos.",
       "La Universidad Internacional Menéndez Pelayo y la UC atraen a investigadores y estudiantes francófonos que necesitan traducciones de títulos y certificados académicos.",
@@ -480,6 +552,14 @@ export const CIUDADES: Ciudad[] = [
     comunidad: "Andalucía",
     poblacion: 196000,
     altaInmigracionMarroqui: true,
+    registroCivil: {
+      nombre: "Registro Civil de Almería",
+      direccion: "Ctra. de Ronda 120 (Ciudad de la Justicia), 04005 Almería",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Almería (Subdelegación del Gobierno en Almería, Área de Trabajo e Inmigración)",
+      direccion: "C/ Marruecos 1, 04009 Almería",
+    },
     datosUnicos: [
       "Almería tiene una de las mayores comunidades magrebíes de España, lo que genera una demanda muy alta de traducciones juradas de documentos marroquíes del árabe y francés al español para trámites de reagrupación familiar y residencia.",
       "El sector agrícola almeriense — el mayor invernadero de Europa — emplea a miles de trabajadores de origen magrebí cuyos documentos oficiales están redactados en francés y árabe.",
@@ -498,6 +578,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Burgos",
     comunidad: "Castilla y León",
     poblacion: 175000,
+    registroCivil: {
+      nombre: "Registro Civil de Burgos",
+      direccion: "C/ Reyes Católicos 51 bis (Edificio Nuevos Juzgados), 09071 Burgos",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Burgos (Subdelegación del Gobierno en Burgos)",
+      direccion: "C/ Vitoria 34, 09071 Burgos",
+    },
     datosUnicos: [
       "Burgos es un importante polo industrial con presencia de empresas francesas en el sector de la alimentación y la automoción que requieren traducciones de documentación técnica y mercantil.",
       "La posición de Burgos en el Camino de Santiago genera un flujo de peregrinos franceses que ocasionalmente necesitan traducciones de documentos para trámites de asistencia sanitaria o incidencias.",
@@ -516,6 +604,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Castellón",
     comunidad: "Comunidad Valenciana",
     poblacion: 170000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Castellón de la Plana",
+      direccion: "Bulevar Blasco Ibáñez 10, 12003 Castellón de la Plana",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Castellón (Subdelegación del Gobierno en Castellón - Área de Trabajo e Inmigración)",
+      direccion: "C/ Escultor Viciano 2, 12002 Castellón de la Plana",
+    },
     datosUnicos: [
       "Castellón es líder mundial en producción de azulejos y cerámica, con exportaciones a Francia que requieren traducciones de certificaciones técnicas, fichas de seguridad y documentación comercial.",
       "La provincia de Castellón tiene una comunidad de residentes francófonos en la costa — Benicàssim, Peñíscola — que necesitan documentos traducidos para trámites de residencia y fiscalidad.",
@@ -533,6 +629,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "La Rioja",
     comunidad: "La Rioja",
     poblacion: 152000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Logroño",
+      direccion: "C/ Marqués de Murrieta 45-47, 26005 Logroño",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería en Logroño (Delegación del Gobierno en La Rioja)",
+      direccion: "Avenida Jorge Vigón 72, 26071 Logroño",
+    },
     datosUnicos: [
       "Logroño y La Rioja exportan vino a Francia y países francófonos, generando necesidad de traducciones de documentación comercial, denominaciones de origen y contratos de distribución.",
       "La cercanía de La Rioja a la frontera francesa facilita el tránsito de familias y empresas transfronterizas que necesitan documentos civiles y mercantiles traducidos.",
@@ -550,6 +654,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Badajoz",
     comunidad: "Extremadura",
     poblacion: 150000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Badajoz",
+      direccion: "C/ José Caldito Ruiz esq. C/ Esteban Sánchez, 06008 Badajoz",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Badajoz",
+      direccion: "Avenida de Europa 1, 06071 Badajoz",
+    },
     datosUnicos: [
       "Badajoz, frontera con Portugal, gestiona trámites de extranjería para Extremadura y recibe documentación de ciudadanos de antiguas colonias francesas — Senegal, Costa de Marfil — que residen en la región.",
       "El sector agrícola extremeño exporta productos a Francia, requiriendo traducciones de certificados fitosanitarios, documentos de calidad y contratos de suministro.",
@@ -568,6 +680,14 @@ export const CIUDADES: Ciudad[] = [
     comunidad: "Andalucía",
     poblacion: 144000,
     altaInmigracionMarroqui: true,
+    registroCivil: {
+      nombre: "Registro Civil de Huelva",
+      direccion: "Alameda Sundheim 17, 21001 Huelva",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Huelva (Subdelegación del Gobierno en Huelva)",
+      direccion: "C/ Fernando el Católico 36, 21071 Huelva",
+    },
     datosUnicos: [
       "Huelva tiene una importante comunidad de trabajadores marroquíes en el sector de la fresa y los frutos rojos, generando una alta demanda de traducciones de documentos del registro civil marroquí.",
       "El sector agrícola onubense emplea a miles de temporeros de países francófonos del Magreb y África subsahariana cuyos documentos oficiales incluyen textos en francés.",
@@ -585,6 +705,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "León",
     comunidad: "Castilla y León",
     poblacion: 124000,
+    registroCivil: {
+      nombre: "Registro Civil de León (Oficina General del Registro Civil)",
+      direccion: "Avda. del Ingeniero Sáenz de Miera 6, 24009 León",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de León (Subdelegación del Gobierno en León)",
+      direccion: "Avenida de Asturias 4, 24008 León",
+    },
     datosUnicos: [
       "León es punto clave del Camino de Santiago y recibe peregrinos franceses que ocasionalmente necesitan traducciones urgentes de documentos médicos, seguros o denuncias.",
       "La Universidad de León tiene convenios con universidades francófonas en veterinaria y agroalimentación, generando traducciones de títulos y certificados para homologación.",
@@ -602,6 +730,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Salamanca",
     comunidad: "Castilla y León",
     poblacion: 145000,
+    registroCivil: {
+      nombre: "Registro Civil de Salamanca (Oficina General del Registro Civil)",
+      direccion: "Plaza de Colón 8, 37001 Salamanca",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Salamanca (Subdelegación del Gobierno en Salamanca — Dependencia Provincial de Trabajo e Inmigración)",
+      direccion: "C/ Gran Vía 31, 37001 Salamanca",
+    },
     datosUnicos: [
       "Salamanca, ciudad universitaria por excelencia, recibe a miles de estudiantes francófonos cada año que necesitan traducciones de títulos, expedientes académicos y certificados para matriculación y homologación.",
       "La Universidad de Salamanca mantiene convenios históricos con universidades francesas y el Instituto Cervantes, lo que genera una demanda constante de traducciones académicas.",
@@ -619,6 +755,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Tarragona",
     comunidad: "Cataluña",
     poblacion: 132000,
+    registroCivil: {
+      nombre: "Registro Civil Exclusivo Nº 1 de Tarragona",
+      direccion: "Rambla Nova 120-122, 43005 Tarragona",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Tarragona (Subdelegación del Gobierno en Tarragona)",
+      direccion: "Avenida Estanislau Figueras 59, 43002 Tarragona",
+    },
     datosUnicos: [
       "Tarragona tiene un importante polo petroquímico con presencia de empresas francesas como TotalEnergies y Repsol (con socios franceses) que requieren traducciones de documentación técnica y medioambiental.",
       "La Costa Dorada atrae a residentes franceses y belgas que adquieren propiedades vacacionales y necesitan traducciones de escrituras, contratos y documentos fiscales.",
@@ -636,6 +780,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Lleida",
     comunidad: "Cataluña",
     poblacion: 137000,
+    registroCivil: {
+      nombre: "Registro Civil de Lleida",
+      direccion: "C/ Canyeret 26, 25007 Lleida",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Lleida (Subdelegación del Gobierno en Lleida — Dependencia Provincial de Trabajo e Inmigración)",
+      direccion: "Av. Prat de la Riba 36, 25008 Lleida",
+    },
     datosUnicos: [
       "Lleida está a dos horas de la frontera francesa y tiene una importante comunidad de trabajadores magrebíes y subsaharianos del sector frutícola que necesitan traducciones de documentos en francés.",
       "El sector agroindustrial leridano — fruta, cereales y ganadería — exporta a Francia y requiere traducciones de certificaciones fitosanitarias y contratos de suministro.",
@@ -653,6 +805,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Girona",
     comunidad: "Cataluña",
     poblacion: 103000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Girona",
+      direccion: "Avda. Ramón Folch 4-6, 17001 Girona",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Girona (Subdelegación del Gobierno en Girona — Dependencia Provincial de Trabajo e Inmigración)",
+      direccion: "Avenida Jaume I 17, 17001 Girona",
+    },
     datosUnicos: [
       "Girona es puerta de entrada desde Francia por La Jonquera y el Pertús, con un flujo constante de familias y empresas transfronterizas que necesitan documentos bilingües francés-español.",
       "La provincia de Girona tiene una de las mayores comunidades de residentes franceses de Cataluña, establecidos en la Costa Brava, que precisan traducciones para trámites inmobiliarios y de residencia.",
@@ -670,6 +830,10 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Cádiz",
     comunidad: "Andalucía",
     poblacion: 210000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Jerez de la Frontera",
+      direccion: "Avda. Tomás García Figueras 14, 11407 Jerez de la Frontera",
+    },
     datosUnicos: [
       "Jerez de la Frontera exporta vinos y brandies a Francia — uno de sus principales mercados — requiriendo traducciones de documentación comercial, etiquetado y contratos de distribución.",
       "La provincia de Cádiz tiene una comunidad magrebí que necesita traducciones de documentos civiles marroquíes para trámites de extranjería y reagrupación familiar.",
@@ -688,6 +852,14 @@ export const CIUDADES: Ciudad[] = [
     comunidad: "Andalucía",
     poblacion: 147000,
     altaInmigracionMarroqui: true,
+    registroCivil: {
+      nombre: "Registro Civil de Marbella",
+      direccion: "Avda. Arias de Velasco 15, 29601 Marbella",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Málaga (atiende Marbella)",
+      direccion: "C/ Mauricio Moro Pareto 13, 29006 Málaga",
+    },
     datosUnicos: [
       "Marbella tiene una de las mayores comunidades de residentes franceses de la Costa del Sol, con una intensa actividad inmobiliaria de lujo que requiere traducciones de escrituras, contratos y documentos fiscales.",
       "El sector turístico de alta gama de Marbella incluye hoteles y restaurantes franceses que necesitan documentación laboral y mercantil bilingüe.",
@@ -708,6 +880,14 @@ export const CIUDADES: Ciudad[] = [
     comunidad: "Andalucía",
     poblacion: 80000,
     altaInmigracionMarroqui: true,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Fuengirola",
+      direccion: "C/ Párroco Juan A. Jiménez Higuero 31, 29640 Fuengirola",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Málaga (atiende a Fuengirola)",
+      direccion: "Calle Mauricio Moro Pareto 13, 29006 Málaga",
+    },
     datosUnicos: [
       "Fuengirola tiene una de las comunidades extranjeras más diversas de la Costa del Sol, con miles de residentes franceses, belgas y magrebíes que necesitan traducciones de documentos civiles y de residencia.",
       "La presencia de una importante comunidad marroquí en Fuengirola genera demanda constante de traducciones de actas de nacimiento, certificados de soltería y documentos del registro civil marroquí.",
@@ -726,6 +906,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Málaga",
     comunidad: "Andalucía",
     poblacion: 70000,
+    registroCivil: {
+      nombre: "Registro Civil de Torremolinos",
+      direccion: "Avda. Palma de Mallorca 32, 29620 Torremolinos",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Málaga (atiende Torremolinos)",
+      direccion: "C/ Mauricio Moro Pareto 13, 29006 Málaga",
+    },
     datosUnicos: [
       "Torremolinos atrae a jubilados y residentes franceses que se establecen en la Costa del Sol y necesitan traducciones de documentos de pensión, seguros médicos y certificados de residencia.",
       "El sector hotelero de Torremolinos, con presencia de cadenas francesas, genera demanda de traducciones de contratos laborales y documentación mercantil bilingüe.",
@@ -744,6 +932,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Alicante",
     comunidad: "Comunidad Valenciana",
     poblacion: 71000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Benidorm",
+      direccion: "Avda. Comunidades Europeas, s/n, 03502 Benidorm (Alicante)",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería en Alacant/Alicante (Altea) — suboficina de la Oficina de Extranjería de Alicante que atiende la comarca de la Marina Baixa, incluido Benidorm",
+      direccion: "C/ San Isidro Labrador 1, 03590 Altea (Alicante)",
+    },
     datosUnicos: [
       "Benidorm tiene una importante colonia de residentes franceses y belgas, muchos de ellos jubilados, que necesitan traducciones de documentos de pensión, seguros y testamentos para trámites en España.",
       "El sector turístico de Benidorm incluye empresas hoteleras con inversores francófonos que requieren documentación mercantil y contratos traducidos al francés.",
@@ -762,6 +958,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Alicante",
     comunidad: "Comunidad Valenciana",
     poblacion: 22000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Dénia (cabecera del partido judicial de Dénia — atiende a Calpe/Calp)",
+      direccion: "Plaza de Jaume I 23, 03700 Dénia (Alicante)",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería en Altea (unidad de la Subdelegación del Gobierno en Alicante — atiende Calpe y la comarca Marina Alta/Marina Baixa)",
+      direccion: "C/ San Isidro Labrador 1, 03590 Altea (Alicante)",
+    },
     datosUnicos: [
       "Calpe tiene una de las mayores proporciones de residentes franceses por habitante de la Comunidad Valenciana, con una intensa actividad inmobiliaria que requiere traducciones de escrituras y contratos.",
       "La comunidad francesa de Calpe gestiona trámites de residencia fiscal, herencias y seguros médicos que precisan documentos traducidos oficialmente del francés al español.",
@@ -781,6 +985,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Alicante",
     comunidad: "Comunidad Valenciana",
     poblacion: 230000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de Elche/Elx",
+      direccion: "C/ Abogados de Atocha 21, 03203 Elche",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Alicante (atiende Elche — Subdelegación del Gobierno en Alicante)",
+      direccion: "C/ Ebanistería 4-6 (Polígono de Babel), 03071 Alicante",
+    },
     datosUnicos: [
       "Elche es capital del calzado en España, con empresas que exportan a Francia y necesitan traducciones de catálogos, contratos de distribución y certificaciones de producto.",
       "La Universidad Miguel Hernández de Elche mantiene programas de intercambio con universidades francófonas, generando demanda de traducciones de expedientes académicos.",
@@ -800,6 +1012,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Barcelona",
     comunidad: "Cataluña",
     poblacion: 220000,
+    registroCivil: {
+      nombre: "Registro Civil de Terrassa",
+      direccion: "Rambleta del Pare Alegre, 112, 08224 Terrassa (Barcelona)",
+    },
+    extranjeria: {
+      nombre: "Comisaría de Policía Nacional de Terrassa – Oficina de Extranjería (Comisaría Local de Tarrasa, Cuerpo Nacional de Policía)",
+      direccion: "C/ Baldrich, 9-13, 08221 Terrassa (Barcelona)",
+    },
     datosUnicos: [
       "Terrassa es un importante centro industrial del Vallès Occidental con empresas del sector textil y automoción que mantienen relaciones comerciales con Francia y necesitan documentación bilingüe.",
       "La comunidad magrebí de Terrassa necesita traducciones de documentos del registro civil de Marruecos y otros países francófonos para trámites de reagrupación familiar y extranjería.",
@@ -818,6 +1038,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Barcelona",
     comunidad: "Cataluña",
     poblacion: 215000,
+    registroCivil: {
+      nombre: "Registro Civil de Badalona (Oficina General del Registro Civil)",
+      direccion: "C/ Santa Bárbara 64, 08910 Badalona",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Barcelona (atiende Badalona, sin oficina propia)",
+      direccion: "Paseo de Sant Joan 189-193, 08037 Barcelona",
+    },
     datosUnicos: [
       "Badalona tiene una importante comunidad de origen magrebí y subsahariano cuyos documentos oficiales están en francés o árabe, generando demanda de traducciones juradas para trámites de extranjería.",
       "El sector farmacéutico de Badalona, con presencia de laboratorios con vínculos franceses, necesita traducciones de documentación regulatoria y prospectos.",
@@ -836,6 +1064,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Barcelona",
     comunidad: "Cataluña",
     poblacion: 255000,
+    registroCivil: {
+      nombre: "Oficina General del Registro Civil de L'Hospitalet de Llobregat",
+      direccion: "Avda. Carrilet 2 (Ciutat de la Justícia, Edif. H), 08902 L'Hospitalet de Llobregat",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Barcelona (Subdelegación del Gobierno en Barcelona — atiende L'Hospitalet de Llobregat, que no tiene oficina de extranjería propia registrada)",
+      direccion: "Passeig de Sant Joan 189-193, 08037 Barcelona",
+    },
     datosUnicos: [
       "L'Hospitalet de Llobregat, la segunda ciudad más poblada de Cataluña, tiene una importante comunidad de ciudadanos de países francófonos africanos que necesitan traducciones de documentos civiles y académicos.",
       "La proximidad al aeropuerto de El Prat y a la Zona Franca de Barcelona atrae a empresas francesas de logística y distribución que requieren documentación mercantil bilingüe.",
@@ -854,6 +1090,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Barcelona",
     comunidad: "Cataluña",
     poblacion: 210000,
+    registroCivil: {
+      nombre: "Registro Civil de Sabadell",
+      direccion: "Avda. Francesc Macià 34-36 (Torre 1, Eix Macià), 08208 Sabadell",
+    },
+    extranjeria: {
+      nombre: "Comisaría Local de Sabadell (Cuerpo Nacional de Policía) – Oficina de Extranjería",
+      direccion: "C/ Montseny 137, 08208 Sabadell",
+    },
     datosUnicos: [
       "Sabadell tiene un tejido empresarial industrial con vínculos comerciales con Francia, especialmente en los sectores textil y metalúrgico, que requiere traducciones de contratos y documentación técnica.",
       "La comunidad de origen magrebí de Sabadell necesita traducciones juradas de documentos del registro civil marroquí para trámites de reagrupación familiar y nacionalidad.",
@@ -871,6 +1115,14 @@ export const CIUDADES: Ciudad[] = [
     provincia: "Pontevedra",
     comunidad: "Galicia",
     poblacion: 83000,
+    registroCivil: {
+      nombre: "Registro Civil de Pontevedra",
+      direccion: "C/ Hortas, s/n, 36071 Pontevedra",
+    },
+    extranjeria: {
+      nombre: "Oficina de Extranjería de Pontevedra (Subdelegación del Gobierno)",
+      direccion: "C/ Michelena 28, 36002 Pontevedra",
+    },
     datosUnicos: [
       "Pontevedra, etapa final del Camino Portugués, recibe peregrinos franceses que ocasionalmente necesitan traducciones de documentos médicos, seguros o incidencias durante el camino.",
       "El sector conservero y pesquero de la ría de Pontevedra exporta a Francia, generando necesidad de traducciones de certificaciones sanitarias, contratos de suministro y documentación comercial.",

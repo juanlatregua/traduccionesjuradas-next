@@ -7,7 +7,7 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Regularización 2026 · Marruecos · Traducción jurada francés-español · MAEC nº 3850",
+    "Regularización 2026 Marruecos: traducción jurada francés-árabe-español",
   description:
     "Documentos marroquíes en francés (o bilingüe árabe/francés) traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire bulletin nº 3, extrait d'acte de naissance, apostilla. Entrega 24h.",
   alternates: {

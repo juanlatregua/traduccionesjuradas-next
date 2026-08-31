@@ -19,10 +19,10 @@ export const HOME_FAQ: Record<Locale, FaqItem[]> = {
     { question: "¿Hacéis traducciones juradas urgentes?", answer: "En muchos casos podemos ofrecer traducción jurada urgente, dependiendo del volumen y del idioma. Indícalo al pedir presupuesto para revisar la disponibilidad." },
   ],
   fr: [
-    { question: "Qu'est-ce qu'une traduction assermentée ?", answer: "Une traduction assermentée est réalisée et signée par un traducteur assermenté accrédité, qui y appose son cachet et une déclaration certifiant la fidélité de la traduction. Elle a une validité officielle devant les administrations, tribunaux, notaires, universités et autres organismes." },
+    { question: "Qu'est-ce qu'une traduction assermentée français-espagnol ?", answer: "Une traduction assermentée français-espagnol est réalisée et signée par un traducteur assermenté espagnol accrédité par le Ministère espagnol des Affaires étrangères (MAEC), qui y appose son cachet et une déclaration certifiant la fidélité de la traduction. Elle a une validité officielle devant les administrations, tribunaux, notaires et universités en Espagne." },
     { question: "Combien de temps prend une traduction assermentée ?", answer: "Le délai habituel pour une traduction assermentée simple est de 24 à 72 heures ouvrées. Pour des documents volumineux ou plusieurs langues, le délai s'ajuste au volume." },
     { question: "La traduction assermentée est-elle livrée sur papier ou en PDF ?", answer: "De plus en plus d'organismes acceptent la traduction assermentée en PDF signé numériquement. Nous livrons généralement en PDF signé et, si besoin, nous pouvons aussi vous envoyer l'original papier par courrier." },
-    { question: "Combien coûte une traduction assermentée ?", answer: "Le prix dépend du type de document, de la langue, de la longueur et de l'urgence. Nous appliquons des tarifs ajustés et vous indiquons toujours un prix ferme avant de commencer." },
+    { question: "Combien coûte une traduction assermentée espagnol-français ?", answer: "Le prix d'une traduction assermentée entre l'espagnol et le français dépend du type de document, de la longueur et de l'urgence. Nous appliquons des tarifs ajustés et vous indiquons toujours un prix ferme avant de commencer." },
     { question: "Faites-vous des traductions assermentées urgentes ?", answer: "Dans de nombreux cas, nous pouvons proposer une traduction assermentée urgente, selon le volume et la langue. Indiquez-le lors de votre demande de devis pour vérifier la disponibilité." },
   ],
   en: [

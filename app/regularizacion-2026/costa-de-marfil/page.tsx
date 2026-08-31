@@ -7,7 +7,7 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Regularización 2026 · Costa de Marfil · Traducción jurada francés-español · MAEC nº 3850",
+    "Regularización 2026 Costa de Marfil: traducción jurada francés-español",
   description:
     "Documentos marfileños en francés traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire Bulletin nº 3, extrait d'acte de naissance, legalización consular. Entrega 24h.",
   alternates: {

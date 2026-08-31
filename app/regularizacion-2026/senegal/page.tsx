@@ -7,7 +7,7 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Regularización 2026 · Senegal · Traducción jurada de casier judiciaire y extrait de naissance",
+    "Regularización 2026 Senegal: traducción jurada francés-español",
   description:
     "Documentos senegaleses traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire, extrait d'acte de naissance, apostilla (Hague desde 23-03-2023). Traductor jurado MAEC nº 3850.",
   alternates: {

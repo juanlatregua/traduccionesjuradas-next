@@ -10,7 +10,7 @@ import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
   title:
-    "Registro Civil en francés | Traducción jurada nacimiento, matrimonio y defunción",
+    "Registro Civil en francés: traducción jurada de nacimiento y matrimonio",
   description:
     "Traducción jurada de certificados del Registro Civil para trámites oficiales. Incluye documentos en francés y apostilla, con precio cerrado y plazos habituales 24-72h.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/certificados-registro-civil" },
