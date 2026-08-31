@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Rumano · Traducción Oficial Rumano↔Español · MAEC",
   description:
-    "Traductor jurado de rumano acreditado MAEC. Traducción jurada rumano-español y español-rumano: certificate de naștere, cazier judiciar, diplome, contracte. Precio cerrado al instante, entrega en PDF firmado. Desde 35€.",
+    "Traductor jurado de rumano acreditado MAEC. Traducción jurada rumano-español y español-rumano: certificate de naștere, cazier judiciar, diplome, contracte. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto, entrega en PDF firmado. Desde 35€.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traductor-jurado-rumano",
@@ -28,12 +28,12 @@ export default function TraductorJuradoRumanoPage() {
       idiomaSlug="rumano"
       combinaciones={["ro-es", "es-ro"]}
       tituloH1="Traductor jurado de rumano — Traducción jurada oficial"
-      descripcion="Traducción jurada de rumano a español y de español a rumano. Servicio oficial con traductor jurado nombrado por el Ministerio de Asuntos Exteriores. Precio cerrado al instante, entrega en PDF firmado digitalmente."
+      descripcion="Traducción jurada de rumano a español y de español a rumano. Servicio oficial con traductor jurado nombrado por el Ministerio de Asuntos Exteriores. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto, entrega en PDF firmado digitalmente."
       faqItems={[
         {
           question: "¿Cuánto cuesta una traducción jurada de rumano?",
           answer:
-            "El precio depende del tipo de documento y su extensión. La tarifa base es de 0,09 €/palabra, con un mínimo de 35 € por documento. Sube tu documento y obtén precio cerrado al instante.",
+            "El precio depende del tipo de documento y su extensión. La tarifa base es de 0,09 €/palabra, con un mínimo de 35 € por documento. Sube tu documento y un traductor jurado lo valora personalmente antes de cerrarte el presupuesto.",
         },
         {
           question:

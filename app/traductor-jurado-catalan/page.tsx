@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Catalán · Traducción Oficial Catalán↔Español · MAEC",
   description:
-    "Traductor jurado de catalán acreditado MAEC. Traducción jurada catalán-español y español-catalán: certificats, expedients acadèmics, contractes. Válida en Cataluña, Valencia, Baleares y resto de España. Precio cerrado al instante. Desde 35€.",
+    "Traductor jurado de catalán acreditado MAEC. Traducción jurada catalán-español y español-catalán: certificats, expedients acadèmics, contractes. Válida en Cataluña, Valencia, Baleares y resto de España. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 35€.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-catalan",
   },

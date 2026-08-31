@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Sueco · Traducción Oficial Sueco↔Español · MAEC",
   description:
-    "Traductor jurado de sueco acreditado MAEC. Traducción jurada sueco-español y español-sueco: personbevis, belastningsregister, betyg, anställningsavtal. Válida en España y Suecia. Precio cerrado al instante. Desde 50 €.",
+    "Traductor jurado de sueco acreditado MAEC. Traducción jurada sueco-español y español-sueco: personbevis, belastningsregister, betyg, anställningsavtal. Válida en España y Suecia. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 50 €.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-sueco",
   },

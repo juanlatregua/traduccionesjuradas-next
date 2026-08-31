@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Inglés · Traducción Oficial Inglés↔Español · MAEC",
   description:
-    "Traductor jurado de inglés acreditado MAEC. Traducción jurada inglés-español y español-inglés: birth certificates, degrees, criminal records, contracts. Válida en España, UK, Irlanda, EE.UU. Precio cerrado al instante. Desde 35€.",
+    "Traductor jurado de inglés acreditado MAEC. Traducción jurada inglés-español y español-inglés: birth certificates, degrees, criminal records, contracts. Válida en España, UK, Irlanda, EE.UU. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 35€.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-ingles",
   },
@@ -37,7 +37,7 @@ export default function TraductorJuradoInglesPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de inglés?",
           answer:
-            "Un certificado sencillo (birth certificate, marriage certificate) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y recibe precio cerrado al instante.",
+            "Un certificado sencillo (birth certificate, marriage certificate) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y un traductor jurado lo valora personalmente antes de cerrarte el presupuesto.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de inglés?",

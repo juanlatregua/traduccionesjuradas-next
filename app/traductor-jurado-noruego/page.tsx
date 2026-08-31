@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Noruego · Traducción Oficial Noruego↔Español · MAEC",
   description:
-    "Traductor jurado de noruego acreditado MAEC. Traducción jurada noruego-español y español-noruego: fødselsattest, vandelsattest, vitnemål, kontrakter. Válida en España y Noruega. Precio cerrado al instante. Desde 35€.",
+    "Traductor jurado de noruego acreditado MAEC. Traducción jurada noruego-español y español-noruego: fødselsattest, vandelsattest, vitnemål, kontrakter. Válida en España y Noruega. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 35€.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-noruego",
   },
