@@ -91,6 +91,12 @@ export default function TraductorJuradoNeerlandesPage() {
           enlace: "/documentos-oficiales/documentos-mercantiles",
         },
         {
+          titulo: "Neerlandés para Bélgica: Flandes y Bruselas",
+          descripcion:
+            "Actas belgas, uittreksel strafregister, diplomas flamencos y documentos notariales en neerlandés, con lo que exige cada trámite entre Bélgica y España.",
+          enlace: "/traduccion-jurada-neerlandes-belgica",
+        },
+        {
           titulo: "Guía: documentos de Países Bajos y Bélgica",
           descripcion:
             "Apostilla en el rechtbank o vía LegalWeb, el VOG en papel, el Reglamento UE 2016/1191 y los precios de cada documento, explicados paso a paso.",
