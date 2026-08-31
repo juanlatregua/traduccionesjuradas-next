@@ -88,6 +88,9 @@ export function middleware(req: NextRequest) {
     "/traduccion-jurada-de-escritura-notarial",
     "/traduccion-jurada-de-estatutos-sociales",
     "/traduccion-jurada-de-certificado-de-seguridad-social",
+    // Landing nueva 31-ago-2026 (nicho GSC belga): sin esta entrada, el barrido
+    // anti-WordPress de abajo la manda a la portada con 301.
+    "/traduccion-jurada-neerlandes-belgica",
   ]);
   const isLanguagePillar = VALID_LEGACY_PATHS.has(pathLower);
   const isFrenchPillar = pathLower === "/traductor-jurado-frances";
