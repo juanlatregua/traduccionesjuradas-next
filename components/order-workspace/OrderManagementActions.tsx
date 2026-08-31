@@ -24,6 +24,8 @@ export default function OrderManagementActions({
   moves,
   invoice,
   quote,
+  caseRef,
+  caseSiblingsToShip,
 }: {
   reference: string;
   clientName: string;
@@ -33,6 +35,9 @@ export default function OrderManagementActions({
   moves: { to: string; label: string }[];
   invoice: { number: string | null } | null;
   quote: { id: string; quoteNumber: string } | null;
+  // Trámite: hermanos de papel sin enviar que van EN EL MISMO SOBRE.
+  caseRef: string | null;
+  caseSiblingsToShip: string[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -83,6 +88,15 @@ export default function OrderManagementActions({
   }
 
   async function notifyShipment() {
+    // El sobre puede llevar varios pedidos del trámite: dilo ANTES de sellar,
+    // porque sella los hermanos y manda un solo email al cliente.
+    if (caseSiblingsToShip.length > 0) {
+      const ok = window.confirm(
+        `Este envío sella también ${caseSiblingsToShip.join(", ")} (mismo trámite ${caseRef}).\n\n` +
+          `El cliente recibirá UN solo email con las ${caseSiblingsToShip.length + 1} referencias. ¿Sigo?`
+      );
+      if (!ok) return;
+    }
     const trackingNumber = window.prompt("Nº de seguimiento de la mensajería:");
     if (!trackingNumber || !trackingNumber.trim()) return;
     const courier = window.prompt("Transportista (opcional: Correos, MRW, SEUR…):") || "";
@@ -95,10 +109,40 @@ export default function OrderManagementActions({
       });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo notificar el envío.");
-      flash(`Envío notificado al cliente (seguimiento ${d.trackingNumber || trackingNumber.trim()}).`);
+      flash(
+        `Envío notificado al cliente (seguimiento ${d.trackingNumber || trackingNumber.trim()})` +
+          (d.references?.length > 1 ? ` · ${d.references.length} pedidos en el mismo sobre.` : ".")
+      );
       router.refresh();
     } catch (e: any) {
       flash(e?.message || "No se pudo notificar el envío.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function groupIntoCase() {
+    const raw = window.prompt(
+      caseRef
+        ? `Trámite ${caseRef}. Referencias a añadir (separadas por comas):`
+        : "Referencias del MISMO cliente que van en este trámite (separadas por comas):"
+    );
+    if (!raw || !raw.trim()) return;
+    const references = raw.split(",").map((r) => r.trim()).filter(Boolean);
+    if (references.length === 0) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/orders/${reference}/case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ references }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo agrupar.");
+      flash(`Trámite ${d.caseRef}: ${d.members.join(", ")}.`);
+      router.refresh();
+    } catch (e: any) {
+      flash(e?.message || "No se pudo agrupar.");
     } finally {
       setBusy(false);
     }
@@ -149,9 +193,13 @@ export default function OrderManagementActions({
 
       {paymentStatus === "PAID" && (
         <button type="button" onClick={notifyShipment} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
-          📦 Notificar envío
+          📦 Notificar envío{caseSiblingsToShip.length > 0 ? ` (${caseSiblingsToShip.length + 1} pedidos)` : ""}
         </button>
       )}
+
+      <button type="button" onClick={groupIntoCase} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
+        {caseRef ? `🗂 Trámite ${caseRef}` : "🗂 Agrupar en un trámite"}
+      </button>
 
       {quote && (
         <a href={`/zona-traductor/presupuestos/${quote.id}`} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>

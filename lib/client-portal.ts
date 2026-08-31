@@ -33,6 +33,8 @@ export async function getClientPortalData(emailRaw: string) {
         finalFilename: true,
         deliveryFilesJson: true,
         trackingNumber: true,
+        // Trámite: pedidos que el cliente vive como uno solo (fue ampliando).
+        caseRef: true,
       },
     }),
     prisma.quote.findMany({

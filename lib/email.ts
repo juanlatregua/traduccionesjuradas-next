@@ -557,7 +557,10 @@ export async function sendPaymentConfirmedEmail(data: {
 
 export async function sendShipmentNotificationEmail(data: {
   toEmail: string;
-  reference: string;
+  // Un envío puede llevar VARIOS pedidos: si el cliente fue ampliando, sus
+  // pedidos de papel van en el mismo sobre (trámite, Order.caseRef). Un solo
+  // email con todas las referencias en vez de N emails con el mismo tracking.
+  references: string[];
   trackingNumber: string;
   courier?: string | null;
   lang?: "es" | "fr";
@@ -565,28 +568,31 @@ export async function sendShipmentNotificationEmail(data: {
   const fr = data.lang === "fr";
   const courier = (data.courier || "").trim();
   const tracking = data.trackingNumber.trim();
+  const refs = data.references.filter(Boolean);
+  const refList = refs.join(", ");
+  const many = refs.length > 1;
 
   if (fr) {
     const html = `
       <h2>Votre traduction assermentée est en route</h2>
-      <p>Nous avons expédié votre traduction assermentée en papier.</p>
+      <p>Nous avons expédié ${many ? "vos traductions assermentées" : "votre traduction assermentée"} en papier${many ? ", dans un seul envoi" : ""}.</p>
       <table style="border-collapse:collapse; margin:12px 0;">
-        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Commande</td><td>${data.reference}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; font-weight:600;">${many ? "Commandes" : "Commande"}</td><td>${refList}</td></tr>
         ${courier ? `<tr><td style="padding:4px 12px 4px 0; font-weight:600;">Transporteur</td><td>${courier}</td></tr>` : ""}
         <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Numéro de suivi</td><td><strong>${tracking}</strong></td></tr>
       </table>
       <p style="font-size:13px; color:#6b7280;">Vous pouvez suivre l'envoi avec ce numéro auprès du transporteur.</p>
       <p>Merci de votre confiance.<br/>L'équipe de traduccionesjuradas.net</p>
     `;
-    await sendMail({ to: data.toEmail, subject: `Votre traduction est en route - Commande ${data.reference}`, html: wrapClientEmailHtml(html) });
+    await sendMail({ to: data.toEmail, subject: `Votre traduction est en route - ${many ? "Commandes" : "Commande"} ${refList}`, html: wrapClientEmailHtml(html) });
     return;
   }
 
   const html = `
     <h2>Tu traducción jurada va de camino</h2>
-    <p>Hemos enviado tu traducción jurada en papel por mensajería.</p>
+    <p>Hemos enviado ${many ? "tus traducciones juradas" : "tu traducción jurada"} en papel por mensajería${many ? ", todo en el mismo envío" : ""}.</p>
     <table style="border-collapse:collapse; margin:12px 0;">
-      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Pedido</td><td>${data.reference}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0; font-weight:600;">${many ? "Pedidos" : "Pedido"}</td><td>${refList}</td></tr>
       ${courier ? `<tr><td style="padding:4px 12px 4px 0; font-weight:600;">Transportista</td><td>${courier}</td></tr>` : ""}
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Nº de seguimiento</td><td><strong>${tracking}</strong></td></tr>
     </table>
@@ -596,7 +602,7 @@ export async function sendShipmentNotificationEmail(data: {
 
   await sendMail({
     to: data.toEmail,
-    subject: `Tu traducción va de camino - Pedido ${data.reference}`,
+    subject: `Tu traducción va de camino - ${many ? "Pedidos" : "Pedido"} ${refList}`,
     html: wrapClientEmailHtml(html),
   });
 }

@@ -207,6 +207,17 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   });
   if (!order) redirect("/zona-traductor");
 
+  // Trámite: hermanos de papel sin enviar que irán EN EL MISMO SOBRE que este.
+  const caseSiblingsToShip = order.caseRef
+    ? (
+        await prisma.order.findMany({
+          where: { caseRef: order.caseRef, deliveryType: "paper", shippedAt: null, NOT: { id: order.id } },
+          select: { reference: true },
+          orderBy: { createdAt: "asc" },
+        })
+      ).map((o) => o.reference)
+    : [];
+
   const workflowState = getWorkflowState(order);
   const moves = getNextWorkflowStates(workflowState).map((s) => ({ to: s, label: getWorkflowStateLabel(s) }));
   const sourceDocs = getSourceDocuments(order.events);
@@ -369,6 +380,8 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             moves={moves}
             invoice={order.clientInvoice ? { number: order.clientInvoice.number } : null}
             quote={order.quote ? { id: order.quote.id, quoteNumber: order.quote.quoteNumber } : null}
+            caseRef={order.caseRef}
+            caseSiblingsToShip={caseSiblingsToShip}
           />
           <details className="mt-4 border-t border-slate-700/50 pt-3">
             <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">

@@ -143,6 +143,13 @@ model Order {
   deliveryFilesJson  Json?          // entrega MULTI-archivo A NIVEL PEDIDO: [{url, fileKey?, filename?, mimeType?}]; translatedFileUrl = el primero (compat). Distinto de OrderDocumentItem.deliveredFileUrl (por documento) y del assignment del colaborador.
   trackingNumber     String?        // envío en papel (deliveryType "paper"): nº de seguimiento de la mensajería
   shippedAt          DateTime?      // cuándo se notificó el envío al cliente
+  // TRÁMITE: agrupa N pedidos del mismo cliente que son UN solo encargo para él
+  // (fue añadiendo documentos y cada uno nació como pedido propio). Formato
+  // TRAM-XXXXXX. NO es expedienteRef (ese es el lote de ENTRADA, 1 lote → 1
+  // presupuesto, y compartirlo entre pedidos duplicaría los OrderDocumentItem
+  // en populateOrderItemsFromQuote). Cada pedido sigue cobrándose y facturándose
+  // por separado: el trámite solo agrupa envío, vista de cliente y coste.
+  caseRef            String?
   assignedTo         String?
   translatorUploadToken String?     @unique
   translatorDeliveredAt DateTime?
@@ -178,6 +185,7 @@ model Order {
   @@index([clientEmail])
   @@index([createdAt])
   @@index([paymentStatus, status])
+  @@index([caseRef])
 }
 
 // Documentos individuales de un pedido (expediente). Poblado por el puente

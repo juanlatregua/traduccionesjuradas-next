@@ -212,12 +212,19 @@ export default async function AreaClientePage({
               <tbody>
                 {orders.map((o) => {
                   const files = clientVisibleDeliveryFiles(o);
+                  const caseSiblings = (row: { reference: string; caseRef: string | null }) =>
+                    row.caseRef ? orders.filter((x) => x.caseRef === row.caseRef && x.reference !== row.reference).map((x) => x.reference) : [];
                   return (
                     <tr key={o.reference} className="border-t border-cream align-top">
                       <td className="px-4 py-3">
                         <a href={buildSignedOrderUrl(o.reference, "estado")} className="font-mono text-xs font-semibold text-bleu hover:underline">
                           {o.reference}
                         </a>
+                        {/* Trámite: el cliente amplió y tiene varios pedidos que
+                            para él son uno solo (mismo sobre, mismo seguimiento). */}
+                        {caseSiblings(o).length > 0 && (
+                          <div className="mt-0.5 text-[11px] text-graphite">{t.sameCase(caseSiblings(o).join(", "))}</div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sepia">{o.createdAt.toLocaleDateString(intl, { timeZone: "Europe/Madrid" })}</td>
                       <td className="px-4 py-3 text-sepia">{o.title}</td>
