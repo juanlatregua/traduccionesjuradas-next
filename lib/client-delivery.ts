@@ -4,6 +4,15 @@
 // directa sin marcar "ya pagado", etc.). El gate por deliveryState evita
 // además exponer la subida SIN VERIFICAR del colaborador, que escribe
 // translatedFileUrl antes de la revisión del staff (auditoría 10-jul, A1/A4).
+//
+// ÚNICA EXCEPCIÓN (Juan, 2-sep-2026): el carril de COBRO APLAZADO. "Se puede
+// entregar y trabajar con determinados clientes" — empresas que aprueban, se
+// traduce, se entrega y pagan a 30 días. La regla NO se relaja: se sustituye
+// "cobrado" por "asegurado", que exige una FACTURA EMITIDA con vencimiento
+// (isOrderSecured). Sin factura numerada y declarada no hay entrega, así que
+// nadie descarga nada por estar simplemente "aprobado". Ver lib/credit-terms.ts.
+
+import { isOrderSecured, type CreditInvoice } from "@/lib/credit-terms";
 
 export type ClientDeliveryFile = { url: string; filename: string | null };
 
@@ -14,8 +23,9 @@ export function clientVisibleDeliveryFiles(order: {
   finalDeliveryFileUrl?: string | null;
   translatedFileUrl?: string | null;
   finalFilename?: string | null;
+  clientInvoice?: CreditInvoice | null;
 }): ClientDeliveryFile[] {
-  if (order.paymentStatus !== "PAID") return [];
+  if (!isOrderSecured(order)) return [];
   if (order.deliveryState !== "TRADUCIDO") return [];
   const raw = Array.isArray(order.deliveryFilesJson) ? order.deliveryFilesJson : [];
   const files = (raw as Array<{ url?: unknown; filename?: unknown }>)

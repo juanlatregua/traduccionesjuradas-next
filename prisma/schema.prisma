@@ -226,6 +226,10 @@ model ClientInvoice {
   orderId       String?   @unique // null = factura libre (sin pedido)
   order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   issuedAt      DateTime? // se sella al emitir
+  // Vencimiento pactado del cobro aplazado. Solo lo escribe /authorize-credit
+  // (ADMIN/PM). dueDate != null ES la marca del carril de credito: no hay flag
+  // en Order. Lo protege la serie fiscal, no un booleano que se copia por ahi.
+  dueDate       DateTime?
   paidAt        DateTime? // cobrada: se sella al vincular un ingreso bancario o al adjuntar el justificante
   // Justificante bancario del pago (Vercel Blob). Adjuntarlo sella paidAt vía setInvoicePaid.
   paymentProofUrl  String?
@@ -253,6 +257,7 @@ model ClientInvoice {
 
   @@index([issuedAt])
   @@index([status])
+  @@index([dueDate])
 }
 
 // Gasto manual del libro de contabilidad (IVA soportado). No ligado a pedidos:
@@ -460,6 +465,13 @@ model Customer {
   // que el staff verifique en el banco. Para el resto sigue requiriendo confirmacion
   // manual (anti-fraude de justificante falso, audit 25-jun).
   autoConfirmPayment Boolean @default(false)
+  // Cliente de credito (decision de Juan, 2-sep-2026): empresas que aprueban, se
+  // trabaja, se ENTREGA y pagan despues. El permiso vive en el CLIENTE, no en el
+  // pedido -- "se puede entregar y trabajar con determinados clientes". Sin tope
+  // de importe: el carril es para trabajos propios de Juan, asi que no hay coste
+  // de traductor externo que adelantar. Lo activa ADMIN/PM en la ficha.
+  creditEnabled Boolean @default(false)
+  creditDays    Int     @default(30)
   // Intermediario que trajo a este cliente (p.ej. Ahmed). Autorrelación nullable:
   // "es intermediario" se infiere si tiene `referrals`. onDelete SetNull = borrar al
   // intermediario no borra a sus clientes, solo los deja sueltos.

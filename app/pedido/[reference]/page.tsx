@@ -331,6 +331,9 @@ export default async function PedidoPortalPage({
       paymentStatus: true,
       status: true,
       deliveryState: true,
+      // Carril de cobro aplazado: sin esto, clientVisibleDeliveryFiles exige PAID
+      // y un cliente de crédito no vería su traducción (lib/credit-terms.ts).
+      clientInvoice: { select: { status: true, docKind: true, dueDate: true, paidAt: true } },
       clientLocale: true,
       dueDate: true,
       finalDeliveryFileUrl: true,
