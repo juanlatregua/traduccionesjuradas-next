@@ -105,7 +105,17 @@ export async function generateExpensesForPeriod(templateId: string, opts?: { per
 
   const result = await prisma.$transaction(async (tx) => {
     const claim = await tx.recurringExpense.updateMany({
-      where: { id: templateId, ...(opts?.force ? {} : { NOT: { lastGeneratedPeriod: period } }) },
+      // El NOT a secas NO vale: en SQL `NOT (col = 'x')` con col a NULL da NULL,
+      // no true, así que una plantilla recién creada (lastGeneratedPeriod null)
+      // quedaba fuera del claim y jamás generaba. Y como claimed=false devuelve
+      // "Ya se generó este periodo" sin lanzar, el cron lo daba por bueno: las 9
+      // plantillas llevaban desde el 14-jul sin crear un solo gasto, en silencio.
+      where: {
+        id: templateId,
+        ...(opts?.force
+          ? {}
+          : { OR: [{ lastGeneratedPeriod: null }, { NOT: { lastGeneratedPeriod: period } }] }),
+      },
       data: { lastGeneratedPeriod: period },
     });
     if (claim.count === 0) return { created: 0, claimed: false };
