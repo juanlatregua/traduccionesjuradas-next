@@ -15,6 +15,7 @@
 
 import { prisma } from "@/lib/prisma";
 
+import { createCaseRef, parseExtensionLote } from "@/lib/order-case-logic";
 export { createCaseRef, selectShippableMembers, type ShippableMember } from "@/lib/order-case-logic";
 
 /** Pedidos del trámite, en orden de creación. Sin caseRef → solo el pedido dado. */
@@ -47,4 +48,39 @@ export async function getCaseAccrualRollup(caseRef: string) {
     accrualCents: accruals.reduce((a, e) => a + e.baseCents, 0),
     lines: accruals,
   };
+}
+
+/**
+ * AMPLIACIÓN: el pedido recién nacido de un presupuesto hermano se agrupa con su
+ * pedido padre en el mismo trámite (creándolo si el padre no tenía). Se llama
+ * desde createOrderShellFromQuote cuando el lote es AMPL-<padre>-…; nunca
+ * bloquea la creación del pedido (best-effort, con evento en ambos).
+ * Es el segundo escritor de caseRef del repo, junto a /api/orders/[ref]/case.
+ */
+export async function attachExtensionToParentCase(childOrderId: string, expedienteRef: string | null | undefined) {
+  const parentRef = parseExtensionLote(expedienteRef);
+  if (!parentRef) return null;
+  const [parent, child] = await Promise.all([
+    prisma.order.findUnique({ where: { reference: parentRef }, select: { id: true, reference: true, clientEmail: true, caseRef: true } }),
+    prisma.order.findUnique({ where: { id: childOrderId }, select: { id: true, reference: true, clientEmail: true, caseRef: true } }),
+  ]);
+  if (!parent || !child || parent.id === child.id) return null;
+  // Un trámite es de UN cliente (misma regla que el endpoint de agrupar).
+  if (parent.clientEmail.trim().toLowerCase() !== child.clientEmail.trim().toLowerCase()) return null;
+  if (child.caseRef && parent.caseRef && child.caseRef !== parent.caseRef) return null;
+  const caseRef = parent.caseRef || child.caseRef || createCaseRef();
+  const toUpdate = [parent, child].filter((o) => o.caseRef !== caseRef);
+  if (toUpdate.length === 0) return caseRef;
+  await prisma.$transaction([
+    prisma.order.updateMany({ where: { id: { in: toUpdate.map((o) => o.id) } }, data: { caseRef } }),
+    prisma.orderEvent.createMany({
+      data: toUpdate.map((o) => ({
+        orderId: o.id,
+        type: "case.joined",
+        message: `Agrupado en el trámite ${caseRef} con ${o.id === parent.id ? child.reference : parent.reference} (ampliación del pedido ${parent.reference}).`,
+        payload: { caseRef, members: [parent.reference, child.reference], actorEmail: "system:ampliacion", extensionOf: parent.reference },
+      })),
+    }),
+  ]);
+  return caseRef;
 }

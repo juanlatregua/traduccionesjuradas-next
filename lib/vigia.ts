@@ -212,7 +212,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       documentAnalyses: { select: { estimatedWords: true } },
       quote: { select: { lines: { select: { description: true } } } },
       clientInvoice: { select: { number: true, status: true, docKind: true, dueDate: true, paidAt: true } },
-      events: { where: { OR: [{ type: { startsWith: "lavori." } }, { type: { in: ["order.archived", "order.unarchived"] } }] }, select: { type: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 8 },
+      events: { where: { OR: [{ type: { startsWith: "lavori." } }, { type: { in: ["order.archived", "order.unarchived", "order.source_document_uploaded", "order.extension_prepared"] } }] }, select: { type: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 16 },
     },
   });
   const pedidos: any[] = [];
@@ -259,6 +259,14 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     }
     let accion: string | null = null;
     const vencido = !!due && new Date(due) < NOW;
+    // Ampliación (3-sep-2026): documento subido DESPUÉS de pagar y sin presupuesto
+    // hermano preparado → si nadie actúa, se traduce gratis.
+    if (paid && o.paidAt) {
+      const paidMs = new Date(o.paidAt).getTime();
+      const lastExt = o.events.filter((e) => e.type === "order.extension_prepared").reduce((m, e) => Math.max(m, new Date(e.createdAt).getTime()), 0);
+      const nuevos = o.events.filter((e) => e.type === "order.source_document_uploaded" && new Date(e.createdAt).getTime() > paidMs && new Date(e.createdAt).getTime() > lastExt).length;
+      if (nuevos > 0) act(item.importe, 3, `Pedido ${o.reference} ${eur(item.importe)}: ${nuevos} documento(s) subido(s) DESPUÉS del pago → "Ampliar el pedido" (presupuesto hermano, mismo trámite)`, link);
+    }
     if (credito) {
       // Sin cobrar pero asegurado: solo se persigue el DINERO cerca del vencimiento.
       const faltan = creditDaysToDue(o.clientInvoice, NOW) ?? 0;

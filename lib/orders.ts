@@ -456,6 +456,13 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
         },
       });
       await populateOrderItemsFromQuote(order.id, input);
+      // Ampliación (lote AMPL-<padre>-…): el pedido nuevo se agrupa con su padre
+      // en el mismo trámite. Best-effort: nunca impide que nazca el pedido.
+      if (input.expedienteRef?.startsWith("AMPL-")) {
+        await import("@/lib/order-case")
+          .then((m) => m.attachExtensionToParentCase(order.id, input.expedienteRef))
+          .catch((e) => console.error("[orders] ampliacion: no se pudo agrupar en el tramite", e));
+      }
       return order;
     } catch (err: any) {
       if (err?.code === "P2002") {

@@ -69,3 +69,24 @@ test("papel + cobrado + sin sellar son las TRES condiciones, no dos", () => {
   ];
   assert.deepEqual(selectShippableMembers(members).map((x) => x.reference), ["bueno"]);
 });
+
+// ---- Ampliación (3-sep-2026): lote AMPL-<padre>-<sufijo> ----
+import { buildExtensionLote, parseExtensionLote } from "../../lib/order-case-logic.ts";
+
+test("ampliación: el lote lleva la referencia del pedido padre y se recupera entera", () => {
+  const lote = buildExtensionLote("26_BA3927", new Date("2026-09-03T10:00:00Z"));
+  assert.ok(lote.startsWith("AMPL-26_BA3927-"));
+  assert.equal(parseExtensionLote(lote), "26_BA3927");
+});
+
+test("ampliación: dos lotes del mismo padre son distintos (no comparten expedienteRef)", () => {
+  const a = buildExtensionLote("26_BA3927", new Date("2026-09-03T10:00:00Z"));
+  const b = buildExtensionLote("26_BA3927", new Date("2026-09-03T10:00:01Z"));
+  assert.notEqual(a, b);
+});
+
+test("ampliación: un expediente normal, la puerta o un trámite NO se leen como ampliación", () => {
+  for (const v of ["EXP-ABC123", "puerta:tok", "TRAM-ABC123", "", null, undefined, "AMPL-", "AMPL--x", "AMPL-26_X-"]) {
+    assert.equal(parseExtensionLote(v), null, String(v));
+  }
+});

@@ -32,6 +32,7 @@ import CollaboratorAssignmentPanel from "@/components/CollaboratorAssignmentPane
 import AssignOrderForm from "@/components/AssignOrderForm";
 import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
 import OrderCreditPanel from "@/components/OrderCreditPanel";
+import OrderExtendButton from "@/components/OrderExtendButton";
 import { isOrderSecured, isCreditAuthorized, creditDaysToDue } from "@/lib/credit-terms";
 import { buildDeliveryResendMessage } from "@/lib/notification-templates";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
@@ -233,6 +234,21 @@ export default async function PedidoWorkspacePage({ params }: Params) {
     select: { creditEnabled: true, creditDays: true },
   });
   const secured = isOrderSecured(order);
+  // Ampliación: documentos que el cliente subió DESPUÉS de pagar y que todavía
+  // no han ido a un presupuesto hermano (no hay extension_prepared posterior).
+  const paidAtMs = order.paidAt ? new Date(order.paidAt).getTime() : null;
+  const lastExtensionMs = order.events
+    .filter((e) => e.type === "order.extension_prepared")
+    .reduce((m, e) => Math.max(m, new Date(e.createdAt).getTime()), 0);
+  const docsAfterPayment =
+    paidAtMs === null
+      ? 0
+      : order.events.filter(
+          (e) =>
+            e.type === "order.source_document_uploaded" &&
+            new Date(e.createdAt).getTime() > paidAtMs &&
+            new Date(e.createdAt).getTime() > lastExtensionMs
+        ).length;
   const creditInfo = isCreditAuthorized(order.clientInvoice)
     ? {
         invoiceNumber: order.clientInvoice?.number ?? null,
@@ -427,6 +443,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             caseRef={order.caseRef}
             caseSiblingsToShip={caseSiblingsToShip}
           />
+          {secured && (
+            <div className="mt-2">
+              <OrderExtendButton reference={order.reference} docsAfterPayment={docsAfterPayment} />
+            </div>
+          )}
           <details className="mt-4 border-t border-slate-700/50 pt-3">
             <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
               Cambiar workflow a otro estado
@@ -631,6 +652,15 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             desglose por documento con original/traducción/coste) + subida.
             La lista plana duplicada de los mismos archivos se retiró. */}
         <Section id="docs" title="Documentos del cliente">
+          {docsAfterPayment > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+              <p className="text-sm text-amber-200">
+                <strong>{docsAfterPayment} documento{docsAfterPayment === 1 ? "" : "s"}</strong> llegó después del pago. El pedido cobrado no se toca:
+                se presupuesta aparte y su pedido se agrupa en el mismo trámite.
+              </p>
+              <OrderExtendButton reference={order.reference} docsAfterPayment={docsAfterPayment} compact />
+            </div>
+          )}
           {sourceDocs.length === 0 && docItems.length === 0 && (
             <p className="text-sm text-slate-400">No hay documentos fuente guardados en este pedido.</p>
           )}
