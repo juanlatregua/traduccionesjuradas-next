@@ -21,3 +21,25 @@ test("permite PAGO_VALIDADO cuando paymentStatus ya es PAID", () => {
     })
   );
 });
+
+// Carril de crédito (2-sep-2026): "asegurado" (factura emitida con vencimiento)
+// vale como "cobrado" para trabajar y entregar. Sin secured, todo sigue igual.
+test("credito: permite PAGO_VALIDADO y ENTREGADO con secured aunque no haya pago", () => {
+  assert.doesNotThrow(() =>
+    assertWorkflowTransitionPreconditions({ to: "PAGO_VALIDADO", paymentStatus: "PENDING", secured: true })
+  );
+  assert.doesNotThrow(() =>
+    assertWorkflowTransitionPreconditions({ to: "TRADUCIDO_ENTREGADO", paymentStatus: "PENDING", secured: true, delivered: true })
+  );
+});
+
+test("credito: secured:false no relaja nada", () => {
+  assert.throws(
+    () => assertWorkflowTransitionPreconditions({ to: "PAGO_VALIDADO", paymentStatus: "PENDING", secured: false }),
+    /sin pago confirmado/
+  );
+  assert.throws(
+    () => assertWorkflowTransitionPreconditions({ to: "TRADUCIDO_ENTREGADO", paymentStatus: "PENDING", secured: false, delivered: true }),
+    /sin pago confirmado/
+  );
+});

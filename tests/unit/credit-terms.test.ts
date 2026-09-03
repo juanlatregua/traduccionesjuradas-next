@@ -113,3 +113,39 @@ test("un cobro a 30 días nunca entra en la ventana de 7 días de la conciliaci�
   assert.ok(dias > 7, "30 días caen fuera de la ventana automática");
   assert.equal(isWithinFiscalQuarter(emitida, cobro), false, "y además cruzan de trimestre: hay que avisar");
 });
+
+// ---- customerCreditBlocker: el mismo mensaje en presupuesto, pedido y endpoint ----
+import { customerCreditBlocker, isSpainCountry } from "../../lib/credit-terms.ts";
+
+test("customerCreditBlocker: sin ficha no hay crédito", () => {
+  assert.match(customerCreditBlocker(null) || "", /No hay ficha/);
+});
+
+test("customerCreditBlocker: el permiso va primero (un clic en la ficha)", () => {
+  const c = { name: "Brice Karsenty", creditEnabled: false, fiscalName: null, nif: null };
+  assert.match(customerCreditBlocker(c) || "", /no está marcado como cliente de crédito/);
+});
+
+test("customerCreditBlocker: con permiso pero sin NIF, la factura saldría simplificada", () => {
+  const c = { name: "Brice Karsenty", creditEnabled: true, fiscalName: "INVERSIONES KARSENTY SLU", nif: null };
+  assert.match(customerCreditBlocker(c) || "", /razón social o NIF/);
+  const c2 = { ...c, nif: "B12345678", fiscalName: "" };
+  assert.match(customerCreditBlocker(c2) || "", /razón social o NIF/);
+});
+
+test("customerCreditBlocker: fuera de España se emite a mano (IVA no es el 21 % fijo)", () => {
+  const c = { name: "X", creditEnabled: true, fiscalName: "X SARL", nif: "FR123", country: "Francia" };
+  assert.match(customerCreditBlocker(c) || "", /Francia/);
+});
+
+test("customerCreditBlocker: cliente español completo → null (se puede autorizar)", () => {
+  const c = { name: "Brice Karsenty", creditEnabled: true, fiscalName: "INVERSIONES KARSENTY SLU", nif: "B12345678", country: "España" };
+  assert.equal(customerCreditBlocker(c), null);
+  assert.equal(customerCreditBlocker({ ...c, country: null }), null, "sin país = España por defecto");
+  assert.equal(customerCreditBlocker({ ...c, country: "spain" }), null);
+});
+
+test("isSpainCountry acepta las grafías que llegan de los formularios", () => {
+  for (const v of ["España", "Espana", "ESPAÑA", "Spain", "es", "", null, undefined]) assert.equal(isSpainCountry(v), true, String(v));
+  for (const v of ["Francia", "Portugal", "FR"]) assert.equal(isSpainCountry(v), false, v);
+});

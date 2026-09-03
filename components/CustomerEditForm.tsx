@@ -18,6 +18,8 @@ export type CustomerEditable = {
   notes: string | null;
   isBusiness: boolean;
   autoConfirmPayment: boolean;
+  creditEnabled: boolean;
+  creditDays: number;
   intermediaryEmail: string | null;
 };
 
@@ -60,6 +62,8 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
           notes: form.notes,
           isBusiness: form.isBusiness,
           autoConfirmPayment: form.autoConfirmPayment,
+          creditEnabled: form.creditEnabled,
+          creditDays: form.creditDays,
           intermediaryEmail: form.intermediaryEmail ?? "",
         }),
       });
@@ -191,7 +195,38 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
           />
           Cliente de confianza (justificante auto-confirma el cobro)
         </label>
+        {/* Carril de crédito (Juan, 2-sep-2026): "se puede entregar y trabajar con
+            determinados clientes". Exige razón social + NIF para que la factura
+            con vencimiento no salga simplificada. */}
+        <label className="flex items-center gap-2 text-xs text-slate-300">
+          <input
+            type="checkbox"
+            checked={form.creditEnabled}
+            onChange={(e) => set("creditEnabled", e.target.checked)}
+            className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+          />
+          Cliente de crédito (se trabaja y entrega antes de cobrar, contra factura)
+        </label>
+        {form.creditEnabled && (
+          <label className="flex items-center gap-2 text-xs text-slate-300">
+            Vence a
+            <input
+              type="number"
+              min={1}
+              max={90}
+              value={form.creditDays}
+              onChange={(e) => set("creditDays", Math.max(1, Math.min(90, Number(e.target.value) || 30)))}
+              className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+            />
+            días
+          </label>
+        )}
       </div>
+      {form.creditEnabled && (!form.fiscalName?.trim() || !form.nif?.trim()) && (
+        <p className="mt-2 text-xs text-amber-300">
+          Para autorizar crédito hacen falta razón social y NIF (arriba): sin NIF la factura sale simplificada y a una empresa no le sirve.
+        </p>
+      )}
 
       <div className="mt-4 flex items-center gap-3">
         <button

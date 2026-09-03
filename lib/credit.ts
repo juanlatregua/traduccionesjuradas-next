@@ -13,7 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import { issueOrUpdateInvoice } from "@/lib/client-invoice";
 import { saveBillingData } from "@/lib/orders";
-import { customerCanUseCredit, defaultDueDate, isCreditAuthorized } from "@/lib/credit-terms";
+import { customerCreditBlocker, defaultDueDate, isCreditAuthorized } from "@/lib/credit-terms";
 
 export class CreditError extends Error {
   status: number;
@@ -69,33 +69,11 @@ export async function authorizeCredit(input: AuthorizeCreditInput) {
     where: { email: String(order.clientEmail || "").toLowerCase() },
     select: { id: true, name: true, email: true, fiscalName: true, nif: true, address: true, city: true, postalCode: true, country: true, creditEnabled: true, creditDays: true },
   });
-  if (!customer) {
-    throw new CreditError(`No hay ficha de cliente para ${order.clientEmail}: créala antes de autorizar.`, 409);
-  }
-  if (!customerCanUseCredit(customer)) {
-    throw new CreditError(
-      `${customer.name || customer.email} no está marcado como cliente de crédito. Actívalo en su ficha si quieres trabajar y entregar antes de cobrar.`,
-      403
-    );
-  }
-
-  // Sin NIF la factura saldría SIMPLIFICADA (≤400 €) y a una empresa no le sirve
-  // para deducirse el IVA, que es justo para lo que la pide.
-  if (!String(customer.fiscalName || "").trim() || !String(customer.nif || "").trim()) {
-    throw new CreditError(
-      `La ficha de ${customer.name || customer.email} no tiene razón social o NIF. Rellénalos antes de autorizar: sin NIF la factura sale simplificada y no le sirve.`,
-      409
-    );
-  }
-  // issueOrUpdateInvoice fija el 21 % a fuego. Fuera de España el tipo puede ser
-  // otro (intracomunitario al 0 %), así que ese caso se emite a mano.
-  const pais = String(customer.country || "España").trim().toLowerCase();
-  if (pais && !["españa", "espana", "spain", "es"].includes(pais)) {
-    throw new CreditError(
-      `El cliente es de ${customer.country}: esta factura puede no ser al 21 %. Emítela a mano en /zona-traductor/facturas con el tipo correcto y vuelve a autorizar.`,
-      409
-    );
-  }
+  // Un solo sitio para los tres motivos de bloqueo (permiso, datos fiscales,
+  // país): lib/credit-terms.customerCreditBlocker, probado sin base de datos.
+  const blocker = customerCreditBlocker(customer ?? null);
+  if (!customer) throw new CreditError(`No hay ficha de cliente para ${order.clientEmail}: créala antes de autorizar.`, 409);
+  if (blocker) throw new CreditError(blocker, customer.creditEnabled ? 409 : 403);
 
   const now = new Date();
   const due = input.dueDate ? new Date(input.dueDate) : defaultDueDate(customer, now);
@@ -172,6 +150,26 @@ export async function authorizeCredit(input: AuthorizeCreditInput) {
       },
     },
   });
+
+  // El grafo del workflow solo deja empezar a traducir desde PAGO_VALIDADO, y
+  // ahí solo se llegaba con pago. "Asegurado" (factura emitida con vencimiento)
+  // vale lo mismo para el trabajo: se cruza con el motivo escrito en el evento
+  // para que en la ficha se lea que fue crédito, no un cobro. Order.status NO
+  // pasa a PAID (toStatusUpdate lo respeta cuando paymentStatus no es PAID).
+  try {
+    const { transitionWorkflowState } = await import("@/lib/workflow-server");
+    await transitionWorkflowState({
+      reference: order.reference,
+      to: "PAGO_VALIDADO",
+      actorEmail: input.actorEmail,
+      reason: `Autorizado a crédito: factura ${invoice?.number || "(sin nº)"} con vencimiento ${due.toISOString().slice(0, 10)}`,
+      payload: { credit: true, invoiceNumber: invoice?.number ?? null, dueDate: due.toISOString() },
+    });
+  } catch (e) {
+    // Ya estaba en PAGO_VALIDADO o más allá (from===to devuelve changed:false sin
+    // lanzar; una arista no permitida sí lanza). No deshace la autorización.
+    console.error("[credit] workflow transition", (e as Error)?.message || e);
+  }
 
   return {
     reference: order.reference,

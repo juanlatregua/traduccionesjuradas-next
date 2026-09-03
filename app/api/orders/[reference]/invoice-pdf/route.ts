@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isOrderSecured } from "@/lib/credit-terms";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOrderDetail } from "@/lib/orders";
@@ -37,9 +38,11 @@ export async function GET(req: Request, { params }: Params) {
       );
     }
 
-    if (order.paymentStatus !== "PAID") {
+    // Crédito: la factura ya está emitida con vencimiento, y es justo lo que el
+    // cliente necesita para pagarla. "Asegurado" vale como "pagado" aquí.
+    if (!isOrderSecured(order)) {
       return NextResponse.json(
-        { ok: false, error: "La factura solo esta disponible para pedidos pagados." },
+        { ok: false, error: "La factura solo esta disponible para pedidos pagados o autorizados a credito." },
         { status: 400 }
       );
     }

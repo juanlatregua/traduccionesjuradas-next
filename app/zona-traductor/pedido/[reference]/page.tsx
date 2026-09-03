@@ -31,6 +31,8 @@ import { getCaseAccrualRollup } from "@/lib/order-case";
 import CollaboratorAssignmentPanel from "@/components/CollaboratorAssignmentPanel";
 import AssignOrderForm from "@/components/AssignOrderForm";
 import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
+import OrderCreditPanel from "@/components/OrderCreditPanel";
+import { isOrderSecured, isCreditAuthorized, creditDaysToDue } from "@/lib/credit-terms";
 import { buildDeliveryResendMessage } from "@/lib/notification-templates";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
 import OrderFinancePanel from "@/components/OrderFinancePanel";
@@ -196,7 +198,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         include: { collaborator: { select: { fullName: true, email: true } } },
         orderBy: { createdAt: "desc" },
       },
-      clientInvoice: { select: { number: true, totalCents: true } },
+      clientInvoice: { select: { number: true, totalCents: true, status: true, docKind: true, issuedAt: true, dueDate: true, paidAt: true } },
       quote: { select: { id: true, quoteNumber: true } },
       documentItems: { orderBy: { createdAt: "asc" } },
       documentAnalyses: {
@@ -223,6 +225,22 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   // margen se sigue midiendo por pedido, si no un pedido en pérdidas se
   // escondería detrás de un hermano rentable).
   const caseRollup = order.caseRef ? await getCaseAccrualRollup(order.caseRef) : null;
+
+  // Carril de crédito: el permiso vive en el CLIENTE; la marca es la factura
+  // con vencimiento (lib/credit-terms.ts). "Asegurado" = cobrado o a crédito.
+  const creditCustomer = await prisma.customer.findFirst({
+    where: { email: { equals: order.clientEmail, mode: "insensitive" } },
+    select: { creditEnabled: true, creditDays: true },
+  });
+  const secured = isOrderSecured(order);
+  const creditInfo = isCreditAuthorized(order.clientInvoice)
+    ? {
+        invoiceNumber: order.clientInvoice?.number ?? null,
+        dueDate: new Date(order.clientInvoice!.dueDate!).toISOString(),
+        paidAt: order.clientInvoice?.paidAt ? new Date(order.clientInvoice.paidAt).toISOString() : null,
+        daysToDue: creditDaysToDue(order.clientInvoice, new Date()),
+      }
+    : null;
 
   const workflowState = getWorkflowState(order);
   const moves = getNextWorkflowStates(workflowState).map((s) => ({ to: s, label: getWorkflowStateLabel(s) }));
@@ -279,7 +297,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const gates = getOrderGates(orderForActions, financeSnapshot);
 
   // La ficha enseña lo que toca en cada etapa: lo demás se pliega, no se borra.
-  const isPaidQuoteOrder = Boolean(order.quote) && order.paymentStatus === "PAID";
+  const isPaidQuoteOrder = Boolean(order.quote) && secured;
   const isDeliveredStage = actionStage === "DELIVERED" || actionStage === "CLOSED";
 
   // Datos que antes solo montaba la Bandeja: mismos helpers compartidos.
@@ -352,6 +370,18 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               <span className={`rounded-md px-2 py-1 ${PAY_CLS[order.paymentStatus] || "bg-amber-500/15 text-amber-300"}`}>
                 Pago: {order.paymentStatus}
               </span>
+              {creditInfo && !creditInfo.paidAt && (
+                <span
+                  className={`rounded-md px-2 py-1 ${
+                    creditInfo.daysToDue !== null && creditInfo.daysToDue < 0
+                      ? "bg-red-500/15 text-red-300"
+                      : "bg-violet-500/15 text-violet-300"
+                  }`}
+                  title={`Factura ${creditInfo.invoiceNumber || ""} con vencimiento: se trabaja y entrega antes de cobrar`}
+                >
+                  Crédito: vence {new Date(creditInfo.dueDate).toLocaleDateString("es-ES")}
+                </span>
+              )}
               <span className={`rounded-md px-2 py-1 ${DELIVERY_CLS[order.deliveryState] || "bg-slate-700/50 text-slate-100"}`}>
                 Entrega: {order.deliveryState}
               </span>
@@ -483,6 +513,18 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <span className="text-sm text-slate-300">Marcar cobrado:</span>
               <ConfirmPaymentButton reference={order.reference} />
+            </div>
+          )}
+          {order.paymentStatus !== "PAID" && !order.billingExcluded && (
+            <div className="mb-4">
+              <OrderCreditPanel
+                reference={order.reference}
+                clientName={order.clientName || order.clientEmail}
+                amountCents={order.amountCents}
+                creditDays={creditCustomer?.creditDays ?? 30}
+                creditEnabled={Boolean(creditCustomer?.creditEnabled)}
+                credit={creditInfo}
+              />
             </div>
           )}
           {paymentProofs.length === 0 ? (

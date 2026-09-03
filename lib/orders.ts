@@ -302,6 +302,9 @@ type CreateOrderFromQuoteInput = {
   // QuoteDeliveryType del presupuesto: PAPER_SHIP → pedido "paper". Sin esto el
   // pedido nacía "pdf" aunque el presupuesto fuera papel (caso 26_DFAA55).
   deliveryType?: string | null;
+  // Mensaje del evento order.created. Por defecto "desde presupuesto pagado";
+  // el carril de crédito nace SIN pago y lo dice (lib/quote-credit.ts).
+  createdMessage?: string | null;
   lines?: {
     description: string;
     unitPrice: number;
@@ -440,7 +443,7 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
             create: [
               {
                 type: "order.created",
-                message: "Pedido creado desde presupuesto pagado.",
+                message: input.createdMessage || "Pedido creado desde presupuesto pagado.",
                 payload: { quoteId: input.quoteId, quoteNumber: input.quoteNumber, docCount: input.documentCount },
               },
               {
@@ -491,6 +494,9 @@ export async function getOrderDetail(reference: string, clientEmail?: string) {
       billing: true,
       shipping: true,
       events: { orderBy: { createdAt: "desc" } },
+      // Carril de crédito: los gates "no entregar sin cobrar" preguntan por
+      // "asegurado" (isOrderSecured), que necesita la factura con vencimiento.
+      clientInvoice: { select: { id: true, number: true, status: true, docKind: true, issuedAt: true, dueDate: true, paidAt: true } },
     },
   });
 }

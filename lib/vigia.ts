@@ -3,6 +3,7 @@
 // La consumen: scripts/vigia-pedidos.ts (CLI del agente vigia-pedidos) y el cron
 // /api/cron/vigia-agenda (email de las 8:00). Una sola fuente de verdad.
 import { prisma } from "@/lib/prisma";
+import { isCreditOutstanding, creditDaysToDue } from "@/lib/credit-terms";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const MARGIN_PCT = 12; // horquilla de Juan 10-15 % sobre el coste del jurado (24-ago-2026)
@@ -210,6 +211,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       documentItems: { select: { words: true } },
       documentAnalyses: { select: { estimatedWords: true } },
       quote: { select: { lines: { select: { description: true } } } },
+      clientInvoice: { select: { number: true, status: true, docKind: true, dueDate: true, paidAt: true } },
       events: { where: { OR: [{ type: { startsWith: "lavori." } }, { type: { in: ["order.archived", "order.unarchived"] } }] }, select: { type: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 8 },
     },
   });
@@ -238,7 +240,10 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       palabras, horas: palabras ? Math.round((palabras / WORDS_PER_HOUR) * 10) / 10 : null,
       vence: dayOnly(due), venceDias: dayDiff(due), quien, link,
     };
-    const paid = o.status === "PAID" || o.status === "IN_PROGRESS";
+    // A crédito (factura emitida con vencimiento, sin cobrar) el trabajo entra en
+    // la agenda como si estuviera pagado: es lo que Juan decidió el 2-sep-2026.
+    const credito = isCreditOutstanding(o.clientInvoice);
+    const paid = o.status === "PAID" || o.status === "IN_PROGRESS" || credito;
     // El traductor ya entregó (sobre de lavori, asignación o campo del pedido) pero el
     // pedido no está DELIVERED: lo que falta es de Juan (papel por mensajería, verificar,
     // enviar al cliente). Caso Stephan 26_DFAA55: Maria entregó el 18-ago, papel sin enviar.
@@ -254,7 +259,14 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     }
     let accion: string | null = null;
     const vencido = !!due && new Date(due) < NOW;
-    if (o.status === "PENDING_PAYMENT") {
+    if (credito) {
+      // Sin cobrar pero asegurado: solo se persigue el DINERO cerca del vencimiento.
+      const faltan = creditDaysToDue(o.clientInvoice, NOW) ?? 0;
+      const fac = o.clientInvoice?.number || "(sin nº)";
+      if (faltan < 0) { accion = `CRÉDITO VENCIDO hace ${-faltan} d (factura ${fac}) → reclamar el cobro`; act(item.importe, 5, `Pedido ${o.reference} ${eur(item.importe)} a crédito VENCIDO hace ${-faltan} d (factura ${fac}) → reclamar`, link); }
+      else if (faltan <= 3) { accion = `a crédito, factura ${fac} vence en ${faltan} d → recordar el pago`; act(item.importe, 3, `Pedido ${o.reference} ${eur(item.importe)} a crédito vence en ${faltan} d (factura ${fac}) → recordar el pago`, link); }
+      else accion = `a crédito, factura ${fac} vence ${madrid(o.clientInvoice!.dueDate)}`;
+    } else if (o.status === "PENDING_PAYMENT") {
       if ((hoursAgo(o.createdAt) ?? 0) >= 24) { accion = `pendiente de pago ${daysAgo(o.createdAt)} d → reenviar enlace de pago / preguntar`; act(item.importe, 2, `Pedido ${o.reference} ${eur(item.importe)} sin pagar ${daysAgo(o.createdAt)} d → reenviar enlace de pago`, link); }
     } else if (o.status === "PAID" && !asignado && !fr) {
       accion = `PAGADO SIN TRADUCTOR${lav ? ` (${lav})` : " y sin rastro del puente"} → asignar o solicitar en lavori`;

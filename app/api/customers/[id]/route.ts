@@ -26,6 +26,9 @@ type PatchBody = {
   notes?: string | null;
   isBusiness?: boolean;
   autoConfirmPayment?: boolean;
+  // Carril de crédito (Juan, 2-sep-2026): el permiso vive en el CLIENTE.
+  creditEnabled?: boolean;
+  creditDays?: number | null;
   intermediaryEmail?: string | null;
 };
 
@@ -77,6 +80,14 @@ export async function PATCH(req: Request, { params }: Params) {
   if (body.country !== undefined) data.country = trimOrNull(body.country) || "España";
   if (body.isBusiness !== undefined) data.isBusiness = !!body.isBusiness;
   if (body.autoConfirmPayment !== undefined) data.autoConfirmPayment = !!body.autoConfirmPayment;
+  if (body.creditEnabled !== undefined) data.creditEnabled = !!body.creditEnabled;
+  if (body.creditDays !== undefined) {
+    const days = Math.round(Number(body.creditDays));
+    if (!Number.isFinite(days) || days < 1 || days > 90) {
+      return NextResponse.json({ ok: false, error: "Los días de crédito tienen que estar entre 1 y 90." }, { status: 400 });
+    }
+    data.creditDays = days;
+  }
 
   // Intermediario por email, mismas reglas que el alta: debe existir y no puede
   // ser uno mismo. "" (vacío) desvincula.

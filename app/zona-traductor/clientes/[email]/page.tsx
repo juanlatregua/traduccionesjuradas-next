@@ -130,6 +130,8 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
                   notes: customer.notes,
                   isBusiness: customer.isBusiness,
                   autoConfirmPayment: customer.autoConfirmPayment,
+                  creditEnabled: customer.creditEnabled,
+                  creditDays: customer.creditDays,
                   intermediaryEmail: customer.intermediary?.email ?? null,
                 }}
               />
@@ -175,7 +177,7 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
           </div>
         )}
 
-        {customer && (customer.nif || customer.fiscalName || customer.address || customer.companyName) && (
+        {customer && (customer.nif || customer.fiscalName || customer.address || customer.companyName || customer.creditEnabled) && (
           <div className={card}>
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Datos fiscales</h2>
             <div className="mt-2 grid gap-1 text-sm text-slate-300 sm:grid-cols-2">
@@ -187,6 +189,12 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
               )}
               {customer.isBusiness && (
                 <p className="text-cyan-300">Cliente B2B{customer.autoConfirmPayment ? " · pago auto-confirmado" : ""}</p>
+              )}
+              {customer.creditEnabled && (
+                <p className="text-violet-300">
+                  Cliente de crédito · vence a {customer.creditDays} días
+                  {!customer.nif || !customer.fiscalName ? <span className="text-amber-300"> · falta razón social o NIF</span> : ""}
+                </p>
               )}
             </div>
           </div>

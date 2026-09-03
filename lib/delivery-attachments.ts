@@ -2,6 +2,7 @@
 // Adjunta la traducción terminada y, SOLO si ya se ha emitido (ISSUED), la
 // factura. No crea facturas (respeta el proceso fiscal manual de Juan).
 
+import { isOrderSecured } from "@/lib/credit-terms";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
 import { getOrderDetail } from "@/lib/orders";
 import { prisma } from "@/lib/prisma";
@@ -34,7 +35,7 @@ export async function buildIssuedInvoiceAttachment(
 ): Promise<MailAttachment | null> {
   try {
     const order = await getOrderDetail(reference);
-    if (!order || order.paymentStatus !== "PAID" || !order.billing?.requested) return null;
+    if (!order || !isOrderSecured(order) || !order.billing?.requested) return null;
 
     const invoice = await prisma.clientInvoice.findUnique({ where: { orderId: order.id } });
     if (!invoice || invoice.status !== "ISSUED" || !invoice.number) return null;

@@ -33,6 +33,14 @@ type QuoteData = {
   quoteNumber: string;
   status: string;
   orders?: { reference: string }[];
+  // Carril de crédito: el permiso vive en el cliente (serializeQuote expone customer).
+  customer?: {
+    isBusiness?: boolean | null;
+    creditEnabled?: boolean | null;
+    creditDays?: number | null;
+    fiscalName?: string | null;
+    nif?: string | null;
+  } | null;
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
@@ -112,6 +120,18 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   const [loadingPaid, setLoadingPaid] = useState(false);
   const [showPayPicker, setShowPayPicker] = useState(false);
   const [loadingReceipt, setLoadingReceipt] = useState(false);
+  // Crédito (Juan, 2-sep-2026): crear el pedido SIN cobro y emitir la factura
+  // con vencimiento. Botón con el motivo ya redactado: revisar y pulsar.
+  const [showCredit, setShowCredit] = useState(false);
+  const [loadingCredit, setLoadingCredit] = useState(false);
+  const [creditReason, setCreditReason] = useState(
+    `Cliente de crédito: se trabaja y se entrega, cobro a ${initialQuote.customer?.creditDays || 30} días contra factura.`
+  );
+  const [creditDueDate, setCreditDueDate] = useState(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + Math.max(1, Math.min(90, initialQuote.customer?.creditDays || 30)));
+    return d.toISOString().slice(0, 10);
+  });
   const [payMethod, setPayMethod] = useState<"BIZUM" | "STRIPE" | "TRANSFER">(() => {
     const m = initialQuote.paymentMethods || [];
     if (m.some((x) => x.startsWith("bizum"))) return "BIZUM";
@@ -414,6 +434,29 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     }
   }
 
+  async function authorizeCredit() {
+    setLoadingCredit(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}/authorize-credit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: creditReason, dueDate: creditDueDate, confirm: true }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo autorizar el crédito.");
+      setShowCredit(false);
+      setMessage(
+        `A crédito: pedido ${data.orderReference} ${data.createdOrder ? "creado" : "ya existía"} · factura ${data.invoiceNumber || "(sin nº)"} vence ${new Date(data.dueDate).toLocaleDateString("es-ES")}. Ya puedes traducir y entregar; el enlace de pago sigue vivo.`
+      );
+      await reloadQuote();
+    } catch (err: any) {
+      setMessage(err?.message || "No se pudo autorizar el crédito.", "error");
+    } finally {
+      setLoadingCredit(false);
+    }
+  }
+
   async function sendPaidReceipt() {
     setLoadingReceipt(true);
     setMessage(null);
@@ -690,6 +733,58 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                 {loadingPaid ? "Registrando..." : "Marcar pagado (Bizum/transfer)"}
               </button>
             ))}
+          {(QUOTE_NEXT[quote.status] || []).includes("PAID") &&
+            !(quote.orders || []).length &&
+            (quote.customer?.creditEnabled ? (
+              showCredit ? (
+                <span className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-violet-300 bg-violet-50 px-2 py-1">
+                  <input
+                    value={creditReason}
+                    onChange={(e) => setCreditReason(e.target.value)}
+                    className="w-72 rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-slate-800"
+                    placeholder="Motivo (mín. 10 caracteres)"
+                  />
+                  <label className="text-xs text-violet-900">
+                    vence{" "}
+                    <input
+                      type="date"
+                      value={creditDueDate}
+                      onChange={(e) => setCreditDueDate(e.target.value)}
+                      className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-slate-800"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={authorizeCredit}
+                    disabled={loadingCredit || creditReason.trim().length < 10}
+                    className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
+                  >
+                    {loadingCredit ? "Autorizando…" : `✓ Crear pedido y emitir factura (${formatMoney(quote.total)})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCredit(false)}
+                    className="rounded-lg px-2 py-1.5 text-xs font-medium text-violet-900 hover:bg-violet-100"
+                  >
+                    Cancelar
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCredit(true)}
+                  disabled={loadingCredit}
+                  title="Crea el pedido sin cobro y emite la factura con vencimiento: se puede traducir y entregar ya"
+                  className="rounded-xl border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
+                >
+                  Trabajar a crédito (entregar antes de cobrar)
+                </button>
+              )
+            ) : quote.customer?.isBusiness ? (
+              <span className="self-center text-xs text-slate-500" title="Activa «Cliente de crédito» en la ficha del cliente para trabajar y entregar antes de cobrar">
+                Sin crédito · actívalo en la ficha del cliente
+              </span>
+            ) : null)}
           {(QUOTE_NEXT[quote.status] || []).includes("IN_PROGRESS") && (
             <button
               type="button"

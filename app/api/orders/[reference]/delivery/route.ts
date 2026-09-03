@@ -12,6 +12,7 @@ import {
   suggestEtaBusinessDays,
 } from "@/lib/eta";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { isOrderSecured } from "@/lib/credit-terms";
 import { getWorkflowState } from "@/lib/workflow";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
@@ -75,9 +76,11 @@ export async function POST(req: Request, { params }: Params) {
           : [];
     const primaryFileUrl = deliveryFiles[0]?.url || translatedFileUrl;
 
-    if (order.paymentStatus !== "PAID") {
+    // "Cobrado" o "asegurado" (crédito: factura emitida con vencimiento). Ver
+    // lib/credit-terms.ts — la regla no se relaja, cambia la palabra.
+    if (!isOrderSecured(order)) {
       return NextResponse.json(
-        { ok: false, error: "No se puede avanzar la entrega en pedidos pendientes de pago." },
+        { ok: false, error: "No se puede avanzar la entrega en pedidos pendientes de pago (ni autorizados a crédito)." },
         { status: 400 }
       );
     }

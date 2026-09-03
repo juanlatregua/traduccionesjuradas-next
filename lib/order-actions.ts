@@ -1,3 +1,4 @@
+import { isOrderSecured, type CreditInvoice } from "./credit-terms.ts";
 import type { FinanceSnapshot } from "./finance.ts";
 import { buildSignedOrderUrl } from "./order-token.ts";
 
@@ -27,6 +28,7 @@ type OrderLike = {
   reference: string;
   workflowState?: string | null;
   paymentStatus?: string | null;
+  clientInvoice?: CreditInvoice | null; // crédito: factura emitida con vencimiento = asegurado
   assignedTo?: string | null;
   collaboratorAssignments?: AssignmentLike[];
   deliveryState?: string | null;
@@ -117,7 +119,7 @@ export function getOrderGates(order: OrderLike, finance: FinanceSnapshot): Order
     hasQuotePreview;
 
   const paymentValidated =
-    String(order.paymentStatus || "").toUpperCase() === "PAID" ||
+    isOrderSecured(order) ||
     Boolean(String(order.paymentProofFileKey || "").trim()) ||
     hasEvent(order, "payment.proof_uploaded");
 

@@ -175,6 +175,10 @@ export async function GET(req: Request) {
       validUntil: {
         lt: now,
       },
+      // Un presupuesto que YA tiene pedido no caduca: es el carril de crédito
+      // (se trabaja y entrega antes de cobrar; el Quote se queda ACCEPTED a
+      // propósito para que el enlace de pago siga vivo hasta el vencimiento).
+      orders: { none: {} },
     },
     include: {
       // ¿Se entregó realmente al cliente alguna vez? (para no enviar un aviso de

@@ -140,3 +140,43 @@ export function isWithinFiscalQuarter(issuedAt: Date | string | null, when: Date
   if (!a || !b) return false;
   return a.getUTCFullYear() === b.getUTCFullYear() && fiscalQuarter(a) === fiscalQuarter(b);
 }
+
+/**
+ * Motivo por el que NO se puede autorizar crédito a este cliente, o null si se
+ * puede. Vive aquí (puro) para que la ficha del presupuesto, la del pedido y
+ * el endpoint digan EXACTAMENTE lo mismo y se pruebe sin base de datos.
+ *
+ * Orden de las comprobaciones = orden en que Juan lo arregla: primero el
+ * permiso (un clic en la ficha), luego los datos fiscales (sin NIF la factura
+ * sale simplificada y a una empresa no le sirve), y por último el país (fuera
+ * de España el IVA puede no ser el 21 % que issueOrUpdateInvoice fija a fuego).
+ */
+export type CreditCustomerProfile = CreditCustomer & {
+  name?: string | null;
+  email?: string | null;
+  fiscalName?: string | null;
+  nif?: string | null;
+  country?: string | null;
+};
+
+const SPAIN = new Set(["españa", "espana", "spain", "es"]);
+
+export function isSpainCountry(country: string | null | undefined): boolean {
+  const c = String(country ?? "").trim().toLowerCase();
+  return c === "" || SPAIN.has(c);
+}
+
+export function customerCreditBlocker(c: CreditCustomerProfile | null | undefined): string | null {
+  if (!c) return "No hay ficha de cliente: créala antes de autorizar.";
+  const who = String(c.name || c.email || "el cliente").trim();
+  if (!customerCanUseCredit(c)) {
+    return `${who} no está marcado como cliente de crédito. Actívalo en su ficha si quieres trabajar y entregar antes de cobrar.`;
+  }
+  if (!String(c.fiscalName || "").trim() || !String(c.nif || "").trim()) {
+    return `La ficha de ${who} no tiene razón social o NIF. Rellénalos antes de autorizar: sin NIF la factura sale simplificada y no le sirve.`;
+  }
+  if (!isSpainCountry(c.country)) {
+    return `El cliente es de ${String(c.country).trim()}: esta factura puede no ser al 21 %. Emítela a mano en /zona-traductor/facturas con el tipo correcto y vuelve a autorizar.`;
+  }
+  return null;
+}

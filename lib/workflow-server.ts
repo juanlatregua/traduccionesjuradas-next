@@ -22,6 +22,7 @@ import {
 import { packDocsForSobre } from "@/lib/lavori-sobre";
 import { sendMail } from "@/lib/azure-mail";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
+import { isOrderSecured } from "@/lib/credit-terms";
 
 type TransitionOptions = {
   reference: string;
@@ -42,7 +43,9 @@ function toStatusUpdate(to: WorkflowState, currentPaymentStatus: string): Prisma
 
   if (to === "PENDIENTE_PAGO" && currentPaymentStatus !== "PAID") {
     data.status = "PENDING_PAYMENT";
-  } else if (to === "PAGO_VALIDADO") {
+  } else if (to === "PAGO_VALIDADO" && currentPaymentStatus === "PAID") {
+    // A crédito (asegurado, no cobrado) el pedido llega aquí sin pago: se deja
+    // el status tal cual para no fabricar un "PAID" que no existe.
     data.status = "PAID";
   } else if (to === "EN_TRADUCCION") {
     data.status = "IN_PROGRESS";
@@ -162,6 +165,7 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
         paymentStatus: true,
         deliveryState: true,
         translatedFileUrl: true,
+        clientInvoice: { select: { status: true, docKind: true, dueDate: true, paidAt: true } },
         events: { orderBy: { createdAt: "desc" }, take: 80 },
       },
     });
@@ -180,6 +184,7 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
     assertWorkflowTransitionPreconditions({
       to,
       paymentStatus: order.paymentStatus,
+      secured: isOrderSecured(order),
       translatedFileUrl: order.translatedFileUrl,
       delivered: options.payload?.delivered === true,
       deliveredOutsideApp: options.payload?.deliveredOutsideApp === true,

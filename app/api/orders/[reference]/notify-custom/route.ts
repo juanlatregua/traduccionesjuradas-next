@@ -6,6 +6,7 @@
 // notification.custom.sent → visible en el log de mensajes de la ficha.
 
 import { NextResponse } from "next/server";
+import { isOrderSecured } from "@/lib/credit-terms";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { sendCustomClientEmail } from "@/lib/email";
@@ -31,6 +32,7 @@ export async function POST(req: Request, { params }: Params) {
         reference: true,
         clientEmail: true,
         paymentStatus: true,
+        clientInvoice: { select: { status: true, docKind: true, dueDate: true, paidAt: true } },
         deliveryFilesJson: true,
         translatedFileUrl: true,
         finalFilename: true,
@@ -62,12 +64,12 @@ export async function POST(req: Request, { params }: Params) {
 
     // No entregar sin cobrar: adjuntar la traducción a un impago no se permite.
     // El staff puede reenviar el mensaje sin adjuntos (attachFiles=false).
-    if (attachFiles && order.paymentStatus !== "PAID") {
+    if (attachFiles && !isOrderSecured(order)) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "El pedido no está pagado: no se puede adjuntar la traducción. Desmarca los adjuntos o confirma el pago primero.",
+            "El pedido no está pagado ni autorizado a crédito: no se puede adjuntar la traducción. Desmarca los adjuntos, confirma el pago o autoriza el crédito primero.",
         },
         { status: 400 }
       );
