@@ -36,6 +36,9 @@ export type InvoiceRow = {
   baseCents: number;
   vatCents: number;
   totalCents: number;
+  invoiceType: string; // F1 | F2 | R1… (VeriFactu)
+  rectifiesNumber: string | null;
+  annulledAt: string | null;
   issuedAt: string | null;
   createdAt: string;
 };
@@ -413,6 +416,53 @@ export default function InvoiceManager({
     }
   }
 
+  // VeriFactu (3-sep-2026): una factura emitida no se borra. Se corrige con
+  // rectificativa (borrador R1 con las líneas negadas, listo para ajustar y
+  // emitir) o se anula con registro de anulación (ADMIN/PM, motivo).
+  async function rectify(row: InvoiceRow) {
+    const reason = window.prompt(`Rectificar la factura ${row.number}. Motivo (opcional, va al concepto):`, "") ?? null;
+    if (reason === null) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/invoices/${row.id}/rectify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo crear la rectificativa.");
+      setMsg(`Borrador de rectificativa de ${row.number} creado: ajusta las líneas y emítelo.`);
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err: any) {
+      setMsg(err?.message || "No se pudo crear la rectificativa.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function annul(row: InvoiceRow) {
+    const reason = window.prompt(`ANULAR la factura ${row.number} (registro de anulación; la factura no se borra). Motivo, mínimo 10 caracteres:`, "");
+    if (!reason) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/invoices/${row.id}/annul`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, confirm: true }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo anular.");
+      setMsg(`Factura ${row.number} anulada.`);
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err: any) {
+      setMsg(err?.message || "No se pudo anular.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function remove(row: InvoiceRow) {
     const isIssued = row.status === "ISSUED";
     const label = row.number || "borrador";
@@ -709,6 +759,16 @@ export default function InvoiceManager({
                           Presupuesto
                         </span>
                       )}
+                      {inv.invoiceType?.startsWith("R") && (
+                        <span className="ml-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-200" title={`Rectifica ${inv.rectifiesNumber || ""}`}>
+                          Rectificativa{inv.rectifiesNumber ? ` de ${inv.rectifiesNumber}` : ""}
+                        </span>
+                      )}
+                      {inv.annulledAt && (
+                        <span className="ml-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[11px] font-semibold text-rose-300">
+                          Anulada
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {isDraft ? (
@@ -829,14 +889,38 @@ export default function InvoiceManager({
                         >
                           PDF
                         </a>
-                        <button
-                          type="button"
-                          onClick={() => remove(inv)}
-                          disabled={busy}
-                          className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50"
-                        >
-                          Borrar
-                        </button>
+                        {!isDraft && inv.docKind === "invoice" && !inv.annulledAt && (
+                          <button
+                            type="button"
+                            onClick={() => rectify(inv)}
+                            disabled={busy}
+                            title="Crea un borrador de factura rectificativa (R1) con las líneas negadas"
+                            className="rounded border border-amber-600 px-2 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
+                          >
+                            Rectificar
+                          </button>
+                        )}
+                        {!isDraft && inv.docKind === "invoice" && !inv.annulledAt && !inv.paidAt && (
+                          <button
+                            type="button"
+                            onClick={() => annul(inv)}
+                            disabled={busy}
+                            title="Registro de anulación (ADMIN/PM). La factura se conserva."
+                            className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50"
+                          >
+                            Anular
+                          </button>
+                        )}
+                        {(isDraft || inv.docKind === "quote") && (
+                          <button
+                            type="button"
+                            onClick={() => remove(inv)}
+                            disabled={busy}
+                            className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50"
+                          >
+                            Borrar
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

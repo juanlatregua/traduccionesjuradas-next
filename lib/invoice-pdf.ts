@@ -31,6 +31,10 @@ type InvoiceData = {
   createdAt: Date;
   invoiceNumber?: string;
   issuedAt?: Date | null;
+  // VeriFactu: rectificativa (R1) y anulación; QR + frase SOLO con registro aceptado.
+  rectifiesNumber?: string | null;
+  annulled?: boolean;
+  verifactu?: { qrDataUrl: string; phrase: string; legend: string } | null;
   lines?: InvoiceLine[];
   billing: {
     fiscalName: string;
@@ -178,12 +182,40 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setFont("helvetica", "bold");
   const isSimpl = !!data.simplified && !data.draft;
   const isQuote = data.docKind === "quote";
-  doc.setFontSize(isSimpl || isQuote ? 10 : 13);
+  const isRect = !!data.rectifiesNumber;
+  doc.setFontSize(isSimpl || isQuote || isRect ? 10 : 13);
   doc.text(
-    isQuote ? "PRESUPUESTO" : data.draft ? "PROFORMA" : isSimpl ? "FACTURA SIMPLIFICADA" : "FACTURA",
+    isQuote ? "PRESUPUESTO" : data.draft ? "PROFORMA" : isRect ? "FACTURA RECTIFICATIVA" : isSimpl ? "FACTURA SIMPLIFICADA" : "FACTURA",
     boxX + 5,
     25.5
   );
+  if (isRect && !data.draft) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(`Rectifica la factura ${data.rectifiesNumber}`, boxX + 5, 29.5);
+  }
+  // ── VeriFactu: QR de cotejo (Orden HAC/1177/2024 cap. VIII) al inicio de la
+  // factura, 30×30 mm, con la frase debajo. Solo si la AEAT aceptó el registro.
+  if (data.verifactu && !data.draft) {
+    try {
+      doc.addImage(data.verifactu.qrDataUrl, "PNG", 86, 6, 30, 30);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.setTextColor(...INK);
+      doc.text(data.verifactu.legend, 101, 38.5, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(5.5);
+      doc.text(doc.splitTextToSize(data.verifactu.phrase, 34) as string[], 101, 41.5, { align: "center" });
+    } catch {
+      /* sin QR antes que un PDF roto */
+    }
+  }
+  if (data.annulled) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(180, 40, 40);
+    doc.text("ANULADA", boxX + 5, 34);
+  }
   doc.setFontSize(15);
   const numberLabel = data.invoiceNumber || (data.draft ? "BORRADOR" : data.reference ? `F-${data.reference}` : "—");
   doc.text(numberLabel, pageW - margin - 5, 25.5, { align: "right" });

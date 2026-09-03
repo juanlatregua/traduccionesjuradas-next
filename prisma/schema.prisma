@@ -252,12 +252,79 @@ model ClientInvoice {
   vatRate       Float     @default(0.21)
   vatCents      Int
   totalCents    Int
+  // ── VeriFactu (RD 1007/2023) ───────────────────────────────────────────────
+  // El EMISOR es un dato, no una marca: en lavori cada jurado es su propio
+  // obligado (NIF, serie, numeración). Aquí hoy siempre es la S.L.
+  emitterNif    String?
+  // TipoFactura del registro: F1 completa, F2 simplificada, R1..R5 rectificativa.
+  invoiceType   String    @default("F1")
+  // Rectificativa: id y número de la factura que rectifica (R1). Sin relación
+  // Prisma a propósito: es una referencia fiscal, no navegación.
+  rectifiesId   String?
+  rectifiesNumber String?
+  // Anulada mediante registro de anulación (la fila NO se borra nunca).
+  annulledAt    DateTime?
+  records       InvoiceRecord[]
+  events        InvoiceEvent[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
 
   @@index([issuedAt])
   @@index([status])
   @@index([dueDate])
+  @@index([rectifiesId])
+}
+
+// REGISTRO DE FACTURACIÓN (RD 1007/2023 art. 8-11): uno por alta y otro por
+// anulación, encadenados por emisor con la huella SHA-256 del anterior
+// (lib/verifactu/hash.ts reproduce el ejemplo oficial de la AEAT). Inmutable:
+// no hay update de contenido ni delete en el código; corregir = nuevo registro.
+model InvoiceRecord {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  invoice       ClientInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  kind          String   // ALTA | ANULACION
+  emitterNif    String
+  chainIndex    Int      // posición en la cadena de ESTE emisor (1..n)
+  numSerie      String
+  issueDate     String   // dd-mm-aaaa tal cual va en la cadena
+  invoiceType   String   // F1 | F2 | R1..R5 (vacío en anulación)
+  cuotaTotalCents   Int
+  importeTotalCents Int
+  prevHash      String?
+  hash          String   @unique
+  canonical     String   // cadena hasheada, para verificar sin recomputar formatos
+  generatedAt   DateTime
+  generatedAtIso String  // FechaHoraHusoGenRegistro exactamente como se hasheó
+  // Envío a la AEAT (modalidad VERI*FACTU, vía proveedor colaborador social):
+  // LOCAL = sin proveedor configurado (cadena solo interna) · PENDING = en cola
+  // · SENT · ACCEPTED · ACCEPTED_WITH_ERRORS · REJECTED
+  sendStatus    String   @default("LOCAL")
+  provider      String?
+  providerRef   String?
+  providerResponse Json?
+  sentAt        DateTime?
+  acceptedAt    DateTime?
+  createdAt     DateTime @default(now())
+  @@unique([emitterNif, chainIndex])
+  @@index([invoiceId])
+  @@index([sendStatus])
+}
+
+// REGISTRO DE EVENTOS del sistema de facturación (RD 1007/2023 art. 8.2 y
+// Orden HAC/1177/2024): quién hizo qué y cuándo sobre cada factura. Solo inserta.
+model InvoiceEvent {
+  id         String   @id @default(cuid())
+  invoiceId  String?
+  invoice    ClientInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  type       String   // invoice.issued | record.alta | record.sent | record.accepted | record.rejected | invoice.paid | invoice.rectified | invoice.annulled | draft.deleted | invoice.imported | issue.attempt_on_issued
+  actor      String?  // email del staff o "system"
+  message    String?
+  payload    Json?
+  at         DateTime @default(now())
+  @@index([invoiceId])
+  @@index([type])
+  @@index([at])
 }
 
 // Gasto manual del libro de contabilidad (IVA soportado). No ligado a pedidos:

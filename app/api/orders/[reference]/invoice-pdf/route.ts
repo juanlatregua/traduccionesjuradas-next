@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOrderDetail } from "@/lib/orders";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
+import { verifactuPdfExtras } from "@/lib/verifactu/pdf";
 import { getOrCreateClientInvoice } from "@/lib/client-invoice";
 import { sendInvoiceAutoIssuedStaffEmail, sendInvoicePendingManualStaffEmail } from "@/lib/email";
 import { requireStaffAccess } from "@/lib/staff-auth";
@@ -113,6 +114,9 @@ export async function GET(req: Request, { params }: Params) {
       });
 
     const pdfBuffer = generateInvoicePdf({
+      verifactu: await verifactuPdfExtras(invoice.id),
+      rectifiesNumber: invoice.rectifiesNumber,
+      annulled: Boolean(invoice.annulledAt),
       reference: order.reference,
       title: order.title,
       amountCents: order.amountCents,

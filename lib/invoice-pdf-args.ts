@@ -47,6 +47,8 @@ export function clientInvoicePdfArgs(
     createdAt: invoice.createdAt,
     invoiceNumber: invoice.number || undefined,
     issuedAt: invoice.issuedAt,
+    rectifiesNumber: invoice.rectifiesNumber,
+    annulled: Boolean(invoice.annulledAt),
     paidAt: invoice.paidAt,
     lines: lines && lines.length > 0 ? lines : undefined,
     billing: {

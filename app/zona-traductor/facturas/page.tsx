@@ -51,6 +51,9 @@ export default async function ZonaTraductorFacturasPage() {
     baseCents: i.baseCents,
     vatCents: i.vatCents,
     totalCents: i.totalCents,
+    invoiceType: i.invoiceType,
+    rectifiesNumber: i.rectifiesNumber,
+    annulledAt: i.annulledAt ? i.annulledAt.toISOString() : null,
     issuedAt: i.issuedAt ? i.issuedAt.toISOString() : null,
     createdAt: i.createdAt.toISOString(),
   }));
@@ -74,12 +77,21 @@ export default async function ZonaTraductorFacturasPage() {
               <span className="font-mono text-violet-300">{suggestedQuote}</span>
             </p>
           </div>
-          <a
-            href="/zona-traductor/contabilidad"
-            className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-          >
-            Ir a Contabilidad →
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="/zona-traductor/facturas/declaracion-responsable"
+              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+              title="Declaración responsable del sistema de facturación (RD 1007/2023) y estado de la cadena de registros"
+            >
+              VeriFactu · declaración
+            </a>
+            <a
+              href="/zona-traductor/contabilidad"
+              className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+            >
+              Ir a Contabilidad →
+            </a>
+          </div>
         </div>
 
         <div className="mt-6">

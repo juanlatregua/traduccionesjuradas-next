@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
+import { verifactuPdfExtras } from "@/lib/verifactu/pdf";
 import { loadBrandLogo, clientInvoicePdfArgs } from "@/lib/invoice-pdf-args";
 
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export async function GET(req: Request, { params }: Params) {
   const logoDataUrl = await loadBrandLogo(invoice.brand);
 
   try {
-    const pdfBuffer = generateInvoicePdf(clientInvoicePdfArgs(invoice, logoDataUrl));
+    const pdfBuffer = generateInvoicePdf({ ...clientInvoicePdfArgs(invoice, logoDataUrl), verifactu: await verifactuPdfExtras(invoice.id) });
 
     const filename = `${invoice.number || `borrador-${invoice.id.slice(0, 8)}`}.pdf`;
     return new NextResponse(new Uint8Array(pdfBuffer), {

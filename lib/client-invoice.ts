@@ -13,6 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { assertNotInClosedPeriod } from "@/lib/tax-close-store";
+import { createAltaRecord, createAnulacionRecord, logInvoiceEvent } from "@/lib/verifactu/records";
 import {
   clampVatRate,
   computeLineTotals,
@@ -20,6 +21,7 @@ import {
   isValidInvoiceNumber,
   nextNumberInSeries,
   normalizeLines,
+  rectificationLines,
   totalsFromGross,
   type InvoiceLine,
 } from "@/lib/invoice-math";
@@ -89,12 +91,27 @@ export async function issueOrUpdateInvoice(input: {
   // número. La factura se emite a mano desde Facturas con el IVA correcto.
   const linked = await prisma.clientInvoice.findUnique({
     where: { orderId: input.orderId },
-    select: { docKind: true, number: true },
   });
   if (linked?.docKind === "quote") {
     throw new Error(
       `El pedido tiene un presupuesto vinculado (${linked.number || "borrador"}): emite la factura desde /zona-traductor/facturas con el IVA que corresponda.`
     );
+  }
+  // INMUTABILIDAD (RD 1007/2023): una factura EMITIDA no se reescribe. Antes el
+  // upsert pisaba número, importes y datos fiscales de una factura ya numerada.
+  // Ahora se devuelve tal cual y queda constancia del intento; corregir = R1.
+  if (linked && linked.status === "ISSUED") {
+    const changed = linked.totalCents !== input.amountCents || (input.billing.nif && linked.nif !== input.billing.nif);
+    if (changed) {
+      await logInvoiceEvent(prisma, {
+        invoiceId: linked.id,
+        type: "issue.attempt_on_issued",
+        actor: input.origin || "system",
+        message: `Intento de reemitir ${linked.number} con otros datos (total ${input.amountCents} vs ${linked.totalCents}). Ignorado: una emitida se rectifica, no se reescribe.`,
+        payload: { amountCents: input.amountCents, nif: input.billing.nif || null },
+      });
+    }
+    return linked;
   }
   // Gate de trimestre cerrado (mismo criterio que issueInvoice).
   if (input.issuedAt) await assertNotInClosedPeriod(input.issuedAt);
@@ -143,16 +160,23 @@ export async function issueOrUpdateInvoice(input: {
     };
 
     try {
-      return await prisma.clientInvoice.upsert({
-        where: { orderId: input.orderId },
-        create: {
-          orderId: input.orderId,
-          issuedAt: input.issuedAt ?? new Date(),
-          origin: input.origin ?? "manual",
-          simplified: input.simplified ?? false,
-          ...data,
-        },
-        update: data,
+      // Emisión + registro de facturación en la MISMA transacción: si el
+      // registro no se puede crear, la factura no se emite.
+      return await prisma.$transaction(async (tx) => {
+        const inv = await tx.clientInvoice.upsert({
+          where: { orderId: input.orderId },
+          create: {
+            orderId: input.orderId,
+            issuedAt: input.issuedAt ?? new Date(),
+            origin: input.origin ?? "manual",
+            simplified: input.simplified ?? false,
+            ...data,
+          },
+          update: data, // solo llega aquí un borrador (las emitidas retornan arriba)
+        });
+        await createAltaRecord(tx, inv, input.origin || "system");
+        await logInvoiceEvent(tx, { invoiceId: inv.id, type: "invoice.issued", actor: input.origin || "system", message: `Emitida ${inv.number} (${inv.totalCents / 100} €) desde pedido.`, payload: { orderId: input.orderId, origin: input.origin ?? null } });
+        return inv;
       });
     } catch (err: any) {
       // Colisión de número @unique desde el propio upsert (carrera con otra emisión).
@@ -206,10 +230,10 @@ export type DraftInvoiceInput = {
 
 // Campos comunes de un borrador (sin orderId: lo gestiona cada caller para no
 // pisar el vínculo en una edición que no lo toca).
-function draftData(input: DraftInvoiceInput) {
-  const lines = normalizeLines(input.lines);
+function draftData(input: DraftInvoiceInput, opts?: { allowNegative?: boolean }) {
+  const lines = normalizeLines(input.lines, opts);
   const vatRate = clampVatRate(input.vatRate);
-  const { baseCents, vatCents, totalCents } = computeLineTotals(lines, vatRate);
+  const { baseCents, vatCents, totalCents } = computeLineTotals(lines, vatRate, opts);
   return {
     lines,
     data: {
@@ -255,7 +279,7 @@ export async function updateDraftInvoice(id: string, input: DraftInvoiceInput) {
   if (!String(input.fiscalName || "").trim()) {
     throw new Error("Falta el nombre fiscal del cliente.");
   }
-  const { data } = draftData(input);
+  const { data } = draftData(input, { allowNegative: Boolean(existing.rectifiesId) });
   // Solo tocar el vínculo de pedido si se pasa explícitamente (undefined = no cambiar).
   const orderPatch = input.orderId !== undefined ? { orderId: input.orderId } : {};
   return prisma.clientInvoice.update({ where: { id }, data: { ...data, ...orderPatch } });
@@ -264,12 +288,14 @@ export async function updateDraftInvoice(id: string, input: DraftInvoiceInput) {
 // Asigna el número fiscal y congela la factura. Idempotente si ya está emitida.
 // La serie sale del docKind del documento: factura AA_NNN, presupuesto P·AA_NNN.
 // issuedAt opcional: para sellar con la fecha del cobro (conciliación), no hoy.
-export async function issueInvoice(id: string, opts?: { number?: string | null; issuedAt?: Date | null; origin?: string | null; simplified?: boolean }) {
+export async function issueInvoice(id: string, opts?: { number?: string | null; issuedAt?: Date | null; origin?: string | null; simplified?: boolean; actor?: string | null }) {
   const inv = await prisma.clientInvoice.findUnique({ where: { id } });
   if (!inv) throw new Error("Factura no encontrada.");
   if (inv.status === "ISSUED") return inv;
   if (!inv.fiscalName?.trim()) throw new Error("Falta el nombre fiscal del cliente.");
-  if (inv.totalCents <= 0) throw new Error("La factura no tiene importe. Añade al menos una línea.");
+  if (inv.totalCents === 0 || (inv.totalCents < 0 && !inv.rectifiesId)) {
+    throw new Error("La factura no tiene importe. Añade al menos una línea.");
+  }
 
   const docKind: DocKind = inv.docKind === "quote" ? "quote" : "invoice";
   const manualNumber = (opts?.number || "").trim();
@@ -296,15 +322,23 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
     }
 
     try {
-      return await prisma.clientInvoice.update({
-        where: { id },
-        data: {
-          number: finalNumber,
-          status: "ISSUED",
-          issuedAt,
-          ...(opts?.origin ? { origin: opts.origin } : {}),
-          ...(opts?.simplified !== undefined ? { simplified: opts.simplified } : {}),
-        },
+      return await prisma.$transaction(async (tx) => {
+        const issued = await tx.clientInvoice.update({
+          where: { id },
+          data: {
+            number: finalNumber,
+            status: "ISSUED",
+            issuedAt,
+            ...(opts?.origin ? { origin: opts.origin } : {}),
+            ...(opts?.simplified !== undefined ? { simplified: opts.simplified } : {}),
+          },
+        });
+        // Los presupuestos (serie P) NO son facturas: sin registro de facturación.
+        if (docKind === "invoice") {
+          await createAltaRecord(tx, issued, opts?.actor || opts?.origin || "staff");
+          await logInvoiceEvent(tx, { invoiceId: issued.id, type: "invoice.issued", actor: opts?.actor || opts?.origin || "staff", message: `Emitida ${issued.number} (${issued.totalCents / 100} €)${issued.rectifiesNumber ? `, rectifica ${issued.rectifiesNumber}` : ""}.`, payload: { origin: opts?.origin ?? null, rectifiesId: issued.rectifiesId ?? null } });
+        }
+        return issued;
       });
     } catch (err: any) {
       if (err?.code === "P2002") {
@@ -352,11 +386,73 @@ export async function setInvoicePaid(
     data.paymentProofName = proof?.name ?? null;
   }
   if (Object.keys(data).length === 0) return inv;
-  return prisma.clientInvoice.update({ where: { id }, data });
+  const updated = await prisma.clientInvoice.update({ where: { id }, data });
+  await logInvoiceEvent(prisma, { invoiceId: id, type: when ? "invoice.paid" : "invoice.unpaid", actor: "staff", message: when ? `Cobrada el ${when.toISOString().slice(0, 10)}.` : "Cobro deshecho.", payload: { paidAt: when ? when.toISOString() : null } }).catch(() => {});
+  return updated;
 }
 
-export async function deleteInvoice(id: string) {
+// INMUTABILIDAD: una FACTURA emitida no se borra nunca (RD 1007/2023). Se anula
+// con registro de anulación o se corrige con rectificativa. Los borradores y los
+// presupuestos (serie P, fuera del reglamento) sí se pueden borrar.
+export async function deleteInvoice(id: string, actor = "staff") {
+  const inv = await prisma.clientInvoice.findUnique({ where: { id }, select: { id: true, status: true, docKind: true, number: true, fiscalName: true, totalCents: true } });
+  if (!inv) throw new Error("Factura no encontrada.");
+  if (inv.status === "ISSUED" && inv.docKind === "invoice") {
+    throw new Error(`La factura ${inv.number} está emitida y registrada: no se puede borrar. Anúlala (registro de anulación) o emite una rectificativa.`);
+  }
+  await logInvoiceEvent(prisma, { invoiceId: null, type: "draft.deleted", actor, message: `Borrado ${inv.docKind === "quote" ? "presupuesto" : "borrador"} ${inv.number || "(sin nº)"} de ${inv.fiscalName} (${inv.totalCents / 100} €).`, payload: { id: inv.id, number: inv.number, docKind: inv.docKind, status: inv.status } });
   return prisma.clientInvoice.delete({ where: { id } });
+}
+
+// RECTIFICATIVA (R1) por diferencias: borrador con las líneas de la original
+// negadas y referencia fiscal a la rectificada. El staff ajusta y emite.
+export async function createRectificativeDraft(originalId: string, actor: string, reason?: string | null) {
+  const orig = await prisma.clientInvoice.findUnique({ where: { id: originalId } });
+  if (!orig) throw new Error("Factura no encontrada.");
+  if (orig.status !== "ISSUED" || orig.docKind !== "invoice") throw new Error("Solo se rectifica una factura emitida.");
+  if (orig.annulledAt) throw new Error("La factura está anulada: no se rectifica.");
+  const lines = rectificationLines(Array.isArray(orig.lineItemsJson) ? (orig.lineItemsJson as unknown as InvoiceLine[]) : undefined, orig.number || "");
+  const fallback: InvoiceLine[] = lines.length > 0 ? lines : [{ description: `Rectificación de ${orig.number}: ${orig.concept || "servicios"}`, amountCents: -orig.baseCents }];
+  const { data } = draftData(
+    {
+      brand: orig.brand,
+      clientName: orig.clientName,
+      holderNames: orig.holderNames,
+      fiscalName: orig.fiscalName,
+      nif: orig.nif,
+      address: orig.address,
+      city: orig.city,
+      postalCode: orig.postalCode,
+      country: orig.country,
+      email: orig.email,
+      concept: `Factura rectificativa de ${orig.number}${reason ? ` — ${reason}` : ""}`,
+      poNumber: orig.poNumber,
+      langPair: orig.langPair,
+      lines: fallback,
+      vatRate: orig.vatRate,
+      docKind: "invoice",
+    },
+    { allowNegative: true }
+  );
+  const draft = await prisma.clientInvoice.create({
+    data: { status: "DRAFT", origin: "rectificative", invoiceType: "R1", rectifiesId: orig.id, rectifiesNumber: orig.number, emitterNif: orig.emitterNif, ...data },
+  });
+  await logInvoiceEvent(prisma, { invoiceId: orig.id, type: "invoice.rectified", actor, message: `Borrador de rectificativa creado (${draft.id})${reason ? `: ${reason}` : ""}.`, payload: { draftId: draft.id, reason: reason ?? null } });
+  return draft;
+}
+
+// ANULACIÓN: registro de anulación; la fila se conserva con annulledAt.
+export async function annulInvoice(id: string, actor: string, reason: string) {
+  if (String(reason || "").trim().length < 10) throw new Error("Escribe un motivo de al menos 10 caracteres.");
+  return prisma.$transaction(async (tx) => {
+    const inv = await tx.clientInvoice.findUnique({ where: { id } });
+    if (!inv) throw new Error("Factura no encontrada.");
+    if (inv.status !== "ISSUED" || inv.docKind !== "invoice") throw new Error("Solo se anula una factura emitida.");
+    if (inv.annulledAt) return inv;
+    if (inv.paidAt) throw new Error("La factura está cobrada: emite una rectificativa en vez de anularla.");
+    await createAnulacionRecord(tx, inv, actor, reason.trim());
+    return tx.clientInvoice.findUnique({ where: { id } });
+  });
 }
 
 // Importación: crea una factura ya EMITIDA a partir de un registro histórico
@@ -390,10 +486,13 @@ export async function importIssuedInvoice(row: ImportInvoiceRow) {
   const vatRate = base > 0 ? Math.round((vat / base) * 100) / 100 : 0.21;
   const concept = row.concept?.trim() || null;
 
-  return prisma.clientInvoice.create({
+  // Importación = LIBRO de facturas emitidas FUERA de este sistema (histórico).
+  // No genera registro de facturación (no las expidió este SIF); queda evento.
+  const created = await prisma.clientInvoice.create({
     data: {
       number,
       status: "ISSUED",
+      origin: "import",
       brand: row.brand?.trim() || "traduccionesjuradas",
       issuedAt,
       fiscalName: String(row.fiscalName || "").trim() || "—",
@@ -407,4 +506,6 @@ export async function importIssuedInvoice(row: ImportInvoiceRow) {
       totalCents: total,
     },
   });
+  await logInvoiceEvent(prisma, { invoiceId: created.id, type: "invoice.imported", actor: "staff", message: `Importada ${number} (emitida fuera del sistema el ${row.date}).`, payload: { source: "import" } }).catch(() => {});
+  return created;
 }

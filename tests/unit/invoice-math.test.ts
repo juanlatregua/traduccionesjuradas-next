@@ -89,3 +89,23 @@ test("totalsFromGross: desde total CON IVA saca base e IVA", () => {
   assert.equal(t.vatCents, 525);
   assert.equal(t.totalCents, 3025);
 });
+
+// ---- Rectificativas (VeriFactu, 3-sep-2026): negativos solo con allowNegative ----
+import { normalizeLines as nl2, computeLineTotals as ct2, rectificationLines } from "../../lib/invoice-math.ts";
+
+test("líneas negativas: prohibidas por defecto, permitidas en rectificativa", () => {
+  const lines = [{ description: "Traducción", amountCents: -5000 }];
+  assert.equal(nl2(lines)[0].amountCents, 0, "una factura normal recorta la línea negativa a 0 (como antes)");
+  assert.equal(nl2(lines, { allowNegative: true })[0].amountCents, -5000);
+  assert.deepEqual(ct2(lines, 0.21, { allowNegative: true }), { baseCents: -5000, vatCents: -1050, totalCents: -6050 });
+  assert.deepEqual(ct2(lines, 0.21), { baseCents: 0, vatCents: 0, totalCents: 0 });
+});
+
+test("rectificationLines niega cada línea de la original y la referencia", () => {
+  const r = rectificationLines([{ description: "Acta de nacimiento", amountCents: 4000 }, { description: "Apostilla", detail: "1 pág", amountCents: 1500 }], "26_050");
+  assert.equal(r.length, 2);
+  assert.equal(r[0].amountCents, -4000);
+  assert.match(r[0].description, /^Rectificación de 26_050: Acta de nacimiento/);
+  assert.equal(r[1].detail, "1 pág");
+  assert.deepEqual(rectificationLines(undefined, "26_050"), []);
+});

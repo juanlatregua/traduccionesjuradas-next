@@ -110,7 +110,7 @@ export async function DELETE(req: Request, { params }: Params) {
 
   const invoice = await prisma.clientInvoice.findUnique({
     where: { id: params.id },
-    select: { id: true, status: true, number: true },
+    select: { id: true, status: true, number: true, docKind: true },
   });
   if (!invoice) return NextResponse.json({ ok: false, error: "Factura no encontrada." }, { status: 404 });
 
@@ -120,15 +120,24 @@ export async function DELETE(req: Request, { params }: Params) {
   if (role === "COLLABORATOR" || role === null) {
     return NextResponse.json({ ok: false, error: "No autorizado para borrar facturas." }, { status: 403 });
   }
+  // VeriFactu (3-sep-2026): una FACTURA emitida no se borra NUNCA, ni ADMIN.
+  // Se anula con registro de anulación o se corrige con rectificativa. Los
+  // presupuestos emitidos (serie P) siguen el gate de antes.
+  if (invoice.status === "ISSUED" && invoice.docKind === "invoice") {
+    return NextResponse.json(
+      { ok: false, error: `La factura ${invoice.number} está emitida y registrada: no se puede borrar. Usa «Rectificar» o «Anular».` },
+      { status: 409 }
+    );
+  }
   if (invoice.status === "ISSUED" && role !== "ADMIN" && role !== "PM") {
     return NextResponse.json(
-      { ok: false, error: "Solo ADMIN/PM puede borrar una factura emitida." },
+      { ok: false, error: "Solo ADMIN/PM puede borrar un presupuesto emitido." },
       { status: 403 }
     );
   }
 
   try {
-    await deleteInvoice(params.id);
+    await deleteInvoice(params.id, access.email);
     console.warn("[invoice-delete] removed", {
       id: params.id,
       number: invoice.number,

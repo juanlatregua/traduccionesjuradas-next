@@ -40,21 +40,39 @@ export function clampVatRate(v: number | string | null | undefined): number {
   return n;
 }
 
-export function normalizeLines(lines: InvoiceLine[] | undefined): InvoiceLine[] {
+// allowNegative: SOLO para rectificativas (R1): una rectificativa por
+// diferencias lleva importes negativos que netean a la factura rectificada en
+// el 303. Una factura normal nunca lleva líneas negativas.
+export function normalizeLines(lines: InvoiceLine[] | undefined, opts?: { allowNegative?: boolean }): InvoiceLine[] {
+  const clamp = (n: number) => (opts?.allowNegative ? n : Math.max(0, n));
   return (lines || [])
     .map((l) => ({
       description: String(l.description || "").trim(),
       detail: l.detail ? String(l.detail).trim() : undefined,
-      amountCents: Math.max(0, Math.round(Number(l.amountCents) || 0)),
+      amountCents: clamp(Math.round(Number(l.amountCents) || 0)),
     }))
-    .filter((l) => l.description.length > 0 || l.amountCents > 0);
+    .filter((l) => l.description.length > 0 || l.amountCents !== 0);
 }
 
 // Las líneas son BASE (sin IVA). total = base + base*iva.
-export function computeLineTotals(lines: InvoiceLine[], vatRate: number) {
-  const base = (lines || []).reduce((s, l) => s + Math.max(0, Math.round(Number(l.amountCents) || 0)), 0);
+export function computeLineTotals(lines: InvoiceLine[], vatRate: number, opts?: { allowNegative?: boolean }) {
+  const clamp = (n: number) => (opts?.allowNegative ? n : Math.max(0, n));
+  const base = (lines || []).reduce((s, l) => s + clamp(Math.round(Number(l.amountCents) || 0)), 0);
   const vat = Math.round(base * vatRate);
   return { baseCents: base, vatCents: vat, totalCents: base + vat };
+}
+
+// Líneas de una rectificativa POR DIFERENCIAS que deja a cero la factura
+// original: cada línea original, negada. El staff luego añade las líneas
+// correctas si la rectificación es parcial.
+export function rectificationLines(original: InvoiceLine[] | undefined, originalNumber: string): InvoiceLine[] {
+  const src = (original || []).filter((l) => String(l.description || "").trim());
+  if (src.length === 0) return [];
+  return src.map((l) => ({
+    description: `Rectificación de ${originalNumber}: ${String(l.description).trim()}`,
+    detail: l.detail,
+    amountCents: -Math.round(Number(l.amountCents) || 0),
+  }));
 }
 
 // Desde un total CON IVA (camino del pedido pagado): base = total/(1+iva).

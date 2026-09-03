@@ -31,7 +31,7 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   try {
-    const invoice = await issueInvoice(params.id, { number: body.number, issuedAt });
+    const invoice = await issueInvoice(params.id, { number: body.number, issuedAt, actor: access.email });
     return NextResponse.json({ ok: true, invoice });
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: err?.message || "No se pudo emitir." }, { status: 400 });
