@@ -1,6 +1,7 @@
 // app/api/documents/register/route.ts — Register uploaded blob as document
 
 import { NextResponse } from "next/server";
+import { isDeclaredPairValid, normalizeDeclaredLang } from "@/lib/puerta-languages";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import crypto from "node:crypto";
@@ -27,8 +28,22 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { blobUrl, fileName, fileSize, mimeType, sessionToken, gdprConsent, source } =
+    const { blobUrl, fileName, fileSize, mimeType, sessionToken, gdprConsent, source, clientEmail, marketingConsent, sourceLanguage, targetLanguage, gate } =
       await req.json();
+
+    // Puerta (Juan, 4-sep-2026): NADA se sube sin email + par de idiomas. La UI
+    // ya lo bloquea; aquí se exige también para que un lead no nazca a medias.
+    const email = typeof clientEmail === "string" ? clientEmail.trim().toLowerCase() : "";
+    const emailOk = !!email && email.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+    const srcLang = normalizeDeclaredLang(sourceLanguage);
+    const tgtLang = normalizeDeclaredLang(targetLanguage);
+    if (gate === "puerta") {
+      if (!emailOk) return NextResponse.json({ ok: false, error: "Indica tu email antes de subir el documento." }, { status: 400 });
+      if (marketingConsent !== true) return NextResponse.json({ ok: false, error: "Falta el consentimiento para enviarte el presupuesto." }, { status: 400 });
+      if (!isDeclaredPairValid(srcLang, tgtLang)) return NextResponse.json({ ok: false, error: "Indica el idioma del documento y el idioma al que lo necesitas." }, { status: 400 });
+    } else if (clientEmail && !emailOk) {
+      return NextResponse.json({ ok: false, error: "Email no válido." }, { status: 400 });
+    }
 
     // Origen de captación (atribución del funnel). Whitelist para no guardar basura.
     // OJO: tiene que ir en paralelo con la de app/presupuesto-instantaneo/page.tsx:13,
@@ -68,6 +83,11 @@ export async function POST(req: Request) {
         gdprConsent: true,
         gdprConsentAt: new Date(),
         status: "UPLOADED",
+        ...(emailOk ? { clientEmail: email } : {}),
+        ...(emailOk && marketingConsent === true ? { marketingConsent: true, marketingConsentAt: new Date() } : {}),
+        // Par declarado: el análisis lo respeta (applyDeclaredLanguages).
+        ...(srcLang && srcLang !== "other" ? { sourceLanguage: srcLang } : {}),
+        ...(tgtLang ? { targetLanguage: tgtLang } : {}),
       },
     });
 

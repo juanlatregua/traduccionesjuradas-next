@@ -29,6 +29,12 @@ type Props = {
   // para que la fila nazca con lead; el lector de requerimientos no lo pide y lo
   // omite. Opcional a propósito: este uploader lo comparten los dos.
   clientEmail?: string | null;
+  // Puerta (4-sep-2026): consentimiento LSSI y par de idiomas declarados ANTES
+  // de subir. Con `gate="puerta"` el registro los exige.
+  marketingConsent?: boolean;
+  sourceLanguage?: string | null;
+  targetLanguage?: string | null;
+  gate?: "puerta" | null;
   // Motivo del bloqueo, para que `disabled` no sea un gris mudo.
   disabledReason?: string;
 };
@@ -46,6 +52,10 @@ export default function DocumentUploader({
   source,
   lang = "es",
   clientEmail,
+  marketingConsent,
+  sourceLanguage,
+  targetLanguage,
+  gate,
   disabledReason,
 }: Props) {
   const t = puertaT[lang];
@@ -115,6 +125,10 @@ export default function DocumentUploader({
             gdprConsent: true,
             source,
             clientEmail: clientEmail || undefined,
+            marketingConsent: marketingConsent || undefined,
+            sourceLanguage: sourceLanguage || undefined,
+            targetLanguage: targetLanguage || undefined,
+            gate: gate || undefined,
           }),
         });
 
@@ -142,7 +156,7 @@ export default function DocumentUploader({
         setUploading(false);
       }
     },
-    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t, clientEmail, disabled, disabledReason]
+    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t, clientEmail, marketingConsent, sourceLanguage, targetLanguage, gate, disabled, disabledReason]
   );
 
   const handleDrop = useCallback(

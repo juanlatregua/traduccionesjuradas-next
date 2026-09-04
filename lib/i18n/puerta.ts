@@ -79,6 +79,16 @@ export type PuertaStrings = {
   onTimeNo: string;
   maecCredential: string;
   targetLanguages: { code: string; name: string }[];
+  // Bloque obligatorio ANTES de subir (4-sep-2026): email + par de idiomas.
+  entryTitle: string;
+  entryHelp: string;
+  entryEmailLabel: string;
+  entrySourceLabel: string;
+  entryTargetLabel: string;
+  entryPickLang: string;
+  entrySamePair: string;
+  entryLocked: string;
+  langNames: Record<string, string>;
 };
 
 const TARGETS_ES = [
@@ -172,6 +182,15 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     onTimeNo: "Tu fecha es muy ajustada. Escríbenos y vemos cómo acelerarlo.",
     maecCredential: "La firma un traductor jurado acreditado por el MAEC — validez oficial.",
     targetLanguages: TARGETS_ES,
+    entryTitle: "Antes de subir el documento",
+    entryHelp: "Con tu email y el par de idiomas el presupuesto sale completo y te lo guardamos.",
+    entryEmailLabel: "Tu email",
+    entrySourceLabel: "Idioma del documento",
+    entryTargetLabel: "Lo necesitas en",
+    entryPickLang: "Elige…",
+    entrySamePair: "El idioma de origen y el de destino no pueden ser el mismo.",
+    entryLocked: "Rellena tu email, marca la casilla y elige los idiomas para poder subir el documento.",
+    langNames: { es: "Español", fr: "Francés", en: "Inglés", de: "Alemán", it: "Italiano", pt: "Portugués", nl: "Neerlandés", ro: "Rumano", ar: "Árabe", ca: "Catalán", sv: "Sueco", no: "Noruego", other: "Otro idioma" },
   },
   fr: {
     locale: "fr-FR",
@@ -242,6 +261,15 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     onTimeNo: "Votre date est très serrée. Écrivez-nous et voyons comment l'accélérer.",
     maecCredential: "Réalisée par un traducteur assermenté accrédité par le MAEC — validité officielle.",
     targetLanguages: TARGETS_FR,
+    entryTitle: "Avant d’envoyer le document",
+    entryHelp: "Avec votre e-mail et la paire de langues, le devis sort complet et nous le gardons pour vous.",
+    entryEmailLabel: "Votre e-mail",
+    entrySourceLabel: "Langue du document",
+    entryTargetLabel: "Vous le voulez en",
+    entryPickLang: "Choisir…",
+    entrySamePair: "La langue source et la langue cible ne peuvent pas être identiques.",
+    entryLocked: "Indiquez votre e-mail, cochez la case et choisissez les langues pour pouvoir envoyer le document.",
+    langNames: { es: "Espagnol", fr: "Français", en: "Anglais", de: "Allemand", it: "Italien", pt: "Portugais", nl: "Néerlandais", ro: "Roumain", ar: "Arabe", ca: "Catalan", sv: "Suédois", no: "Norvégien", other: "Autre langue" },
   },
   en: {
     locale: "en-GB",
@@ -312,6 +340,15 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     onTimeNo: "Your date is very tight. Write to us and we'll see how to speed it up.",
     maecCredential: "Signed by a sworn translator accredited by the MAEC — official validity.",
     targetLanguages: TARGETS_EN,
+    entryTitle: "Before uploading the document",
+    entryHelp: "With your email and the language pair the quote comes out complete and we keep it for you.",
+    entryEmailLabel: "Your email",
+    entrySourceLabel: "Document language",
+    entryTargetLabel: "You need it in",
+    entryPickLang: "Choose…",
+    entrySamePair: "Source and target language cannot be the same.",
+    entryLocked: "Enter your email, tick the box and choose the languages to upload the document.",
+    langNames: { es: "Spanish", fr: "French", en: "English", de: "German", it: "Italian", pt: "Portuguese", nl: "Dutch", ro: "Romanian", ar: "Arabic", ca: "Catalan", sv: "Swedish", no: "Norwegian", other: "Other language" },
   },
   de: {
     locale: "de-DE",
@@ -382,6 +419,15 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     onTimeNo: "Ihr Datum ist sehr knapp. Schreiben Sie uns, wir sehen, wie wir es beschleunigen.",
     maecCredential: "Von einem vom MAEC ermächtigten vereidigten Übersetzer unterschrieben — amtlich gültig.",
     targetLanguages: TARGETS_DE,
+    entryTitle: "Bevor Sie das Dokument hochladen",
+    entryHelp: "Mit Ihrer E-Mail und dem Sprachenpaar ist das Angebot vollständig und wir bewahren es für Sie auf.",
+    entryEmailLabel: "Ihre E-Mail",
+    entrySourceLabel: "Sprache des Dokuments",
+    entryTargetLabel: "Sie brauchen es auf",
+    entryPickLang: "Wählen…",
+    entrySamePair: "Ausgangs- und Zielsprache dürfen nicht gleich sein.",
+    entryLocked: "Geben Sie Ihre E-Mail ein, setzen Sie das Häkchen und wählen Sie die Sprachen, um das Dokument hochzuladen.",
+    langNames: { es: "Spanisch", fr: "Französisch", en: "Englisch", de: "Deutsch", it: "Italienisch", pt: "Portugiesisch", nl: "Niederländisch", ro: "Rumänisch", ar: "Arabisch", ca: "Katalanisch", sv: "Schwedisch", no: "Norwegisch", other: "Andere Sprache" },
   },
   pt: {
     locale: "pt-PT",
@@ -452,5 +498,14 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     onTimeNo: "A sua data é muito apertada. Escreva-nos e vemos como acelerar.",
     maecCredential: "Assinada por um tradutor ajuramentado acreditado pelo MAEC — validade oficial.",
     targetLanguages: TARGETS_PT,
+    entryTitle: "Antes de enviar o documento",
+    entryHelp: "Com o seu email e o par de idiomas o orçamento sai completo e guardamo-lo para si.",
+    entryEmailLabel: "O seu email",
+    entrySourceLabel: "Idioma do documento",
+    entryTargetLabel: "Precisa dele em",
+    entryPickLang: "Escolher…",
+    entrySamePair: "O idioma de origem e o de destino não podem ser o mesmo.",
+    entryLocked: "Indique o seu email, marque a caixa e escolha os idiomas para poder enviar o documento.",
+    langNames: { es: "Espanhol", fr: "Francês", en: "Inglês", de: "Alemão", it: "Italiano", pt: "Português", nl: "Neerlandês", ro: "Romeno", ar: "Árabe", ca: "Catalão", sv: "Sueco", no: "Norueguês", other: "Outro idioma" },
   },
 };

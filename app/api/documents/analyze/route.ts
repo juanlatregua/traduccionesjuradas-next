@@ -1,6 +1,7 @@
 // app/api/documents/analyze/route.ts — Análisis IA de documentos
 
 import { NextResponse } from "next/server";
+import { applyDeclaredLanguages } from "@/lib/puerta-languages";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp, checkGlobalAnalysisCap } from "@/lib/rate-limit";
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
@@ -157,7 +158,9 @@ export async function POST(req: Request) {
           setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 115s")), 115000)
         ),
       ]);
-      analysis = run.analysis;
+      // El par que el cliente DECLARÓ en la puerta manda sobre lo detectado
+      // (solo existe en la fila antes del análisis: status UPLOADED/ANALYZING).
+      analysis = applyDeclaredLanguages(run.analysis, { source: doc.sourceLanguage, target: doc.targetLanguage });
     } catch (err: any) {
       const errorDetail = err.status
         ? `API ${err.status}: ${err.error?.error?.message || err.message}`

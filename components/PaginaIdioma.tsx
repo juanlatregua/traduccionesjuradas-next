@@ -202,7 +202,7 @@ export default async function PaginaIdioma({
             sin renunciar a la validez legal.
           </p>
           <div className="mt-4">
-            <PuertaClient purpose={null} />
+            <PuertaClient purpose={null} defaultSourceLang={lang} />
           </div>
         </div>
       </section>
