@@ -3,7 +3,7 @@
 // La consumen: scripts/vigia-pedidos.ts (CLI del agente vigia-pedidos) y el cron
 // /api/cron/vigia-agenda (email de las 8:00). Una sola fuente de verdad.
 import { prisma } from "@/lib/prisma";
-import { isCreditOutstanding, creditDaysToDue } from "@/lib/credit-terms";
+import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed, periodLabel } from "@/lib/credit-terms";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const MARGIN_PCT = 12; // horquilla de Juan 10-15 % sobre el coste del jurado (24-ago-2026)
@@ -212,6 +212,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       documentAnalyses: { select: { estimatedWords: true } },
       quote: { select: { lines: { select: { description: true } } } },
       clientInvoice: { select: { number: true, status: true, docKind: true, dueDate: true, paidAt: true } },
+      monthlyInvoice: { select: { number: true, status: true, docKind: true, periodKey: true, dueDate: true, paidAt: true, annulledAt: true } },
       events: { where: { OR: [{ type: { startsWith: "lavori." } }, { type: { in: ["order.archived", "order.unarchived", "order.source_document_uploaded", "order.extension_prepared"] } }] }, select: { type: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 16 },
     },
   });
@@ -242,7 +243,11 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     };
     // A crédito (factura emitida con vencimiento, sin cobrar) el trabajo entra en
     // la agenda como si estuviera pagado: es lo que Juan decidió el 2-sep-2026.
-    const credito = isCreditOutstanding(o.clientInvoice);
+    // Factura AGRUPADA del mes (4-sep-2026): el borrador ya asegura el trabajo;
+    // el dinero se persigue solo cuando la del mes está emitida, por su vencimiento.
+    const mensualBorrador = o.monthlyInvoice?.status === "DRAFT" && isMonthlySecured(o.monthlyInvoice);
+    const facturaCredito = isCreditOutstanding(o.clientInvoice) ? o.clientInvoice : isCreditOutstanding(o.monthlyInvoice) ? o.monthlyInvoice : null;
+    const credito = Boolean(facturaCredito) || mensualBorrador;
     const paid = o.status === "PAID" || o.status === "IN_PROGRESS" || credito;
     // El traductor ya entregó (sobre de lavori, asignación o campo del pedido) pero el
     // pedido no está DELIVERED: lo que falta es de Juan (papel por mensajería, verificar,
@@ -267,13 +272,15 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       const nuevos = o.events.filter((e) => e.type === "order.source_document_uploaded" && new Date(e.createdAt).getTime() > paidMs && new Date(e.createdAt).getTime() > lastExt).length;
       if (nuevos > 0) act(item.importe, 3, `Pedido ${o.reference} ${eur(item.importe)}: ${nuevos} documento(s) subido(s) DESPUÉS del pago → "Ampliar el pedido" (presupuesto hermano, mismo trámite)`, link);
     }
-    if (credito) {
+    if (mensualBorrador) {
+      accion = `a crédito, en la factura agrupada de ${periodLabel(o.monthlyInvoice?.periodKey)} (borrador)`;
+    } else if (facturaCredito) {
       // Sin cobrar pero asegurado: solo se persigue el DINERO cerca del vencimiento.
-      const faltan = creditDaysToDue(o.clientInvoice, NOW) ?? 0;
-      const fac = o.clientInvoice?.number || "(sin nº)";
+      const faltan = creditDaysToDue(facturaCredito, NOW) ?? 0;
+      const fac = facturaCredito.number || "(sin nº)";
       if (faltan < 0) { accion = `CRÉDITO VENCIDO hace ${-faltan} d (factura ${fac}) → reclamar el cobro`; act(item.importe, 5, `Pedido ${o.reference} ${eur(item.importe)} a crédito VENCIDO hace ${-faltan} d (factura ${fac}) → reclamar`, link); }
       else if (faltan <= 3) { accion = `a crédito, factura ${fac} vence en ${faltan} d → recordar el pago`; act(item.importe, 3, `Pedido ${o.reference} ${eur(item.importe)} a crédito vence en ${faltan} d (factura ${fac}) → recordar el pago`, link); }
-      else accion = `a crédito, factura ${fac} vence ${madrid(o.clientInvoice!.dueDate)}`;
+      else accion = `a crédito, factura ${fac} vence ${madrid(facturaCredito.dueDate)}`;
     } else if (o.status === "PENDING_PAYMENT") {
       if ((hoursAgo(o.createdAt) ?? 0) >= 24) { accion = `pendiente de pago ${daysAgo(o.createdAt)} d → reenviar enlace de pago / preguntar`; act(item.importe, 2, `Pedido ${o.reference} ${eur(item.importe)} sin pagar ${daysAgo(o.createdAt)} d → reenviar enlace de pago`, link); }
     } else if (o.status === "PAID" && !asignado && !fr) {
@@ -288,6 +295,16 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     }
     pedidos.push({ ref: o.reference, cliente: item.cliente, par: o.langPair, importe: item.importe, status: o.status, pagado: madrid(o.paidAt), asignado, quien, coste: win?.quotedPriceCents != null ? win.quotedPriceCents / 100 : o.supplierCostCents != null ? o.supplierCostCents / 100 : null, puente: lav, vence: madrid(due), accion, link });
   }
+  /* ───────── 4b. Facturas del mes de un mes YA CERRADO sin emitir ───────── */
+  const borradoresMes = await prisma.clientInvoice.findMany({
+    where: { status: "DRAFT", docKind: "invoice", periodKey: { not: null } },
+    select: { id: true, periodKey: true, fiscalName: true, email: true, totalCents: true, monthlyOrders: { select: { reference: true } } },
+  });
+  for (const b of borradoresMes) {
+    if (!isPeriodClosed(b.periodKey, NOW) || b.monthlyOrders.length === 0) continue;
+    act(b.totalCents / 100, 4, `Factura agrupada de ${periodLabel(b.periodKey)} de ${b.fiscalName} (${b.monthlyOrders.length} pedido(s), ${eur(b.totalCents / 100)}) sin emitir → emitirla en la ficha del cliente`, `${SITE}/zona-traductor/clientes/${encodeURIComponent(String(b.email || ""))}`);
+  }
+
   const byDue = (a: AgendaItem, b: AgendaItem) => (a.venceDias ?? 99) - (b.venceDias ?? 99);
   traducir.sort(byDue); seguir.sort(byDue);
   const palabrasSemana = traducir.reduce((s, t) => s + (t.palabras || 0), 0);

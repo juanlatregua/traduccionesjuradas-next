@@ -149,3 +149,58 @@ test("isSpainCountry acepta las grafías que llegan de los formularios", () => {
   for (const v of ["España", "Espana", "ESPAÑA", "Spain", "es", "", null, undefined]) assert.equal(isSpainCountry(v), true, String(v));
   for (const v of ["Francia", "Portugal", "FR"]) assert.equal(isSpainCountry(v), false, v);
 });
+
+// ── Factura AGRUPADA del mes (4-sep-2026, Marbella Translators) ───────────────
+import {
+  isMonthlySecured,
+  isMonthlyBilling,
+  periodKeyOf,
+  periodLabel,
+  isPeriodClosed,
+  monthlyInvoiceLines,
+} from "../../lib/credit-terms.ts";
+
+test("un borrador mensual asegura; anulado, presupuesto o nada, no", () => {
+  assert.equal(isMonthlySecured({ status: "DRAFT", docKind: "invoice" }), true, "el borrador del mes ya asegura");
+  assert.equal(isMonthlySecured({ status: "ISSUED", docKind: "invoice", dueDate: new Date() }), true);
+  assert.equal(isMonthlySecured({ status: "ISSUED", docKind: "invoice", annulledAt: new Date() }), false, "anulada no");
+  assert.equal(isMonthlySecured({ status: "DRAFT", docKind: "quote" }), false, "un presupuesto de la serie no");
+  assert.equal(isMonthlySecured(null), false);
+});
+
+test("isOrderSecured acepta la factura del mes sin factura propia", () => {
+  assert.equal(isOrderSecured({ paymentStatus: "PENDING", monthlyInvoice: { status: "DRAFT", docKind: "invoice" } }), true);
+  assert.equal(isOrderSecured({ paymentStatus: "PENDING", clientInvoice: null, monthlyInvoice: null }), false);
+  // La factura por pedido sigue mandando aunque no haya mensual.
+  assert.equal(isOrderSecured({ paymentStatus: "PENDING", clientInvoice: fra() }), true);
+});
+
+test("el ciclo mensual exige crédito activado", () => {
+  assert.equal(isMonthlyBilling({ creditEnabled: true, billingCycle: "MONTHLY" }), true);
+  assert.equal(isMonthlyBilling({ creditEnabled: false, billingCycle: "MONTHLY" }), false, "sin permiso no hay carril");
+  assert.equal(isMonthlyBilling({ creditEnabled: true, billingCycle: "PER_ORDER" }), false);
+  assert.equal(isMonthlyBilling({ creditEnabled: true }), false, "por defecto, por pedido");
+});
+
+test("la clave del periodo es el mes de Madrid, no el UTC", () => {
+  // 31-ago 23:30 en Madrid (UTC+2) = 21:30Z: sigue siendo agosto.
+  assert.equal(periodKeyOf(new Date("2026-08-31T21:30:00Z")), "2026-08");
+  // 30-sep 22:30Z = 1-oct 00:30 en Madrid: ya es octubre.
+  assert.equal(periodKeyOf(new Date("2026-09-30T22:30:00Z")), "2026-10");
+  assert.equal(periodLabel("2026-09"), "septiembre de 2026");
+  assert.equal(periodLabel("garbage"), "");
+  assert.equal(isPeriodClosed("2026-08", AHORA), true, "agosto en septiembre: a emitir");
+  assert.equal(isPeriodClosed("2026-09", AHORA), false);
+  assert.equal(isPeriodClosed(null, AHORA), false);
+});
+
+test("las líneas del mes van en base, una por pedido y en orden estable", () => {
+  const lines = monthlyInvoiceLines([
+    { reference: "26_B", title: "Acta", langPair: "fr-es", amountCents: 6655 },
+    { reference: "26_A", title: "", langPair: null, amountCents: 12100 },
+  ]);
+  assert.deepEqual(lines, [
+    { description: "26_A · Traducción jurada", detail: undefined, amountCents: 10000 },
+    { description: "26_B · Acta", detail: "fr-es", amountCents: 5500 },
+  ]);
+});

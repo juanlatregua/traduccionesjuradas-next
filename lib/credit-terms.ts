@@ -19,6 +19,14 @@
 // cobro existe, está numerado y ya está declarado". Lo protege la serie fiscal.
 // Un flag se copia por ahí; una factura numerada, no.
 //
+// SEGUNDA FORMA de la misma marca (4-sep-2026, caso Marbella Translators):
+// hay clientes —agencias— a los que se factura TODO JUNTO a fin de mes. Ahí la
+// factura por pedido no vale: cada pedido cuelga (Order.monthlyInvoiceId) del
+// BORRADOR de factura del mes de ese cliente, y ese borrador se emite a fin de
+// mes con número, vencimiento y registro Verifactu. Mientras cuelga del borrador
+// el pedido está "asegurado" sin factura propia. Sigue siendo un documento de
+// la serie —no un flag—: borrar el borrador devuelve el pedido a "sin asegurar".
+//
 // Módulo PURO a propósito (sin Prisma, sin fetch): así se prueba entero con
 // node --test y las reglas del dinero no dependen de tener base de datos.
 
@@ -31,11 +39,21 @@ export type CreditInvoice = {
   docKind?: string | null;
   dueDate?: Date | string | null;
   paidAt?: Date | string | null;
+  annulledAt?: Date | string | null;
 };
+
+/** La factura agrupada del mes: misma forma + el periodo "YYYY-MM". */
+export type MonthlyInvoice = CreditInvoice & {
+  periodKey?: string | null;
+  number?: string | null;
+};
+
+export type BillingCycle = "PER_ORDER" | "MONTHLY";
 
 export type CreditCustomer = {
   creditEnabled?: boolean | null;
   creditDays?: number | null;
+  billingCycle?: string | null; // PER_ORDER | MONTHLY
 };
 
 /** Campos mínimos a pedir en el select cuando se vaya a evaluar el carril. */
@@ -47,6 +65,13 @@ export const CREDIT_INVOICE_SELECT = {
   issuedAt: true,
   dueDate: true,
   paidAt: true,
+} as const;
+
+/** Lo mismo para la factura del mes (Order.monthlyInvoice). */
+export const MONTHLY_INVOICE_SELECT = {
+  ...CREDIT_INVOICE_SELECT,
+  periodKey: true,
+  annulledAt: true,
 } as const;
 
 const toDate = (v: Date | string | null | undefined): Date | null => {
@@ -100,14 +125,75 @@ export function isCreditOverdue(inv: CreditInvoice | null | undefined, now: Date
 export function isOrderSecured(order: {
   paymentStatus?: string | null;
   clientInvoice?: CreditInvoice | null;
+  monthlyInvoice?: MonthlyInvoice | null;
 }): boolean {
   if (order.paymentStatus === "PAID") return true;
-  return isCreditAuthorized(order.clientInvoice ?? null);
+  if (isCreditAuthorized(order.clientInvoice ?? null)) return true;
+  return isMonthlySecured(order.monthlyInvoice ?? null);
+}
+
+/**
+ * ¿Esta factura del mes asegura los pedidos que cuelgan de ella?
+ * Un BORRADOR mensual vale (es la forma de "en la factura de septiembre"); una
+ * emitida también; una anulada, un presupuesto de la serie o nada, no.
+ */
+export function isMonthlySecured(inv: MonthlyInvoice | null | undefined): boolean {
+  if (!inv) return false;
+  if (inv.docKind && inv.docKind !== "invoice") return false;
+  if (toDate(inv.annulledAt ?? null)) return false;
+  return inv.status === "DRAFT" || inv.status === "ISSUED";
 }
 
 /** ¿Puede este cliente comprar a crédito? El permiso es suyo, no del pedido. */
 export function customerCanUseCredit(c: CreditCustomer | null | undefined): boolean {
   return Boolean(c?.creditEnabled);
+}
+
+/** Crédito con factura AGRUPADA a fin de mes (Marbella Translators). */
+export function isMonthlyBilling(c: CreditCustomer | null | undefined): boolean {
+  return customerCanUseCredit(c) && String(c?.billingCycle || "PER_ORDER").toUpperCase() === "MONTHLY";
+}
+
+const MADRID = "Europe/Madrid";
+
+/** "YYYY-MM" del mes de Madrid en que cae la fecha: la clave del periodo. */
+export function periodKeyOf(d: Date): string {
+  // sv-SE da ISO (2026-09-04); el año-mes son los 7 primeros caracteres.
+  return d.toLocaleDateString("sv-SE", { timeZone: MADRID, year: "numeric", month: "2-digit", day: "2-digit" }).slice(0, 7);
+}
+
+/** "septiembre de 2026" a partir de "2026-09". Vacío si la clave no es válida. */
+export function periodLabel(periodKey: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(periodKey || ""));
+  if (!m) return "";
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 15));
+  return d.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+/** ¿El periodo ya ha terminado? (un borrador de agosto en septiembre = a emitir) */
+export function isPeriodClosed(periodKey: string | null | undefined, now: Date): boolean {
+  const k = String(periodKey || "");
+  return /^\d{4}-\d{2}$/.test(k) && k < periodKeyOf(now);
+}
+
+/**
+ * Líneas de la factura del mes: una por pedido, en BASE (sin IVA), como el
+ * resto del módulo de facturas. Misma regla que la factura por pedido
+ * (issueOrUpdateInvoice: base = round(total / 1.21)), así que el total de la
+ * agrupada puede diferir en algún céntimo de la suma de los pedidos. Pura, para
+ * probarla sin base de datos y para que el borrador se reconstruya siempre igual.
+ */
+export function monthlyInvoiceLines(
+  orders: Array<{ reference: string; title?: string | null; langPair?: string | null; amountCents: number }>,
+  vatRate = 0.21
+): Array<{ description: string; detail?: string; amountCents: number }> {
+  return [...orders]
+    .sort((a, b) => a.reference.localeCompare(b.reference))
+    .map((o) => ({
+      description: `${o.reference} · ${String(o.title || "").trim() || "Traducción jurada"}`,
+      detail: o.langPair ? String(o.langPair) : undefined,
+      amountCents: Math.round(o.amountCents / (1 + vatRate)),
+    }));
 }
 
 /** Vencimiento por defecto a partir de los días pactados con ese cliente. */

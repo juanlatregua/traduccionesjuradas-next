@@ -6,6 +6,8 @@ import { getOrderDetail } from "@/lib/orders";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
 import { verifactuPdfExtras } from "@/lib/verifactu/pdf";
 import { getOrCreateClientInvoice } from "@/lib/client-invoice";
+import { clientInvoicePdfArgs, loadBrandLogo } from "@/lib/invoice-pdf-args";
+import { periodLabel } from "@/lib/credit-terms";
 import { sendInvoiceAutoIssuedStaffEmail, sendInvoicePendingManualStaffEmail } from "@/lib/email";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
@@ -46,6 +48,23 @@ export async function GET(req: Request, { params }: Params) {
         { ok: false, error: "La factura solo esta disponible para pedidos pagados o autorizados a credito." },
         { status: 400 }
       );
+    }
+
+    // Factura AGRUPADA del mes: NUNCA se emite una factura propia al vuelo. Si
+    // la del mes ya está emitida se sirve esa; si es borrador, todavía no hay.
+    if (order.monthlyInvoiceId) {
+      const monthly = await prisma.clientInvoice.findUnique({ where: { id: order.monthlyInvoiceId } });
+      if (!monthly || monthly.status !== "ISSUED" || !monthly.number) {
+        return NextResponse.json(
+          { ok: false, error: `Este pedido va en la factura agrupada de ${periodLabel(monthly?.periodKey) || "fin de mes"}, que se emite al cerrar el mes.` },
+          { status: 409 }
+        );
+      }
+      const pdf = generateInvoicePdf({ ...clientInvoicePdfArgs(monthly, await loadBrandLogo(monthly.brand)), verifactu: await verifactuPdfExtras(monthly.id) });
+      return new NextResponse(new Uint8Array(pdf), {
+        status: 200,
+        headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${monthly.number}.pdf"`, "Content-Length": String(pdf.length) },
+      });
     }
 
     // Emite (o recupera) la factura con numeración fiscal secuencial persistida.

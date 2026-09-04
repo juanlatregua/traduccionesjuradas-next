@@ -33,6 +33,7 @@ export async function POST(req: Request, { params }: Params) {
         clientEmail: true,
         paymentStatus: true,
         clientInvoice: { select: { status: true, docKind: true, dueDate: true, paidAt: true } },
+        monthlyInvoice: { select: { status: true, docKind: true, annulledAt: true } },
         deliveryFilesJson: true,
         translatedFileUrl: true,
         finalFilename: true,

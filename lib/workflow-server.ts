@@ -166,6 +166,7 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
         deliveryState: true,
         translatedFileUrl: true,
         clientInvoice: { select: { status: true, docKind: true, dueDate: true, paidAt: true } },
+        monthlyInvoice: { select: { status: true, docKind: true, annulledAt: true } },
         events: { orderBy: { createdAt: "desc" }, take: 80 },
       },
     });

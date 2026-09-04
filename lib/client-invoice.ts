@@ -388,7 +388,22 @@ export async function setInvoicePaid(
   if (Object.keys(data).length === 0) return inv;
   const updated = await prisma.clientInvoice.update({ where: { id }, data });
   await logInvoiceEvent(prisma, { invoiceId: id, type: when ? "invoice.paid" : "invoice.unpaid", actor: "staff", message: when ? `Cobrada el ${when.toISOString().slice(0, 10)}.` : "Cobro deshecho.", payload: { paidAt: when ? when.toISOString() : null } }).catch(() => {});
+  // Factura AGRUPADA del mes (4-sep-2026): cobrarla cobra los pedidos que van
+  // dentro. Import dinámico: lib/orders no debe entrar en el grafo de este módulo.
+  if (when) await payMonthlyOrders(id).catch((e) => console.error("[invoice-paid] monthly cascade", e));
   return updated;
+}
+
+async function payMonthlyOrders(invoiceId: string) {
+  const orders = await prisma.order.findMany({
+    where: { monthlyInvoiceId: invoiceId, NOT: { paymentStatus: "PAID" } },
+    select: { reference: true },
+  });
+  if (orders.length === 0) return;
+  const { confirmManualPayment } = await import("@/lib/orders");
+  for (const o of orders) {
+    await confirmManualPayment(o.reference, "TRANSFER", "factura-del-mes");
+  }
 }
 
 // INMUTABILIDAD: una FACTURA emitida no se borra nunca (RD 1007/2023). Se anula
@@ -399,6 +414,12 @@ export async function deleteInvoice(id: string, actor = "staff") {
   if (!inv) throw new Error("Factura no encontrada.");
   if (inv.status === "ISSUED" && inv.docKind === "invoice") {
     throw new Error(`La factura ${inv.number} está emitida y registrada: no se puede borrar. Anúlala (registro de anulación) o emite una rectificativa.`);
+  }
+  // Borrador del mes con pedidos colgando: borrarlo los dejaría sin asegurar
+  // (pedidos ya entregados a crédito). Se descuelgan desde la ficha del pedido.
+  const hanging = await prisma.order.count({ where: { monthlyInvoiceId: id } });
+  if (hanging > 0) {
+    throw new Error(`Este borrador es la factura del mes de ${hanging} pedido(s): retira antes el crédito en cada pedido.`);
   }
   await logInvoiceEvent(prisma, { invoiceId: null, type: "draft.deleted", actor, message: `Borrado ${inv.docKind === "quote" ? "presupuesto" : "borrador"} ${inv.number || "(sin nº)"} de ${inv.fiscalName} (${inv.totalCents / 100} €).`, payload: { id: inv.id, number: inv.number, docKind: inv.docKind, status: inv.status } });
   return prisma.clientInvoice.delete({ where: { id } });

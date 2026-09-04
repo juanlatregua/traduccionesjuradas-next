@@ -182,11 +182,19 @@ model Order {
   collaboratorAssignments CollaboratorAssignment[]
   documentItems    OrderDocumentItem[]
   clientInvoice    ClientInvoice?
+  // Factura AGRUPADA del mes (Juan, 4-sep-2026, caso Marbella Translators):
+  // varios pedidos de un cliente de credito cuelgan de UN borrador mensual que
+  // se emite a fin de mes con vencimiento. Mientras cuelga de ese borrador el
+  // pedido esta "asegurado" (lib/credit-terms.isOrderSecured) sin factura
+  // propia. SetNull: borrar el borrador devuelve el pedido a "sin asegurar".
+  monthlyInvoiceId String?
+  monthlyInvoice   ClientInvoice? @relation("MonthlyInvoiceOrders", fields: [monthlyInvoiceId], references: [id], onDelete: SetNull)
 
   @@index([clientEmail])
   @@index([createdAt])
   @@index([paymentStatus, status])
   @@index([caseRef])
+  @@index([monthlyInvoiceId])
 }
 
 // Documentos individuales de un pedido (expediente). Poblado por el puente
@@ -264,6 +272,9 @@ model ClientInvoice {
   rectifiesNumber String?
   // Anulada mediante registro de anulación (la fila NO se borra nunca).
   annulledAt    DateTime?
+  // Factura agrupada del mes: "YYYY-MM" del periodo. null = factura normal.
+  periodKey     String?
+  monthlyOrders Order[]   @relation("MonthlyInvoiceOrders")
   records       InvoiceRecord[]
   events        InvoiceEvent[]
   createdAt     DateTime  @default(now())
@@ -273,6 +284,7 @@ model ClientInvoice {
   @@index([status])
   @@index([dueDate])
   @@index([rectifiesId])
+  @@index([email, periodKey])
 }
 
 // REGISTRO DE FACTURACIÓN (RD 1007/2023 art. 8-11): uno por alta y otro por
@@ -539,6 +551,10 @@ model Customer {
   // de traductor externo que adelantar. Lo activa ADMIN/PM en la ficha.
   creditEnabled Boolean @default(false)
   creditDays    Int     @default(30)
+  // Como se factura el credito (4-sep-2026): PER_ORDER = una factura por pedido
+  // al autorizar; MONTHLY = los pedidos cuelgan de una factura agrupada que se
+  // emite a fin de mes (Marbella Translators, agencias).
+  billingCycle  String  @default("PER_ORDER")
   // Intermediario que trajo a este cliente (p.ej. Ahmed). Autorrelación nullable:
   // "es intermediario" se infiere si tiene `referrals`. onDelete SetNull = borrar al
   // intermediario no borra a sus clientes, solo los deja sueltos.

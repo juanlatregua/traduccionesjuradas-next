@@ -33,7 +33,7 @@ import AssignOrderForm from "@/components/AssignOrderForm";
 import ConfirmPaymentButton from "@/components/ConfirmPaymentButton";
 import OrderCreditPanel from "@/components/OrderCreditPanel";
 import OrderExtendButton from "@/components/OrderExtendButton";
-import { isOrderSecured, isCreditAuthorized, creditDaysToDue } from "@/lib/credit-terms";
+import { isOrderSecured, isCreditAuthorized, creditDaysToDue, isMonthlySecured, periodLabel } from "@/lib/credit-terms";
 import { buildDeliveryResendMessage } from "@/lib/notification-templates";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
 import OrderFinancePanel from "@/components/OrderFinancePanel";
@@ -200,6 +200,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         orderBy: { createdAt: "desc" },
       },
       clientInvoice: { select: { number: true, totalCents: true, status: true, docKind: true, issuedAt: true, dueDate: true, paidAt: true } },
+      monthlyInvoice: { select: { id: true, number: true, status: true, docKind: true, periodKey: true, issuedAt: true, dueDate: true, paidAt: true, annulledAt: true } },
       quote: { select: { id: true, quoteNumber: true } },
       documentItems: { orderBy: { createdAt: "asc" } },
       documentAnalyses: {
@@ -231,9 +232,21 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   // con vencimiento (lib/credit-terms.ts). "Asegurado" = cobrado o a crédito.
   const creditCustomer = await prisma.customer.findFirst({
     where: { email: { equals: order.clientEmail, mode: "insensitive" } },
-    select: { creditEnabled: true, creditDays: true },
+    select: { creditEnabled: true, creditDays: true, billingCycle: true },
   });
   const secured = isOrderSecured(order);
+  // Factura AGRUPADA del mes de la que cuelga el pedido (borrador o emitida).
+  const monthlyInfo = isMonthlySecured(order.monthlyInvoice)
+    ? {
+        invoiceId: order.monthlyInvoice!.id,
+        periodLabel: periodLabel(order.monthlyInvoice!.periodKey),
+        status: order.monthlyInvoice!.status,
+        number: order.monthlyInvoice!.number ?? null,
+        dueDate: order.monthlyInvoice!.dueDate ? new Date(order.monthlyInvoice!.dueDate).toISOString() : null,
+        paidAt: order.monthlyInvoice!.paidAt ? new Date(order.monthlyInvoice!.paidAt).toISOString() : null,
+        customerEmail: order.clientEmail,
+      }
+    : null;
   // Ampliación: documentos que el cliente subió DESPUÉS de pagar y que todavía
   // no han ido a un presupuesto hermano (no hay extension_prepared posterior).
   const paidAtMs = order.paidAt ? new Date(order.paidAt).getTime() : null;
@@ -398,6 +411,16 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                   Crédito: vence {new Date(creditInfo.dueDate).toLocaleDateString("es-ES")}
                 </span>
               )}
+              {monthlyInfo && !monthlyInfo.paidAt && (
+                <span
+                  className={`rounded-md px-2 py-1 ${monthlyInfo.status !== "DRAFT" && monthlyInfo.dueDate && new Date(monthlyInfo.dueDate) < new Date() ? "bg-red-500/15 text-red-300" : "bg-violet-500/15 text-violet-300"}`}
+                  title="Cuelga de la factura agrupada del mes: se trabaja y entrega antes de cobrar"
+                >
+                  {monthlyInfo.status === "DRAFT"
+                    ? `Crédito: factura de ${monthlyInfo.periodLabel} (borrador)`
+                    : `Crédito: ${monthlyInfo.number} vence ${monthlyInfo.dueDate ? new Date(monthlyInfo.dueDate).toLocaleDateString("es-ES") : "—"}`}
+                </span>
+              )}
               <span className={`rounded-md px-2 py-1 ${DELIVERY_CLS[order.deliveryState] || "bg-slate-700/50 text-slate-100"}`}>
                 Entrega: {order.deliveryState}
               </span>
@@ -544,7 +567,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                 amountCents={order.amountCents}
                 creditDays={creditCustomer?.creditDays ?? 30}
                 creditEnabled={Boolean(creditCustomer?.creditEnabled)}
+                billingCycle={creditCustomer?.billingCycle ?? null}
                 credit={creditInfo}
+                monthly={monthlyInfo}
               />
             </div>
           )}

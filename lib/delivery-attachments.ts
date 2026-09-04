@@ -4,6 +4,8 @@
 
 import { isOrderSecured } from "@/lib/credit-terms";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
+import { clientInvoicePdfArgs, loadBrandLogo } from "@/lib/invoice-pdf-args";
+import { verifactuPdfExtras } from "@/lib/verifactu/pdf";
 import { getOrderDetail } from "@/lib/orders";
 import { prisma } from "@/lib/prisma";
 import type { MailAttachment } from "@/lib/azure-mail";
@@ -36,6 +38,15 @@ export async function buildIssuedInvoiceAttachment(
   try {
     const order = await getOrderDetail(reference);
     if (!order || !isOrderSecured(order) || !order.billing?.requested) return null;
+
+    // Factura AGRUPADA del mes: se adjunta solo si ya está emitida (a fin de
+    // mes); mientras es borrador el email de entrega va sin factura.
+    if (order.monthlyInvoiceId) {
+      const monthly = await prisma.clientInvoice.findUnique({ where: { id: order.monthlyInvoiceId } });
+      if (!monthly || monthly.status !== "ISSUED" || !monthly.number) return null;
+      const pdf = generateInvoicePdf({ ...clientInvoicePdfArgs(monthly, await loadBrandLogo(monthly.brand)), verifactu: await verifactuPdfExtras(monthly.id) });
+      return { name: `${monthly.number}.pdf`, contentType: "application/pdf", contentBytes: Buffer.from(pdf).toString("base64") };
+    }
 
     const invoice = await prisma.clientInvoice.findUnique({ where: { orderId: order.id } });
     if (!invoice || invoice.status !== "ISSUED" || !invoice.number) return null;

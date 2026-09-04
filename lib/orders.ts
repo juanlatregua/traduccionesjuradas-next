@@ -504,6 +504,7 @@ export async function getOrderDetail(reference: string, clientEmail?: string) {
       // Carril de crédito: los gates "no entregar sin cobrar" preguntan por
       // "asegurado" (isOrderSecured), que necesita la factura con vencimiento.
       clientInvoice: { select: { id: true, number: true, status: true, docKind: true, issuedAt: true, dueDate: true, paidAt: true } },
+      monthlyInvoice: { select: { id: true, number: true, status: true, docKind: true, periodKey: true, issuedAt: true, dueDate: true, paidAt: true, annulledAt: true } },
     },
   });
 }

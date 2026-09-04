@@ -20,6 +20,7 @@ export type CustomerEditable = {
   autoConfirmPayment: boolean;
   creditEnabled: boolean;
   creditDays: number;
+  billingCycle: "PER_ORDER" | "MONTHLY";
   intermediaryEmail: string | null;
 };
 
@@ -64,6 +65,7 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
           autoConfirmPayment: form.autoConfirmPayment,
           creditEnabled: form.creditEnabled,
           creditDays: form.creditDays,
+          billingCycle: form.billingCycle,
           intermediaryEmail: form.intermediaryEmail ?? "",
         }),
       });
@@ -219,6 +221,21 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
               className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
             />
             días
+          </label>
+        )}
+        {/* Factura agrupada a fin de mes (4-sep-2026, Marbella Translators): los
+            pedidos cuelgan de un borrador mensual que se emite al cerrar el mes. */}
+        {form.creditEnabled && (
+          <label className="flex items-center gap-2 text-xs text-slate-300">
+            Facturación
+            <select
+              value={form.billingCycle}
+              onChange={(e) => set("billingCycle", e.target.value === "MONTHLY" ? "MONTHLY" : "PER_ORDER")}
+              className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="PER_ORDER">una factura por pedido, al autorizar</option>
+              <option value="MONTHLY">factura agrupada a fin de mes</option>
+            </select>
           </label>
         )}
       </div>

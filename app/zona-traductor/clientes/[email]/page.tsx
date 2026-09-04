@@ -5,6 +5,8 @@ import { getWorkflowState, getWorkflowStateLabel } from "@/lib/workflow";
 import ClientAccessLink from "@/components/ClientAccessLink";
 import ClientDeliverForm from "@/components/ClientDeliverForm";
 import CustomerEditForm from "@/components/CustomerEditForm";
+import MonthlyInvoicePanel from "@/components/MonthlyInvoicePanel";
+import { isPeriodClosed, periodLabel } from "@/lib/credit-terms";
 
 export const metadata: Metadata = {
   title: "Cliente — Zona traductor",
@@ -55,7 +57,7 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
   }
   const ci = (v: string) => ({ equals: v, mode: "insensitive" as const });
 
-  const [customer, orders, quotes, invoices] = await Promise.all([
+  const [customer, orders, quotes, invoices, monthlyInvoices] = await Promise.all([
     prisma.customer.findFirst({
       where: { email: ci(email) },
       include: {
@@ -79,11 +81,35 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
     }),
     // Solo facturas SUELTAS (sin pedido): las ligadas a un pedido ya salen en su fila.
     prisma.clientInvoice.findMany({
-      where: { email: ci(email), orderId: null },
+      where: { email: ci(email), orderId: null, periodKey: null },
       orderBy: { createdAt: "desc" },
       select: { id: true, number: true, status: true, totalCents: true, paidAt: true, holderNames: true, paymentProofUrl: true, createdAt: true },
     }),
+    // Facturas AGRUPADAS del mes (crédito mensual): borradores vivos + emitidas.
+    prisma.clientInvoice.findMany({
+      where: { email: ci(email), periodKey: { not: null } },
+      orderBy: [{ periodKey: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true, number: true, status: true, periodKey: true, totalCents: true, dueDate: true, paidAt: true, issuedAt: true, annulledAt: true,
+        monthlyOrders: { select: { reference: true, title: true, amountCents: true, deliveryState: true }, orderBy: { createdAt: "asc" } },
+      },
+    }),
   ]);
+  const now = new Date();
+  const monthly = monthlyInvoices.map((m) => ({
+    id: m.id,
+    number: m.number,
+    status: m.status,
+    periodKey: String(m.periodKey),
+    label: periodLabel(m.periodKey),
+    closed: isPeriodClosed(m.periodKey, now),
+    totalCents: m.totalCents,
+    dueDate: m.dueDate ? m.dueDate.toISOString() : null,
+    paidAt: m.paidAt ? m.paidAt.toISOString() : null,
+    issuedAt: m.issuedAt ? m.issuedAt.toISOString() : null,
+    annulled: Boolean(m.annulledAt),
+    orders: m.monthlyOrders.map((o) => ({ reference: o.reference, title: o.title, amountCents: o.amountCents, deliveryState: o.deliveryState })),
+  }));
 
   // Mismo orden de preferencia que la lista de clientes, para que el nombre no diverja.
   const name =
@@ -132,6 +158,7 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
                   autoConfirmPayment: customer.autoConfirmPayment,
                   creditEnabled: customer.creditEnabled,
                   creditDays: customer.creditDays,
+                  billingCycle: customer.billingCycle === "MONTHLY" ? "MONTHLY" : "PER_ORDER",
                   intermediaryEmail: customer.intermediary?.email ?? null,
                 }}
               />
@@ -298,6 +325,8 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
         </div>
 
         {/* Facturas libres del cliente (las ligadas a pedidos salen en su fila arriba) */}
+        <MonthlyInvoicePanel invoices={monthly} billingCycle={customer?.billingCycle || "PER_ORDER"} />
+
         <div className={card}>
           <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Facturas sueltas (sin pedido)</h2>
           {invoices.length === 0 ? (

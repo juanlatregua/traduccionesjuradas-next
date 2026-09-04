@@ -38,6 +38,7 @@ type QuoteData = {
     isBusiness?: boolean | null;
     creditEnabled?: boolean | null;
     creditDays?: number | null;
+    billingCycle?: string | null; // PER_ORDER | MONTHLY (factura agrupada a fin de mes)
     fiscalName?: string | null;
     nif?: string | null;
   } | null;
@@ -124,8 +125,11 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   // con vencimiento. Botón con el motivo ya redactado: revisar y pulsar.
   const [showCredit, setShowCredit] = useState(false);
   const [loadingCredit, setLoadingCredit] = useState(false);
+  const creditMonthly = String(initialQuote.customer?.billingCycle || "").toUpperCase() === "MONTHLY";
   const [creditReason, setCreditReason] = useState(
-    `Cliente de crédito: se trabaja y se entrega, cobro a ${initialQuote.customer?.creditDays || 30} días contra factura.`
+    creditMonthly
+      ? "Cliente de crédito con factura agrupada a fin de mes: se trabaja y se entrega, el pedido entra en la factura del mes."
+      : `Cliente de crédito: se trabaja y se entrega, cobro a ${initialQuote.customer?.creditDays || 30} días contra factura.`
   );
   const [creditDueDate, setCreditDueDate] = useState(() => {
     const d = new Date();
@@ -447,7 +451,9 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo autorizar el crédito.");
       setShowCredit(false);
       setMessage(
-        `A crédito: pedido ${data.orderReference} ${data.createdOrder ? "creado" : "ya existía"} · factura ${data.invoiceNumber || "(sin nº)"} vence ${new Date(data.dueDate).toLocaleDateString("es-ES")}. Ya puedes traducir y entregar; el enlace de pago sigue vivo.`
+        data.monthly
+          ? `A crédito: pedido ${data.orderReference} ${data.createdOrder ? "creado" : "ya existía"} · irá en la factura agrupada de ${data.monthly.periodLabel} (se emite a fin de mes desde la ficha del cliente). Ya puedes traducir y entregar.`
+          : `A crédito: pedido ${data.orderReference} ${data.createdOrder ? "creado" : "ya existía"} · factura ${data.invoiceNumber || "(sin nº)"} vence ${new Date(data.dueDate).toLocaleDateString("es-ES")}. Ya puedes traducir y entregar; el enlace de pago sigue vivo.`
       );
       await reloadQuote();
     } catch (err: any) {
@@ -744,22 +750,28 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                     className="w-72 rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-slate-800"
                     placeholder="Motivo (mín. 10 caracteres)"
                   />
-                  <label className="text-xs text-violet-900">
-                    vence{" "}
-                    <input
-                      type="date"
-                      value={creditDueDate}
-                      onChange={(e) => setCreditDueDate(e.target.value)}
-                      className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-slate-800"
-                    />
-                  </label>
+                  {!creditMonthly && (
+                    <label className="text-xs text-violet-900">
+                      vence{" "}
+                      <input
+                        type="date"
+                        value={creditDueDate}
+                        onChange={(e) => setCreditDueDate(e.target.value)}
+                        className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-slate-800"
+                      />
+                    </label>
+                  )}
                   <button
                     type="button"
                     onClick={authorizeCredit}
                     disabled={loadingCredit || creditReason.trim().length < 10}
                     className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
                   >
-                    {loadingCredit ? "Autorizando…" : `✓ Crear pedido y emitir factura (${formatMoney(quote.total)})`}
+                    {loadingCredit
+                      ? "Autorizando…"
+                      : creditMonthly
+                        ? `✓ Crear pedido → factura del mes (${formatMoney(quote.total)})`
+                        : `✓ Crear pedido y emitir factura (${formatMoney(quote.total)})`}
                   </button>
                   <button
                     type="button"
@@ -774,10 +786,14 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                   type="button"
                   onClick={() => setShowCredit(true)}
                   disabled={loadingCredit}
-                  title="Crea el pedido sin cobro y emite la factura con vencimiento: se puede traducir y entregar ya"
+                  title={
+                    creditMonthly
+                      ? "Crea el pedido sin cobro y lo mete en la factura agrupada del mes: se puede traducir y entregar ya"
+                      : "Crea el pedido sin cobro y emite la factura con vencimiento: se puede traducir y entregar ya"
+                  }
                   className="rounded-xl border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
                 >
-                  Trabajar a crédito (entregar antes de cobrar)
+                  {creditMonthly ? "Trabajar a crédito (factura a fin de mes)" : "Trabajar a crédito (entregar antes de cobrar)"}
                 </button>
               )
             ) : (

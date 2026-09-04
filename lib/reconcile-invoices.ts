@@ -44,6 +44,8 @@ export async function listPaidUnbilledOrders(): Promise<PaidUnbilledOrder[]> {
       paymentStatus: "PAID",
       amountCents: { gt: 0 },
       billingExcluded: false,
+      // Los pedidos de la factura AGRUPADA del mes se facturan en ella, no sueltos.
+      monthlyInvoiceId: null,
       OR: [
         { clientInvoice: { is: null } },
         { clientInvoice: { is: { status: "DRAFT" } } },
@@ -203,11 +205,13 @@ export async function issueInvoicesForOrders(input: {
           clientName: true,
           paymentStatus: true,
           billing: true,
+          monthlyInvoiceId: true,
           clientInvoice: { select: { id: true, status: true, totalCents: true, docKind: true } },
         },
       });
       if (!order) throw new Error("Pedido no encontrado.");
       if (order.paymentStatus !== "PAID") throw new Error("El pedido no está cobrado.");
+      if (order.monthlyInvoiceId) throw new Error("Este pedido va en la factura agrupada del mes: no se factura suelto.");
       // Un presupuesto EMITIDO no es factura: el pedido sigue sin facturar.
       if (order.clientInvoice?.status === "ISSUED" && order.clientInvoice.docKind !== "quote") {
         issued.push({ reference, ok: true, skipped: "already_issued" });

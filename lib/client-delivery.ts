@@ -12,7 +12,7 @@
 // (isOrderSecured). Sin factura numerada y declarada no hay entrega, así que
 // nadie descarga nada por estar simplemente "aprobado". Ver lib/credit-terms.ts.
 
-import { isOrderSecured, type CreditInvoice } from "@/lib/credit-terms";
+import { isOrderSecured, type CreditInvoice, type MonthlyInvoice } from "@/lib/credit-terms";
 
 export type ClientDeliveryFile = { url: string; filename: string | null };
 
@@ -24,6 +24,7 @@ export function clientVisibleDeliveryFiles(order: {
   translatedFileUrl?: string | null;
   finalFilename?: string | null;
   clientInvoice?: CreditInvoice | null;
+  monthlyInvoice?: MonthlyInvoice | null;
 }): ClientDeliveryFile[] {
   if (!isOrderSecured(order)) return [];
   if (order.deliveryState !== "TRADUCIDO") return [];
