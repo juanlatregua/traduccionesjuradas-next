@@ -124,16 +124,19 @@ export async function authorizeCredit(input: AuthorizeCreditInput) {
       );
     }
     if (invoice?.status !== "ISSUED") {
+      // BillingData.address/city/postalCode son String NOT NULL: un null aquí
+      // hacía fallar el upsert (create) cuando la ficha no tiene dirección —
+      // caso Marbella Translators, 4-sep: pedido creado y crédito sin autorizar.
       await saveBillingData(order.id, {
         fiscalName: customer.fiscalName!,
         nif: customer.nif!,
-        address: customer.address || null,
-        city: customer.city || null,
-        postalCode: customer.postalCode || null,
+        address: customer.address || "",
+        city: customer.city || "",
+        postalCode: customer.postalCode || "",
         country: customer.country || "España",
         email: customer.email,
         requested: true,
-      } as any);
+      });
       await issueOrUpdateInvoice({
         orderId: order.id,
         amountCents: order.amountCents,
@@ -273,13 +276,13 @@ async function authorizeMonthly(args: { order: MonthlyOrder; customer: MonthlyCu
     await saveBillingData(order.id, {
       fiscalName: customer.fiscalName!,
       nif: customer.nif!,
-      address: customer.address || null,
-      city: customer.city || null,
-      postalCode: customer.postalCode || null,
+      address: customer.address || "",
+      city: customer.city || "",
+      postalCode: customer.postalCode || "",
       country: customer.country || "España",
       email: customer.email,
       requested: true,
-    } as any);
+    });
     await prisma.order.update({ where: { id: order.id }, data: { monthlyInvoiceId: invoice.id } });
     await rebuildMonthlyDraft(invoice.id);
   }
