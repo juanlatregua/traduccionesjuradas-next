@@ -252,6 +252,28 @@ export function mapLavoriMiembro(w: LavoriMiembroWire): LavoriMember | null {
   };
 }
 
+/**
+ * ¿Este miembro puede recibir HOY un encargo firme de esa lengua? De alta, en la
+ * cartera viva, con canal y libre. Hallazgo del 4-sep (spec tarifa directa §7.2):
+ * el tarifario cotizaba y ENVIABA sin mirar esto, y al pagar lavori rechazaba al
+ * único candidato con 400 → pedido pagado al fallback de staff. Si lavori no
+ * responde (`live:false`) NO se afirma nada: la estática lleva `disponible`
+ * congelado del 21-ago y lavori "vuelve a libre" sola.
+ */
+export async function isLavoriMemberAvailable(
+  lang: string,
+  miembroId: string
+): Promise<{ ok: boolean; live: boolean; reason?: string; nombre?: string }> {
+  const cartera = await fetchLavoriCartera(lang);
+  if (!cartera.live) return { ok: false, live: false, reason: `lavori sin respuesta (${cartera.error || "?"})` };
+  const m = cartera.miembros.find((x) => x.id === miembroId);
+  if (!m) return { ok: false, live: true, reason: "no está de alta en esa lengua (o ya no está en la cartera)" };
+  if (m.canal === false) return { ok: false, live: true, reason: "sin canal (ni email ni push)", nombre: m.nombre };
+  if (m.enPaz) return { ok: false, live: true, reason: "en paz (no molestar)", nombre: m.nombre };
+  if (m.disponible === false) return { ok: false, live: true, reason: "no está libre", nombre: m.nombre };
+  return { ok: true, live: true, nombre: m.nombre };
+}
+
 /** Cartera de una lengua EN VIVO desde lavori; si no responde, la estática
  * (`live:false`). Nunca lanza: quien llama decide si puede seguir sin lavori. */
 export async function fetchLavoriCartera(

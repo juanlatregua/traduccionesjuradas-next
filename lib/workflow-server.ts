@@ -730,6 +730,34 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       const parsed = lavoriLangFromPair(order.langPair);
       const paraTiCents = q?.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0) || 0;
       if (q?.lavoriMiembroId && parsed && paraTiCents > 0) {
+        // Re-comprobación al pagar (spec tarifa directa 4-sep §2.7): entre
+        // cotizar y cobrar el jurado puede haber dejado de estar libre. Un firme
+        // a un candidato que lavori rechaza con 400 dejaba el pedido PAGADO en el
+        // fallback de staff. Si no puede, se abre a la cartera de la lengua con
+        // precio abierto y se avisa en las especificaciones; Juan decide.
+        const { isLavoriMemberAvailable } = await import("@/lib/lavori-bridge");
+        const disp = await isLavoriMemberAvailable(parsed.lang, q.lavoriMiembroId);
+        if (!disp.ok) {
+          console.error(`[workflow] jurado de la tarifa ${q.lavoriMiembroNombre || q.lavoriMiembroId} no disponible al pagar ${options.reference}: ${disp.reason}`);
+          await prisma.orderEvent.create({
+            data: {
+              orderId: order.id,
+              type: "lavori.tarifa_jurado_no_disponible",
+              message: `El jurado de la tarifa (${q.lavoriMiembroNombre || q.lavoriMiembroId}) no puede recibir el encargo: ${disp.reason}. Se abre a la cartera de ${parsed.lang.toUpperCase()} con precio abierto; el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} €.`,
+              payload: { miembroId: q.lavoriMiembroId, reason: disp.reason, live: disp.live, paraTiCents, quoteNumber: q.quoteNumber },
+            },
+          });
+          const abierta = lavoriRouteFromPair(order.langPair);
+          if (abierta) {
+            return await routeOrderToLavori({
+              order,
+              route: abierta,
+              reference: options.reference,
+              actorEmail: options.actorEmail || null,
+              especificaciones: `El jurado previsto (${q.lavoriMiembroNombre || "tarifa de la casa"}) no está disponible. Precio abierto: el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} € (presupuesto ${q.quoteNumber}); la cifra de referencia era ${(paraTiCents / 100).toFixed(2)} €.`,
+            });
+          }
+        }
         return await routeOrderToLavori({
           order,
           route: { lang: parsed.lang, par: parsed.par, candidatos: [q.lavoriMiembroId] },

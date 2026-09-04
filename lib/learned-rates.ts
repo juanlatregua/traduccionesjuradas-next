@@ -496,6 +496,17 @@ export async function autoQuoteFromPuertaSession(opts: {
   }
   const miembros = Array.from(new Set(priced.map((p) => p.rate.miembroId).filter(Boolean))) as string[];
   if (miembros.length > 1) return { ok: false, reason: "tarifas de jurados distintos en el mismo expediente" };
+  // El jurado de la tarifa tiene que poder recibir el encargo HOY (de alta, con
+  // canal, libre). Se comprueba al COTIZAR, no al pagar: este carril envía un
+  // precio al cliente en nombre de un jurado concreto, y prometer una cifra de
+  // alguien que no está es exactamente el pedido pagado sin traductor.
+  if (miembros[0]) {
+    const { isLavoriMemberAvailable } = await import("@/lib/lavori-bridge");
+    const disp = await isLavoriMemberAvailable(infos[0].lang, miembros[0]);
+    if (!disp.ok) {
+      return { ok: false, reason: `el jurado de la tarifa (${priced.find((p) => p.rate.miembroNombre)?.rate.miembroNombre || miembros[0]}) no puede recibir el encargo ahora: ${disp.reason}` };
+    }
+  }
   const subtotalCents = priced.reduce((a, p) => a + p.clientCents, 0);
   if (subtotalCents > AUTO_QUOTE_MAX_CENTS) return { ok: false, reason: `importe ${(subtotalCents / 100).toFixed(2)} € por encima del tope automático` };
 
