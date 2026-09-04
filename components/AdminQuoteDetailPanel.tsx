@@ -780,11 +780,20 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                   Trabajar a crédito (entregar antes de cobrar)
                 </button>
               )
-            ) : quote.customer?.isBusiness ? (
-              <span className="self-center text-xs text-slate-500" title="Activa «Cliente de crédito» en la ficha del cliente para trabajar y entregar antes de cobrar">
-                Sin crédito · actívalo en la ficha del cliente
-              </span>
-            ) : null)}
+            ) : (
+              // Antes solo avisaba si la ficha era B2B: a un cliente sin marcar
+              // (caso Marbella Translators, 4-sep) no salía NADA y no se sabía
+              // por qué faltaba el botón. Ahora siempre dice dónde activarlo.
+              <a
+                href={`/zona-traductor/clientes/${encodeURIComponent(quote.customerEmail)}`}
+                className="self-center text-xs text-slate-500 underline decoration-dotted hover:text-violet-700"
+                title="Para trabajar y entregar antes de cobrar: activa «Cliente de crédito» en la ficha y rellena razón social y NIF"
+              >
+                {quote.customer
+                  ? "Sin crédito · actívalo en la ficha del cliente (y pon razón social + NIF)"
+                  : "Sin ficha de cliente · créala para poder trabajar a crédito"}
+              </a>
+            ))}
           {(QUOTE_NEXT[quote.status] || []).includes("IN_PROGRESS") && (
             <button
               type="button"
