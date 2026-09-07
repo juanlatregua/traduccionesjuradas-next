@@ -83,3 +83,12 @@ mitraductorjurado, holabonjour), reevaluar entonces — ese sí es el caso legí
    (`<nombre>/SKILL.md` + frontmatter `name`/`description`).
 2. Crear `.claude/settings.json` para cablear los 3 hooks.
 3. Primer `CONTEXT.md` en la raíz vía `/cerrar`.
+
+## Corrección (7-sep-2026, verificado en el Mac)
+
+La sesión remota no veía `CONTEXT.md` porque estaba gitignorado, no porque no
+existiera: en local había 37 sesiones (208 KB) más la memoria persistente de
+Claude Code. El hueco real era de visibilidad, no de memoria. Los tres pendientes
+se ejecutaron el 7-sep en esta misma rama: skills con frontmatter, hooks cableados
+en `.claude/settings.json`, y `CONTEXT.md` recortado a 3 sesiones y commiteado
+(histórico en `CONTEXT.archive.md`, local).

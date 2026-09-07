@@ -10,20 +10,20 @@ Prisma 6 + PostgreSQL | NextAuth 4 (Google OAuth) + OTP (SMS) | Stripe + Redsys
 Microsoft Graph (email) | Twilio | Claude AI | Vercel Blob | Velite + MDX (blog)
 
 ```
-app/                              # ~70 páginas + 77 API routes
+app/                              # 120 páginas + 161 API routes
 ├── traductor-jurado-*/            # 10 idiomas (PaginaIdioma)
 ├── traductor-jurado/[ciudad]/     # 50 ciudades SEO local
 ├── documentos-oficiales/          # Hub + 9 tipos de documento
-├── blog/                          # 10 artículos MDX (tramites/paises/faq/profesion)
+├── blog/                          # 24 artículos MDX (tramites/paises/faq/profesion)
 ├── (funnel)/                      # start → upload → review → checkout → confirmation
 ├── zona-traductor/                # Bandeja + Workspace (acceso OTP)
 ├── admin/                         # Orders + Quotes + Collaborators
 ├── encargo/[token]/               # Página pública colaborador
 ├── area-cliente/                  # Zona cliente
-└── api/                           # ~77 endpoints REST
-components/   # 74 componentes (Schema*, OrderAction*, Collaborator*, ia/*)
-lib/          # 66 módulos (orders, workflow, payments, email, sms, ai, pricing)
-prisma/       # 20 modelos, 15 enums — ver .claude/skills/prisma-patterns.md
+└── api/                           # 161 endpoints REST
+components/   # 120 componentes (Schema*, OrderAction*, Collaborator*, ia/*)
+lib/          # 130 módulos (+48 en subcarpetas: ai/, emails/, verifactu/, pricing-engine/)
+prisma/       # 34 modelos, 19 enums — ver .claude/skills/prisma-patterns/SKILL.md
 ```
 
 ## HOW
@@ -53,9 +53,10 @@ prisma db push                     # aplicar schema (NO migrate dev — shadow D
 - Deploy: Vercel auto-deploy desde `main`
 
 ## Detalle por módulo
-→ `.claude/skills/prisma-patterns.md` · `.claude/skills/auth-patterns.md` · `.claude/skills/email-patterns.md`
-→ `.claude/skills/payments-patterns.md` · `.claude/skills/storage-patterns.md` · `.claude/skills/seo-patterns.md`
-→ `docs/architecture.md` · `docs/decisions/` (6 ADRs) · `docs/runbooks/` (setup, migraciones, deploy)
+Las skills de `.claude/skills/*/SKILL.md` se cargan solas (frontmatter). Hooks en `.claude/settings.json`: `protect.sh` pide confirmación en auth/pagos/webhooks/migraciones, `post-edit.sh` pasa prettier solo si existe `.prettierrc` (hoy no hay: el código nunca se formateó con prettier). `CONTEXT.md` (3 últimas sesiones) se commitea; histórico en `CONTEXT.archive.md` local.
+→ `.claude/skills/prisma-patterns/SKILL.md` · `.claude/skills/auth-patterns/SKILL.md` · `.claude/skills/email-patterns/SKILL.md`
+→ `.claude/skills/payments-patterns/SKILL.md` · `.claude/skills/storage-patterns/SKILL.md` · `.claude/skills/seo-patterns/SKILL.md`
+→ `docs/architecture.md` · `docs/decisions/` (7 ADRs) · `docs/runbooks/` (setup, migraciones, deploy)
 
 ## Errores preexistentes
 - `tsc --noEmit`: errores de `@prisma/client` (→ `prisma generate`), `@anthropic-ai/sdk`, `@/content` (→ Velite en build)
