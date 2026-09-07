@@ -2,6 +2,7 @@
 // (factura recibida) con Claude visión, para prerellenar el alta de gasto.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "./usage-log";
 
 const MODEL = "claude-sonnet-4-6"; // Sonnet 4 (20250514) retirado 15-jun-2026 → 404
 
@@ -87,6 +88,7 @@ export async function extractExpenseFromDocument(input: { fileBase64?: string; m
       },
       { signal: controller.signal }
     );
+    logAiUsage("extract-expense", MODEL, response.usage);
     const text = response.content
       .filter((c): c is Anthropic.TextBlock => c.type === "text")
       .map((c) => c.text)

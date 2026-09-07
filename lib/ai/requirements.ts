@@ -10,6 +10,7 @@
 // palabras) asume DocumentAnalysisResult y rompería con este schema.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "./usage-log";
 import { parseModelJson, VISION_MODEL, TEXT_MODEL_ID } from "./analyze-document";
 import { extractPdfText } from "./extract-text";
 import {
@@ -215,6 +216,8 @@ export async function analyzeRequirement(input: {
     );
 
     clearTimeout(timeout);
+
+    logAiUsage("requirements", model, response.usage);
 
     if (response.stop_reason === "max_tokens") {
       throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");

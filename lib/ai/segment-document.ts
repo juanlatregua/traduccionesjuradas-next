@@ -8,6 +8,7 @@
 // modelo). Ver lib/ai/run-analysis.ts (orquestador) y prompts.ts.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "./usage-log";
 import { DOCUMENT_SEGMENTATION_PROMPT } from "./prompts";
 import { TEXT_MODEL_ID, parseModelJson } from "./analyze-document";
 import type { DocumentAnalysisResult } from "./analyze-document";
@@ -185,6 +186,8 @@ export async function segmentDocumentText(input: {
     );
 
     clearTimeout(timeout);
+
+    logAiUsage("segment", TEXT_MODEL_ID, response.usage);
 
     if (response.stop_reason === "max_tokens") {
       throw new Error("TRUNCATED: segmentación truncada por límite de tokens.");

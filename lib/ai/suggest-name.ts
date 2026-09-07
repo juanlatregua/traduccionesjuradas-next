@@ -9,6 +9,7 @@
 //  - PDF escaneado sin texto → Sonnet sobre la PRIMERA página (coste acotado).
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "./usage-log";
 import { TEXT_MODEL_ID, VISION_MODEL } from "./analyze-document";
 import { extractPdfText } from "./extract-text";
 
@@ -107,6 +108,7 @@ export async function suggestDocumentName(input: {
       { signal: controller.signal }
     );
     clearTimeout(timeout);
+    logAiUsage("suggest-name", model, resp.usage);
     const block = resp.content.find((b) => b.type === "text");
     const raw = block && block.type === "text" ? block.text.trim() : "";
     const name = raw

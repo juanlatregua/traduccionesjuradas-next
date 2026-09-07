@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "@/lib/ai/usage-log";
 import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -252,6 +253,7 @@ export async function POST(req: NextRequest) {
             }
 
             const final = await stream.finalMessage();
+            logAiUsage("chat", MODEL, final.usage);
             apiMessages.push({ role: "assistant", content: final.content });
 
             if (final.stop_reason !== "tool_use") break;

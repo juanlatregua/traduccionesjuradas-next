@@ -5,6 +5,7 @@
 // documentos; esto evita presupuestar a ciegas lo que el email ya aclara.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "./usage-log";
 
 const BRIEF_MODEL = "claude-sonnet-4-6";
 
@@ -126,6 +127,7 @@ export async function generateEmailBrief(input: {
       { signal: controller.signal }
     );
     clearTimeout(timeout);
+    logAiUsage("email-brief", BRIEF_MODEL, resp.usage);
     const block = resp.content.find((b) => b.type === "text");
     const raw = block && block.type === "text" ? block.text : "";
     if (!raw.trim()) throw new Error("El modelo no devolvió texto.");

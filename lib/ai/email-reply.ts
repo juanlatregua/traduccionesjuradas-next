@@ -3,6 +3,7 @@
 // pedido / preview del presupuesto). El staff SIEMPRE revisa antes de enviar.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "./usage-log";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
@@ -311,6 +312,7 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
       { signal: controller.signal }
     );
     clearTimeout(timeout);
+    logAiUsage("email-reply", DRAFT_MODEL, resp.usage);
     if (resp.stop_reason === "max_tokens") {
       throw new Error("El borrador quedó cortado (max_tokens). Reintenta con instrucciones más cortas.");
     }

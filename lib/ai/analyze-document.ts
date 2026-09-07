@@ -1,6 +1,7 @@
 // lib/ai/analyze-document.ts — Análisis de documentos con Claude API (visión)
 
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "./usage-log";
 import { DOCUMENT_ANALYSIS_PROMPT, LARGE_DOCUMENT_ADDENDUM } from "./prompts";
 import { countDocumentWords, billableWordCount } from "./word-counter";
 
@@ -203,6 +204,8 @@ export async function analyzeDocumentText(input: {
 
     clearTimeout(timeout);
 
+    logAiUsage("analyze-text", TEXT_MODEL, response.usage);
+
     if (response.stop_reason === "max_tokens") {
       console.error("[analyzeDocumentText] Response truncated (max_tokens). Usage:", JSON.stringify(response.usage));
       throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");
@@ -293,8 +296,8 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  const callModel = (blocks: typeof contentBlocks) =>
-    client.messages.create(
+  const callModel = async (blocks: typeof contentBlocks) => {
+    const r = await client.messages.create(
       {
         model: MODEL,
         max_tokens: isLargeDoc ? MAX_TOKENS_LARGE : MAX_TOKENS,
@@ -314,6 +317,9 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
       },
       { signal: controller.signal }
     );
+    logAiUsage("analyze-vision", MODEL, r.usage);
+    return r;
+  };
 
   try {
     let response = await callModel(contentBlocks);
