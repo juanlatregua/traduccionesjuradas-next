@@ -104,7 +104,7 @@ Resume al usuario:
 - Cliente Prisma regenerado.
 
 **Recuerda:** commitea `prisma/schema.prisma` para que el repo refleje el estado real de la DB.
-Si el cambio afecta a un modelo documentado, considera `/doc-sync` y revisar `.claude/skills/prisma-patterns.md`.
+Si el cambio afecta a un modelo documentado, considera `/doc-sync` y revisar `.claude/skills/prisma-patterns/SKILL.md`.
 ```
 
 ## 6. Migraciones legacy y P3009

@@ -14,7 +14,7 @@ Lee `CONTEXT.md` en la raíz del repo. El primer bloque (`## Sesión …`) es el
 - **Pendiente para próxima sesión**
 - **Prompt de arranque sugerido**
 
-Si `CONTEXT.md` no existe (primera vez), salta este paso.
+Si `CONTEXT.md` no existe (primera vez), salta este paso. Solo trae las 3 últimas sesiones; el histórico completo está en `CONTEXT.archive.md` (local, gitignorado), consúltalo solo si hace falta.
 
 ## 2. Estado del repo (paralelo)
 

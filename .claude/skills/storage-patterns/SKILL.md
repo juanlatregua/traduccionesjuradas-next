@@ -1,3 +1,8 @@
+---
+name: storage-patterns
+description: Almacenamiento de traduccionesjuradas.net: Vercel Blob, validación de tipos y tamaños, URLs privadas, documentos por URL y sha256 hacia lavori. Cargar antes de tocar subida, descarga o entrega de archivos.
+---
+
 # Storage — Vercel Blob, validación y límites
 
 ## Backend: Vercel Blob (@vercel/blob 2.2.0)

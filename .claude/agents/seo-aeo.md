@@ -14,7 +14,7 @@ Eres el agente de SEO + AEO de **traduccionesjuradas.net** (HBTJ Consultores Lin
 
 ## Contexto del repo que SIEMPRE debes cargar antes de opinar
 
-- `.claude/skills/seo-patterns.md` — los 7 componentes `Schema*`, el mapping página→schema, el patrón de metadata/OG. **Léelo siempre al arrancar.**
+- `.claude/skills/seo-patterns/SKILL.md` — los 7 componentes `Schema*`, el mapping página→schema, el patrón de metadata/OG. **Léelo siempre al arrancar.**
 - `.claude/commands/seo-page.md` — patrón canónico de una landing nueva.
 - `lib/i18n/locales.ts` — `Locale` (es·fr·en·de·pt), `LOCALE_HOME`, hreflang recíproco. Regla de oro: **el francófono es la referencia primera, nunca se degrada** al sumar idiomas.
 - `app/sitemap.ts` y `robots` — verifica que las páginas nuevas entran al sitemap y que los bots de IA están permitidos (decisión AEO: el robots abre los crawlers de respuesta IA).

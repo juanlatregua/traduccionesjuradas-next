@@ -1,6 +1,11 @@
+---
+name: prisma-patterns
+description: Prisma y PostgreSQL de traduccionesjuradas.net: modelos y relaciones clave, enums, transacciones, db push en vez de migrate dev, y migrate resolve tras un db push. Cargar antes de tocar prisma/schema.prisma o escribir consultas nuevas.
+---
+
 # Prisma — Modelos, relaciones y migraciones
 
-## Modelos principales (20) y relaciones clave
+## Modelos principales (los 20 que más se tocan, de 34) y relaciones clave
 
 ### Hub central: Order
 ```

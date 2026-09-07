@@ -1,3 +1,8 @@
+---
+name: seo-patterns
+description: SEO de traduccionesjuradas.net: los 7 componentes Schema* JSON-LD, mapping página→schema, metadata y OG images, hreflang, sitemap y reglas de indexación. Cargar antes de crear o tocar páginas públicas, blog, ciudades o idiomas.
+---
+
 # SEO — Schema JSON-LD, metadata y OG images
 
 ## Componentes Schema (7)

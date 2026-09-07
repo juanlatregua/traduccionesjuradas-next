@@ -1,3 +1,8 @@
+---
+name: payments-patterns
+description: Pagos de traduccionesjuradas.net: Stripe y Redsys, webhooks, idempotencia, estados de pago del pedido, rate limit en endpoints públicos y marcar pagado a mano. Cargar antes de tocar app/api/payment, checkout, quotes/public o cualquier cosa que cambie paymentStatus.
+---
+
 # Payments — Stripe, Redsys, webhooks e idempotencia
 
 ## Gateways activos

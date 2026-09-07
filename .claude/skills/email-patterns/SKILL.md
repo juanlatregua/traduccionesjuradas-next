@@ -1,3 +1,8 @@
+---
+name: email-patterns
+description: Email de traduccionesjuradas.net: Microsoft Graph con dos buzones (hola@traduccionesjuradas.net para clientes, hola@lavori.es para jurados), plantillas, adjuntos, FailedEmail y reglas de remitente por destinatario. Cargar antes de crear o tocar cualquier envío de email o plantilla.
+---
+
 # Email — Microsoft Graph API
 
 ## Proveedor: Microsoft Graph API (Azure AD OAuth2)

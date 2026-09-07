@@ -33,7 +33,7 @@ Si hay cambios sin commitear:
 
 ## 4. Actualizar `CONTEXT.md`
 
-Vive en la raíz del repo. Está gitignorado — es estado local de sesión, no código.
+Vive en la raíz del repo y SE COMMITEA (desde el 7-sep-2026) para que las sesiones remotas y el móvil lo vean. Se mantienen solo las **3 últimas sesiones**: al anteponer la nueva, mover la más antigua al final del histórico local `CONTEXT.archive.md` (gitignorado).
 
 Si no existe, crearlo. Antepone (no append) un bloque al inicio con el formato exacto:
 

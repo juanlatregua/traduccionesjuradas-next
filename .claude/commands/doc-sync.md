@@ -83,7 +83,7 @@ Para cada desfase detectado, propón un diff exacto en formato unified:
 
 - **Nueva carpeta `lib/X/` o `app/(grupo)/`** con varios archivos → posiblemente toca el bloque WHAT.
 - **Cambio de stack** (ej. se reemplaza un proveedor) → actualizar bloque HOW / Reglas inmutables.
-- **Modelo o enum Prisma renombrado/eliminado** → buscar referencias en CLAUDE.md y en `.claude/skills/prisma-patterns.md`.
+- **Modelo o enum Prisma renombrado/eliminado** → buscar referencias en CLAUDE.md y en `.claude/skills/prisma-patterns/SKILL.md`.
 - **Tarifa cambiada** en el pricing engine → CLAUDE.md y la memoria (`project_pricing_architecture.md`) deben cuadrar.
 - **Convención nueva** confirmada por feedback del usuario → si está en `memory/feedback_*.md`, es autoritativa y debe reflejarse en CLAUDE.md.
 - **Skill `.claude/skills/` nuevo o eliminado** → actualizar la sección "Detalle por módulo".

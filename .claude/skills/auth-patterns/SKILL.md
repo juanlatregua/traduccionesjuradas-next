@@ -1,3 +1,8 @@
+---
+name: auth-patterns
+description: Auth de traduccionesjuradas.net: NextAuth 4 con Google OAuth, OTP por SMS, roles ADMIN/PM/TRANSLATOR, sesiones y gates de acceso. Cargar antes de tocar app/api/auth, middleware, zona-traductor, area-cliente o cualquier endpoint que compruebe sesión o rol.
+---
+
 # Auth — OAuth, OTP, roles y sesiones
 
 ## Arquitectura
