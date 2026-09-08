@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
 import LavoriCandidatePicker, {
   describeLavoriPick,
+  lavoriPickError,
   lavoriPickToCandidatos,
   useLavoriCartera,
   type LavoriPick,
@@ -169,9 +170,10 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       return;
     }
     if (!lavoriRoute) return;
-    const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros);
-    if ((lavoriPick.mode === "uno" || lavoriPick.mode === "todos") && (!candidatos || candidatos.length === 0)) {
-      setError("Elige el jurado al que enviar la solicitud.");
+    const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
+    const pickError = lavoriPickError(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
+    if (pickError) {
+      setError(pickError);
       return;
     }
     const destinatarios = ` Destinatarios: ${describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros)}.`;

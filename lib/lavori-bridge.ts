@@ -116,6 +116,10 @@ export type LavoriMember = {
   disponible?: boolean;
   papelUnico?: boolean;
   nota?: string;
+  // Señales en vivo para elegir solos hasta LAVORI_MAX_CANDIDATOS cuando "todos" no cabe.
+  ultimaSesion?: string | null;
+  push?: number;
+  conTarifas?: boolean;
 };
 export const LAVORI_MEMBERS: LavoriMember[] = [
   // de
@@ -222,6 +226,8 @@ type LavoriMiembroWire = {
   disponible?: boolean;
   enPaz?: boolean;
   canal?: boolean;
+  ultimaSesion?: string | null;
+  conTarifas?: boolean;
 };
 
 /** Mapea un miembro del endpoint de lavori a la forma de la cartera. Solo jurados
@@ -249,6 +255,9 @@ export function mapLavoriMiembro(w: LavoriMiembroWire): LavoriMember | null {
     enPaz: Boolean(w.enPaz),
     disponible: w.disponible !== false,
     papelUnico: Boolean(w.papelUnico),
+    ultimaSesion: typeof w.ultimaSesion === "string" ? w.ultimaSesion : null,
+    push: Number(w.push) || 0,
+    ...(typeof w.conTarifas === "boolean" ? { conTarifas: w.conTarifas } : {}),
   };
 }
 
@@ -303,6 +312,46 @@ export async function fetchLavoriCartera(
   }
 }
 
+/** Tope del contrato de lavori (POST /api/motor/solicitudes: "candidatos obligatorios (1-10)").
+ * Es una decisión suya (consejo 22-ago-2026, minimización RGPD: cuantos menos jurados vean
+ * DNI y penales de quien no harán el encargo, mejor), no un límite técnico nuestro. */
+export const LAVORI_MAX_CANDIDATOS = 10;
+
+/** Elige solos hasta `max` jurados de la lengua cuando "todos" no cabe en el tope de
+ * lavori (orden Juan 8-sep-2026: "debería elegir 10 al azar, los que tienen precios o
+ * los que entran más"). Solo receptores (con canal, no en paz). Prioridad: carril por
+ * defecto → hoja de tarifas en lavori (si lavori la manda) → disponible → última
+ * sesión más reciente → con push. Los empates se rompen al azar, así no le toca
+ * siempre a los mismos. */
+export function pickLavoriAuto(
+  lang: string,
+  cartera: LavoriMember[],
+  max: number = LAVORI_MAX_CANDIDATOS,
+  random: () => number = Math.random
+): LavoriMember[] {
+  const l = String(lang || "").toLowerCase();
+  const carril = new Set(LAVORI_CANDIDATES[l] || []);
+  const receptores = cartera.filter((m) => m.canal !== false && !m.enPaz);
+  if (receptores.length <= max) return receptores;
+  const score = (m: LavoriMember) => {
+    let s = 0;
+    if (carril.has(m.id)) s += 1_000_000;
+    if (m.conTarifas) s += 100_000;
+    if (m.disponible !== false) s += 10_000;
+    const t = m.ultimaSesion ? Date.parse(m.ultimaSesion) : NaN;
+    if (Number.isFinite(t)) {
+      const dias = Math.max(0, (Date.now() - t) / 86_400_000);
+      s += Math.max(0, 1_000 - Math.min(dias, 999)); // hoy ≈ 1000, hace un año ≈ 1
+    }
+    if ((m.push ?? 0) > 0) s += 5;
+    return s;
+  };
+  const azar = new Map(receptores.map((m) => [m.id, random()] as const));
+  return [...receptores]
+    .sort((a, b) => score(b) - score(a) || (azar.get(a.id) ?? 0) - (azar.get(b.id) ?? 0))
+    .slice(0, max);
+}
+
 /** Resuelve los candidatos de una solicitud manual. Sin selección → carril por
  * defecto. Con selección → solo ids de la cartera de ESA lengua (un id de otra
  * lengua, desconocido o una lista vacía se rechazan: nadie recibe un sobre por
@@ -326,6 +375,12 @@ export function resolveLavoriCandidatos(
     return {
       ok: false,
       error: `Candidato fuera de la cartera de ${route.lang.toUpperCase()}: ${fuera.join(", ") || "(vacío)"}.`,
+    };
+  }
+  if (ids.length > LAVORI_MAX_CANDIDATOS) {
+    return {
+      ok: false,
+      error: `lavori admite como máximo ${LAVORI_MAX_CANDIDATOS} jurados por solicitud y has elegido ${ids.length}. Elige hasta ${LAVORI_MAX_CANDIDATOS}.`,
     };
   }
   return { ok: true, candidatos: ids, elegidos: true };

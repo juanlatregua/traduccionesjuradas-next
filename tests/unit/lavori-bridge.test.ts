@@ -11,6 +11,7 @@ import {
   lavoriManualRoute,
   mapLavoriMiembro,
   resolveLavoriCandidatos,
+  pickLavoriAuto,
   LAVORI_CANDIDATES,
   LAVORI_MEMBERS,
 } from "../../lib/lavori-bridge.ts";
@@ -90,8 +91,9 @@ test("resolveLavoriCandidatos: sin elección → carril; elección válida → s
   const en = lavoriRouteFromPair("en->es")!;
   const cartera = lavoriCarteraForLang("en");
   assert.deepEqual(resolveLavoriCandidatos(en, undefined, cartera), { ok: true, candidatos: en.candidatos, elegidos: false });
-  // "Todos los de la lengua": la cartera EN completa.
-  const todosEn = cartera.map((m) => m.id);
+  // "Todos los de la lengua": la cartera EN entera si cabe en el tope de lavori; si no, la
+  // UI la recorta con pickLavoriAuto y aquí solo llega una lista de hasta 10.
+  const todosEn = cartera.map((m) => m.id).slice(0, 10);
   assert.ok(todosEn.length > 1);
   const todos = resolveLavoriCandidatos(en, todosEn, cartera);
   assert.ok(todos.ok && todos.elegidos && todos.candidatos.length === todosEn.length);
@@ -223,4 +225,37 @@ test("buildSolicitudPayload: opcionales fuera cuando no hay dato", () => {
   });
   assert.equal("palabras" in payload, false);
   assert.equal("plazo" in payload, false);
+});
+
+test("resolveLavoriCandidatos: más de LAVORI_MAX_CANDIDATOS se rechaza antes de llamar a lavori", () => {
+  const cartera = Array.from({ length: 12 }, (_, i) => ({ id: `m${i}`, nombre: `J${i}`, langs: ["en"] }));
+  const en = { lang: "en", par: "EN>ES", candidatos: ["m0"] } as any;
+  const r = resolveLavoriCandidatos(en, cartera.map((m) => m.id), cartera);
+  assert.equal(r.ok, false);
+  assert.match((r as any).error, /máximo 10/);
+  assert.equal(resolveLavoriCandidatos(en, cartera.slice(0, 10).map((m) => m.id), cartera).ok, true);
+});
+
+test("pickLavoriAuto: carril → tarifas → disponible → última sesión; empates al azar; nunca sin canal ni en paz", () => {
+  const hoy = new Date().toISOString();
+  const hace300 = new Date(Date.now() - 300 * 86_400_000).toISOString();
+  const cartera = [
+    { id: "paz", nombre: "En paz", langs: ["en"], enPaz: true, ultimaSesion: hoy },
+    { id: "sincanal", nombre: "Sin canal", langs: ["en"], canal: false, ultimaSesion: hoy },
+    { id: "tarifas", nombre: "Con tarifas", langs: ["en"], conTarifas: true, ultimaSesion: hace300 },
+    { id: "hoy", nombre: "Entró hoy", langs: ["en"], ultimaSesion: hoy },
+    { id: "nodisp", nombre: "No disponible", langs: ["en"], disponible: false, ultimaSesion: hoy },
+    { id: "viejo", nombre: "Hace 300 días", langs: ["en"], ultimaSesion: hace300 },
+    { id: "nunca1", nombre: "Nunca 1", langs: ["en"] },
+    { id: "nunca2", nombre: "Nunca 2", langs: ["en"] },
+  ];
+  const pick = pickLavoriAuto("xx", cartera, 3, () => 0.5);
+  assert.deepEqual(pick.map((m) => m.id), ["tarifas", "hoy", "viejo"]);
+  assert.equal(pickLavoriAuto("xx", cartera, 3).some((m) => m.id === "paz" || m.id === "sincanal"), false);
+  // Cabe entero: no recorta ni reordena
+  assert.equal(pickLavoriAuto("xx", cartera.slice(2, 5), 10).length, 3);
+  // Empate entre "nunca": el azar decide y el resultado es determinista con el mismo random
+  const a = pickLavoriAuto("xx", cartera.slice(6), 1, () => 0.1).map((m) => m.id);
+  const b = pickLavoriAuto("xx", cartera.slice(6), 1, () => 0.1).map((m) => m.id);
+  assert.deepEqual(a, b);
 });

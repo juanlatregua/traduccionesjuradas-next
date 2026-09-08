@@ -8,7 +8,7 @@ import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
-import LavoriCandidatePicker, { describeLavoriPick, lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
+import LavoriCandidatePicker, { describeLavoriPick, lavoriPickError, lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
@@ -723,9 +723,10 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
 
   const sendLavoriPrice = useCallback(async () => {
     if (!lavoriRoute || lavoriDocs.length === 0) return;
-    const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros);
-    if ((lavoriPick.mode === "uno" || lavoriPick.mode === "todos") && (!candidatos || candidatos.length === 0)) {
-      setLavoriState({ phase: "error", msg: "Elige el jurado al que enviar la solicitud." });
+    const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
+    const pickError = lavoriPickError(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
+    if (pickError) {
+      setLavoriState({ phase: "error", msg: pickError });
       return;
     }
     setLavoriState({ phase: "sending" });
