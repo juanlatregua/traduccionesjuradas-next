@@ -21,6 +21,7 @@ import {
 } from "@/lib/lavori-bridge";
 import { packDocsForSobre } from "@/lib/lavori-sobre";
 import { sendMail } from "@/lib/azure-mail";
+import { LEAD_PAIRABLE_STATUSES, matchLeadByCustomer } from "@/lib/lavori-lead-match";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 import { isOrderSecured } from "@/lib/credit-terms";
 
@@ -307,6 +308,13 @@ function isAutoAssignPair(langPair?: string | null): boolean {
 }
 
 const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
+const staffMailLines = (subject: string, lines: string[]) =>
+  sendMail({
+    to: STAFF_ALERT_EMAIL,
+    subject,
+    text: lines.join("\n"),
+    html: lines.map((l) => `<p>${l}</p>`).join(""),
+  }).catch((err) => console.error("[workflow] staff mail failed", err));
 
 // Fase 2 del puente: emisor precio_aceptado (contrato research/
 // contrato-fase2-eventos-2026-08-12.md del repo lavori). Un pedido pagado que
@@ -334,7 +342,10 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   // En lavori además: mismo ref + mismo precio → {repetido:true} sin re-aviso.
   if (
     order.events.some(
-      (e) => e.type === "lavori.precio_aceptado_enviado" || e.type === "lavori.precio_aceptado_conflicto"
+      (e) =>
+        e.type === "lavori.precio_aceptado_enviado" ||
+        e.type === "lavori.precio_aceptado_conflicto" ||
+        e.type === "lavori.encargo_aceptado"
     )
   ) {
     return { handled: true, changed: false };
@@ -365,9 +376,10 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     const or: Array<{ quoteId: string } | { expedienteRef: string }> = [{ quoteId: order.quoteId }];
     if (quote?.expedienteRef) or.push({ expedienteRef: quote.expedienteRef });
     const lpr = await prisma.lavoriPriceRequest.findFirst({
-      where: { status: "PRICED", OR: or },
+      where: { status: { in: [...LEAD_PAIRABLE_STATUSES] }, OR: or },
       orderBy: { updatedAt: "desc" },
     });
+    if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
     if (lpr?.priceCents && lpr.priceCents > 0) {
       // La motor_ref del encargo en lavori es la ref de la solicitud + "-precio"
       // (así la creó buildPriceRequestPayload).
@@ -386,37 +398,42 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   if (!ref && order.langPair) {
     const par = order.langPair.replace("->", ">").toUpperCase();
     const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const norm = (x: string | null | undefined) => String(x || "").trim().toLowerCase();
-    const digits = (x: string | null | undefined) => String(x || "").replace(/\D/g, "").slice(-9);
-    const email = norm(order.clientEmail);
-    const name = norm(order.clientName);
-    const phone = digits(order.clientPhone);
     const candidatas = await prisma.lavoriPriceRequest.findMany({
-      where: { status: "PRICED", quoteId: null, par, createdAt: { gte: since } },
+      where: { status: { in: [...LEAD_PAIRABLE_STATUSES] }, quoteId: null, par, createdAt: { gte: since } },
       orderBy: { updatedAt: "desc" },
       take: 10,
     });
-    const lpr = candidatas.find((c) => {
-      const parts = (c.customerHint || "").split(" · ").map((x) => x.trim()).filter(Boolean);
-      return parts.some(
-        (part) =>
-          (email && !email.endsWith("@whatsapp.local") && norm(part) === email) ||
-          (phone && phone.length >= 9 && digits(part) === phone) ||
-          (name && name.length >= 5 && norm(part) === name)
-      );
-    });
-    if (lpr?.priceCents && lpr.priceCents > 0) {
-      ref = `${lpr.ref}-precio`;
-      precioCents = lpr.priceCents;
-      lprId = lpr.id;
+    const who = { email: order.clientEmail, name: order.clientName, phone: order.clientPhone };
+    let libres = candidatas;
+    let lpr = matchLeadByCustomer(libres, who);
+    // Una solicitud ya consumida por OTRO pedido (ACCEPTED sin presupuesto: carril
+    // funnel) no puede reciclarse en el siguiente pedido del mismo cliente — se
+    // asignaría con la cifra vieja y sin encargo. La marca de consumo es el evento
+    // que la nombra en el otro pedido.
+    while (lpr) {
+      const consumida = await prisma.orderEvent.findFirst({
+        where: { orderId: { not: order.id }, payload: { path: ["lavoriPriceRequestId"], equals: lpr.id } },
+        select: { id: true },
+      });
+      if (!consumida) break;
+      const usada = lpr.id;
+      libres = libres.filter((c) => c.id !== usada);
+      lpr = matchLeadByCustomer(libres, who);
+    }
+    if (lpr) {
+      const cifra = lpr.priceCents && lpr.priceCents > 0 ? `${lpr.miembroNombre || "jurado"} propuso ${(lpr.priceCents / 100).toFixed(2)} €` : `${lpr.miembroNombre || "jurado"} aceptó sin cifra`;
       await prisma.orderEvent.create({
         data: {
           orderId: order.id,
           type: "lavori.solicitud_emparejada",
-          message: `Solicitud de precio ${lpr.ref} emparejada por cliente (${lpr.miembroNombre || "jurado"} propuso ${(lpr.priceCents / 100).toFixed(2)} €): se acepta SU cifra, no se abre encargo nuevo.`,
+          message: `Solicitud de precio ${lpr.ref} emparejada por cliente (${cifra}): se acepta SU cifra, no se abre encargo nuevo.`,
           payload: { lavoriPriceRequestId: lpr.id, ref: lpr.ref, priceCents: lpr.priceCents, matchedBy: "customerHint" },
         },
       });
+      if (lpr.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
+      ref = `${lpr.ref}-precio`;
+      precioCents = lpr.priceCents;
+      lprId = lpr.id;
     }
   }
 
@@ -434,6 +451,49 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   });
   // handled=true aunque falle: con solicitud previa jamás se abre encargo nuevo.
   return { handled: true, changed: result.ok };
+}
+
+// La solicitud ya estaba ACCEPTED al pagar (Juan confirmó en lavori antes de marcar
+// el pago): el encargo vive y el jurado ya dijo que sí. Mandar precio_aceptado daría
+// "conflicto" (encargo no publicado) y el camino antiguo abría OTRO encargo dirigido
+// (Daniela/26_C3675D, 8-sep-2026). Aquí: asignación directa con SU cifra, atar la
+// solicitud al presupuesto y nada nuevo hacia lavori.
+async function assignAlreadyAccepted(
+  opts: Parameters<typeof emitPrecioAceptadoIfApplicable>[0],
+  lpr: { id: string; ref: string; priceCents: number | null; miembroId: string | null; miembroNombre: string | null; encargoId: string | null }
+): Promise<{ handled: boolean; changed: boolean }> {
+  const { order, reference } = opts;
+  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+  if (order.quoteId) {
+    await prisma.lavoriPriceRequest
+      .update({ where: { id: lpr.id }, data: { quoteId: order.quoteId } })
+      .catch((err) => console.error("[lavori-ya-aceptado] lpr link failed", err));
+  }
+  const { assignLavoriAcceptance } = await import("@/lib/lavori-assign");
+  const { collaborator, miembro } = await assignLavoriAcceptance({
+    order: { id: order.id, reference },
+    miembroId: lpr.miembroId || "",
+    miembroNombre: lpr.miembroNombre,
+    paraTiCents: lpr.priceCents,
+    encargoId: lpr.encargoId || "",
+    motorRef: `${lpr.ref}-precio`,
+    payload: { origen: "pago_con_solicitud_aceptada", lavoriPriceRequestId: lpr.id, miembroId: lpr.miembroId, miembroNombre: lpr.miembroNombre },
+  });
+  const precio = lpr.priceCents ? `${(lpr.priceCents / 100).toFixed(2)} €` : "SIN CIFRA";
+  await staffMailLines(
+    collaborator
+      ? `✅ ${miembro} ya había aceptado ${reference} (${precio}) — asignado, sin encargo nuevo`
+      : `⚠ ${miembro} ya había aceptado ${reference} (${precio}) — SIN asignar (mapear colaborador)`,
+    [
+      `El pedido ${reference} se ha pagado y la solicitud ${lpr.ref} ya estaba aceptada por ${miembro} en lavori (${precio}).`,
+      collaborator
+        ? `Asignación hecha con su cifra; NO se ha abierto ningún encargo nuevo en lavori.`
+        : `No hay Collaborator mapeado para el miembro ${lpr.miembroId || "?"}: asígnalo a mano en la ficha (coste ${precio}). No se ha abierto encargo nuevo.`,
+      lpr.priceCents ? "" : `⚠ El jurado aceptó sin pasar cifra: acuerda el coste con él y ponlo en la asignación.`,
+      `Ficha: ${ficha}`,
+    ].filter(Boolean)
+  );
+  return { handled: true, changed: Boolean(collaborator) };
 }
 
 // Envía precio_aceptado a lavori y persiste el desenlace (evento + email staff).

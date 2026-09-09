@@ -260,6 +260,10 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [lavoriState, setLavoriState] = useState<{ phase: "idle" | "sending" | "done" | "error"; msg?: string }>({ phase: "idle" });
   const [lavoriSpecs, setLavoriSpecs] = useState("");
   const [lavoriPick, setLavoriPick] = useState<LavoriPick>({ mode: "carril" });
+  // Ref de la solicitud enviada DESDE este builder: viaja a /api/quotes para que el
+  // presupuesto nazca atado (antes se tiraba y el pago abría otro encargo — Mario
+  // Moreno/Vanessa, 8-sep-2026).
+  const [lavoriLeadRefSent, setLavoriLeadRefSent] = useState<string | null>(null);
 
   // Lectura IA del email (solo cuando el presupuesto nace de la bandeja).
   const [brief, setBrief] = useState<EmailBrief | null>(null);
@@ -761,13 +765,14 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         setLavoriState({ phase: "error", msg: data.error || "No se pudo enviar la solicitud." });
         return;
       }
+      if (typeof data.ref === "string" && data.ref) setLavoriLeadRefSent(data.ref);
       const aQuien = describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros);
       const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       setLavoriState({
         phase: "done",
         msg: data.repetido
           ? `Esta solicitud ya estaba enviada a ${aQuien} (no se ha duplicado).`
-          : `✓ Enviada a ${aQuien} · ${hora}. Cuando el traductor pase su precio te llegará por email con el enlace a este builder.`,
+          : `✓ Enviada a ${aQuien} · ${hora}. Si generas el presupuesto ahora quedará atado a esta solicitud; si no, el email con el precio del traductor te traerá aquí ya atado.`,
       });
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
@@ -816,7 +821,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           targetLang,
           deliveryType,
           expedienteRef: expedienteRef || undefined,
-          lavoriLeadRef: lavoriLeadRef || undefined,
+          lavoriLeadRef: lavoriLeadRef || lavoriLeadRefSent || undefined,
           pdfLang,
           discountType: discountPct > 0 ? "PERCENT" : "NONE",
           discountValue: discountPct,
@@ -842,7 +847,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
 
   return (
     <div className="space-y-6 text-slate-200">

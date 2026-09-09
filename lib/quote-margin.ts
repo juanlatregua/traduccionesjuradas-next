@@ -1,3 +1,4 @@
+import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 // lib/quote-margin.ts — Guarda de margen de los presupuestos de STAFF.
 //
 // "Nunca puedo perder" (Juan, 28-ago-2026) protegía SOLO el auto-presupuesto
@@ -125,7 +126,7 @@ export async function verifyTranslatorChannelPrice(input: {
   const { prisma } = await import("@/lib/prisma");
   const req = await prisma.lavoriPriceRequest.findFirst({
     where: {
-      status: { in: ["PRICED", "ACCEPTED"] },
+      status: { in: [...LEAD_PAIRABLE_STATUSES] },
       priceCents: { not: null },
       OR: [{ quoteId: input.quoteId }, ...(input.expedienteRef ? [{ expedienteRef: input.expedienteRef }] : [])],
     },

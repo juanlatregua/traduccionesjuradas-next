@@ -115,7 +115,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     const sugerido = coste != null ? coste * (1 + MARGIN_PCT / 100) : null;
     let situacion: string = s.status;
     let accion: string | null = null;
-    const builder = `${SITE}/zona-traductor/presupuesto?lead=${encodeURIComponent(s.ref)}`;
+    const builder = q ? `${SITE}/zona-traductor/presupuestos/${q.id}` : `${SITE}/zona-traductor/presupuesto?lead=${encodeURIComponent(s.ref)}`;
     if (s.status === "SENT") {
       const h = hoursAgo(s.createdAt) ?? 0;
       situacion = `SENT hace ${h} h · ${s.candidatos.length} candidato(s)`;
@@ -125,12 +125,16 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       }
     } else if (s.status === "PRICED" && pedido) {
       situacion = `PRICED ${eur(coste!)} por ${s.miembroNombre || "?"} → atada al pedido ${pedido.reference} (${pedido.status})`;
-    } else if (s.status === "PRICED" && !q) {
-      situacion = `PRICED ${eur(coste!)} por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
+    } else if ((s.status === "PRICED" || s.status === "ACCEPTED") && !q && coste != null) {
+      situacion = `${s.status} ${eur(coste!)} por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
       accion = `montar presupuesto: coste ${eur(coste!)} + ${MARGIN_PCT} % = ${eur(sugerido!)} neto → ${eur(sugerido! * VAT)} con IVA`;
       act(sugerido!, 4, `Presupuesto a ${s.customerHint || s.ref} (${s.par}): coste ${eur(coste!)} de ${s.miembroNombre || "?"} → ${eur(sugerido!)} +IVA = ${eur(sugerido! * VAT)}`, builder);
-    } else if (s.status === "PRICED" && q) {
-      situacion = `PRICED ${eur(coste!)} → presupuesto ${q.quoteNumber} ${q.status} (${eur(Number(q.total))})`;
+    } else if (s.status === "ACCEPTED" && !q && coste == null) {
+      situacion = `ACCEPTED SIN CIFRA por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
+      accion = `el jurado aceptó sin pasar precio → acordar coste con ${s.miembroNombre || "el jurado"} y montar presupuesto`;
+      act((s.words || 400) * 0.1, 4, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}): ${s.miembroNombre || "el jurado"} aceptó SIN cifra → acordar coste y montar presupuesto`, builder);
+    } else if ((s.status === "PRICED" || s.status === "ACCEPTED") && q) {
+      situacion = `${s.status} ${coste != null ? eur(coste) : "sin cifra"} → presupuesto ${q.quoteNumber} ${q.status} (${eur(Number(q.total))})`;
     }
     return {
       ref: s.ref, par: s.par, status: s.status, creada: madrid(s.createdAt), cliente: s.customerHint || "", docs: s.docsCount, palabras: s.words,

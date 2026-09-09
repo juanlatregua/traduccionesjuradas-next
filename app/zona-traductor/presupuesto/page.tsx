@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
@@ -24,6 +25,7 @@ export default async function ZonaTraductorPresupuestoPage({
     exp?: string;
     lead?: string;
     session?: string;
+    nuevo?: string;
     inbox?: string;
     customerEmail?: string;
     customerName?: string;
@@ -59,7 +61,22 @@ export default async function ZonaTraductorPresupuestoPage({
       })
     : null;
   const leadRef = s(searchParams.lead).trim().slice(0, 40) || null;
-  const lead = leadRef ? await prisma.lavoriPriceRequest.findUnique({ where: { ref: leadRef } }) : null;
+  // Abierto por sesión de la puerta (?session= o ?exp=puerta:…, enlaces del digest y
+  // del aviso de lead): si esa sesión ya tiene solicitud en lavori, el presupuesto
+  // nace atado igual que con ?lead= (8-sep-2026: 2026-00128 nació suelto y el pago
+  // abrió un segundo encargo a Daniela).
+  const sessionParam = s(searchParams.session).trim().slice(0, 80) || expPuertaSession.slice(0, 80);
+  const lead = leadRef
+    ? await prisma.lavoriPriceRequest.findUnique({ where: { ref: leadRef } })
+    : sessionParam || expRef
+      ? await prisma.lavoriPriceRequest.findFirst({ where: { expedienteRef: sessionParam ? `puerta:${sessionParam}` : expRef! }, orderBy: { createdAt: "desc" } })
+      : null;
+  // La solicitud ya tiene presupuesto: se va a ESE presupuesto, no se monta otro
+  // (Juan 9-sep: "los duplica"). ?nuevo=1 fuerza uno nuevo a propósito.
+  if (lead?.quoteId && !s(searchParams.nuevo)) {
+    const existente = await prisma.quote.findFirst({ where: { id: lead.quoteId, deletedAt: null }, select: { id: true } });
+    if (existente) redirect(`/zona-traductor/presupuestos/${existente.id}`);
+  }
   const leadPair = lead ? lead.par.toLowerCase().split(">") : [];
   const leadHintParts = (lead?.customerHint || "").split(" · ").map((x) => x.trim()).filter(Boolean);
   const leadPhone = leadHintParts.find((x) => /\+?\d[\d\s]{6,}/.test(x));

@@ -6,6 +6,7 @@ import AdminQuoteDetailPanel from "@/components/AdminQuoteDetailPanel";
 import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
 import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
+import { prisma } from "@/lib/prisma";
 import { serializeQuote } from "@/lib/quote-serializer";
 
 export const metadata: Metadata = {
@@ -29,6 +30,11 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
   const serialized = serializeQuote(quote);
   if (!serialized) notFound();
   const numero = (serialized as any).quoteNumber || "";
+  const solicitud = await prisma.lavoriPriceRequest.findFirst({
+    where: { quoteId: params.id },
+    orderBy: { updatedAt: "desc" },
+    select: { ref: true, par: true, status: true, priceCents: true, plazoDias: true, miembroNombre: true },
+  });
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -63,6 +69,18 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             en su propia tarjeta blanca para no reescribirlo entero en este paso.
             Repintarlo es S2: aquí lo que se arregla es la NAVEGACIÓN, que era el
             motivo real de perderse. */}
+        {solicitud && (
+          <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+            Solicitud lavori <span className="font-mono">{solicitud.ref}</span> · {solicitud.par} · {solicitud.status}
+            {solicitud.priceCents
+              ? ` · ${solicitud.miembroNombre || "el traductor"}: ${(solicitud.priceCents / 100).toFixed(2)} €${solicitud.plazoDias ? ` · ${solicitud.plazoDias} días` : ""}`
+              : " · sin precio del traductor todavía"}
+            . El pago de este presupuesto avisa a ese encargo; no hace falta montar otro.{" "}
+            <Link href={`/zona-traductor/presupuesto?lead=${encodeURIComponent(solicitud.ref)}&nuevo=1`} className="underline hover:text-white">
+              Montar otro a propósito
+            </Link>
+          </p>
+        )}
         <div className="rounded-2xl bg-cream p-1 shadow-xl">
           <AdminQuoteDetailPanel initialQuote={serialized as any} />
         </div>

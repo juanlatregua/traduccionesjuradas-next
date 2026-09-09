@@ -11,6 +11,7 @@ import {
 } from "@/lib/quotes";
 import { parseCreateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
+import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 
 export const runtime = "nodejs";
 
@@ -193,7 +194,7 @@ export async function POST(req: Request) {
           data: { quoteId: created.id },
         });
         const lpr = await prisma.lavoriPriceRequest.findFirst({
-          where: { quoteId: created.id, status: "PRICED" },
+          where: { quoteId: created.id, status: { in: [...LEAD_PAIRABLE_STATUSES] } },
           orderBy: { updatedAt: "desc" },
           select: { miembroId: true, miembroNombre: true },
         });
