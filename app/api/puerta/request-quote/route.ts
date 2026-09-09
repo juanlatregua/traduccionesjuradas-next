@@ -177,7 +177,7 @@ export async function POST(req: Request) {
       }).catch(() => null);
       if (auto?.ok) {
         lavoriSent = { lang: leadLang, langName: getLanguageName(leadLang) };
-        lavoriEmail = `✓ Solicitud de precio ENVIADA automáticamente a ${auto.nombres.join(", ")} en lavori (ref ${auto.ref}). Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
+        lavoriEmail = `✓ Solicitud de precio ENVIADA automáticamente a ${auto.nombres.join(", ")} en lavori (ref ${auto.ref}).${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
         lavoriSms = `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
       } else {
         lavoriEmail = `⚠ El envío automático a lavori falló${auto && !auto.ok ? `: ${auto.error}` : ""}. Pedir precio en lavori (${quien}) → ${lavoriOneTapUrl(token)}`;

@@ -323,6 +323,14 @@ export const LAVORI_MAX_CANDIDATOS = 10;
  * defecto → hoja de tarifas en lavori (si lavori la manda) → disponible → última
  * sesión más reciente → con push. Los empates se rompen al azar, así no le toca
  * siempre a los mismos. */
+/** Jurados que NO reciben encargos automáticos ni de respaldo (orden literal de
+ * Juan, 9-sep-2026): Francisco tarda demasiado en cotizar y Silvia no está bien de
+ * salud. Siguen en la cartera para elegirlos A MANO en el builder. */
+export const LAVORI_NO_AUTO: Record<string, string> = {
+  whvx8ft5w6wi50hchczh48hp: "Francisco Carballo Cruz: tarda demasiado en cotizar",
+  imk4gzmqp0uhyfqku9fqs0mb: "Silvia Capón Sánchez: no está operativa",
+};
+
 export function pickLavoriAuto(
   lang: string,
   cartera: LavoriMember[],
@@ -331,7 +339,7 @@ export function pickLavoriAuto(
 ): LavoriMember[] {
   const l = String(lang || "").toLowerCase();
   const carril = new Set(LAVORI_CANDIDATES[l] || []);
-  const receptores = cartera.filter((m) => m.canal !== false && !m.enPaz);
+  const receptores = cartera.filter((m) => m.canal !== false && !m.enPaz && !LAVORI_NO_AUTO[m.id]);
   if (receptores.length <= max) return receptores;
   const score = (m: LavoriMember) => {
     let s = 0;
@@ -350,6 +358,61 @@ export function pickLavoriAuto(
   return [...receptores]
     .sort((a, b) => score(b) - score(a) || (azar.get(a.id) ?? 0) - (azar.get(b.id) ?? 0))
     .slice(0, max);
+}
+
+export type LiveRouteResult =
+  | { ok: true; route: LavoriRoute; respaldo: null | { sinAlta: string[]; motivo: string } }
+  | { ok: false; error: string; sinAlta: string[] };
+
+/**
+ * Cruza el carril con la cartera VIVA de lavori antes de enviar. Desde el 27-ago
+ * lavori solo acepta candidatos DE ALTA (han entrado alguna vez) y responde 400
+ * "candidatos sin alta" al resto: el carril fijo PT/IT/CA a Juan Amor (nunca ha
+ * entrado) tumbó 2 pedidos pagados y 4 leads entre el 2 y el 8-sep en silencio.
+ * Regla (Juan 9-sep-2026): se quitan los que no están de alta; si no queda nadie,
+ * respaldo con la cartera viva de la lengua (sin los vetados de LAVORI_NO_AUTO);
+ * si tampoco hay nadie, error claro con nombres. Con la cartera estática
+ * (`live:false`) no se afirma nada y el carril va tal cual. Puro: testable.
+ */
+export function applyLiveFallback(
+  route: LavoriRoute,
+  cartera: LavoriMember[],
+  live: boolean,
+  random: () => number = Math.random
+): LiveRouteResult {
+  if (!live) return { ok: true, route, respaldo: null };
+  const enCartera = new Set(cartera.map((m) => m.id));
+  const nombre = (id: string) => LAVORI_MEMBERS.find((m) => m.id === id)?.nombre || cartera.find((m) => m.id === id)?.nombre || id;
+  const deAlta = route.candidatos.filter((id) => enCartera.has(id));
+  const sinAlta = route.candidatos.filter((id) => !enCartera.has(id));
+  if (sinAlta.length === 0) return { ok: true, route, respaldo: null };
+  if (deAlta.length > 0) {
+    return {
+      ok: true,
+      route: { ...route, candidatos: deAlta },
+      respaldo: { sinAlta, motivo: `fuera del envío por no estar de alta en lavori: ${sinAlta.map(nombre).join(", ")}` },
+    };
+  }
+  const pick = pickLavoriAuto(route.lang, cartera, LAVORI_MAX_CANDIDATOS, random);
+  if (pick.length === 0) {
+    const vetados = cartera.filter((m) => LAVORI_NO_AUTO[m.id]).map((m) => m.nombre);
+    return {
+      ok: false,
+      sinAlta,
+      error:
+        `nadie de alta en lavori para ${route.par}: el carril (${sinAlta.map(nombre).join(", ")}) no ha entrado nunca en lavori` +
+        (vetados.length ? ` y ${vetados.join(", ")} no recibe automáticos` : "") +
+        ". Pedirlo a mano o llamar al jurado del carril para que use su pase.",
+    };
+  }
+  return {
+    ok: true,
+    route: { ...route, candidatos: pick.map((m) => m.id) },
+    respaldo: {
+      sinAlta,
+      motivo: `RESPALDO: el carril (${sinAlta.map(nombre).join(", ")}) no está de alta en lavori → enviado a la cartera viva de ${route.lang.toUpperCase()}: ${pick.map((m) => m.nombre).join(", ")}`,
+    },
+  };
 }
 
 /** Resuelve los candidatos de una solicitud manual. Sin selección → carril por

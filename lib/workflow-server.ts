@@ -12,6 +12,8 @@ import {
 } from "@/lib/workflow";
 import { getDocumentsFromOrder } from "@/lib/collaborators";
 import {
+  applyLiveFallback,
+  fetchLavoriCartera,
   lavoriRouteFromPair,
   lavoriLangFromPair,
   buildSolicitudPayload,
@@ -684,6 +686,24 @@ async function routeOrderToLavori(opts: {
     if (docs.length === 0) {
       return await fallbackToStaff("el pedido no tiene documentos enlazados");
     }
+    // Carril contra la cartera VIVA antes de empaquetar nada (lavori rechaza 400
+    // "candidatos sin alta" — 26_84BFC2 y 26_AE5394, sep-2026).
+    const carteraViva = await fetchLavoriCartera(route.lang);
+    const vivo = applyLiveFallback(route, carteraViva.miembros, carteraViva.live);
+    if (!vivo.ok) {
+      return await fallbackToStaff(vivo.error);
+    }
+    const routeViva = vivo.route;
+    if (vivo.respaldo) {
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "lavori.carril_respaldo",
+          message: `lavori: ${vivo.respaldo.motivo}.`,
+          payload: { par: route.par, carril: route.candidatos, sinAlta: vivo.respaldo.sinAlta, enviadoA: routeViva.candidatos },
+        },
+      });
+    }
     const sobre = await packDocsForSobre(docs);
     if (!sobre.ok) {
       return await fallbackToStaff(sobre.error);
@@ -692,7 +712,7 @@ async function routeOrderToLavori(opts: {
 
     const payload = buildSolicitudPayload({
       reference,
-      route,
+      route: routeViva,
       amountCents: order.amountCents,
       words: order.words,
       dueDate: order.dueDate,
@@ -716,7 +736,7 @@ async function routeOrderToLavori(opts: {
           par: route.par,
           paraTi: payload.paraTi,
           precioCliente: payload.precioCliente,
-          candidatos: route.candidatos,
+          candidatos: routeViva.candidatos,
           documentos: documentos.length,
           actorEmail: opts.actorEmail,
         },
@@ -724,6 +744,7 @@ async function routeOrderToLavori(opts: {
     });
     const infoLines = [
       `El pedido ${reference} se ha solicitado en lavori como encargo dirigido (${payload.paraTi} € para el traductor).`,
+      vivo.respaldo ? `⚠ ${vivo.respaldo.motivo}.` : "",
       `Cuando el traductor acepte te llegará el aviso de lavori; entonces asígnalo en la ficha.`,
       `Si en 24 h nadie acepta, lavori te avisará para el plan B.`,
       `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
@@ -731,8 +752,8 @@ async function routeOrderToLavori(opts: {
     await sendMail({
       to: STAFF_ALERT_EMAIL,
       subject: `Pedido ${route.par} enviado a lavori (${reference})`,
-      text: infoLines.join("\n"),
-      html: infoLines.map((l) => `<p>${l}</p>`).join(""),
+      text: infoLines.filter(Boolean).join("\n"),
+      html: infoLines.filter(Boolean).map((l) => `<p>${l}</p>`).join(""),
     }).catch((err) => console.error("[lavori-bridge] staff info failed", err));
 
     // Sin transición de estado: nadie ha aceptado aún. El pedido sigue contando

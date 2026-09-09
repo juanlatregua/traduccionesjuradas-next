@@ -259,3 +259,41 @@ test("pickLavoriAuto: carril → tarifas → disponible → última sesión; emp
   const b = pickLavoriAuto("xx", cartera.slice(6), 1, () => 0.1).map((m) => m.id);
   assert.deepEqual(a, b);
 });
+
+test("applyLiveFallback: carril de alta → tal cual; parte sin alta → se quitan; nadie → respaldo con la cartera viva sin vetados; sin nadie → error con nombres", async () => {
+  const { applyLiveFallback, LAVORI_NO_AUTO } = await import("../../lib/lavori-bridge.ts");
+  const amor = "rk1x2kq63rm6ba6mco7c6u2k";
+  const cartera = [
+    { id: "nhucqnd3q4znddxhe8qs5c51", nombre: "Cristina Aguilera Viladés", langs: ["pt"], ultimaSesion: new Date().toISOString() },
+    { id: "whvx8ft5w6wi50hchczh48hp", nombre: "Francisco Carballo Cruz", langs: ["pt"] },
+    { id: "1h8tul4zycnayru8bsi1tmu4", nombre: "María Carmen Lencastre", langs: ["pt"] },
+    { id: "imk4gzmqp0uhyfqku9fqs0mb", nombre: "Silvia Capón Sánchez", langs: ["pt"] },
+  ];
+  const carrilPt = { lang: "pt", par: "PT>ES", candidatos: [amor] };
+  // Cartera estática (lavori no responde): no se afirma nada
+  const estatica = applyLiveFallback(carrilPt, [], false);
+  assert.ok(estatica.ok && estatica.route.candidatos[0] === amor && estatica.respaldo === null);
+  // Juan Amor sin alta → respaldo con la cartera viva, SIN Francisco ni Silvia
+  const pt = applyLiveFallback(carrilPt, cartera, true, () => 0.5);
+  assert.ok(pt.ok);
+  assert.deepEqual([...pt.route.candidatos].sort(), ["1h8tul4zycnayru8bsi1tmu4", "nhucqnd3q4znddxhe8qs5c51"]);
+  assert.deepEqual(pt.respaldo?.sinAlta, [amor]);
+  assert.match(pt.respaldo?.motivo || "", /RESPALDO.*Juan Amor.*Cristina/);
+  // Parte del carril de alta → solo se quitan los que no lo están
+  const mixto = applyLiveFallback({ lang: "pt", par: "PT>ES", candidatos: [amor, "nhucqnd3q4znddxhe8qs5c51"] }, cartera, true);
+  assert.ok(mixto.ok && mixto.route.candidatos.length === 1 && mixto.route.candidatos[0] === "nhucqnd3q4znddxhe8qs5c51");
+  assert.deepEqual(mixto.respaldo?.sinAlta, [amor]);
+  // Todo el carril de alta → intacto
+  const ok = applyLiveFallback({ lang: "pt", par: "PT>ES", candidatos: ["nhucqnd3q4znddxhe8qs5c51"] }, cartera, true);
+  assert.ok(ok.ok && ok.respaldo === null);
+  // Italiano: nadie de alta → error que nombra al carril
+  const it = applyLiveFallback({ lang: "it", par: "IT>ES", candidatos: [amor] }, [], true);
+  assert.ok(!it.ok);
+  assert.match(it.ok ? "" : it.error, /nadie de alta en lavori para IT>ES.*Juan Amor/);
+  // Solo vetados de alta → error que dice por qué no salen
+  const soloVetados = applyLiveFallback(carrilPt, cartera.filter((m) => LAVORI_NO_AUTO[m.id]), true);
+  assert.ok(!soloVetados.ok);
+  assert.match(soloVetados.ok ? "" : soloVetados.error, /Francisco Carballo Cruz.*no recibe automáticos/);
+  // pickLavoriAuto tampoco los elige en "todos"
+  assert.equal(pickLavoriAuto("pt", cartera, 10).some((m) => LAVORI_NO_AUTO[m.id]), false);
+});

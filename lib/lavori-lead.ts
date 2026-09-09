@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import {
+  applyLiveFallback,
   buildPriceRequestPayload,
   fetchLavoriCartera,
   lavoriManualRoute,
@@ -92,6 +93,7 @@ export async function packLeadDoc(doc: LeadDoc, index: number): Promise<BridgeDo
 export async function resolveLeadRoute(sourceLang: string, targetLang: string): Promise<{
   route: LavoriRoute;
   cartera: LavoriMember[];
+  live: boolean;
 } | null> {
   const s = String(sourceLang || "").trim().toLowerCase();
   const t = String(targetLang || "").trim().toLowerCase();
@@ -99,7 +101,7 @@ export async function resolveLeadRoute(sourceLang: string, targetLang: string): 
   const cartera = await fetchLavoriCartera(s === "es" ? t : s);
   const route = lavoriManualRoute(`${s}->${t}`, cartera.miembros);
   if (!route) return null;
-  return { route, cartera: cartera.miembros };
+  return { route, cartera: cartera.miembros, live: cartera.live };
 }
 
 export type LeadRequestInput = {
@@ -116,7 +118,7 @@ export type LeadRequestInput = {
 };
 
 export type LeadRequestResult =
-  | { ok: true; ref: string; encargoId: string | null; repetido: boolean; candidatos: string[]; par: string; nombres: string[] }
+  | { ok: true; ref: string; encargoId: string | null; repetido: boolean; candidatos: string[]; par: string; nombres: string[]; respaldo?: string | null }
   | { ok: false; status: 400 | 502; error: string };
 
 /** Crea (o reutiliza, idempotente por contenido) la solicitud de precio en lavori
@@ -141,7 +143,16 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   const { route, cartera } = resolved;
   const eleccion = resolveLavoriCandidatos(route, input.candidatos, cartera);
   if (!eleccion.ok) return { ok: false, status: 400, error: eleccion.error };
-  const candidatos = eleccion.candidatos;
+  // Carril por defecto: se cruza con la cartera viva (de alta) antes de enviar; una
+  // elección explícita del builder ya viene validada contra ella.
+  let candidatos = eleccion.candidatos;
+  let respaldo: string | null = null;
+  if (!eleccion.elegidos) {
+    const vivo = applyLiveFallback({ ...route, candidatos }, cartera, resolved.live);
+    if (!vivo.ok) return { ok: false, status: 400, error: vivo.error };
+    candidatos = vivo.route.candidatos;
+    respaldo = vivo.respaldo?.motivo ?? null;
+  }
   const nombres = candidatos.map((id) => cartera.find((m) => m.id === id)?.nombre || id);
 
   // Ref estable a partir del contenido: repetir con los mismos documentos y par
@@ -156,7 +167,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
 
   const previo = await prisma.lavoriPriceRequest.findUnique({ where: { ref } });
   if (previo) {
-    return { ok: true, repetido: true, ref, encargoId: previo.encargoId, candidatos: previo.candidatos, par: previo.par, nombres };
+    return { ok: true, repetido: true, ref, encargoId: previo.encargoId, candidatos: previo.candidatos, par: previo.par, nombres, respaldo };
   }
 
   const documentos: BridgeDoc[] = [];
@@ -198,7 +209,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
       if (err?.code !== "P2002") throw err;
     });
 
-  return { ok: true, repetido: result.repetido, ref, encargoId: result.encargoId, candidatos, par: route.par, nombres };
+  return { ok: true, repetido: result.repetido, ref, encargoId: result.encargoId, candidatos, par: route.par, nombres, respaldo };
 }
 
 /** Documentos de una sesión de la puerta listos para el sobre (los que tienen
