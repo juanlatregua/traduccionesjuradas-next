@@ -2,6 +2,12 @@
 // Misma sociedad (HBTJ Consultores Lingüísticos S.L., CIF B93712784) y mismo
 // IBAN; cambia el logo, la dirección y la identidad comercial. La numeración
 // fiscal AA_NNN es ÚNICA y compartida entre todas las marcas.
+// Cuenta de cobro = Sabadell (Juan, 11-sep-2026: BBVA en cierre), la misma fuente
+// que los presupuestos (lib/payment-labels.ts).
+
+import { PAYMENT_ACCOUNTS, type PaymentAccount } from "@/lib/payment-labels";
+
+const COBRO = PAYMENT_ACCOUNTS.sabadell as Extract<PaymentAccount, { kind: "transfer" }>;
 
 export type BrandKey = "traduccionesjuradas" | "holabonjour" | "dev";
 
@@ -26,8 +32,8 @@ export const BRANDS: Record<BrandKey, BrandProfile> = {
     cif: "B93712784",
     address: "Calle Esperanto, 9",
     city: "29007 Málaga · España",
-    bic: "BBVAESMM",
-    iban: "ES66 0182 3370 67 0201616991",
+    bic: COBRO.bic,
+    iban: COBRO.iban,
     logo: { kind: "vector" },
   },
   holabonjour: {
@@ -37,8 +43,8 @@ export const BRANDS: Record<BrandKey, BrandProfile> = {
     cif: "B93712784",
     address: "C/ Barroso, 10 1ºIzq",
     city: "29001 Málaga",
-    bic: "BBVAESMM",
-    iban: "ES66 0182 3370 67 0201616991",
+    bic: COBRO.bic,
+    iban: COBRO.iban,
     // Logo extraído de la plantilla original de facturas (burbuja "Hola Bonjour"
     // + señas SOHO). 532×650 px → mantener proporción 0,82 para no deformarlo.
     // Tamaño del modelo de Juan (26_054, 11-sep-2026): ~35×40 mm; a 26×32 salía
@@ -56,8 +62,8 @@ export const BRANDS: Record<BrandKey, BrandProfile> = {
     cif: "B93712784",
     address: "Calle Esperanto, 9",
     city: "29007 Málaga · España",
-    bic: "BBVAESMM",
-    iban: "ES66 0182 3370 67 0201616991",
+    bic: COBRO.bic,
+    iban: COBRO.iban,
     logo: { kind: "vector" },
   },
 };

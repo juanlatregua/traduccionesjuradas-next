@@ -6,6 +6,11 @@ import Link from "next/link";
 import PayPalButton from "@/components/PayPalButton";
 import CopyField from "@/components/CopyField";
 import { getAc, acIntl } from "@/lib/i18n/area-cliente";
+import { PAYMENT_ACCOUNTS, type PaymentAccount } from "@/lib/payment-labels";
+
+// Cuenta por defecto = Sabadell (BBVA en cierre): la env NEXT_PUBLIC_TRANSFER_* no
+// existe en Vercel, así que el fallback ES lo que ve el cliente.
+const COBRO = PAYMENT_ACCOUNTS.sabadell as Extract<PaymentAccount, { kind: "transfer" }>;
 
 type OrderInfo = {
   reference: string;
@@ -50,8 +55,8 @@ type PaymentCapabilities = {
 const MANUAL_PAYMENT = {
   bizumPhone: process.env.NEXT_PUBLIC_BIZUM_IDENTIFIER || "+34 607 356 273",
   accountHolder: process.env.NEXT_PUBLIC_TRANSFER_ACCOUNT_HOLDER || "HBTJ Consultores Lingüísticos S.L.",
-  iban: process.env.NEXT_PUBLIC_TRANSFER_IBAN || "ES66 0182 3370 67 0201616991",
-  bic: process.env.NEXT_PUBLIC_TRANSFER_BIC || "BBVAESMM",
+  iban: process.env.NEXT_PUBLIC_TRANSFER_IBAN || COBRO.iban,
+  bic: process.env.NEXT_PUBLIC_TRANSFER_BIC || COBRO.bic,
   paypalLink: process.env.NEXT_PUBLIC_PAYPAL_MANUAL_LINK || "",
   paypalAccount: process.env.NEXT_PUBLIC_PAYPAL_ACCOUNT || "hola@traduccionesjuradas.net",
 };
