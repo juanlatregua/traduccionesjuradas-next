@@ -41,7 +41,9 @@ export const BRANDS: Record<BrandKey, BrandProfile> = {
     iban: "ES66 0182 3370 67 0201616991",
     // Logo extraído de la plantilla original de facturas (burbuja "Hola Bonjour"
     // + señas SOHO). 532×650 px → mantener proporción 0,82 para no deformarlo.
-    logo: { kind: "image", path: "public/brands/holabonjour.png", widthMm: 26, heightMm: 32 },
+    // Tamaño del modelo de Juan (26_054, 11-sep-2026): ~35×40 mm; a 26×32 salía
+    // pequeño y las señas SOHO no se leían.
+    logo: { kind: "image", path: "public/brands/holabonjour.png", widthMm: 31.1, heightMm: 38 },
   },
   // Tercera actividad: desarrollo web y backoffice para terceros (p.ej. la puesta
   // a punto de bechtraducciones.com). Mismo NIF, mismo IBAN y MISMA numeración

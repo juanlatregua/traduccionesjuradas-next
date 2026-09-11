@@ -151,7 +151,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   const brand = getBrand(data.brand);
   if (brand.logo.kind === "image" && data.logoDataUrl) {
     try {
-      doc.addImage(data.logoDataUrl, "PNG", margin, 10, brand.logo.widthMm, brand.logo.heightMm);
+      doc.addImage(data.logoDataUrl, "PNG", margin, 5, brand.logo.widthMm, brand.logo.heightMm);
     } catch {
       drawHolaBonjourWordmark(doc, margin, 16);
     }
@@ -160,7 +160,8 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   } else {
     drawLogo(doc, margin, 14, 66);
   }
-  let y = 46;
+  // El emisor va justo debajo del logo de imagen; la Fecha sigue fija en y=66.
+  let y = brand.logo.kind === "image" && data.logoDataUrl ? 5 + brand.logo.heightMm + 3.5 : 46;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(...GOLD_DARK);
