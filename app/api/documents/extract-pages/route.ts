@@ -31,7 +31,11 @@ export async function GET(req: Request) {
   try {
     doc = await extractPageRange({ url, start: Number(searchParams.get("start")), end: Number(searchParams.get("end")) });
   } catch {
-    return NextResponse.json({ ok: false, error: "No se pudo acceder al archivo." }, { status: 502 });
+    // Texto plano: se pinta dentro del visor (iframe) en vez de JSON crudo.
+    return new NextResponse("No se pudo abrir el archivo: puede que el original ya no esté guardado (se borra a los 30 días).", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "private, no-store" },
+    });
   }
 
   return new NextResponse(doc.buffer as any, {

@@ -38,7 +38,7 @@ export async function getClientPortalData(emailRaw: string) {
       },
     }),
     prisma.quote.findMany({
-      where: { customerEmail: ci },
+      where: { customerEmail: ci, deletedAt: null },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

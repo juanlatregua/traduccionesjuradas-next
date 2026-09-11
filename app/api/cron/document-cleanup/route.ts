@@ -46,6 +46,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Las líneas de presupuesto que apuntaban al blob borrado dejan de enlazarlo:
+  // si no, el visor del presupuesto enseñaría un documento que ya no existe.
+  const unpaidUrls = unpaid.map((d) => d.fileUrl).filter(Boolean);
+  if (unpaidUrls.length) {
+    await prisma.quoteLine.updateMany({ where: { sourceFileUrl: { in: unpaidUrls } }, data: { sourceFileUrl: null } });
+  }
+
   const deletedResult = await prisma.documentAnalysis.deleteMany({
     where: { id: { in: unpaid.map((d) => d.id) } },
   });
@@ -66,6 +73,11 @@ export async function GET(req: NextRequest) {
     } catch {
       // Blob may already be gone — still mark as deleted
     }
+  }
+
+  const paidUrls = paid.map((d) => d.fileUrl).filter(Boolean);
+  if (paidUrls.length) {
+    await prisma.quoteLine.updateMany({ where: { sourceFileUrl: { in: paidUrls } }, data: { sourceFileUrl: null } });
   }
 
   const updatedResult = await prisma.documentAnalysis.updateMany({

@@ -12,6 +12,7 @@ import { DOCUMENT_SEGMENTATION_PROMPT } from "./prompts";
 import { TEXT_MODEL_ID, parseModelJson } from "./analyze-document";
 import type { DocumentAnalysisResult } from "./analyze-document";
 import { billableWordCount } from "./word-counter";
+import { UNREAD_PAGES_TYPE_ES } from "./unread-pages";
 
 const MAX_TOKENS = 8_192;
 const TIMEOUT_MS = 110_000;
@@ -46,7 +47,7 @@ export function makePlaceholderSegment(pageStart: number, pageEnd: number, targe
   const span = pageEnd > pageStart ? `${pageStart}-${pageEnd}` : `${pageStart}`;
   const tgt = targetLang && LANG_NAMES[targetLang] ? targetLang : "es";
   return {
-    document_type: { category: "other", specific_type: "other", specific_type_es: "Documento sin texto (escaneado, revisar)", confidence: 0 },
+    document_type: { category: "other", specific_type: "other", specific_type_es: UNREAD_PAGES_TYPE_ES, confidence: 0 },
     language: { source: "unknown", source_name: "", target: tgt, target_name: LANG_NAMES[tgt] || "Español", confidence: 0 },
     country: { origin: "unknown", origin_name: "", issuing_authority: "", confidence: 0 },
     document_metrics: { estimated_words: 0, pages: pageEnd - pageStart + 1, has_tables: false, has_stamps_seals: false, has_handwriting: false, scan_quality: "poor", is_legible: false },

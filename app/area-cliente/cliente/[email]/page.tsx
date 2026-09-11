@@ -78,6 +78,7 @@ export default async function IntermediaryClientView({
   const lang = orders[0]?.clientLocale;
   const t = getAc(lang).subcliente;
   const tc = getAc(lang).common;
+  const ti = getAc(lang).index;
   const intl = acIntl(lang);
 
   const backHref =
@@ -161,6 +162,7 @@ export default async function IntermediaryClientView({
                   <th className="px-4 py-3">{tc.languages}</th>
                   <th className="px-4 py-3">{tc.total}</th>
                   <th className="px-4 py-3">{tc.status}</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
@@ -170,6 +172,15 @@ export default async function IntermediaryClientView({
                     <td className="px-4 py-3 text-sepia">{q.sourceLang} → {q.targetLang}</td>
                     <td className="px-4 py-3 text-sepia">{decimalToNumber(q.total).toFixed(2)} EUR</td>
                     <td className="px-4 py-3 text-sepia">{getQuoteStatusLabel(q.paidAt ? "PAID" : q.status, lang)}</td>
+                    <td className="px-4 py-3">
+                      <a href={`/q/${q.publicToken}`} className="text-xs font-semibold text-bleu hover:underline">
+                        {q.paidAt || q.status === "PAID"
+                          ? ti.quoteSeeReceipt
+                          : ["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status)
+                            ? ti.quoteSeePay
+                            : ti.quoteSee}
+                      </a>
+                    </td>
                   </tr>
                 ))}
               </tbody>

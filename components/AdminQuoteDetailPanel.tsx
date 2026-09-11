@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS, type QuotePdfLang } from "@/lib/quote-pdf-langs";
 import { PAYMENT_LABELS } from "@/lib/payment-labels";
 import { QUOTE_LOST_REASONS, QUOTE_LOST_REASON_LABELS, quoteLostReasonLabel } from "@/lib/quote-lost-reasons";
+import QuoteDocumentsViewer, { lineDocUrl } from "@/components/QuoteDocumentsViewer";
 
 type QuoteLine = {
   id: string;
@@ -16,17 +17,6 @@ type QuoteLine = {
   pageStart?: number | null;
   pageEnd?: number | null;
 };
-
-// Enlace al documento de una línea (extrae su rango de páginas como PDF).
-function lineDocUrl(line: QuoteLine, download = false): string | null {
-  if (!line.sourceFileUrl) return null;
-  const p = new URLSearchParams({ url: line.sourceFileUrl });
-  if (line.pageStart) p.set("start", String(line.pageStart));
-  if (line.pageEnd) p.set("end", String(line.pageEnd));
-  p.set("name", line.description.slice(0, 60));
-  if (download) p.set("download", "1");
-  return `/api/documents/extract-pages?${p.toString()}`;
-}
 
 type QuoteData = {
   id: string;
@@ -886,6 +876,12 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
         )}
       </div>
 
+      {quote.lines.some((l) => l.sourceFileUrl) && (
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <QuoteDocumentsViewer lines={quote.lines} title="Documentos del cliente" />
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
@@ -1006,7 +1002,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                       <span className="ml-2 whitespace-nowrap text-[11px]">
                         <a href={lineDocUrl(line)!} target="_blank" rel="noopener noreferrer" className="text-bleu hover:underline">ver PDF</a>
                         <span className="text-slate-400"> · </span>
-                        <a href={lineDocUrl(line, true)!} className="text-bleu hover:underline">descargar</a>
+                        <a href={lineDocUrl(line, { download: true })!} className="text-bleu hover:underline">descargar</a>
                       </span>
                     )}
                   </td>

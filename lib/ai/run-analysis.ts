@@ -13,6 +13,7 @@ import { analyzeDocument, analyzeDocumentText, TRUNCATE_TO_PAGES } from "./analy
 import type { DocumentAnalysisResult } from "./analyze-document";
 import { extractPdfText, extractPdfPages } from "./extract-text";
 import { segmentDocumentText, makePlaceholderSegment } from "./segment-document";
+import { absorbUnreadPages } from "./unread-pages";
 import { billableWordCount } from "./word-counter";
 import { assessAutoPriceRisk } from "./price-risk";
 
@@ -156,6 +157,7 @@ export type SegmentedDocument = {
   analysis: DocumentAnalysisResult;
   pageStart: number;
   pageEnd: number;
+  absorbedPages?: number[]; // páginas sin texto unidas a este documento (ver unread-pages.ts)
 };
 
 export type SegmentedRun = {
@@ -163,6 +165,7 @@ export type SegmentedRun = {
   mode: "text" | "vision";
   pageCount?: number;
   split: boolean; // true si se detectó más de un documento en el archivo
+  degraded?: boolean; // la segmentación falló y se cayó a 1 documento: no se reutiliza
 };
 
 function wrapSingle(run: AnalysisRun, pageCount?: number): SegmentedRun {
@@ -203,7 +206,7 @@ export async function runDocumentSegmentation(input: {
     segments = await segmentDocumentText({ pages: perPage.pages, fileName, targetLang });
   } catch (err) {
     console.error("[run-analysis] segmentación falló, fallback a 1 documento:", err);
-    return wrapSingle(await runDocumentAnalysis(input), perPage.pageCount || undefined);
+    return { ...wrapSingle(await runDocumentAnalysis(input), perPage.pageCount || undefined), degraded: true };
   }
 
   // Cubrir páginas sin texto (escaneadas) que el segmentador no vio → no perder
@@ -220,11 +223,13 @@ export async function runDocumentSegmentation(input: {
   for (const [start, end] of gaps) segments.push(makePlaceholderSegment(start, end, targetLang));
   segments.sort((a, b) => a.page_start - b.page_start);
 
-  const documents: SegmentedDocument[] = segments.map((seg) => {
-    const text = perPage.pages.slice(seg.page_start - 1, seg.page_end).join("\n");
-    const analysis = finalizeAnalysis(seg, { extractedText: text, fileName });
-    return { analysis, pageStart: seg.page_start, pageEnd: seg.page_end };
-  });
+  const documents = absorbUnreadPages(
+    segments.map((seg): SegmentedDocument => {
+      const text = perPage.pages.slice(seg.page_start - 1, seg.page_end).join("\n");
+      const analysis = finalizeAnalysis(seg, { extractedText: text, fileName });
+      return { analysis, pageStart: seg.page_start, pageEnd: seg.page_end };
+    })
+  );
 
   return {
     documents,

@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS } from "@/lib/quote-pdf-langs";
 import { upload } from "@vercel/blob/client";
-import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors } from "lucide-react";
+import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors, Merge } from "lucide-react";
 import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
 import LavoriCandidatePicker, { describeLavoriPick, lavoriPickError, lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
 import type { EmailBrief } from "@/lib/ai/email-brief";
+import { UNREAD_PAGES_TYPE_ES } from "@/lib/ai/unread-pages";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -61,6 +62,7 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     blobUrl: d.fileUrl || undefined,
     pageStart: d.pageStart,
     pageEnd: d.pageEnd,
+    absorbedPages: d.absorbedPages || undefined,
   };
 }
 
@@ -101,6 +103,7 @@ type DocRow = {
   blobUrl?: string;
   pageStart?: number;
   pageEnd?: number;
+  absorbedPages?: number[]; // páginas sin texto que el análisis unió a este documento
 };
 
 // URL del endpoint que extrae el rango de páginas de un documento para
@@ -113,6 +116,19 @@ function docViewUrl(d: DocRow, download = false): string | null {
   if (d.documentTypeEs) p.set("name", d.documentTypeEs);
   if (download) p.set("download", "1");
   return `/api/documents/extract-pages?${p.toString()}`;
+}
+
+// Dos filas se pueden unir si son páginas seguidas del mismo PDF.
+function canMergeRows(a: DocRow | undefined, b: DocRow): boolean {
+  return (
+    !!a &&
+    isPriceable(a.status) &&
+    isPriceable(b.status) &&
+    !!a.blobUrl &&
+    a.blobUrl === b.blobUrl &&
+    a.pageEnd != null &&
+    b.pageStart === a.pageEnd + 1
+  );
 }
 
 const LANGS: { code: string; name: string }[] = [
@@ -234,6 +250,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [targetLang, setTargetLang] = useState(initialData?.targetLang || "");
   const [discountPct, setDiscountPct] = useState(0);
   const [discountTouched, setDiscountTouched] = useState(false);
+  // true si el % de descuento lo propuso el builder al soltar archivos (no en ?exp/?lead).
+  const autoDiscountRef = useRef(false);
   const [validityDays, setValidityDays] = useState(15);
   const [notesLegal, setNotesLegal] = useState("");
   const [holderNames, setHolderNames] = useState("");
@@ -473,6 +491,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       }));
       setDocs((prev) => [...prev, ...rows]);
       if (!discountTouched) {
+        autoDiscountRef.current = true;
         setDiscountPct(suggestVolumeDiscountPct(docs.length + rows.length));
       }
       const pairs = rows.map((row, i) => ({ row, file: files[i] }));
@@ -553,31 +572,150 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   // Separa una fila multipágina en UNA LÍNEA POR PÁGINA. Útil cuando un rango
   // (p. ej. el placeholder escaneado de págs 4-5) contiene 2 documentos: cada
   // página queda como su propio documento editable y con su propio "ver PDF".
-  const splitRowByPages = useCallback((localId: string) => {
-    setDocs((prev) => {
-      const idx = prev.findIndex((x) => x.localId === localId);
-      if (idx === -1) return prev;
-      const d = prev[idx];
-      const start = d.pageStart || 1;
-      const end = d.pageEnd || start;
-      if (end <= start) return prev;
-      const baseName = (d.fileName || "documento").replace(/ · págs? .*$/, "");
-      const rows: DocRow[] = [];
-      for (let pg = start; pg <= end; pg += 1) {
-        rows.push({
-          ...d,
+  // Descuento por volumen sugerido: si lo propuso el builder, se rehace al
+  // separar/unir filas (unir en 1 documento las 3 filas de la IA no puede dejar
+  // el % de «3 documentos o más»). Si nunca lo propuso, no aparece de la nada.
+  const resuggestDiscount = useCallback(() => {
+    if (discountTouched || !autoDiscountRef.current) return;
+    setDocs((cur) => {
+      setDiscountPct(suggestVolumeDiscountPct(cur.filter((d) => d.include && (d.status === "done" || d.status === "split")).length));
+      return cur;
+    });
+  }, [discountTouched]);
+
+  const splitRowByPages = useCallback(
+    (localId: string) => {
+      setDocs((prev) => {
+        const idx = prev.findIndex((x) => x.localId === localId);
+        if (idx === -1) return prev;
+        const d = prev[idx];
+        const start = d.pageStart || 1;
+        const end = d.pageEnd || start;
+        if (end <= start) return prev;
+        const baseName = (d.fileName || "documento").replace(/ · págs? .*$/, "");
+        const rows: DocRow[] = [];
+        for (let pg = start; pg <= end; pg += 1) {
+          rows.push({
+            ...d,
+            localId: uid(),
+            status: "split",
+            fileName: `${baseName} · pág ${pg}`,
+            pageStart: pg,
+            pageEnd: pg,
+            pages: 1,
+            words: undefined,
+            unitPrice: 0,
+            absorbedPages: d.absorbedPages?.includes(pg) ? [pg] : undefined,
+          });
+        }
+        return [...prev.slice(0, idx), ...rows, ...prev.slice(idx + 1)];
+      });
+      resuggestDiscount();
+    },
+    [resuggestDiscount]
+  );
+
+  // Inverso de separar: une una fila con la anterior cuando son páginas seguidas
+  // del mismo PDF (la IA partió en dos un documento que era uno — Fortuny 10-sep).
+  // Los datos salen del documento real (si la de arriba es la página sin texto,
+  // de la de abajo); un precio tecleado a mano en la de abajo se respeta; en
+  // modo palabra el coste es palabras sumadas × tarifa.
+  const mergeWithPrevious = useCallback(
+    (localId: string) => {
+      setDocs((prev) => {
+        const idx = prev.findIndex((x) => x.localId === localId);
+        const a = prev[idx - 1];
+        const b = prev[idx];
+        if (idx < 1 || !canMergeRows(a, b)) return prev;
+        const aPlaceholder = a.sourceLang === "unknown" || a.documentTypeEs === UNREAD_PAGES_TYPE_ES;
+        const host = aPlaceholder || (!a.words && !!b.words && a.autoPriced !== false) ? b : a;
+        const keepB =
+          host === a && a.autoPriced !== false && b.autoPriced === false && b.documentTypeEs !== UNREAD_PAGES_TYPE_ES;
+        const words = a.words == null && b.words == null ? undefined : (a.words || 0) + (b.words || 0);
+        const pageStart = a.pageStart ?? 1;
+        const pageEnd = b.pageEnd ?? b.pageStart!;
+        const absorbed = Array.from(new Set([...(a.absorbedPages || []), ...(b.absorbedPages || [])])).sort((x, y) => x - y);
+        const merged: DocRow = {
+          ...host,
+          localId: a.localId,
+          fileName: `${(a.fileName || "documento").replace(/ · págs? .*$/, "")} · págs ${pageStart}-${pageEnd}`,
+          pageStart,
+          pageEnd,
+          pages: pageEnd - pageStart + 1,
+          words,
+          include: a.include || b.include,
+          hasApostille: a.hasApostille || b.hasApostille,
+          unitPrice:
+            priceMode === "word" && words
+              ? Math.round(words * (host.wordRate ?? wordRate) * 100) / 100
+              : keepB
+                ? b.unitPrice
+                : host.unitPrice,
+          autoPriced: keepB ? false : host.autoPriced,
+          priceNote: keepB ? undefined : host.priceNote,
+          absorbedPages: absorbed.length ? absorbed : undefined,
+        };
+        return [...prev.slice(0, idx - 1), merged, ...prev.slice(idx + 1)];
+      });
+      resuggestDiscount();
+    },
+    [priceMode, wordRate, resuggestDiscount]
+  );
+
+  // Inverso de la unión automática: saca como fila aparte (precio a mano) las
+  // páginas sin texto que el análisis unió a este documento, por si eran otro
+  // documento (p. ej. una apostilla escaneada). Solo las de los bordes del rango.
+  const detachAbsorbed = useCallback(
+    (localId: string) => {
+      setDocs((prev) => {
+        const idx = prev.findIndex((x) => x.localId === localId);
+        const d = prev[idx];
+        if (!d || !d.absorbedPages?.length || d.pageStart == null || d.pageEnd == null) return prev;
+        const abs = new Set(d.absorbedPages);
+        let start = d.pageStart;
+        let end = d.pageEnd;
+        while (abs.has(start) && start < end) start += 1;
+        while (abs.has(end) && end > start) end -= 1;
+        const baseName = (d.fileName || "documento").replace(/ · págs? .*$/, "");
+        const loose = (pg: number): DocRow => ({
           localId: uid(),
-          status: "split",
           fileName: `${baseName} · pág ${pg}`,
+          fileSize: 0,
+          mimeType: d.mimeType,
+          status: "split",
+          include: d.include,
+          documentTypeEs: UNREAD_PAGES_TYPE_ES,
+          targetLang: d.targetLang,
+          targetName: d.targetName,
+          pages: 1,
+          unitPrice: 0,
+          priceNote: "página sin texto",
+          blobUrl: d.blobUrl,
           pageStart: pg,
           pageEnd: pg,
-          words: undefined,
-          unitPrice: 0,
         });
-      }
-      return [...prev.slice(0, idx), ...rows, ...prev.slice(idx + 1)];
-    });
-  }, []);
+        const sorted = Array.from(abs).sort((x, y) => x - y);
+        const inside = sorted.filter((pg) => pg >= start && pg <= end);
+        const host: DocRow = {
+          ...d,
+          fileName: `${baseName} · ${end > start ? `págs ${start}-${end}` : `pág ${start}`}`,
+          pageStart: start,
+          pageEnd: end,
+          pages: end - start + 1,
+          absorbedPages: inside.length ? inside : undefined,
+        };
+        return [
+          ...prev.slice(0, idx),
+          ...sorted.filter((pg) => pg < start).map(loose),
+          host,
+          ...sorted.filter((pg) => pg > end).map(loose),
+          ...prev.slice(idx + 1),
+        ];
+      });
+      resuggestDiscount();
+    },
+    [resuggestDiscount]
+  );
 
   // Aplica la tarifa por palabra a las líneas con palabras: coste = palabras ×
   // tarifa. No toca líneas sin palabras (escaneados sin contar, manuales).
@@ -992,6 +1130,12 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             Hay líneas sin precio automático (falta destino o par sin español): elige aquí el idioma de destino para recalcular, o pon el precio a mano.
           </span>
         )}
+        {docs.some((d) => d.include && d.absorbedPages?.length) && (
+          <span className="flex w-full items-center gap-1 text-xs text-amber-300">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            Hay documentos que incluyen páginas sin texto (firma o escaneo): comprueba que no sean otro documento — p. ej. una apostilla — antes de enviar.
+          </span>
+        )}
       </div>
 
       {/* P2: elegir si el conteo IA se lanza al soltar (tiene coste) o se pone a mano */}
@@ -1069,7 +1213,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {docs.map((d) => (
+              {docs.map((d, i) => (
                 <tr key={d.localId} className={d.include ? "" : "opacity-40"}>
                   <td className="px-3 py-2">
                     <input
@@ -1121,6 +1265,29 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                             <a href={docViewUrl(d, true)!} className="text-cyan-400 hover:underline">descargar</a>
                           </div>
                         )}
+                        {d.absorbedPages?.length ? (
+                          <p
+                            className="ml-6 mt-0.5 text-[11px] text-amber-300"
+                            title="Página sin texto legible (firma o escaneo) unida a este documento. Si es otro documento (p. ej. una apostilla escaneada), sepárala y ponle precio."
+                          >
+                            incluye pág. {d.absorbedPages.join(", ")} sin texto
+                            {d.pageStart != null &&
+                              d.pageEnd != null &&
+                              d.pageEnd > d.pageStart &&
+                              d.absorbedPages.some((pg) => pg === d.pageStart || pg === d.pageEnd) && (
+                              <>
+                                {" · "}
+                                <button
+                                  type="button"
+                                  onClick={() => detachAbsorbed(d.localId)}
+                                  className="font-semibold underline hover:text-amber-200"
+                                >
+                                  separar
+                                </button>
+                              </>
+                            )}
+                          </p>
+                        ) : null}
                       </div>
                     )}
                   </td>
@@ -1277,6 +1444,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1">
+                      {i > 0 && canMergeRows(docs[i - 1], d) && (
+                        <button
+                          type="button"
+                          onClick={() => mergeWithPrevious(d.localId)}
+                          title="Unir con la línea anterior (páginas seguidas del mismo documento)"
+                          className="rounded p-1 text-cyan-400 hover:bg-slate-800"
+                          aria-label="Unir con la anterior"
+                        >
+                          <Merge className="h-4 w-4" />
+                        </button>
+                      )}
                       {d.blobUrl && d.pageStart != null && d.pageEnd != null && d.pageEnd > d.pageStart && (
                         <button
                           type="button"

@@ -8,13 +8,87 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { runDocumentSegmentation } from "@/lib/ai/run-analysis";
+import { runDocumentSegmentation, type SegmentedRun } from "@/lib/ai/run-analysis";
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { getLanguageName, isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
+
+// Análisis ya hecho por este endpoint (marca builderRun): se reconstruye sin volver
+// a llamar a la IA. Antes cada apertura del builder con ?exp/?session/?lead volvía a
+// segmentar y la IA podía partir el PDF de otra manera (Fortuny, 10-sep-2026). Lo
+// analizado por la puerta pública no lleva la marca y se segmenta aquí como siempre.
+function savedRun(json: any, pageCount: number): SegmentedRun | null {
+  const mode = json?.builderRun?.mode;
+  if (mode !== "text" && mode !== "vision") return null;
+  if (json.segmented) {
+    if (!Array.isArray(json.documents) || json.documents.length === 0) return null;
+    return { documents: json.documents, mode, pageCount, split: json.documents.length > 1 };
+  }
+  const { builderRun, ...analysis } = json;
+  const pages = pageCount || analysis.document_metrics?.pages || 1;
+  const absorbedPages = Array.isArray(builderRun.absorbedPages) && builderRun.absorbedPages.length ? builderRun.absorbedPages : undefined;
+  return { documents: [{ analysis, pageStart: 1, pageEnd: pages, absorbedPages }], mode, pageCount: pages, split: false };
+}
+
+// Un documento por segmento detectado (1..N). Cada uno con su precio — SOLO si el
+// par de idiomas es tarificable: original ES sin destino o par sin español
+// (traducción cruzada) NO llevan precio automático, se analizan a mano
+// (presupuesto 2026-00045: se tarificó es→unknown en silencio con la tarifa por defecto).
+function toBuilderDocuments(
+  run: SegmentedRun,
+  ctx: { id: string; fileName: string; fileUrl: string; targetLang?: string }
+) {
+  const { targetLang } = ctx;
+  return run.documents.map((d, i) => {
+    const a = d.analysis;
+    // Original ES sin destino detectado + destino fijado por el staff → el
+    // destino del expediente manda (el camino de 1 documento no se lo pasa al
+    // modelo; sin esto la fila llegaba "a mano" con el par ES→EN a la vista).
+    const srcIsEs = (a.language.source || "").toLowerCase() === "es";
+    const tgtUnknown = !a.language.target || a.language.target === "unknown";
+    if (targetLang && targetLang !== "es" && srcIsEs && tgtUnknown) {
+      a.language = { ...a.language, target: targetLang, target_name: getLanguageName(targetLang) };
+    }
+    const foreign = resolvePriceablePair(a.language.source, a.language.target);
+    const priceable = !!foreign && isAutoPriceable(foreign);
+    const quote = priceable ? calculatePrice(a) : null;
+    return {
+      id: ctx.id,
+      index: i,
+      fileName: ctx.fileName,
+      fileUrl: ctx.fileUrl,
+      documentType: a.document_type.specific_type,
+      documentTypeEs: a.document_type.specific_type_es,
+      category: a.document_type.category,
+      sourceLang: a.language.source,
+      sourceName: a.language.source_name,
+      targetLang: a.language.target,
+      targetName: a.language.target_name,
+      countryOrigin: a.country.origin_name,
+      countryCode: a.country?.origin ?? null,
+      hasApostille: !!a.requirements?.has_apostille,
+      words: a.document_metrics.estimated_words,
+      pages: a.document_metrics.pages,
+      pageStart: d.pageStart,
+      pageEnd: d.pageEnd,
+      absorbedPages: d.absorbedPages ?? null,
+      complexity: a.complexity.level,
+      confidence: a.document_type.confidence,
+      basePrice: quote ? quote.basePrice : null,
+      totalPrice: quote ? quote.totalPrice : null,
+      // El precio viene del SUELO del par (las palabras dan menos): el
+      // builder lo señala para que el staff lo vea antes de enviar
+      // (expedientes con varios certificados cortos suman un mínimo por doc).
+      minimumApplied: quote ? quote.breakdown.minimumApplied : false,
+      minimumAmount: quote ? quote.breakdown.minimumAmount : null,
+      manualPriceReason: priceable ? null : manualPriceReason(a.language.source, foreign),
+      warnings: a.warnings || [],
+    };
+  });
+}
 
 export async function POST(req: Request) {
   const access = await requireStaffAccess(req);
@@ -41,6 +115,24 @@ export async function POST(req: Request) {
     const existing = await prisma.documentAnalysis.findUnique({ where: { id: documentId } });
     if (!existing) {
       return NextResponse.json({ ok: false, error: "Documento no encontrado." }, { status: 404 });
+    }
+    const saved = existing.status === "QUOTE_GENERATED" ? savedRun(existing.analysisJson, existing.pageCount) : null;
+    if (saved) {
+      const documents = toBuilderDocuments(saved, {
+        id: existing.id,
+        fileName: existing.fileName,
+        fileUrl: existing.fileUrl,
+        targetLang,
+      });
+      return NextResponse.json({
+        ok: true,
+        mode: saved.mode,
+        analysisMs: 0,
+        cached: true,
+        split: saved.split,
+        documents,
+        document: documents[0],
+      });
     }
     doc = await prisma.documentAnalysis.update({
       where: { id: documentId },
@@ -91,56 +183,7 @@ export async function POST(req: Request) {
     const run = await runDocumentSegmentation({ buffer, mimeType, fileName, targetLang });
     const analysisMs = Date.now() - started;
 
-    // Un documento por segmento detectado (1..N). Cada uno con su precio —
-    // SOLO si el par de idiomas es tarificable: original ES sin destino o par
-    // sin español (traducción cruzada) NO llevan precio automático, se
-    // analizan a mano (presupuesto 2026-00045: se tarificó es→unknown en
-    // silencio con la tarifa por defecto).
-    const documents = run.documents.map((d, i) => {
-      const a = d.analysis;
-      // Original ES sin destino detectado + destino fijado por el staff → el
-      // destino del expediente manda (el camino de 1 documento no se lo pasa al
-      // modelo; sin esto la fila llegaba "a mano" con el par ES→EN a la vista).
-      const srcIsEs = (a.language.source || "").toLowerCase() === "es";
-      const tgtUnknown = !a.language.target || a.language.target === "unknown";
-      if (targetLang && targetLang !== "es" && srcIsEs && tgtUnknown) {
-        a.language = { ...a.language, target: targetLang, target_name: getLanguageName(targetLang) };
-      }
-      const foreign = resolvePriceablePair(a.language.source, a.language.target);
-      const priceable = !!foreign && isAutoPriceable(foreign);
-      const quote = priceable ? calculatePrice(a) : null;
-      return {
-        id: doc.id,
-        index: i,
-        fileName,
-        fileUrl: blobUrl,
-        documentType: a.document_type.specific_type,
-        documentTypeEs: a.document_type.specific_type_es,
-        category: a.document_type.category,
-        sourceLang: a.language.source,
-        sourceName: a.language.source_name,
-        targetLang: a.language.target,
-        targetName: a.language.target_name,
-        countryOrigin: a.country.origin_name,
-        countryCode: a.country?.origin ?? null,
-        hasApostille: !!a.requirements?.has_apostille,
-        words: a.document_metrics.estimated_words,
-        pages: a.document_metrics.pages,
-        pageStart: d.pageStart,
-        pageEnd: d.pageEnd,
-        complexity: a.complexity.level,
-        confidence: a.document_type.confidence,
-        basePrice: quote ? quote.basePrice : null,
-        totalPrice: quote ? quote.totalPrice : null,
-        // El precio viene del SUELO del par (las palabras dan menos): el
-        // builder lo señala para que el staff lo vea antes de enviar
-        // (expedientes con varios certificados cortos suman un mínimo por doc).
-        minimumApplied: quote ? quote.breakdown.minimumApplied : false,
-        minimumAmount: quote ? quote.breakdown.minimumAmount : null,
-        manualPriceReason: priceable ? null : manualPriceReason(a.language.source, foreign),
-        warnings: a.warnings || [],
-      };
-    });
+    const documents = toBuilderDocuments(run, { id: doc.id, fileName, fileUrl: blobUrl, targetLang });
 
     // Persistencia del archivo: agregada cuando hay varios documentos.
     const primary = run.documents[0].analysis;
@@ -161,7 +204,13 @@ export async function POST(req: Request) {
       where: { id: doc.id },
       data: {
         status: "QUOTE_GENERATED",
-        analysisJson: (run.split ? { segmented: true, documents: run.documents } : primary) as any,
+        // Sin marca si la segmentación falló: la próxima apertura lo reintenta.
+        analysisJson: (run.split
+          ? { segmented: true, documents: run.documents, ...(run.degraded ? {} : { builderRun: { mode: run.mode } }) }
+          : {
+              ...primary,
+              ...(run.degraded ? {} : { builderRun: { mode: run.mode, absorbedPages: run.documents[0].absorbedPages } }),
+            }) as any,
         documentType: run.split ? "expediente_combinado" : primary.document_type.specific_type,
         documentCategory: primary.document_type.category,
         sourceLanguage: primary.language.source,

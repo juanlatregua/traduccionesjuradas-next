@@ -13,6 +13,7 @@ import {
 } from "@/lib/quotes";
 import QuotePublicPayButton from "@/components/QuotePublicPayButton";
 import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
+import QuoteDocumentsViewer from "@/components/QuoteDocumentsViewer";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 type Props = {
@@ -157,6 +158,8 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
           // "Apostilla" dos veces sin poder comprobar a cual corresponde es la
           // duda que deja un presupuesto sin pagar (caso RODRIGO 2026-00074).
           sourceFileUrl: true,
+          pageStart: true,
+          pageEnd: true,
         },
       },
     },
@@ -170,6 +173,19 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   const shippingAmount = decimalToNumber(refreshed.shippingAmount);
   const vatAmount = decimalToNumber(refreshed.vatAmount);
   const total = decimalToNumber(refreshed.total);
+  // Al visor (client component) no viaja la URL del blob: una clave opaca que
+  // conserva la extensión para elegir la vista previa. Los ficheros se sirven
+  // por /api/q/[token]/document, que saca la URL de la BD.
+  const extOf = (u: string) =>
+    (u.split(/[?#]/)[0].split("/").pop() || "").match(/\.([a-z0-9]{1,5})$/i)?.[1].toLowerCase() || "bin";
+  const fileKeys = Array.from(new Set(refreshed.lines.map((l) => l.sourceFileUrl).filter((u): u is string => !!u)));
+  const docLines = refreshed.lines.map((l) => ({
+    id: l.id,
+    description: l.description,
+    pageStart: l.pageStart,
+    pageEnd: l.pageEnd,
+    sourceFileUrl: l.sourceFileUrl ? `doc-${fileKeys.indexOf(l.sourceFileUrl)}.${extOf(l.sourceFileUrl)}` : null,
+  }));
 
   return (
     <main className="min-h-screen bg-parchment px-4 py-10">
@@ -307,6 +323,12 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
             />
           </aside>
         </div>
+
+        {fileKeys.length > 0 && (
+          <section className="mt-6 rounded-2xl border border-cream p-4">
+            <QuoteDocumentsViewer lines={docLines} token={params.token} title="Sus documentos" />
+          </section>
+        )}
 
         {/* Solo en EXPIRED (o llegando desde el email con ?fb): en un presupuesto
             vigente el "¿por qué no siguió?" competiría con el botón de pagar. */}

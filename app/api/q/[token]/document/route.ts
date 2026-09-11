@@ -62,7 +62,11 @@ export async function GET(req: Request, { params }: { params: { token: string } 
   try {
     doc = await extractPageRange({ url: line.sourceFileUrl, start: line.pageStart, end: line.pageEnd });
   } catch {
-    return NextResponse.json({ ok: false, error: "No se pudo abrir el documento." }, { status: 502 });
+    // Texto plano: se pinta dentro del visor (iframe) en vez de JSON crudo.
+    return new NextResponse("Este documento ya no está disponible. Si lo necesita, escríbanos y se lo enviamos de nuevo.", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "private, no-store" },
+    });
   }
 
   const name = safeDocName(line.description.slice(0, 60));
