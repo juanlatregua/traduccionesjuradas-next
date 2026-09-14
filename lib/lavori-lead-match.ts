@@ -23,13 +23,14 @@ export function isLeadPairable(row: { priceCents: number | null; status: string 
  * nunca empareja. */
 export function matchLeadByCustomer<T extends LeadCustomerHintRow>(
   candidatas: T[],
-  who: { email?: string | null; name?: string | null; phone?: string | null }
+  who: { email?: string | null; name?: string | null; phone?: string | null },
+  opts: { requirePairable?: boolean } = {}
 ): T | null {
   const email = norm(who.email);
   const name = norm(who.name);
   const phone = digits(who.phone);
   const hit = candidatas.find((c) => {
-    if (!isLeadPairable(c)) return false;
+    if (opts.requirePairable !== false && !isLeadPairable(c)) return false;
     const parts = (c.customerHint || "").split(" · ").map((x) => x.trim()).filter(Boolean);
     return parts.some(
       (part) =>
@@ -39,4 +40,24 @@ export function matchLeadByCustomer<T extends LeadCustomerHintRow>(
     );
   });
   return hit ?? null;
+}
+
+/** Solicitud VIVA del cliente (SENT sin cifra todavía, PRICED o ACCEPTED). La usa el
+ * pago como ÚLTIMA comprobación antes de abrir un encargo nuevo: si el jurado aún
+ * está mirando los documentos, pagar no abre otro (26_94B23C, 10-sep-2026: la
+ * solicitud a Cristina llevaba 12 min sin cifra y el pago abrió un dirigido de 66 €
+ * a la cartera viva; Cristina acabó traduciendo un pedido que ya hacía Juan Amor). */
+export const LEAD_LIVE_STATUSES = ["SENT", "PRICED", "ACCEPTED"] as const;
+
+export function matchLiveLeadByCustomer<T extends LeadCustomerHintRow>(
+  candidatas: T[],
+  who: { email?: string | null; name?: string | null; phone?: string | null }
+): T | null {
+  const vivas = candidatas.filter((c) => (LEAD_LIVE_STATUSES as readonly string[]).includes(c.status));
+  // Misma regla de identidad que matchLeadByCustomer, sin exigir cifra.
+  return matchLeadByCustomer(
+    vivas.map((c) => ({ ...c, __live: true })),
+    who,
+    { requirePairable: false }
+  );
 }

@@ -23,7 +23,7 @@ import {
 } from "@/lib/lavori-bridge";
 import { packDocsForSobre } from "@/lib/lavori-sobre";
 import { sendMail } from "@/lib/azure-mail";
-import { LEAD_PAIRABLE_STATUSES, matchLeadByCustomer } from "@/lib/lavori-lead-match";
+import { LEAD_LIVE_STATUSES, LEAD_PAIRABLE_STATUSES, matchLeadByCustomer, matchLiveLeadByCustomer } from "@/lib/lavori-lead-match";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 import { isOrderSecured } from "@/lib/credit-terms";
 
@@ -378,10 +378,11 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     const or: Array<{ quoteId: string } | { expedienteRef: string }> = [{ quoteId: order.quoteId }];
     if (quote?.expedienteRef) or.push({ expedienteRef: quote.expedienteRef });
     const lpr = await prisma.lavoriPriceRequest.findFirst({
-      where: { status: { in: [...LEAD_PAIRABLE_STATUSES] }, OR: or },
+      where: { status: { in: [...LEAD_LIVE_STATUSES] }, OR: or },
       orderBy: { updatedAt: "desc" },
     });
     if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
+    if (lpr && !(lpr.priceCents && lpr.priceCents > 0)) return holdForPendingPrice(opts, lpr);
     if (lpr?.priceCents && lpr.priceCents > 0) {
       // La motor_ref del encargo en lavori es la ref de la solicitud + "-precio"
       // (así la creó buildPriceRequestPayload).
@@ -439,6 +440,22 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     }
   }
 
+  // Última comprobación (26_94B23C, 10-sep-2026): una solicitud VIVA del mismo
+  // cliente y par que aún no trae cifra (el jurado está mirando los documentos)
+  // tampoco puede convivir con un encargo nuevo. Se ata al presupuesto y se espera:
+  // cuando llegue la cifra, el receptor la lleva al pedido y se acepta sola si cabe.
+  if (!ref && order.langPair) {
+    const par = order.langPair.replace("->", ">").toUpperCase();
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const vivas = await prisma.lavoriPriceRequest.findMany({
+      where: { status: "SENT", quoteId: null, par, createdAt: { gte: since } },
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+    });
+    const viva = matchLiveLeadByCustomer(vivas, { email: order.clientEmail, name: order.clientName, phone: order.clientPhone });
+    if (viva) return holdForPendingPrice(opts, viva);
+  }
+
   if (!ref || !precioCents) {
     return { handled: false, changed: false };
   }
@@ -453,6 +470,38 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   });
   // handled=true aunque falle: con solicitud previa jamás se abre encargo nuevo.
   return { handled: true, changed: result.ok };
+}
+
+// Solicitud VIVA sin cifra al pagar: el jurado tiene los documentos y aún no ha
+// contestado. Abrir un dirigido ahora es el duplicado de 26_94B23C. Se ata la
+// solicitud al presupuesto (así la cifra, cuando llegue, cae en ESTE pedido y el
+// receptor la acepta sola si cabe en el 75/25) y se avisa a staff. Nada nuevo a lavori.
+async function holdForPendingPrice(
+  opts: Parameters<typeof emitPrecioAceptadoIfApplicable>[0],
+  lpr: { id: string; ref: string; miembroNombre: string | null; candidatos: string[]; createdAt: Date; quoteId: string | null }
+): Promise<{ handled: boolean; changed: boolean }> {
+  const { order, reference } = opts;
+  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+  if (order.quoteId && !lpr.quoteId) {
+    await prisma.lavoriPriceRequest
+      .update({ where: { id: lpr.id }, data: { quoteId: order.quoteId } })
+      .catch((err) => console.error("[lavori-pendiente] lpr link failed", err));
+  }
+  const horas = Math.round((Date.now() - lpr.createdAt.getTime()) / 3_600_000);
+  await prisma.orderEvent.create({
+    data: {
+      orderId: order.id,
+      type: "lavori.solicitud_pendiente_precio",
+      message: `Solicitud ${lpr.ref} viva sin cifra (${horas} h): NO se abre encargo nuevo; al llegar el precio se acepta solo si cabe en el modelo.`,
+      payload: { lavoriPriceRequestId: lpr.id, ref: lpr.ref, candidatos: lpr.candidatos, horas },
+    },
+  });
+  await staffMailLines(`⏳ ${reference} pagado — la solicitud ${lpr.ref} sigue sin cifra del jurado (sin encargo nuevo)`, [
+    `El pedido ${reference} se ha pagado y ya había una solicitud de precio viva en lavori (${lpr.ref}, hace ${horas} h) sin cifra todavía.`,
+    `NO se ha abierto ningún encargo nuevo. Cuando el jurado pase su precio, se acepta solo si cabe en el 75/25; si no, te llegará para decidir.`,
+    `Si prefieres no esperar, insiste en lavori o asigna a mano en la ficha: ${ficha}`,
+  ]);
+  return { handled: true, changed: false };
 }
 
 // La solicitud ya estaba ACCEPTED al pagar (Juan confirmó en lavori antes de marcar
@@ -694,6 +743,17 @@ async function routeOrderToLavori(opts: {
       return await fallbackToStaff(vivo.error);
     }
     const routeViva = vivo.route;
+    // Carril ENTERO fuera de lavori (Juan Amor en EN/PT/IT): el respaldo a la
+    // cartera viva abría un dirigido a gente que no era el carril mientras Juan
+    // cerraba el encargo con Amor por fuera (26_94B23C: Cristina tradujo un pedido
+    // ya hecho; orden de Juan 14-sep). Con dinero dentro no se improvisa el jurado:
+    // aviso a staff y el envío a la cartera se hace a mano desde la ficha.
+    if (vivo.respaldo && !routeViva.candidatos.some((id) => route.candidatos.includes(id))) {
+      return await fallbackToStaff(
+        `el carril (${vivo.respaldo.sinAlta.length} jurado/s) no está de alta en lavori y no se envía a la cartera viva en automático — ` +
+          `si no lo cierras por fuera, pídelo desde la ficha («pedir precio en lavori»)`
+      );
+    }
     if (vivo.respaldo) {
       await prisma.orderEvent.create({
         data: {

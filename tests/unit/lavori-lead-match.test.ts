@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { matchLeadByCustomer, isLeadPairable, LEAD_PAIRABLE_STATUSES } = await import("../../lib/lavori-lead-match.ts");
+const { matchLeadByCustomer, matchLiveLeadByCustomer, isLeadPairable, LEAD_PAIRABLE_STATUSES, LEAD_LIVE_STATUSES } = await import("../../lib/lavori-lead-match.ts");
 
 const candidatas = [
   { ref: "LEAD-A", customerHint: "Mario Moreno", priceCents: 32500, status: "PRICED" },
@@ -33,4 +33,16 @@ test("el email marcador @whatsapp.local nunca empareja; PRICED sin cifra no; ACC
   assert.equal(matchLeadByCustomer([{ customerHint: "34600066632@whatsapp.local", priceCents: 4000, status: "PRICED" }], { email: "34600066632@whatsapp.local" }), null);
   assert.equal(matchLeadByCustomer(candidatas, { name: "sin precio" }), null);
   assert.equal(matchLeadByCustomer(candidatas, { name: "aceptada sin cifra" })?.ref, "LEAD-E");
+});
+
+test("solicitud VIVA sin cifra (SENT) empareja al pagar y frena el encargo nuevo (26_94B23C)", () => {
+  assert.deepEqual([...LEAD_LIVE_STATUSES], ["SENT", "PRICED", "ACCEPTED"]);
+  const vivas = [
+    { ref: "LEAD-6616322408", customerHint: "alfredojljunior@gmail.com · 624746901", priceCents: null, status: "SENT" },
+    { ref: "LEAD-CERRADA", customerHint: "alfredojljunior@gmail.com · 624746901", priceCents: null, status: "CLOSED_EXTERNAL" },
+  ];
+  assert.equal(matchLiveLeadByCustomer(vivas, { email: "alfredojljunior@gmail.com" })?.ref, "LEAD-6616322408");
+  assert.equal(matchLiveLeadByCustomer(vivas, { phone: "+34 624 746 901" })?.ref, "LEAD-6616322408");
+  assert.equal(matchLiveLeadByCustomer(vivas.slice(1), { email: "alfredojljunior@gmail.com" }), null, "cerrada no cuenta");
+  assert.equal(matchLeadByCustomer(vivas, { email: "alfredojljunior@gmail.com" }), null, "el emparejador con cifra sigue exigiendo cifra");
 });
