@@ -35,7 +35,7 @@ export default async function WorkspacePage({ params }: Params) {
   const sessionStaffEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : null;
 
   if (sessionStaffEmail) {
-    if (!verifiedEmail || verifiedEmail !== sessionStaffEmail) {
+    if (!verifiedEmail) {
       redirect("/zona-traductor/verificar");
     }
   }

@@ -185,7 +185,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const verifiedEmail = verified?.email && isStaffEmail(verified.email) ? verified.email : null;
   const sessionStaffEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : null;
 
-  if (sessionStaffEmail && (!verifiedEmail || verifiedEmail !== sessionStaffEmail)) {
+  if (sessionStaffEmail && !verifiedEmail) {
     redirect("/zona-traductor/verificar");
   }
   const email = sessionStaffEmail || verifiedEmail;

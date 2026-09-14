@@ -26,9 +26,10 @@ export default async function VerificarZonaTraductorPage() {
   const verified = readVerifiedOtpToken(verifiedCookie);
 
   const sessionStaffEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : null;
-  // Si hay sesión Google de staff con OTP de OTRO email, la zona nos devuelve aquí:
-  // mostrar el formulario en vez de rebotar (bucle ERR_TOO_MANY_REDIRECTS, 13-sep).
-  if (verified?.email && isStaffEmail(verified.email) && (!sessionStaffEmail || sessionStaffEmail === verified.email)) {
+  // Cualquier código de staff válido vale, aunque la sesión Google sea de OTRO email
+  // de staff (juansilva / juasilva / hola): exigir el mismo email dejaba a Juan en
+  // bucle (13-sep ERR_TOO_MANY_REDIRECTS, 14-sep «se queda en el mismo lugar").
+  if (verified?.email && isStaffEmail(verified.email)) {
     redirect("/zona-traductor");
   }
 

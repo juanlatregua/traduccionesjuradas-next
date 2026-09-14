@@ -487,7 +487,7 @@ export const getZonaTraductorStaffEmail = cache(async (): Promise<string | null>
   const verified = readVerifiedOtpToken(verifiedCookie);
   const verifiedEmail = verified?.email && isStaffEmail(verified.email) ? verified.email : null;
   const sessionStaffEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : null;
-  if (sessionStaffEmail && (!verifiedEmail || verifiedEmail !== sessionStaffEmail)) return null;
+  if (sessionStaffEmail && !verifiedEmail) return null;
   return sessionStaffEmail || verifiedEmail;
 });
 
@@ -500,7 +500,7 @@ export async function authZonaTraductorOrRedirect(): Promise<string> {
   const sessionStaffEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : null;
 
   if (sessionStaffEmail) {
-    if (!verifiedEmail || verifiedEmail !== sessionStaffEmail) {
+    if (!verifiedEmail) {
       redirect("/zona-traductor/verificar");
     }
   }
