@@ -104,6 +104,49 @@ export async function resolveLeadRoute(sourceLang: string, targetLang: string): 
   return { route, cartera: cartera.miembros, live: cartera.live };
 }
 
+/** Solicitud VIVA del mismo cliente y par en los últimos `days` días: sin presupuesto
+ * todavía, o con presupuesto sin pagar. Guarda contra el duplicado de Cosmos
+ * (14-sep-2026): el cliente volvió a subir el documento por la puerta, la ref
+ * (hash de las URL) cambió y salió una 2.ª solicitud a Morton. Casa por email o
+ * por los 9 últimos dígitos del teléfono dentro de customerHint. */
+export const LEAD_LIVE_STATUSES = ["SENT", "PRICED", "ACCEPTED"] as const;
+const QUOTE_LIVE_STATUSES = ["DRAFT", "SENT", "OPENED", "ACCEPTED"] as const;
+export async function findLiveSiblingLeadRequest(opts: {
+  email?: string | null;
+  phone?: string | null;
+  par: string;
+  days?: number;
+  excludeRef?: string | null;
+}) {
+  const email = String(opts.email || "").trim().toLowerCase();
+  const phoneDigits = String(opts.phone || "").replace(/\D/g, "");
+  const phoneKey = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : "";
+  if (!email && !phoneKey) return null;
+  const since = new Date(Date.now() - (opts.days ?? 14) * 86_400_000);
+  const rows = await prisma.lavoriPriceRequest.findMany({
+    where: {
+      par: opts.par,
+      status: { in: [...LEAD_LIVE_STATUSES] },
+      createdAt: { gte: since },
+      customerHint: { not: null },
+      ...(opts.excludeRef ? { ref: { not: opts.excludeRef } } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  for (const r of rows) {
+    const hint = (r.customerHint || "").toLowerCase();
+    const matches = (email && hint.includes(email)) || (phoneKey && hint.replace(/\D/g, "").includes(phoneKey));
+    if (!matches) continue;
+    if (!r.quoteId) return { request: r, quote: null };
+    const quote = await prisma.quote.findFirst({
+      where: { id: r.quoteId, deletedAt: null },
+      select: { id: true, quoteNumber: true, status: true, total: true },
+    });
+    if (quote && (QUOTE_LIVE_STATUSES as readonly string[]).includes(quote.status)) return { request: r, quote };
+  }
+  return null;
+}
+
 export type LeadRequestInput = {
   docs: LeadDoc[];
   sourceLang: string;

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
+import { findLiveSiblingLeadRequest } from "@/lib/lavori-lead";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
 
 export const metadata: Metadata = {
@@ -82,6 +83,13 @@ export default async function ZonaTraductorPresupuestoPage({
   const leadPhone = leadHintParts.find((x) => /\+?\d[\d\s]{6,}/.test(x));
   const leadName = leadHintParts.find((x) => x !== leadPhone && !x.includes("@"));
   const leadEmail = leadHintParts.find((x) => x.includes("@"));
+  // Solicitud sin presupuesto pero con HERMANA viva del mismo cliente y par que sí lo
+  // tiene (Cosmos, 14-sep-2026: la 2.ª subida abrió otra solicitud a Morton): se va al
+  // presupuesto existente en vez de montar el duplicado. ?nuevo=1 lo fuerza igual.
+  if (lead && !lead.quoteId && !s(searchParams.nuevo)) {
+    const hermana = await findLiveSiblingLeadRequest({ email: leadEmail, phone: leadPhone, par: lead.par, days: 30, excludeRef: lead.ref }).catch(() => null);
+    if (hermana?.quote) redirect(`/zona-traductor/presupuestos/${hermana.quote.id}`);
+  }
 
   // Prefill del builder manual (deep-links desde el panel del pedido, PM, etc.).
   const pair = parseLangPair(s(searchParams.langPair));

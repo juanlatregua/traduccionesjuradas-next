@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       generateUniquePublicToken(),
     ]);
 
-    const created = await prisma.$transaction(async (tx) => {
+    const createdTx = await prisma.$transaction(async (tx) => {
       const customer = await tx.customer.upsert({
         where: { email: parsed.data.customerEmail },
         update: {
@@ -114,6 +114,26 @@ export async function POST(req: Request) {
           phone: parsed.data.customerPhone,
         },
       });
+
+      // Borrador HUÉRFANO del intento anterior: mismo cliente y par, DRAFT de hace
+      // ≤2 h que nunca se envió ni se formalizó (00121/00122, 00146/00147, 00151/00152:
+      // se montaba, se volvía atrás y se creaba otro). Se retira para que quede UN
+      // presupuesto por intento; su solicitud lavori pasa al nuevo más abajo.
+      const huerfano = await tx.quote.findFirst({
+        where: {
+          status: "DRAFT",
+          deletedAt: null,
+          customerEmail: parsed.data.customerEmail,
+          sourceLang: parsed.data.sourceLang,
+          targetLang: parsed.data.targetLang,
+          createdAt: { gte: new Date(Date.now() - 2 * 3_600_000) },
+          messageLogs: { none: {} },
+          orders: { none: {} },
+        },
+        select: { id: true, quoteNumber: true },
+        orderBy: { createdAt: "desc" },
+      });
+      if (huerfano) await tx.quote.update({ where: { id: huerfano.id }, data: { deletedAt: new Date() } });
 
       const quote = await tx.quote.create({
         data: {
@@ -170,8 +190,15 @@ export async function POST(req: Request) {
         },
       });
 
-      return quote;
+      return { quote, huerfano };
     });
+    const created = createdTx.quote;
+    if (createdTx.huerfano) {
+      console.log(`[quotes:create] borrador huérfano ${createdTx.huerfano.quoteNumber} retirado por ${created.quoteNumber}`);
+      await prisma.lavoriPriceRequest
+        .updateMany({ where: { quoteId: createdTx.huerfano.id }, data: { quoteId: created.id } })
+        .catch((err) => console.error("[quotes:create] retie lavori failed", err));
+    }
 
     // Vínculo presupuesto↔solicitud de precio lavori (Fase 2): si el presupuesto
     // nace del expediente de un lead con solicitud en lavori, se ata aquí para que

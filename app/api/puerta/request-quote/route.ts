@@ -14,7 +14,7 @@ import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { getLanguageName } from "@/lib/pricing-engine/languages";
-import { leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
+import { findLiveSiblingLeadRequest, leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
 
@@ -165,7 +165,21 @@ export async function POST(req: Request) {
     let lavoriEmail = "";
     let lavoriSms = "";
     let lavoriSent: { lang: string; langName: string } | null = null;
-    if (carril && lead && leadLang && autoLangs.has(leadLang)) {
+    // Cliente que vuelve a subir (Cosmos, 10-sep): ya tiene una solicitud viva del
+    // mismo par → NO sale otra a lavori; el aviso apunta a la que existe.
+    const hermana = carril
+      ? await findLiveSiblingLeadRequest({ email: contactEmail, phone: contactPhone, par: carril.route.par }).catch(() => null)
+      : null;
+    if (hermana) {
+      const h = hermana.request;
+      const detalle = [
+        h.status,
+        h.priceCents ? `${(h.priceCents / 100).toFixed(2)} € de ${h.miembroNombre || "el traductor"}` : "sin precio aún",
+        hermana.quote ? `presupuesto ${hermana.quote.quoteNumber} ${hermana.quote.status}` : "sin presupuesto",
+      ].join(" · ");
+      lavoriEmail = `⚠ NO se ha enviado otra solicitud a lavori: este cliente ya tiene la ${h.ref} en curso (${detalle}). Sigue por ahí: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(h.ref)}`;
+      lavoriSms = `Ya en curso ${h.ref} (${h.status}) — sin 2.ª solicitud`;
+    } else if (carril && lead && leadLang && autoLangs.has(leadLang)) {
       const auto = await sendLeadPriceRequest({
         docs: lead.docs,
         sourceLang: lead.sourceLang!,
