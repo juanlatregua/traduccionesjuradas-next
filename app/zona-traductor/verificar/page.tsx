@@ -25,21 +25,22 @@ export default async function VerificarZonaTraductorPage() {
   const verifiedCookie = cookies().get(STAFF_OTP_VERIFIED_COOKIE)?.value;
   const verified = readVerifiedOtpToken(verifiedCookie);
 
-  if (verified?.email && isStaffEmail(verified.email)) {
+  const sessionStaffEmail = sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : null;
+  // Si hay sesión Google de staff con OTP de OTRO email, la zona nos devuelve aquí:
+  // mostrar el formulario en vez de rebotar (bucle ERR_TOO_MANY_REDIRECTS, 13-sep).
+  if (verified?.email && isStaffEmail(verified.email) && (!sessionStaffEmail || sessionStaffEmail === verified.email)) {
     redirect("/zona-traductor");
   }
 
   // Dev bypass: redirect to auto-verify route
   if (process.env.NODE_ENV === "development") {
-    const devEmail = sessionEmail && isStaffEmail(sessionEmail)
-      ? sessionEmail
-      : "juansilva@traduccionesjuradas.net";
+    const devEmail = sessionStaffEmail ?? "juansilva@traduccionesjuradas.net";
     redirect(`/api/traductor/dev-bypass?email=${encodeURIComponent(devEmail)}`);
   }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
-      <StaffOtpGate initialEmail={sessionEmail && isStaffEmail(sessionEmail) ? sessionEmail : ""} />
+      <StaffOtpGate initialEmail={sessionStaffEmail ?? ""} />
     </main>
   );
 }
