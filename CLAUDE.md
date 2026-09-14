@@ -52,6 +52,14 @@ prisma db push                     # aplicar schema (NO migrate dev — shadow D
 - No sobreingeniería: solo lo pedido, sin docstrings/comments innecesarios
 - Deploy: Vercel auto-deploy desde `main`
 
+## Modelos y gasto (orden de Juan, 14-sep-2026)
+- Sesión principal en Fable: solo diseñar arreglos, decidir dinero/flujos y sintetizar. Nada mecánico.
+- **Todo `Agent(...)` lleva `model` explícito.** Sin él, Explore/Plan heredan Fable. Nunca `fork` para trabajo mecánico (siempre hereda Fable).
+- Reparto: `haiku` = scripts de consulta, greps, barridos, extraer/listar · `sonnet` = leer código y proponer, buscadores de auditoría, dictámenes · `opus` = refutar, juzgar y síntesis de dinero. Nunca abaratar la verificación de caminos del dinero.
+- Agentes del repo ya fijados: vigia-pedidos=haiku, guardian-flujos/agente-precios/seo-aeo=sonnet, `effort: medium`, `maxTurns`. `.claude/settings.json` pone `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` como red.
+- Workflows/ultracode: cada `agent()` con `model`; ultracode solo para auditorías y con aviso del coste.
+- Un subagente por tarea, con prompt cerrado y salida acotada (≤25 líneas). Si un resultado barato huele raro, re-verificar caro; nunca al revés.
+
 ## Detalle por módulo
 → `.claude/skills/prisma-patterns.md` · `.claude/skills/auth-patterns.md` · `.claude/skills/email-patterns.md`
 → `.claude/skills/payments-patterns.md` · `.claude/skills/storage-patterns.md` · `.claude/skills/seo-patterns.md`
