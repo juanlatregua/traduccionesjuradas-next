@@ -657,6 +657,10 @@ async function routeOrderToLavori(opts: {
   /** Tarifario aprendido: precio ya cerrado con el jurado (paraTi fijo, sin 75/25). */
   paraTiCents?: number | null;
   especificaciones?: string | null;
+  /** Presupuesto emitido por el agente de precios con la tarifa APROBADA de un jurado:
+   * el dirigido al pagar es el diseño del tarifario (27-ago), no un duplicado — no hay
+   * solicitud previa porque no hacía falta pedir precio. */
+  tarifario?: boolean;
 }): Promise<{ changed: boolean }> {
   const { order, route, reference } = opts;
 
@@ -712,7 +716,7 @@ async function routeOrderToLavori(opts: {
   // hecho «pagó, luego no tiene traductor» y duplicaba encargos (26_94B23C, Cosmos).
   // Sin solicitud previa: aviso a staff y se pide desde la ficha. Interruptor por si
   // algún día vuelve el dirigido automático: LAVORI_DIRIGIDO_AL_PAGAR=on.
-  if (String(process.env.LAVORI_DIRIGIDO_AL_PAGAR || "").toLowerCase() !== "on") {
+  if (!opts.tarifario && String(process.env.LAVORI_DIRIGIDO_AL_PAGAR || "").toLowerCase() !== "on") {
     await prisma.orderEvent.create({
       data: {
         orderId: order.id,
@@ -918,6 +922,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
               route: abierta,
               reference: options.reference,
               actorEmail: options.actorEmail || null,
+              tarifario: true,
               especificaciones: `El jurado previsto (${q.lavoriMiembroNombre || "tarifa de la casa"}) no está disponible. Precio abierto: el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} € (presupuesto ${q.quoteNumber}); la cifra de referencia era ${(paraTiCents / 100).toFixed(2)} €.`,
             });
           }
@@ -928,6 +933,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           reference: options.reference,
           actorEmail: options.actorEmail || null,
           paraTiCents,
+          tarifario: true,
           especificaciones: `Precio ya acordado contigo por documento (tarifario de la casa, presupuesto ${q.quoteNumber}): ${(paraTiCents / 100).toFixed(2)} €. Solo acepta y traduce.`,
         });
       }
