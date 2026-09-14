@@ -706,6 +706,29 @@ async function routeOrderToLavori(opts: {
     }
   }
 
+  // Orden de Juan (14-sep-2026): el precio se pide ANTES de que el cliente pague, así
+  // que al pagar el traductor ya existe (solicitud PRICED/ACCEPTED o viva sin cifra —
+  // lo cubre emitPrecioAceptadoIfApplicable). Abrir un dirigido nuevo aquí era dar por
+  // hecho «pagó, luego no tiene traductor» y duplicaba encargos (26_94B23C, Cosmos).
+  // Sin solicitud previa: aviso a staff y se pide desde la ficha. Interruptor por si
+  // algún día vuelve el dirigido automático: LAVORI_DIRIGIDO_AL_PAGAR=on.
+  if (String(process.env.LAVORI_DIRIGIDO_AL_PAGAR || "").toLowerCase() !== "on") {
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.dirigido_omitido",
+        message: `Pagado sin solicitud previa en lavori: NO se abre encargo dirigido automático (regla 14-sep). Pedir precio desde la ficha o asignar a mano.`,
+        payload: { par: route.par, candidatos: route.candidatos, actorEmail: opts.actorEmail },
+      },
+    });
+    await staffMailLines(`Pedido ${route.par} pagado SIN solicitud previa en lavori (${reference}) — pídelo desde la ficha`, [
+      `El pedido ${reference} (${route.par}) está pagado y no tiene solicitud de precio en lavori ni traductor fijado.`,
+      `No se ha abierto ningún encargo automático. Pide precio desde la ficha («pedir precio en lavori») o asigna a mano.`,
+      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+    ]);
+    return { changed: false };
+  }
+
   const fallbackToStaff = async (error: string) => {
     console.error(`[lavori-bridge] solicitud fallida para ${reference}:`, error);
     await prisma.orderEvent.create({
