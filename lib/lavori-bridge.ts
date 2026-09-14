@@ -471,6 +471,7 @@ export const LAVORI_MEMBER_COLLABORATOR_EMAIL: Record<string, string> = {
   "8npqw6hd5vavn4maio2173lq": "tradintro@gmail.com", // Maria Murariu Ursu (Collaborator ro)
   "43dwlkzsr6lsltpwcj32m88s": "bechtraducciones@gmail.com", // Vanessa Bech (Collaborator en)
   exwzhhwv5fyegllvblt76uvb: "info@lyltraduccionesprofesionales.com", // María Lourdes Yagüe Lobo (Collaborator en, alta 14-sep-2026)
+  a2x1faeg08r1tiz4gt1d6hfv: "interprete.daniela@gmail.com", // Daniela Cleintuar (Collaborator nl, alta 14-sep-2026)
 };
 
 export type LavoriRoute = { lang: string; par: string; candidatos: string[] };
