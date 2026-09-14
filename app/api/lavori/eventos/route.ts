@@ -454,6 +454,66 @@ async function handleLeadEvento(opts: {
         },
       });
     }
+    // Factura sobre una solicitud SIN pedido atado (caso Daniela 502, 9-sep-2026: solo
+    // salía este email y el gasto no existía; el PDF vivía en el blob privado de
+    // lavori, que lo borra a los 15 días). Se anota igual que en un pedido: PDF en
+    // NUESTRO Blob + gasto needsReview, para que el cuadre lo encuentre siempre.
+    if (evento === "factura_subida") {
+      const totalCents = eurosToCents(datos.importe);
+      const miembroId = String(datos.miembroId || "");
+      const email = LAVORI_MEMBER_COLLABORATOR_EMAIL[miembroId];
+      const collaborator = email ? await prisma.collaborator.findUnique({ where: { email } }) : null;
+      const supplier = collaborator?.fullName || String(datos.miembroNombre || miembroId || "Colaborador lavori");
+      const yaAnotada = await prisma.expense.findFirst({
+        where: { category: "colaborador", isAccrual: false, concept: { contains: `encargo ${encargoId}` } },
+        select: { id: true },
+      });
+      if (yaAnotada) return NextResponse.json({ ok: true, repetido: true });
+      const nombre = datos.nombre ? String(datos.nombre) : `factura-${encargoId}.pdf`;
+      let attachmentUrl = datos.url ? String(datos.url) : null;
+      let attachmentKey: string | null = null;
+      if (typeof datos.base64 === "string" && datos.base64.length > 0) {
+        const buf = Buffer.from(datos.base64, "base64");
+        if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
+          return NextResponse.json({ ok: false, error: `datos.base64 vacío o >${Math.round(SOBRE_MAX_RAW_BYTES / 1e6)}MB` }, { status: 400 });
+        }
+        const blob = await put(`leads/${lead.ref}/facturas-lavori/${Date.now()}-${nombre}`, buf, {
+          access: "public",
+          contentType: datos.contentType ? String(datos.contentType) : "application/pdf",
+        });
+        attachmentUrl = blob.url;
+        attachmentKey = blob.pathname;
+      }
+      const expense = await prisma.expense.create({
+        data: {
+          date: new Date(),
+          brand: "traduccionesjuradas",
+          supplier,
+          supplierInvoiceNumber: datos.numeroFactura ? String(datos.numeroFactura) : null,
+          concept: `Factura del sobre lavori — encargo ${encargoId} (solicitud ${lead.ref}, sin pedido atado)`,
+          category: "colaborador",
+          baseCents: totalCents ?? 0,
+          vatRate: 0,
+          vatCents: 0,
+          totalCents: totalCents ?? 0,
+          payableCents: totalCents ?? 0,
+          needsReview: true,
+          collaboratorId: collaborator?.id ?? null,
+          attachmentUrl,
+          attachmentKey,
+          attachmentName: nombre,
+          notes: `Creado por el webhook lavori sobre la solicitud ${lead.ref}${quien}. Sin pedido atado: enlázalo al pedido en el cuadre y revisa IVA/IRPF.`,
+        },
+      });
+      await staffMail(`🧾 Factura de ${supplier} sobre la solicitud ${lead.ref}${quien} — gasto creado, sin pedido`, [
+        `Ha llegado por lavori la factura del encargo ${encargoId} (solicitud ${lead.ref}), que no tiene pedido atado.`,
+        totalCents ? `Importe: ${(totalCents / 100).toFixed(2)} €.` : "Sin importe legible: revísala.",
+        `Gasto ${expense.id} creado en contabilidad como PENDIENTE y needsReview. Enlázalo al pedido cuando lo haya.`,
+        attachmentUrl ? `Archivo: ${attachmentUrl}` : "",
+        montarLine,
+      ].filter(Boolean));
+      return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
+    }
     await staffMail(`⚠ lavori: ${evento} sobre la solicitud de lead ${lead.ref}${quien} — gestionar a mano`, [
       `Ha llegado un evento "${evento}" de ${miembro} sobre la solicitud de precio ${lead.ref} (${lead.par}, encargo ${encargoId}), que no tiene pedido asociado.`,
       `Si el lead se convirtió en pedido, vincúlalo desde la ficha; si no, gestiona la respuesta por lavori.`,
