@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 
 const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
-const EVENTO_TIPOS = ["precio_propuesto", "encargo_aceptado", "factura_subida", "entrega_subida"] as const;
+const EVENTO_TIPOS = ["precio_propuesto", "encargo_aceptado", "factura_subida", "entrega_subida", "pago_marcado"] as const;
 type EventoTipo = (typeof EVENTO_TIPOS)[number];
 
 function hasAuth(req: Request): boolean {
@@ -345,11 +345,68 @@ export async function POST(req: Request) {
       ].filter(Boolean));
     }
 
+    if (evento === "pago_marcado") {
+      const pagadoEn = datos.pagadoEn && !Number.isNaN(Date.parse(String(datos.pagadoEn))) ? new Date(String(datos.pagadoEn)) : new Date();
+      const r = await marcarFacturaPagadaDesdeLavori({ encargoId, pagadoEn, orderReference: order.reference });
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: eventType,
+          message: r.marcadas.length
+            ? `lavori: encargo marcado PAGADO el ${pagadoEn.toISOString().slice(0, 10)} — ${r.marcadas.length} factura(s) de colaborador pagada(s) en contabilidad.`
+            : r.encontradas
+              ? `lavori: encargo marcado PAGADO; su factura ya estaba pagada en contabilidad.`
+              : `lavori: encargo marcado PAGADO pero NO hay factura del colaborador en contabilidad — pedirla o registrarla.`,
+          payload: { encargoId, motorRef, pagadoEn: pagadoEn.toISOString(), expenseIds: r.marcadas.map((f) => f.id) },
+        },
+      });
+      if (r.encontradas === 0) {
+        await staffMail(`⚠ Pago marcado en lavori sin factura en contabilidad (${order.reference})`, [
+          `Has marcado PAGADO en lavori el encargo ${encargoId} del pedido ${order.reference}, pero en contabilidad no hay factura del colaborador para ese encargo.`,
+          `Pídesela o regístrala para que el pago no quede fuera del libro.`,
+          `Ficha: ${ficha}`,
+        ]);
+      }
+    }
+
     return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
   } catch (err) {
     console.error("[lavori-eventos] error", err);
     return NextResponse.json({ ok: false, error: "error interno procesando el evento" }, { status: 500 });
   }
+}
+
+/* pago_marcado (adenda 14-sep-2026, orden de Juan: «las facturas están en lavori,
+   crea un vínculo entre los dos»): Juan marca PAGADO un encargo de la casa en lavori
+   → la factura de ese encargo queda pagada en NUESTRO libro con la fecha de lavori.
+   La factura se busca por el encargo (evento factura_subida/recuperada o concepto) y,
+   si hay pedido, por pedido+colaborador. No pisa un pago ya sellado. */
+async function marcarFacturaPagadaDesdeLavori(opts: { encargoId: string; pagadoEn: Date; orderReference: string | null }) {
+  const { encargoId, pagadoEn, orderReference } = opts;
+  const evs = await prisma.orderEvent.findMany({
+    where: { type: { in: ["lavori.factura_subida", "lavori.factura_recuperada"] }, payload: { path: ["encargoId"], equals: encargoId } },
+    select: { payload: true },
+  });
+  const ids = new Set(evs.map((e) => String((e.payload as { expenseId?: unknown } | null)?.expenseId || "")).filter(Boolean));
+  const porConcepto = await prisma.expense.findMany({
+    where: { category: "colaborador", isAccrual: false, concept: { contains: `encargo ${encargoId}` } },
+    select: { id: true },
+  });
+  porConcepto.forEach((e) => ids.add(e.id));
+  let facturas = ids.size
+    ? await prisma.expense.findMany({ where: { id: { in: [...ids] }, isAccrual: false }, select: { id: true, paymentStatus: true, supplier: true, payableCents: true } })
+    : [];
+  if (facturas.length === 0 && orderReference) {
+    facturas = await prisma.expense.findMany({
+      where: { orderReference, category: "colaborador", isAccrual: false },
+      select: { id: true, paymentStatus: true, supplier: true, payableCents: true },
+    });
+  }
+  const pendientes = facturas.filter((f) => f.paymentStatus !== "PAID");
+  for (const f of pendientes) {
+    await prisma.expense.update({ where: { id: f.id }, data: { paymentStatus: "PAID", paidAt: pagadoEn } });
+  }
+  return { encontradas: facturas.length, marcadas: pendientes };
 }
 
 /* Eventos sobre una solicitud de precio de LEAD (sin pedido). El único esperado
@@ -453,6 +510,18 @@ async function handleLeadEvento(opts: {
           ...(datos.miembroNombre ? { miembroNombre: String(datos.miembroNombre) } : {}),
         },
       });
+    }
+    if (evento === "pago_marcado") {
+      const pagadoEn = datos.pagadoEn && !Number.isNaN(Date.parse(String(datos.pagadoEn))) ? new Date(String(datos.pagadoEn)) : new Date();
+      const r = await marcarFacturaPagadaDesdeLavori({ encargoId, pagadoEn, orderReference: null });
+      if (r.encontradas === 0) {
+        await staffMail(`⚠ Pago marcado en lavori sin factura en contabilidad (solicitud ${lead.ref}${quien})`, [
+          `Has marcado PAGADO en lavori el encargo ${encargoId} (solicitud ${lead.ref}), pero en contabilidad no hay factura del colaborador para ese encargo.`,
+          `Pídesela o regístrala para que el pago no quede fuera del libro.`,
+          montarLine,
+        ]);
+      }
+      return NextResponse.json({ ok: true, repetido: false, marcadas: r.marcadas.length }, { status: 201 });
     }
     // Factura sobre una solicitud SIN pedido atado (caso Daniela 502, 9-sep-2026: solo
     // salía este email y el gasto no existía; el PDF vivía en el blob privado de
