@@ -33,7 +33,9 @@ export async function finalizeAndSendQuote(opts: {
   overrideLowMargin?: boolean;
   // "learned-rate" = auto-presupuesto del tarifario: la tarifa APROBADA por Juan
   // ya es la verificación del canal (aprendida de precios reales de lavori).
-  channelPriceSource?: "learned-rate";
+  // "lavori-directo" = funnel directo: la base sale de la cifra líquida del
+  // propio jurado y el coste de las líneas sale del mismo canal por construcción.
+  channelPriceSource?: "learned-rate" | "lavori-directo";
 }): Promise<{ pdfUrl: string; payUrl: string; whatsappText: string; emailSent: boolean }> {
   const quote = await prisma.quote.findUnique({
     where: { id: opts.quoteId },
@@ -60,9 +62,13 @@ export async function finalizeAndSendQuote(opts: {
   });
   // SEGUNDA GUARDA — PROCEDENCIA (Juan, 31-ago-2026, "lo más importante"): en
   // no-francés el precio previo del traductor tiene que existir EN EL CANAL.
-  // La aritmética no ve un coste inventado; esta sí.
+  // La aritmética no ve un coste inventado; esta sí. Sin channelPriceSource
+  // explícito (p. ej. Juan envía desde la UI un DRAFT retenido del funnel
+  // directo), se deriva de autoPricedBy: la tarifa/base ya viene del canal.
+  const channelPriceSource =
+    opts.channelPriceSource ?? (quote.autoPricedBy === "lavori-directo" ? "lavori-directo" : undefined);
   const channelCheck =
-    opts.channelPriceSource === "learned-rate"
+    channelPriceSource === "learned-rate" || channelPriceSource === "lavori-directo"
       ? ({ ok: true } as const)
       : await verifyTranslatorChannelPrice({
           quoteId: quote.id,

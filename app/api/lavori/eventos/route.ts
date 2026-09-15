@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES } from "@/lib/lavori-bridge";
 import { assignLavoriAcceptance } from "@/lib/lavori-assign";
+import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
+import { sendStaffAlertSMS } from "@/lib/sms";
 
 export const runtime = "nodejs";
 
@@ -424,6 +426,9 @@ async function handleLeadEvento(opts: {
     encargoId: string | null;
     quoteId: string | null;
     priceCents: number | null;
+    createdBy: string | null;
+    candidatos: string[];
+    notas: string | null;
   };
   evento: EventoTipo;
   encargoId: string;
@@ -455,6 +460,35 @@ async function handleLeadEvento(opts: {
     }).catch((err) => console.error("[lavori-eventos] staff mail failed", err));
 
   try {
+    // ALTA 2(b) (Juan, 15-sep-2026): la solicitud vieja queda TERMINAL al
+    // escalar — un precio_propuesto o un encargo_aceptado tardíos del jurado
+    // directo original NO le tocan status ni cifras: la que manda es la
+    // reabierta. Solo un aviso, nunca un movimiento silencioso.
+    if (lead.status === "ESCALATED" && (evento === "precio_propuesto" || evento === "encargo_aceptado")) {
+      const miembroTardio = String(datos.miembroNombre || datos.miembroId || "el traductor");
+      const refNueva = lead.notas?.startsWith("reabierta:") ? lead.notas.slice("reabierta:".length) : null;
+      // El enlace va a la solicitud NUEVA (la que sigue viva), nunca a ?lead=<vieja>.
+      const enlaceNueva = refNueva
+        ? `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?lead=${encodeURIComponent(refNueva)}`
+        : "(sin ref nueva en notas — revisa a mano)";
+      // La cifra tardía queda SOLO en el texto del aviso: no se toca status ni
+      // priceCents de la solicitud vieja.
+      const detalleCifra =
+        evento === "precio_propuesto"
+          ? (() => {
+              const precioCents = eurosToCents(datos.precio);
+              const plazoDias = Number.isFinite(Number(datos.plazoDias)) ? Math.round(Number(datos.plazoDias)) : null;
+              return precioCents != null ? ` Propuso ${(precioCents / 100).toFixed(2)} €${plazoDias ? ` (plazo ${plazoDias} días)` : ""}.` : "";
+            })()
+          : " Aceptó el encargo.";
+      const texto = `Respuesta tardía de ${miembroTardio} sobre ${lead.ref}, ya reabierta como ${refNueva || "(sin ref)"}.${detalleCifra} Decide tú: ${enlaceNueva}`;
+      await Promise.all([
+        staffMail(`⚠ Respuesta tardía de ${miembroTardio} — ${lead.ref} ya reabierta`, [texto]),
+        sendStaffAlertSMS(texto, `directo_tardio ${lead.ref}`).catch(() => {}),
+      ]);
+      return NextResponse.json({ ok: true, repetido: false, tardio: true }, { status: 201 });
+    }
+
     if (evento === "precio_propuesto") {
       const precioCents = eurosToCents(datos.precio);
       if (precioCents === null) {
@@ -467,6 +501,16 @@ async function handleLeadEvento(opts: {
       const miembro = String(datos.miembroNombre || datos.miembroId || "el traductor");
       const netoSugerido = (precioCents / 0.75 / 100).toFixed(2);
       const precio = (precioCents / 100).toFixed(2);
+
+      // ALTA 1(c): la cifra cambia DESPUÉS de que el presupuesto ya salió al
+      // cliente. Se detecta ANTES de sobrescribir lead.priceCents.
+      const cifraCambiadaTrasEnvio = Boolean(lead.quoteId) && lead.priceCents != null && lead.priceCents !== precioCents;
+      let quoteNumeroCambiado: string | null = null;
+      if (cifraCambiadaTrasEnvio && lead.quoteId) {
+        const q = await prisma.quote.findUnique({ where: { id: lead.quoteId }, select: { quoteNumber: true } });
+        quoteNumeroCambiado = q?.quoteNumber || lead.quoteId;
+      }
+
       await prisma.lavoriPriceRequest.update({
         where: { id: lead.id },
         data: {
@@ -483,7 +527,75 @@ async function handleLeadEvento(opts: {
       const aprendido = await import("@/lib/learned-rates")
         .then((m) => m.learnFromLeadPrice(lead.id))
         .catch((err) => ({ learned: false, reason: String(err?.message || err) }));
-      await staffMail(`💶 Precio de ${miembro} para la solicitud ${lead.par}${quien}: ${precio} €`, [
+
+      // Funnel directo (Juan 15-sep-2026): esta solicitud fue SOLO al jurado
+      // directo de su lengua y aún no tiene presupuesto atado → el precio recién
+      // llegado monta el suyo solo (+20 % sobre su base). Claim atómico para que
+      // dos eventos casi simultáneos no monten dos presupuestos.
+      let directoResultado: { kind: "enviado" | "retenido" | "fallo"; quoteId?: string; quoteNumber?: string; totalEur?: number; reason?: string } | null = null;
+      if (
+        lead.createdBy === "puerta-directo" &&
+        lead.candidatos.length === 1 &&
+        String(datos.miembroId || "") === lead.candidatos[0] &&
+        !lead.quoteId
+      ) {
+        // MEDIA 3 (Juan, 15-sep-2026): el claim nunca puede tumbar el webhook con
+        // un 5xx — si falla, se trata como "no reclamado" (sigue el mensaje normal).
+        let claimCount = 0;
+        try {
+          const claim = await prisma.lavoriPriceRequest.updateMany({
+            where: { id: lead.id, createdBy: "puerta-directo", quoteId: null },
+            data: { createdBy: "puerta-directo:cotizando" },
+          });
+          claimCount = claim.count;
+        } catch (err) {
+          console.error("[lavori-eventos] claim directo fallo:", err);
+        }
+        if (claimCount === 1) {
+          try {
+            const directo = await autoQuoteFromDirectPrice(lead.id);
+            if (directo.ok && directo.sent) {
+              await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { createdBy: "puerta-directo:enviado" } });
+              directoResultado = { kind: "enviado", quoteId: directo.quoteId, quoteNumber: directo.quoteNumber, totalEur: directo.totalEur };
+            } else if (directo.ok && !directo.sent) {
+              await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { createdBy: "puerta-directo:retenido" } });
+              directoResultado = { kind: "retenido", quoteId: directo.quoteId, reason: directo.reason };
+            } else {
+              await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { createdBy: "puerta-directo:manual" } });
+              directoResultado = { kind: "fallo", reason: directo.reason };
+            }
+          } catch (err: any) {
+            await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { createdBy: "puerta-directo:manual" } }).catch(() => {});
+            directoResultado = { kind: "fallo", reason: String(err?.message || err) };
+          }
+        }
+      }
+
+      const subject = cifraCambiadaTrasEnvio
+        ? `⚠ ${miembro} ha CAMBIADO la cifra tras enviar el presupuesto ${quoteNumeroCambiado}: antes ${(lead.priceCents! / 100).toFixed(2)} €, ahora ${precio} €`
+        : directoResultado?.kind === "enviado"
+          ? `🤖 Presupuesto directo ${directoResultado.quoteNumber} enviado — ${directoResultado.totalEur!.toFixed(2)} €`
+          : `💶 Precio de ${miembro} para la solicitud ${lead.par}${quien}: ${precio} €`;
+      const enlaceDirecto = directoResultado?.quoteId ? `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${directoResultado.quoteId}` : null;
+      const lineaDirecto =
+        directoResultado?.kind === "enviado"
+          ? `Enviado automáticamente por el funnel directo. Ficha: ${enlaceDirecto}`
+          : directoResultado?.kind === "retenido"
+            ? `Revísalo y envíalo con un clic: ${enlaceDirecto} (${directoResultado.reason || "retenido"})`
+            : "";
+      // ALTA 1(c): aviso por dos transportes — la cifra ya está en manos del
+      // cliente (presupuesto enviado) y esto puede dejar el margen a cero.
+      if (cifraCambiadaTrasEnvio) {
+        await sendStaffAlertSMS(
+          `${miembro} cambió la cifra tras enviar ${quoteNumeroCambiado}: ${(lead.priceCents! / 100).toFixed(2)}€ → ${precio}€`,
+          `cifra_cambiada ${lead.ref}`
+        ).catch(() => {});
+      }
+      await staffMail(subject, [
+        cifraCambiadaTrasEnvio
+          ? `El presupuesto ${quoteNumeroCambiado} ya salió al cliente con la cifra anterior. Al pagar, NO se aceptará sola si la nueva cifra supera el coste ya puesto en las líneas — decide tú.`
+          : "",
+        directoResultado?.kind === "fallo" ? `No salió solo: ${directoResultado.reason}` : "",
         `${miembro} ha propuesto ${precio} € por la solicitud de precio ${lead.ref} (${lead.par})${quien}.`,
         aprendido.learned
           ? `Tarifario: tarifa aprendida (${lead.par}). Apruébala en https://www.traduccionesjuradas.net/zona-traductor/tarifario y la próxima vez el presupuesto saldrá solo.`
@@ -491,7 +603,8 @@ async function handleLeadEvento(opts: {
         plazoDias ? `Plazo propuesto: ${plazoDias} días.` : "Sin plazo indicado.",
         `Neto de cliente sugerido por el modelo 75/25: ${netoSugerido} € (+ IVA y envío).`,
         datos.notas ? `Notas: ${String(datos.notas)}` : "",
-        montarLine,
+        lineaDirecto,
+        directoResultado?.kind === "enviado" || directoResultado?.kind === "retenido" ? "" : montarLine,
       ].filter(Boolean));
       return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
     }

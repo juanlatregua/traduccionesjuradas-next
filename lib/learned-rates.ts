@@ -68,7 +68,7 @@ type AnalysisRow = {
   analysisJson: unknown;
 };
 
-const ANALYSIS_SELECT = {
+export const ANALYSIS_SELECT = {
   id: true,
   fileName: true,
   fileUrl: true,
@@ -425,6 +425,149 @@ export type AutoQuoteResult =
   | { ok: true; quoteId: string; quoteNumber: string; totalEur: number; payUrl: string; miembroNombre: string | null; lines: number; emailSent: boolean; smsSent: boolean }
   | { ok: false; reason: string };
 
+export type AutoQuoteLineInput = {
+  description: string;
+  quantity: number;
+  unitPrice: number; // euros
+  supplierUnitCost: number; // euros
+  sourceFileUrl?: string;
+};
+
+export type CreateAutoQuoteOpts = {
+  lines: AutoQuoteLineInput[];
+  deliveryTerm: string;
+  sourceLang: string;
+  targetLang: string;
+  marginPct: number;
+  autoPricedBy: string;
+  adminCreatedBy: string;
+  channelPriceSource: "learned-rate" | "lavori-directo";
+  miembro: { id: string | null; nombre: string | null };
+  expedienteRef: string;
+  contacto: { email?: string | null; phone?: string | null; name?: string | null };
+  locale?: string | null;
+  /** false = se crea el Quote y se deja en DRAFT (no se emite ni se avisa). */
+  send: boolean;
+  /** Se ejecuta justo tras crear el Quote, ANTES de enviarlo (p. ej. atar el
+   * quoteId a la solicitud de lavori de la que salió el precio). */
+  onQuoteCreated?: (quoteId: string) => Promise<void>;
+};
+
+export type CreateAutoQuoteResult =
+  | { ok: true; quoteId: string; quoteNumber: string; totalEur: number; payUrl: string | null; emailSent: boolean; smsSent: boolean; sent: boolean }
+  | { ok: false; reason: string };
+
+/** Chokepoint compartido: crea (y opcionalmente envía) un presupuesto automático.
+ * Lo usan el tarifario aprendido (autoQuoteFromPuertaSession, abajo) y el funnel
+ * directo (lib/lavori-directo.ts, autoQuoteFromDirectPrice) — mismos campos,
+ * mismo orden, mismo recordSample-friendly quoteId de vuelta. */
+export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<CreateAutoQuoteResult> {
+  const email = String(opts.contacto.email || "").trim().toLowerCase();
+  const phone = String(opts.contacto.phone || "").trim();
+  const customerEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : phone ? `${phone.replace(/\D/g, "") || "sintelefono"}@whatsapp.local` : "";
+  if (!customerEmail) return { ok: false, reason: "sin email ni teléfono" };
+  const customerName = String(opts.contacto.name || email.split("@")[0] || "Cliente").trim().slice(0, 120);
+  const pdfLang = (QUOTE_PDF_LANGS as readonly string[]).includes(String(opts.locale || "")) ? String(opts.locale) : "es";
+
+  const totals = computeQuoteTotals({ lines: opts.lines, discountType: "NONE", discountValue: 0, vatRate: 0.21, deliveryType: "DIGITAL_PDF", shippingBase: 0 });
+  const issuedAt = new Date();
+  const validUntil = calculateValidUntil(issuedAt, 15);
+
+  const year = issuedAt.getFullYear();
+  const baseCount = await prisma.quote.count({ where: { quoteNumber: { startsWith: `${year}-` } } });
+  let quoteNumber = "";
+  for (let attempt = 0; attempt < 8 && !quoteNumber; attempt++) {
+    const candidate = await generateQuoteNumber(baseCount + attempt + 1, issuedAt);
+    if (!(await prisma.quote.findUnique({ where: { quoteNumber: candidate }, select: { id: true } }))) quoteNumber = candidate;
+  }
+  if (!quoteNumber) return { ok: false, reason: "no se pudo numerar el presupuesto" };
+  let publicToken = "";
+  for (let attempt = 0; attempt < 10 && !publicToken; attempt++) {
+    const t = generateQuoteToken(28);
+    if (!(await prisma.quote.findUnique({ where: { publicToken: t }, select: { id: true } }))) publicToken = t;
+  }
+
+  const created = await prisma.$transaction(async (tx) => {
+    const customer = await tx.customer.upsert({
+      where: { email: customerEmail },
+      update: { name: customerName, phone: phone || undefined },
+      create: { name: customerName, email: customerEmail, phone: phone || null },
+    });
+    return tx.quote.create({
+      data: {
+        quoteNumber,
+        status: "DRAFT",
+        customerId: customer.id,
+        customerName,
+        customerEmail,
+        customerPhone: phone || null,
+        sourceLang: opts.sourceLang,
+        targetLang: opts.targetLang,
+        deliveryType: "DIGITAL_PDF",
+        deliveryTerm: opts.deliveryTerm,
+        shippingBase: 0,
+        vatRate: totals.vatRate,
+        discountType: "NONE",
+        discountValue: 0,
+        validityDays: 15,
+        issuedAt,
+        validUntil,
+        publicToken,
+        subtotal: totals.subtotal,
+        discountAmount: totals.discountAmount,
+        shippingAmount: totals.shippingAmount,
+        vatAmount: totals.vatAmount,
+        total: totals.total,
+        adminCreatedBy: opts.adminCreatedBy,
+        expedienteRef: opts.expedienteRef,
+        marginPct: opts.marginPct,
+        paymentMethods: ["sabadell", "bizum607"],
+        pdfLang,
+        autoPricedBy: opts.autoPricedBy,
+        lavoriMiembroId: opts.miembro.id,
+        lavoriMiembroNombre: opts.miembro.nombre,
+        lines: {
+          create: totals.lines.map((line) => ({
+            description: line.description,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            supplierUnitCost: line.supplierUnitCost,
+            lineTotal: line.lineTotal,
+            sourceFileUrl: line.sourceFileUrl,
+          })),
+        },
+      },
+      select: { id: true, quoteNumber: true, total: true },
+    });
+  });
+
+  if (opts.onQuoteCreated) await opts.onQuoteCreated(created.id);
+
+  if (!opts.send) {
+    return { ok: true, quoteId: created.id, quoteNumber: created.quoteNumber, totalEur: decimalToNumber(created.total), payUrl: null, emailSent: false, smsSent: false, sent: false };
+  }
+
+  const { finalizeAndSendQuote } = await import("@/lib/quote-send");
+  const sent = await finalizeAndSendQuote({ quoteId: created.id, actorEmail: opts.adminCreatedBy, channelPriceSource: opts.channelPriceSource });
+
+  // Cliente solo-WhatsApp: el enlace de pago va por SMS (el email-marcador no llega).
+  let smsSent = false;
+  if (customerEmail.endsWith("@whatsapp.local") && phone) {
+    try {
+      const { sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+      const res = await sendNotification({
+        to: formatPhoneSpain(phone),
+        body: `traduccionesjuradas.net: tu presupuesto ${quoteNumber} (${decimalToNumber(created.total).toFixed(2)} € IVA incl., entrega ${opts.deliveryTerm}) y el pago: ${sent.payUrl}`,
+      });
+      smsSent = !!res.ok;
+    } catch (err) {
+      console.error("[auto-quote] SMS presupuesto fallo:", err);
+    }
+  }
+
+  return { ok: true, quoteId: created.id, quoteNumber, totalEur: decimalToNumber(created.total), payUrl: sent.payUrl, emailSent: sent.emailSent, smsSent, sent: true };
+}
+
 /** SALIDA del bucle: la puerta pide presupuesto → si todos los documentos tienen
  * tarifa aprobada, se emite y envía el presupuesto sin pasar por lavori. */
 export async function autoQuoteFromPuertaSession(opts: {
@@ -510,17 +653,11 @@ export async function autoQuoteFromPuertaSession(opts: {
   const subtotalCents = priced.reduce((a, p) => a + p.clientCents, 0);
   if (subtotalCents > AUTO_QUOTE_MAX_CENTS) return { ok: false, reason: `importe ${(subtotalCents / 100).toFixed(2)} € por encima del tope automático` };
 
-  const email = (opts.contactEmail || rows.find((r) => r.clientEmail)?.clientEmail || "").trim().toLowerCase();
-  const phone = (opts.contactPhone || rows.find((r) => r.clientPhone)?.clientPhone || "").trim();
-  const customerEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : phone ? `${phone.replace(/\D/g, "") || "sintelefono"}@whatsapp.local` : "";
-  if (!customerEmail) return { ok: false, reason: "sin email ni teléfono" };
-  const customerName = (opts.contactName || rows.find((r) => r.clientName)?.clientName || email.split("@")[0] || "Cliente").trim().slice(0, 120);
   const sourceLang = infos[0].direction === "to_es" ? infos[0].lang : "es";
   const targetLang = infos[0].direction === "to_es" ? "es" : infos[0].lang;
   const plazo = Math.max(0, ...priced.map((p) => p.rate.plazoDias || 0));
   const deliveryTerm = plazo > 0 ? `${plazo}-${plazo + 1} días hábiles` : "3-4 días hábiles";
   const miembroNombre = priced.find((p) => p.rate.miembroNombre)?.rate.miembroNombre ?? null;
-  const pdfLang = (QUOTE_PDF_LANGS as readonly string[]).includes(String(opts.locale || "")) ? String(opts.locale) : "es";
 
   const { getLanguageName } = await import("@/lib/pricing-engine/languages");
   const { docTypeLabelEs } = await import("@/lib/lavori-lead");
@@ -530,112 +667,44 @@ export async function autoQuoteFromPuertaSession(opts: {
     const desc = `${label.charAt(0).toUpperCase()}${label.slice(1)} (${getLanguageName(sourceLang)}→${getLanguageName(targetLang)}${p.info.words ? `, ${p.info.words} palabras` : ""}${p.info.pages ? `, ${p.info.pages} pág${p.info.pages === 1 ? "" : "s"}` : ""})`;
     return { description: desc, quantity: 1, unitPrice: p.clientCents / 100, supplierUnitCost: p.costCents / 100, sourceFileUrl: p.info.fileUrl };
   });
-  const totals = computeQuoteTotals({ lines, discountType: "NONE", discountValue: 0, vatRate: 0.21, deliveryType: "DIGITAL_PDF", shippingBase: 0 });
-  const issuedAt = new Date();
-  const validUntil = calculateValidUntil(issuedAt, 15);
 
-  const year = issuedAt.getFullYear();
-  const baseCount = await prisma.quote.count({ where: { quoteNumber: { startsWith: `${year}-` } } });
-  let quoteNumber = "";
-  for (let attempt = 0; attempt < 8 && !quoteNumber; attempt++) {
-    const candidate = await generateQuoteNumber(baseCount + attempt + 1, issuedAt);
-    if (!(await prisma.quote.findUnique({ where: { quoteNumber: candidate }, select: { id: true } }))) quoteNumber = candidate;
-  }
-  if (!quoteNumber) return { ok: false, reason: "no se pudo numerar el presupuesto" };
-  let publicToken = "";
-  for (let attempt = 0; attempt < 10 && !publicToken; attempt++) {
-    const t = generateQuoteToken(28);
-    if (!(await prisma.quote.findUnique({ where: { publicToken: t }, select: { id: true } }))) publicToken = t;
-  }
-
-  const created = await prisma.$transaction(async (tx) => {
-    const customer = await tx.customer.upsert({
-      where: { email: customerEmail },
-      update: { name: customerName, phone: phone || undefined },
-      create: { name: customerName, email: customerEmail, phone: phone || null },
-    });
-    return tx.quote.create({
-      data: {
-        quoteNumber,
-        status: "DRAFT",
-        customerId: customer.id,
-        customerName,
-        customerEmail,
-        customerPhone: phone || null,
-        sourceLang,
-        targetLang,
-        deliveryType: "DIGITAL_PDF",
-        deliveryTerm,
-        shippingBase: 0,
-        vatRate: totals.vatRate,
-        discountType: "NONE",
-        discountValue: 0,
-        validityDays: 15,
-        issuedAt,
-        validUntil,
-        publicToken,
-        subtotal: totals.subtotal,
-        discountAmount: totals.discountAmount,
-        shippingAmount: totals.shippingAmount,
-        vatAmount: totals.vatAmount,
-        total: totals.total,
-        adminCreatedBy: "system:tarifario",
-        expedienteRef: `puerta:${opts.sessionToken}`,
-        marginPct: LEARNED_MARGIN_PCT,
-        paymentMethods: ["sabadell", "bizum607"],
-        pdfLang,
-        autoPricedBy: "tarifario",
-        lavoriMiembroId: miembros[0] ?? null,
-        lavoriMiembroNombre: miembroNombre,
-        lines: {
-          create: totals.lines.map((line) => ({
-            description: line.description,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            supplierUnitCost: line.supplierUnitCost,
-            lineTotal: line.lineTotal,
-            sourceFileUrl: line.sourceFileUrl,
-          })),
-        },
-      },
-      select: { id: true, quoteNumber: true, total: true },
-    });
+  const result = await createAutoQuote({
+    lines,
+    deliveryTerm,
+    sourceLang,
+    targetLang,
+    marginPct: LEARNED_MARGIN_PCT,
+    autoPricedBy: "tarifario",
+    adminCreatedBy: "system:tarifario",
+    channelPriceSource: "learned-rate",
+    miembro: { id: miembros[0] ?? null, nombre: miembroNombre },
+    expedienteRef: `puerta:${opts.sessionToken}`,
+    contacto: {
+      email: opts.contactEmail || rows.find((r) => r.clientEmail)?.clientEmail || "",
+      phone: opts.contactPhone || rows.find((r) => r.clientPhone)?.clientPhone || "",
+      name: opts.contactName || rows.find((r) => r.clientName)?.clientName || "",
+    },
+    locale: opts.locale,
+    send: true,
   });
-
-  const { finalizeAndSendQuote } = await import("@/lib/quote-send");
-  const sent = await finalizeAndSendQuote({ quoteId: created.id, actorEmail: "system:tarifario", channelPriceSource: "learned-rate" });
-
-  // Cliente solo-WhatsApp: el enlace de pago va por SMS (el email-marcador no llega).
-  let smsSent = false;
-  if (customerEmail.endsWith("@whatsapp.local") && phone) {
-    try {
-      const { sendNotification, formatPhoneSpain } = await import("@/lib/sms");
-      const res = await sendNotification({
-        to: formatPhoneSpain(phone),
-        body: `traduccionesjuradas.net: tu presupuesto ${quoteNumber} (${decimalToNumber(created.total).toFixed(2)} € IVA incl., entrega ${deliveryTerm}) y el pago: ${sent.payUrl}`,
-      });
-      smsSent = !!res.ok;
-    } catch (err) {
-      console.error("[tarifario] SMS presupuesto fallo:", err);
-    }
-  }
+  if (!result.ok) return result;
 
   for (const p of priced) {
     await recordSample(
       { lang: p.info.lang, direction: p.info.direction, docType: p.rate.docType, apostille: p.rate.apostille },
-      { unit: p.rate.unit as "doc" | "kword", kind: "auto_quote", perUnit: true, clientCents: p.clientCents, costCents: p.costCents, words: p.info.words, pages: p.info.pages, quoteId: created.id, note: `auto ${quoteNumber}` }
+      { unit: p.rate.unit as "doc" | "kword", kind: "auto_quote", perUnit: true, clientCents: p.clientCents, costCents: p.costCents, words: p.info.words, pages: p.info.pages, quoteId: result.quoteId, note: `auto ${result.quoteNumber}` }
     ).catch(() => null);
   }
 
   return {
     ok: true,
-    quoteId: created.id,
-    quoteNumber,
-    totalEur: decimalToNumber(created.total),
-    payUrl: sent.payUrl,
+    quoteId: result.quoteId,
+    quoteNumber: result.quoteNumber,
+    totalEur: result.totalEur,
+    payUrl: result.payUrl!,
     miembroNombre,
     lines: lines.length,
-    emailSent: sent.emailSent,
-    smsSent,
+    emailSent: result.emailSent,
+    smsSent: result.smsSent,
   };
 }

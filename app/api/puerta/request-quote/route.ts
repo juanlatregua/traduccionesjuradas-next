@@ -17,6 +17,7 @@ import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { findLiveSiblingLeadRequest, leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
+import { directMemberFor } from "@/lib/lavori-directo";
 
 export const runtime = "nodejs";
 
@@ -165,10 +166,15 @@ export async function POST(req: Request) {
     let lavoriEmail = "";
     let lavoriSms = "";
     let lavoriSent: { lang: string; langName: string } | null = null;
+    let esDirecto = false;
     // Cliente que vuelve a subir (Cosmos, 10-sep): ya tiene una solicitud viva del
     // mismo par → NO sale otra a lavori; el aviso apunta a la que existe.
-    const hermana = carril
-      ? await findLiveSiblingLeadRequest({ email: contactEmail, phone: contactPhone, par: carril.route.par }).catch(() => null)
+    // BAJA 8 (Juan, 15-sep): sin carril por defecto pero CON jurado directo, el
+    // par se calcula igual desde el lead — si hay hermana, tampoco sale el directo.
+    const parDelLead =
+      lead?.sourceLang && leadLang ? (lead.sourceLang === "es" ? `ES>${leadLang.toUpperCase()}` : `${leadLang.toUpperCase()}>ES`) : null;
+    const hermana = carril || parDelLead
+      ? await findLiveSiblingLeadRequest({ email: contactEmail, phone: contactPhone, par: carril ? carril.route.par : parDelLead! }).catch(() => null)
       : null;
     if (hermana) {
       const h = hermana.request;
@@ -179,30 +185,71 @@ export async function POST(req: Request) {
       ].join(" · ");
       lavoriEmail = `⚠ NO se ha enviado otra solicitud a lavori: este cliente ya tiene la ${h.ref} en curso (${detalle}). Sigue por ahí: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(h.ref)}`;
       lavoriSms = `Ya en curso ${h.ref} (${h.status}) — sin 2.ª solicitud`;
-    } else if (carril && lead && leadLang && autoLangs.has(leadLang)) {
-      const auto = await sendLeadPriceRequest({
-        docs: lead.docs,
-        sourceLang: lead.sourceLang!,
-        targetLang: lead.targetLang,
-        words: lead.words,
-        expedienteRef: `puerta:${token}`,
-        customerHint: [lead.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
-        createdBy: "puerta-auto",
-      }).catch(() => null);
-      if (auto?.ok) {
-        lavoriSent = { lang: leadLang, langName: getLanguageName(leadLang) };
-        lavoriEmail = `✓ Solicitud de precio ENVIADA automáticamente a ${auto.nombres.join(", ")} en lavori (ref ${auto.ref}).${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
-        lavoriSms = `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
-      } else {
-        lavoriEmail = `⚠ El envío automático a lavori falló${auto && !auto.ok ? `: ${auto.error}` : ""}. Pedir precio en lavori (${quien}) → ${lavoriOneTapUrl(token)}`;
-        lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
-      }
-    } else if (carril) {
-      lavoriEmail = `Pedir precio en lavori (${quien}) con un toque: ${lavoriOneTapUrl(token)}`;
-      lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
     } else {
-      lavoriEmail = `Sin carril en lavori para este par${leadLang ? ` (${leadLang.toUpperCase()})` : ""}: presupuestar a mano.`;
-      lavoriSms = `Sin carril lavori. Montar presupuesto (docs dentro): ${builderUrl}`;
+      // Carril directo (orden Juan 25-ago/15-sep): para ciertas lenguas hay un
+      // jurado DIRECTO — la solicitud le va SOLO a él y, con su cifra, el
+      // presupuesto sale solo (+20 %). No depende de LAVORI_LEAD_AUTO_LANGS. Si
+      // falla el envío, cae a la lógica normal (auto-lang / one-tap) sin romper.
+      const directo = lead && leadLang ? await directMemberFor(leadLang).catch(() => null) : null;
+      if (directo) {
+        // BAJA 9: refresca el contacto de esta sesión con el actual (no solo
+        // donde faltaba) ANTES de enviar — cuando el directo cotice y el
+        // presupuesto se monte solo, tiene que llevar el contacto de hoy, no
+        // el de una subida anterior. Nota: DocumentAnalysis no tiene columna
+        // de locale, así que no hay nada que pasarle aquí a createAutoQuote.
+        const refrescoContacto: Record<string, string> = {};
+        if (contactEmail) refrescoContacto.clientEmail = contactEmail;
+        if (contactPhone) refrescoContacto.clientPhone = contactPhone;
+        if (docs[0]?.clientName) refrescoContacto.clientName = docs[0].clientName;
+        if (Object.keys(refrescoContacto).length > 0) {
+          await prisma.documentAnalysis
+            .updateMany({ where: { sessionToken: token }, data: refrescoContacto })
+            .catch((err) => console.error("[puerta:request-quote] refresco contacto directo fallo:", err));
+        }
+        const directoReq = await sendLeadPriceRequest({
+          docs: lead!.docs,
+          sourceLang: lead!.sourceLang!,
+          targetLang: lead!.targetLang,
+          words: lead!.words,
+          expedienteRef: `puerta:${token}`,
+          customerHint: [lead!.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
+          candidatos: [directo.miembroId],
+          createdBy: "puerta-directo",
+        }).catch(() => null);
+        if (directoReq?.ok) {
+          esDirecto = true;
+          lavoriSent = { lang: leadLang!, langName: getLanguageName(leadLang!) };
+          lavoriEmail = `✓ Solicitud DIRECTA a ${directo.nombre} (ref ${directoReq.ref}). Cuando ponga cifra y plazo el presupuesto sale solo (+20 %, suelo 40 €/doc, tope 300 € netos). Si en 6 h no cotiza, se reabre a todos los de la lengua.`;
+          lavoriSms = `✓ Directa a ${directo.nombre} (lavori)`;
+        }
+      }
+      if (!esDirecto) {
+        if (carril && lead && leadLang && autoLangs.has(leadLang)) {
+          const auto = await sendLeadPriceRequest({
+            docs: lead.docs,
+            sourceLang: lead.sourceLang!,
+            targetLang: lead.targetLang,
+            words: lead.words,
+            expedienteRef: `puerta:${token}`,
+            customerHint: [lead.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
+            createdBy: "puerta-auto",
+          }).catch(() => null);
+          if (auto?.ok) {
+            lavoriSent = { lang: leadLang, langName: getLanguageName(leadLang) };
+            lavoriEmail = `✓ Solicitud de precio ENVIADA automáticamente a ${auto.nombres.join(", ")} en lavori (ref ${auto.ref}).${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
+            lavoriSms = `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
+          } else {
+            lavoriEmail = `⚠ El envío automático a lavori falló${auto && !auto.ok ? `: ${auto.error}` : ""}. Pedir precio en lavori (${quien}) → ${lavoriOneTapUrl(token)}`;
+            lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
+          }
+        } else if (carril) {
+          lavoriEmail = `Pedir precio en lavori (${quien}) con un toque: ${lavoriOneTapUrl(token)}`;
+          lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
+        } else {
+          lavoriEmail = `Sin carril en lavori para este par${leadLang ? ` (${leadLang.toUpperCase()})` : ""}: presupuestar a mano.`;
+          lavoriSms = `Sin carril lavori. Montar presupuesto (docs dentro): ${builderUrl}`;
+        }
+      }
     }
 
     // Aviso a staff — dos transportes independientes; con await (lambda).
@@ -233,7 +280,7 @@ export async function POST(req: Request) {
       translatorLangName: lavoriSent?.langName ?? null,
     });
 
-    return NextResponse.json({ ok: true, lavori: lavoriSent ? { sent: true, ...lavoriSent } : { sent: false } });
+    return NextResponse.json({ ok: true, lavori: lavoriSent ? { sent: true, ...lavoriSent, ...(esDirecto ? { directo: true } : {}) } : { sent: false } });
   } catch (err: any) {
     console.error("[puerta:request-quote] error", err?.message || err);
     return NextResponse.json({ ok: false, error: "No se pudo enviar la solicitud." }, { status: 500 });

@@ -342,12 +342,16 @@ async function emitPrecioAceptadoIfApplicable(opts: {
 
   // Idempotencia local: comunicado (o conflicto ya avisado) → nada que repetir.
   // En lavori además: mismo ref + mismo precio → {repetido:true} sin re-aviso.
+  // "precio_supera_coste" también corta aquí (Juan, 15-sep-2026): si no, cada
+  // llamada repetida a esta función (reintento del webhook, otra transición)
+  // volvería a mandar el email y el SMS del freno.
   if (
     order.events.some(
       (e) =>
         e.type === "lavori.precio_aceptado_enviado" ||
         e.type === "lavori.precio_aceptado_conflicto" ||
-        e.type === "lavori.encargo_aceptado"
+        e.type === "lavori.encargo_aceptado" ||
+        e.type === "lavori.precio_supera_coste"
     )
   ) {
     return { handled: true, changed: false };
@@ -356,16 +360,18 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   let ref: string | null = null;
   let precioCents: number | null = null;
   let lprId: string | null = null;
+  let miembroIdHint: string | null = null;
 
   // Caso pedido directo: el precio llegó como evento sobre ESTE pedido. Los
   // events vienen desc → find da la última propuesta (cubre la corrección 35→40).
   const propuesto = order.events.find((e) => e.type === "lavori.precio_propuesto");
   if (propuesto) {
-    const payload = propuesto.payload as { precioCents?: unknown } | null;
+    const payload = propuesto.payload as { precioCents?: unknown; miembroId?: unknown } | null;
     const cents = Math.round(Number(payload?.precioCents));
     if (Number.isFinite(cents) && cents > 0) {
       precioCents = cents;
       ref = `${reference}-precio`;
+      miembroIdHint = payload?.miembroId ? String(payload.miembroId) : null;
     }
   }
 
@@ -375,12 +381,19 @@ async function emitPrecioAceptadoIfApplicable(opts: {
       where: { id: order.quoteId },
       select: { expedienteRef: true },
     });
-    const or: Array<{ quoteId: string } | { expedienteRef: string }> = [{ quoteId: order.quoteId }];
-    if (quote?.expedienteRef) or.push({ expedienteRef: quote.expedienteRef });
-    const lpr = await prisma.lavoriPriceRequest.findFirst({
-      where: { status: { in: [...LEAD_LIVE_STATUSES] }, OR: or },
+    // ALTA 2(c) (Juan, 15-sep-2026): primero por quoteId; solo si no hay nada
+    // atado por ahí, se prueba por expedienteRef — dos solicitudes del mismo
+    // expediente no pueden pisarse la una a la otra por un OR combinado.
+    let lpr = await prisma.lavoriPriceRequest.findFirst({
+      where: { status: { in: [...LEAD_LIVE_STATUSES] }, quoteId: order.quoteId },
       orderBy: { updatedAt: "desc" },
     });
+    if (!lpr && quote?.expedienteRef) {
+      lpr = await prisma.lavoriPriceRequest.findFirst({
+        where: { status: { in: [...LEAD_LIVE_STATUSES] }, expedienteRef: quote.expedienteRef },
+        orderBy: { updatedAt: "desc" },
+      });
+    }
     if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
     if (lpr && !(lpr.priceCents && lpr.priceCents > 0)) return holdForPendingPrice(opts, lpr);
     if (lpr?.priceCents && lpr.priceCents > 0) {
@@ -389,6 +402,7 @@ async function emitPrecioAceptadoIfApplicable(opts: {
       ref = `${lpr.ref}-precio`;
       precioCents = lpr.priceCents;
       lprId = lpr.id;
+      miembroIdHint = lpr.miembroId;
     }
   }
 
@@ -437,6 +451,7 @@ async function emitPrecioAceptadoIfApplicable(opts: {
       ref = `${lpr.ref}-precio`;
       precioCents = lpr.priceCents;
       lprId = lpr.id;
+      miembroIdHint = lpr.miembroId;
     }
   }
 
@@ -458,6 +473,50 @@ async function emitPrecioAceptadoIfApplicable(opts: {
 
   if (!ref || !precioCents) {
     return { handled: false, changed: false };
+  }
+
+  // GUARDIA ALTA 1(b) (Juan, 15-sep-2026, revisión adversarial): la cifra que
+  // llega ahora del canal no puede comunicarse como aceptación si supera lo que
+  // el presupuesto YA atado tiene presupuestado como coste de línea — vale para
+  // CUALQUIER presupuesto atado, no solo el funnel directo (con basis "base"
+  // channelPriceToBaseCents es una identidad, así que el resto no cambia).
+  if (opts.order.quoteId) {
+    const quoteConLineas = await prisma.quote.findUnique({
+      where: { id: opts.order.quoteId },
+      select: { quoteNumber: true, lines: { select: { quantity: true, supplierUnitCost: true } } },
+    });
+    const costCents = quoteConLineas
+      ? quoteConLineas.lines.reduce((a, l) => a + Math.round((Number(l.quantity) || 1) * Number(l.supplierUnitCost || 0) * 100), 0)
+      : 0;
+    if (costCents > 0) {
+      const [{ priceBasisForMember }, { channelPriceToBaseCents, exceedsQuotedCost }] = await Promise.all([
+        import("@/lib/lavori-directo"),
+        import("@/lib/lavori-directo-math"),
+      ]);
+      const baseCents = channelPriceToBaseCents(precioCents, priceBasisForMember(miembroIdHint));
+      if (exceedsQuotedCost(baseCents, costCents)) {
+        await prisma.orderEvent.create({
+          data: {
+            orderId: order.id,
+            type: "lavori.precio_supera_coste",
+            message: `lavori: la cifra comunicada (${(baseCents / 100).toFixed(2)} € base) supera el coste ya presupuestado en ${quoteConLineas?.quoteNumber || "el presupuesto"} (${(costCents / 100).toFixed(2)} €) — NO se acepta sola.`,
+            payload: { ref, precioCents, baseCents, costCents, quoteId: opts.order.quoteId, miembroId: miembroIdHint },
+          },
+        });
+        const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+        await staffMailLines(`⚠ ${reference}: la cifra del jurado supera el coste ya presupuestado`, [
+          `El pedido ${reference} está pagado y la cifra que llega del canal (${(baseCents / 100).toFixed(2)} € base) supera el coste ya presupuestado en ${quoteConLineas?.quoteNumber || "el presupuesto"} (${(costCents / 100).toFixed(2)} €).`,
+          `NO se ha comunicado la aceptación a lavori: decide tú antes de aceptar por encima de lo presupuestado.`,
+          `Ficha: ${ficha}`,
+        ]);
+        const { sendStaffAlertSMS } = await import("@/lib/sms");
+        await sendStaffAlertSMS(
+          `${reference}: cifra ${(baseCents / 100).toFixed(2)}€ supera coste presupuestado ${(costCents / 100).toFixed(2)}€ — decide tú`,
+          `precio_supera_coste ${reference}`
+        ).catch(() => {});
+        return { handled: true, changed: false };
+      }
+    }
   }
 
   const result = await deliverPrecioAceptado({

@@ -113,7 +113,11 @@ export async function GET(req: Request) {
   const paradas = await prisma.lavoriPriceRequest.findMany({
     where: {
       status: "SENT",
-      createdBy: { in: ["puerta-auto", "one-tap"] },
+      // "directo-escalado" también entra (Juan, 15-sep-2026): sin cifra 24h
+      // después de reabrirse a todos los de la lengua, el cliente lleva
+      // demasiado esperando. "puerta-directo" NO entra: la reapertura a las
+      // 6 h ya lo cubre (escalateStaleDirectRequests).
+      createdBy: { in: ["puerta-auto", "one-tap", "directo-escalado"] },
       createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000), gt: new Date(now.getTime() - 72 * 60 * 60 * 1000) },
     },
     orderBy: { createdAt: "asc" },

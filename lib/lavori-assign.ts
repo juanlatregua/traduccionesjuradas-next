@@ -6,6 +6,8 @@
 import { prisma } from "@/lib/prisma";
 import { applyAcceptedQuoteSideEffects } from "@/lib/collaborators";
 import { LAVORI_MEMBER_COLLABORATOR_EMAIL } from "@/lib/lavori-bridge";
+import { priceBasisForMember } from "@/lib/lavori-directo";
+import { channelPriceToBaseCents } from "@/lib/lavori-directo-math";
 
 export async function assignLavoriAcceptance(opts: {
   order: { id: string; reference: string };
@@ -22,6 +24,11 @@ export async function assignLavoriAcceptance(opts: {
   const email = LAVORI_MEMBER_COLLABORATOR_EMAIL[miembroId];
   const collaborator = email ? await prisma.collaborator.findUnique({ where: { email } }) : null;
   const miembro = String(opts.miembroNombre || miembroId || "el traductor");
+  // Contabilidad en BASE (Juan, 15-sep-2026): la cifra que da el jurado puede
+  // ser el líquido a cobrar (base + IVA − IRPF); al jurado se le sigue
+  // comunicando SU cifra (deliverPrecioAceptado no se toca), pero el coste que
+  // guardamos aquí es la base, o Daniela contabiliza 100 € en vez de 94,34 €.
+  const baseCents = paraTiCents != null ? channelPriceToBaseCents(paraTiCents, priceBasisForMember(miembroId)) : null;
 
   if (collaborator) {
     const yaContabilizado = Boolean(
@@ -35,7 +42,7 @@ export async function assignLavoriAcceptance(opts: {
         status: "ACCEPTED",
         acceptedAt: new Date(),
         isWinning: true,
-        ...(paraTiCents ? { quotedPriceCents: paraTiCents, quotedAt: new Date() } : {}),
+        ...(baseCents ? { quotedPriceCents: baseCents, quotedAt: new Date() } : {}),
       },
       update: {
         status: "ACCEPTED",
@@ -43,11 +50,11 @@ export async function assignLavoriAcceptance(opts: {
         rejectedAt: null,
         rejectionReason: null,
         isWinning: true,
-        ...(paraTiCents ? { quotedPriceCents: paraTiCents } : {}),
+        ...(baseCents ? { quotedPriceCents: baseCents } : {}),
       },
     });
     await prisma.order.update({ where: { id: order.id }, data: { assignedTo: collaborator.fullName } });
-    if (paraTiCents && !yaContabilizado) {
+    if (baseCents && !yaContabilizado) {
       const full = await prisma.order.findUniqueOrThrow({
         where: { id: order.id },
         select: { id: true, amountCents: true, paymentStatus: true, marginPct: true },
@@ -55,7 +62,7 @@ export async function assignLavoriAcceptance(opts: {
       const sideFx = await applyAcceptedQuoteSideEffects(prisma, {
         order: full,
         assignmentId: assignment.id,
-        supplierCostCents: paraTiCents,
+        supplierCostCents: baseCents,
         collaborator: { fullName: collaborator.fullName, companyName: collaborator.companyName, supplierType: collaborator.supplierType },
         actorEmail: "lavori-bridge",
         isWinning: true,
