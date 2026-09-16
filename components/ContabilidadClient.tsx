@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { uploadStaffFile } from "@/lib/staff-upload-client";
 import { useRouter } from "next/navigation";
 import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 import { computeExpenseTotals, clampIrpfPct, clampTaxTreatment, TAX_TREATMENT_OPTIONS } from "@/lib/expense-math"; // puro, sin Prisma
@@ -388,12 +389,7 @@ export default function ContabilidadClient({
       let attachmentKey: string | null = null;
       let attachmentName: string | null = null;
       if (gastoFile) {
-        const fd = new FormData();
-        fd.append("file", gastoFile);
-        fd.append("prefix", "expenses");
-        const up = await fetch("/api/upload", { method: "POST", body: fd });
-        const ud = await up.json();
-        if (!up.ok || !ud.ok) throw new Error(ud.error || "No se pudo subir el justificante.");
+        const ud = await uploadStaffFile(gastoFile, "expenses");
         attachmentUrl = ud.url;
         attachmentKey = ud.pathname || null;
         attachmentName = gastoFile.name;

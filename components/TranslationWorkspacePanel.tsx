@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { uploadStaffFile } from "@/lib/staff-upload-client";
 
 type Props = {
   reference: string;
@@ -98,29 +98,11 @@ export default function TranslationWorkspacePanel({
 
   type UploadedFile = { url: string; fileKey: string | null; filename: string; mimeType: string | null };
 
-  // Subida DIRECTA del navegador a Blob: el fichero no pasa por la función, así
-  // que no le afecta el tope de 4,5 MB de Vercel (antes: «Request Entity Too
-  // Large» en texto plano → «Unexpected token 'R'» al guardar, 16-sep-2026).
   async function uploadFiles(): Promise<UploadedFile[]> {
     const uploaded: UploadedFile[] = [];
     for (const f of files) {
-      const safeName = f.name.replace(/[^\w.\-]+/g, "_").slice(0, 120) || "entrega";
-      try {
-        const blob = await upload(`orders/${reference}/${Date.now()}-${safeName}`, f, {
-          access: "public",
-          handleUploadUrl: "/api/documents/upload",
-          clientPayload: JSON.stringify({ gdprConsent: true }),
-        });
-        uploaded.push({
-          url: blob.url,
-          fileKey: blob.pathname || null,
-          filename: f.name,
-          mimeType: f.type || null,
-        });
-      } catch (err: any) {
-        const mb = (f.size / (1024 * 1024)).toFixed(1);
-        throw new Error(`No se pudo subir ${f.name} (${mb} MB): ${err?.message || "error de subida"}.`);
-      }
+      const up = await uploadStaffFile(f, `orders/${reference}`);
+      uploaded.push({ url: up.url, fileKey: up.pathname || null, filename: f.name, mimeType: f.type || null });
     }
     return uploaded;
   }

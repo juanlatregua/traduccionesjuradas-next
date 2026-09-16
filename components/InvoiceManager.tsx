@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { uploadStaffFile } from "@/lib/staff-upload-client";
 import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 
 // Gestor de facturas de la zona-traductor: crear borrador (libre o desde un
@@ -365,20 +366,15 @@ export default function InvoiceManager({
     setMsg(null);
     let uploadedUrl = "";
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("prefix", "invoices");
-      const up = await fetch("/api/upload", { method: "POST", body: fd });
-      const ud = await up.json();
-      if (!up.ok || !ud.ok) throw new Error(ud.error || "No se pudo subir el justificante.");
+      const ud = await uploadStaffFile(file, "invoices");
       uploadedUrl = ud.url;
       const res = await fetch(`/api/invoices/${row.id}/paid`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paid: true, date: when, proof: { url: ud.url, key: ud.pathname, name: file.name } }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo marcar la factura como cobrada.");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(data?.error || `No se pudo marcar la factura como cobrada (error ${res.status}).`);
       setMsg("Justificante adjuntado · factura cobrada.");
       setTimeout(() => window.location.reload(), 600);
     } catch (e: any) {

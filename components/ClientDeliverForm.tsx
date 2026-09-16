@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadStaffFile } from "@/lib/staff-upload-client";
 
 // Acción de staff en la carpeta del cliente: subir las traducciones (PDF) y crear
 // una ENTREGA para un cliente sin pedido (presupuesto/WhatsApp). Compone los
@@ -9,21 +9,9 @@ import { upload } from "@vercel/blob/client";
 // como entregado, y —si "ya ha pagado"— lo marca cobrado y dispara el aviso normal.
 const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
 
-// Subida DIRECTA a Blob (sin pasar por la función): el tope de 4,5 MB de Vercel
-// rompía las entregas grandes con «Unexpected token 'R'» (16-sep-2026).
 async function uploadFile(file: File): Promise<{ url: string; key: string; name: string }> {
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_").slice(0, 120) || "entrega";
-  try {
-    const blob = await upload(`deliveries/${Date.now()}-${safeName}`, file, {
-      access: "public",
-      handleUploadUrl: "/api/documents/upload",
-      clientPayload: JSON.stringify({ gdprConsent: true }),
-    });
-    return { url: blob.url, key: blob.pathname, name: file.name };
-  } catch (err: any) {
-    const mb = (file.size / (1024 * 1024)).toFixed(1);
-    throw new Error(`No se pudo subir ${file.name} (${mb} MB): ${err?.message || "error de subida"}.`);
-  }
+  const up = await uploadStaffFile(file, "deliveries");
+  return { url: up.url, key: up.pathname, name: up.name };
 }
 
 export default function ClientDeliverForm({ email }: { email: string }) {
