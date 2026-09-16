@@ -18,6 +18,7 @@ import { findLiveSiblingLeadRequest, leadFromPuertaSession, resolveLeadRoute, se
 import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
 import { directMemberFor } from "@/lib/lavori-directo";
+import { casaJuradoFor } from "@/lib/lavori-bridge";
 
 export const runtime = "nodejs";
 
@@ -176,7 +177,14 @@ export async function POST(req: Request) {
     const hermana = carril || parDelLead
       ? await findLiveSiblingLeadRequest({ email: contactEmail, phone: contactPhone, par: carril ? carril.route.par : parDelLead! }).catch(() => null)
       : null;
-    if (hermana) {
+    // Lengua de la casa (francés = Juan, T-IJ 3850): NO sale a lavori por
+    // ningún carril. Orden de Juan 16-sep-2026 tras tres escapes por la cartera
+    // viva (LEAD-0B0C46A29D, LEAD-C4699A93B1, LEAD-6E846030BB).
+    const casa = leadLang ? casaJuradoFor(leadLang) : null;
+    if (casa) {
+      lavoriEmail = `${getLanguageName(leadLang!).toUpperCase()}: lo jura la casa (${casa.nombre}, T-IJ ${casa.maec}) — NO se ha mandado a lavori. Móntalo tú: ${builderUrl}`;
+      lavoriSms = `${getLanguageName(leadLang!)}: tuyo, al builder`;
+    } else if (hermana) {
       const h = hermana.request;
       const detalle = [
         h.status,

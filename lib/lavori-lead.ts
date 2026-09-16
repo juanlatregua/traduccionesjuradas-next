@@ -13,6 +13,8 @@ import {
   buildPriceRequestPayload,
   fetchLavoriCartera,
   lavoriManualRoute,
+  isCasaLang,
+  casaJuradoFor,
   resolveLavoriCandidatos,
   sendLavoriSolicitud,
   SOBRE_MAX_FILE_BYTES,
@@ -177,6 +179,19 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   if (!sourceLang || !targetLang) return { ok: false, status: 400, error: "Faltan los idiomas del par." };
   if (sourceLang !== "es" && targetLang !== "es") {
     return { ok: false, status: 400, error: "Traducción cruzada (sin español): gestión a medida, no vía lavori." };
+  }
+
+  // Lengua de la casa (francés = Juan, T-IJ 3850): el funnel NO la manda a
+  // lavori. Solo pasa si staff elige a mano a un jurado concreto desde el
+  // builder — una decisión de Juan, no de la puerta. Ver CASA_LANGS.
+  const langDelPar = sourceLang === "es" ? targetLang : sourceLang;
+  if (isCasaLang(langDelPar) && !Array.isArray(input.candidatos)) {
+    const casa = casaJuradoFor(langDelPar)!;
+    return {
+      ok: false,
+      status: 400,
+      error: `El ${langDelPar.toUpperCase()} lo jura la casa (${casa.nombre}): no sale al tablón de lavori por el carril automático.`,
+    };
   }
 
   const resolved = await resolveLeadRoute(sourceLang, targetLang);

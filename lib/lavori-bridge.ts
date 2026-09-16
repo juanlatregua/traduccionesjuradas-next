@@ -94,6 +94,31 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   ca: ["rk1x2kq63rm6ba6mco7c6u2k"], // Juan Amor Fernández (T-IJ 132; CA>ES / ES>CA)
 };
 
+// LENGUAS DE LA CASA: las que el FUNNEL AUTOMÁTICO no manda NUNCA a lavori
+// porque las jura la casa. Hasta el 16-sep-2026 esto solo estaba escrito como
+// ausencia (sin carril fijo en LAVORI_CANDIDATES) y como comentario — y se
+// escapaba: lavoriManualRoute cae a filtrar la CARTERA VIVA por lengua, donde sí
+// hay jurados de francés, así que la puerta auto-envió a lavori el FR>ES de
+// Miguel Ángel Cascales (LEAD-0B0C46A29D, 10-sep, cotizado en 48 €) y los 7
+// extractos de Mme Devaulx (LEAD-C4699A93B1, 16-sep, ~669 €). Orden de Juan:
+// «el funnel de francés solo a mí». Una lengua aquí NO se puede auto-enviar;
+// elegir a un jurado de lavori A MANO desde el builder sigue permitido.
+export const CASA_LANGS: Record<string, { nombre: string; collaboratorEmail: string; maec: string }> = {
+  fr: { nombre: "Juan Silva Moreno", collaboratorEmail: "juansilva@traduccionesjuradas.net", maec: "3850" },
+};
+
+/** ¿Esta lengua la jura la casa (y por tanto el funnel no la manda a lavori)? */
+export function isCasaLang(lang: string | null | undefined): boolean {
+  const l = String(lang || "").trim().toLowerCase();
+  return !!l && l in CASA_LANGS;
+}
+
+/** El jurado de la casa para esta lengua, o null. */
+export function casaJuradoFor(lang: string | null | undefined) {
+  const l = String(lang || "").trim().toLowerCase();
+  return CASA_LANGS[l] ?? null;
+}
+
 // CARTERA del tablón: jurados por lengua. FUENTE VIVA = lavori
 // (GET /api/motor/miembros, solo lectura, mismo token que las solicitudes;
 // montado por lavori el 21-ago-2026 a petición de este repo). La tabla estática

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { verifyLavoriOneTapToken } from "@/lib/lavori-onetap";
 import { leadFromPuertaSession, sendLeadPriceRequest } from "@/lib/lavori-lead";
+import { casaJuradoFor } from "@/lib/lavori-bridge";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,12 @@ export async function GET(req: Request) {
   }
 
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  const leadLangOneTap = lead.sourceLang === "es" ? lead.targetLang : lead.sourceLang;
+  const casa = casaJuradoFor(leadLangOneTap);
+  if (casa) {
+    const builder = `${baseUrl}/zona-traductor/presupuesto?session=${encodeURIComponent(sessionToken)}`;
+    return page("No sale a lavori", `<p>El ${String(leadLangOneTap).toUpperCase()} lo jura la casa (${casa.nombre}). <a href="${builder}">Móntalo en el builder</a>.</p>`, 400);
+  }
   const hint = [lead.contact.name, lead.contact.email, lead.contact.phone].filter(Boolean).join(" · ") || null;
   const result = await sendLeadPriceRequest({
     docs: lead.docs,
