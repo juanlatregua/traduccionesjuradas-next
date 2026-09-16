@@ -21,6 +21,18 @@ const ALLOWED_TYPES = [
   "image/webp",
 ];
 
+// Staff (zona traductor) sube también ENTREGAS: traducciones en Word y ficheros
+// grandes. Antes iban por /api/upload con el fichero dentro de la función, y
+// Vercel corta el cuerpo en 4,5 MB con un «Request Entity Too Large» en texto
+// plano → «Unexpected token 'R'» al guardar la entrega (Juan, 16-sep-2026).
+const STAFF_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const STAFF_EXTRA_TYPES = [
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/heif",
+  "text/plain",
+];
+
 export async function POST(req: Request) {
   const ip = getClientIp(req);
 
@@ -60,6 +72,15 @@ export async function POST(req: Request) {
         const parsed = clientPayload ? JSON.parse(clientPayload) : {};
         if (!parsed.gdprConsent) {
           throw new Error("Debes aceptar el tratamiento de datos para continuar.");
+        }
+        if (staff.ok) {
+          // URL pública: el sufijo aleatorio la hace inadivinable, como hacía
+          // /api/upload con addRandomSuffix para las entregas.
+          return {
+            allowedContentTypes: [...ALLOWED_TYPES, ...STAFF_EXTRA_TYPES],
+            maximumSizeInBytes: STAFF_MAX_FILE_SIZE,
+            addRandomSuffix: true,
+          };
         }
         return {
           allowedContentTypes: ALLOWED_TYPES,

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
 
 type Props = {
   reference: string;
@@ -97,23 +98,29 @@ export default function TranslationWorkspacePanel({
 
   type UploadedFile = { url: string; fileKey: string | null; filename: string; mimeType: string | null };
 
+  // Subida DIRECTA del navegador a Blob: el fichero no pasa por la función, así
+  // que no le afecta el tope de 4,5 MB de Vercel (antes: «Request Entity Too
+  // Large» en texto plano → «Unexpected token 'R'» al guardar, 16-sep-2026).
   async function uploadFiles(): Promise<UploadedFile[]> {
     const uploaded: UploadedFile[] = [];
     for (const f of files) {
-      const form = new FormData();
-      form.append("file", f);
-      form.append("reference", reference);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok || !data?.ok || !data?.url) {
-        throw new Error(data?.error || `No se pudo subir ${f.name}.`);
+      const safeName = f.name.replace(/[^\w.\-]+/g, "_").slice(0, 120) || "entrega";
+      try {
+        const blob = await upload(`orders/${reference}/${Date.now()}-${safeName}`, f, {
+          access: "public",
+          handleUploadUrl: "/api/documents/upload",
+          clientPayload: JSON.stringify({ gdprConsent: true }),
+        });
+        uploaded.push({
+          url: blob.url,
+          fileKey: blob.pathname || null,
+          filename: f.name,
+          mimeType: f.type || null,
+        });
+      } catch (err: any) {
+        const mb = (f.size / (1024 * 1024)).toFixed(1);
+        throw new Error(`No se pudo subir ${f.name} (${mb} MB): ${err?.message || "error de subida"}.`);
       }
-      uploaded.push({
-        url: String(data.url),
-        fileKey: String(data.pathname || "").trim() || null,
-        filename: f.name,
-        mimeType: f.type || null,
-      });
     }
     return uploaded;
   }
@@ -151,9 +158,9 @@ export default function TranslationWorkspacePanel({
           autoEta: state === "EN_PROCESO" ? autoEta : false,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "No se pudo actualizar la entrega.");
+        throw new Error(data?.error || `No se pudo actualizar la entrega (error ${res.status}).`);
       }
       // Los ficheros ya están subidos y persistidos en el pedido: limpiamos la
       // selección pendiente para que una segunda entrega NO los vuelva a subir
