@@ -10,6 +10,9 @@ type ModoActivo = "pedidos" | "clientes" | "presupuestos" | "facturas" | "contab
 type Props = {
   pedidosAccionables: number;
   presupuestosAccionables?: number;
+  // Quién está dentro: la misma identidad (y rol) que usan las APIs de staff.
+  staffEmail?: string | null;
+  staffRole?: string | null;
 };
 
 // Barra de 6 pestañas: una por ETAPA del ciclo, no una por pantalla.
@@ -38,7 +41,7 @@ const OWNED_PATHS: Record<string, ModoActivo> = {
   "/zona-traductor/periodos": "contabilidad",
 };
 
-export default function ZonaTraductorNav({ pedidosAccionables, presupuestosAccionables = 0 }: Props) {
+export default function ZonaTraductorNav({ pedidosAccionables, presupuestosAccionables = 0, staffEmail, staffRole }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pathname = usePathname();
   // El menú vive en el layout y está SIEMPRE presente en toda la zona; solo se
@@ -87,6 +90,21 @@ export default function ZonaTraductorNav({ pedidosAccionables, presupuestosAccio
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {staffEmail && (
+            <span
+              title={`Dentro como ${staffEmail} (${staffRole || "sin rol"})`}
+              className="hidden items-center gap-2 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 md:flex"
+            >
+              <span className="max-w-[220px] truncate">{staffEmail}</span>
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                  staffRole === "ADMIN" ? "bg-emerald-500/20 text-emerald-300" : staffRole === "PM" ? "bg-cyan-500/20 text-cyan-300" : "bg-amber-500/20 text-amber-300"
+                }`}
+              >
+                {staffRole || "?"}
+              </span>
+            </span>
+          )}
           <Link
             href="/admin/inbox"
             title="Bandeja de entrada (email + WhatsApp) y resto del admin"

@@ -2,6 +2,7 @@
 // NUNCA se pierda al entrar en una pestaña. El nav se oculta solo en /verificar.
 // #zona-traductor-root mantiene el tema oscuro por defecto.
 import ZonaTraductorNav from "@/components/ZonaTraductorNav";
+import { getStaffRole } from "@/lib/staff-access";
 import {
   countPresupuestosAccionables,
   getZonaTraductorStaffEmail,
@@ -34,6 +35,8 @@ export default async function ZonaTraductorLayout({ children }: { children: Reac
       <ZonaTraductorNav
         pedidosAccionables={pedidosAccionables}
         presupuestosAccionables={presupuestosAccionables}
+        staffEmail={staffEmail}
+        staffRole={getStaffRole(staffEmail)}
       />
       {children}
     </div>
