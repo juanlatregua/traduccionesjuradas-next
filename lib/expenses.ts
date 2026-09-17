@@ -206,6 +206,12 @@ export type CollaboratorInvoiceInput = {
   irpfRetentionPct?: number;
   supplierNif?: string | null;
   notes?: string | null;
+  attachmentUrl?: string | null;
+  attachmentKey?: string | null;
+  attachmentName?: string | null;
+  // Factura que ya llegó por lavori (factura_subida: sin NIF ni régimen fiscal): se
+  // completa y liquida los devengos en vez de crear un segundo gasto.
+  existingExpenseId?: string | null;
   acceptMismatch?: boolean;
   force?: boolean; // saltar el chequeo de duplicados
 };
@@ -255,8 +261,29 @@ export async function registerCollaboratorInvoice(input: CollaboratorInvoiceInpu
     vatRate: input.vatRate,
     irpfRetentionPct: input.irpfRetentionPct,
     notes: input.notes,
+    attachmentUrl: input.attachmentUrl,
+    attachmentKey: input.attachmentKey,
+    attachmentName: input.attachmentName,
   });
-  if (!input.force) await assertNotDuplicate(data);
+  const existing = input.existingExpenseId
+    ? await prisma.expense.findFirst({
+        where: {
+          id: input.existingExpenseId,
+          category: "colaborador",
+          isAccrual: false,
+          needsReview: true,
+          concept: { startsWith: "Factura del sobre lavori" },
+          supplier: { in: [collaborator.fullName, collaborator.companyName].filter(Boolean) as string[] },
+          OR: refs.map((ref) => ({ concept: { contains: `pedido ${ref})` } })),
+          settles: { none: {} },
+        },
+        select: { id: true, concept: true, attachmentUrl: true, attachmentKey: true, attachmentName: true },
+      })
+    : null;
+  if (input.existingExpenseId && !existing) {
+    throw new Error("Esa factura ya liquida otros devengos o no es de este colaborador. Recarga la página.");
+  }
+  if (!input.force) await assertNotDuplicate(data, existing?.id);
 
   const orders = refs.length
     ? await prisma.order.findMany({ where: { reference: { in: refs } }, select: { id: true, reference: true } })
@@ -264,7 +291,24 @@ export async function registerCollaboratorInvoice(input: CollaboratorInvoiceInpu
   const orderIdByRef = new Map(orders.map((o) => [o.reference, o.id]));
 
   const invoice = await prisma.$transaction(async (tx) => {
-    const created = await tx.expense.create({ data: { ...data, collaboratorId: collaborator.id } });
+    if (existing && (await tx.expense.count({ where: { settledById: existing.id } })) > 0) {
+      throw new Error("Esa factura de lavori ya se ha liquidado. Recarga la página.");
+    }
+    const created = existing
+      ? await tx.expense.update({
+          where: { id: existing.id },
+          data: {
+            ...data,
+            // El concepto de lavori lleva "encargo <id>": pago_marcado lo busca por ahí.
+            concept: `${data.concept} — ${existing.concept}`,
+            needsReview: false,
+            collaboratorId: collaborator.id,
+            attachmentUrl: data.attachmentUrl ?? existing.attachmentUrl,
+            attachmentKey: data.attachmentKey ?? existing.attachmentKey,
+            attachmentName: data.attachmentName ?? existing.attachmentName,
+          },
+        })
+      : await tx.expense.create({ data: { ...data, collaboratorId: collaborator.id } });
     const sealed = await tx.expense.updateMany({
       where: { id: { in: ids }, isAccrual: true, settledById: null, collaboratorId: collaborator.id },
       data: { settledById: created.id },
@@ -291,6 +335,7 @@ export async function registerCollaboratorInvoice(input: CollaboratorInvoiceInpu
             invoiceNumber: data.supplierInvoiceNumber,
             baseCents: acc.baseCents,
             irpfRetentionPct: data.irpfRetentionPct,
+            pdfUrl: created.attachmentUrl,
             settledExpenseId: created.id,
           },
         },

@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import type { FinanceSnapshot } from "@/lib/finance";
+import SupplierInvoiceDrop, { type PendingAccrual, type RegisteredSupplierInvoice } from "@/components/SupplierInvoiceDrop";
 
 type Props = {
   reference: string;
   amountCents: number;
   snapshot: FinanceSnapshot;
+  pendingAccruals: PendingAccrual[];
+  supplierInvoices: RegisteredSupplierInvoice[];
+  canRegisterSupplierInvoice: boolean;
 };
 
 type SupplierStatus = "PENDING_REQUEST" | "REQUESTED" | "RECEIVED" | "BOOKED" | "PAID";
@@ -32,7 +36,7 @@ function toDateInput(iso: string | null) {
   return d.toISOString().slice(0, 10);
 }
 
-export default function OrderFinancePanel({ reference, amountCents, snapshot }: Props) {
+export default function OrderFinancePanel({ reference, amountCents, snapshot, pendingAccruals, supplierInvoices, canRegisterSupplierInvoice }: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -304,6 +308,17 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot }: 
 
         <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Factura proveedor</p>
+          <div className="mt-2">
+            <SupplierInvoiceDrop
+              key={[...pendingAccruals, ...supplierInvoices].map((e) => e.id).join(",")}
+              reference={reference}
+              pending={pendingAccruals}
+              registered={supplierInvoices}
+              canRegister={canRegisterSupplierInvoice}
+            />
+          </div>
+          <details className="mt-3">
+            <summary className="cursor-pointer text-[11px] text-slate-400">Estado manual de la factura (sin contabilizar)</summary>
           <div className="mt-2 space-y-2">
             <select
               value={supplierStatus}
@@ -384,6 +399,7 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot }: 
               Guardar factura proveedor
             </button>
           </div>
+          </details>
         </div>
       </div>
 

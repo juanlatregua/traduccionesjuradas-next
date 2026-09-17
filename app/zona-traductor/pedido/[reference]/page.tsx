@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { isStaffEmail } from "@/lib/staff-access";
+import { getStaffRole, isStaffEmail } from "@/lib/staff-access";
 import { readVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import { prisma } from "@/lib/prisma";
 import { getWorkflowState, getWorkflowStateLabel, getNextWorkflowStates } from "@/lib/workflow";
@@ -227,6 +227,56 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   // margen se sigue midiendo por pedido, si no un pedido en pérdidas se
   // escondería detrás de un hermano rentable).
   const caseRollup = order.caseRef ? await getCaseAccrualRollup(order.caseRef) : null;
+
+  // Factura del traductor: devengos de este pedido y facturas de colaborador ya
+  // registradas (liquidación de sus devengos o la que llegó por lavori).
+  const [orderAccruals, lavoriSupplierInvoices] = await Promise.all([
+    prisma.expense.findMany({
+      where: { orderReference: order.reference, isAccrual: true },
+      select: {
+        id: true,
+        baseCents: true,
+        settledById: true,
+        collaborator: { select: { id: true, fullName: true, companyName: true, nif: true, supplierType: true } },
+        settledBy: { select: { id: true, supplier: true, supplierInvoiceNumber: true, totalCents: true, attachmentUrl: true, needsReview: true } },
+      },
+    }),
+    prisma.expense.findMany({
+      where: {
+        category: "colaborador",
+        isAccrual: false,
+        OR: [{ orderReference: order.reference }, { concept: { contains: `pedido ${order.reference})` } }],
+      },
+      select: { id: true, supplier: true, supplierInvoiceNumber: true, concept: true, totalCents: true, attachmentUrl: true, needsReview: true, settles: { select: { id: true }, take: 1 } },
+    }),
+  ]);
+  const pendingAccruals = orderAccruals.flatMap((a) =>
+    !a.settledById && a.collaborator ? [{ id: a.id, baseCents: a.baseCents, collaborator: a.collaborator }] : []
+  );
+  const supplierInvoices = [
+    ...new Map(
+      [
+        ...orderAccruals.flatMap((a) => (a.settledBy ? [{ ...a.settledBy, settlesAccruals: true, fromLavori: false }] : [])),
+        ...lavoriSupplierInvoices.map(({ settles, concept, ...e }) => ({
+          ...e,
+          settlesAccruals: settles.length > 0,
+          fromLavori: e.needsReview && concept.startsWith("Factura del sobre lavori"),
+        })),
+      ].map((e) => [
+        e.id,
+        {
+          id: e.id,
+          supplier: e.supplier,
+          number: e.supplierInvoiceNumber,
+          totalCents: e.totalCents,
+          attachmentUrl: e.attachmentUrl,
+          needsReview: e.needsReview,
+          settlesAccruals: e.settlesAccruals,
+          fromLavori: e.fromLavori,
+        },
+      ])
+    ).values(),
+  ];
 
   // Carril de crédito: el permiso vive en el CLIENTE; la marca es la factura
   // con vencimiento (lib/credit-terms.ts). "Asegurado" = cobrado o a crédito.
@@ -767,6 +817,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                 reference={order.reference}
                 amountCents={order.amountCents}
                 snapshot={financeSnapshot}
+                pendingAccruals={pendingAccruals}
+                supplierInvoices={supplierInvoices}
+                canRegisterSupplierInvoice={["ADMIN", "PM"].includes(getStaffRole(email) || "")}
               />
               <p className="mt-3 text-xs">
                 <a href="/zona-traductor/facturas" className="font-semibold text-cyan-400 hover:underline">

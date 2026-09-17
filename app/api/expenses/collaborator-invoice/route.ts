@@ -46,6 +46,10 @@ export async function POST(req: Request) {
       irpfRetentionPct: body.irpfRetentionPct,
       supplierNif: body.supplierNif,
       notes: body.notes,
+      attachmentUrl: body.attachmentUrl,
+      attachmentKey: body.attachmentKey,
+      attachmentName: body.attachmentName,
+      existingExpenseId: body.existingExpenseId,
       acceptMismatch: body.acceptMismatch === true,
       force: body.force === true,
     });
