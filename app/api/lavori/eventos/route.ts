@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
-import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES } from "@/lib/lavori-bridge";
+import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES, isCasaPair } from "@/lib/lavori-bridge";
 import { assignLavoriAcceptance } from "@/lib/lavori-assign";
 import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
 import { sendStaffAlertSMS } from "@/lib/sms";
@@ -148,8 +148,10 @@ export async function POST(req: Request) {
         },
         select: { id: true },
       });
+      // Francés = Juan (17-sep-2026): la cifra queda anotada, nunca se acepta sola.
+      const esCasa = isCasaPair(order.langPair);
       const autoAceptar =
-        order.paymentStatus === "PAID" && !yaAceptado && precioCents <= paraTiModeloCents;
+        !esCasa && order.paymentStatus === "PAID" && !yaAceptado && precioCents <= paraTiModeloCents;
 
       // Tarifario aprendido: el coste del jurado por tipo de documento entra en el bucle.
       await import("@/lib/learned-rates")
@@ -170,7 +172,9 @@ export async function POST(req: Request) {
         datos.plazoDias ? `Plazo propuesto: ${datos.plazoDias} días.` : "Sin plazo indicado.",
         `Neto de cliente sugerido por el modelo 75/25: ${netoSugerido} € (+ IVA y envío).`,
         datos.notas ? `Notas: ${String(datos.notas)}` : "",
-        autoAceptar
+        esCasa
+          ? `Francés: el pedido lo traduce Juan en tj.net — la cifra NO se acepta ni se asigna. Retira el encargo en lavori.`
+          : autoAceptar
           ? `El pedido ya está pagado y la cifra cabe en el modelo (tope ${(paraTiModeloCents / 100).toFixed(2)} €): se acepta AUTOMÁTICAMENTE hacia lavori.`
           : order.paymentStatus === "PAID" && !yaAceptado
             ? `⚠ El pedido ya está pagado pero la cifra SUPERA el modelo 75/25 (tope ${(paraTiModeloCents / 100).toFixed(2)} €): NO se auto-acepta — decide tú (coordínalo por lavori o ajusta el precio con el traductor).`
@@ -190,7 +194,24 @@ export async function POST(req: Request) {
       }
     }
 
-    if (evento === "encargo_aceptado") {
+    if (evento === "encargo_aceptado" && isCasaPair(order.langPair)) {
+      const miembro = String(datos.miembroNombre || datos.miembroId || "el traductor");
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: eventType,
+          message: `lavori: ${miembro} aceptó el encargo, pero el francés lo traduce Juan — NO se asigna.`,
+          payload: { encargoId, motorRef, ...datos, noAsignado: "casa" },
+        },
+      });
+      await staffMail(`⚠ ${miembro} aceptó ${order.reference} en lavori — francés, NO asignado`, [
+        `${miembro} ha aceptado en lavori el encargo ${encargoId} del pedido ${order.reference}.`,
+        `El francés que entra por tj.net lo traduces tú: no se ha asignado ni se ha avisado al cliente. Retira el encargo en lavori y avisa a ${miembro}.`,
+        `Ficha: ${ficha}`,
+      ]);
+    }
+
+    if (evento === "encargo_aceptado" && !isCasaPair(order.langPair)) {
       const miembroId = String(datos.miembroId || "");
       // Cifra que la casa debe al jurado: la aceptada (Fase 2, precio_aceptado_enviado)
       // o la del dirigido (solicitud_enviada.paraTi). Con ella la aceptación deja

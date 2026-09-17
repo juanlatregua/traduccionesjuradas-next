@@ -16,6 +16,7 @@ import {
   fetchLavoriCartera,
   lavoriRouteFromPair,
   lavoriLangFromPair,
+  isCasaPair,
   buildSolicitudPayload,
   sendLavoriSolicitud,
   sendLavoriPrecioAceptado,
@@ -354,6 +355,14 @@ async function emitPrecioAceptadoIfApplicable(opts: {
         e.type === "lavori.precio_supera_coste"
     )
   ) {
+    return { handled: true, changed: false };
+  }
+
+  // Francés = Juan (orden 17-sep-2026): lo que entra por tj.net se queda en tj.net.
+  // Pagar no acepta la cifra de ningún jurado de lavori ni asigna a nadie, aunque
+  // haya una solicitud con precio atada (LEAD-C4699A93B1: 1.330 € de Patricia sobre
+  // un presupuesto de 809 €). handled=true: tampoco se abre encargo nuevo.
+  if (isCasaPair(order.langPair)) {
     return { handled: true, changed: false };
   }
 

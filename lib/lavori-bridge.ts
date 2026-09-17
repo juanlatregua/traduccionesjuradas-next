@@ -236,6 +236,13 @@ export function lavoriLangFromPair(langPair?: string | null): { lang: string; pa
   return null;
 }
 
+/** ¿El pedido es de una lengua de la casa? Entonces nada de lavori lo acepta ni lo asigna. */
+export function isCasaPair(langPair?: string | null): boolean {
+  const [from, to] = String(langPair || "").trim().toLowerCase().split(/\s*(?:->|→|>|-)\s*/);
+  if (!from || !to) return false;
+  return (from === "es" && isCasaLang(to)) || (to === "es" && isCasaLang(from));
+}
+
 const LAVORI_MIEMBROS_ENDPOINT =
   process.env.LAVORI_MIEMBROS_URL || "https://lavori.es/api/motor/miembros";
 

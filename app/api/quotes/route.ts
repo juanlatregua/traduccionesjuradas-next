@@ -208,7 +208,11 @@ export async function POST(req: Request) {
     // Tambien por lavoriLeadRef (lead SIN expediente, p. ej. WhatsApp: el builder
     // abierto con ?lead= manda la ref) — sin esto el pago no encontraba la solicitud
     // y el traductor no se enteraba de que el cliente habia aceptado su precio.
-    if (expedienteRef || lavoriLeadRef) {
+    // Francés = Juan (17-sep-2026): el presupuesto no se ata a la cifra ni al nombre
+    // de un jurado de lavori (2026-00160 salió atado a los 1.330 € de Patricia).
+    const { isCasaPair } = await import("@/lib/lavori-bridge");
+    const esCasa = isCasaPair(`${parsed.data.sourceLang}->${parsed.data.targetLang}`);
+    if ((expedienteRef || lavoriLeadRef) && !esCasa) {
       try {
         await prisma.lavoriPriceRequest.updateMany({
           where: {

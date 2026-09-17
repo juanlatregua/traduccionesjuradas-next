@@ -29,3 +29,15 @@ test("vacío o desconocido no cuela como lengua de la casa", () => {
 test("CASA_LANGS solo tiene francés (si crece, que sea a propósito)", () => {
   assert.deepEqual(Object.keys(CASA_LANGS), ["fr"]);
 });
+
+test("un pedido de francés en cualquier dirección es de la casa; el resto no", async () => {
+  const { isCasaPair } = await import("../../lib/lavori-bridge.ts");
+  assert.equal(isCasaPair("fr->es"), true);
+  assert.equal(isCasaPair("es->fr"), true);
+  assert.equal(isCasaPair("FR->ES"), true);
+  assert.equal(isCasaPair("fr-es"), true);
+  assert.equal(isCasaPair("FR>ES"), true);
+  assert.equal(isCasaPair("es→fr"), true);
+  // Sin español al otro lado no lo jura la casa (FR→EN no es de Juan).
+  for (const p of ["nl->es", "es->de", "en->es", "fr->en", "en-fr", null, "", "es->es", "fr"]) assert.equal(isCasaPair(p), false, String(p));
+});
