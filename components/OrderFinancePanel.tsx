@@ -22,6 +22,18 @@ function toMoney(cents: number | null) {
   return `${(cents / 100).toFixed(2)} EUR`;
 }
 
+// Los importes se escriben en euros con coma ("213,00"); las APIs siguen en céntimos.
+function eurInput(cents: number | null | undefined) {
+  return cents === null || cents === undefined ? "" : (cents / 100).toFixed(2).replace(".", ",");
+}
+
+function centsFromEur(value: string): number | null {
+  const v = value.trim().replace(/\s|€/g, "");
+  if (!v) return null;
+  const n = Number(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v);
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
+}
+
 function formatDate(iso: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -41,13 +53,13 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
   const [message, setMessage] = useState<string | null>(null);
 
   const [receivedAmountCents, setReceivedAmountCents] = useState(
-    String(snapshot.reconciliationReceivedAmountCents ?? amountCents)
+    eurInput(snapshot.reconciliationReceivedAmountCents ?? amountCents)
   );
   const [gatewayFeeCents, setGatewayFeeCents] = useState(
-    String(snapshot.reconciliationGatewayFeeCents ?? 0)
+    eurInput(snapshot.reconciliationGatewayFeeCents ?? 0)
   );
   const [toleranceEur, setToleranceEur] = useState(
-    ((snapshot.reconciliationToleranceCents || 300) / 100).toFixed(2)
+    eurInput(snapshot.reconciliationToleranceCents || 300)
   );
   const [settledAt, setSettledAt] = useState(toDateInput(snapshot.reconciledAt));
   const [markReconciled, setMarkReconciled] = useState(
@@ -71,22 +83,25 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
   const [supplierName, setSupplierName] = useState(snapshot.supplierName || "");
   const [invoiceNumber, setInvoiceNumber] = useState(snapshot.supplierInvoiceNumber || "");
   const [invoiceTotalCents, setInvoiceTotalCents] = useState(
-    snapshot.supplierInvoiceTotalCents === null ? "" : String(snapshot.supplierInvoiceTotalCents)
+    eurInput(snapshot.supplierInvoiceTotalCents)
   );
   const [invoiceDueDate, setInvoiceDueDate] = useState(toDateInput(snapshot.supplierInvoiceDueDate));
   const [irpfRetentionPct, setIrpfRetentionPct] = useState(
     snapshot.supplierIrpfRetentionPct !== null && snapshot.supplierIrpfRetentionPct !== undefined
-      ? String(snapshot.supplierIrpfRetentionPct)
+      ? // La liquidación desde Contabilidad guarda la fracción (0,15); aquí se escribe en %.
+        String(snapshot.supplierIrpfRetentionPct > 0 && snapshot.supplierIrpfRetentionPct <= 1
+          ? Math.round(snapshot.supplierIrpfRetentionPct * 100)
+          : snapshot.supplierIrpfRetentionPct)
       : supplierType === "AUTONOMO"
         ? "15"
         : "0"
   );
 
   const [supplierCostCents, setSupplierCostCents] = useState(
-    snapshot.marginSupplierCostCents === null ? "" : String(snapshot.marginSupplierCostCents)
+    eurInput(snapshot.marginSupplierCostCents)
   );
   const [otherCostCents, setOtherCostCents] = useState(
-    String(snapshot.marginOtherCostCents ?? 0)
+    eurInput(snapshot.marginOtherCostCents ?? 0)
   );
   const [approvalNote, setApprovalNote] = useState("");
 
@@ -109,9 +124,9 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
     try {
       const data = await postJson(`/api/orders/${reference}/finance/reconciliation`, {
         expectedAmountCents: amountCents,
-        receivedAmountCents: Number(receivedAmountCents),
-        gatewayFeeCents: Number(gatewayFeeCents),
-        toleranceCents: Math.round(Number(toleranceEur || 0) * 100),
+        receivedAmountCents: centsFromEur(receivedAmountCents) ?? 0,
+        gatewayFeeCents: centsFromEur(gatewayFeeCents) ?? 0,
+        toleranceCents: centsFromEur(toleranceEur) ?? 0,
         settledAt: settledAt || null,
         markReconciled,
       });
@@ -135,9 +150,9 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
         supplierType,
         supplierName: supplierName || null,
         invoiceNumber: invoiceNumber || null,
-        totalCents: invoiceTotalCents ? Number(invoiceTotalCents) : null,
+        totalCents: centsFromEur(invoiceTotalCents),
         dueDate: invoiceDueDate || null,
-        irpfRetentionPct: supplierType === "AUTONOMO" ? Number(irpfRetentionPct || 0) : 0,
+        irpfRetentionPct: supplierType === "AUTONOMO" ? Number(irpfRetentionPct.replace(",", ".") || 0) : 0,
       });
       setMessage("Factura proveedor actualizada.");
     } catch (err: any) {
@@ -152,9 +167,9 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
     setMessage(null);
     try {
       const data = await postJson(`/api/orders/${reference}/finance/margin`, {
-        supplierCostCents: supplierCostCents ? Number(supplierCostCents) : 0,
-        gatewayFeeCents: Number(gatewayFeeCents),
-        otherCostCents: Number(otherCostCents),
+        supplierCostCents: centsFromEur(supplierCostCents) ?? 0,
+        gatewayFeeCents: centsFromEur(gatewayFeeCents) ?? 0,
+        otherCostCents: centsFromEur(otherCostCents) ?? 0,
       });
       setMessage(`Margen actualizado: ${toMoney(data.marginCents)} (${data.marginPct ?? 0}%).`);
     } catch (err: any) {
@@ -256,36 +271,48 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
         <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Conciliacion cobro</p>
           <div className="mt-2 space-y-2">
+            <label className="block text-[11px] text-slate-400">
+              Importe recibido (€)
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={receivedAmountCents}
               onChange={(e) => setReceivedAmountCents(e.target.value)}
-              placeholder="Importe recibido (centimos)"
+              placeholder="Importe recibido (€)"
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            </label>
+            <label className="block text-[11px] text-slate-400">
+              Comisión de la pasarela (€)
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={gatewayFeeCents}
               onChange={(e) => setGatewayFeeCents(e.target.value)}
-              placeholder="Comision pasarela (centimos)"
+              placeholder="Comisión pasarela (€)"
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            </label>
+            <label className="block text-[11px] text-slate-400">
+              Tolerancia de descuadre (€)
             <input
-              type="number"
-              min={1}
-              max={5}
-              step={0.5}
+              type="text"
+              inputMode="decimal"
               value={toleranceEur}
               onChange={(e) => setToleranceEur(e.target.value)}
-              placeholder="Tolerancia descuadre (1-5 EUR)"
+              placeholder="Tolerancia descuadre (€)"
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            </label>
+            <label className="block text-[11px] text-slate-400">
+              Fecha en que llegó el dinero
             <input
               type="date"
               value={settledAt}
               onChange={(e) => setSettledAt(e.target.value)}
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            </label>
             <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200">
               <input
                 type="checkbox"
@@ -352,16 +379,17 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               <option value="EMPRESA">Proveedor empresa (sin IRPF)</option>
             </select>
             {supplierType === "AUTONOMO" && (
+              <label className="block text-[11px] text-slate-400">
+                IRPF %
               <input
-                type="number"
+                type="text"
+              inputMode="decimal"
                 value={irpfRetentionPct}
                 onChange={(e) => setIrpfRetentionPct(e.target.value)}
-                min={0}
-                max={30}
-                step={0.5}
                 placeholder="% IRPF retenido"
                 className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
               />
+              </label>
             )}
             <input
               type="text"
@@ -377,13 +405,17 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               placeholder="Numero de factura"
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            <label className="block text-[11px] text-slate-400">
+              Total factura (€)
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={invoiceTotalCents}
               onChange={(e) => setInvoiceTotalCents(e.target.value)}
-              placeholder="Total factura (centimos)"
+              placeholder="Total factura (€)"
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            </label>
             <input
               type="date"
               value={invoiceDueDate}
@@ -407,20 +439,28 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
         <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Margen del pedido</p>
           <div className="mt-2 space-y-2">
+            <label className="block text-[11px] text-slate-400">
+              Coste del traductor (€)
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={supplierCostCents}
               onChange={(e) => setSupplierCostCents(e.target.value)}
-              placeholder="Coste proveedor (centimos)"
+              placeholder="Coste proveedor (€)"
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            </label>
+            <label className="block text-[11px] text-slate-400">
+              Otros costes (€)
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={otherCostCents}
               onChange={(e) => setOtherCostCents(e.target.value)}
-              placeholder="Otros costes (centimos)"
+              placeholder="Otros costes (€)"
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
             />
+            </label>
             <button
               type="button"
               onClick={saveMargin}
