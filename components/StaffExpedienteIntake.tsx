@@ -910,7 +910,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         phase: "done",
         msg: data.repetido
           ? `Esta solicitud ya estaba enviada a ${aQuien} (no se ha duplicado).`
-          : `✓ Enviada a ${aQuien} · ${hora}. Si generas el presupuesto ahora quedará atado a esta solicitud; si no, el email con el precio del traductor te traerá aquí ya atado.`,
+          : `✓ Enviada a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador (el precio del motor se mantiene salvo que el margen no dé). Si no lo generas, el email con su precio te traerá aquí ya atado.`,
       });
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });

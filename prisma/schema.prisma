@@ -607,6 +607,10 @@ model Quote {
   total          Decimal           @default(0) @db.Decimal(12, 2)
   adminCreatedBy String?
   adminSentBy    String?
+  // Marca de "se está enviando": la toma finalizeAndSendQuote ANTES de generar el
+  // PDF y mandar el email, y la suelta al cerrar. Mientras está puesta, nadie
+  // reescribe precios por detrás (el relleno automático con la cifra del jurado).
+  sendingAt      DateTime?
   expedienteRef  String?           // ref del expediente entrante (exp:REF) que originó el presupuesto
   marginPct      Int?              // margen % aplicado sobre el coste del traductor (solo interno)
   // Identidad del jurado que realizará la traducción (directriz Juan 12-ago:

@@ -46,6 +46,17 @@ export async function finalizeAndSendQuote(opts: {
     throw new QuoteSendError(`No se puede enviar en estado ${quote.status}.`, 400);
   }
 
+  // Candado de envío (Juan, 18-sep-2026): entre generar el PDF y sellar el envío
+  // hay segundos en los que el presupuesto sigue DRAFT; sin esta marca, la cifra
+  // de un jurado que llega justo ahí reescribía precios bajo el PDF ya enviado.
+  const claimedAt = new Date();
+  const stale = new Date(claimedAt.getTime() - 10 * 60 * 1000);
+  const claim = await prisma.quote.updateMany({
+    where: { id: quote.id, OR: [{ sendingAt: null }, { sendingAt: { lt: stale } }] },
+    data: { sendingAt: claimedAt },
+  });
+  if (claim.count === 0) throw new QuoteSendError("Este presupuesto se está enviando ahora mismo. Espera unos segundos.", 409);
+
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
 
   // FRENO DE MARGEN (Juan, 31-ago-2026): este es el único camino por el que un
@@ -209,6 +220,7 @@ export async function finalizeAndSendQuote(opts: {
         status: quote.status === "DRAFT" ? "SENT" : quote.status,
         sentAt: quote.sentAt || now,
         adminSentBy: opts.actorEmail,
+        sendingAt: null,
       },
     });
     if (doSendEmail) {

@@ -525,7 +525,13 @@ async function handleLeadEvento(opts: {
 
       // ALTA 1(c): la cifra cambia DESPUÉS de que el presupuesto ya salió al
       // cliente. Se detecta ANTES de sobrescribir lead.priceCents.
-      const cifraCambiadaTrasEnvio = Boolean(lead.quoteId) && lead.priceCents != null && lead.priceCents !== precioCents;
+      // Solo alarma si el presupuesto YA SALIÓ: una cifra corregida sobre un
+      // borrador se vuelve a rellenar sin ruido (Juan, 18-sep-2026).
+      const quoteAtadoEstado = lead.quoteId
+        ? (await prisma.quote.findUnique({ where: { id: lead.quoteId }, select: { status: true } }))?.status ?? null
+        : null;
+      const cifraCambiadaTrasEnvio =
+        Boolean(lead.quoteId) && quoteAtadoEstado !== "DRAFT" && lead.priceCents != null && lead.priceCents !== precioCents;
       let quoteNumeroCambiado: string | null = null;
       if (cifraCambiadaTrasEnvio && lead.quoteId) {
         const q = await prisma.quote.findUnique({ where: { id: lead.quoteId }, select: { quoteNumber: true } });
@@ -548,6 +554,21 @@ async function handleLeadEvento(opts: {
       const aprendido = await import("@/lib/learned-rates")
         .then((m) => m.learnFromLeadPrice(lead.id))
         .catch((err) => ({ learned: false, reason: String(err?.message || err) }));
+
+      // La cifra cae en el BORRADOR atado (Juan, 17-sep-2026): coste real por
+      // línea y precio de venta el del motor, que solo sube si el margen no da.
+      // Sigue en borrador: lo revisa y lo envía Juan. Sin esto había que copiar
+      // el coste a mano y montar otro presupuesto era el camino fácil (Devaulx
+      // 2026-00160 / 2026-00166). Nunca toca un presupuesto ya enviado.
+      let borradorRelleno: { quoteNumber: string; quoteId: string; totalEur: number; costEur: number; subidas: number; margenBajo: string | null } | null = null;
+      let borradorFallo: string | null = null;
+      if (lead.quoteId && quoteAtadoEstado === "DRAFT") {
+        const relleno = await import("@/lib/lavori-quote-fill")
+          .then((m) => m.fillDraftQuoteFromLeadPrice(lead.id))
+          .catch((err) => ({ ok: false as const, reason: String(err?.message || err) }));
+        if (relleno.ok) borradorRelleno = relleno;
+        else borradorFallo = relleno.reason;
+      }
 
       // Funnel directo (Juan 15-sep-2026): esta solicitud fue SOLO al jurado
       // directo de su lengua y aún no tiene presupuesto atado → el precio recién
@@ -624,8 +645,13 @@ async function handleLeadEvento(opts: {
         plazoDias ? `Plazo propuesto: ${plazoDias} días.` : "Sin plazo indicado.",
         `Neto de cliente sugerido por el modelo 75/25: ${netoSugerido} € (+ IVA y envío).`,
         datos.notas ? `Notas: ${String(datos.notas)}` : "",
+        borradorRelleno
+          ? `✅ El borrador ${borradorRelleno.quoteNumber} ya tiene el coste puesto (${borradorRelleno.costEur.toFixed(2)} € base) y queda en ${borradorRelleno.totalEur.toFixed(2)} € con IVA${borradorRelleno.subidas > 0 ? `; ${borradorRelleno.subidas} línea(s) subidas sobre el precio del motor para no perder margen` : " (precio del motor intacto)"}. Revísalo y envíalo: https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${borradorRelleno.quoteId}`
+          : "",
+        borradorRelleno?.margenBajo ? `⚠ Margen por debajo del mínimo tras descuento/envío: ${borradorRelleno.margenBajo}` : "",
+        borradorFallo ? `⚠ No se pudo rellenar el borrador solo: ${borradorFallo}` : "",
         lineaDirecto,
-        directoResultado?.kind === "enviado" || directoResultado?.kind === "retenido" ? "" : montarLine,
+        directoResultado?.kind === "enviado" || directoResultado?.kind === "retenido" || borradorRelleno ? "" : montarLine,
       ].filter(Boolean));
       return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
     }

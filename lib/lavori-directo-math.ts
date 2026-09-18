@@ -27,27 +27,42 @@ export function channelPriceToBaseCents(priceCents: number, basis: PriceBasis): 
  * documento absorbe el redondeo para que la suma de costes sea EXACTA. Precio
  * al cliente por documento: +20 % sobre su coste, con el mismo suelo de 40 €
  * netos/doc del tarifario aprendido. */
+export function spreadCents(baseCents: number, weights: number[]): number[] {
+  const n = weights.length;
+  if (n === 0) return [];
+  const total = weights.reduce((a, w) => a + (w > 0 ? w : 0), 0);
+  const equalParts = total <= 0 || weights.some((w) => !w || w <= 0);
+  const shares = equalParts ? weights.map(() => baseCents / n) : weights.map((w) => (baseCents * w) / total);
+  const out: number[] = [];
+  let assigned = 0;
+  for (let i = 0; i < n; i++) {
+    if (i === n - 1) {
+      out.push(baseCents - assigned);
+    } else {
+      const c = Math.round(shares[i]);
+      out.push(c);
+      assigned += c;
+    }
+  }
+  return out;
+}
+
+/** Precio al cliente de una línea cuando ya se conoce el coste real del jurado:
+ * manda el precio del MOTOR (el que Juan ya tiene puesto en el borrador) y solo
+ * se sube si con ese precio el margen no llega (+20 %, suelo de 40 €/doc). */
+export function clientCentsWithMotorPrice(motorCents: number, costCents: number): number {
+  const minimo = Math.max(DOC_FLOOR_CENTS, roundUp50(costCents * (1 + DIRECT_MARGIN_PCT / 100)));
+  if (motorCents <= 0) return minimo;
+  return canAutoQuote(motorCents, costCents) && motorCents >= minimo ? motorCents : minimo;
+}
+
 export function directQuoteLines(
   baseCents: number,
   docs: { words: number | null }[]
 ): { clientCents: number; costCents: number }[] {
   const n = docs.length;
   if (n === 0) return [];
-  const totalWords = docs.reduce((a, d) => a + (d.words && d.words > 0 ? d.words : 0), 0);
-  const equalParts = totalWords <= 0 || docs.some((d) => !d.words || d.words <= 0);
-  const shares = equalParts ? docs.map(() => baseCents / n) : docs.map((d) => (baseCents * (d.words as number)) / totalWords);
-
-  const costs: number[] = [];
-  let assigned = 0;
-  for (let i = 0; i < n; i++) {
-    if (i === n - 1) {
-      costs.push(baseCents - assigned);
-    } else {
-      const c = Math.round(shares[i]);
-      costs.push(c);
-      assigned += c;
-    }
-  }
+  const costs = spreadCents(baseCents, docs.map((d) => (d.words && d.words > 0 ? d.words : 0)));
   return costs.map((costCents) => ({
     costCents,
     clientCents: Math.max(DOC_FLOOR_CENTS, roundUp50(costCents * (1 + DIRECT_MARGIN_PCT / 100))),

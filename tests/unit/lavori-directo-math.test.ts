@@ -76,3 +76,24 @@ test("exceedsQuotedCost: por encima del coste presupuestado SÍ excede", () => {
   assert.equal(exceedsQuotedCost(5851, 5849), true);
   assert.equal(exceedsQuotedCost(10000, 5849), true, "Daniela sube de 62 € a mucho más tras enviar el presupuesto");
 });
+
+test("spreadCents reparte exacto y cae a partes iguales sin pesos", async () => {
+  const { spreadCents } = await import("../../lib/lavori-directo-math.ts");
+  assert.deepEqual(spreadCents(10000, [1, 1]), [5000, 5000]);
+  assert.deepEqual(spreadCents(10000, [3, 1]), [7500, 2500]);
+  assert.deepEqual(spreadCents(10001, [1, 1, 1]).reduce((a, b) => a + b, 0), 10001);
+  assert.deepEqual(spreadCents(9000, [0, 5]), [4500, 4500]); // un peso vacío → partes iguales
+  assert.deepEqual(spreadCents(5000, []), []);
+});
+
+test("el precio del motor manda salvo que el margen no dé", async () => {
+  const { clientCentsWithMotorPrice } = await import("../../lib/lavori-directo-math.ts");
+  // Motor 120 €, coste real 50 € → se respeta el motor (margen de sobra).
+  assert.equal(clientCentsWithMotorPrice(12000, 5000), 12000);
+  // Motor 55 €, coste 50 € → margen insuficiente: sube a la regla (+20 %, redondeo 50 c).
+  assert.equal(clientCentsWithMotorPrice(5500, 5000), 6000);
+  // Motor por debajo del suelo de 40 €/doc con coste pequeño → suelo.
+  assert.equal(clientCentsWithMotorPrice(2500, 1000), 4000);
+  // Sin precio del motor → regla pura.
+  assert.equal(clientCentsWithMotorPrice(0, 10000), 12000);
+});

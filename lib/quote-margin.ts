@@ -131,12 +131,21 @@ export async function verifyTranslatorChannelPrice(input: {
       OR: [{ quoteId: input.quoteId }, ...(input.expedienteRef ? [{ expedienteRef: input.expedienteRef }] : [])],
     },
     orderBy: { updatedAt: "desc" },
-    select: { ref: true, priceCents: true, miembroNombre: true },
+    select: { ref: true, priceCents: true, miembroNombre: true, miembroId: true },
   });
+  // La cifra del canal puede venir en LÍQUIDO (base + IVA − IRPF): Daniela pasa
+  // 100 € que son 94,34 € de base. El coste de las líneas es BASE, así que se
+  // compara contra la base, no contra el líquido (si no, todo borrador suyo se
+  // bloqueaba con CANAL_SIN_VERIFICAR).
+  const [{ priceBasisForMember }, { channelPriceToBaseCents }] = await Promise.all([
+    import("@/lib/lavori-directo"),
+    import("@/lib/lavori-directo-math"),
+  ]);
+  const channelBaseCents = req?.priceCents != null ? channelPriceToBaseCents(req.priceCents, priceBasisForMember(req.miembroId)) : null;
 
   const toCents = (n: number | null | undefined) => Math.round((Number(n) || 0) * 100);
   const costCents = input.lines.reduce((a, l) => a + Math.round((Number(l.quantity) || 1) * toCents(l.supplierUnitCost)), 0);
-  const r = evaluateChannelPrice({ isFrench, channelPriceCents: req?.priceCents ?? null, costCents });
+  const r = evaluateChannelPrice({ isFrench, channelPriceCents: channelBaseCents, costCents });
   if (r.ok) return r;
 
   const eur = (c: number) => `${(c / 100).toFixed(2)} €`;
