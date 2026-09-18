@@ -53,6 +53,10 @@ export const metadata: Metadata = {
     follow: true,
   },
   manifest: "/manifest.webmanifest",
+  // Verificación del dominio en Meta (Business Manager → Seguridad → Dominios):
+  // prueba de que la web es de HBTJ, exigida para levantar la restricción de
+  // Política de comercio que bloquea el remitente de WhatsApp (18-sep-2026).
+  other: { "facebook-domain-verification": "5mofit289uvzwa9yfmdf72mb2fmyxf" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
