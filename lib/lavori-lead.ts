@@ -7,6 +7,7 @@
 // SOLO SERVIDOR (node:crypto, Blob, Prisma).
 import { createHash } from "node:crypto";
 import { leadDocKeys } from "@/lib/lavori-doc-keys";
+import { clientIdentityKeys } from "@/lib/client-identity";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import {
@@ -128,10 +129,16 @@ export async function findLiveSiblingLeadRequest(opts: {
   days?: number;
   excludeRef?: string | null;
 }) {
-  const email = String(opts.email || "").trim().toLowerCase();
-  const phoneDigits = String(opts.phone || "").replace(/\D/g, "");
-  const phoneKey = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : "";
-  if (!email && !phoneKey) return null;
+  // Todas las identidades de esta persona, no solo la que acaba de teclear: si
+  // Juan ha declarado que dos correos son el mismo cliente, el guardia los trata
+  // como uno. Sin esto, cambiar de email esquivaba la guarda entera — Walid
+  // entró con walidvanrijszen@ y luego con walidwalidhlali222@ + 658404151, y
+  // acabó con tres encargos abiertos y dos presupuestos a precios distintos
+  // (19-sep-2026).
+  const claves = clientIdentityKeys({ email: opts.email, phone: opts.phone });
+  if (claves.length === 0) return null;
+  const emails = claves.filter((k) => k.includes("@"));
+  const telefonos = claves.filter((k) => !k.includes("@"));
   const since = new Date(Date.now() - (opts.days ?? 14) * 86_400_000);
   const rows = await prisma.lavoriPriceRequest.findMany({
     where: {
@@ -145,7 +152,9 @@ export async function findLiveSiblingLeadRequest(opts: {
   });
   for (const r of rows) {
     const hint = (r.customerHint || "").toLowerCase();
-    const matches = (email && hint.includes(email)) || (phoneKey && hint.replace(/\D/g, "").includes(phoneKey));
+    const hintDigits = hint.replace(/\D/g, "");
+    const matches =
+      emails.some((e) => hint.includes(e)) || telefonos.some((t) => hintDigits.includes(t));
     if (!matches) continue;
     if (!r.quoteId) return { request: r, quote: null };
     const quote = await prisma.quote.findFirst({
