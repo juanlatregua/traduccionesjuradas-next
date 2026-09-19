@@ -40,12 +40,16 @@ test("lavoriRouteFromPair: carriles 12-ago — rumano (Maria) e inglés (Vanessa
   assert.deepEqual(esEn.candidatos, ["43dwlkzsr6lsltpwcj32m88s"]);
 });
 
-test("lavoriRouteFromPair: carriles — pt a Juan Amor (31-ago), árabe y neerlandés multi-candidato", () => {
+test("lavoriRouteFromPair: carriles — pt prioriza a Cristina y María Carmen (19-sep), árabe y neerlandés multi-candidato", () => {
   const ptEs = lavoriRouteFromPair("pt->es");
   assert.ok(ptEs);
-  // 31-ago (Juan): el portugués VA A JUAN AMOR — Carballo fuera (tarda mucho).
-  assert.equal(ptEs.candidatos.length, 1);
-  assert.equal(ptEs.candidatos[0], "rk1x2kq63rm6ba6mco7c6u2k"); // Juan Amor
+  // 19-sep (Juan): "ellas dos ponlas en prioritario de pt porque son activas".
+  // Van primero y Juan Amor queda de respaldo. Carballo sigue fuera (31-ago).
+  assert.deepEqual(ptEs.candidatos, [
+    "nhucqnd3q4znddxhe8qs5c51", // Cristina Aguilera Viladés
+    "1h8tul4zycnayru8bsi1tmu4", // María Carmen Lencastre De Albuquerque Charrua
+    "rk1x2kq63rm6ba6mco7c6u2k", // Juan Amor (respaldo)
+  ]);
   const arEs = lavoriRouteFromPair("ar->es");
   assert.ok(arEs);
   assert.equal(arEs.candidatos.length, 3); // los 3 jurados AR operativos

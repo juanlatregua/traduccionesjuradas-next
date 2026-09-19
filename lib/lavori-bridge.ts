@@ -50,7 +50,16 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // le mandes a Francisco cosas de portugués, tarda mucho"). María García
   // Garmendia también fuera al fijarse destino único. Historia: 13-ago eran
   // Francisco + María cotizando en paralelo.
+  // Carril 19-sep-2026 (orden de Juan: "ellas dos ponlas en prioritario de pt
+  // porque son activas"). Cristina y María Carmen cotizan y aceptan de verdad
+  // (26_94B23C y 26_B39FE1, las dos con encargo aceptado en lavori); Juan Amor
+  // se queda LAST como respaldo — nunca ha entrado en lavori, solo le llega el
+  // email, así que applyLiveFallback lo aparta y el envío va a ellas. Antes esto
+  // pasaba igual pero por accidente: el carril decía Juan Amor y la autoelección
+  // de la cartera viva las escogía sin que nadie lo hubiera decidido.
   pt: [
+    "nhucqnd3q4znddxhe8qs5c51", // Cristina Aguilera Viladés (PT>ES; aceptó 26_94B23C)
+    "1h8tul4zycnayru8bsi1tmu4", // María Carmen Lencastre De Albuquerque Charrua (PT>ES; aceptó 26_B39FE1)
     "rk1x2kq63rm6ba6mco7c6u2k", // Juan Amor Fernández (T-IJ 132, de/en/it/pt/ca)
   ],
   // Carril 14-ago-2026 (demanda GSC: mayor familia sin marca del site).
@@ -188,6 +197,8 @@ export const LAVORI_MEMBERS: LavoriMember[] = [
   { id: "qetmckaaselyjwn072805xue", nombre: "Ángeles Garrido", tij: "1087", langs: ["en"] },
   // pt / it
   { id: "whvx8ft5w6wi50hchczh48hp", nombre: "Francisco Carballo Cruz", tij: "3783", langs: ["pt"], papelUnico: true },
+  { id: "nhucqnd3q4znddxhe8qs5c51", nombre: "Cristina Aguilera Viladés", langs: ["pt"] },
+  { id: "1h8tul4zycnayru8bsi1tmu4", nombre: "María Carmen Lencastre De Albuquerque Charrua", langs: ["pt"] },
   { id: "f4pyspe0hsa1ss99siaokqti", nombre: "María García Garmendia", tij: "4176", langs: ["it", "pt"], canal: false, nota: "sin email ni push" },
   { id: "imk4gzmqp0uhyfqku9fqs0mb", nombre: "Silvia Capón Sánchez", tij: "9161", langs: ["pt"], disponible: false },
   { id: "rk1x2kq63rm6ba6mco7c6u2k", nombre: "Juan Amor Fernández", tij: "132", langs: ["de", "en", "it", "pt", "ca"], nota: "nunca ha entrado; email sí" },
