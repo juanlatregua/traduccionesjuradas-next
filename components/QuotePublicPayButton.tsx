@@ -29,6 +29,7 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
   const [tab, setTab] = useState<PayTab>(autoStartCard ? "tarjeta" : firstTab);
   const autoStarted = useRef(false);
   const [loading, setLoading] = useState(false);
+  const [declaring, setDeclaring] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -53,6 +54,25 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       setMessage(err?.message || "No se pudo iniciar el pago.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // "Ya he transferido": crea la cáscara del pedido SIN cobro y lleva a su
+  // pantalla de pago, que es la que tiene el formulario de subida del
+  // justificante. El justificante no cobra nada: lo valida el staff a mano.
+  async function declareTransfer() {
+    setDeclaring(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/quotes/public/${token}/declare-transfer`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data?.ok || !data?.url) {
+        throw new Error(data?.error || "No se pudo continuar.");
+      }
+      window.location.href = data.url;
+    } catch (err: any) {
+      setMessage(err?.message || "No se pudo continuar.");
+      setDeclaring(false);
     }
   }
 
@@ -144,6 +164,21 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
           <p className="text-[11px] text-graphite">
             Desde fuera de la zona SEPA: transferencia SWIFT en EUR con BIC, IBAN y las direcciones de arriba (gastos compartidos, SHA).
           </p>
+          <div className="mt-3 rounded-xl border border-bleu/20 bg-bleu/5 p-3">
+            <p className="text-xs font-semibold text-encre">¿Ya has hecho la transferencia?</p>
+            <p className="mt-1 text-[11px] text-graphite">
+              Súbenos el justificante y la confirmamos nosotros. Solo tarda un momento.
+            </p>
+            <button
+              type="button"
+              onClick={declareTransfer}
+              disabled={declaring}
+              className="mt-2 w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {declaring ? "Un momento..." : "Ya he transferido: subir justificante"}
+            </button>
+          </div>
+          {message && <p className="text-xs font-semibold text-red-700">{message}</p>}
         </div>
       )}
 
