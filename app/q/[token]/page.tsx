@@ -15,6 +15,7 @@ import QuotePublicPayButton from "@/components/QuotePublicPayButton";
 import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
 import QuoteDocumentsViewer from "@/components/QuoteDocumentsViewer";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { pickPublicLang, publicDict, statusLabel, localeFor } from "@/lib/quote-public-i18n";
 
 type Props = {
   params: { token: string };
@@ -128,6 +129,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
     where: { id: quote.id },
     select: {
       paymentMethods: true,
+      pdfLang: true,
       id: true,
       quoteNumber: true,
       status: true,
@@ -187,56 +189,62 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
     sourceFileUrl: l.sourceFileUrl ? `doc-${fileKeys.indexOf(l.sourceFileUrl)}.${extOf(l.sourceFileUrl)}` : null,
   }));
 
+  // Idioma del cliente: el mismo que Juan eligió para el PDF (Quote.pdfLang).
+  // Antes esta página salía siempre en español aunque el PDF fuera en inglés.
+  const lang = pickPublicLang(refreshed.pdfLang);
+  const t = publicDict(lang);
+  const loc = localeFor(lang);
+
   return (
-    <main className="min-h-screen bg-parchment px-4 py-10">
+    <main className="min-h-screen bg-parchment px-4 py-10" lang={lang}>
       <section className="mx-auto max-w-5xl rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-          Presupuesto {refreshed.quoteNumber}
+          {t.quote} {refreshed.quoteNumber}
         </p>
-        <h1 className="mt-2 text-2xl font-bold text-encre">Traducción jurada</h1>
+        <h1 className="mt-2 text-2xl font-bold text-encre">{t.swornTranslation}</h1>
         <p className="mt-1 text-sm text-sepia">
-          Estado: <strong>{QUOTE_STATUS_LABELS[status as QuoteStatus]}</strong> · Validez hasta{" "}
-          <strong>{refreshed.validUntil.toLocaleDateString("es-ES")}</strong>
+          {t.status}: <strong>{statusLabel(status, lang)}</strong> · {t.validUntil}{" "}
+          <strong>{refreshed.validUntil.toLocaleDateString(loc)}</strong>
         </p>
 
         {searchParams?.paid === "1" && (
           <p className="mt-3 rounded-xl border border-cream bg-cream px-3 py-2 text-sm text-bleu">
-            Pago recibido correctamente. Te hemos enviado confirmación por email.
+            {t.paidOk}
           </p>
         )}
         {searchParams?.canceled === "1" && (
           <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Pago cancelado. Puedes intentarlo de nuevo cuando quieras.
+            {t.canceled}
           </p>
         )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div className="space-y-4 rounded-2xl border border-cream p-4">
-            <h2 className="text-lg font-semibold text-encre">Detalle</h2>
+            <h2 className="text-lg font-semibold text-encre">{t.detail}</h2>
             <p className="text-sm text-sepia">
-              Cliente: <strong>Datos protegidos</strong>
+              {t.client}: <strong>{t.clientProtected}</strong>
             </p>
             <p className="text-sm text-sepia">
-              Idiomas: <strong>{refreshed.sourceLang}</strong> → <strong>{refreshed.targetLang}</strong>
+              {t.languages}: <strong>{refreshed.sourceLang}</strong> → <strong>{refreshed.targetLang}</strong>
             </p>
             <p className="text-sm text-sepia">
-              Entrega:{" "}
+              {t.delivery}:{" "}
               <strong>
-                {refreshed.deliveryType === "PAPER_SHIP" ? "Papel con envío 24/48h" : "PDF digital firmado"}
+                {refreshed.deliveryType === "PAPER_SHIP" ? t.deliveryPaper : t.deliveryDigital}
               </strong>
             </p>
             {refreshed.holderNames && refreshed.holderNames.trim() && (
               <p className="text-sm text-sepia">
-                Titulares: <strong>{refreshed.holderNames}</strong>
+                {t.holders}: <strong>{refreshed.holderNames}</strong>
               </p>
             )}
             {refreshed.translatorName && (
               <p className="rounded-xl border border-cream bg-cream/60 px-3 py-2 text-sm text-encre">
-                🖋 Su traducción la realiza <strong>{refreshed.translatorName}</strong>, traductor/a-intérprete
-                jurado/a{refreshed.translatorMaec ? <> nº <strong>{refreshed.translatorMaec}</strong></> : null} nombrado/a
-                por el Ministerio de Asuntos Exteriores.{" "}
+                🖋 {t.translatorIntro} <strong>{refreshed.translatorName}</strong>, {t.translatorSworn}
+                {refreshed.translatorMaec ? <> {t.translatorNumber} <strong>{refreshed.translatorMaec}</strong></> : null}{" "}
+                {t.translatorAppointed}{" "}
                 <a href="/red-de-traductores-jurados" className="font-semibold text-bleu hover:underline">
-                  Conozca nuestra red directa →
+                  {t.ourNetwork}
                 </a>
               </p>
             )}
@@ -245,10 +253,10 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               <table className="w-full text-left text-sm">
                 <thead className="bg-cream text-sepia">
                   <tr>
-                    <th className="px-3 py-2">Descripción</th>
-                    <th className="px-3 py-2 text-right">Cant.</th>
-                    <th className="px-3 py-2 text-right">Precio</th>
-                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2">{t.colDescription}</th>
+                    <th className="px-3 py-2 text-right">{t.colQty}</th>
+                    <th className="px-3 py-2 text-right">{t.colPrice}</th>
+                    <th className="px-3 py-2 text-right">{t.colTotal}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -264,14 +272,14 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                               rel="noopener noreferrer"
                               className="font-semibold text-bleu hover:underline"
                             >
-                              ver documento
+                              {t.viewDocument}
                             </a>
                             <span className="text-graphite"> · </span>
                             <a
                               href={`/api/q/${params.token}/document?line=${encodeURIComponent(line.id)}&download=1`}
                               className="font-semibold text-bleu hover:underline"
                             >
-                              descargar
+                              {t.download}
                             </a>
                           </span>
                         )}
@@ -287,30 +295,30 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
           </div>
 
           <aside className="space-y-3 rounded-2xl border border-cream p-4">
-            <h2 className="text-base font-semibold text-encre">Resumen</h2>
+            <h2 className="text-base font-semibold text-encre">{t.summary}</h2>
             <p className="flex items-center justify-between text-sm text-sepia">
-              <span>Subtotal</span>
+              <span>{t.subtotal}</span>
               <strong>{formatMoney(subtotal)}</strong>
             </p>
             <p className="flex items-center justify-between text-sm text-sepia">
-              <span>Descuento</span>
+              <span>{t.discount}</span>
               <strong>- {formatMoney(discountAmount)}</strong>
             </p>
             <p className="flex items-center justify-between text-sm text-sepia">
-              <span>Envío</span>
+              <span>{t.shipping}</span>
               <strong>{formatMoney(shippingAmount)}</strong>
             </p>
             <p className="flex items-center justify-between text-sm text-sepia">
-              <span>IVA</span>
+              <span>{t.vat}</span>
               <strong>{formatMoney(vatAmount)}</strong>
             </p>
             <p className="flex items-center justify-between border-t border-cream pt-2 text-base text-encre">
-              <span>Total</span>
+              <span>{t.total}</span>
               <strong>{formatMoney(total)}</strong>
             </p>
             {refreshed.deliveryType === "PAPER_SHIP" && (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                El envío en papel (12 € + IVA) está incluido en el total.
+                {t.paperIncluded}
               </p>
             )}
             <QuotePublicPayButton
@@ -320,13 +328,14 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               totalLabel={formatMoney(total)}
               autoStartCard={searchParams?.pago === "tarjeta"}
               paymentMethods={refreshed.paymentMethods}
+              lang={lang}
             />
           </aside>
         </div>
 
         {fileKeys.length > 0 && (
           <section className="mt-6 rounded-2xl border border-cream p-4">
-            <QuoteDocumentsViewer lines={docLines} token={params.token} title="Sus documentos" />
+            <QuoteDocumentsViewer lines={docLines} token={params.token} title={t.yourDocuments} />
           </section>
         )}
 
@@ -343,7 +352,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
         )}
 
         <section className="mt-6 rounded-2xl border border-cream p-4">
-          <h2 className="text-base font-semibold text-encre">PDF del presupuesto</h2>
+          <h2 className="text-base font-semibold text-encre">{t.pdfTitle}</h2>
           {refreshed.pdfUrl ? (
             <div className="mt-3 space-y-3">
               <iframe
@@ -357,12 +366,12 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 rel="noopener noreferrer"
                 className="inline-flex rounded-lg border border-bleu/40 px-3 py-2 text-sm font-semibold text-bleu hover:bg-cream"
               >
-                Abrir / descargar PDF completo
+                {t.pdfOpen}
               </a>
             </div>
           ) : (
             <p className="mt-2 text-sm text-sepia">
-              El PDF final se mostrará en cuanto el presupuesto sea confirmado por el equipo.
+              {t.pdfPending}
             </p>
           )}
         </section>

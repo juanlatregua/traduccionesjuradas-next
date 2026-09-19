@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import CopyField from "@/components/CopyField";
 import { resolvePaymentAccounts } from "@/lib/payment-labels";
+import { publicDict, type PublicLang } from "@/lib/quote-public-i18n";
 
 type Props = {
   token: string;
@@ -16,12 +17,15 @@ type Props = {
   // Métodos elegidos en el presupuesto (Quote.paymentMethods): la web enseña lo
   // mismo que el PDF y el mensaje. Antes salía BBVA/607 fijo por constantes.
   paymentMethods?: string[] | null;
+  /** Idioma del cliente (Quote.pdfLang). Por defecto español. */
+  lang?: PublicLang;
 };
 
 type PayTab = "bizum" | "transferencia" | "tarjeta";
 
 
-export default function QuotePublicPayButton({ token, isPayable, quoteNumber, totalLabel, autoStartCard, paymentMethods }: Props) {
+export default function QuotePublicPayButton({ token, isPayable, quoteNumber, totalLabel, autoStartCard, paymentMethods, lang = "es" }: Props) {
+  const t = publicDict(lang);
   const accounts = resolvePaymentAccounts(paymentMethods);
   const bizums = accounts.filter((a) => a.account.kind === "bizum");
   const banks = accounts.filter((a) => a.account.kind === "transfer");
@@ -34,7 +38,7 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
   const [toast, setToast] = useState<string | null>(null);
 
   const onCopy = (label: string) => {
-    setToast(`Copiado: ${label}`);
+    setToast(`${t.copied}: ${label}`);
     setTimeout(() => setToast(null), 1600);
   };
 
@@ -47,11 +51,11 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       });
       const data = await res.json();
       if (!res.ok || !data?.ok || !data?.url) {
-        throw new Error(data?.error || "No se pudo iniciar el pago.");
+        throw new Error(data?.error || t.errPay);
       }
       window.location.href = data.url;
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo iniciar el pago.");
+      setMessage(err?.message || t.errPay);
     } finally {
       setLoading(false);
     }
@@ -67,11 +71,11 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       const res = await fetch(`/api/quotes/public/${token}/declare-transfer`, { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data?.ok || !data?.url) {
-        throw new Error(data?.error || "No se pudo continuar.");
+        throw new Error(data?.error || t.errContinue);
       }
       window.location.href = data.url;
     } catch (err: any) {
-      setMessage(err?.message || "No se pudo continuar.");
+      setMessage(err?.message || t.errContinue);
       setDeclaring(false);
     }
   }
@@ -86,20 +90,20 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
   if (!isPayable) {
     return (
       <p className="text-xs text-sepia">
-        Este presupuesto no admite pago en su estado actual.
+        {t.notPayable}
       </p>
     );
   }
 
   const tabs: { key: PayTab; label: string }[] = [
-    ...(bizums.length ? [{ key: "bizum" as const, label: "Bizum" }] : []),
-    ...(banks.length ? [{ key: "transferencia" as const, label: "Transferencia" }] : []),
-    { key: "tarjeta", label: "Tarjeta" },
+    ...(bizums.length ? [{ key: "bizum" as const, label: t.tabBizum }] : []),
+    ...(banks.length ? [{ key: "transferencia" as const, label: t.tabTransfer }] : []),
+    { key: "tarjeta", label: t.tabCard },
   ];
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-graphite">Forma de pago</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{t.payHow}</p>
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl border border-cream bg-parchment p-1">
@@ -128,9 +132,9 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
           {bizums.map((b) => (
             <CopyField key={b.key} label="Bizum" value={b.account.kind === "bizum" ? b.account.phone : ""} onCopied={onCopy} />
           ))}
-          <CopyField label="Concepto" value={quoteNumber} onCopied={onCopy} />
+          <CopyField label={t.concept} value={quoteNumber} onCopied={onCopy} />
           <p className="text-[11px] text-graphite">
-            Indica el número de presupuesto en el concepto. Se confirma en menos de 24 h laborables.
+            {t.conceptHint}
           </p>
         </div>
       )}
@@ -139,35 +143,35 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       {tab === "transferencia" && (
         <div className="space-y-2">
           <p className="text-xs text-sepia">
-            Realiza una transferencia por <strong>{totalLabel}</strong>:
+            {t.transferDo} <strong>{totalLabel}</strong>:
           </p>
           {banks.map((b) =>
             b.account.kind === "transfer" ? (
               <div key={b.key} className="space-y-2">
                 {banks.length > 1 && <p className="text-[11px] font-semibold text-graphite">{b.account.bank}</p>}
-                <CopyField label="Beneficiario" value={b.account.holder} mono={false} onCopied={onCopy} />
-                <CopyField label="IBAN" value={b.account.iban} onCopied={onCopy} />
-                <CopyField label="BIC/SWIFT" value={b.account.bic} onCopied={onCopy} />
+                <CopyField label={t.beneficiary} value={b.account.holder} mono={false} onCopied={onCopy} />
+                <CopyField label={t.iban} value={b.account.iban} onCopied={onCopy} />
+                <CopyField label={t.bic} value={b.account.bic} onCopied={onCopy} />
                 {b.account.holderAddress && (
-                  <CopyField label="Dirección del beneficiario" value={b.account.holderAddress} mono={false} onCopied={onCopy} />
+                  <CopyField label={t.beneficiaryAddress} value={b.account.holderAddress} mono={false} onCopied={onCopy} />
                 )}
                 {b.account.bankAddress && (
-                  <CopyField label="Dirección del banco" value={b.account.bankAddress} mono={false} onCopied={onCopy} />
+                  <CopyField label={t.bankAddress} value={b.account.bankAddress} mono={false} onCopied={onCopy} />
                 )}
               </div>
             ) : null
           )}
-          <CopyField label="Concepto" value={quoteNumber} onCopied={onCopy} />
+          <CopyField label={t.concept} value={quoteNumber} onCopied={onCopy} />
           <p className="text-[11px] text-graphite">
-            Indica el número de presupuesto en el concepto. Se confirma en menos de 24 h laborables.
+            {t.conceptHint}
           </p>
           <p className="text-[11px] text-graphite">
-            Desde fuera de la zona SEPA: transferencia SWIFT en EUR con BIC, IBAN y las direcciones de arriba (gastos compartidos, SHA).
+            {t.sepaNote}
           </p>
           <div className="mt-3 rounded-xl border border-bleu/20 bg-bleu/5 p-3">
-            <p className="text-xs font-semibold text-encre">¿Ya has hecho la transferencia?</p>
+            <p className="text-xs font-semibold text-encre">{t.alreadyTransferred}</p>
             <p className="mt-1 text-[11px] text-graphite">
-              Súbenos el justificante y la confirmamos nosotros. Solo tarda un momento.
+              {t.alreadyTransferredHelp}
             </p>
             <button
               type="button"
@@ -175,7 +179,7 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
               disabled={declaring}
               className="mt-2 w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {declaring ? "Un momento..." : "Ya he transferido: subir justificante"}
+              {declaring ? t.oneMoment : t.alreadyTransferredCta}
             </button>
           </div>
           {message && <p className="text-xs font-semibold text-red-700">{message}</p>}
@@ -191,10 +195,10 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
             disabled={loading}
             className="w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Redirigiendo..." : `Pagar ${totalLabel} con tarjeta`}
+            {loading ? t.redirecting : `${t.payCard} ${totalLabel}`}
           </button>
           <p className="text-[11px] text-graphite">
-            Pago seguro con tarjeta de crédito o débito (según disponibilidad).
+            {t.cardNote}
           </p>
           {message && <p className="text-xs font-semibold text-red-700">{message}</p>}
         </div>
