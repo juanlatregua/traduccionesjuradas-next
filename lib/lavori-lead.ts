@@ -6,6 +6,7 @@
 // customerHint se queda en NUESTRA base para que el staff sepa de quién era.
 // SOLO SERVIDOR (node:crypto, Blob, Prisma).
 import { createHash } from "node:crypto";
+import { leadDocKeys } from "@/lib/lavori-doc-keys";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import {
@@ -28,7 +29,14 @@ import { TYPE_LABELS } from "@/lib/diagnosis";
 export const LEAD_BLOB_HOST_RE = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//;
 export const LEAD_MAX_DOCS = 10;
 
-export type LeadDoc = { url: string; name?: string; pageStart?: number; pageEnd?: number };
+export type LeadDoc = {
+  url: string;
+  name?: string;
+  pageStart?: number;
+  pageEnd?: number;
+  /** sha256 del fichero. Identifica el DOCUMENTO; la url identifica la SUBIDA. */
+  hash?: string | null;
+};
 
 /** Nombre neutro: tipo documental si lo hay; jamás el fichero original del
  * cliente (los adjuntos de WhatsApp suelen llevar su nombre). */
@@ -216,10 +224,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   // Ref estable a partir del contenido: repetir con los mismos documentos y par
   // NO duplica el encargo (idempotencia local + lavori). Una elección de
   // candidatos distinta del carril por defecto SÍ es otra solicitud.
-  const docKeys = docs
-    .map((d) => `${d.url}#${Number(d.pageStart) || 1}-${Number(d.pageEnd) || ""}`)
-    .sort()
-    .join("|");
+  const docKeys = leadDocKeys(docs);
   const refSeed = `${docKeys}|${route.par}${eleccion.elegidos ? `|${[...candidatos].sort().join(",")}` : ""}`;
   const ref = `LEAD-${createHash("sha256").update(refSeed).digest("hex").slice(0, 10).toUpperCase()}`;
 
@@ -281,6 +286,7 @@ export async function leadFromPuertaSession(sessionToken: string) {
       id: true,
       fileName: true,
       fileUrl: true,
+      fileHash: true,
       documentType: true,
       analysisJson: true,
       sourceLanguage: true,
@@ -300,6 +306,7 @@ export async function leadFromPuertaSession(sessionToken: string) {
   const docs: LeadDoc[] = rows.map((r, i) => ({
     url: r.fileUrl,
     name: docTypeLabelEs(r.documentType, r.analysisJson) || `documento-${i + 1}`,
+    hash: r.fileHash,
   }));
   const tipos = Array.from(new Set(docs.map((d) => d.name).filter(Boolean))) as string[];
   const contact = {

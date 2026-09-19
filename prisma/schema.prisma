@@ -1071,6 +1071,11 @@ model InboundEmail {
   repliedBy         String?
   briefJson         Json? // lectura IA del email (par, urgencia, provisional, notas, preguntas)
   briefAt           DateTime?
+  // Lectura del ADJUNTO como posible justificante de pago (19-sep-2026): qué dice
+  // el documento y con qué presupuesto cuadra. proofAt sella que ya se miró, para
+  // no volver a pagar la misma lectura (misma lección que el hash de documentos).
+  proofJson         Json?
+  proofAt           DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
