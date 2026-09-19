@@ -831,6 +831,12 @@ model DocumentAnalysis {
   fileUrl          String
   fileSize         Int
   mimeType         String
+  // sha256 del fichero (19-sep-2026): identifica el DOCUMENTO por su contenido,
+  // no por la subida. Sin esto, el mismo PDF subido otra vez era un documento
+  // nuevo y se volvía a pagar el análisis — y podía devolver otro conteo de
+  // palabras, o sea OTRO PRECIO por el mismo papel (titulopau.pdf: 1.850 y
+  // luego 1.254; CamScanner.pdf analizado 7 veces).
+  fileHash         String?
   pageCount        Int                    @default(1)
 
   // Análisis IA (respuesta completa de Claude)
@@ -892,6 +898,7 @@ model DocumentAnalysis {
   updatedAt        DateTime               @updatedAt
 
   @@index([sessionToken])
+  @@index([fileHash])
   @@index([status, createdAt])
   @@index([clientEmail])
   @@index([orderReference])

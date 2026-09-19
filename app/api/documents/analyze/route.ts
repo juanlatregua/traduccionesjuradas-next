@@ -7,6 +7,7 @@ import { checkRateLimit, getClientIp, checkGlobalAnalysisCap } from "@/lib/rate-
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import { runDocumentAnalysis } from "@/lib/ai/run-analysis";
+import { hashFileBuffer, pickReusableTwin } from "@/lib/document-dedup";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { buildDiagnosis, resolveForeignLang } from "@/lib/diagnosis";
@@ -143,21 +144,48 @@ export async function POST(req: Request) {
 
     const fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
 
+    // Un documento es su CONTENIDO, no su subida (19-sep-2026, orden de Juan:
+    // "que un cliente no haga eso más de una vez"). Si este mismo cliente ya
+    // analizó este mismo fichero, se reutiliza su análisis: ni se paga otra
+    // llamada ni el mismo papel puede devolver otro conteo de palabras —y por
+    // tanto otro precio— según el día.
+    const fileHash = hashFileBuffer(fileBuffer);
+    const gemelos = await prisma.documentAnalysis
+      .findMany({
+        where: { fileHash },
+        select: { id: true, status: true, analysisJson: true, clientEmail: true, sessionToken: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      })
+      .catch(() => []);
+    const gemelo = pickReusableTwin(gemelos, {
+      documentId,
+      clientEmail: doc.clientEmail,
+      sessionToken: doc.sessionToken,
+    });
+
     // Runner por capas: PDF con capa de texto → Haiku sobre texto (barato);
     // escaneo/imagen → Sonnet visión. Trunca PDFs largos internamente.
     const analysisStart = Date.now();
     let analysis;
     try {
-      const run = await Promise.race([
-        runDocumentAnalysis({
-          buffer: fileBuffer,
-          mimeType: doc.mimeType,
-          fileName: doc.fileName,
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 115s")), 115000)
-        ),
-      ]);
+      const run = gemelo
+        ? { analysis: gemelo.analysisJson as DocumentAnalysisResult }
+        : await Promise.race([
+            runDocumentAnalysis({
+              buffer: fileBuffer,
+              mimeType: doc.mimeType,
+              fileName: doc.fileName,
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 115s")), 115000)
+            ),
+          ]);
+      if (gemelo) {
+        console.log(
+          `[documents/analyze] REUTILIZADO el análisis de ${gemelo.id} (mismo sha256, mismo cliente): sin llamada a Claude`
+        );
+      }
       // El par que el cliente DECLARÓ en la puerta manda sobre lo detectado
       // (solo existe en la fila antes del análisis: status UPLOADED/ANALYZING).
       analysis = applyDeclaredLanguages(run.analysis, { source: doc.sourceLanguage, target: doc.targetLanguage });
@@ -221,6 +249,7 @@ export async function POST(req: Request) {
       where: { id: documentId },
       data: {
         status: "QUOTE_GENERATED",
+        fileHash,
         analysisJson: analysis as any,
         documentType: analysis.document_type.specific_type,
         documentCategory: analysis.document_type.category,
