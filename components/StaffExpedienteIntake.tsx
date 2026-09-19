@@ -863,13 +863,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     setLavoriPick(lavoriFixed ? { mode: "carril" } : { mode: "todos" });
   }, [lavoriFixed]);
 
-  const sendLavoriPrice = useCallback(async () => {
-    if (!lavoriRoute || lavoriDocs.length === 0) return;
+  const sendLavoriPrice = useCallback(async (): Promise<string | null> => {
+    if (!lavoriRoute || lavoriDocs.length === 0) return null;
     const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
     const pickError = lavoriPickError(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
     if (pickError) {
       setLavoriState({ phase: "error", msg: pickError });
-      return;
+      return null;
     }
     setLavoriState({ phase: "sending" });
     try {
@@ -901,9 +901,10 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       const data = await res.json();
       if (!data.ok) {
         setLavoriState({ phase: "error", msg: data.error || "No se pudo enviar la solicitud." });
-        return;
+        return null;
       }
-      if (typeof data.ref === "string" && data.ref) setLavoriLeadRefSent(data.ref);
+      const refEnviada = typeof data.ref === "string" && data.ref ? data.ref : null;
+      if (refEnviada) setLavoriLeadRefSent(refEnviada);
       const aQuien = describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros);
       const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       setLavoriState({
@@ -912,12 +913,14 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           ? `Esta solicitud ya estaba enviada a ${aQuien} (no se ha duplicado).`
           : `✓ Enviada a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador (el precio del motor se mantiene salvo que el margen no dé). Si no lo generas, el email con su precio te traerá aquí ya atado.`,
       });
+      return refEnviada;
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
+      return null;
     }
   }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros]);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (leadRefRecienEnviada?: string) => {
     setSubmitError(null);
     setSubmitting(true);
     try {
@@ -959,7 +962,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           targetLang,
           deliveryType,
           expedienteRef: expedienteRef || undefined,
-          lavoriLeadRef: lavoriLeadRef || lavoriLeadRefSent || undefined,
+          lavoriLeadRef: lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || undefined,
           pdfLang,
           discountType: discountPct > 0 ? "PERCENT" : "NONE",
           discountValue: discountPct,
@@ -986,6 +989,19 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       setSubmitting(false);
     }
   }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
+
+  // "Pedir precio y dejar en espera" (19-sep-2026, orden de Juan: «hay momentos
+  // que no quiero aventurarme»). Hace los DOS pasos en el único orden que ata la
+  // solicitud al borrador: primero se pide el precio —así queda la ref— y luego
+  // se genera. Al revés, el presupuesto nace sin vínculo y la cifra del jurado
+  // no cae en ningún sitio cuando llega (caso Walid, 19-sep).
+  const handleAskThenDraft = useCallback(async () => {
+    setSubmitError(null);
+    const ref = await sendLavoriPrice();
+    if (!ref) return; // sendLavoriPrice ya ha pintado el error
+    await handleSubmit(ref);
+  }, [sendLavoriPrice, handleSubmit]);
+
 
   return (
     <div className="space-y-6 text-slate-200">
@@ -1687,18 +1703,36 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             </div>
           </div>
           {submitError && <p className="text-sm text-amber-400">{submitError}</p>}
-          <button
-            type="button"
-            disabled={!canSubmit}
-            onClick={handleSubmit}
-            className="rounded-xl bg-cyan-600 px-5 py-2.5 font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {submitting ? "Creando…" : `Generar presupuesto (${includedDocs.length} doc${includedDocs.length > 1 ? "s" : ""})`}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={() => handleSubmit()}
+              className="rounded-xl bg-cyan-600 px-5 py-2.5 font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {submitting ? "Creando…" : `Generar presupuesto (${includedDocs.length} doc${includedDocs.length > 1 ? "s" : ""})`}
+            </button>
+            {lavoriRoute && lavoriDocs.length > 0 && !lavoriLeadRefSent && (
+              <button
+                type="button"
+                disabled={!canSubmit || lavoriState.phase === "sending"}
+                onClick={handleAskThenDraft}
+                className="rounded-xl border border-violet-500/60 bg-violet-600/20 px-5 py-2.5 font-semibold text-violet-200 hover:bg-violet-600/30 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Pide el precio a los jurados y deja el presupuesto en borrador, atado a esa solicitud. Cuando contesten, su cifra cae sola en el borrador."
+              >
+                {lavoriState.phase === "sending" || submitting ? "Pidiendo…" : "Pedir precio y dejar en espera"}
+              </button>
+            )}
+          </div>
           {!canSubmit && !submitting && missing.length > 0 && (
             <p className="text-xs text-amber-400">Falta: {missing.join(", ")}.</p>
           )}
-          <p className="text-xs text-slate-500">Se crea como borrador en Presupuestos para revisar y enviar.</p>
+          <p className="text-xs text-slate-500">
+            Se crea como borrador en Presupuestos para revisar y enviar.
+            {lavoriRoute && lavoriDocs.length > 0 && !lavoriLeadRefSent
+              ? " Si el precio lo pone el jurado, usa «Pedir precio y dejar en espera»: el borrador queda atado a la solicitud y su cifra cae sola cuando conteste."
+              : ""}
+          </p>
         </div>
       )}
     </div>

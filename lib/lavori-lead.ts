@@ -224,6 +224,18 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   // Ref estable a partir del contenido: repetir con los mismos documentos y par
   // NO duplica el encargo (idempotencia local + lavori). Una elección de
   // candidatos distinta del carril por defecto SÍ es otra solicitud.
+  // La huella del contenido puede no venir del llamador (el builder y el enlace
+  // de un toque mandan solo la url). Se resuelve aquí, en el chokepoint, para
+  // que los TRES carriles compartan la misma idempotencia sin tener que
+  // acordarse cada uno.
+  const sinHuella = docs.filter((d) => !d.hash).map((d) => d.url);
+  if (sinHuella.length > 0) {
+    const filas = await prisma.documentAnalysis
+      .findMany({ where: { fileUrl: { in: sinHuella }, fileHash: { not: null } }, select: { fileUrl: true, fileHash: true } })
+      .catch(() => []);
+    const porUrl = new Map(filas.map((r) => [r.fileUrl, r.fileHash]));
+    for (const d of docs) if (!d.hash) d.hash = porUrl.get(d.url) ?? null;
+  }
   const docKeys = leadDocKeys(docs);
   const refSeed = `${docKeys}|${route.par}${eleccion.elegidos ? `|${[...candidatos].sort().join(",")}` : ""}`;
   const ref = `LEAD-${createHash("sha256").update(refSeed).digest("hex").slice(0, 10).toUpperCase()}`;
