@@ -26,6 +26,8 @@ import {
 } from "@/lib/lavori-bridge";
 import { checkDocForSobre, describeDocForSobre } from "@/lib/lavori-sobre";
 import { TYPE_LABELS } from "@/lib/diagnosis";
+import { ANALYSIS_SELECT, docInfoFromAnalysis, isLearnedRatesLive } from "@/lib/learned-rates";
+import { proposedCostCents, type CifraDoc, type PriceBasis } from "@/lib/lavori-directo-math";
 
 export const LEAD_BLOB_HOST_RE = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//;
 export const LEAD_MAX_DOCS = 10;
@@ -263,12 +265,17 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
 
   const words = Number.isFinite(Number(input.words)) && Number(input.words) > 0 ? Math.round(Number(input.words)) : null;
   const especificaciones = String(input.especificaciones || "").trim().slice(0, 2000) || null;
+  const cifra = await cifraOrientativaFor(docs, candidatos).catch((err) => {
+    console.error("[lavori-lead] cifra orientativa fallo:", err);
+    return null;
+  });
   const payload = buildPriceRequestPayload({
     reference: ref,
     route: { ...route, candidatos },
     words,
     especificaciones,
     documentos,
+    cifra,
   });
   const result = await sendLavoriSolicitud(payload);
   if (!result.ok) return { ok: false, status: 502, error: result.error };
@@ -294,6 +301,45 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     });
 
   return { ok: true, repetido: result.repetido, ref, encargoId: result.encargoId, candidatos, par: route.par, nombres, respaldo };
+}
+
+/** Cifra que se propone al jurado (orden Juan 21-sep-2026): el coste del
+ * tarifario aprendido (APPROVED o CANDIDATE) de cada documento, si TODOS lo
+ * tienen. A un único jurado que cotiza en líquido se le da en su formato. */
+export async function cifraOrientativaFor(docs: LeadDoc[], candidatos: string[]): Promise<{ cents: number; tipos: string[] } | null> {
+  if (!isLearnedRatesLive() || docs.length === 0) return null;
+  if (docs.some((d) => Number(d.pageStart) > 0)) return null;
+  const unicos = Array.from(new Map(docs.map((d) => [d.hash || d.url, d.url])).values());
+  const filas = await prisma.documentAnalysis.findMany({
+    where: { fileUrl: { in: unicos } },
+    orderBy: { createdAt: "desc" },
+    select: ANALYSIS_SELECT,
+  });
+  const cifraDocs: CifraDoc[] = [];
+  const tipos: string[] = [];
+  for (const url of unicos) {
+    const row = filas.find((f) => f.fileUrl === url);
+    const info = row ? docInfoFromAnalysis(row) : null;
+    if (!row || !info) return null;
+    const rate = await prisma.learnedRate.findUnique({
+      where: { lang_direction_docType_apostille: { lang: info.lang, direction: info.direction, docType: info.docType, apostille: info.apostille } },
+      select: { status: true, unit: true, costCents: true, wordsRef: true },
+    });
+    cifraDocs.push({
+      docType: info.docType,
+      words: info.words,
+      rate: rate && (rate.status === "APPROVED" || rate.status === "CANDIDATE") ? rate : null,
+    });
+    const tipo = `${docTypeLabelEs(row.documentType, row.analysisJson) || info.docType.replace(/_/g, " ")}${info.apostille ? " con apostilla" : ""}`;
+    if (!tipos.includes(tipo)) tipos.push(tipo);
+  }
+  let basis: PriceBasis = "base";
+  if (candidatos.length === 1) {
+    const { priceBasisForMember } = await import("@/lib/lavori-directo");
+    basis = priceBasisForMember(candidatos[0]);
+  }
+  const cents = proposedCostCents(cifraDocs, basis);
+  return cents ? { cents, tipos } : null;
 }
 
 /** Documentos de una sesión de la puerta listos para el sobre (los que tienen

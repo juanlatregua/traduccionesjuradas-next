@@ -92,7 +92,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
   // (20-ago, Juan: "en tj.net no veo el presupuesto").
   const lavoriLeads = await prisma.lavoriPriceRequest.findMany({
     where: { quoteId: null, status: { in: ["SENT", "PRICED"] } },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 20,
   });
 
@@ -178,7 +178,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
               <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
                 Solicitudes de precio en lavori · sin presupuesto ({lavoriLeads.length})
               </h2>
-              <span className="text-xs text-slate-500">Leads enviados al tablón; «Montar presupuesto» abre el builder ya atado a la solicitud.</span>
+              <span className="text-xs text-slate-500">Primero las que ya tienen precio: «Montar presupuesto» abre el builder atado a la solicitud. Las que esperan precio se abren para reclamar o cambiar de candidato.</span>
             </div>
             <div className="mt-3 space-y-2">
               {lavoriLeads.map((lead) => {
@@ -207,12 +207,19 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                         {lead.expedienteRef?.startsWith("puerta:") ? " · documentos de la puerta (entran solos en el builder)" : lead.expedienteRef ? ` · exp. ${lead.expedienteRef}` : " · sin expediente (suelta los PDF en el builder)"}
                       </div>
                     </div>
-                    <Link
-                      href={href}
-                      className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${priced ? "bg-emerald-600 hover:bg-emerald-500" : "bg-slate-700 hover:bg-slate-600"}`}
-                    >
-                      Montar presupuesto
-                    </Link>
+                    {priced ? (
+                      <Link href={href} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+                        Montar presupuesto
+                      </Link>
+                    ) : (
+                      <Link
+                        href={href}
+                        className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+                        title="Aún no hay precio del jurado: ábrela para reclamarlo o cambiar de candidato"
+                      >
+                        Esperando precio · abrir
+                      </Link>
+                    )}
                   </div>
                 );
               })}

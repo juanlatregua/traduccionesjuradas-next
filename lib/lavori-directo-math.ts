@@ -4,7 +4,7 @@
 // (cifra + plazo), el presupuesto se monta con +20 % sobre su BASE. Puro, sin
 // imports de servidor — mismo espíritu que lib/learned-rates-math.ts.
 
-import { DOC_FLOOR_CENTS, roundUp50, canAutoQuote } from "./learned-rates-math.ts";
+import { DOC_FLOOR_CENTS, SIZE_TOLERANCE, roundUp50, canAutoQuote, priceDocWithRate } from "./learned-rates-math.ts";
 
 export { DOC_FLOOR_CENTS, roundUp50, canAutoQuote };
 
@@ -20,6 +20,63 @@ export type PriceBasis = "base" | "payable_iva_irpf";
 export function channelPriceToBaseCents(priceCents: number, basis: PriceBasis): number {
   if (basis === "base") return priceCents;
   return Math.round(priceCents / 1.06);
+}
+
+/** La inversa: una base (coste del tarifario) expresada en el formato en que
+ * cotiza el jurado. channelPriceToBaseCents(baseToChannelPriceCents(b)) === b. */
+export function baseToChannelPriceCents(baseCents: number, basis: PriceBasis): number {
+  if (basis === "base") return baseCents;
+  return Math.round(baseCents * 1.06);
+}
+
+/** ¿La solicitud es del carril directo de la puerta (en cualquiera de sus estados)? */
+export function isDirectLeadRequest(createdBy: string | null | undefined): boolean {
+  return String(createdBy || "").startsWith("puerta-directo");
+}
+
+/** Gana el PRIMER precio en el carril directo (orden Juan 21-sep-2026): con
+ * cifra ya puesta solo se acepta la corrección del MISMO jurado. Fuera del
+ * carril directo, la última cifra pisa (comportamiento de siempre). */
+export function acceptsNewPrice(
+  current: { priceCents: number | null; miembroId: string | null; createdBy: string | null },
+  incomingMiembroId: string | null
+): boolean {
+  if (!isDirectLeadRequest(current.createdBy) || current.priceCents == null) return true;
+  return !!current.miembroId && current.miembroId === incomingMiembroId;
+}
+
+/** Una aceptación de otro jurado distinto del que dio la cifra no se mezcla con ella. */
+export function acceptanceMatchesPrice(
+  current: { priceCents: number | null; miembroId: string | null },
+  incomingMiembroId: string | null
+): boolean {
+  if (current.priceCents == null || !current.miembroId || !incomingMiembroId) return true;
+  return current.miembroId === incomingMiembroId;
+}
+
+export type CifraDoc = {
+  docType: string | null;
+  words: number | null;
+  rate: { unit: string; costCents: number; wordsRef: number | null } | null;
+};
+
+const TIPOS_DESCONOCIDOS = new Set(["", "other", "unknown", "any"]);
+
+/** Cifra orientativa de una solicitud de precio (orden Juan 21-sep-2026): el
+ * coste que ya se pagó por esos mismos tipos de documento. Solo si TODOS los
+ * documentos tienen tipo conocido y tarifa con coste; si falta uno, null. */
+export function proposedCostCents(docs: CifraDoc[], basis: PriceBasis): number | null {
+  if (docs.length === 0) return null;
+  let total = 0;
+  for (const d of docs) {
+    if (TIPOS_DESCONOCIDOS.has(String(d.docType || "").trim().toLowerCase())) return null;
+    const r = d.rate;
+    if (!r || !(r.costCents > 0)) return null;
+    if (r.unit === "kword" && !(d.words && d.words > 0)) return null;
+    if (r.unit === "doc" && r.wordsRef && d.words && Math.abs(d.words - r.wordsRef) / r.wordsRef > SIZE_TOLERANCE) return null;
+    total += priceDocWithRate({ unit: r.unit, costCents: r.costCents, clientCents: null }, d.words).costCents;
+  }
+  return baseToChannelPriceCents(total, basis);
 }
 
 /** Reparte la base del jurado entre los documentos del expediente, proporcional

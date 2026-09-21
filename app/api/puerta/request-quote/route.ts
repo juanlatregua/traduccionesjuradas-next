@@ -17,7 +17,7 @@ import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { findLiveSiblingLeadRequest, leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
-import { directMemberFor } from "@/lib/lavori-directo";
+import { directMembersFor } from "@/lib/lavori-directo";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
 
 export const runtime = "nodejs";
@@ -113,8 +113,9 @@ export async function POST(req: Request) {
     const lead = await leadFromPuertaSession(token);
 
     // AGENTE DE PRECIOS (27-ago-2026): documento ya conocido con tarifa APROBADA →
-    // el presupuesto sale solo, sin molestar al jurado; al pagar, el encargo le
-    // llega con su cifra cerrada. Si falta tarifa, sigue el carril de lavori.
+    // borrador listo para que Juan lo revise y envíe (21-sep-2026), sin molestar
+    // al jurado; al pagar, el encargo le llega con su cifra cerrada. Si falta
+    // tarifa, sigue el carril de lavori.
     const auto = await autoQuoteFromPuertaSession({
       sessionToken: token,
       contactEmail,
@@ -126,11 +127,11 @@ export async function POST(req: Request) {
       const n = docs.length;
       await sendMail({
         to: adminEmail,
-        subject: `🤖 Presupuesto automático ${auto.quoteNumber} — ${auto.totalEur.toFixed(2)} € (${getLanguageName(docs[0]?.sourceLanguage || "?")})`,
+        subject: `🤖 Borrador del tarifario ${auto.quoteNumber} — ${auto.totalEur.toFixed(2)} € (${getLanguageName(docs[0]?.sourceLanguage || "?")})`,
         html: renderSimpleEmailHtml(
           [
-            `El agente de precios ha emitido y enviado el presupuesto ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido.`,
-            `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"} · ${auto.emailSent ? "email enviado" : auto.smsSent ? "SMS enviado" : "⚠ sin canal de envío"}`,
+            `El agente de precios ha preparado el BORRADOR ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido. NO se ha enviado: revísalo y envíalo tú.`,
+            `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
             auto.miembroNombre
               ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
               : "Sin jurado asociado a la tarifa: al pagar irá por el carril normal de lavori.",
@@ -140,13 +141,13 @@ export async function POST(req: Request) {
         ),
       }).catch((err) => console.error("[puerta:request-quote] aviso auto fallo:", err));
       await sendStaffAlertSMS(
-        `🤖 Presupuesto auto ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€ · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
+        `🤖 Borrador tarifario ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€ (enviar tú) · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
         "puerta_auto_quote"
       ).catch(() => {});
       return NextResponse.json({
         ok: true,
         lavori: { sent: false },
-        quote: { sent: true, number: auto.quoteNumber, total: auto.totalEur },
+        quote: { sent: false, draft: true, number: auto.quoteNumber },
       });
     }
     console.log("[puerta:request-quote] tarifario no aplica:", auto.reason);
@@ -194,12 +195,13 @@ export async function POST(req: Request) {
       lavoriEmail = `⚠ NO se ha enviado otra solicitud a lavori: este cliente ya tiene la ${h.ref} en curso (${detalle}). Sigue por ahí: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(h.ref)}`;
       lavoriSms = `Ya en curso ${h.ref} (${h.status}) — sin 2.ª solicitud`;
     } else {
-      // Carril directo (orden Juan 25-ago/15-sep): para ciertas lenguas hay un
-      // jurado DIRECTO — la solicitud le va SOLO a él y, con su cifra, el
-      // presupuesto sale solo (+20 %). No depende de LAVORI_LEAD_AUTO_LANGS. Si
-      // falla el envío, cae a la lógica normal (auto-lang / one-tap) sin romper.
-      const directo = lead && leadLang ? await directMemberFor(leadLang).catch(() => null) : null;
-      if (directo) {
+      // Carril directo (orden Juan 25-ago/15-sep/21-sep): para ciertas lenguas hay
+      // jurado(s) DIRECTO(s) — la solicitud va SOLO a ellos y, con la primera
+      // cifra, se monta el borrador (+20 %) que revisa Juan; nunca sale solo al
+      // cliente. No depende de LAVORI_LEAD_AUTO_LANGS. Si falla el envío, cae a
+      // la lógica normal (auto-lang / one-tap) sin romper.
+      const directos = lead && leadLang ? await directMembersFor(leadLang).catch(() => []) : [];
+      if (directos.length > 0) {
         // BAJA 9: refresca el contacto de esta sesión con el actual (no solo
         // donde faltaba) ANTES de enviar — cuando el directo cotice y el
         // presupuesto se monte solo, tiene que llevar el contacto de hoy, no
@@ -221,14 +223,15 @@ export async function POST(req: Request) {
           words: lead!.words,
           expedienteRef: `puerta:${token}`,
           customerHint: [lead!.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
-          candidatos: [directo.miembroId],
+          candidatos: directos.map((d) => d.miembroId),
           createdBy: "puerta-directo",
         }).catch(() => null);
         if (directoReq?.ok) {
           esDirecto = true;
           lavoriSent = { lang: leadLang!, langName: getLanguageName(leadLang!) };
-          lavoriEmail = `✓ Solicitud DIRECTA a ${directo.nombre} (ref ${directoReq.ref}). Cuando ponga cifra y plazo el presupuesto sale solo (+20 %, suelo 40 €/doc, tope 300 € netos). Si en 6 h no cotiza, se reabre a todos los de la lengua.`;
-          lavoriSms = `✓ Directa a ${directo.nombre} (lavori)`;
+          const nombres = directos.map((d) => d.nombre).join(", ");
+          lavoriEmail = `✓ Solicitud DIRECTA a ${nombres} (ref ${directoReq.ref}). Con la primera cifra y plazo se monta el BORRADOR (+20 %, suelo 40 €/doc) y te aviso; no sale solo al cliente. Si en 6 h nadie cotiza, se reabre a todos los de la lengua.`;
+          lavoriSms = `✓ Directa a ${nombres} (lavori)`;
         }
       }
       if (!esDirecto) {

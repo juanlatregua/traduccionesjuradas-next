@@ -97,3 +97,117 @@ test("el precio del motor manda salvo que el margen no dé", async () => {
   // Sin precio del motor → regla pura.
   assert.equal(clientCentsWithMotorPrice(0, 10000), 12000);
 });
+
+// Cifra propuesta al jurado (orden Juan 21-sep-2026): el coste del tarifario
+// aprendido, solo si TODOS los documentos tienen tipo y tarifa.
+const { proposedCostCents, baseToChannelPriceCents, acceptsNewPrice, acceptanceMatchesPrice, isDirectLeadRequest } = await import("../../lib/lavori-directo-math.ts");
+const { buildPriceRequestPayload } = await import("../../lib/lavori-bridge.ts");
+
+const docRate = (costCents: number, wordsRef: number | null = null) => ({ unit: "doc", costCents, wordsRef });
+
+test("proposedCostCents: todos conocidos → suma de costes base (doc + kword)", () => {
+  const cents = proposedCostCents(
+    [
+      { docType: "birth_certificate", words: 200, rate: docRate(3500, 220) },
+      { docType: "criminal_record", words: 2000, rate: { unit: "kword", costCents: 4000, wordsRef: null } },
+    ],
+    "base"
+  );
+  assert.equal(cents, 3500 + 8000);
+});
+
+test("proposedCostCents: un tipo desconocido o sin tarifa → sin cifra", () => {
+  const ok = { docType: "birth_certificate", words: 200, rate: docRate(3500) };
+  assert.equal(proposedCostCents([ok, { docType: "other", words: 200, rate: docRate(3500) }], "base"), null);
+  assert.equal(proposedCostCents([ok, { docType: null, words: 200, rate: docRate(3500) }], "base"), null);
+  assert.equal(proposedCostCents([ok, { docType: "diploma", words: 200, rate: null }], "base"), null);
+  assert.equal(proposedCostCents([ok, { docType: "diploma", words: 900, rate: docRate(3500, 200) }], "base"), null, "fuera de ±30 % de tamaño");
+  assert.equal(proposedCostCents([], "base"), null);
+});
+
+test("proposedCostCents: Daniela cotiza en líquido → la base ×1,06, y vuelve a la misma base", () => {
+  const cents = proposedCostCents([{ docType: "birth_certificate", words: 150, rate: docRate(9434) }], "payable_iva_irpf");
+  assert.equal(cents, 10000);
+  assert.equal(channelPriceToBaseCents(cents!, "payable_iva_irpf"), 9434);
+  for (const b of [1, 99, 4000, 5849, 12345]) assert.equal(channelPriceToBaseCents(baseToChannelPriceCents(b, "payable_iva_irpf"), "payable_iva_irpf"), b);
+});
+
+test("buildPriceRequestPayload: la cifra va en la descripción y en cifraOrientativa, nunca en paraTi", () => {
+  const route = { lang: "pt", par: "PT>ES", candidatos: ["nhucqnd3q4znddxhe8qs5c51"] };
+  const p = buildPriceRequestPayload({ reference: "LEAD-X", route, documentos: [], cifra: { cents: 4550, tipos: ["certificado de nacimiento"] } });
+  assert.equal(p.cifraOrientativa, "45.50");
+  assert.match(p.descripcion, /Te proponemos 45,50 € \(lo que se ha pagado antes por certificado de nacimiento\)\. Confírmalo o pasa tu precio\./);
+  assert.equal(p.paraTi, undefined);
+  assert.equal(p.precioCliente, undefined);
+  const sin = buildPriceRequestPayload({ reference: "LEAD-X", route, documentos: [], cifra: null });
+  assert.equal(sin.cifraOrientativa, undefined);
+  assert.doesNotMatch(sin.descripcion, /Te proponemos/);
+});
+
+test("acceptsNewPrice: en el carril directo gana el primer precio; el mismo jurado puede corregir el suyo", () => {
+  const d = (priceCents: number | null, miembroId: string | null) => ({ priceCents, miembroId, createdBy: "puerta-directo:retenido" });
+  assert.equal(acceptsNewPrice(d(null, null), "cristina"), true);
+  assert.equal(acceptsNewPrice(d(5000, "cristina"), "maria-carmen"), false);
+  assert.equal(acceptsNewPrice(d(5000, "cristina"), null), false);
+  assert.equal(acceptsNewPrice(d(5000, "cristina"), "cristina"), true);
+  assert.equal(acceptsNewPrice(d(5000, null), "maria-carmen"), false, "un primer precio sin miembro tampoco se pisa");
+});
+
+test("acceptsNewPrice: fuera del carril directo (NL multi, reapertura, one-tap) la última cifra pisa como siempre", () => {
+  for (const createdBy of ["puerta-auto", "directo-escalado", "one-tap", null]) {
+    assert.equal(acceptsNewPrice({ priceCents: 5000, miembroId: "dolores", createdBy }, "daniela"), true, String(createdBy));
+  }
+  assert.equal(isDirectLeadRequest("puerta-directo"), true);
+  assert.equal(isDirectLeadRequest("directo-escalado"), false);
+});
+
+test("acceptanceMatchesPrice: la aceptación de otra jurada no se mezcla con la cifra", () => {
+  assert.equal(acceptanceMatchesPrice({ priceCents: 5000, miembroId: "cristina" }, "maria-carmen"), false);
+  assert.equal(acceptanceMatchesPrice({ priceCents: 5000, miembroId: "cristina" }, "cristina"), true);
+  assert.equal(acceptanceMatchesPrice({ priceCents: null, miembroId: null }, "cristina"), true);
+});
+
+test("tarifario al pagar: Daniela base 39,62 → paraTi 42,00 → coste guardado 39,62", async () => {
+  const paraTi = baseToChannelPriceCents(3962, "payable_iva_irpf");
+  assert.equal(paraTi, 4200);
+  assert.equal(channelPriceToBaseCents(paraTi, "payable_iva_irpf"), 3962, "assignLavoriAcceptance divide una sola vez");
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../../lib/workflow-server.ts", import.meta.url), "utf8");
+  assert.match(src, /const paraTiCents = baseToChannelPriceCents\(costeBaseCents, priceBasisForMember\(q\?\.lavoriMiembroId\)\)/);
+  const assign = await readFile(new URL("../../lib/lavori-assign.ts", import.meta.url), "utf8");
+  assert.equal((assign.match(/channelPriceToBaseCents\(/g) || []).length, 1);
+});
+
+test("el carril directo nunca envía el presupuesto al cliente (orden Juan 21-sep-2026)", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const directo = await readFile(new URL("../../lib/lavori-directo.ts", import.meta.url), "utf8");
+  const cuerpo = directo.slice(directo.indexOf("export async function autoQuoteFromDirectPrice"), directo.indexOf("export type EscalateStaleDirectResult"));
+  const sends = cuerpo.match(/\bsend:\s*[^,\n]+/g) || [];
+  assert.deepEqual(sends, ["send: false"]);
+  assert.doesNotMatch(cuerpo, /finalizeAndSendQuote/);
+  const eventos = await readFile(new URL("../../app/api/lavori/eventos/route.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(eventos, /puerta-directo:enviado/);
+});
+
+test("Daniela: 42 € líquidos se aprenden como 39,62 € de base y la cifra propuesta vuelve a 42 €", async () => {
+  const base = channelPriceToBaseCents(4200, "payable_iva_irpf");
+  assert.equal(base, 3962);
+  assert.equal(proposedCostCents([{ docType: "birth_certificate", words: 150, rate: docRate(base) }], "payable_iva_irpf"), 4200);
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../../lib/learned-rates.ts", import.meta.url), "utf8");
+  const cuerpo = src.slice(src.indexOf("export async function learnFromLeadPrice"), src.indexOf("export async function learnFromOrderPrice"));
+  assert.match(cuerpo, /channelPriceToBaseCents\(lead\.priceCents, priceBasisForMember\(lead\.miembroId\)\)/);
+  const orden = src.slice(src.indexOf("export async function learnFromOrderPrice"), src.indexOf("export async function learnFromPaidQuote"));
+  assert.match(orden, /channelPriceToBaseCents\(opts\.priceCents, priceBasisForMember\(opts\.miembroId\)\)/);
+});
+
+test("la solicitud directa de PT va solo a Cristina y María Carmen (Juan Amor es respaldo del carril, no directo)", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../../lib/lavori-directo.ts", import.meta.url), "utf8");
+  const pt = src.slice(src.indexOf("  pt: {"), src.indexOf("  it: {"));
+  assert.match(pt, /nhucqnd3q4znddxhe8qs5c51/);
+  assert.match(pt, /1h8tul4zycnayru8bsi1tmu4/);
+  assert.doesNotMatch(pt, /rk1x2kq63rm6ba6mco7c6u2k/);
+  const puerta = await readFile(new URL("../../app/api/puerta/request-quote/route.ts", import.meta.url), "utf8");
+  assert.match(puerta, /candidatos: directos\.map\(\(d\) => d\.miembroId\)/);
+});

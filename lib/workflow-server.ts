@@ -972,7 +972,14 @@ export async function autoAssignCollaboratorIfNeeded(options: {
         },
       });
       const parsed = lavoriLangFromPair(order.langPair);
-      const paraTiCents = q?.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0) || 0;
+      const costeBaseCents = q?.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0) || 0;
+      // Las líneas guardan BASE; el firme va en el formato en que cotiza el
+      // jurado (Daniela, líquido ×1,06). assignLavoriAcceptance lo devuelve a base.
+      const [{ priceBasisForMember }, { baseToChannelPriceCents }] = await Promise.all([
+        import("@/lib/lavori-directo"),
+        import("@/lib/lavori-directo-math"),
+      ]);
+      const paraTiCents = baseToChannelPriceCents(costeBaseCents, priceBasisForMember(q?.lavoriMiembroId));
       if (q?.lavoriMiembroId && parsed && paraTiCents > 0) {
         // Re-comprobación al pagar (spec tarifa directa 4-sep §2.7): entre
         // cotizar y cobrar el jurado puede haber dejado de estar libre. Un firme

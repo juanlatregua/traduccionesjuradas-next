@@ -6,6 +6,7 @@ import { sendMail } from "@/lib/azure-mail";
 import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES, isCasaPair } from "@/lib/lavori-bridge";
 import { assignLavoriAcceptance } from "@/lib/lavori-assign";
 import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
+import { acceptanceMatchesPrice, acceptsNewPrice, isDirectLeadRequest } from "@/lib/lavori-directo-math";
 import { sendStaffAlertSMS } from "@/lib/sms";
 
 export const runtime = "nodejs";
@@ -450,6 +451,7 @@ async function handleLeadEvento(opts: {
     createdBy: string | null;
     candidatos: string[];
     notas: string | null;
+    miembroId: string | null;
   };
   evento: EventoTipo;
   encargoId: string;
@@ -515,7 +517,13 @@ async function handleLeadEvento(opts: {
       if (precioCents === null) {
         return NextResponse.json({ ok: false, error: "datos.precio inválido" }, { status: 400 });
       }
-      if (lead.status === "PRICED" && lead.encargoId === encargoId && lead.priceCents === precioCents) {
+      const miembroIdEntrante = datos.miembroId ? String(datos.miembroId) : null;
+      if (
+        lead.status === "PRICED" &&
+        lead.encargoId === encargoId &&
+        lead.priceCents === precioCents &&
+        (lead.miembroId ?? null) === miembroIdEntrante
+      ) {
         return NextResponse.json({ ok: true, repetido: true });
       }
       const plazoDias = Number.isFinite(Number(datos.plazoDias)) ? Math.round(Number(datos.plazoDias)) : null;
@@ -538,18 +546,48 @@ async function handleLeadEvento(opts: {
         quoteNumeroCambiado = q?.quoteNumber || lead.quoteId;
       }
 
-      await prisma.lavoriPriceRequest.update({
-        where: { id: lead.id },
-        data: {
-          status: "PRICED",
-          priceCents: precioCents,
-          plazoDias,
-          notas: datos.notas ? String(datos.notas).slice(0, 500) : null,
-          miembroId: datos.miembroId ? String(datos.miembroId) : null,
-          miembroNombre: datos.miembroNombre ? String(datos.miembroNombre) : null,
-          encargoId,
-        },
-      });
+      // Carril directo: gana el PRIMER precio (orden Juan 21-sep-2026). Con cifra
+      // ya puesta, un precio de otro jurado no pisa ni la cifra ni el miembro (el
+      // borrador atado ya lleva su coste). Condición atómica en el UPDATE.
+      const segundosAnotados = (lead.notas || "").split("\n").filter((l) => l.startsWith("2.º precio NO aplicado"));
+      const notasNuevas = [datos.notas ? String(datos.notas).slice(0, 500) : null, ...segundosAnotados].filter(Boolean).join("\n") || null;
+      const directo = isDirectLeadRequest(lead.createdBy);
+      const aplicado = !acceptsNewPrice(lead, miembroIdEntrante)
+        ? { count: 0 }
+        : await prisma.lavoriPriceRequest.updateMany({
+            where: {
+              id: lead.id,
+              ...(directo ? { OR: [{ priceCents: null }, ...(miembroIdEntrante ? [{ miembroId: miembroIdEntrante }] : [])] } : {}),
+            },
+            data: {
+              status: "PRICED",
+              priceCents: precioCents,
+              plazoDias,
+              notas: notasNuevas,
+              miembroId: miembroIdEntrante,
+              miembroNombre: datos.miembroNombre ? String(datos.miembroNombre) : null,
+              encargoId,
+            },
+          });
+      if (aplicado.count === 0) {
+        const actual = await prisma.lavoriPriceRequest.findUnique({
+          where: { id: lead.id },
+          select: { notas: true, priceCents: true, miembroNombre: true },
+        });
+        const linea = `2.º precio NO aplicado: ${miembro} propuso ${precio} €${plazoDias ? ` (plazo ${plazoDias} días)` : ""}`;
+        if (actual?.notas?.includes(linea)) return NextResponse.json({ ok: true, repetido: true });
+        await prisma.lavoriPriceRequest.update({
+          where: { id: lead.id },
+          data: { notas: [actual?.notas, linea].filter(Boolean).join("\n") },
+        });
+        const primera = actual?.priceCents != null ? `${(actual.priceCents / 100).toFixed(2)} € de ${actual.miembroNombre || "otro jurado"}` : "otra cifra";
+        const texto = `${miembro} propone ${precio} € para ${lead.ref} (${lead.par})${quien}, pero ya había ${primera}: gana la primera y no se toca nada. Si prefieres esta, decídelo tú: ${builderUrl}`;
+        await Promise.all([
+          staffMail(`⚖ Segundo precio para ${lead.ref}: ${miembro} ${precio} € (vale el primero)`, [texto]),
+          sendStaffAlertSMS(texto, `segundo_precio ${lead.ref}`).catch((err) => console.error("[lavori-eventos] SMS segundo precio fallo:", err)),
+        ]);
+        return NextResponse.json({ ok: true, repetido: false, segundoPrecio: true }, { status: 201 });
+      }
       // Tarifario aprendido: el coste del jurado por tipo de documento entra en el bucle.
       const aprendido = await import("@/lib/learned-rates")
         .then((m) => m.learnFromLeadPrice(lead.id))
@@ -570,15 +608,19 @@ async function handleLeadEvento(opts: {
         else borradorFallo = relleno.reason;
       }
 
-      // Funnel directo (Juan 15-sep-2026): esta solicitud fue SOLO al jurado
-      // directo de su lengua y aún no tiene presupuesto atado → el precio recién
-      // llegado monta el suyo solo (+20 % sobre su base). Claim atómico para que
-      // dos eventos casi simultáneos no monten dos presupuestos.
-      let directoResultado: { kind: "enviado" | "retenido" | "fallo"; quoteId?: string; quoteNumber?: string; totalEur?: number; reason?: string } | null = null;
+      // Funnel directo (Juan 15/21-sep-2026): esta solicitud fue SOLO a los
+      // jurados directos de su lengua y aún no tiene presupuesto atado → el
+      // primer precio monta el BORRADOR (+20 % sobre su base) y se avisa a staff;
+      // nunca sale solo al cliente. Claim atómico para que dos eventos casi
+      // simultáneos no monten dos borradores.
+      let directoResultado:
+        | { kind: "retenido"; quoteId: string; quoteNumber: string; totalEur: number; costEur: number; subtotalEur: number; avisos: string[] }
+        | { kind: "fallo"; reason: string }
+        | null = null;
       if (
         lead.createdBy === "puerta-directo" &&
-        lead.candidatos.length === 1 &&
-        String(datos.miembroId || "") === lead.candidatos[0] &&
+        miembroIdEntrante &&
+        lead.candidatos.includes(miembroIdEntrante) &&
         !lead.quoteId
       ) {
         // MEDIA 3 (Juan, 15-sep-2026): el claim nunca puede tumbar el webhook con
@@ -596,12 +638,17 @@ async function handleLeadEvento(opts: {
         if (claimCount === 1) {
           try {
             const directo = await autoQuoteFromDirectPrice(lead.id);
-            if (directo.ok && directo.sent) {
-              await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { createdBy: "puerta-directo:enviado" } });
-              directoResultado = { kind: "enviado", quoteId: directo.quoteId, quoteNumber: directo.quoteNumber, totalEur: directo.totalEur };
-            } else if (directo.ok && !directo.sent) {
+            if (directo.ok) {
               await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { createdBy: "puerta-directo:retenido" } });
-              directoResultado = { kind: "retenido", quoteId: directo.quoteId, reason: directo.reason };
+              directoResultado = {
+                kind: "retenido",
+                quoteId: directo.quoteId,
+                quoteNumber: directo.quoteNumber,
+                totalEur: directo.totalEur,
+                costEur: directo.costEur,
+                subtotalEur: directo.subtotalEur,
+                avisos: directo.avisos,
+              };
             } else {
               await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { createdBy: "puerta-directo:manual" } });
               directoResultado = { kind: "fallo", reason: directo.reason };
@@ -613,18 +660,31 @@ async function handleLeadEvento(opts: {
         }
       }
 
+      const borradorDirecto = directoResultado?.kind === "retenido" ? directoResultado : null;
+      const enlaceDirecto = borradorDirecto ? `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${borradorDirecto.quoteId}` : null;
+      const cifraDirecto = borradorDirecto
+        ? (() => {
+            const margen = borradorDirecto.subtotalEur - borradorDirecto.costEur;
+            const pct = borradorDirecto.costEur > 0 ? (margen / borradorDirecto.costEur) * 100 : 0;
+            return `coste base ${borradorDirecto.costEur.toFixed(2)} € · venta sugerida ${borradorDirecto.subtotalEur.toFixed(2)} € netos (+20 %, suelo 40 €/doc) · margen ${margen.toFixed(2)} € (${pct.toFixed(0)} %)`;
+          })()
+        : "";
       const subject = cifraCambiadaTrasEnvio
         ? `⚠ ${miembro} ha CAMBIADO la cifra tras enviar el presupuesto ${quoteNumeroCambiado}: antes ${(lead.priceCents! / 100).toFixed(2)} €, ahora ${precio} €`
-        : directoResultado?.kind === "enviado"
-          ? `🤖 Presupuesto directo ${directoResultado.quoteNumber} enviado — ${directoResultado.totalEur!.toFixed(2)} €`
+        : borradorDirecto
+          ? `🧾 Borrador directo ${borradorDirecto.quoteNumber}: ${miembro} cotiza ${precio} € — revísalo y envíalo tú`
           : `💶 Precio de ${miembro} para la solicitud ${lead.par}${quien}: ${precio} €`;
-      const enlaceDirecto = directoResultado?.quoteId ? `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${directoResultado.quoteId}` : null;
-      const lineaDirecto =
-        directoResultado?.kind === "enviado"
-          ? `Enviado automáticamente por el funnel directo. Ficha: ${enlaceDirecto}`
-          : directoResultado?.kind === "retenido"
-            ? `Revísalo y envíalo con un clic: ${enlaceDirecto} (${directoResultado.reason || "retenido"})`
-            : "";
+      const lineaDirecto = borradorDirecto
+        ? `Borrador ${borradorDirecto.quoteNumber} montado (${borradorDirecto.totalEur.toFixed(2)} € con IVA), NO enviado al cliente: ${cifraDirecto}. Revísalo y envíalo si el jurado confirma: ${enlaceDirecto}${borradorDirecto.avisos.length ? ` ⚠ ${borradorDirecto.avisos.join(" · ")}` : ""}`
+        : "";
+      if (directoResultado) {
+        await sendStaffAlertSMS(
+          borradorDirecto
+            ? `Directo ${lead.par} ${miembro}: ${cifraDirecto}. Borrador ${borradorDirecto.quoteNumber}: ${enlaceDirecto}`
+            : `Directo ${lead.ref}: ${miembro} cotiza ${precio}€ pero no hay borrador (${directoResultado.kind === "fallo" ? directoResultado.reason : "?"}): ${builderUrl}`,
+          `directo_precio ${lead.ref}`
+        ).catch((err) => console.error("[lavori-eventos] SMS directo fallo:", err));
+      }
       // ALTA 1(c): aviso por dos transportes — la cifra ya está en manos del
       // cliente (presupuesto enviado) y esto puede dejar el margen a cero.
       if (cifraCambiadaTrasEnvio) {
@@ -651,7 +711,7 @@ async function handleLeadEvento(opts: {
         borradorRelleno?.margenBajo ? `⚠ Margen por debajo del mínimo tras descuento/envío: ${borradorRelleno.margenBajo}` : "",
         borradorFallo ? `⚠ No se pudo rellenar el borrador solo: ${borradorFallo}` : "",
         lineaDirecto,
-        directoResultado?.kind === "enviado" || directoResultado?.kind === "retenido" || borradorRelleno ? "" : montarLine,
+        borradorDirecto || borradorRelleno ? "" : montarLine,
       ].filter(Boolean));
       return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
     }
@@ -660,6 +720,21 @@ async function handleLeadEvento(opts: {
     // Aceptación antes de que exista el pedido (Juan confirma en la app de lavori y
     // marca el pago después): que quede en la solicitud para que la ficha lo enseñe y
     // el pago posterior no lance otro encargo. La asignación se completa al pagar.
+    if (evento === "encargo_aceptado" && !acceptanceMatchesPrice(lead, datos.miembroId ? String(datos.miembroId) : null)) {
+      const actual = await prisma.lavoriPriceRequest.findUnique({ where: { id: lead.id }, select: { notas: true, miembroNombre: true } });
+      const linea = `Aceptación NO aplicada: ${miembro} aceptó el encargo ${encargoId}, pero la cifra (${((lead.priceCents ?? 0) / 100).toFixed(2)} €) es de ${actual?.miembroNombre || lead.miembroId}`;
+      if (actual?.notas?.includes(linea)) return NextResponse.json({ ok: true, repetido: true });
+      await prisma.lavoriPriceRequest.update({
+        where: { id: lead.id },
+        data: { notas: [actual?.notas, linea].filter(Boolean).join("\n") },
+      });
+      const texto = `${linea} (${lead.ref}, ${lead.par})${quien}. No se ha tocado la solicitud: decide tú con quién sigue y con qué cifra: ${builderUrl}`;
+      await Promise.all([
+        staffMail(`⚠ ${miembro} aceptó ${lead.ref}, pero la cifra es de otro jurado`, [texto]),
+        sendStaffAlertSMS(texto, `aceptacion_cruzada ${lead.ref}`).catch((err) => console.error("[lavori-eventos] SMS aceptación cruzada fallo:", err)),
+      ]);
+      return NextResponse.json({ ok: true, repetido: false, aceptacionCruzada: true }, { status: 201 });
+    }
     if (evento === "encargo_aceptado") {
       await prisma.lavoriPriceRequest.update({
         where: { id: lead.id },

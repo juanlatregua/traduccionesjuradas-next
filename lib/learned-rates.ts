@@ -9,7 +9,7 @@
 //   2. presupuesto pagado                           → precio neto del cliente por unidad
 //   3. semillas / edición a mano en /zona-traductor/tarifario
 // Una salida: la puerta, al pedir presupuesto, si TODOS los documentos tienen
-// tarifa APPROVED, emite y envía el presupuesto sola (autoQuoteFromPuertaSession)
+// tarifa APPROVED, prepara el presupuesto en borrador para Juan (autoQuoteFromPuertaSession; no se envía solo desde el 21-sep-2026)
 // y no manda solicitud a lavori; al pagar, el jurado de la tarifa recibe el
 // encargo con su cifra ya cerrada (workflow-server → paraTiCents).
 //
@@ -311,9 +311,15 @@ export async function learnFromLeadPrice(leadId: string) {
     if (urls.length) rows = await prisma.documentAnalysis.findMany({ where: { fileUrl: { in: urls } }, select: ANALYSIS_SELECT });
   }
   if (rows.length === 0) return { learned: false, reason: "lead sin documentos analizados" };
+  // El tarifario guarda BASE: la cifra de quien cotiza en líquido (Daniela) se
+  // convierte igual que en assignLavoriAcceptance.
+  const [{ priceBasisForMember }, { channelPriceToBaseCents }] = await Promise.all([
+    import("@/lib/lavori-directo"),
+    import("@/lib/lavori-directo-math"),
+  ]);
   return learnCostFromDocs({
     rows,
-    priceCents: lead.priceCents,
+    priceCents: channelPriceToBaseCents(lead.priceCents, priceBasisForMember(lead.miembroId)),
     plazoDias: lead.plazoDias,
     miembroId: lead.miembroId,
     miembroNombre: lead.miembroNombre,
@@ -330,7 +336,12 @@ export async function learnFromOrderPrice(opts: { orderId: string; reference: st
     select: ANALYSIS_SELECT,
   });
   if (rows.length === 0) return { learned: false, reason: "pedido sin análisis de la puerta" };
-  return learnCostFromDocs({ rows, priceCents: opts.priceCents, plazoDias: opts.plazoDias, miembroId: opts.miembroId, miembroNombre: opts.miembroNombre, orderRef: opts.reference });
+  const [{ priceBasisForMember }, { channelPriceToBaseCents }] = await Promise.all([
+    import("@/lib/lavori-directo"),
+    import("@/lib/lavori-directo-math"),
+  ]);
+  const priceCents = channelPriceToBaseCents(opts.priceCents, priceBasisForMember(opts.miembroId));
+  return learnCostFromDocs({ rows, priceCents, plazoDias: opts.plazoDias, miembroId: opts.miembroId, miembroNombre: opts.miembroNombre, orderRef: opts.reference });
 }
 
 /** Entrada 2: presupuesto PAGADO → precio neto del cliente por unidad (y coste si la línea lo trae). */
@@ -422,7 +433,7 @@ export async function findApprovedRate(info: DocInfo) {
 
 
 export type AutoQuoteResult =
-  | { ok: true; quoteId: string; quoteNumber: string; totalEur: number; payUrl: string; miembroNombre: string | null; lines: number; emailSent: boolean; smsSent: boolean }
+  | { ok: true; quoteId: string; quoteNumber: string; totalEur: number; payUrl: string | null; miembroNombre: string | null; lines: number; emailSent: boolean; smsSent: boolean }
   | { ok: false; reason: string };
 
 export type AutoQuoteLineInput = {
@@ -685,7 +696,8 @@ export async function autoQuoteFromPuertaSession(opts: {
       name: opts.contactName || rows.find((r) => r.clientName)?.clientName || "",
     },
     locale: opts.locale,
-    send: true,
+    // Borrador para que lo revise y envíe Juan (orden 21-sep-2026): nada sale solo.
+    send: false,
   });
   if (!result.ok) return result;
 
@@ -701,7 +713,7 @@ export async function autoQuoteFromPuertaSession(opts: {
     quoteId: result.quoteId,
     quoteNumber: result.quoteNumber,
     totalEur: result.totalEur,
-    payUrl: result.payUrl!,
+    payUrl: result.payUrl,
     miembroNombre,
     lines: lines.length,
     emailSent: result.emailSent,

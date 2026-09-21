@@ -1,10 +1,11 @@
 // lib/lavori-directo.ts — FUNNEL DIRECTO tj.net→lavori (Juan, 15-sep-2026).
 //
-// Para ciertas lenguas hay un jurado DIRECTO. La puerta le lanza la solicitud
-// de precio SOLO a él; cuando su precio_propuesto llega (cifra + plazo), tj.net
-// monta el presupuesto con +20 % sobre la BASE del jurado (suelo 40 €/doc) y lo
-// ENVÍA solo si el subtotal neto ≤ 300 €. Si el directo no cotiza en 6 h, la
-// solicitud se reabre a todos los jurados de la lengua (escalateStaleDirectRequests,
+// Para ciertas lenguas hay jurado(s) DIRECTO(s). La puerta les lanza la
+// solicitud de precio SOLO a ellos; cuando llega el PRIMER precio_propuesto
+// (cifra + plazo), tj.net monta el borrador con +20 % sobre la BASE del jurado
+// (suelo 40 €/doc) y avisa a staff. Nunca lo envía al cliente: lo monta Juan si
+// el jurado confirma (orden 21-sep-2026). Si nadie cotiza en 6 h, la solicitud
+// se reabre a todos los jurados de la lengua (escalateStaleDirectRequests,
 // cron). SOLO SERVIDOR (Prisma).
 
 import { prisma } from "@/lib/prisma";
@@ -12,12 +13,7 @@ import { sendMail } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { getLanguageName } from "@/lib/pricing-engine/languages";
-import {
-  LAVORI_MEMBER_COLLABORATOR_EMAIL,
-  fetchLavoriCartera,
-  isLavoriMemberAvailable,
-  pickLavoriAuto,
-} from "@/lib/lavori-bridge";
+import { fetchLavoriCartera, isLavoriMemberAvailable, pickLavoriAuto } from "@/lib/lavori-bridge";
 import { docTypeLabelEs, leadFromPuertaSession, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { ANALYSIS_SELECT, createAutoQuote } from "@/lib/learned-rates";
 import { canAutoQuote } from "@/lib/learned-rates-math";
@@ -35,38 +31,58 @@ export type { PriceBasis };
 
 const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
-export const LAVORI_DIRECT: Record<string, { miembroId: string; nombre: string; priceBasis: PriceBasis; enabled: boolean }> = {
-  nl: { miembroId: "a2x1faeg08r1tiz4gt1d6hfv", nombre: "Daniela Cleintuar", priceBasis: "payable_iva_irpf", enabled: true },
-  de: { miembroId: "ngus1uku6x5uw2pqbmflpbbt", nombre: "Morton Sebastian Peter Münster", priceBasis: "base", enabled: true },
-  en: { miembroId: "exwzhhwv5fyegllvblt76uvb", nombre: "María Lourdes Yagüe", priceBasis: "base", enabled: true },
-  ro: { miembroId: "8npqw6hd5vavn4maio2173lq", nombre: "Maria Murariu", priceBasis: "base", enabled: true },
+export type DirectMember = { miembroId: string; nombre: string; priceBasis: PriceBasis };
+
+// Cifras BASE sin IVA salvo Daniela (líquido, ×1,06). Orden Juan 21-sep-2026.
+export const LAVORI_DIRECT: Record<string, { miembros: DirectMember[]; enabled: boolean }> = {
+  nl: { miembros: [{ miembroId: "a2x1faeg08r1tiz4gt1d6hfv", nombre: "Daniela Cleintuar", priceBasis: "payable_iva_irpf" }], enabled: true },
+  de: { miembros: [{ miembroId: "ngus1uku6x5uw2pqbmflpbbt", nombre: "Morton Sebastian Peter Münster", priceBasis: "base" }], enabled: true },
+  en: { miembros: [{ miembroId: "exwzhhwv5fyegllvblt76uvb", nombre: "María Lourdes Yagüe", priceBasis: "base" }], enabled: true },
+  ro: { miembros: [{ miembroId: "8npqw6hd5vavn4maio2173lq", nombre: "Maria Murariu", priceBasis: "base" }], enabled: true },
+  // Dos juradas: gana el PRIMER precio que llega (lo impone /api/lavori/eventos).
+  pt: {
+    miembros: [
+      { miembroId: "nhucqnd3q4znddxhe8qs5c51", nombre: "Cristina Aguilera Viladés", priceBasis: "base" },
+      { miembroId: "1h8tul4zycnayru8bsi1tmu4", nombre: "María Carmen Lencastre De Albuquerque Charrua", priceBasis: "base" },
+    ],
+    enabled: true,
+  },
   // Ya tiene Collaborator (alta 15-sep) pero apagado a propósito: hasta que
   // Miguel confirme si su cifra es base o líquido (orden Juan 15-sep-2026).
-  it: { miembroId: "k1obdgqfpxszjzr4za8rnc7x", nombre: "Miguel Ros González", priceBasis: "base", enabled: false },
+  it: { miembros: [{ miembroId: "k1obdgqfpxszjzr4za8rnc7x", nombre: "Miguel Ros González", priceBasis: "base" }], enabled: false },
 };
 
-/** ¿Este idioma tiene jurado directo operativo HOY? Gates: kill-switch por env
- * (LAVORI_DIRECTO=off, o lista "nl,de" que no incluya la lengua), Collaborator
- * mapeado en tj.net y disponibilidad viva en el tablón de lavori. */
-export async function directMemberFor(
-  lang: string
-): Promise<{ miembroId: string; nombre: string; priceBasis: PriceBasis; enabled: boolean } | null> {
+/** Jurados directos operativos HOY para esta lengua (los libres en el tablón).
+ * Gates: kill-switch por env (LAVORI_DIRECTO=off, o lista "nl,de" que no
+ * incluya la lengua) y disponibilidad viva en lavori. Pedir precio NO exige
+ * Collaborator en tj.net: eso solo hace falta al pagar, y assignLavoriAcceptance
+ * ya avisa de «asignar a mano» si falta. */
+export async function directMembersFor(lang: string): Promise<DirectMember[]> {
   const l = String(lang || "").trim().toLowerCase();
   const cfg = LAVORI_DIRECT[l];
-  if (!cfg || !cfg.enabled) return null;
+  if (!cfg || !cfg.enabled) return [];
   const raw = String(process.env.LAVORI_DIRECTO || "").trim().toLowerCase();
-  if (raw === "off") return null;
+  if (raw === "off") return [];
   if (raw) {
     const langs = new Set(raw.split(",").map((x) => x.trim()).filter(Boolean));
-    if (!langs.has(l)) return null;
+    if (!langs.has(l)) return [];
   }
-  const email = LAVORI_MEMBER_COLLABORATOR_EMAIL[cfg.miembroId];
-  if (!email) return null;
-  const collaborator = await prisma.collaborator.findUnique({ where: { email }, select: { id: true } });
-  if (!collaborator) return null;
-  const disp = await isLavoriMemberAvailable(l, cfg.miembroId);
-  if (!disp.ok) return null;
-  return cfg;
+  const libres: DirectMember[] = [];
+  for (const m of cfg.miembros) {
+    const disp = await isLavoriMemberAvailable(l, m.miembroId);
+    if (disp.ok) libres.push(m);
+  }
+  return libres;
+}
+
+function directMemberById(miembroId: string | null | undefined): DirectMember | null {
+  const id = String(miembroId || "").trim();
+  if (!id) return null;
+  for (const cfg of Object.values(LAVORI_DIRECT)) {
+    const m = cfg.miembros.find((x) => x.miembroId === id);
+    if (m) return m;
+  }
+  return null;
 }
 
 /** priceBasis del jurado por su miembroId, mire o no el kill-switch/enabled —
@@ -75,10 +91,7 @@ export async function directMemberFor(
  * presupuesto atado, directo o no. "base" por defecto: sin dato mejor, no se
  * inventa una conversión que no le corresponde. */
 export function priceBasisForMember(miembroId: string | null | undefined): PriceBasis {
-  const id = String(miembroId || "").trim();
-  if (!id) return "base";
-  const cfg = Object.values(LAVORI_DIRECT).find((c) => c.miembroId === id);
-  return cfg?.priceBasis ?? "base";
+  return directMemberById(miembroId)?.priceBasis ?? "base";
 }
 
 function parsePar(par: string): { lang: string; sourceLang: string; targetLang: string } | null {
@@ -91,11 +104,12 @@ function parsePar(par: string): { lang: string; sourceLang: string; targetLang: 
 }
 
 export type AutoQuoteFromDirectPriceResult =
-  | { ok: true; sent: boolean; quoteId: string; quoteNumber: string; totalEur: number; reason?: string }
+  | { ok: true; quoteId: string; quoteNumber: string; totalEur: number; costEur: number; subtotalEur: number; avisos: string[] }
   | { ok: false; reason: string };
 
-/** El precio del jurado DIRECTO ya llegó (precio_propuesto): monta el presupuesto
- * con +20 % sobre su base y lo envía si cabe en el tope y no es anómalo. */
+/** El PRIMER precio de un jurado directo ya llegó (precio_propuesto): monta el
+ * borrador con +20 % sobre su base, atado a la solicitud. Siempre DRAFT: nunca
+ * sale solo al cliente (orden Juan 21-sep-2026). */
 export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuoteFromDirectPriceResult> {
   const lead = await prisma.lavoriPriceRequest.findUnique({ where: { id: leadId } });
   if (!lead) return { ok: false, reason: "solicitud no encontrada" };
@@ -103,7 +117,7 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
     return { ok: false, reason: "solicitud sin precio" };
   }
   if (!lead.plazoDias || lead.plazoDias <= 0) {
-    return { ok: false, reason: "el jurado no dio plazo: sin plazo no se emite solo" };
+    return { ok: false, reason: "el jurado no dio plazo: sin plazo no se monta el borrador" };
   }
   if (!lead.expedienteRef || !lead.expedienteRef.startsWith("puerta:")) {
     return { ok: false, reason: "solicitud sin expediente de la puerta" };
@@ -111,9 +125,10 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
   const parsed = parsePar(lead.par);
   if (!parsed) return { ok: false, reason: `par no reconocido: ${lead.par}` };
   const { lang, sourceLang, targetLang } = parsed;
-  const config = LAVORI_DIRECT[lang];
-  if (!config || !config.enabled || config.miembroId !== lead.miembroId) {
-    return { ok: false, reason: "el jurado que cotizó no es el directo configurado para esta lengua" };
+  const cfg = LAVORI_DIRECT[lang];
+  const config = cfg?.enabled ? cfg.miembros.find((m) => m.miembroId === lead.miembroId) : undefined;
+  if (!config) {
+    return { ok: false, reason: "el jurado que cotizó no es un directo configurado para esta lengua" };
   }
 
   const token = lead.expedienteRef.slice("puerta:".length);
@@ -146,10 +161,9 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
     }
   }
 
+  const avisos: string[] = [];
   const disp = await isLavoriMemberAvailable(lang, config.miembroId);
-  if (!disp.ok) {
-    return { ok: false, reason: `${config.nombre} no puede recibir el encargo ahora: ${disp.reason}` };
-  }
+  if (!disp.ok) avisos.push(`${config.nombre} no puede recibir el encargo ahora: ${disp.reason}`);
 
   const totalWords = uniqueRows.reduce((a, r) => a + (r.estimatedWords || 0), 0) || lead.words || null;
   const historial = await prisma.lavoriPriceRequest.findMany({
@@ -161,15 +175,14 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
     .filter((h) => h.priceCents && h.words)
     .map((h) => (h.priceCents as number) / (h.words as number));
   const centsPerWord = totalWords ? lead.priceCents / totalWords : null;
-  const anomalo = centsPerWord != null && isAnomalousPrice(centsPerWord, historyCentsPerWord);
+  if (centsPerWord != null && isAnomalousPrice(centsPerWord, historyCentsPerWord)) {
+    avisos.push(`precio de ${config.nombre} anómalo frente a su historial (${centsPerWord.toFixed(2)} cent./palabra)`);
+  }
 
   const subtotalCents = docLines.reduce((a, l) => a + l.clientCents, 0);
-  const overCap = subtotalCents > DIRECT_AUTO_MAX_CENTS;
-  const holdReason = overCap
-    ? `importe ${(subtotalCents / 100).toFixed(2)} € por encima del tope del funnel directo (${(DIRECT_AUTO_MAX_CENTS / 100).toFixed(2)} €)`
-    : anomalo
-      ? `precio de ${config.nombre} anómalo frente a su historial (${(centsPerWord! ).toFixed(2)} cent./palabra)`
-      : undefined;
+  if (subtotalCents > DIRECT_AUTO_MAX_CENTS) {
+    avisos.push(`importe ${(subtotalCents / 100).toFixed(2)} € por encima del tope del funnel directo (${(DIRECT_AUTO_MAX_CENTS / 100).toFixed(2)} €)`);
+  }
 
   const lines = uniqueRows.map((row, i) => {
     const label = docTypeLabelEs(row.documentType, row.analysisJson) || "documento";
@@ -203,7 +216,7 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
       name: rows.find((r) => r.clientName)?.clientName || "",
     },
     locale: null,
-    send: !holdReason,
+    send: false,
     onQuoteCreated: async (quoteId) => {
       await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { quoteId } });
     },
@@ -212,11 +225,12 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
 
   return {
     ok: true,
-    sent: result.sent,
     quoteId: result.quoteId,
     quoteNumber: result.quoteNumber,
     totalEur: result.totalEur,
-    ...(holdReason ? { reason: holdReason } : {}),
+    costEur: baseCents / 100,
+    subtotalEur: subtotalCents / 100,
+    avisos,
   };
 }
 

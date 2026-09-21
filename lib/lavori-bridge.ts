@@ -57,6 +57,12 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // email, así que applyLiveFallback lo aparta y el envío va a ellas. Antes esto
   // pasaba igual pero por accidente: el carril decía Juan Amor y la autoelección
   // de la cartera viva las escogía sin que nadie lo hubiera decidido.
+  // 21-sep-2026: la solicitud de precio PT de la puerta va por el carril
+  // DIRECTO (solo las dos, ver LAVORI_DIRECT). Esta lista manda en los pedidos
+  // pagados (a las tres a la vez; Juan Amor solo si está de alta en lavori, si
+  // no applyLiveFallback lo aparta) y en las solicitudes no directas. La
+  // reapertura a 6 h NO la usa: va a pickLavoriAuto sobre la cartera viva
+  // menos las directas (hoy, en la práctica, solo Juan Amor si tiene canal).
   pt: [
     "nhucqnd3q4znddxhe8qs5c51", // Cristina Aguilera Viladés (PT>ES; aceptó 26_94B23C)
     "1h8tul4zycnayru8bsi1tmu4", // María Carmen Lencastre De Albuquerque Charrua (PT>ES; aceptó 26_B39FE1)
@@ -574,6 +580,9 @@ export type SolicitudPayload = {
   // Adenda 12-ago-2026: especificaciones del encargo (≤2000 chars); lavori las
   // concatena a la descripción que ve el candidato. Sin PII del cliente.
   especificaciones?: string;
+  // Solo solicitudes de precio (21-sep-2026): coste que ya se pagó por esos
+  // tipos de documento, en euros con 2 decimales. Orientativo: NUNCA paraTi.
+  cifraOrientativa?: string;
   candidatos: string[];
   documentos: BridgeDoc[];
 };
@@ -587,17 +596,23 @@ export function buildPriceRequestPayload(opts: {
   words?: number | null;
   especificaciones?: string | null;
   documentos: BridgeDoc[];
+  cifra?: { cents: number; tipos: string[] } | null;
 }): SolicitudPayload {
   const docs =
     opts.documentos.length === 1 ? "1 documento PDF" : `${opts.documentos.length} documentos PDF`;
   const palabras = opts.words ? ` (~${opts.words} palabras)` : "";
   const especificaciones = String(opts.especificaciones || "").trim().slice(0, 2000);
+  const cifra = opts.cifra && opts.cifra.cents > 0 ? opts.cifra : null;
+  const propuesta = cifra
+    ? ` Te proponemos ${(cifra.cents / 100).toFixed(2).replace(".", ",")} € (lo que se ha pagado antes por ${cifra.tipos.join(", ")}). Confírmalo o pasa tu precio.`
+    : "";
   return {
     ref: `${opts.reference}-precio`,
     par: opts.route.par,
-    descripcion: `${docs}${palabras} — traducción jurada ${opts.route.par}. Solicitud de precio de la casa: abre «Documentos del encargo» y pasa tu precio.`,
+    descripcion: `${docs}${palabras} — traducción jurada ${opts.route.par}. Solicitud de precio de la casa: abre «Documentos del encargo» y pasa tu precio.${propuesta}`,
     ...(opts.words ? { palabras: opts.words } : {}),
     ...(especificaciones ? { especificaciones } : {}),
+    ...(cifra ? { cifraOrientativa: (cifra.cents / 100).toFixed(2) } : {}),
     candidatos: opts.route.candidatos,
     documentos: opts.documentos,
   };
