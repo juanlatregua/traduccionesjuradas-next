@@ -26,6 +26,7 @@ export default function TraductorJuradoAlemanPage() {
       idioma="alemán"
       idiomaSlug="aleman"
       combinaciones={["de-es", "es-de"]}
+      updated="2026-09-21"
       tituloH1="Traductor jurado de alemán para trámites en España y países de habla alemana"
       descripcion="Realizamos traducciones juradas de alemán a español y de español a alemán para presentar documentos ante administraciones públicas, universidades, notarías, juzgados y empresas en España, Alemania, Austria, Suiza y otros países germanoparlantes. Cada encargo lo firma un traductor jurado de alemán acreditado, sin plataformas intermediarias."
       faqItems={[

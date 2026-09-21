@@ -26,6 +26,7 @@ export default function TraductorJuradoNeerlandesPage() {
       idioma="neerlandés"
       idiomaSlug="neerlandes"
       combinaciones={["nl-es", "es-nl"]}
+      updated="2026-09-21"
       tituloH1="Traductor jurado de neerlandés para España, Países Bajos y Bélgica"
       descripcion="Realizamos traducciones juradas de neerlandés a español y de español a neerlandés para trámites en España y en países como Países Bajos y Bélgica: empleo, residencia, estudios, empresas y herencias. Tu documento va directo al traductor jurado de neerlandés por nuestra red directa — con su nombre y nº oficial en el presupuesto, sin plataformas intermediarias."
       faqItems={[

@@ -29,6 +29,7 @@ export default function TraductorJuradoFrancesPage() {
       idioma="francés"
       idiomaSlug="frances"
       combinaciones={["fr-es", "es-fr"]}
+      updated="2026-09-21"
       tituloH1="Traducción jurada de francés para trámites oficiales en España y en países francófonos"
       descripcion="Traductor jurado de francés nº 3850, nombrado por el MAEC: traducción jurada francés↔español con validez oficial en toda España y reconocida en países francófonos. Es el formato que te piden cuando un documento en francés debe presentarse ante una administración, notaría, universidad o juzgado en España, o cuando un documento español se utiliza en Francia. Precio cerrado, plazo estimado y entrega en PDF firmado digitalmente por un traductor jurado acreditado por el MAEC."
       faqItems={[
@@ -82,6 +83,30 @@ export default function TraductorJuradoFrancesPage() {
           descripcion:
             "Contrats de travail, fiches de paie, attestations de salaire, statuts de société, extraits Kbis, procès-verbaux y otros documentos necesarios para trabajar o invertir en España.",
           enlace: "/documentos-oficiales/documentos-laborales",
+        },
+        {
+          titulo: "Nacionalidad española para franceses",
+          descripcion:
+            "Qué documentos traducir y cuáles no para el expediente de nacionalidad española cuando vienes de Francia, con el detalle del casier judiciaire y el acte de naissance.",
+          enlace: "/blog/nacionalidad-espanola-para-franceses",
+        },
+        {
+          titulo: "Casarse en España siendo francés",
+          descripcion:
+            "Documentos franceses para la boda civil en España y por qué el Reglamento UE 2016/1191 exime de Apostilla al acte de naissance y al certificat de coutume.",
+          enlace: "/blog/boda-en-espana-documentos-franceses",
+        },
+        {
+          titulo: "Casier judiciaire francés (Bulletin n°3)",
+          descripcion:
+            "Cómo pedir el extrait de casier judiciaire en Francia y cómo se traduce de forma jurada para extranjería, nacionalidad u oposiciones en España.",
+          enlace: "/blog/casier-judiciaire-frances-traduccion",
+        },
+        {
+          titulo: "Documentos marroquíes, argelinos y tunecinos en francés",
+          descripcion:
+            "Guías por país para quien tramita en España con documentos del Magreb redactados en francés o bilingües: apostilla, legalización consular y traducción jurada.",
+          enlace: "/blog/documentos-marroquies-guia-completa",
         },
       ]}
     />

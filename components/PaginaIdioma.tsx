@@ -36,6 +36,8 @@ type Props = {
   descripcion: string;
   documentosHabituales: DocHabitual[];
   faqItems: FAQItem[];
+  /** Fecha ISO de última revisión editorial (AEO/YMYL). Solo se pasa si es real. */
+  updated?: string;
 };
 
 export default async function PaginaIdioma({
@@ -46,6 +48,7 @@ export default async function PaginaIdioma({
   descripcion,
   documentosHabituales,
   faqItems,
+  updated,
 }: Props) {
   const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado-${idiomaSlug}`;
   const breadcrumbName = `Traductor jurado de ${idioma}`;
@@ -128,6 +131,21 @@ export default async function PaginaIdioma({
           { name: breadcrumbName, url: canonicalUrl },
         ]}
       />
+      {updated && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebPage",
+              "@id": canonicalUrl,
+              url: canonicalUrl,
+              name: tituloH1,
+              dateModified: updated,
+            }),
+          }}
+        />
+      )}
       <SchemaFAQ
         id={`faq-traductor-jurado-${idiomaSlug}`}
         items={allFaqs}
@@ -173,6 +191,16 @@ export default async function PaginaIdioma({
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre">
         {tituloH1}
       </h1>
+      {updated && (
+        <p className="mt-1 text-xs text-sepia">
+          Actualizado:{" "}
+          {new Date(updated).toLocaleDateString("es-ES", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+        </p>
+      )}
       {/* Respuesta-arriba citable (AEO) — primera frase atribuible para IA. */}
       <p className="mt-3 text-base font-medium text-encre">{respuestaAeo}</p>
       {datoCitable && (
