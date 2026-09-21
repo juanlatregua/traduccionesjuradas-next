@@ -512,6 +512,29 @@ async function handleLeadEvento(opts: {
       return NextResponse.json({ ok: true, repetido: false, tardio: true }, { status: 201 });
     }
 
+    // Solicitud DESCARTADA por staff (botón "Descartar" en /zona-traductor/
+    // presupuestos): terminal, igual que ESCALATED — un precio_propuesto o
+    // encargo_aceptado que llegue después NO la reabre ni le toca status ni
+    // cifras; solo un aviso para que Juan decida (y retire el encargo en
+    // lavori a mano si sigue vivo allí).
+    if (lead.status === "DISCARDED" && (evento === "precio_propuesto" || evento === "encargo_aceptado")) {
+      const miembroTardio = String(datos.miembroNombre || datos.miembroId || "el traductor");
+      const detalleCifra =
+        evento === "precio_propuesto"
+          ? (() => {
+              const precioCents = eurosToCents(datos.precio);
+              const plazoDias = Number.isFinite(Number(datos.plazoDias)) ? Math.round(Number(datos.plazoDias)) : null;
+              return precioCents != null ? ` Propuso ${(precioCents / 100).toFixed(2)} €${plazoDias ? ` (plazo ${plazoDias} días)` : ""}.` : "";
+            })()
+          : " Aceptó el encargo.";
+      const texto = `Respuesta de ${miembroTardio} sobre ${lead.ref}, que está DESCARTADA.${detalleCifra} No se ha tocado la solicitud — si el encargo sigue vivo en lavori, retíralo a mano: ${builderUrl}`;
+      await Promise.all([
+        staffMail(`⚠ Respuesta sobre solicitud descartada — ${lead.ref}`, [texto]),
+        sendStaffAlertSMS(texto, `descartada_tardio ${lead.ref}`).catch(() => {}),
+      ]);
+      return NextResponse.json({ ok: true, repetido: false, descartada: true }, { status: 201 });
+    }
+
     if (evento === "precio_propuesto") {
       const precioCents = eurosToCents(datos.precio);
       if (precioCents === null) {

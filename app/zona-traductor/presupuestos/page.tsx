@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
+import DiscardLavoriLeadButton from "@/components/DiscardLavoriLeadButton";
 import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber, QUOTE_STATUS_LABELS, type QuoteStatus } from "@/lib/quotes";
@@ -207,19 +208,22 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                         {lead.expedienteRef?.startsWith("puerta:") ? " · documentos de la puerta (entran solos en el builder)" : lead.expedienteRef ? ` · exp. ${lead.expedienteRef}` : " · sin expediente (suelta los PDF en el builder)"}
                       </div>
                     </div>
-                    {priced ? (
-                      <Link href={href} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
-                        Montar presupuesto
-                      </Link>
-                    ) : (
-                      <Link
-                        href={href}
-                        className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
-                        title="Aún no hay precio del jurado: ábrela para reclamarlo o cambiar de candidato"
-                      >
-                        Esperando precio · abrir
-                      </Link>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {priced ? (
+                        <Link href={href} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+                          Montar presupuesto
+                        </Link>
+                      ) : (
+                        <Link
+                          href={href}
+                          className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+                          title="Aún no hay precio del jurado: ábrela para reclamarlo o cambiar de candidato"
+                        >
+                          Esperando precio · abrir
+                        </Link>
+                      )}
+                      <DiscardLavoriLeadButton id={lead.id} ref={lead.ref} />
+                    </div>
                   </div>
                 );
               })}

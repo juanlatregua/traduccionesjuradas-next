@@ -136,6 +136,14 @@ export function isAnomalousPrice(centsPerWord: number, historyCentsPerWord: numb
   return centsPerWord > 2 * median;
 }
 
+/** Estados desde los que el staff puede DESCARTAR una solicitud de precio de
+ * lead sin presupuesto (botón "Descartar" en /zona-traductor/presupuestos):
+ * SENT (esperando precio) o PRICED (con precio pero sin montar presupuesto).
+ * ACCEPTED/ESCALATED/DISCARDED quedan fuera del alcance del botón. */
+export function isDiscardableLeadStatus(status: string): boolean {
+  return status === "SENT" || status === "PRICED";
+}
+
 /** Guardia ALTA 1 (Juan, 15-sep-2026, revisión adversarial): una cifra que el
  * jurado cambia DESPUÉS de que el presupuesto ya salió no puede comunicarse
  * como aceptación si supera lo que las líneas ya tienen presupuestado como

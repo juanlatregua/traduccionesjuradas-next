@@ -5,6 +5,7 @@ import {
   directQuoteLines,
   isAnomalousPrice,
   exceedsQuotedCost,
+  isDiscardableLeadStatus,
   DOC_FLOOR_CENTS,
 } from "../../lib/lavori-directo-math.ts";
 
@@ -199,6 +200,24 @@ test("Daniela: 42 € líquidos se aprenden como 39,62 € de base y la cifra pr
   assert.match(cuerpo, /channelPriceToBaseCents\(lead\.priceCents, priceBasisForMember\(lead\.miembroId\)\)/);
   const orden = src.slice(src.indexOf("export async function learnFromOrderPrice"), src.indexOf("export async function learnFromPaidQuote"));
   assert.match(orden, /channelPriceToBaseCents\(opts\.priceCents, priceBasisForMember\(opts\.miembroId\)\)/);
+});
+
+test("isDiscardableLeadStatus: solo SENT y PRICED se pueden descartar (botón «Descartar»)", () => {
+  assert.equal(isDiscardableLeadStatus("SENT"), true);
+  assert.equal(isDiscardableLeadStatus("PRICED"), true);
+  assert.equal(isDiscardableLeadStatus("ACCEPTED"), false);
+  assert.equal(isDiscardableLeadStatus("ESCALATED"), false);
+  assert.equal(isDiscardableLeadStatus("DISCARDED"), false, "ya descartada no se vuelve a descartar");
+});
+
+test("un precio_propuesto o encargo_aceptado sobre una solicitud DESCARTADA no la reabre (eventos/route.ts)", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../../app/api/lavori/eventos/route.ts", import.meta.url), "utf8");
+  assert.match(
+    src,
+    /lead\.status === "DISCARDED" && \(evento === "precio_propuesto" \|\| evento === "encargo_aceptado"\)/,
+    "guardia terminal para DISCARDED, igual que ESCALATED"
+  );
 });
 
 test("la solicitud directa de PT va solo a Cristina y María Carmen (Juan Amor es respaldo del carril, no directo)", async () => {
