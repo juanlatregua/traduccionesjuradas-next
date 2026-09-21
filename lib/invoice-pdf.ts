@@ -23,6 +23,7 @@ type InvoiceData = {
   simplified?: boolean; // factura simplificada (RD 1619/2012)
   brand?: string; // marca/actividad emisora (traduccionesjuradas | holabonjour)
   logoDataUrl?: string; // PNG en data URL para marcas con logo de imagen
+  noLogo?: boolean; // factura sin logo (p. ej. Vatel/SORENGAN, orden de Juan 21-sep-2026)
   poNumber?: string | null; // Purchase Order / nº de pedido del cliente
   holderNames?: string | null; // titulares de los certificados (informativo)
   langPair?: string | null;
@@ -149,7 +150,9 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
 
   // ── Cabecera: logo + emisor (según marca) ─────────────────
   const brand = getBrand(data.brand);
-  if (brand.logo.kind === "image" && data.logoDataUrl) {
+  if (data.noLogo) {
+    // sin logo: solo el bloque del emisor
+  } else if (brand.logo.kind === "image" && data.logoDataUrl) {
     try {
       doc.addImage(data.logoDataUrl, "PNG", margin, 5, brand.logo.widthMm, brand.logo.heightMm);
     } catch {
@@ -161,7 +164,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     drawLogo(doc, margin, 14, 66);
   }
   // El emisor va justo debajo del logo de imagen; la Fecha sigue fija en y=66.
-  let y = brand.logo.kind === "image" && data.logoDataUrl ? 5 + brand.logo.heightMm + 3.5 : 46;
+  let y = data.noLogo ? 20 : brand.logo.kind === "image" && data.logoDataUrl ? 5 + brand.logo.heightMm + 3.5 : 46;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(...GOLD_DARK);

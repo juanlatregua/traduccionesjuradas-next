@@ -27,6 +27,7 @@ export default function ClientMessageComposer({
   const [subject, setSubject] = useState(defaultSubject);
   const [body, setBody] = useState(defaultMessage);
   const [attachFiles, setAttachFiles] = useState(hasDeliveryFiles);
+  const [attachInvoice, setAttachInvoice] = useState(hasDeliveryFiles);
   const [alsoSms, setAlsoSms] = useState(false);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -93,7 +94,7 @@ export default function ClientMessageComposer({
       const res = await fetch(`/api/orders/${encodeURIComponent(reference)}/notify-custom`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, bodyText: body, attachFiles, alsoSms }),
+        body: JSON.stringify({ subject, bodyText: body, attachFiles, attachInvoice, alsoSms }),
       });
       const data = await res.json();
       setFeedback(
@@ -161,8 +162,12 @@ export default function ClientMessageComposer({
             checked={attachFiles}
             onChange={(e) => setAttachFiles(e.target.checked)}
           />
-          Adjuntar traducciones + factura
+          Adjuntar traducciones
           {hasDeliveryFiles ? "" : <span className="text-amber-300"> — aún no hay traducción subida: saldría SIN PDF</span>}
+        </label>
+        <label className="flex items-center gap-2 text-xs text-slate-300">
+          <input type="checkbox" checked={attachInvoice} onChange={(e) => setAttachInvoice(e.target.checked)} />
+          Adjuntar factura (si está emitida)
         </label>
         <label className="flex items-center gap-2 text-xs text-slate-300">
           <input type="checkbox" checked={alsoSms} onChange={(e) => setAlsoSms(e.target.checked)} />

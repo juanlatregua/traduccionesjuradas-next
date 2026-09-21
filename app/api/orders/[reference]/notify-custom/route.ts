@@ -47,6 +47,7 @@ export async function POST(req: Request, { params }: Params) {
     const subject = String(body?.subject || "").trim() || `Tu traducción jurada (${order.reference})`;
     const bodyText = String(body?.bodyText || "").trim();
     const attachFiles = body?.attachFiles !== false;
+    const attachInvoice = typeof body?.attachInvoice === "boolean" ? body.attachInvoice : attachFiles;
     const alsoSms = body?.alsoSms === true;
     if (!bodyText) {
       return NextResponse.json({ ok: false, error: "El mensaje está vacío." }, { status: 400 });
@@ -77,6 +78,16 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     let attachments: any[] = [];
+    if (attachInvoice && !attachFiles) {
+      const invAtt = await buildIssuedInvoiceAttachment(order.reference);
+      if (!invAtt) {
+        return NextResponse.json(
+          { ok: false, error: "Este pedido no tiene factura emitida que adjuntar (o no pidió factura). Emítela primero en Contabilidad." },
+          { status: 400 }
+        );
+      }
+      attachments = [invAtt];
+    }
     if (attachFiles) {
       const files: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
         ? (order.deliveryFilesJson as unknown as DeliveryFile[]).filter(
@@ -95,7 +106,7 @@ export async function POST(req: Request, { params }: Params) {
             )
           )
         ),
-        buildIssuedInvoiceAttachment(order.reference),
+        attachInvoice ? buildIssuedInvoiceAttachment(order.reference) : Promise.resolve(null),
       ]);
       attachments = [...fileAtts.filter(Boolean), ...(invAtt ? [invAtt] : [])];
     }
