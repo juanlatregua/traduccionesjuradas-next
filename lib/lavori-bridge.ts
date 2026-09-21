@@ -665,6 +665,7 @@ export async function sendLavoriPrecioAceptado(payload: {
   ref: string; // motor_ref EXACTA del encargo en lavori (leads: LEAD-XXXX-precio)
   precioParaTi: string; // euros con 2 decimales — la cifra que propuso el traductor
   nota?: string; // ≤500, va al chat del encargo; sin PII del cliente
+  refPedido?: string; // nº de pedido de la casa (≤32) para cruzar la tarjeta de lavori con tj.net
 }): Promise<PrecioAceptadoResult> {
   const secret = process.env.MOTOR_LAVORI_SECRET;
   if (!secret) {
@@ -681,6 +682,7 @@ export async function sendLavoriPrecioAceptado(payload: {
         ref: payload.ref,
         precioParaTi: payload.precioParaTi,
         ...(payload.nota ? { nota: payload.nota.slice(0, 500) } : {}),
+        ...(payload.refPedido ? { refPedido: payload.refPedido.slice(0, 32) } : {}),
       }),
       signal: AbortSignal.timeout(30_000),
     });

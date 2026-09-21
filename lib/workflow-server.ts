@@ -651,6 +651,7 @@ export async function deliverPrecioAceptado(opts: {
     ref,
     precioParaTi: precio,
     nota: "El cliente ha aceptado y pagado. Adelante con el encargo.",
+    refPedido: reference,
   });
 
   if (result.ok) {
