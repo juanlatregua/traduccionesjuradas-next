@@ -504,11 +504,16 @@ export function resolveLavoriCandidatos(
  * abrir un carril automático para los pedidos pagados. */
 export function lavoriManualRoute(langPair: string | null | undefined, cartera: LavoriMember[]): LavoriRoute | null {
   const fixed = lavoriRouteFromPair(langPair);
-  if (fixed) return fixed;
+  // lavori rechaza la solicitud ENTERA (400) si un candidato no está libre
+  // (caso AR 21-sep: Manuel Carmelo con disponible=false tumbaba a las otras dos).
+  if (fixed) {
+    const noLibres = new Set(cartera.filter((m) => m.disponible === false).map((m) => m.id));
+    return { ...fixed, candidatos: fixed.candidatos.filter((id) => !noLibres.has(id)) };
+  }
   const parsed = lavoriLangFromPair(langPair);
   if (!parsed) return null;
   const candidatos = cartera
-    .filter((m) => m.langs.includes(parsed.lang) && m.canal !== false && !m.enPaz)
+    .filter((m) => m.langs.includes(parsed.lang) && m.canal !== false && !m.enPaz && m.disponible !== false)
     .map((m) => m.id);
   return { lang: parsed.lang, par: parsed.par, candidatos };
 }

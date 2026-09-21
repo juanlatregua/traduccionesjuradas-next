@@ -301,3 +301,14 @@ test("applyLiveFallback: carril de alta → tal cual; parte sin alta → se quit
   // pickLavoriAuto tampoco los elige en "todos"
   assert.equal(pickLavoriAuto("pt", cartera, 10).some((m) => LAVORI_NO_AUTO[m.id]), false);
 });
+
+test("lavoriManualRoute: el carril fijo quita a quien no está libre (lavori rechaza la solicitud entera)", () => {
+  const fixed = lavoriRouteFromPair("ar->es");
+  assert.ok(fixed && fixed.candidatos.length > 1);
+  const ocupado = fixed!.candidatos[0];
+  const cartera = fixed!.candidatos.map((id) => ({ id, nombre: id, langs: ["ar"], canal: true, enPaz: false, disponible: id !== ocupado, papelUnico: false }));
+  const r = lavoriManualRoute("ar->es", cartera as any);
+  assert.ok(r && !r.candidatos.includes(ocupado));
+  assert.equal(r!.candidatos.length, fixed!.candidatos.length - 1);
+});
+
