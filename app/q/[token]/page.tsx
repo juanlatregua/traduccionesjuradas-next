@@ -24,6 +24,7 @@ type Props = {
     canceled?: string;
     fb?: string;
     pago?: string;
+    paso?: string;
   };
 };
 
@@ -107,6 +108,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       if (searchParams?.canceled) qs.set("canceled", String(searchParams.canceled));
       if (searchParams?.fb) qs.set("fb", String(searchParams.fb));
       if (searchParams?.pago) qs.set("pago", String(searchParams.pago));
+      if (searchParams?.paso) qs.set("paso", String(searchParams.paso));
       const suffix = qs.toString() ? `?${qs.toString()}` : "";
       redirect(`https://www.traduccionesjuradas.net/q/${encodeURIComponent(params.token)}${suffix}`);
     }
@@ -327,6 +329,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               quoteNumber={refreshed.quoteNumber}
               totalLabel={formatMoney(total)}
               autoStartCard={searchParams?.pago === "tarjeta"}
+              openProof={searchParams?.paso === "justificante"}
               paymentMethods={refreshed.paymentMethods}
               lang={lang}
             />

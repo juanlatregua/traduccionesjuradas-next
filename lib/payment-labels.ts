@@ -46,3 +46,15 @@ export function resolvePaymentAccounts(methods: string[] | null | undefined): { 
     .filter((k) => PAYMENT_ACCOUNTS[k])
     .map((k) => ({ key: k, account: PAYMENT_ACCOUNTS[k] }));
 }
+
+// Solo las cuentas de la empresa confirman pedidos solas; Openbank y Revolut son
+// personales de Juan (orden de Juan 21-sep-2026).
+const COMPANY_TRANSFER_KEYS = ["sabadell", "bbva"] as const;
+
+/** Últimas 4 cifras de las cuentas de la empresa (la misma fuente que ve el cliente). */
+export function transferAccountsLast4(): string[] {
+  return COMPANY_TRANSFER_KEYS.flatMap((k) => {
+    const a = PAYMENT_ACCOUNTS[k];
+    return a?.kind === "transfer" ? [a.iban.replace(/\s+/g, "").slice(-4)] : [];
+  });
+}

@@ -13,6 +13,7 @@
 // lo sella una persona contra el banco.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { normalizeConfidence } from "@/lib/payment-proof-match";
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -114,7 +115,7 @@ export async function extractPaymentProof(input: {
     const parsed = JSON.parse(m[0]) as PaymentProofRead;
     return {
       esJustificante: Boolean(parsed.esJustificante),
-      confianza: Number(parsed.confianza) || 0,
+      confianza: normalizeConfidence(parsed.confianza),
       importeCents: Number.isFinite(Number(parsed.importeCents)) ? Math.round(Number(parsed.importeCents)) : null,
       moneda: parsed.moneda || null,
       ordenante: parsed.ordenante || null,

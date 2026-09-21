@@ -6,6 +6,7 @@ export { PAYMENT_LABELS };
 type CommonData = {
   name: string;
   payUrl: string;
+  proofUrl?: string | null;
   // Identidad del jurado que hará la traducción (directriz 12-ago: "da
   // seriedad") — la línea solo sale si hay nombre; el nº MAEC si se conoce.
   translatorName?: string | null;
@@ -67,7 +68,7 @@ ${jurado ? `${jurado}\n` : ""}Puede revisarlo y realizar el pago de forma segura
 Formas de pago:
 ${payLines}
 Si ha seleccionado envío en papel, los gastos de envío son 12 € + IVA (incluidos en el total).
-Una vez confirmado el pago, comenzaremos la traducción de inmediato.
+${data.proofUrl ? `¿Ya has pagado por transferencia? Adjunta el justificante aquí: ${data.proofUrl}\n` : ""}Una vez confirmado el pago, comenzaremos la traducción de inmediato.
 Si el PDF que nos envió no era totalmente legible, aquí le explicamos cómo escanear mejor la próxima vez: https://www.traduccionesjuradas.net/como-escanear-bien
 Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
 
@@ -90,6 +91,7 @@ export function buildWhatsAppPayText(data: {
   sourceLang?: string;
   targetLang?: string;
   payUrl?: string;
+  proofUrl?: string | null;
   // Nota fiscal del coste: por defecto "IVA incluido"; para no residentes UE
   // (vatRate 0) el que llama pasa la no sujeción — mentir "IVA incluido" no vale.
   vatNote?: string;
@@ -126,7 +128,9 @@ export function buildWhatsAppPayText(data: {
     entrega,
     `- 🤝 Para confirmar su encargo puede hacer el pago:`,
     payLines,
-    `- 📥 Nos envía el justificante de pago para finalizar el encargo. ¡Gracias!`,
+    data.proofUrl
+      ? `- 📥 ¿Ya has pagado por transferencia? Adjunta el justificante aquí: ${data.proofUrl}`
+      : `- 📥 Nos envía el justificante de pago para finalizar el encargo. ¡Gracias!`,
   ]
     .filter(Boolean)
     .join("\n");

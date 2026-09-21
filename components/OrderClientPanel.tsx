@@ -207,7 +207,7 @@ export default function OrderClientPanel({
             {getDeliveryTypeLabel(deliveryType, lang)}
           </span>
         </p>
-        {deliveryType === "envio" ? (
+        {deliveryType === "paper" || deliveryType === "envio" ? (
           <>
             <p className="mt-2 text-xs text-slate-600">
               {hasShipping ? t.shippingRegistered : t.shippingMissing}

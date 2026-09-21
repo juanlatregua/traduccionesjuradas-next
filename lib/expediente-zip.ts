@@ -50,7 +50,10 @@ const eur = (cents: number | null | undefined) =>
 
 export type ExpedienteZip = { folder: string; buffer: Buffer; originales: number; descargados: number; traduccion: number };
 
-export async function buildExpedienteZip(reference: string, opts: { by: string | null; audit?: boolean }): Promise<ExpedienteZip | null> {
+export async function buildExpedienteZip(
+  reference: string,
+  opts: { by: string | null; audit?: boolean; onlyOriginals?: boolean }
+): Promise<ExpedienteZip | null> {
   const staff = { email: opts.by };
   const order = await prisma.order.findUnique({
     where: { reference },
@@ -98,7 +101,7 @@ export async function buildExpedienteZip(reference: string, opts: { by: string |
   const pairParts = (order.langPair || "").split("->");
   const par = pairParts.length === 2 ? `${pairParts[0]}-${pairParts[1]}`.toUpperCase() : slug(order.langPair || "par");
   const clientSlug = slug((order.clientName || order.clientEmail || "cliente").split("@")[0].split(" ").slice(-2).join("-"));
-  const folder = `${order.reference}_${par}_${clientSlug}`;
+  const folder = `${order.reference}_${par}_${clientSlug}${opts.onlyOriginals ? "_originales" : ""}`;
 
   const zip = new JSZip();
   const root = zip.folder(folder)!;
@@ -135,7 +138,7 @@ export async function buildExpedienteZip(reference: string, opts: { by: string |
   }
 
   // Entrega (si existe): mismo criterio que ve el cliente.
-  const entregas = clientVisibleDeliveryFiles(order);
+  const entregas = opts.onlyOriginals ? [] : clientVisibleDeliveryFiles(order);
   const entregaMeta: string[] = [];
   if (entregas.length > 0) {
     const t = root.folder("traduccion")!;
@@ -236,8 +239,10 @@ export async function buildExpedienteZip(reference: string, opts: { by: string |
     .filter((l) => l !== null)
     .join("\n");
 
-  root.file("expediente.md", md);
-  root.file("expediente.json", JSON.stringify(expediente, null, 2));
+  if (!opts.onlyOriginals) {
+    root.file("expediente.md", md);
+    root.file("expediente.json", JSON.stringify(expediente, null, 2));
+  }
 
   const buffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 6 } });
 
@@ -246,7 +251,7 @@ export async function buildExpedienteZip(reference: string, opts: { by: string |
       data: {
         orderId: order.id,
         type: "expediente.downloaded",
-        message: `Expediente descargado (${docsMeta.filter((d) => d.descargado).length}/${docsMeta.length} originales${entregaMeta.length ? `, ${entregaMeta.length} de traducción` : ""}) por ${staff.email}.`,
+        message: `${opts.onlyOriginals ? "Originales descargados" : "Expediente descargado"} (${docsMeta.filter((d) => d.descargado).length}/${docsMeta.length} originales${entregaMeta.length ? `, ${entregaMeta.length} de traducción` : ""}) por ${staff.email}.`,
         payload: { by: staff.email, folder, bytes: buffer.length },
       },
     })

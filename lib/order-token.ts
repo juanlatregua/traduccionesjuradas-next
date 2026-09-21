@@ -83,7 +83,7 @@ export function verifyOrderToken(reference: string, token: string): boolean {
  */
 export function buildSignedOrderUrl(
   reference: string,
-  path: "pagar" | "detalle" | "estado" = "pagar",
+  path: "pagar" | "detalle" | "estado" | "envio" = "pagar",
   extraParams?: Record<string, string>,
 ): string {
   const base = (
@@ -93,7 +93,7 @@ export function buildSignedOrderUrl(
   const targetPath =
     path === "estado"
       ? `/pedido/${encodeURIComponent(reference)}`
-      : `/area-cliente/pedido/${encodeURIComponent(reference)}${path === "pagar" ? "/pagar" : ""}`;
+      : `/area-cliente/pedido/${encodeURIComponent(reference)}${path === "pagar" ? "/pagar" : path === "envio" ? "/envio" : ""}`;
 
   const url = new URL(targetPath, base);
 

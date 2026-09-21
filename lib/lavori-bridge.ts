@@ -595,7 +595,7 @@ export function buildPriceRequestPayload(opts: {
   return {
     ref: `${opts.reference}-precio`,
     par: opts.route.par,
-    descripcion: `${docs}${palabras} — traducción jurada ${opts.route.par}. Solicitud de precio de la casa: mira los documentos del sobre y pasa tu precio.`,
+    descripcion: `${docs}${palabras} — traducción jurada ${opts.route.par}. Solicitud de precio de la casa: abre «Documentos del encargo» y pasa tu precio.`,
     ...(opts.words ? { palabras: opts.words } : {}),
     ...(especificaciones ? { especificaciones } : {}),
     candidatos: opts.route.candidatos,

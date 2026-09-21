@@ -70,7 +70,16 @@ export function pickQuoteForProof(
   };
 }
 
-type Adjunto = { url?: string; contentType?: string; name?: string };
+type Adjunto = { url?: string; contentType?: string; name?: string; size?: number };
+
+const MIN_IMAGE_BYTES = 30 * 1024;
+
+/** El adjunto que merece la lectura: el primer PDF, si no la primera imagen de >30 KB (no logos ni firmas). */
+export function pickProofAttachment(adjuntos: Adjunto[]): Adjunto | null {
+  const pdf = adjuntos.find((a) => a.contentType === "application/pdf");
+  if (pdf) return pdf;
+  return adjuntos.find((a) => String(a.contentType || "").startsWith("image/") && Number(a.size || 0) > MIN_IMAGE_BYTES) || null;
+}
 
 const LEIBLE = /^(application\/pdf|image\/(jpeg|png|webp|gif))$/;
 
@@ -103,17 +112,53 @@ export async function scanInboxForPaymentProofs(opts?: { diasAtras?: number; max
 
   const res: ScanResult = { revisados: 0, justificantes: 0, cruzados: 0, avisados: 0 };
 
+  // Solo se paga la lectura si el remitente tiene algo pendiente de cobro: un
+  // presupuesto vivo sin pagar o un pedido esperando pago. Una pasada para todos.
+  const remitentes = Array.from(new Set(correos.map((c) => c.fromEmail.trim().toLowerCase()).filter(Boolean)));
+  const [conPresupuesto, conPedido] = remitentes.length
+    ? await Promise.all([
+        prisma.quote.findMany({
+          where: {
+            paidAt: null,
+            deletedAt: null,
+            status: { in: ["SENT", "OPENED", "ACCEPTED"] as any },
+            OR: remitentes.map((e) => ({ customerEmail: { equals: e, mode: "insensitive" as const } })),
+          },
+          select: { customerEmail: true },
+        }),
+        prisma.order.findMany({
+          where: {
+            paymentStatus: "PENDING",
+            OR: remitentes.map((e) => ({ clientEmail: { equals: e, mode: "insensitive" as const } })),
+          },
+          select: { clientEmail: true },
+        }),
+      ])
+    : [[], []];
+  const pendientes = new Set([
+    ...conPresupuesto.map((q) => q.customerEmail.trim().toLowerCase()),
+    ...conPedido.map((o) => o.clientEmail.trim().toLowerCase()),
+  ]);
+
   for (const correo of correos) {
-    const adjuntos = usableAttachments(correo.mediaJson);
-    if (adjuntos.length === 0) {
-      await prisma.inboundEmail.update({ where: { id: correo.id }, data: { proofAt: new Date() } }).catch(() => {});
+    const a = pickProofAttachment(usableAttachments(correo.mediaJson));
+    const conPendiente = pendientes.has(correo.fromEmail.trim().toLowerCase());
+    if (!a || !conPendiente) {
+      await prisma.inboundEmail
+        .update({
+          where: { id: correo.id },
+          data: {
+            proofAt: new Date(),
+            ...(a ? { proofJson: { skipped: "remitente sin presupuesto ni pedido pendiente de pago" } } : {}),
+          },
+        })
+        .catch(() => {});
       continue;
     }
     res.revisados++;
     let read: PaymentProofRead | null = null;
     let match: ProofMatch = { quote: null, motivo: "sin analizar", candidatos: 0 };
     try {
-      const a = adjuntos[0];
       const bin = await fetch(a.url as string);
       const base64 = Buffer.from(await bin.arrayBuffer()).toString("base64");
       read = await extractPaymentProof({
@@ -199,4 +244,69 @@ Está en la bandeja: https://www.traduccionesjuradas.net/admin/inbox`;
     text: cuerpo,
     html: renderSimpleEmailHtml(cuerpo),
   });
+}
+
+/**
+ * Justificante recibido por email y cruzado con un presupuesto vivo: NO se
+ * confirma nada. Se manda UNA vez al cliente el enlace para subirlo en su zona
+ * (/q/[token]?paso=justificante), que es donde se lee y se lanza el pedido.
+ * Solo si el remitente es el cliente del presupuesto: si el cruce fue por
+ * importe desde otra dirección, no se le manda a nadie el enlace de un tercero.
+ */
+export async function sendUploadLinkForEmailedProofs(opts?: { diasAtras?: number }): Promise<{ enviados: number; omitidos: number }> {
+  const from = process.env.EMAIL_FROM || "hola@traduccionesjuradas.net";
+  if (!/@traduccionesjuradas\.net$/i.test(from.trim())) {
+    console.error(`[justificantes] remitente ${from} no es de traduccionesjuradas.net: no se envía el enlace`);
+    return { enviados: 0, omitidos: 0 };
+  }
+  const desde = new Date(Date.now() - (opts?.diasAtras ?? 7) * 24 * 3600 * 1000);
+  const correos = await prisma.inboundEmail.findMany({
+    where: { proofAt: { gte: desde }, proofJson: { not: Prisma.DbNull } },
+    select: { id: true, fromEmail: true, proofJson: true },
+    take: 50,
+  });
+
+  const res = { enviados: 0, omitidos: 0 };
+  for (const correo of correos) {
+    const proof = (correo.proofJson || {}) as { match?: { quoteId?: string | null }; linkSentAt?: string; linkSkipped?: string };
+    const quoteId = proof.match?.quoteId;
+    if (!quoteId || proof.linkSentAt || proof.linkSkipped) continue;
+
+    const quote = await prisma.quote.findUnique({
+      where: { id: quoteId },
+      select: { publicToken: true, customerEmail: true, customerName: true, paidAt: true, status: true, deletedAt: true, validUntil: true },
+    });
+    const vivo =
+      !!quote && !quote.paidAt && !quote.deletedAt && quote.validUntil >= new Date() && ["SENT", "OPENED", "ACCEPTED"].includes(String(quote.status));
+    const mismoCliente = !!quote && quote.customerEmail.trim().toLowerCase() === correo.fromEmail.trim().toLowerCase();
+    const skip = !vivo ? "presupuesto no vivo" : !mismoCliente ? "remitente distinto del cliente del presupuesto" : null;
+
+    await prisma.inboundEmail.update({
+      where: { id: correo.id },
+      data: {
+        proofJson: { ...proof, ...(skip ? { linkSkipped: skip } : { linkSentAt: new Date().toISOString() }) } as Prisma.InputJsonValue,
+      },
+    });
+    if (skip || !quote) {
+      res.omitidos++;
+      continue;
+    }
+
+    const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+    const url = `${base}/q/${quote.publicToken}?paso=justificante`;
+    const { sendMail } = await import("@/lib/azure-mail");
+    const { renderSimpleEmailHtml } = await import("@/lib/quote-messages");
+    const body = `Hola${quote.customerName ? ` ${quote.customerName}` : ""},
+Hemos recibido tu justificante por correo. Para terminar el pedido, súbelo en tu zona:
+Subir justificante y terminar pedido: ${url}
+Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
+    await sendMail({
+      to: quote.customerEmail,
+      subject: "Hemos recibido tu justificante — súbelo para terminar el pedido",
+      text: body,
+      html: renderSimpleEmailHtml(body),
+    }).catch((e) => console.error("[justificantes] enlace al cliente", correo.id, e));
+    res.enviados++;
+  }
+  return res;
 }

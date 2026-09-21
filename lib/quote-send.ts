@@ -122,6 +122,7 @@ export async function finalizeAndSendQuote(opts: {
   const primaryLinkedOrder = linkedOrders[0] || null;
   const { buildSignedOrderUrl } = await import("@/lib/order-token");
   const payUrl = primaryLinkedOrder ? buildSignedOrderUrl(primaryLinkedOrder.reference, "pagar") : `${baseUrl}/q/${quote.publicToken}`;
+  const proofUrl = `${baseUrl}/q/${quote.publicToken}?paso=justificante`;
 
   const pdfBuffer = buildQuotePdfBuffer({
     quoteNumber: quote.quoteNumber,
@@ -169,6 +170,7 @@ export async function finalizeAndSendQuote(opts: {
   const standardCopy = buildPayLinkEmail({
     name: quote.customerName || "cliente",
     payUrl,
+    proofUrl,
     translatorName: quote.translatorName,
     translatorMaec: quote.translatorMaec,
     paymentMethods: quote.paymentMethods,
@@ -205,6 +207,7 @@ export async function finalizeAndSendQuote(opts: {
     sourceLang: quote.sourceLang,
     targetLang: quote.targetLang,
     payUrl,
+    proofUrl,
     translatorName: quote.translatorName,
     translatorMaec: quote.translatorMaec,
     vatNote: Number(quote.vatRate) > 0 ? undefined : "operación no sujeta a IVA — residente fuera de la UE",

@@ -68,6 +68,8 @@ export async function GET(req: Request, { params }: Params) {
         status: true,
         deliveryState: true,
         clientLocale: true,
+        deliveryType: true,
+        shipping: { select: { id: true } },
         quoteSnapshotJson: true,
         events: {
           where: {
@@ -105,6 +107,8 @@ export async function GET(req: Request, { params }: Params) {
       paymentStatus: order.paymentStatus,
       status: order.status,
       clientLocale: order.clientLocale,
+      deliveryType: order.deliveryType,
+      hasShipping: !!order.shipping,
       paymentBlocked,
       hasSourceDocument,
       items: normalizeItems(order.quoteSnapshotJson),

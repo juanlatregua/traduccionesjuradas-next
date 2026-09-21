@@ -5,6 +5,7 @@
 // Reusa PATCH /api/orders/[reference]/document-items/[itemId].
 
 import { useState } from "react";
+import { blobDownloadUrl } from "@/lib/blob-download-url";
 
 type Item = {
   id: string;
@@ -124,6 +125,11 @@ export default function OrderDocumentItems({ reference, items: initial }: { refe
               {it.fileUrl && (
                 <a href={it.fileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-md border border-slate-600 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800">
                   📄 Original
+                </a>
+              )}
+              {it.fileUrl && (
+                <a href={blobDownloadUrl(it.fileUrl)} download={it.fileName} className="shrink-0 rounded-md border border-slate-600 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800">
+                  ⤓ Descargar
                 </a>
               )}
               {it.deliveredFileUrl && (

@@ -79,6 +79,8 @@ export type PublicDict = {
   alreadyTransferred: string;
   alreadyTransferredHelp: string;
   alreadyTransferredCta: string;
+  proofStepTitle: string;
+  proofStepHelp: string;
   oneMoment: string;
   payCard: string;
   redirecting: string;
@@ -143,6 +145,8 @@ const ES: PublicDict = {
   alreadyTransferred: "¿Ya has hecho la transferencia?",
   alreadyTransferredHelp: "Súbenos el justificante y la confirmamos nosotros. Solo tarda un momento.",
   alreadyTransferredCta: "Ya he transferido: subir justificante",
+  proofStepTitle: "¿Ya has pagado? Sube aquí tu justificante",
+  proofStepHelp: "Pulsa el botón y adjunta el justificante de tu transferencia o Bizum. Con eso terminamos tu pedido.",
   oneMoment: "Un momento...",
   payCard: "Pagar",
   redirecting: "Redirigiendo...",
@@ -207,6 +211,8 @@ const EN: PublicDict = {
   alreadyTransferred: "Already made the transfer?",
   alreadyTransferredHelp: "Upload your receipt and we will confirm it. It only takes a moment.",
   alreadyTransferredCta: "I have transferred: upload receipt",
+  proofStepTitle: "Already paid? Upload your receipt here",
+  proofStepHelp: "Press the button and attach the receipt of your transfer or Bizum. That is all we need to complete your order.",
   oneMoment: "One moment...",
   payCard: "Pay",
   redirecting: "Redirecting...",
@@ -271,6 +277,8 @@ const FR: PublicDict = {
   alreadyTransferred: "Vous avez déjà fait le virement ?",
   alreadyTransferredHelp: "Envoyez-nous le justificatif et nous le confirmons. Cela ne prend qu'un instant.",
   alreadyTransferredCta: "J'ai viré : envoyer le justificatif",
+  proofStepTitle: "Vous avez déjà payé ? Envoyez votre justificatif ici",
+  proofStepHelp: "Appuyez sur le bouton et joignez le justificatif de votre virement ou Bizum. C'est tout ce qu'il faut pour finaliser votre commande.",
   oneMoment: "Un instant...",
   payCard: "Payer",
   redirecting: "Redirection...",

@@ -884,7 +884,7 @@ export function getDeliveryStateLabel(state: string, locale?: string | null) {
 
 export function getDeliveryTypeLabel(type: string, locale?: string | null) {
   const t = getAc(locale).deliveryType;
-  return type === "envio" ? t.envio : t.pdf;
+  return type === "paper" || type === "envio" ? t.envio : t.pdf;
 }
 
 export function getWorkflowStateLabel(state?: string | null, locale?: string | null) {

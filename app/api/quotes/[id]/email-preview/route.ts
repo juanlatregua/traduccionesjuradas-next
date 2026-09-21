@@ -68,7 +68,7 @@ export async function GET(req: Request, { params }: Params) {
     subject = msg.subject;
     body = msg.body;
   } else {
-    const msg = buildPayLinkEmail({ name, payUrl });
+    const msg = buildPayLinkEmail({ name, payUrl, proofUrl: `${payUrl}?paso=justificante` });
     subject = msg.subject;
     body = msg.body;
   }

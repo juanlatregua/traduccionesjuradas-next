@@ -137,6 +137,13 @@ model Order {
   quotePreviewFileUrl String?
   quoteSnapshotJson   Json?
   paymentProofFileKey String?
+  // Lectura automática del justificante subido (cron /api/cron/justificantes):
+  // CheckedAt null = pendiente de leer; subir otro justificante lo vuelve a null.
+  paymentProofJson      Json?
+  paymentProofCheckedAt DateTime?
+  // Pedido en papel lanzado sin dirección: avisos al cliente (máx. 3, cada 48 h).
+  shippingRequestCount  Int       @default(0)
+  shippingRequestedAt   DateTime?
   finalDeliveryFileKey String?
   finalDeliveryFileUrl String?
   finalFilename       String?

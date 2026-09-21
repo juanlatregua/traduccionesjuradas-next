@@ -234,6 +234,13 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
   if (result.changed || redeliveredMilestone) {
     void notifyClientMilestone(options.reference, result.to, options.payload);
   }
+  // Pedido en papel lanzado sin dirección: se lanza igual y se le pide al cliente.
+  // Punto común de todos los cobros (Stripe, Redsys, PayPal, manual, crédito).
+  if (result.changed && result.to === "PAGO_VALIDADO") {
+    void import("@/lib/shipping-request")
+      .then((m) => m.requestShippingData(options.reference, { onlyFirst: true }))
+      .catch((e) => console.error("[workflow] shipping request failed", e));
+  }
 
   return result;
 }

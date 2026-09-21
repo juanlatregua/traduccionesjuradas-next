@@ -12,6 +12,26 @@ import {
   transitionWorkflowState,
 } from "@/lib/workflow-server";
 import { prisma } from "@/lib/prisma";
+import { planQuotePaidSync } from "@/lib/quote-paid-sync";
+
+// Solo el Quote: el pedido ya existe, así que NO se pasa por runQuoteToOrderBridge
+// (volvería a asignar/avisar). updateMany con paidAt null = idempotente.
+async function markLinkedQuotePaid(quoteId: string, method: "BIZUM" | "TRANSFER") {
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    select: { id: true, status: true, paidAt: true, total: true, currency: true },
+  });
+  const plan = planQuotePaidSync(
+    quote ? { ...quote, totalEur: Number(quote.total), status: String(quote.status) } : null,
+    method,
+    new Date()
+  );
+  if (!plan) return;
+  await prisma.$transaction(async (tx) => {
+    const flipped = await tx.quote.updateMany({ where: { id: plan.payment.quoteId, paidAt: null }, data: plan.update });
+    if (flipped.count === 1) await tx.quotePayment.create({ data: plan.payment });
+  });
+}
 
 export async function confirmManualPaymentWithSideEffects(
   reference: string,
@@ -25,8 +45,13 @@ export async function confirmManualPaymentWithSideEffects(
 
   // Bizum ⇒ sin factura (regla Juan 21-ago-2026).
   {
-    const o = await prisma.order.findUnique({ where: { reference }, select: { id: true } });
+    const o = await prisma.order.findUnique({ where: { reference }, select: { id: true, quoteId: true } });
     if (o) await excludeFromBillingIfBizum(o.id, method).catch((e) => console.error("[confirm-payment] billing exclusion failed", e));
+    if (o?.quoteId) {
+      await markLinkedQuotePaid(o.quoteId, method).catch((e) =>
+        console.error("[confirm-payment] quote PAID sync failed", e)
+      );
+    }
   }
 
   await transitionWorkflowState({

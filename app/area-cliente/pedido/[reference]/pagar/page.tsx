@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PayPalButton from "@/components/PayPalButton";
 import CopyField from "@/components/CopyField";
+import ShippingDataForm from "@/components/ShippingDataForm";
 import { getAc, acIntl } from "@/lib/i18n/area-cliente";
 import { PAYMENT_ACCOUNTS, type PaymentAccount } from "@/lib/payment-labels";
 
@@ -20,6 +21,9 @@ type OrderInfo = {
   paymentStatus: string;
   status?: string;
   clientLocale?: string | null;
+  deliveryType?: string;
+  hasShipping?: boolean;
+  shipping?: unknown;
   paymentBlocked?: boolean;
   hasSourceDocument?: boolean;
   workflowState?: string;
@@ -267,6 +271,13 @@ export default function PagarPage() {
     return `${(cents / 100).toFixed(2)} EUR`;
   }
 
+  const needsShipping = !!order && order.deliveryType === "paper" && !order.hasShipping && !order.shipping;
+  const shippingForm = needsShipping ? (
+    <div className="mt-6">
+      <ShippingDataForm reference={reference} token={orderToken || undefined} />
+    </div>
+  ) : null;
+
   function renderSourceDocumentsPreview(theme: "default" | "success" = "default") {
     const isSuccess = theme === "success";
     const titleCls = isSuccess ? "text-bleu" : "text-encre";
@@ -476,6 +487,7 @@ export default function PagarPage() {
       <main className="mx-auto max-w-3xl px-4 py-12">
         <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
           <p className="text-sm font-semibold text-bleu">{t.alreadyPaid}</p>
+          {shippingForm}
           <Link href={`/pago/exito?ref=${encodeURIComponent(order.reference)}`} className="mt-3 inline-block text-sm font-semibold text-bleu hover:underline">
             {t.seePaymentConfirmation}
           </Link>
@@ -537,6 +549,8 @@ export default function PagarPage() {
             </Link>
           </div>
           </div>
+
+          {shippingForm}
 
           {renderSourceDocumentsPreview("success")}
         </section>
@@ -779,6 +793,8 @@ export default function PagarPage() {
             </button>
           </div>
         )}
+
+        {shippingForm}
 
         <div className="mt-6">
           <Link href="/" className="text-sm font-semibold text-bleu hover:underline">

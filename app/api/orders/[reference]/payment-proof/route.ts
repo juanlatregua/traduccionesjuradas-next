@@ -174,6 +174,7 @@ export async function POST(req: Request, { params }: Params) {
           uploadedAt,
           uploadedBy: sessionEmail || clientEmailRaw || null,
           method: paymentMethod,
+          fileHash: proofHash,
         },
       },
     });
@@ -182,6 +183,7 @@ export async function POST(req: Request, { params }: Params) {
       where: { id: order.id },
       data: {
         paymentProofFileKey: blob.pathname,
+        paymentProofCheckedAt: null,
       },
     });
 

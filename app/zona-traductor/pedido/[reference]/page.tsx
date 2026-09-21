@@ -736,8 +736,15 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               <OrderExtendButton reference={order.reference} docsAfterPayment={docsAfterPayment} compact />
             </div>
           )}
-          {sourceDocs.length === 0 && docItems.length === 0 && (
+          {sourceDocs.length === 0 && docItems.length === 0 ? (
             <p className="text-sm text-slate-400">No hay documentos fuente guardados en este pedido.</p>
+          ) : (
+            <a
+              href={`/api/orders/${encodeURIComponent(order.reference)}/expediente?solo=originales`}
+              className="inline-flex items-center rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/20"
+            >
+              ⤓ Descargar todos los originales (ZIP)
+            </a>
           )}
           <FileThumbnails
             files={sourceDocs.filter((d) => d.url).map((d) => ({ name: d.name, url: d.url as string }))}

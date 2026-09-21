@@ -42,9 +42,11 @@ export async function POST(req: Request, { params }: Params) {
 
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
+    const proofUrl = `${payUrl}?paso=justificante`;
     const msg = buildPayLinkEmail({
       name: quote.customerName || "cliente",
       payUrl,
+      proofUrl,
     });
     // Guardia anti-Graph: si el email es un marcador de WhatsApp (no entregable),
     // NO intentamos enviar (antes esto provocaba un 500). Se devuelve el texto de
@@ -69,6 +71,7 @@ export async function POST(req: Request, { params }: Params) {
       sourceLang: quote.sourceLang,
       targetLang: quote.targetLang,
       payUrl,
+      proofUrl,
       vatNote:
         Number(quote.vatRate) > 0
           ? undefined
