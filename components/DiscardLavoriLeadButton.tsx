@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 // (Juan, 21-sep-2026): cierra el carril en tj.net con motivo obligatorio.
 // NO avisa a lavori ni a nadie — si el encargo sigue vivo allí, Juan lo
 // retira a mano.
-export default function DiscardLavoriLeadButton({ id, ref: leadRef }: { id: string; ref: string }) {
+export default function DiscardLavoriLeadButton({ id, leadRef }: { id: string; leadRef: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 

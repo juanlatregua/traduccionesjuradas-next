@@ -222,7 +222,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                           Esperando precio · abrir
                         </Link>
                       )}
-                      <DiscardLavoriLeadButton id={lead.id} ref={lead.ref} />
+                      <DiscardLavoriLeadButton id={lead.id} leadRef={lead.ref} />
                     </div>
                   </div>
                 );
