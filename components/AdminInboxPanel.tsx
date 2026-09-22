@@ -555,6 +555,7 @@ export default function AdminInboxPanel({
         data.imported > 0 ? `${data.imported} email(s) nuevo(s) importado(s)` : "buzón al día, sin emails nuevos de clientes",
         data.repliedExternally > 0 ? `${data.repliedExternally} marcado(s) como respondido(s) (contestados desde Outlook/móvil)` : null,
         data.attachmentsBackfilled > 0 ? `adjuntos recuperados en ${data.attachmentsBackfilled} email(s) anteriores` : null,
+        data.autoArchived > 0 ? `${data.autoArchived} archivado(s) por tener más de 15 días` : null,
       ].filter(Boolean);
       setSyncMsg(`✓ ${bits.join(" · ")}.`);
       router.refresh();

@@ -18,6 +18,8 @@ import { isStaffEmail } from "@/lib/staff-access";
 
 const FIRST_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const RESYNC_OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;
+// Juan, 22-sep-2026: lo no atendido en 15 días sale de la bandeja (queda en «Archivados»).
+const AUTO_ARCHIVE_AFTER_MS = 15 * 24 * 60 * 60 * 1000;
 
 export function htmlToPlainText(html: string): string {
   return html
@@ -91,6 +93,7 @@ export type InboxSyncResult = {
   scanned: number;
   repliedExternally: number;
   attachmentsBackfilled: number;
+  autoArchived: number;
 };
 
 export type InboundMedia = { url: string; contentType: string; name: string; size: number };
@@ -274,7 +277,11 @@ export async function syncInboxEmails(): Promise<InboxSyncResult> {
 
   const repliedExternally = await markRepliedFromSentItems();
   const attachmentsBackfilled = await backfillEmailAttachments();
-  return { imported, skipped, scanned: messages.length, repliedExternally, attachmentsBackfilled };
+  const { count: autoArchived } = await prisma.inboundEmail.updateMany({
+    where: { status: { in: ["NEW", "DRAFTED"] }, receivedAt: { lt: new Date(Date.now() - AUTO_ARCHIVE_AFTER_MS) } },
+    data: { status: "ARCHIVED" },
+  });
+  return { imported, skipped, scanned: messages.length, repliedExternally, attachmentsBackfilled, autoArchived };
 }
 
 // ---------------------------------------------------------------------------
