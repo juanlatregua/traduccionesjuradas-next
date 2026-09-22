@@ -11,6 +11,9 @@ type InvoiceLine = {
   // null = fila solo descriptiva (desglose por fechas que pide Vatel): sale sin
   // importe; el importe va en la fila de total de su bloque (Juan, 22-sep-2026).
   amountCents: number | null;
+  // "group" = cabecera de bloque (p. ej. "BACHELOR ES - Málaga"): banda oscura
+  // con el texto en claro y una línea de separación encima (Juan, 22-sep-2026).
+  style?: "group";
 };
 
 type InvoiceData = {
@@ -328,10 +331,17 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     const descLines = doc.splitTextToSize(line.description, cLang - cDesc - 4) as string[];
     const descH = 8 + (descLines.length - 1) * 4;
     const rowH = line.detail ? descH + detailLines.length * 3.2 : descH;
-    doc.setFillColor(...TABLE_BG);
+    const isGroup = line.style === "group";
+    if (isGroup && ty > bodyTop) {
+      doc.setDrawColor(...LINE_GREY);
+      doc.setLineWidth(0.4);
+      doc.line(cDesc, ty, cDesc + contentW, ty);
+    }
+    doc.setFillColor(...(isGroup ? INK : TABLE_BG));
     doc.rect(cDesc, ty, contentW, rowH, "F");
-    doc.setTextColor(...INK);
+    doc.setTextColor(...(isGroup ? ([255, 255, 255] as [number, number, number]) : INK));
     doc.text(descLines, cDesc + 2, ty + 5.5);
+    doc.setTextColor(...INK);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     if (line.amountCents != null) doc.text(eur(line.amountCents), cImp - 2, ty + 5.5, { align: "right" });
