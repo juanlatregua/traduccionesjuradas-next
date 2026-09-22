@@ -57,260 +57,269 @@ export async function finalizeAndSendQuote(opts: {
   });
   if (claim.count === 0) throw new QuoteSendError("Este presupuesto se está enviando ahora mismo. Espera unos segundos.", 409);
 
-  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  // Cualquier fallo (freno de margen/canal, Blob, email) suelta el candado: si no,
+  // el reintento con «Enviar igualmente» chocaba 10 min con «se está enviando».
+  try {
+    const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
 
-  // FRENO DE MARGEN (Juan, 31-ago-2026): este es el único camino por el que un
-  // presupuesto llega al cliente, y hasta hoy no miraba el coste ni una vez.
-  const marginCheck = checkQuoteLinesMargin({
-    sourceLang: quote.sourceLang,
-    targetLang: quote.targetLang,
-    discountCents: Math.round(decimalToNumber(quote.discountAmount) * 100),
-    lines: quote.lines.map((l) => ({
-      quantity: Number(l.quantity) || 1,
-      unitPrice: decimalToNumber(l.unitPrice),
-      supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost),
-    })),
-  });
-  // SEGUNDA GUARDA — PROCEDENCIA (Juan, 31-ago-2026, "lo más importante"): en
-  // no-francés el precio previo del traductor tiene que existir EN EL CANAL.
-  // La aritmética no ve un coste inventado; esta sí. Sin channelPriceSource
-  // explícito (p. ej. Juan envía desde la UI un DRAFT retenido del funnel
-  // directo), se deriva de autoPricedBy: la tarifa/base ya viene del canal.
-  const channelPriceSource =
-    opts.channelPriceSource ?? (quote.autoPricedBy === "lavori-directo" ? "lavori-directo" : undefined);
-  const channelCheck =
-    channelPriceSource === "learned-rate" || channelPriceSource === "lavori-directo"
-      ? ({ ok: true } as const)
-      : await verifyTranslatorChannelPrice({
-          quoteId: quote.id,
-          expedienteRef: quote.expedienteRef,
-          sourceLang: quote.sourceLang,
-          targetLang: quote.targetLang,
-          lines: quote.lines.map((l) => ({
-            quantity: Number(l.quantity) || 1,
-            unitPrice: decimalToNumber(l.unitPrice),
-            supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost),
-          })),
-        });
-
-  const bloqueo = !marginCheck.ok
-    ? { code: MARGIN_BLOCK_CODE, detail: marginCheck.detail }
-    : !channelCheck.ok
-      ? { code: CHANNEL_BLOCK_CODE, detail: channelCheck.detail }
-      : null;
-  if (bloqueo) {
-    if (!opts.overrideLowMargin) {
-      throw new QuoteSendError(`${bloqueo.code}: ${bloqueo.detail}`, 409);
-    }
-    // Override: se avisa por dos canales ANTES de enviar, con await.
-    await notifyMarginOverride({
-      kind: "presupuesto",
-      label: quote.quoteNumber,
-      actorEmail: opts.actorEmail,
-      detail: bloqueo.detail,
-      url: `${baseUrl}/zona-traductor/presupuestos/${quote.id}`,
-      action: "enviado",
-      quoteId: quote.id,
+    // FRENO DE MARGEN (Juan, 31-ago-2026): este es el único camino por el que un
+    // presupuesto llega al cliente, y hasta hoy no miraba el coste ni una vez.
+    const marginCheck = checkQuoteLinesMargin({
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      discountCents: Math.round(decimalToNumber(quote.discountAmount) * 100),
+      lines: quote.lines.map((l) => ({
+        quantity: Number(l.quantity) || 1,
+        unitPrice: decimalToNumber(l.unitPrice),
+        supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost),
+      })),
     });
-  }
+    // SEGUNDA GUARDA — PROCEDENCIA (Juan, 31-ago-2026, "lo más importante"): en
+    // no-francés el precio previo del traductor tiene que existir EN EL CANAL.
+    // La aritmética no ve un coste inventado; esta sí. Sin channelPriceSource
+    // explícito (p. ej. Juan envía desde la UI un DRAFT retenido del funnel
+    // directo), se deriva de autoPricedBy: la tarifa/base ya viene del canal.
+    const channelPriceSource =
+      opts.channelPriceSource ?? (quote.autoPricedBy === "lavori-directo" ? "lavori-directo" : undefined);
+    const channelCheck =
+      channelPriceSource === "learned-rate" || channelPriceSource === "lavori-directo"
+        ? ({ ok: true } as const)
+        : await verifyTranslatorChannelPrice({
+            quoteId: quote.id,
+            expedienteRef: quote.expedienteRef,
+            sourceLang: quote.sourceLang,
+            targetLang: quote.targetLang,
+            lines: quote.lines.map((l) => ({
+              quantity: Number(l.quantity) || 1,
+              unitPrice: decimalToNumber(l.unitPrice),
+              supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost),
+            })),
+          });
 
-  // Pedidos enlazados: el pago va por el enlace firmado del pedido, no por /q.
-  const linkedOrders = await prisma.order.findMany({
-    where: { quoteId: quote.id },
-    select: { id: true, reference: true, events: { orderBy: { createdAt: "desc" }, take: 30 } },
-  });
-  const primaryLinkedOrder = linkedOrders[0] || null;
-  const { buildSignedOrderUrl } = await import("@/lib/order-token");
-  const payUrl = primaryLinkedOrder ? buildSignedOrderUrl(primaryLinkedOrder.reference, "pagar") : `${baseUrl}/q/${quote.publicToken}`;
-  const proofUrl = `${baseUrl}/q/${quote.publicToken}?paso=justificante`;
-
-  const pdfBuffer = buildQuotePdfBuffer({
-    quoteNumber: quote.quoteNumber,
-    customerName: quote.customerName,
-    customerEmail: quote.customerEmail,
-    sourceLang: quote.sourceLang,
-    targetLang: quote.targetLang,
-    deliveryType: quote.deliveryType,
-    issuedAt: quote.issuedAt,
-    validUntil: quote.validUntil,
-    subtotal: decimalToNumber(quote.subtotal),
-    discountAmount: decimalToNumber(quote.discountAmount),
-    shippingAmount: decimalToNumber(quote.shippingAmount),
-    vatRate: decimalToNumber(quote.vatRate),
-    vatAmount: decimalToNumber(quote.vatAmount),
-    total: decimalToNumber(quote.total),
-    payUrl,
-    lines: quote.lines.map((line) => ({
-      description: line.description,
-      quantity: decimalToNumber(line.quantity),
-      unitPrice: decimalToNumber(line.unitPrice),
-      lineTotal: decimalToNumber(line.lineTotal),
-    })),
-    isDraft: false,
-    notesLegal: quote.notesLegal,
-    deliveryTerm: quote.deliveryTerm,
-    holderNames: quote.holderNames,
-    translatorName: quote.translatorName,
-    translatorMaec: quote.translatorMaec,
-    paymentMethods: quote.paymentMethods,
-    contactWhatsapp: quote.contactWhatsapp,
-    lang: quote.pdfLang,
-  });
-
-  const [pdfUrl, pdfHash] = await Promise.all([
-    uploadFinalQuotePdf({ quoteNumber: quote.quoteNumber, buffer: pdfBuffer }),
-    Promise.resolve(hashPdf(pdfBuffer)),
-  ]);
-
-  // Sin email si el staff lo pide o si el email es marcador de WhatsApp (no
-  // entregable). El PDF y el texto de WhatsApp se generan igual.
-  const placeholderEmail = isPlaceholderEmail(quote.customerEmail);
-  const doSendEmail = !opts.skipEmail && !placeholderEmail;
-
-  const standardCopy = buildPayLinkEmail({
-    name: quote.customerName || "cliente",
-    payUrl,
-    proofUrl,
-    translatorName: quote.translatorName,
-    translatorMaec: quote.translatorMaec,
-    paymentMethods: quote.paymentMethods,
-  });
-  const customSubject = String(opts.customSubject || "").trim();
-  const customBody = String(opts.customBody || "").trim();
-  const emailCopy = customSubject && customBody ? { subject: customSubject.slice(0, 200), body: customBody.slice(0, 8000) } : standardCopy;
-  let sendResult: { providerId?: string | null } = {};
-  if (doSendEmail) {
-    // El PDF va ADJUNTO, no solo enlazado: el cliente lo quiere para guardarlo,
-    // imprimirlo o reenviarlo a su gestor, y el enlace obliga a un paso mas (y no
-    // sirve sin conexion). Ya lo tenemos en memoria, no hay que volver a bajarlo.
-    const attachments =
-      pdfBuffer.length > 0 && pdfBuffer.length <= MAX_EMAIL_ATTACH_BYTES
-        ? [{
-            name: `Presupuesto-${quote.quoteNumber}.pdf`,
-            contentType: "application/pdf",
-            contentBytes: pdfBuffer.toString("base64"),
-          }]
-        : [];
-    if (!attachments.length) {
-      console.warn(`[quote-send] ${quote.quoteNumber}: PDF de ${pdfBuffer.length} bytes, se envia el email SOLO con enlace.`);
+    const bloqueo = !marginCheck.ok
+      ? { code: MARGIN_BLOCK_CODE, detail: marginCheck.detail }
+      : !channelCheck.ok
+        ? { code: CHANNEL_BLOCK_CODE, detail: channelCheck.detail }
+        : null;
+    if (bloqueo) {
+      if (!opts.overrideLowMargin) {
+        throw new QuoteSendError(`${bloqueo.code}: ${bloqueo.detail}`, 409);
+      }
+      // Override: se avisa por dos canales ANTES de enviar, con await.
+      await notifyMarginOverride({
+        kind: "presupuesto",
+        label: quote.quoteNumber,
+        actorEmail: opts.actorEmail,
+        detail: bloqueo.detail,
+        url: `${baseUrl}/zona-traductor/presupuestos/${quote.id}`,
+        action: "enviado",
+        quoteId: quote.id,
+      });
     }
-    sendResult = await sendQuoteEmailWithRetry({ to: quote.customerEmail, subject: emailCopy.subject, body: emailCopy.body, attachments });
-  }
 
-  const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
-  const whatsappBody = buildWhatsAppPayText({
-    name: quote.customerName || "cliente",
-    totalEur: decimalToNumber(quote.total),
-    deliveryType: quote.deliveryType,
-    plazo: quote.deliveryTerm || (plazoMatch ? plazoMatch[1].trim() : null),
-    paymentMethods: quote.paymentMethods,
-    sourceLang: quote.sourceLang,
-    targetLang: quote.targetLang,
-    payUrl,
-    proofUrl,
-    translatorName: quote.translatorName,
-    translatorMaec: quote.translatorMaec,
-    vatNote: Number(quote.vatRate) > 0 ? undefined : "operación no sujeta a IVA — residente fuera de la UE",
-  });
-
-  const now = new Date();
-  await prisma.$transaction(async (tx) => {
-    await tx.quote.update({
-      where: { id: quote.id },
-      data: {
-        pdfUrl,
-        pdfHash,
-        status: quote.status === "DRAFT" ? "SENT" : quote.status,
-        sentAt: quote.sentAt || now,
-        adminSentBy: opts.actorEmail,
-        sendingAt: null,
-      },
+    // Pedidos enlazados: el pago va por el enlace firmado del pedido, no por /q.
+    const linkedOrders = await prisma.order.findMany({
+      where: { quoteId: quote.id },
+      select: { id: true, reference: true, events: { orderBy: { createdAt: "desc" }, take: 30 } },
     });
+    const primaryLinkedOrder = linkedOrders[0] || null;
+    const { buildSignedOrderUrl } = await import("@/lib/order-token");
+    const payUrl = primaryLinkedOrder ? buildSignedOrderUrl(primaryLinkedOrder.reference, "pagar") : `${baseUrl}/q/${quote.publicToken}`;
+    const proofUrl = `${baseUrl}/q/${quote.publicToken}?paso=justificante`;
+
+    const pdfBuffer = buildQuotePdfBuffer({
+      quoteNumber: quote.quoteNumber,
+      customerName: quote.customerName,
+      customerEmail: quote.customerEmail,
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      deliveryType: quote.deliveryType,
+      issuedAt: quote.issuedAt,
+      validUntil: quote.validUntil,
+      subtotal: decimalToNumber(quote.subtotal),
+      discountAmount: decimalToNumber(quote.discountAmount),
+      shippingAmount: decimalToNumber(quote.shippingAmount),
+      vatRate: decimalToNumber(quote.vatRate),
+      vatAmount: decimalToNumber(quote.vatAmount),
+      total: decimalToNumber(quote.total),
+      payUrl,
+      lines: quote.lines.map((line) => ({
+        description: line.description,
+        quantity: decimalToNumber(line.quantity),
+        unitPrice: decimalToNumber(line.unitPrice),
+        lineTotal: decimalToNumber(line.lineTotal),
+      })),
+      isDraft: false,
+      notesLegal: quote.notesLegal,
+      deliveryTerm: quote.deliveryTerm,
+      holderNames: quote.holderNames,
+      translatorName: quote.translatorName,
+      translatorMaec: quote.translatorMaec,
+      paymentMethods: quote.paymentMethods,
+      contactWhatsapp: quote.contactWhatsapp,
+      lang: quote.pdfLang,
+    });
+
+    const [pdfUrl, pdfHash] = await Promise.all([
+      uploadFinalQuotePdf({ quoteNumber: quote.quoteNumber, buffer: pdfBuffer }),
+      Promise.resolve(hashPdf(pdfBuffer)),
+    ]);
+
+    // Sin email si el staff lo pide o si el email es marcador de WhatsApp (no
+    // entregable). El PDF y el texto de WhatsApp se generan igual.
+    const placeholderEmail = isPlaceholderEmail(quote.customerEmail);
+    const doSendEmail = !opts.skipEmail && !placeholderEmail;
+
+    const standardCopy = buildPayLinkEmail({
+      name: quote.customerName || "cliente",
+      payUrl,
+      proofUrl,
+      translatorName: quote.translatorName,
+      translatorMaec: quote.translatorMaec,
+      paymentMethods: quote.paymentMethods,
+    });
+    const customSubject = String(opts.customSubject || "").trim();
+    const customBody = String(opts.customBody || "").trim();
+    const emailCopy = customSubject && customBody ? { subject: customSubject.slice(0, 200), body: customBody.slice(0, 8000) } : standardCopy;
+    let sendResult: { providerId?: string | null } = {};
     if (doSendEmail) {
+      // El PDF va ADJUNTO, no solo enlazado: el cliente lo quiere para guardarlo,
+      // imprimirlo o reenviarlo a su gestor, y el enlace obliga a un paso mas (y no
+      // sirve sin conexion). Ya lo tenemos en memoria, no hay que volver a bajarlo.
+      const attachments =
+        pdfBuffer.length > 0 && pdfBuffer.length <= MAX_EMAIL_ATTACH_BYTES
+          ? [{
+              name: `Presupuesto-${quote.quoteNumber}.pdf`,
+              contentType: "application/pdf",
+              contentBytes: pdfBuffer.toString("base64"),
+            }]
+          : [];
+      if (!attachments.length) {
+        console.warn(`[quote-send] ${quote.quoteNumber}: PDF de ${pdfBuffer.length} bytes, se envia el email SOLO con enlace.`);
+      }
+      sendResult = await sendQuoteEmailWithRetry({ to: quote.customerEmail, subject: emailCopy.subject, body: emailCopy.body, attachments });
+    }
+
+    const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
+    const whatsappBody = buildWhatsAppPayText({
+      name: quote.customerName || "cliente",
+      totalEur: decimalToNumber(quote.total),
+      deliveryType: quote.deliveryType,
+      plazo: quote.deliveryTerm || (plazoMatch ? plazoMatch[1].trim() : null),
+      paymentMethods: quote.paymentMethods,
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      payUrl,
+      proofUrl,
+      translatorName: quote.translatorName,
+      translatorMaec: quote.translatorMaec,
+      vatNote: Number(quote.vatRate) > 0 ? undefined : "operación no sujeta a IVA — residente fuera de la UE",
+    });
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.quote.update({
+        where: { id: quote.id },
+        data: {
+          pdfUrl,
+          pdfHash,
+          status: quote.status === "DRAFT" ? "SENT" : quote.status,
+          sentAt: quote.sentAt || now,
+          adminSentBy: opts.actorEmail,
+          sendingAt: null,
+        },
+      });
+      if (doSendEmail) {
+        await tx.messageLog.create({
+          data: {
+            quoteId: quote.id,
+            channel: "EMAIL",
+            type: quote.sentAt ? "RESEND_PAY_LINK" : "PAY_LINK",
+            recipient: quote.customerEmail,
+            subject: emailCopy.subject,
+            body: emailCopy.body,
+            sentAt: now,
+            providerId: sendResult.providerId,
+            status: "SENT",
+          },
+        });
+      }
       await tx.messageLog.create({
         data: {
           quoteId: quote.id,
-          channel: "EMAIL",
-          type: quote.sentAt ? "RESEND_PAY_LINK" : "PAY_LINK",
-          recipient: quote.customerEmail,
-          subject: emailCopy.subject,
-          body: emailCopy.body,
-          sentAt: now,
-          providerId: sendResult.providerId,
-          status: "SENT",
+          channel: "WHATSAPP",
+          type: "DRAFT_WHATSAPP",
+          recipient: quote.customerPhone || quote.customerEmail,
+          subject: null,
+          body: whatsappBody,
+          sentAt: null,
+          providerId: null,
+          status: "DRAFT",
         },
       });
-    }
-    await tx.messageLog.create({
-      data: {
-        quoteId: quote.id,
-        channel: "WHATSAPP",
-        type: "DRAFT_WHATSAPP",
-        recipient: quote.customerPhone || quote.customerEmail,
-        subject: null,
-        body: whatsappBody,
-        sentAt: null,
-        providerId: null,
-        status: "DRAFT",
-      },
     });
-  });
 
-  // Pedidos enlazados: PENDIENTE_REVISION → PRESUPUESTO_ENVIADO → PENDIENTE_PAGO.
-  for (const linkedOrder of linkedOrders) {
-    try {
-      const wasAutoQuote = quote.adminCreatedBy === "system:auto";
-      let adminModified = false;
-      if (wasAutoQuote) {
-        const autoQuoteEvent = linkedOrder.events.find((e: any) => e.type === "order.auto_quote_created");
-        if (autoQuoteEvent) {
-          const originalTotal = Number((autoQuoteEvent.payload as any)?.total ?? 0);
-          adminModified = Math.abs(originalTotal - decimalToNumber(quote.total)) > 0.01;
+    // Pedidos enlazados: PENDIENTE_REVISION → PRESUPUESTO_ENVIADO → PENDIENTE_PAGO.
+    for (const linkedOrder of linkedOrders) {
+      try {
+        const wasAutoQuote = quote.adminCreatedBy === "system:auto";
+        let adminModified = false;
+        if (wasAutoQuote) {
+          const autoQuoteEvent = linkedOrder.events.find((e: any) => e.type === "order.auto_quote_created");
+          if (autoQuoteEvent) {
+            const originalTotal = Number((autoQuoteEvent.payload as any)?.total ?? 0);
+            adminModified = Math.abs(originalTotal - decimalToNumber(quote.total)) > 0.01;
+          }
         }
-      }
-      const firstLine = quote.lines[0];
-      await prisma.orderEvent.create({
-        data: {
-          orderId: linkedOrder.id,
-          type: "order.quote_final_snapshot",
-          message: `Snapshot final del presupuesto ${quote.quoteNumber} al enviar.`,
-          payload: {
-            quoteId: quote.id,
-            quoteNumber: quote.quoteNumber,
-            finalWords: firstLine ? decimalToNumber(firstLine.quantity) : 0,
-            finalUnitPrice: firstLine ? decimalToNumber(firstLine.unitPrice) : 0,
-            finalSubtotal: decimalToNumber(quote.subtotal),
-            finalTotal: decimalToNumber(quote.total),
-            linesCount: quote.lines.length,
-            adminModified,
-            sentBy: opts.actorEmail,
+        const firstLine = quote.lines[0];
+        await prisma.orderEvent.create({
+          data: {
+            orderId: linkedOrder.id,
+            type: "order.quote_final_snapshot",
+            message: `Snapshot final del presupuesto ${quote.quoteNumber} al enviar.`,
+            payload: {
+              quoteId: quote.id,
+              quoteNumber: quote.quoteNumber,
+              finalWords: firstLine ? decimalToNumber(firstLine.quantity) : 0,
+              finalUnitPrice: firstLine ? decimalToNumber(firstLine.unitPrice) : 0,
+              finalSubtotal: decimalToNumber(quote.subtotal),
+              finalTotal: decimalToNumber(quote.total),
+              linesCount: quote.lines.length,
+              adminModified,
+              sentBy: opts.actorEmail,
+            },
           },
-        },
-      });
-      await transitionWorkflowState({
-        reference: linkedOrder.reference,
-        to: "PRESUPUESTO_ENVIADO",
-        actorEmail: opts.actorEmail,
-        reason: `Presupuesto ${quote.quoteNumber} enviado al cliente.`,
-      });
-      await transitionWorkflowState({
-        reference: linkedOrder.reference,
-        to: "PENDIENTE_PAGO",
-        actorEmail: opts.actorEmail,
-        reason: `Pago habilitado tras envio de presupuesto ${quote.quoteNumber}.`,
-      });
-      await prisma.orderEvent.create({
-        data: {
-          orderId: linkedOrder.id,
-          type: "order.quote_sent_payment_enabled",
-          message: `Presupuesto ${quote.quoteNumber} enviado. Pago habilitado.`,
-          payload: { quoteId: quote.id, quoteNumber: quote.quoteNumber, actorEmail: opts.actorEmail },
-        },
-      });
-    } catch (transitionErr) {
-      console.error(`[quote-send] failed to transition order ${linkedOrder.reference}`, transitionErr);
+        });
+        await transitionWorkflowState({
+          reference: linkedOrder.reference,
+          to: "PRESUPUESTO_ENVIADO",
+          actorEmail: opts.actorEmail,
+          reason: `Presupuesto ${quote.quoteNumber} enviado al cliente.`,
+        });
+        await transitionWorkflowState({
+          reference: linkedOrder.reference,
+          to: "PENDIENTE_PAGO",
+          actorEmail: opts.actorEmail,
+          reason: `Pago habilitado tras envio de presupuesto ${quote.quoteNumber}.`,
+        });
+        await prisma.orderEvent.create({
+          data: {
+            orderId: linkedOrder.id,
+            type: "order.quote_sent_payment_enabled",
+            message: `Presupuesto ${quote.quoteNumber} enviado. Pago habilitado.`,
+            payload: { quoteId: quote.id, quoteNumber: quote.quoteNumber, actorEmail: opts.actorEmail },
+          },
+        });
+      } catch (transitionErr) {
+        console.error(`[quote-send] failed to transition order ${linkedOrder.reference}`, transitionErr);
+      }
     }
-  }
 
-  return { pdfUrl, payUrl, whatsappText: whatsappBody, emailSent: doSendEmail };
+    return { pdfUrl, payUrl, whatsappText: whatsappBody, emailSent: doSendEmail };
+  } catch (err) {
+    await prisma.quote
+      .updateMany({ where: { id: quote.id, sendingAt: claimedAt }, data: { sendingAt: null } })
+      .catch((e) => console.error(`[quote-send] ${quote.quoteNumber}: no se pudo soltar el candado`, e));
+    throw err;
+  }
 }
