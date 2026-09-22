@@ -60,6 +60,7 @@ export async function POST(req: Request) {
         clientEmail: true,
         clientName: true,
         clientPhone: true,
+        source: true,
       },
     });
     if (docs.length === 0) {
@@ -68,6 +69,9 @@ export async function POST(req: Request) {
 
     const contactEmail = email || docs.find((d) => d.clientEmail)?.clientEmail || "";
     const contactPhone = phone || docs.find((d) => d.clientPhone)?.clientPhone || "";
+    const fromWhatsApp = docs.some((d) => d.source === "whatsapp");
+    const phoneDigits = contactPhone.replace(/\D/g, "");
+    const waDigits = phoneDigits.length === 9 ? `34${phoneDigits}` : phoneDigits;
     if (!contactEmail && !contactPhone) {
       return NextResponse.json(
         { ok: false, error: "Necesitamos un email o un teléfono para responderte." },
@@ -266,11 +270,14 @@ export async function POST(req: Request) {
     // Aviso a staff — dos transportes independientes; con await (lambda).
     await sendMail({
       to: adminEmail,
-      subject: `Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
+      subject: `${fromWhatsApp ? "[WhatsApp] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
       html: renderSimpleEmailHtml(
         [
           "Un lead de la puerta ha pedido presupuesto humano (idioma sin precio instantáneo o importe alto).",
           `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+          ...(fromWhatsApp
+            ? [`Origen: WhatsApp — contéstale por ahí${waDigits ? `: https://wa.me/${waDigits}` : " (no dejó teléfono)"}`]
+            : []),
           ...lineas,
           lavoriEmail,
           `Montar presupuesto (documentos ya dentro): ${builderUrl}`,
@@ -278,7 +285,7 @@ export async function POST(req: Request) {
       ),
     }).catch((err) => console.error("[puerta:request-quote] aviso staff fallo:", err));
     await sendStaffAlertSMS(
-      `Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
+      `${fromWhatsApp ? "[WA] " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
       "puerta_request_quote"
     ).catch(() => {});
 
