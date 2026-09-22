@@ -8,7 +8,9 @@ import { getBrand } from "@/lib/invoice-brands";
 type InvoiceLine = {
   description: string;
   detail?: string;
-  amountCents: number;
+  // null = fila solo descriptiva (desglose por fechas que pide Vatel): sale sin
+  // importe; el importe va en la fila de total de su bloque (Juan, 22-sep-2026).
+  amountCents: number | null;
 };
 
 type InvoiceData = {
@@ -332,7 +334,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     doc.text(descLines, cDesc + 2, ty + 5.5);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(eur(line.amountCents), cImp - 2, ty + 5.5, { align: "right" });
+    if (line.amountCents != null) doc.text(eur(line.amountCents), cImp - 2, ty + 5.5, { align: "right" });
     if (line.detail) {
       doc.setFontSize(7.5);
       doc.setTextColor(...GREY);
