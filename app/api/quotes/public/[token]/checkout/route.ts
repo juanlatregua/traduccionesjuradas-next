@@ -42,10 +42,40 @@ export async function POST(req: Request, { params }: Params) {
         total: true,
         customerEmail: true,
         deliveryType: true,
+        paidAt: true,
+        balanceAmount: true,
+        balancePaidAt: true,
       },
     });
     if (!quote) {
       return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
+    }
+
+    // Segundo plazo: solo con el primero cobrado; no caduca con la validez del presupuesto.
+    if (new URL(req.url).searchParams.get("plazo") === "resto") {
+      const balanceCents = moneyToCents(decimalToNumber(quote.balanceAmount));
+      if (!quote.paidAt || balanceCents < 50) {
+        return NextResponse.json({ ok: false, error: "No hay ningún pago pendiente." }, { status: 400 });
+      }
+      if (quote.balancePaidAt) {
+        return NextResponse.json({ ok: false, error: "Este pago ya está hecho." }, { status: 400 });
+      }
+      if (!hasValidStripeSecret()) {
+        return NextResponse.json(
+          { ok: false, error: "Pago con tarjeta temporalmente no disponible. Contacta con soporte para finalizar el pago." },
+          { status: 503 }
+        );
+      }
+      const session = await createQuoteStripeCheckoutSession({
+        quoteId: quote.id,
+        quoteNumber: quote.quoteNumber,
+        quoteToken: params.token,
+        totalCents: balanceCents,
+        customerEmail: quote.customerEmail,
+        deliveryType: quote.deliveryType,
+        paymentKind: "balance",
+      });
+      return NextResponse.json({ ok: true, url: session.url, sessionId: session.id });
     }
 
     if (quote.validUntil < new Date()) {

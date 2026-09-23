@@ -19,6 +19,7 @@ export async function createQuoteStripeCheckoutSession(params: {
   totalCents: number;
   customerEmail: string;
   deliveryType: "DIGITAL_PDF" | "PAPER_SHIP";
+  paymentKind?: "balance";
 }) {
   const stripe = getStripe();
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
@@ -34,7 +35,10 @@ export async function createQuoteStripeCheckoutSession(params: {
           currency: "eur",
           unit_amount: params.totalCents,
           product_data: {
-            name: `Presupuesto ${params.quoteNumber}`,
+            name:
+              params.paymentKind === "balance"
+                ? `Segundo pago — Presupuesto ${params.quoteNumber}`
+                : `Presupuesto ${params.quoteNumber}`,
             description:
               params.deliveryType === "PAPER_SHIP"
                 ? "Traducción jurada con envío en papel"
@@ -49,6 +53,7 @@ export async function createQuoteStripeCheckoutSession(params: {
       quoteNumber: params.quoteNumber,
       quoteToken: params.quoteToken,
       deliveryType: params.deliveryType,
+      ...(params.paymentKind ? { paymentKind: params.paymentKind } : {}),
     },
     success_url: `${quoteUrl}?paid=1`,
     cancel_url: `${quoteUrl}?canceled=1`,

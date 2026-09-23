@@ -645,6 +645,11 @@ model Quote {
   // validUntil NO sirve como ventana del digest: el cron corre horas después.
   expiredAt      DateTime?
   deletedAt      DateTime?         // papelera: presupuesto no formalizado movido a "Eliminados"
+  // Pago en dos plazos (23-sep, loisa 40/60): `total` es el primer plazo; el
+  // resto se cobra después por /q/[token] sobre el MISMO pedido, sin otro Quote.
+  balanceAmount  Decimal?          @db.Decimal(12, 2) // segundo plazo, IVA incluido
+  balanceDueAt   DateTime?
+  balancePaidAt  DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 

@@ -5,6 +5,8 @@ import { decimalToNumber, calculateEtaDate, formatDateEs } from "@/lib/quotes";
 import { buildPaidDigitalEmail, buildPaidPaperEmail } from "@/lib/quote-messages";
 import { sendQuoteEmail } from "@/lib/quote-email";
 import { isDuplicateStripeEventError } from "@/lib/quote-idempotency";
+import { sendMail } from "@/lib/azure-mail";
+import { sendStaffAlertSMS } from "@/lib/sms";
 
 function buildPaidWhatsAppDraft(params: { name: string; quoteNumber: string; etaDate: Date }) {
   return `Hola ${params.name}, desde TraduccionesJuradas.net confirmamos el pago del presupuesto ${params.quoteNumber}. Fecha estimada de entrega: ${formatDateEs(params.etaDate)}.`;
@@ -82,12 +84,24 @@ export async function processQuoteStripeEvent(event: any) {
         sourceLang: true,
         targetLang: true,
         expedienteRef: true,
+        balanceAmount: true,
+        balancePaidAt: true,
         lines: { select: { description: true, unitPrice: true, sourceFileUrl: true, pageStart: true, pageEnd: true } },
       },
     });
     if (!quote) {
       console.warn("[quotes:webhook] quote not found", quoteId);
       return NextResponse.json({ ok: true, ignored: true });
+    }
+
+    if (metadata.paymentKind === "balance") {
+      return processBalancePayment({
+        quote,
+        amountEur: amountRaw > 0 ? amountRaw : decimalToNumber(quote.balanceAmount),
+        currency,
+        stripeSessionId,
+        stripePaymentIntentId,
+      });
     }
 
     const now = new Date();
@@ -239,4 +253,94 @@ export async function processQuoteStripeEvent(event: any) {
       { status: 500 }
     );
   }
+}
+
+// Segundo plazo (Quote.balanceAmount): suma al pedido que ya creó el primer pago.
+// Nunca pasa por runQuoteToOrderBridge (sería otro pedido y otro encargo al jurado).
+async function processBalancePayment(input: {
+  quote: { id: string; quoteNumber: string; customerName: string; customerEmail: string };
+  amountEur: number;
+  currency: string;
+  stripeSessionId: string;
+  stripePaymentIntentId: string;
+}) {
+  const { quote, amountEur, currency, stripeSessionId, stripePaymentIntentId } = input;
+  const amountCents = Math.round(amountEur * 100);
+  const now = new Date();
+
+  const result = await prisma.$transaction(async (tx) => {
+    const flipped = await tx.quote.updateMany({
+      where: { id: quote.id, balancePaidAt: null },
+      data: { balancePaidAt: now },
+    });
+    if (flipped.count !== 1) return null;
+    await tx.quotePayment.create({
+      data: {
+        quoteId: quote.id,
+        provider: "STRIPE",
+        amount: amountEur,
+        currency,
+        stripeSessionId: stripeSessionId || null,
+        stripePaymentIntentId: stripePaymentIntentId || null,
+      },
+    });
+    const order = await tx.order.findFirst({ where: { quoteId: quote.id }, select: { id: true, reference: true } });
+    if (order) {
+      await tx.order.update({ where: { id: order.id }, data: { amountCents: { increment: amountCents } } });
+      await tx.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "payment.balance_received",
+          message: `Segundo pago del presupuesto ${quote.quoteNumber} cobrado con tarjeta.`,
+          payload: { amountCents, stripeSessionId, stripePaymentIntentId },
+        },
+      });
+    }
+    return { orderRef: order?.reference || null };
+  });
+
+  const importe = `${amountEur.toFixed(2).replace(".", ",")} €`;
+  if (!result) {
+    const known = await prisma.quotePayment.findFirst({
+      where: {
+        quoteId: quote.id,
+        OR: [
+          ...(stripeSessionId ? [{ stripeSessionId }] : []),
+          ...(stripePaymentIntentId ? [{ stripePaymentIntentId }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    if (!known) {
+      const doble = `⚠ POSIBLE DOBLE COBRO: segundo pago ${importe} de ${quote.quoteNumber} ya estaba pagado (sesión ${stripeSessionId}). Revisar en Stripe y devolver.`;
+      await sendStaffAlertSMS(doble, "doble cobro segundo pago").catch((e) => console.error("[quotes:webhook] doble cobro SMS", e));
+      if (process.env.PRESUPUESTO_TO) {
+        await sendMail({ to: process.env.PRESUPUESTO_TO, subject: doble, text: doble, html: `<p>${doble}</p>` }).catch((e) =>
+          console.error("[quotes:webhook] doble cobro email", e)
+        );
+      }
+    }
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+
+  await sendQuoteEmail({
+    to: quote.customerEmail,
+    subject: `Segundo pago recibido — Presupuesto ${quote.quoteNumber}`,
+    body: `Hola ${quote.customerName || ""},\n\nHemos recibido el segundo pago de ${importe} del presupuesto ${quote.quoteNumber}. Con él queda pagado en su totalidad.\n\nGracias por su confianza.\n\nTraduccionesJuradas.net`,
+  }).catch((e) => console.error("[quotes:webhook] balance client email failed", e));
+
+  const aviso = result.orderRef
+    ? `SEGUNDO PAGO ${importe} · ${quote.quoteNumber} · pedido ${result.orderRef} ya sumado.`
+    : `SEGUNDO PAGO ${importe} · ${quote.quoteNumber} · ⚠ SIN PEDIDO: el primer pago no creó pedido, revisar a mano.`;
+  const staffTo = process.env.PRESUPUESTO_TO;
+  if (staffTo) {
+    await sendMail({ to: staffTo, subject: aviso, text: aviso, html: `<p>${aviso}</p>` }).catch((e) =>
+      console.error("[quotes:webhook] balance staff email failed", e)
+    );
+  }
+  await sendStaffAlertSMS(aviso, "segundo pago presupuesto").catch((e) =>
+    console.error("[quotes:webhook] balance staff SMS failed", e)
+  );
+
+  return NextResponse.json({ ok: true, balance: true });
 }

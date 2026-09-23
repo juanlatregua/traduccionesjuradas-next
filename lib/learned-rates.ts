@@ -353,10 +353,12 @@ export async function learnFromPaidQuote(quoteId: string) {
       quoteNumber: true,
       lavoriMiembroId: true,
       lavoriMiembroNombre: true,
+      balanceAmount: true,
       lines: { select: { description: true, unitPrice: true, supplierUnitCost: true, sourceFileUrl: true } },
     },
   });
-  if (!quote) return { learned: 0 };
+  // Pago en plazos: las líneas llevan solo el primer plazo, no el precio del documento.
+  if (!quote || quote.balanceAmount) return { learned: 0 };
   const lead = await prisma.lavoriPriceRequest.findFirst({
     where: { quoteId: quote.id, priceCents: { not: null } },
     orderBy: { updatedAt: "desc" },

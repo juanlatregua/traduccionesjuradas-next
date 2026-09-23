@@ -12,6 +12,7 @@ import {
   type QuoteStatus,
 } from "@/lib/quotes";
 import QuotePublicPayButton from "@/components/QuotePublicPayButton";
+import QuoteBalancePayButton from "@/components/QuoteBalancePayButton";
 import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
 import QuoteDocumentsViewer from "@/components/QuoteDocumentsViewer";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -98,6 +99,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       id: true,
       status: true,
       tokenExpiresAt: true,
+      paidAt: true,
     },
   });
   if (!quote) {
@@ -115,7 +117,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
     notFound();
   }
 
-  if (quote.tokenExpiresAt && quote.tokenExpiresAt < new Date() && quote.status !== "EXPIRED") {
+  if (quote.tokenExpiresAt && quote.tokenExpiresAt < new Date() && quote.status !== "EXPIRED" && !quote.paidAt) {
     await prisma.quote.update({
       where: { id: quote.id },
       data: { status: "EXPIRED", expiredAt: new Date() },
@@ -150,6 +152,9 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       shippingAmount: true,
       vatAmount: true,
       total: true,
+      balanceAmount: true,
+      balanceDueAt: true,
+      balancePaidAt: true,
       lines: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -177,6 +182,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   const shippingAmount = decimalToNumber(refreshed.shippingAmount);
   const vatAmount = decimalToNumber(refreshed.vatAmount);
   const total = decimalToNumber(refreshed.total);
+  const balance = decimalToNumber(refreshed.balanceAmount);
   // Al visor (client component) no viaja la URL del blob: una clave opaca que
   // conserva la extensión para elegir la vista previa. Los ficheros se sirven
   // por /api/q/[token]/document, que saca la URL de la BD.
@@ -322,6 +328,24 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">
                 {t.paperIncluded}
               </p>
+            )}
+            {balance > 0 && (
+              <div className="space-y-2 rounded-lg border border-bleu/30 bg-cream/40 p-3 text-sm text-encre">
+                <p className="flex items-center justify-between">
+                  <span>
+                    Segundo pago
+                    {refreshed.balanceDueAt ? ` (${refreshed.balanceDueAt.toLocaleDateString("es-ES", { day: "numeric", month: "long" })})` : ""}
+                  </span>
+                  <strong>{formatMoney(balance)}</strong>
+                </p>
+                {refreshed.balancePaidAt ? (
+                  <p className="font-semibold text-emerald-700">Pagado. Presupuesto pagado en su totalidad.</p>
+                ) : refreshed.paidAt ? (
+                  <QuoteBalancePayButton token={params.token} amountLabel={formatMoney(balance)} />
+                ) : (
+                  <p className="text-xs text-sepia">Se paga después del primer pago, con este mismo enlace.</p>
+                )}
+              </div>
             )}
             <QuotePublicPayButton
               token={params.token}
