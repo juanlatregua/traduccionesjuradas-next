@@ -144,6 +144,13 @@ export function drawLogo(doc: jsPDF, x: number, y: number, w: number) {
   doc.text("traducción oficial certificada · españa", px(257), py(140));
 }
 
+// La flecha → no está en WinAnsi (salía «Francés!'Español»): mismo cambio que quote-pdf.
+function winAnsi(s: string) {
+  return String(s ?? "")
+    .replace(/\s*→\s*/g, " › ")
+    .replace(/[\u2190\u2192\u2194]/g, "-");
+}
+
 export function generateInvoicePdf(data: InvoiceData): Buffer {
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const pageW = 210;
@@ -309,8 +316,8 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   // Cuerpo
   const lines: InvoiceLine[] =
     data.lines && data.lines.length > 0
-      ? data.lines.map((l) => ({ ...l }))
-      : [{ description: data.title, amountCents: Math.round(data.amountCents / 1.21) }];
+      ? data.lines.map((l) => ({ ...l, description: winAnsi(l.description), detail: l.detail ? winAnsi(l.detail) : l.detail }))
+      : [{ description: winAnsi(data.title), amountCents: Math.round(data.amountCents / 1.21) }];
   if (data.poNumber && lines[0]) {
     const po = `Purchase Order / Nº de pedido ${data.poNumber}`;
     lines[0].detail = lines[0].detail ? `${lines[0].detail} · ${po}` : po;

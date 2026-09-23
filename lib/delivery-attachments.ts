@@ -51,6 +51,13 @@ export async function buildIssuedInvoiceAttachment(
     const invoice = await prisma.clientInvoice.findUnique({ where: { orderId: order.id } });
     if (!invoice || invoice.status !== "ISSUED" || !invoice.number) return null;
 
+    // Emitida con líneas propias (hecha o corregida en Facturas): se envía tal cual
+    // quedó registrada, no reconstruida desde el pedido (26_077 perdía el envío en papel).
+    if (Array.isArray(invoice.lineItemsJson) && invoice.lineItemsJson.length > 0) {
+      const pdf = generateInvoicePdf({ ...clientInvoicePdfArgs(invoice, await loadBrandLogo(invoice.brand)), verifactu: await verifactuPdfExtras(invoice.id) });
+      return { name: `${invoice.number}.pdf`, contentType: "application/pdf", contentBytes: Buffer.from(pdf).toString("base64") };
+    }
+
     const items = await prisma.orderDocumentItem.findMany({
       where: { orderId: order.id },
       orderBy: { createdAt: "asc" },
