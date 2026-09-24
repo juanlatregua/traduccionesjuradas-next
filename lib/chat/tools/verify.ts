@@ -1,3 +1,5 @@
+import { GOOGLE_RATING } from "../../google-rating.ts";
+
 export type VerifyTranslatorInput = {
   name?: string;
   maec_number?: number;
@@ -14,7 +16,7 @@ const JUAN_SILVA_DATA = {
   company: "HBTJ Consultores Lingüísticos S.L.",
   cif: "B93712784",
   total_translations_min: 3000,
-  google_rating: { stars: 4.8, reviews: 46 },
+  google_rating: GOOGLE_RATING,
 } as const;
 
 const MAEC_LISTING_URL =

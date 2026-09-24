@@ -6,6 +6,7 @@
 // en es/fr. En en/de/pt la autoridad es genérica ("acreditado por el MAEC").
 
 import type { Locale, Tr } from "@/lib/i18n/locales";
+import { GOOGLE_RATING } from "@/lib/google-rating";
 
 export type HomeLang = Locale;
 
@@ -86,11 +87,11 @@ export const HOME: HomeStrings = {
       },
     ],
     ratingNote: tr(
-      "4,8 · 46 reseñas en Google",
-      "4,8 · 46 avis sur Google",
-      "4.8 · 46 Google reviews",
-      "4,8 · 46 Google-Bewertungen",
-      "4,8 · 46 avaliações no Google"
+      `${GOOGLE_RATING.stars.toString().replace(".", ",")} · ${GOOGLE_RATING.reviews} reseñas en Google`,
+      `${GOOGLE_RATING.stars.toString().replace(".", ",")} · ${GOOGLE_RATING.reviews} avis sur Google`,
+      `${GOOGLE_RATING.stars} · ${GOOGLE_RATING.reviews} Google reviews`,
+      `${GOOGLE_RATING.stars.toString().replace(".", ",")} · ${GOOGLE_RATING.reviews} Google-Bewertungen`,
+      `${GOOGLE_RATING.stars.toString().replace(".", ",")} · ${GOOGLE_RATING.reviews} avaliações no Google`
     ),
     priceLine: tr(
       "Precio cerrado desde 35 € · 10 idiomas · entrega 24–72 h",

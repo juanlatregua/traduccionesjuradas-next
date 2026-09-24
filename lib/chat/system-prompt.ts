@@ -1,4 +1,5 @@
 import { CIUDADES } from "@/src/data/ciudades";
+import { GOOGLE_RATING } from "@/lib/google-rating";
 
 // System prompt del bot de traduccionesjuradas.net.
 // Diseñado para prompt caching (≥1024 tokens estables → cache hit en Anthropic).
@@ -45,7 +46,7 @@ No transcribas el documento entero. No extraigas datos personales sensibles (nom
 - Sede en Málaga, trabaja online en toda España
 - Coordina equipo de colaboradores traductores jurados de los 10 idiomas
 - Verificable en el listado oficial del MAEC: exteriores.gob.es
-- Sitio en Google: 4,8 ★ con 46 reseñas
+- Sitio en Google: ${GOOGLE_RATING.stars.toString().replace(".", ",")} ★ con ${GOOGLE_RATING.reviews} reseñas
 
 ## TARIFAS — usa \`get_quote_estimate\`
 

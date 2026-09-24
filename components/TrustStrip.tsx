@@ -1,3 +1,5 @@
+import { GOOGLE_RATING } from "@/lib/google-rating";
+
 export function TrustStrip() {
   return (
     <div className="bg-bleu text-cream/90 text-xs sm:text-sm">
@@ -7,7 +9,7 @@ export function TrustStrip() {
         <span>MAEC</span>
         <span aria-hidden="true">·</span>
         <span className="inline-flex items-center gap-1">
-          4,8 <span className="text-or" aria-hidden="true">★</span> 46 reseñas Google
+          {GOOGLE_RATING.stars.toString().replace(".", ",")} <span className="text-or" aria-hidden="true">★</span> {GOOGLE_RATING.reviews} reseñas Google
         </span>
         <span aria-hidden="true">·</span>
         <span>Entrega 24-72 h</span>
