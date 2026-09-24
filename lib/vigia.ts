@@ -145,7 +145,8 @@ export async function buildVigia(days = 7): Promise<Vigia> {
   /* ───────── 2. Leads de la puerta ───────── */
   const [leadDocs, quoteEmails] = await Promise.all([
     prisma.documentAnalysis.findMany({
-      where: { createdAt: { gte: SINCE }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }] },
+      // El Lector de requerimientos pide email (24-sep) pero no es un lead de traducción.
+      where: { createdAt: { gte: SINCE }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }], AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] },
       orderBy: { createdAt: "asc" },
       select: { clientEmail: true, clientName: true, clientPhone: true, fileName: true, documentType: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, sessionToken: true, createdAt: true, marketingConsent: true },
     }),
