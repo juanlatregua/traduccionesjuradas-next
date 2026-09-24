@@ -33,10 +33,10 @@ export default function SiteTopBars() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-xs text-encre sm:text-sm">
           <span className="inline-flex items-center gap-1.5 font-semibold text-bleu">
             <span className="inline-block h-2 w-2 rounded-full bg-bleu" />
-            Regularización 2026 · fase de subsanación
+            Regularización 2026
           </span>
           <span className="text-sepia">
-            Requerimiento con <strong>10 días hábiles</strong> · 25 €/doc · entrega 24h
+            ¿Te ha llegado un requerimiento de subsanación? Responde en el plazo que indica la notificación · 25 €/doc · entrega 24h
           </span>
           <Link href="/regularizacion-2026" className="font-semibold text-bleu underline-offset-2 hover:underline">
             Ver guía →
