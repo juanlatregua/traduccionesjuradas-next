@@ -72,10 +72,10 @@ export default function TraduccionJuradaAntecedentesPenalesPage() {
 
       <div className="mb-6 rounded-2xl border border-bleu/30 bg-bleu/5 p-4 text-sm text-encre">
         <p className="font-semibold text-bleu">
-          Regularización extraordinaria 2026 abierta hasta el 30 de junio
+          Regularización extraordinaria 2026: plazo de solicitud cerrado el 30 de junio de 2026
         </p>
         <p className="mt-1 text-sepia">
-          Si tramitas la regularización (RD 316/2026), el certificado de
+          Si tu expediente sigue en trámite (RD 316/2026), el certificado de
           antecedentes penales del país de origen es uno de los documentos
           centrales del expediente:{" "}
           <Link

@@ -39,7 +39,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto tarda la legalización consular?",
     answer:
-      "La cadena de legalización (Relations Extérieures en Yaundé + Embajada de España) suele tardar varias semanas. Si te han pedido subsanar un requerimiento, no dejes pasar los 10 días hábiles.",
+      "La cadena de legalización (Relations Extérieures en Yaundé + Embajada de España) suele tardar varias semanas. Si te han pedido subsanar un requerimiento, no dejes pasar el plazo del requerimiento.",
   },
 ];
 

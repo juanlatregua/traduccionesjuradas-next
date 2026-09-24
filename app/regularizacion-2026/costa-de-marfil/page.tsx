@@ -30,7 +30,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto tarda la legalización consular?",
     answer:
-      "La legalización en cadena (Affaires Étrangères marfileño + Embajada de España) suele tardar varias semanas dependiendo de citas y carga de trabajo. Si te han pedido subsanar un requerimiento, no dejes pasar los 10 días hábiles.",
+      "La legalización en cadena (Affaires Étrangères marfileño + Embajada de España) suele tardar varias semanas dependiendo de citas y carga de trabajo. Si te han pedido subsanar un requerimiento, no dejes pasar el plazo del requerimiento.",
   },
   {
     question: "¿Tradúcis directamente del francés?",
@@ -205,7 +205,7 @@ export default function RegularizacionCostaDeMarfilPage() {
         <p className="text-xs">
           Plazo realista: varias semanas, dependiendo de la disponibilidad de
           citas en cada paso. Si te han pedido subsanar un requerimiento, no
-          dejes pasar los 10 días hábiles.
+          dejes pasar el plazo del requerimiento.
         </p>
       </section>
 
