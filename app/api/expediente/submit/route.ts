@@ -15,7 +15,7 @@ import { sendStaffAlertSMS } from "@/lib/sms";
 
 export const runtime = "nodejs";
 
-const MAX_DOCS = 40;
+const MAX_DOCS = 300; // igual que ExpedientePublicIntake (antes 40: rechazaba al enviar lo que la página dejaba subir)
 
 function validEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -66,7 +66,15 @@ export async function POST(req: Request) {
       fileSize: Number(d?.fileSize) || 0,
       mimeType: String(d?.mimeType || "application/octet-stream"),
     }))
-    .filter((d) => d.blobUrl);
+    // Solo ficheros de un almacén Vercel Blob (lo que sube la propia página).
+    .filter((d) => {
+      try {
+        const u = new URL(d.blobUrl);
+        return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com");
+      } catch {
+        return false;
+      }
+    });
 
   if (clean.length === 0) {
     return NextResponse.json({ ok: false, error: "No se recibió ningún archivo válido." }, { status: 400 });

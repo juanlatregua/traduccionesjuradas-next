@@ -9,7 +9,11 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
-const MAX_FILE_SIZE = 40 * 1024 * 1024; // 40 MB (expedientes escaneados)
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB: puerta (el documento pasa por el análisis IA)
+// Página /expediente (clientPayload kind "expediente"): expedientes escaneados y ZIP,
+// subida directa a Blob por partes; nadie los analiza al subir (Juan, 24-sep).
+const EXPEDIENTE_MAX_FILE_SIZE = 500 * 1024 * 1024;
+const ZIP_TYPES = ["application/zip", "application/x-zip-compressed"];
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -40,11 +44,11 @@ export async function POST(req: Request) {
   // público de subidas.
   const staff = await requireStaffAccess(req);
   if (!staff.ok) {
-    // Rate limit: 120 subidas por IP por día (un expediente público llega a 60+
-    // ficheros, caso Tomás 23-sep; el gate RGPD sigue activo en onBeforeGenerateToken).
+    // Rate limit: 400 subidas por IP por día (expedientes de hasta 300 documentos,
+    // caso Tomás 23-sep; el gate RGPD sigue activo en onBeforeGenerateToken).
     const rl = await checkRateLimit({
       key: `doc-upload:${ip}`,
-      limit: 120,
+      limit: 400,
       windowMs: 24 * 60 * 60 * 1000,
     });
     if (!rl.ok) {
@@ -82,9 +86,12 @@ export async function POST(req: Request) {
             addRandomSuffix: true,
           };
         }
+        const expediente = parsed.kind === "expediente";
         return {
-          allowedContentTypes: ALLOWED_TYPES,
-          maximumSizeInBytes: MAX_FILE_SIZE,
+          allowedContentTypes: expediente ? [...ALLOWED_TYPES, ...ZIP_TYPES] : ALLOWED_TYPES,
+          maximumSizeInBytes: expediente ? EXPEDIENTE_MAX_FILE_SIZE : MAX_FILE_SIZE,
+          // Sufijo aleatorio: la URL de un documento de cliente no se puede adivinar.
+          addRandomSuffix: true,
         };
       },
       onUploadCompleted: async () => {

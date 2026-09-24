@@ -18,9 +18,10 @@ type FileRow = {
   error?: string;
 };
 
-const MAX_FILE_SIZE = 40 * 1024 * 1024;
-const MAX_DOCS = 80;
-const ACCEPTED = ".pdf,.jpg,.jpeg,.png,.heic,.tiff,.tif,.webp";
+const MAX_FILE_SIZE = 500 * 1024 * 1024;
+const MAX_DOCS = 300;
+const PARALLEL = 4; // subidas simultáneas: 60+ a la vez atascaban el navegador (móvil)
+const ACCEPTED = ".pdf,.jpg,.jpeg,.png,.heic,.tiff,.tif,.webp,.zip";
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -58,7 +59,9 @@ export default function ExpedientePublicIntake({
         const blob = await upload(`expedientes/${Date.now()}-${safe}`, file, {
           access: "public",
           handleUploadUrl: "/api/documents/upload",
-          clientPayload: JSON.stringify({ gdprConsent: true }),
+          clientPayload: JSON.stringify({ gdprConsent: true, kind: "expediente" }),
+          // Ficheros grandes por partes: si se corta un trozo se reintenta ese, no todo.
+          multipart: file.size > 20 * 1024 * 1024,
         });
         patch(row.localId, { status: "ready", blobUrl: blob.url });
       } catch {
@@ -68,12 +71,36 @@ export default function ExpedientePublicIntake({
     [patch]
   );
 
+  // Cola: como mucho PARALLEL subidas a la vez; el resto espera su turno.
+  const filesRef = useRef(new Map<string, File>());
+  const queueRef = useRef<FileRow[]>([]);
+  const activeRef = useRef(0);
+  const pump = useCallback(() => {
+    while (activeRef.current < PARALLEL && queueRef.current.length > 0) {
+      const row = queueRef.current.shift()!;
+      const file = filesRef.current.get(row.localId);
+      if (!file) continue;
+      activeRef.current++;
+      uploadOne(row, file).finally(() => {
+        activeRef.current--;
+        pump();
+      });
+    }
+  }, [uploadOne]);
+  const enqueue = useCallback(
+    (row: FileRow) => {
+      queueRef.current.push(row);
+      pump();
+    },
+    [pump]
+  );
+
   const handleFiles = useCallback(
     (fileList: FileList) => {
       setError(null);
       const files = Array.from(fileList).filter((f) => {
         if (f.size > MAX_FILE_SIZE) {
-          setError(`"${f.name}" supera los 40 MB y se ha omitido.`);
+          setError(`"${f.name}" supera los 500 MB y se ha omitido.`);
           return false;
         }
         return true;
@@ -92,9 +119,21 @@ export default function ExpedientePublicIntake({
         status: "uploading",
       }));
       setRows((prev) => [...prev, ...newRows]);
-      newRows.forEach((row, i) => uploadOne(row, accepted[i]));
+      newRows.forEach((row, i) => {
+        filesRef.current.set(row.localId, accepted[i]);
+        enqueue(row);
+      });
     },
-    [rows.length, uploadOne]
+    [rows.length, enqueue]
+  );
+
+  const retry = useCallback(
+    (row: FileRow) => {
+      if (!filesRef.current.get(row.localId)) return;
+      patch(row.localId, { status: "uploading", error: undefined });
+      enqueue(row);
+    },
+    [patch, enqueue]
   );
 
   const ready = rows.filter((r) => r.status === "ready");
@@ -180,7 +219,7 @@ export default function ExpedientePublicIntake({
           <Upload className="h-6 w-6 text-bleu" />
         </div>
         <p className="font-baskerville text-lg text-bleu">Arrastra todos tus documentos</p>
-        <p className="text-sm text-graphite">PDF, fotos o escaneos · varios a la vez · hasta 80 documentos · máx. 40 MB c/u</p>
+        <p className="text-sm text-graphite">PDF, fotos, escaneos o ZIP · varios a la vez · hasta 300 documentos · máx. 500 MB c/u</p>
         <input
           ref={inputRef}
           type="file"
@@ -203,7 +242,14 @@ export default function ExpedientePublicIntake({
               <span className="flex-1 truncate text-sm text-encre" title={r.fileName}>{r.fileName}</span>
               {r.status === "uploading" && <Loader2 className="h-4 w-4 animate-spin text-bleu" />}
               {r.status === "ready" && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-              {r.status === "error" && <AlertTriangle className="h-4 w-4 text-rouge" />}
+              {r.status === "error" && (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-rouge" />
+                  <button type="button" onClick={() => retry(r)} className="text-xs font-semibold text-bleu hover:underline">
+                    Reintentar
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => setRows((prev) => prev.filter((x) => x.localId !== r.localId))}
