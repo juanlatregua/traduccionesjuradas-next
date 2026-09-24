@@ -15,10 +15,11 @@ export default function MarruecosPage() {
       {/* BANNER REGULARIZACIÓN 2026 */}
       <div className="mb-6 rounded-2xl border border-bleu/30 bg-bleu/5 p-4 text-sm text-encre">
         <p className="font-semibold text-bleu">
-          ¿Tramitas la regularización extraordinaria 2026?
+          ¿Tienes un requerimiento de subsanación de la regularización 2026?
         </p>
         <p className="mt-1 text-sepia">
-          Plazo improrrogable hasta el 30 de junio (RD 316/2026). Tenemos página
+          El plazo de solicitud (RD 316/2026) cerró el 30 de junio; si ya
+          presentaste tu expediente y te piden subsanar, tenemos página
           específica con los documentos marroquíes, apostilla y plazos:{" "}
           <Link
             href="/regularizacion-2026/marruecos"

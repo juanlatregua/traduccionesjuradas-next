@@ -49,7 +49,7 @@ export default function RegularizacionMaliPage() {
       <SchemaService
         id="service-regularizacion-2026-mali"
         serviceName="Traducción jurada francés-español de documentos malienses para la regularización 2026"
-        serviceDescription="Traducción jurada francés-español de casier judiciaire, extrait d'acte de naissance y otros documentos de Mali para la regularización extraordinaria abierta hasta el 30 de junio de 2026. 25 € por documento. Entrega 24h."
+        serviceDescription="Traducción jurada francés-español de casier judiciaire, extrait d'acte de naissance y otros documentos de Mali para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). 25 € por documento. Entrega 24h."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026/mali"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -82,8 +82,7 @@ export default function RegularizacionMaliPage() {
           Documentos malienses para la regularización extraordinaria 2026
         </h1>
         <p className="mt-3 text-sm text-sepia sm:text-base">
-          Si vas a presentar tu solicitud antes del{" "}
-          <strong>30 de junio de 2026</strong> al amparo del{" "}
+          El plazo de solicitud al amparo del{" "}
           <a
             href="https://www.boe.es/buscar/doc.php?id=BOE-A-2026-8284"
             target="_blank"
@@ -91,8 +90,10 @@ export default function RegularizacionMaliPage() {
             className="font-semibold text-bleu hover:underline"
           >
             RD 316/2026
-          </a>
-          , esta página explica qué documentos malienses necesitas, cómo
+          </a>{" "}
+          cerró el <strong>30 de junio de 2026</strong>. Si ya presentaste tu
+          expediente y te ha llegado un requerimiento de subsanación, esta
+          página explica qué documentos malienses necesitas, cómo
           obtenerlos y cómo los traducimos al español como traductor jurado de
           francés (MAEC nº 3850). Mali <strong>no es parte del Convenio de La
           Haya</strong>: requiere legalización consular en cadena antes de la

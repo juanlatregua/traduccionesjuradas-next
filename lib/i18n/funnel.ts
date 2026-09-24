@@ -70,7 +70,7 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
     },
     checkout: {
       regularizacionTitle: "Tarifa especial regularización 2026 · 25 € / documento",
-      regularizacionBody: "Plazo del expediente: 30 de junio de 2026 (RD 316/2026). Entrega de la traducción jurada en PDF firmado digitalmente, 24h. Métodos de pago: Bizum, tarjeta, PayPal o transferencia.",
+      regularizacionBody: "RD 316/2026: plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación de expedientes. Entrega de la traducción jurada en PDF firmado digitalmente, 24h. Métodos de pago: Bizum, tarjeta, PayPal o transferencia.",
     },
     confirmation: {
       paidEyebrow: "Pago confirmado",

@@ -30,7 +30,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto tarda la legalización consular?",
     answer:
-      "La legalización en cadena (Affaires Étrangères marfileño + Embajada de España) suele tardar varias semanas dependiendo de citas y carga de trabajo. Recomendamos iniciar el ciclo con margen suficiente antes del 30 de junio de 2026.",
+      "La legalización en cadena (Affaires Étrangères marfileño + Embajada de España) suele tardar varias semanas dependiendo de citas y carga de trabajo. Si te han pedido subsanar un requerimiento, no dejes pasar los 10 días hábiles.",
   },
   {
     question: "¿Tradúcis directamente del francés?",
@@ -50,7 +50,7 @@ export default function RegularizacionCostaDeMarfilPage() {
       <SchemaService
         id="service-regularizacion-2026-costa-de-marfil"
         serviceName="Traducción jurada francés-español de documentos marfileños para la regularización 2026"
-        serviceDescription="Traducción jurada francés-español de Casier Judiciaire Bulletin nº 3, extrait d'acte de naissance y otros documentos de Costa de Marfil para la regularización extraordinaria abierta hasta el 30 de junio de 2026. Entrega 24h."
+        serviceDescription="Traducción jurada francés-español de Casier Judiciaire Bulletin nº 3, extrait d'acte de naissance y otros documentos de Costa de Marfil para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). Entrega 24h."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026/costa-de-marfil"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -83,8 +83,7 @@ export default function RegularizacionCostaDeMarfilPage() {
           Documentos marfileños para la regularización extraordinaria 2026
         </h1>
         <p className="mt-3 text-sm text-sepia sm:text-base">
-          Si vas a presentar tu solicitud antes del{" "}
-          <strong>30 de junio de 2026</strong> al amparo del{" "}
+          El plazo de solicitud al amparo del{" "}
           <a
             href="https://www.boe.es/buscar/doc.php?id=BOE-A-2026-8284"
             target="_blank"
@@ -92,8 +91,10 @@ export default function RegularizacionCostaDeMarfilPage() {
             className="font-semibold text-bleu hover:underline"
           >
             RD 316/2026
-          </a>
-          , esta página explica qué documentos marfileños necesitas, cómo
+          </a>{" "}
+          cerró el <strong>30 de junio de 2026</strong>. Si ya presentaste tu
+          expediente y te ha llegado un requerimiento de subsanación, esta
+          página explica qué documentos marfileños necesitas, cómo
           obtenerlos y cómo los traducimos al español como traductor jurado de
           francés (MAEC nº 3850). Costa de Marfil <strong>no es parte del
           Convenio de La Haya</strong>: requiere legalización consular en cadena
@@ -203,8 +204,8 @@ export default function RegularizacionCostaDeMarfilPage() {
         </ol>
         <p className="text-xs">
           Plazo realista: varias semanas, dependiendo de la disponibilidad de
-          citas en cada paso. Inicia el trámite cuanto antes si quieres llegar
-          al cierre del 30 de junio.
+          citas en cada paso. Si te han pedido subsanar un requerimiento, no
+          dejes pasar los 10 días hábiles.
         </p>
       </section>
 

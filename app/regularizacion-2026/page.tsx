@@ -29,7 +29,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Hasta cuándo puedo presentar la solicitud?",
     answer:
-      "El plazo es improrrogable hasta el 30 de junio de 2026 (Real Decreto 316/2026, BOE-A-2026-8284). Las solicitudes telemáticas se abrieron el 16 de abril de 2026 y las presenciales el 20 de abril.",
+      "El plazo de solicitud ya cerró: fue improrrogable hasta el 30 de junio de 2026 (Real Decreto 316/2026, BOE-A-2026-8284), sin prórroga ni ampliación. Las solicitudes telemáticas se abrieron el 16 de abril de 2026 y las presenciales el 20 de abril. Si ya presentaste tu expediente, sigue en tramitación: consulta la sección de subsanación más abajo.",
   },
   {
     question: "¿Qué documentos del país de origen necesitan traducción jurada?",
@@ -64,7 +64,7 @@ export default function Regularizacion2026Page() {
       <SchemaService
         id="service-regularizacion-2026"
         serviceName="Traducción jurada para la regularización extraordinaria 2026"
-        serviceDescription="Traducción jurada oficial de antecedentes penales y documentos del país de origen para la regularización extraordinaria abierta por el RD 316/2026, hasta el 30 de junio de 2026."
+        serviceDescription="Traducción jurada oficial de antecedentes penales y documentos del país de origen para expedientes de la regularización extraordinaria del RD 316/2026. El plazo de solicitud cerró el 30 de junio de 2026; actualmente en fase de subsanación de expedientes ya presentados."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -102,8 +102,10 @@ export default function Regularizacion2026Page() {
           >
             Real Decreto 316/2026
           </a>{" "}
-          (BOE 15-abr-2026) ha abierto dos vías extraordinarias de regularización
-          que finalizan el <strong>30 de junio de 2026</strong>. Ambas exigen
+          (BOE 15-abr-2026) abrió dos vías extraordinarias de regularización
+          cuyo plazo de solicitud finalizó el <strong>30 de junio de 2026</strong>.
+          Los expedientes ya presentados siguen en tramitación y pueden recibir
+          requerimientos de subsanación. Ambas vías exigen
           traducción jurada del certificado de antecedentes penales del país de
           origen y, según el caso, otros documentos civiles. Estamos
           especializados en la traducción jurada francés-español de documentos
@@ -182,7 +184,7 @@ export default function Regularizacion2026Page() {
 
       <section className="mt-10 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          Las dos vías abiertas hasta el 30 de junio
+          Las dos vías, con plazo de solicitud cerrado el 30 de junio
         </h2>
         <div className="space-y-4">
           <article className="rounded-2xl border border-cream bg-card p-5">

@@ -50,7 +50,7 @@ export default function RegularizacionMarruecosPage() {
       <SchemaService
         id="service-regularizacion-2026-marruecos"
         serviceName="Traducción jurada francés-español de documentos marroquíes para la regularización 2026"
-        serviceDescription="Traducción jurada francés-español de casier judiciaire (bulletin nº 3), extrait d'acte de naissance y otros documentos marroquíes en francés o bilingüe árabe/francés para la regularización extraordinaria abierta hasta el 30 de junio de 2026. Entrega 24h."
+        serviceDescription="Traducción jurada francés-español de casier judiciaire (bulletin nº 3), extrait d'acte de naissance y otros documentos marroquíes en francés o bilingüe árabe/francés para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). Entrega 24h."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026/marruecos"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -83,8 +83,7 @@ export default function RegularizacionMarruecosPage() {
           Documentos marroquíes para la regularización extraordinaria 2026
         </h1>
         <p className="mt-3 text-sm text-sepia sm:text-base">
-          Si vas a presentar tu solicitud antes del{" "}
-          <strong>30 de junio de 2026</strong> al amparo del{" "}
+          El plazo de solicitud al amparo del{" "}
           <a
             href="https://www.boe.es/buscar/doc.php?id=BOE-A-2026-8284"
             target="_blank"
@@ -92,8 +91,10 @@ export default function RegularizacionMarruecosPage() {
             className="font-semibold text-bleu hover:underline"
           >
             RD 316/2026
-          </a>
-          , esta página explica qué documentos marroquíes necesitas, cómo
+          </a>{" "}
+          cerró el <strong>30 de junio de 2026</strong>. Si ya presentaste tu
+          expediente y te ha llegado un requerimiento de subsanación, esta
+          página explica qué documentos marroquíes necesitas, cómo
           obtenerlos y cómo los traducimos al español como traductor jurado de
           francés (MAEC nº 3850). Trabajamos con la versión en francés o
           bilingüe árabe/francés del documento: es el flujo más rápido (24h) y
