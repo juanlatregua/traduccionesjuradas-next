@@ -18,18 +18,33 @@ export const FUNNEL_STAGES = [
 
 export type StageKey = (typeof FUNNEL_STAGES)[number]["key"];
 export type StageCounts = Record<StageKey, number>;
+// Los expedientes (sessionToken exp:REF, N documentos por envío) y las subidas
+// del staff (staff:email) no pasan por la puerta: inflaban «analizado» y
+// «lead» con cada fichero. Van en una fila aparte, contando envíos, no ficheros.
+export type FunnelCounts = StageCounts & { expedientes: number };
 
-export async function funnelForWindow(days: number, source?: string): Promise<StageCounts> {
+export async function funnelForWindow(days: number, source?: string): Promise<FunnelCounts> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const base = { createdAt: { gte: since }, ...(source ? { source } : {}) };
-  const [analizado, presupuesto, lead, pedido, pagado] = await Promise.all([
+  const base = {
+    createdAt: { gte: since },
+    ...(source ? { source } : {}),
+    OR: [
+      { sessionToken: null },
+      { NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }] },
+    ],
+  };
+  const [analizado, presupuesto, lead, pedido, pagado, expGroups] = await Promise.all([
     prisma.documentAnalysis.count({ where: base }),
     prisma.documentAnalysis.count({ where: { ...base, quoteAmount: { not: null } } }),
     prisma.documentAnalysis.count({ where: { ...base, clientEmail: { not: null } } }),
     prisma.documentAnalysis.count({ where: { ...base, orderId: { not: null } } }),
     prisma.documentAnalysis.count({ where: { ...base, order: { is: { paymentStatus: "PAID" } } } }),
+    prisma.documentAnalysis.groupBy({
+      by: ["sessionToken"],
+      where: { createdAt: { gte: since }, ...(source ? { source } : {}), sessionToken: { startsWith: "exp:" } },
+    }),
   ]);
-  return { analizado, presupuesto, lead, pedido, pagado };
+  return { analizado, presupuesto, lead, pedido, pagado, expedientes: expGroups.length };
 }
 
 export type StaffDigest = {
@@ -222,13 +237,19 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
   };
 }
 
-function stageRows(counts: StageCounts): string {
+function stageRows(counts: StageCounts | FunnelCounts): string {
   const base = counts.analizado || 0;
-  return FUNNEL_STAGES.map((s) => {
+  const rows = FUNNEL_STAGES.map((s) => {
     const n = counts[s.key];
     const pctStr = base > 0 ? `${((n / base) * 100).toFixed(0)} %` : "—";
     return `<tr><td style="padding:3px 12px 3px 0;">${s.label}</td><td style="padding:3px 12px 3px 0; text-align:right; font-weight:600;">${n}</td><td style="padding:3px 0; text-align:right; color:#6b7280;">${pctStr}</td></tr>`;
-  }).join("");
+  });
+  if ("expedientes" in counts) {
+    rows.push(
+      `<tr><td style="padding:6px 12px 3px 0; color:#6b7280;">Expedientes recibidos (aparte, no cuentan arriba)</td><td style="padding:6px 12px 3px 0; text-align:right; font-weight:600;">${counts.expedientes}</td><td></td></tr>`
+    );
+  }
+  return rows.join("");
 }
 
 export function buildDigestHtml(d: StaffDigest): string {

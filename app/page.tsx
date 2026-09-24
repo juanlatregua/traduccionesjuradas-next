@@ -40,7 +40,7 @@ export default function Home() {
         steps={HOME_HOWTO.es.steps}
       />
 
-      <HomeV2 lang="es" hero={<HomeHero />} />
+      <HomeV2 lang="es" hero={<HomeHero lang="es" />} />
     </div>
   );
 }

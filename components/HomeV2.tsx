@@ -11,6 +11,13 @@ import BancoUtilidades from "@/components/BancoUtilidades";
 import { SelloMinisterio } from "@/components/SelloMinisterio";
 import { HOME, type HomeLang } from "@/lib/i18n/home";
 import { TRANSLATOR_DROPDOWN, DOCS_DROPDOWN } from "@/lib/i18n/nav";
+import { CIUDADES } from "@/src/data/ciudades";
+
+// Ciudades principales para la portada ES (las páginas de ciudad son en
+// español): las 12 indexables más pobladas, como enlaces normales rastreables.
+const CIUDADES_HOME = CIUDADES.filter((c) => !c.noindex)
+  .sort((a, b) => b.poblacion - a.poblacion)
+  .slice(0, 12);
 
 // `hero`: la portada ES trae el suyo (components/home/HomeHero.tsx, maqueta
 // 22-sep); las demás lenguas siguen con el hero de aquí.
@@ -100,6 +107,22 @@ export default function HomeV2({ lang, hero }: { lang: HomeLang; hero?: ReactNod
               <p className="mt-4 text-sm"><Link href="/documentos-oficiales" className="font-semibold text-bleu-light hover:underline">{h.catalog.docsMore[lang]}</Link></p>
             </div>
           </div>
+          {lang === "es" && (
+            <div className="mt-6 rounded-2xl border border-cream bg-card p-6 shadow-sm">
+              <h3 className="font-baskerville text-lg font-bold text-encre">Traductor jurado en tu ciudad</h3>
+              <p className="mt-1 text-sm text-sepia">
+                Trabajamos 100 % online para toda España: elige tu ciudad para ver los trámites y documentos más frecuentes.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {CIUDADES_HOME.map((c) => (
+                  <Link key={c.slug} href={`/traductor-jurado/${c.slug}`} className="rounded-lg border border-bleu/12 bg-parchment px-3 py-2 text-sm font-medium text-encre transition hover:border-or hover:bg-or-light/50">
+                    {c.nombre}
+                  </Link>
+                ))}
+              </div>
+              <p className="mt-4 text-sm"><Link href="/traductor-jurado" className="font-semibold text-bleu-light hover:underline">Ver todas las ciudades →</Link></p>
+            </div>
+          )}
         </div>
       </section>
 

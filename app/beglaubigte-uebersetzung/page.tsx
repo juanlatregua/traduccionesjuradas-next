@@ -6,6 +6,7 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
+import HomeHero from "@/components/home/HomeHero";
 import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
 import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
@@ -29,7 +30,7 @@ export default function BeglaubigteUebersetzungPage() {
       <SchemaPerson id="schema-person-home-de" />
       <SchemaFAQ items={HOME_FAQ.de} id="schema-faq-home-de" />
       <SchemaHowTo id="schema-howto-home-de" name={HOME_HOWTO.de.name} description={HOME_HOWTO.de.description} steps={HOME_HOWTO.de.steps} />
-      <HomeV2 lang="de" />
+      <HomeV2 lang="de" hero={<HomeHero lang="de" />} />
     </div>
   );
 }

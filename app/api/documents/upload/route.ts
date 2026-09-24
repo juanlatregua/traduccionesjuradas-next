@@ -87,6 +87,11 @@ export async function POST(req: Request) {
           };
         }
         const expediente = parsed.kind === "expediente";
+        // Expediente público: la puerta pide email antes de subir; sin él no
+        // hay a quién mandar el presupuesto y el blob quedaría huérfano.
+        if (expediente && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(parsed.email || "").trim())) {
+          throw new Error("Indica tu email antes de subir los documentos.");
+        }
         return {
           allowedContentTypes: expediente ? [...ALLOWED_TYPES, ...ZIP_TYPES] : ALLOWED_TYPES,
           maximumSizeInBytes: expediente ? EXPEDIENTE_MAX_FILE_SIZE : MAX_FILE_SIZE,

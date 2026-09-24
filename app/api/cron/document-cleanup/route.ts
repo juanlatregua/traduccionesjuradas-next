@@ -1,8 +1,40 @@
 import { NextRequest } from "next/server";
-import { del } from "@vercel/blob";
+import { del, list } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 
 const RETENTION_DAYS = 30;
+// Expedientes: los blobs suben ANTES de que el cliente pulse «Enviar». Si
+// abandona, no hay fila en DocumentAnalysis y nadie los borraría. 48 h de
+// margen para las subidas en curso.
+const ORPHAN_EXPEDIENTE_HOURS = 48;
+
+async function sweepOrphanExpedientes(): Promise<number> {
+  const cutoff = Date.now() - ORPHAN_EXPEDIENTE_HOURS * 60 * 60 * 1000;
+  let cursor: string | undefined;
+  let deleted = 0;
+  do {
+    const page = await list({ prefix: "expedientes/", cursor, limit: 1000 });
+    const old = page.blobs.filter((b) => new Date(b.uploadedAt).getTime() < cutoff).map((b) => b.url);
+    if (old.length) {
+      const known = await prisma.documentAnalysis.findMany({
+        where: { fileUrl: { in: old } },
+        select: { fileUrl: true },
+      });
+      const keep = new Set(known.map((k) => k.fileUrl));
+      const orphans = old.filter((u) => !keep.has(u));
+      for (const url of orphans) {
+        try {
+          await del(url);
+          deleted++;
+        } catch {
+          // Ya no existe — seguir
+        }
+      }
+    }
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return deleted;
+}
 
 const UNPAID_STATUSES = [
   "UPLOADED",
@@ -85,9 +117,18 @@ export async function GET(req: NextRequest) {
     data: { fileUrl: "[DELETED-GDPR]" },
   });
 
+  // Phase C — Expedientes abandonados: blobs sin fila en DocumentAnalysis
+  let orphanExpedientes = 0;
+  try {
+    orphanExpedientes = await sweepOrphanExpedientes();
+  } catch (err) {
+    console.error("[document-cleanup] orphan expedientes sweep failed:", err);
+  }
+
   return Response.json({
     deleted: deletedResult.count,
     updated: updatedResult.count,
+    orphanExpedientes,
     threshold: threshold.toISOString(),
   });
 }
