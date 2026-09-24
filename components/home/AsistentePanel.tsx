@@ -16,7 +16,7 @@ import type { Locale } from "@/lib/i18n/locales";
 import type { ChatLang } from "@/lib/chat/ui-strings";
 import { useChat } from "@/components/chat/useChat";
 import ChatConversation from "@/components/chat/ChatConversation";
-import { whatsAppHref, WHATSAPP_PRETTY } from "@/components/home/WhatsAppCta";
+import { whatsAppHref } from "@/components/home/WhatsAppCta";
 
 const CARD = "flex flex-col gap-4 rounded-2xl border border-cream bg-white p-5 shadow-paper sm:p-7";
 
@@ -46,7 +46,7 @@ function WhatsAppPanel({ lang }: { lang: Locale }) {
         className="inline-flex items-center justify-center gap-2 rounded-xl bg-vert px-5 py-3.5 text-base font-bold text-white transition-colors hover:bg-vert/90"
       >
         <MessageCircle className="h-5 w-5" aria-hidden="true" />
-        {w.cta[lang]} · {WHATSAPP_PRETTY}
+        {w.cta[lang]}
       </a>
     </section>
   );

@@ -6,13 +6,18 @@
 // assermentée / sworn translation / beglaubigte Übersetzung / tradução
 // certificada (juramentada).
 
-import type { Locale, Tr } from "@/lib/i18n/locales";
+import { LOCALE_HOME, type Locale, type Tr } from "@/lib/i18n/locales";
 
 const tr = (es: string, fr: string, en: string, de: string, pt: string): Tr => ({ es, fr, en, de, pt });
 
 /** Idiomas en los que habla el asistente (components/ChatWidget.tsx). En el
  *  resto, el panel del asistente se sustituye por WhatsApp. */
 export const CHAT_LANGS: Locale[] = ["es", "fr"];
+
+/** Las 5 portadas con hero nuevo (components/home/HomeHero.tsx): ya llevan su
+ *  propio botón/panel de WhatsApp, así que el globo flotante (WhatsAppFloat)
+ *  no se monta ahí. Mismo patrón que EMBEDDED_CHAT_PATHS en ChatWidget.tsx. */
+export const NEW_HERO_HOME_PATHS = new Set(Object.values(LOCALE_HOME));
 
 export const HOME_HERO = {
   // No repite el H1 (revisión 24-sep): la palabra clave va en el H1.
@@ -183,7 +188,6 @@ export const HOME_HERO = {
   whatsapp: {
     prefer: tr("¿Prefieres WhatsApp?", "Vous préférez WhatsApp ?", "Prefer WhatsApp?", "Lieber WhatsApp?", "Prefere WhatsApp?"),
     writeShort: tr("Escríbenos", "Écrivez-nous", "Message us", "Schreiben Sie uns", "Escreva-nos"),
-    writeTo: tr("Escríbenos al ", "Écrivez-nous au ", "Message us on ", "Schreiben Sie uns an ", "Escreva-nos para "),
     sameDay: tr("te contestamos en el día", "réponse dans la journée", "we reply the same day", "Antwort am selben Tag", "respondemos no próprio dia"),
   },
   trust: [

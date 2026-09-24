@@ -2,12 +2,10 @@
 
 import { track } from "@vercel/analytics";
 import { MessageCircle } from "lucide-react";
-import { buildPresupuestoWhatsAppLink, buildWhatsAppLinkFromText, WHATSAPP_LOCAL } from "@/lib/contact";
+import { buildPresupuestoWhatsAppLink, buildWhatsAppLinkFromText } from "@/lib/contact";
 import { HOME_HERO } from "@/lib/i18n/home-hero";
 import { puertaT } from "@/lib/i18n/puerta";
 import { LOCALE_HOME, type Locale } from "@/lib/i18n/locales";
-
-export const WHATSAPP_PRETTY = WHATSAPP_LOCAL.replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3");
 
 // ES: plantilla de presupuesto de lib/contact (con atribución de página). Resto:
 // el saludo de la puerta en su idioma + la misma atribución.
@@ -31,13 +29,9 @@ export default function WhatsAppCta({ lang }: { lang: Locale }) {
       <MessageCircle className="h-6 w-6 shrink-0" aria-hidden="true" />
       <span className="flex flex-col sm:block">
         <span className="text-base font-bold sm:text-[17px]">
-          {t.prefer[lang]} <span className="sm:hidden">{t.writeShort[lang]}</span>
+          {t.prefer[lang]} {t.writeShort[lang]}
         </span>
-        <span className="text-sm text-white/85 sm:ml-1 sm:text-[17px] sm:font-bold sm:text-white">
-          <span className="hidden sm:inline">{t.writeTo[lang]}</span>
-          {WHATSAPP_PRETTY}
-          <span className="sm:hidden"> · {t.sameDay[lang]}</span>
-        </span>
+        <span className="text-sm text-white/85 sm:ml-1">{t.sameDay[lang]}</span>
       </span>
     </a>
   );
