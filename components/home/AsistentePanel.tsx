@@ -1,61 +1,113 @@
 "use client";
 
 // components/home/AsistentePanel.tsx — «Escríbenos qué necesitas» (maqueta
-// 22-sep). No es otro chat: abre el asistente que ya existe (ChatWidget, con su
-// puerta de email + consentimiento y su límite diario) con la pregunta escrita.
-// El chat solo habla es/fr (CHAT_LANGS): en los demás idiomas este panel es
-// el de WhatsApp.
+// 22-sep). Al escribir la pregunta o pulsar un chip, el propio panel pasa a ser
+// la conversación, ANCLADA en la página (Juan, 24-sep: «más pro» que el
+// flotante, que tapaba la subida). Misma lógica que el widget flotante
+// (components/chat/useChat.ts + ChatConversation): puerta de email +
+// consentimiento dentro del panel, la pregunta sale sola al pasarla, y el
+// servidor sigue exigiendo ambos. El chat solo habla es/fr (CHAT_LANGS): en
+// los demás idiomas este panel es el de WhatsApp.
 
-import { useState } from "react";
-import { MessageCircle, ArrowRight } from "lucide-react";
-import { openChatWith } from "@/lib/chat/open-chat";
+import { useEffect, useState } from "react";
+import { MessageCircle, ArrowRight, RotateCcw } from "lucide-react";
 import { HOME_HERO, CHAT_LANGS } from "@/lib/i18n/home-hero";
 import type { Locale } from "@/lib/i18n/locales";
+import type { ChatLang } from "@/lib/chat/ui-strings";
+import { useChat } from "@/components/chat/useChat";
+import ChatConversation from "@/components/chat/ChatConversation";
 import { whatsAppHref, WHATSAPP_PRETTY } from "@/components/home/WhatsAppCta";
 
-export default function AsistentePanel({ lang }: { lang: Locale }) {
-  const t = HOME_HERO.asistente;
-  const [question, setQuestion] = useState("");
+const CARD = "flex flex-col gap-4 rounded-2xl border border-cream bg-white p-5 shadow-paper sm:p-7";
 
-  if (!CHAT_LANGS.includes(lang)) {
-    const w = HOME_HERO.whatsappPanel;
-    return (
-      <section aria-labelledby="asistente-title" className="flex flex-col gap-4 rounded-2xl border border-cream bg-white p-5 shadow-paper sm:p-7">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-vert text-white" aria-hidden="true">
-            <MessageCircle className="h-5 w-5" />
-          </span>
-          <div>
-            <h2 id="asistente-title" className="font-baskerville text-xl font-bold text-encre sm:text-2xl">{w.title[lang]}</h2>
-            <p className="text-sm text-graphite">{w.sub[lang]}</p>
-          </div>
+export default function AsistentePanel({ lang }: { lang: Locale }) {
+  if (!CHAT_LANGS.includes(lang)) return <WhatsAppPanel lang={lang} />;
+  return <AsistenteChat lang={lang === "fr" ? "fr" : "es"} />;
+}
+
+function WhatsAppPanel({ lang }: { lang: Locale }) {
+  const w = HOME_HERO.whatsappPanel;
+  return (
+    <section aria-labelledby="asistente-title" className={CARD}>
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-vert text-white" aria-hidden="true">
+          <MessageCircle className="h-5 w-5" />
+        </span>
+        <div>
+          <h2 id="asistente-title" className="font-baskerville text-xl font-bold text-encre sm:text-2xl">{w.title[lang]}</h2>
+          <p className="text-sm text-graphite">{w.sub[lang]}</p>
         </div>
-        <p className="text-[15px] leading-relaxed text-sepia">{w.body[lang]}</p>
-        <a
-          href={whatsAppHref(lang)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-vert px-5 py-3.5 text-base font-bold text-white transition-colors hover:bg-vert/90"
-        >
-          <MessageCircle className="h-5 w-5" aria-hidden="true" />
-          {w.cta[lang]} · {WHATSAPP_PRETTY}
-        </a>
-      </section>
-    );
-  }
+      </div>
+      <p className="text-[15px] leading-relaxed text-sepia">{w.body[lang]}</p>
+      <a
+        href={whatsAppHref(lang)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center gap-2 rounded-xl bg-vert px-5 py-3.5 text-base font-bold text-white transition-colors hover:bg-vert/90"
+      >
+        <MessageCircle className="h-5 w-5" aria-hidden="true" />
+        {w.cta[lang]} · {WHATSAPP_PRETTY}
+      </a>
+    </section>
+  );
+}
+
+function AsistenteChat({ lang }: { lang: ChatLang }) {
+  const t = HOME_HERO.asistente;
+  const chat = useChat(lang);
+  const [question, setQuestion] = useState("");
+  const [mode, setMode] = useState<"ask" | "chat">("ask");
+
+  // Conversación restaurada de esta pestaña (recarga): se enseña directamente.
+  useEffect(() => {
+    if (chat.messages.length > 1) setMode("chat");
+  }, [chat.messages.length]);
 
   const ask = (text: string) => {
     const clean = text.trim();
     if (!clean) return;
-    openChatWith(clean);
+    setMode("chat");
+    chat.ask(clean);
     setQuestion("");
   };
 
+  const restart = () => {
+    chat.clearConversation();
+    setMode("ask");
+  };
+
+  if (mode === "chat") {
+    return (
+      <section aria-labelledby="asistente-title" className="flex flex-col overflow-hidden rounded-2xl border border-cream bg-white shadow-paper">
+        <div className="flex items-center justify-between gap-3 border-b border-cream bg-encre px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 font-baskerville text-sm font-bold text-or-light" aria-hidden="true">
+              TJ
+            </span>
+            <div className="flex flex-col">
+              <h2 id="asistente-title" className="text-sm font-semibold text-parchment">{chat.t.headerTitle}</h2>
+              <span className="flex items-center gap-1 text-xs text-parchment/70">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                {chat.t.online}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={restart}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-parchment/80 transition-colors hover:bg-white/10 hover:text-parchment"
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            {chat.t.newConversation}
+          </button>
+        </div>
+        <ChatConversation chat={chat} variant="embedded" />
+      </section>
+    );
+  }
+
   return (
-    <section
-      aria-labelledby="asistente-title"
-      className="flex flex-col gap-4 rounded-2xl border border-cream bg-white p-5 shadow-paper sm:p-7"
-    >
+    <section aria-labelledby="asistente-title" className={CARD}>
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-encre text-or-light" aria-hidden="true">
           <MessageCircle className="h-5 w-5" />

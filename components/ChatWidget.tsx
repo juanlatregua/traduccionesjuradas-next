@@ -1,204 +1,58 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+// components/ChatWidget.tsx — Botón flotante + panel del asistente. La lógica
+// (sesión, puerta, streaming, límites) vive en components/chat/useChat.ts y la
+// conversación en components/chat/ChatConversation.tsx: lo mismo que pinta el
+// panel anclado de la portada. En las portadas con panel anclado (es/fr) el
+// flotante no se monta: nunca dos conversaciones a la vez.
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { buildPresupuestoWhatsAppLink, detectLangFromPathname } from "@/lib/contact";
-import { isFrenchPath } from "@/lib/i18n/use-ui-lang";
-import { RichMessage } from "@/lib/chat/format-response";
-import { CHAT_OPEN_EVENT, CHAT_PREFILL_KEY } from "@/lib/chat/open-chat";
+import { localeFromPath, LOCALE_HOME } from "@/lib/i18n/locales";
+import { CHAT_LANGS } from "@/lib/i18n/home-hero";
+import { useChat } from "@/components/chat/useChat";
+import ChatConversation from "@/components/chat/ChatConversation";
+import type { ChatLang } from "@/lib/chat/ui-strings";
 
-type Attachment = {
-  fileName: string;
-  mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
-  base64: string;
-  previewUrl: string;
-};
-
-type Message = {
-  role: "user" | "assistant";
-  content: string;
-  attachments?: Attachment[];
-};
-
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-
-function welcomeMessage(lang: "es" | "fr"): Message {
-  if (lang === "fr") {
-    return {
-      role: "assistant",
-      content:
-        "Bonjour ! Je suis l'assistant de traduccionesjuradas.net. Comment puis-je vous aider ?\n\nJe peux vous orienter sur :\n• Le prix de votre traduction assermentée\n• Les délais de livraison\n• Les documents nécessaires pour votre démarche (achat immobilier, déclaration de non-résident…)\n\n📎 Astuce : joignez une photo de votre document et je vous donne le prix indicatif au instant.",
-    };
-  }
-  return {
-    role: "assistant",
-    content:
-      "¡Hola! Soy el asistente de traduccionesjuradas.net. ¿En qué puedo ayudarte?\n\nPuedo orientarte sobre:\n• Precio de tu traducción jurada\n• Plazos de entrega\n• Documentos necesarios para tu trámite\n• Paquete teletrabajo Marruecos → España\n\n📎 Tip: puedes adjuntar una foto de tu documento y te digo al instante el precio orientativo. ¿No sabes cómo escanear bien? [Mira esta guía rápida](/como-escanear-bien).",
-  };
-}
-
-function quickReplies(lang: "es" | "fr") {
-  if (lang === "fr") {
-    return [
-      { label: "Prix", emoji: "💰" },
-      { label: "Acheter un bien en Espagne", emoji: "🏠" },
-      { label: "Déclaration non-résident", emoji: "🧾" },
-      { label: "Parler sur WhatsApp", emoji: "📱", isWhatsApp: true },
-    ];
-  }
-  return [
-    { label: "Precio cerrado", emoji: "💰" },
-    { label: "Documentos necesarios", emoji: "📋" },
-    { label: "Teletrabajo Marruecos", emoji: "🇲🇦" },
-    { label: "Hablar por WhatsApp", emoji: "📱", isWhatsApp: true },
-  ];
-}
-
-const MAX_MESSAGES = 20;
-const SESSION_KEY = "chatbot_session";
-const MESSAGES_KEY = "chatbot_messages";
-// Puerta: sin email (+ consentimiento) no hay asistente. Se guarda en
-// localStorage para no volver a pedirlo en visitas siguientes.
-const EMAIL_KEY = "chatbot_email";
-// El consentimiento también se guarda: el servidor lo exige en cada mensaje.
-const CONSENT_KEY = "chatbot_consent";
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result !== "string") {
-        reject(new Error("FileReader returned non-string"));
-        return;
-      }
-      const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
+// Portadas con el asistente anclado (components/home/AsistentePanel.tsx).
+const EMBEDDED_CHAT_PATHS = new Set(CHAT_LANGS.map((l) => LOCALE_HOME[l]));
 
 export default function ChatWidget() {
   const pathname = usePathname();
-  const uiLang: "es" | "fr" = isFrenchPath(pathname) ? "fr" : "es";
+  if (EMBEDDED_CHAT_PATHS.has(pathname || "")) return null;
+  const uiLang: ChatLang = localeFromPath(pathname) === "fr" ? "fr" : "es";
+  return <FloatingChat lang={uiLang} />;
+}
+
+function FloatingChat({ lang }: { lang: ChatLang }) {
+  const chat = useChat(lang);
+  const { t } = chat;
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(() => [welcomeMessage(uiLang)]);
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [sessionId] = useState(() => {
-    if (typeof window === "undefined") return crypto.randomUUID();
-    return sessionStorage.getItem(SESSION_KEY) || crypto.randomUUID();
-  });
-  const [showQuickReplies, setShowQuickReplies] = useState(true);
-  const [rateLimited, setRateLimited] = useState(false);
-  const [chatEmail, setChatEmail] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem(EMAIL_KEY) || "";
-  });
-  const [chatConsent, setChatConsent] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(CONSENT_KEY) === "1";
-  });
-  const gatePassed = Boolean(chatEmail) && chatConsent;
-  const [gateEmail, setGateEmail] = useState("");
-  const [gateConsent, setGateConsent] = useState(false);
-  const [gateError, setGateError] = useState<string | null>(null);
-  const gateInputRef = useRef<HTMLInputElement>(null);
-  // Pregunta escrita en la portada (lib/chat/open-chat.ts): se envía sola en
-  // cuanto la puerta (email + consentimiento) está pasada.
-  const [queued, setQueued] = useState<string | null>(null);
-
-  const submitGate = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    const email = gateEmail.trim().toLowerCase();
-    if (!EMAIL_RE.test(email)) {
-      setGateError(uiLang === "fr" ? "Indiquez un e-mail valide." : "Indica un email válido.");
-      return;
-    }
-    if (!gateConsent) {
-      setGateError(uiLang === "fr" ? "Acceptez le traitement de vos données pour continuer." : "Acepta el tratamiento de tus datos para continuar.");
-      return;
-    }
-    localStorage.setItem(EMAIL_KEY, email);
-    localStorage.setItem(CONSENT_KEY, "1");
-    setChatEmail(email);
-    setChatConsent(true);
-    setGateError(null);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
-  const QR = quickReplies(uiLang);
-  const whatsappLink = useMemo(
-    () => buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname) }),
-    [pathname],
-  );
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
-  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
-  // Persist sessionId
-  useEffect(() => {
-    sessionStorage.setItem(SESSION_KEY, sessionId);
-  }, [sessionId]);
-
-  // Restore messages from sessionStorage
-  useEffect(() => {
-    const saved = sessionStorage.getItem(MESSAGES_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as Message[];
-        if (parsed.length > 1) {
-          setMessages(parsed);
-          setShowQuickReplies(false);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  // Save messages to sessionStorage (strip attachments — base64 too large + blob URLs don't survive reload)
-  useEffect(() => {
-    if (messages.length > 1) {
-      const slim = messages.map(({ role, content }) => ({ role, content }));
-      try {
-        sessionStorage.setItem(MESSAGES_KEY, JSON.stringify(slim));
-      } catch {
-        // quota exceeded — drop silently
-      }
-    }
-  }, [messages]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isStreaming]);
-
-  // Focus input when opened
   useEffect(() => {
     if (isOpen && !isClosing) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+      setTimeout(() => chat.inputRef.current?.focus(), 300);
     }
-  }, [isOpen, isClosing]);
+  }, [isOpen, isClosing, chat.inputRef]);
 
-  // ESC to close + focus trap
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsOpen(false);
+      setIsClosing(false);
+    }, 200);
+  }, []);
+
+  // ESC para cerrar + focus trap
   useEffect(() => {
     if (!isOpen || isClosing) return;
-
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         handleClose();
         return;
       }
-      // Focus trap
       if (e.key === "Tab" && panelRef.current) {
         const focusable = panelRef.current.querySelectorAll<HTMLElement>(
           'button, [href], input, textarea, [tabindex]:not([tabindex="-1"])'
@@ -217,10 +71,9 @@ export default function ChatWidget() {
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, isClosing]);
+  }, [isOpen, isClosing, handleClose]);
 
-  // Toggle WhatsApp float visibility when chat is open
+  // El flotante de WhatsApp se esconde mientras el chat está abierto
   useEffect(() => {
     document.body.dataset.chatOpen = isOpen && !isClosing ? "true" : "false";
     return () => {
@@ -228,281 +81,18 @@ export default function ChatWidget() {
     };
   }, [isOpen, isClosing]);
 
-  const userMessageCount = messages.filter((m) => m.role === "user").length;
-
-  const handleClose = useCallback(() => {
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsOpen(false);
-      setIsClosing(false);
-    }, 200);
-  }, []);
-
-  const sendMessage = useCallback(
-    async (text: string, attachments: Attachment[] = []) => {
-      const trimmedText = text.trim();
-      if (!trimmedText && attachments.length === 0) return;
-      if (isStreaming) return;
-
-      if (userMessageCount >= MAX_MESSAGES || rateLimited) {
-        setRateLimited(true);
-        return;
-      }
-      if (!gatePassed) {
-        // Sin email + consentimiento no se llama al asistente: foco a la puerta.
-        setGateError(uiLang === "fr" ? "Indiquez d'abord votre e-mail pour utiliser l'assistant." : "Indica primero tu email para usar el asistente.");
-        gateInputRef.current?.focus();
-        return;
-      }
-
-      setShowQuickReplies(false);
-      const userMsg: Message = {
-        role: "user",
-        content: trimmedText,
-        attachments: attachments.length > 0 ? attachments : undefined,
-      };
-      const updatedMessages = [...messages, userMsg];
-      setMessages(updatedMessages);
-      setInput("");
-      setPendingAttachments([]);
-      setAttachmentError(null);
-      setIsStreaming(true);
-
-      // Only send user/assistant messages (skip the welcome message for API)
-      const apiMessages = updatedMessages
-        .filter((_, i) => i > 0)
-        .map((m) => {
-          if (m.role === "user" && m.attachments && m.attachments.length > 0) {
-            const blocks: Array<
-              | { type: "text"; text: string }
-              | {
-                  type: "image";
-                  source: { type: "base64"; media_type: string; data: string };
-                  fileName?: string;
-                }
-            > = [];
-            for (const att of m.attachments) {
-              blocks.push({
-                type: "image",
-                source: { type: "base64", media_type: att.mediaType, data: att.base64 },
-                fileName: att.fileName,
-              });
-            }
-            if (m.content) blocks.push({ type: "text", text: m.content });
-            return { role: m.role, content: blocks };
-          }
-          return { role: m.role, content: m.content };
-        });
-
-      try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages, sessionId, email: chatEmail, consent: chatConsent === true }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          if (res.status === 429 || res.status === 503) {
-            setRateLimited(true);
-          }
-          if (res.status === 401 && err?.needEmail) {
-            localStorage.removeItem(EMAIL_KEY);
-            localStorage.removeItem(CONSENT_KEY);
-            setChatEmail("");
-            setChatConsent(false);
-          }
-          const errorText =
-            err.error || (uiLang === "fr" ? "Désolé, une erreur s'est produite. Réessayez." : "Lo siento, ha ocurrido un error. Inténtalo de nuevo.");
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: errorText },
-          ]);
-          setIsStreaming(false);
-          return;
-        }
-
-        // Read session ID from response
-        const newSessionId = res.headers.get("X-Session-Id");
-        if (newSessionId) {
-          sessionStorage.setItem(SESSION_KEY, newSessionId);
-        }
-
-        // Stream response
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error("No reader");
-
-        const decoder = new TextDecoder();
-        let assistantContent = "";
-
-        // Add empty assistant message that we'll update
-        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.text) {
-                assistantContent += parsed.text;
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {
-                    role: "assistant",
-                    content: assistantContent,
-                  };
-                  return updated;
-                });
-              }
-            } catch {
-              // ignore malformed chunks
-            }
-          }
-        }
-      } catch (err) {
-        console.error("[ChatWidget] Error:", err);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content:
-              uiLang === "fr" ? "Désolé, erreur de connexion. Réessayez ou écrivez-nous sur WhatsApp." : "Lo siento, ha ocurrido un error de conexión. Inténtalo de nuevo o escríbenos por WhatsApp.",
-          },
-        ]);
-      } finally {
-        setIsStreaming(false);
-      }
-    },
-    [messages, isStreaming, sessionId, userMessageCount, rateLimited, chatEmail, chatConsent, gatePassed, uiLang]
-  );
-
-  // Apertura desde fuera (portada): evento en vivo o, si el widget aún no
-  // había montado, la pregunta que quedó en sessionStorage.
-  useEffect(() => {
-    const openWith = (text: string) => {
-      const clean = text.trim();
-      if (clean) {
-        setQueued(clean);
-        setShowQuickReplies(false);
-      }
-      setIsClosing(false);
-      setIsOpen(true);
-    };
-    try {
-      const saved = sessionStorage.getItem(CHAT_PREFILL_KEY);
-      if (saved) {
-        sessionStorage.removeItem(CHAT_PREFILL_KEY);
-        openWith(saved);
-      }
-    } catch {}
-    const onOpen = (e: Event) => {
-      try {
-        sessionStorage.removeItem(CHAT_PREFILL_KEY);
-      } catch {}
-      openWith(String((e as CustomEvent<{ text?: string }>).detail?.text || ""));
-    };
-    window.addEventListener(CHAT_OPEN_EVENT, onOpen);
-    return () => window.removeEventListener(CHAT_OPEN_EVENT, onOpen);
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen || !gatePassed || !queued || isStreaming) return;
-    setQueued(null);
-    sendMessage(queued);
-  }, [isOpen, gatePassed, queued, isStreaming, sendMessage]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(input, pendingAttachments);
-  };
-
-  const handleQuickReply = (reply: { label: string; emoji: string; isWhatsApp?: boolean }) => {
-    if (reply.isWhatsApp) {
-      window.open(whatsappLink, "_blank", "noopener,noreferrer");
-      return;
-    }
-    sendMessage(reply.label);
-  };
-
-  const clearConversation = () => {
-    setMessages([welcomeMessage(uiLang)]);
-    setShowQuickReplies(true);
-    setRateLimited(false);
-    setPendingAttachments([]);
-    setAttachmentError(null);
-    sessionStorage.removeItem(MESSAGES_KEY);
-  };
-
-  const handleFileSelect = useCallback(async (file: File) => {
-    setAttachmentError(null);
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setAttachmentError("Formato no permitido. Usa JPG, PNG o WEBP.");
-      return;
-    }
-    if (file.size > MAX_FILE_BYTES) {
-      setAttachmentError("Imagen demasiado grande (máximo 5 MB).");
-      return;
-    }
-    try {
-      const base64 = await fileToBase64(file);
-      const previewUrl = URL.createObjectURL(file);
-      setPendingAttachments((prev) => [
-        ...prev,
-        {
-          fileName: file.name,
-          mediaType: file.type as Attachment["mediaType"],
-          base64,
-          previewUrl,
-        },
-      ]);
-    } catch (err) {
-      console.error("[ChatWidget] File read error:", err);
-      setAttachmentError("No se pudo leer el archivo.");
-    }
-  }, []);
-
-  const removeAttachment = (index: number) => {
-    setPendingAttachments((prev) => {
-      const att = prev[index];
-      if (att) URL.revokeObjectURL(att.previewUrl);
-      return prev.filter((_, i) => i !== index);
-    });
-  };
-
   const panelVisible = isOpen || isClosing;
 
   return (
     <>
-      {/* Floating button */}
       <button
-        onClick={() => {
-          if (isOpen) {
-            handleClose();
-          } else {
-            setIsOpen(true);
-          }
-        }}
-        aria-label={isOpen ? (uiLang === "fr" ? "Fermer l'assistant" : "Cerrar asistente") : (uiLang === "fr" ? "Ouvrir l'assistant virtuel" : "Abrir asistente virtual")}
+        onClick={() => (isOpen ? handleClose() : setIsOpen(true))}
+        aria-label={isOpen ? t.closeAria : t.openAria}
         className={`fixed bottom-6 right-6 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-bleu text-parchment shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl ${
           isOpen ? "scale-0 opacity-0 pointer-events-none" : "scale-100 opacity-100"
         }`}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          className="h-7 w-7"
-        >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-7 w-7" aria-hidden="true">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -511,317 +101,63 @@ export default function ChatWidget() {
         </svg>
       </button>
 
-      {/* Chat panel */}
       {panelVisible && (
         <div
           ref={panelRef}
           role="dialog"
-          aria-label="Asistente virtual"
+          aria-label={t.dialogAria}
           aria-modal="true"
           className={`fixed z-[60] flex flex-col bg-parchment
             bottom-0 right-0 h-[100dvh] w-screen
             sm:bottom-6 sm:right-6 sm:h-[520px] sm:w-[380px] sm:rounded-2xl sm:border sm:border-cream/30
             shadow-[0_16px_48px_rgba(0,0,0,0.12)]
             transition-all duration-200
-            ${isClosing
-              ? "opacity-0 translate-y-4 sm:translate-y-2"
-              : "opacity-100 translate-y-0 animate-chatSlideUp"
-            }
+            ${isClosing ? "opacity-0 translate-y-4 sm:translate-y-2" : "opacity-100 translate-y-0 animate-chatSlideUp"}
           `}
         >
-          {/* Header */}
           <div className="flex items-center justify-between rounded-t-none bg-bleu px-4 py-3 sm:rounded-t-2xl">
             <div className="flex items-center gap-3">
-              {/* Mobile back arrow */}
               <button
                 onClick={handleClose}
-                aria-label="Cerrar asistente"
+                aria-label={t.closeAria}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-parchment/80 transition-colors hover:bg-white/10 hover:text-parchment sm:hidden"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                 </svg>
               </button>
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-parchment">
-                  Asistente · traduccionesjuradas.net
-                </span>
+                <span className="text-sm font-medium text-parchment">{t.headerTitle}</span>
                 <span className="flex items-center gap-1 text-xs text-parchment/70">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-                  En línea
+                  {t.online}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-1">
               <button
-                onClick={clearConversation}
-                aria-label="Limpiar conversación"
+                onClick={chat.clearConversation}
+                aria-label={t.clearAria}
+                title={t.clearAria}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-parchment/70 transition-colors hover:bg-white/10 hover:text-parchment"
-                title="Limpiar conversación"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
                 </svg>
               </button>
-              {/* Desktop X close */}
               <button
                 onClick={handleClose}
-                aria-label="Cerrar asistente"
+                aria-label={t.closeAria}
                 className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full text-parchment/70 transition-colors hover:bg-white/10 hover:text-parchment"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex animate-chatMsgIn ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                }`}
-                style={{ animationDelay: i === 0 ? "0ms" : "50ms" }}
-              >
-                <div
-                  className={`max-w-[85%] whitespace-pre-wrap px-3 py-2 text-sm leading-relaxed ${
-                    msg.role === "user"
-                      ? "rounded-[12px_4px_12px_12px] bg-bleu text-white"
-                      : "rounded-[4px_12px_12px_12px] border-l-[3px] border-or bg-cream text-sepia"
-                  }`}
-                >
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="mb-2 flex flex-wrap gap-2">
-                      {msg.attachments.map((att, ai) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={ai}
-                          src={att.previewUrl}
-                          alt={att.fileName}
-                          className="h-20 w-20 rounded-md object-cover ring-1 ring-white/40"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {msg.role === "assistant" ? (
-                    <RichMessage content={msg.content} />
-                  ) : (
-                    msg.content
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {/* Typing indicator */}
-            {isStreaming &&
-              messages[messages.length - 1]?.role !== "assistant" && (
-                <div className="flex justify-start animate-chatMsgIn">
-                  <div className="rounded-[4px_12px_12px_12px] border-l-[3px] border-or bg-cream px-4 py-3">
-                    <div className="flex gap-1">
-                      <span className="h-2 w-2 rounded-full bg-graphite/40 animate-bounce [animation-delay:0ms]" />
-                      <span className="h-2 w-2 rounded-full bg-graphite/40 animate-bounce [animation-delay:150ms]" />
-                      <span className="h-2 w-2 rounded-full bg-graphite/40 animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            {/* Quick replies */}
-            {showQuickReplies && (
-              <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Respuestas rápidas">
-                {QR.map((reply, i) => (
-                  <button
-                    key={reply.label}
-                    onClick={() => handleQuickReply(reply)}
-                    className="rounded-full border border-bleu/20 bg-card px-4 py-2.5 text-sm font-medium text-bleu transition-colors hover:bg-bleu hover:text-parchment animate-chatMsgIn"
-                    style={{ animationDelay: `${150 + i * 75}ms` }}
-                  >
-                    {reply.emoji} {reply.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Rate limit message */}
-            {rateLimited && (
-              <div className="rounded-lg border border-or/30 bg-cream p-3 text-center text-sm text-sepia animate-chatMsgIn">
-                <p className="mb-2">
-                  Para continuar la conversación y enviar documentos, te
-                  recomiendo escribirnos por WhatsApp:
-                </p>
-                <a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#20bd5a]"
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                  </svg>
-                  Continuar por WhatsApp
-                </a>
-              </div>
-            )}
-
-            {/* Scroll anchor + aria-live for screen readers */}
-            <div ref={messagesEndRef} aria-live="polite" className="sr-only">
-              {messages.length > 1 && messages[messages.length - 1].role === "assistant"
-                ? messages[messages.length - 1].content
-                : ""}
-            </div>
-          </div>
-
-          {/* Puerta: email + consentimiento antes del primer mensaje */}
-          {!rateLimited && !gatePassed && (
-            <form
-              onSubmit={submitGate}
-              className="flex flex-col gap-2 border-t border-cream bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-3"
-            >
-              {queued && (
-                <p className="rounded-lg border border-or/30 bg-cream px-3 py-2 text-xs text-sepia">
-                  <span className="font-semibold">{uiLang === "fr" ? "Votre question :" : "Tu pregunta:"}</span> «{queued}»
-                </p>
-              )}
-              <p className="text-xs font-medium text-sepia">
-                {uiLang === "fr"
-                  ? "Pour utiliser l'assistant, indiquez votre e-mail :"
-                  : "Para usar el asistente, indícanos tu email:"}
-              </p>
-              <div className="flex items-center gap-2">
-                <input
-                  ref={gateInputRef}
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  value={gateEmail}
-                  onChange={(e) => setGateEmail(e.target.value)}
-                  placeholder={uiLang === "fr" ? "votre@email.fr" : "tu@email.com"}
-                  aria-label="Email"
-                  className="flex-1 rounded-lg border border-cream/50 bg-parchment px-3 py-2 text-sm text-sepia placeholder:text-graphite/50 focus:border-bleu/30 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="shrink-0 rounded-lg bg-bleu px-3 py-2 text-sm font-medium text-parchment transition-colors hover:bg-bleu-dark"
-                >
-                  {uiLang === "fr" ? "Commencer" : "Empezar"}
-                </button>
-              </div>
-              <label className="flex items-start gap-2 text-[11px] leading-snug text-graphite">
-                <input
-                  type="checkbox"
-                  checked={gateConsent}
-                  onChange={(e) => setGateConsent(e.target.checked)}
-                  className="mt-0.5 h-3.5 w-3.5 rounded border-graphite/40 text-bleu"
-                />
-                <span>
-                  {uiLang === "fr" ? (
-                    <>J&apos;accepte le traitement de mes données pour répondre à ma demande. <a href="/privacidad" target="_blank" className="text-bleu underline">Politique de confidentialité</a>.</>
-                  ) : (
-                    <>Consiento el tratamiento de mis datos para atender mi consulta. <a href="/privacidad" target="_blank" className="text-bleu underline">Política de privacidad</a>.</>
-                  )}
-                </span>
-              </label>
-              {gateError && <p className="text-xs text-red-600">{gateError}</p>}
-            </form>
-          )}
-
-          {/* Input */}
-          {!rateLimited && gatePassed && (
-            <form
-              onSubmit={handleSubmit}
-              className="flex flex-col gap-2 border-t border-cream bg-card px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-2"
-            >
-              {pendingAttachments.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {pendingAttachments.map((att, i) => (
-                    <div
-                      key={i}
-                      className="relative h-14 w-14 overflow-hidden rounded-md ring-1 ring-bleu/20"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={att.previewUrl}
-                        alt={att.fileName}
-                        className="h-full w-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(i)}
-                        aria-label={`Quitar ${att.fileName}`}
-                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-graphite/80 text-[10px] leading-none text-white hover:bg-graphite"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {attachmentError && (
-                <p className="text-xs text-red-600">{attachmentError}</p>
-              )}
-              <div className="flex items-end gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPTED_IMAGE_TYPES.join(",")}
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileSelect(file);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-                aria-hidden="true"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Adjuntar imagen"
-                disabled={isStreaming || pendingAttachments.length >= 3}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-cream/50 bg-parchment text-bleu transition-colors hover:bg-cream/50 disabled:opacity-40"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
-                </svg>
-              </button>
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  // Auto-grow
-                  e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px";
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage(input);
-                    // Reset height
-                    if (inputRef.current) inputRef.current.style.height = "auto";
-                  }
-                }}
-                placeholder={uiLang === "fr" ? "Écrivez votre question..." : "Escribe tu consulta..."}
-                rows={1}
-                disabled={isStreaming}
-                aria-label="Mensaje"
-                className="flex-1 resize-none rounded-lg border border-cream/50 bg-parchment px-3 py-2 text-sm text-sepia placeholder:text-graphite/50 focus:border-bleu/30 focus:outline-none disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={isStreaming || (!input.trim() && pendingAttachments.length === 0)}
-                aria-label="Enviar mensaje"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bleu text-parchment transition-colors hover:bg-bleu-dark disabled:opacity-40"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                </svg>
-              </button>
-              </div>
-            </form>
-          )}
+          <ChatConversation chat={chat} variant="floating" />
         </div>
       )}
     </>
