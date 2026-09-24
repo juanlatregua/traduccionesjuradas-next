@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { WHATSAPP_DISPLAY, buildWhatsAppLinkFromText, SITE_BASE_URL } from "@/lib/contact";
 import { sendMail } from "@/lib/azure-mail";
+import { blobDownloadUrl } from "@/lib/blob-download-url";
 import type { MailAttachment } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { escapeHtml } from "@/lib/collaborator-emails";
@@ -563,46 +564,60 @@ export async function sendShipmentNotificationEmail(data: {
   references: string[];
   trackingNumber: string;
   courier?: string | null;
+  trackingUrl?: string | null;
+  proofUrl?: string | null; // justificante del envío (Blob)
+  update?: boolean; // corrección de un envío ya notificado
   lang?: "es" | "fr";
 }) {
   const fr = data.lang === "fr";
-  const courier = (data.courier || "").trim();
-  const tracking = data.trackingNumber.trim();
+  const courier = escapeHtml((data.courier || "").trim());
+  const trackingUrl = (data.trackingUrl || "").trim();
+  const proofHref = data.proofUrl ? blobDownloadUrl(data.proofUrl) : "";
+  const btn = "display:inline-block; background:#0f766e; color:#fff; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:600; margin:4px 8px 4px 0;";
+  const links = (follow: string, proof: string) =>
+    trackingUrl || proofHref
+      ? `<p style="margin:16px 0;">${trackingUrl ? `<a href="${trackingUrl}" style="${btn}">${follow}</a>` : ""}${
+          proofHref ? `<a href="${proofHref}" style="${btn} background:#334155;">${proof}</a>` : ""
+        }</p>`
+      : "";
+  const tracking = escapeHtml(data.trackingNumber.trim());
   const refs = data.references.filter(Boolean);
-  const refList = refs.join(", ");
+  const refList = escapeHtml(refs.join(", "));
   const many = refs.length > 1;
 
   if (fr) {
     const html = `
-      <h2>Votre traduction assermentée est en route</h2>
+      <h2>${data.update ? "Mise à jour de votre envoi" : "Votre traduction assermentée est en route"}</h2>
       <p>Nous avons expédié ${many ? "vos traductions assermentées" : "votre traduction assermentée"} en papier${many ? ", dans un seul envoi" : ""}.</p>
       <table style="border-collapse:collapse; margin:12px 0;">
         <tr><td style="padding:4px 12px 4px 0; font-weight:600;">${many ? "Commandes" : "Commande"}</td><td>${refList}</td></tr>
         ${courier ? `<tr><td style="padding:4px 12px 4px 0; font-weight:600;">Transporteur</td><td>${courier}</td></tr>` : ""}
         <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Numéro de suivi</td><td><strong>${tracking}</strong></td></tr>
       </table>
+      ${links("Suivre l'envoi", "Justificatif d'envoi")}
       <p style="font-size:13px; color:#6b7280;">Vous pouvez suivre l'envoi avec ce numéro auprès du transporteur.</p>
       <p>Merci de votre confiance.<br/>L'équipe de traduccionesjuradas.net</p>
     `;
-    await sendMail({ to: data.toEmail, subject: `Votre traduction est en route - ${many ? "Commandes" : "Commande"} ${refList}`, html: wrapClientEmailHtml(html) });
+    await sendMail({ to: data.toEmail, subject: `${data.update ? "Mise à jour de votre envoi" : "Votre traduction est en route"} - ${many ? "Commandes" : "Commande"} ${refList}`, html: wrapClientEmailHtml(html) });
     return;
   }
 
   const html = `
-    <h2>Tu traducción jurada va de camino</h2>
+    <h2>${data.update ? "Actualización de tu envío" : "Tu traducción jurada va de camino"}</h2>
     <p>Hemos enviado ${many ? "tus traducciones juradas" : "tu traducción jurada"} en papel por mensajería${many ? ", todo en el mismo envío" : ""}.</p>
     <table style="border-collapse:collapse; margin:12px 0;">
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">${many ? "Pedidos" : "Pedido"}</td><td>${refList}</td></tr>
       ${courier ? `<tr><td style="padding:4px 12px 4px 0; font-weight:600;">Transportista</td><td>${courier}</td></tr>` : ""}
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Nº de seguimiento</td><td><strong>${tracking}</strong></td></tr>
     </table>
+    ${links("Seguir el envío", "Justificante del envío")}
     <p style="font-size:13px; color:#6b7280;">Puedes seguir el envío con este número en la web del transportista.</p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;
 
   await sendMail({
     to: data.toEmail,
-    subject: `Tu traducción va de camino - ${many ? "Pedidos" : "Pedido"} ${refList}`,
+    subject: `${data.update ? "Actualización de tu envío" : "Tu traducción va de camino"} - ${many ? "Pedidos" : "Pedido"} ${refList}`,
     html: wrapClientEmailHtml(html),
   });
 }

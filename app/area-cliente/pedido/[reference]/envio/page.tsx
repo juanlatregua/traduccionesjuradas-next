@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { blobDownloadUrl } from "@/lib/blob-download-url";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { verifyOrderToken } from "@/lib/order-token";
@@ -24,6 +25,10 @@ export default async function EnvioPage({ params, searchParams }: Props) {
           title: true,
           deliveryType: true,
           shippedAt: true,
+          trackingNumber: true,
+          shippingCourier: true,
+          trackingUrl: true,
+          shippingProofUrl: true,
           clientName: true,
           clientPhone: true,
           shipping: true,
@@ -55,7 +60,24 @@ export default async function EnvioPage({ params, searchParams }: Props) {
           {order.deliveryType !== "paper" ? (
             <p className="text-sm text-sepia">Este pedido se entrega en PDF con firma digital: no necesita dirección de envío.</p>
           ) : order.shippedAt ? (
-            <p className="text-sm text-sepia">El envío ya ha salido. Si hay que cambiar algo, escríbenos a hola@traduccionesjuradas.net.</p>
+            <div className="space-y-2 text-sm text-sepia">
+              <p>
+                El envío ya ha salido el {order.shippedAt.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                {order.shippingCourier ? ` por ${order.shippingCourier}` : ""}
+                {order.trackingNumber ? <> · Nº de seguimiento <strong className="font-mono text-encre">{order.trackingNumber}</strong></> : null}.
+              </p>
+              {order.trackingUrl && (
+                <a href={order.trackingUrl} target="_blank" rel="noopener noreferrer" className="mr-3 inline-block font-semibold text-bleu hover:underline">
+                  Seguir el envío
+                </a>
+              )}
+              {order.shippingProofUrl && (
+                <a href={blobDownloadUrl(order.shippingProofUrl)} target="_blank" rel="noopener noreferrer" className="inline-block font-semibold text-bleu hover:underline">
+                  Ver justificante del envío
+                </a>
+              )}
+              <p>Si hay que cambiar algo, escríbenos a hola@traduccionesjuradas.net.</p>
+            </div>
           ) : (
             <ShippingDataForm
               reference={order.reference}

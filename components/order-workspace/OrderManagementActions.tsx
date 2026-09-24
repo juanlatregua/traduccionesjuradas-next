@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildNotificationTemplate } from "@/lib/notification-templates";
+import { uploadStaffFile } from "@/lib/staff-upload-client";
 
 function eur(c: number) {
   return `${(c / 100).toFixed(2)} €`;
@@ -26,6 +27,7 @@ export default function OrderManagementActions({
   quote,
   caseRef,
   caseSiblingsToShip,
+  shipment,
 }: {
   reference: string;
   clientName: string;
@@ -38,9 +40,18 @@ export default function OrderManagementActions({
   // Trámite: hermanos de papel sin enviar que van EN EL MISMO SOBRE.
   caseRef: string | null;
   caseSiblingsToShip: string[];
+  // Envío en papel ya notificado (para corregirlo o añadir el justificante después).
+  shipment: { shippedAt: string | null; trackingNumber: string | null; courier: string | null; trackingUrl: string | null; proofUrl: string | null; proofName: string | null } | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [shipOpen, setShipOpen] = useState(false);
+  const [ship, setShip] = useState({
+    courier: shipment?.courier || "",
+    trackingNumber: shipment?.trackingNumber || "",
+    trackingUrl: shipment?.trackingUrl || "",
+  });
+  const [proofFile, setProofFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   function flash(m: string) {
     setMsg(m);
@@ -88,31 +99,41 @@ export default function OrderManagementActions({
   }
 
   async function notifyShipment() {
+    const trackingNumber = ship.trackingNumber.trim();
+    if (!trackingNumber) {
+      flash("Falta el número de seguimiento.");
+      return;
+    }
     // El sobre puede llevar varios pedidos del trámite: dilo ANTES de sellar,
     // porque sella los hermanos y manda un solo email al cliente.
-    if (caseSiblingsToShip.length > 0) {
+    if (!shipment?.shippedAt && caseSiblingsToShip.length > 0) {
       const ok = window.confirm(
         `Este envío sella también ${caseSiblingsToShip.join(", ")} (mismo trámite ${caseRef}).\n\n` +
           `El cliente recibirá UN solo email con las ${caseSiblingsToShip.length + 1} referencias. ¿Sigo?`
       );
       if (!ok) return;
     }
-    const trackingNumber = window.prompt("Nº de seguimiento de la mensajería:");
-    if (!trackingNumber || !trackingNumber.trim()) return;
-    const courier = window.prompt("Transportista (opcional: Correos, MRW, SEUR…):") || "";
     setBusy(true);
     try {
+      const proof = proofFile ? await uploadStaffFile(proofFile, `shipments/${reference}`) : null;
       const res = await fetch(`/api/orders/${reference}/notify-shipment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingNumber: trackingNumber.trim(), courier: courier.trim() }),
+        body: JSON.stringify({
+          trackingNumber,
+          courier: ship.courier.trim(),
+          trackingUrl: ship.trackingUrl.trim(),
+          ...(proof ? { proofUrl: proof.url, proofName: proof.name } : {}),
+        }),
       });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo notificar el envío.");
       flash(
-        `Envío notificado al cliente (seguimiento ${d.trackingNumber || trackingNumber.trim()})` +
+        `Envío notificado al cliente (seguimiento ${d.trackingNumber || trackingNumber})` +
           (d.references?.length > 1 ? ` · ${d.references.length} pedidos en el mismo sobre.` : ".")
       );
+      setShipOpen(false);
+      setProofFile(null);
       router.refresh();
     } catch (e: any) {
       flash(e?.message || "No se pudo notificar el envío.");
@@ -212,9 +233,62 @@ export default function OrderManagementActions({
       )}
 
       {paymentStatus === "PAID" && (
-        <button type="button" onClick={notifyShipment} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
-          📦 Notificar envío{caseSiblingsToShip.length > 0 ? ` (${caseSiblingsToShip.length + 1} pedidos)` : ""}
+        <button type="button" onClick={() => setShipOpen((v) => !v)} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
+          📦 {shipment?.shippedAt ? "Envío notificado · corregir" : "Notificar envío"}
+          {!shipment?.shippedAt && caseSiblingsToShip.length > 0 ? ` (${caseSiblingsToShip.length + 1} pedidos)` : ""}
         </button>
+      )}
+
+      {shipOpen && (
+        <div className="basis-full rounded-xl border border-slate-700 bg-slate-800/40 p-3 text-sm">
+          {shipment?.shippedAt && (
+            <p className="mb-2 text-xs text-slate-400">
+              Notificado el {new Date(shipment.shippedAt).toLocaleDateString("es-ES")}
+              {shipment.proofUrl ? (
+                <>
+                  {" · "}
+                  <a href={shipment.proofUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-300 hover:underline">
+                    justificante actual{shipment.proofName ? ` (${shipment.proofName})` : ""}
+                  </a>
+                </>
+              ) : (
+                " · sin justificante"
+              )}
+              . Al guardar se vuelve a avisar al cliente.
+            </p>
+          )}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-xs text-slate-400">
+              Transportista
+              <input list="couriers" value={ship.courier} onChange={(e) => setShip({ ...ship, courier: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-slate-100" placeholder="Correos, MRW, SEUR…" />
+              <datalist id="couriers">
+                {["Correos", "Correos Express", "MRW", "SEUR", "GLS", "Nacex", "DHL", "UPS"].map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </label>
+            <label className="text-xs text-slate-400">
+              Nº de seguimiento *
+              <input value={ship.trackingNumber} onChange={(e) => setShip({ ...ship, trackingNumber: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 font-mono text-slate-100" />
+            </label>
+            <label className="text-xs text-slate-400 sm:col-span-2">
+              Enlace de seguimiento (opcional)
+              <input value={ship.trackingUrl} onChange={(e) => setShip({ ...ship, trackingUrl: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-slate-100" placeholder="https://…" />
+            </label>
+            <label className="text-xs text-slate-400 sm:col-span-2">
+              Justificante del envío (foto o PDF del resguardo)
+              <input type="file" accept="image/*,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-slate-300" />
+            </label>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={notifyShipment} disabled={busy} className={`${btn} bg-cyan-600 text-white hover:bg-cyan-500`}>
+              {busy ? "Enviando…" : "Guardar y avisar al cliente"}
+            </button>
+            <button type="button" onClick={() => setShipOpen(false)} disabled={busy} className={`${btn} border border-slate-600 text-slate-300 hover:bg-slate-800`}>
+              Cancelar
+            </button>
+          </div>
+        </div>
       )}
 
       <button type="button" onClick={groupIntoCase} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>

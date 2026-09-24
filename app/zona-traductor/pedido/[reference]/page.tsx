@@ -515,6 +515,18 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             quote={order.quote ? { id: order.quote.id, quoteNumber: order.quote.quoteNumber } : null}
             caseRef={order.caseRef}
             caseSiblingsToShip={caseSiblingsToShip}
+            shipment={
+              order.shippedAt || order.trackingNumber
+                ? {
+                    shippedAt: order.shippedAt ? order.shippedAt.toISOString() : null,
+                    trackingNumber: order.trackingNumber,
+                    courier: order.shippingCourier,
+                    trackingUrl: order.trackingUrl,
+                    proofUrl: order.shippingProofUrl,
+                    proofName: order.shippingProofName,
+                  }
+                : null
+            }
           />
           {secured && (
             <div className="mt-2">

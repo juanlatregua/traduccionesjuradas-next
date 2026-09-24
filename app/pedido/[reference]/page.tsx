@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { blobDownloadUrl } from "@/lib/blob-download-url";
 import { clientVisibleDeliveryFiles } from "@/lib/client-delivery";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -45,6 +46,7 @@ type Strings = {
   inProgressBanner: string;
   readyBanner: string;
   download: string;
+  ship: { title: string; courier: string; tracking: string; on: string; follow: string; proof: string };
   history: string;
   timeline: {
     created: string;
@@ -92,6 +94,7 @@ const STRINGS: Record<Lang, Strings> = {
     inProgressBanner: "Tu traducción está en proceso. Entrega estimada:",
     readyBanner: "Tu traducción está lista.",
     download: "Descargar traducción",
+    ship: { title: "Tu traducción en papel va de camino", courier: "Transportista", tracking: "Nº de seguimiento", on: "Enviado el", follow: "Seguir el envío", proof: "Ver justificante del envío" },
     history: "Historial",
     timeline: {
       created: "Pedido creado",
@@ -139,6 +142,7 @@ const STRINGS: Record<Lang, Strings> = {
     inProgressBanner: "Votre traduction est en cours. Livraison estimée :",
     readyBanner: "Votre traduction est prête.",
     download: "Télécharger la traduction",
+    ship: { title: "Votre traduction papier est en route", courier: "Transporteur", tracking: "Numéro de suivi", on: "Expédiée le", follow: "Suivre l'envoi", proof: "Voir le justificatif d'envoi" },
     history: "Historique",
     timeline: {
       created: "Commande créée",
@@ -343,6 +347,11 @@ export default async function PedidoPortalPage({
       deliveryFilesJson: true,
       createdAt: true,
       paidAt: true,
+      shippedAt: true,
+      trackingNumber: true,
+      shippingCourier: true,
+      trackingUrl: true,
+      shippingProofUrl: true,
       events: {
         where: {
           type: {
@@ -491,7 +500,8 @@ export default async function PedidoPortalPage({
         {(workflowState === "PENDIENTE_PAGO" ||
           workflowState === "JUSTIFICANTE_SUBIDO" ||
           (workflowState === "EN_TRADUCCION" && order.dueDate) ||
-          workflowState === "TRADUCIDO_ENTREGADO") && (
+          workflowState === "TRADUCIDO_ENTREGADO" ||
+          (order.shippedAt && order.trackingNumber)) && (
           <section className="space-y-3">
             {workflowState === "PENDIENTE_PAGO" && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -543,6 +553,34 @@ export default async function PedidoPortalPage({
                         {deliveryFiles.length > 1 ? ` ${i + 1}${f.filename ? ` · ${f.filename}` : ""}` : ""}
                       </a>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {order.shippedAt && order.trackingNumber && (
+              <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
+                <p className="text-sm font-semibold text-cyan-900">📦 {t.ship.title}</p>
+                <dl className="mt-2 space-y-1 text-sm text-cyan-900">
+                  <div>
+                    {t.ship.on} <strong>{formatDate(order.shippedAt, lang)}</strong>
+                    {order.shippingCourier ? <> · {t.ship.courier}: <strong>{order.shippingCourier}</strong></> : null}
+                  </div>
+                  <div>
+                    {t.ship.tracking}: <strong className="font-mono">{order.trackingNumber}</strong>
+                  </div>
+                </dl>
+                {(order.trackingUrl || order.shippingProofUrl) && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {order.trackingUrl && (
+                      <a href={order.trackingUrl} target="_blank" rel="noopener noreferrer" className="inline-block rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
+                        {t.ship.follow}
+                      </a>
+                    )}
+                    {order.shippingProofUrl && (
+                      <a href={blobDownloadUrl(order.shippingProofUrl)} target="_blank" rel="noopener noreferrer" className="inline-block rounded-lg border border-cyan-700 px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100">
+                        {t.ship.proof}
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
