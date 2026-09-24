@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title:
     "Subsanación regularización 2026 · Traducción jurada en 24h · MAEC nº 3850",
   description:
-    "¿Requerimiento de subsanación con 10 días? Traducción jurada de antecedentes penales, actas y apostilla en 24 horas. Francés 25 €/documento (Marruecos, Senegal, Mali…). Traductor jurado MAEC nº 3850.",
+    "¿Requerimiento de subsanación urgente? Traducción jurada de antecedentes penales, actas y apostilla en 24 horas. Francés 25 €/documento (Marruecos, Senegal, Mali…). Traductor jurado MAEC nº 3850.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/regularizacion-2026",
   },
@@ -19,7 +19,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Qué hago si me llega un requerimiento de subsanación?",
     answer:
-      "Tienes 10 días hábiles desde la notificación para aportar lo que falte por sede electrónica; si no respondes, el expediente se archiva. Las carencias más frecuentes son la apostilla y la traducción jurada de los antecedentes penales o de las actas. Envíanos el requerimiento y el documento: te confirmamos qué falta y entregamos la traducción jurada en 24 horas.",
+      "Tienes el plazo que fije la notificación (máximo 15 días, RD 316/2026) para aportar lo que falte por sede electrónica; si no respondes, se te tiene por desistido de la solicitud. Las carencias más frecuentes son la apostilla y la traducción jurada de los antecedentes penales o de las actas. Envíanos el requerimiento y el documento: te confirmamos qué falta y entregamos la traducción jurada en 24 horas.",
   },
   {
     question: "¿Me da tiempo a traducir dentro del plazo de subsanación?",
@@ -29,7 +29,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Hasta cuándo puedo presentar la solicitud?",
     answer:
-      "El plazo es improrrogable hasta el 30 de junio de 2026 (Real Decreto 316/2026, BOE-A-2026-8284). Las solicitudes telemáticas se abrieron el 16 de abril de 2026 y las presenciales el 20 de abril.",
+      "El plazo de solicitud ya cerró, sin prórroga, el 30 de junio de 2026 (Real Decreto 316/2026, BOE-A-2026-8284). Las solicitudes telemáticas se abrieron el 16 de abril de 2026 y las presenciales el 20 de abril. Si ya presentaste tu expediente, sigue en tramitación: consulta la sección de subsanación más abajo.",
   },
   {
     question: "¿Qué documentos del país de origen necesitan traducción jurada?",
@@ -64,7 +64,7 @@ export default function Regularizacion2026Page() {
       <SchemaService
         id="service-regularizacion-2026"
         serviceName="Traducción jurada para la regularización extraordinaria 2026"
-        serviceDescription="Traducción jurada oficial de antecedentes penales y documentos del país de origen para la regularización extraordinaria abierta por el RD 316/2026, hasta el 30 de junio de 2026."
+        serviceDescription="Traducción jurada oficial de antecedentes penales y documentos del país de origen para expedientes de la regularización extraordinaria del RD 316/2026. El plazo de solicitud cerró el 30 de junio de 2026; actualmente en fase de subsanación de expedientes ya presentados."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -87,7 +87,7 @@ export default function Regularizacion2026Page() {
 
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-          Regularización extraordinaria · fase de subsanación (requerimientos con 10 días)
+          Regularización extraordinaria · fase de subsanación (requerimientos con plazo propio, máx. 15 días)
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
           Traducción jurada para la regularización extraordinaria 2026
@@ -102,8 +102,10 @@ export default function Regularizacion2026Page() {
           >
             Real Decreto 316/2026
           </a>{" "}
-          (BOE 15-abr-2026) ha abierto dos vías extraordinarias de regularización
-          que finalizan el <strong>30 de junio de 2026</strong>. Ambas exigen
+          (BOE 15-abr-2026) abrió dos vías extraordinarias de regularización
+          cuyo plazo de solicitud finalizó el <strong>30 de junio de 2026</strong>.
+          Los expedientes ya presentados siguen en tramitación y pueden recibir
+          requerimientos de subsanación. Ambas vías exigen
           traducción jurada del certificado de antecedentes penales del país de
           origen y, según el caso, otros documentos civiles. Estamos
           especializados en la traducción jurada francés-español de documentos
@@ -114,18 +116,20 @@ export default function Regularizacion2026Page() {
       </header>
 
       {/* FASE VIVA (jul-ago 2026): el plazo de solicitud cerro el 30-jun; ahora las oficinas
-          notifican REQUERIMIENTOS con 10 dias habiles, y "apostilla + traduccion jurada de
-          antecedentes" esta entre las carencias mas pedidas. Servicio con reloj. */}
+          notifican REQUERIMIENTOS con el plazo que fija cada notificacion (max 15 dias, RD
+          316/2026), y "apostilla + traduccion jurada de antecedentes" esta entre las carencias
+          mas pedidas. Servicio con reloj. */}
       <section className="mt-8 rounded-2xl border-2 border-amber-500/60 bg-amber-50 p-5 text-sm text-encre">
         <h2 className="text-lg font-bold text-amber-800">
-          ⏱ ¿Te ha llegado un requerimiento de subsanación? Tienes 10 días hábiles
+          ⏱ ¿Te ha llegado un requerimiento de subsanación? Responde en el plazo de la notificación
         </h2>
         <p className="mt-2 text-sepia">
           El plazo de solicitud cerró el 30 de junio, pero el expediente no acaba
           ahí: las Unidades de Extranjería están notificando{" "}
           <strong>requerimientos de subsanación</strong> con{" "}
-          <strong>10 días hábiles</strong> para responder — y si no se responde,
-          el expediente se archiva. Entre las carencias más frecuentes:{" "}
+          <strong>el plazo que fije la notificación</strong> (máximo 15 días, RD
+          316/2026) para responder — y si no se responde, se te tiene por
+          desistido de la solicitud. Entre las carencias más frecuentes:{" "}
           <strong>la apostilla y la traducción jurada</strong> del certificado de
           antecedentes penales o de las actas.
         </p>
@@ -158,7 +162,7 @@ export default function Regularizacion2026Page() {
       </section>
 
       <section className="mt-8 rounded-2xl border border-bleu/30 bg-bleu/5 p-5 text-sm text-encre">
-        <h2 className="text-lg font-semibold text-bleu">Plazo improrrogable</h2>
+        <h2 className="text-lg font-semibold text-bleu">Plazo de solicitud (cerrado)</h2>
         <ul className="mt-2 space-y-1 text-sepia">
           <li>
             <strong>16-abr-2026:</strong> apertura de solicitudes telemáticas.
@@ -167,7 +171,7 @@ export default function Regularizacion2026Page() {
             <strong>20-abr-2026:</strong> apertura de citas presenciales.
           </li>
           <li>
-            <strong>30-jun-2026:</strong> cierre del plazo (improrrogable).
+            <strong>30-jun-2026:</strong> cierre del plazo (sin prórroga).
           </li>
           <li>
             <strong>3 meses:</strong> plazo de resolución; el silencio es
@@ -182,7 +186,7 @@ export default function Regularizacion2026Page() {
 
       <section className="mt-10 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          Las dos vías abiertas hasta el 30 de junio
+          Las dos vías, con plazo de solicitud cerrado el 30 de junio
         </h2>
         <div className="space-y-4">
           <article className="rounded-2xl border border-cream bg-card p-5">

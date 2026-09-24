@@ -49,7 +49,7 @@ function Logo() {
         className="hidden h-12 w-auto max-w-none sm:block lg:h-14"
         priority
       />
-      <div className="leading-tight sm:hidden">
+      <div className="hidden leading-tight min-[400px]:block sm:hidden">
         <span className="block text-sm font-semibold text-sepia">Traducciones Juradas</span>
       </div>
     </div>

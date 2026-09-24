@@ -1,7 +1,9 @@
 "use client";
 
 // components/SiteTopBars.tsx — Barras bajo el header. ES: TrustStrip + promo
-// Regularización 2026. FR: barra de confianza francesa (sin la promo española).
+// Regularización 2026 (fase de subsanación de expedientes, no la solicitud
+// inicial: esa cerró el 30-jun-2026, ver /regularizacion-2026). FR: barra de
+// confianza francesa (sin la promo española).
 
 import Link from "next/link";
 import { TrustStrip } from "@/components/TrustStrip";
@@ -31,10 +33,10 @@ export default function SiteTopBars() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-xs text-encre sm:text-sm">
           <span className="inline-flex items-center gap-1.5 font-semibold text-bleu">
             <span className="inline-block h-2 w-2 rounded-full bg-bleu" />
-            Regularización extraordinaria 2026
+            Regularización 2026
           </span>
           <span className="text-sepia">
-            Plazo improrrogable <strong>30-jun-2026</strong> · 25 €/doc · entrega 24h
+            ¿Te ha llegado un requerimiento de subsanación? Responde en el plazo que indica la notificación · 25 €/doc · entrega 24h
           </span>
           <Link href="/regularizacion-2026" className="font-semibold text-bleu underline-offset-2 hover:underline">
             Ver guía →
