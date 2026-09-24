@@ -84,17 +84,19 @@ export async function buildIssuedInvoiceAttachment(
       email: order.billing.email,
     };
 
+    const linesBase = lines.reduce((a, l) => a + l.amountCents, 0);
+    const linesOk = Math.abs(linesBase - Math.round(invoice.totalCents / 1.21)) <= lines.length;
     const pdf = generateInvoicePdf({
       reference: order.reference,
       title: order.title,
-      amountCents: order.amountCents,
+      amountCents: invoice.totalCents,
       langPair: order.langPair,
       words: order.words,
       paidAt: order.paidAt,
       createdAt: order.createdAt,
       invoiceNumber: invoice.number,
       issuedAt: invoice.issuedAt,
-      lines: lines.length > 0 ? lines : undefined,
+      lines: lines.length > 0 && linesOk ? lines : undefined,
       billing,
     });
 

@@ -132,20 +132,25 @@ export async function GET(req: Request, { params }: Params) {
         };
       });
 
+    // Una factura EMITIDA sale con su propio importe: el pedido puede haber crecido
+    // después (2.º plazo de un presupuesto, 23-sep) y la emitida no se reescribe.
+    const issuedAmount = quotePending ? order.amountCents : invoice.totalCents;
+    const linesBase = lines.reduce((a, l) => a + l.amountCents, 0);
+    const linesOk = Math.abs(linesBase - Math.round(issuedAmount / 1.21)) <= lines.length;
     const pdfBuffer = generateInvoicePdf({
       verifactu: await verifactuPdfExtras(invoice.id),
       rectifiesNumber: invoice.rectifiesNumber,
       annulled: Boolean(invoice.annulledAt),
       reference: order.reference,
       title: order.title,
-      amountCents: order.amountCents,
+      amountCents: issuedAmount,
       langPair: order.langPair,
       words: order.words,
       paidAt: order.paidAt,
       createdAt: order.createdAt,
       invoiceNumber: quotePending ? undefined : (invoice.number ?? undefined),
       issuedAt: invoice.issuedAt,
-      lines: lines.length > 0 ? lines : undefined,
+      lines: lines.length > 0 && linesOk ? lines : undefined,
       billing,
       draft: quotePending || undefined,
     });
