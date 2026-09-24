@@ -9,7 +9,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+const MAX_FILE_SIZE = 40 * 1024 * 1024; // 40 MB (expedientes escaneados)
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -40,11 +40,11 @@ export async function POST(req: Request) {
   // público de subidas.
   const staff = await requireStaffAccess(req);
   if (!staff.ok) {
-    // Rate limit: 40 subidas por IP por día (un expediente público puede traer
-    // 16+ archivos; el gate RGPD sigue activo en onBeforeGenerateToken).
+    // Rate limit: 120 subidas por IP por día (un expediente público llega a 60+
+    // ficheros, caso Tomás 23-sep; el gate RGPD sigue activo en onBeforeGenerateToken).
     const rl = await checkRateLimit({
       key: `doc-upload:${ip}`,
-      limit: 40,
+      limit: 120,
       windowMs: 24 * 60 * 60 * 1000,
     });
     if (!rl.ok) {

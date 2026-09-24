@@ -18,8 +18,8 @@ type FileRow = {
   error?: string;
 };
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
-const MAX_DOCS = 40;
+const MAX_FILE_SIZE = 40 * 1024 * 1024;
+const MAX_DOCS = 80;
 const ACCEPTED = ".pdf,.jpg,.jpeg,.png,.heic,.tiff,.tif,.webp";
 
 function uid() {
@@ -73,7 +73,7 @@ export default function ExpedientePublicIntake({
       setError(null);
       const files = Array.from(fileList).filter((f) => {
         if (f.size > MAX_FILE_SIZE) {
-          setError(`"${f.name}" supera los 20 MB y se ha omitido.`);
+          setError(`"${f.name}" supera los 40 MB y se ha omitido.`);
           return false;
         }
         return true;
@@ -180,7 +180,7 @@ export default function ExpedientePublicIntake({
           <Upload className="h-6 w-6 text-bleu" />
         </div>
         <p className="font-baskerville text-lg text-bleu">Arrastra todos tus documentos</p>
-        <p className="text-sm text-graphite">PDF, fotos o escaneos · varios a la vez · máx. 20 MB c/u</p>
+        <p className="text-sm text-graphite">PDF, fotos o escaneos · varios a la vez · hasta 80 documentos · máx. 40 MB c/u</p>
         <input
           ref={inputRef}
           type="file"

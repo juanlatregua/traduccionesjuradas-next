@@ -51,6 +51,8 @@ export type PuertaStrings = {
   takePhoto: string;
   scanGuidePre: string;
   scanGuideLink: string;
+  manyDocsPre: string;
+  manyDocsLink: string;
   uploading: string;
   errTooLarge: string;
   errGdpr: string;
@@ -152,6 +154,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     takePhoto: "Tomar foto",
     scanGuidePre: "¿No sabes cómo escanear bien?",
     scanGuideLink: "Ver guía de 2 minutos",
+    manyDocsPre: "¿Varios documentos o un expediente grande?",
+    manyDocsLink: "Súbelos todos juntos aquí",
     uploading: "Subiendo documento...",
     errTooLarge: "El archivo es demasiado grande. Máximo 20 MB.",
     errGdpr: "Debes aceptar el tratamiento de datos para continuar.",
@@ -231,6 +235,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     takePhoto: "Prendre une photo",
     scanGuidePre: "Vous ne savez pas bien scanner ?",
     scanGuideLink: "Voir le guide de 2 minutes",
+    manyDocsPre: "Plusieurs documents ou un gros dossier ?",
+    manyDocsLink: "Envoyez-les tous ici",
     uploading: "Envoi du document...",
     errTooLarge: "Le fichier est trop volumineux. Maximum 20 Mo.",
     errGdpr: "Vous devez accepter le traitement des données pour continuer.",
@@ -310,6 +316,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     takePhoto: "Take a photo",
     scanGuidePre: "Not sure how to scan well?",
     scanGuideLink: "See the 2-minute guide",
+    manyDocsPre: "Several documents or a large file?",
+    manyDocsLink: "Upload them all together here",
     uploading: "Uploading document...",
     errTooLarge: "The file is too large. Maximum 20 MB.",
     errGdpr: "You must accept data processing to continue.",
@@ -389,6 +397,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     takePhoto: "Foto aufnehmen",
     scanGuidePre: "Unsicher, wie man richtig scannt?",
     scanGuideLink: "2-Minuten-Anleitung ansehen",
+    manyDocsPre: "Mehrere Dokumente oder eine große Akte?",
+    manyDocsLink: "Hier alle zusammen hochladen",
     uploading: "Dokument wird hochgeladen...",
     errTooLarge: "Die Datei ist zu groß. Maximal 20 MB.",
     errGdpr: "Sie müssen der Datenverarbeitung zustimmen, um fortzufahren.",
@@ -468,6 +478,8 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     takePhoto: "Tirar foto",
     scanGuidePre: "Não sabe como digitalizar bem?",
     scanGuideLink: "Ver guia de 2 minutos",
+    manyDocsPre: "Vários documentos ou um processo grande?",
+    manyDocsLink: "Envie-os todos juntos aqui",
     uploading: "A enviar documento...",
     errTooLarge: "O ficheiro é demasiado grande. Máximo 20 MB.",
     errGdpr: "Tem de aceitar o tratamento de dados para continuar.",

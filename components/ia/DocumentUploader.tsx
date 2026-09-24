@@ -299,6 +299,20 @@ export default function DocumentUploader({
         </p>
       )}
 
+      {/* La puerta analiza UN documento: un expediente de muchos ficheros o muy
+          pesado va a /expediente (subida directa a Blob, varios a la vez). */}
+      {!uploadedFile && (
+        <p className="text-center text-xs text-graphite">
+          {t.manyDocsPre}{" "}
+          <a
+            href={`/expediente${clientEmail ? `?email=${encodeURIComponent(clientEmail)}` : ""}`}
+            className="font-semibold text-bleu underline underline-offset-2 hover:text-bleu-light"
+          >
+            {t.manyDocsLink}
+          </a>
+        </p>
+      )}
+
       {/* Uploaded file preview */}
       {uploadedFile && (
         <div className="flex items-center gap-4 rounded-xl border border-bleu/20 bg-card p-4 shadow-paper">
