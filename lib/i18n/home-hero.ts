@@ -15,8 +15,9 @@ const tr = (es: string, fr: string, en: string, de: string, pt: string): Tr => (
 export const CHAT_LANGS: Locale[] = ["es", "fr"];
 
 /** Las 5 portadas con hero nuevo (components/home/HomeHero.tsx): ya llevan su
- *  propio botón/panel de WhatsApp, así que el globo flotante (WhatsAppFloat)
- *  no se monta ahí. Mismo patrón que EMBEDDED_CHAT_PATHS en ChatWidget.tsx. */
+ *  propio panel (chat anclado en es/fr, WhatsApp en en/de/pt), así que ni el
+ *  globo flotante de WhatsApp (WhatsAppFloat) ni el del chat (ChatWidget) se
+ *  montan ahí. */
 export const NEW_HERO_HOME_PATHS = new Set(Object.values(LOCALE_HOME));
 
 export const HOME_HERO = {

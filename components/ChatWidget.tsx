@@ -3,23 +3,21 @@
 // components/ChatWidget.tsx — Botón flotante + panel del asistente. La lógica
 // (sesión, puerta, streaming, límites) vive en components/chat/useChat.ts y la
 // conversación en components/chat/ChatConversation.tsx: lo mismo que pinta el
-// panel anclado de la portada. En las portadas con panel anclado (es/fr) el
-// flotante no se monta: nunca dos conversaciones a la vez.
+// panel anclado de la portada. En las 5 portadas con hero nuevo (es/fr con
+// panel anclado, en/de/pt con panel de WhatsApp) el flotante no se monta:
+// nunca dos conversaciones (o dos flotantes) a la vez.
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { localeFromPath, LOCALE_HOME } from "@/lib/i18n/locales";
-import { CHAT_LANGS } from "@/lib/i18n/home-hero";
+import { localeFromPath } from "@/lib/i18n/locales";
+import { NEW_HERO_HOME_PATHS } from "@/lib/i18n/home-hero";
 import { useChat } from "@/components/chat/useChat";
 import ChatConversation from "@/components/chat/ChatConversation";
 import type { ChatLang } from "@/lib/chat/ui-strings";
 
-// Portadas con el asistente anclado (components/home/AsistentePanel.tsx).
-const EMBEDDED_CHAT_PATHS = new Set(CHAT_LANGS.map((l) => LOCALE_HOME[l]));
-
 export default function ChatWidget() {
   const pathname = usePathname();
-  if (EMBEDDED_CHAT_PATHS.has(pathname || "")) return null;
+  if (NEW_HERO_HOME_PATHS.has(pathname || "")) return null;
   const uiLang: ChatLang = localeFromPath(pathname) === "fr" ? "fr" : "es";
   return <FloatingChat lang={uiLang} />;
 }
