@@ -120,7 +120,7 @@ export default function HomeV2({ lang }: { lang: HomeLang }) {
             <p className="text-xs font-bold uppercase tracking-wider text-or-dark">{h.reviews.kicker[lang]}</p>
             <h2 className="mt-2 font-baskerville text-2xl font-bold text-encre sm:text-3xl">{h.reviews.h2[lang]}</h2>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className={h.reviews.items.length === 2 ? "mx-auto grid max-w-4xl gap-4 md:grid-cols-2" : "grid gap-4 md:grid-cols-3"}>
             {h.reviews.items.map((r, i) => (
               <div key={i} className="rounded-2xl border border-cream bg-card p-6 shadow-sm">
                 <div className="text-or-dark" aria-label="5/5">★★★★★</div>
