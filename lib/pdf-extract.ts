@@ -28,8 +28,11 @@ export async function extractPageRange(opts: {
   start?: number | null;
   end?: number | null;
 }): Promise<ExtractedDoc> {
-  const start = Math.max(1, Math.round(Number(opts.start) || 1));
-  const endRaw = Math.round(Number(opts.end) || start);
+  // Sin pageStart NO hay rango: el documento entero (2026-00194, 24-sep: el visor
+  // enseñaba solo la página 1 de un PDF de 6; mismo fallo que el sobre de lavori, 14-ago).
+  const sinRango = !(Number(opts.start) >= 1);
+  const start = sinRango ? 1 : Math.round(Number(opts.start));
+  const endRaw = sinRango ? Number.MAX_SAFE_INTEGER : Math.round(Number(opts.end) || start);
 
   const res = await fetch(opts.url);
   if (!res.ok) throw new Error(`fetch ${res.status}`);
