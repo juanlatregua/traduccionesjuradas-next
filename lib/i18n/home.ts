@@ -157,17 +157,6 @@ export const HOME: HomeStrings = {
     items: [
       {
         text: tr(
-          "Necesitábamos con urgencia una traducción jurada del francés y el servicio fue fantástico. Muy profesionales.",
-          "Nous avions besoin en urgence d'une traduction assermentée du français et le service a été formidable. Très professionnels.",
-          "We urgently needed a sworn translation from French and the service was fantastic. Very professional.",
-          "Wir brauchten dringend eine beglaubigte Übersetzung aus dem Französischen und der Service war fantastisch. Sehr professionell.",
-          "Precisávamos com urgência de uma tradução certificada do francês e o serviço foi fantástico. Muito profissionais."
-        ),
-        who: "Pedro V.",
-        date: tr("abril 2024", "avril 2024", "April 2024", "April 2024", "abril de 2024"),
-      },
-      {
-        text: tr(
           "Excelente servicio, rapidez y buena respuesta.",
           "Excellent service, rapidité et bonne réactivité.",
           "Excellent service, fast and responsive.",
