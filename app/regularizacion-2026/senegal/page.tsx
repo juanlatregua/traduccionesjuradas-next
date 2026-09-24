@@ -270,8 +270,8 @@ export default function RegularizacionSenegalPage() {
         <p className="mt-1 text-encre">
           Adjunta el bulletin nº 3, el extrait d&apos;acte de naissance y
           cualquier otro documento. Te respondemos con un precio cerrado y un
-          plazo realista para que llegues a tu cita en Extranjería con todo
-          preparado.
+          plazo realista para responder a tu requerimiento de subsanación con
+          todo preparado.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link

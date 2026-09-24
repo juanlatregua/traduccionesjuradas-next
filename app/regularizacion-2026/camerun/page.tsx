@@ -276,8 +276,8 @@ export default function RegularizacionCamerunPage() {
         <p className="mt-1 text-encre">
           Adjunta el Bulletin nº 3, el extrait d&apos;acte de naissance y
           cualquier otro documento ya legalizado consularmente. Te respondemos
-          con un presupuesto cerrado y plazo realista para tu cita en
-          Extranjería.
+          con un presupuesto cerrado y plazo realista para responder a tu
+          requerimiento de subsanación.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link

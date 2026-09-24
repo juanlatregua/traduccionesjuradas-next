@@ -118,7 +118,7 @@ function evaluateEligibility(
 
 function buildDocumentList(input: RecommendArraigoPackInput): string[] {
   const docs: string[] = [];
-  docs.push("Antecedentes penales del país de origen (y de cualquier país donde se haya residido en los últimos 5 años).");
+  docs.push("Antecedentes penales del país de origen (y de cualquier país donde se haya residido en los 5 años anteriores a la entrada en España).");
   docs.push("Pasaporte (vigente o caducado).");
   if (input.has_minor_children) {
     docs.push("Acta de nacimiento del solicitante.");
@@ -151,8 +151,8 @@ export function recommendArraigoPack(input: RecommendArraigoPackInput) {
   const countryPage = COUNTRY_PAGES[country];
   const countryName = COUNTRY_NAMES[country] || country || null;
 
-  // El plazo del RD 316/2026 era improrrogable (verificado: sin prórroga ni
-  // ampliación). Se calcula en cada llamada en vez de escribirlo a mano para que
+  // El plazo del RD 316/2026 venció sin prórroga ni ampliación (verificado).
+  // Se calcula en cada llamada en vez de escribirlo a mano para que
   // el bot nunca presente como abierto un plazo vencido.
   const deadlinePassed =
     Date.now() > new Date(`${DEADLINE}T23:59:59+02:00`).getTime();
@@ -160,14 +160,14 @@ export function recommendArraigoPack(input: RecommendArraigoPackInput) {
   const notes: string[] = [];
   if (deadlinePassed) {
     notes.push(
-      `El plazo de la regularización extraordinaria venció el ${DEADLINE} y era improrrogable: YA NO se pueden presentar solicitudes nuevas. Esta información sirve para expedientes ya presentados o para quien pregunte por otras vías de arraigo ordinarias.`
+      `El plazo de la regularización extraordinaria venció el ${DEADLINE} sin prórroga: YA NO se pueden presentar solicitudes nuevas. Esta información sirve para expedientes ya presentados o para quien pregunte por otras vías de arraigo ordinarias.`
     );
   }
   notes.push(
-    "Validez del certificado de antecedentes penales: la administración exige menos de 3 meses desde su emisión.",
+    "Validez del certificado de antecedentes penales: el RD 316/2026 no la fija. Según el Ministerio de Inclusión, la validez la da el país emisor y varía: confírmala en el propio certificado y en tu requerimiento.",
   );
   notes.push(
-    "Lookback de 5 años: si has residido en otros países en los últimos 5 años, necesitas certificado de cada uno (RD 316/2026, art. 130).",
+    "Lookback de 5 años: si en los 5 años anteriores a tu entrada en España residiste en otros países, necesitas certificado de cada uno (RD 316/2026, apartado 9 de las DA 20ª y 21ª).",
   );
   if (apostilleRequired) {
     notes.push(

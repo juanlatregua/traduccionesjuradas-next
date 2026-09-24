@@ -19,7 +19,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Qué hago si me llega un requerimiento de subsanación?",
     answer:
-      "Tienes el plazo que fije la notificación (máximo 15 días, RD 316/2026) para aportar lo que falte por sede electrónica; si no respondes, se te tiene por desistido de la solicitud. Las carencias más frecuentes son la apostilla y la traducción jurada de los antecedentes penales o de las actas. Envíanos el requerimiento y el documento: te confirmamos qué falta y entregamos la traducción jurada en 24 horas.",
+      "Tienes el plazo que fije la notificación (máximo 15 días, RD 316/2026) para aportar lo que falte por sede electrónica o, hasta el 30 de septiembre de 2026, presencialmente en las oficinas de Correos seleccionadas; si no respondes, se te tiene por desistido de la solicitud. En los casos que nos llegan, lo que más falta es la apostilla y la traducción jurada de los antecedentes penales o de las actas. Envíanos el requerimiento y el documento: te confirmamos qué falta y entregamos la traducción jurada en 24 horas.",
   },
   {
     question: "¿Me da tiempo a traducir dentro del plazo de subsanación?",
@@ -34,12 +34,12 @@ const FAQ_ITEMS = [
   {
     question: "¿Qué documentos del país de origen necesitan traducción jurada?",
     answer:
-      "Como mínimo el certificado de antecedentes penales del país de origen y de cualquier país donde haya residido en los últimos cinco años. Según la vía y la situación familiar también pueden exigirse acta de nacimiento, certificado de matrimonio y libro de familia. Todos los documentos en idioma distinto al español deben ir traducidos por traductor jurado nombrado por el MAEC.",
+      "Como mínimo el certificado de antecedentes penales del país de origen y de los países donde haya residido en los cinco años anteriores a su entrada en España. Según la vía y la situación familiar también pueden exigirse acta de nacimiento, certificado de matrimonio y libro de familia. Todos los documentos en idioma distinto al español deben ir traducidos por un traductor jurado: al castellano, nombrado por el Ministerio de Asuntos Exteriores, Unión Europea y Cooperación; a la lengua cooficial del territorio donde se presente la solicitud, por la comunidad autónoma correspondiente.",
   },
   {
     question: "¿El certificado de antecedentes penales tiene fecha de caducidad?",
     answer:
-      "Sí. La práctica administrativa exige que tenga menos de tres meses desde su emisión para ser presentado. Si tu expediente tarda en resolverse y caducan, hay que volver a pedirlos y traducirlos. Por eso conviene no apostillar y traducir hasta tener la cita confirmada.",
+      "El RD 316/2026 no fija su validez (el certificado se aporta con la solicitud, apartado 9 de la DA 20ª y de la DA 21ª). Según el Ministerio de Inclusión, el certificado tiene la validez que le da el país emisor, y esta varía: compruébala en el propio certificado y en tu requerimiento. Si el requerimiento te pide un certificado más reciente, habrá que pedirlo, apostillarlo y traducirlo de nuevo. Apostilla o legaliza en cuanto tengas el certificado; si te llega un requerimiento, encarga la traducción jurada ese mismo día: el plazo es de 15 días como máximo (apartado 6 de la DA 20ª y de la DA 21ª).",
   },
   {
     question: "¿Necesito apostilla o legalización consular?",
@@ -125,11 +125,15 @@ export default function Regularizacion2026Page() {
         </h2>
         <p className="mt-2 text-sepia">
           El plazo de solicitud cerró el 30 de junio, pero el expediente no acaba
-          ahí: las Unidades de Extranjería están notificando{" "}
+          ahí: la Unidad de Tramitación de Expedientes de Extranjería
+          (Ministerio de Inclusión, Seguridad Social y Migraciones) notifica{" "}
           <strong>requerimientos de subsanación</strong> con{" "}
           <strong>el plazo que fije la notificación</strong> (máximo 15 días, RD
-          316/2026) para responder — y si no se responde, se te tiene por
-          desistido de la solicitud. Entre las carencias más frecuentes:{" "}
+          316/2026) para responder por sede electrónica o, hasta el 30 de
+          septiembre de 2026, presencialmente en las oficinas de Correos
+          seleccionadas — y si no se responde, se te tiene por desistido de
+          la solicitud. En los
+          casos que nos llegan, lo que más falta es{" "}
           <strong>la apostilla y la traducción jurada</strong> del certificado de
           antecedentes penales o de las actas.
         </p>
@@ -195,15 +199,25 @@ export default function Regularizacion2026Page() {
             </h3>
             <p className="mt-2">
               Para personas extranjeras que se encuentren en España{" "}
-              <strong>antes del 1 de enero de 2026</strong> y acrediten al menos
-              uno de estos supuestos:
+              <strong>antes del 1 de enero de 2026</strong>, con permanencia
+              ininterrumpida los 5 meses anteriores a la solicitud, y que
+              acrediten al menos uno de estos supuestos:
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>
-                Relación laboral de al menos 90 días dentro de los 12 meses
-                anteriores.
+                Haber trabajado por cuenta ajena o propia durante la
+                permanencia en España, o acreditar intención de trabajar
+                (oferta de trabajo o, por cuenta propia, declaración
+                responsable); si es por contrato, contrato o suma de
+                contratos de más de 90 días en un año.
               </li>
-              <li>Convivencia con menores a cargo (familia con menores).</li>
+              <li>
+                Permanecer en España con su unidad familiar: hijas e hijos
+                menores de edad, hijas e hijos mayores de edad con una
+                discapacidad que requiera apoyo o que no puedan proveer a sus
+                propias necesidades por su estado de salud, o ascendientes de
+                primer grado con los que conviva.
+              </li>
               <li>
                 Situación de vulnerabilidad acreditada por servicios sociales.
               </li>
@@ -214,14 +228,14 @@ export default function Regularizacion2026Page() {
               Vía 2 · Solicitantes de protección internacional (DA 20ª)
             </h3>
             <p className="mt-2">
-              Para quienes presentaron solicitud de protección internacional{" "}
+              Para quienes hayan presentado, registrado o formalizado
+              solicitud de protección internacional{" "}
               <strong>antes del 1 de enero de 2026</strong> y acrediten:
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Permanencia continuada en España de al menos 5 meses.</li>
               <li>
-                Resolución firme denegatoria o archivo del expediente de
-                protección.
+                Permanencia ininterrumpida en España de al menos 5 meses
+                anteriores a la solicitud.
               </li>
             </ul>
           </article>
@@ -238,7 +252,7 @@ export default function Regularizacion2026Page() {
           Documentos del país de origen que necesitan traducción jurada
         </h2>
         <p>
-          La documentación exacta varía según la Subdelegación del Gobierno y la
+          La documentación exacta varía según la vía (DA 20ª o DA 21ª) y la
           situación personal, pero los documentos extranjeros que casi siempre
           se exigen son:
         </p>
@@ -264,9 +278,38 @@ export default function Regularizacion2026Page() {
           </li>
         </ul>
         <p className="text-xs">
-          Todos los documentos en idioma distinto al español deben presentarse
-          con traducción jurada firmada por traductor habilitado por el
-          Ministerio de Asuntos Exteriores y de Cooperación (MAEC).
+          El RD 316/2026 no lo regula, pero las hojas informativas{" "}
+          <a
+            href="https://www.inclusion.gob.es/documents/20121/7817425/28%20bis.%20Autorizaci%C3%B3n%20residencia%20temporal%20por%20circunstancias%20excepcionales%20por%20raz%C3%B3n%20de%20arraigo.%20Solicitantes%20PI%20%28DA20%C2%BA%29.pdf/3b684315-99b1-1c47-a0e6-75e77c146e61?version=1.1&download=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-bleu hover:underline"
+          >
+            28 bis
+          </a>{" "}
+          y{" "}
+          <a
+            href="https://www.inclusion.gob.es/documents/20121/7817425/28%20Ter.%20Autorizaci%C3%B3n%20residencia%20temporal%20por%20circunstancias%20excepcionales.%20Arraigo%20extraordinario%20%28DA21%C2%BA%29.pdf/6b182e8e-6626-067c-9d17-412ecf037035?version=1.1&download=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-bleu hover:underline"
+          >
+            28 ter
+          </a>{" "}
+          del Ministerio de Inclusión exigen que los documentos de otros
+          países estén traducidos por un traductor jurado. Según la{" "}
+          <a
+            href="https://www.inclusion.gob.es/web/migraciones/w/61.-legalizacion-y-traduccion-de-documentos-para-la-tramitacion-de-procedimientos-en-materia-de-extranjeria-e-inmigracion"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-bleu hover:underline"
+          >
+            hoja informativa 61
+          </a>
+          , al castellano la traducción la hace un traductor jurado nombrado
+          por el Ministerio de Asuntos Exteriores, Unión Europea y
+          Cooperación, y a la lengua cooficial, uno habilitado por la
+          comunidad autónoma correspondiente.
         </p>
       </section>
 
@@ -280,22 +323,29 @@ export default function Regularizacion2026Page() {
         </p>
         <ol className="list-decimal space-y-2 pl-5">
           <li>
-            <strong>Validez corta.</strong> La administración exige que tenga
-            menos de 3 meses desde su emisión.
+            <strong>La validez la fija el país emisor.</strong> El RD
+            316/2026 no fija la validez del certificado. Según el
+            Ministerio de Inclusión, la validez es la que le da el país
+            emisor, y esta varía: compruébala en el propio certificado y en
+            tu requerimiento.
           </li>
           <li>
             <strong>Apostilla previa.</strong> Para países firmantes del Convenio
             de La Haya hay que apostillar antes de traducir.
           </li>
           <li>
-            <strong>Lookback de 5 años.</strong> Si has residido en varios
-            países en los últimos 5 años, necesitas un certificado de cada uno.
+            <strong>Lookback de 5 años.</strong> Si en los 5 años anteriores
+            a tu entrada en España residiste en varios países, necesitas un
+            certificado de cada uno.
           </li>
         </ol>
         <p>
-          Por eso recomendamos coordinar la apostilla y la traducción jurada
-          cuando ya tengas la cita confirmada o el expediente en marcha. Si los
-          tradujiste demasiado pronto y caducan, hay que repetir todo el ciclo.
+          Por eso recomendamos apostillar o legalizar en cuanto tengas el
+          certificado, y encargar la traducción jurada ese mismo día si te
+          llega un requerimiento de subsanación: el plazo es de 15 días como
+          máximo (apartado 6 de la DA 20ª y de la DA 21ª). Si el
+          requerimiento te pide un certificado más reciente, habrá que
+          pedirlo, apostillarlo y traducirlo de nuevo.
         </p>
       </section>
 
@@ -450,8 +500,8 @@ export default function Regularizacion2026Page() {
         <p className="mt-1 text-encre">
           Adjunta el certificado de antecedentes penales (apostillado o no), el
           acta de nacimiento y cualquier otro documento del país de origen. Te
-          respondemos con un precio cerrado y un plazo de entrega realista
-          adaptado a tu cita en Extranjería.
+          respondemos con un precio cerrado y un plazo de entrega realista para
+          responder a tu requerimiento de subsanación.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
@@ -501,8 +551,18 @@ export default function Regularizacion2026Page() {
           se basa en la lectura del Real Decreto 316/2026 (BOE-A-2026-8284) y
           del Reglamento de Extranjería (RD 1155/2024). No constituye
           asesoramiento jurídico. Para la tramitación del expediente,
-          recomendamos consultar con un abogado de extranjería o con su
-          Subdelegación del Gobierno. La información sobre plazos, validez de
+          recomendamos consultar con un abogado de extranjería o a través
+          del{" "}
+          <a
+            href="https://www.inclusion.gob.es/formulario-consultas-regularizacion-extraordinaria-2026"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-bleu hover:underline"
+          >
+            formulario de consultas del Ministerio de Inclusión
+          </a>
+          . La
+          información sobre plazos, validez de
           documentos y vías de regularización puede ser modificada por
           instrucciones de la Secretaría de Estado de Migraciones; verifica
           siempre la última versión antes de presentar la solicitud.

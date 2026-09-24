@@ -229,8 +229,8 @@ export default function RegularizacionMarruecosPage() {
             la foto legible del documento original (con apostilla).
           </li>
           <li>
-            Te confirmamos precio cerrado y plazo de entrega adaptado a tu cita
-            en Extranjería.
+            Te confirmamos precio cerrado y plazo de entrega adaptado a tu
+            requerimiento de subsanación.
           </li>
           <li>
             Traducimos al español, incluyendo apostilla y sellos. Firma
@@ -301,8 +301,8 @@ export default function RegularizacionMarruecosPage() {
         <p className="mt-1 text-encre">
           Adjunta el bulletin nº 3, el acta de nacimiento y cualquier otro
           documento marroquí. Te respondemos con un presupuesto cerrado y un
-          plazo realista para que llegues a tu cita en Extranjería con todo
-          listo.
+          plazo realista para responder a tu requerimiento de subsanación con
+          todo listo.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link

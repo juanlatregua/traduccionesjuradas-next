@@ -29,7 +29,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto tarda la legalización consular para documentos de Mali?",
     answer:
-      "La legalización en cadena (Affaires Étrangères en Bamako + Embajada de España) suele tardar varias semanas dependiendo de la disponibilidad de citas. Si tu cita en Extranjería es próxima, planifica con margen.",
+      "La legalización en cadena (Affaires Étrangères en Bamako + Embajada de España) suele tardar varias semanas, más que el plazo de 15 días como máximo que da el requerimiento: si aún no tienes el documento legalizado, pide ya la legalización y consulta con un abogado de extranjería.",
   },
   {
     question: "¿Cuánto cuesta la traducción jurada de mis documentos malienses?",
@@ -269,8 +269,8 @@ export default function RegularizacionMaliPage() {
         <p className="mt-1 text-encre">
           Adjunta el casier judiciaire, el extrait d&apos;acte de naissance y
           cualquier otro documento ya legalizado consularmente. Te respondemos
-          con un presupuesto cerrado y plazo realista para tu cita en
-          Extranjería.
+          con un presupuesto cerrado y plazo realista para responder a tu
+          requerimiento de subsanación.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
