@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { findLiveLavoriDuplicate, liveDuplicateMessage } from "@/lib/lavori-dup-guard";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getDocumentsFromOrder } from "@/lib/collaborators";
@@ -48,6 +49,7 @@ export async function POST(req: Request, { params }: Params) {
       select: {
         id: true,
         reference: true,
+        quoteId: true,
         langPair: true,
         words: true,
         amountCents: true,
@@ -99,6 +101,12 @@ export async function POST(req: Request, { params }: Params) {
         { ok: false, error: `El par "${order.langPair}" no tiene jurados en el tablón de lavori.` },
         { status: 400 }
       );
+    }
+    // Un encargo vivo con estos documentos (solicitud del presupuesto/expediente) → no se manda otro (Juan, 24-sep).
+    if (order.quoteId) {
+      const q = await prisma.quote.findUnique({ where: { id: order.quoteId }, select: { expedienteRef: true } });
+      const duplicado = await findLiveLavoriDuplicate({ par: route.par, quoteId: order.quoteId, expedienteRef: q?.expedienteRef ?? null });
+      if (duplicado) return NextResponse.json({ ok: false, error: liveDuplicateMessage(duplicado) }, { status: 409 });
     }
     const eleccion = resolveLavoriCandidatos(route, body?.candidatos, cartera!.miembros);
     if (!eleccion.ok) {

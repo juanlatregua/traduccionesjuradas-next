@@ -8,16 +8,17 @@
 // se reabre a todos los jurados de la lengua (escalateStaleDirectRequests,
 // cron). SOLO SERVIDOR (Prisma).
 
+import { getHolidaySetFromEnv } from "@/lib/eta";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { getLanguageName } from "@/lib/pricing-engine/languages";
-import { fetchLavoriCartera, isLavoriMemberAvailable, pickLavoriAuto } from "@/lib/lavori-bridge";
+import { retireLavoriEncargo, fetchLavoriCartera, isLavoriMemberAvailable, pickLavoriAuto } from "@/lib/lavori-bridge";
 import { docTypeLabelEs, leadFromPuertaSession, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { ANALYSIS_SELECT, createAutoQuote } from "@/lib/learned-rates";
 import { canAutoQuote } from "@/lib/learned-rates-math";
-import {
+import { workingHoursMadrid,
   DIRECT_AUTO_MAX_CENTS,
   DIRECT_FALLBACK_HOURS,
   DIRECT_MARGIN_PCT,
@@ -240,6 +241,7 @@ export type EscalateStaleDirectResult = {
   fallidas: number;
   atascadas: number;
   dosVivas: number;
+  avisadas?: number;
   detalle: Array<{ refVieja: string; refNueva: string | null; a: string[] | null; error?: string }>;
 };
 
@@ -332,10 +334,44 @@ export async function escalateStaleDirectRequests(now: Date = new Date()): Promi
   }
 
   const limite = new Date(now.getTime() - DIRECT_FALLBACK_HOURS * 60 * 60 * 1000);
-  const stale = await prisma.lavoriPriceRequest.findMany({
-    where: { createdBy: "puerta-directo", status: "SENT", createdAt: { lt: limite } },
+  const candidatasStale = await prisma.lavoriPriceRequest.findMany({
+    where: {
+      createdBy: "puerta-directo",
+      status: "SENT",
+      createdAt: { lt: limite },
+      OR: [{ notas: null }, { NOT: { notas: { startsWith: "avisada:" } } }],
+    },
+    orderBy: { createdAt: "asc" },
     take: MAX_ESCALACIONES_POR_EJECUCION,
   });
+  // Solo cuentan horas laborables de días hábiles: una solicitud de las 23:00 del
+  // viernes empieza a contar el lunes a las 08:00.
+  const festivos = getHolidaySetFromEnv();
+  const stale = candidatasStale.filter((l) => workingHoursMadrid(l.createdAt, now, festivos) >= DIRECT_FALLBACK_HOURS);
+
+  // Reabrir a otros jurados SIN retirar el encargo original duplicaba el trabajo
+  // (Gabriel 26_17203A, 23-sep: Cristina y Nielson con el mismo encargo). Mientras
+  // no se retire antes en lavori, NO se reabre: se avisa a Juan y decide él.
+  if (process.env.LAVORI_REABRIR_AUTO !== "on") {
+    let avisadas = 0;
+    for (const lpr of stale) {
+      const claim = await prisma.lavoriPriceRequest
+        .updateMany({
+          where: { id: lpr.id, createdBy: "puerta-directo", status: "SENT", OR: [{ notas: null }, { NOT: { notas: { startsWith: "avisada:" } } }] },
+          data: { notas: `avisada: sin precio en ${DIRECT_FALLBACK_HOURS} h laborables (${now.toISOString().slice(0, 16)}Z)` },
+        })
+        .catch(() => ({ count: 0 }));
+      if (claim.count === 0) continue;
+      avisadas++;
+      const enlace = `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?lead=${encodeURIComponent(lpr.ref)}`;
+      await avisarStaffIndividual(
+        `${lpr.ref} (${lpr.par}) lleva ${DIRECT_FALLBACK_HOURS} h laborables sin precio de los jurados directos. NO se ha reabierto a nadie (el encargo sigue vivo en lavori). Decide: esperar, insistir en lavori, o retirarlo en lavori y pedir precio a otros: ${enlace}`,
+        `⏱ ${lpr.ref} sin precio del directo — ¿esperar o reabrir?`,
+        `directo_sin_precio ${lpr.ref}`
+      );
+    }
+    return { ok: true, escaladas: 0, fallidas: 0, atascadas: atascadasResueltas, dosVivas: 0, avisadas, detalle: [] };
+  }
 
   const detalle: EscalateStaleDirectResult["detalle"] = [];
   let fallidas = 0;
@@ -357,8 +393,9 @@ export async function escalateStaleDirectRequests(now: Date = new Date()): Promi
 
     const marcarFallida = async (error: string) => {
       fallidas++;
+      // Solo si sigue viva en SENT: una ya retirada en lavori no se resucita.
       await prisma.lavoriPriceRequest
-        .update({ where: { id: lpr.id }, data: { createdBy: "puerta-directo:escalado_fallido", status: "SENT" } })
+        .updateMany({ where: { id: lpr.id, status: "SENT" }, data: { createdBy: "puerta-directo:escalado_fallido" } })
         .catch((err) => console.error("[lavori-directo] marcar fallida fallo:", err));
       detalle.push({ refVieja: lpr.ref, refNueva: null, a: null, error });
       await avisarStaffIndividual(
@@ -385,6 +422,27 @@ export async function escalateStaleDirectRequests(now: Date = new Date()): Promi
         await marcarFallida("sin jurados de respaldo en la cartera");
         continue;
       }
+      // Reabrir SOLO tras retirar el encargo original en lavori (si alguien ya lo
+      // tiene, 409 ya_adjudicado → no se reabre). La original queda RETIRED.
+      const ret = await retireLavoriEncargo(`${lpr.ref}-precio`, "reasignado");
+      if (!ret.ok) {
+        await marcarFallida(`el original no se retiró en lavori (${ret.error}); no se reabre`);
+        continue;
+      }
+      const cerrada = await prisma.lavoriPriceRequest.updateMany({
+        where: { id: lpr.id, status: "SENT", createdBy: "puerta-directo:escalando" },
+        data: { status: "RETIRED", notas: "retirada para reabrir", createdBy: "puerta-directo:escalado_fallido" },
+      });
+      if (cerrada.count === 0) {
+        // Cotizó o la retiró staff mientras se reabría: el encargo YA está retirado
+        // en lavori; no se reabre a nadie más.
+        await avisarStaffIndividual(
+          `${lpr.ref} cambió mientras se reabría (llegó un precio o la retiraste tú). Su encargo YA está retirado en lavori y no se ha reabierto a nadie: decide tú.`,
+          `⚠ ${lpr.ref}: cambió mientras se reabría`,
+          `directo_carrera_reabrir ${lpr.ref}`
+        );
+        continue;
+      }
       const nueva = await sendLeadPriceRequest({
         docs: lead.docs,
         sourceLang: lead.sourceLang,
@@ -396,17 +454,19 @@ export async function escalateStaleDirectRequests(now: Date = new Date()): Promi
         createdBy: "directo-escalado",
       });
       if (!nueva.ok) {
-        await marcarFallida(nueva.error);
+        fallidas++;
+        detalle.push({ refVieja: lpr.ref, refNueva: null, a: null, error: nueva.error });
+        await avisarStaffIndividual(
+          `${lpr.ref} se retiró en lavori pero no se pudo reabrir a otros (${nueva.error}). Pide precio a mano en el builder.`,
+          `⚠ ${lpr.ref} retirada sin reabrir`,
+          `directo_retirada_sin_reabrir ${lpr.ref}`
+        );
         continue;
       }
-      // ALTA 2(a) + ALTA 2(c) (Juan, 15-sep-2026): status ESCALATED (terminal,
-      // fuera de LEAD_LIVE_STATUSES y LEAD_PAIRABLE_STATUSES) + la ref nueva en
-      // notas, pero SOLO si sigue en SENT: si el directo cotizó justo mientras
-      // se reabría, el receptor ya la movió a PRICED con una cifra real — no se
-      // pisa nada, hay dos solicitudes vivas y decide staff.
+      // La original ya está RETIRED (retirada en lavori): solo se anota la ref nueva.
       const finalizar = await prisma.lavoriPriceRequest.updateMany({
-        where: { id: lpr.id, status: "SENT" },
-        data: { createdBy: "puerta-directo:escalado", status: "ESCALATED", notas: `reabierta:${nueva.ref}` },
+        where: { id: lpr.id, status: "RETIRED" },
+        data: { createdBy: "puerta-directo:escalado", notas: `reabierta:${nueva.ref}` },
       });
       if (finalizar.count === 0) {
         dosVivas++;

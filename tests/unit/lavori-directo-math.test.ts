@@ -215,7 +215,7 @@ test("un precio_propuesto o encargo_aceptado sobre una solicitud DESCARTADA no l
   const src = await readFile(new URL("../../app/api/lavori/eventos/route.ts", import.meta.url), "utf8");
   assert.match(
     src,
-    /lead\.status === "DISCARDED" && \(evento === "precio_propuesto" \|\| evento === "encargo_aceptado"\)/,
+    /\(lead\.status === "DISCARDED" \|\| lead\.status === "RETIRED" \|\| lead\.status === "RETIRING"\) && \(evento === "precio_propuesto" \|\| evento === "encargo_aceptado"\)/,
     "guardia terminal para DISCARDED, igual que ESCALATED"
   );
 });
@@ -229,4 +229,19 @@ test("la solicitud directa de PT va solo a Cristina y María Carmen (Juan Amor e
   assert.doesNotMatch(pt, /rk1x2kq63rm6ba6mco7c6u2k/);
   const puerta = await readFile(new URL("../../app/api/puerta/request-quote/route.ts", import.meta.url), "utf8");
   assert.match(puerta, /candidatos: directos\.map\(\(d\) => d\.miembroId\)/);
+});
+
+test("workingHoursMadrid: la ventana del carril directo no cuenta la noche (Gabriel, 23-sep)", async () => {
+  const { workingHoursMadrid } = await import("../../lib/lavori-directo-math.ts");
+  // 22-sep 23:40 UTC (01:40 Madrid) → 23-sep 06:30 UTC (08:30 Madrid): solo media hora laborable.
+  assert.equal(workingHoursMadrid(new Date("2026-09-22T23:40:00Z"), new Date("2026-09-23T06:30:00Z")), 0.5);
+  // 08:00 → 14:00 de Madrid (verano, UTC+2): 6 h laborables.
+  assert.equal(workingHoursMadrid(new Date("2026-09-23T06:00:00Z"), new Date("2026-09-23T12:00:00Z")), 6);
+  // De las 20:00 a las 09:00 del día siguiente: 1 h (20-21) + 1 h (08-09).
+  assert.equal(workingHoursMadrid(new Date("2026-09-23T18:00:00Z"), new Date("2026-09-24T07:00:00Z")), 2);
+  assert.equal(workingHoursMadrid(new Date("2026-09-24T07:00:00Z"), new Date("2026-09-23T07:00:00Z")), 0);
+  // Viernes 25-sep 17:00 Madrid → lunes 28-sep 12:00 Madrid: 4 h el viernes + 4 h el lunes (el fin de semana no cuenta).
+  assert.equal(workingHoursMadrid(new Date("2026-09-25T15:00:00Z"), new Date("2026-09-28T10:00:00Z")), 8);
+  // Un festivo tampoco cuenta.
+  assert.equal(workingHoursMadrid(new Date("2026-10-12T06:00:00Z"), new Date("2026-10-12T12:00:00Z"), new Set(["2026-10-12"])), 0);
 });

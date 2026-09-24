@@ -113,11 +113,11 @@ export async function GET(req: Request) {
   const paradas = await prisma.lavoriPriceRequest.findMany({
     where: {
       status: "SENT",
-      // "directo-escalado" también entra (Juan, 15-sep-2026): sin cifra 24h
-      // después de reabrirse a todos los de la lengua, el cliente lleva
-      // demasiado esperando. "puerta-directo" NO entra: la reapertura a las
-      // 6 h ya lo cubre (escalateStaleDirectRequests).
-      createdBy: { in: ["puerta-auto", "one-tap", "directo-escalado"] },
+      // "directo-escalado" también entra (Juan, 15-sep-2026). Y "puerta-directo"
+      // desde el 24-sep: ya no se reabre sola a las 6 h, así que el cliente
+      // necesita el mismo mensaje de seguimiento a las 24 h.
+      createdBy: { in: ["puerta-auto", "one-tap", "directo-escalado", "puerta-directo"] },
+      quoteId: null, // con presupuesto atado el cliente ya tiene su precio: nada de «aún no tenemos la cifra»
       createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000), gt: new Date(now.getTime() - 72 * 60 * 60 * 1000) },
     },
     orderBy: { createdAt: "asc" },

@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { findLiveLavoriDuplicate, liveDuplicateMessage } from "@/lib/lavori-dup-guard";
 import { prisma } from "@/lib/prisma";
 import { addBusinessDays, getHolidaySetFromEnv, getMadridBusinessBaseDate } from "@/lib/eta";
 import {
@@ -535,6 +536,31 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     }
   }
 
+  // Otro encargo vivo del mismo expediente (p. ej. reabierto sin retirar): no se
+  // acepta solo al pagar — dos jurados con el mismo trabajo (Gabriel, 23-sep).
+  if (lprId) {
+    const lprAuto = await prisma.lavoriPriceRequest.findUnique({
+      where: { id: lprId },
+      select: { ref: true, par: true, expedienteRef: true, contentKey: true },
+    });
+    const dup = lprAuto
+      ? await findLiveLavoriDuplicate({ par: lprAuto.par, expedienteRef: lprAuto.expedienteRef, contentKey: lprAuto.contentKey, excludeRef: lprAuto.ref })
+      : null;
+    if (dup) {
+      const motivo = liveDuplicateMessage(dup);
+      await prisma.orderEvent.create({
+        data: { orderId: order.id, type: "lavori.aceptacion_frenada", message: `lavori: pago sin aceptación automática — ${motivo}`, payload: { ref, precioCents, lprId } },
+      });
+      await staffMailLines(`⚠ ${reference} pagado: NO se acepta solo, hay otro encargo vivo`, [
+        `El pedido ${reference} está pagado y la solicitud ${lprAuto?.ref} tiene cifra, pero ${motivo}`,
+        `Decide tú a quién se le da y retira el otro en lavori: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+      ]);
+      const { sendStaffAlertSMS } = await import("@/lib/sms");
+      await sendStaffAlertSMS(`${reference}: pagado, NO aceptado solo — hay otro encargo vivo (${dup.ref})`, `aceptacion_frenada ${reference}`).catch(() => {});
+      return { handled: true, changed: false };
+    }
+  }
+
   const result = await deliverPrecioAceptado({
     orderId: order.id,
     reference,
@@ -837,6 +863,13 @@ async function routeOrderToLavori(opts: {
     const docs = getDocumentsFromOrder(order);
     if (docs.length === 0) {
       return await fallbackToStaff("el pedido no tiene documentos enlazados");
+    }
+    // Un encargo vivo con estos documentos (solicitud del presupuesto o del
+    // expediente, también reabierta sin retirar) → no se abre otro (Juan, 24-sep).
+    if (order.quoteId) {
+      const q = await prisma.quote.findUnique({ where: { id: order.quoteId }, select: { expedienteRef: true } });
+      const duplicado = await findLiveLavoriDuplicate({ par: route.par, quoteId: order.quoteId, expedienteRef: q?.expedienteRef ?? null });
+      if (duplicado) return await fallbackToStaff(liveDuplicateMessage(duplicado));
     }
     // Carril contra la cartera VIVA antes de empaquetar nada (lavori rechaza 400
     // "candidatos sin alta" — 26_84BFC2 y 26_AE5394, sep-2026).

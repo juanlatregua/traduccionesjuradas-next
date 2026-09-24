@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
 import DiscardLavoriLeadButton from "@/components/DiscardLavoriLeadButton";
+import RetireLavoriLeadButton from "@/components/RetireLavoriLeadButton";
+import { LIVE_WINDOW_DAYS } from "@/lib/lavori-dup-guard";
 import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber, QUOTE_STATUS_LABELS, type QuoteStatus } from "@/lib/quotes";
@@ -96,6 +98,21 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 20,
   });
+
+  // Encargos vivos en lavori que ya no salen arriba (con presupuesto, aceptados o
+  // reabiertos sin retirar): aquí está su salida, «Retirar en lavori» (24-sep).
+  const lavoriVivos = (
+    await prisma.lavoriPriceRequest.findMany({
+      where: {
+        encargoId: { not: null },
+        OR: [{ status: { in: ["ACCEPTED", "ESCALATED"] } }, { status: { in: ["SENT", "PRICED"] }, quoteId: { not: null } }],
+        // Misma ventana que el freno (lib/lavori-dup-guard.ts): todo lo que frena se ve aquí.
+        createdAt: { gte: new Date(Date.now() - LIVE_WINDOW_DAYS * 24 * 3_600_000) },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    })
+  ).sort((a, b) => Number(b.status === "ESCALATED") - Number(a.status === "ESCALATED"));
 
   const invoiceQuoteWhere: any = { docKind: "quote" };
   if (q) {
@@ -229,6 +246,31 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
               })}
             </div>
           </section>
+        )}
+
+        {lavoriVivos.length > 0 && (
+          <details className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-rose-300">
+              Encargos vivos en lavori con presupuesto, aceptados o reabiertos ({lavoriVivos.length})
+            </summary>
+            <p className="mt-2 text-xs text-slate-500">Si uno sobra (duplicado, cliente perdido, otro jurado), retíralo aquí: lavori lo cancela sin avisar a nadie. Si un jurado ya lo tiene, te dice quién.</p>
+            <div className="mt-3 space-y-2">
+              {lavoriVivos.map((lead) => (
+                <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                  <div className="min-w-0 text-sm">
+                    <span className="font-mono font-semibold text-cyan-300">{lead.ref}</span>{" "}
+                    <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs font-semibold text-slate-200">{lead.par}</span>{" "}
+                    <span className="text-xs font-semibold text-amber-300">
+                      {lead.status === "ESCALATED" ? "reabierta sin retirar" : lead.status === "ACCEPTED" ? `aceptada${lead.miembroNombre ? ` · ${lead.miembroNombre}` : ""}` : lead.status === "PRICED" ? `con precio${lead.miembroNombre ? ` · ${lead.miembroNombre}` : ""}` : "esperando precio"}
+                      {lead.quoteId ? " · con presupuesto" : ""}
+                    </span>
+                    <div className="text-xs text-slate-400">{lead.customerHint || "(cliente sin identificar)"} · {formatDate(lead.createdAt)}</div>
+                  </div>
+                  <RetireLavoriLeadButton id={lead.id} leadRef={lead.ref} />
+                </div>
+              ))}
+            </div>
+          </details>
         )}
 
         {quotes.length === 0 ? (

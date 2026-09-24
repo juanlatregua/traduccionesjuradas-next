@@ -958,11 +958,13 @@ model LavoriPriceRequest {
   // presupuesto, el emisor precio_aceptado localiza la solicitud por aquí (con
   // fallback por expedienteRef) y comunica al encargo existente en lavori.
   quoteId       String?
+  contentKey    String?   // huella documentos+par: un cliente nunca tiene dos encargos vivos con lo mismo (Juan, 24-sep)
   createdBy     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([quoteId])
+  @@index([contentKey])
   @@index([expedienteRef])
 }
 

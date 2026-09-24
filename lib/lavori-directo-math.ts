@@ -10,7 +10,26 @@ export { DOC_FLOOR_CENTS, roundUp50, canAutoQuote };
 
 export const DIRECT_MARGIN_PCT = 20;
 export const DIRECT_AUTO_MAX_CENTS = 30000; // 300 € netos, tope del carril directo
-export const DIRECT_FALLBACK_HOURS = 6;
+export const DIRECT_FALLBACK_HOURS = 6; // horas LABORABLES (08-21 Madrid), ver workingHoursMadrid
+
+/** Horas laborables (08:00-21:00 Europe/Madrid) entre dos instantes, en cuartos
+ * de hora (días hábiles). La ventana del carril directo no cuenta la noche ni el fin de semana: Gabriel (23-sep)
+ * se publicó a la 01:40 y se reabrió a las 08:30 sin que nadie pudiera verla. */
+export function workingHoursMadrid(from: Date, to: Date, holidays: Set<string> = new Set()): number {
+  const end = to.getTime();
+  let t = Math.max(from.getTime(), end - 14 * 24 * 3_600_000);
+  if (t >= end) return 0;
+  // Hora, día de la semana y fecha en Madrid: sábados, domingos y festivos no cuentan.
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", hour: "2-digit", hour12: false, weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" });
+  let quarters = 0;
+  for (; t < end; t += 15 * 60 * 1000) {
+    const p = Object.fromEntries(fmt.formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+    const h = Number(p.hour) % 24;
+    if (p.weekday === "Sat" || p.weekday === "Sun" || holidays.has(`${p.year}-${p.month}-${p.day}`)) continue;
+    if (h >= 8 && h < 21) quarters++;
+  }
+  return quarters / 4;
+}
 
 export type PriceBasis = "base" | "payable_iva_irpf";
 

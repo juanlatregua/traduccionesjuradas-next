@@ -762,3 +762,40 @@ export async function sendLavoriSolicitud(payload: SolicitudPayload): Promise<So
     return { ok: false, error: err?.message || "fallo de red hacia lavori" };
   }
 }
+
+// Retirada de un encargo (POST /api/motor/retirada, lavori a16e97b, 24-sep-2026).
+// 200 retirado:true|false → ya no está vivo en lavori; 409 ya_adjudicado → alguien lo
+// tiene y NO se retira. Cualquier otra respuesta o un timeout: no consta retirado.
+const LAVORI_RETIRADA_ENDPOINT = LAVORI_ENDPOINT.replace(/\/solicitudes$/, "/retirada");
+
+export type LavoriRetiradaResult =
+  | { ok: true; retirado: boolean; estado: string | null }
+  | { ok: false; adjudicado?: { nombre: string | null; desde: string | null; estado: string | null }; error: string };
+
+export async function retireLavoriEncargo(
+  motorRef: string,
+  motivo: "reasignado" | "duplicado" | "cliente" | "otro" = "otro"
+): Promise<LavoriRetiradaResult> {
+  const secret = process.env.MOTOR_LAVORI_SECRET;
+  if (!secret) return { ok: false, error: "MOTOR_LAVORI_SECRET no configurado en el motor." };
+  try {
+    const res = await fetch(LAVORI_RETIRADA_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ motorRef, motivo }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const data = (await res.json().catch(() => null)) as any;
+    if (res.status === 200 && data?.ok) return { ok: true, retirado: Boolean(data.retirado), estado: data.estado ?? null };
+    if (res.status === 409 && data?.error === "ya_adjudicado") {
+      return {
+        ok: false,
+        adjudicado: { nombre: data.nombre ?? null, desde: data.desde ?? null, estado: data.estado ?? null },
+        error: `ya lo tiene ${data.nombre || "un jurado"} en lavori (${data.estado || "adjudicado"})`,
+      };
+    }
+    return { ok: false, error: data?.error || `lavori respondió ${res.status}` };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "fallo de red hacia lavori" };
+  }
+}

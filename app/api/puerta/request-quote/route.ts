@@ -234,7 +234,7 @@ export async function POST(req: Request) {
           esDirecto = true;
           lavoriSent = { lang: leadLang!, langName: getLanguageName(leadLang!) };
           const nombres = directos.map((d) => d.nombre).join(", ");
-          lavoriEmail = `✓ Solicitud DIRECTA a ${nombres} (ref ${directoReq.ref}). Con la primera cifra y plazo se monta el BORRADOR (+20 %, suelo 40 €/doc) y te aviso; no sale solo al cliente. Si en 6 h nadie cotiza, se reabre a todos los de la lengua.`;
+          lavoriEmail = `✓ Solicitud DIRECTA a ${nombres} (ref ${directoReq.ref}). Con la primera cifra y plazo se monta el BORRADOR (+20 %, suelo 40 €/doc) y te aviso; no sale solo al cliente. Si en 6 h laborables nadie cotiza, te aviso para que decidas (no se reabre sola).`;
           lavoriSms = `✓ Directa a ${nombres} (lavori)`;
         }
       }

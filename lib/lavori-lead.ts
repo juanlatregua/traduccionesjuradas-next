@@ -5,6 +5,7 @@
 // Regla madre: al payload no viaja PII del lead (ni nombre ni teléfono ni email);
 // customerHint se queda en NUESTRA base para que el staff sepa de quién era.
 // SOLO SERVIDOR (node:crypto, Blob, Prisma).
+import { findLiveLavoriDuplicate, lavoriContentKey, liveDuplicateMessage } from "@/lib/lavori-dup-guard";
 import { createHash } from "node:crypto";
 import { leadDocKeys } from "@/lib/lavori-doc-keys";
 import { clientIdentityKeys } from "@/lib/client-identity";
@@ -183,7 +184,7 @@ export type LeadRequestInput = {
 
 export type LeadRequestResult =
   | { ok: true; ref: string; encargoId: string | null; repetido: boolean; candidatos: string[]; par: string; nombres: string[]; respaldo?: string | null }
-  | { ok: false; status: 400 | 502; error: string };
+  | { ok: false; status: 400 | 409 | 502; error: string };
 
 /** Crea (o reutiliza, idempotente por contenido) la solicitud de precio en lavori
  * y la fila LavoriPriceRequest. NO acusa al cliente: eso lo decide quien llama. */
@@ -249,12 +250,24 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   }
   const docKeys = leadDocKeys(docs);
   const refSeed = `${docKeys}|${route.par}${eleccion.elegidos ? `|${[...candidatos].sort().join(",")}` : ""}`;
-  const ref = `LEAD-${createHash("sha256").update(refSeed).digest("hex").slice(0, 10).toUpperCase()}`;
-
-  const previo = await prisma.lavoriPriceRequest.findUnique({ where: { ref } });
+  // Una solicitud retirada o descartada ya no vive en lavori: volver a pedir lo
+  // mismo es una solicitud NUEVA (ref con sufijo de ronda), no un «repetido» mudo.
+  let ref = "";
+  let previo: Awaited<ReturnType<typeof prisma.lavoriPriceRequest.findUnique>> = null;
+  for (let ronda = 0; ronda < 20; ronda++) {
+    ref = `LEAD-${createHash("sha256").update(ronda === 0 ? refSeed : `${refSeed}|r${ronda}`).digest("hex").slice(0, 10).toUpperCase()}`;
+    previo = await prisma.lavoriPriceRequest.findUnique({ where: { ref } });
+    if (!previo || !["DISCARDED", "RETIRED"].includes(previo.status)) break;
+  }
   if (previo) {
     return { ok: true, repetido: true, ref, encargoId: previo.encargoId, candidatos: previo.candidatos, par: previo.par, nombres, respaldo };
   }
+
+  // Mismos documentos (o misma sesión) y mismo par con OTRO encargo vivo: no se
+  // manda otro, sea cual sea el carril o los candidatos (Juan, 24-sep-2026).
+  const contentKey = lavoriContentKey(docKeys, route.par);
+  const duplicado = await findLiveLavoriDuplicate({ par: route.par, contentKey, expedienteRef: input.expedienteRef ?? null });
+  if (duplicado) return { ok: false, status: 409, error: liveDuplicateMessage(duplicado) };
 
   const documentos: BridgeDoc[] = [];
   for (const [i, doc] of docs.entries()) {
@@ -292,6 +305,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
         words,
         encargoId: result.encargoId,
         createdBy: input.createdBy ?? null,
+        contentKey,
       },
     })
     .catch((err: any) => {

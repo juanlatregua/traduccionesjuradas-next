@@ -1,12 +1,12 @@
 // app/api/lavori/price-requests/[id]/discard/route.ts — STAFF: descarta una
 // solicitud de precio de lavori sin presupuesto (SENT o PRICED, quoteId null)
 // desde la carpeta de presupuestos. Cierra el carril en tj.net con motivo,
-// quién y cuándo en `notas`; el encargo en lavori lo retira Juan a mano — este
-// endpoint no avisa a nadie ni llama a lavori (Juan, 21-sep-2026).
+// quién y cuándo en `notas`, y retira el encargo en lavori (/api/motor/retirada, 24-sep).
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { isDiscardableLeadStatus } from "@/lib/lavori-directo-math";
+import { retireLeadRequest } from "@/lib/lavori-retire";
 
 export const runtime = "nodejs";
 
@@ -40,22 +40,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     );
   }
 
-  const sello = `Descartada por ${access.email} el ${new Date().toISOString()}: ${motivo}`;
-  const notas = [current.notas, sello].filter(Boolean).join("\n");
-
-  // Claim atómico: si en el ínterin llegó un presupuesto o cambió de estado
-  // (p.ej. un precio_propuesto que la movió de SENT a PRICED), el WHERE no
-  // encuentra fila y no se descarta nada por sorpresa.
-  const claim = await prisma.lavoriPriceRequest.updateMany({
-    where: { id: params.id, quoteId: null, status: { in: ["SENT", "PRICED"] } },
-    data: { status: "DISCARDED", notas },
+  // Descartar RETIRA antes el encargo en lavori (24-sep-2026): si alguien ya lo
+  // tiene allí, no se descarta; si lavori no responde, tampoco (no consta retirado).
+  const r = await retireLeadRequest({
+    id: params.id,
+    actorEmail: access.email,
+    motivo,
+    terminal: "DISCARDED",
+    lavoriMotivo: "otro",
+    allowedStatuses: ["SENT", "PRICED"],
+    requireNoQuote: true,
   });
-  if (claim.count === 0) {
-    return NextResponse.json(
-      { ok: false, error: "Ya no se puede descartar: tiene presupuesto o cambió de estado mientras tanto." },
-      { status: 409 }
-    );
-  }
-
-  return NextResponse.json({ ok: true, ref: current.ref });
+  if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: r.status });
+  return NextResponse.json({ ok: true, ref: r.ref, retiradoEnLavori: r.retiradoEnLavori });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { findLiveLavoriDuplicate, liveDuplicateMessage } from "@/lib/lavori-dup-guard";
 import { timingSafeEqual } from "node:crypto";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
@@ -73,7 +74,7 @@ export async function POST(req: Request) {
 
   // Las solicitudes de precio viajan con ref "<referencia>-precio".
   const reference = motorRef.replace(/-precio$/, "");
-  const orderSelect = { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true } as const;
+  const orderSelect = { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true, quoteId: true } as const;
   let order = await prisma.order.findUnique({ where: { reference }, select: orderSelect });
   if (!order) {
     // Solicitud de precio de un LEAD (WhatsApp, sin pedido): ancla propia.
@@ -81,7 +82,10 @@ export async function POST(req: Request) {
     // Ref de LEAD cuyo presupuesto ya se convirtió en pedido (caso Ofir 26_308488,
     // 26-ago): el encargo de lavori nació con la ref del lead, pero la entrega y la
     // aceptación tienen que caer en el pedido real, no en un email "gestionar a mano".
-    if (lead?.quoteId) {
+    // Un precio o una aceptación sobre una solicitud ya cerrada (reabierta, descartada o
+    // retirada) nunca llega al pedido: solo aviso (handleLeadEvento, rama tardía).
+    const cerrada = lead && ["ESCALATED", "DISCARDED", "RETIRED", "RETIRING"].includes(lead.status) && (evento === "precio_propuesto" || evento === "encargo_aceptado");
+    if (lead?.quoteId && !cerrada) {
       order = await prisma.order.findFirst({ where: { quoteId: lead.quoteId }, orderBy: { createdAt: "desc" }, select: orderSelect });
     }
     if (!order) {
@@ -151,8 +155,32 @@ export async function POST(req: Request) {
       });
       // Francés = Juan (17-sep-2026): la cifra queda anotada, nunca se acepta sola.
       const esCasa = isCasaPair(order.langPair);
-      const autoAceptar =
+      const cabeEnModelo =
         !esCasa && order.paymentStatus === "PAID" && !yaAceptado && precioCents <= paraTiModeloCents;
+      // Nunca sola si el expediente tiene OTRO encargo vivo en lavori (Gabriel
+      // 26_17203A: se aceptó a Nielson con Cristina ya confirmada) o si quien
+      // propone no estaba entre los jurados a los que se pidió.
+      let bloqueoAuto: string | null = null;
+      if (cabeEnModelo) {
+        const leadRef = motorRef.replace(/-precio$/, "");
+        const leadAuto = leadRef.startsWith("LEAD-")
+          ? await prisma.lavoriPriceRequest.findUnique({
+              where: { ref: leadRef },
+              select: { ref: true, par: true, expedienteRef: true, contentKey: true, candidatos: true },
+            })
+          : null;
+        if (leadAuto) {
+          const dup = await findLiveLavoriDuplicate({ par: leadAuto.par, expedienteRef: leadAuto.expedienteRef, contentKey: leadAuto.contentKey, excludeRef: leadAuto.ref });
+          if (dup) bloqueoAuto = liveDuplicateMessage(dup);
+          else if (datos.miembroId && leadAuto.candidatos.length > 0 && !leadAuto.candidatos.includes(String(datos.miembroId)))
+            bloqueoAuto = `${miembro} no estaba entre los jurados a los que se pidió precio en ${leadAuto.ref}.`;
+        } else if (order.quoteId) {
+          // Encargo abierto desde el pedido: frena si el presupuesto tiene una solicitud viva.
+          const dup = await findLiveLavoriDuplicate({ quoteId: order.quoteId });
+          if (dup) bloqueoAuto = liveDuplicateMessage(dup);
+        }
+      }
+      const autoAceptar = cabeEnModelo && !bloqueoAuto;
 
       // Tarifario aprendido: el coste del jurado por tipo de documento entra en el bucle.
       await import("@/lib/learned-rates")
@@ -175,6 +203,8 @@ export async function POST(req: Request) {
         datos.notas ? `Notas: ${String(datos.notas)}` : "",
         esCasa
           ? `Francés: el pedido lo traduce Juan en tj.net — la cifra NO se acepta ni se asigna. Retira el encargo en lavori.`
+          : bloqueoAuto
+          ? `⚠ NO se acepta sola: ${bloqueoAuto} Decide tú antes de aceptar a nadie.`
           : autoAceptar
           ? `El pedido ya está pagado y la cifra cabe en el modelo (tope ${(paraTiModeloCents / 100).toFixed(2)} €): se acepta AUTOMÁTICAMENTE hacia lavori.`
           : order.paymentStatus === "PAID" && !yaAceptado
@@ -183,6 +213,12 @@ export async function POST(req: Request) {
         `Ficha: ${ficha}`,
       ].filter(Boolean));
 
+      if (bloqueoAuto) {
+        await prisma.orderEvent.create({
+          data: { orderId: order.id, type: "lavori.aceptacion_frenada", message: `lavori: precio de ${miembro} NO aceptado solo — ${bloqueoAuto}`, payload: { encargoId, motorRef, precioCents } },
+        });
+        await sendStaffAlertSMS(`${order.reference}: precio de ${miembro} NO aceptado solo — ${bloqueoAuto}`, `aceptacion_frenada ${order.reference}`).catch(() => {});
+      }
       if (autoAceptar) {
         const { deliverPrecioAceptado } = await import("@/lib/workflow-server");
         await deliverPrecioAceptado({
@@ -517,7 +553,7 @@ async function handleLeadEvento(opts: {
     // encargo_aceptado que llegue después NO la reabre ni le toca status ni
     // cifras; solo un aviso para que Juan decida (y retire el encargo en
     // lavori a mano si sigue vivo allí).
-    if (lead.status === "DISCARDED" && (evento === "precio_propuesto" || evento === "encargo_aceptado")) {
+    if ((lead.status === "DISCARDED" || lead.status === "RETIRED" || lead.status === "RETIRING") && (evento === "precio_propuesto" || evento === "encargo_aceptado")) {
       const miembroTardio = String(datos.miembroNombre || datos.miembroId || "el traductor");
       const detalleCifra =
         evento === "precio_propuesto"
@@ -527,7 +563,7 @@ async function handleLeadEvento(opts: {
               return precioCents != null ? ` Propuso ${(precioCents / 100).toFixed(2)} €${plazoDias ? ` (plazo ${plazoDias} días)` : ""}.` : "";
             })()
           : " Aceptó el encargo.";
-      const texto = `Respuesta de ${miembroTardio} sobre ${lead.ref}, que está DESCARTADA.${detalleCifra} No se ha tocado la solicitud — si el encargo sigue vivo en lavori, retíralo a mano: ${builderUrl}`;
+      const texto = `Respuesta de ${miembroTardio} sobre ${lead.ref}, que está ${lead.status === "RETIRED" ? "RETIRADA en lavori" : "DESCARTADA"}.${detalleCifra} No se ha tocado la solicitud: ${builderUrl}`;
       await Promise.all([
         staffMail(`⚠ Respuesta sobre solicitud descartada — ${lead.ref}`, [texto]),
         sendStaffAlertSMS(texto, `descartada_tardio ${lead.ref}`).catch(() => {}),
@@ -580,6 +616,7 @@ async function handleLeadEvento(opts: {
         : await prisma.lavoriPriceRequest.updateMany({
             where: {
               id: lead.id,
+              status: { in: ["SENT", "PRICED"] },
               ...(directo ? { OR: [{ priceCents: null }, ...(miembroIdEntrante ? [{ miembroId: miembroIdEntrante }] : [])] } : {}),
             },
             data: {
@@ -759,8 +796,8 @@ async function handleLeadEvento(opts: {
       return NextResponse.json({ ok: true, repetido: false, aceptacionCruzada: true }, { status: 201 });
     }
     if (evento === "encargo_aceptado") {
-      await prisma.lavoriPriceRequest.update({
-        where: { id: lead.id },
+      await prisma.lavoriPriceRequest.updateMany({
+        where: { id: lead.id, status: { in: ["SENT", "PRICED", "ACCEPTED"] } },
         data: {
           status: "ACCEPTED",
           encargoId,
