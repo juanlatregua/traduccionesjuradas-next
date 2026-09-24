@@ -31,7 +31,7 @@ import { ANALYSIS_SELECT, docInfoFromAnalysis, isLearnedRatesLive } from "@/lib/
 import { proposedCostCents, type CifraDoc, type PriceBasis } from "@/lib/lavori-directo-math";
 
 export const LEAD_BLOB_HOST_RE = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//;
-export const LEAD_MAX_DOCS = 10;
+export const LEAD_MAX_DOCS = 300; // = SOBRE_MAX_DOCS de lavori (fase 1 de ficheros grandes, 24-sep)
 
 export type LeadDoc = {
   url: string;
@@ -73,7 +73,13 @@ export async function packLeadDoc(doc: LeadDoc, index: number): Promise<BridgeDo
     return r.ok ? r.doc : null;
   }
 
-  const res = await fetch(doc.url, { signal: AbortSignal.timeout(30_000) });
+  // Recortar obliga a cargar el PDF en memoria: por encima de 60 MB se manda entero.
+  const head = await fetch(doc.url, { method: "HEAD", signal: AbortSignal.timeout(15_000) }).catch(() => null);
+  if (Number(head?.headers.get("content-length") || 0) > 60 * 1024 * 1024) {
+    const r = await checkDocForSobre({ url: doc.url, name: nombre, type: "application/pdf" });
+    return r.ok ? r.doc : null;
+  }
+  const res = await fetch(doc.url, { signal: AbortSignal.timeout(60_000) });
   if (!res.ok) return null;
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length === 0 || buf.length > SOBRE_MAX_FILE_BYTES) return null;
