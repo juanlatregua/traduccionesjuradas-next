@@ -3,9 +3,9 @@ import { del, list } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 
 const RETENTION_DAYS = 30;
-// Expedientes: los blobs suben ANTES de que el cliente pulse «Enviar». Si
-// abandona, no hay fila en DocumentAnalysis y nadie los borraría. 48 h de
-// margen para las subidas en curso.
+// Expedientes de clientes (carpeta expedientes-clientes/): suben ANTES de pulsar
+// «Enviar». Si el cliente abandona, no hay fila en DocumentAnalysis y nadie los
+// borraría. 48 h de margen para las subidas en curso.
 const ORPHAN_EXPEDIENTE_HOURS = 48;
 
 async function sweepOrphanExpedientes(): Promise<number> {
@@ -13,14 +13,22 @@ async function sweepOrphanExpedientes(): Promise<number> {
   let cursor: string | undefined;
   let deleted = 0;
   do {
-    const page = await list({ prefix: "expedientes/", cursor, limit: 1000 });
+    // SOLO la carpeta de las subidas públicas (ExpedientePublicIntake). expedientes/ la
+    // comparten el builder del staff y la bandeja, sin fila en DocumentAnalysis.
+    const page = await list({ prefix: "expedientes-clientes/", cursor, limit: 1000 });
     const old = page.blobs.filter((b) => new Date(b.uploadedAt).getTime() < cutoff).map((b) => b.url);
     if (old.length) {
-      const known = await prisma.documentAnalysis.findMany({
-        where: { fileUrl: { in: old } },
-        select: { fileUrl: true },
-      });
-      const keep = new Set(known.map((k) => k.fileUrl));
+      // Se conserva todo lo que esté en un análisis, un presupuesto o un pedido.
+      const [known, lines, items] = await Promise.all([
+        prisma.documentAnalysis.findMany({ where: { fileUrl: { in: old } }, select: { fileUrl: true } }),
+        prisma.quoteLine.findMany({ where: { sourceFileUrl: { in: old } }, select: { sourceFileUrl: true } }),
+        prisma.orderDocumentItem.findMany({ where: { fileUrl: { in: old } }, select: { fileUrl: true } }),
+      ]);
+      const keep = new Set<string>([
+        ...known.map((k) => k.fileUrl),
+        ...lines.map((l) => l.sourceFileUrl || ""),
+        ...items.map((i) => i.fileUrl || ""),
+      ]);
       const orphans = old.filter((u) => !keep.has(u));
       for (const url of orphans) {
         try {

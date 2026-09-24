@@ -85,7 +85,9 @@ export default function ExpedientePublicIntake({
     async (row: FileRow, file: File) => {
       try {
         const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
-        const blob = await upload(`expedientes/${Date.now()}-${safe}`, file, {
+        // Carpeta PROPIA de las subidas públicas: el barrido de abandonados solo toca esta
+        // (expedientes/ la comparten el builder del staff y la bandeja; 62 ficheros de presupuestos reales).
+        const blob = await upload(`expedientes-clientes/${Date.now()}-${safe}`, file, {
           access: "public",
           handleUploadUrl: "/api/documents/upload",
           // El consentimiento real, no un true fijo: sin casilla (o sin email)
