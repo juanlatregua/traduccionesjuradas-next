@@ -5,6 +5,7 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
+import HomeHero from "@/components/home/HomeHero";
 import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
 import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
@@ -30,8 +31,8 @@ export default function TraductionAssermenteePage() {
       <SchemaFAQ items={HOME_FAQ.fr} id="schema-faq-home-fr" />
       <SchemaHowTo id="schema-howto-home-fr" name={HOME_HOWTO.fr.name} description={HOME_HOWTO.fr.description} steps={HOME_HOWTO.fr.steps} />
 
-      {/* Home v2 "banque d'utilités" en français (mismo componente que el ES) */}
-      <HomeV2 lang="fr" />
+      {/* Home v2 "banque d'utilités" en français (mismo componente que el ES), con el hero nuevo */}
+      <HomeV2 lang="fr" hero={<HomeHero lang="fr" />} />
 
       {/* Cas fréquents — contenido FR-nativo (guías propias en /fr/*) */}
       <section className="bg-parchment py-14">

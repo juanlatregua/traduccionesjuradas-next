@@ -76,6 +76,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Documento no encontrado." }, { status: 404 });
     }
 
+    // Puerta en el servidor (Juan, 24-sep: «todo el gasto de cálculos lleva
+    // implícito que pongan su email como mínimo»): sin email en la fila no se
+    // llama a la IA. La pantalla sola no basta; register ya lo exige al crearla.
+    if (!isStaff && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(doc.clientEmail || ""))) {
+      return NextResponse.json({ ok: false, error: "Indica tu email antes de continuar." }, { status: 400 });
+    }
+
     // Rate limit por email: 10 análisis por email por día
     if (doc.clientEmail && !isStaff) {
       const rlEmail = await checkRateLimit({

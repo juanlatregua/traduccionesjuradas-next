@@ -12,10 +12,14 @@ import { createExpedienteRef, createExpedienteToken } from "@/lib/expediente-tok
 import { sendExpedienteReceiptEmail, sendExpedienteStaffEmail } from "@/lib/emails/expediente";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { normalizeDeclaredLang, isDeclaredPairValid } from "@/lib/puerta-languages";
 
 export const runtime = "nodejs";
 
 const MAX_DOCS = 300; // igual que ExpedientePublicIntake (antes 40: rechazaba al enviar lo que la página dejaba subir)
+
+// Misma lista blanca de orígenes que /api/documents/register.
+const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lector", "lavori", "precios", "whatsapp"]);
 
 function validEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -50,10 +54,17 @@ export async function POST(req: Request) {
   const notes = String(body?.notes || "").trim().slice(0, 1000) || null;
   const gdprConsent = Boolean(body?.gdprConsent);
   const documents: any[] = Array.isArray(body?.documents) ? body.documents : [];
+  // Par de idiomas declarado en la puerta (igual que el registro de un documento).
+  const sourceLanguage = normalizeDeclaredLang(body?.sourceLanguage);
+  const targetLanguage = normalizeDeclaredLang(body?.targetLanguage);
+  const source = typeof body?.source === "string" && KNOWN_SOURCES.has(body.source) ? body.source : null;
 
   if (!clientName) return NextResponse.json({ ok: false, error: "Indica tu nombre." }, { status: 400 });
   if (!validEmail(clientEmail)) return NextResponse.json({ ok: false, error: "Email no válido." }, { status: 400 });
   if (!gdprConsent) return NextResponse.json({ ok: false, error: "Debes aceptar el tratamiento de datos." }, { status: 400 });
+  if (!isDeclaredPairValid(sourceLanguage, targetLanguage)) {
+    return NextResponse.json({ ok: false, error: "Indica el idioma del documento y el idioma al que lo necesitas." }, { status: 400 });
+  }
   if (documents.length === 0) return NextResponse.json({ ok: false, error: "Sube al menos un documento." }, { status: 400 });
   if (documents.length > MAX_DOCS) {
     return NextResponse.json({ ok: false, error: `Máximo ${MAX_DOCS} documentos por expediente.` }, { status: 400 });
@@ -95,6 +106,9 @@ export async function POST(req: Request) {
         clientName,
         clientEmail,
         clientPhone,
+        sourceLanguage,
+        targetLanguage,
+        source,
         gdprConsent: true,
         gdprConsentAt: new Date(),
         status: "UPLOADED",

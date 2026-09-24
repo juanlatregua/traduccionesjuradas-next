@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireAdminPageAccess } from "@/lib/admin-page-access";
 import { AdminNav } from "@/components/AdminNav";
-import { FUNNEL_STAGES as STAGES, funnelForWindow, type StageKey } from "@/lib/funnel-digest";
+import { FUNNEL_STAGES as STAGES, funnelForWindow, type FunnelCounts } from "@/lib/funnel-digest";
 
 export const metadata: Metadata = {
   title: "Admin · Funnel",
@@ -18,7 +18,7 @@ function FunnelTable({
   data,
 }: {
   title: string;
-  data: Record<StageKey, number>;
+  data: FunnelCounts;
 }) {
   const base = data.analizado;
   const rows = STAGES.map((s, i) => ({
@@ -52,6 +52,12 @@ function FunnelTable({
               </td>
             </tr>
           ))}
+          <tr>
+            <td className="py-2 pr-4 text-slate-500">Expedientes recibidos (aparte, no cuentan arriba)</td>
+            <td className="py-2 pr-4 tabular-nums text-slate-700">{data.expedientes}</td>
+            <td className="py-2 pr-4 text-slate-400">—</td>
+            <td className="py-2 text-slate-400">—</td>
+          </tr>
         </tbody>
       </table>
     </section>

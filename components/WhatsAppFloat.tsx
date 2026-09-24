@@ -4,11 +4,14 @@ import { usePathname } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { buildPresupuestoWhatsAppLink, detectLangFromPathname } from "@/lib/contact";
 import { useUiLang } from "@/lib/i18n/use-ui-lang";
+import { NEW_HERO_HOME_PATHS } from "@/lib/i18n/home-hero";
 
 export default function WhatsAppFloat() {
   const pathname = usePathname();
-  const href = buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname), page: pathname });
   const aria = useUiLang() === "fr" ? "Nous contacter sur WhatsApp" : "Contactar por WhatsApp";
+  // Las portadas con hero nuevo ya llevan su propio botón/panel de WhatsApp.
+  if (NEW_HERO_HOME_PATHS.has(pathname || "")) return null;
+  const href = buildPresupuestoWhatsAppLink({ lang: detectLangFromPathname(pathname), page: pathname });
   return (
     <a
       href={href}

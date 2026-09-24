@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 import Link from "next/link";
 import PuertaClient from "./PuertaClient";
-import type { PuertaLang } from "@/lib/i18n/puerta";
+import { PUERTA_LANGS, WHATSAPP_HEAD, toPuertaLang } from "@/lib/i18n/whatsapp-arrival";
 
 // Presets de pricing activables por query param (?p=…). Solo regularización
 // aplica precio de campaña; el resto van al pricing-engine normal.
@@ -15,15 +15,8 @@ const PURPOSE_PRESETS: Record<string, string> = {
 const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lavori", "precios", "whatsapp"]);
 
 // Enlace que Juan manda por WhatsApp (?p=whatsapp&l=fr): cabecera corta en el
-// idioma del cliente y selector para cambiarlo; la puerta entera sigue ese idioma.
-const PUERTA_LANGS: PuertaLang[] = ["es", "fr", "en", "de", "pt"];
-const WHATSAPP_HEAD: Record<PuertaLang, { banner: string; title: string }> = {
-  es: { banner: "Vienes de WhatsApp: sube aquí tus documentos y te contestamos por WhatsApp con el precio.", title: "Sube tus documentos" },
-  fr: { banner: "Vous venez de WhatsApp : déposez ici vos documents et nous vous répondons sur WhatsApp avec le prix.", title: "Déposez vos documents" },
-  en: { banner: "You came from WhatsApp: upload your documents here and we'll reply on WhatsApp with the price.", title: "Upload your documents" },
-  de: { banner: "Sie kommen von WhatsApp: Laden Sie hier Ihre Dokumente hoch, wir antworten Ihnen per WhatsApp mit dem Preis.", title: "Laden Sie Ihre Dokumente hoch" },
-  pt: { banner: "Vem do WhatsApp: envie aqui os seus documentos e respondemos pelo WhatsApp com o preço.", title: "Envie os seus documentos" },
-};
+// idioma del cliente y selector para cambiarlo; la puerta entera sigue ese
+// idioma. Textos en lib/i18n/whatsapp-arrival.ts (los comparte con la portada).
 
 export const metadata: Metadata = {
   title: "Presupuesto de traducción jurada: al instante en francés, en el día en los demás idiomas",
@@ -52,8 +45,7 @@ export default function PresupuestoInstantaneoPage({
   const presetKey = searchParams?.p?.toLowerCase().trim();
   const purpose = (presetKey && PURPOSE_PRESETS[presetKey]) || null;
   const source = (presetKey && KNOWN_SOURCES.has(presetKey) && presetKey) || null;
-  const langParam = searchParams?.l?.toLowerCase().trim() as PuertaLang | undefined;
-  const lang: PuertaLang = langParam && PUERTA_LANGS.includes(langParam) ? langParam : "es";
+  const lang = toPuertaLang(searchParams?.l);
 
   if (source === "whatsapp") {
     const head = WHATSAPP_HEAD[lang];

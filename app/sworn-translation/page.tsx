@@ -6,6 +6,7 @@ import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
+import HomeHero from "@/components/home/HomeHero";
 import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
 import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
@@ -29,7 +30,7 @@ export default function SwornTranslationPage() {
       <SchemaPerson id="schema-person-home-en" />
       <SchemaFAQ items={HOME_FAQ.en} id="schema-faq-home-en" />
       <SchemaHowTo id="schema-howto-home-en" name={HOME_HOWTO.en.name} description={HOME_HOWTO.en.description} steps={HOME_HOWTO.en.steps} />
-      <HomeV2 lang="en" />
+      <HomeV2 lang="en" hero={<HomeHero lang="en" />} />
     </div>
   );
 }

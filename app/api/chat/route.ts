@@ -78,6 +78,13 @@ export async function POST(req: NextRequest) {
         { status: 401 },
       );
     }
+    // Consentimiento marcado de verdad (casilla del widget): sin él, tampoco.
+    if (body.consent !== true) {
+      return Response.json(
+        { ok: false, error: "Acepta el tratamiento de tus datos para usar el asistente.", needEmail: true },
+        { status: 401 },
+      );
+    }
 
     if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
       return Response.json({ ok: false, error: "Messages required" }, { status: 400 });

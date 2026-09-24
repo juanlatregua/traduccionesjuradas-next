@@ -632,6 +632,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Adjunta un PDF para estimar." }, { status: 400 });
     }
 
+    // Puerta en el servidor (Juan, 24-sep): el OCR/visión cuesta dinero; sin
+    // email válido y consentimiento no se lee el fichero. La pantalla sola no basta.
+    const email = String(formData.get("email") || "").trim().toLowerCase();
+    if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ ok: false, error: "Indica tu email antes de calcular." }, { status: 400 });
+    }
+    if (String(formData.get("consent") || "") !== "1") {
+      return NextResponse.json({ ok: false, error: "Acepta el tratamiento de tus datos para calcular." }, { status: 400 });
+    }
+
     const fileType = String((file as any).type || "");
     const fileName = String((file as any).name || "archivo");
     const ocrLanguage = getOcrLanguage(lang);

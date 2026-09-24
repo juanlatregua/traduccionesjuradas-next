@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { isDeclaredPairValid, normalizeDeclaredLang } from "@/lib/puerta-languages";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
+import { requireStaffAccess } from "@/lib/staff-auth";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -33,16 +34,23 @@ export async function POST(req: Request) {
 
     // Puerta (Juan, 4-sep-2026): NADA se sube sin email + par de idiomas. La UI
     // ya lo bloquea; aquí se exige también para que un lead no nazca a medias.
+    // 24-sep: el email lo exige SIEMPRE el servidor a quien no es staff, mande
+    // o no `gate` (la IA que viene después cuesta dinero). El par de idiomas
+    // solo en la puerta; el lector de requerimientos no lo tiene.
+    const staff = await requireStaffAccess(req);
     const email = typeof clientEmail === "string" ? clientEmail.trim().toLowerCase() : "";
     const emailOk = !!email && email.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
     const srcLang = normalizeDeclaredLang(sourceLanguage);
     const tgtLang = normalizeDeclaredLang(targetLanguage);
+    if (!staff.ok && !emailOk) {
+      return NextResponse.json({ ok: false, error: "Indica tu email antes de subir el documento." }, { status: 400 });
+    }
+    if (staff.ok && clientEmail && !emailOk) {
+      return NextResponse.json({ ok: false, error: "Email no válido." }, { status: 400 });
+    }
     if (gate === "puerta") {
-      if (!emailOk) return NextResponse.json({ ok: false, error: "Indica tu email antes de subir el documento." }, { status: 400 });
       if (marketingConsent !== true) return NextResponse.json({ ok: false, error: "Falta el consentimiento para enviarte el presupuesto." }, { status: 400 });
       if (!isDeclaredPairValid(srcLang, tgtLang)) return NextResponse.json({ ok: false, error: "Indica el idioma del documento y el idioma al que lo necesitas." }, { status: 400 });
-    } else if (clientEmail && !emailOk) {
-      return NextResponse.json({ ok: false, error: "Email no válido." }, { status: 400 });
     }
 
     // Origen de captación (atribución del funnel). Whitelist para no guardar basura.

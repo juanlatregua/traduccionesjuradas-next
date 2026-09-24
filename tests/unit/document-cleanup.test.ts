@@ -21,8 +21,13 @@ const PAID_STATUSES = [
 
 const RETENTION_DAYS = 30;
 
-function daysAgo(n: number): Date {
-  const d = new Date();
+// Fecha de referencia fija para todo el fichero: daysAgo() y selectForCleanup()
+// deben partir del mismo instante, si no la frontera exacta (30 días) es una
+// carrera contra Date.now() y el test de esa frontera es intermitente.
+const NOW = new Date("2026-09-24T12:00:00.000Z");
+
+function daysAgo(n: number, now: Date = NOW): Date {
+  const d = new Date(now);
   d.setDate(d.getDate() - n);
   return d;
 }
@@ -40,8 +45,8 @@ interface MockDoc {
  * - Phase B: paid docs older than threshold with real fileUrl → redact fileUrl
  * Returns { toDelete: ids[], toRedact: ids[] }
  */
-function selectForCleanup(docs: MockDoc[]) {
-  const threshold = new Date();
+function selectForCleanup(docs: MockDoc[], now: Date = NOW) {
+  const threshold = new Date(now);
   threshold.setDate(threshold.getDate() - RETENTION_DAYS);
 
   const toDelete: string[] = [];
@@ -147,8 +152,8 @@ test("document exactly at threshold boundary is NOT selected", () => {
     { id: "edge", status: "UPLOADED", fileUrl: "https://blob/edge.pdf", createdAt: daysAgo(30) },
   ];
   const { toDelete, toRedact } = selectForCleanup(docs);
-  // daysAgo(30) produces roughly "now minus 30 days" — same instant as threshold,
-  // so createdAt >= threshold → not selected
+  // daysAgo(30, NOW) y el threshold de selectForCleanup(docs, NOW) parten del
+  // mismo NOW fijo → misma fecha exacta → createdAt >= threshold → no seleccionado
   assert.deepEqual(toDelete, []);
   assert.deepEqual(toRedact, []);
 });
