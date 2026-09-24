@@ -18,6 +18,10 @@ export default function LectorRequerimientos({ lang }: { lang: Locale }) {
   const t = lectorT[lang];
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
+  // Puerta (Juan, 24-sep): email antes de subir; el servidor (register +
+  // requirements/analyze) lo exige también.
+  const [email, setEmail] = useState("");
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const [status, setStatus] = useState<Status>("idle");
   const [requirements, setRequirements] = useState<RequirementsExtraction | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -66,7 +70,23 @@ export default function LectorRequerimientos({ lang }: { lang: Locale }) {
       <h2 className="font-baskerville text-xl font-bold text-encre">{t.uploadHeading}</h2>
 
       {status === "idle" && (
-        <div className="mt-4">
+        <div className="mt-4 space-y-4">
+          <div className="rounded-xl border border-bleu/15 bg-parchment p-4">
+            <label htmlFor="lector-email" className="text-sm font-semibold text-encre">
+              {t.emailLabel}
+            </label>
+            <p className="mt-1 text-xs text-graphite">{t.emailHelp}</p>
+            <input
+              id="lector-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="nombre@correo.com"
+              className="mt-2 w-full rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20 sm:max-w-sm"
+            />
+          </div>
           <DocumentUploader
             lang={lang}
             sessionToken={sessionToken}
@@ -75,7 +95,11 @@ export default function LectorRequerimientos({ lang }: { lang: Locale }) {
             onGdprConsentChange={setGdprConsent}
             onUploadComplete={(docId, token) => handleUploadComplete(docId, token)}
             source="lector"
+            clientEmail={emailValid ? email.trim().toLowerCase() : null}
+            disabled={!emailValid}
+            disabledReason={t.emailLocked}
           />
+          {!emailValid && <p className="text-xs text-graphite">{t.emailLocked}</p>}
         </div>
       )}
 

@@ -17,6 +17,14 @@ export const maxDuration = 120;
 
 const WHATSAPP_URL = "https://wa.me/34951333614";
 const VALID_LANGS = new Set(["es", "fr", "en", "de", "pt"]);
+// Puerta en el servidor (Juan, 24-sep): sin email no se lee la carta con IA.
+const NEED_EMAIL: Record<string, string> = {
+  es: "Indica tu email antes de continuar.",
+  fr: "Indiquez votre e-mail avant de continuer.",
+  en: "Enter your email before continuing.",
+  de: "Geben Sie Ihre E-Mail an, bevor Sie fortfahren.",
+  pt: "Indique o seu email antes de continuar.",
+};
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
@@ -75,6 +83,10 @@ export async function POST(req: Request) {
     // Ownership: solo accesible para quien lo subió (sessionToken no enumerable).
     if (!isStaff && (!sessionToken || doc.sessionToken !== sessionToken)) {
       return NextResponse.json({ ok: false, error: "Documento no encontrado." }, { status: 404 });
+    }
+
+    if (!isStaff && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(doc.clientEmail || ""))) {
+      return NextResponse.json({ ok: false, error: NEED_EMAIL[lang] || NEED_EMAIL.es }, { status: 400 });
     }
 
     // Cache: si ya se analizó como requerimiento, devuelve el JSON guardado.

@@ -61,6 +61,8 @@ const MESSAGES_KEY = "chatbot_messages";
 // Puerta: sin email (+ consentimiento) no hay asistente. Se guarda en
 // localStorage para no volver a pedirlo en visitas siguientes.
 const EMAIL_KEY = "chatbot_email";
+// El consentimiento también se guarda: el servidor lo exige en cada mensaje.
+const CONSENT_KEY = "chatbot_consent";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function fileToBase64(file: File): Promise<string> {
@@ -98,6 +100,11 @@ export default function ChatWidget() {
     if (typeof window === "undefined") return "";
     return localStorage.getItem(EMAIL_KEY) || "";
   });
+  const [chatConsent, setChatConsent] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(CONSENT_KEY) === "1";
+  });
+  const gatePassed = Boolean(chatEmail) && chatConsent;
   const [gateEmail, setGateEmail] = useState("");
   const [gateConsent, setGateConsent] = useState(false);
   const [gateError, setGateError] = useState<string | null>(null);
@@ -118,7 +125,9 @@ export default function ChatWidget() {
       return;
     }
     localStorage.setItem(EMAIL_KEY, email);
+    localStorage.setItem(CONSENT_KEY, "1");
     setChatEmail(email);
+    setChatConsent(true);
     setGateError(null);
     setTimeout(() => inputRef.current?.focus(), 0);
   };
@@ -239,8 +248,8 @@ export default function ChatWidget() {
         setRateLimited(true);
         return;
       }
-      if (!chatEmail) {
-        // Sin email no se llama al asistente: llevar el foco a la puerta.
+      if (!gatePassed) {
+        // Sin email + consentimiento no se llama al asistente: foco a la puerta.
         setGateError(uiLang === "fr" ? "Indiquez d'abord votre e-mail pour utiliser l'assistant." : "Indica primero tu email para usar el asistente.");
         gateInputRef.current?.focus();
         return;
@@ -289,7 +298,7 @@ export default function ChatWidget() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages, sessionId, email: chatEmail }),
+          body: JSON.stringify({ messages: apiMessages, sessionId, email: chatEmail, consent: chatConsent === true }),
         });
 
         if (!res.ok) {
@@ -299,7 +308,9 @@ export default function ChatWidget() {
           }
           if (res.status === 401 && err?.needEmail) {
             localStorage.removeItem(EMAIL_KEY);
+            localStorage.removeItem(CONSENT_KEY);
             setChatEmail("");
+            setChatConsent(false);
           }
           const errorText =
             err.error || (uiLang === "fr" ? "Désolé, une erreur s'est produite. Réessayez." : "Lo siento, ha ocurrido un error. Inténtalo de nuevo.");
@@ -371,7 +382,7 @@ export default function ChatWidget() {
         setIsStreaming(false);
       }
     },
-    [messages, isStreaming, sessionId, userMessageCount, rateLimited, chatEmail, uiLang]
+    [messages, isStreaming, sessionId, userMessageCount, rateLimited, chatEmail, chatConsent, gatePassed, uiLang]
   );
 
   // Apertura desde fuera (portada): evento en vivo o, si el widget aún no
@@ -404,10 +415,10 @@ export default function ChatWidget() {
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !chatEmail || !queued || isStreaming) return;
+    if (!isOpen || !gatePassed || !queued || isStreaming) return;
     setQueued(null);
     sendMessage(queued);
-  }, [isOpen, chatEmail, queued, isStreaming, sendMessage]);
+  }, [isOpen, gatePassed, queued, isStreaming, sendMessage]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -664,7 +675,7 @@ export default function ChatWidget() {
           </div>
 
           {/* Puerta: email + consentimiento antes del primer mensaje */}
-          {!rateLimited && !chatEmail && (
+          {!rateLimited && !gatePassed && (
             <form
               onSubmit={submitGate}
               className="flex flex-col gap-2 border-t border-cream bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-3"
@@ -718,7 +729,7 @@ export default function ChatWidget() {
           )}
 
           {/* Input */}
-          {!rateLimited && chatEmail && (
+          {!rateLimited && gatePassed && (
             <form
               onSubmit={handleSubmit}
               className="flex flex-col gap-2 border-t border-cream bg-card px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-2"

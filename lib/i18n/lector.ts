@@ -52,6 +52,22 @@ const FIELDS = {
     "Laden Sie Ihr Schreiben oder Ihre Mitteilung hoch",
     "Envie a sua carta ou notificação"
   ),
+  // Puerta (Juan, 24-sep): email antes de subir; la casilla RGPD la pone el uploader.
+  emailLabel: tr("Tu email", "Votre e-mail", "Your email", "Ihre E-Mail", "O seu email"),
+  emailHelp: tr(
+    "Para leer tu carta necesitamos un email de contacto. No te enviamos publicidad.",
+    "Pour lire votre courrier, nous avons besoin d'un e-mail de contact. Pas de publicité.",
+    "To read your letter we need a contact email. No marketing.",
+    "Um Ihr Schreiben zu lesen, brauchen wir eine Kontakt-E-Mail. Keine Werbung.",
+    "Para ler a sua carta precisamos de um email de contacto. Sem publicidade."
+  ),
+  emailLocked: tr(
+    "Escribe tu email y marca la casilla para poder subir la carta.",
+    "Indiquez votre e-mail et cochez la case pour pouvoir déposer le courrier.",
+    "Enter your email and tick the box to upload the letter.",
+    "Geben Sie Ihre E-Mail ein und setzen Sie das Häkchen, um das Schreiben hochzuladen.",
+    "Escreva o seu email e marque a caixa para poder enviar a carta."
+  ),
 
   // ── Estados ────────────────────────────────────────────────────
   analyzing: tr(

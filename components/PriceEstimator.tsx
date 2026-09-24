@@ -58,6 +58,7 @@ type CartItem = {
 };
 const SAFETY_MARGIN_MULTIPLIER = 1.1;
 const SAFETY_MARGIN_PCT = 10;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CART_STORAGE_KEY = "tj-price-estimator-cart";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -167,7 +168,10 @@ export default function PriceEstimator() {
   const [loading, setLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showGuestEmail, setShowGuestEmail] = useState(false);
+  // Email ÚNICO del estimador: se pide antes de calcular por archivo (el OCR
+  // cuesta dinero; Juan, 24-sep) y se reutiliza en el checkout sin pedirlo otra vez.
   const [guestEmail, setGuestEmail] = useState("");
+  const [estimatorConsent, setEstimatorConsent] = useState(false);
   const [urgencyNotes, setUrgencyNotes] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const createOrderIdempotencyRef = useRef<string | null>(null);
@@ -279,6 +283,15 @@ export default function PriceEstimator() {
       setMessage(FILE_TOO_LARGE_MSG);
       return;
     }
+    const email = guestEmail.trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) {
+      setMessage("Indica tu email antes de calcular.");
+      return;
+    }
+    if (!estimatorConsent) {
+      setMessage("Acepta el tratamiento de tus datos para calcular.");
+      return;
+    }
 
     setLoading(true);
     setMessage(null);
@@ -287,6 +300,8 @@ export default function PriceEstimator() {
       fd.append("file", fileUpload);
       fd.append("lang", fileLangPair);
       fd.append("urgency", fileUrgency);
+      fd.append("email", email);
+      fd.append("consent", "1");
 
       const res = await fetch("/api/estimador", { method: "POST", body: fd });
       const data = await parseEstimadorResponse(res);
@@ -379,6 +394,9 @@ export default function PriceEstimator() {
   const startCheckout = async (emailOverride?: string) => {
     if (checkoutInFlightRef.current) return;
     checkoutInFlightRef.current = true;
+    // El email dado para calcular vale para el pedido: no se pide dos veces.
+    const emailToUse =
+      (emailOverride || (EMAIL_RE.test(guestEmail.trim()) ? guestEmail : "")).trim().toLowerCase() || undefined;
 
     // Determine what to pay: cart items or single result
     const hasCart = cart.length > 0;
@@ -412,7 +430,7 @@ export default function PriceEstimator() {
         total: Math.round(payTotal * 100),
         title,
         langPair: activeLangPair || "",
-        email: (emailOverride || "").trim().toLowerCase(),
+        email: emailToUse || "",
         source: hasCart ? "cart" : payResult?.source || "single",
         cartSize: cart.length,
       });
@@ -450,8 +468,8 @@ export default function PriceEstimator() {
         sourceLanding: tracking.sourceLanding,
         idempotencyKey,
       };
-      if (emailOverride) {
-        payload.guestEmail = emailOverride;
+      if (emailToUse) {
+        payload.guestEmail = emailToUse;
       }
 
       const res = await fetch("/api/orders", {
@@ -464,7 +482,7 @@ export default function PriceEstimator() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        if (res.status === 401 && !emailOverride) {
+        if (res.status === 401 && !emailToUse) {
           setShowGuestEmail(true);
           setCheckoutLoading(false);
           return;
@@ -673,6 +691,39 @@ export default function PriceEstimator() {
             />
             <p className="text-[11px] text-graphite">PDF, DOCX o TXT. Para PDF escaneado usamos OCR si está configurado.</p>
           </div>
+        </div>
+      )}
+
+      {mode === "file" && (
+        <div className="mt-4 rounded-2xl border border-cream bg-card p-3">
+          <label htmlFor="estimator-email" className="text-xs font-semibold uppercase tracking-wide text-sepia">
+            Tu email
+          </label>
+          <p className="mt-1 text-[12px] text-graphite">
+            Lo necesitamos para calcular por archivo y lo usaremos después para el pedido, sin pedirlo otra vez.
+          </p>
+          <input
+            id="estimator-email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="tu@email.com"
+            value={guestEmail}
+            onChange={(e) => setGuestEmail(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-cream bg-card px-3 py-2 text-sm sm:max-w-sm"
+          />
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-[12px] text-graphite">
+            <input
+              type="checkbox"
+              checked={estimatorConsent}
+              onChange={(e) => setEstimatorConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-graphite/40 text-bleu"
+            />
+            <span>
+              Consiento el tratamiento de mi archivo y mi email para calcular el presupuesto.{" "}
+              <a href="/privacidad" target="_blank" className="text-bleu underline">Política de privacidad</a>.
+            </span>
+          </label>
         </div>
       )}
 
