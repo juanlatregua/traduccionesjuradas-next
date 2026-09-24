@@ -240,7 +240,7 @@ export default function RootLayout({
           // agregar valoraciones de otras webs (estas venían del perfil de
           // Google Business). Además el layout lo inyectaba en TODAS las
           // páginas, incluidas /aviso-legal y /privacidad, que no tienen
-          // reseña alguna. Las 46 reseñas son reales y siguen visibles como
+          // reseña alguna. Las reseñas son reales y siguen visibles como
           // texto en TrustStrip, que es donde sí corresponde.
           }),
         }}
