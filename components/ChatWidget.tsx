@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { buildPresupuestoWhatsAppLink, detectLangFromPathname } from "@/lib/contact";
 import { isFrenchPath } from "@/lib/i18n/use-ui-lang";
 import { RichMessage } from "@/lib/chat/format-response";
+import { CHAT_OPEN_EVENT, CHAT_PREFILL_KEY } from "@/lib/chat/open-chat";
 
 type Attachment = {
   fileName: string;
@@ -101,6 +102,9 @@ export default function ChatWidget() {
   const [gateConsent, setGateConsent] = useState(false);
   const [gateError, setGateError] = useState<string | null>(null);
   const gateInputRef = useRef<HTMLInputElement>(null);
+  // Pregunta escrita en la portada (lib/chat/open-chat.ts): se envía sola en
+  // cuanto la puerta (email + consentimiento) está pasada.
+  const [queued, setQueued] = useState<string | null>(null);
 
   const submitGate = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -370,6 +374,41 @@ export default function ChatWidget() {
     [messages, isStreaming, sessionId, userMessageCount, rateLimited, chatEmail, uiLang]
   );
 
+  // Apertura desde fuera (portada): evento en vivo o, si el widget aún no
+  // había montado, la pregunta que quedó en sessionStorage.
+  useEffect(() => {
+    const openWith = (text: string) => {
+      const clean = text.trim();
+      if (clean) {
+        setQueued(clean);
+        setShowQuickReplies(false);
+      }
+      setIsClosing(false);
+      setIsOpen(true);
+    };
+    try {
+      const saved = sessionStorage.getItem(CHAT_PREFILL_KEY);
+      if (saved) {
+        sessionStorage.removeItem(CHAT_PREFILL_KEY);
+        openWith(saved);
+      }
+    } catch {}
+    const onOpen = (e: Event) => {
+      try {
+        sessionStorage.removeItem(CHAT_PREFILL_KEY);
+      } catch {}
+      openWith(String((e as CustomEvent<{ text?: string }>).detail?.text || ""));
+    };
+    window.addEventListener(CHAT_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(CHAT_OPEN_EVENT, onOpen);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !chatEmail || !queued || isStreaming) return;
+    setQueued(null);
+    sendMessage(queued);
+  }, [isOpen, chatEmail, queued, isStreaming, sendMessage]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     sendMessage(input, pendingAttachments);
@@ -630,6 +669,11 @@ export default function ChatWidget() {
               onSubmit={submitGate}
               className="flex flex-col gap-2 border-t border-cream bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:rounded-b-2xl sm:pb-3"
             >
+              {queued && (
+                <p className="rounded-lg border border-or/30 bg-cream px-3 py-2 text-xs text-sepia">
+                  <span className="font-semibold">{uiLang === "fr" ? "Votre question :" : "Tu pregunta:"}</span> «{queued}»
+                </p>
+              )}
               <p className="text-xs font-medium text-sepia">
                 {uiLang === "fr"
                   ? "Pour utiliser l'assistant, indiquez votre e-mail :"

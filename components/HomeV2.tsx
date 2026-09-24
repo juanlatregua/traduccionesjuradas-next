@@ -4,6 +4,7 @@
 // SelloMinisterio y el catálogo de nav.ts. Adaptar a otro idioma = diccionario.
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ShieldCheck, Check, ArrowRight } from "lucide-react";
 import PuertaClient from "@/app/presupuesto-instantaneo/PuertaClient";
 import BancoUtilidades from "@/components/BancoUtilidades";
@@ -11,7 +12,9 @@ import { SelloMinisterio } from "@/components/SelloMinisterio";
 import { HOME, type HomeLang } from "@/lib/i18n/home";
 import { TRANSLATOR_DROPDOWN, DOCS_DROPDOWN } from "@/lib/i18n/nav";
 
-export default function HomeV2({ lang }: { lang: HomeLang }) {
+// `hero`: la portada ES trae el suyo (components/home/HomeHero.tsx, maqueta
+// 22-sep); las demás lenguas siguen con el hero de aquí.
+export default function HomeV2({ lang, hero }: { lang: HomeLang; hero?: ReactNode }) {
   const h = HOME;
   const heroId = lang === "fr" ? "hero-fr" : "hero";
   const idiomas = TRANSLATOR_DROPDOWN.groups.flatMap((g) => g.items);
@@ -20,6 +23,7 @@ export default function HomeV2({ lang }: { lang: HomeLang }) {
   return (
     <>
       {/* ───── HERO: pitch + puerta (2 columnas) ───── */}
+      {hero ?? (
       <section id={heroId} className="border-b border-cream bg-parchment">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
           <div className="grid items-start gap-10 lg:grid-cols-[1.04fr_.96fr]">
@@ -59,6 +63,7 @@ export default function HomeV2({ lang }: { lang: HomeLang }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* ───── Banco de utilidades ───── */}
       <BancoUtilidades lang={lang} />

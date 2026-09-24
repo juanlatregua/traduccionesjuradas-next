@@ -1,12 +1,14 @@
-// app/page.tsx — Home v2 "banco de utilidades" (ES). Cuerpo en <HomeV2 lang>,
-// lang-aware y reutilizable (FR/EN/DE/PT viven en sus rutas con el mismo
-// componente). Aquí se conservan metadata + datos estructurados (SEO/AEO).
+// app/page.tsx — Portada ES. Encima del pliegue, el hero nuevo (maqueta 22-sep:
+// asistente + subida con expediente grande, components/home/HomeHero.tsx); el
+// resto del cuerpo sigue en <HomeV2 lang>, compartido con FR/EN/DE/PT. Aquí se
+// conservan metadata + datos estructurados (SEO/AEO).
 import type { Metadata } from "next";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
+import HomeHero from "@/components/home/HomeHero";
 import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
 import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
@@ -38,7 +40,7 @@ export default function Home() {
         steps={HOME_HOWTO.es.steps}
       />
 
-      <HomeV2 lang="es" />
+      <HomeV2 lang="es" hero={<HomeHero />} />
     </div>
   );
 }
