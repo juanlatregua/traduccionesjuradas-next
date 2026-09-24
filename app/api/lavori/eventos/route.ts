@@ -25,7 +25,7 @@ export const runtime = "nodejs";
 
 const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
-const EVENTO_TIPOS = ["precio_propuesto", "encargo_aceptado", "factura_subida", "entrega_subida", "pago_marcado"] as const;
+const EVENTO_TIPOS = ["precio_propuesto", "encargo_aceptado", "factura_subida", "entrega_subida", "pago_marcado", "documentos_recibidos", "copia_fallida"] as const;
 type EventoTipo = (typeof EVENTO_TIPOS)[number];
 
 function hasAuth(req: Request): boolean {
@@ -74,6 +74,13 @@ export async function POST(req: Request) {
 
   // Las solicitudes de precio viajan con ref "<referencia>-precio".
   const reference = motorRef.replace(/-precio$/, "");
+
+  // Adenda de ficheros grandes (lavori, 24-sep-2026): lavori copia los documentos en
+  // segundo plano y avisa al terminar (documentos_recibidos) o si falla (copia_fallida:
+  // el encargo se cancela sin que ningún candidato lo vea).
+  if (evento === "documentos_recibidos" || evento === "copia_fallida") {
+    return handleCopiaEvento({ evento, reference, motorRef, encargoId, datos });
+  }
   const orderSelect = { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true, quoteId: true } as const;
   let order = await prisma.order.findUnique({ where: { reference }, select: orderSelect });
   if (!order) {
@@ -888,4 +895,47 @@ async function handleLeadEvento(opts: {
     console.error("[lavori-eventos] lead error", err, motorRef);
     return NextResponse.json({ ok: false, error: "error interno procesando el evento" }, { status: 500 });
   }
+}
+
+async function handleCopiaEvento(opts: {
+  evento: "documentos_recibidos" | "copia_fallida";
+  reference: string;
+  motorRef: string;
+  encargoId: string;
+  datos: Record<string, unknown>;
+}) {
+  const { evento, reference, motorRef, encargoId, datos } = opts;
+  const order = await prisma.order.findUnique({ where: { reference }, select: { id: true, reference: true } });
+  const lead = order ? null : await prisma.lavoriPriceRequest.findUnique({ where: { ref: reference }, select: { id: true, ref: true, notas: true, status: true } });
+  if (!order && !lead) return NextResponse.json({ ok: false, error: `ref "${reference}" no encontrada` }, { status: 404 });
+
+  const linea =
+    evento === "documentos_recibidos"
+      ? `lavori recibió ${Number(datos.documentos) || "los"} documentos (${Math.round((Number(datos.bytes) || 0) / 1_048_576)} MB): el encargo ya lo ven los candidatos.`
+      : `lavori NO pudo copiar el documento «${String(datos.documento || "?")}» (${String(datos.motivo || "sin motivo")}): el encargo se ha cancelado sin que lo viera nadie.`;
+
+  if (order) {
+    await prisma.orderEvent.create({ data: { orderId: order.id, type: `lavori.${evento}`, message: `lavori: ${linea}`, payload: { encargoId, motorRef, ...datos } } });
+  } else if (lead) {
+    await prisma.lavoriPriceRequest.update({
+      where: { id: lead.id },
+      data: {
+        notas: [lead.notas, `${new Date().toISOString().slice(0, 16)} ${linea}`].filter(Boolean).join("\n"),
+        // Cancelado en lavori: ya no está vivo (no frena nada) y se puede volver a pedir.
+        ...(evento === "copia_fallida" && ["SENT", "PRICED", "RETIRING"].includes(lead.status) ? { status: "RETIRED" } : {}),
+      },
+    });
+  }
+
+  if (evento === "copia_fallida") {
+    const quien = order ? `el pedido ${order.reference}` : `la solicitud ${lead!.ref}`;
+    const texto = `⚠ ${quien}: ${linea} Vuelve a pedir precio cuando el documento esté bien (revisa que no esté dañado).`;
+    await Promise.all([
+      sendMail({ to: STAFF_ALERT_EMAIL, subject: `⚠ lavori no pudo copiar los documentos de ${order ? order.reference : lead!.ref}`, text: texto, html: `<p>${texto}</p>` }).catch((err) =>
+        console.error("[lavori-eventos] copia_fallida email", err)
+      ),
+      sendStaffAlertSMS(texto, `copia_fallida ${reference}`).catch(() => {}),
+    ]);
+  }
+  return NextResponse.json({ ok: true }, { status: 201 });
 }

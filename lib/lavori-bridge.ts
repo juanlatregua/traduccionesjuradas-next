@@ -20,8 +20,12 @@ export const SOBRE_MAX_RAW_BYTES = 3_000_000;
 // certificados escaneados (12,8 MB) tumbaron el puente antes de salir; orden de
 // Juan: "no puede haber errores de este tipo, los documentos son siempre
 // grandes". lavori descarga cada URL server-side y la sube a SU sobre; la URL
-// no se persiste allí. Único tope que queda: el de lavori por fichero (15 MB).
-export const SOBRE_MAX_FILE_BYTES = 15 * 1024 * 1024;
+// no se persiste allí. Topes de lavori desde su fase 1 de ficheros grandes
+// (bf60d2a, 24-sep-2026): 500 MB por documento, 3 GB por encargo, 300 documentos;
+// por encima de 20 docs o 60 MB responde 202 «recibiendo» y copia en segundo plano.
+export const SOBRE_MAX_FILE_BYTES = 500 * 1024 * 1024;
+export const SOBRE_MAX_TOTAL_BYTES = 3 * 1024 * 1024 * 1024;
+export const SOBRE_MAX_DOCS = 300;
 
 // Candidatos por lengua (ids de miembro en lavori). v1: alemán → Morton
 // (decisión de Juan 10-ago-2026: "cuando llega algo de alemán va directamente a
