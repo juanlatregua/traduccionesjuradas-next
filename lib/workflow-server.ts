@@ -691,7 +691,7 @@ export async function deliverPrecioAceptado(opts: {
     });
     if (lprId) {
       await prisma.lavoriPriceRequest
-        .update({ where: { id: lprId }, data: { status: "ACCEPTED", ...(opts.quoteId ? { quoteId: opts.quoteId } : {}) } })
+        .updateMany({ where: { id: lprId, status: { in: ["SENT", "PRICED", "ACCEPTED"] } }, data: { status: "ACCEPTED", ...(opts.quoteId ? { quoteId: opts.quoteId } : {}) } })
         .catch((err) => console.error("[lavori-precio-aceptado] lpr update failed", err));
     }
     await staffMail(`✅ Precio aceptado comunicado a lavori (${reference})`, [

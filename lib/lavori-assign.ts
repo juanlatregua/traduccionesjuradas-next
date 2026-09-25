@@ -85,6 +85,16 @@ export async function assignLavoriAcceptance(opts: {
       .catch((err) => console.error("[lavori-assign] client notify failed", err));
   }
 
+  // Sin colaborador mapeado la asignación sigue a mano, pero el coste y el plazo
+  // no se pierden (Juan, 25-sep-2026: el margen tiene que constar siempre).
+  const fechaEntrega = opts.payload?.fechaEntrega ? Date.parse(String(opts.payload.fechaEntrega)) : NaN;
+  if (!collaborator && baseCents) {
+    await prisma.order.updateMany({ where: { id: order.id, supplierCostCents: null }, data: { supplierCostCents: baseCents } });
+  }
+  if (Number.isFinite(fechaEntrega)) {
+    await prisma.order.updateMany({ where: { id: order.id, dueDate: null }, data: { dueDate: new Date(fechaEntrega) } });
+  }
+
   await prisma.orderEvent.create({
     data: {
       orderId: order.id,

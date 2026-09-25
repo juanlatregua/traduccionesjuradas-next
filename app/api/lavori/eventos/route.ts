@@ -83,9 +83,13 @@ export async function POST(req: Request) {
   }
   const orderSelect = { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true, quoteId: true } as const;
   let order = await prisma.order.findUnique({ where: { reference }, select: orderSelect });
+  // Solicitud de un LEAD cuyo presupuesto ya es pedido: el evento cae en el pedido,
+  // pero la solicitud tiene que seguir el mismo camino (Gabriel 26_17203A, 25-sep:
+  // quedó SENT con el precio aceptado, entregado y facturado).
+  let lead: Awaited<ReturnType<typeof prisma.lavoriPriceRequest.findUnique>> = null;
   if (!order) {
     // Solicitud de precio de un LEAD (WhatsApp, sin pedido): ancla propia.
-    const lead = await prisma.lavoriPriceRequest.findUnique({ where: { ref: reference } });
+    lead = await prisma.lavoriPriceRequest.findUnique({ where: { ref: reference } });
     // Ref de LEAD cuyo presupuesto ya se convirtió en pedido (caso Ofir 26_308488,
     // 26-ago): el encargo de lavori nació con la ref del lead, pero la entrega y la
     // aceptación tienen que caer en el pedido real, no en un email "gestionar a mano".
@@ -149,6 +153,28 @@ export async function POST(req: Request) {
           payload: { encargoId, motorRef, ...datos, precioCents, netoSugeridoEur: netoSugerido },
         },
       });
+      let lprAplicado = true;
+      if (lead) {
+        const miembroIdEntrante = datos.miembroId ? String(datos.miembroId) : null;
+        const r = await prisma.lavoriPriceRequest.updateMany({
+          where: {
+            id: lead.id,
+            status: { in: ["SENT", "PRICED"] },
+            ...(isDirectLeadRequest(lead.createdBy)
+              ? { OR: [{ priceCents: null }, ...(miembroIdEntrante ? [{ miembroId: miembroIdEntrante }] : [])] }
+              : {}),
+          },
+          data: {
+            status: "PRICED",
+            priceCents: precioCents,
+            plazoDias: Number.isFinite(Number(datos.plazoDias)) ? Math.round(Number(datos.plazoDias)) : null,
+            miembroId: miembroIdEntrante,
+            miembroNombre: datos.miembroNombre ? String(datos.miembroNombre) : null,
+            encargoId,
+          },
+        });
+        lprAplicado = r.count > 0;
+      }
       // Auto-aceptación "dinero dentro" (13-ago-2026, caso 26_DFAA55): si el
       // pedido YA está pagado y la cifra del traductor cabe en el modelo 75/25
       // sobre lo cobrado, se acepta sola hacia lavori. Si pide más, decide staff.
@@ -168,7 +194,9 @@ export async function POST(req: Request) {
       // 26_17203A: se aceptó a Nielson con Cristina ya confirmada) o si quien
       // propone no estaba entre los jurados a los que se pidió.
       let bloqueoAuto: string | null = null;
-      if (cabeEnModelo) {
+      if (cabeEnModelo && lead && !lprAplicado) {
+        bloqueoAuto = `ya había precio de ${lead.miembroNombre || "otro jurado"} en ${lead.ref}: vale el primero.`;
+      } else if (cabeEnModelo) {
         const leadRef = motorRef.replace(/-precio$/, "");
         const leadAuto = leadRef.startsWith("LEAD-")
           ? await prisma.lavoriPriceRequest.findUnique({
@@ -233,6 +261,7 @@ export async function POST(req: Request) {
           reference: order.reference,
           ref: motorRef, // la motor_ref EXACTA con la que llegó la propuesta
           precioCents,
+          lprId: lead?.id ?? null,
           auto: true,
         });
       }
@@ -378,6 +407,10 @@ export async function POST(req: Request) {
       const blob = await put(`orders/${order.reference}/entregas-lavori/${Date.now()}-${nombre}`, buf, {
         access: "public",
         contentType,
+      });
+      await prisma.order.updateMany({
+        where: { id: order.id, translatorDeliveredAt: null },
+        data: { translatorDeliveredAt: new Date() },
       });
       const miembro = String(datos.miembroNombre || datos.miembroId || "el traductor");
       // Adenda papel (13-ago-2026): datos.recogida = texto libre con dirección y
