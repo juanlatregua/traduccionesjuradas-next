@@ -121,7 +121,7 @@ export const NAV_CTA = {
 
 // ── Rótulos de UI del header (aria/botones) — evita ternarios es/fr sueltos ──
 export const NAV_UI = {
-  brandAria: tr("Traducciones Juradas — inicio", "Traductions assermentées — accueil", "Traducciones Juradas — home", "Traducciones Juradas — Startseite", "Traducciones Juradas — início"),
+  brandAria: tr("Traducciones Juradas — inicio", "Traducciones Juradas — accueil", "Traducciones Juradas — home", "Traducciones Juradas — Startseite", "Traducciones Juradas — início"),
   navAria: tr("Navegación principal", "Navigation principale", "Main navigation", "Hauptnavigation", "Navegação principal"),
   openMenu: tr("Abrir menú", "Ouvrir le menu", "Open menu", "Menü öffnen", "Abrir menu"),
   closeMenu: tr("Cerrar menú", "Fermer le menu", "Close menu", "Menü schließen", "Fechar menu"),

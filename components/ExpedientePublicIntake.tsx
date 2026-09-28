@@ -312,7 +312,6 @@ export default function ExpedientePublicIntake({
         } ${gateReady ? "cursor-pointer hover:border-bleu/60" : "cursor-not-allowed opacity-50"}`}
         role="button"
         tabIndex={0}
-        aria-label={t.dropAria}
         aria-disabled={!gateReady}
       >
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-bleu/10">

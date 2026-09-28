@@ -85,7 +85,7 @@ export default function DocumentosAcademicosPage() {
         <p className="mt-3 text-sm text-sepia sm:text-base">
         Realizamos traducciones juradas de títulos universitarios, certificados de notas,
         diplomas, planes de estudios y certificaciones oficiales de idiomas como
-        <a href="/traductor-jurado-frances" className="text-bleu hover:underline"> DELF/DALF</a>, 
+        <a href="/traductor-jurado-frances" className="text-bleu underline"> DELF/DALF</a>, 
         <a href="/traductor-jurado-ingles" className="text-bleu hover:underline"> TOEFL, IELTS, Cambridge</a>, 
         <a href="/traductor-jurado-aleman" className="text-bleu hover:underline"> Goethe</a> 
         y otras, para oposiciones, universidades, homologaciones y trámites administrativos en España y en el extranjero.
@@ -188,39 +188,47 @@ export default function DocumentosAcademicosPage() {
           <ul className="mt-2 list-disc pl-5 space-y-1">
 
             {/* FRANCÉS */}
-            <li className="font-semibold text-encre">Francés:</li>
-            <ul className="ml-6 list-disc space-y-1">
+            <li>
+              <span className="font-semibold text-encre">Francés:</span>
+              <ul className="ml-6 list-disc space-y-1">
               <li>DELF (A1–B2) — Alliance Française</li>
               <li>DALF (C1–C2)</li>
               <li>TCF / TCF Québec</li>
               <li>TEF / TEFAQ</li>
             </ul>
+            </li>
 
             {/* INGLÉS */}
-            <li className="font-semibold text-encre">Inglés:</li>
-            <ul className="ml-6 list-disc space-y-1">
+            <li>
+              <span className="font-semibold text-encre">Inglés:</span>
+              <ul className="ml-6 list-disc space-y-1">
               <li>Cambridge English (A2 Key, B1 Preliminary, B2 First, C1 Advanced, C2 Proficiency)</li>
               <li>IELTS (Academic / General)</li>
               <li>TOEFL iBT</li>
               <li>Trinity College London</li>
               <li>TOEIC</li>
             </ul>
+            </li>
 
             {/* ALEMÁN */}
-            <li className="font-semibold text-encre">Alemán:</li>
-            <ul className="ml-6 list-disc space-y-1">
+            <li>
+              <span className="font-semibold text-encre">Alemán:</span>
+              <ul className="ml-6 list-disc space-y-1">
               <li>Goethe-Zertifikat (A1–C2)</li>
               <li>TestDaF</li>
               <li>DSH</li>
             </ul>
+            </li>
 
             {/* OTROS */}
-            <li className="font-semibold text-encre">Otras certificaciones:</li>
-            <ul className="ml-6 list-disc space-y-1">
+            <li>
+              <span className="font-semibold text-encre">Otras certificaciones:</span>
+              <ul className="ml-6 list-disc space-y-1">
               <li>CILS / CELI (italiano)</li>
               <li>DELE (español)</li>
               <li>NOKEN (japonés)</li>
             </ul>
+            </li>
           </ul>
 
           <p className="mt-2">
