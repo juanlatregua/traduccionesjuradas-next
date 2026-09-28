@@ -24,7 +24,7 @@ function loadServiceAccount(): ServiceAccount {
 const b64url = (buf: Buffer | string) =>
   Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-async function getAccessToken(): Promise<string> {
+export async function getAccessToken(): Promise<string> {
   const sa = loadServiceAccount();
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
@@ -78,6 +78,34 @@ export async function querySearchAnalytics(params: {
   const data = await res.json();
   if (!res.ok) throw new Error(`GSC query error: ${JSON.stringify(data.error || data)}`);
   return (data.rows || []) as GscRow[];
+}
+
+const INSPECT_URL = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect";
+
+export type UrlInspection = {
+  url: string;
+  verdict: string;
+  coverageState: string;
+  lastCrawlTime: string | null;
+};
+
+export async function inspectUrl(inspectionUrl: string, token: string): Promise<UrlInspection> {
+  const siteUrl = process.env.GSC_SITE_URL;
+  if (!siteUrl) throw new Error("GSC_SITE_URL no configurada.");
+  const res = await fetch(INSPECT_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ inspectionUrl, siteUrl, languageCode: "es" }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`GSC inspect error: ${JSON.stringify(data.error || data)}`);
+  const idx = data.inspectionResult?.indexStatusResult ?? {};
+  return {
+    url: inspectionUrl,
+    verdict: idx.verdict || "?",
+    coverageState: idx.coverageState || "?",
+    lastCrawlTime: idx.lastCrawlTime || null,
+  };
 }
 
 // GSC tiene ~3 días de lag de datos. Ventana por defecto: 28 días terminando hoy-3.

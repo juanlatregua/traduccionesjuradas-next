@@ -4,6 +4,7 @@
 // (posición 5-15, a un empujón del top), y el top de tráfico real.
 
 import { querySearchAnalytics, defaultDateRange, type GscRow } from "@/lib/gsc";
+import type { IndexingReport, IndexingItem } from "@/lib/seo-indexing";
 
 export type SeoDigest = {
   range: { startDate: string; endDate: string };
@@ -79,7 +80,55 @@ function rowsTable(rows: GscRow[], firstColLabel: string): string {
   return `<table style="border-collapse:collapse;width:100%;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">${head}${body}</table>`;
 }
 
-export function buildSeoDigestHtml(d: SeoDigest): string {
+function fmtCrawl(v: string | null): string {
+  if (!v) return "nunca";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "nunca";
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function buildIndexingHtml(r: IndexingReport): string {
+  const pending: IndexingItem[] = [...r.notIndexed, ...r.stale];
+  const header = `<h2 style="font-size:15px;margin:18px 0 6px;">🔎 Indexación — pide «Solicitar indexación» de estas (Google deja ~10 al día)</h2>`;
+  const errorLine = r.errors.length
+    ? `<p style="color:#9a9a9a;font-size:12px;margin:4px 0 0;">Errores de inspección: ${r.errors[0]}</p>`
+    : "";
+
+  // Un fallo de la API no puede salir como «todo indexado».
+  const partial = r.checked < r.total
+    ? `<p style="font-size:13px;color:#b45309;margin:0 0 8px;">⚠ Solo se pudieron revisar ${r.checked} de ${r.total} URLs del sitemap.</p>`
+    : "";
+
+  if (!pending.length) {
+    if (partial) return `${header}${partial}${errorLine}`;
+    return `${header}
+      <p style="font-size:13px;margin:0;">✓ Las ${r.checked} URLs del sitemap están indexadas y al día.</p>
+      ${errorLine}`;
+  }
+
+  const top = pending.slice(0, 10);
+  const rows = top
+    .map(
+      (item) => `<p style="font-size:13px;margin:0 0 4px;font-family:monospace;">
+        ${item.url} <span style="color:#6b7682;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">— ${item.coverageState} · último rastreo ${fmtCrawl(item.lastCrawlTime)}</span>
+      </p>`
+    )
+    .join("");
+
+  const remaining = pending.length - top.length;
+  const moreLine = remaining > 0
+    ? `<p style="font-size:12px;color:#6b7682;margin:6px 0 0;">y ${remaining} más — pídelas otro día.</p>`
+    : "";
+
+  return `${header}
+    ${partial}
+    <p style="font-size:12px;color:#6b7682;margin:0 0 8px;">Sin indexar (${r.notIndexed.length}) y rastreadas antes del último cambio (${r.stale.length}).</p>
+    ${rows}
+    ${moreLine}
+    ${errorLine}`;
+}
+
+export function buildSeoDigestHtml(d: SeoDigest, indexingHtml?: string): string {
   const t = d.totals;
   return `
     <h1 style="font-size:20px;margin:0 0 4px;">Digest SEO/AEO semanal</h1>
@@ -88,6 +137,8 @@ export function buildSeoDigestHtml(d: SeoDigest): string {
     <p style="font-size:14px;margin:0 0 16px;">
       <b>${t.clicks}</b> clics · <b>${t.impressions}</b> impresiones · CTR <b>${pct(t.ctr)}</b> · posición media <b>${pos(t.position)}</b>
     </p>
+
+    ${indexingHtml || ""}
 
     <h2 style="font-size:15px;margin:18px 0 6px;">🎯 CTR bajo con muchas impresiones (reescribir título/meta)</h2>
     ${rowsTable(d.lowCtr, "Consulta")}
