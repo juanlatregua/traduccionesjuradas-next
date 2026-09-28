@@ -35,6 +35,7 @@ const STAFF_EXTRA_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "image/heif",
   "text/plain",
+  ...ZIP_TYPES,
 ];
 
 export async function POST(req: Request) {

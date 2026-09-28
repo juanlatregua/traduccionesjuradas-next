@@ -278,7 +278,7 @@ export default function TranslationWorkspacePanel({
         </p>
         <input
           type="file"
-          accept=".pdf,.doc,.docx"
+          accept=".pdf,.doc,.docx,.zip"
           multiple
           onChange={(e) => {
             addFiles(Array.from(e.target.files || []));
@@ -286,16 +286,16 @@ export default function TranslationWorkspacePanel({
           }}
           className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-emerald-500/50 file:bg-emerald-600/20 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-200"
         />
-        {/* Subir una CARPETA entera (webkitdirectory) — coge sus PDF/Word, descarta ocultos. */}
+        {/* Subir una CARPETA entera (webkitdirectory) — coge sus PDF/Word/ZIP, descarta ocultos. */}
         <input
           type="file"
           {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
           onChange={(e) => {
             const picked = Array.from(e.target.files || []).filter(
-              (file) => !file.name.startsWith(".") && /\.(pdf|docx?|doc)$/i.test(file.name)
+              (file) => !file.name.startsWith(".") && /\.(pdf|docx?|zip)$/i.test(file.name)
             );
             if (picked.length === 0) {
-              setMessage("La carpeta no contiene PDF o Word.");
+              setMessage("La carpeta no contiene PDF, Word o ZIP.");
               e.target.value = "";
               return;
             }
@@ -330,7 +330,7 @@ export default function TranslationWorkspacePanel({
           </div>
         ) : (
           <p className="mt-1.5 text-[11px] text-slate-400">
-            PDF o Word. Añade los archivos de uno en uno (se ACUMULAN, no se borran) o una CARPETA entera. Al elegir se
+            PDF, Word o ZIP. Añade los archivos de uno en uno (se ACUMULAN, no se borran) o una CARPETA entera. Al elegir se
             marca como Traducido.
           </p>
         )}
