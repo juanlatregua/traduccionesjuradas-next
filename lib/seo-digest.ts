@@ -94,13 +94,19 @@ export function buildIndexingHtml(r: IndexingReport): string {
     ? `<p style="color:#9a9a9a;font-size:12px;margin:4px 0 0;">Errores de inspección: ${r.errors[0]}</p>`
     : "";
 
+  const foreign = r.foreignCanonical.length
+    ? `<p style="font-size:13px;color:#b91c1c;margin:0 0 8px;">⚠ Google da como original de estas páginas una web AJENA (posible copia/spam): ${r.foreignCanonical
+        .map((f) => `${f.url} → ${f.googleCanonical}`)
+        .join(" · ")}. Pide indexación y, si sigue, denúncialo: https://developers.google.com/search/help/report-quality-issues</p>`
+    : "";
+
   // Un fallo de la API no puede salir como «todo indexado».
   const partial = r.checked < r.total
     ? `<p style="font-size:13px;color:#b45309;margin:0 0 8px;">⚠ Solo se pudieron revisar ${r.checked} de ${r.total} URLs del sitemap.</p>`
     : "";
 
   if (!pending.length) {
-    if (partial) return `${header}${partial}${errorLine}`;
+    if (partial || foreign) return `${header}${foreign}${partial}${errorLine}`;
     return `${header}
       <p style="font-size:13px;margin:0;">✓ Las ${r.checked} URLs del sitemap están indexadas y al día.</p>
       ${errorLine}`;
@@ -121,6 +127,7 @@ export function buildIndexingHtml(r: IndexingReport): string {
     : "";
 
   return `${header}
+    ${foreign}
     ${partial}
     <p style="font-size:12px;color:#6b7682;margin:0 0 8px;">Sin indexar (${r.notIndexed.length}) y rastreadas antes del último cambio (${r.stale.length}).</p>
     ${rows}

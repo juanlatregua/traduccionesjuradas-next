@@ -18,6 +18,8 @@ export type IndexingReport = {
   checked: number;
   notIndexed: IndexingItem[];
   stale: IndexingItem[];
+  // Google eligió como canónica una URL de OTRO dominio (Senegal → 747live.bet, 28-sep-2026).
+  foreignCanonical: { url: string; googleCanonical: string }[];
   errors: string[];
 };
 
@@ -31,6 +33,14 @@ function toDateOnly(v: Date | string | null | undefined): string | null {
   const d = typeof v === "string" ? new Date(v) : v;
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().slice(0, 10);
+}
+
+function hostOf(u: string): string | null {
+  try {
+    return new URL(u).hostname;
+  } catch {
+    return null;
+  }
 }
 
 function sortItems(items: IndexingItem[]): IndexingItem[] {
@@ -56,6 +66,7 @@ export async function buildIndexingReport(): Promise<IndexingReport> {
 
   const notIndexed: IndexingItem[] = [];
   const stale: IndexingItem[] = [];
+  const foreignCanonical: { url: string; googleCanonical: string }[] = [];
   const errors: string[] = [];
   let checked = 0;
   let idx = 0;
@@ -78,6 +89,9 @@ export async function buildIndexingReport(): Promise<IndexingReport> {
           lastModified,
           priority,
         };
+        if (result.googleCanonical && hostOf(result.googleCanonical) !== hostOf(url)) {
+          foreignCanonical.push({ url, googleCanonical: result.googleCanonical });
+        }
         if (result.verdict !== "PASS") {
           notIndexed.push(item);
         } else if (lastModified && lastCrawlDate && lastCrawlDate < lastModified) {
@@ -96,6 +110,7 @@ export async function buildIndexingReport(): Promise<IndexingReport> {
     checked,
     notIndexed: sortItems(notIndexed),
     stale: sortItems(stale),
+    foreignCanonical,
     errors,
   };
 }

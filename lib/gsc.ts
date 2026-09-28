@@ -87,6 +87,7 @@ export type UrlInspection = {
   verdict: string;
   coverageState: string;
   lastCrawlTime: string | null;
+  googleCanonical: string | null;
 };
 
 export async function inspectUrl(inspectionUrl: string, token: string): Promise<UrlInspection> {
@@ -105,6 +106,7 @@ export async function inspectUrl(inspectionUrl: string, token: string): Promise<
     verdict: idx.verdict || "?",
     coverageState: idx.coverageState || "?",
     lastCrawlTime: idx.lastCrawlTime || null,
+    googleCanonical: idx.googleCanonical || null,
   };
 }
 
