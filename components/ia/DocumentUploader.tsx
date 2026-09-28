@@ -225,8 +225,12 @@ export default function DocumentUploader({
           `}
           onClick={() => inputRef.current?.click()}
           role="button"
-          tabIndex={0}
+          // Bloqueada hasta aceptar la privacidad: inactiva de verdad (WCAG 1.4.3 exime
+          // a los controles inactivos del contraste) en vez de solo verse apagada.
+          aria-disabled={disabled || !gdprConsent}
+          tabIndex={disabled || !gdprConsent ? -1 : 0}
           onKeyDown={(e) => {
+            if (disabled || !gdprConsent) return;
             if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
           }}
         >
@@ -242,6 +246,7 @@ export default function DocumentUploader({
           <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
             <button
               type="button"
+              disabled={disabled || !gdprConsent}
               onClick={(e) => {
                 e.stopPropagation();
                 inputRef.current?.click();
@@ -255,6 +260,7 @@ export default function DocumentUploader({
             {/* Camera button — only shown on mobile via CSS */}
             <button
               type="button"
+              disabled={disabled || !gdprConsent}
               onClick={(e) => {
                 e.stopPropagation();
                 cameraRef.current?.click();
