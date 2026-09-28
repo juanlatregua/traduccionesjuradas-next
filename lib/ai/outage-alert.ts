@@ -116,7 +116,7 @@ export async function alertStaffAiOutage(where: string, detail: string): Promise
  */
 export async function alertStaffMargin(input: {
   orderId: string;
-  assignmentId: string;
+  assignmentId?: string | null;
   supplier: string;
   revenueNetCents: number;
   supplierCostCents: number;

@@ -8,6 +8,7 @@ import { applyAcceptedQuoteSideEffects } from "@/lib/collaborators";
 import { LAVORI_MEMBER_COLLABORATOR_EMAIL } from "@/lib/lavori-bridge";
 import { priceBasisForMember } from "@/lib/lavori-directo";
 import { channelPriceToBaseCents } from "@/lib/lavori-directo-math";
+import { netFromGross } from "@/lib/quotes";
 
 export async function assignLavoriAcceptance(opts: {
   order: { id: string; reference: string };
@@ -89,7 +90,37 @@ export async function assignLavoriAcceptance(opts: {
   // no se pierden (Juan, 25-sep-2026: el margen tiene que constar siempre).
   const fechaEntrega = opts.payload?.fechaEntrega ? Date.parse(String(opts.payload.fechaEntrega)) : NaN;
   if (!collaborator && baseCents) {
-    await prisma.order.updateMany({ where: { id: order.id, supplierCostCents: null }, data: { supplierCostCents: baseCents } });
+    // Mismo snapshot y misma alarma que con colaborador: sin ficha el margen
+    // cero o negativo también se avisa por email + SMS, no se descubre al asignar.
+    // Coste y snapshot en la misma transacción: si el snapshot falla, el reintento
+    // de lavori vuelve a encontrar el coste vacío y el aviso no se pierde.
+    const margen = await prisma.$transaction(async (tx) => {
+      const costeGuardado = await tx.order.updateMany({ where: { id: order.id, supplierCostCents: null }, data: { supplierCostCents: baseCents } });
+      if (costeGuardado.count === 0) return null;
+      const cobro = await tx.order.findUnique({ where: { id: order.id }, select: { amountCents: true } });
+      const revenueNetCents = netFromGross(cobro?.amountCents || 0);
+      const marginCents = revenueNetCents - baseCents;
+      await tx.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "finance.margin.snapshot",
+          message: `Snapshot de margen (sin colaborador mapeado): ingreso neto ${(revenueNetCents / 100).toFixed(2)}€ − coste ${(baseCents / 100).toFixed(2)}€ = ${(marginCents / 100).toFixed(2)}€.`,
+          payload: {
+            supplierCostCents: baseCents,
+            revenueCents: revenueNetCents,
+            grossRevenueCents: cobro?.amountCents || 0,
+            marginCents,
+            marginBasis: "net_of_vat",
+            miembroId,
+          },
+        },
+      });
+      return { revenueNetCents, marginCents };
+    });
+    if (margen && margen.marginCents <= 0) {
+      const { alertStaffMargin } = await import("@/lib/ai/outage-alert");
+      await alertStaffMargin({ orderId: order.id, supplier: miembro, supplierCostCents: baseCents, ...margen });
+    }
   }
   if (Number.isFinite(fechaEntrega)) {
     await prisma.order.updateMany({ where: { id: order.id, dueDate: null }, data: { dueDate: new Date(fechaEntrega) } });
