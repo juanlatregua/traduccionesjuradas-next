@@ -24,7 +24,7 @@ export default function DevolucionesPage() {
           Esta política se aplica a los servicios de traducción jurada
           contratados a <strong>HBTJ Consultores Lingüísticos S.L.</strong>{" "}
           (CIF B-93613890) a través del sitio{" "}
-          <Link href="/" className="text-bleu hover:underline">
+          <Link href="/" className="text-bleu underline">
             traduccionesjuradas.net
           </Link>
           .
@@ -128,7 +128,7 @@ export default function DevolucionesPage() {
             <strong>Paso 1.</strong> Envía un correo a{" "}
             <a
               href="mailto:hola@traduccionesjuradas.net"
-              className="text-bleu hover:underline"
+              className="text-bleu underline"
             >
               hola@traduccionesjuradas.net
             </a>{" "}
@@ -138,7 +138,7 @@ export default function DevolucionesPage() {
               href={WHATSAPP_LINK}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-bleu hover:underline"
+              className="text-bleu underline"
             >
               WhatsApp
             </a>
@@ -164,7 +164,7 @@ export default function DevolucionesPage() {
             href="https://ec.europa.eu/consumers/odr"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-bleu hover:underline"
+            className="text-bleu underline"
           >
             Plataforma Europea de Resolución de Litigios en Línea
           </a>{" "}

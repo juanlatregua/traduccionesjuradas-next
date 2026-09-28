@@ -64,6 +64,7 @@ export function CivilMiniForm() {
         <select
           value={pair.id}
           onChange={(e) => setPair(OPTIONS.find((o) => o.id === e.target.value) || OPTIONS[0])}
+          aria-label="Idioma origen y destino"
           className="rounded-xl border border-cream px-3 py-2 text-xs"
         >
           {OPTIONS.map((o) => (

@@ -102,7 +102,7 @@ export default function RegularizacionMaliPage() {
       </header>
 
       <section className="mt-8 rounded-2xl border border-or/30 bg-or/5 p-5 text-sm text-encre">
-        <h2 className="text-lg font-semibold text-or">
+        <h2 className="text-lg font-semibold text-or-dark">
           Atención: legalización consular, no apostilla
         </h2>
         <p className="mt-2 text-sepia">

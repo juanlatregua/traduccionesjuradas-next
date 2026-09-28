@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
 import { Upload, Camera, FileText, X, Loader2 } from "lucide-react";
 import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
 
@@ -106,6 +105,8 @@ export default function DocumentUploader({
         // 1. Upload directly to Vercel Blob (bypasses 4.5MB serverless limit)
         const safeName = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
         const pathname = `ia-documents/${Date.now()}-${safeName}`;
+        // Import diferido: el cliente de Blob pesa ~35 KB y solo hace falta al subir.
+        const { upload } = await import("@vercel/blob/client");
         const blob = await upload(pathname, file, {
           access: "public",
           handleUploadUrl: "/api/documents/upload",
@@ -225,7 +226,6 @@ export default function DocumentUploader({
           onClick={() => inputRef.current?.click()}
           role="button"
           tabIndex={0}
-          aria-label={t.ariaDrop}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
           }}

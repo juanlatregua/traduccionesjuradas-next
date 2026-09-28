@@ -22,7 +22,7 @@ const config: Config = {
         or: {
           DEFAULT: "#B8922A",
           light: "#F0E2B8",
-          dark: "#8A6A1A",
+          dark: "#816318",
         },
         rouge: "#8B2500",
         vert: "#2D5016",

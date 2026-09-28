@@ -504,7 +504,7 @@ export default function DiagnosticFiscalFR() {
                     <td className="px-3 py-2">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold ${
-                          row[0] === "fr" ? "bg-bleu/[0.12] text-bleu" : "bg-or/[0.15] text-or"
+                          row[0] === "fr" ? "bg-bleu/[0.12] text-bleu" : "bg-or/[0.15] text-or-dark"
                         }`}
                       >
                         {row[0].toUpperCase()}

@@ -35,7 +35,7 @@ export default function LanguageSwitcher({ className = "" }: { className?: strin
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-label={lang === "fr" ? "Changer de langue" : lang === "en" ? "Change language" : lang === "de" ? "Sprache wechseln" : lang === "pt" ? "Mudar de idioma" : "Cambiar de idioma"}
+        aria-label={`${lang === "fr" ? "Changer de langue" : lang === "en" ? "Change language" : lang === "de" ? "Sprache wechseln" : lang === "pt" ? "Mudar de idioma" : "Cambiar de idioma"} (${LOCALE_LABEL[lang]})`}
         className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-or px-2.5 text-[12px] font-bold text-bleu shadow-sm transition-colors hover:bg-or-light/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu"
       >
         <Globe className="h-3.5 w-3.5" aria-hidden="true" />

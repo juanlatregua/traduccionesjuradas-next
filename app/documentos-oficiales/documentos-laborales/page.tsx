@@ -241,7 +241,7 @@ export default function DocumentosLaboralesPage() {
               <strong>Certificados del Registro Mercantil</strong> o equivalente
               en el país de origen de la empresa (<Link
                 href="/documentos-oficiales/documentos-mercantiles"
-                className="text-bleu hover:underline"
+                className="text-bleu underline"
               >
                 ver documentos mercantiles
               </Link>
@@ -264,7 +264,7 @@ export default function DocumentosLaboralesPage() {
               documentos de la unidad familiar{" "}
               (<Link
                 href="/documentos-oficiales/certificados-registro-civil"
-                className="text-bleu hover:underline"
+                className="text-bleu underline"
               >
                 certificados del Registro Civil
               </Link>
@@ -275,7 +275,7 @@ export default function DocumentosLaboralesPage() {
               documentos personales exigidos por extranjería{" "}
               (<Link
                 href="/documentos-oficiales/antecedentes-penales"
-                className="text-bleu hover:underline"
+                className="text-bleu underline"
               >
                 ver antecedentes penales
               </Link>

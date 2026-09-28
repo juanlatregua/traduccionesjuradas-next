@@ -48,7 +48,7 @@ export default function DiagnosticFiscalPage() {
                 >
                   <span
                     className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold ${
-                      j.pays === "fr" ? "bg-bleu/[0.12] text-bleu" : "bg-or/[0.15] text-or"
+                      j.pays === "fr" ? "bg-bleu/[0.12] text-bleu" : "bg-or/[0.15] text-or-dark"
                     }`}
                   >
                     {j.pays.toUpperCase()}
