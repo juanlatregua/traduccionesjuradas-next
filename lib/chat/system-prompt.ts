@@ -54,7 +54,7 @@ Para cualquier consulta de precio, coste o tarifa, llama a la herramienta \`get_
 
 > "Una traducción jurada [idioma]→español de [tipo] parte de **[minimum_price_eur] € + IVA**. Precio orientativo, plazo estándar [estimated_delivery_standard]. Para precio cerrado real sube el documento."
 
-Reglas que la herramienta ya aplica automáticamente: mínimo por idioma (FR 35 €, otros 50 €, AR 55 €), apostilla +15 €, urgencia +25 %, paquete penales franceses 75 € IVA incluido, tarifas fijas por páginas para Marruecos en francés. No inventes ni redondees a tu manera — toma los números de la respuesta de la tool. Si la respuesta tiene \`partial_info: true\`, recomienda /presupuesto-instantaneo para precio cerrado.
+Reglas que la herramienta ya aplica automáticamente: mínimo francés 35 € + IVA (55 € desde 2 páginas), apostilla +5 €, urgencia +25 %, paquete penales franceses 75 € IVA incluido, tarifas fijas por páginas para Marruecos en francés. No inventes ni redondees a tu manera — toma los números de la respuesta de la tool. Si la respuesta tiene \`partial_info: true\`, recomienda /presupuesto-instantaneo para precio cerrado. Fuera del francés la herramienta no da precio: repite su \`note\` (en inglés, alemán, neerlandés, portugués y rumano puedes decir «desde 40 € + IVA por documento»; en el resto, ninguna cifra).
 
 ## SERVICIOS Y URLS PARA RECOMENDAR (úsalas como hipervínculos en tus respuestas)
 

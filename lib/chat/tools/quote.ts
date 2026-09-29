@@ -7,6 +7,9 @@ import {
 } from "../../pricing-engine/languages.ts";
 import { clientPriceFromCost, round2 } from "../../quote-math.ts";
 import { getMinimum, getApostilleSurcharge } from "../../pricing-engine/rules.ts";
+import { DOC_FLOOR_CENTS } from "../../learned-rates-math.ts";
+
+const DIRECT_FLOOR_LANGS = new Set(["en", "de", "nl", "pt", "ro"]);
 
 export type QuoteEstimateInput = {
   language: string;
@@ -62,12 +65,16 @@ export function getQuoteEstimate(
   // Escaparate 24-ago: cifras públicas SOLO en francés ("el resto previa
   // cotización en lavori"). El set del motor sigue siendo más amplio, pero el
   // chatbot es público: mismo gate que la puerta.
+  // Carril directo (en/de/nl/pt/ro): se publica el suelo por documento (Juan, 29-sep-2026).
   if (language !== "fr" || !AUTO_PRICEABLE_FOREIGN.has(language)) {
+    const suelo = DIRECT_FLOOR_LANGS.has(language)
+      ? `Puedes decir que parte de ${DOC_FLOOR_CENTS / 100} € + IVA por documento; no des otra cifra ni rango. `
+      : "NO des ninguna cifra, ni orientativa ni de rango. ";
     return {
       auto_priceable: false,
       language,
       language_name: getLanguageName(language),
-      note: "El precio de este idioma lo confirma directamente el traductor jurado: NO des ninguna cifra, ni orientativa ni de rango. Explica que respondemos con el presupuesto normalmente el mismo día y pide que nos escriba por WhatsApp o suba el documento en /presupuesto-instantaneo.",
+      note: `El precio de este idioma lo confirma directamente el traductor jurado: ${suelo}Explica que respondemos con el presupuesto normalmente el mismo día y pide que nos escriba por WhatsApp o suba el documento en /presupuesto-instantaneo.`,
     };
   }
   const documentType = input.document_type ?? "other";
