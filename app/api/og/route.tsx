@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
                 fontSize: "16px",
               }}
             >
-              Entrega 24-72 h
+              Precio cerrado antes de pagar
             </div>
             <div
               style={{

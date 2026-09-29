@@ -41,7 +41,7 @@ export const HOME_HERO = {
     "Nous vous disons quoi traduire, avec quelle validité et à quel prix. Pour le français, prix ferme immédiat ; pour les autres langues, un traducteur assermenté vous envoie le devis dans la journée.",
     "We tell you what needs translating, with what validity and how much it costs. French: fixed price instantly; other languages: a sworn translator sends your quote the same day.",
     "Wir sagen Ihnen, was übersetzt werden muss, mit welcher Gültigkeit und zu welchem Preis. Französisch: Festpreis sofort; andere Sprachen: ein vereidigter Übersetzer schickt Ihnen das Angebot noch am selben Tag.",
-    "Dizemos-lhe o que precisa de traduzir, com que validade e quanto custa. Em francês, preço fechado no momento; nos outros idiomas, um tradutor ajuramentado envia-lhe o orçamento no próprio dia."
+    "Dizemos-lhe o que precisa de traduzir, com que validade e quanto custa. Em francês, preço fechado no momento; nos outros idiomas, um tradutor jurado envia-lhe o orçamento no próprio dia."
   ),
   asistente: {
     title: tr("Escríbenos qué necesitas", "Dites-nous ce qu'il vous faut", "Tell us what you need", "Sagen Sie uns, was Sie brauchen", "Diga-nos o que precisa"),
@@ -126,7 +126,7 @@ export const HOME_HERO = {
       "Décrivez votre démarche et envoyez une photo du document : un traducteur assermenté vous répond avec le prix, en général dans la journée.",
       "Tell us your procedure and send a photo of the document: a sworn translator replies with the price, usually within the day.",
       "Beschreiben Sie Ihr Anliegen und schicken Sie ein Foto des Dokuments: Ein vereidigter Übersetzer antwortet mit dem Preis, meist noch am selben Tag.",
-      "Descreva o seu trâmite e envie uma foto do documento: um tradutor ajuramentado responde com o preço, normalmente no próprio dia."
+      "Descreva o seu trâmite e envie uma foto do documento: um tradutor jurado responde com o preço, normalmente no próprio dia."
     ),
     cta: tr("Abrir WhatsApp", "Ouvrir WhatsApp", "Open WhatsApp", "WhatsApp öffnen", "Abrir o WhatsApp"),
   },
@@ -197,7 +197,7 @@ export const HOME_HERO = {
       "Traducteurs assermentés nommés par le ministère espagnol des Affaires étrangères",
       "Sworn translators appointed by Spain's Ministry of Foreign Affairs",
       "Vom spanischen Außenministerium ernannte vereidigte Übersetzer",
-      "Tradutores ajuramentados nomeados pelo Ministério dos Negócios Estrangeiros de Espanha"
+      "Tradutores jurados nomeados pelo Ministério dos Negócios Estrangeiros de Espanha"
     ),
     tr(
       "Pago seguro: tarjeta, Bizum o transferencia",

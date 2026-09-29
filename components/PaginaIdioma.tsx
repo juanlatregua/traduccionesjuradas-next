@@ -8,6 +8,7 @@ import { SchemaService } from "@/components/SchemaService";
 import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { getMinimum } from "@/lib/pricing-engine/rules";
+import { DOC_FLOOR_CENTS } from "@/lib/learned-rates-math";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 import { CENSO_STIJ, CENSO_STIJ_FECHA } from "@/lib/censo-jurados";
 
@@ -15,6 +16,8 @@ const PuertaClient = dynamic(
   () => import("@/app/presupuesto-instantaneo/PuertaClient"),
   { ssr: false, loading: () => <UploadHeroPlaceholder /> }
 );
+
+const DIRECT_LANGS = new Set(["en", "de", "nl", "pt", "ro"]);
 
 type DocHabitual = {
   titulo: string;
@@ -66,7 +69,7 @@ export default async function PaginaIdioma({
   const lang = langCode || LANGUAGE_CONFIGS[idiomaSlug]?.langCode || idiomaSlug;
   const rate = getWordRateForLangOrPair(lang);
   // Fuente única de mínimos (fr = suelos nuevos 24-ago: 35 el doc suelto).
-  const minPrice = getMinimum("other", lang);
+  const minPrice = DIRECT_LANGS.has(lang) ? DOC_FLOOR_CENTS / 100 : getMinimum("other", lang);
 
   // Dato citable (AEO 24-ago): el CENSO OFICIAL, que es verificable, con fuente
   // y con fecha. Eso es lo que hace que los motores de IA citen esta página; la

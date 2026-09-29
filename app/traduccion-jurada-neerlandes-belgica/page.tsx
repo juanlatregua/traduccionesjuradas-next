@@ -178,8 +178,7 @@ export default function TraduccionJuradaNeerlandesBelgicaPage() {
           </li>
           <li>
             Al aceptarlo, esa misma persona firma y sella tu traducción: la recibes en PDF con firma
-            digital o en papel por mensajería. Los certificados sencillos suelen entregarse en 24-72
-            horas laborables.
+            digital o en papel por mensajería. El plazo lo confirma el traductor jurado en el presupuesto, normalmente el mismo día.
           </li>
         </ol>
       </section>

@@ -35,7 +35,7 @@ export default function TraduccionJuradaOnlinePage() {
           },
           {
             question: "¿Qué plazos orientativos manejan?",
-            answer: "Según idioma y páginas: 24-72 h. Por ejemplo, inglés 24-48 h, francés 24 h, alemán 48-72 h.",
+            answer: "Francés: 24 h hasta 2 páginas y 48 h desde 3. En el resto de idiomas, el traductor jurado confirma el plazo en el presupuesto, normalmente el mismo día.",
           },
           {
             question: "¿Puedo enviar foto en lugar de escaneo?",
@@ -55,7 +55,7 @@ export default function TraduccionJuradaOnlinePage() {
           Traducción jurada online con entrega en PDF firmado
         </h1>
         <p className="text-sepia">
-          Adjunta tu documento y recibe la traducción jurada en PDF firmado y sellado por el traductor jurado. Plazos rápidos (24-72 h) según idioma y páginas.
+          Adjunta tu documento y recibe la traducción jurada en PDF firmado y sellado por el traductor jurado. Francés en 24-48 h; en otros idiomas, plazo confirmado en el presupuesto.
         </p>
         <div className="flex flex-wrap gap-3 text-xs text-graphite">
           <span>Respuesta en &lt; 30 minutos en horario 09:00-19:00 CET</span>

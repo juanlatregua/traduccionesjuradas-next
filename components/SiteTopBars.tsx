@@ -20,7 +20,7 @@ export default function SiteTopBars() {
           <span aria-hidden="true">·</span>
           <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-vert" />Prix fixe immédiat</span>
           <span aria-hidden="true">·</span>
-          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-bleu" />Livraison 24-72 h</span>
+          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-bleu" />Livraison 24-48 h</span>
         </div>
       </div>
     );
@@ -28,7 +28,7 @@ export default function SiteTopBars() {
 
   return (
     <>
-      <TrustStrip />
+      <TrustStrip lang={lang} />
       <div className="border-b border-bleu/20 bg-bleu/5">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-xs text-encre sm:text-sm">
           <span className="inline-flex items-center gap-1.5 font-semibold text-bleu">

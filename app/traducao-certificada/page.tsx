@@ -14,7 +14,7 @@ import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/l
 export const metadata: Metadata = {
   title: { absolute: "Tradução certificada espanhol ↔ português · validade oficial em Espanha" },
   description:
-    "Tradução certificada oficial em 10 idiomas, 100% online. Envie o seu documento e receba um orçamento fechado em 60 segundos. Tradutores habilitados pelo MAEC de Espanha. Português desde 40 € + IVA, orçamento normalmente no mesmo dia.",
+    "Tradução certificada oficial em 10 idiomas, 100% online. Envie o seu documento e receba um orçamento fechado antes de pagar. Tradutores habilitados pelo MAEC de Espanha. Português desde 40 € + IVA, orçamento normalmente no mesmo dia.",
   alternates: { canonical: LOCALE_ABS.pt, languages: HREFLANG_ALTERNATES },
   openGraph: {
     title: "Tradução certificada espanhol ↔ português",

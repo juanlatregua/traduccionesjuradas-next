@@ -71,7 +71,7 @@ export default function TraduccionJuradaFrancesMalagaPage() {
             <li>Documento 1 hoja: desde 40 EUR.</li>
             <li>Documento 2 hojas: desde 50-60 EUR segun apostilla.</li>
             <li>Documentos extensos: calculo por palabras.</li>
-            <li>Plazo habitual: 24-72h segun volumen e idioma.</li>
+            <li>Plazo habitual: 24 h hasta 2 páginas y 48 h desde 3 (francés).</li>
           </ul>
         </article>
       </section>

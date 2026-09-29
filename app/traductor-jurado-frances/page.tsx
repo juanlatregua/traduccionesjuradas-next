@@ -46,7 +46,7 @@ export default function TraductorJuradoFrancesPage() {
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de francés?",
           answer:
-            "Los certificados sencillos suelen resolverse en 24-72 horas laborables, y los expedientes extensos requieren más plazo según volumen.",
+            "Los certificados sencillos de 1 a 2 páginas se entregan en 24 horas desde el pago y, desde 3 páginas, en 48 horas.",
         },
         {
           question: "¿Necesito apostillar la traducción jurada de francés?",

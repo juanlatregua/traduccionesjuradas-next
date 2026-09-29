@@ -343,7 +343,7 @@ export const funnelT: Record<FunnelLang, FunnelDict> = {
       declareTransfer: "Já paguei por transferência",
       declaring: "A registar…",
       declareError: "Não foi possível registar o aviso de pagamento.",
-      trust: "Pagamento seguro · fatura com IVA · tradutor ajuramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L.",
+      trust: "Pagamento seguro · fatura com IVA · tradutor jurado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L.",
       copied: (label) => `Copiado: ${label}`,
     },
   },

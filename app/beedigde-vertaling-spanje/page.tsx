@@ -41,7 +41,7 @@ const FAQ = [
   {
     question: "Hoe lang duurt een beëdigde vertaling Nederlands-Spaans?",
     answer:
-      "De beëdigd vertaler bevestigt de levertijd in de offerte, normaal gesproken dezelfde dag. De vertaling ontvang je als digitaal ondertekende pdf, of op papier per koerier als de instantie dat vraagt. Uitgebreide dossiers vragen meer tijd, afhankelijk van de omvang.",
+      "Je ontvangt normaal gesproken dezelfde dag een offerte; daarin bevestigt de beëdigd vertaler de levertijd. De vertaling ontvang je als digitaal ondertekende pdf, of op papier per koerier als de instantie dat vraagt. Uitgebreide dossiers vragen meer tijd, afhankelijk van de omvang.",
   },
   {
     question: "Heb ik een apostille nodig voor mijn Nederlandse of Belgische document?",
@@ -53,7 +53,7 @@ const FAQ = [
   {
     question: "Welke Nederlandse documenten laten mensen het vaakst vertalen voor Spanje?",
     answer:
-      "Meestal een uittreksel uit de Basisregistratie Personen (BRP), een geboorteakte of huwelijksakte, een diploma met cijferlijst en een Verklaring omtrent het Gedrag (VOG). Ze worden gebruikt voor verblijf, huwelijk, nationaliteit, studie of werk in Spanje.",
+      "Meestal een uittreksel uit de Basisregistratie Personen (BRP), een geboorteakte of huwelijksakte, een diploma met cijferlijst en een Verklaring omtrent het Gedrag (VOG). Voor gebruik in het buitenland kan ook een uittreksel justitiële documentatie worden gevraagd; vraag bij de instantie na welk document zij verlangt. Ze worden gebruikt voor verblijf, huwelijk, nationaliteit, studie of werk in Spanje.",
   },
 ];
 
@@ -61,7 +61,7 @@ const DOCUMENTEN: [string, string][] = [
   ["Uittreksel BRP (Basisregistratie Personen)", "Verblijf, woonplaats, gezinssamenstelling"],
   ["Geboorteakte / huwelijksakte", "Huwelijk, nationaliteit, erfenis, verblijf"],
   ["Diploma en cijferlijst", "Studie of erkenning van je opleiding"],
-  ["VOG (Verklaring omtrent het Gedrag)", "Verblijf of werk (Spaans: antecedentes penales)"],
+  ["VOG (Verklaring omtrent het Gedrag)", "Verblijf of werk (Spaans: antecedentes penales); vraag bij de instantie of zij een VOG of een uittreksel justitiële documentatie verlangt"],
 ];
 
 const STAPPEN = [
@@ -102,7 +102,7 @@ export default function BeedigdeVertalingSpanjePage() {
           Een beëdigde vertaling (<em>traducción jurada</em>) is de officiële vertaling van een document, ondertekend en
           gestempeld door een vertaler die door het Spaanse ministerie van Buitenlandse Zaken (MAEC) is benoemd. Voor
           Nederlands-Spaans betaal je vanaf € 40 excl. btw per document; de beëdigd vertaler bevestigt de definitieve prijs
-          en de levertijd in de offerte, normaal gesproken dezelfde dag.
+          en de levertijd in de offerte, die je normaal gesproken dezelfde dag ontvangt.
         </p>
         <p className="mt-3 text-xs text-sepia">
           <time dateTime={PORTADAS_UPDATED}>Bijgewerkt op 29 september 2026</time>
@@ -120,7 +120,7 @@ export default function BeedigdeVertalingSpanjePage() {
 
         <h2 className="mt-12 font-baskerville text-2xl font-bold text-encre">Wat is een beëdigde vertaling in Spanje?</h2>
         <p className="mt-3 text-sepia">
-          In Spanje geeft het MAEC de titel <em>traductor jurado</em> aan vertalers. Hun vertalingen hebben volgens het
+          In Spanje verleent het MAEC de titel <em>traductor jurado</em> aan vertalers. Hun vertalingen hebben volgens het
           ministerie een officieel karakter en kunnen worden ingediend bij rechterlijke en administratieve instanties. De
           vertaler bevestigt met een verklaring en zijn stempel dat de vertaling getrouw is. Welke vorm de instantie
           precies verlangt (pdf of papier, origineel erbij), verschilt per loket: vraag dat na bij de instantie die het

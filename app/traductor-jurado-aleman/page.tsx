@@ -43,7 +43,7 @@ export default function TraductorJuradoAlemanPage() {
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de alemán?",
           answer:
-            "Los certificados sencillos suelen resolverse en 24-72 horas laborables, y los expedientes extensos requieren más plazo según volumen.",
+            "El plazo lo confirma el traductor jurado en el presupuesto, normalmente el mismo día.",
         },
         {
           question: "¿Se necesita Apostilla para usar una traducción jurada en Alemania, Austria o Suiza?",

@@ -68,8 +68,8 @@ export const HOME: HomeStrings = {
       {
         b: tr("Cuánto:", "Combien :", "How much:", "Wie viel:", "Quanto:"),
         t: tr(
-          "precio cerrado; en francés desde 35 €/documento, en otros idiomas desde 40 € + IVA. Sin sorpresas.",
-          "prix ferme, dès 35 €/document. Sans surprises.",
+          "precio cerrado; en francés desde 35 € + IVA/documento, en otros idiomas desde 40 € + IVA. Sin sorpresas.",
+          "prix ferme, dès 35 € HT/document. Sans surprises.",
           "a fixed price before you pay, from €40 + VAT/document. No surprises.",
           "Festpreis vor der Zahlung, ab 40 € zzgl. MwSt./Dokument. Keine Überraschungen.",
           "preço fechado antes de pagar, desde 40 € + IVA/documento. Sem surpresas."
@@ -95,7 +95,7 @@ export const HOME: HomeStrings = {
     ),
     priceLine: tr(
       "Precio cerrado desde 35 € (francés) · 10 idiomas · entrega 24–48 h en francés",
-      "Prix ferme dès 35 € · 10 langues · livraison 24–48 h",
+      "Prix ferme dès 35 € HT · 10 langues · livraison 24–48 h",
       "Fixed price from €40 + VAT · 10 languages · deadline confirmed in the quote",
       "Festpreis ab 40 € zzgl. MwSt. · 10 Sprachen · Frist im Angebot bestätigt",
       "Preço fechado desde 40 € + IVA · 10 idiomas · prazo confirmado no orçamento"
@@ -105,7 +105,7 @@ export const HOME: HomeStrings = {
       "Traducteurs assermentés accrédités par le MAEC · PDF signé ayant valeur officielle. Spécialistes du français (Juan Silva, n° 3850).",
       "Sworn translators accredited by Spain's Ministry of Foreign Affairs (MAEC) · officially valid signed PDF.",
       "Vom spanischen Außenministerium (MAEC) ermächtigte vereidigte Übersetzer · amtlich gültiges, signiertes PDF.",
-      "Tradutores ajuramentados acreditados pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC) · PDF assinado com validade oficial."
+      "Tradutores jurados acreditados pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC) · PDF assinado com validade oficial."
     ),
   },
   catalog: {
@@ -142,7 +142,7 @@ export const HOME: HomeStrings = {
       "Juan Silva · Traducteur assermenté de français · MAEC n° 3850 · HBTJ Consultores Lingüísticos S.L.",
       "Juan Silva · Founder · Sworn translator accredited by the MAEC · HBTJ Consultores Lingüísticos S.L.",
       "Juan Silva · Gründer · Vom MAEC ermächtigter Übersetzer · HBTJ Consultores Lingüísticos S.L.",
-      "Juan Silva · Fundador · Tradutor ajuramentado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L."
+      "Juan Silva · Fundador · Tradutor jurado acreditado pelo MAEC · HBTJ Consultores Lingüísticos S.L."
     ),
   },
   reviews: {
@@ -232,7 +232,7 @@ export const HOME: HomeStrings = {
         href: "/blog/reagrupacion-familiar-documentos",
       },
       {
-        title: tr("Qué es un traductor jurado", "Qu'est-ce qu'un traducteur assermenté", "What is a sworn translator", "Was ist ein vereidigter Übersetzer", "O que é um tradutor ajuramentado"),
+        title: tr("Qué es un traductor jurado", "Qu'est-ce qu'un traducteur assermenté", "What is a sworn translator", "Was ist ein vereidigter Übersetzer", "O que é um tradutor jurado"),
         desc: tr(
           "Quién puede firmar una traducción oficial y qué validez tiene.",
           "Qui peut signer une traduction officielle et quelle est sa validité.",
@@ -273,8 +273,8 @@ export const HOME: HomeStrings = {
     primary: tr("Subir y diagnosticar", "Déposer et diagnostiquer", "Upload and diagnose", "Hochladen und diagnostizieren", "Enviar e diagnosticar"),
     secondary: tr("Ver utilidades", "Voir les utilités", "See the toolkit", "Werkzeuge ansehen", "Ver ferramentas"),
     micro: tr(
-      "Pago seguro · precio cerrado desde 35 €/documento (francés) o 40 € (otros idiomas) · sin compromiso",
-      "Paiement sécurisé · prix ferme dès 35 €/document · sans engagement",
+      "Pago seguro · precio cerrado desde 35 € + IVA/documento (francés) o 40 € + IVA (otros idiomas) · sin compromiso",
+      "Paiement sécurisé · prix ferme dès 35 € HT/document · sans engagement",
       "Secure payment · fixed price from €40 + VAT/document · no commitment",
       "Sichere Zahlung · Festpreis ab 40 € zzgl. MwSt./Dokument · unverbindlich",
       "Pagamento seguro · preço fechado desde 40 € + IVA/documento · sem compromisso"

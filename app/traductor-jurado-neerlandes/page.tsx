@@ -52,7 +52,7 @@ export default function TraductorJuradoNeerlandesPage() {
         {
           question: "¿Traducen certificados de nacimiento neerlandeses (geboorteakte)?",
           answer:
-            "Sí, es uno de los documentos más habituales: geboorteakte, huwelijksakte y VOG para extranjería, matrimonio o nacionalidad en España. Los certificados sencillos suelen entregarse en 24-72 horas laborables.",
+            "Sí, es uno de los documentos más habituales: geboorteakte, huwelijksakte y VOG para extranjería, matrimonio o nacionalidad en España. El plazo lo confirma el traductor jurado en el presupuesto, normalmente el mismo día.",
         },
         {
           question: "¿Hacen traducción jurídica de neerlandés?",
@@ -67,7 +67,7 @@ export default function TraductorJuradoNeerlandesPage() {
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de neerlandés?",
           answer:
-            "Los certificados sencillos suelen resolverse en 24-72 horas laborables, y los expedientes extensos requieren más plazo según volumen.",
+            "El plazo lo confirma el traductor jurado en el presupuesto, normalmente el mismo día.",
         },
       ]}
       documentosHabituales={[

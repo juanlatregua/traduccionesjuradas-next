@@ -42,7 +42,7 @@ export default function TraductorJuradoInglesPage() {
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de inglés?",
           answer:
-            "Los certificados sencillos suelen resolverse en 24-72 horas laborables, y los expedientes extensos requieren más plazo según volumen.",
+            "El plazo lo confirma el traductor jurado en el presupuesto, normalmente el mismo día.",
         },
         {
           question: "¿Sirve una traducción jurada de inglés para trámites en Reino Unido o Estados Unidos?",

@@ -126,8 +126,8 @@ const SWORN_STATEMENT: Record<DiagnosisLang, { inbound: string; outbound: string
     outbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer angefertigt; dank der Anerkennungsabkommen ist sie bei den Behörden des Ziellandes gültig, ohne dass Sie dort einen weiteren Übersetzer beauftragen müssen.",
   },
   pt: {
-    inbound: "Sim. É assinada e carimbada por um tradutor ajuramentado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); tem plena validade perante qualquer organismo oficial em Espanha.",
-    outbound: "Sim. É realizada por um tradutor ajuramentado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); graças aos acordos de reconhecimento, é válida perante as autoridades do país de destino sem necessidade de contratar outro tradutor lá.",
+    inbound: "Sim. É assinada e carimbada por um tradutor jurado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); tem plena validade perante qualquer organismo oficial em Espanha.",
+    outbound: "Sim. É realizada por um tradutor jurado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); graças aos acordos de reconhecimento, é válida perante as autoridades do país de destino sem necessidade de contratar outro tradutor lá.",
   },
 };
 

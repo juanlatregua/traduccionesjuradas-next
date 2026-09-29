@@ -106,7 +106,7 @@ const PDF_STRINGS: Record<QuotePdfLang, PdfStrings> = {
   pt: {
     title: "ORÇAMENTO", no: "N.º", issued: "Emissão", validUntil: "Válido até", paid: "PAGO", client: "Cliente",
     holders: "Titulares", languages: "Idiomas", delivery: "Entrega", deliveryDigital: "PDF assinado digitalmente",
-    deliveryPaper: "Envio em papel (estafeta)", translator: "Tradutor/a ajuramentado/a",
+    deliveryPaper: "Envio em papel (estafeta)", translator: "Tradutor/a jurado/a",
     maecNo: (n) => `n.º ${n} do MAEC`, maecAppointed: "nomeado/a pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC)",
     cols: ["Descrição", "Quantidade", "Preço", "Total"], subtotal: "Subtotal", discount: "Desconto", shipping: "Envio",
     vat: (p) => `IVA (${p}%)`, total: "TOTAL",
