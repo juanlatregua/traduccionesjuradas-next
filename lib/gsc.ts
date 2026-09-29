@@ -1,12 +1,14 @@
 // lib/gsc.ts — Cliente mínimo de la Google Search Console API (Search Analytics)
 // con autenticación por service account (JWT RS256 → access token), sin SDK.
 // Credenciales: GSC_SERVICE_ACCOUNT_JSON (clave JSON completa) + GSC_SITE_URL
-// (p.ej. "sc-domain:traduccionesjuradas.net"). Solo lectura (webmasters.readonly).
+// (p.ej. "sc-domain:traduccionesjuradas.net"). Lectura (webmasters.readonly); solo
+// submitSitemap pide escritura (webmasters) y exige la SA como usuario completo.
 
 import crypto from "node:crypto";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+const SCOPE_WRITE = "https://www.googleapis.com/auth/webmasters";
 const API = "https://searchconsole.googleapis.com/webmasters/v3";
 
 type ServiceAccount = { client_email: string; private_key: string };
@@ -24,12 +26,12 @@ function loadServiceAccount(): ServiceAccount {
 const b64url = (buf: Buffer | string) =>
   Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-export async function getAccessToken(): Promise<string> {
+export async function getAccessToken(scope: string = SCOPE): Promise<string> {
   const sa = loadServiceAccount();
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const claims = b64url(
-    JSON.stringify({ iss: sa.client_email, scope: SCOPE, aud: TOKEN_URL, exp: now + 3600, iat: now })
+    JSON.stringify({ iss: sa.client_email, scope, aud: TOKEN_URL, exp: now + 3600, iat: now })
   );
   const input = `${header}.${claims}`;
   const signature = b64url(crypto.sign("RSA-SHA256", Buffer.from(input), sa.private_key));
@@ -116,4 +118,15 @@ export function defaultDateRange(daysBack = 28, lagDays = 3): { startDate: strin
   const end = new Date(Date.now() - lagDays * 86_400_000);
   const start = new Date(end.getTime() - daysBack * 86_400_000);
   return { startDate: fmt(start), endDate: fmt(end) };
+}
+
+export async function submitSitemap(feedpath: string): Promise<void> {
+  const siteUrl = process.env.GSC_SITE_URL;
+  if (!siteUrl) throw new Error("GSC_SITE_URL no configurada.");
+  const token = await getAccessToken(SCOPE_WRITE);
+  const res = await fetch(`${API}/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(feedpath)}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`GSC sitemap error ${res.status}: ${await res.text()}`);
 }
