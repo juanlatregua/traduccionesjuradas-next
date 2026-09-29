@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Rumano · Traducción Oficial Rumano↔Español · MAEC",
   description:
-    "Traductor jurado de rumano acreditado MAEC. Traducción jurada rumano-español y español-rumano: certificate de naștere, cazier judiciar, diplome, contracte. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto, entrega en PDF firmado. Desde 35€.",
+    "Traductor jurado de rumano acreditado MAEC. Traducción jurada rumano-español y español-rumano: certificate de naștere, cazier judiciar, diplome, contracte. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto, entrega en PDF firmado. Desde 40 € + IVA.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traductor-jurado-rumano",
@@ -33,7 +33,7 @@ export default function TraductorJuradoRumanoPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de rumano?",
           answer:
-            "El precio depende del tipo de documento y su extensión. La tarifa base es de 0,09 €/palabra, con un mínimo de 35 € por documento. Sube tu documento y un traductor jurado lo valora personalmente antes de cerrarte el presupuesto.",
+            "El precio depende del tipo de documento y su extensión. El mínimo es de 40 € + IVA por documento. Sube tu documento y un traductor jurado lo valora personalmente antes de cerrarte el presupuesto.",
         },
         {
           question:

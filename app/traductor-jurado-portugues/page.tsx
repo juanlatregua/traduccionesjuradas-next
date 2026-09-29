@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Portugués · Traducción Oficial Portugués↔Español · MAEC",
   description:
-    "Traductor jurado de portugués acreditado MAEC. Traducción jurada portugués-español y español-portugués: certidões, antecedentes criminais, diplomas, contratos. Válida en España, Portugal y Brasil. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 35€.",
+    "Traductor jurado de portugués acreditado MAEC. Traducción jurada portugués-español y español-portugués: certidões, antecedentes criminais, diplomas, contratos. Válida ante organismos españoles. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 40 € + IVA.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-portugues",
   },

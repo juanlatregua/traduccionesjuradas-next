@@ -68,7 +68,7 @@ export const HOME: HomeStrings = {
       {
         b: tr("Cuánto:", "Combien :", "How much:", "Wie viel:", "Quanto:"),
         t: tr(
-          "precio cerrado; en francés desde 35 € + IVA/documento, en otros idiomas desde 40 € + IVA. Sin sorpresas.",
+          "precio cerrado; en francés desde 35 € + IVA/documento; en inglés, alemán, neerlandés, portugués y rumano desde 40 € + IVA. Sin sorpresas.",
           "prix ferme, dès 35 € HT/document. Sans surprises.",
           "a fixed price before you pay, from €40 + VAT/document. No surprises.",
           "Festpreis vor der Zahlung, ab 40 € zzgl. MwSt./Dokument. Keine Überraschungen.",
@@ -273,7 +273,7 @@ export const HOME: HomeStrings = {
     primary: tr("Subir y diagnosticar", "Déposer et diagnostiquer", "Upload and diagnose", "Hochladen und diagnostizieren", "Enviar e diagnosticar"),
     secondary: tr("Ver utilidades", "Voir les utilités", "See the toolkit", "Werkzeuge ansehen", "Ver ferramentas"),
     micro: tr(
-      "Pago seguro · precio cerrado desde 35 € + IVA/documento (francés) o 40 € + IVA (otros idiomas) · sin compromiso",
+      "Pago seguro · precio cerrado desde 35 € + IVA/documento (francés) o 40 € + IVA (inglés, alemán, neerlandés, portugués, rumano) · sin compromiso",
       "Paiement sécurisé · prix ferme dès 35 € HT/document · sans engagement",
       "Secure payment · fixed price from €40 + VAT/document · no commitment",
       "Sichere Zahlung · Festpreis ab 40 € zzgl. MwSt./Dokument · unverbindlich",

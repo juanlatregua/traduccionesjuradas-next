@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Inglés · Traducción Oficial Inglés↔Español · MAEC",
   description:
-    "Traductor jurado de inglés acreditado MAEC. Traducción jurada inglés-español y español-inglés: birth certificates, degrees, criminal records, contracts. Válida en España, UK, Irlanda, EE.UU. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 35€.",
+    "Traductor jurado de inglés acreditado MAEC. Traducción jurada inglés-español y español-inglés: birth certificates, degrees, criminal records, contracts. Válida ante organismos españoles. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 40 € + IVA.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-ingles",
   },

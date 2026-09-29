@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 };
 
 const LANG_COMBOS = [
-  { pair: "Español ↔ Inglés", price: "50 €", plazo: "24-48 h" },
-  { pair: "Español ↔ Francés", price: "45 €", plazo: "24 h" },
-  { pair: "Español ↔ Alemán", price: "55 €", plazo: "48-72 h" },
-  { pair: "Español ↔ Italiano", price: "50 €", plazo: "24-48 h" },
-  { pair: "Español ↔ Portugués", price: "45 €", plazo: "24 h" },
+  { pair: "Español ↔ Inglés", price: "desde 40 € + IVA", plazo: "en el presupuesto" },
+  { pair: "Español ↔ Francés", price: "desde 35 € + IVA", plazo: "24-48 h" },
+  { pair: "Español ↔ Alemán", price: "desde 40 € + IVA", plazo: "en el presupuesto" },
+  { pair: "Español ↔ Italiano", price: "en el presupuesto", plazo: "en el presupuesto" },
+  { pair: "Español ↔ Portugués", price: "desde 40 € + IVA", plazo: "en el presupuesto" },
 ];
 
 export default function TraduccionJuradaOnlinePage() {

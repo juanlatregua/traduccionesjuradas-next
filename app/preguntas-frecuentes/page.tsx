@@ -27,7 +27,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto tarda una traducción jurada?",
     answer:
-      "El plazo habitual para una traducción jurada sencilla es de 24 a 72 horas laborables. En el caso de documentos extensos o varios idiomas, el plazo se ajusta al volumen. Si tienes una cita o plazo concreto, puedes indicarlo al pedir presupuesto para valorar la urgencia.",
+      "Francés↔español: 24 horas desde la confirmación del pago en documentos de 1 a 2 páginas y 48 horas a partir de 3 páginas, en horario laborable. En el resto de idiomas el traductor jurado confirma el plazo en el presupuesto, normalmente el mismo día. Si tienes una cita o plazo concreto, indícalo al pedir presupuesto para valorar la urgencia.",
   },
   {
     question: "¿La traducción jurada se entrega en papel o en PDF?",
