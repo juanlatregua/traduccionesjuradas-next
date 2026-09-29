@@ -7,17 +7,18 @@ import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
 import HomeHero from "@/components/home/HomeHero";
+import RespuestaDirecta from "@/components/home/RespuestaDirecta";
 import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
 import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: { absolute: "Sworn translation Spanish ↔ English · official validity in Spain" },
   description:
-    "Official sworn translation in 10 languages, 100% online. Upload your document and get a fixed quote in 60 seconds. Delivery 24–72h. Translators accredited by Spain's MAEC. From €35.",
+    "Official sworn translation in 10 languages, 100% online. Upload your document and get a fixed quote in 60 seconds. Translators authorised by Spain's MAEC. French ↔ Spanish from €35 + VAT; other languages from €40 + VAT, quoted the same day.",
   alternates: { canonical: LOCALE_ABS.en, languages: HREFLANG_ALTERNATES },
   openGraph: {
     title: "Sworn translation Spanish ↔ English",
-    description: "Fixed price and delivery instantly. Translators accredited by Spain's Ministry of Foreign Affairs (MAEC). From €35.",
+    description: "Fixed price before you pay. Translators authorised by Spain's Ministry of Foreign Affairs (MAEC). From €40 + VAT.",
     locale: "en_GB",
     url: LOCALE_ABS.en,
   },
@@ -30,6 +31,7 @@ export default function SwornTranslationPage() {
       <SchemaPerson id="schema-person-home-en" />
       <SchemaFAQ items={HOME_FAQ.en} id="schema-faq-home-en" />
       <SchemaHowTo id="schema-howto-home-en" name={HOME_HOWTO.en.name} description={HOME_HOWTO.en.description} steps={HOME_HOWTO.en.steps} />
+      <RespuestaDirecta lang="en" />
       <HomeV2 lang="en" hero={<HomeHero lang="en" />} />
     </div>
   );

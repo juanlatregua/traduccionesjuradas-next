@@ -7,17 +7,18 @@ import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
 import HomeHero from "@/components/home/HomeHero";
+import RespuestaDirecta from "@/components/home/RespuestaDirecta";
 import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
 import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: { absolute: "Tradução certificada espanhol ↔ português · validade oficial em Espanha" },
   description:
-    "Tradução certificada oficial em 10 idiomas, 100% online. Envie o seu documento e receba um orçamento fechado em 60 segundos. Entrega 24–72h. Tradutores acreditados pelo MAEC de Espanha. Desde 35 €.",
+    "Tradução certificada oficial em 10 idiomas, 100% online. Envie o seu documento e receba um orçamento fechado em 60 segundos. Tradutores habilitados pelo MAEC de Espanha. Português desde 40 € + IVA, orçamento normalmente no mesmo dia.",
   alternates: { canonical: LOCALE_ABS.pt, languages: HREFLANG_ALTERNATES },
   openGraph: {
     title: "Tradução certificada espanhol ↔ português",
-    description: "Preço fechado e prazo de imediato. Tradutores acreditados pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC). Desde 35 €.",
+    description: "Preço fechado antes de pagar. Tradutores habilitados pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC). Desde 40 € + IVA.",
     locale: "pt_PT",
     url: LOCALE_ABS.pt,
   },
@@ -30,6 +31,7 @@ export default function TraducaoCertificadaPage() {
       <SchemaPerson id="schema-person-home-pt" />
       <SchemaFAQ items={HOME_FAQ.pt} id="schema-faq-home-pt" />
       <SchemaHowTo id="schema-howto-home-pt" name={HOME_HOWTO.pt.name} description={HOME_HOWTO.pt.description} steps={HOME_HOWTO.pt.steps} />
+      <RespuestaDirecta lang="pt" />
       <HomeV2 lang="pt" hero={<HomeHero lang="pt" />} />
     </div>
   );

@@ -4,9 +4,13 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Neerlandés · Traducción Oficial Holandés↔Español · MAEC",
   description:
-    "Traductor jurado de neerlandés (holandés) acreditado MAEC. Traducción jurada neerlandés-español y español-neerlandés: geboorteakte, strafblad, diploma's, contracten. Válida en España, Países Bajos y Bélgica. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 50 €.",
+    "Traductor jurado de neerlandés (holandés) acreditado MAEC. Traducción jurada neerlandés-español y español-neerlandés: geboorteakte, strafblad, diploma's, contracten. Válida en España, Países Bajos y Bélgica. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 40 € + IVA por documento.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-neerlandes",
+    languages: {
+      "es-ES": "https://www.traduccionesjuradas.net/traductor-jurado-neerlandes",
+      nl: "https://www.traduccionesjuradas.net/beedigde-vertaling-spanje",
+    },
   },
   openGraph: {
     images: [
@@ -26,7 +30,7 @@ export default function TraductorJuradoNeerlandesPage() {
       idioma="neerlandés"
       idiomaSlug="neerlandes"
       combinaciones={["nl-es", "es-nl"]}
-      updated="2026-09-21"
+      updated="2026-09-29"
       tituloH1="Traductor jurado de neerlandés para España, Países Bajos y Bélgica"
       descripcion="Realizamos traducciones juradas de neerlandés a español y de español a neerlandés para trámites en España y en países como Países Bajos y Bélgica: empleo, residencia, estudios, empresas y herencias. Tu documento va directo al traductor jurado de neerlandés por nuestra red directa — con su nombre y nº oficial en el presupuesto, sin plataformas intermediarias."
       faqItems={[
@@ -58,7 +62,7 @@ export default function TraductorJuradoNeerlandesPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de neerlandés?",
           answer:
-            "El precio depende del tipo de documento, su extensión y la urgencia. Confirmamos presupuesto cerrado tras revisar el archivo.",
+            "Desde 40 € + IVA por documento. El precio depende del tipo de documento y su extensión; el traductor jurado confirma un presupuesto cerrado tras revisar el archivo y solo pagas después de recibirlo.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de neerlandés?",
@@ -102,6 +106,12 @@ export default function TraductorJuradoNeerlandesPage() {
           descripcion:
             "Apostilla en el rechtbank o vía LegalWeb, el VOG en papel, el Reglamento UE 2016/1191 y los precios de cada documento, explicados paso a paso.",
           enlace: "/blog/documentos-neerlandeses-espana",
+        },
+        {
+          titulo: "Beëdigde vertaling voor Spanje (versión en neerlandés)",
+          descripcion:
+            "Toda la información de esta página en neerlandés nativo: qué es una beëdigde vertaling, documentos habituales (BRP, geboorteakte, diploma, VOG), apostilla, precio y cómo pedirla.",
+          enlace: "/beedigde-vertaling-spanje",
         },
         {
           titulo: "Así trabajamos: red directa de traductores jurados",

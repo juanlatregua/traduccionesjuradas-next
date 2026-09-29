@@ -6,6 +6,7 @@ import { SchemaPerson } from "@/components/SchemaPerson";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
 import HomeHero from "@/components/home/HomeHero";
+import RespuestaDirecta from "@/components/home/RespuestaDirecta";
 import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
 import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
@@ -30,6 +31,8 @@ export default function TraductionAssermenteePage() {
       <SchemaPerson id="schema-person-home-fr" />
       <SchemaFAQ items={HOME_FAQ.fr} id="schema-faq-home-fr" />
       <SchemaHowTo id="schema-howto-home-fr" name={HOME_HOWTO.fr.name} description={HOME_HOWTO.fr.description} steps={HOME_HOWTO.fr.steps} />
+
+      <RespuestaDirecta lang="fr" />
 
       {/* Home v2 "banque d'utilités" en français (mismo componente que el ES), con el hero nuevo */}
       <HomeV2 lang="fr" hero={<HomeHero lang="fr" />} />
