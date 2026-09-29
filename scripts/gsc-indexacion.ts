@@ -94,7 +94,8 @@ async function listas() {
   console.log(`\nGuardado en qa/seo/indexacion-${hoy}.md`);
 }
 
-const [cmd, ...urls] = process.argv.slice(2);
+const [cmd, ...args] = process.argv.slice(2);
+const urls = args.flatMap((a) => a.split(/\s+/)).filter(Boolean);
 if (cmd === "marcar") {
   if (urls.length === 0) throw new Error("marcar <url>…");
   appendFileSync(PEDIDAS, urls.map((u) => `${hoy} ${u}`).join("\n") + "\n");
