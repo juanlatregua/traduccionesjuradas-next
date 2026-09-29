@@ -61,10 +61,10 @@ export const HOME_FAQ: Record<Locale, FaqItem[]> = {
 export const HOME_HOWTO: Record<Locale, HowTo> = {
   es: {
     name: "Cómo pedir una traducción jurada online",
-    description: "Sube tu documento, recibe presupuesto cerrado al instante y paga online. Recibirás la traducción jurada firmada digitalmente por traductor jurado acreditado por el MAEC en 24-48 horas (francés) o en el plazo confirmado en el presupuesto.",
+    description: "Sube tu documento, recibe un presupuesto cerrado (al instante en francés) y paga online. Recibirás la traducción jurada firmada digitalmente por traductor jurado acreditado por el MAEC en 24-48 horas (francés) o en el plazo confirmado en el presupuesto.",
     steps: [
       { name: "Sube tu documento", text: "Arrastra el PDF o haz una foto con el móvil. Aceptamos PDF, JPG, PNG, HEIC y TIFF de hasta 20 MB." },
-      { name: "Recibe precio cerrado al instante", text: "Analizamos automáticamente el documento (idioma, tipo, extensión) y te mostramos el precio final, sin sorpresas." },
+      { name: "Recibe tu presupuesto cerrado", text: "Analizamos el documento (idioma, tipo, extensión): en francés ves el precio final al instante; en otros idiomas, un traductor jurado te confirma precio y plazo, normalmente el mismo día. Pagas después de recibirlo." },
       { name: "Paga y recibe tu traducción", text: "Pagas online con tarjeta o transferencia. Recibes en el plazo indicado (24-48 horas en francés) la traducción jurada en PDF firmado digitalmente, válida ante administraciones y notarías de toda España." },
     ],
   },
@@ -79,28 +79,28 @@ export const HOME_HOWTO: Record<Locale, HowTo> = {
   },
   en: {
     name: "How to order a sworn translation online",
-    description: "Upload your document, get a fixed quote instantly and pay online. You'll receive the sworn translation digitally signed by a sworn translator accredited by the MAEC within 24–48 hours (French) or the deadline confirmed in the quote.",
+    description: "Upload your document, get a fixed quote before you pay (instantly for French) and pay online. You'll receive the sworn translation digitally signed by a sworn translator accredited by the MAEC within 24–48 hours (French) or the deadline confirmed in the quote.",
     steps: [
       { name: "Upload your document", text: "Drag the PDF or take a photo with your phone. We accept PDF, JPG, PNG, HEIC and TIFF up to 20 MB." },
-      { name: "Get a fixed price instantly", text: "We automatically analyse the document (language, type, length) and show you the final price, no surprises." },
+      { name: "Get a fixed quote before paying", text: "We analyse the document (language, type, length): for French you see the final price instantly; for other languages a sworn translator confirms price and deadline, usually the same day." },
       { name: "Pay and receive your translation", text: "You pay online by card or bank transfer. Within 24–48 hours (French) or the deadline in your quote, you receive the sworn translation as a digitally signed PDF, valid before authorities and notaries across Spain." },
     ],
   },
   de: {
     name: "Eine beglaubigte Übersetzung online bestellen",
-    description: "Laden Sie Ihr Dokument hoch, erhalten Sie sofort ein Festpreisangebot und zahlen Sie online. Sie erhalten die beglaubigte Übersetzung digital signiert von einem vom MAEC ermächtigten Übersetzer innerhalb von 24–48 Stunden (Französisch) bzw. der im Angebot bestätigten Frist.",
+    description: "Laden Sie Ihr Dokument hoch, erhalten Sie ein Festpreisangebot vor der Zahlung (bei Französisch sofort) und zahlen Sie online. Sie erhalten die beglaubigte Übersetzung digital signiert von einem vom MAEC ermächtigten Übersetzer innerhalb von 24–48 Stunden (Französisch) bzw. der im Angebot bestätigten Frist.",
     steps: [
       { name: "Laden Sie Ihr Dokument hoch", text: "Ziehen Sie das PDF hierher oder machen Sie ein Foto mit dem Handy. Wir akzeptieren PDF, JPG, PNG, HEIC und TIFF bis 20 MB." },
-      { name: "Erhalten Sie sofort einen Festpreis", text: "Wir analysieren das Dokument automatisch (Sprache, Art, Umfang) und zeigen Ihnen den Endpreis, ohne Überraschungen." },
+      { name: "Erhalten Sie ein Festpreisangebot", text: "Wir analysieren das Dokument (Sprache, Art, Umfang): bei Französisch sehen Sie den Endpreis sofort; bei anderen Sprachen bestätigt ein ermächtigter Übersetzer Preis und Frist, in der Regel am selben Tag." },
       { name: "Zahlen Sie und erhalten Sie Ihre Übersetzung", text: "Sie zahlen online per Karte oder Überweisung. Innerhalb von 24–48 Stunden (Französisch) bzw. der im Angebot genannten Frist erhalten Sie die beglaubigte Übersetzung als digital signiertes PDF, gültig vor Behörden und Notaren in ganz Spanien." },
     ],
   },
   pt: {
     name: "Como pedir uma tradução certificada online",
-    description: "Envie o seu documento, receba um orçamento fechado de imediato e pague online. Receberá a tradução certificada assinada digitalmente por um tradutor acreditado pelo MAEC em 24–48 horas (francês) ou no prazo confirmado no orçamento.",
+    description: "Envie o seu documento, receba um orçamento fechado antes de pagar (de imediato em francês) e pague online. Receberá a tradução certificada assinada digitalmente por um tradutor acreditado pelo MAEC em 24–48 horas (francês) ou no prazo confirmado no orçamento.",
     steps: [
       { name: "Envie o seu documento", text: "Arraste o PDF ou tire uma foto com o telemóvel. Aceitamos PDF, JPG, PNG, HEIC e TIFF até 20 MB." },
-      { name: "Receba um preço fechado de imediato", text: "Analisamos automaticamente o documento (idioma, tipo, extensão) e mostramos-lhe o preço final, sem surpresas." },
+      { name: "Receba um orçamento fechado", text: "Analisamos o documento (idioma, tipo, extensão): em francês vê o preço final de imediato; nos outros idiomas, um tradutor confirma preço e prazo, normalmente no mesmo dia." },
       { name: "Pague e receba a sua tradução", text: "Paga online com cartão ou transferência. Em 24–48 horas (francês) ou no prazo do orçamento recebe a tradução certificada em PDF assinado digitalmente, válida perante administrações e notários de toda a Espanha." },
     ],
   },

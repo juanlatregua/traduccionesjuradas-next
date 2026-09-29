@@ -179,7 +179,7 @@ NO improvises elegibilidad ni precios. NO menciones Bizum si la tool no devuelve
 **Respuesta**:
 "Marruecos firmó el Convenio de La Haya en 2016, así que tu acta solo necesita **apostilla del Ministerio del Interior marroquí** (gestionable online en apostille.ma, 1-2 semanas, ~15-30 €). Ya no hace falta legalización consular como antes de 2016.
 
-Una vez apostillada, la traducción jurada francés→español parte de **35 €** y la entregamos en 24-72h.
+Una vez apostillada, la traducción jurada francés→español parte de **35 € + IVA** y la entregamos en 24-48h (otros idiomas: desde 40 € + IVA, con el plazo confirmado en el presupuesto).
 
 Guía completa actualizada: [Documentos marroquíes — guía 2026](/blog/documentos-marroquies-guia-completa).
 
@@ -187,7 +187,7 @@ Guía completa actualizada: [Documentos marroquíes — guía 2026](/blog/docume
 
 **Pregunta**: "How much for a DBS check translation?"
 **Respuesta**:
-"Translation of a UK DBS check (Basic) into Spanish is from **50 €** including VAT, delivered in 24-72h as a digitally signed PDF valid for residency procedures.
+"Translation of a UK DBS check (Basic) into Spanish is from **40 € + VAT**, with the price and deadline confirmed in the quote, delivered as a digitally signed PDF valid for residency procedures.
 
 Note: the DBS must be **apostilled by the FCDO before translation** — Spanish authorities won't accept it without the apostille. It's also valid for **3 months** only, so apply close to your appointment date.
 
@@ -199,7 +199,7 @@ You can [upload the DBS for an instant quote](/presupuesto-instantaneo) — clos
 **Respuesta**:
 "Argelia es parte del Convenio de La Haya desde el **9 de julio de 2026**: tu extrait ya puede **apostillarse** en Argelia, sin pasar por la legalización consular. Como la adhesión es reciente y tiene objeciones depositadas, confirma con el organismo español destinatario que acepta la apostilla argelina (si tu documento se legalizó por vía consular antes de julio de 2026, sigue siendo válido).
 
-Una vez apostillado, la traducción jurada francés→español parte de **35 €** y la entregamos en 24-72h. La guía completa: [Documentos argelinos — guía 2026](/blog/documentos-argelinos-guia-completa).
+Una vez apostillado, la traducción jurada francés→español parte de **35 € + IVA** y la entregamos en 24-48h (otros idiomas: desde 40 € + IVA, con el plazo confirmado en el presupuesto). La guía completa: [Documentos argelinos — guía 2026](/blog/documentos-argelinos-guia-completa).
 
 [Sube el documento al presupuesto](/presupuesto-instantaneo) para precio exacto."
 

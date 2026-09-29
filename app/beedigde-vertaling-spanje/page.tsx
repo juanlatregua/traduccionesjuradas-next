@@ -10,7 +10,6 @@ import { SITE_URL } from "@/lib/i18n/locales";
 const URL_NL = `${SITE_URL}/beedigde-vertaling-spanje`;
 const URL_ES = `${SITE_URL}/traductor-jurado-neerlandes`;
 const HCCH_URL = "https://www.hcch.net/en/instruments/conventions/status-table/?cid=41";
-const EURLEX_URL = "https://eur-lex.europa.eu/eli/reg/2016/1191/oj";
 
 export const metadata: Metadata = {
   title: "Beëdigde vertaling Nederlands-Spaans · officieel geldig in Spanje",
@@ -162,12 +161,7 @@ export default function BeedigdeVertalingSpanjePage() {
             statustabel van de HCCH
           </a>
           ). De apostille hoort bij het originele document en wordt geplaatst door de autoriteit in het land van
-          uitgifte, niet door de vertaler. Tussen EU-lidstaten vervalt voor bepaalde openbare akten de apostille op grond van
-          Verordening (EU) 2016/1191 (
-          <a href={EURLEX_URL} className="text-bleu underline" rel="noopener">
-            tekst op EUR-Lex
-          </a>
-          ). Controleer bij de Spaanse instantie welke eis voor jouw document geldt.
+          uitgifte, niet door de vertaler. Controleer bij de Spaanse instantie welke eis voor jouw document geldt.
         </p>
 
         <h2 className="mt-10 font-baskerville text-2xl font-bold text-encre">Prijs en levertijd</h2>

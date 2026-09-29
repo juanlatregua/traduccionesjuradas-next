@@ -60,7 +60,7 @@ export default async function PaginaIdioma({
     idiomaSlug === "frances"
       ? "un traductor jurado de francés acreditado por el MAEC (nº 3850)"
       : `un traductor jurado de ${idioma} acreditado por el MAEC`;
-  const respuestaAeo = `Una traducción jurada de ${idioma} es la traducción oficial de un documento, firmada y sellada por ${credencial}, con plena validez legal ante administraciones, notarías, universidades y juzgados de España y del extranjero. Se entrega en PDF firmado digitalmente.`;
+  const respuestaAeo = `Una traducción jurada de ${idioma} es la traducción oficial de un documento, firmada y sellada por ${credencial}, válida ante organismos españoles (administraciones, notarías, universidades y juzgados). Se entrega en PDF firmado digitalmente.`;
 
   // Precios dinámicos para SchemaProduct (aplicando mínimo del idioma)
   const lang = langCode || LANGUAGE_CONFIGS[idiomaSlug]?.langCode || idiomaSlug;
@@ -104,7 +104,7 @@ export default async function PaginaIdioma({
         answer:
           lang === "fr"
             ? "Los documentos habituales se entregan en 24-48 h en PDF firmado digitalmente."
-            : "Normalmente entre 2 y 5 días laborables. El plazo exacto te lo confirma tu traductor jurado junto con el precio, normalmente el mismo día.",
+            : "El plazo lo confirma tu traductor jurado en el presupuesto, junto con el precio, normalmente el mismo día.",
       });
     }
     if (!has(/cuesta|precio/i)) {
@@ -158,7 +158,7 @@ export default async function PaginaIdioma({
       />
       <SchemaProduct
         name={`Traducción jurada de ${idioma}`}
-        description={`Traducción jurada oficial de ${idioma} realizada por traductor jurado acreditado. ${idiomaSlug === "frances" || idiomaSlug === "ingles" ? "Entrega en 24-48h." : "Entrega en 3-5 días laborables."} Válida para trámites oficiales en España y en el extranjero.`}
+        description={`Traducción jurada oficial de ${idioma} realizada por traductor jurado acreditado. ${idiomaSlug === "frances" ? "Entrega en 24-48h." : "Plazo confirmado en el presupuesto."} Válida ante organismos españoles.`}
         sku={`tj-${idiomaSlug}`}
         offers={[
           {

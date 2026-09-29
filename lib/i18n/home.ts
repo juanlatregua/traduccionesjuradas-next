@@ -68,21 +68,21 @@ export const HOME: HomeStrings = {
       {
         b: tr("Cuánto:", "Combien :", "How much:", "Wie viel:", "Quanto:"),
         t: tr(
-          "precio cerrado, desde 35 €/documento. Sin sorpresas.",
+          "precio cerrado; en francés desde 35 €/documento, en otros idiomas desde 40 € + IVA. Sin sorpresas.",
           "prix ferme, dès 35 €/document. Sans surprises.",
-          "a fixed price, from €35/document. No surprises.",
-          "Festpreis, ab 35 €/Dokument. Keine Überraschungen.",
-          "preço fechado, desde 35 €/documento. Sem surpresas."
+          "a fixed price before you pay, from €40 + VAT/document. No surprises.",
+          "Festpreis vor der Zahlung, ab 40 € zzgl. MwSt./Dokument. Keine Überraschungen.",
+          "preço fechado antes de pagar, desde 40 € + IVA/documento. Sem surpresas."
         ),
       },
       {
         b: tr("Cuándo:", "Quand :", "When:", "Wann:", "Quando:"),
         t: tr(
-          "entrega en 24–72 h. Del pago a la descarga, no preguntas nada más.",
-          "livraison en 24–72 h. Du paiement au téléchargement, vous ne demandez plus rien.",
-          "delivery in 24–72 h. From payment to download, there's nothing more for you to do.",
-          "Lieferung in 24–72 Std. Von der Zahlung bis zum Download müssen Sie sich um nichts weiter kümmern.",
-          "entrega em 24–72 h. Do pagamento ao download, não pergunta mais nada."
+          "entrega en 24–48 h en francés; en otros idiomas, el plazo confirmado en el presupuesto. Del pago a la descarga, no preguntas nada más.",
+          "livraison en 24–48 h. Du paiement au téléchargement, vous ne demandez plus rien.",
+          "delivery deadline confirmed in the quote. From payment to download, there's nothing more for you to do.",
+          "Lieferfrist im Angebot bestätigt. Von der Zahlung bis zum Download müssen Sie sich um nichts weiter kümmern.",
+          "prazo confirmado no orçamento. Do pagamento ao download, não pergunta mais nada."
         ),
       },
     ],
@@ -94,11 +94,11 @@ export const HOME: HomeStrings = {
       `${GOOGLE_RATING.stars.toString().replace(".", ",")} · ${GOOGLE_RATING.reviews} avaliações no Google`
     ),
     priceLine: tr(
-      "Precio cerrado desde 35 € · 10 idiomas · entrega 24–72 h",
-      "Prix ferme dès 35 € · 10 langues · livraison 24–72 h",
-      "Fixed price from €35 · 10 languages · delivery 24–72 h",
-      "Festpreis ab 35 € · 10 Sprachen · Lieferung 24–72 Std.",
-      "Preço fechado desde 35 € · 10 idiomas · entrega 24–72 h"
+      "Precio cerrado desde 35 € (francés) · 10 idiomas · entrega 24–48 h en francés",
+      "Prix ferme dès 35 € · 10 langues · livraison 24–48 h",
+      "Fixed price from €40 + VAT · 10 languages · deadline confirmed in the quote",
+      "Festpreis ab 40 € zzgl. MwSt. · 10 Sprachen · Frist im Angebot bestätigt",
+      "Preço fechado desde 40 € + IVA · 10 idiomas · prazo confirmado no orçamento"
     ),
     credit: tr(
       "Traductores jurados acreditados por el MAEC · PDF firmado con validez oficial. Especialistas en francés (Juan Silva, nº 3850).",
@@ -257,11 +257,11 @@ export const HOME: HomeStrings = {
   },
   finalCta: {
     h2: tr(
-      "Tu documento. Diagnóstico en 10 s. Jurada en 24–72 h.",
-      "Votre document. Diagnostic en 10 s. Assermentée en 24–72 h.",
-      "Your document. Diagnosis in 10 s. Sworn translation in 24–72 h.",
-      "Ihr Dokument. Diagnose in 10 Sekunden. Beglaubigte Übersetzung in 24–72 Std.",
-      "O seu documento. Diagnóstico em 10 s. Tradução certificada em 24–72 h."
+      "Tu documento. Diagnóstico en 10 s. Jurada en 24–48 h (francés).",
+      "Votre document. Diagnostic en 10 s. Assermentée en 24–48 h.",
+      "Your document. Diagnosis in 10 s. Sworn translation with the deadline in your quote.",
+      "Ihr Dokument. Diagnose in 10 Sekunden. Beglaubigte Übersetzung mit Frist im Angebot.",
+      "O seu documento. Diagnóstico em 10 s. Tradução certificada com prazo no orçamento."
     ),
     p: tr(
       "Sube tu documento y deja de adivinar. Te decimos qué necesitas, cuánto cuesta y cuándo lo tienes — y desde el pago hasta la descarga no vuelves a preguntar nada.",
@@ -273,11 +273,11 @@ export const HOME: HomeStrings = {
     primary: tr("Subir y diagnosticar", "Déposer et diagnostiquer", "Upload and diagnose", "Hochladen und diagnostizieren", "Enviar e diagnosticar"),
     secondary: tr("Ver utilidades", "Voir les utilités", "See the toolkit", "Werkzeuge ansehen", "Ver ferramentas"),
     micro: tr(
-      "Pago seguro · precio cerrado desde 35 €/documento · sin compromiso",
+      "Pago seguro · precio cerrado desde 35 €/documento (francés) o 40 € (otros idiomas) · sin compromiso",
       "Paiement sécurisé · prix ferme dès 35 €/document · sans engagement",
-      "Secure payment · fixed price from €35/document · no commitment",
-      "Sichere Zahlung · Festpreis ab 35 €/Dokument · unverbindlich",
-      "Pagamento seguro · preço fechado desde 35 €/documento · sem compromisso"
+      "Secure payment · fixed price from €40 + VAT/document · no commitment",
+      "Sichere Zahlung · Festpreis ab 40 € zzgl. MwSt./Dokument · unverbindlich",
+      "Pagamento seguro · preço fechado desde 40 € + IVA/documento · sem compromisso"
     ),
   },
 };
