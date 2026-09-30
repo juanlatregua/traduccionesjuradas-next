@@ -31,21 +31,27 @@ export function workingHoursMadrid(from: Date, to: Date, holidays: Set<string> =
   return quarters / 4;
 }
 
-export type PriceBasis = "base" | "payable_iva_irpf";
+export type PriceBasis = "base" | "payable_iva_irpf" | "total_con_iva";
 
-/** El jurado da su cifra en dos formatos: "base" (neta, tal cual) o el líquido
- * a cobrar (base + 21 % IVA − 15 % IRPF = base × 1,06). Verificado con
- * facturas reales: Daniela cobra 100 € líquidos sobre una base de 94,34 €. */
+// Cifra del jurado ÷ factor = base. "payable_iva_irpf": líquido a cobrar
+// (base + 21 % IVA − 15 % IRPF), verificado con facturas reales: Daniela cobra
+// 100 € líquidos sobre una base de 94,34 €. "total_con_iva": sociedad que
+// cotiza el total de su factura, sin IRPF (Nielson Vilela SL, factura 89:
+// 49,59 + 10,41 = 60 €).
+const BASIS_FACTOR: Record<PriceBasis, number> = { base: 1, payable_iva_irpf: 1.06, total_con_iva: 1.21 };
+
+/** El jurado da su cifra en base (neta, tal cual) o en otro formato; la
+ * contabilidad guarda siempre la base. */
 export function channelPriceToBaseCents(priceCents: number, basis: PriceBasis): number {
   if (basis === "base") return priceCents;
-  return Math.round(priceCents / 1.06);
+  return Math.round(priceCents / BASIS_FACTOR[basis]);
 }
 
 /** La inversa: una base (coste del tarifario) expresada en el formato en que
  * cotiza el jurado. channelPriceToBaseCents(baseToChannelPriceCents(b)) === b. */
 export function baseToChannelPriceCents(baseCents: number, basis: PriceBasis): number {
   if (basis === "base") return baseCents;
-  return Math.round(baseCents * 1.06);
+  return Math.round(baseCents * BASIS_FACTOR[basis]);
 }
 
 /** ¿La solicitud es del carril directo de la puerta (en cualquiera de sus estados)? */

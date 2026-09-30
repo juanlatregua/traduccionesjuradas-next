@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   channelPriceToBaseCents,
+  baseToChannelPriceCents,
   directQuoteLines,
   isAnomalousPrice,
   exceedsQuotedCost,
@@ -14,6 +15,12 @@ import {
 
 test("channelPriceToBaseCents: payable_iva_irpf divide entre 1,06 (Daniela 100 € → base 94,34)", () => {
   assert.equal(channelPriceToBaseCents(10000, "payable_iva_irpf"), 9434);
+});
+
+test("channelPriceToBaseCents: total_con_iva divide entre 1,21 (Nielson 60 € → base 49,59; 45 € → 37,19) e ida y vuelta exacta", () => {
+  assert.equal(channelPriceToBaseCents(6000, "total_con_iva"), 4959);
+  assert.equal(channelPriceToBaseCents(4500, "total_con_iva"), 3719);
+  for (const b of [1, 99, 3719, 4959, 12345]) assert.equal(channelPriceToBaseCents(baseToChannelPriceCents(b, "total_con_iva"), "total_con_iva"), b);
 });
 
 test("channelPriceToBaseCents: base se queda igual", () => {
@@ -101,7 +108,7 @@ test("el precio del motor manda salvo que el margen no dé", async () => {
 
 // Cifra propuesta al jurado (orden Juan 21-sep-2026): el coste del tarifario
 // aprendido, solo si TODOS los documentos tienen tipo y tarifa.
-const { proposedCostCents, baseToChannelPriceCents, acceptsNewPrice, acceptanceMatchesPrice, isDirectLeadRequest } = await import("../../lib/lavori-directo-math.ts");
+const { proposedCostCents, acceptsNewPrice, acceptanceMatchesPrice, isDirectLeadRequest } = await import("../../lib/lavori-directo-math.ts");
 const { buildPriceRequestPayload } = await import("../../lib/lavori-bridge.ts");
 
 const docRate = (costCents: number, wordsRef: number | null = null) => ({ unit: "doc", costCents, wordsRef });

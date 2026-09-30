@@ -76,6 +76,12 @@ export async function directMembersFor(lang: string): Promise<DirectMember[]> {
   return libres;
 }
 
+// Jurados que NO son del carril directo pero no cotizan en base (la puerta no
+// les pide precio a ellos solos; solo cuenta para contabilizar su cifra).
+const MEMBER_PRICE_BASIS: Record<string, PriceBasis> = {
+  zyuep34us3e33h3fd98w3yyz: "total_con_iva", // Nielson Vilela SL (pt): cotiza con IVA, sin IRPF (orden Juan 30-sep-2026)
+};
+
 function directMemberById(miembroId: string | null | undefined): DirectMember | null {
   const id = String(miembroId || "").trim();
   if (!id) return null;
@@ -92,7 +98,7 @@ function directMemberById(miembroId: string | null | undefined): DirectMember | 
  * presupuesto atado, directo o no. "base" por defecto: sin dato mejor, no se
  * inventa una conversión que no le corresponde. */
 export function priceBasisForMember(miembroId: string | null | undefined): PriceBasis {
-  return directMemberById(miembroId)?.priceBasis ?? "base";
+  return directMemberById(miembroId)?.priceBasis ?? MEMBER_PRICE_BASIS[String(miembroId || "").trim()] ?? "base";
 }
 
 function parsePar(par: string): { lang: string; sourceLang: string; targetLang: string } | null {

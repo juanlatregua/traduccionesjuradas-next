@@ -532,6 +532,7 @@ export const LAVORI_MEMBER_COLLABORATOR_EMAIL: Record<string, string> = {
   a2x1faeg08r1tiz4gt1d6hfv: "interprete.daniela@gmail.com", // Daniela Cleintuar (Collaborator nl, alta 14-sep-2026)
   k1obdgqfpxszjzr4za8rnc7x: "miguelros8@gmail.com", // Miguel Ros González (Collaborator it, T-IJ 11136, alta 15-sep-2026; fiscal pendiente)
   "1h8tul4zycnayru8bsi1tmu4": "carmen.lencastre@gmail.com", // María Carmen Lencastre (Collaborator pt, alta 21-sep-2026)
+  zyuep34us3e33h3fd98w3yyz: "nielson@icam.es", // Nielson Maycon de Souza Vilela (Collaborator pt, SL, alta 30-sep-2026)
 };
 
 export type LavoriRoute = { lang: string; par: string; candidatos: string[] };
