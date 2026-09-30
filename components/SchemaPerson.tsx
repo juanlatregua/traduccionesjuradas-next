@@ -38,6 +38,7 @@ export function SchemaPerson({ id }: Props) {
     },
     sameAs: [
       "https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Traductores-Interpretes-Jurados.aspx",
+      "https://lavori.es/t/juan-silva-moreno",
     ],
   };
   return (

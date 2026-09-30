@@ -56,7 +56,12 @@ export const metadata: Metadata = {
   // Verificación del dominio en Meta (Business Manager → Seguridad → Dominios):
   // prueba de que la web es de HBTJ, exigida para levantar la restricción de
   // Política de comercio que bloquea el remitente de WhatsApp (18-sep-2026).
-  other: { "facebook-domain-verification": "5mofit289uvzwa9yfmdf72mb2fmyxf" },
+  // lavori-verificacion + rel="me": prueba de que la web es de Juan para su página
+  // de jurado en lavori (orden Juan 30-sep-2026: su web propia va enlazada).
+  other: {
+    "facebook-domain-verification": "5mofit289uvzwa9yfmdf72mb2fmyxf",
+    "lavori-verificacion": "24c1e515e3ae480024f610a44493791b",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -66,6 +71,7 @@ export const metadata: Metadata = {
     icon: "/brand/favicon.svg",
     shortcut: "/brand/favicon.svg",
     apple: "/icons/apple-touch-icon.png",
+    other: [{ rel: "me", url: "https://lavori.es/t/juan-silva-moreno" }],
   },
   openGraph: {
     type: "website",
