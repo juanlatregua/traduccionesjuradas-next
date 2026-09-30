@@ -34,9 +34,7 @@ export default function CertificadosRegistroCivilPage() {
         description="Precio cerrado para traducir certificados de nacimiento, matrimonio, defunción y fe de vida con firma y sello de traductor jurado."
         sku="registro-civil"
         offers={[
-          { price: "50.00", priceCurrency: "EUR" },
-          { price: "45.00", priceCurrency: "EUR" },
-          { price: "75.00", priceCurrency: "EUR" },
+          { price: "35.00", priceCurrency: "EUR" },
           { price: "40.00", priceCurrency: "EUR" },
         ]}
       />

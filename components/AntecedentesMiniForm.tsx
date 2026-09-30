@@ -3,10 +3,10 @@
 import { useState, useRef } from "react";
 
 const OPTIONS = [
-  { id: "es-en", label: "Español → Inglés", price: "50 €", plazo: "2 días" },
-  { id: "es-fr", label: "Español → Francés", price: "45 €", plazo: "1 día" },
-  { id: "pt-es", label: "Portugués (apostillado) → Español", price: "75 €", plazo: "2 días" },
-  { id: "fr-es", label: "Francés (apostillado) → Español", price: "40 €", plazo: "1 día" },
+  { id: "es-en", label: "Español → Inglés", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
+  { id: "es-fr", label: "Español → Francés", price: "35 € + IVA", plazo: "24 h" },
+  { id: "pt-es", label: "Portugués (apostillado) → Español", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
+  { id: "fr-es", label: "Francés (apostillado) → Español", price: "40 € + IVA", plazo: "24 h" },
 ];
 
 export function AntecedentesMiniForm() {
@@ -74,7 +74,7 @@ export function AntecedentesMiniForm() {
           ))}
         </select>
         <div className="flex-1 text-encre">
-          <p className="text-xs uppercase tracking-wide text-bleu font-semibold">Precio cerrado</p>
+          <p className="text-xs uppercase tracking-wide text-bleu font-semibold">Precio para 1 página</p>
           <p className="text-sm font-semibold">
             {pair.price} · {pair.plazo}
           </p>
@@ -179,7 +179,7 @@ export function AntecedentesMiniForm() {
             Usamos tus archivos solo para prepararte el presupuesto y confirmarte el pago/plazo. Se borran en 30 días o antes si lo pides.
           </p>
           <p className="text-[11px] text-graphite">
-            Precio cerrado: sube tu documento para confirmarlo al instante. Para otros idiomas o casos especiales, usa el{" "}
+            Precio para 1 página: sube tu documento y te confirmamos el importe cerrado antes de pagar. Para otros idiomas o casos especiales, usa el{" "}
             <a href="/presupuesto-instantaneo" className="text-bleu underline">
               formulario completo
             </a>

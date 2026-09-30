@@ -8,14 +8,14 @@ import { RelatedDocuments } from "@/components/RelatedDocuments";
 import { SchemaService } from "@/components/SchemaService";
 
 export const metadata: Metadata = {
-  title: "Traducción jurada certificado de matrimonio | Desde 40-75 €",
+  title: "Traducción jurada certificado de matrimonio | Desde 35 € + IVA",
   description:
-    "Desde 40-75 € para traducir certificados de matrimonio. Entrega en PDF firmado, plazos rápidos según idioma. Incluye apostilla si aplica.",
+    "Traducción jurada de certificados de matrimonio: francés desde 35 € + IVA (40 € con apostilla); inglés y portugués desde 40 € + IVA. Entrega en PDF firmado y precio cerrado antes de pagar.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
   openGraph: {
     images: [
       {
-        url: "/api/og?title=Traducci%C3%B3n+jurada+de+certificado+de+matrimonio&subtitle=Documentos+oficiales+%C2%B7+Desde+40-75+%E2%82%AC",
+        url: "/api/og?title=Traducci%C3%B3n+jurada+de+certificado+de+matrimonio&subtitle=Documentos+oficiales+%C2%B7+Desde+35+%E2%82%AC+%2B+IVA",
         width: 1200,
         height: 630,
         alt: "Traducción jurada de certificado de matrimonio — TraduccionesJuradas.net",
@@ -45,8 +45,8 @@ export default function CertificadoMatrimonioPage() {
         description="Traducción jurada oficial de certificados de matrimonio extranjeros. Entrega en PDF firmado en 24-48h."
         sku="tj-certificado-matrimonio"
         offers={[
+          { price: "35", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
           { price: "40", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
-          { price: "75", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
         ]}
       />
       <SchemaFAQ
@@ -144,22 +144,22 @@ export default function CertificadoMatrimonioPage() {
         <h2 className="text-lg font-semibold text-encre">Precios y plazos</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { pair: "Español → Inglés", price: "50 €", plazo: "2 días" },
-            { pair: "Español → Francés", price: "45 €", plazo: "1 día" },
-            { pair: "Portugués (apostillado) → Español", price: "75 €", plazo: "2 días" },
-            { pair: "Francés (apostillado) → Español", price: "40 €", plazo: "1 día" },
+            { pair: "Español → Inglés", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
+            { pair: "Español → Francés", price: "35 € + IVA", plazo: "24 h" },
+            { pair: "Portugués (apostillado) → Español", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
+            { pair: "Francés (apostillado) → Español", price: "40 € + IVA", plazo: "24 h" },
           ].map((item) => (
             <div key={item.pair} className="rounded-xl border border-cream bg-parchment px-3 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
                 {item.pair}
               </p>
               <p className="text-base font-semibold text-encre">{item.price}</p>
-              <p className="text-xs text-sepia">Plazo estimado: {item.plazo}</p>
+              <p className="text-xs text-sepia">Plazo: {item.plazo}</p>
             </div>
           ))}
         </div>
         <p className="text-xs text-graphite">
-          Precios para 1 página estándar. Confirmamos importe y plazo al revisar el PDF/imagen y la apostilla o legalización, si aplica.
+          Precios para 1 página estándar, IVA no incluido. Confirmamos importe y plazo al revisar el PDF/imagen y la apostilla o legalización, si aplica.
         </p>
       </section>
 

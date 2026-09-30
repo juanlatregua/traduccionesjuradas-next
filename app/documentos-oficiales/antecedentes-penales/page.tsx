@@ -40,9 +40,7 @@ export default function AntecedentesPenalesPage() {
         description="Precio cerrado para traducir certificados de antecedentes penales con firma y sello de traductor jurado."
         sku="antecedentes-penales"
         offers={[
-          { price: "50.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
-          { price: "45.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
-          { price: "75.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { price: "35.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
           { price: "40.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
         ]}
       />
