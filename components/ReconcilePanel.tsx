@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 // Pedidos cobrados sin factura emitida → emitir en lote. La fuente de ingresos
 // del libro son las facturas emitidas, así que esto cierra el hueco.
 
+const PAYMENT_LABELS: Record<string, string> = { STRIPE: "Tarjeta (Stripe)", TRANSFER: "Transferencia", BIZUM: "Bizum", REDSYS: "Tarjeta (Redsys)", PAYPAL: "PayPal" };
+
 type Row = {
   reference: string;
   clientName: string | null;
@@ -15,6 +17,7 @@ type Row = {
   bookableAmountCents: number;
   bookableBaseCents: number;
   paidAt: string | null;
+  paymentMethod: string | null;
   createdAt: string;
   hasBilling: boolean;
   hasNif: boolean;
@@ -236,6 +239,7 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
               <th className="px-3 py-2">Pedido</th>
               <th className="px-3 py-2">Cliente</th>
               <th className="px-3 py-2">Cobrado</th>
+              <th className="px-3 py-2">Pago</th>
               <th className="px-3 py-2 text-right">A facturar</th>
               <th className="px-3 py-2 text-right">Base</th>
               <th className="px-3 py-2">Avisos</th>
@@ -252,6 +256,7 @@ export default function ReconcilePanel({ rows, totalAmountCents, canIssue }: { r
                 <td className="px-3 py-2 text-slate-400">
                   {r.paidAt ? new Date(r.paidAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                 </td>
+                <td className="px-3 py-2 text-slate-400">{PAYMENT_LABELS[r.paymentMethod || ""] || r.paymentMethod || "—"}</td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {eur(r.bookableAmountCents)}
                   {r.amountMismatch && <div className="text-[10px] text-amber-300">cobrado: {eur(r.orderAmountCents)}</div>}

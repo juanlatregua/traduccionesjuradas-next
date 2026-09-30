@@ -20,6 +20,7 @@ export type PaidUnbilledOrder = {
   bookableAmountCents: number; // lo que se contabilizará (total del borrador si lo hay, si no el del pedido)
   bookableBaseCents: number;
   paidAt: string | null; // ISO
+  paymentMethod: string | null;
   createdAt: string;
   hasBilling: boolean;
   hasNif: boolean;
@@ -60,6 +61,7 @@ export async function listPaidUnbilledOrders(): Promise<PaidUnbilledOrder[]> {
       title: true,
       amountCents: true,
       paidAt: true,
+      paymentMethod: true,
       createdAt: true,
       billing: { select: { nif: true, fiscalName: true } },
       clientInvoice: { select: { id: true, status: true, totalCents: true, baseCents: true, docKind: true } },
@@ -83,6 +85,7 @@ export async function listPaidUnbilledOrders(): Promise<PaidUnbilledOrder[]> {
       bookableAmountCents,
       bookableBaseCents,
       paidAt: o.paidAt ? o.paidAt.toISOString() : null,
+      paymentMethod: o.paymentMethod,
       createdAt: o.createdAt.toISOString(),
       hasBilling: !!o.billing,
       hasNif: !!(o.billing?.nif && o.billing.nif.trim()),
