@@ -37,5 +37,5 @@ test("dirección outbound (ES→extranjero) cambia la frase de validez", () => {
   const inbound = buildDiagnosis(fixture("fr", "es"), quote, "fr");
   const outbound = buildDiagnosis(fixture("es", "fr"), quote, "fr");
   assert.match(inbound.sworn.statement, /en Espagne/);
-  assert.match(outbound.sworn.statement, /pays de destination/);
+  assert.match(outbound.sworn.statement, /autorité de destination/);
 });

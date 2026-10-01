@@ -111,23 +111,23 @@ export function resolveForeignLang(language: DocumentAnalysisResult["language"])
 const SWORN_STATEMENT: Record<DiagnosisLang, { inbound: string; outbound: string }> = {
   es: {
     inbound: "Sí. La firma y sella un traductor jurado nombrado por el MAEC (nº 3850); tiene plena validez ante cualquier organismo oficial en España.",
-    outbound: "Sí. La realiza un traductor jurado nombrado por el MAEC (nº 3850); gracias a los acuerdos de reconocimiento, es válida ante las autoridades del país de destino sin necesidad de contratar otro traductor allí.",
+    outbound: "Sí. La realiza un traductor jurado nombrado por el MAEC (nº 3850). Fuera de España, cada país decide si la acepta tal cual: confirma con la autoridad de destino si pide además apostilla o una traducción hecha allí.",
   },
   fr: {
     inbound: "Oui. Elle est signée et cachetée par un traducteur assermenté nommé par le MAEC (n° 3850) ; elle a pleine validité devant toute administration officielle en Espagne.",
-    outbound: "Oui. Elle est réalisée par un traducteur assermenté nommé par le MAEC (n° 3850) ; grâce aux accords de reconnaissance, elle est valable devant les autorités du pays de destination sans devoir engager un autre traducteur sur place.",
+    outbound: "Oui. Elle est réalisée par un traducteur assermenté nommé par le MAEC (n° 3850). Hors d'Espagne, chaque pays décide s'il l'accepte telle quelle : vérifiez auprès de l'autorité de destination si elle exige en plus une apostille ou une traduction faite sur place.",
   },
   en: {
     inbound: "Yes. It's signed and stamped by a sworn translator appointed by Spain's Ministry of Foreign Affairs (MAEC); it is fully valid before any official body in Spain.",
-    outbound: "Yes. It's produced by a sworn translator appointed by Spain's Ministry of Foreign Affairs (MAEC); thanks to recognition agreements, it is valid before the authorities of the destination country without needing to hire another translator there.",
+    outbound: "Yes. It's produced by a sworn translator appointed by Spain's Ministry of Foreign Affairs (MAEC). Outside Spain, each country decides whether to accept it as is: check with the destination authority whether it also requires an apostille or a translation made locally.",
   },
   de: {
     inbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer unterschrieben und gestempelt; sie ist vor jeder Behörde in Spanien voll gültig.",
-    outbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer angefertigt; dank der Anerkennungsabkommen ist sie bei den Behörden des Ziellandes gültig, ohne dass Sie dort einen weiteren Übersetzer beauftragen müssen.",
+    outbound: "Ja. Sie wird von einem vom spanischen Außenministerium (MAEC) ermächtigten vereidigten Übersetzer angefertigt. Außerhalb Spaniens entscheidet jedes Land selbst, ob es sie ohne Weiteres anerkennt: Klären Sie mit der Zielbehörde, ob zusätzlich eine Apostille oder eine Übersetzung vor Ort verlangt wird.",
   },
   pt: {
     inbound: "Sim. É assinada e carimbada por um tradutor jurado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); tem plena validade perante qualquer organismo oficial em Espanha.",
-    outbound: "Sim. É realizada por um tradutor jurado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC); graças aos acordos de reconhecimento, é válida perante as autoridades do país de destino sem necessidade de contratar outro tradutor lá.",
+    outbound: "Sim. É realizada por um tradutor jurado nomeado pelo Ministério dos Negócios Estrangeiros de Espanha (MAEC). Fora de Espanha, cada país decide se a aceita tal como está: confirme junto da autoridade de destino se exige também apostila ou uma tradução feita localmente.",
   },
 };
 

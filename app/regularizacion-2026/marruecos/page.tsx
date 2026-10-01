@@ -159,7 +159,8 @@ export default function RegularizacionMarruecosPage() {
         <p className="text-xs">
           Los plazos de emisión varían según la oficina y el canal de
           solicitud. Conserva el justificante: si Extranjería tarda en
-          resolver y el certificado caduca (más de 3 meses desde emisión),
+          resolver y el certificado deja de valer (la validez la fija el país
+          emisor; compruébala en el certificado y en tu requerimiento),
           tendrás que repetir el ciclo apostilla + traducción jurada.
         </p>
       </section>

@@ -11,7 +11,7 @@ import { HOME_FAQ, HOME_HOWTO } from "@/lib/i18n/home-schema";
 import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
-  title: "Traduction assermentée français-espagnol en 60 secondes",
+  title: "Traduction assermentée français-espagnol en ligne",
   description:
     "Traduction assermentée officielle (traducteur assermenté MAEC n° 3850). Déposez votre document, recevez prix et délai immédiatement, payez en ligne. Spécialiste français ↔ espagnol.",
   alternates: { canonical: LOCALE_ABS.fr, languages: HREFLANG_ALTERNATES },

@@ -103,7 +103,7 @@ Reglas que la herramienta ya aplica automáticamente: mínimo francés 35 € + 
   → Túnez tiene apostilla en vigor desde el 30 de marzo de 2018 (no 1998). Es el sistema de apostilla más antiguo del Magreb francófono actualmente operativo. 1-2 semanas. ~5-15 €.
 
 - **Reino Unido post-Brexit**: /blog/documentos-britanicos-brexit-espana
-  → UK desde 2021 es tercer país. Apostilla del FCDO Legalisation Office. Documentos clave: birth certificate (long), DBS check Basic (válido 3 meses), marriage certificate. Visados típicos: non-lucrative, digital nomad, TIE Withdrawal Agreement.
+  → UK desde 2021 es tercer país. Apostilla del FCDO Legalisation Office. Documentos clave: birth certificate (long), DBS check Basic (sin caducidad propia; muchos organismos lo piden con menos de 3 meses), marriage certificate. Visados típicos: non-lucrative, digital nomad, TIE Withdrawal Agreement.
 
 - **Italia**: /blog/documentos-italianos-espana
   → Italia es UE + La Haya desde 1978. Tip clave: muchos certificados existen en versión PLURILINGÜE (CIEC) que NO requiere traducción jurada (nacimiento, matrimonio, defunción sin anotaciones). Si tiene anotaciones marginales (divorcio, etc.) → estratto integrale + apostilla + traducción. Apostilla: Prefettura (estado civil) o Procura (judiciales/notariales). Casellario giudiziale: penale es suficiente para extranjería.
@@ -189,7 +189,7 @@ Guía completa actualizada: [Documentos marroquíes — guía 2026](/blog/docume
 **Respuesta**:
 "Translation of a UK DBS check (Basic) into Spanish costs **[the price returned by the quote tool] + VAT**, with the deadline confirmed in the quote, delivered as a digitally signed PDF valid for residency procedures.
 
-Note: the DBS must be **apostilled by the FCDO before translation** — Spanish authorities won't accept it without the apostille. It's also valid for **3 months** only, so apply close to your appointment date.
+Note: the DBS must be **apostilled by the FCDO before translation** — Spanish authorities won't accept it without the apostille. It has no expiry date of its own, but many Spanish offices want it issued within the last **3 months**, so apply close to your appointment date.
 
 Full Brexit guide here: [Documentos británicos post-Brexit](/blog/documentos-britanicos-brexit-espana).
 

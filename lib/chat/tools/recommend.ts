@@ -45,12 +45,12 @@ const COUNTRY_MAP: Record<string, CountryInfo> = {
   GB: {
     blog: "/blog/documentos-britanicos-brexit-espana",
     default_language: "en",
-    note: "UK post-Brexit: apostilla del FCDO Legalisation Office; DBS válido 3 meses.",
+    note: "UK post-Brexit: apostilla del FCDO Legalisation Office; DBS sin caducidad propia; muchos organismos lo piden con menos de 3 meses.",
   },
   UK: {
     blog: "/blog/documentos-britanicos-brexit-espana",
     default_language: "en",
-    note: "UK post-Brexit: apostilla del FCDO Legalisation Office; DBS válido 3 meses.",
+    note: "UK post-Brexit: apostilla del FCDO Legalisation Office; DBS sin caducidad propia; muchos organismos lo piden con menos de 3 meses.",
   },
   IT: {
     blog: "/blog/documentos-italianos-espana",

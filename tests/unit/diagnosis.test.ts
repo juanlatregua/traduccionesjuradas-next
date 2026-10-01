@@ -78,11 +78,11 @@ test("inbound (extranjero → español): dirección y frase de validez en Españ
   assert.equal(d.delivery.hours, 24);
 });
 
-test("outbound (español → idioma extranjero): frase de acuerdos y país de destino", () => {
+test("outbound (español → idioma extranjero): la aceptación depende del país de destino", () => {
   const d = buildDiagnosis(makeAnalysis({ source: "es", target: "fr" }), quoteFixture);
   assert.equal(d.sworn.direction, "outbound");
-  assert.match(d.sworn.statement, /acuerdos/);
-  assert.match(d.sworn.statement, /país de destino/);
+  assert.match(d.sworn.statement, /autoridad de destino/);
+  assert.match(d.sworn.statement, /Fuera de España/);
   assert.equal(d.delivery.hours, 24);
 });
 
