@@ -19,16 +19,12 @@ type Props = {
   paymentMethods?: string[] | null;
   /** Idioma del cliente (Quote.pdfLang). Por defecto español. */
   lang?: PublicLang;
-  // ?paso=justificante en el enlace del mensaje: abre el bloque del justificante
-  // con foco. No crea nada al cargar (los escáneres de correo abren URLs): el
-  // cliente sigue pulsando el botón.
-  openProof?: boolean;
 };
 
 type PayTab = "bizum" | "transferencia" | "tarjeta";
 
 
-export default function QuotePublicPayButton({ token, isPayable, quoteNumber, totalLabel, autoStartCard, paymentMethods, lang = "es", openProof = false }: Props) {
+export default function QuotePublicPayButton({ token, isPayable, quoteNumber, totalLabel, autoStartCard, paymentMethods, lang = "es" }: Props) {
   const t = publicDict(lang);
   const accounts = resolvePaymentAccounts(paymentMethods);
   const bizums = accounts.filter((a) => a.account.kind === "bizum");
@@ -36,10 +32,7 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
   const firstTab: PayTab = bizums.length ? "bizum" : banks.length ? "transferencia" : "tarjeta";
   const [tab, setTab] = useState<PayTab>(autoStartCard ? "tarjeta" : firstTab);
   const autoStarted = useRef(false);
-  const proofRef = useRef<HTMLDivElement | null>(null);
-  const proofButtonRef = useRef<HTMLButtonElement | null>(null);
   const [loading, setLoading] = useState(false);
-  const [declaring, setDeclaring] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -67,31 +60,6 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
     }
   }
 
-  // "Ya he transferido": crea la cáscara del pedido SIN cobro y lleva a su
-  // pantalla de pago, que es la que tiene el formulario de subida del
-  // justificante. El justificante no cobra nada: lo valida el staff a mano.
-  async function declareTransfer() {
-    setDeclaring(true);
-    setMessage(null);
-    try {
-      const res = await fetch(`/api/quotes/public/${token}/declare-transfer`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data?.ok || !data?.url) {
-        throw new Error(data?.error || t.errContinue);
-      }
-      window.location.href = data.url;
-    } catch (err: any) {
-      setMessage(err?.message || t.errContinue);
-      setDeclaring(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!openProof || !isPayable) return;
-    proofRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    proofButtonRef.current?.focus({ preventScroll: true });
-  }, [openProof, isPayable]);
-
   useEffect(() => {
     if (!autoStartCard || !isPayable || autoStarted.current) return;
     autoStarted.current = true;
@@ -115,23 +83,6 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
 
   return (
     <div className="space-y-3">
-      {openProof && (
-        <div ref={proofRef} className="rounded-xl border-2 border-bleu bg-bleu/5 p-3 ring-4 ring-bleu/15">
-          <p className="text-sm font-semibold text-encre">{t.proofStepTitle}</p>
-          <p className="mt-1 text-[11px] text-graphite">{t.proofStepHelp}</p>
-          <button
-            ref={proofButtonRef}
-            type="button"
-            onClick={declareTransfer}
-            disabled={declaring}
-            className="mt-2 w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {declaring ? t.oneMoment : t.alreadyTransferredCta}
-          </button>
-          {message && <p className="mt-2 text-xs font-semibold text-red-700">{message}</p>}
-        </div>
-      )}
-
       <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{t.payHow}</p>
 
       {/* Tabs */}
@@ -197,23 +148,6 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
           <p className="text-[11px] text-graphite">
             {t.sepaNote}
           </p>
-          {!openProof && (
-          <div className="mt-3 rounded-xl border border-bleu/20 bg-bleu/5 p-3">
-            <p className="text-xs font-semibold text-encre">{t.alreadyTransferred}</p>
-            <p className="mt-1 text-[11px] text-graphite">
-              {t.alreadyTransferredHelp}
-            </p>
-            <button
-              type="button"
-              onClick={declareTransfer}
-              disabled={declaring}
-              className="mt-2 w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {declaring ? t.oneMoment : t.alreadyTransferredCta}
-            </button>
-          </div>
-          )}
-          {message && !openProof && <p className="text-xs font-semibold text-red-700">{message}</p>}
         </div>
       )}
 

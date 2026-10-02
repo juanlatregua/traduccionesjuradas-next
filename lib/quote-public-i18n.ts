@@ -76,8 +76,6 @@ export type PublicDict = {
   concept: string;
   conceptHint: string;
   sepaNote: string;
-  alreadyTransferred: string;
-  alreadyTransferredHelp: string;
   alreadyTransferredCta: string;
   proofStepTitle: string;
   proofStepHelp: string;
@@ -142,9 +140,7 @@ const ES: PublicDict = {
   conceptHint: "Indica el número de presupuesto en el concepto. Se confirma en menos de 24 h laborables.",
   sepaNote:
     "Desde fuera de la zona SEPA: transferencia SWIFT en EUR con BIC, IBAN y las direcciones de arriba (gastos compartidos, SHA).",
-  alreadyTransferred: "¿Ya has hecho la transferencia?",
-  alreadyTransferredHelp: "Súbenos el justificante y la confirmamos nosotros. Solo tarda un momento.",
-  alreadyTransferredCta: "Ya he transferido: subir justificante",
+  alreadyTransferredCta: "Ya he pagado: subir justificante",
   proofStepTitle: "¿Ya has pagado? Sube aquí tu justificante",
   proofStepHelp: "Pulsa el botón y adjunta el justificante de tu transferencia o Bizum. Con eso terminamos tu pedido.",
   oneMoment: "Un momento...",
@@ -208,9 +204,7 @@ const EN: PublicDict = {
   conceptHint: "Please quote the quote number as the payment reference. We confirm within 24 working hours.",
   sepaNote:
     "From outside the SEPA area: SWIFT transfer in EUR using the BIC, IBAN and addresses above (shared charges, SHA).",
-  alreadyTransferred: "Already made the transfer?",
-  alreadyTransferredHelp: "Upload your receipt and we will confirm it. It only takes a moment.",
-  alreadyTransferredCta: "I have transferred: upload receipt",
+  alreadyTransferredCta: "I have paid: upload receipt",
   proofStepTitle: "Already paid? Upload your receipt here",
   proofStepHelp: "Press the button and attach the receipt of your transfer or Bizum. That is all we need to complete your order.",
   oneMoment: "One moment...",
@@ -274,9 +268,7 @@ const FR: PublicDict = {
   conceptHint: "Indiquez le numéro de devis en référence. Nous confirmons sous 24 h ouvrées.",
   sepaNote:
     "Depuis l'extérieur de la zone SEPA : virement SWIFT en EUR avec le BIC, l'IBAN et les adresses ci-dessus (frais partagés, SHA).",
-  alreadyTransferred: "Vous avez déjà fait le virement ?",
-  alreadyTransferredHelp: "Envoyez-nous le justificatif et nous le confirmons. Cela ne prend qu'un instant.",
-  alreadyTransferredCta: "J'ai viré : envoyer le justificatif",
+  alreadyTransferredCta: "J'ai payé : envoyer le justificatif",
   proofStepTitle: "Vous avez déjà payé ? Envoyez votre justificatif ici",
   proofStepHelp: "Appuyez sur le bouton et joignez le justificatif de votre virement ou Bizum. C'est tout ce qu'il faut pour finaliser votre commande.",
   oneMoment: "Un instant...",

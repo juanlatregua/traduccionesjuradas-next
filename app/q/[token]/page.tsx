@@ -11,6 +11,8 @@ import {
   QUOTE_STATUS_LABELS,
   type QuoteStatus,
 } from "@/lib/quotes";
+import QuoteProofCta from "@/components/QuoteProofCta";
+import { resolvePaymentAccounts } from "@/lib/payment-labels";
 import QuotePublicPayButton from "@/components/QuotePublicPayButton";
 import QuoteBalancePayButton from "@/components/QuoteBalancePayButton";
 import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
@@ -226,6 +228,10 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
           </p>
         )}
 
+        {isPayable && !refreshed.paidAt && resolvePaymentAccounts(refreshed.paymentMethods).length > 0 && (
+          <QuoteProofCta token={params.token} lang={lang} focus={searchParams?.paso === "justificante"} />
+        )}
+
         <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div className="space-y-4 rounded-2xl border border-cream p-4">
             <h2 className="text-lg font-semibold text-encre">{t.detail}</h2>
@@ -353,7 +359,6 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               quoteNumber={refreshed.quoteNumber}
               totalLabel={formatMoney(total)}
               autoStartCard={searchParams?.pago === "tarjeta"}
-              openProof={searchParams?.paso === "justificante"}
               paymentMethods={refreshed.paymentMethods}
               lang={lang}
             />
