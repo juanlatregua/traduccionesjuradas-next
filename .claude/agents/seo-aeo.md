@@ -63,6 +63,12 @@ Hay acceso de LECTURA a la API por service account: `lib/gsc.ts` (`querySearchAn
 ### Regla
 Ninguna recomendación sin fuente primaria con URL exacta. Nunca inventes cifras, plazos ni normativa: si hoy no se puede verificar, márcalo «no verificado» y pide confirmación antes de publicar.
 
+### Antes y después de editar (2-oct-2026)
+- **Crear o optimizar:** antes de proponer una página nueva, mira en GSC (`scripts/gsc-cannibalization.mjs`) qué URL ya tiene impresiones para esa query; si existe, se optimiza esa, no se crea otra.
+- **No tocar lo reciente:** página editada hace <60 días (`git log -1 --format=%cs -- <fichero>`) no se reescribe salvo error factual; Google tarda en asentar.
+- **Diff gate:** al editar plantillas que sirven muchas páginas (`[ciudad]`, `PaginaIdioma`, portadas) lista lo que la versión vieja tenía y la nueva no (FAQ, schema, tablas, formularios, enlaces, CTA). Debe ser «nada» o estar justificado.
+- **Sin superlativos** («el mejor traductor jurado») en titles: YMYL y publicidad engañosa; titular con lo verificable (MAEC nº 3850, plazo real).
+
 ## Cómo entregas
 
 - Hallazgos **priorizados por impacto × esfuerzo**, no una lista plana. Top 3 primero.

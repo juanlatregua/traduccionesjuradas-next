@@ -6,6 +6,7 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaLocalBusiness } from "@/components/SchemaLocalBusiness";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { CIUDADES, type Ciudad } from "@/src/data/ciudades";
+import { CERCANAS_BY_SLUG } from "@/src/data/ciudades-cercanas";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 
 const ciudadBySlug = new Map<string, Ciudad>(
@@ -109,6 +110,7 @@ export default async function PaginaCiudad({
 
   const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`;
   const faq = cityFaq(ciudad);
+  const cercanas = CERCANAS_BY_SLUG.get(ciudad.slug) ?? [];
 
   // Use city-specific documents if available, otherwise fallback to generic list
   const documentosCiudad = ciudad.documentosMasFrecuentes?.length
@@ -482,6 +484,26 @@ export default async function PaginaCiudad({
           ))}
         </div>
       </section>
+
+      {/* ═══════════════ SECCIÓN 8: CIUDADES CERCANAS ═══════════════ */}
+      {cercanas.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-xl font-semibold text-encre">
+            Traductor jurado en ciudades cercanas
+          </h2>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {cercanas.map((c) => (
+              <Link
+                key={c.slug}
+                href={`/traductor-jurado/${c.slug}`}
+                className="rounded-full border border-cream bg-card px-3 py-1.5 text-xs font-medium text-encre hover:border-bleu hover:text-bleu transition-colors"
+              >
+                Traductor jurado en {c.nombre}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Enlace al hub de ciudades (descubrimiento + autoridad interna) */}
       <p className="mt-10 text-sm text-sepia">
