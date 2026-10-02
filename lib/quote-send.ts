@@ -3,6 +3,7 @@
 // del staff (POST /api/quotes/[id]/finalize-send) y el agente de precios
 // (lib/learned-rates.ts) cuando emite un presupuesto solo.
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
 import { buildQuotePdfBuffer, hashPdf, uploadFinalQuotePdf } from "@/lib/quote-pdf";
@@ -19,7 +20,59 @@ export class QuoteSendError extends Error {
   }
 }
 
-const MAX_EMAIL_ATTACH_BYTES = 15 * 1024 * 1024;
+export const MAX_EMAIL_ATTACH_BYTES = 15 * 1024 * 1024;
+
+// Pedidos enlazados: el pago va por el enlace firmado del pedido, no por /q.
+async function resolveQuotePayUrl(quote: { publicToken: string }, linkedOrderReference: string | null) {
+  if (linkedOrderReference) {
+    const { buildSignedOrderUrl } = await import("@/lib/order-token");
+    return buildSignedOrderUrl(linkedOrderReference, "pagar");
+  }
+  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  return `${baseUrl}/q/${quote.publicToken}`;
+}
+
+type QuoteForPdf = Prisma.QuoteGetPayload<{ include: { lines: true } }>;
+
+// PDF final del presupuesto: lo usan el envío y el reenvío, para que el PDF de /q
+// y el adjunto reflejen siempre las líneas vigentes (editar un SENT cambia el total).
+export async function buildAndUploadFinalQuotePdf(quote: QuoteForPdf, payUrl: string) {
+  const pdfBuffer = buildQuotePdfBuffer({
+    quoteNumber: quote.quoteNumber,
+    customerName: quote.customerName,
+    customerEmail: quote.customerEmail,
+    sourceLang: quote.sourceLang,
+    targetLang: quote.targetLang,
+    deliveryType: quote.deliveryType,
+    issuedAt: quote.issuedAt,
+    validUntil: quote.validUntil,
+    subtotal: decimalToNumber(quote.subtotal),
+    discountAmount: decimalToNumber(quote.discountAmount),
+    shippingAmount: decimalToNumber(quote.shippingAmount),
+    vatRate: decimalToNumber(quote.vatRate),
+    vatAmount: decimalToNumber(quote.vatAmount),
+    total: decimalToNumber(quote.total),
+    payUrl,
+    lines: quote.lines.map((line) => ({
+      description: line.description,
+      quantity: decimalToNumber(line.quantity),
+      unitPrice: decimalToNumber(line.unitPrice),
+      lineTotal: decimalToNumber(line.lineTotal),
+    })),
+    isDraft: false,
+    notesLegal: quote.notesLegal,
+    deliveryTerm: quote.deliveryTerm,
+    holderNames: quote.holderNames,
+    translatorName: quote.translatorName,
+    translatorMaec: quote.translatorMaec,
+    paymentMethods: quote.paymentMethods,
+    contactWhatsapp: quote.contactWhatsapp,
+    lang: quote.pdfLang,
+  });
+
+  const pdfUrl = await uploadFinalQuotePdf({ quoteNumber: quote.quoteNumber, buffer: pdfBuffer });
+  return { pdfBuffer, pdfUrl, pdfHash: hashPdf(pdfBuffer) };
+}
 
 export async function finalizeAndSendQuote(opts: {
   quoteId: string;
@@ -122,48 +175,10 @@ export async function finalizeAndSendQuote(opts: {
       where: { quoteId: quote.id },
       select: { id: true, reference: true, events: { orderBy: { createdAt: "desc" }, take: 30 } },
     });
-    const primaryLinkedOrder = linkedOrders[0] || null;
-    const { buildSignedOrderUrl } = await import("@/lib/order-token");
-    const payUrl = primaryLinkedOrder ? buildSignedOrderUrl(primaryLinkedOrder.reference, "pagar") : `${baseUrl}/q/${quote.publicToken}`;
+    const payUrl = await resolveQuotePayUrl(quote, linkedOrders[0]?.reference ?? null);
     const proofUrl = `${baseUrl}/q/${quote.publicToken}?paso=justificante`;
 
-    const pdfBuffer = buildQuotePdfBuffer({
-      quoteNumber: quote.quoteNumber,
-      customerName: quote.customerName,
-      customerEmail: quote.customerEmail,
-      sourceLang: quote.sourceLang,
-      targetLang: quote.targetLang,
-      deliveryType: quote.deliveryType,
-      issuedAt: quote.issuedAt,
-      validUntil: quote.validUntil,
-      subtotal: decimalToNumber(quote.subtotal),
-      discountAmount: decimalToNumber(quote.discountAmount),
-      shippingAmount: decimalToNumber(quote.shippingAmount),
-      vatRate: decimalToNumber(quote.vatRate),
-      vatAmount: decimalToNumber(quote.vatAmount),
-      total: decimalToNumber(quote.total),
-      payUrl,
-      lines: quote.lines.map((line) => ({
-        description: line.description,
-        quantity: decimalToNumber(line.quantity),
-        unitPrice: decimalToNumber(line.unitPrice),
-        lineTotal: decimalToNumber(line.lineTotal),
-      })),
-      isDraft: false,
-      notesLegal: quote.notesLegal,
-      deliveryTerm: quote.deliveryTerm,
-      holderNames: quote.holderNames,
-      translatorName: quote.translatorName,
-      translatorMaec: quote.translatorMaec,
-      paymentMethods: quote.paymentMethods,
-      contactWhatsapp: quote.contactWhatsapp,
-      lang: quote.pdfLang,
-    });
-
-    const [pdfUrl, pdfHash] = await Promise.all([
-      uploadFinalQuotePdf({ quoteNumber: quote.quoteNumber, buffer: pdfBuffer }),
-      Promise.resolve(hashPdf(pdfBuffer)),
-    ]);
+    const { pdfBuffer, pdfUrl, pdfHash } = await buildAndUploadFinalQuotePdf(quote, payUrl);
 
     // Sin email si el staff lo pide o si el email es marcador de WhatsApp (no
     // entregable). El PDF y el texto de WhatsApp se generan igual.

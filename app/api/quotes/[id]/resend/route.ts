@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { buildPayLinkEmail, buildWhatsAppPayText } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
+import { buildAndUploadFinalQuotePdf, MAX_EMAIL_ATTACH_BYTES } from "@/lib/quote-send";
 
 export const runtime = "nodejs";
 
@@ -21,28 +22,26 @@ export async function POST(req: Request, { params }: Params) {
   try {
     const quote = await prisma.quote.findUnique({
       where: { id: params.id },
-      select: {
-        id: true,
-        customerName: true,
-        customerEmail: true,
-        customerPhone: true,
-        publicToken: true,
-        total: true,
-        vatRate: true,
-        deliveryType: true,
-        notesLegal: true,
-        paymentMethods: true,
-        sourceLang: true,
-        targetLang: true,
-      },
+      include: { lines: { orderBy: { createdAt: "asc" } } },
     });
     if (!quote) {
       return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
     }
 
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+    // Siempre /q: cobra el total vivo del presupuesto; el amountCents de un pedido
+    // enlazado no sigue a las ediciones del PATCH.
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
-    const proofUrl = `${payUrl}?paso=justificante`;
+    const proofUrl = `${baseUrl}/q/${quote.publicToken}?paso=justificante`;
+
+    // Las líneas de un SENT/OPENED/ACCEPTED se pueden editar después de enviar:
+    // sin regenerar, /q y el adjunto enseñaban el PDF viejo con el total nuevo.
+    let pdfBuffer: Buffer | null = null;
+    if (["SENT", "OPENED", "ACCEPTED"].includes(quote.status)) {
+      const pdf = await buildAndUploadFinalQuotePdf(quote, payUrl);
+      await prisma.quote.update({ where: { id: quote.id }, data: { pdfUrl: pdf.pdfUrl, pdfHash: pdf.pdfHash } });
+      pdfBuffer = pdf.pdfBuffer;
+    }
     const msg = buildPayLinkEmail({
       name: quote.customerName || "cliente",
       payUrl,
@@ -58,6 +57,10 @@ export async function POST(req: Request, { params }: Params) {
         to: quote.customerEmail,
         subject: msg.subject,
         body: msg.body,
+        attachments:
+          pdfBuffer && pdfBuffer.length <= MAX_EMAIL_ATTACH_BYTES
+            ? [{ name: `Presupuesto-${quote.quoteNumber}.pdf`, contentType: "application/pdf", contentBytes: pdfBuffer.toString("base64") }]
+            : [],
       });
       providerId = sendResult.providerId;
     }
