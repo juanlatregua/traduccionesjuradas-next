@@ -1534,7 +1534,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                 </select>
               </label>
               <label className="text-xs text-slate-400">
-                Idioma del PDF
+                Idioma del cliente (PDF y página de pago)
                 <select value={pdfLang} onChange={(e) => setPdfLang(e.target.value)} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
                   {QUOTE_PDF_LANGS.map((l) => (
                     <option key={l} value={l}>{QUOTE_PDF_LANG_LABELS[l]}</option>

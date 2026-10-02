@@ -577,6 +577,27 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
           </div>
         )}
 
+        {!["PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED"].includes(quote.status) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <span className="text-xs font-semibold text-slate-700">Idioma del cliente (PDF y página de pago):</span>
+            {QUOTE_PDF_LANGS.map((l) => (
+              <button
+                key={l}
+                type="button"
+                disabled={pdfLangSaving || l === pdfLang}
+                onClick={() => changePdfLang(l)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  l === pdfLang
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-300 bg-white text-slate-700 hover:border-slate-500 disabled:opacity-60"
+                }`}
+              >
+                {QUOTE_PDF_LANG_LABELS[l]}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap gap-2">
           {(quote.orders || []).map((o: any) => (
             <a
@@ -886,21 +907,9 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Preview PDF</h2>
-            <label className="flex items-center gap-2 text-xs text-slate-600">
-              Idioma del PDF
-              <select
-                value={pdfLang}
-                disabled={pdfLangSaving}
-                onChange={(e) => changePdfLang(e.target.value)}
-                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800"
-              >
-                {QUOTE_PDF_LANGS.map((l) => (
-                  <option key={l} value={l}>
-                    {QUOTE_PDF_LANG_LABELS[l]}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <span className="text-xs text-slate-600">
+              {QUOTE_PDF_LANG_LABELS[pdfLang as QuotePdfLang] || pdfLang}
+            </span>
             <a
               href={`/api/quotes/${quote.id}/preview-pdf`}
               target="_blank"
