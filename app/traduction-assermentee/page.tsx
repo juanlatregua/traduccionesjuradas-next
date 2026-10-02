@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
+import { SchemaService } from "@/components/SchemaService";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
 import HomeHero from "@/components/home/HomeHero";
@@ -29,6 +30,7 @@ export default function TraductionAssermenteePage() {
     <div lang="fr" className="min-h-screen bg-parchment">
       <SchemaBreadcrumbs id="breadcrumbs-home-fr" items={[{ name: LOCALE_HOME_LABEL.fr, url: LOCALE_ABS.fr }]} />
       <SchemaPerson id="schema-person-home-fr" />
+      <SchemaService id="schema-service-home-fr" serviceName="Traduction assermentée espagnol ↔ français" serviceDescription="Traduction assermentée (jurée) de documents officiels pour les démarches en Espagne, réalisée par un traducteur assermenté nommé par le MAEC espagnol (n° 3850). Livraison en ligne en PDF signé numériquement ; devis ferme avant paiement." serviceUrl={LOCALE_ABS.fr} serviceType="Traduction assermentée" />
       <SchemaFAQ items={HOME_FAQ.fr} id="schema-faq-home-fr" />
       <SchemaHowTo id="schema-howto-home-fr" name={HOME_HOWTO.fr.name} description={HOME_HOWTO.fr.description} steps={HOME_HOWTO.fr.steps} />
 

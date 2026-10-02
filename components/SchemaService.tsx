@@ -5,10 +5,11 @@ type Props = {
   serviceDescription: string;
   serviceUrl: string;
   brand?: { "@type": string; name: string };
+  serviceType?: string;
   provider?: { "@type": string; name: string; jobTitle?: string };
 };
 
-export function SchemaService({ id, serviceName, serviceDescription, serviceUrl, brand, provider }: Props) {
+export function SchemaService({ id, serviceName, serviceDescription, serviceUrl, brand, provider, serviceType }: Props) {
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Service",
@@ -32,7 +33,7 @@ export function SchemaService({ id, serviceName, serviceDescription, serviceUrl,
       "@type": "Country",
       name: "Spain",
     },
-    serviceType: "Traducción jurada",
+    serviceType: serviceType ?? "Traducción jurada",
   };
   if (brand) {
     data.brand = brand;

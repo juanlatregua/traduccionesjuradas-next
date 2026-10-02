@@ -189,7 +189,7 @@ Guía completa actualizada: [Documentos marroquíes — guía 2026](/blog/docume
 **Respuesta**:
 "Translation of a UK DBS check (Basic) into Spanish costs **[the price returned by the quote tool] + VAT**, with the deadline confirmed in the quote, delivered as a digitally signed PDF valid for residency procedures.
 
-Note: the DBS must be **apostilled by the FCDO before translation** — Spanish authorities won't accept it without the apostille. It has no expiry date of its own, but many Spanish offices want it issued within the last **3 months**, so apply close to your appointment date.
+Note: for use in Spain, a DBS certificate normally needs a **paper apostille from the FCDO** (it is not eligible for an e-Apostille), and the apostille is usually obtained before translation; confirm with the Spanish office that requested it whether they require it. It has no expiry date of its own, but many Spanish offices want it issued within the last **3 months**, so apply close to your appointment date.
 
 Full Brexit guide here: [Documentos británicos post-Brexit](/blog/documentos-britanicos-brexit-espana).
 

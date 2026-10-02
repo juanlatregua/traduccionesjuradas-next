@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
+import { SchemaService } from "@/components/SchemaService";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
 import HomeHero from "@/components/home/HomeHero";
@@ -29,6 +30,7 @@ export default function SwornTranslationPage() {
     <div lang="en" className="min-h-screen bg-parchment text-sepia">
       <SchemaBreadcrumbs id="breadcrumbs-home-en" items={[{ name: LOCALE_HOME_LABEL.en, url: LOCALE_ABS.en }]} />
       <SchemaPerson id="schema-person-home-en" />
+      <SchemaService id="schema-service-home-en" serviceName="Sworn translation Spanish ↔ English" serviceDescription="Official sworn translation of documents for use before Spanish authorities, by translators authorised by Spain's Ministry of Foreign Affairs (MAEC). Delivered online as a digitally signed PDF; fixed quote before you pay." serviceUrl={LOCALE_ABS.en} serviceType="Sworn translation" />
       <SchemaFAQ items={HOME_FAQ.en} id="schema-faq-home-en" />
       <SchemaHowTo id="schema-howto-home-en" name={HOME_HOWTO.en.name} description={HOME_HOWTO.en.description} steps={HOME_HOWTO.en.steps} />
       <RespuestaDirecta lang="en" />

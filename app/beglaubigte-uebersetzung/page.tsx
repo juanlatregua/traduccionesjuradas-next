@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { SchemaPerson } from "@/components/SchemaPerson";
+import { SchemaService } from "@/components/SchemaService";
 import { SchemaHowTo } from "@/components/SchemaHowTo";
 import HomeV2 from "@/components/HomeV2";
 import HomeHero from "@/components/home/HomeHero";
@@ -29,6 +30,7 @@ export default function BeglaubigteUebersetzungPage() {
     <div lang="de" className="min-h-screen bg-parchment text-sepia">
       <SchemaBreadcrumbs id="breadcrumbs-home-de" items={[{ name: LOCALE_HOME_LABEL.de, url: LOCALE_ABS.de }]} />
       <SchemaPerson id="schema-person-home-de" />
+      <SchemaService id="schema-service-home-de" serviceName="Beglaubigte Übersetzung Spanisch ↔ Deutsch" serviceDescription="Beglaubigte (vereidigte) Übersetzung von Dokumenten für spanische Behörden durch vom spanischen Außenministerium (MAEC) bestellte Übersetzer. Lieferung online als digital signiertes PDF; verbindliches Angebot vor der Zahlung." serviceUrl={LOCALE_ABS.de} serviceType="Beglaubigte Übersetzung" />
       <SchemaFAQ items={HOME_FAQ.de} id="schema-faq-home-de" />
       <SchemaHowTo id="schema-howto-home-de" name={HOME_HOWTO.de.name} description={HOME_HOWTO.de.description} steps={HOME_HOWTO.de.steps} />
       <RespuestaDirecta lang="de" />
