@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { createAssignment, getDocumentsFromOrder } from "@/lib/collaborators";
+import { applyAcceptedQuoteSideEffects, createAssignment, getDocumentsFromOrder } from "@/lib/collaborators";
+import { notifyClientTranslationStarted } from "@/lib/orders";
+import { findLiveLavoriDuplicate } from "@/lib/lavori-dup-guard";
 import { sendAssignmentToCollaborator } from "@/lib/collaborator-emails";
 
 export const runtime = "nodejs";
@@ -11,6 +13,10 @@ type Params = { params: { reference: string } };
 type CreateBody = {
   collaboratorId: string;
   adminNotes?: string;
+  // Precio ya pactado con el traductor fuera del sistema (WhatsApp, teléfono), en
+  // céntimos y SIN IVA: asigna directamente, sin pedirle cotización (Juan, 2-oct-2026,
+  // 26_D8C6F8). Solo con el pedido pagado: el precio al cliente ya está cobrado.
+  agreedPriceCents?: number;
 };
 
 export async function POST(req: Request, { params }: Params) {
@@ -27,6 +33,10 @@ export async function POST(req: Request, { params }: Params) {
         reference: true,
         title: true,
         langPair: true,
+        quoteId: true,
+        amountCents: true,
+        paymentStatus: true,
+        marginPct: true,
         events: {
           where: {
             type: { in: ["presupuesto.submitted", "order.source_document_uploaded"] },
@@ -48,10 +58,79 @@ export async function POST(req: Request, { params }: Params) {
 
     const collaborator = await prisma.collaborator.findUnique({
       where: { id: body.collaboratorId.trim() },
-      select: { id: true },
+      select: { id: true, fullName: true, companyName: true, supplierType: true, swornNumber: true },
     });
     if (!collaborator) {
       return NextResponse.json({ ok: false, error: "Colaborador no encontrado." }, { status: 404 });
+    }
+
+    const agreed = body.agreedPriceCents == null ? null : Math.round(Number(body.agreedPriceCents));
+    if (agreed !== null) {
+      if (!Number.isFinite(agreed) || agreed <= 0) {
+        return NextResponse.json({ ok: false, error: "Precio pactado no válido." }, { status: 400 });
+      }
+      if (order.paymentStatus !== "PAID") {
+        return NextResponse.json({ ok: false, error: "El pedido aún no está pagado: pide precio con «Enviar encargo» o espera al cobro." }, { status: 400 });
+      }
+      const yaAceptado = await prisma.collaboratorAssignment.findFirst({
+        where: { orderId: order.id, status: { in: ["ACCEPTED", "DELIVERED"] } },
+        select: { collaborator: { select: { fullName: true } } },
+      });
+      if (yaAceptado) {
+        return NextResponse.json({ ok: false, error: `El pedido ya está asignado a ${yaAceptado.collaborator.fullName}. Cambiar de traductor un pedido ya aceptado no se hace desde aquí (de momento, a mano por Claude).` }, { status: 409 });
+      }
+      const dup = order.quoteId ? await findLiveLavoriDuplicate({ quoteId: order.quoteId }) : null;
+
+      // Upsert: lo normal es que ya le hubieras pedido precio (fila REQUESTED/QUOTED).
+      const now = new Date();
+      const assignment = await prisma.collaboratorAssignment.upsert({
+        where: { orderId_collaboratorId: { orderId: order.id, collaboratorId: collaborator.id } },
+        create: { orderId: order.id, collaboratorId: collaborator.id, adminNotes: body.adminNotes || null, status: "ACCEPTED", isWinning: true, quotedPriceCents: agreed, quotedAt: now, acceptedAt: now },
+        update: { status: "ACCEPTED", isWinning: true, quotedPriceCents: agreed, quotedAt: now, acceptedAt: now, rejectedAt: null, rejectionReason: null },
+        include: { collaborator: true },
+      });
+      await prisma.collaboratorAssignment.updateMany({
+        where: { orderId: order.id, id: { not: assignment.id }, status: { in: ["REQUESTED", "QUOTED", "QUOTE_REVISION_REQUESTED"] } },
+        data: { status: "REJECTED", isWinning: false, rejectedAt: now, rejectionReason: "Asignado con precio pactado a otro traductor." },
+      });
+      const sideFx = await applyAcceptedQuoteSideEffects(prisma, {
+        order: { id: order.id, amountCents: order.amountCents, paymentStatus: order.paymentStatus, marginPct: order.marginPct },
+        assignmentId: assignment.id,
+        supplierCostCents: agreed,
+        collaborator,
+        actorEmail: staff.email,
+        isWinning: true,
+      });
+      if (sideFx.marginAlert) await sideFx.marginAlert();
+      await prisma.order.update({ where: { id: order.id }, data: { assignedTo: collaborator.fullName } });
+      await prisma.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "collaborator.assignment.direct",
+          message: `Asignado a ${collaborator.fullName} con precio ya pactado (${(agreed / 100).toFixed(2)} € sin IVA).${dup ? ` OJO: sigue viva la solicitud ${dup.ref} en lavori; retírala.` : ""}`,
+          payload: { assignmentId: assignment.id, priceCents: agreed, actorEmail: staff.email, liveLavoriRef: dup?.ref ?? null },
+        },
+      });
+      await notifyClientTranslationStarted({
+        reference: order.reference,
+        translatorName: collaborator.fullName,
+        swornNumber: collaborator.swornNumber,
+        actorEmail: staff.email,
+      }).catch((err) => console.error("[collaborator-assignment] client notify failed", err));
+      sendAssignmentToCollaborator({
+        collaboratorName: assignment.collaborator.fullName,
+        collaboratorEmail: assignment.collaborator.email,
+        orderReference: order.reference,
+        orderTitle: order.title,
+        langPair: order.langPair,
+        accessToken: assignment.accessToken,
+        adminNotes: [`Precio acordado: ${(agreed / 100).toFixed(2)} € (sin IVA).`, body.adminNotes].filter(Boolean).join(" "),
+        documents: getDocumentsFromOrder(order),
+      }).catch((err) => console.error("[collaborator-assignment] email send failed", err));
+      return NextResponse.json(
+        { ok: true, assignment, aviso: dup ? `Sigue viva la solicitud ${dup.ref} en lavori: retírala para que nadie más la acepte.` : null },
+        { status: 201 }
+      );
     }
 
     const assignment = await createAssignment(

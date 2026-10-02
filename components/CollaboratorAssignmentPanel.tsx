@@ -72,6 +72,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
   const [collaboratorsError, setCollaboratorsError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
+  const [agreedPrice, setAgreedPrice] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -217,6 +218,13 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       setError("Selecciona un colaborador.");
       return;
     }
+    const euros = agreedPrice.trim()
+      ? Number(agreedPrice.replace(/[€\s]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."))
+      : null;
+    if (euros !== null && !(euros > 0)) {
+      setError("Precio pactado no válido: escribe solo el número, p. ej. 50 o 49,50.");
+      return;
+    }
     setSending(true);
     try {
       const res = await fetch(`/api/orders/${reference}/collaborator-assignment`, {
@@ -225,6 +233,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
         body: JSON.stringify({
           collaboratorId: selectedId,
           adminNotes: adminNotes.trim() || undefined,
+          agreedPriceCents: euros !== null ? Math.round(euros * 100) : undefined,
         }),
       });
       const data = await res.json();
@@ -234,6 +243,8 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       }
       setSelectedId("");
       setAdminNotes("");
+      setAgreedPrice("");
+      if (data.aviso) setError(data.aviso);
       router.refresh();
     } catch {
       setError("Error de conexión.");
@@ -727,6 +738,21 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
             />
           </div>
 
+          <div>
+            <label htmlFor="agreed-price" className="block text-xs font-medium text-slate-300">
+              Precio ya pactado (€ sin IVA, opcional)
+            </label>
+            <input
+              id="agreed-price"
+              type="text"
+              inputMode="decimal"
+              value={agreedPrice}
+              onChange={(e) => setAgreedPrice(e.target.value)}
+              placeholder="Si ya lo hablaste con el traductor: lo asigna directamente"
+              className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+            />
+          </div>
+
           {error && (
             <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
               {error}
@@ -738,7 +764,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
             disabled={sending || !selectedId || !!collaboratorsError}
             className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
           >
-            {sending ? "Enviando..." : "Enviar encargo"}
+            {sending ? "Enviando..." : agreedPrice.trim() ? "Asignar con precio pactado" : "Enviar encargo (pedir precio)"}
           </button>
         </form>
       </div>
