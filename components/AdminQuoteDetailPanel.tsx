@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { suggestClientLang } from "@/lib/client-lang";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS, type QuotePdfLang } from "@/lib/quote-pdf-langs";
 import { PAYMENT_LABELS } from "@/lib/payment-labels";
 import { QUOTE_LOST_REASONS, QUOTE_LOST_REASON_LABELS, quoteLostReasonLabel } from "@/lib/quote-lost-reasons";
@@ -175,6 +176,11 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   }
   const [aiLoading, setAiLoading] = useState(false);
 
+  // Sin texto del cliente en el panel: solo teléfono y email (prefijo / TLD).
+  const langSuggestion = useMemo(
+    () => suggestClientLang({ phone: quote.customerPhone, email: quote.customerEmail }),
+    [quote.customerPhone, quote.customerEmail]
+  );
   const waPhone = useMemo(() => {
     const digits = String(quote.customerPhone || "").replace(/\D/g, "");
     return digits ? (digits.length === 9 ? `34${digits}` : digits) : "";
@@ -595,6 +601,16 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
                 {QUOTE_PDF_LANG_LABELS[l]}
               </button>
             ))}
+            {langSuggestion && langSuggestion.lang !== pdfLang && (
+              <button
+                type="button"
+                disabled={pdfLangSaving}
+                onClick={() => changePdfLang(langSuggestion.lang)}
+                className="text-[11px] text-slate-500 underline decoration-dotted hover:text-slate-800 disabled:opacity-60"
+              >
+                Sugerido: {QUOTE_PDF_LANG_LABELS[langSuggestion.lang]} ({langSuggestion.reason})
+              </button>
+            )}
           </div>
         )}
 

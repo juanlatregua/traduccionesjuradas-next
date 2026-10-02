@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { publicDict, type PublicDict, type PublicLang } from "@/lib/quote-public-i18n";
 
 type DocLine = {
   id: string;
@@ -32,20 +33,23 @@ function previewKind(url: string): "pdf" | "img" | "other" {
   return ext === "pdf" ? "pdf" : /^(jpe?g|png|webp|gif)$/.test(ext) ? "img" : "other";
 }
 
-function pagesLabel(line: DocLine) {
+function pagesLabel(line: DocLine, t: PublicDict) {
   if (!line.pageStart) return "";
-  return line.pageEnd && line.pageEnd !== line.pageStart ? ` · págs. ${line.pageStart}-${line.pageEnd}` : ` · pág. ${line.pageStart}`;
+  return line.pageEnd && line.pageEnd !== line.pageStart ? ` · ${t.docPages} ${line.pageStart}-${line.pageEnd}` : ` · ${t.docPage} ${line.pageStart}`;
 }
 
 export default function QuoteDocumentsViewer({
   lines,
   token,
   title = "Documentos",
+  lang = "es",
 }: {
   lines: DocLine[];
   token?: string;
   title?: string;
+  lang?: PublicLang;
 }) {
+  const t = publicDict(lang);
   // Traducción y apostilla del mismo papel son dos líneas y un solo documento.
   const docs = useMemo(() => {
     const byKey = new Map<string, { line: DocLine; labels: string[] }>();
@@ -74,10 +78,10 @@ export default function QuoteDocumentsViewer({
         </h2>
         <div className="flex gap-3 text-xs font-semibold">
           <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="text-bleu hover:underline">
-            Abrir en otra pestaña
+            {t.docOpenTab}
           </a>
           <a href={lineDocUrl(current.line, { token, download: true })!} className="text-bleu hover:underline">
-            Descargar
+            {t.docDownload}
           </a>
         </div>
       </div>
@@ -102,7 +106,7 @@ export default function QuoteDocumentsViewer({
 
       <p className="mt-3 text-sm text-sepia">
         {label}
-        {pagesLabel(current.line)}
+        {pagesLabel(current.line, t)}
       </p>
       {kind === "pdf" ? (
         <>
@@ -113,7 +117,7 @@ export default function QuoteDocumentsViewer({
             className="mt-2 h-[75vh] min-h-[420px] w-full rounded-xl border border-slate-200 bg-slate-50"
           />
           <p className="mt-2 text-xs text-sepia sm:hidden">
-            En el móvil puede verse solo la primera página: «Abrir en otra pestaña» enseña el documento entero.
+            {t.docMobileHint}
           </p>
         </>
       ) : kind === "img" ? (
@@ -126,7 +130,7 @@ export default function QuoteDocumentsViewer({
         />
       ) : (
         <p className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-sepia">
-          Formato sin vista previa: use «Abrir en otra pestaña» o «Descargar».
+          {t.docNoPreview}
         </p>
       )}
     </div>

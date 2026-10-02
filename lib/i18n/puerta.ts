@@ -89,6 +89,7 @@ export type PuertaStrings = {
   entryTargetLabel: string;
   entryPickLang: string;
   entrySamePair: string;
+  writeYourLang: string;
   entryLocked: string;
   langNames: Record<string, string>;
 };
@@ -193,6 +194,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entryTargetLabel: "Lo necesitas en",
     entryPickLang: "Elige…",
     entrySamePair: "El idioma de origen y el de destino no pueden ser el mismo.",
+    writeYourLang: "Puedes escribirnos en tu idioma: te respondemos en él.",
     entryLocked: "Rellena tu email, marca la casilla y elige los idiomas para poder subir el documento.",
     langNames: { es: "Español", fr: "Francés", en: "Inglés", de: "Alemán", it: "Italiano", pt: "Portugués", nl: "Neerlandés", ro: "Rumano", ar: "Árabe", ca: "Catalán", sv: "Sueco", no: "Noruego", other: "Otro idioma" },
   },
@@ -274,6 +276,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entryTargetLabel: "Vous le voulez en",
     entryPickLang: "Choisir…",
     entrySamePair: "La langue source et la langue cible ne peuvent pas être identiques.",
+    writeYourLang: "Vous pouvez nous écrire dans votre langue : nous vous répondons dans la même langue.",
     entryLocked: "Indiquez votre e-mail, cochez la case et choisissez les langues pour pouvoir envoyer le document.",
     langNames: { es: "Espagnol", fr: "Français", en: "Anglais", de: "Allemand", it: "Italien", pt: "Portugais", nl: "Néerlandais", ro: "Roumain", ar: "Arabe", ca: "Catalan", sv: "Suédois", no: "Norvégien", other: "Autre langue" },
   },
@@ -355,6 +358,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entryTargetLabel: "You need it in",
     entryPickLang: "Choose…",
     entrySamePair: "Source and target language cannot be the same.",
+    writeYourLang: "You can write to us in your own language — we'll reply in it.",
     entryLocked: "Enter your email, tick the box and choose the languages to upload the document.",
     langNames: { es: "Spanish", fr: "French", en: "English", de: "German", it: "Italian", pt: "Portuguese", nl: "Dutch", ro: "Romanian", ar: "Arabic", ca: "Catalan", sv: "Swedish", no: "Norwegian", other: "Other language" },
   },
@@ -436,6 +440,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entryTargetLabel: "Sie brauchen es auf",
     entryPickLang: "Wählen…",
     entrySamePair: "Ausgangs- und Zielsprache dürfen nicht gleich sein.",
+    writeYourLang: "Sie können uns in Ihrer Sprache schreiben: Wir antworten in derselben Sprache.",
     entryLocked: "Geben Sie Ihre E-Mail ein, setzen Sie das Häkchen und wählen Sie die Sprachen, um das Dokument hochzuladen.",
     langNames: { es: "Spanisch", fr: "Französisch", en: "Englisch", de: "Deutsch", it: "Italienisch", pt: "Portugiesisch", nl: "Niederländisch", ro: "Rumänisch", ar: "Arabisch", ca: "Katalanisch", sv: "Schwedisch", no: "Norwegisch", other: "Andere Sprache" },
   },
@@ -517,6 +522,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entryTargetLabel: "Precisa dele em",
     entryPickLang: "Escolher…",
     entrySamePair: "O idioma de origem e o de destino não podem ser o mesmo.",
+    writeYourLang: "Pode escrever-nos no seu idioma: respondemos nesse idioma.",
     entryLocked: "Indique o seu email, marque a caixa e escolha os idiomas para poder enviar o documento.",
     langNames: { es: "Espanhol", fr: "Francês", en: "Inglês", de: "Alemão", it: "Italiano", pt: "Português", nl: "Neerlandês", ro: "Romeno", ar: "Árabe", ca: "Catalão", sv: "Sueco", no: "Norueguês", other: "Outro idioma" },
   },

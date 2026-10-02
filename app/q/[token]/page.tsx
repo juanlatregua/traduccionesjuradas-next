@@ -339,17 +339,17 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               <div className="space-y-2 rounded-lg border border-bleu/30 bg-cream/40 p-3 text-sm text-encre">
                 <p className="flex items-center justify-between">
                   <span>
-                    Segundo pago
-                    {refreshed.balanceDueAt ? ` (${refreshed.balanceDueAt.toLocaleDateString("es-ES", { day: "numeric", month: "long" })})` : ""}
+                    {t.secondPayment}
+                    {refreshed.balanceDueAt ? ` (${refreshed.balanceDueAt.toLocaleDateString(loc, { day: "numeric", month: "long" })})` : ""}
                   </span>
                   <strong>{formatMoney(balance)}</strong>
                 </p>
                 {refreshed.balancePaidAt ? (
-                  <p className="font-semibold text-emerald-700">Pagado. Presupuesto pagado en su totalidad.</p>
+                  <p className="font-semibold text-emerald-700">{t.paidFull}</p>
                 ) : refreshed.paidAt ? (
-                  <QuoteBalancePayButton token={params.token} amountLabel={formatMoney(balance)} />
+                  <QuoteBalancePayButton token={params.token} amountLabel={formatMoney(balance)} lang={lang} />
                 ) : (
-                  <p className="text-xs text-sepia">Se paga después del primer pago, con este mismo enlace.</p>
+                  <p className="text-xs text-sepia">{t.secondPayLater}</p>
                 )}
               </div>
             )}
@@ -362,12 +362,13 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               paymentMethods={refreshed.paymentMethods}
               lang={lang}
             />
+            <p className="text-xs text-graphite">{t.writeYourLang}</p>
           </aside>
         </div>
 
         {fileKeys.length > 0 && (
           <section className="mt-6 rounded-2xl border border-cream p-4">
-            <QuoteDocumentsViewer lines={docLines} token={params.token} title={t.yourDocuments} />
+            <QuoteDocumentsViewer lines={docLines} token={params.token} title={t.yourDocuments} lang={lang} />
           </section>
         )}
 
@@ -379,6 +380,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               token={params.token}
               preselect={searchParams?.fb || null}
               alreadySent={refreshed.lostReason != null}
+              lang={lang}
             />
           </section>
         )}
@@ -389,7 +391,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
             <div className="mt-3 space-y-3">
               <iframe
                 src={refreshed.pdfUrl}
-                title="PDF presupuesto"
+                title={t.pdfTitle}
                 className="h-72 w-full rounded-xl border border-cream"
               />
               <a

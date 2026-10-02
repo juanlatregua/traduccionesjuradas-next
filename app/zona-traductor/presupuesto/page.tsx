@@ -203,7 +203,7 @@ export default async function ZonaTraductorPresupuestoPage({
           lavoriLeadRef={lead?.ref ?? null}
           emailContext={
             inboundEmail
-              ? { id: inboundEmail.id, fromName: inboundEmail.fromName, fromEmail: inboundEmail.fromEmail, subject: inboundEmail.subject }
+              ? { id: inboundEmail.id, fromName: inboundEmail.fromName, fromEmail: inboundEmail.fromEmail, subject: inboundEmail.subject, text: (inboundEmail.bodyText || inboundEmail.bodyPreview || "").split(/\n(?:>|El .{0,120}escribi[oó]:|On .{0,120}wrote:|Le .{0,120}a écrit)/)[0].slice(0, 600) }
               : null
           }
         />

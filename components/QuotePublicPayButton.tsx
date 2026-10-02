@@ -107,7 +107,7 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       {tab === "bizum" && (
         <div className="space-y-2">
           <p className="text-xs text-sepia">
-            Envía un Bizum por <strong>{totalLabel}</strong> con estos datos:
+            {t.bizumSendPre} <strong>{totalLabel}</strong> {t.bizumSendPost}
           </p>
           {bizums.map((b) => (
             <CopyField key={b.key} label="Bizum" value={b.account.kind === "bizum" ? b.account.phone : ""} onCopied={onCopy} />

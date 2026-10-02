@@ -435,6 +435,7 @@ export default function PuertaClient({
               </label>
             </div>
             {samePair && <p className="mt-2 text-xs text-rouge">{t.entrySamePair}</p>}
+            <p className="mt-2 text-xs text-graphite">{t.writeYourLang}</p>
             <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-graphite">
               <input
                 type="checkbox"

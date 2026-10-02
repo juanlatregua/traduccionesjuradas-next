@@ -9,6 +9,7 @@ import { computeBase } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
 import LavoriCandidatePicker, { describeLavoriPick, lavoriPickError, lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
+import { suggestClientLang } from "@/lib/client-lang";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 import { UNREAD_PAGES_TYPE_ES } from "@/lib/ai/unread-pages";
 
@@ -238,7 +239,7 @@ type Props = {
   lavoriLeadRef?: string | null;
   // Email de la bandeja del que nace el presupuesto: la IA lo lee (par,
   // urgencia, entrega, documento provisional, notas, preguntas) y prerrellena.
-  emailContext?: { id: string; fromName: string | null; fromEmail: string; subject: string } | null;
+  emailContext?: { id: string; fromName: string | null; fromEmail: string; subject: string; text?: string | null } | null;
 };
 
 export default function StaffExpedienteIntake({ initialDocs, initialCustomer, initialData, expedienteRef, lavoriLeadRef, emailContext }: Props = {}) {
@@ -264,6 +265,16 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   // P2: si false, soltar documentos NO lanza el conteo IA (precio a mano / fijo).
   const [autoCount, setAutoCount] = useState(true);
   const [pdfLang, setPdfLang] = useState<string>("es");
+  const [pdfLangTouched, setPdfLangTouched] = useState(false);
+  // Sugerencia de idioma del cliente: texto del email/WhatsApp > prefijo > TLD. La
+  // puerta no guarda el locale de la página, así que ese dato no entra aquí.
+  const langSuggestion = useMemo(
+    () => suggestClientLang({ text: emailContext?.text, phone: customerPhone, email: customerEmail }),
+    [emailContext?.text, customerPhone, customerEmail]
+  );
+  useEffect(() => {
+    if (!pdfLangTouched) setPdfLang(langSuggestion?.lang ?? "es");
+  }, [langSuggestion, pdfLangTouched]);
   const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">(
     initialData?.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
   );
@@ -1535,11 +1546,16 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
               </label>
               <label className="text-xs text-slate-400">
                 Idioma del cliente (PDF y página de pago)
-                <select value={pdfLang} onChange={(e) => setPdfLang(e.target.value)} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
+                <select value={pdfLang} onChange={(e) => { setPdfLangTouched(true); setPdfLang(e.target.value); }} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
                   {QUOTE_PDF_LANGS.map((l) => (
                     <option key={l} value={l}>{QUOTE_PDF_LANG_LABELS[l]}</option>
                   ))}
                 </select>
+                {langSuggestion && (
+                  <span className="mt-1 block text-[11px] text-slate-500">
+                    Sugerido: {QUOTE_PDF_LANG_LABELS[langSuggestion.lang]} ({langSuggestion.reason})
+                  </span>
+                )}
               </label>
               <label className="text-xs text-slate-400">
                 Plazo de entrega

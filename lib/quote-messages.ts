@@ -70,6 +70,7 @@ ${payLines}
 Si ha seleccionado envío en papel, los gastos de envío son 12 € + IVA (incluidos en el total).
 ${data.proofUrl ? `¿Ya has pagado por transferencia? Adjunta el justificante aquí: ${data.proofUrl}\n` : ""}Una vez confirmado el pago, comenzaremos la traducción de inmediato.
 Si el PDF que nos envió no era totalmente legible, aquí le explicamos cómo escanear mejor la próxima vez: https://www.traduccionesjuradas.net/como-escanear-bien
+Puedes escribirnos en tu idioma: te respondemos en él.
 Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
 
   return { subject, body };
@@ -131,6 +132,7 @@ export function buildWhatsAppPayText(data: {
     data.proofUrl
       ? `- 📥 ¿Ya has pagado por transferencia? Adjunta el justificante aquí: ${data.proofUrl}`
       : `- 📥 Nos envía el justificante de pago para finalizar el encargo. ¡Gracias!`,
+    `- 🌍 Puedes escribirnos en tu idioma: te respondemos en él.`,
   ]
     .filter(Boolean)
     .join("\n");

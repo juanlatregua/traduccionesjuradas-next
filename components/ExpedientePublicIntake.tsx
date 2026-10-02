@@ -272,6 +272,7 @@ export default function ExpedientePublicIntake({
           <input className={field} placeholder={t.notes} aria-label={t.notes} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
         {samePair && <p className="mt-2 text-xs text-rouge">{p.entrySamePair}</p>}
+        <p className="mt-2 text-xs text-graphite">{p.writeYourLang}</p>
         <label className="mt-3 flex cursor-pointer items-start gap-3 text-xs text-graphite">
           <input type="checkbox" checked={gdpr} onChange={(e) => setGdpr(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded border-graphite/40 text-bleu" />
           <span>
