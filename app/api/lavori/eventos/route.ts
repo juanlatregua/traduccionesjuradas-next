@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   if (evento === "documentos_recibidos" || evento === "copia_fallida") {
     return handleCopiaEvento({ evento, reference, motorRef, encargoId, datos });
   }
-  const orderSelect = { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true, quoteId: true } as const;
+  const orderSelect = { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true, quoteId: true, assignedTo: true } as const;
   let order = await prisma.order.findUnique({ where: { reference }, select: orderSelect });
   // Solicitud de un LEAD cuyo presupuesto ya es pedido: el evento cae en el pedido,
   // pero la solicitud tiene que seguir el mismo camino (Gabriel 26_17203A, 25-sep:
@@ -194,7 +194,10 @@ export async function POST(req: Request) {
       // 26_17203A: se aceptó a Nielson con Cristina ya confirmada) o si quien
       // propone no estaba entre los jurados a los que se pidió.
       let bloqueoAuto: string | null = null;
-      if (cabeEnModelo && lead && !lprAplicado) {
+      const yaAsignado = cabeEnModelo ? await traductorYaAsignado(order, datos.miembroId ? String(datos.miembroId) : null) : null;
+      if (yaAsignado) {
+        bloqueoAuto = `el pedido ya tiene traductor (${yaAsignado}): no se acepta solo.`;
+      } else if (cabeEnModelo && lead && !lprAplicado) {
         bloqueoAuto = `ya había precio de ${lead.miembroNombre || "otro jurado"} en ${lead.ref}: vale el primero.`;
       } else if (cabeEnModelo) {
         const leadRef = motorRef.replace(/-precio$/, "");
@@ -286,6 +289,21 @@ export async function POST(req: Request) {
 
     if (evento === "encargo_aceptado" && !isCasaPair(order.langPair)) {
       const miembroId = String(datos.miembroId || "");
+      // Juan, 2-oct-2026 (26_D8C6F8): el pedido ya lo tenía otro traductor fuera de
+      // lavori y la aceptación lo pisó. Si ya hay traductor, no se asigna: se avisa.
+      const yaAsignado = await traductorYaAsignado(order, miembroId || null);
+      if (yaAsignado) {
+        const yaAvisado = await prisma.orderEvent.findFirst({ where: { orderId: order.id, type: "lavori.aceptacion_con_traductor", payload: { path: ["encargoId"], equals: encargoId } }, select: { id: true } });
+        if (yaAvisado) return NextResponse.json({ ok: true, repetido: true });
+        const miembro = String(datos.miembroNombre || miembroId || "el traductor");
+        const texto = `${miembro} aceptó en lavori el encargo ${encargoId} de ${order.reference}, pero el pedido ya está asignado a ${yaAsignado}. NO se ha asignado: retira uno de los dos. Ficha: ${ficha}`;
+        await Promise.all([
+          staffMail(`⚠ ${order.reference}: ${miembro} aceptó en lavori un pedido que ya tiene traductor`, [texto]),
+          sendStaffAlertSMS(texto, `aceptacion_pedido_asignado ${order.reference}`).catch((err) => console.error("[lavori-eventos] SMS pedido ya asignado fallo:", err)),
+        ]);
+        await prisma.orderEvent.create({ data: { orderId: order.id, type: "lavori.aceptacion_con_traductor", message: texto, payload: { encargoId, miembroId, yaAsignado } } });
+        return NextResponse.json({ ok: true, repetido: false, yaAsignado: true }, { status: 201 });
+      }
       // Cifra que la casa debe al jurado: la aceptada (Fase 2, precio_aceptado_enviado)
       // o la del dirigido (solicitud_enviada.paraTi). Con ella la aceptación deja
       // coste, devengo en su cuenta y snapshot de margen por el chokepoint de
@@ -971,4 +989,22 @@ async function handleCopiaEvento(opts: {
     ]);
   }
   return NextResponse.json({ ok: true }, { status: 201 });
+}
+
+/** Traductor que ya tiene el pedido (texto de la ficha o asignación ganadora) y
+ * que NO es el miembro de lavori que llega; null si está libre o es el mismo. */
+async function traductorYaAsignado(order: { id: string; assignedTo: string | null }, miembroId: string | null): Promise<string | null> {
+  const emailMiembro = miembroId ? LAVORI_MEMBER_COLLABORATOR_EMAIL[miembroId]?.toLowerCase() : undefined;
+  const ganadora = await prisma.collaboratorAssignment.findFirst({
+    where: { orderId: order.id, status: { in: ["ACCEPTED", "DELIVERED"] } },
+    select: { collaborator: { select: { email: true, fullName: true } } },
+  });
+  if (ganadora) return ganadora.collaborator.email.toLowerCase() === emailMiembro ? null : ganadora.collaborator.fullName;
+  const ficha = order.assignedTo?.trim();
+  if (!ficha) return null;
+  if (emailMiembro) {
+    const c = await prisma.collaborator.findFirst({ where: { email: { equals: emailMiembro, mode: "insensitive" } }, select: { fullName: true } });
+    if (c && c.fullName.trim().toLowerCase() === ficha.toLowerCase()) return null;
+  }
+  return ficha;
 }
