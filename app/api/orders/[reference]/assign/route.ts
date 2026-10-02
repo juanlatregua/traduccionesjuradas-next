@@ -13,6 +13,7 @@ type Params = { params: { reference: string } };
 
 type AssignBody = {
   assignedTo?: string | null;
+  clear?: boolean;
   dueDate?: string | null;
 };
 
@@ -31,6 +32,9 @@ export async function POST(req: Request, { params }: Params) {
 
     const body = (await req.json()) as AssignBody;
     const requestedAssignedTo = body.assignedTo?.trim() || null;
+    if (!requestedAssignedTo && !body.clear) {
+      return NextResponse.json({ ok: false, error: "Escribe el nombre del traductor." }, { status: 400 });
+    }
     const translatorProfile = findTranslatorProfile(requestedAssignedTo);
     const assignedTo = requestedAssignedTo
       ? translatorProfile?.fullName || requestedAssignedTo
