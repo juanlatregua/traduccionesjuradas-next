@@ -5,6 +5,7 @@
 
 import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { leadDocKeys } from "@/lib/lavori-doc-keys";
 
 // ESCALATED cuenta como viva: su encargo nunca se retiró en lavori. DISCARDED y
 // RETIRED no: pasan por /api/motor/retirada antes de cerrarse (lib/lavori-retire.ts).
@@ -16,6 +17,93 @@ export const LIVE_STATUSES = LIVE;
 
 export function lavoriContentKey(docKeys: string, par: string): string {
   return createHash("sha256").update(`${docKeys}|${par}`).digest("hex").slice(0, 24);
+}
+
+/** "it->es" | "it>es" → "IT>ES" (formato de LavoriPriceRequest.par). */
+export function parFromLangs(sourceLang: string | null | undefined, targetLang: string | null | undefined): string | null {
+  const s = String(sourceLang || "").trim().toUpperCase();
+  const t = String(targetLang || "").trim().toUpperCase();
+  return s && t ? `${s}>${t}` : null;
+}
+
+export function parFromLangPair(langPair: string | null | undefined): string | null {
+  const [s, t] = String(langPair || "").split(/->|>/);
+  return parFromLangs(s, t);
+}
+
+/** Huella de los documentos de un presupuesto con el mismo cálculo que la solicitud
+ * (lib/lavori-lead.ts): permite reconocer la solicitud que Juan pidió desde el
+ * constructor aunque no quedara atada (26_C3617B, 2-oct-2026). */
+export async function contentKeyForQuote(quoteId: string, par: string): Promise<string | null> {
+  const lines = await prisma.quoteLine.findMany({
+    where: { quoteId, sourceFileUrl: { not: null } },
+    select: { sourceFileUrl: true, pageStart: true, pageEnd: true },
+  });
+  if (lines.length === 0) return null;
+  const urls = Array.from(new Set(lines.map((l) => l.sourceFileUrl!)));
+  const filas = await prisma.documentAnalysis
+    .findMany({ where: { fileUrl: { in: urls }, fileHash: { not: null } }, select: { fileUrl: true, fileHash: true } })
+    .catch(() => []);
+  const porUrl = new Map(filas.map((r) => [r.fileUrl, r.fileHash]));
+  const docs = lines.map((l) => ({
+    url: l.sourceFileUrl!,
+    pageStart: l.pageStart ?? undefined,
+    pageEnd: l.pageEnd ?? undefined,
+    hash: porUrl.get(l.sourceFileUrl!) ?? null,
+  }));
+  return lavoriContentKey(leadDocKeys(docs), par);
+}
+
+/** Solicitudes candidatas por huella: misma huella, sin atar, recientes (14 días) y
+ * NO consumidas por otro pedido — el mismo cliente puede volver a pedir el mismo
+ * certificado y la cifra vieja no puede reciclarse (marca de consumo = el evento
+ * del otro pedido que la nombra, como en el emparejamiento por cliente). */
+export async function freshLeadsByContentKey(contentKey: string, statuses: string[], exceptOrderId?: string | null) {
+  const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const candidatas = await prisma.lavoriPriceRequest.findMany({
+    where: { contentKey, quoteId: null, status: { in: statuses }, createdAt: { gte: since } },
+    orderBy: { updatedAt: "desc" },
+    take: 5,
+  });
+  const libres = [];
+  for (const c of candidatas) {
+    const consumida = await prisma.orderEvent.findFirst({
+      where: { ...(exceptOrderId ? { orderId: { not: exceptOrderId } } : {}), payload: { path: ["lavoriPriceRequestId"], equals: c.id } },
+      select: { id: true },
+    });
+    if (!consumida) libres.push(c);
+  }
+  return libres;
+}
+
+/** Pedido de una solicitud: por su presupuesto o, si se emparejó sin presupuesto
+ * (funnel por cliente), por el evento del pedido que la nombra. */
+export async function orderIdForLead(lead: { id: string; quoteId: string | null }): Promise<string | null> {
+  if (lead.quoteId) {
+    const o = await prisma.order.findFirst({ where: { quoteId: lead.quoteId }, orderBy: { createdAt: "desc" }, select: { id: true } });
+    if (o) return o.id;
+  }
+  const ev = await prisma.orderEvent.findFirst({
+    where: { payload: { path: ["lavoriPriceRequestId"], equals: lead.id } },
+    orderBy: { createdAt: "desc" },
+    select: { orderId: true },
+  });
+  return ev?.orderId ?? null;
+}
+
+/** «Lo llevo yo» (contrato 3-oct): marca en la solicitud o, para un encargo abierto
+ * desde el pedido (sin solicitud), el último evento lavori.lo_llevo_yo del pedido. */
+export async function isHeldByJuan(motorRef: string, orderId?: string | null): Promise<boolean> {
+  const ref = motorRef.replace(/-precio$/, "");
+  const lead = await prisma.lavoriPriceRequest.findUnique({ where: { ref }, select: { heldByJuanAt: true } });
+  if (lead) return Boolean(lead.heldByJuanAt);
+  if (!orderId) return false;
+  const ev = await prisma.orderEvent.findFirst({
+    where: { orderId, type: "lavori.lo_llevo_yo" },
+    orderBy: { createdAt: "desc" },
+    select: { payload: true },
+  });
+  return (ev?.payload as { reservado?: unknown } | null)?.reservado === true;
 }
 
 export type LiveLavoriDuplicate = {

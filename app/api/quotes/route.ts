@@ -210,16 +210,27 @@ export async function POST(req: Request) {
     // y el traductor no se enteraba de que el cliente habia aceptado su precio.
     // Francés = Juan (17-sep-2026): el presupuesto no se ata a la cifra ni al nombre
     // de un jurado de lavori (2026-00160 salió atado a los 1.330 € de Patricia).
+    // Por expediente solo se ata la solicitud del MISMO par, y además se reconoce por
+    // la huella de los documentos la que Juan pidió desde el constructor sin
+    // expediente (26_C3617B, 2-oct-2026: el presupuesto IT>ES quedó atado a una EN>ES
+    // de la puerta y la de Miguel, con su precio, suelta).
     const { isCasaPair } = await import("@/lib/lavori-bridge");
+    const { contentKeyForQuote, freshLeadsByContentKey, parFromLangs } = await import("@/lib/lavori-dup-guard");
     const esCasa = isCasaPair(`${parsed.data.sourceLang}->${parsed.data.targetLang}`);
-    if ((expedienteRef || lavoriLeadRef) && !esCasa) {
+    const par = parFromLangs(parsed.data.sourceLang, parsed.data.targetLang);
+    const contentKey = par && !esCasa ? await contentKeyForQuote(created.id, par).catch(() => null) : null;
+    const porHuella = contentKey
+      ? (await freshLeadsByContentKey(contentKey, ["SENT", "PRICED"]).catch(() => [])).map((l) => l.id)
+      : [];
+    if ((expedienteRef || lavoriLeadRef || porHuella.length > 0) && !esCasa) {
       try {
         await prisma.lavoriPriceRequest.updateMany({
           where: {
             quoteId: null,
             OR: [
               ...(lavoriLeadRef ? [{ ref: lavoriLeadRef }] : []),
-              ...(expedienteRef ? [{ expedienteRef }] : []),
+              ...(expedienteRef ? [{ expedienteRef, ...(par ? { par } : {}) }] : []),
+              ...(porHuella.length > 0 ? [{ id: { in: porHuella } }] : []),
             ],
           },
           data: { quoteId: created.id },

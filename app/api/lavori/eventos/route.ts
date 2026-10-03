@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { findLiveLavoriDuplicate, liveDuplicateMessage } from "@/lib/lavori-dup-guard";
-import { timingSafeEqual } from "node:crypto";
+import { findLiveLavoriDuplicate, isHeldByJuan, liveDuplicateMessage, orderIdForLead } from "@/lib/lavori-dup-guard";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
@@ -9,6 +8,7 @@ import { assignLavoriAcceptance } from "@/lib/lavori-assign";
 import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
 import { acceptanceMatchesPrice, acceptsNewPrice, isDirectLeadRequest } from "@/lib/lavori-directo-math";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { hasMotorAuth, isMotorTestRef } from "@/lib/lavori-motor-auth";
 
 export const runtime = "nodejs";
 
@@ -25,18 +25,9 @@ export const runtime = "nodejs";
 
 const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
-const EVENTO_TIPOS = ["precio_propuesto", "encargo_aceptado", "factura_subida", "entrega_subida", "pago_marcado", "documentos_recibidos", "copia_fallida"] as const;
+const EVENTO_TIPOS = ["precio_propuesto", "encargo_aceptado", "factura_subida", "entrega_subida", "pago_marcado", "documentos_recibidos", "copia_fallida", "encargo_retirado", "encargo_lo_llevo_yo"] as const;
 type EventoTipo = (typeof EVENTO_TIPOS)[number];
 
-function hasAuth(req: Request): boolean {
-  const secret = process.env.MOTOR_LAVORI_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("authorization") || "";
-  const provided = header.startsWith("Bearer ") ? header.slice(7) : header;
-  const a = Buffer.from(provided);
-  const b = Buffer.from(secret);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 function eurosToCents(value: unknown): number | null {
   const n = Number.parseFloat(String(value ?? ""));
@@ -45,7 +36,7 @@ function eurosToCents(value: unknown): number | null {
 }
 
 export async function POST(req: Request) {
-  if (!hasAuth(req)) {
+  if (!hasMotorAuth(req)) {
     return NextResponse.json({ ok: false, error: "no autorizado" }, { status: 401 });
   }
 
@@ -80,6 +71,16 @@ export async function POST(req: Request) {
   // el encargo se cancela sin que ningún candidato lo vea).
   if (evento === "documentos_recibidos" || evento === "copia_fallida") {
     return handleCopiaEvento({ evento, reference, motorRef, encargoId, datos });
+  }
+  // Contrato 3-oct-2026 (ficha lavori «confirmar sin pago»): B y D.
+  if ((evento === "encargo_retirado" || evento === "encargo_lo_llevo_yo") && isMotorTestRef(reference)) {
+    return NextResponse.json({ ok: true, prueba: true });
+  }
+  if (evento === "encargo_retirado") {
+    return handleRetiradoEnLavori({ reference, motorRef, encargoId, ts: String(body.ts || ""), datos });
+  }
+  if (evento === "encargo_lo_llevo_yo") {
+    return handleLoLlevoYo({ reference, datos });
   }
   const orderSelect = { id: true, reference: true, langPair: true, paymentStatus: true, amountCents: true, quoteId: true, assignedTo: true } as const;
   let order = await prisma.order.findUnique({ where: { reference }, select: orderSelect });
@@ -195,8 +196,11 @@ export async function POST(req: Request) {
       // propone no estaba entre los jurados a los que se pidió.
       let bloqueoAuto: string | null = null;
       const yaAsignado = cabeEnModelo ? await traductorYaAsignado(order, datos.miembroId ? String(datos.miembroId) : null) : null;
+      const reservadaJuan = cabeEnModelo ? await isHeldByJuan(motorRef, order.id) : false;
       if (yaAsignado) {
         bloqueoAuto = `el pedido ya tiene traductor (${yaAsignado}): no se acepta solo.`;
+      } else if (reservadaJuan) {
+        bloqueoAuto = `lo llevas tú en lavori («lo llevo yo»): no se acepta solo.`;
       } else if (cabeEnModelo && lead && !lprAplicado) {
         bloqueoAuto = `ya había precio de ${lead.miembroNombre || "otro jurado"} en ${lead.ref}: vale el primero.`;
       } else if (cabeEnModelo) {
@@ -1007,4 +1011,155 @@ async function traductorYaAsignado(order: { id: string; assignedTo: string | nul
     if (c && c.fullName.trim().toLowerCase() === ficha.toLowerCase()) return null;
   }
   return ficha;
+}
+
+// encargo_retirado (B): alguien retiró en lavori un encargo del motor. Se cierra la
+// solicitud y, SOLO si el pedido lo tenía ese mismo miembro, se le quita (el 2-oct
+// Daniela se retiró mientras lo hacía Inge: Inge no se toca). Nada al cliente y
+// nunca se reasigna solo.
+async function handleRetiradoEnLavori(opts: {
+  reference: string;
+  motorRef: string;
+  encargoId: string;
+  ts: string;
+  datos: Record<string, unknown>;
+}) {
+  const { reference, motorRef, encargoId, ts, datos } = opts;
+  const motivo = String(datos.motivo || "otro");
+  const aceptadoPor = datos.aceptadoPor ? String(datos.aceptadoPor) : null;
+  const aceptadoPorNombre = datos.aceptadoPorNombre ? String(datos.aceptadoPorNombre) : null;
+  const marca = `retirado-lavori:${encargoId}:${ts}`;
+
+  const lead = await prisma.lavoriPriceRequest.findUnique({ where: { ref: reference } });
+  const orderSelect = { id: true, reference: true, paymentStatus: true, assignedTo: true } as const;
+  const leadOrderId = lead ? await orderIdForLead(lead) : null;
+  const order = leadOrderId
+    ? await prisma.order.findUnique({ where: { id: leadOrderId }, select: orderSelect })
+    : lead
+      ? null
+      : await prisma.order.findUnique({ where: { reference }, select: orderSelect });
+  if (!lead && !order) return NextResponse.json({ ok: false, error: `ref "${motorRef}" desconocida` }, { status: 404 });
+
+  const repetido = order
+    ? await prisma.orderEvent.findFirst({
+        where: { orderId: order.id, type: "lavori.encargo_retirado", AND: [{ payload: { path: ["encargoId"], equals: encargoId } }, { payload: { path: ["ts"], equals: ts } }] },
+        select: { id: true },
+      })
+    : lead?.notas?.includes(marca);
+  if (repetido) return NextResponse.json({ ok: true, repetido: true });
+
+  if (lead) {
+    const cerrada = ["RETIRED", "DISCARDED"].includes(lead.status);
+    await prisma.lavoriPriceRequest.update({
+      where: { id: lead.id },
+      data: {
+        ...(cerrada ? {} : { status: "RETIRED" }),
+        notas: [lead.notas, `Retirada en lavori (${motivo}, ${String(datos.retiradoPor || "?")}) ${marca}`].filter(Boolean).join("\n"),
+      },
+    });
+  }
+  if (!order) return NextResponse.json({ ok: true });
+
+  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${order.reference}`;
+  const email = aceptadoPor ? LAVORI_MEMBER_COLLABORATOR_EMAIL[aceptadoPor] : undefined;
+  const collaborator = email
+    ? await prisma.collaborator.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true, fullName: true } })
+    : null;
+  const assignment = collaborator
+    ? await prisma.collaboratorAssignment.findFirst({
+        where: { orderId: order.id, collaboratorId: collaborator.id, status: { in: ["ACCEPTED", "DELIVERED"] } },
+        select: { id: true, status: true },
+      })
+    : null;
+  const quien = collaborator?.fullName || aceptadoPorNombre || aceptadoPor || "el jurado";
+
+  // Solo si la asignación nació de ESTE encargo (encargo_aceptado con su encargoId)
+  // y nadie la rehízo a mano después («Precio ya pactado» reutiliza la misma fila).
+  const aceptacion = assignment
+    ? await prisma.orderEvent.findFirst({
+        where: { orderId: order.id, type: "lavori.encargo_aceptado", payload: { path: ["encargoId"], equals: encargoId } },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      })
+    : null;
+  const manualDespues = aceptacion
+    ? await prisma.orderEvent.findFirst({
+        where: { orderId: order.id, type: "collaborator.assignment.direct", createdAt: { gt: aceptacion.createdAt } },
+        select: { id: true },
+      })
+    : null;
+  const deEsteEncargo = Boolean(aceptacion) && !manualDespues;
+
+  let accion: "desasignado" | "entregado" | "revisar" | "sin_cambios" = "sin_cambios";
+  if (assignment?.status === "ACCEPTED" && collaborator && deEsteEncargo) {
+    await prisma.$transaction(async (tx) => {
+      await tx.collaboratorAssignment.update({
+        where: { id: assignment.id },
+        data: { status: "REJECTED", isWinning: false, rejectedAt: new Date(), rejectionReason: `Retirado en lavori (${motivo}).` },
+      });
+      if (order!.assignedTo === collaborator.fullName) {
+        await tx.order.update({ where: { id: order!.id }, data: { assignedTo: null, supplierCostCents: null } });
+      }
+      // Devengo aún sin factura: fuera, que ya no se le debe nada.
+      await tx.expense.deleteMany({ where: { supplierInvoiceNumber: `enc:${assignment.id}`, isAccrual: true, paymentStatus: "PENDING", settledById: null } });
+    });
+    accion = "desasignado";
+  } else if (assignment?.status === "DELIVERED") {
+    accion = "entregado";
+  } else if (assignment?.status === "ACCEPTED") {
+    accion = "revisar";
+  }
+
+  const texto =
+    accion === "desasignado"
+      ? `${quien} ya no tiene ${order.reference}: el encargo ${encargoId} se retiró en lavori (${motivo}). El pedido queda SIN traductor${order.paymentStatus === "PAID" ? " y está PAGADO" : ""}: asígnalo tú. Al cliente no se le ha dicho nada. Ficha: ${ficha}`
+      : accion === "entregado"
+        ? `Se retiró en lavori el encargo ${encargoId} de ${order.reference}, pero ${quien} ya había ENTREGADO: no se ha tocado nada. Revísalo. Ficha: ${ficha}`
+        : accion === "revisar"
+          ? `Se retiró en lavori el encargo ${encargoId} de ${order.reference}. ${quien} sigue asignado porque su asignación no salió de ese encargo (o la rehiciste a mano): NO se ha tocado. Comprueba que sigue haciéndolo. Ficha: ${ficha}`
+        : `Se retiró en lavori el encargo ${encargoId} de ${order.reference} (${motivo}). La asignación del pedido no cambia${order.assignedTo ? ` (sigue ${order.assignedTo})` : ""}. Ficha: ${ficha}`;
+  await prisma.orderEvent.create({
+    data: { orderId: order.id, type: "lavori.encargo_retirado", message: texto, payload: { encargoId, ts, motorRef, motivo, aceptadoPor, accion } },
+  });
+  await sendMail({
+    to: STAFF_ALERT_EMAIL,
+    subject: `${accion === "sin_cambios" ? "ℹ" : "⚠"} ${order.reference}: encargo retirado en lavori`,
+    text: texto,
+    html: `<p>${texto}</p>`,
+  }).catch((err) => console.error("[lavori-eventos] staff mail retirado failed", err));
+  if (accion !== "sin_cambios") {
+    await sendStaffAlertSMS(texto, `encargo_retirado ${order.reference}`).catch((err) => console.error("[lavori-eventos] SMS retirado fallo:", err));
+  }
+  return NextResponse.json({ ok: true }, { status: 201 });
+}
+
+// encargo_lo_llevo_yo (D): Juan se reserva en lavori un encargo del motor; mientras
+// esté marcado, ningún precio se acepta solo (eventos precio_propuesto y
+// deliverPrecioAceptado lo miran).
+async function handleLoLlevoYo(opts: { reference: string; datos: Record<string, unknown> }) {
+  const lead = await prisma.lavoriPriceRequest.findUnique({ where: { ref: opts.reference }, select: { id: true, heldByJuanAt: true } });
+  if (!lead) {
+    // Encargo abierto desde el pedido (sin solicitud): la marca vive en sus eventos.
+    const order = await prisma.order.findUnique({ where: { reference: opts.reference }, select: { id: true } });
+    if (!order) return NextResponse.json({ ok: false, error: `ref "${opts.reference}" desconocida` }, { status: 404 });
+    const reservadoPedido = opts.datos.reservado === true;
+    if (reservadoPedido === (await isHeldByJuan(opts.reference, order.id))) return NextResponse.json({ ok: true, repetido: true });
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.lo_llevo_yo",
+        message: reservadoPedido ? "lavori: «lo llevo yo» — el motor no acepta precios solo." : "lavori: «lo llevo yo» soltado.",
+        payload: { reservado: reservadoPedido, por: opts.datos.por ?? null, en: opts.datos.en ?? null },
+      },
+    });
+    return NextResponse.json({ ok: true });
+  }
+  const reservado = opts.datos.reservado === true;
+  if (reservado === Boolean(lead.heldByJuanAt)) return NextResponse.json({ ok: true, repetido: true });
+  const en = new Date(String(opts.datos.en || ""));
+  await prisma.lavoriPriceRequest.update({
+    where: { id: lead.id },
+    data: { heldByJuanAt: reservado ? (Number.isNaN(en.getTime()) ? new Date() : en) : null },
+  });
+  return NextResponse.json({ ok: true });
 }

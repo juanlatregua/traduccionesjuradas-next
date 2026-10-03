@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { findLiveLavoriDuplicate, liveDuplicateMessage } from "@/lib/lavori-dup-guard";
+import { contentKeyForQuote, findLiveLavoriDuplicate, freshLeadsByContentKey, isHeldByJuan, liveDuplicateMessage, parFromLangPair } from "@/lib/lavori-dup-guard";
 import { prisma } from "@/lib/prisma";
 import { addBusinessDays, getHolidaySetFromEnv, getMadridBusinessBaseDate } from "@/lib/eta";
 import {
@@ -401,15 +401,53 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     // ALTA 2(c) (Juan, 15-sep-2026): primero por quoteId; solo si no hay nada
     // atado por ahí, se prueba por expedienteRef — dos solicitudes del mismo
     // expediente no pueden pisarse la una a la otra por un OR combinado.
-    let lpr = await prisma.lavoriPriceRequest.findFirst({
-      where: { status: { in: [...LEAD_LIVE_STATUSES] }, quoteId: order.quoteId },
-      orderBy: { updatedAt: "desc" },
-    });
+    // Solo cuenta una solicitud del MISMO par que el pedido: 26_C3617B (2-oct-2026)
+    // pagó IT>ES con una EN>ES de la puerta atada por error y se quedó esperando
+    // un precio que nunca iba a servir, con la de Miguel aceptada y suelta.
+    const par = parFromLangPair(order.langPair);
+    const mismoPar = par ? { par } : {};
+    // Con dos atadas manda la ya aceptada (ese jurado ya dijo que sí); si no hay,
+    // la que trae cifra antes que la que aún espera precio.
+    let lpr =
+      (await prisma.lavoriPriceRequest.findFirst({
+        where: { status: "ACCEPTED", quoteId: order.quoteId, ...mismoPar },
+        orderBy: { updatedAt: "desc" },
+      })) ??
+      (await prisma.lavoriPriceRequest.findFirst({
+        where: { status: { in: [...LEAD_LIVE_STATUSES] }, quoteId: order.quoteId, ...mismoPar },
+        orderBy: [{ priceCents: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
+      }));
     if (!lpr && quote?.expedienteRef) {
       lpr = await prisma.lavoriPriceRequest.findFirst({
-        where: { status: { in: [...LEAD_LIVE_STATUSES] }, expedienteRef: quote.expedienteRef },
+        where: { status: { in: [...LEAD_LIVE_STATUSES] }, expedienteRef: quote.expedienteRef, ...mismoPar },
         orderBy: { updatedAt: "desc" },
       });
+    }
+    // Misma huella de documentos y mismo par, sin atar: la que se pidió desde el
+    // constructor antes de crear el presupuesto. Se ata aquí para que la entrega de
+    // lavori caiga en este pedido.
+    if (!lpr && par) {
+      const contentKey = await contentKeyForQuote(order.quoteId, par).catch(() => null);
+      const porHuella = contentKey
+        ? (await freshLeadsByContentKey(contentKey, [...LEAD_PAIRABLE_STATUSES], order.id))[0] ?? null
+        : null;
+      if (porHuella) {
+        const atada = await prisma.lavoriPriceRequest.updateMany({
+          where: { id: porHuella.id, quoteId: null },
+          data: { quoteId: order.quoteId },
+        });
+        if (atada.count === 1) {
+          lpr = porHuella;
+          await prisma.orderEvent.create({
+            data: {
+              orderId: order.id,
+              type: "lavori.solicitud_emparejada",
+              message: `Solicitud de precio ${porHuella.ref} emparejada por los documentos (${porHuella.miembroNombre || "jurado"}${porHuella.priceCents ? `, ${(porHuella.priceCents / 100).toFixed(2)} €` : ""}): se usa SU cifra, no se abre encargo nuevo.`,
+              payload: { lavoriPriceRequestId: porHuella.id, ref: porHuella.ref, priceCents: porHuella.priceCents, matchedBy: "contentKey" },
+            },
+          });
+        }
+      }
     }
     if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
     if (lpr && !(lpr.priceCents && lpr.priceCents > 0)) return holdForPendingPrice(opts, lpr);
@@ -673,12 +711,19 @@ export async function deliverPrecioAceptado(opts: {
       html: lines.map((l) => `<p>${l}</p>`).join(""),
     }).catch((err) => console.error("[lavori-precio-aceptado] staff mail failed", err));
 
-  const result = await sendLavoriPrecioAceptado({
-    ref,
-    precioParaTi: precio,
-    nota: "El cliente ha aceptado y pagado. Adelante con el encargo.",
-    refPedido: reference,
-  });
+  // «Lo llevo yo» (contrato 3-oct): Juan se reservó el encargo en lavori → el motor
+  // no acepta ninguna cifra solo. lavori respondería 409; aquí ni se pregunta.
+  const reservada = await isHeldByJuan(ref, orderId);
+  const pedido = await prisma.order.findUnique({ where: { id: orderId }, select: { paidAt: true, paymentStatus: true } });
+  const result: Awaited<ReturnType<typeof sendLavoriPrecioAceptado>> = reservada
+    ? { ok: false, conflicto: true, estado: "publicado", aceptadoPor: null, loLlevoYo: true }
+    : await sendLavoriPrecioAceptado({
+        ref,
+        precioParaTi: precio,
+        nota: "El cliente ha aceptado y pagado. Adelante con el encargo.",
+        refPedido: reference,
+        pagadoEn: pedido?.paymentStatus === "PAID" ? pedido.paidAt ?? new Date() : null,
+      });
 
   if (result.ok) {
     await prisma.orderEvent.create({
@@ -702,6 +747,26 @@ export async function deliverPrecioAceptado(opts: {
       `Ficha: ${ficha}`,
     ]);
     return { ok: true };
+  }
+
+  if ("conflicto" in result && result.conflicto && result.loLlevoYo) {
+    await prisma.orderEvent.create({
+      data: {
+        orderId,
+        type: "lavori.precio_aceptado_conflicto",
+        message: `lavori: «lo llevas tú» en ${ref} — NO se ha aceptado la cifra de ${precio} €. Asigna tú el pedido.`,
+        payload: { ref, precioParaTi: precio, estado: result.estado, loLlevoYo: true },
+      },
+    });
+    const textoReservada = `El pedido ${reference} está pagado y el motor quiso aceptar ${precio} € en ${ref}, pero ese encargo lo llevas tú en lavori: no se ha aplicado nada.`;
+    await staffMail(`✋ ${reference}: lo llevas tú — el motor no ha aceptado ${precio} €`, [
+      textoReservada,
+      `Confirma tú a quien toque en lavori, o asígnalo en la ficha con «Precio ya pactado».`,
+      `Ficha: ${ficha}`,
+    ]);
+    const { sendStaffAlertSMS } = await import("@/lib/sms");
+    await sendStaffAlertSMS(textoReservada, `lo_llevo_yo ${reference}`).catch(() => {});
+    return { ok: false, conflicto: true };
   }
 
   if ("conflicto" in result && result.conflicto) {

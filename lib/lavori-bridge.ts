@@ -684,7 +684,7 @@ const LAVORI_PRECIO_ACEPTADO_ENDPOINT =
 
 export type PrecioAceptadoResult =
   | { ok: true; repetido: boolean }
-  | { ok: false; conflicto: true; estado: string; aceptadoPor: string | null }
+  | { ok: false; conflicto: true; estado: string; aceptadoPor: string | null; loLlevoYo?: boolean }
   | { ok: false; conflicto?: false; error: string };
 
 export async function sendLavoriPrecioAceptado(payload: {
@@ -692,6 +692,7 @@ export async function sendLavoriPrecioAceptado(payload: {
   precioParaTi: string; // euros con 2 decimales — la cifra que propuso el traductor
   nota?: string; // ≤500, va al chat del encargo; sin PII del cliente
   refPedido?: string; // nº de pedido de la casa (≤32) para cruzar la tarjeta de lavori con tj.net
+  pagadoEn?: Date | null; // contrato 3-oct (E): el cliente ya ha pagado
 }): Promise<PrecioAceptadoResult> {
   const secret = process.env.MOTOR_LAVORI_SECRET;
   if (!secret) {
@@ -709,6 +710,7 @@ export async function sendLavoriPrecioAceptado(payload: {
         precioParaTi: payload.precioParaTi,
         ...(payload.nota ? { nota: payload.nota.slice(0, 500) } : {}),
         ...(payload.refPedido ? { refPedido: payload.refPedido.slice(0, 32) } : {}),
+        ...(payload.pagadoEn ? { pagado: true, pagadoEn: payload.pagadoEn.toISOString() } : {}),
       }),
       signal: AbortSignal.timeout(30_000),
     });
@@ -724,6 +726,8 @@ export async function sendLavoriPrecioAceptado(payload: {
         conflicto: true,
         estado: data?.estado || "desconocido",
         aceptadoPor: data?.aceptadoPor || null,
+        // «Lo llevo yo» (contrato 3-oct, D): Juan se ha reservado el encargo en lavori.
+        loLlevoYo: data?.error === "lo_llevo_yo",
       };
     }
     return { ok: false, error: data?.error || `lavori respondió ${res.status}` };
