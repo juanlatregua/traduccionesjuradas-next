@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     return handleCopiaEvento({ evento, reference, motorRef, encargoId, datos });
   }
   // Contrato 3-oct-2026 (ficha lavori «confirmar sin pago»): B y D.
-  if ((evento === "encargo_retirado" || evento === "encargo_lo_llevo_yo") && isMotorTestRef(reference)) {
+  if (isMotorTestRef(reference)) {
     return NextResponse.json({ ok: true, prueba: true });
   }
   if (evento === "encargo_retirado") {

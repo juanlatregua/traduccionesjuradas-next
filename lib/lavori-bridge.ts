@@ -781,9 +781,12 @@ export type LavoriRetiradaResult =
   | { ok: true; retirado: boolean; estado: string | null }
   | { ok: false; adjudicado?: { nombre: string | null; desde: string | null; estado: string | null }; error: string };
 
+// forzar (lavori 80e68cd, contrato 3-oct): solo con motivo asignado_fuera o cliente;
+// retira también un encargo ya aceptado si no tiene entrega, factura ni pago.
 export async function retireLavoriEncargo(
   motorRef: string,
-  motivo: "reasignado" | "duplicado" | "cliente" | "otro" = "otro"
+  motivo: "reasignado" | "duplicado" | "cliente" | "otro" | "asignado_fuera" = "otro",
+  forzar = false
 ): Promise<LavoriRetiradaResult> {
   const secret = process.env.MOTOR_LAVORI_SECRET;
   if (!secret) return { ok: false, error: "MOTOR_LAVORI_SECRET no configurado en el motor." };
@@ -791,7 +794,7 @@ export async function retireLavoriEncargo(
     const res = await fetch(LAVORI_RETIRADA_ENDPOINT, {
       method: "POST",
       headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ motorRef, motivo }),
+      body: JSON.stringify({ motorRef, motivo, ...(forzar ? { forzar: true } : {}) }),
       signal: AbortSignal.timeout(20_000),
     });
     const data = (await res.json().catch(() => null)) as any;

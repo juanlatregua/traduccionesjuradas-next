@@ -16,9 +16,12 @@ export async function retireLeadRequest(opts: {
   actorEmail: string;
   motivo: string;
   terminal: "RETIRED" | "DISCARDED";
-  lavoriMotivo?: "reasignado" | "duplicado" | "cliente" | "otro";
+  lavoriMotivo?: "reasignado" | "duplicado" | "cliente" | "otro" | "asignado_fuera";
+  forzar?: boolean;
   allowedStatuses?: string[];
   requireNoQuote?: boolean;
+  /** false = no reintentar asignaciones frenadas (quien llama ya ha asignado el pedido). */
+  relanzar?: boolean;
 }): Promise<RetireLeadResult> {
   const lpr = await prisma.lavoriPriceRequest.findUnique({
     where: { id: opts.id },
@@ -39,7 +42,7 @@ export async function retireLeadRequest(opts: {
 
   let retiradoEnLavori = false;
   if (lpr.encargoId) {
-    const r = await retireLavoriEncargo(`${lpr.ref}-precio`, opts.lavoriMotivo ?? "otro");
+    const r = await retireLavoriEncargo(`${lpr.ref}-precio`, opts.lavoriMotivo ?? "otro", opts.forzar === true);
     if (!r.ok) {
       await prisma.lavoriPriceRequest.updateMany({ where: { id: opts.id, status: "RETIRING" }, data: { status: lpr.status } });
       return {
@@ -61,9 +64,11 @@ export async function retireLeadRequest(opts: {
 
   // Pedidos pagados cuya aceptación se frenó por ESTE duplicado: ahora que ya no
   // vive, se reintenta la asignación con la cifra buena (sin esperar a nadie).
-  await relanzarAceptacionesFrenadas(lpr.expedienteRef, opts.actorEmail).catch((err) =>
-    console.error("[lavori-retire] relanzar aceptación fallo:", err)
-  );
+  if (opts.relanzar !== false) {
+    await relanzarAceptacionesFrenadas(lpr.expedienteRef, opts.actorEmail).catch((err) =>
+      console.error("[lavori-retire] relanzar aceptación fallo:", err)
+    );
+  }
   return { ok: true, ref: lpr.ref, retiradoEnLavori };
 }
 
@@ -87,4 +92,87 @@ async function relanzarAceptacionesFrenadas(expedienteRef: string | null, actorE
   if (pedidos.length === 0) return;
   const { autoAssignCollaboratorIfNeeded } = await import("@/lib/workflow-server");
   for (const p of pedidos) await autoAssignCollaboratorIfNeeded({ reference: p.reference, actorEmail });
+}
+
+// Pedido asignado FUERA de lavori («Precio ya pactado», contrato 3-oct-2026 paso 4):
+// se retira lo que siga vivo en lavori para ese pedido —solicitudes atadas a su
+// presupuesto y el encargo abierto desde el propio pedido—, salvo el del mismo jurado
+// al que se acaba de asignar. Aceptado sin entrega ni pago: se fuerza (lavori avisa
+// al aceptante «el cliente lo ha resuelto por otra vía»).
+export async function retireLavoriForOutsideAssignment(opts: {
+  order: { id: string; reference: string; quoteId: string | null };
+  collaboratorEmail: string;
+  actorEmail: string;
+}): Promise<{ retiradas: string[]; fallidas: Array<{ ref: string; error: string }> }> {
+  const { LAVORI_MEMBER_COLLABORATOR_EMAIL } = await import("@/lib/lavori-bridge");
+  const mismoJurado = (miembroId: string | null) =>
+    Boolean(miembroId && LAVORI_MEMBER_COLLABORATOR_EMAIL[miembroId]?.toLowerCase() === opts.collaboratorEmail.toLowerCase());
+  const retiradas: string[] = [];
+  const fallidas: Array<{ ref: string; error: string }> = [];
+
+  const vivas = opts.order.quoteId
+    ? await prisma.lavoriPriceRequest.findMany({
+        where: { quoteId: opts.order.quoteId, status: { in: ["SENT", "PRICED", "ACCEPTED", "ESCALATED"] }, encargoId: { not: null } },
+        select: { id: true, ref: true, miembroId: true, candidatos: true },
+      })
+    : [];
+  for (const lpr of vivas) {
+    // Sin cifra aún no hay miembroId: si se pidió solo a ese jurado, es la suya.
+    if (mismoJurado(lpr.miembroId ?? (lpr.candidatos.length === 1 ? lpr.candidatos[0] : null))) continue;
+    const r = await retireLeadRequest({
+      id: lpr.id,
+      actorEmail: opts.actorEmail,
+      motivo: `pedido ${opts.order.reference} asignado fuera de lavori con precio pactado`,
+      terminal: "RETIRED",
+      lavoriMotivo: "asignado_fuera",
+      forzar: true,
+      relanzar: false,
+    });
+    if (r.ok) retiradas.push(lpr.ref);
+    else fallidas.push({ ref: lpr.ref, error: r.error });
+  }
+
+  // Encargos abiertos desde el propio pedido: el dirigido (motorRef = referencia) y la
+  // solicitud de precio de la ficha (motorRef = referencia + "-precio").
+  const eventos = await prisma.orderEvent.findMany({
+    where: {
+      orderId: opts.order.id,
+      type: { in: ["lavori.solicitud_enviada", "lavori.solicitud_precio_enviada", "lavori.encargo_aceptado", "lavori.retirado_por_motor"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { type: true, payload: true },
+  });
+  const yaRetirados = new Set(
+    eventos.filter((e) => e.type === "lavori.retirado_por_motor").map((e) => String((e.payload as { motorRef?: unknown } | null)?.motorRef || ""))
+  );
+  const { retireLavoriEncargo } = await import("@/lib/lavori-bridge");
+  for (const [tipo, motorRef] of [
+    ["lavori.solicitud_enviada", opts.order.reference],
+    ["lavori.solicitud_precio_enviada", `${opts.order.reference}-precio`],
+  ] as const) {
+    const ev = eventos.find((e) => e.type === tipo);
+    if (!ev || yaRetirados.has(motorRef)) continue;
+    const candidatos = (ev.payload as { candidatos?: unknown } | null)?.candidatos;
+    const unico = Array.isArray(candidatos) && candidatos.length === 1 ? String(candidatos[0]) : null;
+    const aceptante = (
+      eventos.find((e) => e.type === "lavori.encargo_aceptado" && (e.payload as { motorRef?: unknown } | null)?.motorRef === motorRef)
+        ?.payload as { miembroId?: unknown } | null
+    )?.miembroId;
+    if (mismoJurado(aceptante ? String(aceptante) : unico)) continue;
+    const r = await retireLavoriEncargo(motorRef, "asignado_fuera", true);
+    if (r.ok) {
+      retiradas.push(motorRef);
+      await prisma.orderEvent.create({
+        data: {
+          orderId: opts.order.id,
+          type: "lavori.retirado_por_motor",
+          message: `Encargo ${motorRef} retirado en lavori (asignado fuera con precio pactado)${r.retirado ? "" : "; ya no estaba vivo"}.`,
+          payload: { motorRef, retirado: r.retirado, estado: r.estado, actorEmail: opts.actorEmail },
+        },
+      });
+    } else {
+      fallidas.push({ ref: motorRef, error: r.error });
+    }
+  }
+  return { retiradas, fallidas };
 }

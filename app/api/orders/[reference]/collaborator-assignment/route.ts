@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { applyAcceptedQuoteSideEffects, createAssignment, getDocumentsFromOrder } from "@/lib/collaborators";
 import { notifyClientTranslationStarted } from "@/lib/orders";
-import { findLiveLavoriDuplicate } from "@/lib/lavori-dup-guard";
+import { retireLavoriForOutsideAssignment } from "@/lib/lavori-retire";
 import { sendAssignmentToCollaborator } from "@/lib/collaborator-emails";
 
 export const runtime = "nodejs";
@@ -79,8 +79,6 @@ export async function POST(req: Request, { params }: Params) {
       if (yaAceptado) {
         return NextResponse.json({ ok: false, error: `El pedido ya está asignado a ${yaAceptado.collaborator.fullName}. Cambiar de traductor un pedido ya aceptado no se hace desde aquí (de momento, a mano por Claude).` }, { status: 409 });
       }
-      const dup = order.quoteId ? await findLiveLavoriDuplicate({ quoteId: order.quoteId }) : null;
-
       // Upsert: lo normal es que ya le hubieras pedido precio (fila REQUESTED/QUOTED).
       const now = new Date();
       const assignment = await prisma.collaboratorAssignment.upsert({
@@ -103,12 +101,19 @@ export async function POST(req: Request, { params }: Params) {
       });
       if (sideFx.marginAlert) await sideFx.marginAlert();
       await prisma.order.update({ where: { id: order.id }, data: { assignedTo: collaborator.fullName } });
+      // Lo que siga vivo en lavori para este pedido se retira (contrato 3-oct, paso 4).
+      const lavori = await retireLavoriForOutsideAssignment({
+        order: { id: order.id, reference: order.reference, quoteId: order.quoteId },
+        collaboratorEmail: assignment.collaborator.email,
+        actorEmail: staff.email,
+      }).catch((err) => ({ retiradas: [] as string[], fallidas: [{ ref: "lavori", error: String(err?.message || err) }] }));
+      const fallo = lavori.fallidas.map((f) => `${f.ref} (${f.error})`).join("; ");
       await prisma.orderEvent.create({
         data: {
           orderId: order.id,
           type: "collaborator.assignment.direct",
-          message: `Asignado a ${collaborator.fullName} con precio ya pactado (${(agreed / 100).toFixed(2)} € sin IVA).${dup ? ` OJO: sigue viva la solicitud ${dup.ref} en lavori; retírala.` : ""}`,
-          payload: { assignmentId: assignment.id, priceCents: agreed, actorEmail: staff.email, liveLavoriRef: dup?.ref ?? null },
+          message: `Asignado a ${collaborator.fullName} con precio ya pactado (${(agreed / 100).toFixed(2)} € sin IVA).${lavori.retiradas.length ? ` Retirado en lavori: ${lavori.retiradas.join(", ")}.` : ""}${fallo ? ` OJO: no se pudo retirar en lavori ${fallo}; resuélvelo a mano.` : ""}`,
+          payload: { assignmentId: assignment.id, priceCents: agreed, actorEmail: staff.email, lavoriRetiradas: lavori.retiradas, lavoriFallidas: lavori.fallidas },
         },
       });
       await notifyClientTranslationStarted({
@@ -128,7 +133,7 @@ export async function POST(req: Request, { params }: Params) {
         documents: getDocumentsFromOrder(order),
       }).catch((err) => console.error("[collaborator-assignment] email send failed", err));
       return NextResponse.json(
-        { ok: true, assignment, aviso: dup ? `Sigue viva la solicitud ${dup.ref} en lavori: retírala para que nadie más la acepte.` : null },
+        { ok: true, assignment, aviso: fallo ? `No se pudo retirar en lavori ${fallo}: resuélvelo a mano para que nadie más la acepte.` : null, lavoriRetiradas: lavori.retiradas },
         { status: 201 }
       );
     }
