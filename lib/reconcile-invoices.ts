@@ -35,7 +35,7 @@ export type BatchIssueResult = {
   ok: boolean;
   number?: string;
   error?: string;
-  dateAdjusted?: boolean; // se forzó a hoy (trimestre cerrado o sin fecha de cobro)
+  dateAdjusted?: boolean; // fecha ajustada: trimestre cerrado, sin fecha de cobro o anterior a la última emitida
   skipped?: "already_issued";
 };
 
@@ -166,9 +166,12 @@ async function issueWithRetry(order: OrderForIssue, explicitNumber: string | und
 }
 
 // Resuelve la fecha de emisión efectiva de una referencia (y si se ajustó a hoy).
-function effectiveIssuedAt(paidAt: Date | null, dateMode: "paid" | "today", last303Close: Date): { date: Date; adjusted: boolean } {
+// La fecha nunca es anterior a la de la última factura ya emitida: número mayor con
+// fecha menor rompe la correlatividad (26_084 salió con 25-sep detrás de la 26_083 del 30-sep).
+function effectiveIssuedAt(paidAt: Date | null, dateMode: "paid" | "today", last303Close: Date, lastIssuedAt: Date | null): { date: Date; adjusted: boolean } {
   if (dateMode === "today" || !paidAt) return { date: new Date(), adjusted: dateMode === "paid" };
   if (paidAt < last303Close) return { date: new Date(), adjusted: true }; // trimestre ya presentado
+  if (lastIssuedAt && paidAt < lastIssuedAt) return { date: new Date(lastIssuedAt.getTime() + 1000), adjusted: true };
   return { date: paidAt, adjusted: false };
 }
 
@@ -191,8 +194,14 @@ export async function issueInvoicesForOrders(input: {
     select: { reference: true, paidAt: true },
   });
   const last303Close = await getLast303Close();
+  const lastIssued = await prisma.clientInvoice.findFirst({
+    where: { status: "ISSUED", docKind: "invoice", number: { not: null } },
+    orderBy: { issuedAt: "desc" },
+    select: { issuedAt: true },
+  });
+  const lastIssuedAt = lastIssued?.issuedAt ?? null;
   const eff = new Map<string, { date: Date; adjusted: boolean }>();
-  for (const d of dates) eff.set(d.reference, effectiveIssuedAt(d.paidAt, input.dateMode, last303Close));
+  for (const d of dates) eff.set(d.reference, effectiveIssuedAt(d.paidAt, input.dateMode, last303Close, lastIssuedAt));
   const sortedRefs = [...input.references].sort(
     (a, b) => (eff.get(a)?.date.getTime() ?? 0) - (eff.get(b)?.date.getTime() ?? 0)
   );
@@ -254,7 +263,7 @@ export async function issueInvoicesForOrders(input: {
         };
       }
 
-      const { date: issuedAt, adjusted: dateAdjusted } = eff.get(reference) ?? effectiveIssuedAt(null, input.dateMode, last303Close);
+      const { date: issuedAt, adjusted: dateAdjusted } = eff.get(reference) ?? effectiveIssuedAt(null, input.dateMode, last303Close, lastIssuedAt);
 
       const number = await issueWithRetry(
         {
