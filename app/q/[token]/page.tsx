@@ -50,6 +50,9 @@ function resolveIp() {
   return h.get("x-real-ip") || "unknown";
 }
 
+const LINK_PREVIEW_UA =
+  /WhatsApp|TelegramBot|facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|SkypeUriPreview|Googlebot|bingbot|Applebot|preview/i;
+
 async function trackOpen(quote: { id: string; status: string }) {
   const ip = resolveIp();
   const ua = headers().get("user-agent") || null;
@@ -66,6 +69,9 @@ async function trackOpen(quote: { id: string; status: string }) {
       ipHash,
     },
   });
+
+  // Vista previa del enlace (WhatsApp, Telegram…): se registra, pero no es que el cliente lo haya abierto.
+  if (ua && LINK_PREVIEW_UA.test(ua)) return;
 
   if (quote.status === "SENT") {
     await prisma.quote.update({
