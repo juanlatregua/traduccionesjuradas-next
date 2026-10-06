@@ -7,6 +7,7 @@ import { blobDownloadUrl } from "@/lib/blob-download-url";
 import type { MailAttachment } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { escapeHtml } from "@/lib/collaborator-emails";
+import { NUDGE_COPY, type NudgeLocale } from "@/lib/lead-nudge";
 
 // Copia de archivo: toda entrega al cliente (traducción y/o factura adjunta) se
 // manda en copia oculta a esta dirección para dejar constancia exacta de lo que
@@ -1084,6 +1085,40 @@ export async function sendLeadReminderEmail(data: {
     subject,
     html: wrapClientEmailHtml(html),
   });
+}
+
+export async function sendLeadNudgeEmail(data: {
+  toEmail: string;
+  clientName?: string | null;
+  locale?: NudgeLocale | null;
+  // priceEur = NETO; se muestra con IVA (igual que sendLeadReminderEmail). null = lo confirma el traductor.
+  docs: { label: string; priceEur: number | null }[];
+  reviewUrl: string;
+}) {
+  const t = NUDGE_COPY[data.locale && NUDGE_COPY[data.locale] ? data.locale : "es"];
+  const resumeUrl = `${SITE_BASE_URL}/presupuesto-instantaneo`;
+  const list = data.docs
+    .map((d) => {
+      const price =
+        d.priceEur != null
+          ? ` — <strong>${(Math.round(d.priceEur * 1.21 * 100) / 100).toFixed(2)} € ${t.vatIncl}</strong>`
+          : ` — ${t.priceTbc}`;
+      return `<li style="margin-bottom:4px;">${escapeHtml(d.label)}${price}</li>`;
+    })
+    .join("");
+  const html = `
+    <p>${escapeHtml(t.hello(data.clientName?.trim() || null))}</p>
+    <p>${t.intro(data.docs.length)}</p>
+    <ul style="margin:10px 0; padding-left:18px;">${list}</ul>
+    <h3 style="margin:16px 0 8px 0;">${t.dontForget}</h3>
+    <p><a href="${resumeUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">${t.resume}</a></p>
+    <p style="margin-top:18px;">${t.reviewLead}</p>
+    <p><a href="${data.reviewUrl}" style="display:inline-block; background:#ffffff; color:#0f6b66; border:1px solid #0f6b66; padding:9px 22px; border-radius:8px; text-decoration:none; font-weight:600;">${t.reviewBtn}</a></p>
+    <p><a href="https://wa.me/34951333614" style="color:#059669; font-weight:600;">${t.whatsapp}</a></p>
+    <p style="font-size:13px; color:#6b7280;">${t.ignore}</p>
+    <p>${t.signature}</p>
+  `;
+  await sendMail({ to: data.toEmail, subject: t.subject, html: wrapClientEmailHtml(html) });
 }
 
 export async function sendPaymentReminderEmail(data: {

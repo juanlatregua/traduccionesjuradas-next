@@ -234,7 +234,7 @@ test("la solicitud directa de PT va solo a Cristina y María Carmen (Juan Amor e
   assert.match(pt, /nhucqnd3q4znddxhe8qs5c51/);
   assert.match(pt, /1h8tul4zycnayru8bsi1tmu4/);
   assert.doesNotMatch(pt, /rk1x2kq63rm6ba6mco7c6u2k/);
-  const puerta = await readFile(new URL("../../app/api/puerta/request-quote/route.ts", import.meta.url), "utf8");
+  const puerta = await readFile(new URL("../../lib/puerta-request-quote.ts", import.meta.url), "utf8");
   assert.match(puerta, /candidatos: directos\.map\(\(d\) => d\.miembroId\)/);
 });
 
