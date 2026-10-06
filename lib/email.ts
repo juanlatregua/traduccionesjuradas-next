@@ -642,15 +642,23 @@ export async function sendNewOrderStaffEmail(data: {
   amountCents: number;
   clientEmail: string;
   langPair?: string;
+  // Pago solo DECLARADO por el cliente (sin justificante): el aviso no puede
+  // parecer un cobro confirmado (Juan, 6-oct-2026).
+  declaredMethod?: string;
 }) {
   const to = process.env.PRESUPUESTO_TO;
   if (!to) throw new Error("Missing PRESUPUESTO_TO");
 
   const amount = (data.amountCents / 100).toFixed(2);
-  const subject = `Nuevo pedido ${data.reference} - ${amount} EUR`;
+  const heading = data.declaredMethod
+    ? `⏳ Pago declarado por ${data.declaredMethod}, SIN justificante — no está cobrado`
+    : "Nuevo pedido";
+  const subject = data.declaredMethod
+    ? `⏳ Pago declarado (${data.declaredMethod}) sin justificante · ${data.reference} · ${amount} EUR`
+    : `Nuevo pedido ${data.reference} - ${amount} EUR`;
 
   const html = `
-    <h2>Nuevo pedido</h2>
+    <h2>${heading}</h2>
     <table style="border-collapse:collapse; margin:12px 0;">
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Referencia</td><td>${data.reference}</td></tr>
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Concepto</td><td>${data.title}</td></tr>

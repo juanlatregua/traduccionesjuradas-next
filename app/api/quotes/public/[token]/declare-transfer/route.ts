@@ -145,6 +145,7 @@ export async function POST(req: Request, { params }: Params) {
       amountCents: Math.round(totalEur * 100),
       clientEmail: quote.customerEmail,
       langPair: `${quote.sourceLang || "?"}->${quote.targetLang || "?"}`,
+      declaredMethod: "TRANSFER",
     }).catch((e) => console.error("[quote-declare-transfer] aviso staff", e));
 
     return NextResponse.json({

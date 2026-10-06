@@ -97,6 +97,7 @@ export async function POST(req: Request) {
         amountCents: order.amountCents,
         clientEmail,
         langPair: order.langPair || undefined,
+        declaredMethod: method,
       }).catch((err) => console.error("[payment-declare] staff email failed", err));
     }
 
