@@ -54,6 +54,7 @@ export async function POST(req: Request, { params }: Params) {
         words: true,
         amountCents: true,
         deliveryType: true,
+        dueDate: true,
         clientName: true,
         clientEmail: true,
         clientPhone: true,
@@ -131,10 +132,21 @@ export async function POST(req: Request, { params }: Params) {
     // Entrega en papel: el candidato debe saber que el original físico viaja por
     // mensajería y que al entregar tendrá que indicar recogida (petición Juan
     // 13-ago-2026, caso rumano: jurada solo válida en papel).
+    // Fecha de entrega de la ficha → `plazo` de lavori. En traducciones lavori
+    // solo pinta el día: la hora va también en el texto (Juan, 6-oct-2026).
+    const plazo = order.dueDate ? order.dueDate.toISOString() : undefined;
+    const entregaTexto = order.dueDate
+      ? `Entrega antes del ${order.dueDate.toLocaleString("es-ES", { timeZone: "Europe/Madrid", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}.`
+      : null;
     const especificaciones =
-      order.deliveryType === "paper"
-        ? "ENTREGA EN PAPEL: la traducción jurada solo vale en original físico. Sube al encargo la copia PDF y tu factura; el original se recoge por mensajería — al subir la entrega indica dirección de recogida y día/horario de disponibilidad."
-        : undefined;
+      [
+        entregaTexto,
+        order.deliveryType === "paper"
+          ? "ENTREGA EN PAPEL: la traducción jurada solo vale en original físico. Sube al encargo la copia PDF y tu factura; el original se recoge por mensajería — al subir la entrega indica dirección de recogida y día/horario de disponibilidad."
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined;
 
     const payload = paraTi
       ? {
@@ -150,6 +162,7 @@ export async function POST(req: Request, { params }: Params) {
           paraTi,
           precioCliente: (order.amountCents / 1.21 / 100).toFixed(2),
           ...(especificaciones ? { especificaciones } : {}),
+          ...(plazo ? { plazo } : {}),
           candidatos,
           documentos,
         }
