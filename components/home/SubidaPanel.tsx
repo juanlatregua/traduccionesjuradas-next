@@ -36,6 +36,9 @@ export function SubidaPanel({ source, lang }: { source: string | null; lang: Loc
   // la cola de subidas siguen ahí. El expediente se monta la primera vez que
   // se abre y ya no se desmonta.
   const [expOpened, setExpOpened] = useState(false);
+  // Tocar la pestaña ya activa «un documento»: la puerta lleva el foco a lo que
+  // falte o abre el selector de archivos (nunca un toque mudo).
+  const [focusRequest, setFocusRequest] = useState(0);
   const base = useId();
   const pathname = usePathname() || "/";
   const fromWhatsApp = source === "whatsapp";
@@ -96,6 +99,7 @@ export function SubidaPanel({ source, lang }: { source: string | null; lang: Loc
               aria-selected={active}
               aria-controls={`${base}-panel-${tb.key}`}
               onClick={() => {
+                if (tb.key === "uno" && tab === "uno") setFocusRequest((n) => n + 1);
                 setTab(tb.key);
                 if (tb.key === "expediente") setExpOpened(true);
               }}
@@ -114,7 +118,7 @@ export function SubidaPanel({ source, lang }: { source: string | null; lang: Loc
       </div>
 
       <div role="tabpanel" id={`${base}-panel-uno`} aria-labelledby={`${base}-tab-uno`} hidden={tab !== "uno"}>
-        <PuertaClient purpose={null} source={source} lang={lang} />
+        <PuertaClient purpose={null} source={source} lang={lang} focusRequest={focusRequest} />
       </div>
       <div role="tabpanel" id={`${base}-panel-expediente`} aria-labelledby={`${base}-tab-expediente`} hidden={tab !== "expediente"}>
         {expOpened && (

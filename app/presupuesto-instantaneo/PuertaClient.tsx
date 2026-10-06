@@ -4,7 +4,7 @@
 // Entrada de documentos + fecha límite → diagnóstico completo → puente al
 // checkout. Es el funnel canónico desde el Bloque 1.4.
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import {
   CalendarClock,
@@ -57,7 +57,11 @@ export default function PuertaClient({
   source,
   lang = "es",
   defaultSourceLang = null,
+  focusRequest = 0,
 }: {
+  // Contador: cada incremento (p. ej. tocar la pestaña activa de la portada)
+  // lleva el foco al primer campo que falte, o abre el selector de archivos.
+  focusRequest?: number;
   // Página de idioma (p.ej. /traductor-jurado-frances): el idioma del documento
   // viene dado y el destino por defecto es español.
   defaultSourceLang?: string | null;
@@ -90,8 +94,12 @@ export default function PuertaClient({
   // subir nada sin antes poner email, lenguas"). Los originales en español
   // llegaban como es→unknown y el presupuesto se quedaba a medias.
   const presetSrc = defaultSourceLang && PUERTA_LANG_CODES.includes(defaultSourceLang as any) ? defaultSourceLang : "";
-  const [srcLang, setSrcLang] = useState<string>(presetSrc);
-  const [tgtLang, setTgtLang] = useState<string>(presetSrc && presetSrc !== "es" ? "es" : "");
+  // Portada en fr/en/de/pt: el documento suele venir en ese idioma y se
+  // necesita en español. En es no se adivina nada. Siguen siendo editables.
+  const homeSrc = !presetSrc && (lang === "fr" || lang === "en" || lang === "de" || lang === "pt") ? lang : "";
+  const initialSrc = presetSrc || homeSrc;
+  const [srcLang, setSrcLang] = useState<string>(initialSrc);
+  const [tgtLang, setTgtLang] = useState<string>(initialSrc && initialSrc !== "es" ? "es" : "");
   const pickSource = (code: string) => {
     setSrcLang(code);
     // Documento en otro idioma → casi siempre se necesita en español.
@@ -116,6 +124,60 @@ export default function PuertaClient({
 
   const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
   const entryReady = emailValid && marketingConsent && pairValid;
+
+  // Puerta nunca muda: qué falta, en vivo, y a dónde llevar el foco.
+  const [showMissing, setShowMissing] = useState(false);
+  const [openPicker, setOpenPicker] = useState(0);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const srcRef = useRef<HTMLSelectElement>(null);
+  const tgtRef = useRef<HTMLSelectElement>(null);
+  const marketingRef = useRef<HTMLInputElement>(null);
+  const gdprRef = useRef<HTMLInputElement>(null);
+  const missEmail = !emailValid;
+  const missSrc = !srcLang;
+  const missTgt = !tgtLang;
+  const missPair = !missSrc && !missTgt && !pairValid;
+  const missMarketing = !marketingConsent;
+  const missGdpr = !gdprConsent;
+  const langsOk = !missSrc && !missTgt && pairValid;
+  const boxesOk = !missMarketing && !missGdpr;
+  const gateReady = entryReady && gdprConsent;
+  const missingList = [
+    missEmail && t.gate.email,
+    missSrc && t.gate.src,
+    (missTgt || missPair) && t.gate.tgt,
+    missMarketing && t.gate.boxContact,
+    missGdpr && t.gate.boxPrivacy,
+  ].filter(Boolean) as string[];
+  const missingText = missingList.length ? `${t.gate.missing} ${missingList.join(" · ")}` : null;
+  const flagMissing = () => {
+    setShowMissing(true);
+    const first: HTMLElement | null = missEmail
+      ? emailRef.current
+      : missSrc
+        ? srcRef.current
+        : missTgt || missPair
+          ? tgtRef.current
+          : missMarketing
+            ? marketingRef.current
+            : missGdpr
+              ? gdprRef.current
+              : null;
+    if (first) {
+      first.scrollIntoView({ block: "center", behavior: "smooth" });
+      first.focus({ preventScroll: true });
+    }
+  };
+  const lastFocusRequest = useRef(0);
+  useEffect(() => {
+    if (focusRequest <= lastFocusRequest.current) return;
+    lastFocusRequest.current = focusRequest;
+    if (step !== "entry") return;
+    if (gateReady) setOpenPicker((n) => n + 1);
+    else flagMissing();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest]);
+  const bad = (on: boolean) => (showMissing && on ? "border-rouge ring-1 ring-rouge/30" : "border-graphite/20");
 
   const contactValid =
     emailValid &&
@@ -364,6 +426,127 @@ export default function PuertaClient({
         <>
           {documents.length === 0 && <DeadlineCountdown lang={lang} />}
 
+          {/* Bloque OBLIGATORIO antes de subir (4-sep-2026). Antes la entrada
+              era libre y el email se pedía en el spinner: llegaban presupuestos
+              sin destino (es→unknown) y había que llamar para preguntarlo. */}
+          <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
+            <p className="flex items-center gap-2 text-sm font-semibold text-encre">
+              <Mail className="h-4 w-4 text-bleu" />
+              {t.entryTitle}
+            </p>
+            <p className="mt-1 text-xs text-graphite">{t.entryHelp}</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <label className="text-xs font-medium text-graphite">
+                {t.entryEmailLabel}
+                <input
+                  ref={emailRef}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t.emailPlaceholder}
+                  className={`mt-1 w-full rounded-lg border ${bad(missEmail)} bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20`}
+                />
+              </label>
+              <label className="text-xs font-medium text-graphite">
+                {t.entrySourceLabel}
+                <select
+                  ref={srcRef}
+                  value={srcLang}
+                  onChange={(e) => pickSource(e.target.value)}
+                  className={`mt-1 w-full rounded-lg border ${bad(missSrc)} bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20`}
+                >
+                  <option value="">{t.entryPickLang}</option>
+                  {PUERTA_LANG_CODES.map((c) => (
+                    <option key={c} value={c}>{t.langNames[c] || c}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs font-medium text-graphite">
+                {t.entryTargetLabel}
+                <select
+                  ref={tgtRef}
+                  value={tgtLang}
+                  onChange={(e) => setTgtLang(e.target.value)}
+                  className={`mt-1 w-full rounded-lg border ${bad(missTgt || missPair)} bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20`}
+                >
+                  <option value="">{t.entryPickLang}</option>
+                  {PUERTA_LANG_CODES.map((c) => (
+                    <option key={c} value={c}>{t.langNames[c] || c}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {samePair && <p className="mt-2 text-xs text-rouge">{t.entrySamePair}</p>}
+            <p className="mt-2 text-xs text-graphite">{t.writeYourLang}</p>
+          </div>
+
+          {/* Las dos casillas, SEPARADAS y sin premarcar, justo encima de la zona. */}
+          <div className="space-y-3 rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
+            <label className={`flex cursor-pointer items-start gap-2 rounded-lg text-xs text-graphite ${showMissing && missMarketing ? "ring-1 ring-rouge/60 ring-offset-4 ring-offset-white" : ""}`}>
+              <input
+                ref={marketingRef}
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={(e) => setMarketingConsent(e.target.checked)}
+                className={`mt-0.5 h-4 w-4 shrink-0 rounded ${showMissing && missMarketing ? "border-rouge" : "border-graphite/30"}`}
+              />
+              <span>{t.marketingConsent}</span>
+            </label>
+            <label className={`flex cursor-pointer select-none items-start gap-2 rounded-lg text-xs text-graphite ${showMissing && missGdpr ? "ring-1 ring-rouge/60 ring-offset-4 ring-offset-white" : ""}`}>
+              <input
+                ref={gdprRef}
+                type="checkbox"
+                checked={gdprConsent}
+                onChange={(e) => setGdprConsent(e.target.checked)}
+                className={`mt-0.5 h-4 w-4 shrink-0 rounded ${showMissing && missGdpr ? "border-rouge" : "border-graphite/40"} text-bleu focus:ring-bleu`}
+              />
+              <span className="leading-relaxed">
+                {t.gdprConsent}{" "}
+                <a href="/privacidad" className="text-bleu underline" target="_blank">
+                  {t.gdprPrivacyLink}
+                </a>
+                .
+              </span>
+            </label>
+          </div>
+
+          {!gateReady && (
+            <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm font-medium" aria-live="polite">
+              {[
+                { ok: emailValid, label: t.gate.chkEmail },
+                { ok: langsOk, label: t.gate.chkLangs },
+                { ok: boxesOk, label: t.gate.chkBoxes },
+              ].map((c) => (
+                <span key={c.label} className={c.ok ? "text-emerald-700" : "text-graphite"}>
+                  {c.ok ? "✓" : "○"} {c.label}
+                </span>
+              ))}
+            </p>
+          )}
+
+          <DocumentUploader
+            onUploadComplete={handleUploadComplete}
+            sessionToken={sessionToken}
+            onSessionToken={setSessionToken}
+            gdprConsent={gdprConsent}
+            onGdprConsentChange={setGdprConsent}
+            source={source}
+            lang={lang}
+            disabled={!entryReady}
+            disabledReason={t.entryLocked}
+            clientEmail={email.trim()}
+            marketingConsent={marketingConsent}
+            sourceLanguage={srcLang}
+            targetLanguage={tgtLang}
+            gate="puerta"
+            hideConsent
+            onBlockedTap={flagMissing}
+            blockedMessage={showMissing ? missingText : null}
+            openRequest={openPicker}
+          />
+
           {documents.length === 0 && (
             <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
               <label
@@ -385,85 +568,6 @@ export default function PuertaClient({
             </div>
           )}
 
-          {/* Bloque OBLIGATORIO antes de subir (4-sep-2026). Antes la entrada
-              era libre y el email se pedía en el spinner: llegaban presupuestos
-              sin destino (es→unknown) y había que llamar para preguntarlo. */}
-          <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
-            <p className="flex items-center gap-2 text-sm font-semibold text-encre">
-              <Mail className="h-4 w-4 text-bleu" />
-              {t.entryTitle}
-            </p>
-            <p className="mt-1 text-xs text-graphite">{t.entryHelp}</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <label className="text-xs font-medium text-graphite">
-                {t.entryEmailLabel}
-                <input
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t.emailPlaceholder}
-                  className="mt-1 w-full rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20"
-                />
-              </label>
-              <label className="text-xs font-medium text-graphite">
-                {t.entrySourceLabel}
-                <select
-                  value={srcLang}
-                  onChange={(e) => pickSource(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20"
-                >
-                  <option value="">{t.entryPickLang}</option>
-                  {PUERTA_LANG_CODES.map((c) => (
-                    <option key={c} value={c}>{t.langNames[c] || c}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-xs font-medium text-graphite">
-                {t.entryTargetLabel}
-                <select
-                  value={tgtLang}
-                  onChange={(e) => setTgtLang(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20"
-                >
-                  <option value="">{t.entryPickLang}</option>
-                  {PUERTA_LANG_CODES.map((c) => (
-                    <option key={c} value={c}>{t.langNames[c] || c}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {samePair && <p className="mt-2 text-xs text-rouge">{t.entrySamePair}</p>}
-            <p className="mt-2 text-xs text-graphite">{t.writeYourLang}</p>
-            <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-graphite">
-              <input
-                type="checkbox"
-                checked={marketingConsent}
-                onChange={(e) => setMarketingConsent(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-graphite/30"
-              />
-              <span>{t.marketingConsent}</span>
-            </label>
-          </div>
-
-          <DocumentUploader
-            onUploadComplete={handleUploadComplete}
-            sessionToken={sessionToken}
-            onSessionToken={setSessionToken}
-            gdprConsent={gdprConsent}
-            onGdprConsentChange={setGdprConsent}
-            source={source}
-            lang={lang}
-            disabled={!entryReady}
-            disabledReason={t.entryLocked}
-            clientEmail={email.trim()}
-            marketingConsent={marketingConsent}
-            sourceLanguage={srcLang}
-            targetLanguage={tgtLang}
-            gate="puerta"
-          />
-          {!entryReady && <p className="text-xs text-graphite">{t.entryLocked}</p>}
         </>
       )}
 

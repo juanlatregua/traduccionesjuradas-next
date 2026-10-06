@@ -91,6 +91,10 @@ export type PuertaStrings = {
   entrySamePair: string;
   writeYourLang: string;
   entryLocked: string;
+  gate: {
+    chkEmail: string; chkLangs: string; chkBoxes: string; missing: string;
+    email: string; src: string; tgt: string; boxContact: string; boxPrivacy: string;
+  };
   langNames: Record<string, string>;
 };
 
@@ -196,6 +200,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entrySamePair: "El idioma de origen y el de destino no pueden ser el mismo.",
     writeYourLang: "Puedes escribirnos en tu idioma: te respondemos en él.",
     entryLocked: "Rellena tu email, marca la casilla y elige los idiomas para poder subir el documento.",
+    gate: { chkEmail: "e-mail", chkLangs: "idiomas", chkBoxes: "casillas", missing: "Falta:", email: "email", src: "idioma de origen", tgt: "idioma de destino", boxContact: "casilla de contacto", boxPrivacy: "casilla de privacidad" },
     langNames: { es: "Español", fr: "Francés", en: "Inglés", de: "Alemán", it: "Italiano", pt: "Portugués", nl: "Neerlandés", ro: "Rumano", ar: "Árabe", ca: "Catalán", sv: "Sueco", no: "Noruego", other: "Otro idioma" },
   },
   fr: {
@@ -278,6 +283,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entrySamePair: "La langue source et la langue cible ne peuvent pas être identiques.",
     writeYourLang: "Vous pouvez nous écrire dans votre langue : nous vous répondons dans la même langue.",
     entryLocked: "Indiquez votre e-mail, cochez la case et choisissez les langues pour pouvoir envoyer le document.",
+    gate: { chkEmail: "e-mail", chkLangs: "langues", chkBoxes: "cases", missing: "Il manque :", email: "e-mail", src: "langue d’origine", tgt: "langue cible", boxContact: "case de contact", boxPrivacy: "case de confidentialité" },
     langNames: { es: "Espagnol", fr: "Français", en: "Anglais", de: "Allemand", it: "Italien", pt: "Portugais", nl: "Néerlandais", ro: "Roumain", ar: "Arabe", ca: "Catalan", sv: "Suédois", no: "Norvégien", other: "Autre langue" },
   },
   en: {
@@ -360,6 +366,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entrySamePair: "Source and target language cannot be the same.",
     writeYourLang: "You can write to us in your own language — we'll reply in it.",
     entryLocked: "Enter your email, tick the box and choose the languages to upload the document.",
+    gate: { chkEmail: "email", chkLangs: "languages", chkBoxes: "boxes", missing: "Missing:", email: "email", src: "source language", tgt: "target language", boxContact: "contact box", boxPrivacy: "privacy box" },
     langNames: { es: "Spanish", fr: "French", en: "English", de: "German", it: "Italian", pt: "Portuguese", nl: "Dutch", ro: "Romanian", ar: "Arabic", ca: "Catalan", sv: "Swedish", no: "Norwegian", other: "Other language" },
   },
   de: {
@@ -442,6 +449,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entrySamePair: "Ausgangs- und Zielsprache dürfen nicht gleich sein.",
     writeYourLang: "Sie können uns in Ihrer Sprache schreiben: Wir antworten in derselben Sprache.",
     entryLocked: "Geben Sie Ihre E-Mail ein, setzen Sie das Häkchen und wählen Sie die Sprachen, um das Dokument hochzuladen.",
+    gate: { chkEmail: "E-Mail", chkLangs: "Sprachen", chkBoxes: "Häkchen", missing: "Es fehlt:", email: "E-Mail", src: "Ausgangssprache", tgt: "Zielsprache", boxContact: "Kontakt-Häkchen", boxPrivacy: "Datenschutz-Häkchen" },
     langNames: { es: "Spanisch", fr: "Französisch", en: "Englisch", de: "Deutsch", it: "Italienisch", pt: "Portugiesisch", nl: "Niederländisch", ro: "Rumänisch", ar: "Arabisch", ca: "Katalanisch", sv: "Schwedisch", no: "Norwegisch", other: "Andere Sprache" },
   },
   pt: {
@@ -524,6 +532,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     entrySamePair: "O idioma de origem e o de destino não podem ser o mesmo.",
     writeYourLang: "Pode escrever-nos no seu idioma: respondemos nesse idioma.",
     entryLocked: "Indique o seu email, marque a caixa e escolha os idiomas para poder enviar o documento.",
+    gate: { chkEmail: "email", chkLangs: "idiomas", chkBoxes: "caixas", missing: "Falta:", email: "email", src: "idioma de origem", tgt: "idioma de destino", boxContact: "caixa de contacto", boxPrivacy: "caixa de privacidade" },
     langNames: { es: "Espanhol", fr: "Francês", en: "Inglês", de: "Alemão", it: "Italiano", pt: "Português", nl: "Neerlandês", ro: "Romeno", ar: "Árabe", ca: "Catalão", sv: "Sueco", no: "Norueguês", other: "Outro idioma" },
   },
 };

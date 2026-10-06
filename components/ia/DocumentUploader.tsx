@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, Camera, FileText, X, Loader2 } from "lucide-react";
 import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
 
@@ -36,6 +36,15 @@ type Props = {
   gate?: "puerta" | null;
   // Motivo del bloqueo, para que `disabled` no sea un gris mudo.
   disabledReason?: string;
+  // Puerta: la casilla RGPD la pinta el padre (junto a la de contacto).
+  hideConsent?: boolean;
+  // Puerta: tocar la zona bloqueada no es mudo, avisa al padre (que enseña qué
+  // falta y lleva el foco al primer campo). Sin esto, bloqueada = inerte.
+  onBlockedTap?: () => void;
+  // Texto «Falta: …» dentro de la zona (solo tras un toque bloqueado).
+  blockedMessage?: string | null;
+  // Contador: cada incremento abre el selector de archivos.
+  openRequest?: number;
 };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -56,6 +65,10 @@ export default function DocumentUploader({
   targetLanguage,
   gate,
   disabledReason,
+  hideConsent,
+  onBlockedTap,
+  blockedMessage,
+  openRequest = 0,
 }: Props) {
   const t = puertaT[lang];
   const [dragOver, setDragOver] = useState(false);
@@ -69,6 +82,20 @@ export default function DocumentUploader({
   // Use external consent if provided, otherwise use internal state
   const gdprConsent = externalGdprConsent ?? internalGdprConsent;
   const setGdprConsent = onGdprConsentChange ?? setInternalGdprConsent;
+
+  const blocked = Boolean(disabled || !gdprConsent);
+  const tapBlocked = blocked && Boolean(onBlockedTap);
+  const openPicker = () => {
+    if (blocked) {
+      onBlockedTap?.();
+      return;
+    }
+    inputRef.current?.click();
+  };
+  useEffect(() => {
+    if (openRequest > 0 && !blocked) inputRef.current?.click();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest]);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -188,6 +215,7 @@ export default function DocumentUploader({
   return (
     <div className="space-y-4">
       {/* RGPD Consent */}
+      {!hideConsent && (
       <label className="flex items-start gap-3 cursor-pointer select-none">
         <input
           type="checkbox"
@@ -203,6 +231,7 @@ export default function DocumentUploader({
           .
         </span>
       </label>
+      )}
 
       {/* Drop zone */}
       {!uploadedFile && (
@@ -221,17 +250,20 @@ export default function DocumentUploader({
                 ? "border-bleu bg-bleu/[0.04] scale-[1.01]"
                 : "border-bleu/30 bg-card hover:border-bleu/60"
             }
-            ${disabled || !gdprConsent ? "opacity-50 pointer-events-none" : ""}
+            ${blocked ? (tapBlocked ? "opacity-80" : "opacity-50") : ""}
+            ${blocked && !tapBlocked ? "pointer-events-none" : ""}
           `}
-          onClick={() => inputRef.current?.click()}
+          onClick={openPicker}
           role="button"
           // Bloqueada hasta aceptar la privacidad: inactiva de verdad (WCAG 1.4.3 exime
           // a los controles inactivos del contraste) en vez de solo verse apagada.
-          aria-disabled={disabled || !gdprConsent}
-          tabIndex={disabled || !gdprConsent ? -1 : 0}
+          aria-disabled={blocked}
+          tabIndex={blocked && !tapBlocked ? -1 : 0}
           onKeyDown={(e) => {
-            if (disabled || !gdprConsent) return;
-            if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openPicker();
+            }
           }}
         >
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-bleu/10">
@@ -246,10 +278,11 @@ export default function DocumentUploader({
           <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
             <button
               type="button"
-              disabled={disabled || !gdprConsent}
+              disabled={blocked && !tapBlocked}
+              aria-disabled={blocked}
               onClick={(e) => {
                 e.stopPropagation();
-                inputRef.current?.click();
+                openPicker();
               }}
               className="rounded-lg border border-bleu/20 bg-white px-4 py-2 text-sm font-medium text-bleu shadow-sm hover:bg-bleu/5 transition-colors"
             >
@@ -260,9 +293,14 @@ export default function DocumentUploader({
             {/* Camera button — only shown on mobile via CSS */}
             <button
               type="button"
-              disabled={disabled || !gdprConsent}
+              disabled={blocked && !tapBlocked}
+              aria-disabled={blocked}
               onClick={(e) => {
                 e.stopPropagation();
+                if (blocked) {
+                  onBlockedTap?.();
+                  return;
+                }
                 cameraRef.current?.click();
               }}
               className="rounded-lg border border-bleu/20 bg-white px-4 py-2 text-sm font-medium text-bleu shadow-sm hover:bg-bleu/5 transition-colors sm:hidden"
@@ -271,6 +309,12 @@ export default function DocumentUploader({
               {t.takePhoto}
             </button>
           </div>
+
+          {blocked && blockedMessage && (
+            <p role="alert" className="w-full rounded-lg border border-rouge/30 bg-rouge/5 px-3 py-2 text-center text-sm font-medium text-rouge">
+              {blockedMessage}
+            </p>
+          )}
 
           {/* Hidden inputs */}
           <input
