@@ -1378,13 +1378,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-300">
-                    {d.status === "done" ? (
-                      `${(knownLangCode(d.sourceLang) || sourceLang || "?").toUpperCase()}→${(knownLangCode(d.targetLang) || targetLang || "?").toUpperCase()}`
-                    ) : d.status === "error" || d.status === "manual" || d.status === "split" ? (
+                    {/* Editable también tras el análisis: la IA lee la apostilla (título en
+                        francés) como FR y el documento es ES (Juan, 6-oct-2026). */}
+                    {d.status === "done" || d.status === "error" || d.status === "manual" || d.status === "split" ? (
                       <div className="flex items-center gap-1">
                         <select
-                          value={d.sourceLang || ""}
-                          onChange={(e) => patch(d.localId, { sourceLang: e.target.value || undefined })}
+                          value={knownLangCode(d.sourceLang) || (d.status === "done" ? sourceLang : "") || ""}
+                          onChange={(e) => patch(d.localId, { sourceLang: e.target.value || undefined, priceNote: undefined })}
                           className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
                         >
                           <option value="">orig</option>
@@ -1392,8 +1392,8 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                         </select>
                         <span>→</span>
                         <select
-                          value={d.targetLang || ""}
-                          onChange={(e) => patch(d.localId, { targetLang: e.target.value || undefined })}
+                          value={knownLangCode(d.targetLang) || (d.status === "done" ? targetLang : "") || ""}
+                          onChange={(e) => patch(d.localId, { targetLang: e.target.value || undefined, priceNote: undefined })}
                           className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
                         >
                           <option value="">dest</option>
