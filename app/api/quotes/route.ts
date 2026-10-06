@@ -127,6 +127,9 @@ export async function POST(req: Request) {
           sourceLang: parsed.data.sourceLang,
           targetLang: parsed.data.targetLang,
           createdAt: { gte: new Date(Date.now() - 2 * 3_600_000) },
+          // Otro expediente = otro encargo: un intermediario manda dos clientes con
+          // el mismo email y par (Nuria, 00227/00228, 6-oct-2026).
+          expedienteRef: expedienteRef ?? null,
           messageLogs: { none: {} },
           orders: { none: {} },
         },
