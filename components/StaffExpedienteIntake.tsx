@@ -1405,9 +1405,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                     )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-slate-300">
-                    {d.status === "done" ? (
-                      d.words ?? "—"
-                    ) : d.status === "error" || d.status === "manual" || d.status === "split" ? (
+                    {/* Editable también tras el análisis: el recuento de la IA puede
+                        salir inflado (Juan, 6-oct: 3.300 contadas vs 1.100 reales). */}
+                    {d.status === "done" || d.status === "error" || d.status === "manual" || d.status === "split" ? (
                       <input
                         type="number"
                         min={0}
