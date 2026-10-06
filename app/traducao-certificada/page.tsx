@@ -33,8 +33,7 @@ export default function TraducaoCertificadaPage() {
       <SchemaService id="schema-service-home-pt" serviceName="Tradução certificada (jurada) espanhol ↔ português" serviceDescription="Tradução certificada (jurada) de documentos para uso perante as autoridades espanholas, por tradutores habilitados pelo Ministério dos Negócios Estrangeiros espanhol (MAEC). Entrega online em PDF assinado digitalmente; orçamento fechado antes de pagar." serviceUrl={LOCALE_ABS.pt} serviceType="Tradução certificada" />
       <SchemaFAQ items={HOME_FAQ.pt} id="schema-faq-home-pt" />
       <SchemaHowTo id="schema-howto-home-pt" name={HOME_HOWTO.pt.name} description={HOME_HOWTO.pt.description} steps={HOME_HOWTO.pt.steps} />
-      <RespuestaDirecta lang="pt" />
-      <HomeV2 lang="pt" hero={<HomeHero lang="pt" />} />
+      <HomeV2 lang="pt" hero={<><HomeHero lang="pt" /><RespuestaDirecta lang="pt" /></>} />
     </div>
   );
 }

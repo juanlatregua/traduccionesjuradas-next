@@ -33,8 +33,7 @@ export default function SwornTranslationPage() {
       <SchemaService id="schema-service-home-en" serviceName="Sworn translation Spanish ↔ English" serviceDescription="Official sworn translation of documents for use before Spanish authorities, by translators authorised by Spain's Ministry of Foreign Affairs (MAEC). Delivered online as a digitally signed PDF; fixed quote before you pay." serviceUrl={LOCALE_ABS.en} serviceType="Sworn translation" />
       <SchemaFAQ items={HOME_FAQ.en} id="schema-faq-home-en" />
       <SchemaHowTo id="schema-howto-home-en" name={HOME_HOWTO.en.name} description={HOME_HOWTO.en.description} steps={HOME_HOWTO.en.steps} />
-      <RespuestaDirecta lang="en" />
-      <HomeV2 lang="en" hero={<HomeHero lang="en" />} />
+      <HomeV2 lang="en" hero={<><HomeHero lang="en" /><RespuestaDirecta lang="en" /></>} />
     </div>
   );
 }

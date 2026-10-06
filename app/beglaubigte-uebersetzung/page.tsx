@@ -33,8 +33,7 @@ export default function BeglaubigteUebersetzungPage() {
       <SchemaService id="schema-service-home-de" serviceName="Beglaubigte Übersetzung Spanisch ↔ Deutsch" serviceDescription="Beglaubigte (vereidigte) Übersetzung von Dokumenten für spanische Behörden durch vom spanischen Außenministerium (MAEC) bestellte Übersetzer. Lieferung online als digital signiertes PDF; verbindliches Angebot vor der Zahlung." serviceUrl={LOCALE_ABS.de} serviceType="Beglaubigte Übersetzung" />
       <SchemaFAQ items={HOME_FAQ.de} id="schema-faq-home-de" />
       <SchemaHowTo id="schema-howto-home-de" name={HOME_HOWTO.de.name} description={HOME_HOWTO.de.description} steps={HOME_HOWTO.de.steps} />
-      <RespuestaDirecta lang="de" />
-      <HomeV2 lang="de" hero={<HomeHero lang="de" />} />
+      <HomeV2 lang="de" hero={<><HomeHero lang="de" /><RespuestaDirecta lang="de" /></>} />
     </div>
   );
 }

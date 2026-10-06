@@ -20,21 +20,24 @@ export default function HomeHero({ lang = "es" }: { lang?: Locale }) {
 
   return (
     <section id={lang === "fr" ? "hero-fr" : "hero"} className="border-b border-cream bg-parchment">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:py-14">
-        <div className="mx-auto flex max-w-3xl flex-col gap-3 text-center sm:gap-4">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-or-dark sm:text-sm">{t.eyebrow[lang]}</p>
-          <h1 className="font-baskerville text-[1.7rem] font-bold leading-tight text-encre sm:text-4xl lg:text-[3rem] lg:leading-[1.15]">
+      <div className="mx-auto max-w-6xl px-4 py-5 sm:py-8">
+        {/* Interactuar antes que leer (Juan, 6-oct-2026): título compacto y los dos
+            paneles arriba; la explicación (lede) pasa debajo de los paneles. */}
+        <div className="mx-auto flex max-w-4xl flex-col gap-1.5 text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-or-dark">{t.eyebrow[lang]}</p>
+          <h1 className="font-baskerville text-[1.4rem] font-bold leading-tight text-encre sm:text-[1.75rem] lg:text-[2.1rem]">
             {t.h1[lang]}
           </h1>
-          <p className="text-base leading-relaxed text-graphite sm:text-lg lg:text-xl">{t.lede[lang]}</p>
         </div>
 
-        <div className="mt-6 grid items-start gap-4 sm:mt-9 sm:gap-7 lg:grid-cols-2">
+        <div className="mt-4 grid items-start gap-4 sm:mt-6 sm:gap-7 lg:grid-cols-2">
           <AsistentePanel lang={lang} />
           <Suspense fallback={<SubidaPanel source={null} lang={lang} />}>
             <SubidaPanelFromParams lang={lang} />
           </Suspense>
         </div>
+
+        <p className="mx-auto mt-6 max-w-3xl text-center text-base leading-relaxed text-graphite sm:mt-8 sm:text-lg">{t.lede[lang]}</p>
 
         {hasChat && (
           <div className="mt-6 flex items-center justify-center gap-4 sm:mt-9">

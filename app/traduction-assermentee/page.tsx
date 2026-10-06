@@ -34,10 +34,8 @@ export default function TraductionAssermenteePage() {
       <SchemaFAQ items={HOME_FAQ.fr} id="schema-faq-home-fr" />
       <SchemaHowTo id="schema-howto-home-fr" name={HOME_HOWTO.fr.name} description={HOME_HOWTO.fr.description} steps={HOME_HOWTO.fr.steps} />
 
-      <RespuestaDirecta lang="fr" />
-
       {/* Home v2 "banque d'utilités" en français (mismo componente que el ES), con el hero nuevo */}
-      <HomeV2 lang="fr" hero={<HomeHero lang="fr" />} />
+      <HomeV2 lang="fr" hero={<><HomeHero lang="fr" /><RespuestaDirecta lang="fr" /></>} />
 
       {/* Cas fréquents — contenido FR-nativo (guías propias en /fr/*) */}
       <section className="bg-parchment py-14">
