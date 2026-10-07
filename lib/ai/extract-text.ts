@@ -21,7 +21,7 @@ const MIN_TOTAL_WORDS = 30;
 
 function countWords(text: string): number {
   const tokens = text.split(/\s+/).filter(Boolean);
-  return tokens.filter((t) => /\p{L}/u.test(t)).length;
+  return tokens.filter((t) => /[\p{L}\p{N}]/u.test(t)).length;
 }
 
 function normalizeWhitespace(text: string): string {

@@ -4,10 +4,9 @@
 // extracted text — including headers, proper names, alphanumeric codes,
 // signature formulas, annotations, and marginal notes (averbações).
 //
-// Excludes ONLY:
-// - Pure numeric tokens (digits + numeric punctuation, no letters)
-//   e.g., "019570", "01", "55", "2.301", "019.345.676-01", "0024.19.456.789-3"
-// - Empty punctuation-only tokens (dashes, ellipsis, decorative separators)
+// Numbers count as words, exactly like Word and CAT tools ("12", "1,210",
+// "019.345.676-01" = 1 word each). Excludes ONLY tokens with no letter and no
+// digit (dashes, ellipsis, bullets, underscores, decorative separators).
 
 export function countDocumentWords(text: string): number {
   if (!text || !text.trim()) return 0;
@@ -19,13 +18,7 @@ export function countDocumentWords(text: string): number {
     // Uses \p{L} (any Unicode letter) + \p{N} (any Unicode number) so that
     // non-Latin scripts (Arabic, Cyrillic, CJK, Hebrew, etc.) are counted.
     const core = token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
-    if (!core) return false;
-
-    // Exclude tokens that are purely numeric (digits + separators, no letters)
-    if (/^[\d.,/:;\-–—]+$/.test(core)) return false;
-    if (!/\p{L}/u.test(core)) return false;
-
-    return true;
+    return core.length > 0;
   }).length;
 }
 
