@@ -6,18 +6,14 @@ export const VAT_DIVISOR = 1.21;
 export const OWN_LABEL = "Juan (propio)";
 
 export type OrderRow = {
-  reference: string;
   paidAt: string;
   amountCents: number;
   invoiceBaseCents: number | null;
   supplierCostCents: number | null;
   langPair: string | null;
   assignedTo: string | null;
-  clientName: string | null;
-  clientEmail: string;
+  client: string;
   paymentMethod: string | null;
-  status: string;
-  title: string;
 };
 export type QuoteRow = {
   id: string;
@@ -113,7 +109,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 };
 
 export function isTestTitle(title: string | null | undefined): boolean {
-  return /prueba|test/i.test(title || "");
+  return /\b(prueba|test)\b/i.test(title || "");
 }
 
 export function netCents(o: OrderRow): number {
@@ -224,7 +220,7 @@ function keyFns(dimension: Dimension, period: Period) {
     case "traductor":
       return { orders: translatorLabel };
     case "cliente":
-      return { orders: (o: OrderRow) => o.clientName?.trim() || o.clientEmail };
+      return { orders: (o: OrderRow) => o.client };
     case "via_pago":
       return { orders: (o: OrderRow) => (o.paymentMethod ? PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod : "Sin método") };
     case "categoria_gasto":

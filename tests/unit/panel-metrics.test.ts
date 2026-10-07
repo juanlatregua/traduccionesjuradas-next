@@ -4,6 +4,7 @@ import {
   aggregate,
   computeTotals,
   dimensionsFor,
+  isTestTitle,
   netCents,
   OWN_LABEL,
   type ExpenseRow,
@@ -14,18 +15,14 @@ import {
 import { buildPeriod, shiftAnchor } from "../../lib/panel-period.ts";
 
 const order = (o: Partial<OrderRow> = {}): OrderRow => ({
-  reference: "2026-00001",
   paidAt: "2026-10-05T10:00:00.000Z",
   amountCents: 12100,
   invoiceBaseCents: null,
   supplierCostCents: null,
   langPair: "fr>es",
   assignedTo: null,
-  clientName: "Ana",
-  clientEmail: "ana@example.com",
+  client: "Ana",
   paymentMethod: "STRIPE",
-  status: "PAID",
-  title: "Certificado",
   ...o,
 });
 const quote = (q: Partial<QuoteRow> = {}): QuoteRow => ({
@@ -137,4 +134,10 @@ test("fronteras en Europe/Madrid: mes, trimestre, año, semana lunes y cambio de
   assert.equal(shiftAnchor("mes", "2026-01-31", -1), "2025-12-01");
   assert.equal(buildPeriod("dia", "2026-03-29").end, "2026-03-29T22:00:00.000Z");
   assert.equal(buildPeriod("dia", "2026-03-29").start, "2026-03-28T23:00:00.000Z");
+});
+
+test("pedidos de prueba: palabra suelta, no «Attestation»", () => {
+  assert.equal(isTestTitle("Pedido de prueba"), true);
+  assert.equal(isTestTitle("TEST pago"), true);
+  assert.equal(isTestTitle("Attestation de travail"), false);
 });

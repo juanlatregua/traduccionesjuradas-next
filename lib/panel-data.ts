@@ -22,7 +22,6 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
         clientName: true,
         clientEmail: true,
         paymentMethod: true,
-        status: true,
         title: true,
         clientInvoice: { select: { baseCents: true, status: true, docKind: true } },
       },
@@ -41,25 +40,34 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
     }),
   ]);
 
-  const orderRows = orders
-    .filter((o) => o.paidAt && !isTestTitle(o.title))
-    .map((o) => {
-      const inv = o.clientInvoice;
-      return {
-        reference: o.reference,
-        paidAt: o.paidAt!.toISOString(),
-        amountCents: o.amountCents,
-        invoiceBaseCents: inv && inv.status === "ISSUED" && inv.docKind === "invoice" ? inv.baseCents : null,
-        supplierCostCents: o.supplierCostCents,
-        langPair: o.langPair,
-        assignedTo: o.assignedTo,
-        clientName: o.clientName,
-        clientEmail: o.clientEmail,
-        paymentMethod: o.paymentMethod,
-        status: o.status,
-        title: o.title,
-      };
-    });
+  const kept = orders.filter((o) => o.paidAt && !isTestTitle(o.title));
+  // Sin supplierCostCents, el coste del traductor es su factura (o, si aún no la hay, el devengo) atada al pedido.
+  const linked = await prisma.expense.findMany({
+    where: { category: "colaborador", orderReference: { in: kept.filter((o) => o.supplierCostCents == null).map((o) => o.reference) } },
+    select: { orderReference: true, baseCents: true, isAccrual: true },
+  });
+  const linkedCost = new Map<string, { invoice: number; accrual: number }>();
+  for (const x of linked) {
+    const c = linkedCost.get(x.orderReference!) ?? { invoice: 0, accrual: 0 };
+    if (x.isAccrual) c.accrual += x.baseCents;
+    else c.invoice += x.baseCents;
+    linkedCost.set(x.orderReference!, c);
+  }
+
+  const orderRows = kept.map((o) => {
+    const inv = o.clientInvoice;
+    const lc = linkedCost.get(o.reference);
+    return {
+      paidAt: o.paidAt!.toISOString(),
+      amountCents: o.amountCents,
+      invoiceBaseCents: inv && inv.status === "ISSUED" && inv.docKind === "invoice" ? inv.baseCents : null,
+      supplierCostCents: o.supplierCostCents ?? (lc ? lc.invoice || lc.accrual : null),
+      langPair: o.langPair,
+      assignedTo: o.assignedTo,
+      client: o.clientName?.trim() || o.clientEmail,
+      paymentMethod: o.paymentMethod,
+    };
+  });
   const quoteRows = quotes.map((q) => ({
     id: q.id,
     issuedAt: q.issuedAt.toISOString(),
