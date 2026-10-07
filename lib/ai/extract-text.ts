@@ -28,6 +28,31 @@ function normalizeWhitespace(text: string): string {
   return text.replace(/[\t\f\r ]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// Render de pdf-parse con un cambio: el de serie pega los fragmentos de una
+// misma línea sin espacio («investmentand», «19,371H») y el conteo se queda
+// corto (carta de suscripción: 483 en vez de 502). Se separa con espacio solo
+// si hay hueco visible entre fragmentos; sin hueco es una palabra partida.
+function renderPageText(pageData: any): Promise<string> {
+  return pageData
+    .getTextContent({ normalizeWhitespace: false, disableCombineTextItems: false })
+    .then((textContent: any) => {
+      let lastY: number | undefined;
+      let lastEnd = 0;
+      let text = "";
+      for (const item of textContent.items) {
+        const [a, b, , , x, y] = item.transform;
+        if (lastY === undefined) text += item.str;
+        else if (lastY === y) {
+          const fontSize = Math.hypot(a, b) || 10;
+          text += (x - lastEnd > fontSize * 0.15 ? " " : "") + item.str;
+        } else text += "\n" + item.str;
+        lastY = y;
+        lastEnd = x + (item.width || 0);
+      }
+      return text;
+    });
+}
+
 export type PdfPagesExtraction = {
   pages: string[]; // texto por página (índice 0 = página 1)
   pageCount: number;
@@ -47,21 +72,11 @@ export async function extractPdfPages(buffer: Buffer): Promise<PdfPagesExtractio
     if (typeof pdfParse !== "function") return empty;
 
     const pages: string[] = [];
-    // Mismo render que el por defecto de pdf-parse, pero acumulando por página.
     const renderPage = (pageData: any) =>
-      pageData
-        .getTextContent({ normalizeWhitespace: false, disableCombineTextItems: false })
-        .then((textContent: any) => {
-          let lastY: number | undefined;
-          let text = "";
-          for (const item of textContent.items) {
-            if (lastY === item.transform[5] || lastY === undefined) text += item.str;
-            else text += "\n" + item.str;
-            lastY = item.transform[5];
-          }
-          pages.push(normalizeWhitespace(text));
-          return text;
-        });
+      renderPageText(pageData).then((text) => {
+        pages.push(normalizeWhitespace(text));
+        return text;
+      });
 
     const parsed = await pdfParse(buffer, { pagerender: renderPage });
     const pageCount = Number(parsed?.numpages) || pages.length;
@@ -87,7 +102,7 @@ export async function extractPdfText(buffer: Buffer): Promise<PdfTextExtraction>
     const pdfParse = require("pdf-parse/lib/pdf-parse.js");
     if (typeof pdfParse !== "function") return empty;
 
-    const parsed = await pdfParse(buffer);
+    const parsed = await pdfParse(buffer, { pagerender: renderPageText });
     const text = normalizeWhitespace(String(parsed?.text || ""));
     const pages = Number(parsed?.numpages) || 0;
     const words = countWords(text);
