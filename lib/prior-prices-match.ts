@@ -26,18 +26,27 @@ export function labelOfDescription(description: string | null | undefined) {
   return normalizeLabel(String(description || "").split(" (")[0]);
 }
 
+// Difusa solo por prefijo de 2+ palabras: «carta de suscripcion» ↔ «… de acciones»
+// sí; «certificado» o «apostilla» sueltos casaban con cualquier certificado/apostilla.
 export function labelsMatch(a: string, b: string) {
   if (!a || !b) return false;
   if (a === b) return true;
   const [short, long] = a.length <= b.length ? [a, b] : [b, a];
-  return short.length >= MIN_FUZZY_CHARS && long.includes(short);
+  return short.length >= MIN_FUZZY_CHARS && short.includes(" ") && long.startsWith(short + " ");
 }
 
 export function pickPriorMatches(lines: PriorLine[], label: string): PriorPrice[] {
   const target = normalizeLabel(label);
+  const seen = new Set<string>();
   return lines
     .filter((l) => labelsMatch(labelOfDescription(l.description), target))
     .sort((a, b) => Number(b.paid) - Number(a.paid) || b.issuedMs - a.issuedMs)
+    .filter((l) => {
+      const k = `${l.quoteNumber}|${l.unitPrice}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
     .slice(0, MAX_MATCHES)
     .map(({ unitPrice, supplierUnitCost, quoteNumber, issuedAt, status, translatorName }) => ({
       unitPrice,

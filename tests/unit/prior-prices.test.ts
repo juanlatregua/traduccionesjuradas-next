@@ -37,6 +37,18 @@ test("coincidencia exacta y difusa (mín. 8 caracteres)", () => {
   assert.ok(labelsMatch("carta de suscripcion", "carta de suscripcion de acciones"));
   assert.ok(!labelsMatch("acta", "acta de nacimiento"));
   assert.ok(!labelsMatch("", "acta de nacimiento"));
+  assert.ok(!labelsMatch("certificado", "certificado de nacimiento"));
+  assert.ok(!labelsMatch("apostilla", "registro mercantil con apostilla"));
+  assert.ok(!labelsMatch("poder notarial", "revision poder notarial"));
+});
+
+test("misma línea repetida en un presupuesto ocupa un solo hueco", () => {
+  const lines = [
+    line("Certificado de acciones", { quoteNumber: "A", issuedMs: 3 }),
+    line("Certificado de acciones", { quoteNumber: "A", issuedMs: 3 }),
+    line("Certificado de acciones", { quoteNumber: "B", issuedMs: 2 }),
+  ];
+  assert.deepEqual(pickPriorMatches(lines, "Certificado de acciones").map((m) => m.quoteNumber), ["A", "B"]);
 });
 
 test("prefiere pagados y luego los más recientes, máximo 3", () => {
