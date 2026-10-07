@@ -390,7 +390,11 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     setDocs((prev) =>
       prev.map((d) =>
         d.localId === localId
-          ? { ...d, ...data, ...("unitPrice" in data && !("clientPrice" in data) ? { clientPrice: undefined } : {}) }
+          ? {
+              ...d,
+              ...data,
+              ...(["unitPrice", "sourceLang", "targetLang"].some((k) => k in data) && !("clientPrice" in data) ? { clientPrice: undefined } : {}),
+            }
           : d
       )
     );
@@ -706,6 +710,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
               : keepB
                 ? b.unitPrice
                 : host.unitPrice,
+          clientPrice: priceMode === "word" && words ? undefined : keepB ? b.clientPrice : host.clientPrice,
           autoPriced: keepB ? false : host.autoPriced,
           priceNote: keepB ? undefined : host.priceNote,
           absorbedPages: absorbed.length ? absorbed : undefined,
@@ -778,7 +783,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     setDocs((prev) =>
       prev.map((d) =>
         isPriceable(d.status) && d.words && d.words > 0
-          ? { ...d, wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, autoPriced: false, priceNote: undefined }
+          ? { ...d, wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined }
           : d
       )
     );
