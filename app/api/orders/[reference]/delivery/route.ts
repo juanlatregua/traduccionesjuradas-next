@@ -3,7 +3,6 @@ import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail, buildTranslationReadyEmail } from "@/lib/email";
 import { greetingName, resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
 import { normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
-import { splitDocumentVersions } from "@/lib/delivery-files";
 import { NIF_REQUIRED_MESSAGE, decideInvoiceAction, needsNif } from "@/lib/delivery-billing";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
@@ -106,11 +105,10 @@ export async function POST(req: Request, { params }: Params) {
     const selectedFiles = (Array.isArray(body.fileUrls) ? body.fileUrls : [])
       .map((u) => knownFiles.find((f) => f.url === u))
       .filter((f): f is DeliveryFile => !!f && !uploadedFiles.some((n) => n.url === f.url));
-    // El mismo documento marcado dos veces (versiones antiguas): solo la principal.
-    const deliveryFiles = [
-      ...uploadedFiles,
-      ...splitDocumentVersions(selectedFiles, order.finalDeliveryFileUrl).current,
-    ];
+    // Se respetan exactamente las casillas del staff; solo se quitan URLs idénticas repetidas.
+    const deliveryFiles = [...uploadedFiles, ...selectedFiles].filter(
+      (f, i, all) => all.findIndex((o) => o.url === f.url) === i
+    );
     const primaryFileUrl = deliveryFiles[0]?.url || translatedFileUrl;
 
     // "Cobrado" o "asegurado" (crédito: factura emitida con vencimiento). Ver

@@ -5,7 +5,7 @@ import { buildDeliveryText, greetingName, isEmailAlias } from "../../lib/deliver
 import { invoiceStatusOf, needsNif, resolveBillingPrefill } from "../../lib/delivery-billing.ts";
 
 const BASE = "https://abc.public.blob.vercel-storage.com/orders/26_0E3047/";
-const withPrefix = `${BASE}1791380856919-1791369870139-tradjur_Reyes-signed-Kx9QmZpL3vTn8RcYw2HbJd.pdf`;
+const withPrefix = `${BASE}1791380856919-1791369870139-tradjur_Reyes-signed-IznMGyiThu8Q528U9dbsyc6HhUS2iM.pdf`;
 const plain = `${BASE}tradjur_Reyes-signed.pdf`;
 
 test("mismo documento con prefijo de timestamp y sufijo de Blob: misma clave", () => {
@@ -14,15 +14,36 @@ test("mismo documento con prefijo de timestamp y sufijo de Blob: misma clave", (
   assert.notEqual(documentKey(`${BASE}otro-documento.pdf`), documentKey(plain));
 });
 
-test("solo la versión principal se preselecciona; la otra pasa a anteriores", () => {
+test("nombres reales que acaban en una palabra larga no se confunden", () => {
+  const a = `${BASE}1791380856919-tradjur-antecedentespenalesmarruecos.pdf`;
+  const b = `${BASE}1791380856919-tradjur-certificadodenacimiento.pdf`;
+  assert.notEqual(documentKey(a), documentKey(b));
+  assert.equal(documentKey(a), "tradjur-antecedentespenalesmarruecos");
+  assert.equal(splitDocumentVersions([{ url: a }, { url: b }], b).current.length, 2);
+});
+
+test("26_0E3047: la copia anterior del principal queda plegada", () => {
   const files = [{ url: plain }, { url: withPrefix }];
-  const byPrimary = splitDocumentVersions(files, withPrefix);
-  assert.deepEqual(byPrimary.current.map((f) => f.url), [withPrefix]);
-  assert.deepEqual(byPrimary.previous.map((f) => f.url), [plain]);
-  const byLast = splitDocumentVersions(files, null);
-  assert.deepEqual(byLast.current.map((f) => f.url), [withPrefix]);
-  const other = { url: `${BASE}anexo.pdf` };
-  assert.equal(splitDocumentVersions([...files, other], withPrefix).current.length, 2);
+  const r = splitDocumentVersions(files, withPrefix);
+  assert.deepEqual(r.current.map((f) => f.url), [withPrefix]);
+  assert.deepEqual(r.previous.map((f) => f.url), [plain]);
+});
+
+test("dos traduccion.pdf de lavori con distinto timestamp van los dos marcados", () => {
+  const l1 = `${BASE.replace("orders/26_0E3047", "entregas-lavori")}1791300000000-traduccion.pdf`;
+  const l2 = `${BASE.replace("orders/26_0E3047", "entregas-lavori")}1791380000000-traduccion.pdf`;
+  assert.equal(splitDocumentVersions([{ url: l1 }, { url: l2 }], l2).current.length, 2);
+  assert.equal(splitDocumentVersions([{ url: l1 }, { url: l2 }], null).current.length, 2);
+  const o1 = `${BASE}1791300000000-traduccion.pdf`;
+  const o2 = `${BASE}1791380000000-traduccion.pdf`;
+  assert.equal(splitDocumentVersions([{ url: o1 }, { url: o2 }], null).current.length, 2);
+});
+
+test("un delivery.corrected que sustituye un archivo lo pliega", () => {
+  const o1 = `${BASE}1791300000000-traduccion.pdf`;
+  const o2 = `${BASE}1791380000000-traduccion.pdf`;
+  const r = splitDocumentVersions([{ url: o1 }, { url: o2 }], null, [o1]);
+  assert.deepEqual(r.previous.map((f) => f.url), [o1]);
 });
 
 test("saludo limpio: dos puntos, sin dobles espacios y sin alias de email", () => {

@@ -28,6 +28,7 @@ type Props = {
   amountCents: number;
   files: DeliveryFileRef[];
   primaryFileUrl: string | null;
+  replacedUrls: string[];
   billing: BillingFields;
   billingExcluded: boolean;
   billingExcludedReason: string | null;
@@ -54,7 +55,7 @@ const INPUT =
 
 export default function DeliveryPanel(props: Props) {
   const router = useRouter();
-  const versions = useMemo(() => splitDocumentVersions(props.files, props.primaryFileUrl), [props.files, props.primaryFileUrl]);
+  const versions = useMemo(() => splitDocumentVersions(props.files, props.primaryFileUrl, props.replacedUrls), [props.files, props.primaryFileUrl, props.replacedUrls]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(versions.current.map((f) => f.url)));
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [billing, setBilling] = useState<BillingFields>(props.billing);

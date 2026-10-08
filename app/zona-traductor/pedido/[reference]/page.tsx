@@ -722,6 +722,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             amountCents={order.amountCents}
             files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
             primaryFileUrl={order.finalDeliveryFileUrl || order.translatedFileUrl || null}
+            replacedUrls={order.events
+              .filter((e: any) => e.type === "delivery.corrected")
+              .flatMap((e: any) => (Array.isArray(e.payload?.replaced) ? e.payload.replaced : []))
+              .map((f: any) => String(f?.url || ""))
+              .filter(Boolean)}
             billing={billingPrefill}
             billingExcluded={order.billingExcluded}
             paymentMethod={order.paymentMethod}
