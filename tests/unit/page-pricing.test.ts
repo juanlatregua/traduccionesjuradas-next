@@ -152,9 +152,14 @@ test("DE apostillado: el paraTi de Morton no incluye la apostilla; nunca 0", () 
   assert.equal(dePagePactado([{ ...base, pages: 0 }])?.costCents, 1000); // mínimo 1 página
 });
 
-test("FR: Bulletin n°3 y Marruecos van a tarifa por página (sin paquete 61,98 € ni 40/40/45)", () => {
-  assert.equal(price(analysis({ type: "criminal_record", pages: 5 })), 150);
+test("FR: el Bulletin n°3 de 3+ páginas conserva el paquete de 61,98 € (pendiente de Juan)", () => {
+  assert.equal(price(analysis({ type: "criminal_record", pages: 5 })), 61.98);
+  assert.equal(price(analysis({ type: "criminal_record", pages: 3, country: "MA" })), 61.98);
   assert.equal(price(analysis({ type: "criminal_record", pages: 1 })), 30);
+  assert.equal(price(analysis({ type: "criminal_record", pages: 2 })), 60);
+});
+
+test("Marruecos (fr) va a tarifa por página, sin paquete 40/40/45", () => {
   assert.equal(price(analysis({ pages: 3, country: "MA" })), 90);
   assert.equal(price(analysis({ pages: 1, country: "MA", apostille: true })), 35);
 });

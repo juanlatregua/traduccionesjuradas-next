@@ -102,9 +102,10 @@ function priced(r: ReturnType<typeof getQuoteEstimate>) {
   return r as Exclude<typeof r, { auto_priceable: false }>;
 }
 
-test("get_quote_estimate: FR→ES Bulletin n°3 de 3 páginas = 90 € + IVA (tarifa por página, sin paquete)", () => {
+test("get_quote_estimate: FR Bulletin n°3 de 3 páginas → paquete 75 € con IVA", () => {
   const r = priced(getQuoteEstimate({ language: "fr", direction: "to_spanish", document_type: "criminal_record", pages: 3 }));
-  assert.equal(r.base_price_eur, 90);
+  assert.equal(r.is_french_criminal_record, true);
+  assert.equal(r.base_price_with_vat_eur, 75);
 });
 
 test("get_quote_estimate: Marruecos (fr) sigue la tarifa por página; apostillado +5 €", () => {

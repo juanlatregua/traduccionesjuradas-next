@@ -43,6 +43,7 @@ export type QuoteEstimateOutput = {
   urgent_price_with_vat_eur: number;
   estimated_delivery_standard: string;
   estimated_delivery_urgent: string;
+  is_french_criminal_record: boolean;
   partial_info: boolean;
   note: string;
 };
@@ -143,8 +144,14 @@ export function getQuoteEstimate(
 
   const quote = calculatePrice(synthetic);
   const partialInfo = input.pages === undefined || input.document_type === undefined || !input.direction;
+  const isFrenchCriminalRecord =
+    documentType === "criminal_record" && language === "fr" && input.direction === "to_spanish" && pages >= 3;
+
   let note: string;
-  if (quote.pagePricing) {
+  if (isFrenchCriminalRecord) {
+    note =
+      "Bulletin n°3 francés con anexo multilingüe UE: precio fijo 75 € IVA incluido (paquete).";
+  } else if (quote.pagePricing) {
     note =
       language === "de"
         ? `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página${quote.pagePricing.tables ? " (con tablas)" : " (35 € si la página lleva tablas)"}.`
@@ -172,6 +179,7 @@ export function getQuoteEstimate(
     urgent_price_with_vat_eur: round2(clientUrgentFromQuote(quote, language) * (1 + VAT_RATE)),
     estimated_delivery_standard: quote.estimatedDaysStandard,
     estimated_delivery_urgent: quote.estimatedDaysUrgent,
+    is_french_criminal_record: isFrenchCriminalRecord,
     partial_info: partialInfo,
     note,
   };

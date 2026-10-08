@@ -6,6 +6,7 @@ import {
   getMinimum,
   getPageMinimum,
   getComplexityMultiplier,
+  FRENCH_CRIMINAL_RECORD_PRICE,
   getApostilleSurcharge,
   URGENCY_MULTIPLIER,
 } from "./rules.ts";
@@ -162,9 +163,20 @@ export function computeBase(input: PriceMetricsInput): {
   // Apostille surcharge: fijo según idioma (árabe 10€, resto 25€)
   const apostilleSurcharge = input.hasApostille ? getApostilleSurcharge(foreignLang) : 0;
 
+  // Penales franceses con formulario multilingüe UE (Bulletin n°3 de ~5 páginas):
+  // el anexo distorsiona el conteo. Paquete fijo de 61,98 € (75 € con IVA) hasta que
+  // Juan decida otra cosa; la versión de 1-2 carillas sigue la tarifa por página.
+  if (specificType === "criminal_record" && foreignLang === "fr" && pages >= 3) {
+    return {
+      basePrice: FRENCH_CRIMINAL_RECORD_PRICE + apostilleSurcharge,
+      wordPrice: FRENCH_CRIMINAL_RECORD_PRICE,
+      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true, pagePricing: null,
+    };
+  }
+
   // Precio por página (FR/DE→ES, documentos «por página»): sustituye a los suelos
-  // por documento, al recargo de apostilla, a la tarifa fija de Marruecos y al
-  // paquete del Bulletin n°3 (decisión Juan, 8-oct-2026: todo a 30 €/página).
+  // por documento, al recargo de apostilla y a la tarifa fija de Marruecos
+  // (decisión Juan, 8-oct-2026).
   const pagePricing = computePagePricing({
     specificType,
     foreignLang,

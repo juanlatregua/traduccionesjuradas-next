@@ -99,6 +99,11 @@ export const VOLUME_DISCOUNTS = [
   { threshold: 10, discount: 0.15 }, // 10+ documentos: -15%
 ];
 
+// Penales franceses (Bulletin n°3): el formulario multilingüe UE infla el conteo
+// de palabras y dispara el precio. Fijamos 61,98€ base ⇒ 75,00€ con IVA al 21%.
+// Pendiente del visto bueno de Juan para pasarlo a tarifa por página (5 págs = 150 €).
+export const FRENCH_CRIMINAL_RECORD_PRICE = 61.98;
+
 export const APOSTILLE_SURCHARGE = 25;
 
 export function getMinimum(specificType: string, langCode?: string, pages?: number): number {
