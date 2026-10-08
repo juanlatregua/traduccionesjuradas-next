@@ -116,6 +116,46 @@ export type PublicDict = {
   fbSending: string;
   fbErrSend: string;
   fbErrRetry: string;
+  docsAllThere: string;
+  docsAllThereHelp: string;
+  docsYes: string;
+  docsMissing: string;
+  docsConfirmed: string;
+  docsTapHint: string;
+  docsClose: string;
+  missTitle: string;
+  missHelp: string;
+  missPick: string;
+  missNote: string;
+  missSend: string;
+  missSending: string;
+  missCancel: string;
+  missDone: string;
+  missPendingWarn: string;
+  missErrType: string;
+  missErrSize: string;
+  missErrCount: string;
+  missErrNone: string;
+  missErrSend: string;
+  billTitle: string;
+  billHelp: string;
+  billName: string;
+  billNif: string;
+  billAddress: string;
+  billPostal: string;
+  billCity: string;
+  billCountry: string;
+  billFromDoc: string;
+  billSimplified: string;
+  billNifRequired: string;
+  billNameRequired: string;
+  billAddressRequired: string;
+  billSave: string;
+  billSaving: string;
+  billSaved: string;
+  billEdit: string;
+  billErr: string;
+  payStepTitle: string;
 };
 
 const ES: PublicDict = {
@@ -208,6 +248,46 @@ const ES: PublicDict = {
   fbSending: "Enviando…",
   fbErrSend: "No se pudo enviar.",
   fbErrRetry: "No se pudo enviar. Inténtalo de nuevo.",
+  docsAllThere: "¿Está todo?",
+  docsAllThereHelp: "Comprueba que aquí están todos los documentos que quieres traducir.",
+  docsYes: "Sí, está todo",
+  docsMissing: "Falta algo",
+  docsConfirmed: "Perfecto: documentos confirmados.",
+  docsTapHint: "Toca un documento para ampliarlo.",
+  docsClose: "Cerrar",
+  missTitle: "Añade lo que falta",
+  missHelp: "Sube uno o varios archivos (PDF o imagen, hasta 20 MB cada uno) y, si quieres, cuéntanos qué falta.",
+  missPick: "Elegir archivos",
+  missNote: "Nota (opcional)",
+  missSend: "Enviar documentos",
+  missSending: "Enviando…",
+  missCancel: "Cancelar",
+  missDone: "Recibido. Te enviaremos el presupuesto actualizado.",
+  missPendingWarn: "Has añadido documentos: espera la versión nueva o paga solo lo presupuestado.",
+  missErrType: "Solo se admiten PDF e imágenes (JPG, PNG, WEBP, HEIC, TIFF).",
+  missErrSize: "Cada archivo debe pesar menos de 20 MB.",
+  missErrCount: "Máximo 10 archivos por envío.",
+  missErrNone: "Elige al menos un archivo.",
+  missErrSend: "No hemos podido enviarlo. Inténtalo de nuevo.",
+  billTitle: "Revisa tus datos de facturación",
+  billHelp: "Los usaremos para tu factura. Puedes corregirlos.",
+  billName: "Nombre o razón social",
+  billNif: "NIF / CIF (opcional)",
+  billAddress: "Dirección",
+  billPostal: "Código postal",
+  billCity: "Ciudad",
+  billCountry: "País",
+  billFromDoc: "Leído de tu documento: revísalo",
+  billSimplified: "Sin NIF te emitiremos una factura simplificada (hasta 400 €).",
+  billNifRequired: "Para importes superiores a 400 € necesitamos tu NIF para emitir la factura.",
+  billNameRequired: "Indica el nombre o la razón social.",
+  billAddressRequired: "Con NIF necesitamos también dirección, código postal y ciudad.",
+  billSave: "Guardar datos",
+  billSaving: "Guardando…",
+  billSaved: "Datos guardados. Pasarán a tu factura cuando pagues.",
+  billEdit: "Editar",
+  billErr: "No hemos podido guardar los datos. Inténtalo de nuevo.",
+  payStepTitle: "Pagar",
 };
 
 const EN: PublicDict = {
@@ -300,6 +380,46 @@ const EN: PublicDict = {
   fbSending: "Sending…",
   fbErrSend: "It could not be sent.",
   fbErrRetry: "It could not be sent. Please try again.",
+  docsAllThere: "Is everything there?",
+  docsAllThereHelp: "Check that all the documents you want translated are here.",
+  docsYes: "Yes, everything is there",
+  docsMissing: "Something is missing",
+  docsConfirmed: "Perfect: documents confirmed.",
+  docsTapHint: "Tap a document to enlarge it.",
+  docsClose: "Close",
+  missTitle: "Add what is missing",
+  missHelp: "Upload one or more files (PDF or image, up to 20 MB each) and, if you like, tell us what is missing.",
+  missPick: "Choose files",
+  missNote: "Note (optional)",
+  missSend: "Send documents",
+  missSending: "Sending…",
+  missCancel: "Cancel",
+  missDone: "Received. We will send you the updated quote.",
+  missPendingWarn: "You have added documents: wait for the new version or pay only what is quoted.",
+  missErrType: "Only PDF and images are accepted (JPG, PNG, WEBP, HEIC, TIFF).",
+  missErrSize: "Each file must be smaller than 20 MB.",
+  missErrCount: "Maximum 10 files per submission.",
+  missErrNone: "Choose at least one file.",
+  missErrSend: "We could not send it. Please try again.",
+  billTitle: "Check your billing details",
+  billHelp: "We will use them for your invoice. You can correct them.",
+  billName: "Name or company name",
+  billNif: "Tax ID (optional)",
+  billAddress: "Address",
+  billPostal: "Postal code",
+  billCity: "City",
+  billCountry: "Country",
+  billFromDoc: "Read from your document: please check it",
+  billSimplified: "Without a tax ID we will issue a simplified invoice (up to EUR 400).",
+  billNifRequired: "For amounts above EUR 400 we need your tax ID to issue the invoice.",
+  billNameRequired: "Enter your name or company name.",
+  billAddressRequired: "With a tax ID we also need the address, postal code and city.",
+  billSave: "Save details",
+  billSaving: "Saving…",
+  billSaved: "Details saved. They will go on your invoice when you pay.",
+  billEdit: "Edit",
+  billErr: "We could not save the details. Please try again.",
+  payStepTitle: "Pay",
 };
 
 const FR: PublicDict = {
@@ -392,6 +512,46 @@ const FR: PublicDict = {
   fbSending: "Envoi…",
   fbErrSend: "L'envoi a échoué.",
   fbErrRetry: "L'envoi a échoué. Veuillez réessayer.",
+  docsAllThere: "Tout est-il là ?",
+  docsAllThereHelp: "Vérifiez que tous les documents à traduire sont bien ici.",
+  docsYes: "Oui, tout est là",
+  docsMissing: "Il manque quelque chose",
+  docsConfirmed: "Parfait : documents confirmés.",
+  docsTapHint: "Touchez un document pour l'agrandir.",
+  docsClose: "Fermer",
+  missTitle: "Ajoutez ce qui manque",
+  missHelp: "Envoyez un ou plusieurs fichiers (PDF ou image, jusqu'à 20 Mo chacun) et, si vous le souhaitez, dites-nous ce qui manque.",
+  missPick: "Choisir des fichiers",
+  missNote: "Note (facultatif)",
+  missSend: "Envoyer les documents",
+  missSending: "Envoi…",
+  missCancel: "Annuler",
+  missDone: "Bien reçu. Nous vous enverrons le devis mis à jour.",
+  missPendingWarn: "Vous avez ajouté des documents : attendez la nouvelle version ou ne payez que ce qui est chiffré.",
+  missErrType: "Seuls les PDF et les images sont acceptés (JPG, PNG, WEBP, HEIC, TIFF).",
+  missErrSize: "Chaque fichier doit peser moins de 20 Mo.",
+  missErrCount: "Maximum 10 fichiers par envoi.",
+  missErrNone: "Choisissez au moins un fichier.",
+  missErrSend: "Envoi impossible. Veuillez réessayer.",
+  billTitle: "Vérifiez vos données de facturation",
+  billHelp: "Nous les utiliserons pour votre facture. Vous pouvez les corriger.",
+  billName: "Nom ou raison sociale",
+  billNif: "N° fiscal (facultatif)",
+  billAddress: "Adresse",
+  billPostal: "Code postal",
+  billCity: "Ville",
+  billCountry: "Pays",
+  billFromDoc: "Lu dans votre document : vérifiez-le",
+  billSimplified: "Sans n° fiscal, nous émettrons une facture simplifiée (jusqu'à 400 €).",
+  billNifRequired: "Au-delà de 400 €, nous avons besoin de votre n° fiscal pour émettre la facture.",
+  billNameRequired: "Indiquez votre nom ou raison sociale.",
+  billAddressRequired: "Avec un n° fiscal, il nous faut aussi l'adresse, le code postal et la ville.",
+  billSave: "Enregistrer",
+  billSaving: "Enregistrement…",
+  billSaved: "Données enregistrées. Elles figureront sur votre facture après le paiement.",
+  billEdit: "Modifier",
+  billErr: "Impossible d'enregistrer les données. Veuillez réessayer.",
+  payStepTitle: "Payer",
 };
 
 const PT: PublicDict = {
@@ -484,6 +644,46 @@ const PT: PublicDict = {
   fbSending: "Enviando…",
   fbErrSend: "Não foi possível enviar.",
   fbErrRetry: "Não foi possível enviar. Tente novamente.",
+  docsAllThere: "Está tudo?",
+  docsAllThereHelp: "Confirme que aqui estão todos os documentos que quer traduzir.",
+  docsYes: "Sim, está tudo",
+  docsMissing: "Falta algo",
+  docsConfirmed: "Perfeito: documentos confirmados.",
+  docsTapHint: "Toque num documento para o ampliar.",
+  docsClose: "Fechar",
+  missTitle: "Adicione o que falta",
+  missHelp: "Envie um ou mais ficheiros (PDF ou imagem, até 20 MB cada) e, se quiser, diga-nos o que falta.",
+  missPick: "Escolher ficheiros",
+  missNote: "Nota (opcional)",
+  missSend: "Enviar documentos",
+  missSending: "A enviar…",
+  missCancel: "Cancelar",
+  missDone: "Recebido. Enviaremos o orçamento atualizado.",
+  missPendingWarn: "Adicionou documentos: aguarde a nova versão ou pague apenas o que foi orçamentado.",
+  missErrType: "Só são aceites PDF e imagens (JPG, PNG, WEBP, HEIC, TIFF).",
+  missErrSize: "Cada ficheiro deve ter menos de 20 MB.",
+  missErrCount: "Máximo de 10 ficheiros por envio.",
+  missErrNone: "Escolha pelo menos um ficheiro.",
+  missErrSend: "Não foi possível enviar. Tente novamente.",
+  billTitle: "Confirme os seus dados de faturação",
+  billHelp: "Vamos usá-los na sua fatura. Pode corrigi-los.",
+  billName: "Nome ou denominação social",
+  billNif: "NIF (opcional)",
+  billAddress: "Morada",
+  billPostal: "Código postal",
+  billCity: "Cidade",
+  billCountry: "País",
+  billFromDoc: "Lido do seu documento: confirme",
+  billSimplified: "Sem NIF emitiremos uma fatura simplificada (até 400 €).",
+  billNifRequired: "Para valores acima de 400 € precisamos do seu NIF para emitir a fatura.",
+  billNameRequired: "Indique o nome ou a denominação social.",
+  billAddressRequired: "Com NIF precisamos também da morada, do código postal e da cidade.",
+  billSave: "Guardar dados",
+  billSaving: "A guardar…",
+  billSaved: "Dados guardados. Passarão para a sua fatura quando pagar.",
+  billEdit: "Editar",
+  billErr: "Não foi possível guardar os dados. Tente novamente.",
+  payStepTitle: "Pagar",
 };
 
 const IT: PublicDict = {
@@ -576,6 +776,46 @@ const IT: PublicDict = {
   fbSending: "Invio…",
   fbErrSend: "Impossibile inviare.",
   fbErrRetry: "Impossibile inviare. Riprova.",
+  docsAllThere: "C'è tutto?",
+  docsAllThereHelp: "Controlla che qui ci siano tutti i documenti da tradurre.",
+  docsYes: "Sì, c'è tutto",
+  docsMissing: "Manca qualcosa",
+  docsConfirmed: "Perfetto: documenti confermati.",
+  docsTapHint: "Tocca un documento per ingrandirlo.",
+  docsClose: "Chiudi",
+  missTitle: "Aggiungi ciò che manca",
+  missHelp: "Carica uno o più file (PDF o immagine, fino a 20 MB ciascuno) e, se vuoi, dicci cosa manca.",
+  missPick: "Scegli i file",
+  missNote: "Nota (facoltativa)",
+  missSend: "Invia i documenti",
+  missSending: "Invio in corso…",
+  missCancel: "Annulla",
+  missDone: "Ricevuto. Ti invieremo il preventivo aggiornato.",
+  missPendingWarn: "Hai aggiunto dei documenti: attendi la nuova versione o paga solo ciò che è stato preventivato.",
+  missErrType: "Sono accettati solo PDF e immagini (JPG, PNG, WEBP, HEIC, TIFF).",
+  missErrSize: "Ogni file deve pesare meno di 20 MB.",
+  missErrCount: "Massimo 10 file per invio.",
+  missErrNone: "Scegli almeno un file.",
+  missErrSend: "Non siamo riusciti a inviarlo. Riprova.",
+  billTitle: "Controlla i tuoi dati di fatturazione",
+  billHelp: "Li useremo per la tua fattura. Puoi correggerli.",
+  billName: "Nome o ragione sociale",
+  billNif: "Codice fiscale / P. IVA (facoltativo)",
+  billAddress: "Indirizzo",
+  billPostal: "CAP",
+  billCity: "Città",
+  billCountry: "Paese",
+  billFromDoc: "Letto dal tuo documento: controllalo",
+  billSimplified: "Senza codice fiscale emetteremo una fattura semplificata (fino a 400 €).",
+  billNifRequired: "Per importi superiori a 400 € ci serve il tuo codice fiscale per emettere la fattura.",
+  billNameRequired: "Indica il nome o la ragione sociale.",
+  billAddressRequired: "Con il codice fiscale servono anche indirizzo, CAP e città.",
+  billSave: "Salva i dati",
+  billSaving: "Salvataggio…",
+  billSaved: "Dati salvati. Passeranno alla tua fattura quando pagherai.",
+  billEdit: "Modifica",
+  billErr: "Non siamo riusciti a salvare i dati. Riprova.",
+  payStepTitle: "Paga",
 };
 
 const DE: PublicDict = {
@@ -668,6 +908,46 @@ const DE: PublicDict = {
   fbSending: "Wird gesendet…",
   fbErrSend: "Senden war nicht möglich.",
   fbErrRetry: "Senden war nicht möglich. Bitte versuchen Sie es erneut.",
+  docsAllThere: "Ist alles dabei?",
+  docsAllThereHelp: "Prüfen Sie, ob hier alle zu übersetzenden Dokumente enthalten sind.",
+  docsYes: "Ja, alles dabei",
+  docsMissing: "Es fehlt etwas",
+  docsConfirmed: "Perfekt: Dokumente bestätigt.",
+  docsTapHint: "Tippen Sie auf ein Dokument, um es zu vergrößern.",
+  docsClose: "Schließen",
+  missTitle: "Fehlendes hinzufügen",
+  missHelp: "Laden Sie eine oder mehrere Dateien hoch (PDF oder Bild, je bis 20 MB) und sagen Sie uns gern, was fehlt.",
+  missPick: "Dateien auswählen",
+  missNote: "Notiz (optional)",
+  missSend: "Dokumente senden",
+  missSending: "Wird gesendet…",
+  missCancel: "Abbrechen",
+  missDone: "Erhalten. Wir senden Ihnen das aktualisierte Angebot.",
+  missPendingWarn: "Sie haben Dokumente hinzugefügt: Warten Sie auf die neue Version oder zahlen Sie nur das, was angeboten wurde.",
+  missErrType: "Nur PDF und Bilder sind erlaubt (JPG, PNG, WEBP, HEIC, TIFF).",
+  missErrSize: "Jede Datei muss kleiner als 20 MB sein.",
+  missErrCount: "Höchstens 10 Dateien pro Sendung.",
+  missErrNone: "Wählen Sie mindestens eine Datei.",
+  missErrSend: "Das Senden war nicht möglich. Bitte versuchen Sie es erneut.",
+  billTitle: "Prüfen Sie Ihre Rechnungsdaten",
+  billHelp: "Wir verwenden sie für Ihre Rechnung. Sie können sie korrigieren.",
+  billName: "Name oder Firmenname",
+  billNif: "Steuernummer (optional)",
+  billAddress: "Adresse",
+  billPostal: "Postleitzahl",
+  billCity: "Stadt",
+  billCountry: "Land",
+  billFromDoc: "Aus Ihrem Dokument gelesen: bitte prüfen",
+  billSimplified: "Ohne Steuernummer stellen wir eine Kleinbetragsrechnung aus (bis 400 €).",
+  billNifRequired: "Bei Beträgen über 400 € benötigen wir Ihre Steuernummer für die Rechnung.",
+  billNameRequired: "Geben Sie Ihren Namen oder Firmennamen an.",
+  billAddressRequired: "Mit Steuernummer benötigen wir auch Adresse, Postleitzahl und Stadt.",
+  billSave: "Daten speichern",
+  billSaving: "Wird gespeichert…",
+  billSaved: "Daten gespeichert. Sie werden bei der Zahlung in Ihre Rechnung übernommen.",
+  billEdit: "Bearbeiten",
+  billErr: "Die Daten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+  payStepTitle: "Bezahlen",
 };
 
 const DICTS: Record<PublicLang, PublicDict> = { es: ES, en: EN, fr: FR, pt: PT, it: IT, de: DE };

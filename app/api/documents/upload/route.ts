@@ -6,6 +6,8 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { prisma } from "@/lib/prisma";
+import { completionBlobPrefix } from "@/lib/q-journey";
 
 export const runtime = "nodejs";
 
@@ -73,8 +75,21 @@ export async function POST(req: Request) {
     const jsonResponse = await handleUpload({
       body,
       request: req,
-      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
         const parsed = clientPayload ? JSON.parse(clientPayload) : {};
+        // «Falta algo» de /q: el cliente ya tiene presupuesto (no hay gate RGPD de
+        // puerta); el enlace del presupuesto fija la carpeta, y solo caben tipos
+        // de la puerta y 20 MB por fichero.
+        if (!staff.ok && parsed.kind === "quote-completion") {
+          const quote = await prisma.quote.findUnique({
+            where: { publicToken: String(parsed.token || "") },
+            select: { id: true, paidAt: true },
+          });
+          if (!quote || quote.paidAt || !pathname.startsWith(completionBlobPrefix(quote.id))) {
+            throw new Error("Enlace de presupuesto no válido.");
+          }
+          return { allowedContentTypes: ALLOWED_TYPES, maximumSizeInBytes: MAX_FILE_SIZE, addRandomSuffix: true };
+        }
         if (!parsed.gdprConsent) {
           throw new Error("Debes aceptar el tratamiento de datos para continuar.");
         }

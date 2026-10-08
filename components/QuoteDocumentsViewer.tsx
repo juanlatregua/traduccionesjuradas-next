@@ -43,11 +43,14 @@ export default function QuoteDocumentsViewer({
   token,
   title = "Documentos",
   lang = "es",
+  variant = "full",
 }: {
   lines: DocLine[];
   token?: string;
   title?: string;
   lang?: PublicLang;
+  // "thumbs": miniaturas que se amplían al tocar (recorrido guiado de /q).
+  variant?: "full" | "thumbs";
 }) {
   const t = publicDict(lang);
   // Traducción y apostilla del mismo papel son dos líneas y un solo documento.
@@ -63,6 +66,7 @@ export default function QuoteDocumentsViewer({
     return Array.from(byKey.values());
   }, [lines]);
   const [selected, setSelected] = useState(0);
+  const [open, setOpen] = useState(false);
 
   if (docs.length === 0) return null;
   const current = docs[Math.min(selected, docs.length - 1)];
@@ -70,12 +74,16 @@ export default function QuoteDocumentsViewer({
   const label = current.labels.join(" + ");
   const kind = previewKind(current.line.sourceFileUrl!);
 
-  return (
+  const heading = (
+    <h2 className="text-lg font-semibold text-encre">
+      {title} <span className="text-sm font-normal text-sepia">({docs.length})</span>
+    </h2>
+  );
+
+  const detail = (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-encre">
-          {title} <span className="text-sm font-normal text-sepia">({docs.length})</span>
-        </h2>
+        {variant === "full" ? heading : <span />}
         <div className="flex gap-3 text-xs font-semibold">
           <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="text-bleu hover:underline">
             {t.docOpenTab}
@@ -132,6 +140,61 @@ export default function QuoteDocumentsViewer({
         <p className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-sepia">
           {t.docNoPreview}
         </p>
+      )}
+    </div>
+  );
+
+  if (variant === "full") return detail;
+
+  return (
+    <div>
+      {heading}
+      <p className="mt-1 text-xs text-sepia">{t.docsTapHint}</p>
+      <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        {docs.map((d, i) => {
+          const thumbKind = previewKind(d.line.sourceFileUrl!);
+          const thumbUrl = lineDocUrl(d.line, { token })!;
+          return (
+            <li key={`${d.line.id}-${i}`} className="min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelected(i);
+                  setOpen(true);
+                }}
+                title={d.labels.join(" + ")}
+                className="block w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-left hover:border-bleu focus:outline-none focus:ring-2 focus:ring-bleu"
+              >
+                <span className="pointer-events-none flex h-32 items-center justify-center overflow-hidden bg-slate-50">
+                  {thumbKind === "img" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={thumbUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  ) : thumbKind === "pdf" ? (
+                    <iframe src={`${thumbUrl}#toolbar=0&navpanes=0&view=FitH`} title="" tabIndex={-1} loading="lazy" className="h-full w-full" />
+                  ) : (
+                    <span className="px-2 text-center text-xs font-semibold text-sepia">{(d.line.sourceFileUrl!.split(".").pop() || "").slice(0, 5).toUpperCase()}</span>
+                  )}
+                </span>
+                <span className="block truncate px-2 py-1.5 text-xs font-semibold text-encre">
+                  {i + 1}. {d.labels[0]}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {open && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" onClick={() => setOpen(false)}>
+          <div className="mx-auto max-w-4xl rounded-2xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex justify-end">
+              <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-bleu/40 px-3 py-1.5 text-sm font-semibold text-bleu hover:bg-cream">
+                {t.docsClose}
+              </button>
+            </div>
+            {detail}
+          </div>
+        </div>
       )}
     </div>
   );
