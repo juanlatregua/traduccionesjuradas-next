@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DIMENSION_LABELS, dimensionsFor, METRIC_KEYS, METRICS, type Metric, type PanelData } from "@/lib/panel-metrics";
-import type { Period } from "@/lib/panel-period";
+import { compareLabel, type Period } from "@/lib/panel-period";
 import {
   buildSeries,
   CHART_TYPES,
@@ -142,7 +142,7 @@ function WidgetCard(props: {
       </div>
 
       {w.chart === "kpi" ? (
-        <KpiCard metric={w.metrics[0]} value={data.series[0]?.values[0] ?? 0} compare={data.series[0]?.compare?.[0]} />
+        <KpiCard metric={w.metrics[0]} value={data.series[0]?.values[0] ?? 0} compare={data.series[0]?.compare?.[0]} compareText={compareLabel(period)} />
       ) : w.chart === "tabla" || showTable ? (
         <DataTable data={data} caption={w.title} />
       ) : (

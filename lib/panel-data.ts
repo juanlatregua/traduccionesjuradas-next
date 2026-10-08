@@ -1,13 +1,33 @@
 // Carga de datos del Panel (solo servidor, solo lectura). Filas compactas; la agregación vive en panel-metrics.
 import { prisma } from "@/lib/prisma";
 import { isCasaPair } from "@/lib/lavori-bridge";
+import { getAcquisitionSource } from "@/lib/panel-slicers";
 import { isTestTitle, type PanelData } from "@/lib/panel-metrics";
 import { madridMidnightUtc, parseYmd, todayMadrid, type Period } from "@/lib/panel-period";
 
-export async function loadPanelData(period: Period): Promise<{ current: PanelData; previous: PanelData }> {
+/** `ordersOnly`: solo los cobros (recuentos para quien no ve dinero); se salta presupuestos, solicitudes, gastos y costes. */
+export async function loadPanelData(period: Period, opts: { ordersOnly?: boolean } = {}): Promise<{ current: PanelData; previous: PanelData }> {
+  const light = !!opts.ordersOnly;
   const prevStart = new Date(period.prevStart);
   const end = new Date(period.end);
   const inCurrent = (iso: string) => iso >= period.start && iso < period.end;
+  const inPrevious = (iso: string) => iso >= period.prevStart && iso < period.prevCompareEnd;
+
+  const findQuotes = () =>
+    prisma.quote.findMany({
+      where: { issuedAt: { gte: prevStart, lt: end }, deletedAt: null },
+      select: { id: true, issuedAt: true, status: true, total: true, sourceLang: true, targetLang: true, lostReason: true },
+    });
+  const findRequests = () =>
+    prisma.lavoriPriceRequest.findMany({
+      where: { createdAt: { gte: prevStart, lt: end } },
+      select: { ref: true, createdAt: true, status: true, par: true, priceCents: true, createdBy: true },
+    });
+  const findExpenses = () =>
+    prisma.expense.findMany({
+      where: { isAccrual: false, date: { gte: prevStart, lt: end } },
+      select: { date: true, baseCents: true, category: true, supplier: true },
+    });
 
   const [orders, quotes, requests, expenses] = await Promise.all([
     prisma.order.findMany({
@@ -23,26 +43,18 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
         clientEmail: true,
         paymentMethod: true,
         title: true,
+        events: { where: { type: { in: ["wa.lead_received", "order.acquisition"] } }, select: { type: true, payload: true } },
         clientInvoice: { select: { baseCents: true, status: true, docKind: true } },
       },
     }),
-    prisma.quote.findMany({
-      where: { issuedAt: { gte: prevStart, lt: end }, deletedAt: null },
-      select: { id: true, issuedAt: true, status: true, total: true, sourceLang: true, targetLang: true, lostReason: true },
-    }),
-    prisma.lavoriPriceRequest.findMany({
-      where: { createdAt: { gte: prevStart, lt: end } },
-      select: { ref: true, createdAt: true, status: true, par: true, priceCents: true, createdBy: true },
-    }),
-    prisma.expense.findMany({
-      where: { isAccrual: false, date: { gte: prevStart, lt: end } },
-      select: { date: true, baseCents: true, category: true, supplier: true },
-    }),
+    light ? ([] as Awaited<ReturnType<typeof findQuotes>>) : findQuotes(),
+    light ? ([] as Awaited<ReturnType<typeof findRequests>>) : findRequests(),
+    light ? ([] as Awaited<ReturnType<typeof findExpenses>>) : findExpenses(),
   ]);
 
   const kept = orders.filter((o) => o.paidAt && !isTestTitle(o.title));
   // Sin supplierCostCents, el coste del traductor es su factura (o, si aún no la hay, el devengo) atada al pedido.
-  const linked = await prisma.expense.findMany({
+  const linked = light ? [] : await prisma.expense.findMany({
     where: { category: "colaborador", orderReference: { in: kept.filter((o) => o.supplierCostCents == null).map((o) => o.reference) } },
     select: { orderReference: true, baseCents: true, isAccrual: true },
   });
@@ -66,6 +78,7 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
       assignedTo: o.assignedTo,
       client: o.clientName?.trim() || o.clientEmail,
       paymentMethod: o.paymentMethod,
+      channel: getAcquisitionSource(o),
     };
   });
   const quoteRows = quotes.map((q) => ({
@@ -82,7 +95,7 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
 
   const split = <T,>(rows: T[], iso: (r: T) => string) => ({
     current: rows.filter((r) => inCurrent(iso(r))),
-    previous: rows.filter((r) => !inCurrent(iso(r))),
+    previous: rows.filter((r) => inPrevious(iso(r))),
   });
   const o = split(orderRows, (r) => r.paidAt);
   const q = split(quoteRows, (r) => r.issuedAt);

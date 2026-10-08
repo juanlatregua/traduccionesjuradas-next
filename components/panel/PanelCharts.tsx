@@ -31,7 +31,7 @@ export function Legend({ data }: { data: SeriesData }) {
   );
 }
 
-export function KpiCard({ metric, value, compare }: { metric: Metric; value: number; compare?: number }) {
+export function KpiCard({ metric, value, compare, compareText = "vs periodo anterior" }: { metric: Metric; value: number; compare?: number; compareText?: string }) {
   const delta = formatDelta(metric, value, compare);
   const neutral = METRICS[metric].costLike;
   const deltaColor = !delta || delta.sign === 0 || neutral ? MUTED : delta.sign > 0 ? "#3ecf8e" : NEGATIVE;
@@ -41,7 +41,7 @@ export function KpiCard({ metric, value, compare }: { metric: Metric; value: num
         {formatValue(metric, value)}
       </p>
       <p className="mt-1 text-xs tabular-nums" style={{ color: deltaColor }}>
-        {delta ? `${delta.sign > 0 ? "▲" : delta.sign < 0 ? "▼" : "■"} ${delta.text} vs periodo anterior` : <span className="text-[#93a0b4]">Sin base de comparación</span>}
+        {delta ? `${delta.sign > 0 ? "▲" : delta.sign < 0 ? "▼" : "■"} ${delta.text} ${compareText}` : <span className="text-[#93a0b4]">Sin base de comparación</span>}
       </p>
     </div>
   );
@@ -78,6 +78,33 @@ export function BarsChart({ data }: { data: SeriesData }) {
       </ul>
       <Legend data={data} />
     </div>
+  );
+}
+
+/** Columnas compactas para cabeceras: una serie, sin ejes; el detalle va en el tooltip y en el resumen accesible. */
+export function MiniBars({ data, title }: { data: SeriesData; title: string }) {
+  const s = data.series[0];
+  if (!s || data.labels.length === 0) return <Empty />;
+  const max = Math.max(1e-9, ...s.values.map((v) => Math.abs(v)));
+  const step = Math.ceil(data.labels.length / 8);
+  return (
+    <figure>
+      <figcaption className="sr-only">{summaryText(title, data)}</figcaption>
+      <div className="flex h-24 items-end gap-px" aria-hidden>
+        {s.values.map((v, i) => (
+          <div key={i} className="flex h-full min-w-0 flex-1 items-end" title={`${data.labels[i]}: ${fmtAt(data, 0, v)}`}>
+            <div className="w-full rounded-t-sm" style={{ height: `${Math.max(v === 0 ? 0 : 4, (Math.abs(v) / max) * 100)}%`, background: v < 0 ? NEGATIVE : color(0) }} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex gap-px text-[10px] text-slate-400" aria-hidden>
+        {data.labels.map((l, i) => (
+          <span key={i} className="min-w-0 flex-1 overflow-visible whitespace-nowrap text-center">
+            {i % step === 0 ? l : ""}
+          </span>
+        ))}
+      </div>
+    </figure>
   );
 }
 

@@ -14,6 +14,8 @@ export type OrderRow = {
   assignedTo: string | null;
   client: string;
   paymentMethod: string | null;
+  /** Canal de entrada: "WHATSAPP" | "WEB" (opcional: sin dato cuenta como Web). */
+  channel?: string;
 };
 export type QuoteRow = {
   id: string;
@@ -47,7 +49,7 @@ export type Metric =
   | "gastos"
   | "resultado";
 
-export type Dimension = "total" | "tiempo" | "lengua_origen" | "par" | "traductor" | "cliente" | "via_pago" | "categoria_gasto";
+export type Dimension = "total" | "tiempo" | "lengua_origen" | "par" | "traductor" | "cliente" | "canal" | "via_pago" | "categoria_gasto";
 
 type Source = "orders" | "quotes" | "requests" | "expenses";
 type Unit = "eur" | "pct" | "count";
@@ -78,6 +80,7 @@ const DIMENSION_SOURCES: Record<Dimension, Source[]> = {
   par: ["orders", "quotes", "requests"],
   traductor: ["orders"],
   cliente: ["orders"],
+  canal: ["orders"],
   via_pago: ["orders"],
   categoria_gasto: ["expenses"],
 };
@@ -88,6 +91,7 @@ export const DIMENSION_LABELS: Record<Dimension, string> = {
   par: "Par de idiomas",
   traductor: "Traductor",
   cliente: "Cliente",
+  canal: "Canal de entrada",
   via_pago: "Vía de pago",
   categoria_gasto: "Categoría de gasto",
 };
@@ -108,6 +112,13 @@ const PAYMENT_LABELS: Record<string, string> = {
   TRANSFER: "Transferencia",
 };
 
+export function paymentLabel(method: string | null | undefined): string {
+  return method ? PAYMENT_LABELS[method] ?? method : "Sin método";
+}
+export function channelLabel(channel: string | null | undefined): string {
+  return channel === "WHATSAPP" ? "WhatsApp" : "Web";
+}
+
 export function isTestTitle(title: string | null | undefined): boolean {
   return /\b(prueba|test)\b/i.test(title || "");
 }
@@ -127,7 +138,7 @@ export function pairLabel(pair: string | null | undefined): string {
   const p = splitPair(pair);
   return p ? `${p[0]}→${p[1]}` : "Sin par";
 }
-function originLabel(pair: string | null | undefined): string {
+export function originLabel(pair: string | null | undefined): string {
   return splitPair(pair)?.[0] ?? "Sin par";
 }
 
@@ -221,8 +232,10 @@ function keyFns(dimension: Dimension, period: Period) {
       return { orders: translatorLabel };
     case "cliente":
       return { orders: (o: OrderRow) => o.client };
+    case "canal":
+      return { orders: (o: OrderRow) => channelLabel(o.channel) };
     case "via_pago":
-      return { orders: (o: OrderRow) => (o.paymentMethod ? PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod : "Sin método") };
+      return { orders: (o: OrderRow) => paymentLabel(o.paymentMethod) };
     case "categoria_gasto":
       return { expenses: (e: ExpenseRow) => e.category?.trim() || "Sin categoría" };
   }
@@ -269,7 +282,9 @@ export function aggregate(
   if (dimension === "total") {
     return [{ label: "Total", value: value(cur, "Total"), ...(prev ? { compareValue: value(prev, "Total") } : {}) }];
   }
-  const rows = [...cur.keys()].map((label) => ({
+  // Con comparación, las filas son la unión de claves: así «Anterior» suma lo mismo que el KPI anterior.
+  const keys = prev ? [...new Set([...cur.keys(), ...prev.keys()])] : [...cur.keys()];
+  const rows = keys.map((label) => ({
     label,
     value: value(cur, label),
     ...(prev ? { compareValue: value(prev, label) } : {}),
