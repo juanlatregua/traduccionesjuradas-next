@@ -115,7 +115,7 @@ La precisión del conteo de palabras determina directamente el precio del presup
 
 **Método de conteo:**
 1. Lee TODO el texto visible del documento en el idioma source (el que se traduce).
-2. Cuenta las palabras reales que ves, no estimes a ojo. Cada palabra separada por espacio cuenta como 1.
+2. Cuenta las palabras reales que ves, no estimes a ojo. Cada palabra separada por espacio cuenta como 1, y los números (fechas, importes, códigos, "2017", "1,210") también cuentan como palabras, igual que en Microsoft Word.
 3. En documentos bilingües (ej: húngaro/inglés), cuenta SOLO el idioma que se va a traducir al español.
 4. En documentos bilingües francés/árabe (Marruecos), cuenta SOLO el francés.
 5. En documentos oficiales españoles CO-OFICIALES de contenido idéntico en paralelo (castellano + català/gallego/euskera): transcríbelo completo y marca "is_bilingual_duplicate": true; el sistema divide el conteo entre 2 (NO cuentes tú una sola columna en ese caso).

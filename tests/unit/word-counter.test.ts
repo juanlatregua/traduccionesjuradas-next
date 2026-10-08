@@ -42,21 +42,30 @@ test("cuenta ordinales con letras", () => {
   assert.equal(countDocumentWords("2º Ofício"), 2);
 });
 
-test("excluye números puros", () => {
-  assert.equal(countDocumentWords("019570 01 55 1995 1 00041 113 0011890 39"), 0);
-  assert.equal(countDocumentWords("012.345.678-90"), 0);
-  assert.equal(countDocumentWords("65,48"), 0);
-  assert.equal(countDocumentWords("3,28"), 0);
-  assert.equal(countDocumentWords("0,00"), 0);
-  assert.equal(countDocumentWords("12/03/2024"), 0);
-  assert.equal(countDocumentWords("123 456 789"), 0);
+test("cuenta números como palabras (como Word)", () => {
+  assert.equal(countDocumentWords("019570 01 55 1995 1 00041 113 0011890 39"), 9);
+  assert.equal(countDocumentWords("012.345.678-90"), 1);
+  assert.equal(countDocumentWords("65,48"), 1);
+  assert.equal(countDocumentWords("12/03/2024"), 1);
+  assert.equal(countDocumentWords("123 456 789"), 3);
+  assert.equal(countDocumentWords("2017 1,210 0.01 11-15 8,488"), 5);
 });
 
-test("mantiene palabras junto a números excluidos", () => {
-  assert.equal(countDocumentWords("MATRÍCULA: 019570 01 55 1995"), 1);
-  assert.equal(countDocumentWords("nº 41.113"), 1);
-  assert.equal(countDocumentWords("CPF nº 012.345.678-90"), 2);
-  assert.equal(countDocumentWords("R$ 65,48"), 1);
+test("números junto a palabras", () => {
+  assert.equal(countDocumentWords("MATRÍCULA: 019570 01 55 1995"), 5);
+  assert.equal(countDocumentWords("R$ 65,48"), 2);
+});
+
+test("muestra de carta de suscripción", () => {
+  assert.equal(
+    countDocumentWords("Dated 12 September 2016: 1,210 H ordinary shares at EUR 0.01 (total 8,488)"),
+    13
+  );
+});
+
+test("no cuenta puntuación suelta, viñetas ni guiones bajos", () => {
+  assert.equal(countDocumentWords("____ - • … ——"), 0);
+  assert.equal(countDocumentWords("____ - • texto"), 1);
 });
 
 test("excluye puntuación decorativa", () => {
@@ -69,9 +78,9 @@ test("cuenta fórmulas de firma", () => {
   assert.equal(countDocumentWords("Dou fé Maria da Silva Pereira Tabeliã de Notas"), 9);
 });
 
-test("cuenta etiquetas emolumentos, excluye importes", () => {
+test("cuenta etiquetas e importes de emolumentos", () => {
   const line = "EMOLUMENTO R$ 65,48 FERMOJU R$ 3,28";
-  assert.equal(countDocumentWords(line), 4);
+  assert.equal(countDocumentWords(line), 6);
 });
 
 test("incluye acentos y caracteres latinos extendidos", () => {
@@ -79,11 +88,11 @@ test("incluye acentos y caracteres latinos extendidos", () => {
   assert.equal(countDocumentWords("Certidão de Nascimento"), 3);
 });
 
-test("mezcla de palabras y números puros", () => {
-  assert.equal(countDocumentWords("Livro 019570 Folha 01 Termo 55"), 3);
+test("mezcla de palabras y números", () => {
+  assert.equal(countDocumentWords("Livro 019570 Folha 01 Termo 55"), 6);
 });
 
-test("texto acta brasileña — página 1 (~433 palabras Word), contador devuelve 420-440", () => {
+test("texto acta brasileña — página 1 (letras + números, como Word), contador devuelve 455-470", () => {
   const text = `REPÚBLICA FEDERATIVA DO BRASIL
 ESTADO DO CEARÁ
 REGISTRO CIVIL DAS PESSOAS NATURAIS
@@ -111,8 +120,8 @@ Cartório Maciel — 1º Tabelionato de Notas — Fortim-CE
 EMOLUMENTO R$ 65,48 FERMOJU R$ 3,28 FAADEP R$ 1,32 FRMP R$ 0,66 ISS R$ 3,28 IBS R$ 0,00 CBS R$ 0,00 SELO IA 23CE02841521`;
 
   const count = countDocumentWords(text);
-  assert.ok(count >= 420, `Expected >= 420 words, got ${count}`);
-  assert.ok(count <= 440, `Expected <= 440 words, got ${count}`);
+  assert.ok(count >= 455, `Expected >= 455 words, got ${count}`);
+  assert.ok(count <= 470, `Expected <= 470 words, got ${count}`);
 });
 
 // ==================== BILINGÜE CO-OFICIAL (ca/es) ====================

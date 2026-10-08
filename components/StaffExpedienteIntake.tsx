@@ -89,6 +89,7 @@ type DocRow = {
   hasApostille?: boolean;
   mode?: "text" | "vision";
   unitPrice: number; // editable, pre-IVA (coste TOTAL de la linea)
+  clientPrice?: number; // precio cliente fijado desde «Ya presupuestado» (anula coste × margen)
   wordRate?: number; // €/palabra de esta linea (modo "palabra"); unitPrice = words × wordRate
   // true = precio gestionado por el engine (se re-calcula al cambiar el idioma
   // destino del expediente); editarlo a mano lo desactiva.
@@ -173,6 +174,43 @@ const LANGS: { code: string; name: string }[] = [
 
 const CONCURRENCY = 3;
 const ACCEPTED = ".pdf,.jpg,.jpeg,.png,.heic,.tiff,.tif,.webp";
+
+type PriorPrice = {
+  unitPrice: number;
+  supplierUnitCost: number | null;
+  quoteNumber: string;
+  issuedAt: string;
+  status: string;
+  translatorName: string | null;
+};
+
+const priorKey = (source: string, target: string, label: string) => `${source}>${target}|${label}`;
+
+const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const eur = (n: number) => `${n.toLocaleString("es-ES", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })} €`;
+
+function PriorPricesHint({ matches, onUse }: { matches?: PriorPrice[]; onUse: (m: PriorPrice) => void }) {
+  if (!matches?.length) return null;
+  return (
+    <div className="mt-1 space-y-0.5 text-[11px] text-slate-400">
+      {matches.map((m) => {
+        const dt = new Date(m.issuedAt);
+        return (
+          <p key={m.quoteNumber + m.unitPrice} className="flex flex-wrap items-center gap-x-1">
+            <span>
+              Ya presupuestado: <strong className="text-slate-200">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
+              {m.supplierUnitCost != null ? ` · traductor ${eur(m.supplierUnitCost)}` : ""}
+              {m.status === "PAID" || m.status === "IN_PROGRESS" || m.status === "DELIVERED" ? " · pagado" : ""}
+            </span>
+            <button type="button" onClick={() => onUse(m)} className="font-semibold text-cyan-400 underline hover:text-cyan-300">
+              Usar este precio
+            </button>
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 // Solo códigos de idioma reales del selector: el análisis puede devolver
 // "unknown" y NUNCA debe entrar en el estado ni en textos cara al cliente.
@@ -349,7 +387,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   }, []);
 
   const patch = useCallback((localId: string, data: Partial<DocRow>) => {
-    setDocs((prev) => prev.map((d) => (d.localId === localId ? { ...d, ...data } : d)));
+    setDocs((prev) =>
+      prev.map((d) =>
+        d.localId === localId
+          ? {
+              ...d,
+              ...data,
+              ...(["unitPrice", "sourceLang", "targetLang"].some((k) => k in data) && !("clientPrice" in data) ? { clientPrice: undefined } : {}),
+            }
+          : d
+      )
+    );
   }, []);
 
   // Nombre-IA: llamada barata "solo nombre" (sin contar palabras) para filas que
@@ -662,6 +710,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
               : keepB
                 ? b.unitPrice
                 : host.unitPrice,
+          clientPrice: priceMode === "word" && words ? undefined : keepB ? b.clientPrice : host.clientPrice,
           autoPriced: keepB ? false : host.autoPriced,
           priceNote: keepB ? undefined : host.priceNote,
           absorbedPages: absorbed.length ? absorbed : undefined,
@@ -734,7 +783,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     setDocs((prev) =>
       prev.map((d) =>
         isPriceable(d.status) && d.words && d.words > 0
-          ? { ...d, wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, autoPriced: false, priceNote: undefined }
+          ? { ...d, wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined }
           : d
       )
     );
@@ -800,6 +849,61 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     [marginPct, sourceLang, targetLang]
   );
 
+  const rowClientPrice = useCallback(
+    (d: DocRow) => (d.clientPrice != null ? d.clientPrice : clientPriceOf(d.unitPrice)),
+    [clientPriceOf]
+  );
+
+  const [priorPrices, setPriorPrices] = useState<Record<string, PriorPrice[]>>({});
+  const priorItems = useMemo(() => {
+    const seen = new Map<string, { source: string; target: string; label: string }>();
+    for (const d of docs) {
+      const label = (d.documentTypeEs || "").trim();
+      const source = knownLangCode(d.sourceLang) || sourceLang;
+      const target = knownLangCode(d.targetLang) || targetLang;
+      if (!label || !source || !target || !isPriceable(d.status)) continue;
+      seen.set(priorKey(source, target, label), { source, target, label });
+    }
+    return Array.from(seen.values());
+  }, [docs, sourceLang, targetLang]);
+  const priorSig = priorItems.map((i) => priorKey(i.source, i.target, i.label)).join("\n");
+  useEffect(() => {
+    if (!priorItems.length) return;
+    const t = setTimeout(() => {
+      fetch("/api/zona-traductor/expediente/prior-prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: priorItems }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.ok && d.matches) setPriorPrices(d.matches);
+        })
+        .catch(() => {});
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priorSig]);
+
+  const applyPriorPrice = useCallback(
+    (localId: string, m: PriorPrice) => {
+      setDocs((prev) =>
+        prev.map((d) =>
+          d.localId !== localId
+            ? d
+            : {
+                ...d,
+                clientPrice: m.unitPrice,
+                unitPrice: !d.unitPrice && m.supplierUnitCost != null ? m.supplierUnitCost : d.unitPrice,
+                autoPriced: false,
+                priceNote: undefined,
+              }
+        )
+      );
+    },
+    []
+  );
+
   const togglePaymentMethod = useCallback((m: string) => {
     setPaymentMethods((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
   }, []);
@@ -817,7 +921,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         lines: includedDocs.map((d) => ({
           description: d.documentTypeEs || d.fileName || "Linea",
           quantity: 1,
-          unitPrice: clientPriceOf(d.unitPrice),
+          unitPrice: rowClientPrice(d),
         })),
         discountType: discountPct > 0 ? "PERCENT" : "NONE",
         discountValue: discountPct,
@@ -825,7 +929,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         deliveryType,
         shippingBase: PAPER_SHIPPING_BASE_EUR,
       }),
-    [includedDocs, clientPriceOf, discountPct, deliveryType]
+    [includedDocs, rowClientPrice, discountPct, deliveryType]
   );
   const subtotal = quoteTotals.subtotal;
   const shipping = quoteTotals.shippingAmount;
@@ -955,7 +1059,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         return {
           description: parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
           quantity: 1,
-          unitPrice: clientPriceOf(d.unitPrice), // precio CLIENTE = coste × (1+margen)
+          unitPrice: rowClientPrice(d), // precio CLIENTE = coste × (1+margen)
           supplierUnitCost: d.unitPrice, // coste del traductor (interno)
           sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
           pageStart: d.pageStart,
@@ -999,7 +1103,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, clientPriceOf, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, rowClientPrice, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
 
   // "Pedir precio y dejar en espera" (19-sep-2026, orden de Juan: «hay momentos
   // que no quiero aventurarme»). Hace los DOS pasos en el único orden que ata la
@@ -1376,6 +1480,12 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                         </div>
                       </div>
                     )}
+                    {isPriceable(d.status) && (
+                      <PriorPricesHint
+                        matches={priorPrices[priorKey(knownLangCode(d.sourceLang) || sourceLang, knownLangCode(d.targetLang) || targetLang, (d.documentTypeEs || "").trim())]}
+                        onUse={(m) => applyPriorPrice(d.localId, m)}
+                      />
+                    )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-300">
                     {/* Editable también tras el análisis: la IA lee la apostilla (título en
@@ -1458,7 +1568,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                           min={0}
                           step="0.01"
                           value={d.unitPrice}
-                          onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value), autoPriced: false, priceNote: undefined })}
+                          onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value), clientPrice: undefined, autoPriced: false, priceNote: undefined })}
                           className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
                         />
                       )
@@ -1467,7 +1577,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                     )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-white">
-                    {isPriceable(d.status) ? `${clientPriceOf(d.unitPrice).toFixed(2)} €` : "—"}
+                    {isPriceable(d.status) ? `${rowClientPrice(d).toFixed(2)} €` : "—"}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1">
