@@ -40,6 +40,8 @@ export async function POST(req: Request) {
       words: body?.words,
       especificaciones: body?.especificaciones,
       candidatos: body?.candidatos,
+      // Staff en el constructor con candidatos elegidos: único camino que puede forzar un par de la casa.
+      forzarCasa: Array.isArray(body?.candidatos) && body!.candidatos!.length > 0,
       expedienteRef: body?.expedienteRef,
       customerHint: body?.customerHint,
       createdBy: staff.email ?? null,

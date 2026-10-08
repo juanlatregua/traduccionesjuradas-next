@@ -69,7 +69,8 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // menos las directas (hoy, en la práctica, solo Juan Amor si tiene canal).
   pt: [
     "nhucqnd3q4znddxhe8qs5c51", // Cristina Aguilera Viladés (PT>ES; aceptó 26_94B23C)
-    "1h8tul4zycnayru8bsi1tmu4", // María Carmen Lencastre De Albuquerque Charrua (PT>ES; aceptó 26_B39FE1)
+    // María Carmen Lencastre (1h8tul4zycnayru8bsi1tmu4) FUERA del carril desde el
+    // 8-oct-2026: ver LAVORI_NO_AVISAR.
     "rk1x2kq63rm6ba6mco7c6u2k", // Juan Amor Fernández (T-IJ 132, de/en/it/pt/ca)
   ],
   // Carril 14-ago-2026 (demanda GSC: mayor familia sin marca del site).
@@ -239,7 +240,7 @@ function sortDefaultsFirst(lang: string, miembros: LavoriMember[]): LavoriMember
 /** Cartera ESTÁTICA (respaldo) de una lengua; los del carril por defecto primero. */
 export function lavoriCarteraForLang(lang: string): LavoriMember[] {
   const l = String(lang || "").trim().toLowerCase();
-  return sortDefaultsFirst(l, LAVORI_MEMBERS.filter((m) => m.langs.includes(l)));
+  return sortDefaultsFirst(l, LAVORI_MEMBERS.filter((m) => m.langs.includes(l) && !LAVORI_NO_AVISAR[m.id]));
 }
 
 export function lavoriMemberName(id: string, cartera: LavoriMember[] = LAVORI_MEMBERS): string {
@@ -333,6 +334,7 @@ export async function isLavoriMemberAvailable(
   if (m.canal === false) return { ok: false, live: true, reason: "sin canal (ni email ni push)", nombre: m.nombre };
   if (m.enPaz) return { ok: false, live: true, reason: "en paz (no molestar)", nombre: m.nombre };
   if (m.disponible === false) return { ok: false, live: true, reason: "no está libre", nombre: m.nombre };
+  if (!tienePapelUnico(m)) return { ok: false, live: true, reason: "sin papel único firmado (no puede abrir los documentos)", nombre: m.nombre };
   return { ok: true, live: true, nombre: m.nombre };
 }
 
@@ -358,7 +360,7 @@ export async function fetchLavoriCartera(
     }
     const miembros = data.miembros
       .map(mapLavoriMiembro)
-      .filter((m): m is LavoriMember => Boolean(m && m.langs.includes(l)));
+      .filter((m): m is LavoriMember => Boolean(m && m.langs.includes(l) && !LAVORI_NO_AVISAR[m.id]));
     return { live: true, miembros: sortDefaultsFirst(l, miembros) };
   } catch (err) {
     return fallback(err instanceof Error ? err.message : String(err));
@@ -384,6 +386,35 @@ export const LAVORI_NO_AUTO: Record<string, string> = {
   imk4gzmqp0uhyfqku9fqs0mb: "Silvia Capón Sánchez: no está operativa",
 };
 
+/** Jurados a los que NO se les vuelve a avisar por NINGÚN camino (puerta, builder,
+ * ficha de pedido, directo, pago, reapertura): salen de la cartera que ve el
+ * motor y, por si acaso, de todo envío en sendLavoriSolicitud. A diferencia de
+ * LAVORI_NO_AUTO, no se pueden elegir ni a mano. Orden de Juan, cruce con lavori
+ * del 8-oct-2026. Siguen en LAVORI_MEMBER_COLLABORATOR_EMAIL: sus encargos
+ * pasados tienen que seguir asignándose. */
+export const LAVORI_NO_AVISAR: Record<string, string> = {
+  "1h8tul4zycnayru8bsi1tmu4": "María Carmen Lencastre De Albuquerque Charrua: no volver a avisarla (orden Juan 8-oct-2026)",
+  "0saaznz1jnylzn7ufmhd152c": "Margarita Aguiló Pastrana: «No me interesa» el 8-oct-2026, se le insistió 3 veces",
+};
+
+export function isLavoriNoAvisar(id: string | null | undefined): boolean {
+  return Boolean(id && LAVORI_NO_AVISAR[id]);
+}
+
+/** ¿Puede abrir los documentos? Sin papel único firmado lavori responde 403 al
+ * abrir el encargo (8-oct-2026: 33 avisos, ninguno abierto). Solo se descarta con
+ * `papelUnico === false` — la cartera estática no afirma nada de quien no marca. */
+export function tienePapelUnico(m: Pick<LavoriMember, "papelUnico">): boolean {
+  return m.papelUnico !== false;
+}
+
+/** Par «FR>ES» / «ES>FR» (con cualquier separador): lengua de la casa. */
+export function isCasaPar(par: string | null | undefined): boolean {
+  const [from, to] = String(par || "").trim().toLowerCase().split(/\s*(?:->|→|>|-)\s*/);
+  if (!from || !to) return false;
+  return (from === "es" && isCasaLang(to)) || (to === "es" && isCasaLang(from));
+}
+
 export function pickLavoriAuto(
   lang: string,
   cartera: LavoriMember[],
@@ -392,7 +423,9 @@ export function pickLavoriAuto(
 ): LavoriMember[] {
   const l = String(lang || "").toLowerCase();
   const carril = new Set(LAVORI_CANDIDATES[l] || []);
-  const receptores = cartera.filter((m) => m.canal !== false && !m.enPaz && !LAVORI_NO_AUTO[m.id]);
+  const receptores = cartera.filter(
+    (m) => m.canal !== false && !m.enPaz && !LAVORI_NO_AUTO[m.id] && !LAVORI_NO_AVISAR[m.id] && tienePapelUnico(m)
+  );
   if (receptores.length <= max) return receptores;
   const score = (m: LavoriMember) => {
     let s = 0;
@@ -434,28 +467,41 @@ export function applyLiveFallback(
   random: () => number = Math.random
 ): LiveRouteResult {
   if (!live) return { ok: true, route, respaldo: null };
-  const enCartera = new Set(cartera.map((m) => m.id));
-  const nombre = (id: string) => LAVORI_MEMBERS.find((m) => m.id === id)?.nombre || cartera.find((m) => m.id === id)?.nombre || id;
-  const deAlta = route.candidatos.filter((id) => enCartera.has(id));
-  const sinAlta = route.candidatos.filter((id) => !enCartera.has(id));
+  const porId = new Map(cartera.map((m) => [m.id, m] as const));
+  const nombre = (id: string) => LAVORI_MEMBERS.find((m) => m.id === id)?.nombre || porId.get(id)?.nombre || id;
+  // Quién NO puede recibirlo y por qué: sin alta (lavori rechaza el envío entero con
+  // 400), sin papel único (403 al abrir el documento: 33 avisos sin abrir, 8-oct-2026)
+  // o excluido a propósito (LAVORI_NO_AVISAR).
+  const motivoFuera = (id: string): string | null => {
+    if (LAVORI_NO_AVISAR[id]) return "excluido";
+    const m = porId.get(id);
+    if (!m) return "sin alta";
+    if (!tienePapelUnico(m)) return "sin papel único";
+    return null;
+  };
+  const deAlta = route.candidatos.filter((id) => !motivoFuera(id));
+  const sinAlta = route.candidatos.filter((id) => motivoFuera(id));
+  const quien = (ids: string[]) => ids.map((id) => `${nombre(id)} (${motivoFuera(id)})`).join(", ");
   if (sinAlta.length === 0) return { ok: true, route, respaldo: null };
   if (deAlta.length > 0) {
     return {
       ok: true,
       route: { ...route, candidatos: deAlta },
-      respaldo: { sinAlta, motivo: `fuera del envío por no estar de alta en lavori: ${sinAlta.map(nombre).join(", ")}` },
+      respaldo: { sinAlta, motivo: `fuera del envío por no poder recibirlo en lavori: ${quien(sinAlta)}` },
     };
   }
   const pick = pickLavoriAuto(route.lang, cartera, LAVORI_MAX_CANDIDATOS, random);
   if (pick.length === 0) {
     const vetados = cartera.filter((m) => LAVORI_NO_AUTO[m.id]).map((m) => m.nombre);
+    const sinPapel = cartera.filter((m) => !tienePapelUnico(m) && !LAVORI_NO_AUTO[m.id] && !LAVORI_NO_AVISAR[m.id]).map((m) => m.nombre);
     return {
       ok: false,
       sinAlta,
       error:
-        `nadie de alta en lavori para ${route.par}: el carril (${sinAlta.map(nombre).join(", ")}) no ha entrado nunca en lavori` +
-        (vetados.length ? ` y ${vetados.join(", ")} no recibe automáticos` : "") +
-        ". Pedirlo a mano o llamar al jurado del carril para que use su pase.",
+        `nadie de alta en lavori para ${route.par} que pueda abrir el documento: el carril (${quien(sinAlta)}) no puede` +
+        (vetados.length ? `; ${vetados.join(", ")} no recibe automáticos` : "") +
+        (sinPapel.length ? `; sin papel único firmado (no pueden abrir el documento): ${sinPapel.join(", ")}` : "") +
+        ". Pedirlo a mano a quien tenga papel único o llamar al jurado del carril para que use su pase.",
     };
   }
   return {
@@ -463,7 +509,7 @@ export function applyLiveFallback(
     route: { ...route, candidatos: pick.map((m) => m.id) },
     respaldo: {
       sinAlta,
-      motivo: `RESPALDO: el carril (${sinAlta.map(nombre).join(", ")}) no está de alta en lavori → enviado a la cartera viva de ${route.lang.toUpperCase()}: ${pick.map((m) => m.nombre).join(", ")}`,
+      motivo: `RESPALDO: el carril (${quien(sinAlta)}) no puede recibirlo en lavori → enviado a la cartera viva de ${route.lang.toUpperCase()} con papel único: ${pick.map((m) => m.nombre).join(", ")}`,
     },
   };
 }
@@ -493,6 +539,13 @@ export function resolveLavoriCandidatos(
       error: `Candidato fuera de la cartera de ${route.lang.toUpperCase()}: ${fuera.join(", ") || "(vacío)"}.`,
     };
   }
+  const sinPapel = cartera.filter((m) => ids.includes(m.id) && !tienePapelUnico(m)).map((m) => m.nombre);
+  if (sinPapel.length > 0) {
+    return {
+      ok: false,
+      error: `Sin papel único firmado (no pueden abrir los documentos, lavori responde 403): ${sinPapel.join(", ")}. Quítalos de la elección.`,
+    };
+  }
   if (ids.length > LAVORI_MAX_CANDIDATOS) {
     return {
       ok: false,
@@ -511,13 +564,17 @@ export function lavoriManualRoute(langPair: string | null | undefined, cartera: 
   // lavori rechaza la solicitud ENTERA (400) si un candidato no está libre
   // (caso AR 21-sep: Manuel Carmelo con disponible=false tumbaba a las otras dos).
   if (fixed) {
-    const noLibres = new Set(cartera.filter((m) => m.disponible === false).map((m) => m.id));
-    return { ...fixed, candidatos: fixed.candidatos.filter((id) => !noLibres.has(id)) };
+    // Tampoco los que no abrirían el documento (sin papel único) ni los excluidos.
+    const noLibres = new Set(cartera.filter((m) => m.disponible === false || !tienePapelUnico(m)).map((m) => m.id));
+    return { ...fixed, candidatos: fixed.candidatos.filter((id) => !noLibres.has(id) && !LAVORI_NO_AVISAR[id]) };
   }
   const parsed = lavoriLangFromPair(langPair);
   if (!parsed) return null;
   const candidatos = cartera
-    .filter((m) => m.langs.includes(parsed.lang) && m.canal !== false && !m.enPaz && m.disponible !== false)
+    .filter(
+      (m) =>
+        m.langs.includes(parsed.lang) && m.canal !== false && !m.enPaz && m.disponible !== false && tienePapelUnico(m) && !LAVORI_NO_AVISAR[m.id]
+    )
     .map((m) => m.id);
   return { lang: parsed.lang, par: parsed.par, candidatos };
 }
@@ -687,6 +744,33 @@ export type PrecioAceptadoResult =
   | { ok: false; conflicto: true; estado: string; aceptadoPor: string | null; loLlevoYo?: boolean }
   | { ok: false; conflicto?: false; error: string };
 
+const nameTokens = (x: string | null | undefined) =>
+  String(x || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 1);
+
+/** Misma persona si los tokens de uno caben en el otro («Maria Lourdes Yagüe» ⊂
+ * «María Lourdes Yagüe Lobo»); así un nombre más corto o sin tilde no dispara un cambio. */
+export function sameTranslatorName(a: string | null | undefined, b: string | null | undefined): boolean {
+  const ta = nameTokens(a);
+  const tb = nameTokens(b);
+  if (ta.length === 0 || tb.length === 0) return false;
+  const [corto, largo] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return corto.every((t) => largo.includes(t));
+}
+
+/** 409 de precio_aceptado: ¿el encargo está MUERTO (cancelado/caducado/retirado, nadie lo
+ * aceptó)? Entonces se reactiva con un dirigido nuevo; con aceptante, jamás. */
+export function isEncargoMuerto(estado: string | null | undefined, aceptadoPor: string | null | undefined): boolean {
+  if (aceptadoPor) return false;
+  const e = String(estado || "").trim().toLowerCase();
+  if (!e || e === "desconocido") return true;
+  return /cancel|caduc|expir|retir|vencid|descart|cerrad/.test(e);
+}
+
 export async function sendLavoriPrecioAceptado(payload: {
   ref: string; // motor_ref EXACTA del encargo en lavori (leads: LEAD-XXXX-precio)
   precioParaTi: string; // euros con 2 decimales — la cifra que propuso el traductor
@@ -736,7 +820,27 @@ export async function sendLavoriPrecioAceptado(payload: {
   }
 }
 
-export async function sendLavoriSolicitud(payload: SolicitudPayload): Promise<SolicitudResult> {
+/** Punto común de salida hacia lavori (puerta, builder, ficha de pedido, pago,
+ * directo, reapertura). Dos reglas que no dependen de quien llame:
+ * - Francés = Juan (CASA_LANGS): un par FR no sale, salvo `forzarCasa` (staff desde
+ *   el builder con candidatos elegidos A MANO). Hasta el 8-oct tres solicitudes
+ *   FR>ES fueron a 7 jurados por caminos que no miraban la regla.
+ * - Nadie de LAVORI_NO_AVISAR recibe nada, aunque lo traiga la lista. */
+export async function sendLavoriSolicitud(
+  payload: SolicitudPayload,
+  opts: { forzarCasa?: boolean } = {}
+): Promise<SolicitudResult> {
+  if (isCasaPar(payload.par) && !opts.forzarCasa) {
+    return {
+      ok: false,
+      error: `El par ${payload.par} lo jura la casa: no sale a lavori salvo que lo fuerces a mano desde el constructor con candidatos elegidos.`,
+    };
+  }
+  const aviso = payload.candidatos.filter((id) => !LAVORI_NO_AVISAR[id]);
+  if (aviso.length === 0) {
+    return { ok: false, error: "Todos los candidatos están excluidos de los avisos (LAVORI_NO_AVISAR): nadie a quien enviar." };
+  }
+  if (aviso.length !== payload.candidatos.length) payload = { ...payload, candidatos: aviso };
   const secret = process.env.MOTOR_LAVORI_SECRET;
   if (!secret) {
     return { ok: false, error: "MOTOR_LAVORI_SECRET no configurado en el motor." };

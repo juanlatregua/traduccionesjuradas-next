@@ -252,7 +252,7 @@ export async function routePuertaQuoteRequest(input: {
           lavoriEmail = `Pedir precio en lavori (${quien}) con un toque: ${lavoriOneTapUrl(token)}`;
           lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
         } else {
-          lavoriEmail = `Sin carril en lavori para este par${leadLang ? ` (${leadLang.toUpperCase()})` : ""}: presupuestar a mano.`;
+          lavoriEmail = `Sin carril en lavori para este par${leadLang ? ` (${leadLang.toUpperCase()})` : ""}: presupuestar a mano.${resolved ? " Ningún jurado del tablón puede recibirlo ahora (sin papel único firmado, sin canal o no libre): no se ha enviado nada a ciegas." : ""}`;
           lavoriSms = `Sin carril lavori. Montar presupuesto (docs dentro): ${builderUrl}`;
         }
       }
