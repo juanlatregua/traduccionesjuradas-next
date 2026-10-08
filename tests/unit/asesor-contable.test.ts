@@ -330,3 +330,38 @@ test("importes: «unos/aprox.» admite redondeos del dossier; sin marcador, no",
 test("números sueltos (fechas, referencias, recuentos) no se validan por coincidencia", () => {
   assert.deepEqual(invalidNumbers("El 15 de septiembre, pedido 2026-00099, factura 26_777, 7 pedidos, año 2026, 3T", dossierPct), []);
 });
+
+test("la base de un grupo con IVA se calcula una vez sobre el total, no sumando redondeos", () => {
+  // 2 × 10,00 €: por pedido 8,26 + 8,26 = 16,52; sobre el total 20,00 / 1,21 = 16,53.
+  const d = buildDossier(input({
+    orders: [ord({ reference: "2026-00050", paymentMethod: "BIZUM", amountCents: 1000 }), ord({ reference: "2026-00051", paymentMethod: "BIZUM", amountCents: 1000 })],
+  }));
+  assert.deepEqual(d.cobros_sin_factura.bizum, { pedidos: 2, total_eur: 20, base_eur: 16.53, iva_eur: 3.47 });
+});
+
+test("gastos de 0 € no salen como «por revisar»", () => {
+  const d = buildDossier(input({ expenses: [exp({ id: "z", needsReview: true, baseCents: 0, vatCents: 0, totalCents: 0 }), exp({ id: "y", needsReview: true })] }));
+  assert.equal(d.gastos_por_revisar_aparte.gastos, 1);
+  assert.equal(d.hallazgos.filter((h) => h.tipo === "gasto_por_revisar").length, 1);
+});
+
+test("un pedido Bizum sin coste sale solo como Bizum, mencionando lo otro", () => {
+  const d = buildDossier(input({
+    orders: [ord({ reference: "2026-00060", paymentMethod: "BIZUM", supplierCostCents: null, langPair: "es-en" }), ord({ reference: "2026-00061", supplierCostCents: null, langPair: "es-en", invoiceIssued: true })],
+  }));
+  assert.equal(d.hallazgos.filter((h) => h.texto.includes("2026-00060")).length, 1);
+  assert.match(d.hallazgos.find((h) => h.tipo === "cobro_sin_factura_bizum")!.texto, /además sin coste/);
+  assert.ok(d.hallazgos.some((h) => h.tipo === "pedido_sin_coste" && h.texto.includes("2026-00061")));
+});
+
+test("más de 12 hallazgos de un tipo pasan a un resumen, sin omitir nada en silencio", () => {
+  const orders = Array.from({ length: 14 }, (_, k) => ord({ reference: `2026-${String(100 + k).padStart(5, "0")}`, paymentMethod: "BIZUM", amountCents: 1000 }));
+  const d = buildDossier(input({ orders }));
+  const b = d.hallazgos.filter((h) => h.id.startsWith("B"));
+  assert.equal(b.length, 1);
+  assert.equal(b[0].tipo, "cobro_sin_factura_bizum_resumen");
+  assert.match(b[0].texto, /^14 cobros por Bizum sin factura, 140,00 €: 2026-00100, .* y 8 más$/);
+  assert.deepEqual(b[0].importes, { total_eur: 140, base_eur: 115.7, iva_eur: 24.3 });
+  assert.equal(b[0].enlaces.length, 14);
+  assert.equal("hallazgos_omitidos_por_limite" in d, false);
+});

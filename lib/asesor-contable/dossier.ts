@@ -256,17 +256,66 @@ const variation = (cur: number, prev: number): number | null => (prev === 0 ? nu
 // Desglose siempre completo: total, base y cuota de IVA.
 const amounts = (totalCents: number, baseCents: number) => ({ total_eur: eur(totalCents), base_eur: eur(baseCents), iva_eur: eur(totalCents - baseCents) });
 
+type HallazgoItem = { prefix: string; tipo: string; texto: string; importes: Hallazgo["importes"]; enlaces: Link[]; ref: string | null };
+const REF_RE = /\d{4}-\d{5}|\bP?\d{2}_\d{3,}\b/;
+// Hallazgos cuyos importes salen de un total con IVA: la base de un grupo se calcula UNA vez sobre el total.
+const GROSS_PREFIXES = new Set(["B", "A", "S", "K"]);
+const NOUN: Record<string, string> = {
+  cobro_sin_factura_bizum: "cobros por Bizum sin factura",
+  cobro_apartado: "cobros apartados de la facturación",
+  cobro_sin_factura: "cobros sin factura",
+  pedido_sin_coste: "pedidos sin coste registrado",
+  margen_no_positivo: "pedidos con margen igual o menor que cero",
+  devengo_pendiente: "devengos pendientes de factura",
+  factura_vencida: "facturas vencidas",
+  factura_pendiente_cobro: "facturas pendientes de cobro",
+  gasto_por_revisar: "gastos por revisar",
+  gasto_sin_adjunto: "gastos sin justificante",
+  gasto_sin_nif: "gastos sin NIF del proveedor",
+  posible_duplicado: "posibles duplicados",
+  hueco_numeracion: "huecos en la numeración",
+  numeracion_fuera_de_orden: "facturas con fecha fuera de orden",
+  ingreso_marca_atipica: "marcas atípicas con ingresos",
+};
+const fmtEur = (x: number) => x.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d),)/g, ".");
+
+/** Hasta MAX_PER_TYPE hallazgos individuales por tipo; por encima, UN resumen con importes y referencias (nada se omite en silencio). */
+function finalizeHallazgos(items: HallazgoItem[]): Hallazgo[] {
+  const groups = groupBy(items, (x) => x.prefix);
+  const out: Hallazgo[] = [];
+  for (const [prefix, xs] of groups) {
+    if (xs.length <= MAX_PER_TYPE) {
+      xs.forEach((x, k) => out.push({ id: `${prefix}${k + 1}`, tipo: x.tipo, texto: x.texto, importes: x.importes, enlaces: x.enlaces }));
+      continue;
+    }
+    const tipo = xs[0].tipo;
+    const withAmt = xs.filter((x) => x.importes);
+    const cents = (f: (a: NonNullable<HallazgoItem["importes"]>) => number | undefined) => sum(withAmt, (x) => Math.round((f(x.importes!) ?? 0) * 100));
+    let importes: Hallazgo["importes"] = null;
+    if (withAmt.length) {
+      const totalC = cents((a) => a.total_eur);
+      const baseC = GROSS_PREFIXES.has(prefix) ? Math.round(totalC / 1.21) : cents((a) => a.base_eur);
+      importes = { total_eur: eur(totalC), base_eur: eur(baseC), iva_eur: eur(totalC - baseC) };
+      if (withAmt.some((x) => x.importes!.margen_eur !== undefined)) importes.margen_eur = eur(cents((a) => a.margen_eur));
+    }
+    const refs = xs.map((x) => x.ref).filter((r): r is string => !!r);
+    const shown = refs.slice(0, 6);
+    const noun = NOUN[tipo] ?? tipo.replace(/_/g, " ");
+    const texto = `${xs.length} ${noun}${importes ? `, ${fmtEur(importes.total_eur ?? 0)} €` : ""}${shown.length ? `: ${shown.join(", ")}${refs.length > shown.length ? ` y ${refs.length - shown.length} más` : ""}` : ""}`;
+    const seen = new Set<string>();
+    const enlaces = xs.flatMap((x) => x.enlaces).filter((l) => (seen.has(l.url + l.label) ? false : (seen.add(l.url + l.label), true)));
+    out.push({ id: `${prefix}1`, tipo: `${tipo}_resumen`, texto, importes, enlaces });
+  }
+  return out;
+}
+
 export function buildDossier(input: DossierInput) {
   const { period: p } = input;
-  const hallazgos: Hallazgo[] = [];
-  const counters: Record<string, number> = {};
+  const items: HallazgoItem[] = [];
   // Los textos de los hallazgos van a la IA: solo números de factura/gasto/pedido,
   // categorías y tipos. Nunca nombres de clientes o colaboradores ni URLs.
-  const add = (prefix: string, tipo: string, texto: string, a: Hallazgo["importes"], enlaces: Link[]) => {
-    const n = (counters[prefix] = (counters[prefix] ?? 0) + 1);
-    if (n > MAX_PER_TYPE) return;
-    hallazgos.push({ id: `${prefix}${n}`, tipo, texto, importes: a, enlaces });
-  };
+  const add = (prefix: string, tipo: string, texto: string, a: Hallazgo["importes"], enlaces: Link[], ref?: string) =>
+    items.push({ prefix, tipo, texto, importes: a, enlaces, ref: ref ?? texto.match(REF_RE)?.[0] ?? null });
   const fromGross = (cents: number) => amounts(cents, Math.round(cents / 1.21));
 
   // 1. Ingresos facturados por marca (las anuladas no cuentan; las rectificativas restan).
@@ -285,20 +334,29 @@ export function buildDossier(input: DossierInput) {
     }));
   for (const [marca, xs] of groupBy(vivas, (i) => i.brand || "traduccionesjuradas")) {
     if (OWN_BRANDS.has(marca)) continue;
-    add("X", "ingreso_marca_atipica", `Ingresos de la marca «${marca}» (${xs.length} factura(s)): ¿a qué corresponden?`, amounts(sum(xs, (i) => i.totalCents), sum(xs, (i) => i.baseCents)), xs.map(invoiceLink));
+    add("X", "ingreso_marca_atipica", `Ingresos de la marca «${marca}» (${xs.length} factura(s)): ¿a qué corresponden?`, amounts(sum(xs, (i) => i.totalCents), sum(xs, (i) => i.baseCents)), xs.map(invoiceLink), `marca ${marca}`);
   }
 
   // 2. Cobros sin factura (ni suelta ni agrupada del mes).
+  const cobrados = input.orders.filter((o) => inPeriod(ordDate(o), p) && o.amountCents > 0);
+  const netoPedido = (o: RawOrder) => Math.round(o.amountCents / 1.21);
+  // Los pedidos FR propios llevan coste 0 a propósito: no cuentan como «sin coste».
+  const sinCoste = cobrados.filter((o) => o.supplierCostCents === null && !isFrPair(o.langPair));
+  const sinCosteRefs = new Set(sinCoste.map((o) => o.reference));
+  const sinCosteNota = (o: RawOrder) => (sinCosteRefs.has(o.reference) ? "; además sin coste de traducción registrado" : "");
   const sinFactura = input.orders.filter((o) => inPeriod(ordDate(o), p) && o.amountCents > 0 && !o.invoiceIssued && !o.monthlyInvoiceIssued);
   const isBizum = (o: RawOrder) => String(o.paymentMethod || "").toUpperCase() === "BIZUM";
   const bizum = sinFactura.filter(isBizum);
   const apartados = sinFactura.filter((o) => !isBizum(o) && o.billingExcluded);
   const otros = sinFactura.filter((o) => !isBizum(o) && !o.billingExcluded);
   const byAmount = (xs: RawOrder[]) => [...xs].sort((a, b) => b.amountCents - a.amountCents || a.reference.localeCompare(b.reference));
-  for (const o of byAmount(bizum)) add("B", "cobro_sin_factura_bizum", `Pedido ${o.reference} cobrado por Bizum el ${madridDay(ordDate(o))}, sin factura`, fromGross(o.amountCents), [orderLink(o.reference)]);
-  for (const o of byAmount(apartados)) add("A", "cobro_apartado", `Pedido ${o.reference} apartado de la facturación`, fromGross(o.amountCents), [orderLink(o.reference)]);
-  for (const o of byAmount(otros)) add("S", "cobro_sin_factura", `Pedido ${o.reference} cobrado el ${madridDay(ordDate(o))} (${o.paymentMethod ?? "método sin registrar"}) sin factura emitida`, fromGross(o.amountCents), [orderLink(o.reference)]);
-  const grossGroup = (xs: RawOrder[]) => ({ pedidos: xs.length, ...amounts(sum(xs, (o) => o.amountCents), sum(xs, (o) => Math.round(o.amountCents / 1.21))) });
+  for (const o of byAmount(bizum)) add("B", "cobro_sin_factura_bizum", `Pedido ${o.reference} cobrado por Bizum el ${madridDay(ordDate(o))}, sin factura${sinCosteNota(o)}`, fromGross(o.amountCents), [orderLink(o.reference)]);
+  for (const o of byAmount(apartados)) add("A", "cobro_apartado", `Pedido ${o.reference} apartado de la facturación${sinCosteNota(o)}`, fromGross(o.amountCents), [orderLink(o.reference)]);
+  for (const o of byAmount(otros)) add("S", "cobro_sin_factura", `Pedido ${o.reference} cobrado el ${madridDay(ordDate(o))} (${o.paymentMethod ?? "método sin registrar"}) sin factura emitida${sinCosteNota(o)}`, fromGross(o.amountCents), [orderLink(o.reference)]);
+  const grossGroup = (xs: RawOrder[]) => {
+    const total = sum(xs, (o) => o.amountCents);
+    return { pedidos: xs.length, ...amounts(total, Math.round(total / 1.21)) };
+  };
 
   // 3. Gastos reales. Fuera los devengos (se cuentan por su factura al liquidarse)
   // y, como en la página de Contabilidad, los «por revisar» (recurrentes sin
@@ -319,7 +377,7 @@ export function buildDossier(input: DossierInput) {
   const liquidados = devengos.filter((d) => d.settledById);
   const pendientesDev = devengos.filter((d) => !d.settledById);
   for (const d of [...pendientesDev].sort((a, b) => b.baseCents - a.baseCents || a.id.localeCompare(b.id))) {
-    add("P", "devengo_pendiente", `Devengo pendiente de la factura de un colaborador${d.orderReference ? ` (pedido ${d.orderReference})` : ""}, del ${madridDay(d.date)}`, amounts(d.totalCents, d.baseCents), d.orderReference ? [orderLink(d.orderReference)] : [expenseLink(d)]);
+    add("P", "devengo_pendiente", `Devengo pendiente de la factura de un colaborador${d.orderReference ? ` (pedido ${d.orderReference})` : ""}, del ${madridDay(d.date)}`, amounts(d.totalCents, d.baseCents), d.orderReference ? [orderLink(d.orderReference)] : [expenseLink(d)], d.orderReference ?? `devengo del ${madridDay(d.date)}`);
   }
 
   // 4. IVA y IRPF: MISMA fuente que la página de Contabilidad (aggregateFiscal).
@@ -336,29 +394,26 @@ export function buildDossier(input: DossierInput) {
   const invGroup = (xs: RawInvoice[]) => ({ facturas: xs.length, base_eur: eur(sum(xs, (i) => i.baseCents)), iva_eur: eur(sum(xs, (i) => i.vatCents)), total_eur: eur(sum(xs, (i) => i.totalCents)) });
 
   // 6. Gastos que piden revisión.
-  const necesitaRev = reales.filter((e) => e.needsReview);
+  const necesitaRev = reales.filter((e) => e.needsReview && (e.baseCents !== 0 || e.totalCents !== 0));
   const sinAdjunto = confirmados.filter((e) => !e.attachmentUrl && !isPayrollOrTgss(e));
   const sinNif = confirmados.filter((e) => !e.supplierNif && e.baseCents > 0);
   const gastoTxt = (e: RawExpense) => `de ${e.category || "sin categoría"} del ${madridDay(e.date)}${e.supplierInvoiceNumber ? ` (factura ${e.supplierInvoiceNumber})` : ""}`;
   const eAmounts = (e: RawExpense) => amounts(e.totalCents, e.baseCents);
-  for (const e of necesitaRev) add("R", "gasto_por_revisar", `Gasto ${gastoTxt(e)} marcado «por revisar» (no está en las cifras de gastos ni de IVA)`, eAmounts(e), [expenseLink(e)]);
-  for (const e of sinAdjunto) add("J", "gasto_sin_adjunto", `Gasto ${gastoTxt(e)} sin justificante adjunto`, eAmounts(e), [expenseLink(e)]);
-  for (const e of sinNif.filter((x) => x.attachmentUrl)) add("I", "gasto_sin_nif", `Gasto ${gastoTxt(e)} sin NIF del proveedor`, eAmounts(e), [expenseLink(e)]);
+  for (const e of necesitaRev) add("R", "gasto_por_revisar", `Gasto ${gastoTxt(e)} marcado «por revisar» (no está en las cifras de gastos ni de IVA)`, eAmounts(e), [expenseLink(e)], `gasto ${gastoTxt(e)}`);
+  for (const e of sinAdjunto) add("J", "gasto_sin_adjunto", `Gasto ${gastoTxt(e)} sin justificante adjunto`, eAmounts(e), [expenseLink(e)], `gasto ${gastoTxt(e)}`);
+  for (const e of sinNif.filter((x) => x.attachmentUrl)) add("I", "gasto_sin_nif", `Gasto ${gastoTxt(e)} sin NIF del proveedor`, eAmounts(e), [expenseLink(e)], `gasto ${gastoTxt(e)}`);
 
   // 7. Margen por pedido (cobrados en el periodo). Base = total / 1,21.
-  // Los pedidos FR propios llevan coste 0 a propósito: no cuentan como «sin coste».
-  const cobrados = input.orders.filter((o) => inPeriod(ordDate(o), p) && o.amountCents > 0);
-  const netoPedido = (o: RawOrder) => Math.round(o.amountCents / 1.21);
-  const sinCoste = cobrados.filter((o) => o.supplierCostCents === null && !isFrPair(o.langPair));
   const conCoste = cobrados.filter((o) => o.supplierCostCents !== null);
   const margenNoPos = conCoste.filter((o) => netoPedido(o) - (o.supplierCostCents ?? 0) <= 0 && !(isFrPair(o.langPair) && o.supplierCostCents === 0));
   for (const o of margenNoPos) add("M", "margen_no_positivo", `Pedido ${o.reference} con margen igual o menor que cero`, { ...fromGross(o.amountCents), margen_eur: eur(netoPedido(o) - (o.supplierCostCents ?? 0)) }, [orderLink(o.reference)]);
-  for (const o of sinCoste) add("K", "pedido_sin_coste", `Pedido ${o.reference} cobrado sin coste de traducción registrado`, fromGross(o.amountCents), [orderLink(o.reference)]);
+  const yaEnSinFactura = new Set(sinFactura.map((o) => o.reference)); // el hallazgo más grave ya lo menciona
+  for (const o of sinCoste.filter((x) => !yaEnSinFactura.has(x.reference))) add("K", "pedido_sin_coste", `Pedido ${o.reference} cobrado sin coste de traducción registrado`, fromGross(o.amountCents), [orderLink(o.reference)]);
 
   // 8. Duplicados.
   const dups = findDuplicateExpenses(input.expenses, p);
   for (const [a, b] of dups) {
-    add("D", "posible_duplicado", `Posible duplicado: gasto ${gastoTxt(a)} y gasto ${gastoTxt(b)}, mismo importe y proveedor con pocos días de diferencia`, eAmounts(a), [expenseLink(a), expenseLink(b)]);
+    add("D", "posible_duplicado", `Posible duplicado: gasto ${gastoTxt(a)} y gasto ${gastoTxt(b)}, mismo importe y proveedor con pocos días de diferencia`, eAmounts(a), [expenseLink(a), expenseLink(b)], `gasto ${gastoTxt(a)}`);
   }
 
   // 9. Numeración de la serie del año del periodo (el orden de fechas, solo dentro del periodo).
@@ -368,6 +423,7 @@ export function buildDossier(input: DossierInput) {
   for (const h of num.huecos) add("N", "hueco_numeracion", `Falta el número ${h} en la serie de facturas`, null, [{ label: "Facturas", url: "/zona-traductor/facturas" }]);
   for (const [a, b] of fueraDeOrden) add("O", "numeracion_fuera_de_orden", `La factura ${b.number} (${madridDay(invDate(b))}) tiene fecha anterior a la ${a.number} (${madridDay(invDate(a))})`, null, [invoiceLink(a), invoiceLink(b)]);
 
+  const hallazgos = finalizeHallazgos(items);
   const pendienteDevCents = sum(pendientesDev, (d) => d.baseCents);
   const res = resultado(input, p);
   const prevRes = input.previousPeriod ? resultado(input, input.previousPeriod) : null;
@@ -460,7 +516,7 @@ export function buildDossier(input: DossierInput) {
     margen_por_pedido: {
       pedidos_cobrados: cobrados.length,
       sin_coste_registrado: sinCoste.length,
-      sin_coste: amounts(sum(sinCoste, (o) => o.amountCents), sum(sinCoste, netoPedido)),
+      sin_coste: amounts(sum(sinCoste, (o) => o.amountCents), Math.round(sum(sinCoste, (o) => o.amountCents) / 1.21)),
       margen_no_positivo: margenNoPos.length,
       margen_medio_pedidos_con_coste_pct: pct(margenCoste, sum(conCoste, netoPedido)),
     },
@@ -473,7 +529,6 @@ export function buildDossier(input: DossierInput) {
       fuera_de_orden: fueraDeOrden.length,
     },
     hallazgos,
-    hallazgos_omitidos_por_limite: Object.values(counters).reduce((s, n) => s + Math.max(0, n - MAX_PER_TYPE), 0),
   };
 }
 
