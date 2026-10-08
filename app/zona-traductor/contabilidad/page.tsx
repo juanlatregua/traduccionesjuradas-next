@@ -11,6 +11,8 @@ import ContabilidadClient, { type AcInvoice, type AcOrder, type AcExpense, type 
 import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 import ReconcilePanel from "@/components/ReconcilePanel";
 import BankReconcilePanel from "@/components/BankReconcilePanel";
+import AsesorContableIA from "@/components/AsesorContableIA";
+import { periodOptions } from "@/lib/asesor-contable/dossier";
 import CollaboratorAccountPanel, { type CollaboratorAccountGroup } from "@/components/CollaboratorAccountPanel";
 
 export const metadata: Metadata = {
@@ -157,6 +159,7 @@ export default async function ZonaTraductorContabilidadPage() {
               ))}
           </div>
         </div>
+        {role === "ADMIN" && <AsesorContableIA periods={periodOptions(new Date())} />}
         <ContabilidadClient
           invoices={invoices}
           orders={orders}
