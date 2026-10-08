@@ -6,6 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed, periodLabel } from "@/lib/credit-terms";
 import { PersonIndex, chaseState, solicitudChase, consolidate, duplicateOf, intermediaryEmails, personKeys, primaryKey, textKeys, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
 import { vigiaMarkUrl } from "@/lib/vigia-mark";
+import { SEND_OVERDUE_HOURS, deduceLostReason, hasHumanOpen, whatsappNudgeText, isPlaceholderAddr } from "@/lib/cierre-math";
+import { findCostGapOrders, hasPaidSibling } from "@/lib/cierre";
+import { cierreLostReasonUrl } from "@/lib/cierre-token";
+import { QUOTE_LOST_REASONS, QUOTE_LOST_REASON_LABELS, effectiveLostReasonLabel } from "@/lib/quote-lost-reasons";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const MARGIN_PCT = 12; // horquilla de Juan 10-15 % sobre el coste del jurado (24-ago-2026)
@@ -108,7 +112,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       // Sin pedido: los de carril de crédito ya tienen pedido y se persiguen por su factura.
       where: { deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] }, orders: { none: {} } },
       orderBy: { sentAt: "asc" },
-      include: { messageLogs: { where: { createdAt: { gte: new Date(NOW.getTime() - 90 * 864e5) } }, select: { channel: true, type: true, status: true, subject: true, sentAt: true, createdAt: true } }, _count: { select: { accessEvents: true } } },
+      include: { messageLogs: { where: { createdAt: { gte: new Date(NOW.getTime() - 90 * 864e5) } }, select: { channel: true, type: true, status: true, subject: true, sentAt: true, createdAt: true } }, _count: { select: { accessEvents: true } }, accessEvents: { select: { userAgent: true } } },
     }),
     // Marcas «Ya lo traté» / «Posponer» (app/api/vigia/marca): FunnelEvent «vigia:<clave>».
     prisma.funnelEvent.findMany({ where: { step: { in: ["vigia_tratado", "vigia_posponer"] }, createdAt: { gte: new Date(NOW.getTime() - 8 * 864e5) } }, select: { sessionId: true, step: true, createdAt: true, metadata: true } }).catch(() => []),
@@ -239,6 +243,11 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     } else if ((s.status === "PRICED" || s.status === "ACCEPTED") && !q && coste != null) {
       situacion = `${s.status} ${eur(coste!)} por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
       accion = `montar presupuesto: coste ${eur(coste!)} + ${MARGIN_PCT} % = ${eur(sugerido!)} neto → ${eur(sugerido! * VAT)} con IVA`;
+      const hPrecio = hoursAgo(s.updatedAt) ?? 0;
+      if (hPrecio >= SEND_OVERDUE_HOURS) {
+        accion = `EMITIR: precio del jurado hace ${hPrecio} h y sin presupuesto (${accion})`;
+        actSol(sugerido!, 6, `EMITIR presupuesto a ${s.customerHint || s.ref} (${s.par}): el jurado puso ${eur(coste!)} hace ${hPrecio} h y no hay presupuesto enviado → ${eur(sugerido!)} +IVA = ${eur(sugerido! * VAT)}`, builder, px);
+      } else
       actSol(sugerido!, 4, `Presupuesto a ${s.customerHint || s.ref} (${s.par}): coste ${eur(coste!)} de ${s.miembroNombre || "?"} → ${eur(sugerido!)} +IVA = ${eur(sugerido! * VAT)}`, builder, px);
     } else if (s.status === "ACCEPTED" && !q && coste == null) {
       situacion = `ACCEPTED SIN CIFRA por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
@@ -246,6 +255,12 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       actSol((s.words || 400) * 0.1, 4, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}): ${s.miembroNombre || "el jurado"} aceptó SIN cifra → acordar coste y montar presupuesto`, builder, px);
     } else if ((s.status === "PRICED" || s.status === "ACCEPTED") && q) {
       situacion = `${s.status} ${coste != null ? eur(coste) : "sin cifra"} → presupuesto ${q.quoteNumber} ${q.status} (${eur(Number(q.total))})`;
+      // Precio dado y el borrador atado sigue sin enviar pasadas 2 h: es la fuga de los 23 casos.
+      const hPrecio = hoursAgo(s.updatedAt) ?? 0;
+      if (q.status === "DRAFT" && s.status === "PRICED" && hPrecio >= SEND_OVERDUE_HOURS) {
+        accion = `EMITIR: ${q.quoteNumber} en borrador, el jurado puso precio hace ${hPrecio} h → revisar y enviar`;
+        actSol(Number(q.total), 6, `EMITIR ${q.quoteNumber} (${s.customerHint || s.ref}, ${s.par}) ${eur(Number(q.total))}: precio del jurado hace ${hPrecio} h y el presupuesto sigue en borrador → revisar y enviar`, builder, px);
+      }
     }
     return {
       ref: s.ref, par: s.par, status: s.status, creada: madrid(s.createdAt), cliente: s.customerHint || "", docs: s.docsCount, palabras: s.words,
@@ -302,29 +317,50 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     const chase = chaseState(q.messageLogs.map((m) => ({ channel: m.channel, type: m.type, status: m.status, at: m.sentAt ?? m.createdAt, body: m.subject })), marksByKey.get(`q:${q.id}`) || [], NOW, q._count.accessEvents);
     const reminders = q.messageLogs.filter((m) => m.type === "REMINDER" && m.status === "SENT").length;
     const smsFailed = q.messageLogs.some((m) => m.channel === "SMS" && m.status === "FAILED");
-    const opened = q.status === "OPENED" || !!q.openedAt;
+    const opened = q.status === "OPENED" || !!q.openedAt || hasHumanOpen(q.accessEvents);
+    const waSinAbrir = isPlaceholderAddr(q.customerEmail) && !opened && (hoursAgo(sent) ?? 0) >= 24;
     const caducado = !!q.validUntil && new Date(q.validUntil) < NOW;
     const avisadoCaducado = chase.touches >= 1 || q.messageLogs.some((m) => m.type === "EXPIRED_NOTICE" && m.status === "SENT");
     let accion: string;
     if (caducado) accion = avisadoCaducado ? `caducado el ${madrid(q.validUntil)} y ya avisado → dejarlo o marcar "No aceptado"` : `caducado el ${madrid(q.validUntil)} → último toque por WhatsApp o marcar "No aceptado"`;
     else if (q.status === "ACCEPTED") accion = `ya aceptó y no ha pagado → reenviar enlace de pago`;
     else if (chase.touches >= MAX_TOUCHES) accion = `ya tocado ${chase.touches} veces sin respuesta → marcar "No aceptado"`;
+    else if (waSinAbrir) accion = `WhatsApp a ${q.customerName}: no ha abierto el presupuesto → ${whatsappNudgeText({ lang: q.pdfLang, name: q.customerName, quoteNumber: q.quoteNumber, payUrl: `${SITE}/q/${q.publicToken}` })}`;
     else if (smsFailed || smsDead(phone)) accion = `SMS muerto (Twilio Geo) → recordatorio a mano por WhatsApp${q.customerEmail.endsWith("@whatsapp.local") ? "" : " o email"}`;
     else if (d >= 3 && !opened) accion = `${d} días sin abrir → WhatsApp corto: "¿lo recibiste?"`;
     else if (d >= 3 && opened) accion = `abierto y sin pagar ${d} días → preguntar qué le frena (precio/plazo)`;
     else accion = `reciente (${d} d) → esperar; el cron recuerda solo`;
-    if (d >= 2 || q.status === "ACCEPTED") {
+    if (d >= 2 || q.status === "ACCEPTED" || waSinAbrir) {
       const quien = `presupuesto ${q.quoteNumber}`;
       if (caducado && avisadoCaducado) ocultos.push({ quien, motivo: "caducado, ya avisado" });
       else if (chase.hidden) ocultos.push({ quien, motivo: chase.reason! });
       else {
         const urg = caducado ? 1 : q.status === "ACCEPTED" ? 4 : chase.touches >= MAX_TOUCHES ? 1 : 2;
-        act(Number(q.total), urg, `Presupuesto ${q.quoteNumber} ${eur(Number(q.total))} (${q.customerName}, ${pairOf(q.sourceLang, q.targetLang)}): ${accion.split("→")[1]?.trim() || accion}`, waLink(phone) || `${SITE}/zona-traductor/presupuestos/${q.id}`, personExtra(root, q.id, { key: `q:${q.id}`, line: chase.line }));
+        act(Number(q.total), urg, waSinAbrir && !caducado && q.status !== "ACCEPTED" && chase.touches < MAX_TOUCHES ? `WhatsApp a ${q.customerName}: no ha abierto el presupuesto ${q.quoteNumber} (${eur(Number(q.total))}, ${pairOf(q.sourceLang, q.targetLang)}). Texto: «${accion.split("→")[1]?.trim()}»` : `Presupuesto ${q.quoteNumber} ${eur(Number(q.total))} (${q.customerName}, ${pairOf(q.sourceLang, q.targetLang)}): ${accion.split("→")[1]?.trim() || accion}`, waLink(phone) || `${SITE}/zona-traductor/presupuestos/${q.id}`, personExtra(root, q.id, { key: `q:${q.id}`, line: chase.line }));
       }
     }
     return { numero: q.quoteNumber, cliente: q.customerName, email: q.customerEmail, phone, wa: waLink(phone), par: pairOf(q.sourceLang, q.targetLang), total: Number(q.total), status: q.status, enviado: madrid(sent), dias: d, abierto: opened, recordatorios: reminders, smsFallido: smsFailed, caducado, accion, estado: chase.line, link: `${SITE}/zona-traductor/presupuestos/${q.id}` };
   });
-  const lost = await prisma.quote.findMany({ where: { deletedAt: null, status: "EXPIRED", updatedAt: { gte: SINCE } }, select: { quoteNumber: true, total: true, customerName: true, lostReason: true, sourceLang: true, targetLang: true } });
+  const lostRows = await prisma.quote.findMany({
+    where: { deletedAt: null, status: "EXPIRED", updatedAt: { gte: SINCE } },
+    select: { id: true, quoteNumber: true, total: true, customerName: true, customerEmail: true, lostReason: true, lostReasonNote: true, sourceLang: true, targetLang: true, sentAt: true, openedAt: true, paidAt: true, expedienteRef: true, accessEvents: { select: { userAgent: true } } },
+  });
+  // Motivo de pérdida (cierre, 8-oct): el humano manda; si no hay, se deduce (sustituido / no abierto);
+  // si lo abrió y no pagó, tarea de un clic para Juan con los motivos del catálogo.
+  const lost = [];
+  for (const l of lostRows) {
+    let motivo = effectiveLostReasonLabel(l);
+    let deducido = false;
+    if (!motivo && l.sentAt && !l.paidAt) {
+      const code = deduceLostReason({ replacedByPaid: await hasPaidSibling(l).catch(() => false), humanOpened: !!l.openedAt || hasHumanOpen(l.accessEvents) });
+      if (code) { motivo = effectiveLostReasonLabel({ lostReasonNote: code === "REPLACED" ? "auto:sustituido" : "auto:no_abierto" }); deducido = true; }
+      else {
+        const botones = QUOTE_LOST_REASONS.flatMap((r) => { const href = cierreLostReasonUrl(l.id, r); return href ? [{ label: QUOTE_LOST_REASON_LABELS[r], href }] : []; });
+        act(Number(l.total), 2, `Motivo de pérdida de ${l.quoteNumber} (${l.customerName}, ${eur(Number(l.total))}, ${pairOf(l.sourceLang, l.targetLang)}): lo abrió y no pagó → elige el motivo con un clic`, `${SITE}/zona-traductor/presupuestos/${l.id}`, { botones, key: `lost:${l.id}` });
+      }
+    }
+    lost.push({ ...l, motivo, deducido });
+  }
 
   /* ───────── 4. Pedidos vivos + AGENDA ───────── */
   const orders = await prisma.order.findMany({
@@ -420,6 +456,13 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     }
     pedidos.push({ ref: o.reference, cliente: item.cliente, par: o.langPair, importe: item.importe, status: o.status, pagado: madrid(o.paidAt), asignado, quien, coste: win?.quotedPriceCents != null ? win.quotedPriceCents / 100 : o.supplierCostCents != null ? o.supplierCostCents / 100 : null, puente: lav, vence: madrid(due), accion, link });
   }
+  /* ───────── 4a. Pedidos pagados SIN COSTE a las 24 h (cierre, 8-oct) ───────── */
+  // El francés propio cuenta como coste 0 explícito (lib/cierre-math.ts hasCostGap), no como hueco.
+  const sinCoste = await findCostGapOrders(NOW).catch((err) => { console.error("[vigia] sinCoste", err); return []; });
+  for (const o of sinCoste) {
+    act(o.amountCents / 100, 4, `Pedido ${o.reference} ${eur(o.amountCents / 100)} ${o.langPair || "?"} pagado hace ${daysAgo(o.paidAt) ?? 0} d SIN COSTE registrado (ni coste ni asignación con precio) → ponlo en la ficha`, `${SITE}/zona-traductor/pedido/${o.reference}`, { key: `o:${o.reference}`, tier: 0 });
+  }
+
   /* ───────── 4b. Facturas del mes de un mes YA CERRADO sin emitir ───────── */
   const borradoresMes = await prisma.clientInvoice.findMany({
     where: { status: "DRAFT", docKind: "invoice", periodKey: { not: null } },
@@ -439,7 +482,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
   return {
     generado: NOW.toISOString(), ventanaDias: days,
     agenda: { traducir, seguir, entregar, sinFecha, palabrasSemana, horasSemana, diasNecesarios: Math.round((horasSemana / DAILY_HOURS) * 10) / 10 },
-    solicitudes: solRows, leads, presupuestos, perdidos: lost.map((l) => ({ ...l, total: Number(l.total) })), pedidos, archivados, ocultos, acciones: acciones,
+    solicitudes: solRows, leads, presupuestos, perdidos: lost.map((l) => ({ quoteNumber: l.quoteNumber, customerName: l.customerName, sourceLang: l.sourceLang, targetLang: l.targetLang, lostReason: l.lostReason, motivo: l.motivo, deducido: l.deducido, total: Number(l.total) })), pedidos, archivados, ocultos, acciones: acciones,
   };
 }
 
@@ -448,7 +491,7 @@ const venceLabel = (i: AgendaItem) =>
   i.venceDias == null ? "SIN FECHA" : i.venceDias < 0 ? `VENCIDO ${-i.venceDias} d (${i.vence})` : i.venceDias === 0 ? `HOY (${i.vence})` : i.venceDias === 1 ? `mañana (${i.vence})` : `en ${i.venceDias} d (${i.vence})`;
 const agendaLine = (i: AgendaItem) => `${i.ref} · ${i.cliente} · ${i.par} · ${eur(i.importe)} · ${i.docs} doc${i.palabras ? ` · ${i.palabras} pal ≈ ${i.horas} h` : ""} · vence ${venceLabel(i)}${/Juan/.test(i.quien) ? "" : ` · ${i.quien}`}`;
 
-const accionText = (a: VigiaAction) => `${a.que}${a.extras?.length ? `\n    + ${a.extras.join("\n    + ")}` : ""}${a.estado ? `\n    [${a.estado}]` : ""}`;
+const accionText = (a: VigiaAction) => `${a.que}${a.extras?.length ? `\n    + ${a.extras.join("\n    + ")}` : ""}${a.estado ? `\n    [${a.estado}]` : ""}${a.botones?.length ? `\n    ${a.botones.map((b) => `${b.label}: ${b.href}`).join("\n    ")}` : ""}`;
 
 export function renderVigiaText(v: Vigia): string {
   const out: string[] = [];
@@ -482,14 +525,14 @@ export function renderVigiaText(v: Vigia): string {
     out.push(`    ${q.status} · enviado ${q.enviado} (${q.dias} d) · ${q.abierto ? "abierto" : "NO abierto"} · ${q.recordatorios} recordatorio(s)${q.smsFallido ? " · SMS FALLIDO" : ""}${q.caducado ? " · CADUCADO" : ""}`);
     out.push(`    → ${q.accion}${q.wa ? `\n    ${q.wa}` : ""}`);
   }
-  if (v.perdidos.length) out.push("", `  Perdidos en la ventana (${v.perdidos.length}): ${v.perdidos.map((l) => `${l.quoteNumber} ${eur(l.total)} ${pairOf(l.sourceLang, l.targetLang)} [${l.lostReason || "sin motivo"}]`).join(" · ")}`);
+  if (v.perdidos.length) out.push("", `  Perdidos en la ventana (${v.perdidos.length}): ${v.perdidos.map((l) => `${l.quoteNumber} ${eur(l.total)} ${pairOf(l.sourceLang, l.targetLang)} [${l.motivo || "sin motivo"}${l.deducido ? " (auto)" : ""}]`).join(" · ")}`);
   H(`4 · PEDIDOS VIVOS (${v.pedidos.length}${v.archivados ? ` · ${v.archivados} archivado(s) fuera` : ""})`);
   for (const p of v.pedidos) {
     out.push(`• ${p.ref} · ${eur(p.importe)} · ${p.par} · ${p.cliente} · ${p.status} · pagado ${p.pagado} · ${p.asignado ? `→ ${p.asignado}${p.coste != null ? ` (coste ${eur(p.coste)})` : ""}` : p.quien}${p.puente ? ` · ${p.puente}` : ""} · vence ${p.vence}`);
     if (p.accion) out.push(`    ⚠ ${p.accion}\n    ${p.link}`);
   }
   H(`ACCIONES, por urgencia y dinero (${v.acciones.length})`);
-  v.acciones.forEach((a, i) => out.push(`${String(i + 1).padStart(2)}. [${"!".repeat(a.urgencia)}${" ".repeat(5 - a.urgencia)} ${eur(a.stake).padStart(10)}] ${accionText(a)}\n    ${a.link}`));
+  v.acciones.forEach((a, i) => out.push(`${String(i + 1).padStart(2)}. [${"!".repeat(a.urgencia)}${" ".repeat(Math.max(0, 5 - a.urgencia))} ${eur(a.stake).padStart(10)}] ${accionText(a)}\n    ${a.link}`));
   if (v.ocultos.length) { H(`OCULTOS: ya tratados / pospuestos / avisados hace poco (${v.ocultos.length})`); v.ocultos.forEach((o) => out.push(`• ${o.quien} — ${o.motivo}`)); }
   return out.join("\n");
 }
@@ -511,7 +554,8 @@ export function renderAccionesHtml(rows: VigiaAction[], max = rows.length, ocult
     const marks = k ? btn(vigiaMarkUrl(k, x.persona?.quoteId, "t"), "Ya lo traté") + btn(vigiaMarkUrl(k, x.persona?.quoteId, "p"), "Posponer 7 d") : "";
     const extras = x.extras?.length ? `<br/><span style="font-size:12px; color:#475569;">también: ${x.extras.map(esc).join(" · ")}</span>` : "";
     const estado = x.estado ? `<br/><span style="font-size:12px; color:#64748b;">${esc(x.estado)}</span>` : "";
-    return li(`${esc(x.que)} — <a href="${x.link}" style="color:#1e3a8a;">abrir</a>${marks}${extras}${estado}`);
+    const botones = (x.botones || []).map((b) => btn(b.href, esc(b.label))).join("");
+    return li(`${esc(x.que)} — <a href="${x.link}" style="color:#1e3a8a;">abrir</a>${marks}${botones}${extras}${estado}`);
   });
   const rest = rows.length - shown.length;
   const foot = [

@@ -155,6 +155,8 @@ export type RawAction = {
   tier?: 0 | 1;
   persona?: { key: string; quoteId?: string | null } | null;
   estado?: string;
+  /** Botones de un clic firmados (p. ej. motivo de pérdida): se pintan junto a «abrir». */
+  botones?: { label: string; href: string }[];
 };
 export type ActionRow = RawAction & { extras?: string[] };
 
@@ -175,6 +177,7 @@ export function consolidate(actions: RawAction[]): ActionRow[] {
       stake: Math.max(...list.map((a) => a.stake)),
       tier: Math.min(...list.map((a) => a.tier ?? 1)) as 0 | 1,
       estado: list.find((a) => a.estado)?.estado,
+      botones: list.flatMap((a) => a.botones || []).length ? list.flatMap((a) => a.botones || []) : undefined,
       persona: list.find((a) => a.persona)?.persona ?? head.persona,
       extras: extras.length ? extras : undefined,
     });

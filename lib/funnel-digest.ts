@@ -6,7 +6,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { escapeHtml, sanitizeUrl } from "@/lib/collaborator-emails";
-import { QUOTE_LOST_REASON_LABELS } from "@/lib/quote-lost-reasons";
+import { effectiveLostReasonLabel } from "@/lib/quote-lost-reasons";
+import { findCostGapOrders } from "@/lib/cierre";
 import { PersonIndex, personKeys } from "@/lib/vigia-persona";
 
 export const FUNNEL_STAGES = [
@@ -55,6 +56,8 @@ export type StaffDigest = {
   paidOrders: { reference: string; amountEur: number; langPair: string | null; clientEmail: string | null; source: string | null }[];
   topLanguages: { lang: string; count: number }[];
   failedEmails: { error: string; attempt: number; at: string }[];
+  /** Pedidos pagados hace ≥24 h sin coste ni asignación con precio (lib/cierre.ts). */
+  costGaps: { reference: string; amountEur: number; langPair: string | null; paidDays: number }[];
   lostQuotes: LostQuoteEntry[];
   leads: LeadEntry[];
 };
@@ -89,12 +92,11 @@ export type LostQuoteEntry = {
   docs: { fileName: string; fileUrl: string }[];
 };
 
-const LOST_REASON_LABELS: Record<string, string> = QUOTE_LOST_REASON_LABELS;
 
 export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
-  const [day, week, paid, recentAnalyses, failed, lost, leadDocs, windowQuotes] = await Promise.all([
+  const [day, week, paid, recentAnalyses, failed, lost, leadDocs, windowQuotes, costGaps] = await Promise.all([
     funnelForWindow(windowHours / 24),
     funnelForWindow(7),
     prisma.order.findMany({
@@ -172,6 +174,10 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
       where: { createdAt: { gte: new Date(Date.now() - 7 * 864e5) }, deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] } },
       select: { customerEmail: true, customerPhone: true, expedienteRef: true },
     }),
+    findCostGapOrders().catch((err) => {
+      console.error("[funnel-digest] costGaps", err);
+      return [];
+    }),
   ]);
 
   // Quien ya pagó en la ventana no es un lead (26-ago: Joaquim salía en "pagados"
@@ -234,6 +240,7 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
       source: o.source,
     })),
     topLanguages,
+    costGaps: costGaps.map((o) => ({ reference: o.reference, amountEur: o.amountCents / 100, langPair: o.langPair, paidDays: Math.floor((Date.now() - (o.paidAt?.getTime() ?? Date.now())) / 864e5) })),
     failedEmails: failed.map((f) => ({ error: f.error.slice(0, 200), attempt: f.attempt, at: f.createdAt.toISOString() })),
     lostQuotes: lost.map((q) => {
       const pm = (q.postMortemJson || null) as {
@@ -246,7 +253,7 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
         totalEur: Number(q.total),
         langPair: `${q.sourceLang}→${q.targetLang}`,
         customerEmail: q.customerEmail,
-        reason: q.lostReason ? LOST_REASON_LABELS[q.lostReason] || q.lostReason : null,
+        reason: effectiveLostReasonLabel(q),
         reasonNote: q.lostReasonNote,
         findings: (pm?.findings || []).map((f) => f.detail),
         docs: pm?.docs || [],
@@ -323,6 +330,16 @@ export function buildDigestHtml(d: StaffDigest): string {
       </div>`
     : "";
 
+  const costHtml = d.costGaps.length
+    ? `<div style="margin:10px 0; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;">
+        <p style="margin:0 0 6px; font-weight:600; color:#991b1b;">💸 ${d.costGaps.length} pedido(s) pagado(s) SIN COSTE registrado (más de 24 h)</p>
+        <ul style="margin:0; padding-left:18px; font-size:13px; color:#7f1d1d;">${d.costGaps
+          .map((o) => `<li><a href="https://www.traduccionesjuradas.net/zona-traductor/pedido/${encodeURIComponent(o.reference)}" style="font-weight:600; color:#991b1b;">${escapeHtml(o.reference)}</a> · ${o.amountEur.toFixed(2)} € · ${escapeHtml(o.langPair || "—")} · pagado hace ${o.paidDays} d</li>`)
+          .join("")}</ul>
+        <p style="margin:6px 0 0; font-size:12px; color:#7f1d1d;">Pon el coste del traductor en la ficha (el francés propio cuenta como coste 0, no como hueco).</p>
+      </div>`
+    : "";
+
   const failHtml = d.failedEmails.length
     ? `<div style="margin:10px 0; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;">
         <p style="margin:0 0 6px; font-weight:600; color:#991b1b;">⚠ ${d.failedEmails.length} email(s) fallaron en 24 h</p>
@@ -338,6 +355,8 @@ export function buildDigestHtml(d: StaffDigest): string {
     ${paidHtml}
 
     ${failHtml}
+
+    ${costHtml}
 
     ${leadsHtml}
 
