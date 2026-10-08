@@ -55,10 +55,15 @@ export async function POST(req: Request) {
   });
   if (p.q) {
     const quote = await prisma.quote.findUnique({ where: { id: p.q }, select: { id: true } });
+    const marker = p.a === "t" ? MARK_TRATADO : MARK_POSPONER;
     if (quote) {
-      await prisma.messageLog.create({
-        data: { quoteId: quote.id, channel: "WHATSAPP", type: "DRAFT_WHATSAPP", recipient: "manual", body: p.a === "t" ? MARK_TRATADO : MARK_POSPONER, status: "SENT", sentAt: now },
-      });
+      // Idempotente: un doble clic no deja dos filas.
+      const dup = await prisma.messageLog.findFirst({ where: { quoteId: quote.id, subject: marker, createdAt: { gte: new Date(now.getTime() - 24 * 3600e3) } }, select: { id: true } });
+      if (!dup) {
+        await prisma.messageLog.create({
+          data: { quoteId: quote.id, channel: "WHATSAPP", type: "DRAFT_WHATSAPP", recipient: "manual", subject: marker, body: marker, status: "SENT", sentAt: now },
+        });
+      }
     }
   }
   return page(p.a === "t" ? "Hecho: tratado" : `Hecho: pospuesto ${POSTPONE_DAYS} días`, '<p>Ya no saldrá en la gestión de hoy. <a href="/zona-traductor/vigia">Ver lo que queda</a>.</p>');

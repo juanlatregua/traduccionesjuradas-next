@@ -4,7 +4,7 @@
 // /api/cron/vigia-agenda (email de las 8:00). Una sola fuente de verdad.
 import { prisma } from "@/lib/prisma";
 import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed, periodLabel } from "@/lib/credit-terms";
-import { PersonIndex, chaseState, consolidate, duplicateOf, personKeys, primaryKey, textKeys, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
+import { PersonIndex, chaseState, consolidate, duplicateOf, intermediaryEmails, personKeys, primaryKey, textKeys, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
 import { vigiaMarkUrl } from "@/lib/vigia-mark";
 
 const SITE = "https://www.traduccionesjuradas.net";
@@ -103,18 +103,19 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       orderBy: { createdAt: "asc" },
       select: { clientEmail: true, clientName: true, clientPhone: true, fileName: true, documentType: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, sessionToken: true, createdAt: true, marketingConsent: true, fileHash: true },
     }),
-    prisma.quote.findMany({ where: { createdAt: { gte: SINCE }, deletedAt: null }, select: { id: true, customerEmail: true, customerPhone: true, quoteNumber: true, status: true, sourceLang: true, targetLang: true, expedienteRef: true, createdAt: true } }),
+    prisma.quote.findMany({ where: { createdAt: { gte: SINCE }, deletedAt: null }, select: { id: true, customerEmail: true, customerPhone: true, quoteNumber: true, status: true, sourceLang: true, targetLang: true, expedienteRef: true, holderNames: true, createdAt: true } }),
     prisma.quote.findMany({
-      where: { deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] } },
+      // Sin pedido: los de carril de crédito ya tienen pedido y se persiguen por su factura.
+      where: { deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] }, orders: { none: {} } },
       orderBy: { sentAt: "asc" },
-      include: { messageLogs: { select: { channel: true, type: true, status: true, body: true, sentAt: true, createdAt: true } }, _count: { select: { accessEvents: true } } },
+      include: { messageLogs: { where: { createdAt: { gte: new Date(NOW.getTime() - 90 * 864e5) } }, select: { channel: true, type: true, status: true, subject: true, sentAt: true, createdAt: true } }, _count: { select: { accessEvents: true } } },
     }),
     // Marcas «Ya lo traté» / «Posponer» (app/api/vigia/marca): FunnelEvent «vigia:<clave>».
     prisma.funnelEvent.findMany({ where: { step: { in: ["vigia_tratado", "vigia_posponer"] }, createdAt: { gte: new Date(NOW.getTime() - 8 * 864e5) } }, select: { sessionId: true, step: true, createdAt: true, metadata: true } }).catch(() => []),
   ]);
-  type QLite = { id: string; email: string; phone: string | null; numero: string; status: string; par: string; expRef: string | null; createdAt: Date };
+  type QLite = { holder: string | null; name: string; id: string; email: string; phone: string | null; numero: string; status: string; par: string; expRef: string | null; createdAt: Date };
   const quoteMap = new Map<string, QLite>();
-  for (const q of [...windowQuotes, ...openQuotes]) quoteMap.set(q.id, { id: q.id, email: q.customerEmail, phone: (q as any).customerPhone ?? null, numero: q.quoteNumber, status: q.status, par: pairOf(q.sourceLang, q.targetLang), expRef: q.expedienteRef, createdAt: q.createdAt });
+  for (const q of [...windowQuotes, ...openQuotes]) quoteMap.set(q.id, { holder: (q as any).holderNames ?? null, name: (q as any).customerName ?? "", id: q.id, email: q.customerEmail, phone: (q as any).customerPhone ?? null, numero: q.quoteNumber, status: q.status, par: pairOf(q.sourceLang, q.targetLang), expRef: q.expedienteRef, createdAt: q.createdAt });
   const allQuotes = [...quoteMap.values()];
   // Huellas de los documentos de cada presupuesto (misma vía que lavori-dup-guard).
   const qLines = allQuotes.length ? await prisma.quoteLine.findMany({ where: { quoteId: { in: allQuotes.map((q) => q.id) }, sourceFileUrl: { not: null } }, select: { quoteId: true, sourceFileUrl: true } }).catch(() => []) : [];
@@ -124,11 +125,22 @@ export async function buildVigia(days = 7): Promise<Vigia> {
   const hashesOfQuote = new Map<string, string[]>();
   for (const l of qLines) { const h = hashOfUrl.get(l.sourceFileUrl!); if (h) hashesOfQuote.set(l.quoteId, [...(hashesOfQuote.get(l.quoteId) || []), h]); }
 
-  const quoteKeys = (q: QLite) => personKeys({ emails: [q.email], phones: [q.phone], refs: [q.expRef], hashes: hashesOfQuote.get(q.id), quoteIds: [q.id] });
-  const solKeys = (s: (typeof solicitudes)[number]) => [...textKeys(s.customerHint), ...personKeys({ refs: [s.expedienteRef], quoteIds: [s.quoteId] })];
+  const multi = intermediaryEmails(allQuotes);
+  const quoteKeys = (q: QLite) => multi.has(normEmail(q.email)) ? personKeys({ refs: [q.expRef], hashes: hashesOfQuote.get(q.id), quoteIds: [q.id] }) : personKeys({ emails: [q.email], phones: [q.phone], refs: [q.expRef], hashes: hashesOfQuote.get(q.id), quoteIds: [q.id] });
+  const solKeys = (s: (typeof solicitudes)[number]) => [...textKeys(s.customerHint), ...personKeys({ refs: [s.expedienteRef], quoteIds: [s.quoteId] }), `r:${s.ref}`];
   const leadKeys = (d: (typeof leadDocs)[number]) => personKeys({ emails: [d.clientEmail], phones: [d.clientPhone], sessions: [d.sessionToken], hashes: [d.fileHash] });
   const orderKeys = (o: { clientEmail: string | null; clientPhone: string | null }) => personKeys({ emails: [o.clientEmail], phones: [o.clientPhone] });
-  const idx = new PersonIndex([...allQuotes.map(quoteKeys), ...solicitudes.map(solKeys), ...leadDocs.map(leadKeys), ...paidOrdersWindow.map(orderKeys)].map((keys) => ({ keys })));
+  // Huella del documento: une lead↔solicitud↔presupuesto de quien no ha comprado; nunca arrastra
+  // a otra persona a quien ya pagó (otro email y otro teléfono con el mismo PDF).
+  const graphItems: { keys: string[]; name?: string | null }[] = [
+    ...allQuotes.map((q) => ({ keys: quoteKeys(q), name: q.name })),
+    ...solicitudes.map((x) => ({ keys: solKeys(x) })),
+    ...leadDocs.map((d) => ({ keys: leadKeys(d), name: d.clientName })),
+    ...paidOrdersWindow.map((o) => ({ keys: orderKeys(o), name: o.clientName })),
+  ];
+  const idx0 = new PersonIndex(graphItems.map((i) => ({ ...i, keys: i.keys.filter((k) => !k.startsWith("h:")) })));
+  const paid0 = new Set(paidOrdersWindow.map((o) => idx0.rootOf(orderKeys(o))).filter((r): r is string => !!r));
+  const idx = new PersonIndex(graphItems.map((i) => { const r0 = idx0.rootOf(i.keys.filter((k) => !k.startsWith("h:"))); return r0 && paid0.has(r0) ? { ...i, keys: i.keys.filter((k) => !k.startsWith("h:")) } : i; }));
   const rootOf = (keys: string[]) => idx.rootOf(keys) ?? keys[0] ?? null;
   const quotesOfRoot = new Map<string, QLite[]>();
   for (const q of allQuotes) { const r = rootOf(quoteKeys(q)); if (r) quotesOfRoot.set(r, [...(quotesOfRoot.get(r) || []), q]); }
@@ -147,7 +159,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
   for (const q of openQuotes) {
     const r = rootOf(quoteKeys(quoteMap.get(q.id)!));
     if (!r) continue;
-    logsOfRoot.set(r, [...(logsOfRoot.get(r) || []), ...q.messageLogs.map((m) => ({ channel: m.channel, type: m.type, status: m.status, at: m.sentAt ?? m.createdAt, body: m.body }))]);
+    logsOfRoot.set(r, [...(logsOfRoot.get(r) || []), ...q.messageLogs.map((m) => ({ channel: m.channel, type: m.type, status: m.status, at: m.sentAt ?? m.createdAt, body: m.subject }))]);
     opensOfRoot.set(r, (opensOfRoot.get(r) || 0) + q._count.accessEvents);
   }
   const chaseMemo = new Map<string, ReturnType<typeof chaseState>>();
@@ -159,8 +171,8 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     }
     return chaseMemo.get(k)!;
   };
-  const personExtra = (root: string | null, quoteId?: string | null): Partial<RawAction> =>
-    root ? { key: `p:${root}`, persona: { key: primaryKey([...idx.keysOf(root)].sort()) || root, quoteId: quoteId ?? null }, estado: chaseOf(root).line } : {};
+  const personExtra = (root: string | null, quoteId?: string | null, own?: { key: string; line: string }): Partial<RawAction> =>
+    root ? { key: `p:${root}`, persona: { key: own?.key || primaryKey([...idx.keysOf(root)].sort()) || root, quoteId: quoteId ?? null }, estado: own ? own.line : chaseOf(root).line } : {};
   const hiddenSeen = new Set<string>();
   /** true = tratado/pospuesto/ya avisado hace poco: la acción no sale (y queda anotado en «ocultos»). */
   const isHidden = (root: string | null, quien: string, force?: string) => {
@@ -282,7 +294,9 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     const sent = q.sentAt || q.createdAt;
     const d = daysAgo(sent) ?? 0;
     const root = rootOf(quoteKeys(quoteMap.get(q.id)!));
-    const chase = chaseOf(root);
+    // Estado de seguimiento de ESTE presupuesto (sus MessageLog y sus marcas): un intermediario con varios
+    // presupuestos no mezcla toques ni ocultaciones entre ellos.
+    const chase = chaseState(q.messageLogs.map((m) => ({ channel: m.channel, type: m.type, status: m.status, at: m.sentAt ?? m.createdAt, body: m.subject })), marksByKey.get(`q:${q.id}`) || [], NOW, q._count.accessEvents);
     const reminders = q.messageLogs.filter((m) => m.type === "REMINDER" && m.status === "SENT").length;
     const smsFailed = q.messageLogs.some((m) => m.channel === "SMS" && m.status === "FAILED");
     const opened = q.status === "OPENED" || !!q.openedAt;
@@ -298,10 +312,11 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     else accion = `reciente (${d} d) → esperar; el cron recuerda solo`;
     if (d >= 2 || q.status === "ACCEPTED") {
       const quien = `presupuesto ${q.quoteNumber}`;
-      if (caducado && avisadoCaducado) isHidden(root, quien, "caducado, ya avisado");
-      else if (!isHidden(root, quien)) {
+      if (caducado && avisadoCaducado) ocultos.push({ quien, motivo: "caducado, ya avisado" });
+      else if (chase.hidden) ocultos.push({ quien, motivo: chase.reason! });
+      else {
         const urg = caducado ? 1 : q.status === "ACCEPTED" ? 4 : chase.touches >= MAX_TOUCHES ? 1 : 2;
-        act(Number(q.total), urg, `Presupuesto ${q.quoteNumber} ${eur(Number(q.total))} (${q.customerName}, ${pairOf(q.sourceLang, q.targetLang)}): ${accion.split("→")[1]?.trim() || accion}`, waLink(phone) || `${SITE}/zona-traductor/presupuestos/${q.id}`, personExtra(root, q.id));
+        act(Number(q.total), urg, `Presupuesto ${q.quoteNumber} ${eur(Number(q.total))} (${q.customerName}, ${pairOf(q.sourceLang, q.targetLang)}): ${accion.split("→")[1]?.trim() || accion}`, waLink(phone) || `${SITE}/zona-traductor/presupuestos/${q.id}`, personExtra(root, q.id, { key: `q:${q.id}`, line: chase.line }));
       }
     }
     return { numero: q.quoteNumber, cliente: q.customerName, email: q.customerEmail, phone, wa: waLink(phone), par: pairOf(q.sourceLang, q.targetLang), total: Number(q.total), status: q.status, enviado: madrid(sent), dias: d, abierto: opened, recordatorios: reminders, smsFallido: smsFailed, caducado, accion, estado: chase.line, link: `${SITE}/zona-traductor/presupuestos/${q.id}` };

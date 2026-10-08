@@ -169,7 +169,7 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
     }),
     // Presupuestos de la persona (cualquier estado): un lead con presupuesto ya no es lead.
     prisma.quote.findMany({
-      where: { createdAt: { gte: new Date(Date.now() - 7 * 864e5) }, deletedAt: null },
+      where: { createdAt: { gte: new Date(Date.now() - 7 * 864e5) }, deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] } },
       select: { customerEmail: true, customerPhone: true, expedienteRef: true },
     }),
   ]);

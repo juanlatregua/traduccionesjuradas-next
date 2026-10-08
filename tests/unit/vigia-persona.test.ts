@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PersonIndex, personKeys, textKeys, chaseState, consolidate, duplicateOf, primaryKey, MARK_POSPONER, MARK_TRATADO, type RawAction } from "../../lib/vigia-persona.ts";
+import { intermediaryEmails, normEmail, PersonIndex, personKeys, textKeys, chaseState, consolidate, duplicateOf, primaryKey, MARK_POSPONER, MARK_TRATADO, type RawAction } from "../../lib/vigia-persona.ts";
 
 const d = (s: string) => new Date(s);
 const NOW = d("2026-10-08T09:00:00Z");
@@ -102,4 +102,37 @@ test("teléfonos: <dígitos>@whatsapp.local y +34 con espacios son la misma clav
   const idx = new PersonIndex(items);
   assert.notEqual(idx.rootOf(items[0].keys), idx.rootOf(items[1].keys));
   assert.equal(primaryKey(["e:a@x.com", "p:123456789"]), "p:123456789");
+});
+
+test("Nuria: mismo email con dos expedientes = intermediario; el recordatorio de 00227 no toca a 00228", () => {
+  const quotes = [
+    { id: "Q227", email: "n.valenzuela@nadalfortuny.com", expRef: "exp:A", holder: "Cliente A", logs: [{ channel: "EMAIL", type: "REMINDER", status: "SENT", at: d("2026-10-07T10:00:00Z") }] },
+    { id: "Q228", email: "n.valenzuela@nadalfortuny.com", expRef: "exp:B", holder: "Cliente B", logs: [] as { channel: string; type: string; status: string; at: Date }[] },
+  ];
+  const multi = intermediaryEmails(quotes);
+  assert.ok(multi.has(normEmail("N.Valenzuela@nadalfortuny.com")));
+  const idx = new PersonIndex(quotes.map((q) => ({ keys: multi.has(q.email) ? personKeys({ refs: [q.expRef], quoteIds: [q.id] }) : personKeys({ emails: [q.email], quoteIds: [q.id] }) })));
+  assert.notEqual(idx.rootOf(personKeys({ quoteIds: ["Q227"] })), idx.rootOf(personKeys({ quoteIds: ["Q228"] })));
+  assert.equal(chaseState(quotes[0].logs, [], NOW).hidden, true);
+  assert.equal(chaseState(quotes[1].logs, [], NOW).hidden, false);
+  // Una marca sobre 00227 (clave q:) no se aplica a 00228: cada una lee solo sus marcas.
+  const marks: Record<string, { kind: "tratado"; at: Date }[]> = { "q:Q227": [{ kind: "tratado", at: NOW }] };
+  assert.equal(chaseState([], marks["q:Q228"] || [], NOW).hidden, false);
+  // Mismo email, mismo expediente (Paloma): no es intermediario.
+  assert.equal(intermediaryEmails([{ email: "p@x.com", expRef: null }, { email: "p@x.com", expRef: null }]).size, 0);
+});
+
+test("teléfono compartido por 2 emails con distinto nombre no une personas", () => {
+  const items = [
+    { keys: personKeys({ emails: ["a@x.com"], phones: ["600111222"] }), name: "Ana Ruiz" },
+    { keys: personKeys({ emails: ["b@y.com"], phones: ["600111222"] }), name: "Luis Pérez" },
+  ];
+  const idx = new PersonIndex(items);
+  assert.notEqual(idx.rootOf(items[0].keys), idx.rootOf(items[1].keys));
+});
+
+test("la marca manual oculta pero no cuenta como toque; solo MessageLog/recordatorios cuentan", () => {
+  const c = chaseState([{ channel: "WHATSAPP", type: "DRAFT_WHATSAPP", status: "SENT", at: d("2026-10-08T07:00:00Z"), body: MARK_TRATADO }], [{ kind: "tratado", at: d("2026-10-08T07:00:00Z") }], NOW);
+  assert.equal(c.hidden, true);
+  assert.equal(c.touches, 0);
 });

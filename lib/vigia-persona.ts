@@ -62,14 +62,20 @@ const MAX_EMAILS_PER_PHONE = 3; // más que eso = intermediario (Ahmed, un despa
 
 export class PersonIndex {
   private parent = new Map<string, string>();
-  constructor(items: { keys: string[] }[]) {
-    // Un teléfono compartido por muchos emails distintos es un intermediario: no une.
+  constructor(items: { keys: string[]; name?: string | null }[]) {
+    // Un teléfono compartido por muchos emails, o por 2 emails con distinto nombre, es un
+    // intermediario (Ahmed, un despacho): no une personas.
     const emailsOfPhone = new Map<string, Set<string>>();
+    const namesOfPhone = new Map<string, Set<string>>();
     for (const it of items) {
       const es = it.keys.filter((k) => k.startsWith("e:"));
-      for (const k of it.keys) if (k.startsWith("p:")) { const s = emailsOfPhone.get(k) || new Set(); es.forEach((e) => s.add(e)); emailsOfPhone.set(k, s); }
+      const nm = String(it.name || "").trim().toLowerCase();
+      for (const k of it.keys) if (k.startsWith("p:")) {
+        const s = emailsOfPhone.get(k) || new Set(); es.forEach((e) => s.add(e)); emailsOfPhone.set(k, s);
+        if (nm && es.length) { const n = namesOfPhone.get(k) || new Set(); n.add(nm); namesOfPhone.set(k, n); }
+      }
     }
-    const banned = new Set([...emailsOfPhone].filter(([, s]) => s.size > MAX_EMAILS_PER_PHONE).map(([k]) => k));
+    const banned = new Set([...emailsOfPhone].filter(([k, s]) => s.size > MAX_EMAILS_PER_PHONE || (s.size >= 2 && (namesOfPhone.get(k)?.size || 0) >= 2)).map(([k]) => k));
     for (const it of items) {
       const ks = it.keys.filter((k) => !banned.has(k));
       for (const k of ks) if (!this.parent.has(k)) this.parent.set(k, k);
@@ -116,7 +122,7 @@ export function chaseState(logs: ContactLog[], marks: ChaseMark[], now: Date, op
     if (l.status !== "SENT" || !l.at || l.type === "PAID_CONFIRMATION") continue;
     const at = new Date(l.at);
     if (l.body?.startsWith(MARK_POSPONER)) { marksAll.push({ kind: "posponer", at, mirrored: true }); continue; }
-    if (l.body?.startsWith(MARK_TRATADO)) { marksAll.push({ kind: "tratado", at, mirrored: true }); touches++; continue; }
+    if (l.body?.startsWith(MARK_TRATADO)) { marksAll.push({ kind: "tratado", at, mirrored: true }); continue; }
     if (l.type === "REMINDER") { touches++; contacts.push({ at, label: `recordatorio ${fmtDay(at)}` }); }
     else if (l.type === "DRAFT_WHATSAPP" || l.channel === "WHATSAPP") { touches++; contacts.push({ at, label: `WhatsApp ${fmtDay(at)}` }); }
     else if (l.type === "PAY_LINK" || l.type === "RESEND_PAY_LINK") contacts.push({ at, label: `enviado ${fmtDay(at)}` });
@@ -125,7 +131,7 @@ export function chaseState(logs: ContactLog[], marks: ChaseMark[], now: Date, op
   for (const m of marksAll) {
     const at = new Date(m.at);
     if (m.kind === "posponer") { const until = new Date(at.getTime() + POSTPONE_DAYS * DAY_MS); if (!postponedUntil || until > postponedUntil) postponedUntil = until; }
-    else { contacts.push({ at, label: `tratado ${fmtDay(at)}` }); if (!m.mirrored) touches++; }
+    else contacts.push({ at, label: `tratado ${fmtDay(at)}` });
   }
   contacts.sort((a, b) => a.at.getTime() - b.at.getTime());
   const last = contacts.length ? contacts[contacts.length - 1].at : null;
@@ -187,4 +193,19 @@ export function duplicateOf<Q extends QuoteLite>(s: SolLite, sols: SolLite[], qu
   const hermana = sols.find((o) => o.ref !== s.ref && normPar(o.par) === normPar(s.par) && (o.status === "PRICED" || o.status === "ACCEPTED" || !!o.quoteId)) || null;
   const quote = quotes.find((x) => normPar(x.par) === normPar(s.par) && x.createdAt >= s.createdAt) || null;
   return { hermana, quote };
+}
+
+/** Emails de intermediario: el mismo email con varios expedientes o titulares distintos entre sus
+ * presupuestos (Nuria, 00227/00228). No identifican a una persona: cada presupuesto va solo. */
+export function intermediaryEmails(quotes: { email: string; expRef?: string | null; holder?: string | null }[]): Set<string> {
+  const by = new Map<string, { refs: Set<string>; holders: Set<string> }>();
+  for (const q of quotes) {
+    const e = normEmail(q.email);
+    if (!e) continue;
+    const v = by.get(e) || { refs: new Set(), holders: new Set() };
+    if (q.expRef) v.refs.add(q.expRef);
+    if (q.holder && q.holder.trim()) v.holders.add(q.holder.trim().toLowerCase());
+    by.set(e, v);
+  }
+  return new Set([...by].filter(([, v]) => v.refs.size >= 2 || v.holders.size >= 2).map(([e]) => e));
 }
