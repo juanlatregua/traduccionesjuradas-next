@@ -1,6 +1,7 @@
 // Carga de datos del Panel (solo servidor, solo lectura). Filas compactas; la agregación vive en panel-metrics.
 import { prisma } from "@/lib/prisma";
 import { isCasaPair } from "@/lib/lavori-bridge";
+import { getAcquisitionSource } from "@/lib/panel-slicers";
 import { isTestTitle, type PanelData } from "@/lib/panel-metrics";
 import { madridMidnightUtc, parseYmd, todayMadrid, type Period } from "@/lib/panel-period";
 
@@ -24,6 +25,7 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
         clientEmail: true,
         paymentMethod: true,
         title: true,
+        events: { where: { type: { in: ["wa.lead_received", "order.acquisition"] } }, select: { type: true, payload: true } },
         clientInvoice: { select: { baseCents: true, status: true, docKind: true } },
       },
     }),
@@ -67,6 +69,7 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
       assignedTo: o.assignedTo,
       client: o.clientName?.trim() || o.clientEmail,
       paymentMethod: o.paymentMethod,
+      channel: getAcquisitionSource(o),
     };
   });
   const quoteRows = quotes.map((q) => ({

@@ -18,6 +18,7 @@ import {
   getOrderGates,
 } from "@/lib/order-actions";
 import { isDueSoon, isOverdue } from "@/lib/order-utils";
+import { getAcquisitionSource, matchesOrderSlicers, orderSegmentInput, parseSlicers, slicerOptions } from "@/lib/panel-slicers";
 import { computePedidosKpis, inRange } from "@/lib/pedidos-kpis";
 import { isPagoProveedorPendiente, matchesHeaderFilter } from "@/lib/pedidos-filters";
 import { parsePedidosP, periodBounds, resolvePedidosPeriod, tablePeriod, type Period } from "@/lib/panel-period";
@@ -29,17 +30,10 @@ export type ControlSearchParams = {
   p?: string;
   d?: string;
   base?: string;
+  [param: string]: string | undefined;
 };
 
 type DateBaseKey = "created" | "paid";
-
-function getAcquisitionSource(order: any): "WHATSAPP" | "WEB" {
-  const events = order.events || [];
-  if (events.some((e: any) => e.type === "wa.lead_received")) return "WHATSAPP";
-  const acquisitionEvent = events.find((e: any) => e.type === "order.acquisition");
-  const source = String((acquisitionEvent?.payload as any)?.source || "").toUpperCase();
-  return source === "WHATSAPP" ? "WHATSAPP" : "WEB";
-}
 
 function getPaymentProofs(order: any) {
   return (order.events || [])
@@ -473,7 +467,13 @@ export async function loadControlState(searchParams: ControlSearchParams) {
   const qRaw = String(searchParams.q || "").trim();
   const q = qRaw.toLowerCase();
 
-  const periodOrders = enriched.filter((order) => {
+  const slicers = parseSlicers((k) => searchParams[k]);
+  // Valores de los desplegables: lo creado o cobrado en el periodo de la cabecera (sin aplicar los propios segmentadores).
+  const optionPool = enriched.filter((o) => !o.isArchived && (!period || isWithinPeriod(new Date(o.createdAt), period) || (!!o.paidAt && isWithinPeriod(new Date(o.paidAt), period))));
+  const slicerOpts = slicerOptions(optionPool.map(orderSegmentInput), slicers);
+  const sliced = enriched.filter((o) => matchesOrderSlicers(o, slicers));
+
+  const periodOrders = sliced.filter((order) => {
     const baseDate = getOrderDateForBase(order, dateBase);
     if (!baseDate) return false;
     return isWithinPeriod(baseDate, filterPeriod);
@@ -531,7 +531,8 @@ export async function loadControlState(searchParams: ControlSearchParams) {
   };
 
   // Lo vivo y las alertas NO dependen del periodo elegido: un pedido atascado de hace tres meses sigue pidiendo acción.
-  const allActive = enriched.filter((o) => !o.isArchived);
+  const allActive = sliced.filter((o) => !o.isArchived);
+  const allActiveRaw = enriched.filter((o) => !o.isArchived);
   const allBooks = allActive.filter((o) => isOrderInBooks(o));
   const kpis = computePedidosKpis(allActive, period);
   const alerts = {
@@ -541,7 +542,7 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     riesgo: allBooks.filter(hasFinancialRisk).length,
   };
 
-  const criticalFinanceOrders = allBooks
+  const criticalFinanceOrders = allActiveRaw.filter((o) => isOrderInBooks(o))
     .filter(
       (o) =>
         hasFinancialRisk(o) ||
@@ -551,7 +552,7 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     )
     .slice(0, 6);
 
-  const pedidosAccionables = computePedidosAccionables(allActive);
+  const pedidosAccionables = computePedidosAccionables(allActiveRaw);
 
   return {
     orders,
@@ -566,6 +567,8 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     p,
     period,
     explicitPeriod: !!searchParams.p,
+    slicers,
+    slicerOpts,
     dateBase,
     filtro,
     qRaw,

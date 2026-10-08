@@ -4,6 +4,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState } from "@/lib/workflow";
 import { inRange } from "@/lib/pedidos-kpis";
+import { getAcquisitionSource, matchesOrderSlicers, parseSlicers } from "@/lib/panel-slicers";
 import { matchesHeaderFilter } from "@/lib/pedidos-filters";
 import { periodBounds, tablePeriod, type Period } from "@/lib/panel-period";
 
@@ -31,14 +32,6 @@ function isDueSoon(dueDate: Date | null) {
 function isOverdue(dueDate: Date | null) {
   if (!dueDate) return false;
   return new Date(dueDate).getTime() < Date.now();
-}
-
-function getAcquisitionSource(order: any): "WHATSAPP" | "WEB" {
-  const events = order.events || [];
-  if (events.some((e: any) => e.type === "wa.lead_received")) return "WHATSAPP";
-  const acquisitionEvent = events.find((e: any) => e.type === "order.acquisition");
-  const source = String((acquisitionEvent?.payload as any)?.source || "").toUpperCase();
-  return source === "WHATSAPP" ? "WHATSAPP" : "WEB";
 }
 
 function getArchiveState(order: any) {
@@ -133,7 +126,9 @@ export async function GET(req: Request) {
       ...getArchiveState(order),
     }));
 
+    const slicers = parseSlicers((k) => url.searchParams.get(k));
     const periodOrders = allOrdersWithFinance.filter((order) => {
+      if (!matchesOrderSlicers(order, slicers)) return false;
       const baseDate = getOrderDateForBase(order, dateBase);
       if (!baseDate) return false;
       return isWithinPeriod(baseDate, period);

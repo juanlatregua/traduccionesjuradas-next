@@ -2,6 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SLICER_PARAMS } from "@/lib/panel-slicers";
 
 type FilterKey =
   | "todos"
@@ -51,7 +52,7 @@ export default function ZonaTraductorFilters({ current, counts, query }: Props) 
 
   function buildUrl(filterKey: string, q: string) {
     const params = new URLSearchParams();
-    for (const k of ["p", "d", "base", "vista"]) {
+    for (const k of ["p", "d", "base", "vista", "ver", "met", ...SLICER_PARAMS]) {
       const v = sp.get(k);
       if (v) params.set(k, v);
     }
@@ -83,7 +84,7 @@ export default function ZonaTraductorFilters({ current, counts, query }: Props) 
 
   function exportCsv() {
     const params = new URLSearchParams();
-    for (const k of ["p", "d", "base"]) {
+    for (const k of ["p", "d", "base", ...SLICER_PARAMS]) {
       const v = sp.get(k);
       if (v) params.set(k, v);
     }

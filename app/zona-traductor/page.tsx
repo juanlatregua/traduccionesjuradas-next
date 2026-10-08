@@ -9,12 +9,14 @@ import EstimationAccuracyCard from "@/components/EstimationAccuracyCard";
 import OrderTableWithBulkActions from "@/components/OrderTableWithBulkActions";
 import PedidosViewToggle from "@/components/PedidosViewToggle";
 import TranslatorAgenda from "@/components/TranslatorAgenda";
-import PedidosHeader, { type PedidosMoney } from "@/components/pedidos/PedidosHeader";
+import PedidosHeader, { type PedidosBreakdown, type PedidosMoney } from "@/components/pedidos/PedidosHeader";
 import ZonaTraductorFilters from "@/components/ZonaTraductorFilters";
 import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
 import { getStaffRole } from "@/lib/staff-access";
 import { loadPanelData } from "@/lib/panel-data";
 import { aggregate, computeTotals } from "@/lib/panel-metrics";
+import { filterPanelData, type Slicers } from "@/lib/panel-slicers";
+import { buildBreakdown, parseBreakdown } from "@/lib/pedidos-breakdown";
 import { allTimePeriod, type Period } from "@/lib/panel-period";
 import {
   authZonaTraductorOrRedirect,
@@ -33,15 +35,25 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// Cifras de dinero de la cabecera: las mismas del Panel (cobro = paidAt, sin IVA). Solo ADMIN.
-async function loadMoney(period: Period | null): Promise<PedidosMoney> {
+// Cifras del Panel (cobro = paidAt, sin IVA) con los mismos segmentadores que la tabla. El dinero solo sale para ADMIN;
+// el resto recibe únicamente recuentos del desglose.
+async function loadPanel(period: Period | null, slicers: Slicers, ver: string | undefined, met: string | undefined, isAdmin: boolean) {
   const effective = period ?? allTimePeriod();
-  const { current, previous } = await loadPanelData(effective);
-  const cmp = period ? previous : undefined;
+  const loaded = await loadPanelData(effective);
+  const current = filterPanelData(loaded.current, slicers);
+  const previous = period ? filterPanelData(loaded.previous, slicers) : undefined;
+  const sel = parseBreakdown(ver, met, isAdmin);
+  const breakdown: PedidosBreakdown = {
+    slicer: sel.slicer,
+    metric: sel.metric.key,
+    allowed: sel.allowed.map((m) => m.key),
+    rows: buildBreakdown(current, previous, { dimension: sel.dimension, metric: sel.metric.metric, period: effective }),
+    hasCompare: !!previous,
+  };
+  if (!isAdmin) return { money: null, breakdown };
   const tot = (m: "ingresos_netos" | "margen_eur" | "margen_pct", d = current) => computeTotals(d, m);
-  const prev = (m: "ingresos_netos" | "margen_eur") => (cmp ? tot(m, cmp) : undefined);
-  const rows = (dimension: "par" | "traductor") => aggregate(current, { metric: "ingresos_netos", dimension, period: effective, top: 5 });
-  return {
+  const prev = (m: "ingresos_netos" | "margen_eur") => (previous ? tot(m, previous) : undefined);
+  const money: PedidosMoney = {
     cobrado: { value: tot("ingresos_netos"), prev: prev("ingresos_netos") },
     margenEur: { value: tot("margen_eur"), prev: prev("margen_eur") },
     margenPct: tot("margen_pct"),
@@ -51,9 +63,8 @@ async function loadMoney(period: Period | null): Promise<PedidosMoney> {
           return { labels: t.map((r) => r.label), series: [{ metric: "ingresos_netos" as const, name: "Cobrado sin IVA", values: t.map((r) => r.value) }] };
         })()
       : null,
-    porPar: rows("par"),
-    porTraductor: rows("traductor"),
   };
+  return { money, breakdown };
 }
 
 // PEDIDOS = fusión de la antigua Bandeja (triage por urgencia) y el antiguo
@@ -70,14 +81,17 @@ export default async function ZonaTraductorPedidosPage({
     d?: string;
     base?: string;
     vista?: string;
+    ver?: string;
+    met?: string;
+    [param: string]: string | undefined;
   };
 }) {
   const email = await authZonaTraductorOrRedirect();
   const state = await loadControlState(searchParams);
   const vista = searchParams.vista === "tabla" ? "tabla" : "cards";
-  const { orders, bandejaOrders, allActive, counts, kpis, alerts, criticalFinanceOrders, p, period, explicitPeriod, dateBase, filtro, qRaw } = state;
+  const { orders, bandejaOrders, allActive, counts, kpis, alerts, criticalFinanceOrders, p, period, explicitPeriod, slicers, slicerOpts, dateBase, filtro, qRaw } = state;
   const isAdmin = getStaffRole(email) === "ADMIN";
-  const money = isAdmin ? await loadMoney(period) : null;
+  const { money, breakdown } = await loadPanel(period, slicers, searchParams.ver, searchParams.met, isAdmin);
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -105,6 +119,9 @@ export default async function ZonaTraductorPedidosPage({
             kpis={kpis}
             alerts={alerts}
             money={money}
+            slicers={slicers}
+            slicerOpts={slicerOpts}
+            breakdown={breakdown}
           />
 
           <p className="mt-4 text-xs text-slate-400">

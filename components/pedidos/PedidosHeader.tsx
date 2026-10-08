@@ -1,17 +1,28 @@
 import Link from "next/link";
-import { formatDelta, formatValue, type AggRow, type Metric } from "@/lib/panel-metrics";
+import { formatDelta, formatValue, type Metric } from "@/lib/panel-metrics";
 import { compareLabel, PEDIDOS_PERIODS, shiftAnchor, todayMadrid, type Granularity, type Period, type PedidosP } from "@/lib/panel-period";
 import { pedidosHref, type PedidosKpis } from "@/lib/pedidos-kpis";
 import type { SeriesData } from "@/lib/panel-layout";
 import { MiniBars } from "@/components/panel/PanelCharts";
+import { SLICERS, type SlicerKey, type SlicerOption, type Slicers } from "@/lib/panel-slicers";
+import { BREAKDOWN_METRICS, type BreakdownMetricKey, type BreakdownRow } from "@/lib/pedidos-breakdown";
+import BreakdownTable, { type BreakdownView } from "./BreakdownTable";
+import PedidosSlicers from "./PedidosSlicers";
 
 export type PedidosMoney = {
   cobrado: { value: number; prev: number | undefined };
   margenEur: { value: number; prev: number | undefined };
   margenPct: number;
   chart: SeriesData | null;
-  porPar: AggRow[];
-  porTraductor: AggRow[];
+};
+
+export type PedidosBreakdown = {
+  slicer: SlicerKey;
+  metric: BreakdownMetricKey;
+  /** Métricas que puede elegir quien mira (un PM solo recuentos). */
+  allowed: BreakdownMetricKey[];
+  rows: BreakdownRow[];
+  hasCompare: boolean;
 };
 
 export type PedidosAlerts = { pagosProveedor: number; lotes: number; margen: number; riesgo: number };
@@ -29,6 +40,9 @@ type Props = {
   alerts: PedidosAlerts;
   /** null = quien mira no es ADMIN: no hay cifras de dinero. */
   money: PedidosMoney | null;
+  slicers: Slicers;
+  slicerOpts: Record<SlicerKey, SlicerOption[]>;
+  breakdown: PedidosBreakdown;
 };
 
 const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400";
@@ -74,38 +88,10 @@ function Kpi({
   );
 }
 
-function Breakdown({ title, rows }: { title: string; rows: AggRow[] }) {
-  const max = Math.max(1e-9, ...rows.map((r) => Math.abs(r.value)));
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</p>
-      {rows.length === 0 ? (
-        <p className="mt-2 text-xs text-slate-500">Sin cobros en este periodo.</p>
-      ) : (
-        <ul className="mt-2 space-y-1.5">
-          {rows.map((r) => (
-            <li key={r.label} className="text-xs">
-              <div className="flex justify-between gap-2">
-                <span className="truncate text-slate-300" title={r.label}>
-                  {r.label}
-                </span>
-                <span className="shrink-0 tabular-nums text-white">{formatValue("ingresos_netos", r.value)}</span>
-              </div>
-              <div className="mt-0.5 h-1 rounded-full bg-slate-800">
-                <div className="h-1 rounded-full bg-emerald-400" style={{ width: `${(Math.abs(r.value) / max) * 100}%` }} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q, vista, kpis, alerts, money }: Props) {
+export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q, vista, kpis, alerts, money, slicers, slicerOpts, breakdown }: Props) {
   const cmp = compareLabel(period);
   const anchor = period?.anchor ?? todayMadrid();
-  const link = (o: Parameters<typeof pedidosHref>[0]) => pedidosHref({ ...(explicit ? { p, d: anchor } : {}), base: dateBase, vista, filtro, q, ...o });
+  const link = (o: Parameters<typeof pedidosHref>[0]) => pedidosHref({ ...(explicit ? { p, d: anchor } : {}), base: dateBase, vista, filtro, q, f: slicers, ver: breakdown.slicer, met: breakdown.metric, ...o });
   // Los KPIs de «ahora» (por entregar, por cobrar) y las alertas ignoran el periodo: llevan a «Todo» para que la tabla cuadre.
   const stock = (f: string) => link({ p: "todo", base: "created", filtro: f, q: "" });
   const cobradoHref = link({ p, d: anchor, filtro: "cobrados", base: "paid", q: "" });
@@ -120,6 +106,22 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
     amber: "border-amber-500/50 bg-amber-500/10 text-amber-300",
     red: "border-red-500/50 bg-red-500/10 text-red-300",
   };
+
+  const bmetric = BREAKDOWN_METRICS.find((m) => m.key === breakdown.metric)!;
+  const bslicer = SLICERS.find((x) => x.key === breakdown.slicer)!;
+  const fmt = (v: number) => formatValue(bmetric.metric, v);
+  const rowViews: BreakdownView[] = breakdown.rows.map((r) => ({
+    label: r.label,
+    value: r.value,
+    prev: r.prev ?? null,
+    valueText: fmt(r.value),
+    prevText: r.prev === undefined ? "—" : fmt(r.prev),
+    deltaText: r.delta?.text ?? "",
+    deltaSign: r.delta?.sign ?? 0,
+    deltaNum: r.prev === undefined || r.prev === 0 ? null : (r.value - r.prev) / Math.abs(r.prev),
+    share: r.share,
+    href: link({ f: { ...slicers, [breakdown.slicer]: [r.label] }, q: "" }),
+  }));
 
   return (
     <div className="mt-5 space-y-4">
@@ -166,6 +168,8 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
         </Link>
       </div>
 
+      <PedidosSlicers options={slicerOpts} selected={slicers} />
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {money && (
           <>
@@ -203,22 +207,44 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
       )}
 
       {money && (
-        <div className="grid gap-4 rounded-2xl border border-slate-700 bg-slate-800/40 p-4 md:grid-cols-[2fr_1fr_1fr]">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Cobrado sin IVA {period ? `por ${p === "dia" ? "hora" : p === "semana" || p === "mes" ? "día" : "mes"}` : ""}</p>
-            <div className="mt-2">
-              {money.chart ? <MiniBars data={money.chart} title="Cobrado sin IVA" /> : <p className="py-6 text-center text-xs text-slate-500">Elige un periodo para ver la gráfica.</p>}
-            </div>
-          </div>
-          <Breakdown title="Cobrado por par" rows={money.porPar} />
-          <div className="min-w-0">
-            <Breakdown title="Cobrado por traductor" rows={money.porTraductor} />
-            <Link href="/zona-traductor/panel" className={`mt-3 inline-block text-xs font-semibold text-cyan-300 underline ${FOCUS}`}>
-              Ver todo en el Panel
-            </Link>
+        <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Cobrado sin IVA {period ? `por ${p === "dia" ? "hora" : p === "semana" || p === "mes" ? "día" : "mes"}` : ""}</p>
+          <div className="mt-2">
+            {money.chart ? <MiniBars data={money.chart} title="Cobrado sin IVA" /> : <p className="py-6 text-center text-xs text-slate-500">Elige un periodo para ver la gráfica.</p>}
           </div>
         </div>
       )}
+
+      <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Ver por</p>
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Ver por">
+            {SLICERS.map((s) => (
+              <Link key={s.key} href={link({ ver: s.key })} aria-current={s.key === breakdown.slicer ? "true" : undefined} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${FOCUS} ${s.key === breakdown.slicer ? "bg-cyan-600 text-white" : "border border-slate-600 text-slate-200 hover:border-slate-400"}`}>
+                {s.label}
+              </Link>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1 sm:ml-auto" role="group" aria-label="Métrica">
+            {BREAKDOWN_METRICS.filter((m) => breakdown.allowed.includes(m.key)).map((m) => (
+              <Link key={m.key} href={link({ met: m.key })} aria-current={m.key === breakdown.metric ? "true" : undefined} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${FOCUS} ${m.key === breakdown.metric ? "bg-emerald-600 text-white" : "border border-slate-600 text-slate-200 hover:border-slate-400"}`}>
+                {m.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3">
+          <BreakdownTable
+            caption={`${bmetric.label} por ${bslicer.label.toLowerCase()}`}
+            valueHeader={bmetric.label}
+            compareHeader={breakdown.hasCompare ? (period?.partial ? `Mismo tramo de ${period.prevLabel}` : "Anterior") : ""}
+            rows={rowViews}
+          />
+        </div>
+        <Link href="/zona-traductor/panel" className={`mt-3 inline-block text-xs font-semibold text-cyan-300 underline ${FOCUS}`}>
+          Ver todo en el Panel
+        </Link>
+      </div>
     </div>
   );
 }

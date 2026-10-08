@@ -1,4 +1,5 @@
 // Cabecera de Pedidos: KPIs de recuento y enlaces. Puro (sin Prisma).
+import { slicerParams, type Slicers } from "./panel-slicers.ts";
 import { madridMidnightUtc, parseYmd, periodBounds, todayMadrid, type Period } from "./panel-period.ts";
 
 export type KpiOrder = {
@@ -60,7 +61,7 @@ export function computePedidosKpis(orders: KpiOrder[], period: Period | null, no
   };
 }
 
-export type PedidosLink = { p?: string; d?: string; base?: string; filtro?: string; q?: string; vista?: string };
+export type PedidosLink = { p?: string; d?: string; base?: string; filtro?: string; q?: string; vista?: string; ver?: string; met?: string; f?: Slicers };
 
 /** URL de /zona-traductor. `p` solo va si se pasa: su presencia es lo que hace que la tabla filtre por periodo. */
 export function pedidosHref(l: PedidosLink): string {
@@ -71,6 +72,9 @@ export function pedidosHref(l: PedidosLink): string {
   if (l.filtro && l.filtro !== "todos") sp.set("filtro", l.filtro);
   if (l.q) sp.set("q", l.q);
   if (l.vista) sp.set("vista", l.vista);
+  if (l.ver) sp.set("ver", l.ver);
+  if (l.met) sp.set("met", l.met);
+  for (const [k, v] of slicerParams(l.f ?? {})) sp.set(k, v);
   const qs = sp.toString();
   return qs ? `/zona-traductor?${qs}` : "/zona-traductor";
 }
