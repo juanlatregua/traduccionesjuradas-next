@@ -3,96 +3,22 @@ import { getAllOrdersForStaff } from "@/lib/orders";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState } from "@/lib/workflow";
+import { inRange } from "@/lib/pedidos-kpis";
+import { matchesHeaderFilter } from "@/lib/pedidos-filters";
+import { parsePedidosP, periodBounds, resolvePedidosPeriod, type Period } from "@/lib/panel-period";
 
 export const runtime = "nodejs";
 
-type PeriodKey = "total" | "hoy" | "7d" | "mes" | "mes-anterior" | "custom";
 type DateBaseKey = "created" | "paid";
-
-type DateRange = {
-  key: PeriodKey;
-  from: Date | null;
-  to: Date | null;
-};
-
-function normalizePeriod(value?: string | null): PeriodKey {
-  if (value === "hoy" || value === "7d" || value === "mes" || value === "mes-anterior" || value === "custom") {
-    return value;
-  }
-  return "total";
-}
 
 function normalizeDateBase(value?: string | null): DateBaseKey {
   return value === "paid" ? "paid" : "created";
 }
 
-function startOfDay(value: Date) {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfDay(value: Date) {
-  const d = new Date(value);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-function startOfMonth(value: Date) {
-  return new Date(value.getFullYear(), value.getMonth(), 1, 0, 0, 0, 0);
-}
-
-function endOfMonth(value: Date) {
-  return new Date(value.getFullYear(), value.getMonth() + 1, 0, 23, 59, 59, 999);
-}
-
-function parseDateInput(value?: string | null) {
-  const raw = String(value || "").trim();
-  if (!raw) return null;
-  const parsed = new Date(`${raw}T00:00:00`);
-  if (isNaN(parsed.getTime())) return null;
-  return parsed;
-}
-
-function getDateRange(periodRaw?: string | null, fromRaw?: string | null, toRaw?: string | null): DateRange {
-  const now = new Date();
-  const key = normalizePeriod(periodRaw);
-
-  if (key === "hoy") {
-    return { key, from: startOfDay(now), to: endOfDay(now) };
-  }
-  if (key === "7d") {
-    return {
-      key,
-      from: startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)),
-      to: endOfDay(now),
-    };
-  }
-  if (key === "mes") {
-    return { key, from: startOfMonth(now), to: endOfDay(now) };
-  }
-  if (key === "mes-anterior") {
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return { key, from: startOfMonth(prevMonth), to: endOfMonth(prevMonth) };
-  }
-  if (key === "custom") {
-    const fromDate = parseDateInput(fromRaw);
-    const toDate = parseDateInput(toRaw);
-    return {
-      key,
-      from: fromDate ? startOfDay(fromDate) : null,
-      to: toDate ? endOfDay(toDate) : null,
-    };
-  }
-
-  return { key: "total", from: null, to: null };
-}
-
-function isWithinDateRange(date: Date, range: DateRange) {
-  const time = date.getTime();
-  if (range.from && time < range.from.getTime()) return false;
-  if (range.to && time > range.to.getTime()) return false;
-  return true;
+function isWithinPeriod(date: Date, period: Period | null) {
+  if (!period) return true;
+  const { from, to } = periodBounds(period);
+  return inRange(date, from, to);
 }
 
 function isDueSoon(dueDate: Date | null) {
@@ -194,11 +120,7 @@ export async function GET(req: Request) {
     const filtro = String(url.searchParams.get("filtro") || "todos");
     const qRaw = String(url.searchParams.get("q") || "").trim();
     const q = qRaw.toLowerCase();
-    const dateRange = getDateRange(
-      url.searchParams.get("periodo"),
-      url.searchParams.get("desde"),
-      url.searchParams.get("hasta")
-    );
+    const period = resolvePedidosPeriod(parsePedidosP(url.searchParams.get("p")), url.searchParams.get("d"));
     const dateBase = normalizeDateBase(url.searchParams.get("base"));
 
     const allOrders = await getAllOrdersForStaff();
@@ -213,7 +135,7 @@ export async function GET(req: Request) {
     const periodOrders = allOrdersWithFinance.filter((order) => {
       const baseDate = getOrderDateForBase(order, dateBase);
       if (!baseDate) return false;
-      return isWithinDateRange(baseDate, dateRange);
+      return isWithinPeriod(baseDate, period);
     });
 
     const scopedOrders = q ? periodOrders.filter((order) => matchesSearch(order, q)) : periodOrders;
@@ -221,6 +143,9 @@ export async function GET(req: Request) {
     const filteredOrders = scopedOrders.filter((order) => {
       if (filtro === "archivados") return order.isArchived;
       if (order.isArchived) return false;
+
+      const header = matchesHeaderFilter(order, filtro);
+      if (header !== undefined) return header;
 
       switch (filtro) {
         case "pagados-sin-asignar":

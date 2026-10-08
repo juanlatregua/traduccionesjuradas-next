@@ -18,33 +18,20 @@ import {
   getOrderGates,
 } from "@/lib/order-actions";
 import { isDueSoon, isOverdue } from "@/lib/order-utils";
+import { computePedidosKpis, inRange } from "@/lib/pedidos-kpis";
+import { isPagoProveedorPendiente, matchesHeaderFilter } from "@/lib/pedidos-filters";
+import { parsePedidosP, periodBounds, resolvePedidosPeriod, type Period } from "@/lib/panel-period";
 import type { BandejaOrder } from "@/components/BandejaEntrada";
 
 export type ControlSearchParams = {
   filtro?: string;
   q?: string;
-  periodo?: string;
-  desde?: string;
-  hasta?: string;
+  p?: string;
+  d?: string;
   base?: string;
 };
 
-type PeriodKey = "total" | "hoy" | "7d" | "mes" | "mes-anterior" | "custom";
 type DateBaseKey = "created" | "paid";
-
-type DateRange = {
-  key: PeriodKey;
-  label: string;
-  from: Date | null;
-  to: Date | null;
-  fromInput: string;
-  toInput: string;
-};
-
-function formatDate(date: Date | null) {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" });
-}
 
 function getAcquisitionSource(order: any): "WHATSAPP" | "WEB" {
   const events = order.events || [];
@@ -264,93 +251,10 @@ function normalizeDateBase(value?: string | null): DateBaseKey {
   return value === "paid" ? "paid" : "created";
 }
 
-function startOfDay(value: Date) {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfDay(value: Date) {
-  const d = new Date(value);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-function startOfMonth(value: Date) {
-  return new Date(value.getFullYear(), value.getMonth(), 1, 0, 0, 0, 0);
-}
-
-function endOfMonth(value: Date) {
-  return new Date(value.getFullYear(), value.getMonth() + 1, 0, 23, 59, 59, 999);
-}
-
-function parseDateInput(value?: string | null) {
-  const raw = String(value || "").trim();
-  if (!raw) return null;
-  const parsed = new Date(`${raw}T00:00:00`);
-  if (isNaN(parsed.getTime())) return null;
-  return parsed;
-}
-
-function formatInputDate(date: Date | null) {
-  if (!date) return "";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function normalizePeriod(value?: string | null): PeriodKey {
-  if (value === "hoy" || value === "7d" || value === "mes" || value === "mes-anterior" || value === "custom") {
-    return value;
-  }
-  return "total";
-}
-
-function getDateRange(periodRaw?: string | null, fromRaw?: string | null, toRaw?: string | null): DateRange {
-  const now = new Date();
-  const key = normalizePeriod(periodRaw);
-
-  if (key === "hoy") {
-    return { key, label: "Hoy", from: startOfDay(now), to: endOfDay(now), fromInput: "", toInput: "" };
-  }
-  if (key === "7d") {
-    const from = startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
-    return { key, label: "Ultimos 7 dias", from, to: endOfDay(now), fromInput: "", toInput: "" };
-  }
-  if (key === "mes") {
-    return { key, label: "Mes actual", from: startOfMonth(now), to: endOfDay(now), fromInput: "", toInput: "" };
-  }
-  if (key === "mes-anterior") {
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const from = startOfMonth(prevMonth);
-    const to = endOfMonth(prevMonth);
-    return { key, label: "Mes anterior", from, to, fromInput: "", toInput: "" };
-  }
-  if (key === "custom") {
-    const fromDate = parseDateInput(fromRaw);
-    const toDate = parseDateInput(toRaw);
-    const from = fromDate ? startOfDay(fromDate) : null;
-    const to = toDate ? endOfDay(toDate) : null;
-    const label =
-      from && to
-        ? `Rango ${formatDate(from)} - ${formatDate(to)}`
-        : from
-          ? `Desde ${formatDate(from)}`
-          : to
-            ? `Hasta ${formatDate(to)}`
-            : "Rango personalizado";
-    return { key, label, from, to, fromInput: formatInputDate(fromDate), toInput: formatInputDate(toDate) };
-  }
-
-  return { key: "total", label: "Total historico", from: null, to: null, fromInput: "", toInput: "" };
-}
-
-function isWithinDateRange(date: Date, range: DateRange) {
-  const time = new Date(date).getTime();
-  if (range.from && time < range.from.getTime()) return false;
-  if (range.to && time > range.to.getTime()) return false;
-  return true;
+function isWithinPeriod(date: Date, period: Period | null) {
+  if (!period) return true;
+  const { from, to } = periodBounds(period);
+  return inRange(date, from, to);
 }
 
 function getOrderDateForBase(order: any, base: DateBaseKey) {
@@ -559,7 +463,8 @@ export const countPresupuestosAccionables = cache(async (): Promise<number> => {
 
 export async function loadControlState(searchParams: ControlSearchParams) {
   const enriched = await loadEnrichedOrders();
-  const dateRange = getDateRange(searchParams.periodo, searchParams.desde, searchParams.hasta);
+  const p = parsePedidosP(searchParams.p);
+  const period = resolvePedidosPeriod(p, searchParams.d);
   const dateBase = normalizeDateBase(searchParams.base);
 
   const filtro = searchParams.filtro || "todos";
@@ -569,7 +474,7 @@ export async function loadControlState(searchParams: ControlSearchParams) {
   const periodOrders = enriched.filter((order) => {
     const baseDate = getOrderDateForBase(order, dateBase);
     if (!baseDate) return false;
-    return isWithinDateRange(baseDate, dateRange);
+    return isWithinPeriod(baseDate, period);
   });
   const scopedOrders = q ? periodOrders.filter((order) => matchesSearch(order, q)) : periodOrders;
   const activeScopedOrders = scopedOrders.filter((order) => !order.isArchived);
@@ -577,13 +482,13 @@ export async function loadControlState(searchParams: ControlSearchParams) {
   const orders = scopedOrders.filter((order) => {
     if (filtro === "archivados") return order.isArchived;
     if (order.isArchived) return false;
+    const header = matchesHeaderFilter(order, filtro);
+    if (header !== undefined) return header;
     switch (filtro) {
       case "pagados-sin-asignar":
         return order.paymentStatus === "PAID" && !order.assignedTo && order.deliveryState !== "TRADUCIDO";
       case "pendientes-revision":
         return order.workflowState === "PENDIENTE_REVISION";
-      case "origen-whatsapp":
-        return order.acquisitionSource === "WHATSAPP";
       case "en-proceso":
         return order.deliveryState === "EN_PROCESO";
       case "sla-riesgo":
@@ -605,9 +510,11 @@ export async function loadControlState(searchParams: ControlSearchParams) {
 
   const counts = {
     todos: activeScopedOrders.length,
+    cobrados: activeScopedOrders.filter((o) => matchesHeaderFilter(o, "cobrados")).length,
+    "por-entregar": activeScopedOrders.filter((o) => matchesHeaderFilter(o, "por-entregar")).length,
+    "por-cobrar": activeScopedOrders.filter((o) => matchesHeaderFilter(o, "por-cobrar")).length,
     "pagados-sin-asignar": activeScopedOrders.filter((o) => o.paymentStatus === "PAID" && !o.assignedTo && o.deliveryState !== "TRADUCIDO").length,
     "pendientes-revision": activeScopedOrders.filter((o) => o.workflowState === "PENDIENTE_REVISION").length,
-    "origen-whatsapp": activeScopedOrders.filter((o) => o.acquisitionSource === "WHATSAPP").length,
     "en-proceso": activeScopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length,
     "sla-riesgo": activeScopedOrders.filter((o) => o.dueDate && (isDueSoon(o.dueDate) || isOverdue(o.dueDate)) && o.deliveryState !== "TRADUCIDO").length,
     "pendientes-pago": activeScopedOrders.filter((o) => o.paymentStatus === "PENDING").length,
@@ -616,35 +523,22 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     "riesgo-financiero": activeScopedOrders.filter((o) => isOrderInBooks(o) && hasFinancialRisk(o)).length,
     "margen-aprobacion": activeScopedOrders.filter((o) => isOrderInBooks(o) && requiresMarginApproval(o)).length,
     "lote-pendiente": activeScopedOrders.filter((o) => isOrderInBooks(o) && hasMonthlyBatchPending(o)).length,
+    "pago-proveedor-pendiente": activeScopedOrders.filter(isPagoProveedorPendiente).length,
     archivados: scopedOrders.filter((o) => o.isArchived).length,
   };
 
-  const paidCount = activeScopedOrders.filter((o) => o.paymentStatus === "PAID").length;
-  const inProgressCount = activeScopedOrders.filter((o) => o.deliveryState === "EN_PROCESO").length;
-  const pendingPayCount = activeScopedOrders.filter((o) => o.paymentStatus === "PENDING").length;
-  const reviewPendingCount = counts["pendientes-revision"];
-  const whatsappLeadCount = counts["origen-whatsapp"];
-  const financialRiskCount = counts["riesgo-financiero"];
-  const marginApprovalPendingCount = counts["margen-aprobacion"];
-  const monthlyBatchPendingCount = counts["lote-pendiente"];
-  const financeClosedCount = activeScopedOrders.filter((o) => o.financeSnapshot.hasFinanceCloseEvent).length;
-  // Ingresos y margen: solo pedidos EN LIBROS (Bizum sin factura y apartados fuera).
-  const booksOrders = activeScopedOrders.filter((o) => isOrderInBooks(o));
-  const paidRevenueCents = booksOrders
-    .filter((o) => o.paymentStatus === "PAID")
-    .reduce((acc, order) => acc + order.amountCents, 0);
-  const supplierPaymentPendingCount = booksOrders.filter(
-    (o) => o.paymentStatus === "PAID" && o.financeSnapshot.supplierInvoiceStatus !== "PAID"
-  ).length;
+  // Lo vivo y las alertas NO dependen del periodo elegido: un pedido atascado de hace tres meses sigue pidiendo acción.
+  const allActive = enriched.filter((o) => !o.isArchived);
+  const allBooks = allActive.filter((o) => isOrderInBooks(o));
+  const kpis = computePedidosKpis(allActive, period);
+  const alerts = {
+    pagosProveedor: allActive.filter(isPagoProveedorPendiente).length,
+    lotes: allBooks.filter(hasMonthlyBatchPending).length,
+    margen: allBooks.filter(requiresMarginApproval).length,
+    riesgo: allBooks.filter(hasFinancialRisk).length,
+  };
 
-  const marginValues = booksOrders
-    .map((o) => o.financeSnapshot.marginPct)
-    .filter((v): v is number => typeof v === "number");
-  const avgMarginPct = marginValues.length
-    ? Number((marginValues.reduce((acc, v) => acc + v, 0) / marginValues.length).toFixed(2))
-    : null;
-
-  const criticalFinanceOrders = booksOrders
+  const criticalFinanceOrders = allBooks
     .filter(
       (o) =>
         hasFinancialRisk(o) ||
@@ -654,7 +548,6 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     )
     .slice(0, 6);
 
-  const allActive = enriched.filter((o) => !o.isArchived);
   const pedidosAccionables = computePedidosAccionables(allActive);
 
   return {
@@ -662,23 +555,13 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     // Mismos pedidos filtrados, serializados para las tarjetas de triage: la
     // vista Cards y la vista Tabla comparten filtro y dataset (una sola carga).
     bandejaOrders: orders.map(toBandejaOrder),
-    periodOrders,
-    activeScopedOrders,
+    allActive,
     counts,
-    paidCount,
-    inProgressCount,
-    pendingPayCount,
-    reviewPendingCount,
-    whatsappLeadCount,
-    financialRiskCount,
-    marginApprovalPendingCount,
-    monthlyBatchPendingCount,
-    financeClosedCount,
-    paidRevenueCents,
-    supplierPaymentPendingCount,
-    avgMarginPct,
+    kpis,
+    alerts,
     criticalFinanceOrders,
-    dateRange,
+    p,
+    period,
     dateBase,
     filtro,
     qRaw,

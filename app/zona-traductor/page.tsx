@@ -9,8 +9,13 @@ import EstimationAccuracyCard from "@/components/EstimationAccuracyCard";
 import OrderTableWithBulkActions from "@/components/OrderTableWithBulkActions";
 import PedidosViewToggle from "@/components/PedidosViewToggle";
 import TranslatorAgenda from "@/components/TranslatorAgenda";
+import PedidosHeader, { type PedidosMoney } from "@/components/pedidos/PedidosHeader";
 import ZonaTraductorFilters from "@/components/ZonaTraductorFilters";
 import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
+import { getStaffRole } from "@/lib/staff-access";
+import { loadPanelData } from "@/lib/panel-data";
+import { aggregate, computeTotals } from "@/lib/panel-metrics";
+import { allTimePeriod, type Period } from "@/lib/panel-period";
 import {
   authZonaTraductorOrRedirect,
   loadControlState,
@@ -28,8 +33,27 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function formatMoney(cents: number) {
-  return `${(cents / 100).toFixed(2)} EUR`;
+// Cifras de dinero de la cabecera: las mismas del Panel (cobro = paidAt, sin IVA). Solo ADMIN.
+async function loadMoney(period: Period | null): Promise<PedidosMoney> {
+  const effective = period ?? allTimePeriod();
+  const { current, previous } = await loadPanelData(effective);
+  const cmp = period ? previous : undefined;
+  const tot = (m: "ingresos_netos" | "margen_eur" | "margen_pct", d = current) => computeTotals(d, m);
+  const prev = (m: "ingresos_netos" | "margen_eur") => (cmp ? tot(m, cmp) : undefined);
+  const rows = (dimension: "par" | "traductor") => aggregate(current, { metric: "ingresos_netos", dimension, period: effective, top: 5 });
+  return {
+    cobrado: { value: tot("ingresos_netos"), prev: prev("ingresos_netos") },
+    margenEur: { value: tot("margen_eur"), prev: prev("margen_eur") },
+    margenPct: tot("margen_pct"),
+    chart: period
+      ? (() => {
+          const t = aggregate(current, { metric: "ingresos_netos", dimension: "tiempo", period });
+          return { labels: t.map((r) => r.label), series: [{ metric: "ingresos_netos" as const, name: "Cobrado sin IVA", values: t.map((r) => r.value) }] };
+        })()
+      : null,
+    porPar: rows("par"),
+    porTraductor: rows("traductor"),
+  };
 }
 
 // PEDIDOS = fusión de la antigua Bandeja (triage por urgencia) y el antiguo
@@ -42,9 +66,8 @@ export default async function ZonaTraductorPedidosPage({
   searchParams: {
     filtro?: string;
     q?: string;
-    periodo?: string;
-    desde?: string;
-    hasta?: string;
+    p?: string;
+    d?: string;
     base?: string;
     vista?: string;
   };
@@ -52,30 +75,9 @@ export default async function ZonaTraductorPedidosPage({
   const email = await authZonaTraductorOrRedirect();
   const state = await loadControlState(searchParams);
   const vista = searchParams.vista === "tabla" ? "tabla" : "cards";
-  const {
-    orders,
-    bandejaOrders,
-    periodOrders,
-    counts,
-    paidCount,
-    inProgressCount,
-    pendingPayCount,
-    reviewPendingCount,
-    whatsappLeadCount,
-    financialRiskCount,
-    marginApprovalPendingCount,
-    monthlyBatchPendingCount,
-    financeClosedCount,
-    paidRevenueCents,
-    supplierPaymentPendingCount,
-    avgMarginPct,
-    criticalFinanceOrders,
-    activeScopedOrders,
-    dateRange,
-    dateBase,
-    filtro,
-    qRaw,
-  } = state;
+  const { orders, bandejaOrders, allActive, counts, kpis, alerts, criticalFinanceOrders, p, period, dateBase, filtro, qRaw } = state;
+  const isAdmin = getStaffRole(email) === "ADMIN";
+  const money = isAdmin ? await loadMoney(period) : null;
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -92,96 +94,29 @@ export default async function ZonaTraductorPedidosPage({
             <ZonaTraductorThemeToggle />
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-            <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-4 text-center">
-              <p className="text-2xl font-bold text-white">{activeScopedOrders.length}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total activos</p>
-            </div>
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-400">{paidCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-400/60">Pagados</p>
-            </div>
-            <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-blue-400">{inProgressCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-blue-400/60">En proceso</p>
-            </div>
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-amber-400">{pendingPayCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-amber-400/60">Pend. pago</p>
-            </div>
-            <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-orange-300">{reviewPendingCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-orange-300/70">Pend. revisión</p>
-            </div>
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-300">{whatsappLeadCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-300/70">Origen WA</p>
-            </div>
-            <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-red-400">{financialRiskCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-red-400/70">Riesgo financiero</p>
-            </div>
-            <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 text-center col-span-2 sm:col-span-1">
-              <p className="text-sm font-bold text-cyan-300">{formatMoney(paidRevenueCents)}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-300/70">Ingresos cobrados</p>
-            </div>
-            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-rose-300">{supplierPaymentPendingCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-rose-300/70">Pagos prov. pend.</p>
-            </div>
-            <div className="rounded-2xl border border-lime-500/20 bg-lime-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-lime-300">{financeClosedCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-lime-300/70">Cierres fin.</p>
-            </div>
-            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-300">{marginApprovalPendingCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-yellow-300/70">Aprob. margen</p>
-            </div>
-            <div className="rounded-2xl border border-fuchsia-500/20 bg-fuchsia-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-fuchsia-300">{monthlyBatchPendingCount}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-300/70">Lote vencido</p>
-            </div>
-          </div>
+          <PedidosHeader
+            p={p}
+            period={period}
+            dateBase={dateBase}
+            filtro={filtro}
+            q={qRaw}
+            vista={searchParams.vista}
+            kpis={kpis}
+            alerts={alerts}
+            money={money}
+          />
 
-          <div className="mt-3 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-xs text-slate-300">
-            <p>
-              Periodo activo: <span className="font-semibold text-slate-100">{dateRange.label}</span>
-              {" · "}
-              <span className="font-semibold text-slate-100">
-                {dateBase === "paid" ? "Base fecha cobro" : "Base fecha pedido"}
-              </span>
-              {" · "}
-              <span className="text-slate-400">Resetear vista no borra datos, solo limpia filtros y estadísticas.</span>
-            </p>
-            <p>
-              Margen medio con datos:{" "}
-              <span className="font-semibold text-slate-100">{avgMarginPct === null ? "—" : `${avgMarginPct}%`}</span>
-            </p>
-            <p className="mt-1 text-slate-400">
-              Si un pedido cae por debajo del umbral de margen (10%), queda bloqueado para cierre hasta aprobar.
-            </p>
-            <p className="mt-2 text-slate-400">
-              Flujo WhatsApp: usa{" "}
-              <a
-                href={getTrackedPresupuestoUrl("pm")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-cyan-300 underline"
-              >
-                enlace presupuesto
-              </a>{" "}
-              y{" "}
-              <a
-                href={getTrackedConsultaUrl(undefined, "pm")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-cyan-300 underline"
-              >
-                enlace consulta
-              </a>{" "}
-              para que el lead entre trazado como `src=wa`.
-            </p>
-          </div>
+          <p className="mt-4 text-xs text-slate-400">
+            Flujo WhatsApp: usa{" "}
+            <a href={getTrackedPresupuestoUrl("pm")} target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-300 underline">
+              enlace presupuesto
+            </a>{" "}
+            y{" "}
+            <a href={getTrackedConsultaUrl(undefined, "pm")} target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-300 underline">
+              enlace consulta
+            </a>{" "}
+            para que el lead entre trazado como `src=wa`.
+          </p>
         </section>
 
         <EstimationAccuracyCard />
@@ -209,7 +144,7 @@ export default async function ZonaTraductorPedidosPage({
         )}
 
         <TranslatorAgenda
-          items={periodOrders
+          items={allActive
             // Solo lo vivo: pagado y no archivado (26-ago: la agenda enseñaba un
             // presupuesto de abril sin pagar y un pedido archivado).
             .filter((o) => o.paymentStatus === "PAID" && !o.isArchived)
@@ -243,10 +178,6 @@ export default async function ZonaTraductorPedidosPage({
             current={filtro}
             counts={counts}
             query={qRaw}
-            period={dateRange.key}
-            fromDate={dateRange.fromInput}
-            toDate={dateRange.toInput}
-            dateBase={dateBase}
           />
 
           {orders.length === 0 ? (

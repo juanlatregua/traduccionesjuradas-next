@@ -187,3 +187,40 @@ export function buildPeriod(p: Granularity, anchorInput: string | null | undefin
     prevBuckets: bucketsFor(p, prev.start, prev.end),
   };
 }
+
+// ---- Pedidos: mismo selector que el Panel, más «Todo» (sin límite de fechas) ----
+export type PedidosP = Granularity | "todo";
+export const PEDIDOS_PERIODS: { value: PedidosP; label: string }[] = [
+  { value: "dia", label: "Hoy" },
+  { value: "semana", label: "Semana" },
+  { value: "mes", label: "Mes" },
+  { value: "trimestre", label: "Trimestre" },
+  { value: "anio", label: "Año" },
+  { value: "todo", label: "Todo" },
+];
+
+export function parsePedidosP(s: string | null | undefined): PedidosP {
+  return s === "todo" ? "todo" : parseGranularity(s);
+}
+
+/** Periodo del Panel, o null para «todo». */
+export function resolvePedidosPeriod(p: PedidosP, anchor: string | null | undefined, now: Date = new Date()): Period | null {
+  return p === "todo" ? null : buildPeriod(p, anchor, now);
+}
+
+/** Límites [from, to) del periodo y del anterior. */
+export function periodBounds(period: Period) {
+  return {
+    from: new Date(period.start),
+    to: new Date(period.end),
+    prevFrom: new Date(period.prevStart),
+    prevTo: new Date(period.prevEnd),
+  };
+}
+
+/** «Todo» para loadPanelData: ventana enorme y sin periodo anterior que comparar. */
+export function allTimePeriod(now: Date = new Date()): Period {
+  const base = buildPeriod("anio", todayMadrid(now), now);
+  const origin = "2000-01-01T00:00:00.000Z";
+  return { ...base, start: origin, prevStart: origin, prevEnd: origin, end: new Date(now.getTime() + 864e5).toISOString() };
+}
