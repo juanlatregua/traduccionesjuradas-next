@@ -117,6 +117,8 @@ export async function notifyMarginOverride(input: {
 export async function verifyTranslatorChannelPrice(input: {
   quoteId: string;
   expedienteRef?: string | null;
+  /** Quote.autoPricedBy: la marca de tarifa por página la pone el builder. */
+  autoPricedBy?: string | null;
   sourceLang: string | null | undefined;
   targetLang: string | null | undefined;
   lines: QuoteMarginLine[];
@@ -126,8 +128,8 @@ export async function verifyTranslatorChannelPrice(input: {
 
   // Tarifa por página DE→ES (8-oct-2026): el coste de Morton (10/15 € por página)
   // es una tarifa pactada de la casa, no un coste inventado ni una cifra que haya
-  // que pedir antes a lavori — el precio sale al momento. Solo si TODAS las líneas
-  // con precio son exactamente esa tarifa (precio y coste a la vez); cualquier
+  // que pedir antes a lavori — el precio sale al momento. Exige la MARCA explícita
+  // del builder (autoPricedBy) Y que TODAS las líneas con precio son exactamente esa tarifa (precio y coste a la vez); cualquier
   // otra cifra sigue exigiendo el canal.
   if (isDePageTariffQuote(input)) return { ok: true };
 

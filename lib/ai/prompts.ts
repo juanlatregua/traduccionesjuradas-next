@@ -57,6 +57,7 @@ Analiza el documento que te proporcionan y devuelve un JSON estructurado con la 
   "requirements": {
     "needs_apostille_translation": true,
     "has_apostille": true,
+    "apostille_separate_page": false,
     "has_legalization": false,
     "special_notes": "El documento incluye apostilla que también debe traducirse"
   },
@@ -119,6 +120,8 @@ La precisión del conteo de palabras determina directamente el precio del presup
 3. En documentos bilingües (ej: húngaro/inglés), cuenta SOLO el idioma que se va a traducir al español.
 4. En documentos bilingües francés/árabe (Marruecos), cuenta SOLO el francés.
 5. En documentos oficiales españoles CO-OFICIALES de contenido idéntico en paralelo (castellano + català/gallego/euskera): transcríbelo completo y marca "is_bilingual_duplicate": true; el sistema divide el conteo entre 2 (NO cuentes tú una sola columna en ese caso).
+
+**Apostilla en hoja aparte (\`apostille_separate_page\`):** true SOLO si estás seguro de que la apostilla ocupa una hoja propia dentro del archivo (una página que es solo la apostilla). Si va sellada en la misma página del documento, o dudas, pon false: del número de páginas depende el precio y en la duda se cobra de más, no de menos.
 
 **Detección de tablas (\`has_tables\`):** pon \`has_tables\` a true si alguna página lleva el contenido principal en filas y columnas (notas y asignaturas de un expediente académico, extractos bancarios, listados de movimientos o importes). Un certificado con solo campos sueltos o una cuadrícula de formulario NO es una tabla. Este dato decide el precio por página en alemán: no lo marques por un simple encabezado o un sello.
 

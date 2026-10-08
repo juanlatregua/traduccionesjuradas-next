@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     images: [
       {
-        url: "/api/og?title=Traducci%C3%B3n+jurada+de+certificado+de+matrimonio&subtitle=Documentos+oficiales+%C2%B7+Desde+35+%E2%82%AC+%2B+IVA",
+        url: "/api/og?title=Traducci%C3%B3n+jurada+de+certificado+de+matrimonio&subtitle=Documentos+oficiales+%C2%B7+Desde+30+%E2%82%AC+%2B+IVA",
         width: 1200,
         height: 630,
         alt: "Traducción jurada de certificado de matrimonio — TraduccionesJuradas.net",
@@ -45,8 +45,8 @@ export default function CertificadoMatrimonioPage() {
         description="Traducción jurada oficial de certificados de matrimonio extranjeros. Entrega en PDF firmado en 24-48h."
         sku="tj-certificado-matrimonio"
         offers={[
-          { price: "35", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
-          { price: "40", priceCurrency: "EUR", url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
+          { name: "1 página (francés/alemán → español)", price: "30", priceCurrency: "EUR", vatIncluded: false, url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
+          { name: "1 página apostillada (francés/alemán → español)", price: "35", priceCurrency: "EUR", vatIncluded: false, url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
         ]}
       />
       <SchemaFAQ
@@ -147,8 +147,8 @@ export default function CertificadoMatrimonioPage() {
             { pair: "Español → Inglés", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
             { pair: "Español → Francés", price: "35 € + IVA", plazo: "24 h" },
             { pair: "Portugués (apostillado) → Español", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
-            { pair: "Francés → Español", price: "30 € + IVA por página", plazo: "24 h" },
-            { pair: "Alemán → Español", price: "30 € + IVA por página", plazo: "48 h" },
+            { pair: "Francés → Español", price: "30 € + IVA por página · 35 € si está apostillado", plazo: "24 h" },
+            { pair: "Alemán → Español", price: "30 € + IVA por página (35 € con tablas) · +5 € si está apostillado", plazo: "48 h" },
           ].map((item) => (
             <div key={item.pair} className="rounded-xl border border-cream bg-parchment px-3 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-bleu">

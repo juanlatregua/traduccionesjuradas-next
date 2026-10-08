@@ -54,7 +54,18 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
         has_apostille: {
           type: "boolean",
           description:
-            "True si el documento incluye una apostilla de La Haya que también requiere traducción jurada (recargo de 15 €; en francés y alemán por página, +5 € y la hoja de apostilla no cuenta como página).",
+            "True si el documento incluye una apostilla de La Haya que también requiere traducción jurada (recargo de 15 €; en francés y alemán por página, +5 € por documento).",
+        },
+        direction: {
+          type: "string",
+          enum: ["to_spanish", "from_spanish"],
+          description:
+            "OBLIGATORIO. 'to_spanish' si el documento está en el otro idioma y se traduce AL español; 'from_spanish' si el documento está en español y se traduce al otro idioma. Si no lo sabes, pregúntalo antes de llamar: la tarifa por página (30 €) solo existe en francés→español y alemán→español.",
+        },
+        apostille_separate_page: {
+          type: "boolean",
+          description:
+            "True SOLO si el cliente dice que la apostilla va en una hoja aparte (entonces no cuenta como página). En la duda, omítelo: se cobran todas las páginas + 5 €.",
         },
         has_tables: {
           type: "boolean",
@@ -67,7 +78,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
             "Código ISO 3166-1 alpha-2 del país emisor. Activa precios especiales: 'MA' (Marruecos en francés → tarifa fija por páginas).",
         },
       },
-      required: ["language"],
+      required: ["language", "direction"],
     },
   },
   {

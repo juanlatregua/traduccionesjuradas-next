@@ -9,7 +9,7 @@ import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { getMinimum } from "@/lib/pricing-engine/rules";
 import { DOC_FLOOR_CENTS } from "@/lib/learned-rates-math";
-import { PAGE_PRICED_LANGS, PAGE_PRICE_EUR } from "@/lib/pricing-engine/page-pricing";
+import { PAGE_PRICED_LANGS, PAGE_PRICE_EUR, APOSTILLE_EXTRA_EUR } from "@/lib/pricing-engine/page-pricing";
 import { LANGUAGE_CONFIGS, type LanguageConfig } from "@/lib/language-config";
 import { CENSO_STIJ, CENSO_STIJ_FECHA } from "@/lib/censo-jurados";
 
@@ -116,7 +116,7 @@ export default async function PaginaIdioma({
         question: `¿Cuánto cuesta una traducción jurada de ${idioma.toLowerCase()}?`,
         answer:
           lang === "fr"
-            ? "Traducción jurada de francés: 30 € + IVA por página del original (certificados, actas, títulos, expedientes, antecedentes) · 35 € si está apostillado (la apostilla no cuenta como página). Sube el documento y recibes el precio cerrado al instante."
+            ? "Traducción jurada de francés: 30 € + IVA por página del original (certificados, actas, títulos, expedientes, antecedentes) · 35 € si está apostillado. Sube el documento y recibes el precio cerrado al instante."
             : lang === "de"
               ? "Traducción jurada de alemán a español: 30 € + IVA por página del original (35 € + IVA si la página lleva tablas: notas, expedientes, extractos bancarios) · +5 € si está apostillado. Sube el documento y recibes el precio cerrado al instante."
               : "Depende del documento. Súbelo y tu traductor jurado nombrado por el MAEC te confirma el precio hoy mismo, sin compromiso.",
@@ -168,23 +168,22 @@ export default async function PaginaIdioma({
         name={`Traducción jurada de ${idioma}`}
         description={`Traducción jurada oficial de ${idioma} realizada por traductor jurado acreditado. ${idiomaSlug === "frances" ? "Entrega en 24-48h." : "Plazo confirmado en el presupuesto."} Válida ante organismos españoles.`}
         sku={`tj-${idiomaSlug}`}
-        offers={[
-          {
-            price: priceDoc,
-            priceCurrency: "EUR",
-            url: canonicalUrl,
-          },
-          {
-            price: priceStd,
-            priceCurrency: "EUR",
-            url: canonicalUrl,
-          },
-          {
-            price: priceExp,
-            priceCurrency: "EUR",
-            url: canonicalUrl,
-          },
-        ]}
+        offers={
+          // fr/de→es: tarifa por página, IVA no incluido (8-oct-2026). ES→FR/ES→DE
+          // no tienen oferta por página y siguen con su precio.
+          porPagina
+            ? [
+                { name: "1 página", price: priceDoc, priceCurrency: "EUR", url: canonicalUrl, vatIncluded: false },
+                { name: "2 páginas", price: priceStd, priceCurrency: "EUR", url: canonicalUrl, vatIncluded: false },
+                { name: "3 páginas", price: priceExp, priceCurrency: "EUR", url: canonicalUrl, vatIncluded: false },
+                { name: "1 página apostillada", price: (PAGE_PRICE_EUR + APOSTILLE_EXTRA_EUR).toFixed(2), priceCurrency: "EUR", url: canonicalUrl, vatIncluded: false },
+              ]
+            : [
+                { price: priceDoc, priceCurrency: "EUR", url: canonicalUrl },
+                { price: priceStd, priceCurrency: "EUR", url: canonicalUrl },
+                { price: priceExp, priceCurrency: "EUR", url: canonicalUrl },
+              ]
+        }
       />
 
       <Breadcrumbs items={[

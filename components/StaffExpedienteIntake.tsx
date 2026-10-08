@@ -6,6 +6,7 @@ import { upload } from "@vercel/blob/client";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors, Merge } from "lucide-react";
 import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
+import { PAGE_PRICED_LANGS, APOSTILLE_EXTRA_EUR, PAGE_TARIFF_MARK, pairApostilles } from "@/lib/pricing-engine/page-pricing";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
 import LavoriCandidatePicker, { describeLavoriPick, lavoriPickError, lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
@@ -55,6 +56,8 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     mode,
     unitPrice: Number(d.basePrice) || 0,
     hasTables: !!d.hasTables,
+    apostilleSeparatePage: !!d.apostilleSeparatePage,
+    pageTariff: d.clientPrice != null ? true : undefined,
     clientPrice: d.clientPrice != null ? Number(d.clientPrice) : undefined,
     // El precio de esta fila lo gestiona el engine (se re-calcula al cambiar el
     // idioma destino del expediente) hasta que el staff lo edite a mano.
@@ -89,6 +92,8 @@ type DocRow = {
   complexity?: string;
   countryCode?: string;
   hasApostille?: boolean;
+  apostilleSeparatePage?: boolean; // el análisis dice que la apostilla ocupa hoja propia
+  pageTariff?: boolean; // precio de tarifa por página DE→ES puesto por el motor (marca del presupuesto)
   hasTables?: boolean; // el análisis vio tablas (solo cambia el precio por página en alemán)
   mode?: "text" | "vision";
   unitPrice: number; // editable, pre-IVA (coste TOTAL de la linea)
@@ -802,13 +807,34 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   // "a mano" con el par a la vista (caso Ana Suárez 22-ago, ES→EN sin precio).
   useEffect(() => {
     setDocs((prev) => {
-      const next = prev.map((d) => {
+      const apostillePairs = pairApostilles(
+        prev.map((d) => ({
+          specificType: d.documentType,
+          foreignLang: d.sourceLang && d.sourceLang !== "es" ? d.sourceLang : null,
+          include: d.include,
+        }))
+      );
+      const next = prev.map((d, idx) => {
         if (!d.autoPriced || !isPriceable(d.status) || d.status === "manual" || !d.sourceLang) return d;
         // Destino efectivo: el del expediente; "" = Auto (al español).
         const foreign = resolvePriceablePair(d.sourceLang, targetLang || "es");
         if (!foreign || !isAutoPriceable(foreign)) {
           const note = manualPriceReason(d.sourceLang, foreign);
           return d.unitPrice === 0 && d.clientPrice === undefined && d.priceNote === note ? d : { ...d, unitPrice: 0, clientPrice: undefined, priceNote: note };
+        }
+        // Apostilla SUELTA (fr/de): +5 € solo si acompaña a un documento por página
+        // del expediente; si no, precio a mano. Nunca 30 € ni el mínimo por palabra.
+        if (d.documentType === "apostille" && d.sourceLang !== "es" && PAGE_PRICED_LANGS.has(foreign)) {
+          if (apostillePairs[idx]) {
+            const de = foreign === "de";
+            const cost = de ? 0 : APOSTILLE_EXTRA_EUR;
+            const cp = de ? APOSTILLE_EXTRA_EUR : undefined;
+            return d.unitPrice === cost && d.clientPrice === cp && !d.priceNote && (!de || d.pageTariff === true)
+              ? d
+              : { ...d, unitPrice: cost, clientPrice: cp, pageTariff: de ? true : undefined, priceNote: undefined, minApplied: false };
+          }
+          const note = "Apostilla suelta sin documento al que acompañar: precio a mano";
+          return d.unitPrice === 0 && d.clientPrice === undefined && d.priceNote === note ? d : { ...d, unitPrice: 0, clientPrice: undefined, pageTariff: undefined, priceNote: note };
         }
         if (!d.documentType || !d.words) return d; // sin métricas no se recalcula
         const r = computeBase({
@@ -821,16 +847,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           hasApostille: d.hasApostille,
           inbound: d.sourceLang !== "es",
           hasTables: d.hasTables,
+          apostilleSeparatePage: d.apostilleSeparatePage,
         });
         // Tarifa por página DE→ES: el coste de la línea es el de Morton y el
         // precio de venta se fija aparte (sin margen tiered ni suelo de 40 €).
         const pp = r.pagePricing && r.pagePricing.costPerPage > 0 ? r.pagePricing : null;
         if (pp) {
           const unchangedPp =
-            d.unitPrice === pp.costEur && d.clientPrice === pp.priceEur && !d.priceNote && !d.minApplied;
+            d.unitPrice === pp.costEur && d.clientPrice === pp.priceEur && d.pageTariff === true && !d.priceNote && !d.minApplied;
           return unchangedPp
             ? d
-            : { ...d, unitPrice: pp.costEur, clientPrice: pp.priceEur, priceNote: undefined, minApplied: false, minAmount: pp.priceEur };
+            : { ...d, unitPrice: pp.costEur, clientPrice: pp.priceEur, pageTariff: true, priceNote: undefined, minApplied: false, minAmount: pp.priceEur };
         }
         const base = Math.round(r.basePrice * 100) / 100;
         const minApplied = !r.fixedPriceApplied && r.wordPrice < r.minimum;
@@ -848,7 +875,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           (!("targetLang" in tgtPatch) || d.targetLang === targetLang);
         return unchanged
           ? d
-          : { ...d, ...tgtPatch, unitPrice: base, clientPrice: undefined, priceNote: undefined, minApplied, minAmount: r.minimum };
+          : { ...d, ...tgtPatch, unitPrice: base, clientPrice: undefined, pageTariff: undefined, priceNote: undefined, minApplied, minAmount: r.minimum };
       });
       // Misma referencia si nada cambió: evita el bucle setDocs → docs → effect.
       return next.every((row, i) => row === prev[i]) ? prev : next;
@@ -1092,6 +1119,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           sourceLang,
           targetLang,
           deliveryType,
+          // Marca de tarifa por página DE→ES: solo si TODAS las filas incluidas siguen
+          // como las dejó el motor (cualquier edición a mano desactiva autoPriced).
+          autoPricedBy:
+            sourceLang === "de" && (targetLang || "es") === "es" && includedDocs.length > 0 &&
+            includedDocs.every((d) => d.autoPriced && d.pageTariff)
+              ? PAGE_TARIFF_MARK
+              : undefined,
           expedienteRef: expedienteRef || undefined,
           lavoriLeadRef: lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || undefined,
           pdfLang,

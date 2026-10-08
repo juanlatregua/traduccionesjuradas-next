@@ -309,8 +309,12 @@ export function buildDiagnosis(
   const autoPriceable = isAutoPriceable(foreignLang) && !analysis.price_risk?.risky;
   // Escaparate: francés siempre; alemán SOLO con tarifa por página (DE→ES,
   // documento «por página»), que sale al momento sin esperar a lavori.
+  // Una apostilla clasificada como documento propio no se cobra sola (puede llevar
+  // el acta dentro del PDF): presupuesto manual.
   const publicAutoPriceable =
-    autoPriceable && (isPublicAutoPriceable(foreignLang) || Boolean(quote.pagePricing));
+    autoPriceable &&
+    document_type.specific_type !== "apostille" &&
+    (isPublicAutoPriceable(foreignLang) || Boolean(quote.pagePricing));
   const askTargetLanguage =
     language.source === "es" && (!language.target || language.target === "unknown");
 

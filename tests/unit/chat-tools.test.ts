@@ -148,3 +148,23 @@ test("get_quote_estimate: idioma sin tarifa oficial NO devuelve cifras", () => {
     assert.ok(!("base_price_eur" in r), `${lang} no puede devolver precio`);
   }
 });
+
+// Tarifa por página (8-oct-2026): la tool exige la dirección y solo la aplica hacia el español.
+test("get_quote_estimate: FR→ES 2 páginas apostillado = 65 € (hoja aparte solo si lo dice el cliente)", () => {
+  const r = priced(getQuoteEstimate({ language: "fr", direction: "to_spanish", document_type: "birth_certificate", pages: 2, has_apostille: true }));
+  assert.equal(r.base_price_eur, 65);
+  const s = priced(getQuoteEstimate({ language: "fr", direction: "to_spanish", document_type: "birth_certificate", pages: 2, has_apostille: true, apostille_separate_page: true }));
+  assert.equal(s.base_price_eur, 35);
+});
+
+test("get_quote_estimate: DE→ES por página 30 €, 35 € con tablas; sin dirección o ES→DE sin cifra", () => {
+  assert.equal(priced(getQuoteEstimate({ language: "de", direction: "to_spanish", document_type: "birth_certificate", pages: 2 })).base_price_eur, 60);
+  assert.equal(priced(getQuoteEstimate({ language: "de", direction: "to_spanish", document_type: "transcript", pages: 1 })).base_price_eur, 35);
+  assert.ok("auto_priceable" in getQuoteEstimate({ language: "de", document_type: "birth_certificate", pages: 1 }));
+  assert.ok("auto_priceable" in getQuoteEstimate({ language: "de", direction: "from_spanish", document_type: "birth_certificate", pages: 1 }));
+});
+
+test("get_quote_estimate: ES→FR no usa la tarifa por página (35 € mínimo de siempre)", () => {
+  const r = priced(getQuoteEstimate({ language: "fr", direction: "from_spanish", document_type: "birth_certificate", pages: 1 }));
+  assert.equal(r.base_price_eur, 35);
+});

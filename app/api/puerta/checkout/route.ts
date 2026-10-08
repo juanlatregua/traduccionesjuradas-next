@@ -198,6 +198,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Apostilla clasificada como documento propio: no se cobra sola (puede llevar el
+    // acta dentro del mismo PDF). Presupuesto manual.
+    if (analysis.document_type.specific_type === "apostille") {
+      return NextResponse.json(
+        {
+          ok: false,
+          unsupported: true,
+          error:
+            "Este archivo parece una apostilla suelta. Súbelo junto al documento al que acompaña, o escríbenos por WhatsApp y te preparamos el presupuesto.",
+          whatsappUrl: WHATSAPP_URL,
+        },
+        { status: 422 }
+      );
+    }
+
     // GATE DURO: idioma fuera del precio instantáneo PÚBLICO (24-ago: solo
     // francés; el resto "previa cotización en lavori") NO crea OrderSession ni
     // llega a Stripe. Defensa en profundidad: aunque el diagnóstico/frontend

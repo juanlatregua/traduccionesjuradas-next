@@ -138,6 +138,7 @@ export type PriceMetricsInput = {
   // tipo es «por página». hasTables solo importa en alemán (35 € en vez de 30 €).
   inbound?: boolean;
   hasTables?: boolean;
+  apostilleSeparatePage?: boolean;
 };
 
 export function computeBase(input: PriceMetricsInput): {
@@ -192,6 +193,7 @@ export function computeBase(input: PriceMetricsInput): {
     pages,
     hasTables: input.hasTables,
     hasApostille: input.hasApostille,
+    apostilleSeparatePage: input.apostilleSeparatePage,
   });
   if (pagePricing) {
     return {
@@ -253,6 +255,7 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     hasApostille: requirements?.has_apostille,
     inbound: language.source !== "es",
     hasTables: document_metrics.has_tables,
+    apostilleSeparatePage: requirements?.apostille_separate_page === true,
   });
 
   const estimatedDays = getEstimatedDays(

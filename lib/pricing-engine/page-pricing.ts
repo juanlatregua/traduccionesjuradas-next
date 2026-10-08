@@ -35,7 +35,9 @@ export const PAGE_PRICED_TYPES = new Set([
   "id_card",
   "degree",
   "transcript",
-  "apostille",
+  // «apostille» NO está aquí: una apostilla clasificada sola puede llevar el acta
+  // dentro del mismo PDF; no se cobra sola (presupuesto manual). Solo suma +5 €
+  // cuando acompaña a un documento por página (pairApostilles).
   // El clasificador actual no los emite (caen en transcript/other); se dejan
   // para cuando el prompt los distinga, sin tocar el motor.
   "grades",
@@ -85,21 +87,18 @@ export function computePagePricing(input: {
   pages: number | null | undefined;
   hasTables?: boolean | null;
   hasApostille?: boolean | null;
+  /** El análisis dice EXPRESAMENTE que la apostilla ocupa una hoja aparte. */
+  apostilleSeparatePage?: boolean | null;
 }): PagePricing | null {
   const lang = String(input.foreignLang || "").trim().toLowerCase();
   if (!input.inbound || !PAGE_PRICED_LANGS.has(lang)) return null;
   if (!isPagePricedType(input.specificType)) return null;
-  // Apostilla como documento aparte del expediente: no es un documento a 30 €,
-  // es +5 € sobre el documento al que acompaña (o +5 suelto si no se empareja).
-  if (String(input.specificType || "").trim().toLowerCase() === "apostille") {
-    return {
-      pages: 0, tables: false, apostille: true, pricePerPage: 0,
-      priceEur: APOSTILLE_EXTRA_EUR, costPerPage: lang === "de" ? PAGE_COST_DE_EUR : 0, costEur: 0,
-    };
-  }
   const apostille = input.hasApostille === true;
-  // La hoja de apostilla dentro del PDF se descuenta del recuento (mínimo 1 página).
-  const pages = apostille ? Math.max(1, billablePages(input.pages) - 1) : billablePages(input.pages);
+  // La hoja de apostilla solo se descuenta si el análisis dice expresamente que
+  // ocupa una página aparte. En la duda se cobran todas las páginas (+5 €): antes
+  // cobrar de más que pagar a Morton por debajo de lo pactado.
+  const all = billablePages(input.pages);
+  const pages = apostille && input.apostilleSeparatePage === true ? Math.max(1, all - 1) : all;
   const tables = lang === "de" && detectTables({ specificType: input.specificType, hasTables: input.hasTables });
   const pricePerPage = tables ? PAGE_PRICE_DE_TABLES_EUR : PAGE_PRICE_EUR;
   const costPerPage = lang === "de" ? (tables ? PAGE_COST_DE_TABLES_EUR : PAGE_COST_DE_EUR) : 0;
@@ -144,7 +143,12 @@ export function isDePageTariffLine(unitPriceEur: number, supplierCostEur: number
 }
 
 /** ¿Todas las líneas con precio son la tarifa por página DE→ES (30↔10 / 35↔15 por página)? */
+/** Marca explícita que el builder guarda en Quote.autoPricedBy cuando TODAS sus
+ * líneas salen sin tocar de la tarifa por página DE→ES. Sin ella no se asume. */
+export const PAGE_TARIFF_MARK = "tarifa-pagina-de";
+
 export function isDePageTariffQuote(input: {
+  autoPricedBy?: string | null;
   sourceLang: string | null | undefined;
   targetLang: string | null | undefined;
   lines: Array<{ quantity: number; unitPrice: number; supplierUnitCost?: number | null }>;
@@ -152,6 +156,7 @@ export function isDePageTariffQuote(input: {
   const src = String(input.sourceLang || "").trim().toLowerCase();
   const tgt = String(input.targetLang || "").trim().toLowerCase();
   if (src !== "de" || tgt !== "es") return false;
+  if (input.autoPricedBy !== PAGE_TARIFF_MARK) return false;
   const priced = input.lines.filter((l) => Number(l.unitPrice) > 0);
   return (
     priced.length > 0 &&
@@ -171,7 +176,7 @@ export type DePagePactado = { costCents: number; pages: number; tablePages: numb
  * coste de cada documento. null si algún documento NO es DE→ES «por página» (en
  * ese caso no hay precio pactado y el pedido sigue el flujo de siempre). */
 export function dePagePactado(
-  docs: Array<{ specificType?: string | null; sourceLang?: string | null; pages?: number | null; hasTables?: boolean | null; hasApostille?: boolean | null }>
+  docs: Array<{ specificType?: string | null; sourceLang?: string | null; pages?: number | null; hasTables?: boolean | null; hasApostille?: boolean | null; apostilleSeparatePage?: boolean | null }>
 ): DePagePactado | null {
   if (docs.length === 0) return null;
   let costCents = 0;
@@ -186,6 +191,7 @@ export function dePagePactado(
       pages: d.pages,
       hasTables: d.hasTables,
       hasApostille: d.hasApostille,
+      apostilleSeparatePage: d.apostilleSeparatePage,
     });
     if (!p || p.costPerPage <= 0) return null;
     costCents += Math.round(p.costEur * 100);
@@ -193,5 +199,26 @@ export function dePagePactado(
     pages += p.pages;
     if (p.tables) tablePages += p.pages;
   }
+  if (costCents <= 0) return null; // nunca un encargo a Morton con paraTi 0
   return { costCents, priceCents, pages, tablePages };
+}
+
+/** Apostillas SUELTAS de un expediente: ¿cuál acompaña a un documento cobrado por
+ * páginas del mismo idioma? Solo esas suman +5 €; el resto (sin documento al que
+ * acompañar) queda para precio a mano. Devuelve, por fila, si procede el +5 €. */
+export function pairApostilles(
+  rows: Array<{ specificType?: string | null; foreignLang?: string | null; include?: boolean }>
+): boolean[] {
+  return rows.map((r, i) => {
+    if (String(r.specificType || "").toLowerCase() !== "apostille") return false;
+    const lang = String(r.foreignLang || "").toLowerCase();
+    if (!PAGE_PRICED_LANGS.has(lang)) return false;
+    return rows.some(
+      (o, j) =>
+        j !== i &&
+        o.include !== false &&
+        isPagePricedType(o.specificType) &&
+        String(o.foreignLang || "").toLowerCase() === lang
+    );
+  });
 }

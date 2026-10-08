@@ -95,6 +95,9 @@ export type DocumentAnalysisResult = {
   requirements: {
     needs_apostille_translation: boolean;
     has_apostille: boolean;
+    // true SOLO si la apostilla ocupa una hoja aparte dentro del archivo (no sellada
+    // en la misma página del documento). Sin certeza, false: se cobran todas las páginas.
+    apostille_separate_page?: boolean;
     has_legalization: boolean;
     special_notes: string;
   };

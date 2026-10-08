@@ -10,6 +10,8 @@ import {
   dePagePactado,
   isDePageTariffLine,
   isDePageTariffQuote,
+  pairApostilles,
+  PAGE_TARIFF_MARK,
 } from "../../lib/pricing-engine/page-pricing.ts";
 import { clientPriceFromCost } from "../../lib/quote-math.ts";
 import { evaluateLinesMargin } from "../../lib/learned-rates-math.ts";
@@ -83,39 +85,68 @@ test("FR→ES: sustituye suelos y tarifa de Marruecos en documentos por página"
   assert.equal(price(analysis({ pages: 1, country: "MA" })), 30); // antes 40 fijo (Marruecos: pendiente de Juan)
 });
 
-// Apostilla (Juan, 8-oct): no cuenta como página; +5 € por documento que la lleve.
+// Apostilla (Juan, 8-oct): +5 € por documento que la lleve. La hoja solo se
+// descuenta si el análisis dice EXPRESAMENTE que va en página aparte.
+function sep(over: any) {
+  const a = analysis(over);
+  a.requirements.apostille_separate_page = true;
+  return a;
+}
+
 test("apostilla: 1 página apostillada = 35 €", () => {
   const q = calculatePrice(analysis({ pages: 1, apostille: true }));
   assert.equal(q.basePrice, 35);
   assert.equal(q.breakdown.apostilleSurcharge, 5);
 });
 
-test("apostilla: 3 páginas + apostilla en hoja aparte (4 hojas) = 95 €", () => {
-  assert.equal(price(analysis({ pages: 4, apostille: true })), 95);
-  assert.equal(price(analysis({ pages: 2, apostille: true })), 35); // 1 hoja + apostilla
+test("apostilla: 3 páginas + apostilla en hoja aparte (4 hojas, confirmado) = 95 €", () => {
+  assert.equal(price(sep({ pages: 4, apostille: true })), 95);
+  assert.equal(price(sep({ pages: 2, apostille: true })), 35);
 });
 
-test("apostilla como documento suelto del expediente: +5 €, no 30 €", () => {
-  const solo = calculatePrice(analysis({ type: "apostille", pages: 1 }));
-  assert.equal(solo.basePrice, 5);
+test("apostilla sin confirmar hoja aparte: se cobran TODAS las páginas + 5 € (2 páginas = 65 €)", () => {
+  assert.equal(price(analysis({ pages: 2, apostille: true })), 65);
+  assert.equal(price(analysis({ pages: 4, apostille: true })), 125);
+});
+
+test("apostilla clasificada como documento propio: NO se cobra sola (ni 5 € ni 30 €)", () => {
+  const q = calculatePrice(analysis({ type: "apostille", pages: 1 }));
+  assert.equal(q.pagePricing ?? null, null);
   const de = calculatePrice(analysis({ type: "apostille", source: "de", country: "DE", pages: 1 }));
-  assert.equal(de.basePrice, 5);
-  assert.equal(de.pagePricing?.costEur, 0); // Morton: sin tarifa de apostilla, +0
-  assert.equal(price(analysis({ pages: 1 })) + solo.basePrice, 35);
+  assert.equal(de.pagePricing ?? null, null);
+  // en la puerta va a presupuesto manual
+  const a = analysis({ type: "apostille", pages: 1 });
+  assert.equal(buildDiagnosis(a, calculatePrice(a)).publicAutoPriceable, false);
+  assert.equal(dePagePactado([{ specificType: "apostille", sourceLang: "de", pages: 1 }]), null);
+});
+
+test("apostilla suelta del expediente: +5 € solo si acompaña a un documento por página del mismo idioma", () => {
+  const r = (specificType: string, foreignLang: string, include = true) => ({ specificType, foreignLang, include });
+  assert.deepEqual(pairApostilles([r("birth_certificate", "fr"), r("apostille", "fr")]), [false, true]);
+  assert.deepEqual(pairApostilles([r("apostille", "fr")]), [false]); // suelta sin acta: a mano
+  assert.deepEqual(pairApostilles([r("contract", "fr"), r("apostille", "fr")]), [false, false]); // contrato: por palabra
+  assert.deepEqual(pairApostilles([r("birth_certificate", "de"), r("apostille", "fr")]), [false, false]); // otro idioma
+  assert.deepEqual(pairApostilles([r("birth_certificate", "fr", false), r("apostille", "fr")]), [false, false]);
 });
 
 test("DE con tablas apostillado: páginas × 35 + 5, coste Morton sin apostilla", () => {
   const q = calculatePrice(analysis({ source: "de", country: "DE", type: "transcript", pages: 3, tables: true, apostille: true }));
-  assert.equal(q.basePrice, 75); // 2 pág. × 35 + 5
-  assert.equal(q.pagePricing?.costEur, 30); // 2 × 15
+  assert.equal(q.basePrice, 110); // 3 pág. × 35 + 5 (sin confirmar hoja aparte)
+  assert.equal(q.pagePricing?.costEur, 45); // 3 × 15
+  const q2 = calculatePrice(sep({ source: "de", country: "DE", type: "transcript", pages: 3, tables: true, apostille: true }));
+  assert.equal(q2.basePrice, 75); // 2 × 35 + 5
+  assert.equal(q2.pagePricing?.costEur, 30);
   assert.equal(calculatePrice(analysis({ source: "de", country: "DE", pages: 1, apostille: true })).basePrice, 35);
   assert.equal(isDePageTariffLine(75, 30), true);
+  assert.equal(isDePageTariffLine(110, 45), true);
   assert.equal(isDePageTariffLine(35, 10), true);
 });
 
-test("DE apostillado: el paraTi de Morton no incluye la apostilla", () => {
-  const p = dePagePactado([{ specificType: "birth_certificate", sourceLang: "de", pages: 2, hasTables: false, hasApostille: true }]);
-  assert.deepEqual(p, { costCents: 1000, priceCents: 3500, pages: 1, tablePages: 0 });
+test("DE apostillado: el paraTi de Morton no incluye la apostilla; nunca 0", () => {
+  const base = { specificType: "birth_certificate", sourceLang: "de", pages: 2, hasTables: false, hasApostille: true };
+  assert.deepEqual(dePagePactado([base]), { costCents: 2000, priceCents: 6500, pages: 2, tablePages: 0 });
+  assert.deepEqual(dePagePactado([{ ...base, apostilleSeparatePage: true }]), { costCents: 1000, priceCents: 3500, pages: 1, tablePages: 0 });
+  assert.equal(dePagePactado([{ ...base, pages: 0 }])?.costCents, 1000); // mínimo 1 página
 });
 
 test("FR: el Bulletin n°3 de 3+ páginas conserva el paquete de 61,98 €", () => {
@@ -256,12 +287,16 @@ test("línea de tarifa por página DE→ES: reconoce 30n↔10n y 35n↔15n, nada
   assert.equal(isDePageTariffLine(30, null), false);
 });
 
-test("presupuesto de tarifa por página: solo DE→ES y solo si TODAS las líneas con precio lo son", () => {
+test("presupuesto de tarifa por página: exige la MARCA, DE→ES y TODAS las líneas con precio de tarifa", () => {
   const l = (p: number, c: number | null) => ({ quantity: 1, unitPrice: p, supplierUnitCost: c });
-  assert.equal(isDePageTariffQuote({ sourceLang: "de", targetLang: "es", lines: [l(30, 10), l(70, 30)] }), true);
-  assert.equal(isDePageTariffQuote({ sourceLang: "de", targetLang: "es", lines: [l(30, 10), l(50, 20)] }), false);
-  assert.equal(isDePageTariffQuote({ sourceLang: "es", targetLang: "de", lines: [l(30, 10)] }), false);
-  assert.equal(isDePageTariffQuote({ sourceLang: "fr", targetLang: "es", lines: [l(30, 10)] }), false);
+  const m = PAGE_TARIFF_MARK;
+  assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "de", targetLang: "es", lines: [l(30, 10), l(70, 30)] }), true);
+  assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "de", targetLang: "es", lines: [l(30, 10), l(5, 0)] }), true); // apostilla suelta emparejada
+  assert.equal(isDePageTariffQuote({ sourceLang: "de", targetLang: "es", lines: [l(30, 10)] }), false); // sin marca, aunque cuadre
+  assert.equal(isDePageTariffQuote({ autoPricedBy: "tarifario", sourceLang: "de", targetLang: "es", lines: [l(30, 10)] }), false);
+  assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "de", targetLang: "es", lines: [l(30, 10), l(50, 20)] }), false);
+  assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "es", targetLang: "de", lines: [l(30, 10)] }), false);
+  assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "fr", targetLang: "es", lines: [l(30, 10)] }), false);
 });
 
 test("suelo de 40 €/doc: no aplica a líneas por página, sí al resto", () => {

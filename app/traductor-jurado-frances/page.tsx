@@ -41,7 +41,7 @@ export default function TraductorJuradoFrancesPage() {
         {
           question: "¿Cuánto cuesta traducir un certificado en francés?",
           answer:
-            "Traducción jurada de francés: 30 € + IVA por página del original en certificados (nacimiento, matrimonio), actas, títulos, expedientes y antecedentes · 35 € si está apostillado (la apostilla no cuenta como página). Los contratos, escrituras y textos largos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y recibe precio cerrado al instante.",
+            "Traducción jurada de francés: 30 € + IVA por página del original en certificados (nacimiento, matrimonio), actas, títulos, expedientes y antecedentes · 35 € si está apostillado. Los contratos, escrituras y textos largos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y recibe precio cerrado al instante.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de francés?",

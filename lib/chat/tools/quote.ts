@@ -19,6 +19,11 @@ export type QuoteEstimateInput = {
   estimated_words?: number;
   has_apostille?: boolean;
   country?: string;
+  // Dirección de la traducción. Sin ella NO se aplica la tarifa por página (solo
+  // vale hacia el español); la tool pide que se pregunte.
+  direction?: "to_spanish" | "from_spanish";
+  // La apostilla va en una hoja propia del archivo (solo entonces no cuenta como página).
+  apostille_separate_page?: boolean;
   // Tablas (notas, expedientes, extractos): en alemán la página cuesta 35 € en vez de 30 €.
   has_tables?: boolean;
 };
@@ -71,7 +76,8 @@ export function getQuoteEstimate(
   // Carril directo (en/de/nl/pt/ro): se publica el suelo por documento (Juan, 29-sep-2026).
   // Excepción (8-oct-2026): alemán→español en documentos «por página» también
   // lleva cifra pública (30 € / 35 € con tablas por página).
-  const alemanPorPagina = language === "de" && isPagePricedType(input.document_type);
+  const hacia = input.direction === "to_spanish";
+  const alemanPorPagina = language === "de" && hacia && isPagePricedType(input.document_type);
   if ((language !== "fr" && !alemanPorPagina) || !AUTO_PRICEABLE_FOREIGN.has(language)) {
     const suelo = DIRECT_FLOOR_LANGS.has(language)
       ? `Puedes decir que parte de ${DOC_FLOOR_CENTS / 100} € + IVA por documento; no des otra cifra ni rango. `
@@ -99,13 +105,11 @@ export function getQuoteEstimate(
       specific_type_es: "",
       confidence: 1,
     },
-    language: {
-      source: language,
-      source_name: getLanguageName(language),
-      target: "es",
-      target_name: "Español",
-      confidence: 1,
-    },
+    // Sin dirección explícita o hacia el idioma extranjero: el original se trata como
+    // español → sin tarifa por página (que solo existe FR→ES y DE→ES).
+    language: hacia
+      ? { source: language, source_name: getLanguageName(language), target: "es", target_name: "Español", confidence: 1 }
+      : { source: "es", source_name: "Español", target: language, target_name: getLanguageName(language), confidence: 1 },
     country: {
       origin: country ?? "",
       origin_name: "",
@@ -132,6 +136,7 @@ export function getQuoteEstimate(
     requirements: {
       needs_apostille_translation: false,
       has_apostille: !!input.has_apostille,
+      apostille_separate_page: input.apostille_separate_page === true,
       has_legalization: false,
       special_notes: "",
     },
@@ -139,7 +144,7 @@ export function getQuoteEstimate(
   };
 
   const quote = calculatePrice(synthetic);
-  const partialInfo = input.pages === undefined || input.document_type === undefined;
+  const partialInfo = input.pages === undefined || input.document_type === undefined || !input.direction;
   const isFrenchCriminalRecord =
     documentType === "criminal_record" && language === "fr" && pages >= 3;
   // Aquí solo llega francés (gate de arriba): Marruecos especial aplica siempre.

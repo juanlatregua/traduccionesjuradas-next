@@ -140,6 +140,7 @@ export async function finalizeAndSendQuote(opts: {
         : await verifyTranslatorChannelPrice({
             quoteId: quote.id,
             expedienteRef: quote.expedienteRef,
+            autoPricedBy: quote.autoPricedBy,
             sourceLang: quote.sourceLang,
             targetLang: quote.targetLang,
             lines: quote.lines.map((l) => ({
