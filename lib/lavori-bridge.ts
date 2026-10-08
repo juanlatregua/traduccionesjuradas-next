@@ -308,7 +308,8 @@ export function mapLavoriMiembro(w: LavoriMiembroWire): LavoriMember | null {
     canal: typeof w.canal === "boolean" ? w.canal : Boolean(w.email) || Number(w.push) > 0,
     enPaz: Boolean(w.enPaz),
     disponible: w.disponible !== false,
-    papelUnico: Boolean(w.papelUnico),
+    // Solo se excluye a quien lavori marca EXPLÍCITAMENTE sin papel; si no lo dice, no se sabe.
+    papelUnico: w.papelUnico === false ? false : w.papelUnico === true ? true : undefined,
     ultimaSesion: typeof w.ultimaSesion === "string" ? w.ultimaSesion : null,
     push: Number(w.push) || 0,
     ...(typeof w.conTarifas === "boolean" ? { conTarifas: w.conTarifas } : {}),
@@ -762,13 +763,36 @@ export function sameTranslatorName(a: string | null | undefined, b: string | nul
   return corto.every((t) => largo.includes(t));
 }
 
-/** 409 de precio_aceptado: ¿el encargo está MUERTO (cancelado/caducado/retirado, nadie lo
- * aceptó)? Entonces se reactiva con un dirigido nuevo; con aceptante, jamás. */
+/** 409 de precio_aceptado: ¿el encargo CADUCÓ (3 días en lavori), con nadie que lo aceptara?
+ * Solo entonces se reactiva con un dirigido nuevo. «Retirado» NO cuenta: lo retira Juan o
+ * el staff a propósito (reasignado, duplicado, cliente, asignado_fuera) y reabrirlo
+ * duplicaría el trabajo. Un estado vacío o desconocido tampoco: solo avisa al staff. */
 export function isEncargoMuerto(estado: string | null | undefined, aceptadoPor: string | null | undefined): boolean {
   if (aceptadoPor) return false;
-  const e = String(estado || "").trim().toLowerCase();
-  if (!e || e === "desconocido") return true;
-  return /cancel|caduc|expir|retir|vencid|descart|cerrad/.test(e);
+  return /caduc|expir/.test(String(estado || "").trim().toLowerCase());
+}
+
+/** ¿El pedido ya tiene traductor? Entonces nunca se abre otro encargo a otro jurado. */
+export function motivoPedidoConTraductor(o: {
+  assignedTo?: string | null;
+  asignadosAceptados?: string[];
+  asignacionDirecta?: boolean;
+}): string | null {
+  if (o.assignedTo?.trim()) return `ya tiene traductor (${o.assignedTo.trim()})`;
+  if (o.asignadosAceptados && o.asignadosAceptados.length > 0) return `ya tiene traductor (${o.asignadosAceptados[0]})`;
+  if (o.asignacionDirecta) return "ya se asignó a mano («Precio ya pactado»)";
+  return null;
+}
+
+/** Una solicitud RETIRED solo es reactivable si lavori la retiró POR CADUCIDAD
+ * (handleRetiradoEnLavori deja «Retirada en lavori (motivo, quien) retirado-lavori:…»).
+ * Cualquier otra retirada, o una nota de reasignación/«Precio ya pactado», la deja cerrada. */
+export function isRetiradaPorCaducidad(notas: string | null | undefined): boolean {
+  const n = String(notas || "");
+  if (!n.includes("retirado-lavori:")) return false;
+  if (/retirada para reabrir|asignado_fuera|Precio ya pactado|Retirada en lavori por/i.test(n)) return false;
+  const motivos = Array.from(n.matchAll(/Retirada en lavori \(([^,)]*)/g)).map((x) => x[1].toLowerCase());
+  return motivos.length > 0 && motivos.every((x) => /caduc|expir/.test(x));
 }
 
 export async function sendLavoriPrecioAceptado(payload: {

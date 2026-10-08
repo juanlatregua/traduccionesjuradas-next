@@ -7,6 +7,9 @@ import {
   buildSolicitudPayload,
   fetchLavoriCartera,
   isEncargoMuerto,
+  isRetiradaPorCaducidad,
+  motivoPedidoConTraductor,
+  mapLavoriMiembro,
   isLavoriNoAvisar,
   lavoriManualRoute,
   pickLavoriAuto,
@@ -49,13 +52,29 @@ function withFetch<T>(handler: (url: string, init: any) => { status: number; bod
 
 // 1. Pago con encargo caducado → 409 con estado muerto → reactivación con SU cifra
 
-test("1. isEncargoMuerto: cancelado/caducado/retirado sin aceptante se reactiva; con aceptante o 'lo llevo yo' no", () => {
-  for (const e of ["cancelado", "caducado", "expirado", "retirado", "Cancelada", "desconocido", ""]) {
-    assert.equal(isEncargoMuerto(e, null), true, e);
-  }
-  assert.equal(isEncargoMuerto("aceptado", null), false);
-  assert.equal(isEncargoMuerto("cancelado", "someMemberId"), false); // alguien lo aceptó: nunca se abre otro
-  assert.equal(isEncargoMuerto("publicado", "x"), false);
+test("1. isEncargoMuerto: solo caducado/expirado sin aceptante; retirado, desconocido, vacío o con aceptante NO", () => {
+  for (const e of ["caducado", "expirado", "Caducada"]) assert.equal(isEncargoMuerto(e, null), true, e);
+  for (const e of ["retirado", "cancelado", "desconocido", "", "aceptado", "publicado"]) assert.equal(isEncargoMuerto(e, null), false, e);
+  assert.equal(isEncargoMuerto("caducado", "someMemberId"), false);
+});
+
+test("1. solicitud RETIRED: solo la retirada por caducidad se reactiva; retirada por Juan/staff/reasignada no", () => {
+  const marca = "retirado-lavori:enc1:2026-10-01";
+  assert.equal(isRetiradaPorCaducidad(`Retirada en lavori (caducado, sistema) ${marca}`), true);
+  assert.equal(isRetiradaPorCaducidad(`Retirada en lavori (otro, juansilva@x) ${marca}`), false); // la retiró Juan
+  assert.equal(isRetiradaPorCaducidad(`Retirada en lavori (reasignado, staff) ${marca}`), false);
+  assert.equal(isRetiradaPorCaducidad(`Retirada en lavori (asignado_fuera, staff) ${marca}`), false);
+  assert.equal(isRetiradaPorCaducidad(`Retirada en lavori (caducado, sistema) ${marca}\nPrecio ya pactado con X`), false);
+  assert.equal(isRetiradaPorCaducidad("retirada para reabrir"), false);
+  assert.equal(isRetiradaPorCaducidad(null), false);
+  assert.equal(isRetiradaPorCaducidad("Retirada en lavori (caducado, s)"), false); // sin la marca de lavori
+});
+
+test("1. pedido que ya tiene traductor («Precio ya pactado» a X) no abre encargo a Y", () => {
+  assert.match(motivoPedidoConTraductor({ assignedTo: "Xavier Gil" }) || "", /Xavier Gil/);
+  assert.ok(motivoPedidoConTraductor({ asignadosAceptados: ["Xavier Gil"] }));
+  assert.match(motivoPedidoConTraductor({ asignacionDirecta: true }) || "", /Precio ya pactado/);
+  assert.equal(motivoPedidoConTraductor({ assignedTo: " ", asignadosAceptados: [] }), null);
 });
 
 test("1. pago con encargo caducado: el 409 se lee como conflicto y la reactivación sale dirigida al mismo jurado con su cifra", async () => {
@@ -176,6 +195,14 @@ test("3. Carmen Lencastre y Margarita Aguiló: fuera del carril, de la cartera y
     () => fetchLavoriCartera("pt")
   );
   assert.deepEqual(viva.miembros.map((x) => x.id), ["otra"]);
+});
+
+test("2b. mapLavoriMiembro: papelUnico solo es false si lavori lo dice explícitamente; si no lo manda, se asume sí", () => {
+  const base = { id: "i", nombre: "N", pares: ["PT>ES"], jurado: true, email: true };
+  assert.equal(mapLavoriMiembro({ ...base, papelUnico: false })!.papelUnico, false);
+  assert.equal(mapLavoriMiembro({ ...base })!.papelUnico, undefined);
+  assert.equal(mapLavoriMiembro({ ...base, papelUnico: true })!.papelUnico, true);
+  assert.ok(pickLavoriAuto("pt", [mapLavoriMiembro({ ...base })!], 10).length === 1);
 });
 
 // 4. FR no entra

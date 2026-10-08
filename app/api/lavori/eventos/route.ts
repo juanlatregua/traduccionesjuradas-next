@@ -876,6 +876,7 @@ async function handleLeadEvento(opts: {
           nombre: colab?.fullName || String(datos.miembroNombre),
           maec: colab?.swornNumber ?? null,
           miembroId: datos.miembroId ? String(datos.miembroId) : null,
+          soloSinEnviar: true,
         }).catch((err) => console.error("[lavori-eventos] sync translator (lead) failed", err));
       }
     }

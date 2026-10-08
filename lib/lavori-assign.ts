@@ -21,13 +21,17 @@ export async function syncQuoteTranslatorWithAcceptor(opts: {
   nombre: string | null | undefined;
   maec?: string | null;
   miembroId?: string | null;
+  /** Carril de leads: solo si el presupuesto no está cobrado; un nombre fijado al
+   * enviarlo a mano (adminSentBy) se respeta. */
+  soloSinEnviar?: boolean;
 }): Promise<{ changed: boolean }> {
   const nombre = String(opts.nombre || "").trim();
   if (!opts.quoteId || !nombre) return { changed: false };
   const quote = await prisma.quote.findUnique({
     where: { id: opts.quoteId },
-    select: { id: true, quoteNumber: true, translatorName: true, translatorMaec: true },
+    select: { id: true, quoteNumber: true, translatorName: true, translatorMaec: true, status: true, adminSentBy: true },
   });
+  if (quote && opts.soloSinEnviar && (["PAID", "IN_PROGRESS", "DELIVERED"].includes(quote.status) || quote.adminSentBy)) return { changed: false };
   if (!quote || sameTranslatorName(quote.translatorName, nombre)) return { changed: false };
   await prisma.quote.update({
     where: { id: quote.id },

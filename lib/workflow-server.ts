@@ -23,6 +23,8 @@ import {
   sendLavoriPrecioAceptado,
   isLavoriMemberAvailable,
   isEncargoMuerto,
+  isRetiradaPorCaducidad,
+  motivoPedidoConTraductor,
   type LavoriRoute,
 } from "@/lib/lavori-bridge";
 import { packDocsForSobre } from "@/lib/lavori-sobre";
@@ -457,10 +459,14 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     // vive, deliverPrecioAceptado lo reactiva con SU precio. No vale la que se
     // retiró a propósito para reabrir en otra.
     if (!lpr) {
-      lpr = await prisma.lavoriPriceRequest.findFirst({
-        where: { status: "RETIRED", quoteId: order.quoteId, priceCents: { gt: 0 }, miembroId: { not: null }, NOT: { notas: { contains: "retirada para reabrir" } }, ...mismoPar },
+      const retiradas = await prisma.lavoriPriceRequest.findMany({
+        where: { status: "RETIRED", quoteId: order.quoteId, priceCents: { gt: 0 }, miembroId: { not: null }, ...mismoPar },
         orderBy: { updatedAt: "desc" },
+        take: 5,
       });
+      // Solo la retirada POR CADUCIDAD en lavori, y solo si el pedido sigue sin traductor.
+      const caducada = retiradas.find((r) => isRetiradaPorCaducidad(r.notas));
+      if (caducada && !(await pedidoYaTieneTraductor(order.id))) lpr = caducada;
     }
     if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
     if (lpr && !(lpr.priceCents && lpr.priceCents > 0)) return holdForPendingPrice(opts, lpr);
@@ -706,6 +712,25 @@ async function assignAlreadyAccepted(
 // con otro jurado: se reactiva abriendo un dirigido NUEVO al mismo jurado con SU
 // cifra (carril «Precio ya pactado»: paraTi = su precio, su único paso es aceptar).
 // Un estado que no conocemos y sin aceptante se trata igual; con aceptante, nunca (isEncargoMuerto).
+/** ¿El pedido ya tiene traductor? assignedTo relleno, asignación ACCEPTED/DELIVERED o
+ * una asignación directa a mano («Precio ya pactado»). Con traductor, jamás se abre
+ * otro encargo a otro jurado. */
+async function pedidoYaTieneTraductor(orderId: string): Promise<string | null> {
+  const [o, asig, directa] = await Promise.all([
+    prisma.order.findUnique({ where: { id: orderId }, select: { assignedTo: true } }),
+    prisma.collaboratorAssignment.findMany({
+      where: { orderId, status: { in: ["ACCEPTED", "DELIVERED"] } },
+      select: { collaborator: { select: { fullName: true } } },
+    }),
+    prisma.orderEvent.findFirst({ where: { orderId, type: "collaborator.assignment.direct" }, select: { id: true } }),
+  ]);
+  return motivoPedidoConTraductor({
+    assignedTo: o?.assignedTo,
+    asignadosAceptados: asig.map((a) => a.collaborator.fullName),
+    asignacionDirecta: Boolean(directa),
+  });
+}
+
 async function reopenDirigidoAfterDeadEncargo(opts: {
   orderId: string;
   reference: string;
@@ -723,6 +748,8 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
     if (previo) {
       return { ok: true, repetido: true, encargoId: String((previo.payload as any)?.lavoriEncargoId || ""), miembro: "" };
     }
+    const yaTiene = await pedidoYaTieneTraductor(orderId);
+    if (yaTiene) return { ok: false, error: `el pedido ${yaTiene}: no se abre otro encargo` };
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       select: {
@@ -776,9 +803,7 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
     });
     const result = await sendLavoriSolicitud(payload);
     if (!result.ok) return { ok: false, error: result.error };
-    if (result.repetido) {
-      return { ok: false, error: `lavori ya tenía un encargo con la ref ${reference} (${result.encargoId}): no se puede reactivar solo, revísalo` };
-    }
+    // result.repetido: lavori ya tenía ese encargo (reintento): cuenta como éxito, sin alarma.
 
     await prisma.orderEvent.create({
       data: {
