@@ -65,13 +65,17 @@ export const RESPUESTA_SCHEMA = {
   },
 } as const;
 
-// ── Extracción de números ───────────────────────────────────────────────────
+// ── Extracción y comprobación de números ────────────────────────────────────
+// Solo se validan contra el dossier los IMPORTES (€) y los PORCENTAJES (%).
+// Fechas, referencias, nº de factura/pedido y recuentos sueltos no se validan
+// por coincidencia numérica.
 
-// Fuera antes de contar: nº de factura (26_018, P26_001), referencia de pedido
-// (2026-00027), fechas ISO, trimestres (T3) y nombres de modelo (303, 111…).
+// Se ignoran antes de leer: nº de factura (26_018, P26_001), referencia de
+// pedido (2026-00027), fechas ISO y trimestres (T3).
 const STRIP_RES = [/\bP?\d{2}_\d{3,}\b/g, /\b\d{4}-\d{5}\b/g, /\b\d{4}-\d{2}-\d{2}\b/g, /\bT[1-4]\b/g];
-// Siempre admitidos: 0 y 1, modelos tributarios y tipos legales habituales.
-const ALWAYS_OK = new Set(["0", "1", "303", "111", "115", "130", "190", "347", "349", "390", "21", "7", "15"]);
+// Porcentajes legales habituales (tipos de IVA/IRPF) siempre admitidos.
+const ALWAYS_PCT = new Set(["0", "4", "7", "10", "15", "21", "100"]);
+const APPROX_RE = /(?:unos|unas|aprox\.?|aproximadamente|cerca de|casi|alrededor de|≈|~)\s*$/i;
 
 const key = (n: number) => String(Math.round(Math.abs(n) * 100) / 100);
 
@@ -101,56 +105,71 @@ function candidates(tok: string): number[] {
 }
 
 const TOKEN_RE = /\d+(?:[.,]\d+)*/g;
+const looksLikeMoney = (tok: string) => /,\d{1,2}$/.test(tok) || /^\d{1,3}(\.\d{3})+/.test(tok) || /\.\d{2}$/.test(tok);
 
-export function extractNumberTokens(text: string): string[] {
-  let t = text;
-  for (const re of STRIP_RES) t = t.replace(re, " ");
-  return t.match(TOKEN_RE) ?? [];
-}
-
-type Allowed = { exact: Set<string>; rounded: Set<string> };
-
+type Allowed = { money: Set<string>; euros: number[]; pct: Set<string>; pctValues: number[] };
 const allowedCache = new WeakMap<object, Allowed>();
 
-export function allowedNumbers(dossier: Dossier): Allowed {
-  const hit = allowedCache.get(dossier);
+/** Cifras del dossier: todo número vale como importe; solo los campos *_pct valen como porcentaje. */
+export function allowedNumbers(dossier: unknown): Allowed {
+  const hit = allowedCache.get(dossier as object);
   if (hit) return hit;
-  const exact = new Set<string>();
-  const rounded = new Set<string>();
-  const addNum = (n: number) => {
-    exact.add(key(n));
-    if (!Number.isInteger(n)) rounded.add(String(Math.round(Math.abs(n))));
-  };
-  const walk = (v: unknown) => {
+  const a: Allowed = { money: new Set(), euros: [], pct: new Set(), pctValues: [] };
+  const walk = (v: unknown, k: string) => {
     if (typeof v === "number") {
-      if (Number.isFinite(v)) addNum(v);
-    } else if (typeof v === "string") {
-      // Números dentro de textos del dossier (fechas, referencias, nombres).
-      for (const g of v.match(/\d+(?:[.,]\d+)*/g) ?? []) {
-        for (const c of candidates(g)) addNum(c);
+      if (!Number.isFinite(v)) return;
+      a.money.add(key(v));
+      if (k.endsWith("_eur")) a.euros.push(Math.abs(v));
+      if (k.endsWith("_pct")) {
+        a.pct.add(key(v));
+        a.pctValues.push(Math.abs(v));
       }
-      for (const g of v.match(/\d+/g) ?? []) addNum(Number(g));
     } else if (Array.isArray(v)) {
-      v.forEach(walk);
+      v.forEach((x) => walk(x, k));
     } else if (v && typeof v === "object") {
-      Object.values(v as Record<string, unknown>).forEach(walk);
+      for (const [kk, x] of Object.entries(v as Record<string, unknown>)) walk(x, kk);
     }
   };
-  walk(dossier);
-  const res = { exact, rounded };
-  allowedCache.set(dossier, res);
-  return res;
+  walk(dossier, "");
+  allowedCache.set(dossier as object, a);
+  return a;
 }
 
-/** Números del texto que NO salen del dossier. */
-export function invalidNumbers(text: string, dossier: Dossier): string[] {
-  const { exact, rounded } = allowedNumbers(dossier);
+/** «unos 1.300 €» vale si una cifra del dossier, redondeada a la precisión mostrada, da 1.300. */
+function approxMatches(c: number, euros: number[]): boolean {
+  if (!Number.isInteger(c)) return false;
+  let unit = 1;
+  for (const u of [1000, 100, 10]) {
+    if (c % u === 0) {
+      unit = u;
+      break;
+    }
+  }
+  return euros.some((d) => Math.round(d / unit) * unit === c);
+}
+
+/** Importes y porcentajes del texto que NO salen del dossier. */
+export function invalidNumbers(text: string, dossier: unknown): string[] {
+  const allowed = allowedNumbers(dossier);
+  let t = text;
+  for (const re of STRIP_RES) t = t.replace(re, (m) => " ".repeat(m.length));
   const bad: string[] = [];
-  for (const tok of extractNumberTokens(text)) {
+  for (const m of t.matchAll(TOKEN_RE)) {
+    const tok = m[0];
+    const start = m.index ?? 0;
+    const after = t.slice(start + tok.length, start + tok.length + 14);
+    const before = t.slice(Math.max(0, start - 24), start);
     const cands = candidates(tok);
-    const hasDecimals = /[.,]\d{1,2}$/.test(tok) && !/^\d{1,3}([.,]\d{3})+$/.test(tok);
-    const ok = cands.some((c) => ALWAYS_OK.has(String(c)) || exact.has(key(c)) || (!hasDecimals && rounded.has(String(Math.round(Math.abs(c))))));
-    if (!ok) bad.push(tok);
+    if (/^\s*(?:%|por ciento)/i.test(after)) {
+      const ok = cands.some(
+        (c) => ALWAYS_PCT.has(String(c)) || allowed.pct.has(key(c)) || (Number.isInteger(c) && allowed.pctValues.some((d) => Math.round(d) === c)),
+      );
+      if (!ok) bad.push(`${tok} %`);
+    } else if (/^\s*(?:€|eur\b|euros?\b)/i.test(after) || /€\s*$/.test(before) || looksLikeMoney(tok)) {
+      const approx = APPROX_RE.test(before);
+      const ok = cands.some((c) => allowed.money.has(key(c)) || (approx && approxMatches(c, allowed.euros)));
+      if (!ok) bad.push(tok);
+    }
   }
   return bad;
 }

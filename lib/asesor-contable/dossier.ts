@@ -8,6 +8,7 @@
 
 import { parseFiscalPeriod, type FiscalPeriod } from "../fiscal-period.ts";
 import { madridParts } from "../period-grouping.ts";
+import { aggregateFiscal } from "../fiscal-aggregation.ts";
 
 export type RawInvoice = {
   id: string;
@@ -83,7 +84,8 @@ export type Hallazgo = {
   id: string;
   tipo: string;
   texto: string;
-  importe_eur: number | null;
+  /** Importes con IVA desglosado (total, base y cuota), o null si no aplica. */
+  importes: { total_eur?: number; base_eur?: number; iva_eur?: number; margen_eur?: number } | null;
   enlaces: Link[];
 };
 
@@ -177,7 +179,7 @@ const MAX_PER_TYPE = 12;
 /** Resultado de un periodo: ingresos facturados (base) − gastos reales (base, sin devengos). */
 function resultado(input: Pick<DossierInput, "invoices" | "expenses">, p: FiscalPeriod) {
   const ing = sum(input.invoices.filter((i) => !i.annulledAt && inPeriod(invDate(i), p)), (i) => i.baseCents);
-  const gas = sum(input.expenses.filter((e) => !e.isAccrual && inPeriod(e.date, p)), (e) => e.baseCents);
+  const gas = sum(input.expenses.filter((e) => !e.isAccrual && !e.needsReview && inPeriod(e.date, p)), (e) => e.baseCents);
   return { ingresos_base_eur: eur(ing), gastos_base_eur: eur(gas), resultado_eur: eur(ing - gas) };
 }
 
@@ -241,19 +243,36 @@ export function checkNumbering(invoices: RawInvoice[], yearYY: string) {
 
 // ── Dossier ─────────────────────────────────────────────────────────────────
 
+const OWN_BRANDS = new Set(["traduccionesjuradas", "holabonjour"]);
+const isFrPair = (pair: string | null | undefined) => /(^|[^a-z])fr([^a-z]|$)/i.test(pair || "");
+// Nóminas en especie y cuotas TGSS: no llevan justificante propio adjunto.
+const isPayrollOrTgss = (e: Pick<RawExpense, "supplier" | "concept" | "category">) =>
+  TGSS_RE.test(e.supplier || "") || TGSS_RE.test(e.concept || "") || /n[oó]min/i.test(`${e.category || ""} ${e.concept || ""}`);
+
+const pct = (num: number, den: number): number | null => (den === 0 ? null : Math.round((num / den) * 1000) / 10);
+/** Variación porcentual respecto al periodo anterior (null si el anterior es 0). */
+const variation = (cur: number, prev: number): number | null => (prev === 0 ? null : Math.round(((cur - prev) / Math.abs(prev)) * 1000) / 10);
+
+// Desglose siempre completo: total, base y cuota de IVA.
+const amounts = (totalCents: number, baseCents: number) => ({ total_eur: eur(totalCents), base_eur: eur(baseCents), iva_eur: eur(totalCents - baseCents) });
+
 export function buildDossier(input: DossierInput) {
   const { period: p } = input;
   const hallazgos: Hallazgo[] = [];
   const counters: Record<string, number> = {};
-  const add = (prefix: string, tipo: string, texto: string, importeCents: number | null, enlaces: Link[]) => {
+  // Los textos de los hallazgos van a la IA: solo números de factura/gasto/pedido,
+  // categorías y tipos. Nunca nombres de clientes o colaboradores ni URLs.
+  const add = (prefix: string, tipo: string, texto: string, a: Hallazgo["importes"], enlaces: Link[]) => {
     const n = (counters[prefix] = (counters[prefix] ?? 0) + 1);
     if (n > MAX_PER_TYPE) return;
-    hallazgos.push({ id: `${prefix}${n}`, tipo, texto, importe_eur: importeCents === null ? null : eur(importeCents), enlaces });
+    hallazgos.push({ id: `${prefix}${n}`, tipo, texto, importes: a, enlaces });
   };
+  const fromGross = (cents: number) => amounts(cents, Math.round(cents / 1.21));
 
   // 1. Ingresos facturados por marca (las anuladas no cuentan; las rectificativas restan).
   const invPeriod = input.invoices.filter((i) => inPeriod(invDate(i), p));
   const vivas = invPeriod.filter((i) => !i.annulledAt);
+  const ingBase = sum(vivas, (i) => i.baseCents);
   const porMarca = [...groupBy(vivas, (i) => i.brand || "traduccionesjuradas").entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([marca, xs]) => ({
@@ -262,9 +281,12 @@ export function buildDossier(input: DossierInput) {
       base_eur: eur(sum(xs, (i) => i.baseCents)),
       iva_eur: eur(sum(xs, (i) => i.vatCents)),
       total_eur: eur(sum(xs, (i) => i.totalCents)),
+      peso_sobre_ingresos_pct: pct(sum(xs, (i) => i.baseCents), ingBase),
     }));
-  const ingBase = sum(vivas, (i) => i.baseCents);
-  const ivaRepercutido = sum(vivas, (i) => i.vatCents);
+  for (const [marca, xs] of groupBy(vivas, (i) => i.brand || "traduccionesjuradas")) {
+    if (OWN_BRANDS.has(marca)) continue;
+    add("X", "ingreso_marca_atipica", `Ingresos de la marca «${marca}» (${xs.length} factura(s)): ¿a qué corresponden?`, amounts(sum(xs, (i) => i.totalCents), sum(xs, (i) => i.baseCents)), xs.map(invoiceLink));
+  }
 
   // 2. Cobros sin factura (ni suelta ni agrupada del mes).
   const sinFactura = input.orders.filter((o) => inPeriod(ordDate(o), p) && o.amountCents > 0 && !o.invoiceIssued && !o.monthlyInvoiceIssued);
@@ -273,72 +295,83 @@ export function buildDossier(input: DossierInput) {
   const apartados = sinFactura.filter((o) => !isBizum(o) && o.billingExcluded);
   const otros = sinFactura.filter((o) => !isBizum(o) && !o.billingExcluded);
   const byAmount = (xs: RawOrder[]) => [...xs].sort((a, b) => b.amountCents - a.amountCents || a.reference.localeCompare(b.reference));
-  for (const o of byAmount(bizum)) add("B", "cobro_sin_factura_bizum", `Pedido ${o.reference} cobrado por Bizum el ${madridDay(ordDate(o))}, sin factura`, o.amountCents, [orderLink(o.reference)]);
-  for (const o of byAmount(apartados)) add("A", "cobro_apartado", `Pedido ${o.reference} apartado de la facturación${o.billingExcludedReason ? ` (${o.billingExcludedReason})` : ""}`, o.amountCents, [orderLink(o.reference)]);
-  for (const o of byAmount(otros)) add("S", "cobro_sin_factura", `Pedido ${o.reference} cobrado el ${madridDay(ordDate(o))} (${o.paymentMethod ?? "método sin registrar"}) sin factura emitida`, o.amountCents, [orderLink(o.reference)]);
+  for (const o of byAmount(bizum)) add("B", "cobro_sin_factura_bizum", `Pedido ${o.reference} cobrado por Bizum el ${madridDay(ordDate(o))}, sin factura`, fromGross(o.amountCents), [orderLink(o.reference)]);
+  for (const o of byAmount(apartados)) add("A", "cobro_apartado", `Pedido ${o.reference} apartado de la facturación`, fromGross(o.amountCents), [orderLink(o.reference)]);
+  for (const o of byAmount(otros)) add("S", "cobro_sin_factura", `Pedido ${o.reference} cobrado el ${madridDay(ordDate(o))} (${o.paymentMethod ?? "método sin registrar"}) sin factura emitida`, fromGross(o.amountCents), [orderLink(o.reference)]);
+  const grossGroup = (xs: RawOrder[]) => ({ pedidos: xs.length, ...amounts(sum(xs, (o) => o.amountCents), sum(xs, (o) => Math.round(o.amountCents / 1.21))) });
 
-  // 3. Gastos reales (los devengos NO suman: se cuentan por su factura al liquidarse).
+  // 3. Gastos reales. Fuera los devengos (se cuentan por su factura al liquidarse)
+  // y, como en la página de Contabilidad, los «por revisar» (recurrentes sin
+  // confirmar): esos van aparte, como hallazgo.
   const gastosPeriodo = input.expenses.filter((e) => inPeriod(e.date, p));
   const reales = gastosPeriodo.filter((e) => !e.isAccrual);
+  const confirmados = reales.filter((e) => !e.needsReview);
   const devengos = gastosPeriodo.filter((e) => e.isAccrual);
-  const porCategoria = [...groupBy(reales, (e) => e.category || "sin categoría").entries()]
+  const gasBase = sum(confirmados, (e) => e.baseCents);
+  const gGroup = (xs: RawExpense[]) => ({ gastos: xs.length, base_eur: eur(sum(xs, (e) => e.baseCents)), iva_eur: eur(sum(xs, (e) => e.vatCents)), total_eur: eur(sum(xs, (e) => e.totalCents)), peso_sobre_gastos_pct: pct(sum(xs, (e) => e.baseCents), gasBase) });
+  const porCategoria = [...groupBy(confirmados, (e) => e.category || "sin categoría").entries()]
     .sort((a, b) => sum(b[1], (e) => e.baseCents) - sum(a[1], (e) => e.baseCents) || a[0].localeCompare(b[0]))
-    .map(([categoria, xs]) => ({ categoria, gastos: xs.length, base_eur: eur(sum(xs, (e) => e.baseCents)) }));
-  const porMarcaGasto = [...groupBy(reales, (e) => e.brand || "traduccionesjuradas").entries()]
+    .map(([categoria, xs]) => ({ categoria, ...gGroup(xs) }));
+  const porMarcaGasto = [...groupBy(confirmados, (e) => e.brand || "traduccionesjuradas").entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([marca, xs]) => ({ marca, gastos: xs.length, base_eur: eur(sum(xs, (e) => e.baseCents)) }));
-  const gasBase = sum(reales, (e) => e.baseCents);
+    .map(([marca, xs]) => ({ marca, ...gGroup(xs) }));
 
   const liquidados = devengos.filter((d) => d.settledById);
   const pendientesDev = devengos.filter((d) => !d.settledById);
   for (const d of [...pendientesDev].sort((a, b) => b.baseCents - a.baseCents || a.id.localeCompare(b.id))) {
-    add("P", "devengo_pendiente", `Devengo pendiente de factura del colaborador ${d.supplier ?? "sin nombre"} (${madridDay(d.date)})`, d.baseCents, d.orderReference ? [orderLink(d.orderReference)] : [expenseLink(d)]);
+    add("P", "devengo_pendiente", `Devengo pendiente de la factura de un colaborador${d.orderReference ? ` (pedido ${d.orderReference})` : ""}, del ${madridDay(d.date)}`, amounts(d.totalCents, d.baseCents), d.orderReference ? [orderLink(d.orderReference)] : [expenseLink(d)]);
   }
 
-  // 4. IVA y IRPF (estimaciones; la presentación es de la gestoría).
-  const soportado = sum(reales.filter((e) => e.ivaDeducible && e.taxTreatment === "general"), (e) => e.vatCents);
-  const ispNeutro = sum(reales.filter((e) => e.taxTreatment === "isp_intracom" || e.taxTreatment === "isp_import"), (e) => e.vatCents);
-  const conIrpf = reales.filter((e) => e.irpfCents > 0);
-  const irpf = sum(conIrpf, (e) => e.irpfCents);
+  // 4. IVA y IRPF: MISMA fuente que la página de Contabilidad (aggregateFiscal).
+  const { d303, d111 } = aggregateFiscal(vivas, reales);
 
   // 5. Facturas pendientes de cobro y vencidas.
   const abiertas = input.openInvoices.filter((i) => !i.annulledAt && !i.paidAt && !i.orderPaid && i.totalCents > 0 && invDate(i).getTime() < p.lt.getTime());
   const esVencida = (i: RawInvoice) => !!i.dueDate && madridDay(i.dueDate) < input.today;
   const vencidas = abiertas.filter(esVencida);
   const byTotal = (xs: RawInvoice[]) => [...xs].sort((a, b) => b.totalCents - a.totalCents || (a.number ?? "").localeCompare(b.number ?? ""));
-  for (const i of byTotal(vencidas)) add("V", "factura_vencida", `Factura ${i.number} a ${i.fiscalName}, vencida el ${madridDay(i.dueDate!)}`, i.totalCents, [invoiceLink(i)]);
-  for (const i of byTotal(abiertas.filter((x) => !esVencida(x)))) add("C", "factura_pendiente_cobro", `Factura ${i.number} a ${i.fiscalName}, emitida el ${madridDay(invDate(i))}, sin cobro registrado`, i.totalCents, [invoiceLink(i)]);
+  const invAmounts = (i: RawInvoice) => amounts(i.totalCents, i.baseCents);
+  for (const i of byTotal(vencidas)) add("V", "factura_vencida", `Factura ${i.number}, vencida el ${madridDay(i.dueDate!)}`, invAmounts(i), [invoiceLink(i)]);
+  for (const i of byTotal(abiertas.filter((x) => !esVencida(x)))) add("C", "factura_pendiente_cobro", `Factura ${i.number}, emitida el ${madridDay(invDate(i))}, sin cobro registrado`, invAmounts(i), [invoiceLink(i)]);
+  const invGroup = (xs: RawInvoice[]) => ({ facturas: xs.length, base_eur: eur(sum(xs, (i) => i.baseCents)), iva_eur: eur(sum(xs, (i) => i.vatCents)), total_eur: eur(sum(xs, (i) => i.totalCents)) });
 
   // 6. Gastos que piden revisión.
   const necesitaRev = reales.filter((e) => e.needsReview);
-  const sinAdjunto = reales.filter((e) => !e.attachmentUrl);
-  const sinNif = reales.filter((e) => !e.supplierNif && e.baseCents > 0);
-  const gastoTxt = (e: RawExpense) => `${e.supplier ?? e.concept} (${madridDay(e.date)})`;
-  for (const e of necesitaRev) add("R", "gasto_por_revisar", `Gasto marcado «por revisar»: ${gastoTxt(e)}`, e.baseCents, [expenseLink(e)]);
-  for (const e of sinAdjunto.filter((x) => !x.needsReview)) add("J", "gasto_sin_adjunto", `Gasto sin justificante adjunto: ${gastoTxt(e)}`, e.baseCents, [expenseLink(e)]);
-  for (const e of sinNif.filter((x) => !x.needsReview && x.attachmentUrl)) add("I", "gasto_sin_nif", `Gasto sin NIF del proveedor: ${gastoTxt(e)}`, e.baseCents, [expenseLink(e)]);
+  const sinAdjunto = confirmados.filter((e) => !e.attachmentUrl && !isPayrollOrTgss(e));
+  const sinNif = confirmados.filter((e) => !e.supplierNif && e.baseCents > 0);
+  const gastoTxt = (e: RawExpense) => `de ${e.category || "sin categoría"} del ${madridDay(e.date)}${e.supplierInvoiceNumber ? ` (factura ${e.supplierInvoiceNumber})` : ""}`;
+  const eAmounts = (e: RawExpense) => amounts(e.totalCents, e.baseCents);
+  for (const e of necesitaRev) add("R", "gasto_por_revisar", `Gasto ${gastoTxt(e)} marcado «por revisar» (no está en las cifras de gastos ni de IVA)`, eAmounts(e), [expenseLink(e)]);
+  for (const e of sinAdjunto) add("J", "gasto_sin_adjunto", `Gasto ${gastoTxt(e)} sin justificante adjunto`, eAmounts(e), [expenseLink(e)]);
+  for (const e of sinNif.filter((x) => x.attachmentUrl)) add("I", "gasto_sin_nif", `Gasto ${gastoTxt(e)} sin NIF del proveedor`, eAmounts(e), [expenseLink(e)]);
 
   // 7. Margen por pedido (cobrados en el periodo). Base = total / 1,21.
+  // Los pedidos FR propios llevan coste 0 a propósito: no cuentan como «sin coste».
   const cobrados = input.orders.filter((o) => inPeriod(ordDate(o), p) && o.amountCents > 0);
   const netoPedido = (o: RawOrder) => Math.round(o.amountCents / 1.21);
-  const sinCoste = cobrados.filter((o) => o.supplierCostCents === null);
-  const margenNoPos = cobrados.filter((o) => o.supplierCostCents !== null && netoPedido(o) - o.supplierCostCents <= 0);
-  for (const o of margenNoPos) add("M", "margen_no_positivo", `Pedido ${o.reference} con margen igual o menor que cero`, netoPedido(o) - (o.supplierCostCents ?? 0), [orderLink(o.reference)]);
-  for (const o of sinCoste) add("K", "pedido_sin_coste", `Pedido ${o.reference} cobrado sin coste de traducción registrado${o.assignedTo ? ` (asignado a ${o.assignedTo})` : ""}`, netoPedido(o), [orderLink(o.reference)]);
+  const sinCoste = cobrados.filter((o) => o.supplierCostCents === null && !isFrPair(o.langPair));
+  const conCoste = cobrados.filter((o) => o.supplierCostCents !== null);
+  const margenNoPos = conCoste.filter((o) => netoPedido(o) - (o.supplierCostCents ?? 0) <= 0 && !(isFrPair(o.langPair) && o.supplierCostCents === 0));
+  for (const o of margenNoPos) add("M", "margen_no_positivo", `Pedido ${o.reference} con margen igual o menor que cero`, { ...fromGross(o.amountCents), margen_eur: eur(netoPedido(o) - (o.supplierCostCents ?? 0)) }, [orderLink(o.reference)]);
+  for (const o of sinCoste) add("K", "pedido_sin_coste", `Pedido ${o.reference} cobrado sin coste de traducción registrado`, fromGross(o.amountCents), [orderLink(o.reference)]);
 
   // 8. Duplicados.
   const dups = findDuplicateExpenses(input.expenses, p);
   for (const [a, b] of dups) {
-    add("D", "posible_duplicado", `Posible duplicado: ${gastoTxt(a)} y ${gastoTxt(b)}, mismo importe y proveedor con pocos días de diferencia`, a.totalCents, [expenseLink(a), expenseLink(b)]);
+    add("D", "posible_duplicado", `Posible duplicado: gasto ${gastoTxt(a)} y gasto ${gastoTxt(b)}, mismo importe y proveedor con pocos días de diferencia`, eAmounts(a), [expenseLink(a), expenseLink(b)]);
   }
 
-  // 9. Numeración de la serie del año del periodo.
+  // 9. Numeración de la serie del año del periodo (el orden de fechas, solo dentro del periodo).
   const yy = p.tag.slice(2, 4);
   const num = checkNumbering(input.invoices.filter((i) => i.number?.startsWith(`${yy}_`)), yy);
+  const fueraDeOrden = num.fueraDeOrden.filter(([a, b]) => inPeriod(invDate(a), p) || inPeriod(invDate(b), p));
   for (const h of num.huecos) add("N", "hueco_numeracion", `Falta el número ${h} en la serie de facturas`, null, [{ label: "Facturas", url: "/zona-traductor/facturas" }]);
-  for (const [a, b] of num.fueraDeOrden) add("O", "numeracion_fuera_de_orden", `La factura ${b.number} (${madridDay(invDate(b))}) tiene fecha anterior a la ${a.number} (${madridDay(invDate(a))})`, null, [invoiceLink(a), invoiceLink(b)]);
+  for (const [a, b] of fueraDeOrden) add("O", "numeracion_fuera_de_orden", `La factura ${b.number} (${madridDay(invDate(b))}) tiene fecha anterior a la ${a.number} (${madridDay(invDate(a))})`, null, [invoiceLink(a), invoiceLink(b)]);
 
   const pendienteDevCents = sum(pendientesDev, (d) => d.baseCents);
+  const res = resultado(input, p);
+  const prevRes = input.previousPeriod ? resultado(input, input.previousPeriod) : null;
+  const margenCoste = sum(conCoste, (o) => netoPedido(o) - (o.supplierCostCents ?? 0));
 
   return {
     periodo: {
@@ -349,32 +382,47 @@ export function buildDossier(input: DossierInput) {
       fecha_de_calculo: input.today,
     },
     resultado: {
-      ...resultado(input, p),
+      ...res,
+      margen_sobre_ingresos_pct: pct(ingBase - gasBase, ingBase),
       devengos_pendientes_eur: eur(pendienteDevCents),
       resultado_con_devengos_pendientes_eur: eur(ingBase - gasBase - pendienteDevCents),
     },
-    comparativa_periodo_anterior: input.previousPeriod ? { etiqueta: input.previousPeriod.label, ...resultado(input, input.previousPeriod) } : null,
+    comparativa_periodo_anterior:
+      input.previousPeriod && prevRes
+        ? {
+            etiqueta: input.previousPeriod.label,
+            ...prevRes,
+            variacion_ingresos_pct: variation(res.ingresos_base_eur, prevRes.ingresos_base_eur),
+            variacion_gastos_pct: variation(res.gastos_base_eur, prevRes.gastos_base_eur),
+          }
+        : null,
     ingresos_facturados: {
       por_marca: porMarca,
       base_eur: eur(ingBase),
-      iva_repercutido_eur: eur(ivaRepercutido),
+      iva_repercutido_eur: eur(sum(vivas, (i) => i.vatCents)),
+      total_eur: eur(sum(vivas, (i) => i.totalCents)),
       facturas_anuladas_excluidas: invPeriod.length - vivas.length,
       rectificativas: vivas.filter((i) => i.rectifiesId).length,
     },
     cobros_sin_factura: {
-      bizum: { pedidos: bizum.length, total_eur: eur(sum(bizum, (o) => o.amountCents)) },
-      apartados_de_facturacion: { pedidos: apartados.length, total_eur: eur(sum(apartados, (o) => o.amountCents)) },
-      otros: {
-        pedidos: otros.length,
-        total_eur: eur(sum(otros, (o) => o.amountCents)),
-        iva_incluido_estimado_eur: eur(sum(otros, (o) => o.amountCents - netoPedido(o))),
-      },
+      bizum: grossGroup(bizum),
+      apartados_de_facturacion: grossGroup(apartados),
+      otros: grossGroup(otros),
     },
     gastos: {
       base_eur: eur(gasBase),
-      gastos_registrados: reales.length,
+      iva_eur: eur(sum(confirmados, (e) => e.vatCents)),
+      total_eur: eur(sum(confirmados, (e) => e.totalCents)),
+      gastos_registrados: confirmados.length,
       por_categoria: porCategoria,
       por_marca: porMarcaGasto,
+    },
+    gastos_por_revisar_aparte: {
+      gastos: necesitaRev.length,
+      base_eur: eur(sum(necesitaRev, (e) => e.baseCents)),
+      iva_eur: eur(sum(necesitaRev, (e) => e.vatCents)),
+      total_eur: eur(sum(necesitaRev, (e) => e.totalCents)),
+      nota: "No están incluidos en gastos ni en el IVA soportado (igual que en la página de Contabilidad).",
     },
     devengos_de_colaboradores: {
       en_periodo: devengos.length,
@@ -386,21 +434,22 @@ export function buildDossier(input: DossierInput) {
       nota: "Los devengos NO están incluidos en gastos: un devengo liquidado ya cuenta por la factura del colaborador.",
     },
     iva_estimado: {
-      repercutido_eur: eur(ivaRepercutido),
-      soportado_deducible_eur: eur(soportado),
-      inversion_sujeto_pasivo_neutro_eur: eur(ispNeutro),
-      modelo_303_estimado_eur: eur(ivaRepercutido - soportado),
-      nota: "Estimación aritmética; positivo = a ingresar. No sustituye a la gestoría.",
+      repercutido_eur: eur(d303.ivaRepercutidoCents),
+      soportado_deducible_eur: eur(d303.ivaSoportadoDeducibleCents),
+      modelo_303_estimado_eur: eur(d303.resultadoCents),
+      nota: "Mismo cálculo que la página de Contabilidad (incluye la inversión del sujeto pasivo). Positivo = a ingresar. Estimación: no sustituye a la gestoría.",
     },
     irpf_estimado: {
-      retenido_eur: eur(irpf),
-      perceptores: new Set(conIrpf.map((e) => supplierKey(e) ?? e.id)).size,
-      modelo_111_estimado_eur: eur(irpf),
+      base_retenciones_eur: eur(d111.baseRetencionesCents),
+      retenido_eur: eur(d111.retencionesCents),
+      perceptores: d111.numPerceptores,
+      modelo_111_estimado_eur: eur(d111.retencionesCents),
     },
     cobros_pendientes: {
-      facturas: abiertas.length,
-      total_eur: eur(sum(abiertas, (i) => i.totalCents)),
+      ...invGroup(abiertas),
       vencidas: vencidas.length,
+      vencidas_base_eur: eur(sum(vencidas, (i) => i.baseCents)),
+      vencidas_iva_eur: eur(sum(vencidas, (i) => i.vatCents)),
       vencidas_total_eur: eur(sum(vencidas, (i) => i.totalCents)),
     },
     revision_de_gastos: {
@@ -411,8 +460,9 @@ export function buildDossier(input: DossierInput) {
     margen_por_pedido: {
       pedidos_cobrados: cobrados.length,
       sin_coste_registrado: sinCoste.length,
-      sin_coste_base_eur: eur(sum(sinCoste, netoPedido)),
+      sin_coste: amounts(sum(sinCoste, (o) => o.amountCents), sum(sinCoste, netoPedido)),
       margen_no_positivo: margenNoPos.length,
+      margen_medio_pedidos_con_coste_pct: pct(margenCoste, sum(conCoste, netoPedido)),
     },
     posibles_duplicados: dups.length,
     numeracion: {
@@ -420,7 +470,7 @@ export function buildDossier(input: DossierInput) {
       primera: num.primera,
       ultima: num.ultima,
       huecos: num.huecos.length,
-      fuera_de_orden: num.fueraDeOrden.length,
+      fuera_de_orden: fueraDeOrden.length,
     },
     hallazgos,
     hallazgos_omitidos_por_limite: Object.values(counters).reduce((s, n) => s + Math.max(0, n - MAX_PER_TYPE), 0),
@@ -428,3 +478,8 @@ export function buildDossier(input: DossierInput) {
 }
 
 export type Dossier = ReturnType<typeof buildDossier>;
+
+/** Vista para la IA: sin enlaces (llevan nombres de clientes/colaboradores y URLs de Blob). */
+export function dossierForModel(d: Dossier) {
+  return { ...d, hallazgos: d.hallazgos.map(({ enlaces: _enlaces, ...h }) => h) };
+}

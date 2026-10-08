@@ -6,9 +6,10 @@ import { NextResponse } from "next/server";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getStaffRole } from "@/lib/staff-access";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { dossierForModel } from "@/lib/asesor-contable/dossier";
 import { loadDossier } from "@/lib/asesor-contable/load";
 import { resolveLinks } from "@/lib/asesor-contable/validate";
-import { analyzeDossier, askDossier, asesorModel, AsesorValidationError, type Turno } from "@/lib/ai/asesor-contable";
+import { analyzeDossier, askDossier, asesorModel, AsesorTruncatedError, AsesorValidationError, type Turno } from "@/lib/ai/asesor-contable";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     const dossier = await loadDossier(period);
     if (!dossier) return NextResponse.json({ ok: false, error: "Periodo no válido." }, { status: 400 });
     const dossierHash = createHash("sha256").update(JSON.stringify(dossier)).digest("hex").slice(0, 16);
-    const base = { ok: true, dossierHash, dossier, model: asesorModel(), generatedAt: new Date().toISOString() };
+    const base = { ok: true, dossierHash, dossier: dossierForModel(dossier), model: asesorModel(), generatedAt: new Date().toISOString() };
 
     if (action === "analizar") {
       const { value, usage } = await analyzeDossier(dossier);
@@ -80,6 +81,9 @@ export async function POST(req: Request) {
       respuesta: { ...value, links: resolveLinks(value.enlaces, dossier) },
     });
   } catch (err: any) {
+    if (err instanceof AsesorTruncatedError) {
+      return NextResponse.json({ ok: false, error: err.message }, { status: 502 });
+    }
     if (err instanceof AsesorValidationError) {
       console.error("[asesor-contable] validación fallida", err.details);
       return NextResponse.json({ ok: false, error: `${err.message} Vuelve a intentarlo.`, details: err.details }, { status: 502 });
