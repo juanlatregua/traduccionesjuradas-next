@@ -53,8 +53,14 @@ export function completionQuota(
 }
 
 /** Datos fiscales: tras el pago, o con pedido o factura emitida viva, solo los toca el staff. */
-export function billingLocked(q: { paidAt?: Date | null; hasOrder: boolean; invoiceIssued: boolean }): boolean {
-  return !!q.paidAt || q.hasOrder || q.invoiceIssued;
+// Un pedido SIN datos fiscales y sin pagar (p. ej. «Ya he transferido», crédito) los acepta.
+export function billingLocked(q: {
+  paidAt?: Date | null;
+  orderPaidAt?: Date | null;
+  orderHasBilling: boolean;
+  invoiceIssued: boolean;
+}): boolean {
+  return !!q.paidAt || !!q.orderPaidAt || q.orderHasBilling || q.invoiceIssued;
 }
 
 export const completionBlobPrefix = (quoteId: string) => `quotes-complementos/${quoteId}/`;

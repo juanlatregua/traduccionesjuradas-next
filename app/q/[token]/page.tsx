@@ -18,8 +18,8 @@ import QuoteBalancePayButton from "@/components/QuoteBalancePayButton";
 import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
 import QuoteDocumentsViewer from "@/components/QuoteDocumentsViewer";
 import QuoteJourney from "@/components/QuoteJourney";
-import { getSavedQuoteBilling } from "@/lib/quote-billing";
-import { COMPLETION_EVENT, completionBlobPrefix, isPendingCompletion, isWhatsappPlaceholder, pickBillingPrefill } from "@/lib/q-journey";
+import { billingLockState, getSavedQuoteBilling } from "@/lib/quote-billing";
+import { billingLocked, COMPLETION_EVENT, completionBlobPrefix, isPendingCompletion, isWhatsappPlaceholder, pickBillingPrefill } from "@/lib/q-journey";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { pickPublicLang, publicDict, statusLabel, localeFor } from "@/lib/quote-public-i18n";
 
@@ -239,6 +239,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
     const saved = await getSavedQuoteBilling(refreshed.id).catch(() => null);
     const customer = isWhatsappPlaceholder(refreshed.customerEmail) ? null : refreshed.customer;
     const base = { saved, orderBilling: refreshed.orders[0]?.billing, customer, clientEmail: refreshed.customerEmail };
+    const lock = await billingLockState(refreshed.id).catch(() => null);
     let prefill = pickBillingPrefill(base);
     if (prefill.source === "empty") {
       const analyses = await prisma.documentAnalysis
@@ -268,6 +269,8 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       initialBilling: prefill.fields,
       billingSource: prefill.source,
       suggestion: prefill.suggestion,
+      billingLocked: !!lock && billingLocked({ paidAt: refreshed.paidAt, ...lock }),
+      hasOrder: !!lock?.orderId,
       billingSaved: prefill.source === "saved",
       totalCents,
     };

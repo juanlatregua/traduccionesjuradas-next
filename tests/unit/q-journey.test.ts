@@ -174,11 +174,15 @@ test("lectura de documentos: nombres siempre; direcciones solo si existen", () =
 
 /* ------------------------------ candados y topes ------------------------------ */
 
-test("billing: bloqueado con pago, pedido o factura emitida viva", () => {
-  assert.equal(billingLocked({ paidAt: null, hasOrder: false, invoiceIssued: false }), false);
-  assert.equal(billingLocked({ paidAt: new Date(), hasOrder: false, invoiceIssued: false }), true);
-  assert.equal(billingLocked({ paidAt: null, hasOrder: true, invoiceIssued: false }), true);
-  assert.equal(billingLocked({ paidAt: null, hasOrder: false, invoiceIssued: true }), true);
+test("billing: bloqueado solo con pago, factura emitida viva o pedido que ya tiene BillingData", () => {
+  const base = { paidAt: null, orderPaidAt: null, orderHasBilling: false, invoiceIssued: false };
+  assert.equal(billingLocked(base), false);
+  // pedido sin pagar y sin BillingData («Ya he transferido», crédito): acepta los datos
+  assert.equal(billingLocked({ ...base }), false);
+  assert.equal(billingLocked({ ...base, paidAt: new Date() }), true);
+  assert.equal(billingLocked({ ...base, orderPaidAt: new Date() }), true);
+  assert.equal(billingLocked({ ...base, orderHasBilling: true }), true);
+  assert.equal(billingLocked({ ...base, invoiceIssued: true }), true);
 });
 
 test("host de Blob: el de NUESTRA tienda, deducido del token", () => {

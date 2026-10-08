@@ -29,6 +29,8 @@ type Props = {
   initialBilling: BillingForm;
   billingSource: BillingSource;
   suggestion: Partial<BillingForm> | null;
+  billingLocked: boolean;
+  hasOrder: boolean;
   billingSaved: boolean;
   totalCents: number;
   // Paso 4: el bloque de pago de siempre, sin cambios.
@@ -60,12 +62,14 @@ export default function QuoteJourney({
   initialBilling,
   billingSource,
   suggestion,
+  billingLocked: initialLocked,
+  hasOrder,
   billingSaved,
   totalCents,
   children,
 }: Props) {
   const t = publicDict(lang);
-  const [answer, setAnswer] = useState<"none" | "yes" | "missing">(billingSaved ? "yes" : "none");
+  const [answer, setAnswer] = useState<"none" | "yes" | "missing">(billingSaved || initialLocked ? "yes" : "none");
   const [pending, setPending] = useState(initialPending);
 
   // «Falta algo»
@@ -80,6 +84,7 @@ export default function QuoteJourney({
   const [fromDoc, setFromDoc] = useState(false);
   const [showSuggestion, setShowSuggestion] = useState(!!suggestion?.fiscalName && billingSource === "document");
   const [saved, setSaved] = useState(billingSaved);
+  const [locked, setLocked] = useState(initialLocked);
   const [saving, setSaving] = useState(false);
   const [billErr, setBillErr] = useState<string | null>(null);
 
@@ -133,6 +138,7 @@ export default function QuoteJourney({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
+        if (data?.code === "locked") return setLocked(true);
         setBillErr(billMessage(String(data?.code || "")));
         return;
       }
@@ -177,9 +183,10 @@ export default function QuoteJourney({
             </button>
             <button
               type="button"
+              disabled={hasOrder}
               onClick={() => setAnswer("missing")}
               aria-pressed={answer === "missing"}
-              className={`rounded-xl px-4 py-3 text-sm font-semibold ${answer === "missing" ? "bg-bleu text-white" : "border border-bleu/40 bg-white text-bleu hover:bg-cream"}`}
+              className={`rounded-xl px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${answer === "missing" ? "bg-bleu text-white" : "border border-bleu/40 bg-white text-bleu hover:bg-cream"}`}
             >
               {t.docsMissing}
             </button>
@@ -261,7 +268,13 @@ export default function QuoteJourney({
           <StepTitle n={2}>{t.billTitle}</StepTitle>
         </section>
       )}
-      {answer === "yes" && (
+      {answer === "yes" && locked && (
+        <section className="rounded-2xl border border-cream p-4">
+          <StepTitle n={2}>{t.billTitle}</StepTitle>
+          <p className="mt-2 text-sm text-sepia">{t.billLocked}</p>
+        </section>
+      )}
+      {answer === "yes" && !locked && (
         <section className="rounded-2xl border border-cream p-4">
           <StepTitle n={2}>{t.billTitle}</StepTitle>
           <p className="mt-1 text-xs text-sepia">{t.billHelp}</p>

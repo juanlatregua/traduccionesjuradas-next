@@ -54,6 +54,6 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "Datos no válidos.", code: result.code }, { status: 400 });
   }
 
-  await saveQuoteBilling({ quoteId: quote.id, customerEmail: quote.customerEmail, value: result.value });
+  await saveQuoteBilling({ quoteId: quote.id, customerEmail: quote.customerEmail, value: result.value, orderId: lock.orderId });
   return NextResponse.json({ ok: true });
 }

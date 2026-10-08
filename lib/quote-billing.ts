@@ -20,12 +20,15 @@ export async function saveQuoteBilling(input: {
   quoteId: string;
   customerEmail: string;
   value: BillingForm;
+  // Pedido ya existente sin BillingData: los datos van directos a él para no perderse.
+  orderId?: string | null;
 }): Promise<void> {
   await prisma.stripeEventLog.upsert({
     where: { eventId: billingEventId(input.quoteId) },
     create: { eventId: billingEventId(input.quoteId), eventType: BILLING_EVENT, quoteId: input.quoteId, payload: input.value },
     update: { payload: input.value, processedAt: new Date() },
   });
+  if (input.orderId) await copyBillingToOrder(input.orderId, input.quoteId, input.customerEmail, input.value);
 }
 
 async function copyBillingToOrder(orderId: string, quoteId: string, customerEmail: string, value: BillingForm) {
@@ -61,12 +64,22 @@ export async function completionHistory(quoteId: string) {
   }));
 }
 
-/** ¿Hay pedido o factura emitida (y no anulada) de este presupuesto? */
+/** Estado del pedido y de la factura del presupuesto, para decidir si los datos fiscales siguen abiertos. */
 export async function billingLockState(quoteId: string) {
   const order = await prisma.order.findFirst({
     where: { quoteId },
-    select: { id: true, clientInvoice: { select: { status: true, annulledAt: true } } },
+    select: {
+      id: true,
+      paidAt: true,
+      billing: { select: { id: true } },
+      clientInvoice: { select: { status: true, annulledAt: true } },
+    },
   });
-  const inv = (order as any)?.clientInvoice;
-  return { hasOrder: !!order, invoiceIssued: !!inv && inv.status === "ISSUED" && !inv.annulledAt };
+  const inv = order?.clientInvoice;
+  return {
+    orderId: order?.id ?? null,
+    orderPaidAt: order?.paidAt ?? null,
+    orderHasBilling: !!order?.billing,
+    invoiceIssued: !!inv && inv.status === "ISSUED" && !inv.annulledAt,
+  };
 }

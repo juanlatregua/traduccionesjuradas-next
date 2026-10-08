@@ -156,6 +156,7 @@ export type PublicDict = {
   billEdit: string;
   billErr: string;
   payStepTitle: string;
+  billLocked: string;
   billSuggest: string;
   billUse: string;
 };
@@ -290,6 +291,7 @@ const ES: PublicDict = {
   billEdit: "Editar",
   billErr: "No hemos podido guardar los datos. Inténtalo de nuevo.",
   payStepTitle: "Pagar",
+  billLocked: "Tus datos de facturación ya están registrados. Si necesitas cambiarlos, escríbenos.",
   billSuggest: "¿Es este el titular de la factura?",
   billUse: "Usar",
 };
@@ -424,6 +426,7 @@ const EN: PublicDict = {
   billEdit: "Edit",
   billErr: "We could not save the details. Please try again.",
   payStepTitle: "Pay",
+  billLocked: "Your billing details are already registered. If you need to change them, write to us.",
   billSuggest: "Is this the invoice holder?",
   billUse: "Use",
 };
@@ -558,6 +561,7 @@ const FR: PublicDict = {
   billEdit: "Modifier",
   billErr: "Impossible d'enregistrer les données. Veuillez réessayer.",
   payStepTitle: "Payer",
+  billLocked: "Vos données de facturation sont déjà enregistrées. Si vous devez les modifier, écrivez-nous.",
   billSuggest: "Est-ce le titulaire de la facture ?",
   billUse: "Utiliser",
 };
@@ -692,6 +696,7 @@ const PT: PublicDict = {
   billEdit: "Editar",
   billErr: "Não foi possível guardar os dados. Tente novamente.",
   payStepTitle: "Pagar",
+  billLocked: "Os seus dados de faturação já estão registados. Se precisar de os alterar, escreva-nos.",
   billSuggest: "É este o titular da fatura?",
   billUse: "Usar",
 };
@@ -826,6 +831,7 @@ const IT: PublicDict = {
   billEdit: "Modifica",
   billErr: "Non siamo riusciti a salvare i dati. Riprova.",
   payStepTitle: "Paga",
+  billLocked: "I tuoi dati di fatturazione sono già registrati. Se devi modificarli, scrivici.",
   billSuggest: "È questo l'intestatario della fattura?",
   billUse: "Usa",
 };
@@ -960,6 +966,7 @@ const DE: PublicDict = {
   billEdit: "Bearbeiten",
   billErr: "Die Daten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
   payStepTitle: "Bezahlen",
+  billLocked: "Ihre Rechnungsdaten sind bereits erfasst. Wenn Sie sie ändern müssen, schreiben Sie uns.",
   billSuggest: "Ist das der Rechnungsempfänger?",
   billUse: "Übernehmen",
 };
