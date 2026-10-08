@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { sendCustomClientEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
+import { splitReviewableFiles } from "@/lib/delivery-review";
+import { unreviewedNotice } from "@/lib/delivery-files";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
 
 export const runtime = "nodejs";
@@ -89,13 +91,17 @@ export async function POST(req: Request, { params }: Params) {
       attachments = [invAtt];
     }
     if (attachFiles) {
-      const files: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
+      const allFiles: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
         ? (order.deliveryFilesJson as unknown as DeliveryFile[]).filter(
             (f) => f && typeof f.url === "string" && f.url.trim()
           )
         : order.translatedFileUrl
           ? [{ url: order.translatedFileUrl, filename: order.finalFilename || null }]
           : [];
+      const { allowed: files, blocked } = await splitReviewableFiles(order.id, allFiles);
+      if (blocked.length > 0) {
+        return NextResponse.json({ ok: false, error: unreviewedNotice(blocked.length) }, { status: 400 });
+      }
       const multi = files.length > 1;
       const [fileAtts, invAtt] = await Promise.all([
         Promise.all(

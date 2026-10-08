@@ -39,6 +39,15 @@ export default function OrderWorkflowPanel({ reference, currentState }: Props) {
 
   async function submitTransition() {
     if (!nextState) return;
+    const outside = nextState === "TRADUCIDO_ENTREGADO";
+    if (
+      outside &&
+      !window.confirm(
+        "Esto solo registra que ya se entregó por otra vía (no envía nada al cliente). Para enviar la traducción usa «Entregar al cliente». ¿Registrar?"
+      )
+    ) {
+      return;
+    }
     setLoading(true);
     setMessage(null);
     try {
@@ -47,7 +56,8 @@ export default function OrderWorkflowPanel({ reference, currentState }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: nextState,
-          reason: reason.trim() || null,
+          reason: reason.trim() || (outside ? "Entregado por otra vía; marcado desde la ficha." : null),
+          ...(outside ? { deliveredOutsideApp: true } : {}),
           notifyClient: canNotifyClient ? notifyClient : false,
         }),
       });

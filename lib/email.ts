@@ -314,6 +314,27 @@ export async function sendTranslationReadyEmail(data: {
   return composed;
 }
 
+// Email de SOLO la factura (sin traducción): sin aviso de «entrega enviada» al staff.
+export function composeInvoiceOnlyEmail(subject: string, text: string): { subject: string; html: string } {
+  return { subject, html: wrapClientEmailHtml(deliveryTextToHtml(text)) };
+}
+
+export async function sendInvoiceOnlyEmail(data: {
+  toEmail: string;
+  subject: string;
+  text: string;
+  attachments: MailAttachment[];
+}): Promise<void> {
+  const composed = composeInvoiceOnlyEmail(data.subject, data.text);
+  await sendMail({
+    to: data.toEmail,
+    bcc: [DELIVERY_ARCHIVE_BCC],
+    subject: composed.subject,
+    html: composed.html,
+    attachments: data.attachments,
+  });
+}
+
 // Aviso al staff (Juan) de que la entrega salió correctamente al cliente: email
 // (con detalle) + SMS (corto al móvil). Best-effort; no lanza. Se dispara desde
 // `sendTranslationReadyEmail`, tras confirmarse el envío al cliente.

@@ -80,3 +80,119 @@ export function splitDocumentVersions<T extends { url: string }>(
   for (const f of files) (isPrevious(f) ? previous : current).push(f);
   return { current, previous };
 }
+
+type EventLike = { type: string; payload?: unknown; createdAt?: Date | string };
+
+function payloadOf(e: EventLike): Record<string, unknown> {
+  return e.payload && typeof e.payload === "object" ? (e.payload as Record<string, unknown>) : {};
+}
+
+// Archivos que vienen del traductor (entregas de lavori o subidas suyas): hay que
+// revisarlos antes de enviarlos al cliente.
+export function translatorFileUrls(events: EventLike[], assignmentUrls: (string | null | undefined)[] = []): Set<string> {
+  const out = new Set<string>();
+  for (const e of events) {
+    const p = payloadOf(e);
+    const u = e.type === "lavori.entrega_subida" ? p.attachmentUrl : e.type === "translator.delivered" ? p.fileUrl : "";
+    if (u) out.add(String(u));
+  }
+  for (const u of assignmentUrls) if (u) out.add(u);
+  return out;
+}
+
+export function isTranslatorFile(url: string, translator: Set<string>): boolean {
+  return translator.has(url) || url.includes("/entregas-lavori/") || url.includes("/translator-deliveries/");
+}
+
+// Revisión por URL: manda el último evento delivery.file_reviewed de cada una.
+export function reviewedFileUrls(events: EventLike[]): Set<string> {
+  const sorted = events
+    .filter((e) => e.type === "delivery.file_reviewed")
+    .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+  const out = new Set<string>();
+  for (const e of sorted) {
+    const p = payloadOf(e);
+    const u = String(p.url || "");
+    if (!u) continue;
+    if (p.reviewed === false) out.delete(u);
+    else out.add(u);
+  }
+  return out;
+}
+
+export function unreviewedUrls(selected: string[], translator: Set<string>, reviewed: Set<string>): string[] {
+  return selected.filter((u) => isTranslatorFile(u, translator) && !reviewed.has(u));
+}
+
+export type PendingLavoriEntrega = { url: string; name: string; mimeType: string | null };
+
+function sentAfter(events: EventLike[], at: Date | string | undefined): boolean {
+  const since = at ? new Date(at).getTime() : 0;
+  return events.some((e) => e.type === "notification.delivery_ready.sent" && new Date(e.createdAt || 0).getTime() > since);
+}
+
+// Entregas de lavori recibidas y aún sin procesar: su URL todavía no está en la
+// lista de entrega del pedido y no ha habido un envío al cliente posterior a ella.
+// Entran al panel como archivos del traductor.
+export function pendingLavoriEntregas(events: EventLike[], deliveryFilesJson: unknown): PendingLavoriEntrega[] {
+  const delivered = new Set(
+    (Array.isArray(deliveryFilesJson) ? deliveryFilesJson : []).map((f: any) => String(f?.url || ""))
+  );
+  const out: PendingLavoriEntrega[] = [];
+  for (const e of events) {
+    if (e.type !== "lavori.entrega_subida") continue;
+    const p = payloadOf(e);
+    const url = String(p.attachmentUrl || "");
+    if (!url || delivered.has(url) || out.some((o) => o.url === url) || sentAfter(events, e.createdAt)) continue;
+    out.push({ url, name: String(p.nombre || "traduccion.pdf"), mimeType: p.contentType ? String(p.contentType) : null });
+  }
+  return out;
+}
+
+// Entregas de lavori ya en la lista de entrega pero que nunca llegaron a enviarse al
+// cliente: en un reenvío no salen marcadas por defecto.
+export function unsentLavoriUrls(events: EventLike[], deliveryFilesJson: unknown): string[] {
+  const delivered = new Set(
+    (Array.isArray(deliveryFilesJson) ? deliveryFilesJson : []).map((f: any) => String(f?.url || ""))
+  );
+  return events
+    .filter((e) => e.type === "lavori.entrega_subida")
+    .map((e) => ({ url: String(payloadOf(e).attachmentUrl || ""), at: e.createdAt }))
+    .filter((x) => x.url && delivered.has(x.url) && !sentAfter(events, x.at))
+    .map((x) => x.url);
+}
+
+// Para adjuntos automáticos (respuesta de la bandeja, mensaje libre): lo del traductor
+// sin revisar no se adjunta.
+export function splitReviewedFiles<T extends { url: string }>(
+  files: T[],
+  events: EventLike[],
+  assignmentUrls: (string | null | undefined)[] = []
+): { allowed: T[]; blocked: T[] } {
+  const blocked = new Set(unreviewedForSend(files.map((f) => f.url), events, assignmentUrls));
+  return { allowed: files.filter((f) => !blocked.has(f.url)), blocked: files.filter((f) => blocked.has(f.url)) };
+}
+
+export function unreviewedNotice(n: number): string {
+  return `${n} archivo(s) sin revisar: revísalos en Entregar al cliente o desmarca adjuntar`;
+}
+
+// Todo archivo del traductor que vaya a salir debe tener su «Revisada ✓».
+export function unreviewedForSend(
+  urls: string[],
+  events: EventLike[],
+  assignmentUrls: (string | null | undefined)[] = []
+): string[] {
+  return unreviewedUrls(urls, translatorFileUrls(events, assignmentUrls), reviewedFileUrls(events));
+}
+
+// Archivo único al que recurre la vista del cliente cuando no hay lista de entrega:
+// finalDeliveryFileUrl (lo fija el staff) o translatedFileUrl, PERO una subida del
+// traductor (translator-deliveries / entregas-lavori) sin pasar por /delivery nunca
+// se enseña al cliente.
+export function clientFallbackFileUrl(finalUrl?: string | null, translatedUrl?: string | null): string {
+  const final = String(finalUrl || "").trim();
+  if (final) return final;
+  const translated = String(translatedUrl || "").trim();
+  return translated && !isTranslatorFile(translated, new Set()) ? translated : "";
+}

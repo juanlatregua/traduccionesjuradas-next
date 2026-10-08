@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadStaffFile } from "@/lib/staff-upload-client";
-import { splitDocumentVersions } from "@/lib/delivery-files";
+import { isTranslatorFile, splitDocumentVersions } from "@/lib/delivery-files";
 import {
   NIF_REQUIRED_MESSAGE,
   invoiceStatusLabel,
@@ -21,6 +21,8 @@ import {
   INVOICE_NUMBER_PLACEHOLDER,
   buildDeliveryAiInstruction,
   buildDeliveryText,
+  buildInvoiceOnlyText,
+  invoiceOnlySubject,
   deliverySubject,
   missingRequiredData,
   requiredInvoiceNumber,
@@ -40,6 +42,11 @@ type Props = {
   files: DeliveryFileRef[];
   primaryFileUrl: string | null;
   replacedUrls: string[];
+  translatorUrls: string[];
+  pendingLavori: { url: string; name: string; mimeType: string | null }[];
+  paper: boolean;
+  unsentLavoriUrls: string[];
+  reviewedUrls: string[];
   billing: BillingFields;
   billingExcluded: boolean;
   billingExcludedReason: string | null;
@@ -66,9 +73,20 @@ const INPUT =
 
 export default function DeliveryPanel(props: Props) {
   const router = useRouter();
-  const versions = useMemo(() => splitDocumentVersions(props.files, props.primaryFileUrl, props.replacedUrls), [props.files, props.primaryFileUrl, props.replacedUrls]);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(versions.current.map((f) => f.url)));
+  const allFiles = useMemo(
+    () => [
+      ...props.files,
+      ...props.pendingLavori.filter((l) => !props.files.some((f) => f.url === l.url)).map((l) => ({ name: l.name, url: l.url })),
+    ],
+    [props.files, props.pendingLavori]
+  );
+  const versions = useMemo(() => splitDocumentVersions(allFiles, props.primaryFileUrl, props.replacedUrls), [allFiles, props.primaryFileUrl, props.replacedUrls]);
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(versions.current.filter((f) => !props.unsentLavoriUrls.includes(f.url)).map((f) => f.url))
+  );
   const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [reviewed, setReviewed] = useState<Set<string>>(() => new Set(props.reviewedUrls));
+  const translatorSet = useMemo(() => new Set(props.translatorUrls), [props.translatorUrls]);
   const [billing, setBilling] = useState<BillingFields>(props.billing);
   const [message, setMessage] = useState<string | null>(null);
   const [subject, setSubject] = useState<string | null>(null);
@@ -92,25 +110,41 @@ export default function DeliveryPanel(props: Props) {
   const correction = props.alreadyDelivered && newFiles.length > 0;
   const invoiceRef = status.kind === "issued" ? status.number : status.kind === "will_issue" ? INVOICE_NUMBER_PLACEHOLDER : null;
 
+  const fileCount = selected.size + newFiles.length;
+  const invoiceOnly = fileCount === 0 && invoiceRef !== null;
+
   const defaultMessage = useMemo(
     () =>
-      buildDeliveryText({
-        lang: props.lang,
-        name: props.clientName,
-        reference: props.reference,
-        invoiceNumber: invoiceRef,
-        correction,
-        reviewUrl: props.reviewUrl,
-      }),
-    [props.lang, props.clientName, props.reference, props.reviewUrl, invoiceRef, correction]
+      invoiceOnly && invoiceRef
+        ? buildInvoiceOnlyText({
+            lang: props.lang,
+            name: props.clientName,
+            reference: props.reference,
+            invoiceNumber: invoiceRef,
+            reviewUrl: props.reviewUrl,
+          })
+        : buildDeliveryText({
+            lang: props.lang,
+            name: props.clientName,
+            reference: props.reference,
+            invoiceNumber: invoiceRef,
+            correction,
+            reviewUrl: props.reviewUrl,
+          }),
+    [props.lang, props.clientName, props.reference, props.reviewUrl, invoiceRef, correction, invoiceOnly]
   );
   const text = message ?? defaultMessage;
   const requiredInvoice = requiredInvoiceNumber(invoiceRef, correction);
-  const defaultSubject = deliverySubject(props.lang, props.reference, correction);
+  const defaultSubject =
+    invoiceOnly && invoiceRef
+      ? invoiceOnlySubject(props.lang, props.reference, invoiceRef)
+      : deliverySubject(props.lang, props.reference, correction);
   const subjectText = subject ?? defaultSubject;
   useEffect(() => setSubject(null), [correction]);
-  const fileCount = selected.size + newFiles.length;
-  const nifBlocked = status.kind === "will_issue" && needsNif(billing.nif, props.amountCents);
+  const pendingReview = Array.from(selected).filter((u) => isTranslatorFile(u, translatorSet) && !reviewed.has(u));
+  const pendingSelected = props.pendingLavori.filter((l) => selected.has(l.url));
+  const silent = props.paper && pendingSelected.length > 0;
+  const nifBlocked = !silent && status.kind === "will_issue" && needsNif(billing.nif, props.amountCents);
   const syntheticEmail = props.clientEmail.endsWith("@whatsapp.local");
 
   function toggle(url: string) {
@@ -122,6 +156,31 @@ export default function DeliveryPanel(props: Props) {
     });
   }
 
+  async function markReviewed(url: string, value: boolean) {
+    setReviewed((prev) => {
+      const next = new Set(prev);
+      if (value) next.add(url);
+      else next.delete(url);
+      return next;
+    });
+    try {
+      const res = await fetch(`/api/orders/${props.reference}/delivery/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, reviewed: value }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setReviewed((prev) => {
+        const next = new Set(prev);
+        if (value) next.delete(url);
+        else next.add(url);
+        return next;
+      });
+      setFeedback({ ok: false, text: "No se pudo guardar la revisión; inténtalo de nuevo." });
+    }
+  }
+
   function addFiles(incoming: File[]) {
     setNewFiles((prev) => {
       const keyOf = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
@@ -131,8 +190,12 @@ export default function DeliveryPanel(props: Props) {
   }
 
   async function send() {
-    if (fileCount === 0) {
-      setFeedback({ ok: false, text: "Marca o sube al menos un archivo." });
+    if (fileCount === 0 && !invoiceOnly) {
+      setFeedback({ ok: false, text: `Marca o sube al menos un archivo (no hay factura que enviar: ${invoiceStatusLabel(status)}).` });
+      return;
+    }
+    if (pendingReview.length > 0) {
+      setFeedback({ ok: false, text: `Marca como revisados los ${pendingReview.length} archivo(s) del traductor antes de enviar.` });
       return;
     }
     if (nifBlocked) {
@@ -143,9 +206,41 @@ export default function DeliveryPanel(props: Props) {
       setFeedback({ ok: false, text: "Falta el nombre fiscal para emitir la factura." });
       return;
     }
+    const invoiceWord = status.kind === "issued" ? status.number : status.kind === "will_issue" ? "se emitirá" : "sin factura";
+    const names = [
+      ...allFiles.filter((f) => selected.has(f.url)).map((f) => f.name),
+      ...newFiles.map((f) => f.name),
+    ];
+    const summary = silent
+      ? `Vas a marcar ${names.length} traducción(es) [${names.join(", ")}] como lista, SIN email al cliente (pedido en papel). ¿Continuar?`
+      : invoiceOnly
+      ? `Vas a enviar a ${props.clientEmail}: solo la factura ${invoiceWord}. ¿Enviar?`
+      : `Vas a enviar a ${props.clientEmail}: ${names.length} traducción(es) [${names.join(", ")}] + factura ${invoiceWord}. ¿Enviar?`;
+    if (!window.confirm(summary)) return;
     setSending(true);
     setFeedback(null);
     try {
+      if (invoiceOnly) {
+        const resInv = await fetch(`/api/orders/${props.reference}/delivery`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invoiceOnly: true,
+            billing,
+            message: message !== null ? message : undefined,
+            subject: subject !== null ? subject : undefined,
+          }),
+        });
+        const inv = await resInv.json().catch(() => null);
+        if (!resInv.ok || !inv?.ok) throw new Error(inv?.error || `No se pudo enviar la factura (error ${resInv.status}).`);
+        const invWarnings: string[] = Array.isArray(inv.warnings) ? inv.warnings : [];
+        setMessage(null);
+        setSubject(null);
+        setSentNow({ invoiceNumber: inv.invoiceNumber || null });
+        setFeedback({ ok: invWarnings.length === 0, text: [`Factura ${inv.invoiceNumber} enviada al cliente.`, ...invWarnings].join(" ") });
+        router.refresh();
+        return;
+      }
       const uploaded = [];
       for (const f of newFiles) {
         const up = await uploadStaffFile(f, `orders/${props.reference}`);
@@ -156,9 +251,9 @@ export default function DeliveryPanel(props: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           state: "TRADUCIDO",
-          notifyClient: true,
-          files: uploaded.length > 0 ? uploaded : undefined,
-          fileUrls: Array.from(selected),
+          notifyClient: !silent,
+          files: [...uploaded, ...pendingSelected.map((l) => ({ url: l.url, filename: l.name, mimeType: l.mimeType }))],
+          fileUrls: Array.from(selected).filter((u) => !pendingSelected.some((l) => l.url === u)),
           billing,
           message: message !== null ? message : undefined,
           subject: subject !== null ? subject : undefined,
@@ -174,7 +269,7 @@ export default function DeliveryPanel(props: Props) {
       setFeedback({
         ok: warnings.length === 0,
         text: [
-          data.correction ? "Corrección enviada al cliente." : "Enviado al cliente.",
+          silent ? "Marcada lista (sin email al cliente)." : data.correction ? "Corrección enviada al cliente." : "Enviado al cliente.",
           data.invoiceNumber ? `Factura ${data.invoiceNumber} adjunta.` : "Sin factura adjunta.",
           ...warnings,
         ].join(" "),
@@ -265,11 +360,11 @@ export default function DeliveryPanel(props: Props) {
 
       <div className="mt-4">
         <p className="text-sm font-semibold text-slate-100">1. Traducción</p>
-        {props.files.length > 0 ? (
+        {allFiles.length > 0 ? (
           <>
             <ul className="mt-2 space-y-1">
               {versions.current.map((f) => (
-                <FileRow key={f.url} f={f} checked={selected.has(f.url)} onToggle={() => toggle(f.url)} />
+                <FileRow key={f.url} f={f} checked={selected.has(f.url)} onToggle={() => toggle(f.url)} needsReview={isTranslatorFile(f.url, translatorSet)} reviewed={reviewed.has(f.url)} onReview={(v) => markReviewed(f.url, v)} />
               ))}
             </ul>
             {versions.previous.length > 0 && (
@@ -279,7 +374,7 @@ export default function DeliveryPanel(props: Props) {
                 </summary>
                 <ul className="mt-1 space-y-1">
                   {versions.previous.map((f) => (
-                    <FileRow key={f.url} f={f} checked={selected.has(f.url)} onToggle={() => toggle(f.url)} />
+                    <FileRow key={f.url} f={f} checked={selected.has(f.url)} onToggle={() => toggle(f.url)} needsReview={isTranslatorFile(f.url, translatorSet)} reviewed={reviewed.has(f.url)} onReview={(v) => markReviewed(f.url, v)} />
                   ))}
                 </ul>
               </details>
@@ -289,7 +384,7 @@ export default function DeliveryPanel(props: Props) {
           <p className="mt-1 text-xs text-slate-400">Aún no hay traducción subida: sube el archivo abajo.</p>
         )}
         <label className="mt-2 block text-xs text-slate-400">
-          {props.files.length > 0 ? "Subir un archivo sustituto o adicional" : "Subir la traducción"}
+          {allFiles.length > 0 ? "Subir un archivo sustituto o adicional" : "Subir la traducción"}
           <input
             type="file"
             accept=".pdf,.doc,.docx,.zip"
@@ -398,11 +493,16 @@ export default function DeliveryPanel(props: Props) {
       <button
         type="button"
         onClick={send}
-        disabled={sending || nifBlocked}
+        disabled={sending || nifBlocked || pendingReview.length > 0}
         className="mt-5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
-        {sending ? "Enviando…" : correction ? "Enviar corrección" : props.lastSent ? "Reenviar" : "Enviar"}
+        {sending ? "Enviando…" : invoiceOnly ? "Enviar factura" : silent ? "Marcar lista para recoger (sin email)" : correction ? "Enviar corrección" : props.lastSent ? "Reenviar" : "Enviar"}
       </button>
+      {pendingReview.length > 0 && (
+        <p className="mt-2 text-xs font-semibold text-amber-300">
+          Revisa los archivos del traductor marcados (casilla «Revisada ✓») para poder enviar.
+        </p>
+      )}
       {feedback && (
         <p className={`mt-2 text-xs font-semibold ${feedback.ok ? "text-emerald-300" : "text-red-300"}`}>{feedback.text}</p>
       )}
@@ -410,14 +510,34 @@ export default function DeliveryPanel(props: Props) {
   );
 }
 
-function FileRow({ f, checked, onToggle }: { f: DeliveryFileRef; checked: boolean; onToggle: () => void }) {
+function FileRow({
+  f,
+  checked,
+  onToggle,
+  needsReview,
+  reviewed,
+  onReview,
+}: {
+  f: DeliveryFileRef;
+  checked: boolean;
+  onToggle: () => void;
+  needsReview: boolean;
+  reviewed: boolean;
+  onReview: (value: boolean) => void;
+}) {
   return (
-    <li className="flex items-center gap-2 text-sm">
+    <li className="flex flex-wrap items-center gap-2 text-sm">
       <input type="checkbox" checked={checked} onChange={onToggle} className="rounded border-slate-500" />
       <span className="truncate text-slate-200">{f.name}</span>
       <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-cyan-400 hover:underline">
         ver
       </a>
+      {needsReview && (
+        <label className={`flex shrink-0 items-center gap-1 text-xs ${reviewed ? "text-emerald-300" : "text-amber-300"}`}>
+          <input type="checkbox" checked={reviewed} onChange={(e) => onReview(e.target.checked)} className="rounded border-slate-500" />
+          {reviewed ? "Revisada ✓" : "Sin revisar"}
+        </label>
+      )}
     </li>
   );
 }

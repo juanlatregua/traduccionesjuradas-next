@@ -13,6 +13,7 @@
 // nadie descarga nada por estar simplemente "aprobado". Ver lib/credit-terms.ts.
 
 import { isOrderSecured, type CreditInvoice, type MonthlyInvoice } from "@/lib/credit-terms";
+import { clientFallbackFileUrl } from "@/lib/delivery-files";
 
 export type ClientDeliveryFile = { url: string; filename: string | null };
 
@@ -33,7 +34,8 @@ export function clientVisibleDeliveryFiles(order: {
     .filter((f) => f && typeof f.url === "string" && (f.url as string).trim())
     .map((f) => ({ url: String(f.url), filename: f.filename ? String(f.filename) : null }));
   if (files.length > 0) return files;
-  const single =
-    String(order.finalDeliveryFileUrl || "").trim() || String(order.translatedFileUrl || "").trim();
+  // La subida del traductor (translatedFileUrl) no es entregable hasta que el staff la
+  // revisa y la envía por /delivery, que la pasa a la lista de entrega.
+  const single = clientFallbackFileUrl(order.finalDeliveryFileUrl, order.translatedFileUrl);
   return single ? [{ url: single, filename: order.finalFilename || null }] : [];
 }
