@@ -1,3 +1,5 @@
+import { buildDeliveryWhatsappText, type DeliveryLang } from "@/lib/delivery-message";
+
 export type NotificationTemplateKey =
   | "wa_payment_request"
   | "wa_status_update"
@@ -56,18 +58,13 @@ export function buildNotificationTemplate(input: BuildTemplateInput) {
   }
 }
 
-// Mensaje de reenvío de la entrega (WhatsApp/email): traducciones + reseña.
-// Vivía inline en la ficha de pedido; aquí para que toda plantilla tenga una casa.
+// Mensaje de reenvío de la entrega (WhatsApp/email): enlaces a las traducciones + reseña.
 export function buildDeliveryResendMessage(input: {
   reference: string;
   files: { name: string; url?: string }[];
   reviewUrl: string;
+  name?: string | null;
+  lang?: DeliveryLang;
 }) {
-  if (input.files.length === 0) return "";
-  return [
-    `Hola, tu traducción jurada (pedido ${input.reference}) ya está lista.`,
-    input.files.map((f) => `• ${f.name}: ${f.url || ""}`).join("\n"),
-    `Si todo está correcto, nos ayudaría muchísimo tu reseña en Google: ${input.reviewUrl}`,
-    "¡Gracias!",
-  ].join("\n\n");
+  return buildDeliveryWhatsappText(input);
 }

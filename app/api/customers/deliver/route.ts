@@ -22,9 +22,9 @@ import { NextResponse } from "next/server";
 import { createOrder, confirmManualPayment, updateDeliveryState } from "@/lib/orders";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { sendTranslationReadyEmail, buildTranslationReadyEmail } from "@/lib/email";
+import { toDeliveryLang } from "@/lib/delivery-message";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
-import { buildSignedOrderUrl } from "@/lib/order-token";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -128,15 +128,14 @@ export async function POST(req: Request) {
     //    el pedido está COBRADO (no se manda la traducción jurada a un impago) y el
     //    email es entregable (los de WhatsApp llevan email-marcador @whatsapp.local).
     if (body.notifyClient && alreadyPaid && isDeliverableEmail(clientEmail)) {
-      const statusUrl = buildSignedOrderUrl(reference, "estado");
-      const lang = order.clientLocale === "fr" ? "fr" : "es";
+      const lang = toDeliveryLang(order.clientLocale);
+      const invAttach = await buildIssuedInvoiceAttachment(reference);
+      const invoiceNumber = invAttach ? invAttach.name.replace(/\.pdf$/i, "") : null;
       const composed = buildTranslationReadyEmail({
         reference,
-        downloadUrl: primary.url,
-        statusUrl,
         lang,
-        translationAttached: true,
-        invoiceAttached: false,
+        clientName: order.clientName,
+        invoiceNumber,
       });
       await prisma.orderEvent
         .create({
@@ -144,21 +143,21 @@ export async function POST(req: Request) {
             orderId: order.id,
             type: "notification.delivery_ready.sent",
             message: "Cliente notificado de traducción lista con enlace de descarga.",
-            payload: { actorEmail, channel: "EMAIL", toEmail: clientEmail, subject: composed.subject, bodyHtml: composed.html, downloadUrl: primary.url, fileCount: translations.length },
+            payload: { actorEmail, channel: "EMAIL", toEmail: clientEmail, subject: composed.subject, bodyHtml: composed.html, downloadUrl: primary.url, fileCount: translations.length, invoiceAttached: !!invAttach, invoiceNumber },
           },
         })
         .catch((err) => console.error("[customers-deliver] notif event failed", err));
 
       void (async () => {
         const multi = translations.length > 1;
-        const [fileAttachments, invAttach] = await Promise.all([
-          Promise.all(translations.map((f, i) => fetchFileAsAttachment(f.url, f.filename || `Traduccion-jurada-${reference}${multi ? `-${i + 1}` : ""}.pdf`))),
-          buildIssuedInvoiceAttachment(reference),
-        ]);
+        const fileAttachments = await Promise.all(
+          translations.map((f, i) => fetchFileAsAttachment(f.url, f.filename || `Traduccion-jurada-${reference}${multi ? `-${i + 1}` : ""}.pdf`))
+        );
         const transAttachments = fileAttachments.filter(Boolean) as NonNullable<(typeof fileAttachments)[number]>[];
         const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
+        const fallbackLinks = translations.filter((_, i) => !fileAttachments[i]).map((f) => f.url);
         await sendEmailWithRetry(() =>
-          sendTranslationReadyEmail({ toEmail: clientEmail, reference, downloadUrl: primary.url, lang, statusUrl, attachments, translationAttached: transAttachments.length > 0, invoiceAttached: !!invAttach })
+          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach })
         );
       })().catch((e) => console.error("[customers-deliver] ready email failed", e));
     }

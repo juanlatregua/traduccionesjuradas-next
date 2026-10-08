@@ -13,13 +13,10 @@ import {
   getOrderActionStage,
   getNextBestAction,
   getOrderGates,
-  buildOrderTrackedLinks,
 } from "@/lib/order-actions";
 import {
-  getAcquisitionSource,
   getArchiveState,
   getLatestDeliveryNotification,
-  getOrderArtifacts,
   getPaymentProofs,
   getQuoteAuditTrail,
   getQuoteDraft,
@@ -35,12 +32,14 @@ import OrderCreditPanel from "@/components/OrderCreditPanel";
 import OrderExtendButton from "@/components/OrderExtendButton";
 import { isOrderSecured, isCreditAuthorized, creditDaysToDue, isMonthlySecured, periodLabel } from "@/lib/credit-terms";
 import { buildDeliveryResendMessage } from "@/lib/notification-templates";
+import { getReviewUrl, toDeliveryLang } from "@/lib/delivery-message";
+import { resolveBillingPrefill } from "@/lib/delivery-billing";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
 import OrderFinancePanel from "@/components/OrderFinancePanel";
 import OrderLifecyclePanel from "@/components/OrderLifecyclePanel";
 import OrderWorkflowPanel from "@/components/OrderWorkflowPanel";
 import SourceDocumentUpload from "@/components/SourceDocumentUpload";
-import TranslatorNotifyForm from "@/components/TranslatorNotifyForm";
+import DeliveryPanel from "@/components/order-workspace/DeliveryPanel";
 import ClientMessageComposer from "@/components/order-workspace/ClientMessageComposer";
 import FileThumbnails from "@/components/order-workspace/FileThumbnails";
 import TranslationWorkspacePanel from "@/components/TranslationWorkspacePanel";
@@ -282,7 +281,19 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   // con vencimiento (lib/credit-terms.ts). "Asegurado" = cobrado o a crédito.
   const creditCustomer = await prisma.customer.findFirst({
     where: { email: { equals: order.clientEmail, mode: "insensitive" } },
-    select: { creditEnabled: true, creditDays: true, billingCycle: true },
+    select: {
+      creditEnabled: true,
+      creditDays: true,
+      billingCycle: true,
+      name: true,
+      companyName: true,
+      fiscalName: true,
+      nif: true,
+      address: true,
+      city: true,
+      postalCode: true,
+      country: true,
+    },
   });
   const secured = isOrderSecured(order);
   // Factura AGRUPADA del mes de la que cuelga el pedido (borrador o emitida).
@@ -384,24 +395,33 @@ export default async function PedidoWorkspacePage({ params }: Params) {
   const submittedDocuments = getSubmittedDocuments(order);
   const quoteDraft = getQuoteDraft(order);
   const quoteAuditTrail = getQuoteAuditTrail(order);
-  const artifacts = getOrderArtifacts(order);
   const deliveryNotification = getLatestDeliveryNotification(order);
-  const trackedLinks = buildOrderTrackedLinks(order.reference);
-  const acquisitionSource = getAcquisitionSource(order);
   const { isArchived } = getArchiveState(order);
   const dueDateInput = order.dueDate ? order.dueDate.toISOString().split("T")[0] : null;
 
   // Reenvío manual al cliente (sobre todo leads de WhatsApp con email sintético
   // @whatsapp.local, a los que el email de entrega no llega): un enlace wa.me con
   // las traducciones + el enlace de reseña ya escritos, y la reseña accesible.
-  const reviewUrl = (process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "").trim().startsWith("http")
-    ? (process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ as string).trim()
-    : "https://www.google.com/maps?cid=1858671208989418611";
+  const reviewUrl = getReviewUrl();
+  const deliveryLang = toDeliveryLang(order.clientLocale);
   const clientPhoneDigits = (order.clientPhone || "").replace(/\D/g, "");
   const whatsappResendText = buildDeliveryResendMessage({
     reference: order.reference,
     files: deliveredFiles,
     reviewUrl,
+    name: order.clientName,
+    lang: deliveryLang,
+  });
+  // Una factura ya emitida es la verdad fiscal: manda sobre BillingData en el prefill.
+  const issuedInvoice =
+    order.clientInvoice && order.clientInvoice.status === "ISSUED" && order.clientInvoice.docKind === "invoice"
+      ? await prisma.clientInvoice.findUnique({ where: { orderId: order.id } })
+      : null;
+  const billingPrefill = resolveBillingPrefill({
+    billing: issuedInvoice ?? order.billing,
+    customer: creditCustomer,
+    clientName: order.clientName,
+    clientEmail: order.clientEmail,
   });
   const clientMessageSubject =
     deliveredFiles.length > 0
@@ -685,7 +705,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
           </details>
         </section>
 
-        <Section id="traduccion" title="Subir y entregar la traducción">
+        <Section id="traduccion" title="Entregar la traducción">
           {lavoriEntregas.length > 0 && (
             <LavoriEntregasPanel
               reference={order.reference}
@@ -723,7 +743,36 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               Aún no hay ninguna traducción subida en este pedido.
             </p>
           )}
-          {/* Uploader/entrega ya existente (arreglado): sube N archivos o carpeta y notifica al cliente. */}
+          <DeliveryPanel
+            reference={order.reference}
+            clientEmail={order.clientEmail}
+            clientName={order.clientName}
+            lang={deliveryLang}
+            reviewUrl={reviewUrl}
+            amountCents={order.amountCents}
+            files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
+            billing={billingPrefill}
+            billingExcluded={order.billingExcluded}
+            billingExcludedReason={order.billingExcludedReason}
+            hasMonthlyInvoice={Boolean(order.monthlyInvoiceId)}
+            invoice={
+              order.clientInvoice
+                ? { number: order.clientInvoice.number, status: order.clientInvoice.status, docKind: order.clientInvoice.docKind }
+                : null
+            }
+            alreadyDelivered={workflowState === "CERRADO" || order.deliveryState === "TRADUCIDO"}
+            lastSent={
+              deliveryNotification?.sentAt
+                ? {
+                    sentAt: deliveryNotification.sentAt,
+                    toEmail: deliveryNotification.toEmail,
+                    invoiceNumber: deliveryNotification.invoiceNumber,
+                  }
+                : null
+            }
+            whatsappText={whatsappResendText}
+          />
+          <div className="mt-4">
           <TranslationWorkspacePanel
             reference={order.reference}
             currentDeliveryState={order.deliveryState}
@@ -731,8 +780,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             existingFileUrl={order.finalDeliveryFileUrl || order.translatedFileUrl || null}
             existingFilename={order.finalFilename || null}
             translatorDeliveredAt={order.translatorDeliveredAt?.toISOString() || null}
-            alreadyDelivered={workflowState === "CERRADO" || order.deliveryState === "TRADUCIDO"}
+            withoutDelivery
           />
+          </div>
         </Section>
 
         {/* SECCIÓN 2 — Documentos del cliente: UN solo listado (miniaturas +
@@ -864,20 +914,6 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               defaultSubject={clientMessageSubject}
               defaultMessage={whatsappResendText}
               hasDeliveryFiles={deliveredFiles.length > 0}
-            />
-          </div>
-          <div className="mt-6 border-t border-slate-700/50 pt-6">
-            <TranslatorNotifyForm
-              reference={order.reference}
-              defaultClientEmail={order.clientEmail}
-              acquisitionSource={acquisitionSource}
-              defaultDownloadUrl={artifacts.finalDeliveryFileUrl || undefined}
-              quotePreviewUrl={artifacts.quotePreviewFileUrl || undefined}
-              paymentLink={trackedLinks.paymentUrl}
-              statusLink={trackedLinks.statusUrl}
-              deliveryNotifiedAt={deliveryNotification?.sentAt || null}
-              deliveryNotifiedTo={deliveryNotification?.toEmail || null}
-              canonicalStage={actionStage}
             />
           </div>
         </Section>
