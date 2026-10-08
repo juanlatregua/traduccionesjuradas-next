@@ -79,10 +79,43 @@ test("FR→ES: coste 0 (Juan) y las tablas no suben el precio", () => {
   assert.equal(p?.tables, false);
 });
 
-test("FR→ES: sustituye suelos, apostilla y tarifa de Marruecos en documentos por página", () => {
-  assert.equal(price(analysis({ pages: 2, apostille: true })), 60); // antes 55 + 5
-  assert.equal(price(analysis({ pages: 1, country: "MA" })), 30); // antes 40 fijo
-  assert.equal(calculatePrice(analysis({ pages: 1, apostille: true })).breakdown.apostilleSurcharge, 0);
+test("FR→ES: sustituye suelos y tarifa de Marruecos en documentos por página", () => {
+  assert.equal(price(analysis({ pages: 1, country: "MA" })), 30); // antes 40 fijo (Marruecos: pendiente de Juan)
+});
+
+// Apostilla (Juan, 8-oct): no cuenta como página; +5 € por documento que la lleve.
+test("apostilla: 1 página apostillada = 35 €", () => {
+  const q = calculatePrice(analysis({ pages: 1, apostille: true }));
+  assert.equal(q.basePrice, 35);
+  assert.equal(q.breakdown.apostilleSurcharge, 5);
+});
+
+test("apostilla: 3 páginas + apostilla en hoja aparte (4 hojas) = 95 €", () => {
+  assert.equal(price(analysis({ pages: 4, apostille: true })), 95);
+  assert.equal(price(analysis({ pages: 2, apostille: true })), 35); // 1 hoja + apostilla
+});
+
+test("apostilla como documento suelto del expediente: +5 €, no 30 €", () => {
+  const solo = calculatePrice(analysis({ type: "apostille", pages: 1 }));
+  assert.equal(solo.basePrice, 5);
+  const de = calculatePrice(analysis({ type: "apostille", source: "de", country: "DE", pages: 1 }));
+  assert.equal(de.basePrice, 5);
+  assert.equal(de.pagePricing?.costEur, 0); // Morton: sin tarifa de apostilla, +0
+  assert.equal(price(analysis({ pages: 1 })) + solo.basePrice, 35);
+});
+
+test("DE con tablas apostillado: páginas × 35 + 5, coste Morton sin apostilla", () => {
+  const q = calculatePrice(analysis({ source: "de", country: "DE", type: "transcript", pages: 3, tables: true, apostille: true }));
+  assert.equal(q.basePrice, 75); // 2 pág. × 35 + 5
+  assert.equal(q.pagePricing?.costEur, 30); // 2 × 15
+  assert.equal(calculatePrice(analysis({ source: "de", country: "DE", pages: 1, apostille: true })).basePrice, 35);
+  assert.equal(isDePageTariffLine(75, 30), true);
+  assert.equal(isDePageTariffLine(35, 10), true);
+});
+
+test("DE apostillado: el paraTi de Morton no incluye la apostilla", () => {
+  const p = dePagePactado([{ specificType: "birth_certificate", sourceLang: "de", pages: 2, hasTables: false, hasApostille: true }]);
+  assert.deepEqual(p, { costCents: 1000, priceCents: 3500, pages: 1, tablePages: 0 });
 });
 
 test("FR: el Bulletin n°3 de 3+ páginas conserva el paquete de 61,98 €", () => {

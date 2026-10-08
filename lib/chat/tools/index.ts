@@ -54,7 +54,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
         has_apostille: {
           type: "boolean",
           description:
-            "True si el documento incluye una apostilla de La Haya que también requiere traducción jurada (recargo de 15 €).",
+            "True si el documento incluye una apostilla de La Haya que también requiere traducción jurada (recargo de 15 €; en francés y alemán por página, +5 € y la hoja de apostilla no cuenta como página).",
         },
         has_tables: {
           type: "boolean",

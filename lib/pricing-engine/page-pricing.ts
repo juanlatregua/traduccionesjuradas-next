@@ -18,6 +18,9 @@ export const PAGE_PRICE_EUR = 30;
 export const PAGE_PRICE_DE_TABLES_EUR = 35;
 export const PAGE_COST_DE_EUR = 10;
 export const PAGE_COST_DE_TABLES_EUR = 15;
+/** Apostilla (decisión Juan, 8-oct): NO cuenta como página; +5 € por documento
+ * que la lleve. Coste Morton: no hay tarifa de apostilla → +0 (pendiente de Juan). */
+export const APOSTILLE_EXTRA_EUR = 5;
 
 /** Idiomas con precio por página (siempre hacia el español). */
 export const PAGE_PRICED_LANGS = new Set(["fr", "de"]);
@@ -45,6 +48,7 @@ export const TABLE_IMPLIED_TYPES = new Set(["transcript", "grades", "bank_statem
 export type PagePricing = {
   pages: number;
   tables: boolean;
+  apostille: boolean; // lleva apostilla: +5 € sobre las páginas
   pricePerPage: number;
   priceEur: number; // precio CLIENTE sin IVA (total del documento)
   costPerPage: number; // coste del traductor por página (0 = Juan)
@@ -80,19 +84,31 @@ export function computePagePricing(input: {
   inbound: boolean;
   pages: number | null | undefined;
   hasTables?: boolean | null;
+  hasApostille?: boolean | null;
 }): PagePricing | null {
   const lang = String(input.foreignLang || "").trim().toLowerCase();
   if (!input.inbound || !PAGE_PRICED_LANGS.has(lang)) return null;
   if (!isPagePricedType(input.specificType)) return null;
-  const pages = billablePages(input.pages);
+  // Apostilla como documento aparte del expediente: no es un documento a 30 €,
+  // es +5 € sobre el documento al que acompaña (o +5 suelto si no se empareja).
+  if (String(input.specificType || "").trim().toLowerCase() === "apostille") {
+    return {
+      pages: 0, tables: false, apostille: true, pricePerPage: 0,
+      priceEur: APOSTILLE_EXTRA_EUR, costPerPage: lang === "de" ? PAGE_COST_DE_EUR : 0, costEur: 0,
+    };
+  }
+  const apostille = input.hasApostille === true;
+  // La hoja de apostilla dentro del PDF se descuenta del recuento (mínimo 1 página).
+  const pages = apostille ? Math.max(1, billablePages(input.pages) - 1) : billablePages(input.pages);
   const tables = lang === "de" && detectTables({ specificType: input.specificType, hasTables: input.hasTables });
   const pricePerPage = tables ? PAGE_PRICE_DE_TABLES_EUR : PAGE_PRICE_EUR;
   const costPerPage = lang === "de" ? (tables ? PAGE_COST_DE_TABLES_EUR : PAGE_COST_DE_EUR) : 0;
   return {
     pages,
     tables,
+    apostille,
     pricePerPage,
-    priceEur: round2(pages * pricePerPage),
+    priceEur: round2(pages * pricePerPage + (apostille ? APOSTILLE_EXTRA_EUR : 0)),
     costPerPage,
     costEur: round2(pages * costPerPage),
   };
@@ -118,8 +134,12 @@ export function isDePageTariffLine(unitPriceEur: number, supplierCostEur: number
   const price = Math.round(Number(unitPriceEur) * 100);
   const cost = Math.round(Number(supplierCostEur) * 100);
   if (!(price > 0) || !(cost > 0)) return false;
+  // price = n·pp (+5 € si lleva apostilla) ↔ cost = n·cp (la apostilla no suma coste).
   const match = (pp: number, cp: number) =>
-    price % (pp * 100) === 0 && cost % (cp * 100) === 0 && price / (pp * 100) === cost / (cp * 100);
+    [0, APOSTILLE_EXTRA_EUR].some((ap) => {
+      const rest = price - ap * 100;
+      return rest > 0 && rest % (pp * 100) === 0 && cost % (cp * 100) === 0 && rest / (pp * 100) === cost / (cp * 100);
+    });
   return match(PAGE_PRICE_EUR, PAGE_COST_DE_EUR) || match(PAGE_PRICE_DE_TABLES_EUR, PAGE_COST_DE_TABLES_EUR);
 }
 
@@ -135,7 +155,13 @@ export function isDePageTariffQuote(input: {
   const priced = input.lines.filter((l) => Number(l.unitPrice) > 0);
   return (
     priced.length > 0 &&
-    priced.every((l) => (Number(l.quantity) || 1) === 1 && isDePageTariffLine(Number(l.unitPrice), l.supplierUnitCost))
+    priced.every(
+      (l) =>
+        (Number(l.quantity) || 1) === 1 &&
+        (isDePageTariffLine(Number(l.unitPrice), l.supplierUnitCost) ||
+          // apostilla suelta del expediente: +5 € sin coste
+          (Number(l.unitPrice) === APOSTILLE_EXTRA_EUR && !(Number(l.supplierUnitCost) > 0)))
+    )
   );
 }
 
@@ -145,7 +171,7 @@ export type DePagePactado = { costCents: number; pages: number; tablePages: numb
  * coste de cada documento. null si algún documento NO es DE→ES «por página» (en
  * ese caso no hay precio pactado y el pedido sigue el flujo de siempre). */
 export function dePagePactado(
-  docs: Array<{ specificType?: string | null; sourceLang?: string | null; pages?: number | null; hasTables?: boolean | null }>
+  docs: Array<{ specificType?: string | null; sourceLang?: string | null; pages?: number | null; hasTables?: boolean | null; hasApostille?: boolean | null }>
 ): DePagePactado | null {
   if (docs.length === 0) return null;
   let costCents = 0;
@@ -159,6 +185,7 @@ export function dePagePactado(
       inbound: String(d.sourceLang || "").trim().toLowerCase() !== "es",
       pages: d.pages,
       hasTables: d.hasTables,
+      hasApostille: d.hasApostille,
     });
     if (!p || p.costPerPage <= 0) return null;
     costCents += Math.round(p.costEur * 100);

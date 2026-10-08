@@ -1043,6 +1043,7 @@ async function dePagePactadoForOrder(orderId: string): Promise<DePagePactado | n
       sourceLang: a?.language?.source ?? null,
       pages: a?.document_metrics?.pages ?? null,
       hasTables: a?.document_metrics?.has_tables ?? null,
+      hasApostille: a?.requirements?.has_apostille ?? null,
     };
   });
   return dePagePactado(docs);

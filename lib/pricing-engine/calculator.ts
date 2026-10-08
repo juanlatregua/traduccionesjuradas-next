@@ -11,7 +11,7 @@ import {
   MOROCCO_PRICING,
   FRENCH_CRIMINAL_RECORD_PRICE,
 } from "./rules.ts";
-import { computePagePricing, type PagePricing } from "./page-pricing.ts";
+import { computePagePricing, APOSTILLE_EXTRA_EUR, type PagePricing } from "./page-pricing.ts";
 
 export const VAT_RATE = 0.21;
 
@@ -191,12 +191,14 @@ export function computeBase(input: PriceMetricsInput): {
     inbound: input.inbound === true,
     pages,
     hasTables: input.hasTables,
+    hasApostille: input.hasApostille,
   });
   if (pagePricing) {
     return {
       basePrice: pagePricing.priceEur,
       wordPrice: pagePricing.priceEur,
-      effectiveRate: 0, minimum: pagePricing.priceEur, complexityMult, apostilleSurcharge: 0,
+      effectiveRate: 0, minimum: pagePricing.priceEur, complexityMult,
+      apostilleSurcharge: pagePricing.apostille ? APOSTILLE_EXTRA_EUR : 0,
       fixedPriceApplied: true, pagePricing,
     };
   }
