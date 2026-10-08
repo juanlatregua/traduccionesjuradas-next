@@ -79,7 +79,7 @@ export async function confirmManualPaymentWithSideEffects(
       lang: order.clientLocale === "fr" ? "fr" : "es",
     }).catch((e) => console.error("[confirm-payment] email failed", e));
 
-    const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+    const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
     const { smsPagoConfirmado, formatDeliveryPlazo } = await import("@/lib/sms-templates");
     const { buildSignedOrderUrl } = await import("@/lib/order-token");
     const orderFull = await prisma.order.findUnique({
@@ -90,7 +90,7 @@ export async function confirmManualPaymentWithSideEffects(
       const phone = await getOrderPhone(orderFull.id).catch(() => null);
       if (phone) {
         const lang = orderFull.clientLocale === "fr" ? "fr" : "es";
-        sendNotification({
+        sendClientNotification({
           to: formatPhoneSpain(phone),
           body: smsPagoConfirmado({
             ref: reference,

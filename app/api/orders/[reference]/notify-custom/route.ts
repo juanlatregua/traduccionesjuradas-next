@@ -122,13 +122,13 @@ export async function POST(req: Request, { params }: Params) {
     let smsSent = false;
     if (alsoSms) {
       try {
-        const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+        const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
         const { buildSignedOrderUrl } = await import("@/lib/order-token");
         const phone = await getOrderPhone(order.id);
         if (phone) {
           const statusUrl = buildSignedOrderUrl(order.reference, "estado");
           const short = bodyText.length > 120 ? `${bodyText.slice(0, 117)}...` : bodyText;
-          await sendNotification({
+          await sendClientNotification({
             to: formatPhoneSpain(phone),
             body: `${order.reference}: ${short} ${statusUrl}`,
           });

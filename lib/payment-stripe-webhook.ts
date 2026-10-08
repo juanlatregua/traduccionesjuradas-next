@@ -198,7 +198,7 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
       ).catch((err) => console.error(`[${source}] payment confirmation email failed`, err));
 
       // SMS notification (fire & forget)
-      const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+      const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
       const { smsPagoConfirmado } = await import("@/lib/sms-templates");
       const { buildSignedOrderUrl } = await import("@/lib/order-token");
       const { formatDeliveryPlazo } = await import("@/lib/sms-templates");
@@ -210,7 +210,7 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
         const phone = await getOrderPhone(orderFull.id).catch(() => null);
         if (phone) {
           const lang = orderFull.clientLocale === "fr" ? "fr" : "es";
-          sendNotification({
+          sendClientNotification({
             to: formatPhoneSpain(phone),
             body: smsPagoConfirmado({ ref: reference, plazo: formatDeliveryPlazo(orderFull.dueDate, lang), url: buildSignedOrderUrl(reference, "estado"), lang }),
           }).catch((err) => console.error(`[${source}] SMS failed`, err));

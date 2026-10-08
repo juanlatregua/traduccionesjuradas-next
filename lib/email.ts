@@ -1014,6 +1014,8 @@ export async function sendLeadReminderEmail(data: {
   // La puerta captura el email pero NO el nombre → sin esto el saludo salía
   // "Hola ," a todos los leads que recupera este aviso.
   const greeting = data.clientName?.trim() ? `Hola ${data.clientName.trim()},` : "Hola,";
+  // Abre la puerta vacía (no hay enlace a la subida anterior): el botón no puede
+  // prometer "retomar" (queja 8-oct: cliente ya pagado creyó que debía pagar).
   const presupuestoUrl = `${SITE_BASE_URL}/presupuesto-instantaneo`;
   const subject = "Tu presupuesto de traduccion jurada sigue disponible";
   const docs = data.docs || [];
@@ -1041,9 +1043,9 @@ export async function sendLeadReminderEmail(data: {
     ${
       unpriced.length
         ? `<p>El precio ${priced.length ? "de los documentos pendientes " : ""}te lo confirma directamente tu traductor jurado nombrado por el MAEC — <strong>responde a este correo</strong> y te lo enviamos hoy mismo, o escribenos por <a href="https://wa.me/34951333614" style="color:#059669; font-weight:600;">WhatsApp</a>.</p>`
-        : `<p>Tu presupuesto sigue disponible. Puedes retomarlo en cualquier momento:</p>`
+        : `<p>Puedes pedirlo de nuevo en un minuto:</p>`
     }
-    <p><a href="${presupuestoUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Retomar presupuesto</a></p>
+    <p><a href="${presupuestoUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Pedir presupuesto</a></p>
     <p style="font-size:13px; color:#6b7280;">Si ya no lo necesitas, simplemente ignora este correo.</p>
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>
   `;

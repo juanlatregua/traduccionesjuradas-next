@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendPaymentReminderEmail, sendStaffPaymentPendingEmail } from "@/lib/email";
 import { sendNotification } from "@/lib/sms";
 import { buildSignedOrderUrl } from "@/lib/order-token";
+import { alreadyCustomerFor, countSkip, loadCustomerIndex, orderChaseSkipReason } from "@/lib/client-contact-guard";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,8 @@ const STAGE2_MS = 7 * 24 * 60 * 60 * 1000;
 const WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // deja de recordar pasados 14 días
 const EV_STAGE1 = "order.payment_reminder_sent";
 const EV_STAGE2 = "order.payment_reminder_staff_only_sent";
+const EV_SKIPPED = "order.payment_reminder_skipped"; // ya es cliente o ya mandó justificante: no se le escribe
+const EV_PROOF = ["payment.proof_uploaded", "payment.transfer_declared"];
 
 function hasCronAuth(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -60,8 +63,9 @@ export async function GET(req: Request) {
       createdAt: { gte: since, lte: stage1Before },
     },
     include: {
+      quote: { select: { expedienteRef: true } },
       events: {
-        where: { type: { in: [EV_STAGE1, EV_STAGE2] } },
+        where: { type: { in: [EV_STAGE1, EV_STAGE2, EV_SKIPPED, ...EV_PROOF] } },
         select: { type: true },
       },
     },
@@ -72,10 +76,38 @@ export async function GET(req: Request) {
   let stage2 = 0;
   let failed = 0;
   let skipped = 0;
+  const skippedClients: Record<string, number> = {};
+  const index = candidates.length
+    ? await loadCustomerIndex({
+        since: new Date(Math.min(...candidates.map((o) => o.createdAt.getTime()))),
+        emails: candidates.map((o) => o.clientEmail),
+        orderIds: candidates.map((o) => o.id),
+        expedienteRefs: candidates.map((o) => o.quote?.expedienteRef || ""),
+      })
+    : null;
   const would: { reference: string; stage: 1 | 2 }[] = [];
 
   for (const order of candidates) {
     const types = new Set(order.events.map((e) => e.type));
+    if (types.has(EV_SKIPPED)) { skipped++; continue; }
+    // Justificante o transferencia declarada: ya ha pagado/está pagando, no se le reclama.
+    const reason: string | null =
+      orderChaseSkipReason(order.status) ||
+      (order.paymentProofFileKey || EV_PROOF.some((t) => types.has(t))
+        ? "justificante_subido"
+        : (() => {
+            const v = index ? alreadyCustomerFor({ mode: "encargo", orderRef: order.reference, orderId: order.id, quoteId: order.quoteId, expedienteRef: order.quote?.expedienteRef, at: order.createdAt }, { index }) : null;
+            return v && v.skip ? v.reason : null;
+          })());
+    if (reason) {
+      countSkip(skippedClients, reason);
+      if (!dry) {
+        await prisma.orderEvent.create({
+          data: { orderId: order.id, type: EV_SKIPPED, message: `Recordatorio de pago omitido: ${reason}.` },
+        }).catch((e) => console.error("[order-reminders] skip mark failed", e));
+      }
+      continue;
+    }
     const hasStage1 = types.has(EV_STAGE1);
     const hasStage2 = types.has(EV_STAGE2);
     const ageMs = now.getTime() - order.createdAt.getTime();
@@ -147,7 +179,7 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, dry, scanned: candidates.length, stage1, stage2, failed, skipped, ...(dry && { would }) });
+  return NextResponse.json({ ok: true, dry, scanned: candidates.length, stage1, stage2, failed, skipped, skippedClients, ...(dry && { would }) });
 }
 
 export const POST = GET;

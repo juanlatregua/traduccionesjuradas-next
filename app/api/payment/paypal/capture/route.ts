@@ -155,13 +155,13 @@ export async function POST(req: Request) {
 
       // SMS de hito "pago confirmado" (fire & forget) — igual que Stripe/Redsys.
       if (fullOrder) {
-        const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+        const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
         const { smsPagoConfirmado, formatDeliveryPlazo } = await import("@/lib/sms-templates");
         const { buildSignedOrderUrl } = await import("@/lib/order-token");
         const phone = await getOrderPhone(fullOrder.id).catch(() => null);
         if (phone) {
           const lang = fullOrder.clientLocale === "fr" ? "fr" : "es";
-          sendNotification({
+          sendClientNotification({
             to: formatPhoneSpain(phone),
             body: smsPagoConfirmado({
               ref: order.reference,

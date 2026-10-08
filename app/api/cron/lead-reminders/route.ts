@@ -5,7 +5,8 @@ import { getLanguageName, isPublicAutoPriceable } from "@/lib/pricing-engine/lan
 import { checkRateLimit } from "@/lib/rate-limit";
 import { sendMail, isPlaceholderEmail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
-import { sendSMS, sendStaffAlertSMS, formatPhoneSpain } from "@/lib/sms";
+import { sendClientSMS, sendStaffAlertSMS, formatPhoneSpain } from "@/lib/sms";
+import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
 
 
 export const runtime = "nodejs";
@@ -64,10 +65,56 @@ export async function GET(req: Request) {
     else byEmail.set(key, [lead]);
   }
 
+  // Solicitudes de precio de la PUERTA (carril automático 25-ago) que a las 24 h siguen
+  // SIN cifra del jurado (bloque de más abajo). Se cargan aquí para compartir UN índice.
+  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+  const paradas = await prisma.lavoriPriceRequest.findMany({
+    where: {
+      status: "SENT",
+      // "directo-escalado" también entra (Juan, 15-sep-2026). Y "puerta-directo"
+      // desde el 24-sep: ya no se reabre sola a las 6 h, así que el cliente
+      // necesita el mismo mensaje de seguimiento a las 24 h.
+      createdBy: { in: ["puerta-auto", "one-tap", "directo-escalado", "puerta-directo"] },
+      quoteId: null, // con presupuesto atado el cliente ya tiene su precio: nada de «aún no tenemos la cifra»
+      createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000), gt: new Date(now.getTime() - 72 * 60 * 60 * 1000) },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+  });
+  const hintParts = (hint: string | null) => (hint || "").split(" · ").map((x) => x.trim()).filter(Boolean);
+
+  // Quien ya es cliente (pagó o tiene su encargo en marcha) NO es un lead: guarda común
+  // lib/client-contact-guard (8-oct: 25 avisos en 30 días a clientes ya pagados). Un cliente
+  // que pagó hace meses y sube un documento distinto SÍ recibe el aviso.
+  const skippedClients: Record<string, number> = {};
+  const hintEmails = paradas.map((l) => hintParts(l.customerHint).find((x) => x.includes("@") && !isPlaceholderEmail(x)) || "").filter(Boolean);
+  const index = candidates.length || paradas.length
+    ? await loadCustomerIndex({
+        since: since,
+        emails: [...byEmail.keys(), ...hintEmails],
+        hashes: candidates.map((l) => l.fileHash || "").filter(Boolean),
+      })
+    : null;
+
   let sent = 0;
   let failed = 0;
 
   for (const [email, group] of byEmail) {
+    const verdict = index
+      ? group.map((l) => alreadyCustomerFor(
+          { email, phone: l.clientPhone, sessionToken: l.sessionToken, fileHash: l.fileHash, at: l.createdAt },
+          { index },
+        )).find((v) => v.skip)
+      : undefined;
+    if (verdict && verdict.skip) {
+      // Se marca para no reevaluarlo cada día de la ventana.
+      await prisma.documentAnalysis.updateMany({
+        where: { id: { in: group.map((l) => l.id) } },
+        data: { reminderSentAt: now },
+      });
+      countSkip(skippedClients, verdict.reason);
+      continue;
+    }
     try {
       await sendLeadReminderEmail({
         toEmail: group[0].clientEmail!,
@@ -106,34 +153,22 @@ export async function GET(req: Request) {
     }
   }
 
-  // Solicitudes de precio nacidas de la PUERTA (carril automático 25-ago) que a las
-  // 24 h siguen SIN cifra del jurado: segundo mensaje honesto al cliente + aviso
-  // rojo a Juan (SMS + email con enlace al builder). Una sola vez por lead.
-  const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-  const paradas = await prisma.lavoriPriceRequest.findMany({
-    where: {
-      status: "SENT",
-      // "directo-escalado" también entra (Juan, 15-sep-2026). Y "puerta-directo"
-      // desde el 24-sep: ya no se reabre sola a las 6 h, así que el cliente
-      // necesita el mismo mensaje de seguimiento a las 24 h.
-      createdBy: { in: ["puerta-auto", "one-tap", "directo-escalado", "puerta-directo"] },
-      quoteId: null, // con presupuesto atado el cliente ya tiene su precio: nada de «aún no tenemos la cifra»
-      createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000), gt: new Date(now.getTime() - 72 * 60 * 60 * 1000) },
-    },
-    orderBy: { createdAt: "asc" },
-    take: 20,
-  });
   let paradasAvisadas = 0;
   for (const lpr of paradas) {
     const gate = await checkRateLimit({ key: `lead-24h:${lpr.ref}`, limit: 1, windowMs: 7 * 24 * 60 * 60 * 1000 });
     if (!gate.ok) continue;
-    const parts = (lpr.customerHint || "").split(" · ").map((x) => x.trim()).filter(Boolean);
+    const parts = hintParts(lpr.customerHint);
     const email = parts.find((x) => x.includes("@") && !isPlaceholderEmail(x)) || null;
     const phone = parts.find((x) => /\+?\d[\d\s]{6,}/.test(x)) || null;
     const name = parts.find((x) => x !== email && x !== phone) || "";
     const horas = Math.round((now.getTime() - lpr.createdAt.getTime()) / 3600000);
     const builder = `${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(lpr.ref)}`;
-    if (email) {
+    const yaCliente = index
+      ? alreadyCustomerFor({ email, phone, at: lpr.createdAt }, { index })
+      : ({ skip: false } as const);
+    if (yaCliente.skip) {
+      countSkip(skippedClients, yaCliente.reason); // el aviso rojo a Juan sigue: puede ser un encargo nuevo
+    } else if (email) {
       await sendMail({
         to: email,
         subject: "Seguimos con tu presupuesto de traducción jurada",
@@ -141,7 +176,7 @@ export async function GET(req: Request) {
         html: renderSimpleEmailHtml(`Hola${name ? ` ${name}` : ""},\nseguimos con tu presupuesto: el traductor jurado que tiene tus documentos aún no nos ha pasado su cifra. Te lo enviamos mañana como muy tarde; si tienes prisa, responde a este email o escríbenos por WhatsApp al 951 333 614.\nJuan Silva Moreno · traductor jurado nº 3850 · traduccionesjuradas.net`),
       }).catch((err) => console.error("[lead-24h] email cliente fallo:", err));
     } else if (phone) {
-      await sendSMS({
+      await sendClientSMS({
         to: formatPhoneSpain(phone),
         body: "Seguimos con su presupuesto de traduccion jurada: se lo enviamos manana como muy tarde. Si tiene prisa, WhatsApp 951 333 614. Juan Silva Moreno, traductor jurado 3850.",
         channel: "sms",
@@ -161,7 +196,7 @@ export async function GET(req: Request) {
     paradasAvisadas += 1;
   }
 
-  return NextResponse.json({ ok: true, scanned: candidates.length, leads: byEmail.size, sent, failed, leads24h: paradas.length, leads24hAvisados: paradasAvisadas });
+  return NextResponse.json({ ok: true, scanned: candidates.length, leads: byEmail.size, sent, failed, skippedClients, leads24h: paradas.length, leads24hAvisados: paradasAvisadas });
 }
 
 export const POST = GET;

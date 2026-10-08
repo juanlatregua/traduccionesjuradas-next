@@ -107,7 +107,7 @@ export async function POST(req: Request) {
         ).catch((e) => console.error("[redsys-notification] email failed", e));
 
         // SMS notification (fire & forget)
-        const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+        const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
         const { smsPagoConfirmado } = await import("@/lib/sms-templates");
         const { buildSignedOrderUrl } = await import("@/lib/order-token");
         const { formatDeliveryPlazo } = await import("@/lib/sms-templates");
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
           const phone = await getOrderPhone(orderFull.id).catch(() => null);
           if (phone) {
             const lang = orderFull.clientLocale === "fr" ? "fr" : "es";
-            sendNotification({
+            sendClientNotification({
               to: formatPhoneSpain(phone),
               body: smsPagoConfirmado({ ref: orderReference, plazo: formatDeliveryPlazo(orderFull.dueDate, lang), url: buildSignedOrderUrl(orderReference, "estado"), lang }),
             }).catch((err) => console.error("[redsys-notification] SMS failed", err));

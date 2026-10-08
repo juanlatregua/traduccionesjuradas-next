@@ -567,8 +567,8 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
   let smsSent = false;
   if (customerEmail.endsWith("@whatsapp.local") && phone) {
     try {
-      const { sendNotification, formatPhoneSpain } = await import("@/lib/sms");
-      const res = await sendNotification({
+      const { sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
+      const res = await sendClientNotification({
         to: formatPhoneSpain(phone),
         body: `traduccionesjuradas.net: tu presupuesto ${quoteNumber} (${decimalToNumber(created.total).toFixed(2)} € IVA incl., entrega ${opts.deliveryTerm}) y el pago: ${sent.payUrl}`,
       });
