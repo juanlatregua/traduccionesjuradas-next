@@ -7,6 +7,7 @@
 import { prisma } from "@/lib/prisma";
 import { escapeHtml, sanitizeUrl } from "@/lib/collaborator-emails";
 import { QUOTE_LOST_REASON_LABELS } from "@/lib/quote-lost-reasons";
+import { PersonIndex, personKeys } from "@/lib/vigia-persona";
 
 export const FUNNEL_STAGES = [
   { key: "analizado", label: "Documento analizado" },
@@ -93,13 +94,13 @@ const LOST_REASON_LABELS: Record<string, string> = QUOTE_LOST_REASON_LABELS;
 export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
-  const [day, week, paid, recentAnalyses, failed, lost, leadDocs] = await Promise.all([
+  const [day, week, paid, recentAnalyses, failed, lost, leadDocs, windowQuotes] = await Promise.all([
     funnelForWindow(windowHours / 24),
     funnelForWindow(7),
     prisma.order.findMany({
       where: { paidAt: { gte: since } },
       orderBy: { paidAt: "desc" },
-      select: { reference: true, amountCents: true, langPair: true, clientEmail: true, source: true },
+      select: { reference: true, amountCents: true, langPair: true, clientEmail: true, clientPhone: true, source: true },
     }),
     prisma.documentAnalysis.findMany({
       where: { createdAt: { gte: since }, sourceLanguage: { not: null } },
@@ -163,18 +164,32 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
         estimatedWords: true,
         quoteAmount: true,
         sessionToken: true,
+        fileHash: true,
       },
+    }),
+    // Presupuestos de la persona (cualquier estado): un lead con presupuesto ya no es lead.
+    prisma.quote.findMany({
+      where: { createdAt: { gte: new Date(Date.now() - 7 * 864e5) }, deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] } },
+      select: { customerEmail: true, customerPhone: true, expedienteRef: true },
     }),
   ]);
 
   // Quien ya pagó en la ventana no es un lead (26-ago: Joaquim salía en "pagados"
   // y a la vez en "leads sin pedido").
-  const paidEmails = new Set(paid.map((o) => o.clientEmail.toLowerCase()));
+  // Misma clave de persona que el vigía (lib/vigia-persona.ts): email, teléfono,
+  // sesión y huella del documento. Quien ya pagó o ya tiene presupuesto no es un
+  // lead, y dos emails de la misma persona (mismo PDF) son una sola fila.
+  const leadKeys = (d: (typeof leadDocs)[number]) => personKeys({ emails: [d.clientEmail], phones: [d.clientPhone], sessions: [d.sessionToken], hashes: [d.fileHash] });
+  const paidKeySets = paid.map((o) => personKeys({ emails: [o.clientEmail], phones: [(o as any).clientPhone] }));
+  const quoteKeySets = windowQuotes.map((q) => personKeys({ emails: [q.customerEmail], phones: [q.customerPhone], refs: [q.expedienteRef] }));
+  const idx = new PersonIndex([...paidKeySets, ...quoteKeySets, ...leadDocs.map(leadKeys)].map((keys) => ({ keys })));
+  const coveredRoots = new Set([...paidKeySets, ...quoteKeySets].map((k) => idx.rootOf(k)).filter((r): r is string => !!r));
   const leadMap = new Map<string, LeadEntry>();
   for (const d of leadDocs) {
     const email = (d.clientEmail || "").toLowerCase();
-    if (!email || paidEmails.has(email)) continue;
-    const entry = leadMap.get(email) || {
+    const root = idx.rootOf(leadKeys(d));
+    if (!email || !root || coveredRoots.has(root)) continue;
+    const entry = leadMap.get(root) || {
       email,
       name: d.clientName,
       phone: d.clientPhone,
@@ -184,14 +199,17 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
     entry.name ||= d.clientName;
     entry.phone ||= d.clientPhone;
     entry.sessionToken ||= d.sessionToken;
-    entry.docs.push({
-      fileName: d.fileName,
-      docType: d.documentType,
-      langPair: `${d.sourceLanguage || "?"}→${d.targetLanguage || "?"}`,
-      words: d.estimatedWords,
-      priceEur: d.quoteAmount == null ? null : Number(d.quoteAmount),
-    });
-    leadMap.set(email, entry);
+    const docKey = `${d.fileName}|${d.estimatedWords}`;
+    if (!entry.docs.some((x) => `${x.fileName}|${x.words}` === docKey)) {
+      entry.docs.push({
+        fileName: d.fileName,
+        docType: d.documentType,
+        langPair: `${d.sourceLanguage || "?"}→${d.targetLanguage || "?"}`,
+        words: d.estimatedWords,
+        priceEur: d.quoteAmount == null ? null : Number(d.quoteAmount),
+      });
+    }
+    leadMap.set(root, entry);
   }
 
   const langTally = new Map<string, number>();
