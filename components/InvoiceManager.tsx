@@ -724,16 +724,16 @@ export default function InvoiceManager({
           <table className="w-full text-sm text-slate-200">
             <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
               <tr>
-                <th className="px-4 py-2">Estado</th>
-                <th className="px-4 py-2">Cobro</th>
-                <th className="px-4 py-2">Número</th>
-                <th className="px-4 py-2">Fecha</th>
-                <th className="px-4 py-2">Pedido</th>
-                <th className="px-4 py-2">Cliente</th>
-                <th className="px-4 py-2 text-right">Base</th>
-                <th className="px-4 py-2 text-right">IVA</th>
-                <th className="px-4 py-2 text-right">Total</th>
-                <th className="px-4 py-2 text-right">Acciones</th>
+                <th className="whitespace-nowrap px-3 py-2">Estado</th>
+                <th className="whitespace-nowrap px-3 py-2">Cobro</th>
+                <th className="whitespace-nowrap px-3 py-2">Número</th>
+                <th className="whitespace-nowrap px-3 py-2">Fecha</th>
+                <th className="whitespace-nowrap px-3 py-2">Pedido</th>
+                <th className="whitespace-nowrap px-3 py-2">Cliente</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Base</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">IVA</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Total</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -742,7 +742,7 @@ export default function InvoiceManager({
                 const date = inv.issuedAt || inv.createdAt;
                 return (
                   <tr key={inv.id} className={isDraft ? "bg-amber-500/5" : undefined}>
-                    <td className="px-4 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                           isDraft ? "bg-amber-500/20 text-amber-200" : "bg-emerald-500/20 text-emerald-200"
@@ -766,7 +766,7 @@ export default function InvoiceManager({
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
                       {isDraft ? (
                         <span className="text-slate-600">—</span>
                       ) : inv.paidAt ? (
@@ -800,7 +800,7 @@ export default function InvoiceManager({
                           ) : (
                             // Cobrada sin justificante (p. ej. sellada por conciliación): permite adjuntarlo.
                             <label className="block cursor-pointer text-[11px] text-cyan-300 hover:underline">
-                              + Adjuntar justificante
+                              + justificante
                               <input
                                 type="file"
                                 className="hidden"
@@ -824,7 +824,7 @@ export default function InvoiceManager({
                             className={`block text-[11px] ${busy ? "pointer-events-none opacity-50" : "cursor-pointer text-cyan-300 hover:underline"}`}
                             aria-disabled={busy}
                           >
-                            + Adjuntar justificante
+                            + justificante
                             <input
                               type="file"
                               className="hidden"
@@ -840,12 +840,12 @@ export default function InvoiceManager({
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-cyan-300">{inv.number || "—"}</td>
-                    <td className="px-4 py-3 text-slate-400">
+                    <td className="whitespace-nowrap px-3 py-3 font-mono text-cyan-300">{inv.number || "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-slate-400">
                       {new Date(date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
                     </td>
-                    <td className="px-4 py-3 font-mono text-slate-300">{inv.orderReference || "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className="whitespace-nowrap px-3 py-3 font-mono text-slate-300">{inv.orderReference || "—"}</td>
+                    <td className="px-3 py-3">
                       {inv.fiscalName}
                       {inv.brand !== "traduccionesjuradas" && (
                         <span className="ml-2 rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-fuchsia-200">
@@ -853,11 +853,11 @@ export default function InvoiceManager({
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{eur(inv.baseCents)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{eur(inv.vatCents)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{eur(inv.totalCents)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap justify-end gap-1.5">
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{eur(inv.baseCents)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{eur(inv.vatCents)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums font-semibold">{eur(inv.totalCents)}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-nowrap justify-end gap-1.5">
                         {isDraft && (
                           <button
                             type="button"
