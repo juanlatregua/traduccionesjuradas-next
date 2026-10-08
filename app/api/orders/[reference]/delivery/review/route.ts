@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { translatorFileUrls } from "@/lib/delivery-files";
 
 export const runtime = "nodejs";
 
@@ -18,8 +19,28 @@ export async function POST(req: Request, { params }: Params) {
   }
   const reviewed = body?.reviewed !== false;
 
-  const order = await prisma.order.findUnique({ where: { reference: params.reference }, select: { id: true } });
+  const order = await prisma.order.findUnique({
+    where: { reference: params.reference },
+    select: {
+      id: true,
+      deliveryFilesJson: true,
+      finalDeliveryFileUrl: true,
+      translatedFileUrl: true,
+      events: { where: { type: "lavori.entrega_subida" }, select: { type: true, payload: true } },
+      collaboratorAssignments: { select: { deliveredFileUrl: true } },
+    },
+  });
   if (!order) return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
+
+  const allowed = translatorFileUrls(order.events, order.collaboratorAssignments.map((a) => a.deliveredFileUrl));
+  for (const f of Array.isArray(order.deliveryFilesJson) ? (order.deliveryFilesJson as any[]) : []) {
+    if (f?.url) allowed.add(String(f.url));
+  }
+  if (order.finalDeliveryFileUrl) allowed.add(order.finalDeliveryFileUrl);
+  if (order.translatedFileUrl) allowed.add(order.translatedFileUrl);
+  if (!allowed.has(url)) {
+    return NextResponse.json({ ok: false, error: "Ese archivo no pertenece a este pedido." }, { status: 400 });
+  }
 
   await prisma.orderEvent.create({
     data: {

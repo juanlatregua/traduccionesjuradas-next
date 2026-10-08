@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { runInvoiceOnly } from "../../lib/delivery-invoice-only.ts";
-import { reviewedFileUrls, translatorFileUrls, unreviewedUrls } from "../../lib/delivery-files.ts";
+import { pendingLavoriEntregas, reviewedFileUrls, translatorFileUrls, unreviewedForSend, unreviewedUrls } from "../../lib/delivery-files.ts";
 import { INVOICE_NUMBER_PLACEHOLDER } from "../../lib/delivery-message.ts";
 
 const input = { reference: "26_95DA0E", lang: "es" as const, clientName: "Marta", reviewUrl: "https://g.page/r/x" };
@@ -84,4 +84,27 @@ test("archivos del traductor sin revisar se rechazan; revisados o de staff pasan
   ];
   const reviewed = reviewedFileUrls(reviewEvents);
   assert.deepEqual(unreviewedUrls([lav, own, "https://x/otra-lavori.pdf"], translator, reviewed), ["https://x/otra-lavori.pdf"]);
+});
+
+test("una entrega de lavori llega «Sin revisar», el POST la rechaza y la acepta revisada, y queda procesada", () => {
+  const url = "https://x/orders/26_1/entregas-lavori/1791300000000-traduccion.pdf";
+  const lavori = { type: "lavori.entrega_subida", payload: { attachmentUrl: url, nombre: "traduccion.pdf", contentType: "application/pdf" }, createdAt: "2026-10-08T09:00:00Z" };
+  // llega pendiente (aún no está en deliveryFilesJson) y sin revisar
+  const pending = pendingLavoriEntregas([lavori], []);
+  assert.deepEqual(pending, [{ url, name: "traduccion.pdf", mimeType: "application/pdf" }]);
+  assert.deepEqual(unreviewedForSend(pending.map((p) => p.url), [lavori]), [url]);
+  // revisada: pasa
+  const reviewed = { type: "delivery.file_reviewed", payload: { url, reviewed: true }, createdAt: "2026-10-08T09:05:00Z" };
+  assert.deepEqual(unreviewedForSend([url], [lavori, reviewed]), []);
+  // tras enviarla queda en deliveryFilesJson: procesada, ya no pendiente
+  assert.deepEqual(pendingLavoriEntregas([lavori, reviewed], [{ url, filename: "traduccion.pdf" }]), []);
+  // los archivos del staff nunca piden revisión
+  assert.deepEqual(unreviewedForSend(["https://x/orders/26_1/propia.pdf"], [lavori]), []);
+});
+
+test("solo factura sin factura posible: el error no arrastra «se ha enviado sin factura»", async () => {
+  const { deps } = fakeDeps(null);
+  deps.prepare = async () => ({ warning: "Hay un borrador en Facturas: emítelo allí. Se ha enviado sin factura." });
+  const r = await runInvoiceOnly(deps, input);
+  assert.equal((r as { error: string }).error, "No hay factura que enviar. Hay un borrador en Facturas: emítelo allí.");
 });

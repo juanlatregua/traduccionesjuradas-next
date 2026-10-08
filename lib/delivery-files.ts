@@ -123,3 +123,31 @@ export function reviewedFileUrls(events: EventLike[]): Set<string> {
 export function unreviewedUrls(selected: string[], translator: Set<string>, reviewed: Set<string>): string[] {
   return selected.filter((u) => isTranslatorFile(u, translator) && !reviewed.has(u));
 }
+
+export type PendingLavoriEntrega = { url: string; name: string; mimeType: string | null };
+
+// Entregas de lavori recibidas y aún sin procesar: su URL todavía no está en la
+// lista de entrega del pedido. Entran al panel como archivos del traductor.
+export function pendingLavoriEntregas(events: EventLike[], deliveryFilesJson: unknown): PendingLavoriEntrega[] {
+  const delivered = new Set(
+    (Array.isArray(deliveryFilesJson) ? deliveryFilesJson : []).map((f: any) => String(f?.url || ""))
+  );
+  const out: PendingLavoriEntrega[] = [];
+  for (const e of events) {
+    if (e.type !== "lavori.entrega_subida") continue;
+    const p = payloadOf(e);
+    const url = String(p.attachmentUrl || "");
+    if (!url || delivered.has(url) || out.some((o) => o.url === url)) continue;
+    out.push({ url, name: String(p.nombre || "traduccion.pdf"), mimeType: p.contentType ? String(p.contentType) : null });
+  }
+  return out;
+}
+
+// Todo archivo del traductor que vaya a salir debe tener su «Revisada ✓».
+export function unreviewedForSend(
+  urls: string[],
+  events: EventLike[],
+  assignmentUrls: (string | null | undefined)[] = []
+): string[] {
+  return unreviewedUrls(urls, translatorFileUrls(events, assignmentUrls), reviewedFileUrls(events));
+}

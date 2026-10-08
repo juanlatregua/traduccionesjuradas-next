@@ -31,7 +31,8 @@ export async function runInvoiceOnly<A>(
   }
   const attachment = await deps.attach();
   if (!attachment) {
-    return { ok: false, error: `No hay factura que enviar. ${warnings.join(" ")}`.trim() };
+    const reasons = warnings.map((w) => w.replace(/[:.]?\s*se ha enviado sin (?:factura|ella)\.?/i, ".").replace(/\.\./g, "."));
+    return { ok: false, error: `No hay factura que enviar. ${reasons.join(" ")}`.trim() };
   }
   const invoiceNumber = attachment.name.replace(/\.pdf$/i, "");
   const text =

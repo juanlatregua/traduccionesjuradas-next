@@ -43,6 +43,8 @@ type Props = {
   primaryFileUrl: string | null;
   replacedUrls: string[];
   translatorUrls: string[];
+  pendingLavori: { url: string; name: string; mimeType: string | null }[];
+  paper: boolean;
   reviewedUrls: string[];
   billing: BillingFields;
   billingExcluded: boolean;
@@ -70,7 +72,14 @@ const INPUT =
 
 export default function DeliveryPanel(props: Props) {
   const router = useRouter();
-  const versions = useMemo(() => splitDocumentVersions(props.files, props.primaryFileUrl, props.replacedUrls), [props.files, props.primaryFileUrl, props.replacedUrls]);
+  const allFiles = useMemo(
+    () => [
+      ...props.files,
+      ...props.pendingLavori.filter((l) => !props.files.some((f) => f.url === l.url)).map((l) => ({ name: l.name, url: l.url })),
+    ],
+    [props.files, props.pendingLavori]
+  );
+  const versions = useMemo(() => splitDocumentVersions(allFiles, props.primaryFileUrl, props.replacedUrls), [allFiles, props.primaryFileUrl, props.replacedUrls]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(versions.current.map((f) => f.url)));
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [reviewed, setReviewed] = useState<Set<string>>(() => new Set(props.reviewedUrls));
@@ -130,7 +139,9 @@ export default function DeliveryPanel(props: Props) {
   const subjectText = subject ?? defaultSubject;
   useEffect(() => setSubject(null), [correction]);
   const pendingReview = Array.from(selected).filter((u) => isTranslatorFile(u, translatorSet) && !reviewed.has(u));
-  const nifBlocked = status.kind === "will_issue" && needsNif(billing.nif, props.amountCents);
+  const pendingSelected = props.pendingLavori.filter((l) => selected.has(l.url));
+  const silent = props.paper && pendingSelected.length > 0;
+  const nifBlocked = !silent && status.kind === "will_issue" && needsNif(billing.nif, props.amountCents);
   const syntheticEmail = props.clientEmail.endsWith("@whatsapp.local");
 
   function toggle(url: string) {
@@ -194,10 +205,12 @@ export default function DeliveryPanel(props: Props) {
     }
     const invoiceWord = status.kind === "issued" ? status.number : status.kind === "will_issue" ? "se emitirá" : "sin factura";
     const names = [
-      ...props.files.filter((f) => selected.has(f.url)).map((f) => f.name),
+      ...allFiles.filter((f) => selected.has(f.url)).map((f) => f.name),
       ...newFiles.map((f) => f.name),
     ];
-    const summary = invoiceOnly
+    const summary = silent
+      ? `Vas a marcar ${names.length} traducción(es) [${names.join(", ")}] como lista, SIN email al cliente (pedido en papel). ¿Continuar?`
+      : invoiceOnly
       ? `Vas a enviar a ${props.clientEmail}: solo la factura ${invoiceWord}. ¿Enviar?`
       : `Vas a enviar a ${props.clientEmail}: ${names.length} traducción(es) [${names.join(", ")}] + factura ${invoiceWord}. ¿Enviar?`;
     if (!window.confirm(summary)) return;
@@ -235,9 +248,9 @@ export default function DeliveryPanel(props: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           state: "TRADUCIDO",
-          notifyClient: true,
-          files: uploaded.length > 0 ? uploaded : undefined,
-          fileUrls: Array.from(selected),
+          notifyClient: !silent,
+          files: [...uploaded, ...pendingSelected.map((l) => ({ url: l.url, filename: l.name, mimeType: l.mimeType }))],
+          fileUrls: Array.from(selected).filter((u) => !pendingSelected.some((l) => l.url === u)),
           billing,
           message: message !== null ? message : undefined,
           subject: subject !== null ? subject : undefined,
@@ -253,7 +266,7 @@ export default function DeliveryPanel(props: Props) {
       setFeedback({
         ok: warnings.length === 0,
         text: [
-          data.correction ? "Corrección enviada al cliente." : "Enviado al cliente.",
+          silent ? "Marcada lista (sin email al cliente)." : data.correction ? "Corrección enviada al cliente." : "Enviado al cliente.",
           data.invoiceNumber ? `Factura ${data.invoiceNumber} adjunta.` : "Sin factura adjunta.",
           ...warnings,
         ].join(" "),
@@ -344,7 +357,7 @@ export default function DeliveryPanel(props: Props) {
 
       <div className="mt-4">
         <p className="text-sm font-semibold text-slate-100">1. Traducción</p>
-        {props.files.length > 0 ? (
+        {allFiles.length > 0 ? (
           <>
             <ul className="mt-2 space-y-1">
               {versions.current.map((f) => (
@@ -368,7 +381,7 @@ export default function DeliveryPanel(props: Props) {
           <p className="mt-1 text-xs text-slate-400">Aún no hay traducción subida: sube el archivo abajo.</p>
         )}
         <label className="mt-2 block text-xs text-slate-400">
-          {props.files.length > 0 ? "Subir un archivo sustituto o adicional" : "Subir la traducción"}
+          {allFiles.length > 0 ? "Subir un archivo sustituto o adicional" : "Subir la traducción"}
           <input
             type="file"
             accept=".pdf,.doc,.docx,.zip"
@@ -480,7 +493,7 @@ export default function DeliveryPanel(props: Props) {
         disabled={sending || nifBlocked || pendingReview.length > 0}
         className="mt-5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
-        {sending ? "Enviando…" : invoiceOnly ? "Enviar factura" : correction ? "Enviar corrección" : props.lastSent ? "Reenviar" : "Enviar"}
+        {sending ? "Enviando…" : invoiceOnly ? "Enviar factura" : silent ? "Marcar lista para recoger (sin email)" : correction ? "Enviar corrección" : props.lastSent ? "Reenviar" : "Enviar"}
       </button>
       {pendingReview.length > 0 && (
         <p className="mt-2 text-xs font-semibold text-amber-300">

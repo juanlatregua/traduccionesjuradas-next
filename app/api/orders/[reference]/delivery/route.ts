@@ -8,7 +8,7 @@ import {
   sendTranslationReadyEmail,
 } from "@/lib/email";
 import { runInvoiceOnly } from "@/lib/delivery-invoice-only";
-import { reviewedFileUrls, translatorFileUrls, unreviewedUrls } from "@/lib/delivery-files";
+import { unreviewedForSend } from "@/lib/delivery-files";
 import { getReviewUrl, greetingName, resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
 import { normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
 import { NIF_REQUIRED_MESSAGE, decideInvoiceAction, needsNif } from "@/lib/delivery-billing";
@@ -197,16 +197,17 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: true, invoiceOnly: true, invoiceNumber: result.invoiceNumber, warnings: result.warnings });
     }
 
-    // Archivos del traductor (lavori / subidos por él): no salen al cliente sin revisar.
-    if (body.notifyClient && state === "TRADUCIDO") {
+    // Archivos del traductor (lavori / subidos por él): ninguno sale sin revisar, venga por
+    // `files`, `fileUrls` o subida del staff.
+    if (state === "TRADUCIDO") {
       const assignments = await prisma.collaboratorAssignment.findMany({
         where: { orderId: order.id, deliveredFileUrl: { not: null } },
         select: { deliveredFileUrl: true },
       });
-      const pending = unreviewedUrls(
-        selectedFiles.map((f) => f.url),
-        translatorFileUrls(order.events, assignments.map((a) => a.deliveredFileUrl)),
-        reviewedFileUrls(order.events)
+      const pending = unreviewedForSend(
+        deliveryFiles.map((f) => f.url),
+        order.events,
+        assignments.map((a) => a.deliveredFileUrl)
       );
       if (pending.length > 0) {
         return NextResponse.json(
