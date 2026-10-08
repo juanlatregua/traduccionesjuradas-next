@@ -6,6 +6,10 @@ import { registerHooks } from "node:module";
 import { pathToFileURL } from "node:url";
 import {
   BILLING_RATE,
+  billingLocked,
+  blobHostFromToken,
+  completionBlockReason,
+  completionQuota,
   COMPLETION_MAX_BYTES,
   COMPLETION_MAX_FILES,
   COMPLETION_RATE,
@@ -138,8 +142,11 @@ test("prefill: guardado > BillingData > Customer > documento > vacío", () => {
 
   const fromDoc = pickBillingPrefill({ clientEmail: "a@x.es", analyses });
   assert.equal(fromDoc.source, "document");
-  assert.equal(fromDoc.fields.fiscalName, "JUAN PÉREZ");
-  assert.deepEqual([fromDoc.fields.address, fromDoc.fields.postalCode, fromDoc.fields.city], ["Calle Mayor 3", "29001", "Málaga"]);
+  // el nombre leído NO rellena el campo: va aparte, como sugerencia
+  assert.equal(fromDoc.fields.fiscalName, "");
+  assert.equal(fromDoc.fields.address, "");
+  assert.equal(fromDoc.suggestion?.fiscalName, "JUAN PÉREZ");
+  assert.deepEqual([fromDoc.suggestion?.address, fromDoc.suggestion?.postalCode, fromDoc.suggestion?.city], ["Calle Mayor 3", "29001", "Málaga"]);
 
   const empty = pickBillingPrefill({ clientEmail: "a@x.es" });
   assert.equal(empty.source, "empty");
@@ -151,7 +158,8 @@ test("prefill: el Customer de un email @whatsapp.local nunca se usa", () => {
   const customer = { fiscalName: "Otro Cliente", nif: "A2" };
   const r = pickBillingPrefill({ customer, clientEmail: "34600111222@whatsapp.local", analyses: [{ extracted_data: { names: ["María"] } }] });
   assert.equal(r.source, "document");
-  assert.equal(r.fields.fiscalName, "María");
+  assert.equal(r.fields.fiscalName, "");
+  assert.equal(r.suggestion?.fiscalName, "María");
   assert.equal(pickBillingPrefill({ customer, clientEmail: "34600111222@whatsapp.local" }).source, "empty");
 });
 
@@ -162,4 +170,51 @@ test("lectura de documentos: nombres siempre; direcciones solo si existen", () =
   const obj = billingFromAnalyses([{ extracted_data: { names: ["Eva"], addresses: [{ street: "Rue 5", postalCode: "75001", city: "Paris", country: "Francia" }] } }]);
   assert.deepEqual(obj, { fiscalName: "Eva", address: "Rue 5", postalCode: "75001", city: "Paris", country: "Francia" });
   assert.equal(billingFromAnalyses([null, "x", {}]), null);
+});
+
+/* ------------------------------ candados y topes ------------------------------ */
+
+test("billing: bloqueado con pago, pedido o factura emitida viva", () => {
+  assert.equal(billingLocked({ paidAt: null, hasOrder: false, invoiceIssued: false }), false);
+  assert.equal(billingLocked({ paidAt: new Date(), hasOrder: false, invoiceIssued: false }), true);
+  assert.equal(billingLocked({ paidAt: null, hasOrder: true, invoiceIssued: false }), true);
+  assert.equal(billingLocked({ paidAt: null, hasOrder: false, invoiceIssued: true }), true);
+});
+
+test("host de Blob: el de NUESTRA tienda, deducido del token", () => {
+  assert.equal(blobHostFromToken("vercel_blob_rw_AbC123xyz_secretoSECRETO"), "abc123xyz.public.blob.vercel-storage.com");
+  assert.equal(blobHostFromToken(""), null);
+  assert.equal(blobHostFromToken("otra_cosa"), null);
+  const host = "abc123xyz.public.blob.vercel-storage.com";
+  const own = `https://${host}/${completionBlobPrefix(QID)}1-a.pdf`;
+  const other = `https://zzz999.public.blob.vercel-storage.com/${completionBlobPrefix(QID)}1-a.pdf`;
+  assert.equal(parseCompletionFiles([{ url: own, name: "a.pdf", size: 5 }], QID, host).ok, true);
+  assert.deepEqual(parseCompletionFiles([{ url: other, name: "a.pdf", size: 5 }], QID, host), { ok: false, code: "url" });
+});
+
+test("presupuesto que no admite documentos: borrado, caducado, no pagable o pagado", () => {
+  const future = new Date(Date.now() + 86400000);
+  const past = new Date(Date.now() - 86400000);
+  const ok = { validUntil: future, status: "SENT" };
+  assert.equal(completionBlockReason(ok), null);
+  assert.equal(completionBlockReason({ ...ok, status: "ACCEPTED" }), null);
+  assert.equal(completionBlockReason({ ...ok, deletedAt: new Date() }), "deleted");
+  assert.equal(completionBlockReason({ ...ok, validUntil: past }), "expired");
+  assert.equal(completionBlockReason({ ...ok, status: "EXPIRED" }), "status");
+  assert.equal(completionBlockReason({ ...ok, status: "CANCELLED" }), "status");
+  assert.equal(completionBlockReason({ ...ok, status: "DRAFT" }), "status");
+  assert.equal(completionBlockReason({ ...ok, paidAt: new Date() }), "paid");
+  assert.equal(completionBlockReason({ ...ok, status: "PAID" }), "paid");
+});
+
+test("tope por presupuesto: 3 envíos al día y 10 archivos en total", () => {
+  const now = new Date("2026-10-08T12:00:00Z");
+  const h = (hoursAgo: number, fileCount = 1) => ({ at: new Date(now.getTime() - hoursAgo * 3600000), fileCount });
+  assert.equal(completionQuota([], 10, now), null);
+  assert.equal(completionQuota([], 11, now), "total");
+  assert.equal(completionQuota([h(1), h(2)], 1, now), null);
+  assert.equal(completionQuota([h(1), h(2), h(3)], 1, now), "daily");
+  // los de hace más de 24 h no cuentan para el día, sí para el total
+  assert.equal(completionQuota([h(30), h(40), h(50)], 1, now), null);
+  assert.equal(completionQuota([h(30, 5), h(40, 5)], 1, now), "total");
 });

@@ -12,7 +12,17 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendMail } from "@/lib/azure-mail";
 import { sendEmailWithRetry } from "@/lib/email-retry";
-import { COMPLETION_EVENT, COMPLETION_NOTE_MAX, COMPLETION_RATE, parseCompletionFiles } from "@/lib/q-journey";
+import { head } from "@vercel/blob";
+import { completionHistory } from "@/lib/quote-billing";
+import {
+  COMPLETION_EVENT,
+  COMPLETION_NOTE_MAX,
+  COMPLETION_RATE,
+  blobHostFromToken,
+  completionBlockReason,
+  completionQuota,
+  parseCompletionFiles,
+} from "@/lib/q-journey";
 
 export const runtime = "nodejs";
 
@@ -42,18 +52,35 @@ export async function POST(req: Request, { params }: Params) {
 
   const quote = await prisma.quote.findUnique({
     where: { publicToken: params.token },
-    select: { id: true, quoteNumber: true, status: true, paidAt: true, customerName: true, customerEmail: true, deletedAt: true },
+    select: { id: true, quoteNumber: true, status: true, paidAt: true, validUntil: true, customerName: true, customerEmail: true, deletedAt: true },
   });
   if (!quote || quote.deletedAt) {
     return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
   }
-  if (quote.paidAt || ["PAID", "IN_PROGRESS", "DELIVERED"].includes(quote.status)) {
-    return NextResponse.json({ ok: false, error: "Este presupuesto ya está pagado. Escríbenos y lo vemos." }, { status: 400 });
+  if (completionBlockReason(quote)) {
+    return NextResponse.json({ ok: false, error: "Este presupuesto ya no admite documentos. Escríbenos y lo vemos." }, { status: 409 });
   }
 
-  const parsed = parseCompletionFiles(body?.files, quote.id);
+  // Host de NUESTRA tienda de Blob (id en el token); si no se deduce, se comprueba cada URL con head().
+  const host = blobHostFromToken(process.env.BLOB_READ_WRITE_TOKEN);
+  const parsed = parseCompletionFiles(body?.files, quote.id, host);
   if (!parsed.ok) {
     return NextResponse.json({ ok: false, error: "Archivos no válidos.", code: parsed.code }, { status: 400 });
+  }
+  if (!host) {
+    try {
+      await Promise.all(parsed.files.map((f) => head(f.url)));
+    } catch {
+      return NextResponse.json({ ok: false, error: "Archivos no válidos.", code: "url" }, { status: 400 });
+    }
+  }
+
+  const quota = completionQuota(await completionHistory(quote.id), parsed.files.length);
+  if (quota) {
+    return NextResponse.json(
+      { ok: false, error: "Ya has enviado documentos por este presupuesto. Escríbenos y lo completamos.", code: quota },
+      { status: 429 }
+    );
   }
   const note = String(body?.note || "").trim().slice(0, COMPLETION_NOTE_MAX);
 

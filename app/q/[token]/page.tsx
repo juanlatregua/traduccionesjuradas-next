@@ -267,6 +267,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       ),
       initialBilling: prefill.fields,
       billingSource: prefill.source,
+      suggestion: prefill.suggestion,
       billingSaved: prefill.source === "saved",
       totalCents,
     };

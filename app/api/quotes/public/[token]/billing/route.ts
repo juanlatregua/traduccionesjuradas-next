@@ -6,8 +6,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { decimalToNumber } from "@/lib/quotes";
-import { BILLING_RATE, validateBilling } from "@/lib/q-journey";
-import { saveQuoteBilling } from "@/lib/quote-billing";
+import { BILLING_RATE, billingLocked, validateBilling } from "@/lib/q-journey";
+import { billingLockState, saveQuoteBilling } from "@/lib/quote-billing";
 
 export const runtime = "nodejs";
 
@@ -32,10 +32,19 @@ export async function POST(req: Request, { params }: Params) {
 
   const quote = await prisma.quote.findUnique({
     where: { publicToken: params.token },
-    select: { id: true, total: true, balanceAmount: true, customerEmail: true, deletedAt: true },
+    select: { id: true, paidAt: true, total: true, balanceAmount: true, customerEmail: true, deletedAt: true },
   });
   if (!quote || quote.deletedAt) {
     return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
+  }
+
+  // Tras el pago (o con pedido / factura emitida viva) los datos fiscales los toca solo el staff.
+  const lock = await billingLockState(quote.id);
+  if (billingLocked({ paidAt: quote.paidAt, ...lock })) {
+    return NextResponse.json(
+      { ok: false, error: "Este presupuesto ya tiene pedido o factura: escríbenos para cambiar los datos fiscales.", code: "locked" },
+      { status: 409 }
+    );
   }
 
   // El umbral de 400 € se mide sobre el importe total de la factura (plazos incluidos).

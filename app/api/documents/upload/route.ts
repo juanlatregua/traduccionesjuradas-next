@@ -7,7 +7,8 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
-import { completionBlobPrefix } from "@/lib/q-journey";
+import { completionBlobPrefix, completionBlockReason, completionQuota } from "@/lib/q-journey";
+import { completionHistory } from "@/lib/quote-billing";
 
 export const runtime = "nodejs";
 
@@ -83,10 +84,14 @@ export async function POST(req: Request) {
         if (!staff.ok && parsed.kind === "quote-completion") {
           const quote = await prisma.quote.findUnique({
             where: { publicToken: String(parsed.token || "") },
-            select: { id: true, paidAt: true },
+            select: { id: true, paidAt: true, status: true, validUntil: true, deletedAt: true },
           });
-          if (!quote || quote.paidAt || !pathname.startsWith(completionBlobPrefix(quote.id))) {
+          if (!quote || completionBlockReason(quote) || !pathname.startsWith(completionBlobPrefix(quote.id))) {
             throw new Error("Enlace de presupuesto no válido.");
+          }
+          // Mismo tope que /complete, ya al pedir el token: no se suben ficheros que luego se rechazarían.
+          if (completionQuota(await completionHistory(quote.id), 1)) {
+            throw new Error("Ya has enviado documentos por este presupuesto. Escríbenos y lo completamos.");
           }
           return { allowedContentTypes: ALLOWED_TYPES, maximumSizeInBytes: MAX_FILE_SIZE, addRandomSuffix: true };
         }

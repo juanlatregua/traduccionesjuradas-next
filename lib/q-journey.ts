@@ -16,6 +16,47 @@ export const BILLING_RATE = { limit: 20, windowMs: 10 * 60 * 1000 } as const;
 export const COMPLETION_EVENT = "client.docs_added";
 export const BILLING_EVENT = "client.billing_data";
 
+// Topes por presupuesto (además del rate limit por IP, que se esquiva rotando IP).
+export const COMPLETION_MAX_SUBMITS_PER_DAY = 3;
+export const COMPLETION_MAX_TOTAL_FILES = 10;
+
+/** Host público de NUESTRA tienda de Blob: vercel_blob_rw_<storeId>_<secreto> → <storeid>.public.blob.vercel-storage.com. */
+export function blobHostFromToken(token: string | null | undefined): string | null {
+  const m = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec((token || "").trim());
+  return m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null;
+}
+
+export type CompletionBlock = "deleted" | "expired" | "status" | "paid";
+
+/** ¿Puede este presupuesto recibir documentos? Solo uno vivo, vigente, pagable y sin pagar. */
+export function completionBlockReason(
+  q: { deletedAt?: Date | null; validUntil: Date; status: string; paidAt?: Date | null },
+  now = new Date()
+): CompletionBlock | null {
+  if (q.deletedAt) return "deleted";
+  if (q.paidAt || ["PAID", "IN_PROGRESS", "DELIVERED"].includes(q.status)) return "paid";
+  if (q.validUntil.getTime() < now.getTime()) return "expired";
+  if (!["SENT", "OPENED", "ACCEPTED"].includes(q.status)) return "status";
+  return null;
+}
+
+/** Tope por presupuesto: 3 envíos «Falta algo» al día y 10 archivos en total. */
+export function completionQuota(
+  past: { at: Date; fileCount: number }[],
+  newFiles: number,
+  now = new Date()
+): "daily" | "total" | null {
+  const dayAgo = now.getTime() - 24 * 60 * 60 * 1000;
+  if (past.filter((e) => e.at.getTime() > dayAgo).length >= COMPLETION_MAX_SUBMITS_PER_DAY) return "daily";
+  if (past.reduce((n, e) => n + e.fileCount, 0) + newFiles > COMPLETION_MAX_TOTAL_FILES) return "total";
+  return null;
+}
+
+/** Datos fiscales: tras el pago, o con pedido o factura emitida viva, solo los toca el staff. */
+export function billingLocked(q: { paidAt?: Date | null; hasOrder: boolean; invoiceIssued: boolean }): boolean {
+  return !!q.paidAt || q.hasOrder || q.invoiceIssued;
+}
+
 export const completionBlobPrefix = (quoteId: string) => `quotes-complementos/${quoteId}/`;
 
 function extOf(name: string): string {
@@ -43,7 +84,8 @@ export type CompletionFile = { url: string; name: string; size: number };
 // token de subida ya fija carpeta, tipos y 20 MB; esto impide colar URLs ajenas).
 export function parseCompletionFiles(
   raw: unknown,
-  quoteId: string
+  quoteId: string,
+  host: string | null = null
 ): { ok: true; files: CompletionFile[] } | { ok: false; code: CompletionError | "url" } {
   if (!Array.isArray(raw)) return { ok: false, code: "none" };
   const files: CompletionFile[] = [];
@@ -58,7 +100,8 @@ export function parseCompletionFiles(
     } catch {
       return { ok: false, code: "url" };
     }
-    if (u.protocol !== "https:" || !u.hostname.endsWith(".public.blob.vercel-storage.com")) {
+    const hostOk = host ? u.hostname.toLowerCase() === host : u.hostname.endsWith(".public.blob.vercel-storage.com");
+    if (u.protocol !== "https:" || !hostOk) {
       return { ok: false, code: "url" };
     }
     if (!decodeURIComponent(u.pathname).startsWith(`/${completionBlobPrefix(quoteId)}`)) {
@@ -146,13 +189,15 @@ type Loose = Partial<Record<keyof BillingFields, string | null>> | null | undefi
 
 // BillingData del pedido > Customer (por email, nunca el marcador de WhatsApp)
 // > datos leídos de sus documentos > vacío. `saved` (lo que ya guardó aquí) manda sobre todo.
+// Lo leído de los documentos NO se propone como nombre fiscal: va aparte, como
+// sugerencia que el cliente acepta con un clic. Campo vacío por defecto.
 export function pickBillingPrefill(input: {
   saved?: Partial<BillingForm> | null;
   orderBilling?: Loose;
   customer?: (NonNullable<Loose> & { companyName?: string | null }) | null;
   clientEmail: string;
   analyses?: unknown[];
-}): { fields: BillingForm; source: BillingSource } {
+}): { fields: BillingForm; source: BillingSource; suggestion: Partial<BillingForm> | null } {
   const email = (input.clientEmail || "").trim();
   const strip = (f: BillingFields): BillingForm => ({
     fiscalName: f.fiscalName,
@@ -163,10 +208,10 @@ export function pickBillingPrefill(input: {
     country: f.country,
   });
   if (input.saved && clean(input.saved.fiscalName)) {
-    return { fields: { ...EMPTY_BILLING, ...input.saved }, source: "saved" };
+    return { fields: { ...EMPTY_BILLING, ...input.saved }, source: "saved", suggestion: null };
   }
   const fromOrder = resolveBillingPrefill({ billing: input.orderBilling, customer: null, clientName: null, clientEmail: email });
-  if (fromOrder.fiscalName) return { fields: strip(fromOrder), source: "billing" };
+  if (fromOrder.fiscalName) return { fields: strip(fromOrder), source: "billing", suggestion: null };
   const useCustomer = !!input.customer && !isWhatsappPlaceholder(email);
   const fromCustomer = resolveBillingPrefill({
     billing: null,
@@ -174,10 +219,9 @@ export function pickBillingPrefill(input: {
     clientName: null,
     clientEmail: email,
   });
-  if (fromCustomer.fiscalName) return { fields: strip(fromCustomer), source: "customer" };
+  if (fromCustomer.fiscalName) return { fields: strip(fromCustomer), source: "customer", suggestion: null };
   const fromDoc = billingFromAnalyses(input.analyses || []);
-  if (fromDoc) return { fields: { ...EMPTY_BILLING, ...fromDoc, country: fromDoc.country || EMPTY_BILLING.country }, source: "document" };
-  return { fields: { ...EMPTY_BILLING }, source: "empty" };
+  return { fields: { ...EMPTY_BILLING }, source: fromDoc ? "document" : "empty", suggestion: fromDoc };
 }
 
 export type BillingError = "name" | "nif_required" | "address";

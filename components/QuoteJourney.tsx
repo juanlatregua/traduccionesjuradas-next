@@ -28,6 +28,7 @@ type Props = {
   initialPending: boolean;
   initialBilling: BillingForm;
   billingSource: BillingSource;
+  suggestion: Partial<BillingForm> | null;
   billingSaved: boolean;
   totalCents: number;
   // Paso 4: el bloque de pago de siempre, sin cambios.
@@ -58,6 +59,7 @@ export default function QuoteJourney({
   initialPending,
   initialBilling,
   billingSource,
+  suggestion,
   billingSaved,
   totalCents,
   children,
@@ -75,7 +77,8 @@ export default function QuoteJourney({
 
   // Facturación
   const [bill, setBill] = useState<BillingForm>(initialBilling);
-  const [fromDoc, setFromDoc] = useState(billingSource === "document");
+  const [fromDoc, setFromDoc] = useState(false);
+  const [showSuggestion, setShowSuggestion] = useState(!!suggestion?.fiscalName && billingSource === "document");
   const [saved, setSaved] = useState(billingSaved);
   const [saving, setSaving] = useState(false);
   const [billErr, setBillErr] = useState<string | null>(null);
@@ -262,6 +265,25 @@ export default function QuoteJourney({
         <section className="rounded-2xl border border-cream p-4">
           <StepTitle n={2}>{t.billTitle}</StepTitle>
           <p className="mt-1 text-xs text-sepia">{t.billHelp}</p>
+          {showSuggestion && suggestion?.fiscalName && (
+            <p className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+              <span>
+                {t.billSuggest} <strong>{suggestion.fiscalName}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setBill((b) => ({ ...b, ...Object.fromEntries(Object.entries(suggestion).filter(([, v]) => !!v)) }));
+                  setSaved(false);
+                  setFromDoc(true);
+                  setShowSuggestion(false);
+                }}
+                className="rounded-md bg-bleu px-2 py-1 font-semibold text-white"
+              >
+                {t.billUse}
+              </button>
+            </p>
+          )}
           {fromDoc && <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">{t.billFromDoc}</p>}
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-encre sm:col-span-2">

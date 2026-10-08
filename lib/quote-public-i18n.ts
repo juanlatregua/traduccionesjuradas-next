@@ -156,6 +156,8 @@ export type PublicDict = {
   billEdit: string;
   billErr: string;
   payStepTitle: string;
+  billSuggest: string;
+  billUse: string;
 };
 
 const ES: PublicDict = {
@@ -288,6 +290,8 @@ const ES: PublicDict = {
   billEdit: "Editar",
   billErr: "No hemos podido guardar los datos. Inténtalo de nuevo.",
   payStepTitle: "Pagar",
+  billSuggest: "¿Es este el titular de la factura?",
+  billUse: "Usar",
 };
 
 const EN: PublicDict = {
@@ -420,6 +424,8 @@ const EN: PublicDict = {
   billEdit: "Edit",
   billErr: "We could not save the details. Please try again.",
   payStepTitle: "Pay",
+  billSuggest: "Is this the invoice holder?",
+  billUse: "Use",
 };
 
 const FR: PublicDict = {
@@ -552,6 +558,8 @@ const FR: PublicDict = {
   billEdit: "Modifier",
   billErr: "Impossible d'enregistrer les données. Veuillez réessayer.",
   payStepTitle: "Payer",
+  billSuggest: "Est-ce le titulaire de la facture ?",
+  billUse: "Utiliser",
 };
 
 const PT: PublicDict = {
@@ -684,6 +692,8 @@ const PT: PublicDict = {
   billEdit: "Editar",
   billErr: "Não foi possível guardar os dados. Tente novamente.",
   payStepTitle: "Pagar",
+  billSuggest: "É este o titular da fatura?",
+  billUse: "Usar",
 };
 
 const IT: PublicDict = {
@@ -816,6 +826,8 @@ const IT: PublicDict = {
   billEdit: "Modifica",
   billErr: "Non siamo riusciti a salvare i dati. Riprova.",
   payStepTitle: "Paga",
+  billSuggest: "È questo l'intestatario della fattura?",
+  billUse: "Usa",
 };
 
 const DE: PublicDict = {
@@ -948,6 +960,8 @@ const DE: PublicDict = {
   billEdit: "Bearbeiten",
   billErr: "Die Daten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
   payStepTitle: "Bezahlen",
+  billSuggest: "Ist das der Rechnungsempfänger?",
+  billUse: "Übernehmen",
 };
 
 const DICTS: Record<PublicLang, PublicDict> = { es: ES, en: EN, fr: FR, pt: PT, it: IT, de: DE };
