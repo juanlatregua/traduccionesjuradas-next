@@ -125,7 +125,7 @@ async function notifyClientMilestone(
     });
     if (!milestone) return; // marcado entregado sin fichero: no prometer descarga
 
-    const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+    const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
     const phone = await getOrderPhone(order.id);
     if (!phone) {
       console.warn(
@@ -143,7 +143,7 @@ async function notifyClientMilestone(
         ? smsEnProceso({ ref: reference, url, lang })
         : smsTraduccionLista({ ref: reference, url, lang });
 
-    const result = await sendNotification({ to: formatPhoneSpain(phone), body });
+    const result = await sendClientNotification({ to: formatPhoneSpain(phone), body });
     // Solo registramos el hito si el envío SALIÓ BIEN: si falla, no escribimos el
     // evento de idempotencia para no suprimir reintentos futuros (alreadyNotified).
     if (result.ok) {

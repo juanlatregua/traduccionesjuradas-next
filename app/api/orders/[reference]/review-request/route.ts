@@ -69,11 +69,11 @@ export async function POST(req: Request, { params }: Params) {
     });
 
     // SMS/WhatsApp (fire & forget)
-    const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+    const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
     const { smsReviewRequest } = await import("@/lib/sms-templates");
     const phone = await getOrderPhone(order.id).catch(() => null);
     if (phone) {
-      sendNotification({
+      sendClientNotification({
         to: formatPhoneSpain(phone),
         body: smsReviewRequest({ url: reviewUrl }),
       }).catch((err) => console.error("[SMS review-request]", err));

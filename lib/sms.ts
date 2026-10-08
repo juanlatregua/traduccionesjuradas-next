@@ -98,6 +98,45 @@ export async function sendNotification(
 }
 
 /**
+ * SMS/WhatsApp a CLIENTES con frenos: CLIENT_SMS=off los apaga todos, y un número con
+ * 2+ SMS FAILED en 7 días no se reintenta hasta pasados. El email NO depende de esto.
+ * Devuelve {ok:false, skipped:true} cuando se salta (no es un fallo de Twilio: no se registra como FAILED).
+ */
+export async function clientSmsGate(to: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const { clientSmsEnabled, smsBraked, SMS_FAIL_WINDOW_DAYS } = await import("@/lib/client-sms-policy");
+  if (!clientSmsEnabled()) return { ok: false, reason: "client_sms_off" };
+  try {
+    const recent = await prisma.messageLog.findMany({
+      where: {
+        channel: "SMS",
+        status: "FAILED",
+        createdAt: { gte: new Date(Date.now() - SMS_FAIL_WINDOW_DAYS * 864e5) },
+      },
+      select: { recipient: true },
+      take: 5000,
+    });
+    if (smsBraked(recent.map((r) => r.recipient), to)) return { ok: false, reason: "sms_failed_recently" };
+  } catch (err) {
+    console.error("[client-sms] no se pudo consultar el freno; se permite el envío", err);
+  }
+  return { ok: true };
+}
+
+type ClientSendResult = { ok: boolean; id?: string; error?: string; skipped?: boolean };
+
+export async function sendClientNotification(msg: Omit<SMSMessage, "channel">): Promise<ClientSendResult> {
+  const gate = await clientSmsGate(msg.to);
+  if (!gate.ok) return { ok: false, skipped: true, error: gate.reason };
+  return sendNotification(msg);
+}
+
+export async function sendClientSMS(msg: SMSMessage): Promise<ClientSendResult> {
+  const gate = await clientSmsGate(msg.to);
+  if (!gate.ok) return { ok: false, skipped: true, error: gate.reason };
+  return sendSMS(msg);
+}
+
+/**
  * Look up the client phone for an order.
  * Phone lives on Order.clientPhone (captured at the puerta). Fallback to
  * DocumentAnalysis.clientPhone for older orders that predate that capture.

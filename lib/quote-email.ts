@@ -1,6 +1,6 @@
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendMail, isEmailConfigured, type MailAttachment } from "@/lib/azure-mail";
-import { sendNotification, formatPhoneSpain } from "@/lib/sms";
+import { sendClientNotification, formatPhoneSpain } from "@/lib/sms";
 import { smsAcuseSolicitudPrecio, type SmsLang } from "@/lib/sms-templates";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -115,7 +115,7 @@ export async function sendPriceRequestAckToClient(opts: {
       return { channel: "email" };
     }
     if (phone) {
-      const acuse = await sendNotification({
+      const acuse = await sendClientNotification({
         to: formatPhoneSpain(phone),
         body: smsAcuseSolicitudPrecio(lang),
       });

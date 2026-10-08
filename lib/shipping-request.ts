@@ -65,11 +65,11 @@ Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
     html: renderSimpleEmailHtml(body),
   }).catch((e) => console.error("[shipping-request] email", e));
 
-  const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+  const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
   const sms = getOrderPhone(order.id)
     .then((phone) =>
       phone
-        ? sendNotification({
+        ? sendClientNotification({
             to: formatPhoneSpain(phone),
             body: `TraduccionesJuradas: tu pedido ${reference} va en papel y nos falta la dirección de envío. Complétala aquí: ${url}`,
           })

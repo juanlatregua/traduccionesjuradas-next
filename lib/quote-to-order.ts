@@ -106,13 +106,13 @@ export async function runQuoteToOrderBridge(input: {
     // recibió nada; el email rebotó al buzón de la casa).
     if (isPlaceholderEmail(quote.customerEmail) && input.sendClientPaidEmail !== false) {
       try {
-        const { getOrderPhone, sendNotification, formatPhoneSpain } = await import("@/lib/sms");
+        const { getOrderPhone, sendClientNotification, formatPhoneSpain } = await import("@/lib/sms");
         const { smsPagoConfirmado, formatDeliveryPlazo } = await import("@/lib/sms-templates");
         const { buildSignedOrderUrl } = await import("@/lib/order-token");
         const phone = await getOrderPhone(order.id).catch(() => null);
         if (phone) {
           const lang = order.clientLocale === "fr" ? "fr" : "es";
-          const res = await sendNotification({
+          const res = await sendClientNotification({
             to: formatPhoneSpain(phone),
             body: smsPagoConfirmado({
               ref: order.reference,
