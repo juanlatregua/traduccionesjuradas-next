@@ -7,9 +7,10 @@ import {
   buildWhatsAppReminderText,
 } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail, phoneFromPlaceholder } from "@/lib/quote-email";
-import { sendStaffAlertSMS, sendNotification, formatPhoneSpain } from "@/lib/sms";
+import { sendStaffAlertSMS, sendClientNotification, formatPhoneSpain } from "@/lib/sms";
 import { smsRecordatorioPago, smsPresupuestoCaducado } from "@/lib/sms-templates";
 import { buildQuotePostMortem } from "@/lib/quote-post-mortem";
+import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,8 @@ export async function GET(req: Request) {
   let expiredUpdated = 0;
   let expiredFailed = 0;
   const failedQuotes: string[] = [];
+  const skippedClients: Record<string, number> = {}; // ya pagó / ya es cliente: no se le escribe
+  let smsSkipped = 0; // CLIENT_SMS=off o número con 2+ SMS FAILED en 7 días
 
   const candidates = await prisma.quote.findMany({
     where: {
@@ -59,7 +62,8 @@ export async function GET(req: Request) {
       messageLogs: {
         where: {
           type: "REMINDER",
-          status: "SENT",
+          // SKIPPED = recordatorio omitido por ser ya cliente (no cuenta como toque en el vigía).
+          status: { in: ["SENT", "SKIPPED"] },
         },
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -68,8 +72,69 @@ export async function GET(req: Request) {
     take: 200,
   });
 
+  const expirable = await prisma.quote.findMany({
+    where: {
+      status: {
+        in: ["DRAFT", "SENT", "OPENED", "ACCEPTED"],
+      },
+      paidAt: null,
+      validUntil: {
+        lt: now,
+      },
+      // Un presupuesto que YA tiene pedido no caduca: es el carril de crédito
+      // (se trabaja y entrega antes de cobrar; el Quote se queda ACCEPTED a
+      // propósito para que el enlace de pago siga vivo hasta el vencimiento).
+      orders: { none: {} },
+    },
+    include: {
+      // ¿Se entregó realmente al cliente alguna vez? (para no enviar un aviso de
+      // "expirado" referenciando un presupuesto que el cliente NUNCA recibió).
+      messageLogs: {
+        where: {
+          channel: "EMAIL",
+          status: "SENT",
+          type: { in: ["PAY_LINK", "RESEND_PAY_LINK", "REMINDER"] },
+        },
+        take: 1,
+      },
+    },
+    take: 200,
+  });
+
+
+  // Guarda común: UN índice por ejecución para recordatorios y caducidades.
+  const sentDates = [...candidates.map((q) => q.sentAt ?? q.createdAt), ...expirable.map((q) => q.sentAt ?? q.createdAt)];
+  const index = sentDates.length
+    ? await loadCustomerIndex({
+        since: new Date(Math.min(...sentDates.map((d) => d.getTime()))),
+        emails: [...candidates, ...expirable].map((q) => q.customerEmail),
+      })
+    : null;
+  const yaCliente = (q: (typeof candidates)[number] | (typeof expirable)[number]) =>
+    index
+      ? alreadyCustomerFor(
+          { email: q.customerEmail, phone: q.customerPhone, expedienteRef: q.expedienteRef, quoteId: q.id, at: q.sentAt ?? q.createdAt },
+          { index },
+        )
+      : ({ skip: false } as const);
+
   for (const quote of candidates) {
     if (quote.messageLogs.length > 0) continue;
+    const ya = yaCliente(quote);
+    if (ya.skip) {
+      countSkip(skippedClients, ya.reason);
+      await prisma.messageLog.create({
+        data: {
+          quoteId: quote.id,
+          channel: isPlaceholderEmail(quote.customerEmail) ? "SMS" : "EMAIL",
+          type: "REMINDER",
+          recipient: quote.customerEmail,
+          body: `[omitido: ya es cliente — ${ya.reason} ${ya.ref}]`,
+          status: "SKIPPED",
+        },
+      });
+      continue;
+    }
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
 
     // Lead de WhatsApp (email no entregable): recordatorio por SMS al número del
@@ -85,9 +150,10 @@ export async function GET(req: Request) {
         precio: Number(quote.total).toFixed(2),
         url: payUrl,
       });
-      const sent = await sendNotification({ to: formatPhoneSpain(phone), body: smsBody }).catch(
+      const sent = await sendClientNotification({ to: formatPhoneSpain(phone), body: smsBody }).catch(
         (err) => ({ ok: false as const, error: String(err) })
       );
+      if ("skipped" in sent && sent.skipped) { smsSkipped += 1; continue; }
       await prisma.messageLog.create({
         data: {
           quoteId: quote.id,
@@ -166,35 +232,6 @@ export async function GET(req: Request) {
     }
   }
 
-  const expirable = await prisma.quote.findMany({
-    where: {
-      status: {
-        in: ["DRAFT", "SENT", "OPENED", "ACCEPTED"],
-      },
-      paidAt: null,
-      validUntil: {
-        lt: now,
-      },
-      // Un presupuesto que YA tiene pedido no caduca: es el carril de crédito
-      // (se trabaja y entrega antes de cobrar; el Quote se queda ACCEPTED a
-      // propósito para que el enlace de pago siga vivo hasta el vencimiento).
-      orders: { none: {} },
-    },
-    include: {
-      // ¿Se entregó realmente al cliente alguna vez? (para no enviar un aviso de
-      // "expirado" referenciando un presupuesto que el cliente NUNCA recibió).
-      messageLogs: {
-        where: {
-          channel: "EMAIL",
-          status: "SENT",
-          type: { in: ["PAY_LINK", "RESEND_PAY_LINK", "REMINDER"] },
-        },
-        take: 1,
-      },
-    },
-    take: 200,
-  });
-
   for (const quote of expirable) {
     // Siempre se marca EXPIRED (la validez caducó). El email de aviso solo se manda
     // si el presupuesto se entregó de verdad y el email es entregable: un DRAFT
@@ -226,6 +263,12 @@ export async function GET(req: Request) {
 
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
 
+    const yaExp = yaCliente(quote);
+    if (yaExp.skip) {
+      countSkip(skippedClients, yaExp.reason);
+      continue;
+    }
+
     // Lead solo-WhatsApp: aviso de caducidad por SMS con el enlace a /q (allí
     // puede retomar o dejar el motivo — medida 2 del funnel 24-ago: hasta hoy
     // morían mudos, lostReason siempre null). Solo si ABRIÓ el presupuesto:
@@ -234,9 +277,10 @@ export async function GET(req: Request) {
       const phone = (quote.customerPhone || "").trim() || phoneFromPlaceholder(quote.customerEmail);
       if (!phone || !quote.openedAt) continue;
       const smsBody = smsPresupuestoCaducado({ ref: quote.quoteNumber, url: payUrl });
-      const sent = await sendNotification({ to: formatPhoneSpain(phone), body: smsBody }).catch(
+      const sent = await sendClientNotification({ to: formatPhoneSpain(phone), body: smsBody }).catch(
         (err) => ({ ok: false as const, error: String(err) })
       );
+      if ("skipped" in sent && sent.skipped) { smsSkipped += 1; continue; }
       await prisma.messageLog.create({
         data: {
           quoteId: quote.id,
@@ -313,6 +357,8 @@ export async function GET(req: Request) {
     remindersSent,
     remindersFailed,
     remindersWhatsapp,
+    smsSkipped,
+    skippedClients,
     expiredUpdated,
     expiredFailed,
     scanned: candidates.length,
