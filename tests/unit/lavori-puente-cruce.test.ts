@@ -9,6 +9,7 @@ import {
   isEncargoCaducado,
   nextReactivationRef,
   orderRefFromMotorRef,
+  motorRefsDelPedido,
   isRetiradaPorCaducidad,
   repetidoEsReactivacionPropia,
   motivoPedidoConTraductor,
@@ -277,4 +278,19 @@ test("3. orderRefFromMotorRef: «-precio» y «-R<n>» resuelven al mismo pedido
   assert.equal(orderRefFromMotorRef("26_ABC123"), "26_ABC123");
   assert.equal(orderRefFromMotorRef(" 26_ABC123-R2 "), "26_ABC123");
   assert.equal(orderRefFromMotorRef(null), "");
+});
+
+test("retirada al asignar fuera: incluye cada refReactivada (-R<n>), el dirigido original y la solicitud de precio", () => {
+  const ev = [
+    { type: "lavori.solicitud_enviada", payload: { reactivado: true, refReactivada: "26_X-R2", candidatos: ["a"] } },
+    { type: "lavori.solicitud_enviada", payload: { reactivado: true, refReactivada: "26_X-R1", candidatos: ["a"] } },
+    { type: "lavori.solicitud_precio_enviada", payload: { candidatos: ["a"] } },
+    { type: "lavori.solicitud_enviada", payload: { candidatos: ["a", "b"] } },
+  ];
+  const refs = motorRefsDelPedido("26_X", ev).map((x) => x.motorRef);
+  assert.deepEqual(refs.sort(), ["26_X", "26_X-R1", "26_X-R2", "26_X-precio"]);
+  // solo con reactivación: la ref del pedido NO se atribuye al evento reactivado
+  const soloR = motorRefsDelPedido("26_X", [{ type: "lavori.solicitud_enviada", payload: { reactivado: true, refReactivada: "26_X-R1" } }]);
+  assert.deepEqual(soloR.map((x) => x.motorRef), ["26_X-R1"]);
+  assert.deepEqual(motorRefsDelPedido("26_X", []), []);
 });

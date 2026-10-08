@@ -852,7 +852,7 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
           where: { id: lpr.id },
           data: {
             status: "RETIRED",
-            notas: [lpr.notas, `${new Date().toISOString().slice(0, 16)} encargo caducado en lavori (${estado}); reactivado como ${reference}`].filter(Boolean).join("\n"),
+            notas: [lpr.notas, `${new Date().toISOString().slice(0, 16)} encargo caducado en lavori (${estado}); reactivado como ${refReactivada}`].filter(Boolean).join("\n"),
           },
         })
         .catch((err) => console.error("[lavori-reactivar] lpr update failed", err));

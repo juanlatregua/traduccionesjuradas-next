@@ -787,6 +787,26 @@ export function nextReactivationRef(reference: string, usadas: Array<string | nu
   return `${reference}-R${Date.now()}`;
 }
 
+/** Encargos que un pedido abrió en lavori y habría que retirar al asignarlo fuera: el
+ * dirigido (motorRef = referencia), la solicitud de precio de la ficha («-precio») y CADA
+ * reactivación (`refReactivada`, «-R<n>», eventos solicitud_enviada con reactivado:true). */
+export function motorRefsDelPedido(
+  reference: string,
+  eventos: Array<{ type: string; payload: unknown }>
+): Array<{ motorRef: string; payload: { candidatos?: unknown } | null }> {
+  const p = (e: { payload: unknown }) => e.payload as { reactivado?: unknown; refReactivada?: unknown; candidatos?: unknown } | null;
+  const out: Array<{ motorRef: string; payload: { candidatos?: unknown } | null }> = [];
+  const dirigido = eventos.find((e) => e.type === "lavori.solicitud_enviada" && !p(e)?.reactivado);
+  if (dirigido) out.push({ motorRef: reference, payload: p(dirigido) });
+  const precio = eventos.find((e) => e.type === "lavori.solicitud_precio_enviada");
+  if (precio) out.push({ motorRef: `${reference}-precio`, payload: p(precio) });
+  for (const e of eventos) {
+    const r = p(e)?.reactivado ? String(p(e)?.refReactivada || "") : "";
+    if (e.type === "lavori.solicitud_enviada" && r && !out.some((x) => x.motorRef === r)) out.push({ motorRef: r, payload: p(e) });
+  }
+  return out;
+}
+
 /** motorRef de lavori → referencia del pedido (o de la solicitud LEAD-…): quita los
  * sufijos «-precio» (solicitud de precio) y «-R<n>» (reactivación). Única fuente para
  * eventos entrantes, estado, «lo llevo yo» y cualquier cubre[].motorRef de facturas. */
