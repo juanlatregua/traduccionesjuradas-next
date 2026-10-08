@@ -75,7 +75,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
         country: {
           type: "string",
           description:
-            "Código ISO 3166-1 alpha-2 del país emisor. Activa precios especiales: 'MA' (Marruecos en francés → tarifa fija por páginas).",
+            "Código ISO 3166-1 alpha-2 del país emisor. Ya no activa tarifas especiales (Marruecos sigue la tarifa por página como el resto de francés).",
         },
       },
       required: ["language", "direction"],

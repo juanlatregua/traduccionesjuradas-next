@@ -102,15 +102,14 @@ function priced(r: ReturnType<typeof getQuoteEstimate>) {
   return r as Exclude<typeof r, { auto_priceable: false }>;
 }
 
-test("get_quote_estimate: FR + criminal_record + 3 páginas → precio fijo 75 € con IVA", () => {
-  const r = priced(getQuoteEstimate({ language: "fr", document_type: "criminal_record", pages: 3 }));
-  assert.equal(r.is_french_criminal_record, true);
-  assert.equal(r.base_price_with_vat_eur, 75);
+test("get_quote_estimate: FR→ES Bulletin n°3 de 3 páginas = 90 € + IVA (tarifa por página, sin paquete)", () => {
+  const r = priced(getQuoteEstimate({ language: "fr", direction: "to_spanish", document_type: "criminal_record", pages: 3 }));
+  assert.equal(r.base_price_eur, 90);
 });
 
-test("get_quote_estimate: MA + fr → Morocco fixed pricing activado", () => {
-  const r = priced(getQuoteEstimate({ language: "fr", country: "MA" }));
-  assert.equal(r.is_morocco_special, true);
+test("get_quote_estimate: Marruecos (fr) sigue la tarifa por página; apostillado +5 €", () => {
+  assert.equal(priced(getQuoteEstimate({ language: "fr", direction: "to_spanish", document_type: "birth_certificate", pages: 1, country: "MA" })).base_price_eur, 30);
+  assert.equal(priced(getQuoteEstimate({ language: "fr", direction: "to_spanish", document_type: "birth_certificate", pages: 1, country: "MA", has_apostille: true })).base_price_eur, 35);
 });
 
 // Escaparate 24-ago-2026: cifras públicas SOLO en francés ("el resto previa

@@ -82,7 +82,7 @@ test("FR→ES: coste 0 (Juan) y las tablas no suben el precio", () => {
 });
 
 test("FR→ES: sustituye suelos y tarifa de Marruecos en documentos por página", () => {
-  assert.equal(price(analysis({ pages: 1, country: "MA" })), 30); // antes 40 fijo (Marruecos: pendiente de Juan)
+  assert.equal(price(analysis({ pages: 1, country: "MA" })), 30); // antes 40 fijo; Marruecos = opción A de Juan
 });
 
 // Apostilla (Juan, 8-oct): +5 € por documento que la lleve. La hoja solo se
@@ -127,6 +127,9 @@ test("apostilla suelta del expediente: +5 € solo si acompaña a un documento p
   assert.deepEqual(pairApostilles([r("contract", "fr"), r("apostille", "fr")]), [false, false]); // contrato: por palabra
   assert.deepEqual(pairApostilles([r("birth_certificate", "de"), r("apostille", "fr")]), [false, false]); // otro idioma
   assert.deepEqual(pairApostilles([r("birth_certificate", "fr", false), r("apostille", "fr")]), [false, false]);
+  // el documento ya apostillado lleva su +5 €: la fila de apostilla aparte no cobra otra vez
+  assert.deepEqual(pairApostilles([{ ...r("birth_certificate", "fr"), hasApostille: true }, r("apostille", "fr")]), [false, false]);
+  assert.deepEqual(pairApostilles([{ ...r("birth_certificate", "fr"), hasApostille: true }, r("birth_certificate", "fr"), r("apostille", "fr")]), [false, false, true]);
 });
 
 test("DE con tablas apostillado: páginas × 35 + 5, coste Morton sin apostilla", () => {
@@ -149,9 +152,11 @@ test("DE apostillado: el paraTi de Morton no incluye la apostilla; nunca 0", () 
   assert.equal(dePagePactado([{ ...base, pages: 0 }])?.costCents, 1000); // mínimo 1 página
 });
 
-test("FR: el Bulletin n°3 de 3+ páginas conserva el paquete de 61,98 €", () => {
-  assert.equal(price(analysis({ type: "criminal_record", pages: 5 })), 61.98);
+test("FR: Bulletin n°3 y Marruecos van a tarifa por página (sin paquete 61,98 € ni 40/40/45)", () => {
+  assert.equal(price(analysis({ type: "criminal_record", pages: 5 })), 150);
   assert.equal(price(analysis({ type: "criminal_record", pages: 1 })), 30);
+  assert.equal(price(analysis({ pages: 3, country: "MA" })), 90);
+  assert.equal(price(analysis({ pages: 1, country: "MA", apostille: true })), 35);
 });
 
 test("FR→ES: contrato y texto largo siguen POR PALABRA (suelo FR 35 / 55)", () => {

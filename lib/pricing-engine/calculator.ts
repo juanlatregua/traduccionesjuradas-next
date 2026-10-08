@@ -8,8 +8,6 @@ import {
   getComplexityMultiplier,
   getApostilleSurcharge,
   URGENCY_MULTIPLIER,
-  MOROCCO_PRICING,
-  FRENCH_CRIMINAL_RECORD_PRICE,
 } from "./rules.ts";
 import { computePagePricing, APOSTILLE_EXTRA_EUR, type PagePricing } from "./page-pricing.ts";
 
@@ -164,28 +162,9 @@ export function computeBase(input: PriceMetricsInput): {
   // Apostille surcharge: fijo según idioma (árabe 10€, resto 25€)
   const apostilleSurcharge = input.hasApostille ? getApostilleSurcharge(foreignLang) : 0;
 
-  // Morocco special pricing: solo aplica a francés (no árabe)
-  const isMorocco = input.countryCode === "MA" && foreignLang !== "ar";
-  const moroccoMaxPage = Math.max(...Object.keys(MOROCCO_PRICING).map(Number));
-  const moroccoFixedPrice = isMorocco
-    ? MOROCCO_PRICING[Math.min(pages, moroccoMaxPage)] ?? MOROCCO_PRICING[moroccoMaxPage]
-    : undefined;
-
-  // Penales franceses con formulario multilingüe UE (Bulletin n°3 de ~5 páginas):
-  // el anexo distorsiona el conteo. La versión de 1 carilla sigue el cálculo normal.
-  const isFrenchCriminalRecord =
-    specificType === "criminal_record" && foreignLang === "fr" && pages >= 3;
-
-  if (isFrenchCriminalRecord) {
-    return {
-      basePrice: FRENCH_CRIMINAL_RECORD_PRICE + apostilleSurcharge,
-      wordPrice: FRENCH_CRIMINAL_RECORD_PRICE,
-      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true, pagePricing: null,
-    };
-  }
   // Precio por página (FR/DE→ES, documentos «por página»): sustituye a los suelos
-  // por documento, al recargo de apostilla y a la tarifa fija de Marruecos. El
-  // Bulletin n°3 de ≥3 páginas (arriba) conserva su paquete de 61,98 €.
+  // por documento, al recargo de apostilla, a la tarifa fija de Marruecos y al
+  // paquete del Bulletin n°3 (decisión Juan, 8-oct-2026: todo a 30 €/página).
   const pagePricing = computePagePricing({
     specificType,
     foreignLang,
@@ -202,13 +181,6 @@ export function computeBase(input: PriceMetricsInput): {
       effectiveRate: 0, minimum: pagePricing.priceEur, complexityMult,
       apostilleSurcharge: pagePricing.apostille ? APOSTILLE_EXTRA_EUR : 0,
       fixedPriceApplied: true, pagePricing,
-    };
-  }
-  if (isMorocco && moroccoFixedPrice !== undefined) {
-    return {
-      basePrice: moroccoFixedPrice + apostilleSurcharge,
-      wordPrice: moroccoFixedPrice,
-      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true, pagePricing: null,
     };
   }
   const wordPrice = words * rate * complexityMult;

@@ -43,8 +43,6 @@ export type QuoteEstimateOutput = {
   urgent_price_with_vat_eur: number;
   estimated_delivery_standard: string;
   estimated_delivery_urgent: string;
-  is_french_criminal_record: boolean;
-  is_morocco_special: boolean;
   partial_info: boolean;
   note: string;
 };
@@ -145,23 +143,12 @@ export function getQuoteEstimate(
 
   const quote = calculatePrice(synthetic);
   const partialInfo = input.pages === undefined || input.document_type === undefined || !input.direction;
-  const isFrenchCriminalRecord =
-    documentType === "criminal_record" && language === "fr" && pages >= 3;
-  // Aquí solo llega francés (gate de arriba): Marruecos especial aplica siempre.
-  const isMoroccoSpecial = country === "MA";
-
   let note: string;
-  if (isFrenchCriminalRecord) {
-    note =
-      "Bulletin n°3 francés con anexo multilingüe UE: precio fijo 75 € IVA incluido (paquete).";
-  } else if (quote.pagePricing) {
+  if (quote.pagePricing) {
     note =
       language === "de"
         ? `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página${quote.pagePricing.tables ? " (con tablas)" : " (35 € si la página lleva tablas)"}.`
         : `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página.`;
-  } else if (isMoroccoSpecial) {
-    note =
-      "Marruecos (francés): tarifa fija por páginas, no por palabras. Apostilla aparte si aplica.";
   } else if (partialInfo) {
     note =
       "Estimación con información parcial. Para precio cerrado real, sube el documento al presupuesto instantáneo.";
@@ -185,8 +172,6 @@ export function getQuoteEstimate(
     urgent_price_with_vat_eur: round2(clientUrgentFromQuote(quote, language) * (1 + VAT_RATE)),
     estimated_delivery_standard: quote.estimatedDaysStandard,
     estimated_delivery_urgent: quote.estimatedDaysUrgent,
-    is_french_criminal_record: isFrenchCriminalRecord,
-    is_morocco_special: isMoroccoSpecial,
     partial_info: partialInfo,
     note,
   };

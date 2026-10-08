@@ -205,7 +205,7 @@ export default function RegularizacionMarruecosPage() {
           <em>Bureau d&apos;état civil</em>). Pide siempre la{" "}
           <strong>versión bilingüe árabe/francés</strong> o el{" "}
           <strong>extrait en francés</strong>: traducimos directamente del
-          francés con plazo de 24h y precio cerrado desde 40 €.{/* TODO(Juan): Marruecos pendiente — paquete 40/40/45 vs 30 €/página (8-oct-2026); no cambiar la cifra hasta decidirlo. */}
+          francés con plazo de 24h y precio cerrado: 30 € + IVA por página · 35 € apostillado.
         </p>
         <p className="text-xs">
           Si el documento que tienes está exclusivamente en árabe, deriva a

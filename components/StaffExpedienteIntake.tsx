@@ -812,6 +812,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           specificType: d.documentType,
           foreignLang: d.sourceLang && d.sourceLang !== "es" ? d.sourceLang : null,
           include: d.include,
+          hasApostille: d.hasApostille,
         }))
       );
       const next = prev.map((d, idx) => {

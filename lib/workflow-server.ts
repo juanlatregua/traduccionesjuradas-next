@@ -1191,6 +1191,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           targetLang: q.targetLang,
           lines: q.lines.map((l) => ({ quantity: Number(l.quantity) || 1, unitPrice: Number(l.unitPrice) || 0, supplierUnitCost: Number(l.supplierUnitCost) || 0 })),
         })
+          && String(process.env.LAVORI_PAGINA_DE || "").toLowerCase() !== "off"
           ? { id: LAVORI_CANDIDATES.de?.[0] ?? null, nombre: "Morton" }
           : null;
       if (q && mortonTarifa?.id && parsed) {

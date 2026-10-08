@@ -207,7 +207,7 @@ export function dePagePactado(
  * páginas del mismo idioma? Solo esas suman +5 €; el resto (sin documento al que
  * acompañar) queda para precio a mano. Devuelve, por fila, si procede el +5 €. */
 export function pairApostilles(
-  rows: Array<{ specificType?: string | null; foreignLang?: string | null; include?: boolean }>
+  rows: Array<{ specificType?: string | null; foreignLang?: string | null; include?: boolean; hasApostille?: boolean }>
 ): boolean[] {
   return rows.map((r, i) => {
     if (String(r.specificType || "").toLowerCase() !== "apostille") return false;
@@ -217,6 +217,9 @@ export function pairApostilles(
       (o, j) =>
         j !== i &&
         o.include !== false &&
+        // si el documento ya lleva su apostilla (+5 € incluido), otra fila de
+        // apostilla emparejada con él cobraría dos veces
+        !o.hasApostille &&
         isPagePricedType(o.specificType) &&
         String(o.foreignLang || "").toLowerCase() === lang
     );

@@ -99,19 +99,6 @@ export const VOLUME_DISCOUNTS = [
   { threshold: 10, discount: 0.15 }, // 10+ documentos: -15%
 ];
 
-// Tarifas especiales Marruecos (documentos árabes/franceses) — siempre precio fijo
-export const MOROCCO_PRICING: Record<number, number> = {
-  1: 40,
-  2: 40,
-  3: 45,
-  4: 55,
-  5: 65,
-};
-
-// Penales franceses (Bulletin n°3): el formulario multilingüe UE infla el conteo
-// de palabras y dispara el precio. Fijamos 61,98€ base ⇒ 75,00€ con IVA al 21%.
-export const FRENCH_CRIMINAL_RECORD_PRICE = 61.98;
-
 export const APOSTILLE_SURCHARGE = 25;
 
 export function getMinimum(specificType: string, langCode?: string, pages?: number): number {
