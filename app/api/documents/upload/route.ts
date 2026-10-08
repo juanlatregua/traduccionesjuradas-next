@@ -6,6 +6,9 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { isBlobConfigured } from "@/lib/payment-config";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { prisma } from "@/lib/prisma";
+import { completionBlobPrefix, completionBlockReason, completionQuota } from "@/lib/q-journey";
+import { completionHistory } from "@/lib/quote-billing";
 
 export const runtime = "nodejs";
 
@@ -73,8 +76,25 @@ export async function POST(req: Request) {
     const jsonResponse = await handleUpload({
       body,
       request: req,
-      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
         const parsed = clientPayload ? JSON.parse(clientPayload) : {};
+        // «Falta algo» de /q: el cliente ya tiene presupuesto (no hay gate RGPD de
+        // puerta); el enlace del presupuesto fija la carpeta, y solo caben tipos
+        // de la puerta y 20 MB por fichero.
+        if (!staff.ok && parsed.kind === "quote-completion") {
+          const quote = await prisma.quote.findUnique({
+            where: { publicToken: String(parsed.token || "") },
+            select: { id: true, paidAt: true, status: true, validUntil: true, deletedAt: true },
+          });
+          if (!quote || completionBlockReason(quote) || !pathname.startsWith(completionBlobPrefix(quote.id))) {
+            throw new Error("Enlace de presupuesto no válido.");
+          }
+          // Mismo tope que /complete, ya al pedir el token: no se suben ficheros que luego se rechazarían.
+          if (completionQuota(await completionHistory(quote.id), 1)) {
+            throw new Error("Ya has enviado documentos por este presupuesto. Escríbenos y lo completamos.");
+          }
+          return { allowedContentTypes: ALLOWED_TYPES, maximumSizeInBytes: MAX_FILE_SIZE, addRandomSuffix: true };
+        }
         if (!parsed.gdprConsent) {
           throw new Error("Debes aceptar el tratamiento de datos para continuar.");
         }

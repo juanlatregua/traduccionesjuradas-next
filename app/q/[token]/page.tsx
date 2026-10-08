@@ -17,6 +17,9 @@ import QuotePublicPayButton from "@/components/QuotePublicPayButton";
 import QuoteBalancePayButton from "@/components/QuoteBalancePayButton";
 import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
 import QuoteDocumentsViewer from "@/components/QuoteDocumentsViewer";
+import QuoteJourney from "@/components/QuoteJourney";
+import { billingLockState, getSavedQuoteBilling } from "@/lib/quote-billing";
+import { billingLocked, COMPLETION_EVENT, completionBlobPrefix, isPendingCompletion, isWhatsappPlaceholder, pickBillingPrefill } from "@/lib/q-journey";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { pickPublicLang, publicDict, statusLabel, localeFor } from "@/lib/quote-public-i18n";
 
@@ -155,6 +158,23 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       lostReason: true,
       paidAt: true,
       pdfUrl: true,
+      customerEmail: true,
+      expedienteRef: true,
+      customer: {
+        select: { fiscalName: true, companyName: true, nif: true, address: true, city: true, postalCode: true, country: true },
+      },
+      orders: {
+        take: 1,
+        select: { billing: { select: { fiscalName: true, nif: true, address: true, city: true, postalCode: true, country: true, email: true } } },
+      },
+      // «Pendiente de completar»: el cliente añadió documentos y no se ha reenviado desde entonces.
+      stripeEvents: { where: { eventType: COMPLETION_EVENT }, select: { processedAt: true } },
+      messageLogs: {
+        where: { type: { in: ["PAY_LINK", "RESEND_PAY_LINK"] }, sentAt: { not: null } },
+        orderBy: { sentAt: "desc" },
+        take: 1,
+        select: { sentAt: true },
+      },
       subtotal: true,
       discountAmount: true,
       shippingAmount: true,
@@ -211,29 +231,53 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   const t = publicDict(lang);
   const loc = localeFor(lang);
 
-  return (
-    <main className="min-h-screen bg-parchment px-4 py-10" lang={lang}>
-      <section className="mx-auto max-w-5xl rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
-          {t.quote} {refreshed.quoteNumber}
-        </p>
-        <h1 className="mt-2 text-2xl font-bold text-encre">{t.swornTranslation}</h1>
-        <p className="mt-1 text-sm text-sepia">
-          {t.status}: <strong>{statusLabel(status, lang)}</strong> · {t.validUntil}{" "}
-          <strong>{refreshed.validUntil.toLocaleDateString(loc)}</strong>
-        </p>
+  // Recorrido guiado (documentos → facturación → pago) mientras el presupuesto se puede pagar.
+  const showJourney = isPayable && !refreshed.paidAt;
+  let journeyProps: Omit<React.ComponentProps<typeof QuoteJourney>, "children"> | null = null;
+  if (showJourney) {
+    const totalCents = Math.round((total + balance) * 100);
+    const saved = await getSavedQuoteBilling(refreshed.id).catch(() => null);
+    const customer = isWhatsappPlaceholder(refreshed.customerEmail) ? null : refreshed.customer;
+    const base = { saved, orderBilling: refreshed.orders[0]?.billing, customer, clientEmail: refreshed.customerEmail };
+    const lock = await billingLockState(refreshed.id).catch(() => null);
+    let prefill = pickBillingPrefill(base);
+    if (prefill.source === "empty") {
+      const analyses = await prisma.documentAnalysis
+        .findMany({
+          where: {
+            OR: [
+              ...(refreshed.expedienteRef ? [{ sessionToken: `exp:${refreshed.expedienteRef}` }] : []),
+              ...(isWhatsappPlaceholder(refreshed.customerEmail) ? [] : [{ clientEmail: refreshed.customerEmail }]),
+            ],
+          },
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: { analysisJson: true },
+        })
+        .catch(() => []);
+      prefill = pickBillingPrefill({ ...base, analyses: analyses.map((a) => a.analysisJson) });
+    }
+    journeyProps = {
+      token: params.token,
+      lang,
+      docLines,
+      uploadPrefix: completionBlobPrefix(refreshed.id),
+      initialPending: isPendingCompletion(
+        refreshed.stripeEvents.map((e) => e.processedAt),
+        refreshed.messageLogs[0]?.sentAt
+      ),
+      initialBilling: prefill.fields,
+      billingSource: prefill.source,
+      suggestion: prefill.suggestion,
+      billingLocked: !!lock && billingLocked({ paidAt: refreshed.paidAt, ...lock }),
+      hasOrder: !!lock?.orderId,
+      billingSaved: prefill.source === "saved",
+      totalCents,
+    };
+  }
 
-        {searchParams?.paid === "1" && (
-          <p className="mt-3 rounded-xl border border-cream bg-cream px-3 py-2 text-sm text-bleu">
-            {t.paidOk}
-          </p>
-        )}
-        {searchParams?.canceled === "1" && (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            {t.canceled}
-          </p>
-        )}
-
+  const payBlocks = (
+    <>
         {isPayable && !refreshed.paidAt && resolvePaymentAccounts(refreshed.paymentMethods).length > 0 && (
           <QuoteProofCta token={params.token} lang={lang} focus={searchParams?.paso === "justificante"} />
         )}
@@ -371,8 +415,35 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
             <p className="text-xs text-graphite">{t.writeYourLang}</p>
           </aside>
         </div>
+    </>
+  );
 
-        {fileKeys.length > 0 && (
+  return (
+    <main className="min-h-screen bg-parchment px-4 py-10" lang={lang}>
+      <section className="mx-auto max-w-5xl rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-bleu">
+          {t.quote} {refreshed.quoteNumber}
+        </p>
+        <h1 className="mt-2 text-2xl font-bold text-encre">{t.swornTranslation}</h1>
+        <p className="mt-1 text-sm text-sepia">
+          {t.status}: <strong>{statusLabel(status, lang)}</strong> · {t.validUntil}{" "}
+          <strong>{refreshed.validUntil.toLocaleDateString(loc)}</strong>
+        </p>
+
+        {searchParams?.paid === "1" && (
+          <p className="mt-3 rounded-xl border border-cream bg-cream px-3 py-2 text-sm text-bleu">
+            {t.paidOk}
+          </p>
+        )}
+        {searchParams?.canceled === "1" && (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {t.canceled}
+          </p>
+        )}
+
+        {journeyProps ? <QuoteJourney {...journeyProps}>{payBlocks}</QuoteJourney> : payBlocks}
+
+        {!journeyProps && fileKeys.length > 0 && (
           <section className="mt-6 rounded-2xl border border-cream p-4">
             <QuoteDocumentsViewer lines={docLines} token={params.token} title={t.yourDocuments} lang={lang} />
           </section>

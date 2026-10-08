@@ -456,6 +456,10 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
         },
       });
       await populateOrderItemsFromQuote(order.id, input);
+      // Datos de facturación que el cliente dejó en /q antes de pagar.
+      await import("@/lib/quote-billing").then((m) =>
+        m.applySavedBillingToNewOrder(order.id, input.quoteId, input.clientEmail)
+      );
       // Ampliación (lote AMPL-<padre>-…): el pedido nuevo se agrupa con su padre
       // en el mismo trámite. Best-effort: nunca impide que nazca el pedido.
       if (input.expedienteRef?.startsWith("AMPL-")) {

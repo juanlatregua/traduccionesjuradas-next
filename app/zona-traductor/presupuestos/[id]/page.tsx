@@ -8,6 +8,7 @@ import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/z
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
 import { prisma } from "@/lib/prisma";
 import { serializeQuote } from "@/lib/quote-serializer";
+import { COMPLETION_EVENT, isPendingCompletion } from "@/lib/q-journey";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -35,6 +36,26 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
     orderBy: { updatedAt: "desc" },
     select: { ref: true, par: true, status: true, priceCents: true, plazoDias: true, miembroNombre: true },
   });
+  // «Pendiente de completar»: el cliente añadió documentos desde /q y no se ha reenviado el presupuesto.
+  const [docsEvents, lastSend] = await Promise.all([
+    prisma.stripeEventLog.findMany({
+      where: { quoteId: params.id, eventType: COMPLETION_EVENT },
+      orderBy: { processedAt: "desc" },
+      select: { processedAt: true, payload: true },
+    }),
+    prisma.messageLog.findFirst({
+      where: { quoteId: params.id, type: { in: ["PAY_LINK", "RESEND_PAY_LINK"] }, sentAt: { not: null } },
+      orderBy: { sentAt: "desc" },
+      select: { sentAt: true },
+    }),
+  ]);
+  const pendiente = isPendingCompletion(docsEvents.map((e) => e.processedAt), lastSend?.sentAt);
+  const adjuntos = docsEvents
+    .filter((e) => !lastSend?.sentAt || e.processedAt > lastSend.sentAt)
+    .flatMap((e) => {
+      const p = e.payload as { files?: { url: string; name: string }[]; note?: string } | null;
+      return (p?.files || []).map((f) => ({ ...f, note: p?.note }));
+    });
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -69,6 +90,19 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             en su propia tarjeta blanca para no reescribirlo entero en este paso.
             Repintarlo es S2: aquí lo que se arregla es la NAVEGACIÓN, que era el
             motivo real de perderse. */}
+        {pendiente && (
+          <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            <strong>Pendiente de completar:</strong> el cliente dice que faltaban documentos y los ha subido. Envíale el presupuesto actualizado (puede pagar el viejo, pero la página se lo desaconseja).
+            <ul className="mt-1 list-disc pl-5">
+              {adjuntos.map((f) => (
+                <li key={f.url}>
+                  <a href={f.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">{f.name}</a>
+                </li>
+              ))}
+            </ul>
+            {adjuntos.find((f) => f.note)?.note && <p className="mt-1 italic">«{adjuntos.find((f) => f.note)!.note}»</p>}
+          </div>
+        )}
         {solicitud && (
           <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
             Solicitud lavori <span className="font-mono">{solicitud.ref}</span> · {solicitud.par} · {solicitud.status}
