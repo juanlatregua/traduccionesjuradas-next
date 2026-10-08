@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
-import { sendTranslationEtaEmail, sendTranslationReadyEmail, buildTranslationReadyEmail } from "@/lib/email";
-import { greetingName, resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
+import {
+  buildTranslationReadyEmail,
+  composeInvoiceOnlyEmail,
+  sendInvoiceOnlyEmail,
+  sendTranslationEtaEmail,
+  sendTranslationReadyEmail,
+} from "@/lib/email";
+import { runInvoiceOnly } from "@/lib/delivery-invoice-only";
+import { reviewedFileUrls, translatorFileUrls, unreviewedUrls } from "@/lib/delivery-files";
+import { getReviewUrl, greetingName, resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
 import { normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
 import { NIF_REQUIRED_MESSAGE, decideInvoiceAction, needsNif } from "@/lib/delivery-billing";
 import { sendEmailWithRetry } from "@/lib/email-retry";
@@ -43,6 +51,8 @@ type DeliveryBody = {
   billing?: Record<string, unknown>;
   message?: string;
   subject?: string;
+  // Solo la factura: sin archivos, sin cambio de estado de entrega ni SMS.
+  invoiceOnly?: boolean;
   etaDate?: string;
   autoEta?: boolean;
 };
@@ -119,6 +129,91 @@ export async function POST(req: Request, { params }: Params) {
         { ok: false, error: "No se puede avanzar la entrega en pedidos pendientes de pago (ni autorizados a crédito)." },
         { status: 400 }
       );
+    }
+
+    if (body.invoiceOnly) {
+      if (!body.billing) {
+        return NextResponse.json({ ok: false, error: "Faltan los datos de facturación." }, { status: 400 });
+      }
+      const wanted = normalizeBillingInput(body.billing, order.clientEmail);
+      if (
+        !order.billingExcluded &&
+        !order.monthlyInvoiceId &&
+        decideInvoiceAction({ existing: order.clientInvoice, amountCents: order.amountCents, paymentMethod: order.paymentMethod }) === "issue" &&
+        needsNif(wanted.nif, order.amountCents)
+      ) {
+        return NextResponse.json({ ok: false, error: NIF_REQUIRED_MESSAGE }, { status: 400 });
+      }
+      const result = await runInvoiceOnly(
+        {
+          prepare: () =>
+            prepareDeliveryInvoice({
+              orderId: order.id,
+              amountCents: order.amountCents,
+              billingExcluded: order.billingExcluded,
+              paymentMethod: order.paymentMethod,
+              monthlyInvoiceId: order.monthlyInvoiceId,
+              billing: wanted,
+              actorEmail,
+            }),
+          attach: () => buildIssuedInvoiceAttachment(order.reference),
+          record: async ({ subject, text, invoiceNumber }) => {
+            const composed = composeInvoiceOnlyEmail(subject, text);
+            await prisma.orderEvent
+              .create({
+                data: {
+                  orderId: order.id,
+                  type: "notification.invoice.sent",
+                  message: `Factura ${invoiceNumber} enviada al cliente.`,
+                  payload: {
+                    actorEmail,
+                    channel: "EMAIL",
+                    toEmail: order.clientEmail,
+                    subject: composed.subject,
+                    bodyHtml: composed.html,
+                    invoiceAttached: true,
+                    invoiceNumber,
+                  },
+                },
+              })
+              .catch((err) => console.error("[orders-delivery] invoice event failed", err));
+          },
+          send: ({ subject, text, attachment }) => {
+            void sendEmailWithRetry(() =>
+              sendInvoiceOnlyEmail({ toEmail: order.clientEmail, subject, text, attachments: [attachment] })
+            ).catch((e) => console.error("[orders-delivery] invoice email failed", e));
+          },
+        },
+        {
+          reference: order.reference,
+          lang: toDeliveryLang(order.clientLocale),
+          clientName: greetingName(order.clientName, order.clientEmail),
+          reviewUrl: getReviewUrl(),
+          message: body.message,
+          subject: typeof body.subject === "string" ? body.subject : undefined,
+        }
+      );
+      if (!result.ok) return NextResponse.json({ ok: false, error: result.error }, { status: 400 });
+      return NextResponse.json({ ok: true, invoiceOnly: true, invoiceNumber: result.invoiceNumber, warnings: result.warnings });
+    }
+
+    // Archivos del traductor (lavori / subidos por él): no salen al cliente sin revisar.
+    if (body.notifyClient && state === "TRADUCIDO") {
+      const assignments = await prisma.collaboratorAssignment.findMany({
+        where: { orderId: order.id, deliveredFileUrl: { not: null } },
+        select: { deliveredFileUrl: true },
+      });
+      const pending = unreviewedUrls(
+        selectedFiles.map((f) => f.url),
+        translatorFileUrls(order.events, assignments.map((a) => a.deliveredFileUrl)),
+        reviewedFileUrls(order.events)
+      );
+      if (pending.length > 0) {
+        return NextResponse.json(
+          { ok: false, error: `Hay ${pending.length} archivo(s) del traductor sin revisar: márcalos como revisados antes de enviar.` },
+          { status: 400 }
+        );
+      }
     }
 
     if (state === "EN_PROCESO" && (getWorkflowState(order) === "CERRADO" || order.deliveryState === "TRADUCIDO")) {

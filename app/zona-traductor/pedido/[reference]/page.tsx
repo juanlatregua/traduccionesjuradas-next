@@ -33,6 +33,7 @@ import OrderExtendButton from "@/components/OrderExtendButton";
 import { isOrderSecured, isCreditAuthorized, creditDaysToDue, isMonthlySecured, periodLabel } from "@/lib/credit-terms";
 import { buildDeliveryResendMessage } from "@/lib/notification-templates";
 import { getReviewUrl, greetingName, toDeliveryLang } from "@/lib/delivery-message";
+import { reviewedFileUrls, translatorFileUrls } from "@/lib/delivery-files";
 import { resolveBillingPrefill } from "@/lib/delivery-billing";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
 import OrderFinancePanel from "@/components/OrderFinancePanel";
@@ -722,6 +723,10 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             amountCents={order.amountCents}
             files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
             primaryFileUrl={order.finalDeliveryFileUrl || order.translatedFileUrl || null}
+            translatorUrls={Array.from(
+              translatorFileUrls(order.events, (order.collaboratorAssignments || []).map((a: any) => a.deliveredFileUrl))
+            )}
+            reviewedUrls={Array.from(reviewedFileUrls(order.events))}
             replacedUrls={order.events
               .filter((e: any) => e.type === "delivery.corrected")
               .flatMap((e: any) => (Array.isArray(e.payload?.replaced) ? e.payload.replaced : []))

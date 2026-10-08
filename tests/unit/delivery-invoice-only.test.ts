@@ -1,0 +1,87 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { runInvoiceOnly } from "../../lib/delivery-invoice-only.ts";
+import { reviewedFileUrls, translatorFileUrls, unreviewedUrls } from "../../lib/delivery-files.ts";
+import { INVOICE_NUMBER_PLACEHOLDER } from "../../lib/delivery-message.ts";
+
+const input = { reference: "26_95DA0E", lang: "es" as const, clientName: "Marta", reviewUrl: "https://g.page/r/x" };
+
+function fakeDeps(attachment: { name: string } | null) {
+  const calls: string[] = [];
+  const sent: { subject: string; text: string; attachment: unknown }[] = [];
+  return {
+    calls,
+    sent,
+    deps: {
+      prepare: async () => {
+        calls.push("prepare");
+        return {};
+      },
+      attach: async () => {
+        calls.push("attach");
+        return attachment;
+      },
+      record: async () => {
+        calls.push("record");
+      },
+      send: (e: { subject: string; text: string; attachment: unknown }) => {
+        calls.push("send");
+        sent.push(e);
+      },
+    },
+  };
+}
+
+test("solo factura: emite/prepara, adjunta la factura y envía; sin transición ni SMS entre las dependencias", async () => {
+  const { deps, calls, sent } = fakeDeps({ name: "26_097.pdf" });
+  const r = await runInvoiceOnly(deps, input);
+  assert.deepEqual(r, { ok: true, invoiceNumber: "26_097", warnings: [] });
+  assert.deepEqual(calls, ["prepare", "attach", "record", "send"]);
+  assert.equal(sent[0].subject, "Factura 26_097 — pedido 26_95DA0E");
+  assert.match(sent[0].text, /^Buenos días, Marta:\n\nLe adjunto la factura 26_097 del pedido 26_95DA0E\./);
+  assert.match(sent[0].text, /g\.page\/r\/x/);
+  assert.match(sent[0].text, /Juan Silva — TraduccionesJuradas\.net$/);
+  assert.equal((sent[0].attachment as { name: string }).name, "26_097.pdf");
+});
+
+test("solo factura: el hueco «(nº al emitir)» del mensaje y del asunto se sustituye por el número real", async () => {
+  const { deps, sent } = fakeDeps({ name: "26_097.pdf" });
+  await runInvoiceOnly(deps, {
+    ...input,
+    message: `Le adjunto la factura ${INVOICE_NUMBER_PLACEHOLDER} del pedido 26_95DA0E.`,
+    subject: `Factura ${INVOICE_NUMBER_PLACEHOLDER} — pedido 26_95DA0E`,
+  });
+  assert.equal(sent[0].text, "Le adjunto la factura 26_097 del pedido 26_95DA0E.");
+  assert.equal(sent[0].subject, "Factura 26_097 — pedido 26_95DA0E");
+});
+
+test("solo factura sin factura posible: no envía ni registra y lo explica", async () => {
+  const { deps, calls } = fakeDeps(null);
+  deps.prepare = async () => ({ warning: "Pedido pagado por Bizum: no se emite factura automática." });
+  const r = await runInvoiceOnly(deps, input);
+  assert.equal(r.ok, false);
+  assert.match((r as { error: string }).error, /No hay factura que enviar\. Pedido pagado por Bizum/);
+  assert.deepEqual(calls, ["attach"]);
+});
+
+test("archivos del traductor sin revisar se rechazan; revisados o de staff pasan", () => {
+  const lav = "https://x/orders/26_1/entregas-lavori/1791300000000-traduccion.pdf";
+  const own = "https://x/orders/26_1/propia.pdf";
+  const events = [
+    { type: "lavori.entrega_subida", payload: { attachmentUrl: "https://x/otra-lavori.pdf" }, createdAt: "2026-10-08T09:00:00Z" },
+  ];
+  const translator = translatorFileUrls(events, ["https://x/subida-traductor.pdf"]);
+  const none = reviewedFileUrls(events);
+  assert.deepEqual(unreviewedUrls([lav, own, "https://x/otra-lavori.pdf", "https://x/subida-traductor.pdf"], translator, none), [
+    lav,
+    "https://x/otra-lavori.pdf",
+    "https://x/subida-traductor.pdf",
+  ]);
+  const reviewEvents = [
+    { type: "delivery.file_reviewed", payload: { url: lav, reviewed: true }, createdAt: "2026-10-08T09:10:00Z" },
+    { type: "delivery.file_reviewed", payload: { url: "https://x/otra-lavori.pdf", reviewed: true }, createdAt: "2026-10-08T09:11:00Z" },
+    { type: "delivery.file_reviewed", payload: { url: "https://x/otra-lavori.pdf", reviewed: false }, createdAt: "2026-10-08T09:12:00Z" },
+  ];
+  const reviewed = reviewedFileUrls(reviewEvents);
+  assert.deepEqual(unreviewedUrls([lav, own, "https://x/otra-lavori.pdf"], translator, reviewed), ["https://x/otra-lavori.pdf"]);
+});

@@ -177,3 +177,39 @@ export const AI_LANGUAGES = ["Español", "Français", "English", "Português", "
 export function translateInstruction(language: string): string {
   return `Traduce el mensaje a ${language}, mismo tono breve y cordial, usted.`;
 }
+
+const INVOICE_ONLY = {
+  es: {
+    line: (ref: string, n: string) => `Le adjunto la factura ${n} del pedido ${ref}.`,
+    subject: (ref: string, n: string) => `Factura ${n} — pedido ${ref}`,
+  },
+  fr: {
+    line: (ref: string, n: string) => `Veuillez trouver ci-joint la facture ${n} de la commande ${ref}.`,
+    subject: (ref: string, n: string) => `Facture ${n} — commande ${ref}`,
+  },
+  en: {
+    line: (ref: string, n: string) => `Please find attached invoice ${n} for order ${ref}.`,
+    subject: (ref: string, n: string) => `Invoice ${n} — order ${ref}`,
+  },
+} as const;
+
+// Aviso de «solo factura»: sin traducción, con reseña y firma.
+export function buildInvoiceOnlyText(input: {
+  lang: DeliveryLang;
+  name?: string | null;
+  reference: string;
+  invoiceNumber: string;
+  reviewUrl: string;
+}): string {
+  const c = COPY[input.lang];
+  return [
+    c.hello(greetingName(input.name)),
+    INVOICE_ONLY[input.lang].line(input.reference, input.invoiceNumber),
+    c.review(input.reviewUrl),
+    `${c.bye}\n${DELIVERY_SIGNATURE}`,
+  ].join("\n\n");
+}
+
+export function invoiceOnlySubject(lang: DeliveryLang, reference: string, invoiceNumber: string): string {
+  return INVOICE_ONLY[lang].subject(reference, invoiceNumber);
+}

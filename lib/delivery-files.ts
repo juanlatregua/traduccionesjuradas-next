@@ -80,3 +80,46 @@ export function splitDocumentVersions<T extends { url: string }>(
   for (const f of files) (isPrevious(f) ? previous : current).push(f);
   return { current, previous };
 }
+
+type EventLike = { type: string; payload?: unknown; createdAt?: Date | string };
+
+function payloadOf(e: EventLike): Record<string, unknown> {
+  return e.payload && typeof e.payload === "object" ? (e.payload as Record<string, unknown>) : {};
+}
+
+// Archivos que vienen del traductor (entregas de lavori o subidas suyas): hay que
+// revisarlos antes de enviarlos al cliente.
+export function translatorFileUrls(events: EventLike[], assignmentUrls: (string | null | undefined)[] = []): Set<string> {
+  const out = new Set<string>();
+  for (const e of events) {
+    if (e.type !== "lavori.entrega_subida") continue;
+    const u = String(payloadOf(e).attachmentUrl || "");
+    if (u) out.add(u);
+  }
+  for (const u of assignmentUrls) if (u) out.add(u);
+  return out;
+}
+
+export function isTranslatorFile(url: string, translator: Set<string>): boolean {
+  return translator.has(url) || url.includes("/entregas-lavori/");
+}
+
+// Revisión por URL: manda el último evento delivery.file_reviewed de cada una.
+export function reviewedFileUrls(events: EventLike[]): Set<string> {
+  const sorted = events
+    .filter((e) => e.type === "delivery.file_reviewed")
+    .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+  const out = new Set<string>();
+  for (const e of sorted) {
+    const p = payloadOf(e);
+    const u = String(p.url || "");
+    if (!u) continue;
+    if (p.reviewed === false) out.delete(u);
+    else out.add(u);
+  }
+  return out;
+}
+
+export function unreviewedUrls(selected: string[], translator: Set<string>, reviewed: Set<string>): string[] {
+  return selected.filter((u) => isTranslatorFile(u, translator) && !reviewed.has(u));
+}
