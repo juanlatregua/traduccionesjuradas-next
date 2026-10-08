@@ -20,6 +20,11 @@ export type Period = {
   end: string;
   prevStart: string;
   prevEnd: string;
+  /** Fin de la comparación: igual que prevEnd, salvo en un periodo en curso (mismo tramo del anterior). */
+  prevCompareEnd: string;
+  /** El periodo aún no ha terminado. */
+  partial: boolean;
+  prevLabel: string;
   buckets: Bucket[];
   prevBuckets: Bucket[];
 };
@@ -175,6 +180,11 @@ export function buildPeriod(p: Granularity, anchorInput: string | null | undefin
   const anchor = parseYmd(anchorInput) ? (anchorInput as string) : todayMadrid(now);
   const cur = rangeFor(p, parseYmd(anchor)!);
   const prev = rangeFor(p, parseYmd(shiftAnchor(p, anchor, -1))!);
+  const startMs = madridMidnightUtc(cur.start).getTime();
+  const prevStartMs = madridMidnightUtc(prev.start).getTime();
+  const prevEndMs = madridMidnightUtc(prev.end).getTime();
+  const partial = now.getTime() >= startMs && now.getTime() < madridMidnightUtc(cur.end).getTime();
+  const prevCompareEnd = partial ? Math.min(prevEndMs, prevStartMs + (now.getTime() - startMs)) : prevEndMs;
   return {
     p,
     anchor,
@@ -183,6 +193,9 @@ export function buildPeriod(p: Granularity, anchorInput: string | null | undefin
     end: madridMidnightUtc(cur.end).toISOString(),
     prevStart: madridMidnightUtc(prev.start).toISOString(),
     prevEnd: madridMidnightUtc(prev.end).toISOString(),
+    prevCompareEnd: new Date(prevCompareEnd).toISOString(),
+    partial,
+    prevLabel: labelFor(p, prev.start),
     buckets: bucketsFor(p, cur.start, cur.end),
     prevBuckets: bucketsFor(p, prev.start, prev.end),
   };
@@ -214,7 +227,7 @@ export function periodBounds(period: Period) {
     from: new Date(period.start),
     to: new Date(period.end),
     prevFrom: new Date(period.prevStart),
-    prevTo: new Date(period.prevEnd),
+    prevTo: new Date(period.prevCompareEnd),
   };
 }
 
@@ -222,5 +235,19 @@ export function periodBounds(period: Period) {
 export function allTimePeriod(now: Date = new Date()): Period {
   const base = buildPeriod("anio", todayMadrid(now), now);
   const origin = "2000-01-01T00:00:00.000Z";
-  return { ...base, start: origin, prevStart: origin, prevEnd: origin, end: new Date(now.getTime() + 864e5).toISOString() };
+  return { ...base, start: origin, prevStart: origin, prevEnd: origin, prevCompareEnd: origin, partial: false, end: new Date(now.getTime() + 864e5).toISOString() };
+}
+
+/** Texto de la comparación: un periodo en curso se compara con el mismo tramo del anterior. */
+export function compareLabel(period: Pick<Period, "partial" | "prevLabel"> | null): string {
+  return period?.partial ? `vs mismo tramo de ${period.prevLabel}` : "vs periodo anterior";
+}
+
+/**
+ * Periodo que filtra la TABLA de pedidos: solo si el usuario lo eligió (`p` en la URL) y no hay búsqueda
+ * (la búsqueda `q` recorre todo el histórico). Sin `p`, la tabla va sobre todo el histórico.
+ */
+export function tablePeriod(p: string | null | undefined, d: string | null | undefined, q: string | null | undefined, now: Date = new Date()): Period | null {
+  if (!p || String(q || "").trim()) return null;
+  return resolvePedidosPeriod(parsePedidosP(p), d, now);
 }

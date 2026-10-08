@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allTimePeriod, buildPeriod, parsePedidosP, periodBounds, resolvePedidosPeriod } from "../../lib/panel-period.ts";
+import { allTimePeriod, compareLabel, tablePeriod, buildPeriod, parsePedidosP, periodBounds, resolvePedidosPeriod } from "../../lib/panel-period.ts";
 import { formatDelta } from "../../lib/panel-metrics.ts";
 import { computePedidosKpis, inRange, pedidosHref, type KpiOrder } from "../../lib/pedidos-kpis.ts";
 
@@ -27,7 +27,7 @@ test("periodBounds e inRange: [from, to) con la frontera de Madrid", () => {
   assert.equal(inRange("2026-09-30T21:59:59.999Z", b.from, b.to), false);
   assert.equal(inRange("2026-10-31T23:00:00.000Z", b.from, b.to), false);
   assert.equal(inRange(null, b.from, b.to), false);
-  assert.equal(inRange("2026-09-15T10:00:00.000Z", b.prevFrom, b.prevTo), true);
+  assert.equal(inRange("2026-09-05T10:00:00.000Z", b.prevFrom, b.prevTo), true);
 });
 
 test("allTimePeriod: ventana enorme y sin periodo anterior", () => {
@@ -57,7 +57,7 @@ const o = (x: Partial<KpiOrder> = {}): KpiOrder => ({
 test("computePedidosKpis: nuevos por periodo y anterior", () => {
   const period = buildPeriod("mes", undefined, NOW);
   const k = computePedidosKpis(
-    [o(), o({ createdAt: "2026-10-07T10:00:00.000Z" }), o({ createdAt: "2026-09-10T10:00:00.000Z" }), o({ createdAt: "2026-07-01T10:00:00.000Z" })],
+    [o(), o({ createdAt: "2026-10-07T10:00:00.000Z" }), o({ createdAt: "2026-09-05T10:00:00.000Z" }), o({ createdAt: "2026-07-01T10:00:00.000Z" })],
     period,
     NOW
   );
@@ -87,8 +87,39 @@ test("computePedidosKpis: por entregar con vencimientos y por cobrar", () => {
 });
 
 test("pedidosHref: omite los valores por defecto", () => {
-  assert.equal(pedidosHref({ p: "mes", d: "2026-10-08" }).startsWith("/zona-traductor?d="), true);
-  assert.equal(pedidosHref({ p: "mes" }), "/zona-traductor");
+  assert.equal(pedidosHref({ p: "mes", d: "2026-10-08" }) === "/zona-traductor?p=mes&d=2026-10-08", true);
+  assert.equal(pedidosHref({}), "/zona-traductor");
+  assert.equal(pedidosHref({ p: "mes" }), "/zona-traductor?p=mes");
   assert.equal(pedidosHref({ p: "todo", d: "2026-10-08", filtro: "por-cobrar" }), "/zona-traductor?p=todo&filtro=por-cobrar");
   assert.equal(pedidosHref({ p: "semana", d: "2026-10-05", base: "paid", vista: "tabla" }), "/zona-traductor?p=semana&d=2026-10-05&base=paid&vista=tabla");
+});
+
+test("tablePeriod: sin p la tabla no filtra por fecha; con q tampoco; con p sí", () => {
+  assert.equal(tablePeriod(undefined, undefined, "", NOW), null);
+  assert.equal(tablePeriod("", "2026-10-01", "", NOW), null);
+  assert.equal(tablePeriod("mes", undefined, "garcia", NOW), null);
+  assert.equal(tablePeriod("todo", undefined, "", NOW), null);
+  assert.equal(tablePeriod("mes", undefined, "  ", NOW)?.start, "2026-09-30T22:00:00.000Z");
+});
+
+test("periodo en curso: compara con el mismo tramo del anterior", () => {
+  const cur = buildPeriod("mes", undefined, NOW); // 8-oct 12:00 Madrid
+  assert.equal(cur.partial, true);
+  assert.equal(cur.prevCompareEnd, "2026-09-08T10:00:00.000Z");
+  assert.equal(periodBounds(cur).prevTo.toISOString(), cur.prevCompareEnd);
+  assert.equal(compareLabel(cur), "vs mismo tramo de septiembre 2026");
+  const past = buildPeriod("mes", "2026-09-10", NOW);
+  assert.equal(past.partial, false);
+  assert.equal(past.prevCompareEnd, past.prevEnd);
+  assert.equal(compareLabel(past), "vs periodo anterior");
+});
+
+test("periodo en curso: los pedidos del tramo no cuentan contra el mes anterior entero", () => {
+  const period = buildPeriod("mes", undefined, NOW);
+  const k = computePedidosKpis(
+    [{ ...o(), createdAt: "2026-10-03T10:00:00.000Z" }, { ...o(), createdAt: "2026-09-05T10:00:00.000Z" }, { ...o(), createdAt: "2026-09-20T10:00:00.000Z" }],
+    period,
+    NOW
+  );
+  assert.equal(k.nuevos.prev, 1);
 });

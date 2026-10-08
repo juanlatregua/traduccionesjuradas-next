@@ -20,7 +20,7 @@ import {
 import { isDueSoon, isOverdue } from "@/lib/order-utils";
 import { computePedidosKpis, inRange } from "@/lib/pedidos-kpis";
 import { isPagoProveedorPendiente, matchesHeaderFilter } from "@/lib/pedidos-filters";
-import { parsePedidosP, periodBounds, resolvePedidosPeriod, type Period } from "@/lib/panel-period";
+import { parsePedidosP, periodBounds, resolvePedidosPeriod, tablePeriod, type Period } from "@/lib/panel-period";
 import type { BandejaOrder } from "@/components/BandejaEntrada";
 
 export type ControlSearchParams = {
@@ -464,7 +464,9 @@ export const countPresupuestosAccionables = cache(async (): Promise<number> => {
 export async function loadControlState(searchParams: ControlSearchParams) {
   const enriched = await loadEnrichedOrders();
   const p = parsePedidosP(searchParams.p);
+  // `period` rige las cifras de la cabecera (Mes por defecto); la tabla solo se filtra si el usuario eligió periodo.
   const period = resolvePedidosPeriod(p, searchParams.d);
+  const filterPeriod = tablePeriod(searchParams.p, searchParams.d, searchParams.q);
   const dateBase = normalizeDateBase(searchParams.base);
 
   const filtro = searchParams.filtro || "todos";
@@ -474,14 +476,15 @@ export async function loadControlState(searchParams: ControlSearchParams) {
   const periodOrders = enriched.filter((order) => {
     const baseDate = getOrderDateForBase(order, dateBase);
     if (!baseDate) return false;
-    return isWithinPeriod(baseDate, period);
+    return isWithinPeriod(baseDate, filterPeriod);
   });
   const scopedOrders = q ? periodOrders.filter((order) => matchesSearch(order, q)) : periodOrders;
   const activeScopedOrders = scopedOrders.filter((order) => !order.isArchived);
 
   const orders = scopedOrders.filter((order) => {
     if (filtro === "archivados") return order.isArchived;
-    if (order.isArchived) return false;
+    // «Cobrados» cuadra con el Panel: incluye archivados (el Panel no los excluye).
+    if (order.isArchived && filtro !== "cobrados") return false;
     const header = matchesHeaderFilter(order, filtro);
     if (header !== undefined) return header;
     switch (filtro) {
@@ -510,7 +513,7 @@ export async function loadControlState(searchParams: ControlSearchParams) {
 
   const counts = {
     todos: activeScopedOrders.length,
-    cobrados: activeScopedOrders.filter((o) => matchesHeaderFilter(o, "cobrados")).length,
+    cobrados: scopedOrders.filter((o) => matchesHeaderFilter(o, "cobrados")).length,
     "por-entregar": activeScopedOrders.filter((o) => matchesHeaderFilter(o, "por-entregar")).length,
     "por-cobrar": activeScopedOrders.filter((o) => matchesHeaderFilter(o, "por-cobrar")).length,
     "pagados-sin-asignar": activeScopedOrders.filter((o) => o.paymentStatus === "PAID" && !o.assignedTo && o.deliveryState !== "TRADUCIDO").length,
@@ -562,6 +565,7 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     criticalFinanceOrders,
     p,
     period,
+    explicitPeriod: !!searchParams.p,
     dateBase,
     filtro,
     qRaw,

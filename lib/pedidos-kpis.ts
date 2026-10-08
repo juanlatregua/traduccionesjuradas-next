@@ -62,10 +62,10 @@ export function computePedidosKpis(orders: KpiOrder[], period: Period | null, no
 
 export type PedidosLink = { p?: string; d?: string; base?: string; filtro?: string; q?: string; vista?: string };
 
-/** URL de /zona-traductor con solo los parámetros que no son el valor por defecto. */
+/** URL de /zona-traductor. `p` solo va si se pasa: su presencia es lo que hace que la tabla filtre por periodo. */
 export function pedidosHref(l: PedidosLink): string {
   const sp = new URLSearchParams();
-  if (l.p && l.p !== "mes") sp.set("p", l.p);
+  if (l.p) sp.set("p", l.p);
   if (l.d && l.p !== "todo") sp.set("d", l.d);
   if (l.base === "paid") sp.set("base", "paid");
   if (l.filtro && l.filtro !== "todos") sp.set("filtro", l.filtro);

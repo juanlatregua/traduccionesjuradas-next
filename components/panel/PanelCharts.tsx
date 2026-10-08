@@ -31,7 +31,7 @@ export function Legend({ data }: { data: SeriesData }) {
   );
 }
 
-export function KpiCard({ metric, value, compare }: { metric: Metric; value: number; compare?: number }) {
+export function KpiCard({ metric, value, compare, compareText = "vs periodo anterior" }: { metric: Metric; value: number; compare?: number; compareText?: string }) {
   const delta = formatDelta(metric, value, compare);
   const neutral = METRICS[metric].costLike;
   const deltaColor = !delta || delta.sign === 0 || neutral ? MUTED : delta.sign > 0 ? "#3ecf8e" : NEGATIVE;
@@ -41,7 +41,7 @@ export function KpiCard({ metric, value, compare }: { metric: Metric; value: num
         {formatValue(metric, value)}
       </p>
       <p className="mt-1 text-xs tabular-nums" style={{ color: deltaColor }}>
-        {delta ? `${delta.sign > 0 ? "▲" : delta.sign < 0 ? "▼" : "■"} ${delta.text} vs periodo anterior` : <span className="text-[#93a0b4]">Sin base de comparación</span>}
+        {delta ? `${delta.sign > 0 ? "▲" : delta.sign < 0 ? "▼" : "■"} ${delta.text} ${compareText}` : <span className="text-[#93a0b4]">Sin base de comparación</span>}
       </p>
     </div>
   );

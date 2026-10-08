@@ -8,6 +8,7 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
   const prevStart = new Date(period.prevStart);
   const end = new Date(period.end);
   const inCurrent = (iso: string) => iso >= period.start && iso < period.end;
+  const inPrevious = (iso: string) => iso >= period.prevStart && iso < period.prevCompareEnd;
 
   const [orders, quotes, requests, expenses] = await Promise.all([
     prisma.order.findMany({
@@ -82,7 +83,7 @@ export async function loadPanelData(period: Period): Promise<{ current: PanelDat
 
   const split = <T,>(rows: T[], iso: (r: T) => string) => ({
     current: rows.filter((r) => inCurrent(iso(r))),
-    previous: rows.filter((r) => !inCurrent(iso(r))),
+    previous: rows.filter((r) => inPrevious(iso(r))),
   });
   const o = split(orderRows, (r) => r.paidAt);
   const q = split(quoteRows, (r) => r.issuedAt);

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatDelta, formatValue, type AggRow, type Metric } from "@/lib/panel-metrics";
-import { PEDIDOS_PERIODS, shiftAnchor, todayMadrid, type Granularity, type Period, type PedidosP } from "@/lib/panel-period";
+import { compareLabel, PEDIDOS_PERIODS, shiftAnchor, todayMadrid, type Granularity, type Period, type PedidosP } from "@/lib/panel-period";
 import { pedidosHref, type PedidosKpis } from "@/lib/pedidos-kpis";
 import type { SeriesData } from "@/lib/panel-layout";
 import { MiniBars } from "@/components/panel/PanelCharts";
@@ -19,6 +19,8 @@ export type PedidosAlerts = { pagosProveedor: number; lotes: number; margen: num
 type Props = {
   p: PedidosP;
   period: Period | null;
+  /** `p` viene de la URL: la tabla filtra por periodo. Si no, el periodo solo rige las cifras de la cabecera. */
+  explicit: boolean;
   dateBase: "created" | "paid";
   filtro: string;
   q: string;
@@ -33,13 +35,13 @@ const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outli
 const CTRL = `rounded-lg border border-slate-600 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:border-slate-400 ${FOCUS}`;
 const eur = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(cents / 100);
 
-function Delta({ metric, value, prev }: { metric: Metric; value: number; prev: number | undefined }) {
+function Delta({ label, metric, value, prev }: { label: string; metric: Metric; value: number; prev: number | undefined }) {
   const d = formatDelta(metric, value, prev);
   if (!d) return <p className="mt-1 text-xs text-slate-500">Sin base de comparación</p>;
   const tone = d.sign > 0 ? "text-emerald-400" : d.sign < 0 ? "text-red-400" : "text-slate-400";
   return (
     <p className={`mt-1 text-xs tabular-nums ${tone}`}>
-      {d.sign > 0 ? "▲" : d.sign < 0 ? "▼" : "■"} {d.text} <span className="text-slate-500">vs anterior</span>
+      {d.sign > 0 ? "▲" : d.sign < 0 ? "▼" : "■"} {d.text} <span className="text-slate-500">{label}</span>
     </p>
   );
 }
@@ -100,12 +102,13 @@ function Breakdown({ title, rows }: { title: string; rows: AggRow[] }) {
   );
 }
 
-export default function PedidosHeader({ p, period, dateBase, filtro, q, vista, kpis, alerts, money }: Props) {
+export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q, vista, kpis, alerts, money }: Props) {
+  const cmp = compareLabel(period);
   const anchor = period?.anchor ?? todayMadrid();
-  const link = (o: Parameters<typeof pedidosHref>[0]) => pedidosHref({ p, d: anchor, base: dateBase, vista, filtro, q, ...o });
+  const link = (o: Parameters<typeof pedidosHref>[0]) => pedidosHref({ ...(explicit ? { p, d: anchor } : {}), base: dateBase, vista, filtro, q, ...o });
   // Los KPIs de «ahora» (por entregar, por cobrar) y las alertas ignoran el periodo: llevan a «Todo» para que la tabla cuadre.
-  const stock = (f: string) => link({ p: "todo", filtro: f, q: "" });
-  const cobradoHref = link({ filtro: "cobrados", base: "paid", q: "" });
+  const stock = (f: string) => link({ p: "todo", base: "created", filtro: f, q: "" });
+  const cobradoHref = link({ p, d: anchor, filtro: "cobrados", base: "paid", q: "" });
   const chips = [
     { n: alerts.pagosProveedor, text: `${alerts.pagosProveedor} pago${alerts.pagosProveedor === 1 ? "" : "s"} a traductores pendiente${alerts.pagosProveedor === 1 ? "" : "s"}`, f: "pago-proveedor-pendiente", tone: "rose" },
     { n: alerts.lotes, text: `${alerts.lotes} lote${alerts.lotes === 1 ? "" : "s"} vencido${alerts.lotes === 1 ? "" : "s"}`, f: "lote-pendiente", tone: "amber" },
@@ -138,13 +141,13 @@ export default function PedidosHeader({ p, period, dateBase, filtro, q, vista, k
         <div className="flex items-center gap-1">
           {period ? (
             <>
-              <Link href={link({ d: shiftAnchor(p as Granularity, anchor, -1) })} aria-label="Periodo anterior" className={CTRL}>
+              <Link href={link({ p, d: shiftAnchor(p as Granularity, anchor, -1) })} aria-label="Periodo anterior" className={CTRL}>
                 ←
               </Link>
               <span className="min-w-[8rem] text-center text-sm font-medium capitalize tabular-nums text-white" aria-live="polite">
                 {period.label}
               </span>
-              <Link href={link({ d: shiftAnchor(p as Granularity, anchor, 1) })} aria-label="Periodo siguiente" className={CTRL}>
+              <Link href={link({ p, d: shiftAnchor(p as Granularity, anchor, 1) })} aria-label="Periodo siguiente" className={CTRL}>
                 →
               </Link>
             </>
@@ -167,16 +170,16 @@ export default function PedidosHeader({ p, period, dateBase, filtro, q, vista, k
         {money && (
           <>
             <Kpi href={cobradoHref} active={filtro === "cobrados" && dateBase === "paid"} label="Cobrado sin IVA" value={formatValue("ingresos_netos", money.cobrado.value)}>
-              <Delta metric="ingresos_netos" value={money.cobrado.value} prev={money.cobrado.prev} />
+              <Delta label={cmp} metric="ingresos_netos" value={money.cobrado.value} prev={money.cobrado.prev} />
             </Kpi>
             <Kpi href={cobradoHref} active={false} label="Margen" value={formatValue("margen_eur", money.margenEur.value)}>
               <p className="mt-1 text-xs tabular-nums text-slate-300">{formatValue("margen_pct", money.margenPct)}</p>
-              <Delta metric="margen_eur" value={money.margenEur.value} prev={money.margenEur.prev} />
+              <Delta label={cmp} metric="margen_eur" value={money.margenEur.value} prev={money.margenEur.prev} />
             </Kpi>
           </>
         )}
-        <Kpi href={link({ filtro: "todos", base: "created", q: "" })} active={filtro === "todos" && dateBase === "created"} label="Pedidos nuevos" value={formatValue("pedidos", kpis.nuevos.value)}>
-          <Delta metric="pedidos" value={kpis.nuevos.value} prev={kpis.nuevos.prev} />
+        <Kpi href={link({ p, d: anchor, filtro: "todos", base: "created", q: "" })} active={filtro === "todos" && dateBase === "created"} label="Pedidos nuevos" value={formatValue("pedidos", kpis.nuevos.value)}>
+          <Delta label={cmp} metric="pedidos" value={kpis.nuevos.value} prev={kpis.nuevos.prev} />
         </Kpi>
         <Kpi href={stock("por-entregar")} active={filtro === "por-entregar"} label="Por entregar" value={String(kpis.porEntregar.count)}>
           <p className="mt-1 text-xs text-slate-300">

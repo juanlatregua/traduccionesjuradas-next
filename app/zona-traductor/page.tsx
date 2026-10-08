@@ -75,7 +75,7 @@ export default async function ZonaTraductorPedidosPage({
   const email = await authZonaTraductorOrRedirect();
   const state = await loadControlState(searchParams);
   const vista = searchParams.vista === "tabla" ? "tabla" : "cards";
-  const { orders, bandejaOrders, allActive, counts, kpis, alerts, criticalFinanceOrders, p, period, dateBase, filtro, qRaw } = state;
+  const { orders, bandejaOrders, allActive, counts, kpis, alerts, criticalFinanceOrders, p, period, explicitPeriod, dateBase, filtro, qRaw } = state;
   const isAdmin = getStaffRole(email) === "ADMIN";
   const money = isAdmin ? await loadMoney(period) : null;
 
@@ -97,6 +97,7 @@ export default async function ZonaTraductorPedidosPage({
           <PedidosHeader
             p={p}
             period={period}
+            explicit={explicitPeriod}
             dateBase={dateBase}
             filtro={filtro}
             q={qRaw}

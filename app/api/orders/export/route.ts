@@ -5,7 +5,7 @@ import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState } from "@/lib/workflow";
 import { inRange } from "@/lib/pedidos-kpis";
 import { matchesHeaderFilter } from "@/lib/pedidos-filters";
-import { parsePedidosP, periodBounds, resolvePedidosPeriod, type Period } from "@/lib/panel-period";
+import { periodBounds, tablePeriod, type Period } from "@/lib/panel-period";
 
 export const runtime = "nodejs";
 
@@ -120,7 +120,8 @@ export async function GET(req: Request) {
     const filtro = String(url.searchParams.get("filtro") || "todos");
     const qRaw = String(url.searchParams.get("q") || "").trim();
     const q = qRaw.toLowerCase();
-    const period = resolvePedidosPeriod(parsePedidosP(url.searchParams.get("p")), url.searchParams.get("d"));
+    // Sin `p` (o con búsqueda) se exporta todo el histórico, como la tabla.
+    const period = tablePeriod(url.searchParams.get("p"), url.searchParams.get("d"), qRaw);
     const dateBase = normalizeDateBase(url.searchParams.get("base"));
 
     const allOrders = await getAllOrdersForStaff();
@@ -142,7 +143,7 @@ export async function GET(req: Request) {
 
     const filteredOrders = scopedOrders.filter((order) => {
       if (filtro === "archivados") return order.isArchived;
-      if (order.isArchived) return false;
+      if (order.isArchived && filtro !== "cobrados") return false;
 
       const header = matchesHeaderFilter(order, filtro);
       if (header !== undefined) return header;
