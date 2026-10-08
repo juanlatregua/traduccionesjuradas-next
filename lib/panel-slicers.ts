@@ -50,10 +50,11 @@ export function segmentOf(o: SegmentInput): Segment {
 const norm = (s: string) => s.trim().toLowerCase();
 
 /** `get` lee un parámetro de la URL. Cada valor va con encodeURIComponent y se separa por comas: f_lengua=nl,de */
-export function parseSlicers(get: (param: string) => string | null | undefined): Slicers {
+export function parseSlicers(get: (param: string) => string | string[] | null | undefined): Slicers {
   const out: Slicers = {};
   for (const s of SLICERS) {
-    const raw = get(s.param);
+    const got = get(s.param);
+    const raw = Array.isArray(got) ? got.join(",") : got;
     if (!raw) continue;
     const values = raw
       .split(",")

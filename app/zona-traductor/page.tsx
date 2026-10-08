@@ -39,7 +39,7 @@ export const metadata: Metadata = {
 // el resto recibe únicamente recuentos del desglose.
 async function loadPanel(period: Period | null, slicers: Slicers, ver: string | undefined, met: string | undefined, isAdmin: boolean) {
   const effective = period ?? allTimePeriod();
-  const loaded = await loadPanelData(effective);
+  const loaded = await loadPanelData(effective, { ordersOnly: !isAdmin });
   const current = filterPanelData(loaded.current, slicers);
   const previous = period ? filterPanelData(loaded.previous, slicers) : undefined;
   const sel = parseBreakdown(ver, met, isAdmin);

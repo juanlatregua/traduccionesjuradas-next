@@ -282,7 +282,9 @@ export function aggregate(
   if (dimension === "total") {
     return [{ label: "Total", value: value(cur, "Total"), ...(prev ? { compareValue: value(prev, "Total") } : {}) }];
   }
-  const rows = [...cur.keys()].map((label) => ({
+  // Con comparación, las filas son la unión de claves: así «Anterior» suma lo mismo que el KPI anterior.
+  const keys = prev ? [...new Set([...cur.keys(), ...prev.keys()])] : [...cur.keys()];
+  const rows = keys.map((label) => ({
     label,
     value: value(cur, label),
     ...(prev ? { compareValue: value(prev, label) } : {}),

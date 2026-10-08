@@ -115,3 +115,27 @@ test("desglose: un PM solo ve recuentos", () => {
 test("pedidosHref conserva los segmentadores", () => {
   assert.equal(pedidosHref({ p: "todo", f: { lengua: ["NL"], trad: ["Daniela"] } }), "/zona-traductor?p=todo&f_lengua=NL&f_trad=Daniela");
 });
+
+test("desglose con comparación: unión de claves, «Anterior» suma lo del KPI anterior", () => {
+  const period = buildPeriod("mes", undefined, NOW);
+  const prev: PanelData = {
+    ...data,
+    orders: [
+      { ...panelRow(base[0]), paidAt: "2026-09-05T10:00:00.000Z" },
+      { ...panelRow(base[1]), assignedTo: "Solo-anterior", paidAt: "2026-09-06T10:00:00.000Z" },
+    ],
+  };
+  const sel = parseBreakdown("trad", "pedidos", true);
+  const rows = buildBreakdown(data, prev, { dimension: sel.dimension, metric: sel.metric.metric, period });
+  const only = rows.find((r) => r.label === "Solo-anterior")!;
+  assert.equal(only.value, 0);
+  assert.equal(only.prev, 1);
+  assert.equal(rows.reduce((a, r) => a + (r.prev ?? 0), 0), computeTotals(prev, "pedidos"));
+  const without = buildBreakdown(data, undefined, { dimension: sel.dimension, metric: sel.metric.metric, period });
+  assert.equal(without.some((r) => r.label === "Solo-anterior"), false);
+});
+
+test("parseSlicers acepta parámetros repetidos (array de Next)", () => {
+  assert.deepEqual(parseSlicers((k) => (k === "f_lengua" ? ["nl", "de"] : undefined)), { lengua: ["nl", "de"] });
+  assert.deepEqual(parseSlicers((k) => (k === "f_trad" ? [] : undefined)), {});
+});

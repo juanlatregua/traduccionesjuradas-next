@@ -542,7 +542,7 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     riesgo: allBooks.filter(hasFinancialRisk).length,
   };
 
-  const criticalFinanceOrders = allActiveRaw.filter((o) => isOrderInBooks(o))
+  const criticalFinanceOrders = allBooks
     .filter(
       (o) =>
         hasFinancialRisk(o) ||

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAllOrdersForStaff } from "@/lib/orders";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { getStaffRole } from "@/lib/staff-access";
 import { getFinanceSnapshot } from "@/lib/finance";
 import { getWorkflowState } from "@/lib/workflow";
 import { inRange } from "@/lib/pedidos-kpis";
@@ -169,6 +170,8 @@ export async function GET(req: Request) {
       }
     });
 
+    // Coste y margen del traductor solo para ADMIN.
+    const isAdmin = getStaffRole(staff.email) === "ADMIN";
     const header = csvRow([
       "Referencia",
       "Titulo",
@@ -186,10 +189,7 @@ export async function GET(req: Request) {
       "Archivado",
       "RiesgoFinanciero",
       "Conciliacion",
-      "FacturaProveedor",
-      "MargenPct",
-      "MargenEUR",
-      "AlertasFinancieras",
+      ...(isAdmin ? ["FacturaProveedor", "MargenPct", "MargenEUR", "AlertasFinancieras"] : []),
     ]);
 
     const lines = filteredOrders.map((order) => {
@@ -214,10 +214,14 @@ export async function GET(req: Request) {
         order.isArchived ? "SI" : "NO",
         hasFinancialRisk(order) ? "SI" : "NO",
         order.financeSnapshot.reconciliationStatus,
-        order.financeSnapshot.supplierInvoiceStatus,
-        order.financeSnapshot.marginPct === null ? "" : order.financeSnapshot.marginPct,
-        order.financeSnapshot.marginCents === null ? "" : formatMoney(order.financeSnapshot.marginCents),
-        warnings,
+        ...(isAdmin
+          ? [
+              order.financeSnapshot.supplierInvoiceStatus,
+              order.financeSnapshot.marginPct === null ? "" : order.financeSnapshot.marginPct,
+              order.financeSnapshot.marginCents === null ? "" : formatMoney(order.financeSnapshot.marginCents),
+              warnings,
+            ]
+          : []),
       ]);
     });
 
