@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail, buildTranslationReadyEmail } from "@/lib/email";
+import { resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
+import { normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
-import { buildSignedOrderUrl } from "@/lib/order-token";
 import {
   addBusinessDays,
   formatEta,
@@ -11,6 +12,7 @@ import {
   getMadridBusinessBaseDate,
   suggestEtaBusinessDays,
 } from "@/lib/eta";
+import { buildSignedOrderUrl } from "@/lib/order-token";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { isOrderSecured } from "@/lib/credit-terms";
 import { getWorkflowState } from "@/lib/workflow";
@@ -33,6 +35,12 @@ type DeliveryBody = {
   // translatedFileUrl (compat); todos se adjuntan al email y se guardan en lista.
   files?: DeliveryFile[];
   notifyClient?: boolean;
+  // Panel «Entregar al cliente»: archivos ya subidos que se envían (por URL),
+  // datos fiscales revisados (emiten/corrigen la factura antes del email) y el
+  // texto del mensaje editado por el staff.
+  fileUrls?: string[];
+  billing?: Record<string, unknown>;
+  message?: string;
   etaDate?: string;
   autoEta?: boolean;
 };
@@ -58,12 +66,18 @@ export async function POST(req: Request, { params }: Params) {
     const translatedMimeType = (body.translatedMimeType || "").trim();
     const etaDateRaw = (body.etaDate || "").trim();
 
+    // Traducciones ya entregadas (lista multi-archivo + campo único legacy).
+    const existingDelivered: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
+      ? (order.deliveryFilesJson as unknown as DeliveryFile[]).filter(
+          (f) => f && typeof f.url === "string" && f.url.trim()
+        )
+      : [];
     // Lista de entrega: usa body.files si llega; si no, retrocompat con el campo
     // único. El primero es el "primario" (translatedFileUrl) para páginas/SMS/email.
     const extraFiles = Array.isArray(body.files)
       ? body.files.filter((f) => f && typeof f.url === "string" && f.url.trim())
       : [];
-    const deliveryFiles =
+    const uploadedFiles =
       extraFiles.length > 0
         ? extraFiles.map((f) => ({
             url: f.url.trim(),
@@ -74,6 +88,23 @@ export async function POST(req: Request, { params }: Params) {
         : translatedFileUrl
           ? [{ url: translatedFileUrl, fileKey: translatedFileKey || null, filename: translatedFilename || null, mimeType: translatedMimeType || null }]
           : [];
+    // Archivos ya subidos que el staff deja marcados en el panel: se resuelven
+    // contra los del pedido (una URL desconocida se ignora).
+    const knownFiles: DeliveryFile[] =
+      existingDelivered.length > 0
+        ? existingDelivered
+        : order.finalDeliveryFileUrl || order.translatedFileUrl
+          ? [
+              {
+                url: (order.finalDeliveryFileUrl || order.translatedFileUrl) as string,
+                filename: order.finalFilename || null,
+              },
+            ]
+          : [];
+    const selectedFiles = (Array.isArray(body.fileUrls) ? body.fileUrls : [])
+      .map((u) => knownFiles.find((f) => f.url === u))
+      .filter((f): f is DeliveryFile => !!f && !uploadedFiles.some((n) => n.url === f.url));
+    const deliveryFiles = [...uploadedFiles, ...selectedFiles];
     const primaryFileUrl = deliveryFiles[0]?.url || translatedFileUrl;
 
     // "Cobrado" o "asegurado" (crédito: factura emitida con vencimiento). Ver
@@ -82,6 +113,13 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json(
         { ok: false, error: "No se puede avanzar la entrega en pedidos pendientes de pago (ni autorizados a crédito)." },
         { status: 400 }
+      );
+    }
+
+    if (state === "EN_PROCESO" && (getWorkflowState(order) === "CERRADO" || order.deliveryState === "TRADUCIDO")) {
+      return NextResponse.json(
+        { ok: false, error: "El pedido ya está entregado: no se puede volver a «En proceso»." },
+        { status: 409 }
       );
     }
 
@@ -134,12 +172,6 @@ export async function POST(req: Request, { params }: Params) {
       }
     }
 
-    // Traducciones ya entregadas (lista multi-archivo + campo único legacy).
-    const existingDelivered: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
-      ? (order.deliveryFilesJson as unknown as DeliveryFile[]).filter(
-          (f) => f && typeof f.url === "string" && f.url.trim()
-        )
-      : [];
     const knownUrls = new Set(
       [...existingDelivered.map((f) => f.url), order.finalDeliveryFileUrl, order.translatedFileUrl].filter(
         (u): u is string => typeof u === "string" && u.trim().length > 0
@@ -244,31 +276,55 @@ export async function POST(req: Request, { params }: Params) {
         .catch((err) => console.error("[orders-delivery] correction event failed", err));
     }
 
-    const statusUrl = buildSignedOrderUrl(order.reference, "estado");
-    const deliveryLang = order.clientLocale === "fr" ? "fr" : "es";
+    const deliveryLang = toDeliveryLang(order.clientLocale);
+    const warnings: string[] = [];
+    let invoiceNumber: string | null = null;
 
     if (state === "EN_PROCESO" && etaDate) {
       sendTranslationEtaEmail({
         toEmail: order.clientEmail,
         reference: order.reference,
         etaDateLabel: formatEta(etaDate),
-        statusUrl,
-        lang: deliveryLang,
+        statusUrl: buildSignedOrderUrl(order.reference, "estado"),
+        lang: deliveryLang === "fr" ? "fr" : "es",
       }).catch((e) => console.error("[orders-delivery] eta email failed", e));
     }
 
     if (body.notifyClient && state === "TRADUCIDO" && primaryFileUrl) {
+      // 0) Factura ANTES del email: datos fiscales revisados → emitir / corregir
+      //    destinatario si aún no salió. Solo si el panel manda `billing`.
+      if (body.billing) {
+        try {
+          const prepared = await prepareDeliveryInvoice({
+            orderId: order.id,
+            amountCents: order.amountCents,
+            billingExcluded: order.billingExcluded,
+            paymentMethod: order.paymentMethod,
+            monthlyInvoiceId: order.monthlyInvoiceId,
+            billing: normalizeBillingInput(body.billing, order.clientEmail),
+            actorEmail,
+          });
+          if (prepared.warning) warnings.push(prepared.warning);
+        } catch (invErr: any) {
+          console.error("[orders-delivery] invoice prepare failed", invErr);
+          warnings.push(`No se pudo preparar la factura (${invErr?.message || "error"}): se ha enviado sin ella.`);
+        }
+      }
+      const invAttach = await buildIssuedInvoiceAttachment(order.reference);
+      invoiceNumber = invAttach ? invAttach.name.replace(/\.pdf$/i, "") : null;
+
       // 1) Registrar QUE se envia al cliente, SINCRONO y antes de responder: el
       //    contenido exacto (asunto + cuerpo) queda en OrderEvent aunque el envio
       //    de fondo no llegue a completarse en serverless. Es lo que Juan necesita
       //    poder ver ("¿que mensaje recibio el cliente?").
+      // El panel previsualiza «(nº al emitir)» cuando la factura aún no existe: aquí ya tiene número.
+      const customMessage = resolveInvoicePlaceholder(body.message || "", invoiceNumber).trim() || null;
       const composed = buildTranslationReadyEmail({
         reference: order.reference,
-        downloadUrl: primaryFileUrl,
-        statusUrl,
         lang: deliveryLang,
-        translationAttached: deliveryFiles.length > 0,
-        invoiceAttached: false, // el adjunto de factura se resuelve al enviar; el log refleja la traduccion
+        clientName: order.clientName,
+        invoiceNumber,
+        message: customMessage,
         correction: isCorrection,
       });
       await prisma.orderEvent
@@ -288,6 +344,8 @@ export async function POST(req: Request, { params }: Params) {
               downloadUrl: primaryFileUrl,
               fileCount: deliveryFiles.length,
               correction: isCorrection,
+              invoiceAttached: !!invAttach,
+              invoiceNumber,
             },
           },
         })
@@ -297,28 +355,27 @@ export async function POST(req: Request, { params }: Params) {
       //    background para no bloquear la respuesta de la entrega.
       void (async () => {
         const multi = deliveryFiles.length > 1;
-        const [fileAttachments, invAttach] = await Promise.all([
-          Promise.all(
-            deliveryFiles.map((f, i) =>
-              fetchFileAsAttachment(
-                f.url,
-                f.filename || `Traduccion-jurada-${order.reference}${multi ? `-${i + 1}` : ""}.pdf`
-              )
+        const fileAttachments = await Promise.all(
+          deliveryFiles.map((f, i) =>
+            fetchFileAsAttachment(
+              f.url,
+              f.filename || `Traduccion-jurada-${order.reference}${multi ? `-${i + 1}` : ""}.pdf`
             )
-          ),
-          buildIssuedInvoiceAttachment(order.reference),
-        ]);
+          )
+        );
         const transAttachments = fileAttachments.filter(Boolean) as NonNullable<(typeof fileAttachments)[number]>[];
         const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
+        const fallbackLinks = deliveryFiles.filter((_, i) => !fileAttachments[i]).map((f) => f.url);
         await sendEmailWithRetry(() =>
           sendTranslationReadyEmail({
             toEmail: order.clientEmail,
             reference: order.reference,
-            downloadUrl: primaryFileUrl!,
             lang: deliveryLang,
-            statusUrl,
+            clientName: order.clientName,
+            invoiceNumber,
+            message: customMessage,
+            fallbackLinks,
             attachments,
-            translationAttached: transAttachments.length > 0,
             invoiceAttached: !!invAttach,
             correction: isCorrection,
           })
@@ -332,6 +389,8 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({
       ok: true,
       correction: isCorrection,
+      invoiceNumber,
+      warnings,
       etaDate: etaDate ? etaDate.toISOString().slice(0, 10) : null,
     });
   } catch (err: any) {

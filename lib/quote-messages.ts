@@ -1,5 +1,5 @@
-import { formatDateEs } from "@/lib/quotes";
-import { PAYMENT_LABELS } from "@/lib/payment-labels";
+import { formatDateEs } from "./quotes.ts";
+import { PAYMENT_LABELS } from "./payment-labels.ts";
 
 export { PAYMENT_LABELS };
 
@@ -15,9 +15,20 @@ type CommonData = {
 
 function translatorLine(name?: string | null, maec?: string | null): string {
   if (!name) return "";
-  return maec
-    ? `Su traducción la realiza ${name}, traductor/a-intérprete jurado/a nº ${maec} nombrado/a por el Ministerio de Asuntos Exteriores (MAEC).`
-    : `Su traducción la realiza ${name}, traductor/a-intérprete jurado/a nombrado/a por el Ministerio de Asuntos Exteriores (MAEC).`;
+  return ` (lo realiza ${name}, traductor/a-intérprete jurado/a${maec ? ` nº ${maec}` : ""})`;
+}
+
+// Enlace directo al pago con tarjeta: solo para /q/<token> (la página que lo
+// entiende con ?pago=tarjeta). Un enlace firmado de pedido no lo lleva.
+export function cardPayUrl(payUrl: string): string | null {
+  try {
+    const u = new URL(payUrl);
+    if (!u.pathname.startsWith("/q/")) return null;
+    u.searchParams.set("pago", "tarjeta");
+    return u.toString();
+  } catch {
+    return null;
+  }
 }
 
 export function renderSimpleEmailHtml(body: string) {
@@ -49,29 +60,31 @@ export function renderSimpleEmailHtml(body: string) {
   `;
 }
 
-export function buildPayLinkEmail(data: CommonData & { paymentMethods?: string[] }) {
+export function buildPayLinkEmail(
+  data: CommonData & { paymentMethods?: string[]; deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP" | null }
+) {
   const subject = "Presupuesto traducción jurada – Instrucciones de pago";
-  const jurado = translatorLine(data.translatorName, data.translatorMaec);
-  // Las formas de pago son LAS DEL PRESUPUESTO, no una lista fija. Antes aquí
-  // iba escrito a fuego "Bizum / Transferencia / PayPal", así que el email
-  // ofrecía PayPal aunque Juan hubiera elegido solo Sabadell y Bizum, y se
-  // callaba las cuentas concretas. El WhatsApp sí las leía (buildWhatsAppPayText):
-  // esta era la única de las dos vías que mentía.
+  // Las formas de pago son LAS DEL PRESUPUESTO, no una lista fija (antes el email
+  // ofrecía PayPal aunque Juan solo hubiera elegido Sabadell y Bizum).
   const methods = (data.paymentMethods && data.paymentMethods.length > 0
     ? data.paymentMethods
     : ["sabadell", "bizum607"]
   ).filter((m) => PAYMENT_LABELS[m]);
   const payLines = methods.map((m, i) => `${i + 1}. ${PAYMENT_LABELS[m]}`).join("\n");
-  const body = `Estimado/a ${data.name},
-Le enviamos el presupuesto correspondiente a su traducción jurada.
-${jurado ? `${jurado}\n` : ""}Puede revisarlo y realizar el pago de forma segura aquí: ${data.payUrl}
-Formas de pago:
-${payLines}
-Si ha seleccionado envío en papel, los gastos de envío son 12 € + IVA (incluidos en el total).
-${data.proofUrl ? `¿Ya has pagado por transferencia? Adjunta el justificante aquí: ${data.proofUrl}\n` : ""}Una vez confirmado el pago, comenzaremos la traducción de inmediato.
-Si el PDF que nos envió no era totalmente legible, aquí le explicamos cómo escanear mejor la próxima vez: https://www.traduccionesjuradas.net/como-escanear-bien
-Puedes escribirnos en tu idioma: te respondemos en él.
-Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
+  const card = cardPayUrl(data.payUrl);
+  const extras = [
+    data.deliveryType === "PAPER_SHIP" ? "El envío en papel cuesta 12 € + IVA (incluido en el total)." : "",
+    data.proofUrl ? `Si ya ha pagado por transferencia, adjunte el justificante aquí: ${data.proofUrl}` : "",
+  ].filter(Boolean);
+  const body = [
+    `Estimado/a ${data.name}:`,
+    `Le enviamos el presupuesto de su traducción jurada${translatorLine(data.translatorName, data.translatorMaec)}.`,
+    [card ? `Pagar con tarjeta: ${card}` : "", `Ver el presupuesto: ${data.payUrl}`].filter(Boolean).join("\n"),
+    `${card ? "También puede pagar" : "Puede pagar"}:\n${payLines}`,
+    ...(extras.length ? [extras.join("\n")] : []),
+    "En cuanto recibamos el pago empezamos la traducción.",
+    "Un saludo,\nJuan Silva — TraduccionesJuradas.net",
+  ].join("\n\n");
 
   return { subject, body };
 }
@@ -127,6 +140,7 @@ export function buildWhatsAppPayText(data: {
     jurado,
     data.plazo ? `- 🕙 El plazo es de ${data.plazo}.` : "",
     entrega,
+    data.payUrl && cardPayUrl(data.payUrl) ? `- 💳 Pagar con tarjeta: ${cardPayUrl(data.payUrl)}` : "",
     `- 🤝 Para confirmar su encargo puede hacer el pago:`,
     payLines,
     data.proofUrl

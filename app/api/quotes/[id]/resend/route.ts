@@ -46,6 +46,10 @@ export async function POST(req: Request, { params }: Params) {
       name: quote.customerName || "cliente",
       payUrl,
       proofUrl,
+      translatorName: quote.translatorName,
+      translatorMaec: quote.translatorMaec,
+      paymentMethods: quote.paymentMethods,
+      deliveryType: quote.deliveryType,
     });
     // Guardia anti-Graph: si el email es un marcador de WhatsApp (no entregable),
     // NO intentamos enviar (antes esto provocaba un 500). Se devuelve el texto de

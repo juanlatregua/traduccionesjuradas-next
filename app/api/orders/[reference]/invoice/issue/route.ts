@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { issueOrUpdateInvoice, suggestNextInvoiceNumber } from "@/lib/client-invoice";
+import { isSimplifiedInvoice } from "@/lib/delivery-billing";
 
 export const runtime = "nodejs";
 
@@ -87,7 +88,7 @@ export async function POST(req: Request, { params }: Params) {
   // Sin NIF y ≤400€ (venta web a particular): factura SIMPLIFICADA, no Completa con
   // NIF en blanco (fiscalmente inválida). Coherente con ReconcilePanel. El body puede forzarlo.
   const simplified =
-    typeof body.simplified === "boolean" ? body.simplified : !billing.nif && order.amountCents <= 40000;
+    typeof body.simplified === "boolean" ? body.simplified : isSimplifiedInvoice(billing.nif, order.amountCents);
 
   try {
     const invoice = await issueOrUpdateInvoice({

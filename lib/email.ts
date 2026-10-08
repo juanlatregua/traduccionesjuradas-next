@@ -7,6 +7,14 @@ import { blobDownloadUrl } from "@/lib/blob-download-url";
 import type { MailAttachment } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { escapeHtml } from "@/lib/collaborator-emails";
+import {
+  appendDownloadLinks,
+  buildDeliveryText,
+  deliveryTextToHtml,
+  deliverySubject,
+  getReviewUrl,
+  type DeliveryLang,
+} from "@/lib/delivery-message";
 import { NUDGE_COPY, type NudgeLocale } from "@/lib/lead-nudge";
 
 // Copia de archivo: toda entrega al cliente (traducción y/o factura adjunta) se
@@ -244,106 +252,42 @@ export async function sendPresupuestoConfirmationEmail(payload: PresupuestoPaylo
 // registro de "qué se envió" no debe depender de él.
 export function buildTranslationReadyEmail(data: {
   reference: string;
-  downloadUrl: string;
-  statusUrl?: string;
-  lang?: "es" | "fr";
-  translationAttached?: boolean;
-  invoiceAttached?: boolean;
-  // Corrección tras la entrega: la nueva versión sustituye a la anterior. Cambia
-  // asunto/cabecera y no vuelve a pedir reseña.
+  lang?: DeliveryLang;
+  clientName?: string | null;
+  invoiceNumber?: string | null;
+  // Cuerpo editado por el staff en el panel de entrega; sustituye al texto por defecto.
+  message?: string | null;
+  // Enlaces de los archivos que no cupieron como adjunto.
+  fallbackLinks?: string[];
   correction?: boolean;
 }): { subject: string; html: string } {
-  const fr = data.lang === "fr";
-  const correction = data.correction === true;
-  // Ficha de Google de HBTJ (CID de la URL de Maps). El env puede sobreescribirlo
-  // (p.ej. con el enlace corto g.page/r/.../review para reseña de un clic), pero
-  // solo si es una URL http válida; si no, se usa el fallback fiable.
-  const envReview = (process.env.NEXT_PUBLIC_GOOGLE_REVIEWS_URL_TJ || "").trim();
-  const reviewUrl = envReview.startsWith("http")
-    ? envReview
-    : "https://www.google.com/maps?cid=1858671208989418611";
-
-  // Enlace de reseña directo y prominente.
-  const reviewBlock = reviewUrl && !correction
-    ? (fr
-        ? `<p style="margin-top:20px;">Merci de laisser un commentaire sur notre travail, cela nous aide énormément :</p>
-           <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:11px 26px; border-radius:8px; text-decoration:none; font-weight:600;">⭐ Laisser un avis Google</a></p>`
-        : `<p style="margin-top:20px;">Gracias por dejar un comentario sobre nuestro trabajo, nos ayuda muchísimo:</p>
-           <p><a href="${reviewUrl}" style="display:inline-block; background:#059669; color:#fff; padding:11px 26px; border-radius:8px; text-decoration:none; font-weight:600;">⭐ Dejar una reseña en Google</a></p>`)
-    : "";
-
-  const attachLine = data.translationAttached
-    ? (fr
-        ? `<p><strong>Vous trouverez votre traduction assermentée en pièce jointe${data.invoiceAttached ? ", ainsi que votre facture" : ""}.</strong></p>`
-        : `<p><strong>Adjuntamos tu traducción jurada${data.invoiceAttached ? " y tu factura" : ""} en este correo.</strong></p>`)
-    : "";
-
-  const backupLink = data.translationAttached
-    ? (fr
-        ? `<p style="font-size:13px; color:#6b7280;">Lien de téléchargement (sauvegarde) : <a href="${data.downloadUrl}">${data.downloadUrl}</a></p>`
-        : `<p style="font-size:13px; color:#6b7280;">Enlace de descarga (por si acaso): <a href="${data.downloadUrl}">${data.downloadUrl}</a></p>`)
-    : (fr
-        ? `<p>Vous pouvez télécharger votre fichier ici : <a href="${data.downloadUrl}">${data.downloadUrl}</a></p>`
-        : `<p>Puedes descargar tu archivo desde este enlace: <a href="${data.downloadUrl}">${data.downloadUrl}</a></p>`);
-
-  const statusLine = data.statusUrl
-    ? (fr
-        ? `<p style="font-size:13px; color:#6b7280;">Vous pouvez aussi <a href="${data.statusUrl}">suivre l'état de votre commande</a>.</p>`
-        : `<p style="font-size:13px; color:#6b7280;">También puedes <a href="${data.statusUrl}">ver el estado de tu pedido</a>.</p>`)
-    : "";
-
-  const invoiceNote = data.invoiceAttached
-    ? ""
-    : (fr
-        ? `<p>Si vous avez besoin d'une facture ou d'un envoi papier, répondez à cet e-mail.</p>`
-        : `<p>Si necesitas factura o envío en papel, responde a este correo.</p>`);
-
-  const correctionLine = correction
-    ? (fr
-        ? `<p>Cette version corrigée <strong>remplace</strong> la traduction envoyée précédemment. Merci de ne conserver que celle-ci.</p>`
-        : `<p>Esta versión corregida <strong>sustituye</strong> a la traducción que te enviamos anteriormente. Conserva solo esta.</p>`)
-    : "";
-
-  const html = fr
-    ? `
-      <h2>${correction ? "Version corrigée de votre traduction assermentée" : "Votre traduction assermentée est prête"}</h2>
-      <p>Référence : <strong>${data.reference}</strong></p>
-      ${correctionLine}
-      ${attachLine}
-      ${backupLink}
-      ${statusLine}
-      ${invoiceNote}
-      ${reviewBlock}
-    `
-    : `
-      <h2>${correction ? "Versión corregida de tu traducción jurada" : "Tu traducción jurada está lista"}</h2>
-      <p>Referencia: <strong>${data.reference}</strong></p>
-      ${correctionLine}
-      ${attachLine}
-      ${backupLink}
-      ${statusLine}
-      ${invoiceNote}
-      ${reviewBlock}
-    `;
-
-  const subject = correction
-    ? (fr
-        ? `Version corrigée de votre traduction assermentée (${data.reference})`
-        : `Versión corregida de tu traducción jurada (${data.reference})`)
-    : fr
-      ? `Votre traduction assermentée est prête (${data.reference})`
-      : `Tu traducción jurada está lista (${data.reference})`;
-  return { subject, html: wrapClientEmailHtml(html) };
+  const lang = data.lang || "es";
+  const base =
+    (data.message || "").trim() ||
+    buildDeliveryText({
+      lang,
+      name: data.clientName,
+      reference: data.reference,
+      invoiceNumber: data.invoiceNumber,
+      correction: data.correction,
+      reviewUrl: getReviewUrl(),
+    });
+  const text = appendDownloadLinks(base, lang, data.fallbackLinks || []);
+  return {
+    subject: deliverySubject(lang, data.reference, data.correction),
+    html: wrapClientEmailHtml(deliveryTextToHtml(text)),
+  };
 }
 
 export async function sendTranslationReadyEmail(data: {
   toEmail: string;
   reference: string;
-  downloadUrl: string;
-  statusUrl?: string;
-  lang?: "es" | "fr";
+  lang?: DeliveryLang;
+  clientName?: string | null;
+  invoiceNumber?: string | null;
+  message?: string | null;
+  fallbackLinks?: string[];
   attachments?: MailAttachment[];
-  translationAttached?: boolean;
   invoiceAttached?: boolean;
   correction?: boolean;
 }): Promise<{ subject: string; html: string }> {

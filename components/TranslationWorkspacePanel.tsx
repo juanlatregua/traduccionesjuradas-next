@@ -14,6 +14,9 @@ type Props = {
   // El pedido ya tiene traducción entregada al cliente (o está CERRADO): la
   // subida pasa a ser una CORRECCIÓN (nueva versión principal, email "corregida").
   alreadyDelivered?: boolean;
+  // La entrega al cliente vive en DeliveryPanel: aquí solo quedan el enlace del
+  // traductor y el estado «En proceso» con su ETA.
+  withoutDelivery?: boolean;
 };
 
 export default function TranslationWorkspacePanel({
@@ -24,12 +27,13 @@ export default function TranslationWorkspacePanel({
   existingFilename,
   translatorDeliveredAt,
   alreadyDelivered = false,
+  withoutDelivery = false,
 }: Props) {
   const router = useRouter();
   // Si el traductor ya entregó (pendiente de verificar), arrancamos en TRADUCIDO
   // para que Juan solo revise y pulse "Guardar entrega" (envía al cliente).
   const [state, setState] = useState<"EN_PROCESO" | "TRADUCIDO">(
-    currentDeliveryState === "TRADUCIDO" || translatorDeliveredAt ? "TRADUCIDO" : "EN_PROCESO"
+    !withoutDelivery && (currentDeliveryState === "TRADUCIDO" || translatorDeliveredAt) ? "TRADUCIDO" : "EN_PROCESO"
   );
   const [translatorLink, setTranslatorLink] = useState<string | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
@@ -200,7 +204,7 @@ export default function TranslationWorkspacePanel({
         <p className="mt-1 text-[11px] text-slate-500">Pásaselo al traductor; sube ahí su traducción y te aviso para verificar y enviar.</p>
       </div>
 
-      {translatorDeliveredAt && (
+      {!withoutDelivery && translatorDeliveredAt && (
         <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
           <p className="text-xs font-semibold text-amber-300">⏳ El traductor entregó — pendiente de verificar</p>
           <p className="mt-1 text-[11px] text-slate-300">
@@ -209,7 +213,7 @@ export default function TranslationWorkspacePanel({
         </div>
       )}
 
-      {existingFileUrl && (
+      {!withoutDelivery && existingFileUrl && (
         <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
           <p className="text-xs text-slate-400">Archivo actual:</p>
           <a
@@ -223,6 +227,7 @@ export default function TranslationWorkspacePanel({
         </div>
       )}
 
+      {!withoutDelivery && (
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <select
           value={state}
@@ -233,6 +238,8 @@ export default function TranslationWorkspacePanel({
           <option value="TRADUCIDO">Traducido</option>
         </select>
       </div>
+      )}
+      {!withoutDelivery && (
       <details className="mt-2" open={Boolean(url)}>
         <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
           Avanzado: traducción alojada fuera (URL externa)
@@ -245,8 +252,9 @@ export default function TranslationWorkspacePanel({
           className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
         />
       </details>
+      )}
 
-      {state === "EN_PROCESO" && (
+      {state === "EN_PROCESO" && !(withoutDelivery && alreadyDelivered) && (
         <div className="mt-3 space-y-2 rounded-xl border border-slate-700 bg-slate-900/60 p-3">
           <label className="flex items-center gap-2 text-xs text-slate-300">
             <input
@@ -270,6 +278,7 @@ export default function TranslationWorkspacePanel({
 
       {/* Subir la traducción terminada — siempre visible. Elegir un archivo ya
           marca el pedido como Traducido (listo para entregar al cliente). */}
+      {!withoutDelivery && (
       <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
         <p className="text-xs font-semibold text-emerald-300">
           {alreadyDelivered
@@ -335,6 +344,7 @@ export default function TranslationWorkspacePanel({
           </p>
         )}
       </div>
+      )}
 
       {state === "TRADUCIDO" && (
         <label className="mt-3 flex items-center gap-2 text-sm font-medium text-slate-100">
@@ -353,6 +363,7 @@ export default function TranslationWorkspacePanel({
         </label>
       )}
 
+      {!(withoutDelivery && alreadyDelivered) && (
       <button
         type="button"
         onClick={submit}
@@ -361,12 +372,15 @@ export default function TranslationWorkspacePanel({
       >
         {loading
           ? "Guardando..."
-          : delivered
+          : withoutDelivery
+            ? "Guardar ETA"
+            : delivered
             ? alreadyDelivered ? "✓ Corrección enviada" : "✓ Entregado y notificado"
             : state === "TRADUCIDO" && notifyClient
               ? alreadyDelivered ? "Enviar corrección al cliente" : "Entregar y notificar al cliente"
               : alreadyDelivered && state === "TRADUCIDO" ? "Guardar corrección" : "Guardar entrega"}
       </button>
+      )}
 
       {message && (
         <p className={`mt-2 text-xs font-semibold ${message.includes("Error") ? "text-red-300" : "text-emerald-300"}`}>

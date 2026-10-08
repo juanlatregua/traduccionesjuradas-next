@@ -197,6 +197,7 @@ function getLatestDeliveryNotification(order: any) {
     toEmail: payload.toEmail ? String(payload.toEmail) : null,
     channel: payload.channel ? String(payload.channel) : null,
     downloadUrl: payload.downloadUrl ? String(payload.downloadUrl) : null,
+    invoiceNumber: payload.invoiceNumber ? String(payload.invoiceNumber) : null,
   };
 }
 
