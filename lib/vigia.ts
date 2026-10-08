@@ -208,7 +208,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     const root = rootOf(solKeys(s));
     const solChase = solicitudChase(marksByKey.get(`r:${s.ref}`) || [], NOW);
     const solHidden = solChase.hidden;
-    const actSol: typeof act = (...args) => { if (solHidden) ocultos.push({ quien: `solicitud ${s.ref}`, motivo: solChase.reason! }); else act(...args); };
+    const actSol = (...args: Parameters<typeof act>): void => { if (solHidden) ocultos.push({ quien: `solicitud ${s.ref}`, motivo: solChase.reason! }); else act(...args); };
     const px = personExtra(root, null, { key: `r:${s.ref}`, line: solChase.line });
     // ¿La persona ya tiene presupuesto del mismo par posterior a la solicitud? (Yannick, Susana)
     const dup = duplicateOf(s, root ? solsOfRoot.get(root) || [] : [], root ? quotesOfRoot.get(root) || [] : []);
