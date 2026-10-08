@@ -209,3 +209,7 @@ export function intermediaryEmails(quotes: { email: string; expRef?: string | nu
   }
   return new Set([...by].filter(([, v]) => v.refs.size >= 2 || v.holders.size >= 2).map(([e]) => e));
 }
+
+/** «Montar presupuesto» es tarea de Juan, no un chase al cliente: solo una marca sobre ESA solicitud
+ * (clave r:<ref>) la oculta; los toques de otros presupuestos de la persona no cuentan. */
+export const solicitudChase = (marks: ChaseMark[], now: Date) => chaseState([], marks, now);

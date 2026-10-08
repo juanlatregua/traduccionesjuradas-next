@@ -4,7 +4,7 @@
 // /api/cron/vigia-agenda (email de las 8:00). Una sola fuente de verdad.
 import { prisma } from "@/lib/prisma";
 import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed, periodLabel } from "@/lib/credit-terms";
-import { PersonIndex, chaseState, consolidate, duplicateOf, intermediaryEmails, personKeys, primaryKey, textKeys, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
+import { PersonIndex, chaseState, solicitudChase, consolidate, duplicateOf, intermediaryEmails, personKeys, primaryKey, textKeys, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
 import { vigiaMarkUrl } from "@/lib/vigia-mark";
 
 const SITE = "https://www.traduccionesjuradas.net";
@@ -206,7 +206,10 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     const q = s.quoteId ? quoteById.get(s.quoteId) : null;
     const pedido = q ? null : orderOfSolicitud(s);
     const root = rootOf(solKeys(s));
-    const px = personExtra(root, null);
+    const solChase = solicitudChase(marksByKey.get(`r:${s.ref}`) || [], NOW);
+    const solHidden = solChase.hidden;
+    if (solHidden) ocultos.push({ quien: `solicitud ${s.ref}`, motivo: solChase.reason! });
+    const px = personExtra(root, null, { key: `r:${s.ref}`, line: solChase.line });
     // ¿La persona ya tiene presupuesto del mismo par posterior a la solicitud? (Yannick, Susana)
     const dup = duplicateOf(s, root ? solsOfRoot.get(root) || [] : [], root ? quotesOfRoot.get(root) || [] : []);
     const qPersona = q ? null : dup.quote;
@@ -236,11 +239,11 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     } else if ((s.status === "PRICED" || s.status === "ACCEPTED") && !q && coste != null) {
       situacion = `${s.status} ${eur(coste!)} por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
       accion = `montar presupuesto: coste ${eur(coste!)} + ${MARGIN_PCT} % = ${eur(sugerido!)} neto → ${eur(sugerido! * VAT)} con IVA`;
-      if (!isHidden(root, `solicitud ${s.ref}`)) act(sugerido!, 4, `Presupuesto a ${s.customerHint || s.ref} (${s.par}): coste ${eur(coste!)} de ${s.miembroNombre || "?"} → ${eur(sugerido!)} +IVA = ${eur(sugerido! * VAT)}`, builder, px);
+      if (!solHidden) act(sugerido!, 4, `Presupuesto a ${s.customerHint || s.ref} (${s.par}): coste ${eur(coste!)} de ${s.miembroNombre || "?"} → ${eur(sugerido!)} +IVA = ${eur(sugerido! * VAT)}`, builder, px);
     } else if (s.status === "ACCEPTED" && !q && coste == null) {
       situacion = `ACCEPTED SIN CIFRA por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
       accion = `el jurado aceptó sin pasar precio → acordar coste con ${s.miembroNombre || "el jurado"} y montar presupuesto`;
-      if (!isHidden(root, `solicitud ${s.ref}`)) act((s.words || 400) * 0.1, 4, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}): ${s.miembroNombre || "el jurado"} aceptó SIN cifra → acordar coste y montar presupuesto`, builder, px);
+      if (!solHidden) act((s.words || 400) * 0.1, 4, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}): ${s.miembroNombre || "el jurado"} aceptó SIN cifra → acordar coste y montar presupuesto`, builder, px);
     } else if ((s.status === "PRICED" || s.status === "ACCEPTED") && q) {
       situacion = `${s.status} ${coste != null ? eur(coste) : "sin cifra"} → presupuesto ${q.quoteNumber} ${q.status} (${eur(Number(q.total))})`;
     }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { intermediaryEmails, normEmail, PersonIndex, personKeys, textKeys, chaseState, consolidate, duplicateOf, primaryKey, MARK_POSPONER, MARK_TRATADO, type RawAction } from "../../lib/vigia-persona.ts";
+import { intermediaryEmails, normEmail, PersonIndex, solicitudChase, personKeys, textKeys, chaseState, consolidate, duplicateOf, primaryKey, MARK_POSPONER, MARK_TRATADO, type RawAction } from "../../lib/vigia-persona.ts";
 
 const d = (s: string) => new Date(s);
 const NOW = d("2026-10-08T09:00:00Z");
@@ -135,4 +135,12 @@ test("la marca manual oculta pero no cuenta como toque; solo MessageLog/recordat
   const c = chaseState([{ channel: "WHATSAPP", type: "DRAFT_WHATSAPP", status: "SENT", at: d("2026-10-08T07:00:00Z"), body: MARK_TRATADO }], [{ kind: "tratado", at: d("2026-10-08T07:00:00Z") }], NOW);
   assert.equal(c.hidden, true);
   assert.equal(c.touches, 0);
+});
+
+test("solicitud PRICED sin presupuesto: el recordatorio de otro presupuesto de la persona no la oculta; solo su propia marca", () => {
+  // La persona tiene un recordatorio de hace 1 día en OTRO presupuesto: no entra en el cálculo de la solicitud.
+  const otroPresupuesto = chaseState([{ channel: "EMAIL", type: "REMINDER", status: "SENT", at: d("2026-10-07T09:00:00Z") }], [], NOW);
+  assert.equal(otroPresupuesto.hidden, true);
+  assert.equal(solicitudChase([], NOW).hidden, false, "la fila «montar presupuesto» sale");
+  assert.equal(solicitudChase([{ kind: "tratado", at: NOW }], NOW).hidden, true, "su marca r:<ref> sí la oculta");
 });
