@@ -40,15 +40,14 @@ test("lavoriRouteFromPair: carriles 12-ago — rumano (Maria) e inglés (Vanessa
   assert.deepEqual(esEn.candidatos, ["43dwlkzsr6lsltpwcj32m88s"]);
 });
 
-test("lavoriRouteFromPair: carriles — pt prioriza a Cristina y María Carmen (19-sep), árabe y neerlandés multi-candidato", () => {
+test("lavoriRouteFromPair: carriles — pt prioriza a Cristina (Carmen fuera 8-oct), árabe y neerlandés multi-candidato", () => {
   const ptEs = lavoriRouteFromPair("pt->es");
   assert.ok(ptEs);
   // 19-sep (Juan): "ellas dos ponlas en prioritario de pt porque son activas".
   // Van primero y Juan Amor queda de respaldo. Carballo sigue fuera (31-ago).
   assert.deepEqual(ptEs.candidatos, [
     "nhucqnd3q4znddxhe8qs5c51", // Cristina Aguilera Viladés
-    "1h8tul4zycnayru8bsi1tmu4", // María Carmen Lencastre De Albuquerque Charrua
-    "rk1x2kq63rm6ba6mco7c6u2k", // Juan Amor (respaldo)
+    "rk1x2kq63rm6ba6mco7c6u2k", // Juan Amor (respaldo); Carmen Lencastre excluida el 8-oct (LAVORI_NO_AVISAR)
   ]);
   const arEs = lavoriRouteFromPair("ar->es");
   assert.ok(arEs);
@@ -270,7 +269,7 @@ test("applyLiveFallback: carril de alta → tal cual; parte sin alta → se quit
   const cartera = [
     { id: "nhucqnd3q4znddxhe8qs5c51", nombre: "Cristina Aguilera Viladés", langs: ["pt"], ultimaSesion: new Date().toISOString() },
     { id: "whvx8ft5w6wi50hchczh48hp", nombre: "Francisco Carballo Cruz", langs: ["pt"] },
-    { id: "1h8tul4zycnayru8bsi1tmu4", nombre: "María Carmen Lencastre", langs: ["pt"] },
+    { id: "pt-segunda", nombre: "Segunda Jurada PT", langs: ["pt"] },
     { id: "imk4gzmqp0uhyfqku9fqs0mb", nombre: "Silvia Capón Sánchez", langs: ["pt"] },
   ];
   const carrilPt = { lang: "pt", par: "PT>ES", candidatos: [amor] };
@@ -280,7 +279,7 @@ test("applyLiveFallback: carril de alta → tal cual; parte sin alta → se quit
   // Juan Amor sin alta → respaldo con la cartera viva, SIN Francisco ni Silvia
   const pt = applyLiveFallback(carrilPt, cartera, true, () => 0.5);
   assert.ok(pt.ok);
-  assert.deepEqual([...pt.route.candidatos].sort(), ["1h8tul4zycnayru8bsi1tmu4", "nhucqnd3q4znddxhe8qs5c51"]);
+  assert.deepEqual([...pt.route.candidatos].sort(), ["nhucqnd3q4znddxhe8qs5c51", "pt-segunda"]);
   assert.deepEqual(pt.respaldo?.sinAlta, [amor]);
   assert.match(pt.respaldo?.motivo || "", /RESPALDO.*Juan Amor.*Cristina/);
   // Parte del carril de alta → solo se quitan los que no lo están
@@ -306,7 +305,7 @@ test("lavoriManualRoute: el carril fijo quita a quien no está libre (lavori rec
   const fixed = lavoriRouteFromPair("ar->es");
   assert.ok(fixed && fixed.candidatos.length > 1);
   const ocupado = fixed!.candidatos[0];
-  const cartera = fixed!.candidatos.map((id) => ({ id, nombre: id, langs: ["ar"], canal: true, enPaz: false, disponible: id !== ocupado, papelUnico: false }));
+  const cartera = fixed!.candidatos.map((id) => ({ id, nombre: id, langs: ["ar"], canal: true, enPaz: false, disponible: id !== ocupado, papelUnico: true }));
   const r = lavoriManualRoute("ar->es", cartera as any);
   assert.ok(r && !r.candidatos.includes(ocupado));
   assert.equal(r!.candidatos.length, fixed!.candidatos.length - 1);

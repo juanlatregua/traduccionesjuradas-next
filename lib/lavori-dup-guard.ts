@@ -5,6 +5,7 @@
 
 import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { orderRefFromMotorRef } from "@/lib/lavori-bridge";
 import { leadDocKeys } from "@/lib/lavori-doc-keys";
 
 // ESCALATED cuenta como viva: su encargo nunca se retiró en lavori. DISCARDED y
@@ -94,7 +95,7 @@ export async function orderIdForLead(lead: { id: string; quoteId: string | null 
 /** «Lo llevo yo» (contrato 3-oct): marca en la solicitud o, para un encargo abierto
  * desde el pedido (sin solicitud), el último evento lavori.lo_llevo_yo del pedido. */
 export async function isHeldByJuan(motorRef: string, orderId?: string | null): Promise<boolean> {
-  const ref = motorRef.replace(/-precio$/, "");
+  const ref = orderRefFromMotorRef(motorRef);
   const lead = await prisma.lavoriPriceRequest.findUnique({ where: { ref }, select: { heldByJuanAt: true } });
   if (lead) return Boolean(lead.heldByJuanAt);
   if (!orderId) return false;

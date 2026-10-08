@@ -14,7 +14,7 @@ import { sendMail } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { getLanguageName } from "@/lib/pricing-engine/languages";
-import { retireLavoriEncargo, fetchLavoriCartera, isLavoriMemberAvailable, pickLavoriAuto } from "@/lib/lavori-bridge";
+import { retireLavoriEncargo, fetchLavoriCartera, isLavoriMemberAvailable, pickLavoriAuto, isLavoriNoAvisar } from "@/lib/lavori-bridge";
 import { docTypeLabelEs, leadFromPuertaSession, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { ANALYSIS_SELECT, createAutoQuote } from "@/lib/learned-rates";
 import { canAutoQuote } from "@/lib/learned-rates-math";
@@ -70,6 +70,7 @@ export async function directMembersFor(lang: string): Promise<DirectMember[]> {
   }
   const libres: DirectMember[] = [];
   for (const m of cfg.miembros) {
+    if (isLavoriNoAvisar(m.miembroId)) continue; // Carmen Lencastre: orden Juan 8-oct-2026
     const disp = await isLavoriMemberAvailable(l, m.miembroId);
     if (disp.ok) libres.push(m);
   }

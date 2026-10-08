@@ -3,8 +3,8 @@ import { findLiveLavoriDuplicate, isHeldByJuan, liveDuplicateMessage, orderIdFor
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
-import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES, isCasaPair } from "@/lib/lavori-bridge";
-import { assignLavoriAcceptance } from "@/lib/lavori-assign";
+import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES, isCasaPair, orderRefFromMotorRef } from "@/lib/lavori-bridge";
+import { assignLavoriAcceptance, syncQuoteTranslatorWithAcceptor } from "@/lib/lavori-assign";
 import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
 import { acceptanceMatchesPrice, acceptsNewPrice, isDirectLeadRequest } from "@/lib/lavori-directo-math";
 import { sendStaffAlertSMS } from "@/lib/sms";
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   const datos = body.datos ?? {};
 
   // Las solicitudes de precio viajan con ref "<referencia>-precio".
-  const reference = motorRef.replace(/-precio$/, "");
+  const reference = orderRefFromMotorRef(motorRef);
 
   // Adenda de ficheros grandes (lavori, 24-sep-2026): lavori copia los documentos en
   // segundo plano y avisa al terminar (documentos_recibidos) o si falla (copia_fallida:
@@ -204,7 +204,7 @@ export async function POST(req: Request) {
       } else if (cabeEnModelo && lead && !lprAplicado) {
         bloqueoAuto = `ya había precio de ${lead.miembroNombre || "otro jurado"} en ${lead.ref}: vale el primero.`;
       } else if (cabeEnModelo) {
-        const leadRef = motorRef.replace(/-precio$/, "");
+        const leadRef = orderRefFromMotorRef(motorRef);
         const leadAuto = leadRef.startsWith("LEAD-")
           ? await prisma.lavoriPriceRequest.findUnique({
               where: { ref: leadRef },
@@ -867,6 +867,18 @@ async function handleLeadEvento(opts: {
           ...(datos.miembroNombre ? { miembroNombre: String(datos.miembroNombre) } : {}),
         },
       });
+      // El presupuesto atado (aún sin pedido) nombra a quien ACEPTÓ, no al de la primera cifra.
+      if (lead.quoteId && datos.miembroNombre) {
+        const email = datos.miembroId ? LAVORI_MEMBER_COLLABORATOR_EMAIL[String(datos.miembroId)] : undefined;
+        const colab = email ? await prisma.collaborator.findUnique({ where: { email }, select: { fullName: true, swornNumber: true } }) : null;
+        await syncQuoteTranslatorWithAcceptor({
+          quoteId: lead.quoteId,
+          nombre: colab?.fullName || String(datos.miembroNombre),
+          maec: colab?.swornNumber ?? null,
+          miembroId: datos.miembroId ? String(datos.miembroId) : null,
+          soloSinEnviar: true,
+        }).catch((err) => console.error("[lavori-eventos] sync translator (lead) failed", err));
+      }
     }
     if (evento === "pago_marcado") {
       const pagadoEn = datos.pagadoEn && !Number.isNaN(Date.parse(String(datos.pagadoEn))) ? new Date(String(datos.pagadoEn)) : new Date();

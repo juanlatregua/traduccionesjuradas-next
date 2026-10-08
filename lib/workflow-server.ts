@@ -21,6 +21,12 @@ import {
   buildSolicitudPayload,
   sendLavoriSolicitud,
   sendLavoriPrecioAceptado,
+  isLavoriMemberAvailable,
+  isEncargoCaducado,
+  nextReactivationRef,
+  repetidoEsReactivacionPropia,
+  isRetiradaPorCaducidad,
+  motivoPedidoConTraductor,
   type LavoriRoute,
 } from "@/lib/lavori-bridge";
 import { packDocsForSobre } from "@/lib/lavori-sobre";
@@ -449,6 +455,23 @@ async function emitPrecioAceptadoIfApplicable(opts: {
         }
       }
     }
+    // Su encargo en lavori ya murió (caducó a los 3 días, el presupuesto vive 15) y
+    // lavori avisó con encargo_retirado: la solicitud quedó RETIRED con su cifra.
+    // Pagar no puede perderla: se intenta aceptar igual y, si el 409 confirma que no
+    // vive, deliverPrecioAceptado lo reactiva con SU precio. No vale la que se
+    // retiró a propósito para reabrir en otra.
+    if (!lpr) {
+      const retiradas = await prisma.lavoriPriceRequest.findMany({
+        where: { status: "RETIRED", quoteId: order.quoteId, priceCents: { gt: 0 }, miembroId: { not: null }, ...mismoPar },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+      });
+      // Solo la retirada POR CADUCIDAD en lavori, y solo si el pedido sigue sin traductor.
+      const caducada = retiradas.find((r) => isRetiradaPorCaducidad(r.notas));
+      if (caducada && !(await pedidoYaTieneTraductor(order.id))) {
+        lpr = caducada;
+      }
+    }
     if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
     if (lpr && !(lpr.priceCents && lpr.priceCents > 0)) return holdForPendingPrice(opts, lpr);
     if (lpr?.priceCents && lpr.priceCents > 0) {
@@ -686,6 +709,160 @@ async function assignAlreadyAccepted(
   return { handled: true, changed: Boolean(collaborator) };
 }
 
+// En lavori el encargo caduca a los 3 días y nuestro presupuesto a los 15 (cruce del
+// 8-oct-2026: 16 presupuestos vivos con el encargo ya cancelado). Si el cliente
+// paga entonces, precio_aceptado devuelve 409 con el estado. Un encargo MUERTO
+// (cancelado/caducado/retirado, sin nadie que lo haya aceptado) no es un conflicto
+// con otro jurado: se reactiva abriendo un dirigido NUEVO al mismo jurado con SU
+// cifra (carril «Precio ya pactado»: paraTi = su precio, su único paso es aceptar).
+// Un estado que no conocemos y sin aceptante se trata igual; con aceptante, nunca (isEncargoCaducado).
+/** ¿El pedido ya tiene traductor? assignedTo relleno, asignación ACCEPTED/DELIVERED o
+ * una asignación directa a mano («Precio ya pactado»). Con traductor, jamás se abre
+ * otro encargo a otro jurado. */
+async function pedidoYaTieneTraductor(orderId: string): Promise<string | null> {
+  const [o, asig, directa] = await Promise.all([
+    prisma.order.findUnique({ where: { id: orderId }, select: { assignedTo: true } }),
+    prisma.collaboratorAssignment.findMany({
+      where: { orderId, status: { in: ["ACCEPTED", "DELIVERED"] } },
+      select: { collaborator: { select: { fullName: true } } },
+    }),
+    prisma.orderEvent.findFirst({ where: { orderId, type: "collaborator.assignment.direct" }, select: { id: true } }),
+  ]);
+  return motivoPedidoConTraductor({
+    assignedTo: o?.assignedTo,
+    asignadosAceptados: asig.map((a) => a.collaborator.fullName),
+    asignacionDirecta: Boolean(directa),
+  });
+}
+
+async function reopenDirigidoAfterDeadEncargo(opts: {
+  orderId: string;
+  reference: string;
+  ref: string;
+  precioCents: number;
+  lprId?: string | null;
+  estado: string;
+}): Promise<{ ok: true; repetido: boolean; encargoId: string; miembro: string } | { ok: false; error: string }> {
+  const { orderId, reference, ref, precioCents, lprId, estado } = opts;
+  try {
+    const previos = await prisma.orderEvent.findMany({
+      where: { orderId, type: "lavori.solicitud_enviada", payload: { path: ["reactivado"], equals: true } },
+      select: { payload: true },
+    });
+    const refsUsadas = previos.map((e) => (e.payload as any)?.refReactivada as string | undefined);
+    // Ya reactivado y el 409 no viene de una ref -R<n> (reintento del pago sobre la ref
+    // original): nada que repetir. Si viene de la última -R<n>, esa también caducó -> la siguiente.
+    if (previos.length > 0 && !/-R\d+$/.test(ref)) {
+      return { ok: true, repetido: true, encargoId: String((previos[0].payload as any)?.lavoriEncargoId || ""), miembro: "" };
+    }
+    const refReactivada = nextReactivationRef(reference, refsUsadas);
+    const yaTiene = await pedidoYaTieneTraductor(orderId);
+    if (yaTiene) return { ok: false, error: `el pedido ${yaTiene}: no se abre otro encargo` };
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        langPair: true,
+        words: true,
+        amountCents: true,
+        dueDate: true,
+        events: {
+          where: { type: { in: ["presupuesto.submitted", "order.source_document_uploaded", "lavori.solicitud_precio_enviada", "lavori.solicitud_enviada", "lavori.precio_propuesto"] } },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: { type: true, payload: true },
+        },
+      },
+    });
+    if (!order) return { ok: false, error: "pedido no encontrado" };
+    if (isCasaPair(order.langPair)) return { ok: false, error: "par de la casa: no sale a lavori" };
+    const parsed = lavoriLangFromPair(order.langPair);
+    if (!parsed) return { ok: false, error: `par ilegible (${order.langPair})` };
+
+    const lpr = lprId
+      ? await prisma.lavoriPriceRequest.findUnique({ where: { id: lprId }, select: { id: true, miembroId: true, miembroNombre: true, notas: true } })
+      : null;
+    const propuesto = order.events.find((e) => e.type === "lavori.precio_propuesto");
+    const propuestoMiembro = (propuesto?.payload as { miembroId?: unknown } | null)?.miembroId;
+    const miembroId = lpr?.miembroId || (propuestoMiembro ? String(propuestoMiembro) : null);
+    if (!miembroId) return { ok: false, error: "no consta qué jurado propuso la cifra" };
+
+    const disp = await isLavoriMemberAvailable(parsed.lang, miembroId);
+    if (!disp.ok) {
+      return { ok: false, error: `${disp.nombre || lpr?.miembroNombre || miembroId} no puede recibir el encargo ahora: ${disp.reason}` };
+    }
+    const miembro = disp.nombre || lpr?.miembroNombre || miembroId;
+
+    const docs = getDocumentsFromOrder(order);
+    if (docs.length === 0) return { ok: false, error: "el pedido no tiene documentos enlazados" };
+    const sobre = await packDocsForSobre(docs);
+    if (!sobre.ok) return { ok: false, error: sobre.error };
+
+    const paraTi = (precioCents / 100).toFixed(2);
+    const payload = buildSolicitudPayload({
+      reference: refReactivada,
+      route: { lang: parsed.lang, par: parsed.par, candidatos: [miembroId] },
+      amountCents: order.amountCents,
+      words: order.words,
+      dueDate: order.dueDate,
+      documentos: sobre.documentos,
+      paraTiCents: precioCents,
+      especificaciones: `Precio ya acordado contigo: ${paraTi} € (tu propuesta; el cliente la ha aceptado y pagado). Tu encargo anterior caducó en lavori; este lo sustituye. Solo acepta y traduce.`,
+    });
+    const result = await sendLavoriSolicitud(payload);
+    if (!result.ok) return { ok: false, error: result.error };
+    // `repetido` solo es éxito si el encargoId es uno que ya teníamos anotado como reactivado
+    // (aquí no hay ninguno: la guarda de arriba corta antes). Si no, lavori tenía OTRO
+    // encargo con esta ref: no se anota «REACTIVADO» y se avisa al staff (email + SMS).
+    if (result.repetido && !repetidoEsReactivacionPropia(refReactivada, refsUsadas)) {
+      return { ok: false, error: `lavori ya tenía un encargo con esta ref (${refReactivada}, ${result.encargoId})` };
+    }
+
+    await prisma.orderEvent.create({
+      data: {
+        orderId,
+        type: "lavori.encargo_caducado",
+        message: `lavori: el encargo ${ref} ya no estaba vivo al pagar (estado: ${estado}). Se reactiva con un dirigido nuevo al mismo jurado.`,
+        payload: { ref, estado, miembroId },
+      },
+    });
+    await prisma.orderEvent.create({
+      data: {
+        orderId,
+        type: "lavori.solicitud_enviada",
+        message: `Encargo REACTIVADO ${parsed.par}: dirigido a ${miembro} con su precio (${paraTi} € para el traductor); su único paso es aceptar. El anterior (${ref}) estaba ${estado}.`,
+        payload: {
+          reactivado: true,
+          lavoriEncargoId: result.encargoId,
+          par: parsed.par,
+          paraTi: payload.paraTi,
+          precioCliente: payload.precioCliente,
+          candidatos: [miembroId],
+          documentos: sobre.documentos.length,
+          refReactivada,
+          refAnterior: ref,
+          estadoAnterior: estado,
+          lavoriPriceRequestId: lprId ?? null,
+        },
+      },
+    });
+    if (lpr) {
+      await prisma.lavoriPriceRequest
+        .update({
+          where: { id: lpr.id },
+          data: {
+            status: "RETIRED",
+            notas: [lpr.notas, `${new Date().toISOString().slice(0, 16)} encargo caducado en lavori (${estado}); reactivado como ${refReactivada}`].filter(Boolean).join("\n"),
+          },
+        })
+        .catch((err) => console.error("[lavori-reactivar] lpr update failed", err));
+    }
+    return { ok: true, repetido: false, encargoId: result.encargoId, miembro };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "error inesperado al reactivar" };
+  }
+}
+
 // Envía precio_aceptado a lavori y persiste el desenlace (evento + email staff).
 // Lo usan el emisor del pago (emitPrecioAceptadoIfApplicable) y el receptor de
 // eventos cuando un precio_propuesto llega sobre un pedido YA pagado
@@ -716,7 +893,7 @@ export async function deliverPrecioAceptado(opts: {
   const reservada = await isHeldByJuan(ref, orderId);
   const pedido = await prisma.order.findUnique({ where: { id: orderId }, select: { paidAt: true, paymentStatus: true } });
   const result: Awaited<ReturnType<typeof sendLavoriPrecioAceptado>> = reservada
-    ? { ok: false, conflicto: true, estado: "publicado", aceptadoPor: null, loLlevoYo: true }
+    ? { ok: false, conflicto: true, estado: "publicado", motivoCierre: null, aceptadoPor: null, loLlevoYo: true }
     : await sendLavoriPrecioAceptado({
         ref,
         precioParaTi: precio,
@@ -770,19 +947,39 @@ export async function deliverPrecioAceptado(opts: {
   }
 
   if ("conflicto" in result && result.conflicto) {
+    // Encargo caducado/cancelado/retirado: se reactiva con SU cifra. El pago ya está
+    // hecho y NUNCA falla por esto (reopen no lanza; cualquier fallo cae al aviso).
+    let reactivacionFallida: string | null = null;
+    if (isEncargoCaducado({ estado: result.estado, motivoCierre: result.motivoCierre, aceptadoPor: result.aceptadoPor })) {
+      const re = await reopenDirigidoAfterDeadEncargo({ orderId, reference, ref, precioCents, lprId, estado: result.estado });
+      if (re.ok) {
+        if (!re.repetido) {
+          await staffMail(`🔁 ${reference} pagado: encargo caducado en lavori, REACTIVADO para ${re.miembro}`, [
+            `El pedido ${reference} está pagado y el encargo ${ref} ya no estaba vivo en lavori (estado: ${result.estado}).`,
+            `Se ha abierto un encargo dirigido NUEVO a ${re.miembro} con su precio (${precio} € para el traductor): solo tiene que aceptar. Al aceptar se asignará solo.`,
+            `Ficha: ${ficha}`,
+          ]);
+        }
+        return { ok: true };
+      }
+      reactivacionFallida = re.error;
+    }
     await prisma.orderEvent.create({
       data: {
         orderId,
         type: "lavori.precio_aceptado_conflicto",
-        message: `lavori: el encargo ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}) — gestionar a mano.`,
-        payload: { ref, precioParaTi: precio, estado: result.estado, aceptadoPor: result.aceptadoPor },
+        message: `lavori: el encargo ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""})${reactivacionFallida ? `; NO se pudo reactivar: ${reactivacionFallida}` : ""} — gestionar a mano.`,
+        payload: { ref, precioParaTi: precio, estado: result.estado, motivoCierre: result.motivoCierre, aceptadoPor: result.aceptadoPor, reactivacionFallida },
       },
     });
+    const textoConflicto = `El pedido ${reference} está pagado, pero el encargo de lavori ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}).${reactivacionFallida ? ` No se pudo reactivar solo: ${reactivacionFallida}.` : ""}`;
     await staffMail(`⚠ Conflicto al aceptar precio en lavori (${reference}) — gestionar a mano`, [
-      `El pedido ${reference} está pagado, pero el encargo de lavori ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}).`,
-      `Lavori no ha tocado nada. Aclara el encargo con el traductor o asígnalo a mano.`,
+      textoConflicto,
+      `Lavori no ha tocado nada. Aclara el encargo con el traductor o asígnalo a mano (ficha, «Precio ya pactado» con ${precio} €).`,
       `Ficha: ${ficha}`,
     ]);
+    const { sendStaffAlertSMS: smsConflicto } = await import("@/lib/sms");
+    await smsConflicto(textoConflicto, `precio_aceptado_conflicto ${reference}`).catch(() => {});
     return { ok: false, conflicto: true };
   }
 
@@ -801,6 +998,8 @@ export async function deliverPrecioAceptado(opts: {
     `El traductor NO sabe que su precio fue aceptado. Avísale por lavori o gestiona a mano.`,
     `Ficha: ${ficha}`,
   ]);
+  const { sendStaffAlertSMS: smsFallo } = await import("@/lib/sms");
+  await smsFallo(`${reference} pagado: lavori NO recibió la aceptación del precio (${error}). Avisa al jurado.`, `precio_aceptado_fallo ${reference}`).catch(() => {});
   return { ok: false };
 }
 
@@ -921,6 +1120,9 @@ async function routeOrderToLavori(opts: {
       text: alertLines.join("\n"),
       html: alertLines.map((l) => `<p>${l}</p>`).join(""),
     }).catch((err) => console.error("[lavori-bridge] staff alert failed", err));
+    // Segundo transporte: un pedido pagado sin jurado no puede depender de un solo canal.
+    const { sendStaffAlertSMS } = await import("@/lib/sms");
+    await sendStaffAlertSMS(`${reference} (${route.par}) pagado SIN traductor: ${error}`.slice(0, 300), `lavori_fallback ${reference}`).catch(() => {});
     return { changed: false };
   };
 
@@ -951,7 +1153,7 @@ async function routeOrderToLavori(opts: {
     // aviso a staff y el envío a la cartera se hace a mano desde la ficha.
     if (vivo.respaldo && !routeViva.candidatos.some((id) => route.candidatos.includes(id))) {
       return await fallbackToStaff(
-        `el carril (${vivo.respaldo.sinAlta.length} jurado/s) no está de alta en lavori y no se envía a la cartera viva en automático — ` +
+        `el carril (${vivo.respaldo.sinAlta.length} jurado/s) no puede recibirlo en lavori (sin alta o sin papel único) y no se envía a la cartera viva en automático — ` +
           `si no lo cierras por fuera, pídelo desde la ficha («pedir precio en lavori»)`
       );
     }

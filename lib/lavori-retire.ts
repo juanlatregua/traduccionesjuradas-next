@@ -145,14 +145,12 @@ export async function retireLavoriForOutsideAssignment(opts: {
   const yaRetirados = new Set(
     eventos.filter((e) => e.type === "lavori.retirado_por_motor").map((e) => String((e.payload as { motorRef?: unknown } | null)?.motorRef || ""))
   );
-  const { retireLavoriEncargo } = await import("@/lib/lavori-bridge");
-  for (const [tipo, motorRef] of [
-    ["lavori.solicitud_enviada", opts.order.reference],
-    ["lavori.solicitud_precio_enviada", `${opts.order.reference}-precio`],
-  ] as const) {
-    const ev = eventos.find((e) => e.type === tipo);
-    if (!ev || yaRetirados.has(motorRef)) continue;
-    const candidatos = (ev.payload as { candidatos?: unknown } | null)?.candidatos;
+  const { retireLavoriEncargo, motorRefsDelPedido } = await import("@/lib/lavori-bridge");
+  // Incluye cada reactivación («-R<n>»): el aceptante se busca también por esas refs.
+  for (const ev of motorRefsDelPedido(opts.order.reference, eventos)) {
+    const motorRef = ev.motorRef;
+    if (yaRetirados.has(motorRef)) continue;
+    const candidatos = ev.payload?.candidatos;
     const unico = Array.isArray(candidatos) && candidatos.length === 1 ? String(candidatos[0]) : null;
     const aceptante = (
       eventos.find((e) => e.type === "lavori.encargo_aceptado" && (e.payload as { motorRef?: unknown } | null)?.motorRef === motorRef)
