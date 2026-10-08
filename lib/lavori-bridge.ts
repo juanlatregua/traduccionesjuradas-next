@@ -742,7 +742,7 @@ const LAVORI_PRECIO_ACEPTADO_ENDPOINT =
 
 export type PrecioAceptadoResult =
   | { ok: true; repetido: boolean }
-  | { ok: false; conflicto: true; estado: string; aceptadoPor: string | null; loLlevoYo?: boolean }
+  | { ok: false; conflicto: true; estado: string; motivoCierre: string | null; aceptadoPor: string | null; loLlevoYo?: boolean }
   | { ok: false; conflicto?: false; error: string };
 
 const nameTokens = (x: string | null | undefined) =>
@@ -763,33 +763,42 @@ export function sameTranslatorName(a: string | null | undefined, b: string | nul
   return corto.every((t) => largo.includes(t));
 }
 
-// Vocabulario de caducidad de lavori (estado del 409 y motivo de encargo_retirado).
-// TODO: confirmar con la sesión de lavori los valores literales; hasta entonces, subcadenas.
-export const LAVORI_CADUCIDAD_VOCAB = ["caduc", "expir"] as const;
-const CADUCIDAD_RE = new RegExp(LAVORI_CADUCIDAD_VOCAB.join("|"));
-
-/** 409 de precio_aceptado: ¿el encargo CADUCÓ (3 días en lavori), con nadie que lo aceptara?
- * Solo entonces se reactiva con un dirigido nuevo. «Retirado» NO cuenta: lo retira Juan o
- * el staff a propósito (reasignado, duplicado, cliente, asignado_fuera) y reabrirlo
- * duplicaría el trabajo. Un estado vacío o desconocido tampoco: solo avisa al staff. */
-export function isEncargoMuerto(
-  estado: string | null | undefined,
-  aceptadoPor: string | null | undefined,
-  caducidadConfirmada = false
-): boolean {
-  if (aceptadoPor) return false;
-  const e = String(estado || "").trim().toLowerCase();
-  if (CADUCIDAD_RE.test(e)) return true;
-  // La solicitud ya consta caducada por lavori (nota retirado-lavori: con motivo de
-  // caducidad): su 409 puede venir como «retirado» y es el mismo encargo muerto.
-  return caducidadConfirmada && /retir/.test(e);
+/** Contrato real de lavori (3e2b5b2): el 409 de precio_aceptado trae
+ * {estado, motivoCierre, aceptadoPor}. La ÚNICA caducidad es estado «cancelado» con
+ * motivoCierre «caducado». Cualquier otro motivoCierre (reasignado, duplicado, cliente,
+ * otro, asignado_fuera, retirado_recib, no_hace_falta, lo_hago_yo, fuera_lavori,
+ * presup_fuera) es una retirada a propósito y NO reactiva; «lo llevo yo» tampoco, y un
+ * estado aceptado o finalizado con aceptadoPor, jamás. */
+export function isEncargoCaducado(c: {
+  estado?: string | null;
+  motivoCierre?: string | null;
+  aceptadoPor?: string | null;
+}): boolean {
+  if (c.aceptadoPor) return false;
+  return c.estado === "cancelado" && c.motivoCierre === "caducado";
 }
 
-/** Un `repetido` de lavori al reactivar solo vale como éxito si el encargoId es uno que
- * ya teníamos anotado como reactivado; si no, lavori tenía OTRO encargo con esa ref. */
-export function repetidoEsReactivacionPropia(encargoId: string | null | undefined, anotados: Array<string | null | undefined>): boolean {
-  const id = String(encargoId || "").trim();
-  return Boolean(id) && anotados.some((x) => String(x || "").trim() === id);
+/** Ref de reactivación: lavori devuelve 200 «repetido» (sin abrir nada) si se reenvía la
+ * MISMA ref aunque el encargo esté caducado. Se reabre con `<pedido>-R<n>`, la primera
+ * no usada. */
+export function nextReactivationRef(reference: string, usadas: Array<string | null | undefined>): string {
+  const set = new Set(usadas.map((x) => String(x || "")));
+  for (let n = 1; n < 50; n++) if (!set.has(`${reference}-R${n}`)) return `${reference}-R${n}`;
+  return `${reference}-R${Date.now()}`;
+}
+
+/** motorRef de lavori → referencia del pedido (o de la solicitud LEAD-…): quita los
+ * sufijos «-precio» (solicitud de precio) y «-R<n>» (reactivación). Única fuente para
+ * eventos entrantes, estado, «lo llevo yo» y cualquier cubre[].motorRef de facturas. */
+export function orderRefFromMotorRef(motorRef: string | null | undefined): string {
+  return String(motorRef || "").trim().replace(/-precio$/, "").replace(/-R\d+$/, "");
+}
+
+/** Un `repetido` de lavori al reactivar solo vale como éxito si el ref -R<n> es una que
+ * ya teníamos anotada como reactivación; si no, lavori tenía OTRO encargo con esa ref. */
+export function repetidoEsReactivacionPropia(ref: string | null | undefined, anotadas: Array<string | null | undefined>): boolean {
+  const r = String(ref || "").trim();
+  return Boolean(r) && anotadas.some((x) => String(x || "").trim() === r);
 }
 
 /** ¿El pedido ya tiene traductor? Entonces nunca se abre otro encargo a otro jurado. */
@@ -812,7 +821,7 @@ export function isRetiradaPorCaducidad(notas: string | null | undefined): boolea
   if (!n.includes("retirado-lavori:")) return false;
   if (/retirada para reabrir|asignado_fuera|Precio ya pactado|Retirada en lavori por/i.test(n)) return false;
   const motivos = Array.from(n.matchAll(/Retirada en lavori \(([^,)]*)/g)).map((x) => x[1].toLowerCase());
-  return motivos.length > 0 && motivos.every((x) => CADUCIDAD_RE.test(x));
+  return motivos.length > 0 && motivos.every((x) => x.trim() === "caducado");
 }
 
 export async function sendLavoriPrecioAceptado(payload: {
@@ -843,7 +852,7 @@ export async function sendLavoriPrecioAceptado(payload: {
       signal: AbortSignal.timeout(30_000),
     });
     const data = (await res.json().catch(() => null)) as
-      | { ok?: boolean; repetido?: boolean; estado?: string; aceptadoPor?: string; error?: string }
+      | { ok?: boolean; repetido?: boolean; estado?: string; motivoCierre?: string | null; aceptadoPor?: string; error?: string }
       | null;
     if (res.ok && data?.ok) {
       return { ok: true, repetido: Boolean(data.repetido) };
@@ -853,6 +862,7 @@ export async function sendLavoriPrecioAceptado(payload: {
         ok: false,
         conflicto: true,
         estado: data?.estado || "desconocido",
+        motivoCierre: data?.motivoCierre || null,
         aceptadoPor: data?.aceptadoPor || null,
         // «Lo llevo yo» (contrato 3-oct, D): Juan se ha reservado el encargo en lavori.
         loLlevoYo: data?.error === "lo_llevo_yo",

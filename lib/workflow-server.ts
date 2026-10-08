@@ -22,7 +22,8 @@ import {
   sendLavoriSolicitud,
   sendLavoriPrecioAceptado,
   isLavoriMemberAvailable,
-  isEncargoMuerto,
+  isEncargoCaducado,
+  nextReactivationRef,
   repetidoEsReactivacionPropia,
   isRetiradaPorCaducidad,
   motivoPedidoConTraductor,
@@ -380,7 +381,6 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   }
 
   let ref: string | null = null;
-  let caducidadConfirmada = false;
   let precioCents: number | null = null;
   let lprId: string | null = null;
   let miembroIdHint: string | null = null;
@@ -470,7 +470,6 @@ async function emitPrecioAceptadoIfApplicable(opts: {
       const caducada = retiradas.find((r) => isRetiradaPorCaducidad(r.notas));
       if (caducada && !(await pedidoYaTieneTraductor(order.id))) {
         lpr = caducada;
-        caducidadConfirmada = true;
       }
     }
     if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
@@ -630,7 +629,6 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     precioCents,
     lprId,
     quoteId: opts.order.quoteId,
-    caducidadConfirmada,
   });
   // handled=true aunque falle: con solicitud previa jamás se abre encargo nuevo.
   return { handled: true, changed: result.ok };
@@ -717,7 +715,7 @@ async function assignAlreadyAccepted(
 // (cancelado/caducado/retirado, sin nadie que lo haya aceptado) no es un conflicto
 // con otro jurado: se reactiva abriendo un dirigido NUEVO al mismo jurado con SU
 // cifra (carril «Precio ya pactado»: paraTi = su precio, su único paso es aceptar).
-// Un estado que no conocemos y sin aceptante se trata igual; con aceptante, nunca (isEncargoMuerto).
+// Un estado que no conocemos y sin aceptante se trata igual; con aceptante, nunca (isEncargoCaducado).
 /** ¿El pedido ya tiene traductor? assignedTo relleno, asignación ACCEPTED/DELIVERED o
  * una asignación directa a mano («Precio ya pactado»). Con traductor, jamás se abre
  * otro encargo a otro jurado. */
@@ -751,9 +749,13 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
       where: { orderId, type: "lavori.solicitud_enviada", payload: { path: ["reactivado"], equals: true } },
       select: { payload: true },
     });
-    if (previos.length > 0) {
+    const refsUsadas = previos.map((e) => (e.payload as any)?.refReactivada as string | undefined);
+    // Ya reactivado y el 409 no viene de una ref -R<n> (reintento del pago sobre la ref
+    // original): nada que repetir. Si viene de la última -R<n>, esa también caducó -> la siguiente.
+    if (previos.length > 0 && !/-R\d+$/.test(ref)) {
       return { ok: true, repetido: true, encargoId: String((previos[0].payload as any)?.lavoriEncargoId || ""), miembro: "" };
     }
+    const refReactivada = nextReactivationRef(reference, refsUsadas);
     const yaTiene = await pedidoYaTieneTraductor(orderId);
     if (yaTiene) return { ok: false, error: `el pedido ${yaTiene}: no se abre otro encargo` };
     const order = await prisma.order.findUnique({
@@ -798,7 +800,7 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
 
     const paraTi = (precioCents / 100).toFixed(2);
     const payload = buildSolicitudPayload({
-      reference,
+      reference: refReactivada,
       route: { lang: parsed.lang, par: parsed.par, candidatos: [miembroId] },
       amountCents: order.amountCents,
       words: order.words,
@@ -812,8 +814,8 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
     // `repetido` solo es éxito si el encargoId es uno que ya teníamos anotado como reactivado
     // (aquí no hay ninguno: la guarda de arriba corta antes). Si no, lavori tenía OTRO
     // encargo con esta ref: no se anota «REACTIVADO» y se avisa al staff (email + SMS).
-    if (result.repetido && !repetidoEsReactivacionPropia(result.encargoId, previos.map((e) => (e.payload as any)?.lavoriEncargoId))) {
-      return { ok: false, error: `lavori ya tenía un encargo con esta ref (${result.encargoId})` };
+    if (result.repetido && !repetidoEsReactivacionPropia(refReactivada, refsUsadas)) {
+      return { ok: false, error: `lavori ya tenía un encargo con esta ref (${refReactivada}, ${result.encargoId})` };
     }
 
     await prisma.orderEvent.create({
@@ -837,6 +839,7 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
           precioCliente: payload.precioCliente,
           candidatos: [miembroId],
           documentos: sobre.documentos.length,
+          refReactivada,
           refAnterior: ref,
           estadoAnterior: estado,
           lavoriPriceRequestId: lprId ?? null,
@@ -872,7 +875,6 @@ export async function deliverPrecioAceptado(opts: {
   lprId?: string | null;
   quoteId?: string | null;
   auto?: boolean; // true si la aceptación es automática post-pago
-  caducidadConfirmada?: boolean; // la solicitud RETIRED consta caducada por su nota (retirado-lavori:)
 }): Promise<{ ok: boolean; conflicto?: boolean }> {
   const { orderId, reference, ref, precioCents, lprId } = opts;
   const precio = (precioCents / 100).toFixed(2);
@@ -891,7 +893,7 @@ export async function deliverPrecioAceptado(opts: {
   const reservada = await isHeldByJuan(ref, orderId);
   const pedido = await prisma.order.findUnique({ where: { id: orderId }, select: { paidAt: true, paymentStatus: true } });
   const result: Awaited<ReturnType<typeof sendLavoriPrecioAceptado>> = reservada
-    ? { ok: false, conflicto: true, estado: "publicado", aceptadoPor: null, loLlevoYo: true }
+    ? { ok: false, conflicto: true, estado: "publicado", motivoCierre: null, aceptadoPor: null, loLlevoYo: true }
     : await sendLavoriPrecioAceptado({
         ref,
         precioParaTi: precio,
@@ -948,7 +950,7 @@ export async function deliverPrecioAceptado(opts: {
     // Encargo caducado/cancelado/retirado: se reactiva con SU cifra. El pago ya está
     // hecho y NUNCA falla por esto (reopen no lanza; cualquier fallo cae al aviso).
     let reactivacionFallida: string | null = null;
-    if (isEncargoMuerto(result.estado, result.aceptadoPor, opts.caducidadConfirmada === true)) {
+    if (isEncargoCaducado({ estado: result.estado, motivoCierre: result.motivoCierre, aceptadoPor: result.aceptadoPor })) {
       const re = await reopenDirigidoAfterDeadEncargo({ orderId, reference, ref, precioCents, lprId, estado: result.estado });
       if (re.ok) {
         if (!re.repetido) {
@@ -967,7 +969,7 @@ export async function deliverPrecioAceptado(opts: {
         orderId,
         type: "lavori.precio_aceptado_conflicto",
         message: `lavori: el encargo ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""})${reactivacionFallida ? `; NO se pudo reactivar: ${reactivacionFallida}` : ""} — gestionar a mano.`,
-        payload: { ref, precioParaTi: precio, estado: result.estado, aceptadoPor: result.aceptadoPor, reactivacionFallida },
+        payload: { ref, precioParaTi: precio, estado: result.estado, motivoCierre: result.motivoCierre, aceptadoPor: result.aceptadoPor, reactivacionFallida },
       },
     });
     const textoConflicto = `El pedido ${reference} está pagado, pero el encargo de lavori ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}).${reactivacionFallida ? ` No se pudo reactivar solo: ${reactivacionFallida}.` : ""}`;

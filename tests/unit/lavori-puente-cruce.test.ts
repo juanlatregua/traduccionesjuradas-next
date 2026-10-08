@@ -6,10 +6,11 @@ import {
   applyLiveFallback,
   buildSolicitudPayload,
   fetchLavoriCartera,
-  isEncargoMuerto,
+  isEncargoCaducado,
+  nextReactivationRef,
+  orderRefFromMotorRef,
   isRetiradaPorCaducidad,
   repetidoEsReactivacionPropia,
-  LAVORI_CADUCIDAD_VOCAB,
   motivoPedidoConTraductor,
   mapLavoriMiembro,
   isLavoriNoAvisar,
@@ -54,10 +55,15 @@ function withFetch<T>(handler: (url: string, init: any) => { status: number; bod
 
 // 1. Pago con encargo caducado → 409 con estado muerto → reactivación con SU cifra
 
-test("1. isEncargoMuerto: solo caducado/expirado sin aceptante; retirado, desconocido, vacío o con aceptante NO", () => {
-  for (const e of ["caducado", "expirado", "Caducada"]) assert.equal(isEncargoMuerto(e, null), true, e);
-  for (const e of ["retirado", "cancelado", "desconocido", "", "aceptado", "publicado"]) assert.equal(isEncargoMuerto(e, null), false, e);
-  assert.equal(isEncargoMuerto("caducado", "someMemberId"), false);
+test("1. isEncargoCaducado: SOLO cancelado + motivoCierre caducado, sin aceptante", () => {
+  assert.equal(isEncargoCaducado({ estado: "cancelado", motivoCierre: "caducado" }), true);
+  for (const motivo of ["reasignado", "duplicado", "cliente", "otro", "asignado_fuera", "retirado_recib", "no_hace_falta", "lo_hago_yo", "fuera_lavori", "presup_fuera", null]) {
+    assert.equal(isEncargoCaducado({ estado: "cancelado", motivoCierre: motivo }), false, String(motivo));
+  }
+  assert.equal(isEncargoCaducado({ estado: "publicado", motivoCierre: "caducado" }), false); // lo llevo yo
+  assert.equal(isEncargoCaducado({ estado: "aceptado", motivoCierre: null, aceptadoPor: "Ana" }), false);
+  assert.equal(isEncargoCaducado({ estado: "cancelado", motivoCierre: "caducado", aceptadoPor: "Ana" }), false);
+  assert.equal(isEncargoCaducado({}), false);
 });
 
 test("1. solicitud RETIRED: solo la retirada por caducidad se reactiva; retirada por Juan/staff/reasignada no", () => {
@@ -82,21 +88,21 @@ test("1. pedido que ya tiene traductor («Precio ya pactado» a X) no abre encar
 test("1. pago con encargo caducado: el 409 se lee como conflicto y la reactivación sale dirigida al mismo jurado con su cifra", async () => {
   // a) precio_aceptado responde 409 «caducado» (no lanza: el pago no se rompe)
   const { out: aceptado } = await withFetch(
-    () => ({ status: 409, body: { ok: false, estado: "caducado" } }),
+    () => ({ status: 409, body: { ok: false, estado: "cancelado", motivoCierre: "caducado" } }),
     () => sendLavoriPrecioAceptado({ ref: "LEAD-X-precio", precioParaTi: "70.00", refPedido: "26_TEST01" })
   );
   assert.ok(!aceptado.ok && "conflicto" in aceptado && aceptado.conflicto);
-  assert.equal(isEncargoMuerto((aceptado as any).estado, (aceptado as any).aceptadoPor), true);
+  assert.equal(isEncargoCaducado(aceptado as any), true);
 
   // b) la reactivación: solicitud dirigida, ref del pedido (sin sufijo), paraTi = SU cifra, solo él
   const payload = buildSolicitudPayload({
-    reference: "26_TEST01",
+    reference: nextReactivationRef("26_TEST01", []),
     route: { lang: "en", par: "EN>ES", candidatos: ["exwzhhwv5fyegllvblt76uvb"] },
     amountCents: 12100,
     documentos: [{ nombre: "a.pdf", contentType: "application/pdf", url: "https://x/a.pdf", bytes: 10, sha256: "0".repeat(64) }],
     paraTiCents: 7000,
   });
-  assert.equal(payload.ref, "26_TEST01");
+  assert.equal(payload.ref, "26_TEST01-R1"); // la MISMA ref devolvería «repetido» sin abrir nada
   assert.equal(payload.paraTi, "70.00"); // su cifra, NO el 75 % recalculado (75.00)
   assert.deepEqual(payload.candidatos, ["exwzhhwv5fyegllvblt76uvb"]);
   const { out: envio, calls } = await withFetch(
@@ -239,18 +245,36 @@ test("5. sameTranslatorName: mismas personas con tilde o nombre corto no cambian
   assert.equal(sameTranslatorName(null, "María Lourdes Yagüe Lobo"), false);
 });
 
-test("1b. repetido de lavori solo es éxito si el encargoId ya estaba anotado como reactivado", () => {
-  assert.equal(repetidoEsReactivacionPropia("enc-1", ["enc-1"]), true);
-  assert.equal(repetidoEsReactivacionPropia("enc-2", ["enc-1"]), false); // otro encargo con esa ref
-  assert.equal(repetidoEsReactivacionPropia("enc-1", []), false);
+test("1b. repetido solo vale si la ref -R<n> ya la teníamos anotada; la siguiente ref salta las usadas", () => {
+  assert.equal(repetidoEsReactivacionPropia("26_X-R1", ["26_X-R1"]), true);
+  assert.equal(repetidoEsReactivacionPropia("26_X-R1", []), false);
   assert.equal(repetidoEsReactivacionPropia("", [""]), false);
+  assert.equal(nextReactivationRef("26_X", []), "26_X-R1");
+  assert.equal(nextReactivationRef("26_X", [undefined, "26_X-R1"]), "26_X-R2");
 });
 
-test("2. caducidadConfirmada: un 409 «retirado» de una solicitud ya validada como caducada reactiva; sin confirmar, no", () => {
-  assert.equal(isEncargoMuerto("retirado", null), false);
-  assert.equal(isEncargoMuerto("retirado", null, true), true);
-  assert.equal(isEncargoMuerto("retirado", "alguien", true), false); // con aceptante, nunca
-  assert.equal(isEncargoMuerto("desconocido", null, true), false);
-  assert.equal(isEncargoMuerto("aceptado", null, true), false);
-  assert.ok(LAVORI_CADUCIDAD_VOCAB.length >= 2);
+test("2. 409 cancelado+reasignado solo avisa (no reactiva); lo llevo yo tampoco", async () => {
+  const { out } = await withFetch(
+    () => ({ status: 409, body: { ok: false, estado: "cancelado", motivoCierre: "reasignado" } }),
+    () => sendLavoriPrecioAceptado({ ref: "LEAD-X-precio", precioParaTi: "70.00" })
+  );
+  assert.ok(!out.ok && "conflicto" in out && out.conflicto);
+  assert.equal((out as any).motivoCierre, "reasignado");
+  assert.equal(isEncargoCaducado(out as any), false);
+  const { out: llevo } = await withFetch(
+    () => ({ status: 409, body: { error: "lo_llevo_yo", estado: "publicado" } }),
+    () => sendLavoriPrecioAceptado({ ref: "LEAD-X-precio", precioParaTi: "70.00" })
+  );
+  assert.ok(!llevo.ok && "loLlevoYo" in llevo && llevo.loLlevoYo);
+  assert.equal(isEncargoCaducado(llevo as any), false);
+});
+
+test("3. orderRefFromMotorRef: «-precio» y «-R<n>» resuelven al mismo pedido (encargo_aceptado de 26_XXXX-R1 -> 26_XXXX)", () => {
+  assert.equal(orderRefFromMotorRef("26_ABC123-R1"), "26_ABC123");
+  assert.equal(orderRefFromMotorRef("26_ABC123-R12"), "26_ABC123");
+  assert.equal(orderRefFromMotorRef("26_ABC123-precio"), "26_ABC123");
+  assert.equal(orderRefFromMotorRef("LEAD-0B0C46A29D-precio"), "LEAD-0B0C46A29D");
+  assert.equal(orderRefFromMotorRef("26_ABC123"), "26_ABC123");
+  assert.equal(orderRefFromMotorRef(" 26_ABC123-R2 "), "26_ABC123");
+  assert.equal(orderRefFromMotorRef(null), "");
 });
