@@ -271,7 +271,8 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...INK);
-  doc.text(`Fecha: ${dateStr}`, margin, 66);
+  // Etiqueta explícita: el lector de facturas de Oracle rechazó 26_054 por «INVOICE DATE IS MISSING» con solo «Fecha:».
+  doc.text(`Fecha de factura / Invoice date: ${dateStr}`, margin, 66);
 
   // ── Titulares de los certificados (informativo) ───────────
   let leftBottom = 66;
