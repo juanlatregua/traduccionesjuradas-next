@@ -782,6 +782,23 @@ async function handleLeadEvento(opts: {
         }
       }
 
+      // CIERRE (Juan, 8-oct-2026): con el precio del jurado el presupuesto SALE SOLO si pasa
+      // margen + tope 300 € + no-FR + guardas; si no, aviso email+SMS con «Revisar y enviar».
+      // Si el relleno del borrador falló, la cifra del jurado no está en él: nunca sale solo.
+      let cierre: Awaited<ReturnType<typeof import("@/lib/cierre").autoSendQuoteForLead>> | null = null;
+      if ((lead.quoteId && quoteAtadoEstado === "DRAFT") || directoResultado?.kind === "retenido") {
+        const avisosCierre = [
+          ...(borradorFallo ? [`no se pudo rellenar el borrador con la cifra del jurado: ${borradorFallo}`] : []),
+          ...(directoResultado?.kind === "retenido" ? directoResultado.avisos : []),
+        ];
+        cierre = await import("@/lib/cierre")
+          .then((m) => m.autoSendQuoteForLead(lead.id, avisosCierre))
+          .catch((err) => {
+            console.error("[lavori-eventos] cierre automático fallo:", err);
+            return null;
+          });
+      }
+
       const borradorDirecto = directoResultado?.kind === "retenido" ? directoResultado : null;
       const enlaceDirecto = borradorDirecto ? `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${borradorDirecto.quoteId}` : null;
       const cifraDirecto = borradorDirecto
@@ -833,6 +850,8 @@ async function handleLeadEvento(opts: {
         borradorRelleno?.margenBajo ? `⚠ Margen por debajo del mínimo tras descuento/envío: ${borradorRelleno.margenBajo}` : "",
         borradorFallo ? `⚠ No se pudo rellenar el borrador solo: ${borradorFallo}` : "",
         lineaDirecto,
+        cierre?.result === "sent" ? `📨 El presupuesto ${cierre.quoteNumber} ha SALIDO SOLO al cliente (margen, tope y par OK): no hace falta enviarlo.` : "",
+        cierre?.result === "alerted" ? `⏸ ${cierre.quoteNumber} NO sale solo (${cierre.reasons.join("; ")}): te llega un aviso aparte con el enlace «Revisar y enviar».` : "",
         borradorDirecto || borradorRelleno ? "" : montarLine,
       ].filter(Boolean));
       return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
