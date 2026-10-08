@@ -7,6 +7,7 @@ import { sendQuoteEmail } from "@/lib/quote-email";
 import { isDuplicateStripeEventError } from "@/lib/quote-idempotency";
 import { sendMail } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { emailSendStatus } from "@/lib/message-status";
 
 function buildPaidWhatsAppDraft(params: { name: string; quoteNumber: string; etaDate: Date }) {
   return `Hola ${params.name}, desde TraduccionesJuradas.net confirmamos el pago del presupuesto ${params.quoteNumber}. Fecha estimada de entrega: ${formatDateEs(params.etaDate)}.`;
@@ -115,7 +116,11 @@ export async function processQuoteStripeEvent(event: any) {
         ? buildPaidPaperEmail({ name: quote.customerName || "cliente", etaDate })
         : buildPaidDigitalEmail({ name: quote.customerName || "cliente", etaDate });
 
+    // Graph no devuelve id de mensaje (providerId siempre null): el éxito es que
+    // sendQuoteEmail no lance, no que haya providerId (21 confirmaciones quedaron FAILED
+    // estando enviadas, auditoría 8-oct).
     let providerId: string | null = null;
+    let emailError: string | null = null;
     try {
       const sent = await sendQuoteEmail({
         to: quote.customerEmail,
@@ -124,6 +129,7 @@ export async function processQuoteStripeEvent(event: any) {
       });
       providerId = sent.providerId;
     } catch (emailErr) {
+      emailError = String((emailErr as any)?.message || emailErr || "unknown");
       console.error("[quotes:webhook] paid email send failed", emailErr);
     }
 
@@ -184,10 +190,10 @@ export async function processQuoteStripeEvent(event: any) {
           type: "PAID_CONFIRMATION",
           recipient: quote.customerEmail,
           subject: paidMessage.subject,
-          body: paidMessage.body,
-          sentAt: providerId ? now : null,
+          body: emailError ? `${paidMessage.body}\n\n[ERROR]: ${emailError}` : paidMessage.body,
+          sentAt: emailError === null ? now : null,
           providerId,
-          status: providerId ? "SENT" : "FAILED",
+          status: emailSendStatus(emailError),
         },
       });
 
