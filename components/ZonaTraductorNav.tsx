@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PMQuickCreatePanel from "./PMQuickCreatePanel";
 
-type ModoActivo = "pedidos" | "clientes" | "presupuestos" | "facturas" | "contabilidad" | "ajustes";
+type ModoActivo = "pedidos" | "clientes" | "presupuestos" | "facturas" | "contabilidad" | "ajustes" | "panel";
 
 type Props = {
   pedidosAccionables: number;
@@ -32,6 +32,8 @@ const TABS: { href: string; label: string; key: ModoActivo }[] = [
 ];
 
 // Rutas que pertenecen a una pestaña aunque no cuelguen de su href.
+const PANEL_TAB = { href: "/zona-traductor/panel", label: "Panel", key: "panel" as ModoActivo };
+
 const OWNED_PATHS: Record<string, ModoActivo> = {
   "/zona-traductor/pedido": "pedidos",
   "/zona-traductor/control": "pedidos",
@@ -66,7 +68,7 @@ export default function ZonaTraductorNav({ pedidosAccionables, presupuestosAccio
     <>
       <nav className="sticky top-0 z-50 flex items-center justify-between gap-2 border-b border-slate-700 bg-slate-900/95 px-4 py-2 backdrop-blur sm:px-6">
         <div className="flex items-center gap-1 overflow-x-auto">
-          {TABS.map((tab) => {
+          {(staffRole === "ADMIN" ? [...TABS, PANEL_TAB] : TABS).map((tab) => {
             const badge = badgeFor(tab.key);
             return (
               <Link
