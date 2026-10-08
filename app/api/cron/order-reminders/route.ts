@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendPaymentReminderEmail, sendStaffPaymentPendingEmail } from "@/lib/email";
 import { sendNotification } from "@/lib/sms";
 import { buildSignedOrderUrl } from "@/lib/order-token";
-import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
+import { alreadyCustomerFor, countSkip, loadCustomerIndex, orderChaseSkipReason } from "@/lib/client-contact-guard";
 
 export const runtime = "nodejs";
 
@@ -92,12 +92,13 @@ export async function GET(req: Request) {
     if (types.has(EV_SKIPPED)) { skipped++; continue; }
     // Justificante o transferencia declarada: ya ha pagado/está pagando, no se le reclama.
     const reason: string | null =
-      order.paymentProofFileKey || EV_PROOF.some((t) => types.has(t))
+      orderChaseSkipReason(order.status) ||
+      (order.paymentProofFileKey || EV_PROOF.some((t) => types.has(t))
         ? "justificante_subido"
         : (() => {
             const v = index ? alreadyCustomerFor({ mode: "encargo", orderRef: order.reference, orderId: order.id, quoteId: order.quoteId, expedienteRef: order.quote?.expedienteRef, at: order.createdAt }, { index }) : null;
             return v && v.skip ? v.reason : null;
-          })();
+          })());
     if (reason) {
       countSkip(skippedClients, reason);
       if (!dry) {

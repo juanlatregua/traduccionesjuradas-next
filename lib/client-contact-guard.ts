@@ -13,7 +13,7 @@ import { intermediaryEmails, normEmail, PersonIndex, personKeys } from "./vigia-
 export const GUARD_LOOKBACK_DAYS = 14;
 const DAY = 864e5;
 
-export type SkipReason = "pedido_pagado" | "presupuesto_pagado" | "analisis_con_pedido" | "mismo_documento" | "mismo_expediente";
+export type SkipReason = "pedido_pagado" | "presupuesto_pagado" | "analisis_con_pedido" | "mismo_documento" | "mismo_expediente" | "pedido_propio_pagado";
 
 export type ClientFact = {
   kind: "pedido_pagado" | "presupuesto_pagado" | "analisis_con_pedido";
@@ -58,6 +58,7 @@ export class CustomerIndex {
   readonly byRef = new Map<string, ClientFact[]>();
   readonly hashesByOrderId = new Map<string, string[]>();
   readonly hashesBySession = new Map<string, string[]>();
+  readonly paidOrdersByQuote = new Map<string, ClientFact>();
   readonly intermediaries: Set<string>;
   constructor(facts: ClientFact[], quotes: QuoteFactMeta[] = [], extraIntermediaries: string[] = [], analyses: AnalysisLite[] = []) {
     this.intermediaries = intermediaryEmails(quotes);
@@ -69,6 +70,7 @@ export class CustomerIndex {
     }
     const rows = facts.map((fact) => ({ fact, keys: this.keysFor(fact) }));
     this.idx = new PersonIndex(rows.map((r) => ({ keys: r.keys, name: r.fact.name })));
+    for (const f of facts) if (f.kind === "pedido_pagado" && f.quoteId) this.paidOrdersByQuote.set(f.quoteId, f);
     const push = (m: Map<string, ClientFact[]>, k: string, f: ClientFact) => m.set(k, [...(m.get(k) || []), f]);
     for (const r of rows) {
       const root = this.idx.rootOf(r.keys);
@@ -104,6 +106,11 @@ export function alreadyCustomerFor(input: GuardInput, opts: { index: CustomerInd
   }
 
   if (mode === "encargo") {
+    // Un presupuesto cuyo PROPIO pedido ya se cobró (el presupuesto sigue en SENT/OPENED): no se reclama.
+    if (input.quoteId && !input.orderRef) {
+      const own = index.paidOrdersByQuote.get(input.quoteId);
+      if (own) return { skip: true, reason: "pedido_propio_pagado", ref: own.ref };
+    }
     if (input.expedienteRef) {
       const f = (index.byRef.get(input.expedienteRef) || []).find((x) => !isOwn(x, input));
       if (f) return { skip: true, reason: "mismo_expediente", ref: f.ref };
@@ -214,4 +221,12 @@ export async function loadCustomerIndex(opts: { since: Date; emails?: string[]; 
   const facts = buildFacts({ orders, quotes, analyses });
   const meta: QuoteFactMeta[] = emailQuotes.map((q) => ({ email: q.customerEmail, expRef: q.expedienteRef, holder: q.holderNames }));
   return new CustomerIndex(facts, meta, referrers.map((r) => r.email), analyses);
+}
+
+/** Pedidos a los que no se les pide pago: cancelados, archivados o entregados a crédito. */
+export function orderChaseSkipReason(status: string): string | null {
+  if (status === "CANCELLED") return "pedido_cancelado";
+  if (status === "ARCHIVED") return "pedido_archivado";
+  if (status === "DELIVERED") return "pedido_entregado_a_credito";
+  return null;
 }

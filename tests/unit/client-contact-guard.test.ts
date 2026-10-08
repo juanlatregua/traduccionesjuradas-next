@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { alreadyCustomerFor, buildFacts, CustomerIndex, countSkip, type ClientFact } from "../../lib/client-contact-guard.ts";
+import { alreadyCustomerFor, buildFacts, CustomerIndex, countSkip, orderChaseSkipReason, type ClientFact } from "../../lib/client-contact-guard.ts";
 import { emailSendStatus } from "../../lib/message-status.ts";
 import { clientSmsEnabled, smsBraked } from "../../lib/client-sms-policy.ts";
 
@@ -153,4 +153,23 @@ test("Carme (lead de la puerta, persona) sigue sin recibir aviso con pedido PAID
   });
   const index = new CustomerIndex(facts);
   assert.equal(alreadyCustomerFor({ email: "carme@mail.com", at: EVENT }, { index }).skip, true);
+});
+
+test("2026-00145/00161: presupuesto SENT cuyo PROPIO pedido ya está pagado no recibe recordatorio", () => {
+  const facts = buildFacts({
+    orders: [row({ id: "o5", reference: "26_OWN", clientEmail: "z@x.es", quoteId: "q145", paidAt: d("2026-10-07T05:22:00Z"), paymentStatus: "PAID", status: "PAID" })],
+    quotes: [{ id: "q145", quoteNumber: "2026-00145", status: "SENT", paidAt: null, updatedAt: D, customerEmail: "z@x.es", expedienteRef: null }],
+    analyses: [],
+  });
+  const index = new CustomerIndex(facts);
+  const r = alreadyCustomerFor({ mode: "encargo", quoteId: "q145", at: D }, { index });
+  assert.deepEqual(r, { skip: true, reason: "pedido_propio_pagado", ref: "26_OWN" });
+  assert.equal(alreadyCustomerFor({ mode: "encargo", quoteId: "q999", at: D }, { index }).skip, false);
+});
+
+test("order-reminders: no se pide pago de pedidos cancelados, archivados o entregados a crédito", () => {
+  assert.equal(orderChaseSkipReason("CANCELLED"), "pedido_cancelado");
+  assert.equal(orderChaseSkipReason("ARCHIVED"), "pedido_archivado");
+  assert.equal(orderChaseSkipReason("DELIVERED"), "pedido_entregado_a_credito");
+  assert.equal(orderChaseSkipReason("PENDING_PAYMENT"), null);
 });
