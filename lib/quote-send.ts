@@ -192,6 +192,7 @@ export async function finalizeAndSendQuote(opts: {
       translatorName: quote.translatorName,
       translatorMaec: quote.translatorMaec,
       paymentMethods: quote.paymentMethods,
+      deliveryType: quote.deliveryType,
     });
     const customSubject = String(opts.customSubject || "").trim();
     const customBody = String(opts.customBody || "").trim();

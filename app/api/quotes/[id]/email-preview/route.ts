@@ -33,6 +33,9 @@ export async function GET(req: Request, { params }: Params) {
       publicToken: true,
       sentAt: true,
       deliveryType: true,
+      translatorName: true,
+      translatorMaec: true,
+      paymentMethods: true,
     },
   });
   if (!quote) {
@@ -68,7 +71,15 @@ export async function GET(req: Request, { params }: Params) {
     subject = msg.subject;
     body = msg.body;
   } else {
-    const msg = buildPayLinkEmail({ name, payUrl, proofUrl: `${payUrl}?paso=justificante` });
+    const msg = buildPayLinkEmail({
+      name,
+      payUrl,
+      proofUrl: `${payUrl}?paso=justificante`,
+      translatorName: quote.translatorName,
+      translatorMaec: quote.translatorMaec,
+      paymentMethods: quote.paymentMethods,
+      deliveryType: quote.deliveryType,
+    });
     subject = msg.subject;
     body = msg.body;
   }
