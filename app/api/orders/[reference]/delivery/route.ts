@@ -211,7 +211,7 @@ export async function POST(req: Request, { params }: Params) {
       );
       if (pending.length > 0) {
         return NextResponse.json(
-          { ok: false, error: `Hay ${pending.length} archivo(s) del traductor sin revisar: márcalos como revisados antes de enviar.` },
+          { ok: false, error: `Hay ${pending.length} archivo(s) del traductor sin revisar: márcalos como revisados en «Entregar al cliente» (ficha del pedido) antes de enviar.` },
           { status: 400 }
         );
       }

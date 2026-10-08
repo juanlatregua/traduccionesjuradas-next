@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { runInvoiceOnly } from "../../lib/delivery-invoice-only.ts";
-import { pendingLavoriEntregas, reviewedFileUrls, translatorFileUrls, unreviewedForSend, unreviewedUrls } from "../../lib/delivery-files.ts";
+import { pendingLavoriEntregas, splitReviewedFiles, unreviewedNotice, unsentLavoriUrls, reviewedFileUrls, translatorFileUrls, unreviewedForSend, unreviewedUrls } from "../../lib/delivery-files.ts";
 import { INVOICE_NUMBER_PLACEHOLDER } from "../../lib/delivery-message.ts";
 
 const input = { reference: "26_95DA0E", lang: "es" as const, clientName: "Marta", reviewUrl: "https://g.page/r/x" };
@@ -107,4 +107,34 @@ test("solo factura sin factura posible: el error no arrastra «se ha enviado sin
   deps.prepare = async () => ({ warning: "Hay un borrador en Facturas: emítelo allí. Se ha enviado sin factura." });
   const r = await runInvoiceOnly(deps, input);
   assert.equal((r as { error: string }).error, "No hay factura que enviar. Hay un borrador en Facturas: emítelo allí.");
+});
+
+test("la subida del traductor por /entrega (translator.delivered) exige revisión", () => {
+  const url = "https://x/translator-deliveries/26_1/1791300000000-traduccion-AbCdEfGhIjKlMnOpQrStUvWxYz0123.pdf";
+  const delivered = { type: "translator.delivered", payload: { fileUrl: url, filename: "t.pdf" }, createdAt: "2026-10-08T09:00:00Z" };
+  assert.deepEqual(unreviewedForSend([url], [delivered]), [url]);
+  assert.deepEqual(unreviewedForSend([url], []), [url]); // también por la ruta, sin el evento
+  const reviewed = { type: "delivery.file_reviewed", payload: { url, reviewed: true }, createdAt: "2026-10-08T09:05:00Z" };
+  assert.deepEqual(unreviewedForSend([url], [delivered, reviewed]), []);
+});
+
+test("el reply de la bandeja y el mensaje libre no adjuntan lo no revisado", () => {
+  const lav = { url: "https://x/orders/26_1/entregas-lavori/1791300000000-a.pdf", filename: "a.pdf" };
+  const own = { url: "https://x/orders/26_1/propia.pdf", filename: "propia.pdf" };
+  const ok = { url: "https://x/orders/26_1/entregas-lavori/1791300000001-b.pdf", filename: "b.pdf" };
+  const events = [{ type: "delivery.file_reviewed", payload: { url: ok.url, reviewed: true }, createdAt: "2026-10-08T09:05:00Z" }];
+  const r = splitReviewedFiles([lav, own, ok], events);
+  assert.deepEqual(r.allowed.map((f) => f.filename), ["propia.pdf", "b.pdf"]);
+  assert.deepEqual(r.blocked.map((f) => f.filename), ["a.pdf"]);
+  assert.match(unreviewedNotice(r.blocked.length), /1 archivo\(s\) sin revisar no se han adjuntado: revísalos en Entregar al cliente/);
+});
+
+test("lavori: procesada si hubo un envío posterior; sin enviar no sale marcada en reenvíos", () => {
+  const url = "https://x/orders/26_1/entregas-lavori/1791300000000-a.pdf";
+  const ev = { type: "lavori.entrega_subida", payload: { attachmentUrl: url, nombre: "a.pdf" }, createdAt: "2026-10-08T09:00:00Z" };
+  const sent = { type: "notification.delivery_ready.sent", payload: {}, createdAt: "2026-10-08T10:00:00Z" };
+  assert.equal(pendingLavoriEntregas([ev], []).length, 1);
+  assert.equal(pendingLavoriEntregas([ev, sent], []).length, 0);
+  assert.deepEqual(unsentLavoriUrls([ev], [{ url }]), [url]);
+  assert.deepEqual(unsentLavoriUrls([ev, sent], [{ url }]), []);
 });

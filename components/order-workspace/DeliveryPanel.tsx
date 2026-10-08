@@ -45,6 +45,7 @@ type Props = {
   translatorUrls: string[];
   pendingLavori: { url: string; name: string; mimeType: string | null }[];
   paper: boolean;
+  unsentLavoriUrls: string[];
   reviewedUrls: string[];
   billing: BillingFields;
   billingExcluded: boolean;
@@ -80,7 +81,9 @@ export default function DeliveryPanel(props: Props) {
     [props.files, props.pendingLavori]
   );
   const versions = useMemo(() => splitDocumentVersions(allFiles, props.primaryFileUrl, props.replacedUrls), [allFiles, props.primaryFileUrl, props.replacedUrls]);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(versions.current.map((f) => f.url)));
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(versions.current.filter((f) => !props.unsentLavoriUrls.includes(f.url)).map((f) => f.url))
+  );
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [reviewed, setReviewed] = useState<Set<string>>(() => new Set(props.reviewedUrls));
   const translatorSet = useMemo(() => new Set(props.translatorUrls), [props.translatorUrls]);

@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { sendCustomClientEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
+import { splitReviewableFiles } from "@/lib/delivery-review";
+import { unreviewedNotice } from "@/lib/delivery-files";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
 
 export const runtime = "nodejs";
@@ -78,6 +80,7 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     let attachments: any[] = [];
+    let reviewWarning: string | null = null;
     if (attachInvoice && !attachFiles) {
       const invAtt = await buildIssuedInvoiceAttachment(order.reference);
       if (!invAtt) {
@@ -89,13 +92,15 @@ export async function POST(req: Request, { params }: Params) {
       attachments = [invAtt];
     }
     if (attachFiles) {
-      const files: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
+      const allFiles: DeliveryFile[] = Array.isArray(order.deliveryFilesJson)
         ? (order.deliveryFilesJson as unknown as DeliveryFile[]).filter(
             (f) => f && typeof f.url === "string" && f.url.trim()
           )
         : order.translatedFileUrl
           ? [{ url: order.translatedFileUrl, filename: order.finalFilename || null }]
           : [];
+      const { allowed: files, blocked } = await splitReviewableFiles(order.id, allFiles);
+      if (blocked.length > 0) reviewWarning = unreviewedNotice(blocked.length);
       const multi = files.length > 1;
       const [fileAtts, invAtt] = await Promise.all([
         Promise.all(
@@ -157,7 +162,7 @@ export async function POST(req: Request, { params }: Params) {
       sendCustomClientEmail({ toEmail: order.clientEmail, subject, bodyText, attachments })
     );
 
-    return NextResponse.json({ ok: true, fileCount: attachments.length, smsSent });
+    return NextResponse.json({ ok: true, fileCount: attachments.length, smsSent, warning: reviewWarning });
   } catch (err: any) {
     console.error("[notify-custom] error", err);
     return NextResponse.json(

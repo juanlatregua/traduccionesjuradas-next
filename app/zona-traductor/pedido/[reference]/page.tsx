@@ -33,7 +33,7 @@ import OrderExtendButton from "@/components/OrderExtendButton";
 import { isOrderSecured, isCreditAuthorized, creditDaysToDue, isMonthlySecured, periodLabel } from "@/lib/credit-terms";
 import { buildDeliveryResendMessage } from "@/lib/notification-templates";
 import { getReviewUrl, greetingName, toDeliveryLang } from "@/lib/delivery-message";
-import { pendingLavoriEntregas, reviewedFileUrls, translatorFileUrls } from "@/lib/delivery-files";
+import { pendingLavoriEntregas, reviewedFileUrls, translatorFileUrls, unsentLavoriUrls } from "@/lib/delivery-files";
 import { resolveBillingPrefill } from "@/lib/delivery-billing";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
 import OrderFinancePanel from "@/components/OrderFinancePanel";
@@ -707,9 +707,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         </section>
 
         <Section id="traduccion" title="Entregar la traducción">
-          {lavoriEntregas.some((e) => !e.enviada) && (
+          {pendingLavoriEntregas(order.events, order.deliveryFilesJson).length > 0 && (
             <LavoriEntregasPanel
-              entregas={lavoriEntregas.filter((e) => !e.enviada)}
+              entregas={lavoriEntregas.filter((e) =>
+                pendingLavoriEntregas(order.events, order.deliveryFilesJson).some((p) => p.url === e.url)
+              )}
               paper={order.deliveryType === "paper"}
             />
           )}
@@ -723,6 +725,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
             primaryFileUrl={order.finalDeliveryFileUrl || order.translatedFileUrl || null}
             pendingLavori={pendingLavoriEntregas(order.events, order.deliveryFilesJson)}
+            unsentLavoriUrls={unsentLavoriUrls(order.events, order.deliveryFilesJson)}
             paper={order.deliveryType === "paper"}
             translatorUrls={Array.from(
               translatorFileUrls(order.events, (order.collaboratorAssignments || []).map((a: any) => a.deliveredFileUrl))

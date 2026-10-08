@@ -9,6 +9,8 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { replyToInboxMessage } from "@/lib/azure-mail-read";
 import { renderClientMessageHtml } from "@/lib/email";
 import { sendWhatsAppInboxReply } from "@/lib/whatsapp-inbox";
+import { splitReviewableFiles } from "@/lib/delivery-review";
+import { unreviewedNotice } from "@/lib/delivery-files";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
 import type { MailAttachment } from "@/lib/azure-mail";
 
@@ -51,6 +53,7 @@ export async function POST(req: Request, { params }: Params) {
     // la respuesta salía sin los PDF). attachFiles=false lo desactiva.
     const attachFiles = payload?.attachFiles !== false;
     let attachments: MailAttachment[] = [];
+    let reviewWarning: string | null = null;
     let orderRefForFiles = inbound.orderReference;
     if (!orderRefForFiles && inbound.quoteId) {
       const o = await prisma.order.findFirst({ where: { quoteId: inbound.quoteId }, select: { reference: true } });
@@ -59,16 +62,18 @@ export async function POST(req: Request, { params }: Params) {
     if (!isWhatsApp && attachFiles && orderRefForFiles) {
       const order = await prisma.order.findUnique({
         where: { reference: orderRefForFiles },
-        select: { reference: true, deliveryFilesJson: true, translatedFileUrl: true, finalFilename: true },
+        select: { id: true, reference: true, deliveryFilesJson: true, translatedFileUrl: true, finalFilename: true },
       });
       if (order) {
-        const files: { url: string; filename?: string | null }[] = Array.isArray(order.deliveryFilesJson)
+        const allFiles: { url: string; filename?: string | null }[] = Array.isArray(order.deliveryFilesJson)
           ? (order.deliveryFilesJson as unknown as { url: string; filename?: string | null }[]).filter(
               (f) => f && typeof f.url === "string" && f.url.trim()
             )
           : order.translatedFileUrl
             ? [{ url: order.translatedFileUrl, filename: order.finalFilename || null }]
             : [];
+        const { allowed: files, blocked } = await splitReviewableFiles(order.id, allFiles);
+        if (blocked.length > 0) reviewWarning = unreviewedNotice(blocked.length);
         const multi = files.length > 1;
         const [fileAtts, invAtt] = await Promise.all([
           Promise.all(
@@ -154,7 +159,7 @@ export async function POST(req: Request, { params }: Params) {
       }
     }
 
-    return NextResponse.json({ ok: true, fileCount: attachments.length });
+    return NextResponse.json({ ok: true, fileCount: attachments.length, warning: reviewWarning });
   } catch (err: any) {
     console.error("[inbox:reply] error", err);
     return NextResponse.json(
