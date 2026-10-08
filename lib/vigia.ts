@@ -208,7 +208,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     const root = rootOf(solKeys(s));
     const solChase = solicitudChase(marksByKey.get(`r:${s.ref}`) || [], NOW);
     const solHidden = solChase.hidden;
-    if (solHidden) ocultos.push({ quien: `solicitud ${s.ref}`, motivo: solChase.reason! });
+    const actSol: typeof act = (...args) => { if (solHidden) ocultos.push({ quien: `solicitud ${s.ref}`, motivo: solChase.reason! }); else act(...args); };
     const px = personExtra(root, null, { key: `r:${s.ref}`, line: solChase.line });
     // ¿La persona ya tiene presupuesto del mismo par posterior a la solicitud? (Yannick, Susana)
     const dup = duplicateOf(s, root ? solsOfRoot.get(root) || [] : [], root ? quotesOfRoot.get(root) || [] : []);
@@ -226,10 +226,10 @@ export async function buildVigia(days = 7): Promise<Vigia> {
         if (hermana || qPersona) {
           const de = hermana ? `la solicitud ${hermana.ref} (${hermana.status})` : `el presupuesto ${qPersona!.numero}`;
           accion = `duplicada: la misma persona y par ya tiene ${de} → retirar esta solicitud en lavori`;
-          act(0, 1, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}) DUPLICADA de ${hermana ? hermana.ref : qPersona!.numero} → retirarla en lavori`, builder, px);
+          actSol(0, 1, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}) DUPLICADA de ${hermana ? hermana.ref : qPersona!.numero} → retirarla en lavori`, builder, px);
         } else {
           accion = `sin precio del jurado tras ${h} h → reclamar al jurado por lavori o cambiar de candidato (builder)`;
-          act((s.words || 400) * 0.1, 3, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}) lleva ${h} h sin precio → reclamar/cambiar candidato`, builder, px);
+          actSol((s.words || 400) * 0.1, 3, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}) lleva ${h} h sin precio → reclamar/cambiar candidato`, builder, px);
         }
       }
     } else if (s.status === "PRICED" && pedido) {
@@ -239,11 +239,11 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     } else if ((s.status === "PRICED" || s.status === "ACCEPTED") && !q && coste != null) {
       situacion = `${s.status} ${eur(coste!)} por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
       accion = `montar presupuesto: coste ${eur(coste!)} + ${MARGIN_PCT} % = ${eur(sugerido!)} neto → ${eur(sugerido! * VAT)} con IVA`;
-      if (!solHidden) act(sugerido!, 4, `Presupuesto a ${s.customerHint || s.ref} (${s.par}): coste ${eur(coste!)} de ${s.miembroNombre || "?"} → ${eur(sugerido!)} +IVA = ${eur(sugerido! * VAT)}`, builder, px);
+      actSol(sugerido!, 4, `Presupuesto a ${s.customerHint || s.ref} (${s.par}): coste ${eur(coste!)} de ${s.miembroNombre || "?"} → ${eur(sugerido!)} +IVA = ${eur(sugerido! * VAT)}`, builder, px);
     } else if (s.status === "ACCEPTED" && !q && coste == null) {
       situacion = `ACCEPTED SIN CIFRA por ${s.miembroNombre || "?"} el ${madrid(s.updatedAt)} · SIN PRESUPUESTO`;
       accion = `el jurado aceptó sin pasar precio → acordar coste con ${s.miembroNombre || "el jurado"} y montar presupuesto`;
-      if (!solHidden) act((s.words || 400) * 0.1, 4, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}): ${s.miembroNombre || "el jurado"} aceptó SIN cifra → acordar coste y montar presupuesto`, builder, px);
+      actSol((s.words || 400) * 0.1, 4, `Solicitud ${s.ref} ${s.par} (${s.customerHint || "?"}): ${s.miembroNombre || "el jurado"} aceptó SIN cifra → acordar coste y montar presupuesto`, builder, px);
     } else if ((s.status === "PRICED" || s.status === "ACCEPTED") && q) {
       situacion = `${s.status} ${coste != null ? eur(coste) : "sin cifra"} → presupuesto ${q.quoteNumber} ${q.status} (${eur(Number(q.total))})`;
     }
@@ -504,7 +504,7 @@ const EMAIL_MAX_ROWS = 8;
 const btn = (href: string | null, label: string) => (href ? ` <a href="${href}" style="font-size:12px; color:#475569; border:1px solid #cbd5e1; border-radius:4px; padding:1px 6px; text-decoration:none; white-space:nowrap;">${label}</a>` : "");
 
 /** Filas de gestión (una por persona/pedido), con «Ya lo traté» y «Posponer 7 días» firmados. */
-export function renderAccionesHtml(rows: VigiaAction[], max = rows.length): string {
+export function renderAccionesHtml(rows: VigiaAction[], max = rows.length, ocultos = 0): string {
   const shown = rows.slice(0, max);
   const items = shown.map((x) => {
     const k = x.persona?.key;
@@ -514,7 +514,11 @@ export function renderAccionesHtml(rows: VigiaAction[], max = rows.length): stri
     return li(`${esc(x.que)} — <a href="${x.link}" style="color:#1e3a8a;">abrir</a>${marks}${extras}${estado}`);
   });
   const rest = rows.length - shown.length;
-  const more = rest > 0 ? `<p style="margin:6px 0 0; font-size:12px; color:#64748b;">+${rest} ocultos — <a href="${SITE}/zona-traductor/vigia" style="color:#1e3a8a;">verlos en la agenda</a></p>` : "";
+  const foot = [
+    rest > 0 ? `+${rest} más en la página` : "",
+    ocultos > 0 ? `${ocultos} ocultos (ya tratados)` : "",
+  ].filter(Boolean).join(" · ");
+  const more = foot ? `<p style="margin:6px 0 0; font-size:12px; color:#64748b;">${foot} — <a href="${SITE}/zona-traductor/vigia" style="color:#1e3a8a;">abrir la página</a></p>` : "";
   return `<ol style="margin:0; padding-left:18px; font-size:13px;">${items.join("")}</ol>${more}`;
 }
 
@@ -529,7 +533,7 @@ export function renderAgendaHtml(v: Vigia): string {
   const traducir = a.traducir.length ? `<ul style="margin:0; padding-left:18px; font-size:13px;">${a.traducir.map(item).join("")}</ul>` : `<p style="margin:0; font-size:13px;">Nada pendiente tuyo. 🎉</p>`;
   const seguir = a.seguir.length ? `<ul style="margin:0; padding-left:18px; font-size:13px;">${a.seguir.map(item).join("")}</ul>` : `<p style="margin:0; font-size:13px;">Sin entregas de colaboradores pendientes.</p>`;
   const entregar = a.entregar.length ? box("📦 ENTREGAR AL CLIENTE (el traductor ya entregó)", "#b91c1c", `<ul style="margin:0; padding-left:18px; font-size:13px;">${a.entregar.map((i) => li(`<a href="${i.link}" style="font-weight:600; color:#1e3a8a;">${esc(i.ref)}</a> · ${esc(i.cliente)} · ${esc(i.par)} · ${esc(eur(i.importe))} · ${esc(i.quien)}`)).join("")}</ul>`) : "";
-  const gestion = renderAccionesHtml(v.acciones, EMAIL_MAX_ROWS);
+  const gestion = renderAccionesHtml(v.acciones, EMAIL_MAX_ROWS, v.ocultos.length);
   const sinFecha = a.sinFecha.length ? `<p style="margin:8px 0 0; font-size:13px; color:#b91c1c;">⚠ Sin fecha de entrega: ${a.sinFecha.map((i) => esc(i.ref)).join(", ")} — ponla en la ficha.</p>` : "";
   return `
     <h2 style="margin:0 0 4px; font-size:18px;">Agenda de hoy · ${esc(madrid(v.generado).slice(0, 5))}</h2>
