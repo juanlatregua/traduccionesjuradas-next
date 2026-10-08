@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { LINK_PREVIEW_UA } from "@/lib/cierre-math";
 import {
   decimalToNumber,
   hashValue,
@@ -52,9 +53,6 @@ function resolveIp() {
   if (forwarded) return forwarded.split(",")[0].trim();
   return h.get("x-real-ip") || "unknown";
 }
-
-const LINK_PREVIEW_UA =
-  /WhatsApp|TelegramBot|facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|SkypeUriPreview|Googlebot|bingbot|Applebot|preview/i;
 
 async function trackOpen(quote: { id: string; status: string }) {
   const ip = resolveIp();
