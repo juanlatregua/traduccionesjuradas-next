@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { documentKey, splitDocumentVersions } from "../../lib/delivery-files.ts";
-import { buildDeliveryText, greetingName, isEmailAlias } from "../../lib/delivery-message.ts";
+import {
+  AI_REQUIRED_DATA_ERROR,
+  buildDeliveryAiInstruction,
+  buildDeliveryText,
+  greetingName,
+  isEmailAlias,
+  missingRequiredData,
+  translateInstruction,
+} from "../../lib/delivery-message.ts";
 import { invoiceStatusOf, needsNif, resolveBillingPrefill } from "../../lib/delivery-billing.ts";
 
 const BASE = "https://abc.public.blob.vercel-storage.com/orders/26_0E3047/";
@@ -87,4 +95,23 @@ test("más de 400 € sin NIF exige NIF", () => {
   assert.equal(needsNif("  ", 90000), true);
   assert.equal(needsNif("", 40000), false);
   assert.equal(needsNif("B12345678", 90000), false);
+});
+
+test("la guarda de datos obligatorios de la IA", () => {
+  const req = { reference: "2026-00123", invoiceNumber: "26_096", reviewUrl: "https://g.page/r/x" };
+  const ok = buildDeliveryText({ lang: "es", name: "Ana", reference: req.reference, invoiceNumber: req.invoiceNumber, reviewUrl: req.reviewUrl });
+  assert.deepEqual(missingRequiredData(ok, req), []);
+  const fr = ok.replace("Buenos días", "Bonjour");
+  assert.deepEqual(missingRequiredData(fr, req), []);
+  assert.deepEqual(missingRequiredData(ok.replace("26_096", ""), req), ["número de factura"]);
+  assert.deepEqual(missingRequiredData(ok.replace(req.reviewUrl, ""), req), ["enlace de reseña"]);
+  assert.deepEqual(missingRequiredData(ok.replace("Juan Silva — TraduccionesJuradas.net", "Juan"), req), ["firma"]);
+  assert.deepEqual(missingRequiredData(ok, { ...req, invoiceNumber: null }), []);
+  assert.match(AI_REQUIRED_DATA_ERROR, /no se ha aplicado/);
+  const instr = buildDeliveryAiInstruction(translateInstruction("Français"), req);
+  assert.match(instr, /Traduce el mensaje a Français, mismo tono breve y cordial, usted\./);
+  assert.match(instr, /2026-00123/);
+  assert.match(instr, /26_096/);
+  assert.match(instr, /g\.page\/r\/x/);
+  assert.match(instr, /Juan Silva — TraduccionesJuradas\.net/);
 });

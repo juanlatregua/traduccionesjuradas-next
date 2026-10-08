@@ -42,6 +42,7 @@ type DeliveryBody = {
   fileUrls?: string[];
   billing?: Record<string, unknown>;
   message?: string;
+  subject?: string;
   etaDate?: string;
   autoEta?: boolean;
 };
@@ -341,6 +342,7 @@ export async function POST(req: Request, { params }: Params) {
         clientName: greetingName(order.clientName, order.clientEmail),
         invoiceNumber,
         message: customMessage,
+        subject: body.subject,
         correction: isCorrection,
       });
       await prisma.orderEvent
@@ -390,6 +392,7 @@ export async function POST(req: Request, { params }: Params) {
             clientName: greetingName(order.clientName, order.clientEmail),
             invoiceNumber,
             message: customMessage,
+            subject: body.subject,
             fallbackLinks,
             attachments,
             invoiceAttached: !!invAttach,
