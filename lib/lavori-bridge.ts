@@ -763,13 +763,33 @@ export function sameTranslatorName(a: string | null | undefined, b: string | nul
   return corto.every((t) => largo.includes(t));
 }
 
+// Vocabulario de caducidad de lavori (estado del 409 y motivo de encargo_retirado).
+// TODO: confirmar con la sesión de lavori los valores literales; hasta entonces, subcadenas.
+export const LAVORI_CADUCIDAD_VOCAB = ["caduc", "expir"] as const;
+const CADUCIDAD_RE = new RegExp(LAVORI_CADUCIDAD_VOCAB.join("|"));
+
 /** 409 de precio_aceptado: ¿el encargo CADUCÓ (3 días en lavori), con nadie que lo aceptara?
  * Solo entonces se reactiva con un dirigido nuevo. «Retirado» NO cuenta: lo retira Juan o
  * el staff a propósito (reasignado, duplicado, cliente, asignado_fuera) y reabrirlo
  * duplicaría el trabajo. Un estado vacío o desconocido tampoco: solo avisa al staff. */
-export function isEncargoMuerto(estado: string | null | undefined, aceptadoPor: string | null | undefined): boolean {
+export function isEncargoMuerto(
+  estado: string | null | undefined,
+  aceptadoPor: string | null | undefined,
+  caducidadConfirmada = false
+): boolean {
   if (aceptadoPor) return false;
-  return /caduc|expir/.test(String(estado || "").trim().toLowerCase());
+  const e = String(estado || "").trim().toLowerCase();
+  if (CADUCIDAD_RE.test(e)) return true;
+  // La solicitud ya consta caducada por lavori (nota retirado-lavori: con motivo de
+  // caducidad): su 409 puede venir como «retirado» y es el mismo encargo muerto.
+  return caducidadConfirmada && /retir/.test(e);
+}
+
+/** Un `repetido` de lavori al reactivar solo vale como éxito si el encargoId es uno que
+ * ya teníamos anotado como reactivado; si no, lavori tenía OTRO encargo con esa ref. */
+export function repetidoEsReactivacionPropia(encargoId: string | null | undefined, anotados: Array<string | null | undefined>): boolean {
+  const id = String(encargoId || "").trim();
+  return Boolean(id) && anotados.some((x) => String(x || "").trim() === id);
 }
 
 /** ¿El pedido ya tiene traductor? Entonces nunca se abre otro encargo a otro jurado. */
@@ -792,7 +812,7 @@ export function isRetiradaPorCaducidad(notas: string | null | undefined): boolea
   if (!n.includes("retirado-lavori:")) return false;
   if (/retirada para reabrir|asignado_fuera|Precio ya pactado|Retirada en lavori por/i.test(n)) return false;
   const motivos = Array.from(n.matchAll(/Retirada en lavori \(([^,)]*)/g)).map((x) => x[1].toLowerCase());
-  return motivos.length > 0 && motivos.every((x) => /caduc|expir/.test(x));
+  return motivos.length > 0 && motivos.every((x) => CADUCIDAD_RE.test(x));
 }
 
 export async function sendLavoriPrecioAceptado(payload: {

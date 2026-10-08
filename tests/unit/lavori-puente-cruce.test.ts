@@ -8,6 +8,8 @@ import {
   fetchLavoriCartera,
   isEncargoMuerto,
   isRetiradaPorCaducidad,
+  repetidoEsReactivacionPropia,
+  LAVORI_CADUCIDAD_VOCAB,
   motivoPedidoConTraductor,
   mapLavoriMiembro,
   isLavoriNoAvisar,
@@ -235,4 +237,20 @@ test("5. sameTranslatorName: mismas personas con tilde o nombre corto no cambian
   assert.equal(sameTranslatorName("Cristina Aguilera Viladés", "María Carmen Lencastre De Albuquerque Charrua"), false);
   assert.equal(sameTranslatorName("Leticia Sánchez Balsalobre", "María Lourdes Yagüe Lobo"), false);
   assert.equal(sameTranslatorName(null, "María Lourdes Yagüe Lobo"), false);
+});
+
+test("1b. repetido de lavori solo es éxito si el encargoId ya estaba anotado como reactivado", () => {
+  assert.equal(repetidoEsReactivacionPropia("enc-1", ["enc-1"]), true);
+  assert.equal(repetidoEsReactivacionPropia("enc-2", ["enc-1"]), false); // otro encargo con esa ref
+  assert.equal(repetidoEsReactivacionPropia("enc-1", []), false);
+  assert.equal(repetidoEsReactivacionPropia("", [""]), false);
+});
+
+test("2. caducidadConfirmada: un 409 «retirado» de una solicitud ya validada como caducada reactiva; sin confirmar, no", () => {
+  assert.equal(isEncargoMuerto("retirado", null), false);
+  assert.equal(isEncargoMuerto("retirado", null, true), true);
+  assert.equal(isEncargoMuerto("retirado", "alguien", true), false); // con aceptante, nunca
+  assert.equal(isEncargoMuerto("desconocido", null, true), false);
+  assert.equal(isEncargoMuerto("aceptado", null, true), false);
+  assert.ok(LAVORI_CADUCIDAD_VOCAB.length >= 2);
 });

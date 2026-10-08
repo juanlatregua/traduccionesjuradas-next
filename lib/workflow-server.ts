@@ -23,6 +23,7 @@ import {
   sendLavoriPrecioAceptado,
   isLavoriMemberAvailable,
   isEncargoMuerto,
+  repetidoEsReactivacionPropia,
   isRetiradaPorCaducidad,
   motivoPedidoConTraductor,
   type LavoriRoute,
@@ -379,6 +380,7 @@ async function emitPrecioAceptadoIfApplicable(opts: {
   }
 
   let ref: string | null = null;
+  let caducidadConfirmada = false;
   let precioCents: number | null = null;
   let lprId: string | null = null;
   let miembroIdHint: string | null = null;
@@ -466,7 +468,10 @@ async function emitPrecioAceptadoIfApplicable(opts: {
       });
       // Solo la retirada POR CADUCIDAD en lavori, y solo si el pedido sigue sin traductor.
       const caducada = retiradas.find((r) => isRetiradaPorCaducidad(r.notas));
-      if (caducada && !(await pedidoYaTieneTraductor(order.id))) lpr = caducada;
+      if (caducada && !(await pedidoYaTieneTraductor(order.id))) {
+        lpr = caducada;
+        caducidadConfirmada = true;
+      }
     }
     if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
     if (lpr && !(lpr.priceCents && lpr.priceCents > 0)) return holdForPendingPrice(opts, lpr);
@@ -625,6 +630,7 @@ async function emitPrecioAceptadoIfApplicable(opts: {
     precioCents,
     lprId,
     quoteId: opts.order.quoteId,
+    caducidadConfirmada,
   });
   // handled=true aunque falle: con solicitud previa jamás se abre encargo nuevo.
   return { handled: true, changed: result.ok };
@@ -741,12 +747,12 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
 }): Promise<{ ok: true; repetido: boolean; encargoId: string; miembro: string } | { ok: false; error: string }> {
   const { orderId, reference, ref, precioCents, lprId, estado } = opts;
   try {
-    const previo = await prisma.orderEvent.findFirst({
+    const previos = await prisma.orderEvent.findMany({
       where: { orderId, type: "lavori.solicitud_enviada", payload: { path: ["reactivado"], equals: true } },
       select: { payload: true },
     });
-    if (previo) {
-      return { ok: true, repetido: true, encargoId: String((previo.payload as any)?.lavoriEncargoId || ""), miembro: "" };
+    if (previos.length > 0) {
+      return { ok: true, repetido: true, encargoId: String((previos[0].payload as any)?.lavoriEncargoId || ""), miembro: "" };
     }
     const yaTiene = await pedidoYaTieneTraductor(orderId);
     if (yaTiene) return { ok: false, error: `el pedido ${yaTiene}: no se abre otro encargo` };
@@ -803,7 +809,12 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
     });
     const result = await sendLavoriSolicitud(payload);
     if (!result.ok) return { ok: false, error: result.error };
-    // result.repetido: lavori ya tenía ese encargo (reintento): cuenta como éxito, sin alarma.
+    // `repetido` solo es éxito si el encargoId es uno que ya teníamos anotado como reactivado
+    // (aquí no hay ninguno: la guarda de arriba corta antes). Si no, lavori tenía OTRO
+    // encargo con esta ref: no se anota «REACTIVADO» y se avisa al staff (email + SMS).
+    if (result.repetido && !repetidoEsReactivacionPropia(result.encargoId, previos.map((e) => (e.payload as any)?.lavoriEncargoId))) {
+      return { ok: false, error: `lavori ya tenía un encargo con esta ref (${result.encargoId})` };
+    }
 
     await prisma.orderEvent.create({
       data: {
@@ -861,6 +872,7 @@ export async function deliverPrecioAceptado(opts: {
   lprId?: string | null;
   quoteId?: string | null;
   auto?: boolean; // true si la aceptación es automática post-pago
+  caducidadConfirmada?: boolean; // la solicitud RETIRED consta caducada por su nota (retirado-lavori:)
 }): Promise<{ ok: boolean; conflicto?: boolean }> {
   const { orderId, reference, ref, precioCents, lprId } = opts;
   const precio = (precioCents / 100).toFixed(2);
@@ -936,7 +948,7 @@ export async function deliverPrecioAceptado(opts: {
     // Encargo caducado/cancelado/retirado: se reactiva con SU cifra. El pago ya está
     // hecho y NUNCA falla por esto (reopen no lanza; cualquier fallo cae al aviso).
     let reactivacionFallida: string | null = null;
-    if (isEncargoMuerto(result.estado, result.aceptadoPor)) {
+    if (isEncargoMuerto(result.estado, result.aceptadoPor, opts.caducidadConfirmada === true)) {
       const re = await reopenDirigidoAfterDeadEncargo({ orderId, reference, ref, precioCents, lprId, estado: result.estado });
       if (re.ok) {
         if (!re.repetido) {
