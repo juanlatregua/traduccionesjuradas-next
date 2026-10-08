@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 
 const LANG_COMBOS = [
   { pair: "Español ↔ Inglés", price: "desde 40 € + IVA", plazo: "en el presupuesto" },
-  { pair: "Español ↔ Francés", price: "desde 35 € + IVA", plazo: "24-48 h" },
-  { pair: "Español ↔ Alemán", price: "desde 40 € + IVA", plazo: "en el presupuesto" },
+  { pair: "Español ↔ Francés", price: "francés → español: 30 € + IVA por página · español → francés: desde 35 € + IVA", plazo: "24-48 h" },
+  { pair: "Español ↔ Alemán", price: "alemán → español: 30 € + IVA por página (35 € con tablas) · español → alemán: desde 40 € + IVA", plazo: "48 h (alemán → español) · en el presupuesto" },
   { pair: "Español ↔ Italiano", price: "en el presupuesto", plazo: "en el presupuesto" },
   { pair: "Español ↔ Portugués", price: "desde 40 € + IVA", plazo: "en el presupuesto" },
 ];

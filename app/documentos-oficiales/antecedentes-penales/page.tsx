@@ -40,8 +40,8 @@ export default function AntecedentesPenalesPage() {
         description="Precio cerrado para traducir certificados de antecedentes penales con firma y sello de traductor jurado."
         sku="antecedentes-penales"
         offers={[
-          { price: "35.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
-          { price: "40.00", priceCurrency: "EUR", availability: "https://schema.org/InStock" },
+          { name: "1 página (francés/alemán → español)", price: "30.00", priceCurrency: "EUR", vatIncluded: false, availability: "https://schema.org/InStock" },
+          { name: "1 página apostillada (francés/alemán → español)", price: "35.00", priceCurrency: "EUR", vatIncluded: false, availability: "https://schema.org/InStock" },
         ]}
       />
       <SchemaService

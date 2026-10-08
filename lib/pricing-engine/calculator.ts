@@ -6,15 +6,19 @@ import {
   getMinimum,
   getPageMinimum,
   getComplexityMultiplier,
+  FRENCH_CRIMINAL_RECORD_PRICE,
   getApostilleSurcharge,
   URGENCY_MULTIPLIER,
-  MOROCCO_PRICING,
-  FRENCH_CRIMINAL_RECORD_PRICE,
 } from "./rules.ts";
+import { computePagePricing, APOSTILLE_EXTRA_EUR, type PagePricing } from "./page-pricing.ts";
 
 export const VAT_RATE = 0.21;
 
 export type Quote = {
+  // Con `pagePricing` (FR/DE→ES por página, 8-oct-2026) basePrice/urgentPrice ya
+  // son el precio de VENTA, no un coste: no llevan margen tiered encima
+  // (clientBaseFromQuote en page-pricing.ts).
+  pagePricing?: PagePricing | null;
   basePrice: number;
   urgentPrice: number;
   totalPrice: number;
@@ -129,6 +133,11 @@ export type PriceMetricsInput = {
   complexity?: string;
   countryCode?: string | null;
   hasApostille?: boolean;
+  // Precio por página: solo si el original NO está en español (inbound) y el
+  // tipo es «por página». hasTables solo importa en alemán (35 € en vez de 30 €).
+  inbound?: boolean;
+  hasTables?: boolean;
+  apostilleSeparatePage?: boolean;
 };
 
 export function computeBase(input: PriceMetricsInput): {
@@ -139,6 +148,7 @@ export function computeBase(input: PriceMetricsInput): {
   complexityMult: number;
   apostilleSurcharge: number;
   fixedPriceApplied: boolean;
+  pagePricing: PagePricing | null;
 } {
   const { specificType, foreignLang, words, pages } = input;
   const rate = getRate(foreignLang);
@@ -153,37 +163,43 @@ export function computeBase(input: PriceMetricsInput): {
   // Apostille surcharge: fijo según idioma (árabe 10€, resto 25€)
   const apostilleSurcharge = input.hasApostille ? getApostilleSurcharge(foreignLang) : 0;
 
-  // Morocco special pricing: solo aplica a francés (no árabe)
-  const isMorocco = input.countryCode === "MA" && foreignLang !== "ar";
-  const moroccoMaxPage = Math.max(...Object.keys(MOROCCO_PRICING).map(Number));
-  const moroccoFixedPrice = isMorocco
-    ? MOROCCO_PRICING[Math.min(pages, moroccoMaxPage)] ?? MOROCCO_PRICING[moroccoMaxPage]
-    : undefined;
-
   // Penales franceses con formulario multilingüe UE (Bulletin n°3 de ~5 páginas):
-  // el anexo distorsiona el conteo. La versión de 1 carilla sigue el cálculo normal.
-  const isFrenchCriminalRecord =
-    specificType === "criminal_record" && foreignLang === "fr" && pages >= 3;
-
-  if (isFrenchCriminalRecord) {
+  // el anexo distorsiona el conteo. Paquete fijo de 61,98 € (75 € con IVA) hasta que
+  // Juan decida otra cosa; la versión de 1-2 carillas sigue la tarifa por página.
+  if (specificType === "criminal_record" && foreignLang === "fr" && pages >= 3) {
     return {
       basePrice: FRENCH_CRIMINAL_RECORD_PRICE + apostilleSurcharge,
       wordPrice: FRENCH_CRIMINAL_RECORD_PRICE,
-      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true,
+      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true, pagePricing: null,
     };
   }
-  if (isMorocco && moroccoFixedPrice !== undefined) {
+
+  // Precio por página (FR/DE→ES, documentos «por página»): sustituye a los suelos
+  // por documento, al recargo de apostilla y a la tarifa fija de Marruecos
+  // (decisión Juan, 8-oct-2026).
+  const pagePricing = computePagePricing({
+    specificType,
+    foreignLang,
+    inbound: input.inbound === true,
+    pages,
+    hasTables: input.hasTables,
+    hasApostille: input.hasApostille,
+    apostilleSeparatePage: input.apostilleSeparatePage,
+  });
+  if (pagePricing) {
     return {
-      basePrice: moroccoFixedPrice + apostilleSurcharge,
-      wordPrice: moroccoFixedPrice,
-      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true,
+      basePrice: pagePricing.priceEur,
+      wordPrice: pagePricing.priceEur,
+      effectiveRate: 0, minimum: pagePricing.priceEur, complexityMult,
+      apostilleSurcharge: pagePricing.apostille ? APOSTILLE_EXTRA_EUR : 0,
+      fixedPriceApplied: true, pagePricing,
     };
   }
   const wordPrice = words * rate * complexityMult;
   return {
     basePrice: Math.max(wordPrice, minimum) + apostilleSurcharge,
     wordPrice,
-    effectiveRate: rate, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: false,
+    effectiveRate: rate, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: false, pagePricing: null,
   };
 }
 
@@ -212,6 +228,7 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     complexityMult,
     apostilleSurcharge,
     fixedPriceApplied,
+    pagePricing,
   } = computeBase({
     specificType: document_type.specific_type,
     foreignLang,
@@ -220,6 +237,9 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     complexity: complexity.level,
     countryCode: country?.origin,
     hasApostille: requirements?.has_apostille,
+    inbound: language.source !== "es",
+    hasTables: document_metrics.has_tables,
+    apostilleSeparatePage: requirements?.apostille_separate_page === true,
   });
 
   const estimatedDays = getEstimatedDays(
@@ -232,6 +252,7 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
   const roundedUrgent = round2(basePrice * URGENCY_MULTIPLIER);
 
   return {
+    pagePricing,
     basePrice: roundedBase,
     urgentPrice: roundedUrgent,
     totalPrice: round2(roundedBase * (1 + VAT_RATE)),

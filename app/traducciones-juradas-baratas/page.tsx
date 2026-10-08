@@ -5,9 +5,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
-  title: "Traducciones Juradas Baratas: desde 35 \u20AC \u00B7 Sin Agencia (MAEC)",
+  title: "Traducciones Juradas Baratas: desde 30 \u20AC \u00B7 Sin Agencia (MAEC)",
   description:
-    "Traducciones juradas baratas y v\u00E1lidas desde 35 \u20AC por documento. Traductor jurado nombrado por el MAEC, sin agencia intermediaria: pagas el trabajo del traductor, no comisiones. Presupuesto cerrado al instante.",
+    "Traducciones juradas baratas y v\u00E1lidas desde 30 \u20AC por p\u00E1gina (franc\u00E9s y alem\u00E1n). Traductor jurado nombrado por el MAEC, sin agencia intermediaria: pagas el trabajo del traductor, no comisiones. Presupuesto cerrado al instante.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/traducciones-juradas-baratas" },
 };
 
@@ -15,7 +15,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuál es el precio de una traducción jurada?",
     answer:
-      "El precio mínimo orientativo es desde 35 € por documento. El precio exacto depende del idioma, el tipo de documento, la extensión y el plazo de entrega. En algunos casos, como el francés gestionado directamente con el traductor jurado sin intermediarios, el precio puede ser más ajustado.",
+      "El precio mínimo orientativo es desde 30 € por página en francés y en alemán (a español). El precio exacto depende del idioma, el tipo de documento, la extensión y el plazo de entrega. En algunos casos, como el francés gestionado directamente con el traductor jurado sin intermediarios, el precio puede ser más ajustado.",
   },
   {
     question: "¿Una traducción jurada “barata” puede ser válida?",
@@ -45,7 +45,7 @@ export default function TraduccionesJuradasBaratas() {
 
       <p className="mt-4 text-lg text-sepia">
         Una traducción jurada barata y válida cuesta{" "}
-        <strong>desde 35 € por documento</strong> cuando la hace directamente
+        <strong>desde 30 € por página</strong> cuando la hace directamente
         un <strong>traductor jurado nombrado por el MAEC</strong>, sin agencia
         intermediaria. Si buscas <strong>traducciones juradas baratas</strong>,
         ese es nuestro enfoque: un{" "}
@@ -83,7 +83,7 @@ export default function TraduccionesJuradasBaratas() {
         </p>
 
         <p className="mt-4 text-lg font-semibold text-encre">
-          💶 Precio mínimo orientativo: <strong>desde 35 € por documento</strong>.
+          💶 Precio mínimo orientativo: <strong>desde 30 € por página</strong>.
         </p>
 
         <p className="mt-3 text-sepia">

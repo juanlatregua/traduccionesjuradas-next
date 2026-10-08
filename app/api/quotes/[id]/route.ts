@@ -1,3 +1,4 @@
+import { PAGE_TARIFF_MARK } from "@/lib/pricing-engine/page-pricing";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
@@ -57,6 +58,7 @@ export async function PATCH(req: Request, { params }: Params) {
         id: true,
         status: true,
         issuedAt: true,
+        autoPricedBy: true,
       },
     });
     if (!current) {
@@ -143,6 +145,9 @@ export async function PATCH(req: Request, { params }: Params) {
           notesLegal: parsed.data.notesLegal,
           deliveryTerm: parsed.data.deliveryTerm,
           holderNames: parsed.data.holderNames,
+          // Editar líneas invalida la marca de tarifa por página: hay que volver a
+          // verificar la procedencia del coste (canal o override) antes de enviar.
+          ...(current.autoPricedBy === PAGE_TARIFF_MARK ? { autoPricedBy: null } : {}),
           marginPct: parsed.data.marginPct,
           paymentMethods: parsed.data.paymentMethods,
           contactWhatsapp: parsed.data.contactWhatsapp,

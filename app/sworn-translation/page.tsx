@@ -15,7 +15,7 @@ import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/l
 export const metadata: Metadata = {
   title: { absolute: "Sworn translation Spanish ↔ English · official validity in Spain" },
   description:
-    "Official sworn translation in 10 languages, 100% online. Upload your document and get a fixed quote before you pay. Translators authorised by Spain's MAEC. French ↔ Spanish from €35 + VAT; other languages from €40 + VAT, quoted the same day.",
+    "Official sworn translation in 10 languages, 100% online. Upload your document and get a fixed quote before you pay. Translators authorised by Spain's MAEC. French or German into Spanish €30 + VAT per page; other languages from €40 + VAT, quoted the same day.",
   alternates: { canonical: LOCALE_ABS.en, languages: HREFLANG_ALTERNATES },
   openGraph: {
     title: "Sworn translation Spanish ↔ English",

@@ -6,7 +6,8 @@ const OPTIONS = [
   { id: "es-en", label: "Español ↔ Inglés", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
   { id: "es-fr", label: "Español → Francés", price: "35 € + IVA", plazo: "24 h" },
   { id: "pt-es", label: "Portugués (apostillado) → Español", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
-  { id: "fr-es", label: "Francés (apostillado) → Español", price: "40 € + IVA", plazo: "24 h" },
+  { id: "fr-es", label: "Francés → Español", price: "30 € + IVA por página · 35 € si está apostillado", plazo: "24 h" },
+  { id: "de-es", label: "Alemán → Español", price: "30 € + IVA por página (35 € con tablas) · +5 € si está apostillado", plazo: "48 h" },
 ];
 
 export function CivilMiniForm() {

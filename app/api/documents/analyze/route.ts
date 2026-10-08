@@ -11,7 +11,7 @@ import { hashFileBuffer, pickReusableTwin } from "@/lib/document-dedup";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { buildDiagnosis, resolveForeignLang } from "@/lib/diagnosis";
-import { clientPriceFromCost } from "@/lib/quote-math";
+import { clientUrgentFromQuote } from "@/lib/pricing-engine/page-pricing";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 import { alertStaffAiOutage, alertStaffAnalysisFailure, isAiAccountError } from "@/lib/ai/outage-alert";
 
@@ -272,7 +272,7 @@ export async function POST(req: Request) {
         // coherente con el diagnóstico mostrado y con la rama cached (que aplica
         // IVA sobre este valor). Ver lib/quote-math.ts.
         quoteAmount: diagnosis.price.base,
-        quoteUrgent: clientPriceFromCost(quote.urgentPrice, resolveForeignLang(analysis.language)),
+        quoteUrgent: clientUrgentFromQuote(quote, resolveForeignLang(analysis.language)),
         estimatedDays: quote.estimatedDaysStandard,
         estimatedDaysUrgent: quote.estimatedDaysUrgent,
         quoteBreakdown: quote.breakdown as any,
