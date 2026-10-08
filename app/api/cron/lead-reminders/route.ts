@@ -64,10 +64,56 @@ export async function GET(req: Request) {
     else byEmail.set(key, [lead]);
   }
 
+  // Quien ya es cliente con ese email (pedido, presupuesto pagado/aceptado o un
+  // expediente del staff con sus documentos) NO es un lead: su subida por la
+  // puerta queda huérfana si el pedido nace de otro camino. Caso 8-oct: cliente
+  // con el pedido pagado y entregado recibió "no llegaste a completar el pedido".
+  const emails = [...byEmail.keys()];
+  const yaClientes = new Set<string>();
+  if (emails.length) {
+    const [orders, quotes, analyses] = await Promise.all([
+      prisma.order.findMany({
+        where: { clientEmail: { in: emails, mode: "insensitive" } },
+        select: { clientEmail: true },
+      }),
+      prisma.quote.findMany({
+        where: {
+          customerEmail: { in: emails, mode: "insensitive" },
+          OR: [{ paidAt: { not: null } }, { status: { in: ["ACCEPTED", "PAID"] } }, { orders: { some: {} } }],
+        },
+        select: { customerEmail: true },
+      }),
+      prisma.documentAnalysis.findMany({
+        where: {
+          clientEmail: { in: emails, mode: "insensitive" },
+          OR: [{ orderId: { not: null } }, { sessionToken: { startsWith: "exp:" } }],
+        },
+        select: { clientEmail: true },
+      }),
+    ]);
+    for (const e of [
+      ...orders.map((o) => o.clientEmail),
+      ...quotes.map((q) => q.customerEmail),
+      ...analyses.map((a) => a.clientEmail),
+    ]) {
+      if (e) yaClientes.add(e.toLowerCase());
+    }
+  }
+
   let sent = 0;
   let failed = 0;
+  let skippedClients = 0;
 
   for (const [email, group] of byEmail) {
+    if (yaClientes.has(email)) {
+      // Se marca para no reevaluarlo cada día de la ventana.
+      await prisma.documentAnalysis.updateMany({
+        where: { id: { in: group.map((l) => l.id) } },
+        data: { reminderSentAt: now },
+      });
+      skippedClients++;
+      continue;
+    }
     try {
       await sendLeadReminderEmail({
         toEmail: group[0].clientEmail!,
@@ -161,7 +207,7 @@ export async function GET(req: Request) {
     paradasAvisadas += 1;
   }
 
-  return NextResponse.json({ ok: true, scanned: candidates.length, leads: byEmail.size, sent, failed, leads24h: paradas.length, leads24hAvisados: paradasAvisadas });
+  return NextResponse.json({ ok: true, scanned: candidates.length, leads: byEmail.size, sent, failed, skippedClients, leads24h: paradas.length, leads24hAvisados: paradasAvisadas });
 }
 
 export const POST = GET;
