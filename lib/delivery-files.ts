@@ -21,6 +21,19 @@ export function documentKey(urlOrName: string): string {
   return (base || seg).toLowerCase();
 }
 
+function stem(url: string): string {
+  const seg = lastSegment(url);
+  const dot = seg.lastIndexOf(".");
+  return (dot > 0 ? seg.slice(0, dot) : seg).replace(/-[A-Za-z0-9]{30}$/, "").toLowerCase();
+}
+
+// Nombre completo (con su timestamp) de la copia de la que sale una re-subida:
+// el principal sin su primer «<ts>-» y sin el sufijo de Blob.
+function reuploadSource(url: string): string | null {
+  const s = stem(url);
+  return /^\d{10,}-/.test(s) ? s.replace(/^\d{10,}-/, "") : null;
+}
+
 // Instante de subida que lleva el nombre («<ts>-nombre»); null si no lo lleva.
 function uploadedAt(url: string): number | null {
   const m = lastSegment(url).match(/^(\d{10,})-/);
@@ -34,6 +47,8 @@ function isLavoriDelivery(url: string): boolean {
 // Separa las versiones anteriores de un mismo documento. Mismo nombre base NO
 // basta (un pedido de varios documentos puede traer dos «traduccion.pdf» de
 // lavori): solo es versión anterior si
+//  (a0) el principal es una re-subida suya (su nombre sin el primer timestamp y sin
+//      sufijo Blob es el nombre completo del archivo, también si es de lavori), o
 //  (a) el otro es la principal (`primaryUrl` = finalDeliveryFileUrl ||
 //      translatedFileUrl), el archivo se subió antes con el mismo nombre base y
 //      no es una entrega de lavori, o
@@ -50,6 +65,7 @@ export function splitDocumentVersions<T extends { url: string }>(
   const primaryTs = primary ? uploadedAt(primary.url) : null;
 
   const isPrevious = (f: T): boolean => {
+    if (primary && f !== primary && reuploadSource(primary.url) === stem(f.url)) return true;
     const key = documentKey(f.url);
     const sameKeyOthers = files.filter((o) => o !== f && documentKey(o.url) === key);
     if (sameKeyOthers.length === 0) return false;
