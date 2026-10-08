@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail, buildTranslationReadyEmail } from "@/lib/email";
-import { INVOICE_NUMBER_PLACEHOLDER, toDeliveryLang } from "@/lib/delivery-message";
+import { resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
 import { normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
@@ -113,6 +113,13 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json(
         { ok: false, error: "No se puede avanzar la entrega en pedidos pendientes de pago (ni autorizados a crédito)." },
         { status: 400 }
+      );
+    }
+
+    if (state === "EN_PROCESO" && (getWorkflowState(order) === "CERRADO" || order.deliveryState === "TRADUCIDO")) {
+      return NextResponse.json(
+        { ok: false, error: "El pedido ya está entregado: no se puede volver a «En proceso»." },
+        { status: 409 }
       );
     }
 
@@ -292,6 +299,7 @@ export async function POST(req: Request, { params }: Params) {
             orderId: order.id,
             amountCents: order.amountCents,
             billingExcluded: order.billingExcluded,
+            paymentMethod: order.paymentMethod,
             monthlyInvoiceId: order.monthlyInvoiceId,
             billing: normalizeBillingInput(body.billing, order.clientEmail),
             actorEmail,
@@ -310,8 +318,7 @@ export async function POST(req: Request, { params }: Params) {
       //    de fondo no llegue a completarse en serverless. Es lo que Juan necesita
       //    poder ver ("¿que mensaje recibio el cliente?").
       // El panel previsualiza «(nº al emitir)» cuando la factura aún no existe: aquí ya tiene número.
-      const customMessage =
-        (body.message || "").replace(INVOICE_NUMBER_PLACEHOLDER, invoiceNumber || "").trim() || null;
+      const customMessage = resolveInvoicePlaceholder(body.message || "", invoiceNumber).trim() || null;
       const composed = buildTranslationReadyEmail({
         reference: order.reference,
         lang: deliveryLang,

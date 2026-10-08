@@ -254,7 +254,7 @@ export default function TranslationWorkspacePanel({
       </details>
       )}
 
-      {state === "EN_PROCESO" && (
+      {state === "EN_PROCESO" && !(withoutDelivery && alreadyDelivered) && (
         <div className="mt-3 space-y-2 rounded-xl border border-slate-700 bg-slate-900/60 p-3">
           <label className="flex items-center gap-2 text-xs text-slate-300">
             <input
@@ -363,6 +363,7 @@ export default function TranslationWorkspacePanel({
         </label>
       )}
 
+      {!(withoutDelivery && alreadyDelivered) && (
       <button
         type="button"
         onClick={submit}
@@ -379,6 +380,7 @@ export default function TranslationWorkspacePanel({
               ? alreadyDelivered ? "Enviar corrección al cliente" : "Entregar y notificar al cliente"
               : alreadyDelivered && state === "TRADUCIDO" ? "Guardar corrección" : "Guardar entrega"}
       </button>
+      )}
 
       {message && (
         <p className={`mt-2 text-xs font-semibold ${message.includes("Error") ? "text-red-300" : "text-emerald-300"}`}>

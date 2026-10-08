@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  decideInvoiceAction,
+  isRecentlyIssued,
+  recipientLockReasonOf,
   invoiceStatusLabel,
   invoiceStatusOf,
   invoiceWasSent,
@@ -8,7 +11,7 @@ import {
   recipientDiffers,
   resolveBillingPrefill,
 } from "../../lib/delivery-billing.ts";
-import { buildDeliveryText, buildDeliveryWhatsappText } from "../../lib/delivery-message.ts";
+import { buildDeliveryText, buildDeliveryWhatsappText, resolveInvoicePlaceholder } from "../../lib/delivery-message.ts";
 
 test("simplificada solo sin NIF y hasta 400 €", () => {
   assert.equal(isSimplifiedInvoice("", 12100), true);
@@ -78,4 +81,45 @@ test("texto de WhatsApp corto con enlace y reseña", () => {
   assert.match(t, /Aquí tiene la traducción jurada del pedido 2026-00123: https:\/\/b\/t\.pdf/);
   assert.match(t, /https:\/\/g\.page\/r\/x/);
   assert.equal(buildDeliveryWhatsappText({ reference: "x", files: [], reviewUrl: "u" }), "");
+});
+
+test("solo se emite si no hay ninguna factura", () => {
+  const ok = { amountCents: 9000 };
+  assert.equal(decideInvoiceAction({ ...ok }), "issue");
+  assert.equal(decideInvoiceAction({ ...ok, existing: { status: "DRAFT", docKind: "invoice" } }), "draft");
+  assert.equal(decideInvoiceAction({ ...ok, existing: { status: "ISSUED", docKind: "invoice" } }), "existing");
+  assert.equal(decideInvoiceAction({ ...ok, existing: { status: "DRAFT", docKind: "quote" } }), "quote");
+  assert.equal(decideInvoiceAction({ amountCents: 0 }), "zero");
+  assert.equal(decideInvoiceAction({ ...ok, paymentMethod: "BIZUM" }), "bizum");
+});
+
+test("corrección de destinatario: bloqueos", () => {
+  const now = new Date("2026-10-08T12:00:00Z");
+  const base = { annulled: false, issuedAt: new Date("2026-10-07T12:00:00Z"), hasRectification: false, periodClosed: false, sentToClient: false, now };
+  assert.equal(recipientLockReasonOf(base), null);
+  assert.equal(recipientLockReasonOf({ ...base, recordSendStatus: "LOCAL" }), null);
+  assert.match(recipientLockReasonOf({ ...base, annulled: true })!, /anulada/);
+  assert.match(recipientLockReasonOf({ ...base, hasRectification: true })!, /rectificativa/);
+  assert.match(recipientLockReasonOf({ ...base, periodClosed: true })!, /trimestre/);
+  assert.match(recipientLockReasonOf({ ...base, recordSendStatus: "ACCEPTED" })!, /Hacienda/);
+  assert.match(recipientLockReasonOf({ ...base, sentToClient: true })!, /enviar|envió/);
+  assert.match(recipientLockReasonOf({ ...base, issuedAt: new Date("2026-10-01T12:00:00Z") })!, /72 h/);
+  assert.equal(isRecentlyIssued(new Date("2026-10-06T13:00:00Z"), now), true);
+});
+
+test("cualquier notification.*.sent posterior cuenta como enviada", () => {
+  const issued = new Date("2026-10-01T10:00:00Z");
+  assert.equal(invoiceWasSent([{ type: "notification.inbox_reply.sent", createdAt: new Date("2026-10-02T10:00:00Z") }], issued), true);
+  assert.equal(invoiceWasSent([{ type: "order.note", createdAt: new Date("2026-10-02T10:00:00Z") }], issued), false);
+});
+
+test("sin factura se quita la frase entera del mensaje", () => {
+  const es = buildDeliveryText({ lang: "es", name: "Marta", reference: "R1", invoiceNumber: "(nº al emitir)", reviewUrl: "u" });
+  assert.match(es, /y la factura \(nº al emitir\) del pedido/);
+  const without = resolveInvoicePlaceholder(es, null);
+  assert.match(without, /traducción jurada del pedido R1\./);
+  assert.doesNotMatch(without, /factura|nº al emitir/);
+  assert.match(resolveInvoicePlaceholder(es, "26_030"), /y la factura 26_030 del pedido/);
+  const en = buildDeliveryText({ lang: "en", reference: "R1", invoiceNumber: "(nº al emitir)", reviewUrl: "u" });
+  assert.doesNotMatch(resolveInvoicePlaceholder(en, null), /invoice|emitir/);
 });

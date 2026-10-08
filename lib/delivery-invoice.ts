@@ -6,10 +6,13 @@
 import { prisma } from "@/lib/prisma";
 import { issueOrUpdateInvoice } from "@/lib/client-invoice";
 import { logInvoiceEvent } from "@/lib/verifactu/records";
+import { assertNotInClosedPeriod } from "@/lib/tax-close-store";
 import {
+  decideInvoiceAction,
   invoiceWasSent,
   isSimplifiedInvoice,
   recipientDiffers,
+  recipientLockReasonOf,
   type BillingFields,
 } from "@/lib/delivery-billing";
 
@@ -27,10 +30,40 @@ export function normalizeBillingInput(raw: unknown, fallbackEmail: string): Bill
   };
 }
 
+type Existing = NonNullable<Awaited<ReturnType<typeof prisma.clientInvoice.findUnique>>>;
+
+async function recipientLockReason(inv: Existing, orderId: string): Promise<string | null> {
+  let periodClosed = false;
+  if (inv.issuedAt) {
+    try {
+      await assertNotInClosedPeriod(inv.issuedAt);
+    } catch {
+      periodClosed = true;
+    }
+  }
+  const [rectification, record, events] = await Promise.all([
+    prisma.clientInvoice.findFirst({ where: { rectifiesId: inv.id }, select: { id: true } }),
+    prisma.invoiceRecord.findFirst({ where: { invoiceId: inv.id, kind: "ALTA" }, select: { sendStatus: true } }),
+    prisma.orderEvent.findMany({
+      where: { orderId, type: { startsWith: "notification." } },
+      select: { type: true, createdAt: true },
+    }),
+  ]);
+  return recipientLockReasonOf({
+    annulled: !!inv.annulledAt,
+    issuedAt: inv.issuedAt,
+    hasRectification: !!rectification,
+    periodClosed,
+    recordSendStatus: record?.sendStatus,
+    sentToClient: invoiceWasSent(events, inv.issuedAt),
+  });
+}
+
 export async function prepareDeliveryInvoice(input: {
   orderId: string;
   amountCents: number;
   billingExcluded: boolean;
+  paymentMethod?: string | null;
   monthlyInvoiceId: string | null;
   billing: BillingFields;
   actorEmail: string;
@@ -47,30 +80,34 @@ export async function prepareDeliveryInvoice(input: {
   if (noInvoice) return {};
 
   const existing = await prisma.clientInvoice.findUnique({ where: { orderId } });
-  if (existing?.docKind === "quote") {
-    return { warning: "Hay un presupuesto vinculado: se ha enviado sin factura. Emítela desde Facturas." };
+  const action = decideInvoiceAction({ existing, amountCents: input.amountCents, paymentMethod: input.paymentMethod });
+  switch (action) {
+    case "quote":
+      return { warning: "Hay un presupuesto vinculado: se ha enviado sin factura. Emítela desde Facturas." };
+    case "zero":
+      return { warning: "El pedido es de 0 €: se ha enviado sin factura." };
+    case "bizum":
+      return { warning: "Pedido pagado por Bizum: no se emite factura automática. Se ha enviado sin ella." };
+    case "draft":
+      return { warning: "Hay un borrador en Facturas: emítelo allí. Se ha enviado sin factura." };
+    case "issue":
+      await issueOrUpdateInvoice({
+        orderId,
+        amountCents: input.amountCents,
+        billing,
+        origin: "delivery_panel",
+        simplified: isSimplifiedInvoice(billing.nif, input.amountCents),
+      });
+      return {};
   }
-
-  if (!existing || existing.status !== "ISSUED") {
-    await issueOrUpdateInvoice({
-      orderId,
-      amountCents: input.amountCents,
-      billing,
-      origin: "delivery_panel",
-      simplified: isSimplifiedInvoice(billing.nif, input.amountCents),
-    });
-    return {};
-  }
+  if (!existing) return {};
 
   if (!recipientDiffers(existing, billing)) return {};
 
-  const events = await prisma.orderEvent.findMany({
-    where: { orderId, type: { in: ["notification.delivery_ready.sent", "notification.custom.sent"] } },
-    select: { type: true, createdAt: true },
-  });
-  if (invoiceWasSent(events, existing.issuedAt)) {
+  const lock = await recipientLockReason(existing, orderId);
+  if (lock) {
     return {
-      warning: `La factura ${existing.number} ya se envió al cliente con otros datos: no se ha modificado. Si hay que corregirla, rectifícala en Facturas.`,
+      warning: `La factura ${existing.number} ${lock}: no se ha modificado su destinatario. Si hay que corregirla, rectifícala en Facturas.`,
     };
   }
 

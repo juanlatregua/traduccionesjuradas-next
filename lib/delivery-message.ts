@@ -16,6 +16,15 @@ export function toDeliveryLang(locale: string | null | undefined): DeliveryLang 
 // Texto que ocupa el nº de factura en la vista previa cuando aún no se ha emitido.
 export const INVOICE_NUMBER_PLACEHOLDER = "(nº al emitir)";
 
+// Con número, rellena el hueco; sin él, quita la frase entera de la factura.
+export function resolveInvoicePlaceholder(message: string, invoiceNumber: string | null): string {
+  if (invoiceNumber) return message.split(INVOICE_NUMBER_PLACEHOLDER).join(invoiceNumber);
+  return message
+    .replace(new RegExp(` (?:y la factura|et la facture|and invoice) ${INVOICE_NUMBER_PLACEHOLDER.replace(/[()]/g, "\\$&")}`, "g"), "")
+    .split(INVOICE_NUMBER_PLACEHOLDER)
+    .join("");
+}
+
 const SIGNATURE = "Juan Silva — TraduccionesJuradas.net";
 
 const COPY = {

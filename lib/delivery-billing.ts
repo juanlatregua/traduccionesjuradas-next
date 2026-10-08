@@ -73,7 +73,7 @@ export function recipientDiffers(invoice: Loose, billing: BillingFields): boolea
 }
 
 // ¿Salió ya la factura emitida al cliente? Se mira si hubo un envío de entrega
-// o un mensaje al cliente DESPUÉS de emitirla (los envíos antiguos no
+// o cualquier aviso al cliente (notification.*.sent) DESPUÉS de emitirla (los envíos antiguos no
 // guardaban qué adjuntaron: ante la duda, enviada).
 export function invoiceWasSent(
   events: { type: string; createdAt: Date | string }[],
@@ -81,11 +81,15 @@ export function invoiceWasSent(
 ): boolean {
   if (!issuedAt) return false;
   const since = new Date(issuedAt).getTime();
-  return events.some(
-    (e) =>
-      (e.type === "notification.delivery_ready.sent" || e.type === "notification.custom.sent") &&
-      new Date(e.createdAt).getTime() >= since
-  );
+  return events.some((e) => /^notification\..+\.sent$/.test(e.type) && new Date(e.createdAt).getTime() >= since);
+}
+
+export const RECIPIENT_CORRECTION_WINDOW_MS = 72 * 60 * 60 * 1000;
+
+// Corregir el destinatario de una emitida solo vale en sus primeras 72 h.
+export function isRecentlyIssued(issuedAt: Date | string | null | undefined, now: Date = new Date()): boolean {
+  if (!issuedAt) return false;
+  return now.getTime() - new Date(issuedAt).getTime() < RECIPIENT_CORRECTION_WINDOW_MS;
 }
 
 export type InvoiceStatus =
@@ -126,4 +130,41 @@ export function invoiceStatusLabel(s: InvoiceStatus): string {
     case "will_issue":
       return `Se emitirá al enviar (${s.simplified ? "simplificada" : "completa"})`;
   }
+}
+
+export type InvoiceAction = "issue" | "existing" | "draft" | "quote" | "zero" | "bizum";
+
+// Qué hace el panel con la factura del pedido: solo emite si NO hay ninguna.
+export function decideInvoiceAction(input: {
+  existing?: { status: string; docKind: string } | null;
+  amountCents: number;
+  paymentMethod?: string | null;
+}): InvoiceAction {
+  const e = input.existing;
+  if (e) {
+    if (e.docKind === "quote") return "quote";
+    return e.status === "ISSUED" ? "existing" : "draft";
+  }
+  if (input.amountCents <= 0) return "zero";
+  if (input.paymentMethod === "BIZUM") return "bizum";
+  return "issue";
+}
+
+// Motivo por el que no se puede corregir el destinatario de una emitida (null = se puede).
+export function recipientLockReasonOf(f: {
+  annulled: boolean;
+  issuedAt: Date | string | null | undefined;
+  hasRectification: boolean;
+  periodClosed: boolean;
+  recordSendStatus?: string | null;
+  sentToClient: boolean;
+  now?: Date;
+}): string | null {
+  if (f.annulled) return "está anulada";
+  if (!isRecentlyIssued(f.issuedAt, f.now)) return "se emitió hace más de 72 h";
+  if (f.hasRectification) return "tiene una rectificativa";
+  if (f.periodClosed) return "su trimestre ya está cerrado";
+  if (f.recordSendStatus && f.recordSendStatus !== "LOCAL") return "ya se registró ante Hacienda";
+  if (f.sentToClient) return "ya se envió al cliente";
+  return null;
 }
