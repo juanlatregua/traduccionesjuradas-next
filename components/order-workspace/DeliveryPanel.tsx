@@ -7,8 +7,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadStaffFile } from "@/lib/staff-upload-client";
+import { splitDocumentVersions } from "@/lib/delivery-files";
 import {
+  NIF_REQUIRED_MESSAGE,
   invoiceStatusLabel,
+  needsNif,
   invoiceStatusOf,
   type BillingFields,
 } from "@/lib/delivery-billing";
@@ -24,6 +27,7 @@ type Props = {
   reviewUrl: string;
   amountCents: number;
   files: DeliveryFileRef[];
+  primaryFileUrl: string | null;
   billing: BillingFields;
   billingExcluded: boolean;
   billingExcludedReason: string | null;
@@ -50,7 +54,8 @@ const INPUT =
 
 export default function DeliveryPanel(props: Props) {
   const router = useRouter();
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(props.files.map((f) => f.url)));
+  const versions = useMemo(() => splitDocumentVersions(props.files, props.primaryFileUrl), [props.files, props.primaryFileUrl]);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(versions.current.map((f) => f.url)));
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [billing, setBilling] = useState<BillingFields>(props.billing);
   const [message, setMessage] = useState<string | null>(null);
@@ -85,6 +90,7 @@ export default function DeliveryPanel(props: Props) {
   );
   const text = message ?? defaultMessage;
   const fileCount = selected.size + newFiles.length;
+  const nifBlocked = status.kind === "will_issue" && needsNif(billing.nif, props.amountCents);
   const syntheticEmail = props.clientEmail.endsWith("@whatsapp.local");
 
   function toggle(url: string) {
@@ -109,7 +115,11 @@ export default function DeliveryPanel(props: Props) {
       setFeedback({ ok: false, text: "Marca o sube al menos un archivo." });
       return;
     }
-    if (status.kind === "will_issue" && !billing.fiscalName.trim()) {
+    if (nifBlocked) {
+      setFeedback({ ok: false, text: NIF_REQUIRED_MESSAGE });
+      return;
+    }
+    if (status.kind === "will_issue" && !status.simplified && !billing.fiscalName.trim()) {
       setFeedback({ ok: false, text: "Falta el nombre fiscal para emitir la factura." });
       return;
     }
@@ -193,17 +203,25 @@ export default function DeliveryPanel(props: Props) {
       <div className="mt-4">
         <p className="text-sm font-semibold text-slate-100">1. Traducción</p>
         {props.files.length > 0 ? (
-          <ul className="mt-2 space-y-1">
-            {props.files.map((f) => (
-              <li key={f.url} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={selected.has(f.url)} onChange={() => toggle(f.url)} className="rounded border-slate-500" />
-                <span className="truncate text-slate-200">{f.name}</span>
-                <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-cyan-400 hover:underline">
-                  ver
-                </a>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="mt-2 space-y-1">
+              {versions.current.map((f) => (
+                <FileRow key={f.url} f={f} checked={selected.has(f.url)} onToggle={() => toggle(f.url)} />
+              ))}
+            </ul>
+            {versions.previous.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+                  Versiones anteriores ({versions.previous.length})
+                </summary>
+                <ul className="mt-1 space-y-1">
+                  {versions.previous.map((f) => (
+                    <FileRow key={f.url} f={f} checked={selected.has(f.url)} onToggle={() => toggle(f.url)} />
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
         ) : (
           <p className="mt-1 text-xs text-slate-400">Aún no hay traducción subida: sube el archivo abajo.</p>
         )}
@@ -245,6 +263,7 @@ export default function DeliveryPanel(props: Props) {
               {f.label}
               <input
                 value={billing[f.key]}
+                placeholder={f.key === "fiscalName" ? "Nombre y apellidos o razón social" : undefined}
                 onChange={(e) => setBilling((b) => ({ ...b, [f.key]: e.target.value }))}
                 className={INPUT}
               />
@@ -252,6 +271,7 @@ export default function DeliveryPanel(props: Props) {
           ))}
         </div>
         <p className="mt-2 text-xs font-semibold text-emerald-300">{invoiceStatusLabel(status)}</p>
+        {nifBlocked && <p className="mt-1 text-xs font-semibold text-red-300">{NIF_REQUIRED_MESSAGE}</p>}
       </div>
 
       <div className="mt-5">
@@ -277,7 +297,7 @@ export default function DeliveryPanel(props: Props) {
       <button
         type="button"
         onClick={send}
-        disabled={sending}
+        disabled={sending || nifBlocked}
         className="mt-5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
         {sending ? "Enviando…" : correction ? "Enviar corrección" : props.lastSent ? "Reenviar" : "Enviar"}
@@ -286,5 +306,17 @@ export default function DeliveryPanel(props: Props) {
         <p className={`mt-2 text-xs font-semibold ${feedback.ok ? "text-emerald-300" : "text-red-300"}`}>{feedback.text}</p>
       )}
     </div>
+  );
+}
+
+function FileRow({ f, checked, onToggle }: { f: DeliveryFileRef; checked: boolean; onToggle: () => void }) {
+  return (
+    <li className="flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={checked} onChange={onToggle} className="rounded border-slate-500" />
+      <span className="truncate text-slate-200">{f.name}</span>
+      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-cyan-400 hover:underline">
+        ver
+      </a>
+    </li>
   );
 }

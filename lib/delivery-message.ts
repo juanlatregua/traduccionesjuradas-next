@@ -9,6 +9,19 @@ export function getReviewUrl(): string {
   return env.startsWith("http") ? env : DEFAULT_REVIEW_URL;
 }
 
+// Alias de email («alejandrosilvera7»): una sola palabra igual a la parte local del email.
+export function isEmailAlias(name: string | null | undefined, email: string | null | undefined): boolean {
+  const n = (name || "").trim().toLowerCase();
+  const local = (email || "").split("@")[0].trim().toLowerCase();
+  return !!n && !/\s/.test(n) && n === local;
+}
+
+// Nombre para saludar: sin espacios sobrantes ni signos de saludo, y vacío si es un alias de email.
+export function greetingName(name: string | null | undefined, email?: string | null): string {
+  const n = (name || "").replace(/\s+/g, " ").replace(/^[\s,:;]+|[\s,:;]+$/g, "");
+  return isEmailAlias(n, email) ? "" : n;
+}
+
 export function toDeliveryLang(locale: string | null | undefined): DeliveryLang {
   return locale === "fr" ? "fr" : locale === "en" ? "en" : "es";
 }
@@ -76,7 +89,7 @@ export function buildDeliveryText(input: {
   const c = COPY[input.lang];
   const inv = input.correction ? "" : (input.invoiceNumber || "").trim();
   return [
-    c.hello((input.name || "").trim()),
+    c.hello(greetingName(input.name)),
     input.correction ? c.corrected(input.reference) : c.attached(input.reference, inv),
     c.review(input.reviewUrl),
     `${c.bye}\n${SIGNATURE}`,
@@ -97,7 +110,7 @@ export function buildDeliveryWhatsappText(input: {
     input.files.length === 1
       ? `${c.here(input.reference)}: ${input.files[0].url || ""}`
       : `${c.here(input.reference)}:\n${input.files.map((f) => `• ${f.name}: ${f.url || ""}`).join("\n")}`;
-  return [c.hello((input.name || "").trim()), links, c.review(input.reviewUrl), `${c.bye}\n${SIGNATURE}`].join("\n\n");
+  return [c.hello(greetingName(input.name)), links, c.review(input.reviewUrl), `${c.bye}\n${SIGNATURE}`].join("\n\n");
 }
 
 // Si algún adjunto no pudo ir en el correo, su enlace se añade antes de la reseña.

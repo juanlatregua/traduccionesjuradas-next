@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail, buildTranslationReadyEmail } from "@/lib/email";
-import { resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
+import { greetingName, resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
 import { normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
+import { splitDocumentVersions } from "@/lib/delivery-files";
+import { NIF_REQUIRED_MESSAGE, decideInvoiceAction, needsNif } from "@/lib/delivery-billing";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
 import {
@@ -104,7 +106,11 @@ export async function POST(req: Request, { params }: Params) {
     const selectedFiles = (Array.isArray(body.fileUrls) ? body.fileUrls : [])
       .map((u) => knownFiles.find((f) => f.url === u))
       .filter((f): f is DeliveryFile => !!f && !uploadedFiles.some((n) => n.url === f.url));
-    const deliveryFiles = [...uploadedFiles, ...selectedFiles];
+    // El mismo documento marcado dos veces (versiones antiguas): solo la principal.
+    const deliveryFiles = [
+      ...uploadedFiles,
+      ...splitDocumentVersions(selectedFiles, order.finalDeliveryFileUrl).current,
+    ];
     const primaryFileUrl = deliveryFiles[0]?.url || translatedFileUrl;
 
     // "Cobrado" o "asegurado" (crédito: factura emitida con vencimiento). Ver
@@ -121,6 +127,18 @@ export async function POST(req: Request, { params }: Params) {
         { ok: false, error: "El pedido ya está entregado: no se puede volver a «En proceso»." },
         { status: 409 }
       );
+    }
+
+    if (body.billing && body.notifyClient && state === "TRADUCIDO" && !order.billingExcluded && !order.monthlyInvoiceId) {
+      const wanted = normalizeBillingInput(body.billing, order.clientEmail);
+      const action = decideInvoiceAction({
+        existing: order.clientInvoice,
+        amountCents: order.amountCents,
+        paymentMethod: order.paymentMethod,
+      });
+      if (action === "issue" && needsNif(wanted.nif, order.amountCents)) {
+        return NextResponse.json({ ok: false, error: NIF_REQUIRED_MESSAGE }, { status: 400 });
+      }
     }
 
     if (state === "TRADUCIDO" && !primaryFileUrl) {
@@ -322,7 +340,7 @@ export async function POST(req: Request, { params }: Params) {
       const composed = buildTranslationReadyEmail({
         reference: order.reference,
         lang: deliveryLang,
-        clientName: order.clientName,
+        clientName: greetingName(order.clientName, order.clientEmail),
         invoiceNumber,
         message: customMessage,
         correction: isCorrection,
@@ -371,7 +389,7 @@ export async function POST(req: Request, { params }: Params) {
             toEmail: order.clientEmail,
             reference: order.reference,
             lang: deliveryLang,
-            clientName: order.clientName,
+            clientName: greetingName(order.clientName, order.clientEmail),
             invoiceNumber,
             message: customMessage,
             fallbackLinks,

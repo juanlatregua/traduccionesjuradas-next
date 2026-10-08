@@ -8,7 +8,10 @@ import { issueOrUpdateInvoice } from "@/lib/client-invoice";
 import { logInvoiceEvent } from "@/lib/verifactu/records";
 import { assertNotInClosedPeriod } from "@/lib/tax-close-store";
 import {
+  ANONYMOUS_CLIENT_NAME,
+  NIF_REQUIRED_MESSAGE,
   decideInvoiceAction,
+  needsNif,
   invoiceWasSent,
   isSimplifiedInvoice,
   recipientDiffers,
@@ -68,7 +71,14 @@ export async function prepareDeliveryInvoice(input: {
   billing: BillingFields;
   actorEmail: string;
 }): Promise<{ warning?: string }> {
-  const { orderId, billing } = input;
+  const { orderId } = input;
+  // Una simplificada sin nombre sale a nombre de «Cliente» (como las anteriores).
+  const billing = {
+    ...input.billing,
+    fiscalName:
+      input.billing.fiscalName ||
+      (isSimplifiedInvoice(input.billing.nif, input.amountCents) ? ANONYMOUS_CLIENT_NAME : ""),
+  };
   if (!billing.fiscalName) return { warning: "Falta el nombre fiscal: se ha enviado sin factura." };
 
   const noInvoice = input.billingExcluded || !!input.monthlyInvoiceId;
@@ -93,6 +103,7 @@ export async function prepareDeliveryInvoice(input: {
     case "draft":
       return { warning: "Hay un borrador en Facturas: emítelo allí. Se ha enviado sin factura." };
     case "issue":
+      if (needsNif(billing.nif, input.amountCents)) return { warning: `${NIF_REQUIRED_MESSAGE}. Se ha enviado sin factura.` };
       await issueOrUpdateInvoice({
         orderId,
         amountCents: input.amountCents,

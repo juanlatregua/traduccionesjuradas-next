@@ -32,7 +32,7 @@ import OrderCreditPanel from "@/components/OrderCreditPanel";
 import OrderExtendButton from "@/components/OrderExtendButton";
 import { isOrderSecured, isCreditAuthorized, creditDaysToDue, isMonthlySecured, periodLabel } from "@/lib/credit-terms";
 import { buildDeliveryResendMessage } from "@/lib/notification-templates";
-import { getReviewUrl, toDeliveryLang } from "@/lib/delivery-message";
+import { getReviewUrl, greetingName, toDeliveryLang } from "@/lib/delivery-message";
 import { resolveBillingPrefill } from "@/lib/delivery-billing";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
 import OrderFinancePanel from "@/components/OrderFinancePanel";
@@ -706,51 +706,22 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         </section>
 
         <Section id="traduccion" title="Entregar la traducción">
-          {lavoriEntregas.length > 0 && (
+          {lavoriEntregas.some((e) => !e.enviada) && (
             <LavoriEntregasPanel
               reference={order.reference}
-              entregas={lavoriEntregas}
+              entregas={lavoriEntregas.filter((e) => !e.enviada)}
               paper={order.deliveryType === "paper"}
             />
-          )}
-          {deliveredFiles.length > 0 ? (
-            <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
-              <p className="text-xs font-semibold text-emerald-300">
-                Traducciones subidas en este pedido ({deliveredFiles.length})
-              </p>
-              <ul className="mt-1.5 space-y-1">
-                {deliveredFiles.map((f, i) => (
-                  <li key={i} className="text-sm">
-                    <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
-                      ✓ {f.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              <FileThumbnails
-                files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
-              />
-              <p className="mt-3 border-t border-emerald-500/20 pt-3 text-xs text-slate-400">
-                ¿Reenviar al cliente?{" "}
-                <a href="#comunicacion" className="font-semibold text-cyan-400 hover:underline">
-                  Escribir al cliente ↓
-                </a>{" "}
-                (el mensaje de entrega sale ya escrito).
-              </p>
-            </div>
-          ) : (
-            <p className="mb-4 text-sm text-slate-400">
-              Aún no hay ninguna traducción subida en este pedido.
-            </p>
           )}
           <DeliveryPanel
             reference={order.reference}
             clientEmail={order.clientEmail}
-            clientName={order.clientName}
+            clientName={greetingName(order.clientName, order.clientEmail)}
             lang={deliveryLang}
             reviewUrl={reviewUrl}
             amountCents={order.amountCents}
             files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
+            primaryFileUrl={order.finalDeliveryFileUrl || order.translatedFileUrl || null}
             billing={billingPrefill}
             billingExcluded={order.billingExcluded}
             paymentMethod={order.paymentMethod}
