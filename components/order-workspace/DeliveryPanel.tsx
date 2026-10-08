@@ -4,15 +4,29 @@
 // facturación y mensaje, con un solo botón. Habla con POST /delivery (el carril
 // de siempre): emite o corrige la factura y envía el email con todo adjunto.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadStaffFile } from "@/lib/staff-upload-client";
+import { splitDocumentVersions } from "@/lib/delivery-files";
 import {
+  NIF_REQUIRED_MESSAGE,
   invoiceStatusLabel,
+  needsNif,
   invoiceStatusOf,
   type BillingFields,
 } from "@/lib/delivery-billing";
-import { INVOICE_NUMBER_PLACEHOLDER, buildDeliveryText, type DeliveryLang } from "@/lib/delivery-message";
+import {
+  AI_LANGUAGES,
+  AI_REQUIRED_DATA_ERROR,
+  INVOICE_NUMBER_PLACEHOLDER,
+  buildDeliveryAiInstruction,
+  buildDeliveryText,
+  deliverySubject,
+  missingRequiredData,
+  requiredInvoiceNumber,
+  translateInstruction,
+  type DeliveryLang,
+} from "@/lib/delivery-message";
 
 type DeliveryFileRef = { name: string; url: string };
 
@@ -24,6 +38,8 @@ type Props = {
   reviewUrl: string;
   amountCents: number;
   files: DeliveryFileRef[];
+  primaryFileUrl: string | null;
+  replacedUrls: string[];
   billing: BillingFields;
   billingExcluded: boolean;
   billingExcludedReason: string | null;
@@ -50,10 +66,15 @@ const INPUT =
 
 export default function DeliveryPanel(props: Props) {
   const router = useRouter();
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(props.files.map((f) => f.url)));
+  const versions = useMemo(() => splitDocumentVersions(props.files, props.primaryFileUrl, props.replacedUrls), [props.files, props.primaryFileUrl, props.replacedUrls]);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(versions.current.map((f) => f.url)));
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [billing, setBilling] = useState<BillingFields>(props.billing);
   const [message, setMessage] = useState<string | null>(null);
+  const [subject, setSubject] = useState<string | null>(null);
+  const [aiInstruction, setAiInstruction] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [sentNow, setSentNow] = useState<{ invoiceNumber: string | null } | null>(null);
@@ -84,7 +105,12 @@ export default function DeliveryPanel(props: Props) {
     [props.lang, props.clientName, props.reference, props.reviewUrl, invoiceRef, correction]
   );
   const text = message ?? defaultMessage;
+  const requiredInvoice = requiredInvoiceNumber(invoiceRef, correction);
+  const defaultSubject = deliverySubject(props.lang, props.reference, correction);
+  const subjectText = subject ?? defaultSubject;
+  useEffect(() => setSubject(null), [correction]);
   const fileCount = selected.size + newFiles.length;
+  const nifBlocked = status.kind === "will_issue" && needsNif(billing.nif, props.amountCents);
   const syntheticEmail = props.clientEmail.endsWith("@whatsapp.local");
 
   function toggle(url: string) {
@@ -109,7 +135,11 @@ export default function DeliveryPanel(props: Props) {
       setFeedback({ ok: false, text: "Marca o sube al menos un archivo." });
       return;
     }
-    if (status.kind === "will_issue" && !billing.fiscalName.trim()) {
+    if (nifBlocked) {
+      setFeedback({ ok: false, text: NIF_REQUIRED_MESSAGE });
+      return;
+    }
+    if (status.kind === "will_issue" && !status.simplified && !billing.fiscalName.trim()) {
       setFeedback({ ok: false, text: "Falta el nombre fiscal para emitir la factura." });
       return;
     }
@@ -131,6 +161,7 @@ export default function DeliveryPanel(props: Props) {
           fileUrls: Array.from(selected),
           billing,
           message: message !== null ? message : undefined,
+          subject: subject !== null ? subject : undefined,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -138,6 +169,7 @@ export default function DeliveryPanel(props: Props) {
       const warnings: string[] = Array.isArray(data.warnings) ? data.warnings : [];
       setNewFiles([]);
       setMessage(null);
+      setSubject(null);
       setSentNow({ invoiceNumber: data.invoiceNumber || null });
       setFeedback({
         ok: warnings.length === 0,
@@ -152,6 +184,47 @@ export default function DeliveryPanel(props: Props) {
       setFeedback({ ok: false, text: err?.message || "Error al enviar." });
     } finally {
       setSending(false);
+    }
+  }
+
+  // Ajuste IA: solo reescribe el textarea (y el asunto); el envío sigue siendo manual.
+  async function adjustWithAi(instruction: string) {
+    setAiLoading(true);
+    setAiFeedback(null);
+    try {
+      const res = await fetch("/api/admin/email-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: subjectText,
+          body: text,
+          instruction: buildDeliveryAiInstruction(instruction, {
+            reference: props.reference,
+            invoiceNumber: requiredInvoice,
+            reviewUrl: props.reviewUrl,
+          }),
+          orderReference: props.reference,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo generar el borrador.");
+      const draftBody = String(data.draft?.body || "");
+      const missing = missingRequiredData(draftBody, {
+        reference: props.reference,
+        invoiceNumber: requiredInvoice,
+        reviewUrl: props.reviewUrl,
+      });
+      if (missing.length > 0) {
+        setAiFeedback({ ok: false, text: `${AI_REQUIRED_DATA_ERROR} (${missing.join(", ")}).` });
+        return;
+      }
+      setMessage(draftBody);
+      if (data.draft?.subject) setSubject(String(data.draft.subject));
+      setAiFeedback({ ok: true, text: "✓ Ajustado con IA. Revísalo antes de enviar." });
+    } catch (err: any) {
+      setAiFeedback({ ok: false, text: err?.message || "Error al ajustar con IA." });
+    } finally {
+      setAiLoading(false);
     }
   }
 
@@ -193,17 +266,25 @@ export default function DeliveryPanel(props: Props) {
       <div className="mt-4">
         <p className="text-sm font-semibold text-slate-100">1. Traducción</p>
         {props.files.length > 0 ? (
-          <ul className="mt-2 space-y-1">
-            {props.files.map((f) => (
-              <li key={f.url} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={selected.has(f.url)} onChange={() => toggle(f.url)} className="rounded border-slate-500" />
-                <span className="truncate text-slate-200">{f.name}</span>
-                <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-cyan-400 hover:underline">
-                  ver
-                </a>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="mt-2 space-y-1">
+              {versions.current.map((f) => (
+                <FileRow key={f.url} f={f} checked={selected.has(f.url)} onToggle={() => toggle(f.url)} />
+              ))}
+            </ul>
+            {versions.previous.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+                  Versiones anteriores ({versions.previous.length})
+                </summary>
+                <ul className="mt-1 space-y-1">
+                  {versions.previous.map((f) => (
+                    <FileRow key={f.url} f={f} checked={selected.has(f.url)} onToggle={() => toggle(f.url)} />
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
         ) : (
           <p className="mt-1 text-xs text-slate-400">Aún no hay traducción subida: sube el archivo abajo.</p>
         )}
@@ -245,6 +326,7 @@ export default function DeliveryPanel(props: Props) {
               {f.label}
               <input
                 value={billing[f.key]}
+                placeholder={f.key === "fiscalName" ? "Nombre y apellidos o razón social" : undefined}
                 onChange={(e) => setBilling((b) => ({ ...b, [f.key]: e.target.value }))}
                 className={INPUT}
               />
@@ -252,6 +334,7 @@ export default function DeliveryPanel(props: Props) {
           ))}
         </div>
         <p className="mt-2 text-xs font-semibold text-emerald-300">{invoiceStatusLabel(status)}</p>
+        {nifBlocked && <p className="mt-1 text-xs font-semibold text-red-300">{NIF_REQUIRED_MESSAGE}</p>}
       </div>
 
       <div className="mt-5">
@@ -261,14 +344,52 @@ export default function DeliveryPanel(props: Props) {
             Este cliente no tiene email real: el correo no le llegará. Usa «Copiar texto WhatsApp» tras enviar.
           </p>
         )}
+        <label className="mt-2 block text-xs text-slate-400">
+          Asunto
+          <input value={subjectText} onChange={(e) => setSubject(e.target.value)} className={INPUT} />
+        </label>
         <textarea
           value={text}
           onChange={(e) => setMessage(e.target.value)}
           rows={9}
           className={`${INPUT} font-sans`}
         />
-        {message !== null && (
-          <button type="button" onClick={() => setMessage(null)} className="mt-1 text-[11px] text-slate-400 hover:text-slate-200">
+        <div className="mt-2 rounded-lg border border-slate-700 bg-slate-950/60 p-2">
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={aiInstruction}
+              onChange={(e) => setAiInstruction(e.target.value)}
+              placeholder="Instrucción para la IA (opcional): más breve, menciona que el original va por correo…"
+              className={`${INPUT} mt-0 min-w-[14rem] flex-1`}
+            />
+            <button
+              type="button"
+              disabled={aiLoading}
+              onClick={() => adjustWithAi(aiInstruction)}
+              className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50"
+            >
+              {aiLoading ? "Ajustando…" : "Ajustar con IA"}
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {AI_LANGUAGES.map((l) => (
+              <button
+                key={l}
+                type="button"
+                disabled={aiLoading}
+                onClick={() => adjustWithAi(translateInstruction(l))}
+                className="rounded-md border border-slate-600 px-2 py-1 text-[11px] text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          {aiFeedback && (
+            <p className={`mt-1.5 text-xs font-semibold ${aiFeedback.ok ? "text-emerald-300" : "text-red-300"}`}>{aiFeedback.text}</p>
+          )}
+        </div>
+        {(message !== null || subject !== null) && (
+          <button type="button" onClick={() => { setMessage(null); setSubject(null); setAiFeedback(null); }} className="mt-1 text-[11px] text-slate-400 hover:text-slate-200">
             Restaurar texto por defecto
           </button>
         )}
@@ -277,7 +398,7 @@ export default function DeliveryPanel(props: Props) {
       <button
         type="button"
         onClick={send}
-        disabled={sending}
+        disabled={sending || nifBlocked}
         className="mt-5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
         {sending ? "Enviando…" : correction ? "Enviar corrección" : props.lastSent ? "Reenviar" : "Enviar"}
@@ -286,5 +407,17 @@ export default function DeliveryPanel(props: Props) {
         <p className={`mt-2 text-xs font-semibold ${feedback.ok ? "text-emerald-300" : "text-red-300"}`}>{feedback.text}</p>
       )}
     </div>
+  );
+}
+
+function FileRow({ f, checked, onToggle }: { f: DeliveryFileRef; checked: boolean; onToggle: () => void }) {
+  return (
+    <li className="flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={checked} onChange={onToggle} className="rounded border-slate-500" />
+      <span className="truncate text-slate-200">{f.name}</span>
+      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-cyan-400 hover:underline">
+        ver
+      </a>
+    </li>
   );
 }

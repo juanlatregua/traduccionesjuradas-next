@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import { sendTranslationEtaEmail, sendTranslationReadyEmail, buildTranslationReadyEmail } from "@/lib/email";
-import { resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
+import { greetingName, resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
 import { normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
+import { NIF_REQUIRED_MESSAGE, decideInvoiceAction, needsNif } from "@/lib/delivery-billing";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
 import {
@@ -41,6 +42,7 @@ type DeliveryBody = {
   fileUrls?: string[];
   billing?: Record<string, unknown>;
   message?: string;
+  subject?: string;
   etaDate?: string;
   autoEta?: boolean;
 };
@@ -104,7 +106,10 @@ export async function POST(req: Request, { params }: Params) {
     const selectedFiles = (Array.isArray(body.fileUrls) ? body.fileUrls : [])
       .map((u) => knownFiles.find((f) => f.url === u))
       .filter((f): f is DeliveryFile => !!f && !uploadedFiles.some((n) => n.url === f.url));
-    const deliveryFiles = [...uploadedFiles, ...selectedFiles];
+    // Se respetan exactamente las casillas del staff; solo se quitan URLs idénticas repetidas.
+    const deliveryFiles = [...uploadedFiles, ...selectedFiles].filter(
+      (f, i, all) => all.findIndex((o) => o.url === f.url) === i
+    );
     const primaryFileUrl = deliveryFiles[0]?.url || translatedFileUrl;
 
     // "Cobrado" o "asegurado" (crédito: factura emitida con vencimiento). Ver
@@ -121,6 +126,18 @@ export async function POST(req: Request, { params }: Params) {
         { ok: false, error: "El pedido ya está entregado: no se puede volver a «En proceso»." },
         { status: 409 }
       );
+    }
+
+    if (body.billing && body.notifyClient && state === "TRADUCIDO" && !order.billingExcluded && !order.monthlyInvoiceId) {
+      const wanted = normalizeBillingInput(body.billing, order.clientEmail);
+      const action = decideInvoiceAction({
+        existing: order.clientInvoice,
+        amountCents: order.amountCents,
+        paymentMethod: order.paymentMethod,
+      });
+      if (action === "issue" && needsNif(wanted.nif, order.amountCents)) {
+        return NextResponse.json({ ok: false, error: NIF_REQUIRED_MESSAGE }, { status: 400 });
+      }
     }
 
     if (state === "TRADUCIDO" && !primaryFileUrl) {
@@ -318,13 +335,17 @@ export async function POST(req: Request, { params }: Params) {
       //    de fondo no llegue a completarse en serverless. Es lo que Juan necesita
       //    poder ver ("¿que mensaje recibio el cliente?").
       // El panel previsualiza «(nº al emitir)» cuando la factura aún no existe: aquí ya tiene número.
+      const subjectIn = typeof body.subject === "string" ? body.subject : undefined;
+      const customSubject =
+        isCorrection && subjectIn && !/correg|corrig|correct/i.test(subjectIn) ? undefined : subjectIn;
       const customMessage = resolveInvoicePlaceholder(body.message || "", invoiceNumber).trim() || null;
       const composed = buildTranslationReadyEmail({
         reference: order.reference,
         lang: deliveryLang,
-        clientName: order.clientName,
+        clientName: greetingName(order.clientName, order.clientEmail),
         invoiceNumber,
         message: customMessage,
+        subject: customSubject,
         correction: isCorrection,
       });
       await prisma.orderEvent
@@ -371,9 +392,10 @@ export async function POST(req: Request, { params }: Params) {
             toEmail: order.clientEmail,
             reference: order.reference,
             lang: deliveryLang,
-            clientName: order.clientName,
+            clientName: greetingName(order.clientName, order.clientEmail),
             invoiceNumber,
             message: customMessage,
+            subject: customSubject,
             fallbackLinks,
             attachments,
             invoiceAttached: !!invAttach,

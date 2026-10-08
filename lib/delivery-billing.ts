@@ -2,6 +2,8 @@
 // datos fiscales por defecto, destinatario de una factura emitida y estado que
 // se enseña al staff. Sin Prisma: se prueba con node --test.
 
+import { isEmailAlias } from "./delivery-message.ts";
+
 export const SIMPLIFIED_MAX_CENTS = 40000;
 
 export type BillingFields = {
@@ -25,10 +27,26 @@ function clean(v: string | null | undefined): string {
   return (v || "").trim();
 }
 
+// Más de 400 € sin NIF no admite factura simplificada: hace falta el NIF.
+export const NIF_REQUIRED_MESSAGE =
+  "Más de 400 €: hace falta NIF para emitir la factura (o márcalo sin factura en Facturas)";
+
+export function needsNif(nif: string | null | undefined, amountCents: number): boolean {
+  return !clean(nif) && amountCents > SIMPLIFIED_MAX_CENTS;
+}
+
+// Nombre de las facturas simplificadas sin nombre.
+export const ANONYMOUS_CLIENT_NAME = "Cliente";
+
+function realName(name: string | null | undefined, email: string): string {
+  return isEmailAlias(name, email) ? "" : clean(name);
+}
+
 function fromSource(src: Loose, fallbackEmail: string): BillingFields | null {
-  if (!src || !clean(src.fiscalName)) return null;
+  const fiscalName = realName(src?.fiscalName, clean(src?.email) || fallbackEmail);
+  if (!src || !fiscalName) return null;
   return {
-    fiscalName: clean(src.fiscalName),
+    fiscalName,
     nif: clean(src.nif),
     address: clean(src.address),
     city: clean(src.city),
@@ -52,7 +70,7 @@ export function resolveBillingPrefill(input: {
   const fromCustomer = c ? fromSource({ ...c, fiscalName: clean(c.fiscalName) || clean(c.companyName) }, email) : null;
   if (fromCustomer) return fromCustomer;
   return {
-    fiscalName: clean(input.clientName),
+    fiscalName: realName(input.clientName, email),
     nif: "",
     address: "",
     city: "",

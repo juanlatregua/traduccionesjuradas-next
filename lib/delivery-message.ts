@@ -9,6 +9,19 @@ export function getReviewUrl(): string {
   return env.startsWith("http") ? env : DEFAULT_REVIEW_URL;
 }
 
+// Alias de email («alejandrosilvera7»): una sola palabra igual a la parte local del email.
+export function isEmailAlias(name: string | null | undefined, email: string | null | undefined): boolean {
+  const n = (name || "").trim().toLowerCase();
+  const local = (email || "").split("@")[0].trim().toLowerCase();
+  return !!n && !/\s/.test(n) && n === local;
+}
+
+// Nombre para saludar: sin espacios sobrantes ni signos de saludo, y vacío si es un alias de email.
+export function greetingName(name: string | null | undefined, email?: string | null): string {
+  const n = (name || "").replace(/\s+/g, " ").replace(/^[\s,:;]+|[\s,:;]+$/g, "");
+  return isEmailAlias(n, email) ? "" : n;
+}
+
 export function toDeliveryLang(locale: string | null | undefined): DeliveryLang {
   return locale === "fr" ? "fr" : locale === "en" ? "en" : "es";
 }
@@ -25,7 +38,7 @@ export function resolveInvoicePlaceholder(message: string, invoiceNumber: string
     .join("");
 }
 
-const SIGNATURE = "Juan Silva — TraduccionesJuradas.net";
+export const DELIVERY_SIGNATURE = "Juan Silva — TraduccionesJuradas.net";
 
 const COPY = {
   es: {
@@ -76,10 +89,10 @@ export function buildDeliveryText(input: {
   const c = COPY[input.lang];
   const inv = input.correction ? "" : (input.invoiceNumber || "").trim();
   return [
-    c.hello((input.name || "").trim()),
+    c.hello(greetingName(input.name)),
     input.correction ? c.corrected(input.reference) : c.attached(input.reference, inv),
     c.review(input.reviewUrl),
-    `${c.bye}\n${SIGNATURE}`,
+    `${c.bye}\n${DELIVERY_SIGNATURE}`,
   ].join("\n\n");
 }
 
@@ -97,7 +110,7 @@ export function buildDeliveryWhatsappText(input: {
     input.files.length === 1
       ? `${c.here(input.reference)}: ${input.files[0].url || ""}`
       : `${c.here(input.reference)}:\n${input.files.map((f) => `• ${f.name}: ${f.url || ""}`).join("\n")}`;
-  return [c.hello((input.name || "").trim()), links, c.review(input.reviewUrl), `${c.bye}\n${SIGNATURE}`].join("\n\n");
+  return [c.hello(greetingName(input.name)), links, c.review(input.reviewUrl), `${c.bye}\n${DELIVERY_SIGNATURE}`].join("\n\n");
 }
 
 // Si algún adjunto no pudo ir en el correo, su enlace se añade antes de la reseña.
@@ -122,4 +135,45 @@ export function deliveryTextToHtml(text: string): string {
       return `<p style="margin:0 0 14px 0;">${html}</p>`;
     })
     .join("");
+}
+
+// Número de factura que la IA debe conservar: ninguno en una corrección (no lleva factura)
+// ni mientras aún no se ha emitido (solo hay el hueco «(nº al emitir)»).
+export function requiredInvoiceNumber(invoiceRef: string | null, correction: boolean): string | null {
+  return correction || !invoiceRef || invoiceRef === INVOICE_NUMBER_PLACEHOLDER ? null : invoiceRef;
+}
+
+export type RequiredDeliveryData = {
+  reference: string;
+  invoiceNumber: string | null;
+  reviewUrl: string;
+};
+
+// Datos que la IA no puede tocar al reescribir el mensaje de entrega.
+export function missingRequiredData(text: string, req: RequiredDeliveryData): string[] {
+  const missing: string[] = [];
+  if (!text.includes(req.reference)) missing.push("número de pedido");
+  if (req.invoiceNumber && !text.includes(req.invoiceNumber)) missing.push("número de factura");
+  if (!text.includes(req.reviewUrl)) missing.push("enlace de reseña");
+  if (!text.includes(DELIVERY_SIGNATURE)) missing.push("firma");
+  return missing;
+}
+
+export const AI_REQUIRED_DATA_ERROR = "La IA ha quitado un dato obligatorio; no se ha aplicado";
+
+// Instrucción para la IA: la del staff + lo que debe conservar sin cambios.
+export function buildDeliveryAiInstruction(instruction: string, req: RequiredDeliveryData): string {
+  const keep = [
+    `el número de pedido ${req.reference}`,
+    req.invoiceNumber ? `el número de factura ${req.invoiceNumber}` : "",
+    `la URL de reseña de Google ${req.reviewUrl}`,
+    `la firma «${DELIVERY_SIGNATURE}»`,
+  ].filter(Boolean);
+  return `${instruction.trim() || "Mejora el texto manteniéndolo breve y cordial."}\n\nConserva SIN CAMBIOS, tal cual: ${keep.join("; ")}. No inventes datos ni añadas enlaces.${req.invoiceNumber ? "" : " No menciones ninguna factura."}`;
+}
+
+export const AI_LANGUAGES = ["Español", "Français", "English", "Português", "Deutsch", "Italiano"] as const;
+
+export function translateInstruction(language: string): string {
+  return `Traduce el mensaje a ${language}, mismo tono breve y cordial, usted.`;
 }

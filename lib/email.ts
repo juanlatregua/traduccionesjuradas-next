@@ -257,6 +257,8 @@ export function buildTranslationReadyEmail(data: {
   invoiceNumber?: string | null;
   // Cuerpo editado por el staff en el panel de entrega; sustituye al texto por defecto.
   message?: string | null;
+  // Asunto editado por el staff; sustituye al de por defecto.
+  subject?: string | null;
   // Enlaces de los archivos que no cupieron como adjunto.
   fallbackLinks?: string[];
   correction?: boolean;
@@ -274,7 +276,7 @@ export function buildTranslationReadyEmail(data: {
     });
   const text = appendDownloadLinks(base, lang, data.fallbackLinks || []);
   return {
-    subject: deliverySubject(lang, data.reference, data.correction),
+    subject: (data.subject || "").trim() || deliverySubject(lang, data.reference, data.correction),
     html: wrapClientEmailHtml(deliveryTextToHtml(text)),
   };
 }
@@ -286,6 +288,7 @@ export async function sendTranslationReadyEmail(data: {
   clientName?: string | null;
   invoiceNumber?: string | null;
   message?: string | null;
+  subject?: string | null;
   fallbackLinks?: string[];
   attachments?: MailAttachment[];
   invoiceAttached?: boolean;
