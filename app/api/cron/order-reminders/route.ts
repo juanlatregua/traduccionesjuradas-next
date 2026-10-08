@@ -63,6 +63,7 @@ export async function GET(req: Request) {
       createdAt: { gte: since, lte: stage1Before },
     },
     include: {
+      quote: { select: { expedienteRef: true } },
       events: {
         where: { type: { in: [EV_STAGE1, EV_STAGE2, EV_SKIPPED, ...EV_PROOF] } },
         select: { type: true },
@@ -80,6 +81,8 @@ export async function GET(req: Request) {
     ? await loadCustomerIndex({
         since: new Date(Math.min(...candidates.map((o) => o.createdAt.getTime()))),
         emails: candidates.map((o) => o.clientEmail),
+        orderIds: candidates.map((o) => o.id),
+        expedienteRefs: candidates.map((o) => o.quote?.expedienteRef || ""),
       })
     : null;
   const would: { reference: string; stage: 1 | 2 }[] = [];
@@ -92,7 +95,7 @@ export async function GET(req: Request) {
       order.paymentProofFileKey || EV_PROOF.some((t) => types.has(t))
         ? "justificante_subido"
         : (() => {
-            const v = index ? alreadyCustomerFor({ email: order.clientEmail, phone: order.clientPhone, quoteId: order.quoteId, at: order.createdAt }, { index }) : null;
+            const v = index ? alreadyCustomerFor({ mode: "encargo", orderRef: order.reference, orderId: order.id, quoteId: order.quoteId, expedienteRef: order.quote?.expedienteRef, at: order.createdAt }, { index }) : null;
             return v && v.skip ? v.reason : null;
           })();
     if (reason) {

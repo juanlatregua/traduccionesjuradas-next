@@ -108,12 +108,13 @@ export async function GET(req: Request) {
     ? await loadCustomerIndex({
         since: new Date(Math.min(...sentDates.map((d) => d.getTime()))),
         emails: [...candidates, ...expirable].map((q) => q.customerEmail),
+        expedienteRefs: [...candidates, ...expirable].map((q) => q.expedienteRef || ""),
       })
     : null;
   const yaCliente = (q: (typeof candidates)[number] | (typeof expirable)[number]) =>
     index
       ? alreadyCustomerFor(
-          { email: q.customerEmail, phone: q.customerPhone, expedienteRef: q.expedienteRef, quoteId: q.id, at: q.sentAt ?? q.createdAt },
+          { mode: "encargo", expedienteRef: q.expedienteRef, quoteId: q.id, at: q.sentAt ?? q.createdAt },
           { index },
         )
       : ({ skip: false } as const);

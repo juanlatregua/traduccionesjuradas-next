@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { alreadyCustomerFor, CustomerIndex, countSkip, type ClientFact } from "../../lib/client-contact-guard.ts";
+import { alreadyCustomerFor, buildFacts, CustomerIndex, countSkip, type ClientFact } from "../../lib/client-contact-guard.ts";
 import { emailSendStatus } from "../../lib/message-status.ts";
 import { clientSmsEnabled, smsBraked } from "../../lib/client-sms-policy.ts";
 
@@ -78,4 +78,79 @@ test("CLIENT_SMS: por defecto on; off lo apaga", () => {
   assert.equal(clientSmsEnabled({}), true);
   assert.equal(clientSmsEnabled({ CLIENT_SMS: "on" }), true);
   assert.equal(clientSmsEnabled({ CLIENT_SMS: "OFF" }), false);
+});
+
+/* ───────── Casos reales de prod (revisión Opus 8-oct) ───────── */
+const D = d("2026-10-06T10:00:00Z");
+const row = (o: Partial<any>): any => ({ clientName: null, clientPhone: null, quoteId: null, quote: null, ...o });
+
+test("TJ-20261006-IPCM: pedido pendiente con análisis enlazado NO se salta a sí mismo", () => {
+  const facts = buildFacts({
+    orders: [row({ id: "o1", reference: "TJ-20261006-IPCM", clientEmail: "a@x.es", paidAt: null, paymentStatus: "PENDING", status: "PENDING_PAYMENT" })],
+    quotes: [],
+    analyses: [{ id: "an1", orderId: "o1", clientEmail: "a@x.es", clientName: null, clientPhone: null, sessionToken: "s", fileHash: "H1", createdAt: D }],
+  });
+  assert.equal(facts.length, 0, "análisis de un pedido sin pagar no cuenta");
+  const index = new CustomerIndex(facts, [], [], [{ orderId: "o1", fileHash: "H1" }]);
+  assert.deepEqual(alreadyCustomerFor({ mode: "encargo", orderRef: "TJ-20261006-IPCM", orderId: "o1", at: D }, { index }), { skip: false });
+});
+
+test("pedido de presupuesto: no coincide consigo mismo por quoteId", () => {
+  const facts: ClientFact[] = [{ kind: "presupuesto_pagado", at: D, ref: "Q-1", quoteId: "q1", refs: ["exp:A"] }];
+  const index = new CustomerIndex(facts);
+  assert.equal(alreadyCustomerFor({ mode: "encargo", orderRef: "26_X", quoteId: "q1", expedienteRef: "exp:A", at: D }, { index }).skip, false);
+});
+
+test("2026-00219 y 00236 ACEPTADOS sin pagar (y con pedido sin pagar): no son pago, reciben caducidad", () => {
+  const facts = buildFacts({
+    orders: [row({ id: "o9", reference: "26_PEND", clientEmail: "c@x.es", quoteId: "q219", paidAt: null, paymentStatus: "PENDING", status: "PENDING_PAYMENT" })],
+    quotes: [
+      { id: "q219", quoteNumber: "2026-00219", status: "ACCEPTED", paidAt: null, updatedAt: D, customerEmail: "c@x.es", expedienteRef: "exp:C" },
+      { id: "q236", quoteNumber: "2026-00236", status: "ACCEPTED", paidAt: null, updatedAt: D, customerEmail: "c@x.es", expedienteRef: "exp:D" },
+    ],
+    analyses: [],
+  });
+  assert.equal(facts.length, 0);
+  const index = new CustomerIndex(facts);
+  for (const [id, exp] of [["q219", "exp:C"], ["q236", "exp:D"]]) {
+    assert.equal(alreadyCustomerFor({ mode: "encargo", quoteId: id, expedienteRef: exp, at: D }, { index }).skip, false);
+  }
+});
+
+test("2026-00216 (pagado) frente a 00219 (otro encargo): 00219 SÍ recibe el aviso", () => {
+  const facts = buildFacts({
+    orders: [],
+    quotes: [{ id: "q216", quoteNumber: "2026-00216", status: "PAID", paidAt: D, updatedAt: D, customerEmail: "c@x.es", expedienteRef: "exp:B" }],
+    analyses: [{ id: "a", orderId: null, clientEmail: null, clientName: null, clientPhone: null, sessionToken: "exp:B", fileHash: "H216", createdAt: D }],
+  });
+  const index = new CustomerIndex(facts, [], [], [{ sessionToken: "exp:B", fileHash: "H216" }, { sessionToken: "exp:C", fileHash: "H219" }]);
+  assert.equal(alreadyCustomerFor({ mode: "encargo", quoteId: "q219", expedienteRef: "exp:C", at: D }, { index }).skip, false);
+});
+
+test("2026-00199 con otro encargo pagado de la misma persona (26_DCBAE3): SÍ recibe el aviso", () => {
+  const facts = buildFacts({
+    orders: [row({ id: "o2", reference: "26_DCBAE3", clientEmail: "p@x.es", paidAt: D, paymentStatus: "PAID", status: "PAID" })],
+    quotes: [], analyses: [],
+  });
+  const index = new CustomerIndex(facts);
+  assert.equal(alreadyCustomerFor({ mode: "encargo", quoteId: "q199", expedienteRef: "exp:Z", at: D }, { index }).skip, false);
+});
+
+test("encargo: mismo expediente o misma huella ya pagados por otra vía SÍ se saltan", () => {
+  const facts = buildFacts({
+    orders: [row({ id: "o3", reference: "26_PAID", clientEmail: "p@x.es", paidAt: D, paymentStatus: "PAID", status: "DELIVERED", quote: { expedienteRef: "exp:K" } })],
+    quotes: [], analyses: [{ id: "a", orderId: "o3", clientEmail: null, clientName: null, clientPhone: null, sessionToken: null, fileHash: "HK", createdAt: D }],
+  });
+  const index = new CustomerIndex(facts, [], [], [{ orderId: "o3", fileHash: "HK" }]);
+  assert.equal(alreadyCustomerFor({ mode: "encargo", quoteId: "qn", expedienteRef: "exp:K", at: D }, { index }).skip, true);
+  assert.equal(alreadyCustomerFor({ mode: "encargo", quoteId: "qn", hashes: ["HK"], at: D }, { index }).skip, true);
+});
+
+test("Carme (lead de la puerta, persona) sigue sin recibir aviso con pedido PAID real", () => {
+  const facts = buildFacts({
+    orders: [row({ id: "o4", reference: "26_CARME", clientEmail: "carme@mail.com", paidAt: d("2026-10-05T12:00:00Z"), paymentStatus: "PAID", status: "DELIVERED" })],
+    quotes: [], analyses: [],
+  });
+  const index = new CustomerIndex(facts);
+  assert.equal(alreadyCustomerFor({ email: "carme@mail.com", at: EVENT }, { index }).skip, true);
 });
