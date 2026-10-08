@@ -1,5 +1,14 @@
 import type { WorkflowState } from "@/lib/workflow";
 
+// La entrega al cliente va por «Entregar al cliente» (/delivery), que exige revisar los
+// archivos del traductor. Por /workflow solo se REGISTRA una entrega hecha fuera de la app.
+export const WORKFLOW_DELIVERY_ERROR =
+  "La entrega al cliente se hace desde «Entregar al cliente». Si ya se entregó por otra vía, regístrala como «entregado por otra vía».";
+
+export function workflowDeliveryError(to: string, deliveredOutsideApp: boolean | undefined): string | null {
+  return to === "TRADUCIDO_ENTREGADO" && deliveredOutsideApp !== true ? WORKFLOW_DELIVERY_ERROR : null;
+}
+
 export function assertWorkflowTransitionPreconditions(params: {
   to: WorkflowState;
   paymentStatus: string;

@@ -5,6 +5,7 @@ import { sendOrderCreatedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { WORKFLOW_STATES, type WorkflowState } from "@/lib/workflow";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { workflowDeliveryError } from "@/lib/workflow-guards";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,9 @@ export async function POST(req: Request, { params }: Params) {
     if (!isWorkflowState(body.to)) {
       return NextResponse.json({ ok: false, error: "Estado de workflow no valido." }, { status: 400 });
     }
+
+    const deliveryError = workflowDeliveryError(body.to, body.deliveredOutsideApp);
+    if (deliveryError) return NextResponse.json({ ok: false, error: deliveryError }, { status: 400 });
 
     const outsideApp = body.deliveredOutsideApp === true && body.to === "TRADUCIDO_ENTREGADO";
     if (outsideApp && !body.reason) {

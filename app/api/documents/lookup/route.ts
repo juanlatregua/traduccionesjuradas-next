@@ -1,6 +1,7 @@
 // app/api/documents/lookup/route.ts — Consulta de pedido por email + referencia
 
 import { NextResponse } from "next/server";
+import { clientVisibleDeliveryFiles } from "@/lib/client-delivery";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
@@ -61,7 +62,12 @@ export async function GET(req: Request) {
       deliveryState: true,
       dueDate: true,
       createdAt: true,
+      deliveryFilesJson: true,
+      finalDeliveryFileUrl: true,
       translatedFileUrl: true,
+      finalFilename: true,
+      clientInvoice: { select: { status: true, docKind: true, dueDate: true, paidAt: true } },
+      monthlyInvoice: { select: { status: true, docKind: true, annulledAt: true } },
       langPair: true,
     },
   });
@@ -87,7 +93,7 @@ export async function GET(req: Request) {
       deliveryState: order.deliveryState,
       dueDate: order.dueDate?.toISOString() || null,
       createdAt: order.createdAt.toISOString(),
-      translatedFileUrl: order.translatedFileUrl,
+      translatedFileUrl: clientVisibleDeliveryFiles(order)[0]?.url ?? null,
       langPair: order.langPair,
     },
   });

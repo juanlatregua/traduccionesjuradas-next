@@ -61,12 +61,25 @@ export default function OrderManagementActions({
   async function advance() {
     const next = moves[0];
     if (!next) return;
+    const outside = next.to === "TRADUCIDO_ENTREGADO";
+    if (
+      outside &&
+      !window.confirm(
+        "Esto solo registra que ya se entregó por otra vía (no envía nada al cliente). Para enviar la traducción usa «Entregar al cliente». ¿Registrar?"
+      )
+    ) {
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(`/api/orders/${reference}/workflow`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: next.to, reason: "Avance desde el pedido" }),
+        body: JSON.stringify({
+          to: next.to,
+          reason: outside ? "Entregado por otra vía; marcado desde la ficha." : "Avance desde el pedido",
+          ...(outside ? { deliveredOutsideApp: true } : {}),
+        }),
       });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "No se pudo avanzar.");

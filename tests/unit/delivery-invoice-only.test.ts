@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { runInvoiceOnly } from "../../lib/delivery-invoice-only.ts";
-import { pendingLavoriEntregas, splitReviewedFiles, unreviewedNotice, unsentLavoriUrls, reviewedFileUrls, translatorFileUrls, unreviewedForSend, unreviewedUrls } from "../../lib/delivery-files.ts";
+import { workflowDeliveryError } from "../../lib/workflow-guards.ts";
+import { clientFallbackFileUrl, pendingLavoriEntregas, splitReviewedFiles, unreviewedNotice, unsentLavoriUrls, reviewedFileUrls, translatorFileUrls, unreviewedForSend, unreviewedUrls } from "../../lib/delivery-files.ts";
 import { INVOICE_NUMBER_PLACEHOLDER } from "../../lib/delivery-message.ts";
 
 const input = { reference: "26_95DA0E", lang: "es" as const, clientName: "Marta", reviewUrl: "https://g.page/r/x" };
@@ -126,7 +127,7 @@ test("el reply de la bandeja y el mensaje libre no adjuntan lo no revisado", () 
   const r = splitReviewedFiles([lav, own, ok], events);
   assert.deepEqual(r.allowed.map((f) => f.filename), ["propia.pdf", "b.pdf"]);
   assert.deepEqual(r.blocked.map((f) => f.filename), ["a.pdf"]);
-  assert.match(unreviewedNotice(r.blocked.length), /1 archivo\(s\) sin revisar no se han adjuntado: revísalos en Entregar al cliente/);
+  assert.match(unreviewedNotice(r.blocked.length), /1 archivo\(s\) sin revisar: revísalos en Entregar al cliente o desmarca adjuntar/);
 });
 
 test("lavori: procesada si hubo un envío posterior; sin enviar no sale marcada en reenvíos", () => {
@@ -137,4 +138,21 @@ test("lavori: procesada si hubo un envío posterior; sin enviar no sale marcada 
   assert.equal(pendingLavoriEntregas([ev, sent], []).length, 0);
   assert.deepEqual(unsentLavoriUrls([ev], [{ url }]), [url]);
   assert.deepEqual(unsentLavoriUrls([ev, sent], [{ url }]), []);
+});
+
+test("el cliente no ve un archivo del traductor sin pasar por /delivery (lookup y client-delivery)", () => {
+  const own = "https://x/orders/26_1/propia.pdf";
+  const trad = "https://x/translator-deliveries/26_1/1791300000000-t-AbCdEfGhIjKlMnOpQrStUvWxYz0123.pdf";
+  const lav = "https://x/orders/26_1/entregas-lavori/1791300000000-a.pdf";
+  assert.equal(clientFallbackFileUrl(null, trad), "");
+  assert.equal(clientFallbackFileUrl(undefined, lav), "");
+  assert.equal(clientFallbackFileUrl(null, own), own);
+  assert.equal(clientFallbackFileUrl(own, trad), own);
+});
+
+test("/workflow: TRADUCIDO_ENTREGADO solo se registra como entregado fuera de la app", () => {
+  assert.match(workflowDeliveryError("TRADUCIDO_ENTREGADO", undefined)!, /Entregar al cliente/);
+  assert.match(workflowDeliveryError("TRADUCIDO_ENTREGADO", false)!, /otra vía/);
+  assert.equal(workflowDeliveryError("TRADUCIDO_ENTREGADO", true), null);
+  assert.equal(workflowDeliveryError("EN_TRADUCCION", undefined), null);
 });

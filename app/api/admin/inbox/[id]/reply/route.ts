@@ -53,7 +53,6 @@ export async function POST(req: Request, { params }: Params) {
     // la respuesta salía sin los PDF). attachFiles=false lo desactiva.
     const attachFiles = payload?.attachFiles !== false;
     let attachments: MailAttachment[] = [];
-    let reviewWarning: string | null = null;
     let orderRefForFiles = inbound.orderReference;
     if (!orderRefForFiles && inbound.quoteId) {
       const o = await prisma.order.findFirst({ where: { quoteId: inbound.quoteId }, select: { reference: true } });
@@ -73,7 +72,9 @@ export async function POST(req: Request, { params }: Params) {
             ? [{ url: order.translatedFileUrl, filename: order.finalFilename || null }]
             : [];
         const { allowed: files, blocked } = await splitReviewableFiles(order.id, allFiles);
-        if (blocked.length > 0) reviewWarning = unreviewedNotice(blocked.length);
+        if (blocked.length > 0) {
+          return NextResponse.json({ ok: false, error: unreviewedNotice(blocked.length) }, { status: 400 });
+        }
         const multi = files.length > 1;
         const [fileAtts, invAtt] = await Promise.all([
           Promise.all(
@@ -159,7 +160,7 @@ export async function POST(req: Request, { params }: Params) {
       }
     }
 
-    return NextResponse.json({ ok: true, fileCount: attachments.length, warning: reviewWarning });
+    return NextResponse.json({ ok: true, fileCount: attachments.length });
   } catch (err: any) {
     console.error("[inbox:reply] error", err);
     return NextResponse.json(

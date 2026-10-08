@@ -80,7 +80,6 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     let attachments: any[] = [];
-    let reviewWarning: string | null = null;
     if (attachInvoice && !attachFiles) {
       const invAtt = await buildIssuedInvoiceAttachment(order.reference);
       if (!invAtt) {
@@ -100,7 +99,9 @@ export async function POST(req: Request, { params }: Params) {
           ? [{ url: order.translatedFileUrl, filename: order.finalFilename || null }]
           : [];
       const { allowed: files, blocked } = await splitReviewableFiles(order.id, allFiles);
-      if (blocked.length > 0) reviewWarning = unreviewedNotice(blocked.length);
+      if (blocked.length > 0) {
+        return NextResponse.json({ ok: false, error: unreviewedNotice(blocked.length) }, { status: 400 });
+      }
       const multi = files.length > 1;
       const [fileAtts, invAtt] = await Promise.all([
         Promise.all(
@@ -162,7 +163,7 @@ export async function POST(req: Request, { params }: Params) {
       sendCustomClientEmail({ toEmail: order.clientEmail, subject, bodyText, attachments })
     );
 
-    return NextResponse.json({ ok: true, fileCount: attachments.length, smsSent, warning: reviewWarning });
+    return NextResponse.json({ ok: true, fileCount: attachments.length, smsSent });
   } catch (err: any) {
     console.error("[notify-custom] error", err);
     return NextResponse.json(

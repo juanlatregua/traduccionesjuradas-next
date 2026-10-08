@@ -174,7 +174,7 @@ export function splitReviewedFiles<T extends { url: string }>(
 }
 
 export function unreviewedNotice(n: number): string {
-  return `${n} archivo(s) sin revisar no se han adjuntado: revísalos en Entregar al cliente`;
+  return `${n} archivo(s) sin revisar: revísalos en Entregar al cliente o desmarca adjuntar`;
 }
 
 // Todo archivo del traductor que vaya a salir debe tener su «Revisada ✓».
@@ -184,4 +184,15 @@ export function unreviewedForSend(
   assignmentUrls: (string | null | undefined)[] = []
 ): string[] {
   return unreviewedUrls(urls, translatorFileUrls(events, assignmentUrls), reviewedFileUrls(events));
+}
+
+// Archivo único al que recurre la vista del cliente cuando no hay lista de entrega:
+// finalDeliveryFileUrl (lo fija el staff) o translatedFileUrl, PERO una subida del
+// traductor (translator-deliveries / entregas-lavori) sin pasar por /delivery nunca
+// se enseña al cliente.
+export function clientFallbackFileUrl(finalUrl?: string | null, translatedUrl?: string | null): string {
+  const final = String(finalUrl || "").trim();
+  if (final) return final;
+  const translated = String(translatedUrl || "").trim();
+  return translated && !isTranslatorFile(translated, new Set()) ? translated : "";
 }
