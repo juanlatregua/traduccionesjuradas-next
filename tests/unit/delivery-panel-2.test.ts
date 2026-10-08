@@ -130,3 +130,21 @@ test("corrección con factura 26_073: la guarda no exige número de factura", ()
   const instr = buildDeliveryAiInstruction("más breve", { reference: "2026-00123", invoiceNumber: null, reviewUrl });
   assert.match(instr, /No menciones ninguna factura/);
 });
+
+test("26_0E3047 con las URLs reales: solo A marcada, B en versiones anteriores", () => {
+  const A = "https://x.public.blob.vercel-storage.com/orders/26_0E3047/1791380856919-1791369870139-tradjur_071026_DEES_compraventa_vehiculo_260926_signed-IznMGyiThu8Q528U9dbsyc6HhUS2iM.pdf";
+  const B = "https://x.public.blob.vercel-storage.com/orders/26_0E3047/entregas-lavori/1791369870139-tradjur_071026_DEES_compraventa_vehiculo_260926_signed.pdf";
+  for (const order of [[A, B], [B, A]]) {
+    const r = splitDocumentVersions(order.map((url) => ({ url })), A);
+    assert.deepEqual(r.current.map((f) => f.url), [A]);
+    assert.deepEqual(r.previous.map((f) => f.url), [B]);
+  }
+});
+
+test("dos entregas de lavori distintas siguen marcadas las dos", () => {
+  const L = "https://x.public.blob.vercel-storage.com/orders/26_1/entregas-lavori/";
+  const l1 = `${L}1791300000000-traduccion.pdf`;
+  const l2 = `${L}1791380000000-traduccion.pdf`;
+  const p = "https://x.public.blob.vercel-storage.com/orders/26_1/1791390000000-otro.pdf";
+  assert.equal(splitDocumentVersions([{ url: l1 }, { url: l2 }, { url: p }], p).current.length, 3);
+});
