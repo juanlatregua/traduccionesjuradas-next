@@ -4,7 +4,7 @@
 // facturación y mensaje, con un solo botón. Habla con POST /delivery (el carril
 // de siempre): emite o corrige la factura y envía el email con todo adjunto.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadStaffFile } from "@/lib/staff-upload-client";
 import { splitDocumentVersions } from "@/lib/delivery-files";
@@ -23,6 +23,7 @@ import {
   buildDeliveryText,
   deliverySubject,
   missingRequiredData,
+  requiredInvoiceNumber,
   translateInstruction,
   type DeliveryLang,
 } from "@/lib/delivery-message";
@@ -104,8 +105,10 @@ export default function DeliveryPanel(props: Props) {
     [props.lang, props.clientName, props.reference, props.reviewUrl, invoiceRef, correction]
   );
   const text = message ?? defaultMessage;
+  const requiredInvoice = requiredInvoiceNumber(invoiceRef, correction);
   const defaultSubject = deliverySubject(props.lang, props.reference, correction);
   const subjectText = subject ?? defaultSubject;
+  useEffect(() => setSubject(null), [correction]);
   const fileCount = selected.size + newFiles.length;
   const nifBlocked = status.kind === "will_issue" && needsNif(billing.nif, props.amountCents);
   const syntheticEmail = props.clientEmail.endsWith("@whatsapp.local");
@@ -197,7 +200,7 @@ export default function DeliveryPanel(props: Props) {
           body: text,
           instruction: buildDeliveryAiInstruction(instruction, {
             reference: props.reference,
-            invoiceNumber: invoiceRef,
+            invoiceNumber: requiredInvoice,
             reviewUrl: props.reviewUrl,
           }),
           orderReference: props.reference,
@@ -208,7 +211,7 @@ export default function DeliveryPanel(props: Props) {
       const draftBody = String(data.draft?.body || "");
       const missing = missingRequiredData(draftBody, {
         reference: props.reference,
-        invoiceNumber: invoiceRef,
+        invoiceNumber: requiredInvoice,
         reviewUrl: props.reviewUrl,
       });
       if (missing.length > 0) {

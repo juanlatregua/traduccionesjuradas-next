@@ -335,6 +335,9 @@ export async function POST(req: Request, { params }: Params) {
       //    de fondo no llegue a completarse en serverless. Es lo que Juan necesita
       //    poder ver ("¿que mensaje recibio el cliente?").
       // El panel previsualiza «(nº al emitir)» cuando la factura aún no existe: aquí ya tiene número.
+      const subjectIn = typeof body.subject === "string" ? body.subject : undefined;
+      const customSubject =
+        isCorrection && subjectIn && !/correg|corrig|correct/i.test(subjectIn) ? undefined : subjectIn;
       const customMessage = resolveInvoicePlaceholder(body.message || "", invoiceNumber).trim() || null;
       const composed = buildTranslationReadyEmail({
         reference: order.reference,
@@ -342,7 +345,7 @@ export async function POST(req: Request, { params }: Params) {
         clientName: greetingName(order.clientName, order.clientEmail),
         invoiceNumber,
         message: customMessage,
-        subject: body.subject,
+        subject: customSubject,
         correction: isCorrection,
       });
       await prisma.orderEvent
@@ -392,7 +395,7 @@ export async function POST(req: Request, { params }: Params) {
             clientName: greetingName(order.clientName, order.clientEmail),
             invoiceNumber,
             message: customMessage,
-            subject: body.subject,
+            subject: customSubject,
             fallbackLinks,
             attachments,
             invoiceAttached: !!invAttach,

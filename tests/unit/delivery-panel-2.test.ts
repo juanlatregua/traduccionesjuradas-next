@@ -8,6 +8,7 @@ import {
   greetingName,
   isEmailAlias,
   missingRequiredData,
+  requiredInvoiceNumber,
   translateInstruction,
 } from "../../lib/delivery-message.ts";
 import { invoiceStatusOf, needsNif, resolveBillingPrefill } from "../../lib/delivery-billing.ts";
@@ -114,4 +115,18 @@ test("la guarda de datos obligatorios de la IA", () => {
   assert.match(instr, /26_096/);
   assert.match(instr, /g\.page\/r\/x/);
   assert.match(instr, /Juan Silva — TraduccionesJuradas\.net/);
+});
+
+test("corrección con factura 26_073: la guarda no exige número de factura", () => {
+  assert.equal(requiredInvoiceNumber("26_073", true), null);
+  assert.equal(requiredInvoiceNumber("(nº al emitir)", false), null);
+  assert.equal(requiredInvoiceNumber("26_073", false), "26_073");
+  const reviewUrl = "https://g.page/r/x";
+  const text = buildDeliveryText({ lang: "es", name: "Ana", reference: "2026-00123", correction: true, reviewUrl });
+  assert.deepEqual(
+    missingRequiredData(text, { reference: "2026-00123", invoiceNumber: requiredInvoiceNumber("26_073", true), reviewUrl }),
+    []
+  );
+  const instr = buildDeliveryAiInstruction("más breve", { reference: "2026-00123", invoiceNumber: null, reviewUrl });
+  assert.match(instr, /No menciones ninguna factura/);
 });

@@ -137,6 +137,12 @@ export function deliveryTextToHtml(text: string): string {
     .join("");
 }
 
+// Número de factura que la IA debe conservar: ninguno en una corrección (no lleva factura)
+// ni mientras aún no se ha emitido (solo hay el hueco «(nº al emitir)»).
+export function requiredInvoiceNumber(invoiceRef: string | null, correction: boolean): string | null {
+  return correction || !invoiceRef || invoiceRef === INVOICE_NUMBER_PLACEHOLDER ? null : invoiceRef;
+}
+
 export type RequiredDeliveryData = {
   reference: string;
   invoiceNumber: string | null;
@@ -163,7 +169,7 @@ export function buildDeliveryAiInstruction(instruction: string, req: RequiredDel
     `la URL de reseña de Google ${req.reviewUrl}`,
     `la firma «${DELIVERY_SIGNATURE}»`,
   ].filter(Boolean);
-  return `${instruction.trim() || "Mejora el texto manteniéndolo breve y cordial."}\n\nConserva SIN CAMBIOS, tal cual: ${keep.join("; ")}. No inventes datos ni añadas enlaces.`;
+  return `${instruction.trim() || "Mejora el texto manteniéndolo breve y cordial."}\n\nConserva SIN CAMBIOS, tal cual: ${keep.join("; ")}. No inventes datos ni añadas enlaces.${req.invoiceNumber ? "" : " No menciones ninguna factura."}`;
 }
 
 export const AI_LANGUAGES = ["Español", "Français", "English", "Português", "Deutsch", "Italiano"] as const;
