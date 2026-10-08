@@ -5,7 +5,7 @@ import { SchemaPerson } from "@/components/SchemaPerson";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Franc\u00E9s \u00B7 Oficial MAEC n\u00BA 3850 \u00B7 Franc\u00E9s\u2194Espa\u00F1ol",
   description:
-    "Traductor jurado de franc\u00E9s oficial (MAEC n\u00BA 3850). Traducci\u00F3n jurada franc\u00E9s-espa\u00F1ol y espa\u00F1ol-franc\u00E9s. Documentos legales, antecedentes penales, t\u00EDtulos acad\u00E9micos. Desde 35\u20AC.",
+    "Traductor jurado de franc\u00E9s oficial (MAEC n\u00BA 3850). Traducci\u00F3n jurada franc\u00E9s-espa\u00F1ol y espa\u00F1ol-franc\u00E9s. Documentos legales, antecedentes penales, t\u00EDtulos acad\u00E9micos. Traducci\u00F3n jurada de franc\u00E9s: 30\u20AC + IVA por p\u00E1gina.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
   },
@@ -41,7 +41,7 @@ export default function TraductorJuradoFrancesPage() {
         {
           question: "¿Cuánto cuesta traducir un certificado en francés?",
           answer:
-            "Un certificado sencillo (nacimiento, matrimonio) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y recibe precio cerrado al instante.",
+            "Traducción jurada de francés: 30 € + IVA por página del original en certificados (nacimiento, matrimonio), actas, títulos, expedientes, antecedentes y apostillas. Los contratos, escrituras y textos largos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y recibe precio cerrado al instante.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de francés?",

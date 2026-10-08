@@ -9,7 +9,8 @@
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import type { Quote } from "@/lib/pricing-engine/calculator";
 import { isAutoPriceable, isPublicAutoPriceable, resolvePriceablePair } from "./pricing-engine/languages.ts";
-import { clientPriceFromCost, round2, DEFAULT_VAT_RATE } from "./quote-math.ts";
+import { round2, DEFAULT_VAT_RATE } from "./quote-math.ts";
+import { clientBaseFromQuote } from "./pricing-engine/page-pricing.ts";
 import type { Locale } from "@/lib/i18n/locales";
 
 // inbound  = documento extranjero → español (uso en España)
@@ -306,7 +307,10 @@ export function buildDiagnosis(
   // de infraconteo (fiscal/financiero, multi-copia, texto pegado): en ese caso
   // se manda a presupuesto manual en vez de cobrar mal (incidente 1099-MISC).
   const autoPriceable = isAutoPriceable(foreignLang) && !analysis.price_risk?.risky;
-  const publicAutoPriceable = autoPriceable && isPublicAutoPriceable(foreignLang);
+  // Escaparate: francés siempre; alemán SOLO con tarifa por página (DE→ES,
+  // documento «por página»), que sale al momento sin esperar a lavori.
+  const publicAutoPriceable =
+    autoPriceable && (isPublicAutoPriceable(foreignLang) || Boolean(quote.pagePricing));
   const askTargetLanguage =
     language.source === "es" && (!language.target || language.target === "unknown");
 
@@ -317,7 +321,7 @@ export function buildDiagnosis(
       ? getDeliveryHours(foreignLang, document_metrics.pages || 1)
       : null;
 
-  const clientBase = clientPriceFromCost(quote.basePrice, foreignLang);
+  const clientBase = clientBaseFromQuote(quote, foreignLang);
 
   return {
     type: {
@@ -331,7 +335,8 @@ export function buildDiagnosis(
       statement: swornStatement(direction, lang),
     },
     // El motor da el COSTE; el cliente paga coste × (1 + margen tiered) salvo
-    // francés (sin margen). El IVA se aplica encima. Ver lib/quote-math.ts.
+    // francés (sin margen) y salvo tarifa por página (ya es precio de venta).
+    // El IVA se aplica encima. Ver lib/quote-math.ts.
     price: {
       base: clientBase,
       total: round2(clientBase * (1 + DEFAULT_VAT_RATE)),

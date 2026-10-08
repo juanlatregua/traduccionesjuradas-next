@@ -54,6 +54,8 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     hasApostille: d.hasApostille ?? undefined,
     mode,
     unitPrice: Number(d.basePrice) || 0,
+    hasTables: !!d.hasTables,
+    clientPrice: d.clientPrice != null ? Number(d.clientPrice) : undefined,
     // El precio de esta fila lo gestiona el engine (se re-calcula al cambiar el
     // idioma destino del expediente) hasta que el staff lo edite a mano.
     autoPriced: true,
@@ -87,6 +89,7 @@ type DocRow = {
   complexity?: string;
   countryCode?: string;
   hasApostille?: boolean;
+  hasTables?: boolean; // el análisis vio tablas (solo cambia el precio por página en alemán)
   mode?: "text" | "vision";
   unitPrice: number; // editable, pre-IVA (coste TOTAL de la linea)
   clientPrice?: number; // precio cliente fijado desde «Ya presupuestado» (anula coste × margen)
@@ -805,7 +808,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         const foreign = resolvePriceablePair(d.sourceLang, targetLang || "es");
         if (!foreign || !isAutoPriceable(foreign)) {
           const note = manualPriceReason(d.sourceLang, foreign);
-          return d.unitPrice === 0 && d.priceNote === note ? d : { ...d, unitPrice: 0, priceNote: note };
+          return d.unitPrice === 0 && d.clientPrice === undefined && d.priceNote === note ? d : { ...d, unitPrice: 0, clientPrice: undefined, priceNote: note };
         }
         if (!d.documentType || !d.words) return d; // sin métricas no se recalcula
         const r = computeBase({
@@ -816,7 +819,19 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           complexity: d.complexity,
           countryCode: d.countryCode,
           hasApostille: d.hasApostille,
+          inbound: d.sourceLang !== "es",
+          hasTables: d.hasTables,
         });
+        // Tarifa por página DE→ES: el coste de la línea es el de Morton y el
+        // precio de venta se fija aparte (sin margen tiered ni suelo de 40 €).
+        const pp = r.pagePricing && r.pagePricing.costPerPage > 0 ? r.pagePricing : null;
+        if (pp) {
+          const unchangedPp =
+            d.unitPrice === pp.costEur && d.clientPrice === pp.priceEur && !d.priceNote && !d.minApplied;
+          return unchangedPp
+            ? d
+            : { ...d, unitPrice: pp.costEur, clientPrice: pp.priceEur, priceNote: undefined, minApplied: false, minAmount: pp.priceEur };
+        }
         const base = Math.round(r.basePrice * 100) / 100;
         const minApplied = !r.fixedPriceApplied && r.wordPrice < r.minimum;
         // Las filas es→X siguen el destino del expediente: refresca también su
@@ -827,12 +842,13 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             : {};
         const unchanged =
           d.unitPrice === base &&
+          d.clientPrice === undefined &&
           !d.priceNote &&
           d.minApplied === minApplied &&
           (!("targetLang" in tgtPatch) || d.targetLang === targetLang);
         return unchanged
           ? d
-          : { ...d, ...tgtPatch, unitPrice: base, priceNote: undefined, minApplied, minAmount: r.minimum };
+          : { ...d, ...tgtPatch, unitPrice: base, clientPrice: undefined, priceNote: undefined, minApplied, minAmount: r.minimum };
       });
       // Misma referencia si nada cambió: evita el bucle setDocs → docs → effect.
       return next.every((row, i) => row === prev[i]) ? prev : next;

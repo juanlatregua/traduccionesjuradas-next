@@ -56,6 +56,11 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
           description:
             "True si el documento incluye una apostilla de La Haya que también requiere traducción jurada (recargo de 15 €).",
         },
+        has_tables: {
+          type: "boolean",
+          description:
+            "True si las páginas del documento llevan tablas (notas, expedientes, extractos bancarios). Solo cambia el precio en alemán (35 € por página en vez de 30 €).",
+        },
         country: {
           type: "string",
           description:

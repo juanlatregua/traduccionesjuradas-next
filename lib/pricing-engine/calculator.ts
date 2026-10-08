@@ -11,10 +11,15 @@ import {
   MOROCCO_PRICING,
   FRENCH_CRIMINAL_RECORD_PRICE,
 } from "./rules.ts";
+import { computePagePricing, type PagePricing } from "./page-pricing.ts";
 
 export const VAT_RATE = 0.21;
 
 export type Quote = {
+  // Con `pagePricing` (FR/DE→ES por página, 8-oct-2026) basePrice/urgentPrice ya
+  // son el precio de VENTA, no un coste: no llevan margen tiered encima
+  // (clientBaseFromQuote en page-pricing.ts).
+  pagePricing?: PagePricing | null;
   basePrice: number;
   urgentPrice: number;
   totalPrice: number;
@@ -129,6 +134,10 @@ export type PriceMetricsInput = {
   complexity?: string;
   countryCode?: string | null;
   hasApostille?: boolean;
+  // Precio por página: solo si el original NO está en español (inbound) y el
+  // tipo es «por página». hasTables solo importa en alemán (35 € en vez de 30 €).
+  inbound?: boolean;
+  hasTables?: boolean;
 };
 
 export function computeBase(input: PriceMetricsInput): {
@@ -139,6 +148,7 @@ export function computeBase(input: PriceMetricsInput): {
   complexityMult: number;
   apostilleSurcharge: number;
   fixedPriceApplied: boolean;
+  pagePricing: PagePricing | null;
 } {
   const { specificType, foreignLang, words, pages } = input;
   const rate = getRate(foreignLang);
@@ -169,21 +179,39 @@ export function computeBase(input: PriceMetricsInput): {
     return {
       basePrice: FRENCH_CRIMINAL_RECORD_PRICE + apostilleSurcharge,
       wordPrice: FRENCH_CRIMINAL_RECORD_PRICE,
-      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true,
+      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true, pagePricing: null,
+    };
+  }
+  // Precio por página (FR/DE→ES, documentos «por página»): sustituye a los suelos
+  // por documento, al recargo de apostilla y a la tarifa fija de Marruecos. El
+  // Bulletin n°3 de ≥3 páginas (arriba) conserva su paquete de 61,98 €.
+  const pagePricing = computePagePricing({
+    specificType,
+    foreignLang,
+    inbound: input.inbound === true,
+    pages,
+    hasTables: input.hasTables,
+  });
+  if (pagePricing) {
+    return {
+      basePrice: pagePricing.priceEur,
+      wordPrice: pagePricing.priceEur,
+      effectiveRate: 0, minimum: pagePricing.priceEur, complexityMult, apostilleSurcharge: 0,
+      fixedPriceApplied: true, pagePricing,
     };
   }
   if (isMorocco && moroccoFixedPrice !== undefined) {
     return {
       basePrice: moroccoFixedPrice + apostilleSurcharge,
       wordPrice: moroccoFixedPrice,
-      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true,
+      effectiveRate: 0, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: true, pagePricing: null,
     };
   }
   const wordPrice = words * rate * complexityMult;
   return {
     basePrice: Math.max(wordPrice, minimum) + apostilleSurcharge,
     wordPrice,
-    effectiveRate: rate, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: false,
+    effectiveRate: rate, minimum, complexityMult, apostilleSurcharge, fixedPriceApplied: false, pagePricing: null,
   };
 }
 
@@ -212,6 +240,7 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     complexityMult,
     apostilleSurcharge,
     fixedPriceApplied,
+    pagePricing,
   } = computeBase({
     specificType: document_type.specific_type,
     foreignLang,
@@ -220,6 +249,8 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     complexity: complexity.level,
     countryCode: country?.origin,
     hasApostille: requirements?.has_apostille,
+    inbound: language.source !== "es",
+    hasTables: document_metrics.has_tables,
   });
 
   const estimatedDays = getEstimatedDays(
@@ -232,6 +263,7 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
   const roundedUrgent = round2(basePrice * URGENCY_MULTIPLIER);
 
   return {
+    pagePricing,
     basePrice: roundedBase,
     urgentPrice: roundedUrgent,
     totalPrice: round2(roundedBase * (1 + VAT_RATE)),

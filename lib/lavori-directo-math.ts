@@ -131,9 +131,11 @@ export function spreadCents(baseCents: number, weights: number[]): number[] {
 
 /** Precio al cliente de una línea cuando ya se conoce el coste real del jurado:
  * manda el precio del MOTOR (el que Juan ya tiene puesto en el borrador) y solo
- * se sube si con ese precio el margen no llega (+20 %, suelo de 40 €/doc). */
-export function clientCentsWithMotorPrice(motorCents: number, costCents: number): number {
-  const minimo = Math.max(DOC_FLOOR_CENTS, roundUp50(costCents * (1 + DIRECT_MARGIN_PCT / 100)));
+ * se sube si con ese precio el margen no llega (+20 %, suelo de 40 €/doc).
+ * `floorCents` = 0 en las líneas de tarifa por página DE→ES (8-oct-2026): ahí el
+ * suelo por documento no aplica. */
+export function clientCentsWithMotorPrice(motorCents: number, costCents: number, floorCents: number = DOC_FLOOR_CENTS): number {
+  const minimo = Math.max(floorCents, roundUp50(costCents * (1 + DIRECT_MARGIN_PCT / 100)));
   if (motorCents <= 0) return minimo;
   return canAutoQuote(motorCents, costCents) && motorCents >= minimo ? motorCents : minimo;
 }

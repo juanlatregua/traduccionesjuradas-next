@@ -120,6 +120,8 @@ La precisión del conteo de palabras determina directamente el precio del presup
 4. En documentos bilingües francés/árabe (Marruecos), cuenta SOLO el francés.
 5. En documentos oficiales españoles CO-OFICIALES de contenido idéntico en paralelo (castellano + català/gallego/euskera): transcríbelo completo y marca "is_bilingual_duplicate": true; el sistema divide el conteo entre 2 (NO cuentes tú una sola columna en ese caso).
 
+**Detección de tablas (\`has_tables\`):** pon \`has_tables\` a true si alguna página lleva el contenido principal en filas y columnas (notas y asignaturas de un expediente académico, extractos bancarios, listados de movimientos o importes). Un certificado con solo campos sueltos o una cuadrícula de formulario NO es una tabla. Este dato decide el precio por página en alemán: no lo marques por un simple encabezado o un sello.
+
 **Reglas específicas para tablas:**
 - Cada celda con contenido cuenta sus palabras individualmente.
 - Encabezados de columna cuentan como palabras.

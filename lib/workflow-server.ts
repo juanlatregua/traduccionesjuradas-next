@@ -17,6 +17,7 @@ import {
   fetchLavoriCartera,
   lavoriRouteFromPair,
   lavoriLangFromPair,
+  LAVORI_CANDIDATES,
   isCasaPair,
   buildSolicitudPayload,
   sendLavoriSolicitud,
@@ -24,6 +25,7 @@ import {
   type LavoriRoute,
 } from "@/lib/lavori-bridge";
 import { packDocsForSobre } from "@/lib/lavori-sobre";
+import { dePagePactado, isDePageTariffQuote, type DePagePactado } from "@/lib/pricing-engine/page-pricing";
 import { sendMail } from "@/lib/azure-mail";
 import { LEAD_LIVE_STATUSES, LEAD_PAIRABLE_STATUSES, matchLeadByCustomer, matchLiveLeadByCustomer } from "@/lib/lavori-lead-match";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
@@ -1026,6 +1028,80 @@ async function routeOrderToLavori(opts: {
   }
 }
 
+/** Pedido de la puerta DE→ES por página: coste pactado con Morton, recalculado
+ * desde los análisis guardados del pedido (mismo cálculo que el precio mostrado). */
+async function dePagePactadoForOrder(orderId: string): Promise<DePagePactado | null> {
+  const rows = await prisma.documentAnalysis.findMany({
+    where: { orderId },
+    select: { analysisJson: true },
+  });
+  if (rows.length === 0) return null;
+  const docs = rows.map((r) => {
+    const a = r.analysisJson as any;
+    return {
+      specificType: a?.document_type?.specific_type ?? null,
+      sourceLang: a?.language?.source ?? null,
+      pages: a?.document_metrics?.pages ?? null,
+      hasTables: a?.document_metrics?.has_tables ?? null,
+    };
+  });
+  return dePagePactado(docs);
+}
+
+/** Encargo dirigido a UN jurado con su cifra ya pactada (tarifario aprendido o
+ * tarifa por página). Re-comprueba al pagar que sigue libre (spec tarifa directa
+ * 4-sep §2.7): un firme a un candidato que lavori rechaza con 400 dejaba el
+ * pedido PAGADO en el fallback de staff. Si no puede, se abre a la cartera de la
+ * lengua con precio abierto y se avisa en las especificaciones; Juan decide. */
+async function routePactadoToMiembro(opts: {
+  order: Parameters<typeof routeOrderToLavori>[0]["order"];
+  reference: string;
+  actorEmail: string | null;
+  lang: string;
+  par: string;
+  miembroId: string;
+  miembroNombre: string | null;
+  paraTiCents: number;
+  acordadoTexto: string;
+  origenTexto: string;
+  quoteNumber: string | null;
+}): Promise<{ changed: boolean }> {
+  const { order, paraTiCents } = opts;
+  const { isLavoriMemberAvailable } = await import("@/lib/lavori-bridge");
+  const disp = await isLavoriMemberAvailable(opts.lang, opts.miembroId);
+  if (!disp.ok) {
+    console.error(`[workflow] jurado de la tarifa ${opts.miembroNombre || opts.miembroId} no disponible al pagar ${opts.reference}: ${disp.reason}`);
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.tarifa_jurado_no_disponible",
+        message: `El jurado de la tarifa (${opts.miembroNombre || opts.miembroId}) no puede recibir el encargo: ${disp.reason}. Se abre a la cartera de ${opts.lang.toUpperCase()} con precio abierto; el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} €.`,
+        payload: { miembroId: opts.miembroId, reason: disp.reason, live: disp.live, paraTiCents, quoteNumber: opts.quoteNumber },
+      },
+    });
+    const abierta = lavoriRouteFromPair(order.langPair);
+    if (abierta) {
+      return await routeOrderToLavori({
+        order,
+        route: abierta,
+        reference: opts.reference,
+        actorEmail: opts.actorEmail,
+        tarifario: true,
+        especificaciones: `El jurado previsto (${opts.miembroNombre || "tarifa de la casa"}) no está disponible. Precio abierto: el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} € (${opts.origenTexto}); la cifra de referencia era ${(paraTiCents / 100).toFixed(2)} €.`,
+      });
+    }
+  }
+  return await routeOrderToLavori({
+    order,
+    route: { lang: opts.lang, par: opts.par, candidatos: [opts.miembroId] },
+    reference: opts.reference,
+    actorEmail: opts.actorEmail,
+    paraTiCents,
+    tarifario: true,
+    especificaciones: `${opts.acordadoTexto}: ${(paraTiCents / 100).toFixed(2)} €. Solo acepta y traduce.`,
+  });
+}
+
 export async function autoAssignCollaboratorIfNeeded(options: {
   reference: string;
   actorEmail?: string | null;
@@ -1066,10 +1142,40 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           lavoriMiembroId: true,
           lavoriMiembroNombre: true,
           quoteNumber: true,
-          lines: { select: { supplierUnitCost: true } },
+          sourceLang: true,
+          targetLang: true,
+          lines: { select: { supplierUnitCost: true, unitPrice: true, quantity: true } },
         },
       });
       const parsed = lavoriLangFromPair(order.langPair);
+      // Presupuesto del builder con la tarifa por página DE→ES (30↔10 / 35↔15 por
+      // página): no trae jurado sellado, pero el jurado ES Morton por definición
+      // de la tarifa. Si había solicitud de precio previa, routeOrderToLavori la
+      // respeta (precio_aceptado) antes de abrir nada.
+      const mortonTarifa =
+        q && !q.lavoriMiembroId && isDePageTariffQuote({
+          sourceLang: q.sourceLang,
+          targetLang: q.targetLang,
+          lines: q.lines.map((l) => ({ quantity: Number(l.quantity) || 1, unitPrice: Number(l.unitPrice) || 0, supplierUnitCost: Number(l.supplierUnitCost) || 0 })),
+        })
+          ? { id: LAVORI_CANDIDATES.de?.[0] ?? null, nombre: "Morton" }
+          : null;
+      if (q && mortonTarifa?.id && parsed) {
+        const coste = q.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0);
+        return await routePactadoToMiembro({
+          order,
+          reference: options.reference,
+          actorEmail: options.actorEmail || null,
+          lang: parsed.lang,
+          par: parsed.par,
+          miembroId: mortonTarifa.id,
+          miembroNombre: mortonTarifa.nombre,
+          paraTiCents: coste,
+          acordadoTexto: `Precio ya acordado contigo por página (tarifa de la casa, presupuesto ${q.quoteNumber})`,
+          origenTexto: `presupuesto ${q.quoteNumber}`,
+          quoteNumber: q.quoteNumber,
+        });
+      }
       const costeBaseCents = q?.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0) || 0;
       // Las líneas guardan BASE; el firme va en el formato en que cotiza el
       // jurado (Daniela, líquido ×1,06). assignLavoriAcceptance lo devuelve a base.
@@ -1079,43 +1185,44 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       ]);
       const paraTiCents = baseToChannelPriceCents(costeBaseCents, priceBasisForMember(q?.lavoriMiembroId));
       if (q?.lavoriMiembroId && parsed && paraTiCents > 0) {
-        // Re-comprobación al pagar (spec tarifa directa 4-sep §2.7): entre
-        // cotizar y cobrar el jurado puede haber dejado de estar libre. Un firme
-        // a un candidato que lavori rechaza con 400 dejaba el pedido PAGADO en el
-        // fallback de staff. Si no puede, se abre a la cartera de la lengua con
-        // precio abierto y se avisa en las especificaciones; Juan decide.
-        const { isLavoriMemberAvailable } = await import("@/lib/lavori-bridge");
-        const disp = await isLavoriMemberAvailable(parsed.lang, q.lavoriMiembroId);
-        if (!disp.ok) {
-          console.error(`[workflow] jurado de la tarifa ${q.lavoriMiembroNombre || q.lavoriMiembroId} no disponible al pagar ${options.reference}: ${disp.reason}`);
-          await prisma.orderEvent.create({
-            data: {
-              orderId: order.id,
-              type: "lavori.tarifa_jurado_no_disponible",
-              message: `El jurado de la tarifa (${q.lavoriMiembroNombre || q.lavoriMiembroId}) no puede recibir el encargo: ${disp.reason}. Se abre a la cartera de ${parsed.lang.toUpperCase()} con precio abierto; el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} €.`,
-              payload: { miembroId: q.lavoriMiembroId, reason: disp.reason, live: disp.live, paraTiCents, quoteNumber: q.quoteNumber },
-            },
-          });
-          const abierta = lavoriRouteFromPair(order.langPair);
-          if (abierta) {
-            return await routeOrderToLavori({
-              order,
-              route: abierta,
-              reference: options.reference,
-              actorEmail: options.actorEmail || null,
-              tarifario: true,
-              especificaciones: `El jurado previsto (${q.lavoriMiembroNombre || "tarifa de la casa"}) no está disponible. Precio abierto: el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} € (presupuesto ${q.quoteNumber}); la cifra de referencia era ${(paraTiCents / 100).toFixed(2)} €.`,
-            });
-          }
-        }
-        return await routeOrderToLavori({
+        return await routePactadoToMiembro({
           order,
-          route: { lang: parsed.lang, par: parsed.par, candidatos: [q.lavoriMiembroId] },
           reference: options.reference,
           actorEmail: options.actorEmail || null,
+          lang: parsed.lang,
+          par: parsed.par,
+          miembroId: q.lavoriMiembroId,
+          miembroNombre: q.lavoriMiembroNombre,
           paraTiCents,
-          tarifario: true,
-          especificaciones: `Precio ya acordado contigo por documento (tarifario de la casa, presupuesto ${q.quoteNumber}): ${(paraTiCents / 100).toFixed(2)} €. Solo acepta y traduce.`,
+          acordadoTexto: `Precio ya acordado contigo por documento (tarifario de la casa, presupuesto ${q.quoteNumber})`,
+          origenTexto: `presupuesto ${q.quoteNumber}`,
+          quoteNumber: q.quoteNumber,
+        });
+      }
+    }
+
+    // Tarifa por página DE→ES (8-oct-2026): el precio salió al momento en la puerta
+    // con el coste de Morton ya fijado (10 €/pág, 15 € con tablas). Al pagar, el
+    // encargo va a él con ese precio pactado: solo tiene que aceptar. Sin solicitud
+    // previa a lavori (la tarifa ES la solicitud). Se recalcula desde los análisis
+    // guardados del propio pedido; si algún documento no es «por página» no aplica.
+    if (!order.quoteId && order.langPair) {
+      const pactado = await dePagePactadoForOrder(order.id);
+      const parsedDe = lavoriLangFromPair(order.langPair);
+      const mortonId = LAVORI_CANDIDATES.de?.[0];
+      if (pactado && parsedDe?.lang === "de" && mortonId) {
+        return await routePactadoToMiembro({
+          order,
+          reference: options.reference,
+          actorEmail: options.actorEmail || null,
+          lang: parsedDe.lang,
+          par: parsedDe.par,
+          miembroId: mortonId,
+          miembroNombre: "Morton",
+          paraTiCents: pactado.costCents,
+          acordadoTexto: `Precio ya acordado contigo por página (tarifa de la casa: ${pactado.pages} pág., 10 € por página y 15 € las que llevan tablas${pactado.tablePages ? `; ${pactado.tablePages} con tablas` : ""})`,
+          origenTexto: "tarifa por página",
+          quoteNumber: null,
         });
       }
     }

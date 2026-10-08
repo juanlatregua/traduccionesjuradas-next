@@ -77,7 +77,12 @@ function toBuilderDocuments(
       absorbedPages: d.absorbedPages ?? null,
       complexity: a.complexity.level,
       confidence: a.document_type.confidence,
-      basePrice: quote ? quote.basePrice : null,
+      hasTables: !!a.document_metrics.has_tables,
+      // En el builder basePrice es el COSTE de la línea. Con tarifa por página
+      // DE→ES el coste es el de Morton (10/15 €/pág.) y el precio de venta va
+      // aparte en clientPrice; FR (coste 0, motor propio) conserva coste = precio.
+      basePrice: quote ? (quote.pagePricing && quote.pagePricing.costPerPage > 0 ? quote.pagePricing.costEur : quote.basePrice) : null,
+      clientPrice: quote?.pagePricing && quote.pagePricing.costPerPage > 0 ? quote.pagePricing.priceEur : null,
       totalPrice: quote ? quote.totalPrice : null,
       // El precio viene del SUELO del par (las palabras dan menos): el
       // builder lo señala para que el staff lo vea antes de enviar
