@@ -4,7 +4,7 @@ import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES, isCasaPair } from "@/lib/lavori-bridge";
-import { assignLavoriAcceptance } from "@/lib/lavori-assign";
+import { assignLavoriAcceptance, syncQuoteTranslatorWithAcceptor } from "@/lib/lavori-assign";
 import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
 import { acceptanceMatchesPrice, acceptsNewPrice, isDirectLeadRequest } from "@/lib/lavori-directo-math";
 import { sendStaffAlertSMS } from "@/lib/sms";
@@ -867,6 +867,17 @@ async function handleLeadEvento(opts: {
           ...(datos.miembroNombre ? { miembroNombre: String(datos.miembroNombre) } : {}),
         },
       });
+      // El presupuesto atado (aún sin pedido) nombra a quien ACEPTÓ, no al de la primera cifra.
+      if (lead.quoteId && datos.miembroNombre) {
+        const email = datos.miembroId ? LAVORI_MEMBER_COLLABORATOR_EMAIL[String(datos.miembroId)] : undefined;
+        const colab = email ? await prisma.collaborator.findUnique({ where: { email }, select: { fullName: true, swornNumber: true } }) : null;
+        await syncQuoteTranslatorWithAcceptor({
+          quoteId: lead.quoteId,
+          nombre: colab?.fullName || String(datos.miembroNombre),
+          maec: colab?.swornNumber ?? null,
+          miembroId: datos.miembroId ? String(datos.miembroId) : null,
+        }).catch((err) => console.error("[lavori-eventos] sync translator (lead) failed", err));
+      }
     }
     if (evento === "pago_marcado") {
       const pagadoEn = datos.pagadoEn && !Number.isNaN(Date.parse(String(datos.pagadoEn))) ? new Date(String(datos.pagadoEn)) : new Date();

@@ -5,10 +5,51 @@
 
 import { prisma } from "@/lib/prisma";
 import { applyAcceptedQuoteSideEffects } from "@/lib/collaborators";
-import { LAVORI_MEMBER_COLLABORATOR_EMAIL } from "@/lib/lavori-bridge";
+import { LAVORI_MEMBER_COLLABORATOR_EMAIL, sameTranslatorName } from "@/lib/lavori-bridge";
 import { priceBasisForMember } from "@/lib/lavori-directo";
 import { channelPriceToBaseCents } from "@/lib/lavori-directo-math";
 import { netFromGross } from "@/lib/quotes";
+
+/** El presupuesto lleva el jurado que se anunció al cliente (la primera cifra de la
+ * cartera o de la solicitud). Si quien ACEPTA en lavori es otro (26_546077, 26_95DA0E,
+ * 26_B39FE1, 26_FD0B71: Leticia, Iria y Cristina en el presupuesto; aceptaron María
+ * Lourdes y Carmen), la página del presupuesto, la ficha y los avisos al cliente
+ * deben decir quién lo traduce de verdad. Deja registro en un evento del pedido. */
+export async function syncQuoteTranslatorWithAcceptor(opts: {
+  quoteId: string | null | undefined;
+  orderId?: string | null;
+  nombre: string | null | undefined;
+  maec?: string | null;
+  miembroId?: string | null;
+}): Promise<{ changed: boolean }> {
+  const nombre = String(opts.nombre || "").trim();
+  if (!opts.quoteId || !nombre) return { changed: false };
+  const quote = await prisma.quote.findUnique({
+    where: { id: opts.quoteId },
+    select: { id: true, quoteNumber: true, translatorName: true, translatorMaec: true },
+  });
+  if (!quote || sameTranslatorName(quote.translatorName, nombre)) return { changed: false };
+  await prisma.quote.update({
+    where: { id: quote.id },
+    data: { translatorName: nombre, translatorMaec: opts.maec || null },
+  });
+  if (opts.orderId) {
+    await prisma.orderEvent.create({
+      data: {
+        orderId: opts.orderId,
+        type: "quote.translator_updated",
+        message: `Presupuesto ${quote.quoteNumber}: el jurado pasa de «${quote.translatorName || "(sin nombre)"}» a «${nombre}», que es quien aceptó el encargo en lavori.`,
+        payload: {
+          quoteId: quote.id,
+          antes: { translatorName: quote.translatorName, translatorMaec: quote.translatorMaec },
+          despues: { translatorName: nombre, translatorMaec: opts.maec || null },
+          miembroId: opts.miembroId ?? null,
+        },
+      },
+    });
+  }
+  return { changed: true };
+}
 
 export async function assignLavoriAcceptance(opts: {
   order: { id: string; reference: string };
@@ -124,6 +165,19 @@ export async function assignLavoriAcceptance(opts: {
   }
   if (Number.isFinite(fechaEntrega)) {
     await prisma.order.updateMany({ where: { id: order.id, dueDate: null }, data: { dueDate: new Date(fechaEntrega) } });
+  }
+
+  // El presupuesto y los avisos al cliente nombran a quien aceptó, no al de la primera cifra.
+  const nombreAceptante = collaborator?.fullName || String(opts.miembroNombre || "").trim();
+  if (nombreAceptante) {
+    const pedido = await prisma.order.findUnique({ where: { id: order.id }, select: { quoteId: true } }).catch(() => null);
+    await syncQuoteTranslatorWithAcceptor({
+      quoteId: pedido?.quoteId,
+      orderId: order.id,
+      nombre: nombreAceptante,
+      maec: collaborator?.swornNumber ?? null,
+      miembroId,
+    }).catch((err) => console.error("[lavori-assign] sync translator failed", err));
   }
 
   await prisma.orderEvent.create({
