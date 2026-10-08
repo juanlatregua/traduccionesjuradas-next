@@ -198,7 +198,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         include: { collaborator: { select: { fullName: true, email: true } } },
         orderBy: { createdAt: "desc" },
       },
-      clientInvoice: { select: { number: true, totalCents: true, status: true, docKind: true, issuedAt: true, dueDate: true, paidAt: true } },
+      clientInvoice: { select: { number: true, totalCents: true, status: true, docKind: true, issuedAt: true, dueDate: true, paidAt: true, annulledAt: true } },
       monthlyInvoice: { select: { id: true, number: true, status: true, docKind: true, periodKey: true, issuedAt: true, dueDate: true, paidAt: true, annulledAt: true } },
       quote: { select: { id: true, quoteNumber: true } },
       documentItems: { orderBy: { createdAt: "asc" } },
@@ -753,11 +753,17 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             files={deliveredFiles.filter((f) => f.url).map((f) => ({ name: f.name, url: f.url as string }))}
             billing={billingPrefill}
             billingExcluded={order.billingExcluded}
+            paymentMethod={order.paymentMethod}
             billingExcludedReason={order.billingExcludedReason}
             hasMonthlyInvoice={Boolean(order.monthlyInvoiceId)}
             invoice={
               order.clientInvoice
-                ? { number: order.clientInvoice.number, status: order.clientInvoice.status, docKind: order.clientInvoice.docKind }
+                ? {
+                    number: order.clientInvoice.number,
+                    status: order.clientInvoice.status,
+                    docKind: order.clientInvoice.docKind,
+                    annulledAt: order.clientInvoice.annulledAt ? new Date(order.clientInvoice.annulledAt).toISOString() : null,
+                  }
                 : null
             }
             alreadyDelivered={workflowState === "CERRADO" || order.deliveryState === "TRADUCIDO"}

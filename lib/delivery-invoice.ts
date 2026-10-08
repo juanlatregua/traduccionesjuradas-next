@@ -88,6 +88,8 @@ export async function prepareDeliveryInvoice(input: {
       return { warning: "El pedido es de 0 €: se ha enviado sin factura." };
     case "bizum":
       return { warning: "Pedido pagado por Bizum: no se emite factura automática. Se ha enviado sin ella." };
+    case "annulled":
+      return { warning: `La factura ${existing?.number || ""} está anulada: se ha enviado sin factura.` };
     case "draft":
       return { warning: "Hay un borrador en Facturas: emítelo allí. Se ha enviado sin factura." };
     case "issue":

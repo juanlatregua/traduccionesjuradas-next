@@ -43,13 +43,13 @@ export async function buildIssuedInvoiceAttachment(
     // mes); mientras es borrador el email de entrega va sin factura.
     if (order.monthlyInvoiceId) {
       const monthly = await prisma.clientInvoice.findUnique({ where: { id: order.monthlyInvoiceId } });
-      if (!monthly || monthly.status !== "ISSUED" || !monthly.number) return null;
+      if (!monthly || monthly.status !== "ISSUED" || !monthly.number || monthly.annulledAt) return null;
       const pdf = generateInvoicePdf({ ...clientInvoicePdfArgs(monthly, await loadBrandLogo(monthly.brand)), verifactu: await verifactuPdfExtras(monthly.id) });
       return { name: `${monthly.number}.pdf`, contentType: "application/pdf", contentBytes: Buffer.from(pdf).toString("base64") };
     }
 
     const invoice = await prisma.clientInvoice.findUnique({ where: { orderId: order.id } });
-    if (!invoice || invoice.status !== "ISSUED" || !invoice.number) return null;
+    if (!invoice || invoice.status !== "ISSUED" || !invoice.number || invoice.annulledAt) return null;
 
     // Emitida con líneas propias (hecha o corregida en Facturas): se envía tal cual
     // quedó registrada, no reconstruida desde el pedido (26_077 perdía el envío en papel).

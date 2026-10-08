@@ -96,6 +96,10 @@ export type InvoiceStatus =
   | { kind: "excluded"; reason: string }
   | { kind: "monthly" }
   | { kind: "quote" }
+  | { kind: "draft" }
+  | { kind: "annulled" }
+  | { kind: "zero" }
+  | { kind: "bizum" }
   | { kind: "issued"; number: string }
   | { kind: "will_issue"; simplified: boolean };
 
@@ -103,18 +107,31 @@ export function invoiceStatusOf(input: {
   billingExcluded: boolean;
   billingExcludedReason?: string | null;
   hasMonthlyInvoice: boolean;
-  invoice?: { number: string | null; status: string; docKind: string } | null;
+  invoice?: { number: string | null; status: string; docKind: string; annulledAt?: unknown } | null;
+  paymentMethod?: string | null;
   nif: string;
   amountCents: number;
 }): InvoiceStatus {
   const inv = input.invoice;
-  if (inv && inv.status === "ISSUED" && inv.number && inv.docKind === "invoice") {
+  if (inv && inv.status === "ISSUED" && inv.number && inv.docKind === "invoice" && !inv.annulledAt) {
     return { kind: "issued", number: inv.number };
   }
   if (input.billingExcluded) return { kind: "excluded", reason: input.billingExcludedReason || "sin motivo" };
   if (input.hasMonthlyInvoice) return { kind: "monthly" };
-  if (inv?.docKind === "quote") return { kind: "quote" };
-  return { kind: "will_issue", simplified: isSimplifiedInvoice(input.nif, input.amountCents) };
+  switch (decideInvoiceAction({ existing: inv, amountCents: input.amountCents, paymentMethod: input.paymentMethod })) {
+    case "quote":
+      return { kind: "quote" };
+    case "draft":
+      return { kind: "draft" };
+    case "annulled":
+      return { kind: "annulled" };
+    case "zero":
+      return { kind: "zero" };
+    case "bizum":
+      return { kind: "bizum" };
+    default:
+      return { kind: "will_issue", simplified: isSimplifiedInvoice(input.nif, input.amountCents) };
+  }
 }
 
 export function invoiceStatusLabel(s: InvoiceStatus): string {
@@ -127,22 +144,31 @@ export function invoiceStatusLabel(s: InvoiceStatus): string {
       return "Factura agrupada del mes: se envía sin factura";
     case "quote":
       return "Hay un presupuesto vinculado: se envía sin factura (emítela desde Facturas)";
+    case "draft":
+      return "Hay un borrador en Facturas: se envía sin factura";
+    case "annulled":
+      return "Factura anulada: se envía sin factura";
+    case "zero":
+      return "Pedido de 0 €: se envía sin factura";
+    case "bizum":
+      return "Pago Bizum: se envía sin factura";
     case "will_issue":
       return `Se emitirá al enviar (${s.simplified ? "simplificada" : "completa"})`;
   }
 }
 
-export type InvoiceAction = "issue" | "existing" | "draft" | "quote" | "zero" | "bizum";
+export type InvoiceAction = "issue" | "existing" | "draft" | "annulled" | "quote" | "zero" | "bizum";
 
 // Qué hace el panel con la factura del pedido: solo emite si NO hay ninguna.
 export function decideInvoiceAction(input: {
-  existing?: { status: string; docKind: string } | null;
+  existing?: { status: string; docKind: string; annulledAt?: unknown } | null;
   amountCents: number;
   paymentMethod?: string | null;
 }): InvoiceAction {
   const e = input.existing;
   if (e) {
     if (e.docKind === "quote") return "quote";
+    if (e.annulledAt) return "annulled";
     return e.status === "ISSUED" ? "existing" : "draft";
   }
   if (input.amountCents <= 0) return "zero";

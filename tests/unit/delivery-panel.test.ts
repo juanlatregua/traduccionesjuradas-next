@@ -123,3 +123,14 @@ test("sin factura se quita la frase entera del mensaje", () => {
   const en = buildDeliveryText({ lang: "en", reference: "R1", invoiceNumber: "(nº al emitir)", reviewUrl: "u" });
   assert.doesNotMatch(resolveInvoicePlaceholder(en, null), /invoice|emitir/);
 });
+
+test("la etiqueta del panel anticipa lo que hará el servidor", () => {
+  const base = { billingExcluded: false, hasMonthlyInvoice: false, nif: "", amountCents: 9000 };
+  const label = (o: object) => invoiceStatusLabel(invoiceStatusOf({ ...base, ...o }));
+  assert.match(label({ invoice: { number: null, status: "DRAFT", docKind: "invoice" } }), /borrador en Facturas: se envía sin factura/);
+  assert.match(label({ amountCents: 0 }), /0 €: se envía sin factura/);
+  assert.match(label({ paymentMethod: "BIZUM" }), /Pago Bizum: se envía sin factura/);
+  const annulled = { number: "26_025", status: "ISSUED", docKind: "invoice", annulledAt: "2026-10-01" };
+  assert.match(label({ invoice: annulled }), /anulada: se envía sin factura/);
+  assert.equal(decideInvoiceAction({ amountCents: 9000, existing: annulled }), "annulled");
+});

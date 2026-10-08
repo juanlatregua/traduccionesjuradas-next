@@ -28,7 +28,8 @@ type Props = {
   billingExcluded: boolean;
   billingExcludedReason: string | null;
   hasMonthlyInvoice: boolean;
-  invoice: { number: string | null; status: string; docKind: string } | null;
+  invoice: { number: string | null; status: string; docKind: string; annulledAt: string | null } | null;
+  paymentMethod: string | null;
   alreadyDelivered: boolean;
   lastSent: { sentAt: string; toEmail: string | null; invoiceNumber: string | null } | null;
   whatsappText: string;
@@ -63,6 +64,7 @@ export default function DeliveryPanel(props: Props) {
     billingExcludedReason: props.billingExcludedReason,
     hasMonthlyInvoice: props.hasMonthlyInvoice,
     invoice: props.invoice,
+    paymentMethod: props.paymentMethod,
     nif: billing.nif,
     amountCents: props.amountCents,
   });
