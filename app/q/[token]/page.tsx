@@ -19,7 +19,7 @@ import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
 import QuoteDocumentsViewer from "@/components/QuoteDocumentsViewer";
 import QuoteJourney from "@/components/QuoteJourney";
 import { billingLockState, getSavedQuoteBilling } from "@/lib/quote-billing";
-import { billingLocked, COMPLETION_EVENT, completionBlobPrefix, isPendingCompletion, isWhatsappPlaceholder, pickBillingPrefill } from "@/lib/q-journey";
+import { billingLocked, COMPLETION_EVENT, completionBlobPrefix, isPendingCompletion, isWhatsappPlaceholder, payPhase, pickBillingPrefill } from "@/lib/q-journey";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { pickPublicLang, publicDict, statusLabel, localeFor } from "@/lib/quote-public-i18n";
 import { buildSignedOrderUrl } from "@/lib/order-token";
@@ -173,8 +173,9 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       deliveryTerm: true,
       vatRate: true,
       orders: {
-        take: 1,
-        select: { reference: true, billing: { select: { fiscalName: true, nif: true, address: true, city: true, postalCode: true, country: true, email: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: { reference: true, paymentStatus: true, billing: { select: { fiscalName: true, nif: true, address: true, city: true, postalCode: true, country: true, email: true } } },
       },
       // «Pendiente de completar»: el cliente añadió documentos y no se ha reenviado desde entonces.
       stripeEvents: { where: { eventType: COMPLETION_EVENT }, select: { processedAt: true } },
@@ -240,11 +241,14 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   const t = publicDict(lang);
   const loc = localeFor(lang);
   const money = (value: number) => new Intl.NumberFormat(loc, { style: "currency", currency: "EUR" }).format(value);
-  const paid = !!refreshed.paidAt || searchParams?.paid === "1";
+  const phase = payPhase({ paidAt: refreshed.paidAt, paidParam: searchParams?.paid === "1", balance, balancePaidAt: refreshed.balancePaidAt });
+  const paid = phase === "paid" || phase === "partial";
+  const confirming = phase === "confirming";
+  const partial = phase === "partial";
   const vatIncluded = Number(refreshed.vatRate) > 0;
   const etaDate = calculateEtaDate({ from: refreshed.paidAt ?? new Date(), deliveryType: refreshed.deliveryType });
   const etaText = refreshed.deliveryTerm?.trim() || etaDate.toLocaleDateString(loc, { day: "numeric", month: "long" });
-  const orderRef = refreshed.orders[0]?.reference ?? null;
+  const orderRef = (refreshed.orders.find((o) => o.paymentStatus === "PAID") ?? refreshed.orders[0])?.reference ?? null;
   let trackUrl: string | null = null;
   if (orderRef) {
     try {
@@ -298,6 +302,22 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       totalCents,
     };
   }
+
+  const contact = (
+    <p className="mt-3 text-sm text-sepia">
+        {t.paidContact}{" "}
+        <a href={`mailto:${EMAIL}`} className="font-semibold text-bleu underline">{EMAIL}</a>
+        {" · "}
+        <a
+          href={buildWhatsAppLinkFromText(refreshed.quoteNumber)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-bleu underline"
+        >
+          WhatsApp
+        </a>
+      </p>
+  );
 
   const payBlocks = (
     <>
@@ -405,7 +425,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               </p>
             )}
             {balance > 0 && (
-              <div className="space-y-2 rounded-lg border border-bleu/30 bg-cream/40 p-3 text-sm text-encre">
+              <div id="segundo-pago" className="scroll-mt-4 space-y-2 rounded-lg border border-bleu/30 bg-cream/40 p-3 text-sm text-encre">
                 <p className="flex items-center justify-between">
                   <span>
                     {t.secondPayment}
@@ -449,7 +469,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
         </p>
         <h1 className="mt-2 text-2xl font-bold text-encre">{t.swornTranslation}</h1>
         <p className="mt-1 text-sm text-sepia">
-          {t.status}: <strong>{paid ? t.paidTitle : statusLabel(status, lang)}</strong> · {t.validUntil}{" "}
+          {t.status}: <strong>{partial ? t.firstPaid : paid ? t.paidTitle : statusLabel(status, lang)}</strong> · {t.validUntil}{" "}
           <strong>{refreshed.validUntil.toLocaleDateString(loc)}</strong>
         </p>
 
@@ -463,9 +483,15 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
           <section className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-encre" aria-labelledby="paid-title">
             <h2 id="paid-title" className="text-lg font-semibold text-emerald-900">
               <span aria-hidden="true">✓ </span>
-              {t.paidTitle}
+              {partial ? t.firstPaid : t.paidTitle}
             </h2>
             <p role="status" className="mt-1 text-sm text-sepia">{t.paidOk}</p>
+            {partial && (
+              <p className="mt-1 text-sm font-semibold text-encre">
+                {t.remaining}: {money(balance)} ·{" "}
+                <a href="#segundo-pago" className="text-bleu underline">{t.goSecond}</a>
+              </p>
+            )}
             <ol className="mt-3 grid gap-2 sm:grid-cols-3">
               {[t.paidStepReceived, t.paidStepProgress, t.paidStepDelivery].map((label, i) => (
                 <li
@@ -493,26 +519,27 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 {t.followOrder}
               </a>
             )}
-            <p className="mt-3 text-sm text-sepia">
-              {t.paidContact}{" "}
-              <a href={`mailto:${EMAIL}`} className="font-semibold text-bleu underline">{EMAIL}</a>
-              {" · "}
-              <a
-                href={buildWhatsAppLinkFromText(refreshed.quoteNumber)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-bleu underline"
-              >
-                WhatsApp
-              </a>
-            </p>
+            {contact}
           </section>
         ) : (
-          isPayable && (
+          <>
+          {confirming && (
+            <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-encre" aria-labelledby="confirming-title">
+              <h2 id="confirming-title" className="text-lg font-semibold text-amber-900">{t.confirming}</h2>
+              <p role="status" className="mt-1 text-sm text-sepia">{t.confirmingHelp}</p>
+              {contact}
+              {isPayable && (
+                <p className="mt-3 text-sm text-sepia">
+                  <a href="#pago" className="font-semibold text-bleu underline">{t.retryPay}</a>
+                </p>
+              )}
+            </section>
+          )}
+          {isPayable && (
             <section className="mt-4 rounded-2xl border border-bleu/30 bg-cream/50 p-4" aria-label={t.summary}>
               <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{vatIncluded ? t.totalVatIncl : t.total}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{balance > 0 ? t.firstPayment : vatIncluded ? t.totalVatIncl : t.total}</p>
                   <p className="text-2xl font-bold text-encre">{money(total)}</p>
                   {balance > 0 && (
                     <p className="text-xs text-sepia">
@@ -536,7 +563,8 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 <QuoteProofCta token={params.token} lang={lang} focus={searchParams?.paso === "justificante"} />
               )}
             </section>
-          )
+          )}
+          </>
         )}
 
         {journeyProps ? <QuoteJourney {...journeyProps}>{payBlocks}</QuoteJourney> : payBlocks}

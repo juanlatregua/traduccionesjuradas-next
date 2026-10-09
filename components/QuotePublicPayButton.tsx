@@ -68,6 +68,16 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStartCard, isPayable]);
 
+  const keys = [...(bizums.length ? ["bizum"] : []), ...(banks.length ? ["transferencia"] : []), "tarjeta"] as PayTab[];
+  const onTabKey = (e: React.KeyboardEvent, current: PayTab) => {
+    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = keys[(keys.indexOf(current) + step + keys.length) % keys.length];
+    setTab(next);
+    document.getElementById(`paytab-${next}`)?.focus();
+  };
+
   if (!isPayable) {
     return (
       <p className="text-sm text-sepia">
@@ -96,7 +106,9 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
             id={`paytab-${tb.key}`}
             aria-selected={tab === tb.key}
             aria-controls="paypanel"
+            tabIndex={tab === tb.key ? 0 : -1}
             onClick={() => setTab(tb.key)}
+            onKeyDown={(e) => onTabKey(e, tb.key)}
             className={`flex-1 rounded-lg px-2 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu ${
               tab === tb.key
                 ? "bg-bleu text-white shadow-sm"

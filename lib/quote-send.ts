@@ -186,11 +186,16 @@ export async function finalizeAndSendQuote(opts: {
     const doSendEmail = !opts.skipEmail && !placeholderEmail;
 
     const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
+    // El mensaje enseña el total del presupuesto: el enlace tiene que cobrar ese mismo importe, y /q
+    // cobra el total vivo (el amountCents de un pedido enlazado no sigue a las ediciones).
     const msgData = {
       name: quote.customerName || "cliente",
-      payUrl,
+      payUrl: `${baseUrl}/q/${quote.publicToken}`,
       lang: quote.pdfLang,
       totalEur: decimalToNumber(quote.total),
+      balanceEur: decimalToNumber(quote.balanceAmount),
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
       deliveryTerm: quote.deliveryTerm || (plazoMatch ? plazoMatch[1].trim() : null),
       deliveryType: quote.deliveryType,
       vatExempt: Number(quote.vatRate) <= 0,

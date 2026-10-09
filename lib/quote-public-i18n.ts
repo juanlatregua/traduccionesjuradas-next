@@ -178,6 +178,13 @@ export type PublicDict = {
   copyBtn: string;
   copyingBtn: string;
   copyFail: string;
+  firstPayment: string;
+  firstPaid: string;
+  remaining: string;
+  goSecond: string;
+  confirming: string;
+  confirmingHelp: string;
+  retryPay: string;
 };
 
 const ES: PublicDict = {
@@ -332,6 +339,13 @@ const ES: PublicDict = {
   copyBtn: "Copiar",
   copyingBtn: "Copiando…",
   copyFail: "No se pudo copiar.",
+  firstPayment: "Primer pago",
+  firstPaid: "Primer pago recibido",
+  remaining: "Queda por pagar",
+  goSecond: "Pagar el segundo plazo",
+  confirming: "Pago en confirmación",
+  confirmingHelp: "Estamos esperando la confirmación de tu pago. Si no recibes el email de confirmación en unos minutos, escríbenos.",
+  retryPay: "¿No se completó? Inténtalo de nuevo",
 };
 
 const EN: PublicDict = {
@@ -486,6 +500,13 @@ const EN: PublicDict = {
   copyBtn: "Copy",
   copyingBtn: "Copying…",
   copyFail: "Could not copy.",
+  firstPayment: "First payment",
+  firstPaid: "First payment received",
+  remaining: "Remaining",
+  goSecond: "Pay the second instalment",
+  confirming: "Payment being confirmed",
+  confirmingHelp: "We are waiting for your payment to be confirmed. If you do not get a confirmation email in a few minutes, write to us.",
+  retryPay: "Did it not go through? Try again",
 };
 
 const FR: PublicDict = {
@@ -640,6 +661,13 @@ const FR: PublicDict = {
   copyBtn: "Copier",
   copyingBtn: "Copie…",
   copyFail: "Copie impossible.",
+  firstPayment: "Premier paiement",
+  firstPaid: "Premier paiement reçu",
+  remaining: "Reste à payer",
+  goSecond: "Payer le second versement",
+  confirming: "Paiement en cours de confirmation",
+  confirmingHelp: "Nous attendons la confirmation de votre paiement. Sans e-mail de confirmation dans quelques minutes, écrivez-nous.",
+  retryPay: "Le paiement n'a pas abouti ? Réessayez",
 };
 
 const PT: PublicDict = {
@@ -794,6 +822,13 @@ const PT: PublicDict = {
   copyBtn: "Copiar",
   copyingBtn: "Copiando…",
   copyFail: "Não foi possível copiar.",
+  firstPayment: "Primeiro pagamento",
+  firstPaid: "Primeiro pagamento recebido",
+  remaining: "Falta pagar",
+  goSecond: "Pagar a segunda prestação",
+  confirming: "Pagamento em confirmação",
+  confirmingHelp: "Estamos a aguardar a confirmação do seu pagamento. Se não receber o email de confirmação em alguns minutos, escreva-nos.",
+  retryPay: "Não foi concluído? Tente novamente",
 };
 
 const IT: PublicDict = {
@@ -948,6 +983,13 @@ const IT: PublicDict = {
   copyBtn: "Copia",
   copyingBtn: "Copia…",
   copyFail: "Impossibile copiare.",
+  firstPayment: "Primo pagamento",
+  firstPaid: "Primo pagamento ricevuto",
+  remaining: "Resta da pagare",
+  goSecond: "Paga la seconda rata",
+  confirming: "Pagamento in conferma",
+  confirmingHelp: "Stiamo attendendo la conferma del pagamento. Se non ricevi l'email di conferma entro pochi minuti, scrivici.",
+  retryPay: "Non è andato a buon fine? Riprova",
 };
 
 const DE: PublicDict = {
@@ -1102,6 +1144,13 @@ const DE: PublicDict = {
   copyBtn: "Kopieren",
   copyingBtn: "Kopiere…",
   copyFail: "Kopieren nicht möglich.",
+  firstPayment: "Erste Zahlung",
+  firstPaid: "Erste Zahlung eingegangen",
+  remaining: "Noch offen",
+  goSecond: "Zweite Rate bezahlen",
+  confirming: "Zahlung wird bestätigt",
+  confirmingHelp: "Wir warten auf die Bestätigung Ihrer Zahlung. Falls Sie in einigen Minuten keine Bestätigungs-E-Mail erhalten, schreiben Sie uns.",
+  retryPay: "Nicht abgeschlossen? Erneut versuchen",
 };
 
 const DICTS: Record<PublicLang, PublicDict> = { es: ES, en: EN, fr: FR, pt: PT, it: IT, de: DE };

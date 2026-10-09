@@ -10,6 +10,10 @@ type CommonData = {
   // Idioma del cliente (Quote.pdfLang); español por defecto.
   lang?: string | null;
   totalEur?: number | null;
+  // Dos plazos: totalEur es el primer pago y balanceEur el segundo.
+  balanceEur?: number | null;
+  sourceLang?: string | null;
+  targetLang?: string | null;
   // Plazo escrito del presupuesto ("2-3 días hábiles"); si falta, el estándar según el tipo de entrega.
   deliveryTerm?: string | null;
   deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP" | null;
@@ -28,8 +32,9 @@ type MsgDict = {
   vat: string;
   noVat: string;
   total: string;
+  firstPayment: string;
+  secondPayment: string;
   delivery: string;
-  days: (n: number) => string;
   cta: string;
   translator: (name: string, maec?: string | null) => string;
   paper: string;
@@ -58,10 +63,11 @@ const MSG: Record<PublicLang, MsgDict> = {
     vat: "IVA incl.",
     noVat: "operación no sujeta a IVA — residente fuera de la UE",
     total: "Total",
+    firstPayment: "Primer pago",
+    secondPayment: "Segundo pago",
     delivery: "Entrega",
-    days: (n) => `${n} días hábiles desde el pago`,
     cta: "Ver el presupuesto y pagar",
-    translator: (n, m) => `La traducción la realiza ${n}, traductor/a-intérprete jurado/a${m ? ` nº ${m}` : ""}.`,
+    translator: (n, m) => `La traducción la realiza ${n}, traductor/a-intérprete jurado/a${m ? ` nº ${m} del MAEC` : ""}.`,
     paper: "El envío en papel (12 € + IVA) está incluido en el total.",
     start: "En cuanto recibamos el pago empezamos la traducción.",
     sign: "Un saludo,\nJuan Silva — TraduccionesJuradas.net",
@@ -86,10 +92,11 @@ const MSG: Record<PublicLang, MsgDict> = {
     vat: "VAT incl.",
     noVat: "not subject to VAT — non-EU resident",
     total: "Total",
+    firstPayment: "First payment",
+    secondPayment: "Second payment",
     delivery: "Delivery",
-    days: (n) => `${n} business days from payment`,
     cta: "View the quote and pay",
-    translator: (n, m) => `Your translation is done by ${n}, sworn translator${m ? ` no. ${m}` : ""}.`,
+    translator: (n, m) => `Your translation is done by ${n}, sworn translator${m ? ` MAEC no. ${m}` : ""}.`,
     paper: "Paper shipping (EUR 12 + VAT) is included in the total.",
     start: "We start the translation as soon as we receive your payment.",
     sign: "Best regards,\nJuan Silva — TraduccionesJuradas.net",
@@ -114,10 +121,11 @@ const MSG: Record<PublicLang, MsgDict> = {
     vat: "TVA incl.",
     noVat: "opération non soumise à la TVA — résident hors UE",
     total: "Total",
+    firstPayment: "Premier paiement",
+    secondPayment: "Second paiement",
     delivery: "Livraison",
-    days: (n) => `${n} jours ouvrés après le paiement`,
     cta: "Voir le devis et payer",
-    translator: (n, m) => `Votre traduction est réalisée par ${n}, traducteur/trice assermenté(e)${m ? ` n° ${m}` : ""}.`,
+    translator: (n, m) => `Votre traduction est réalisée par ${n}, traducteur/trice assermenté(e)${m ? ` n° ${m} du MAEC` : ""}.`,
     paper: "L'envoi papier (12 € + TVA) est inclus dans le total.",
     start: "Nous commençons la traduction dès réception du paiement.",
     sign: "Cordialement,\nJuan Silva — TraduccionesJuradas.net",
@@ -142,10 +150,11 @@ const MSG: Record<PublicLang, MsgDict> = {
     vat: "IVA incl.",
     noVat: "operação não sujeita a IVA — residente fora da UE",
     total: "Total",
+    firstPayment: "Primeiro pagamento",
+    secondPayment: "Segundo pagamento",
     delivery: "Entrega",
-    days: (n) => `${n} dias úteis após o pagamento`,
     cta: "Ver o orçamento e pagar",
-    translator: (n, m) => `A tradução é feita por ${n}, tradutor/a juramentado/a${m ? ` n.º ${m}` : ""}.`,
+    translator: (n, m) => `A tradução é feita por ${n}, tradutor/a juramentado/a${m ? ` n.º ${m} do MAEC` : ""}.`,
     paper: "O envio em papel (12 € + IVA) está incluído no total.",
     start: "Começamos a tradução assim que recebermos o pagamento.",
     sign: "Com os melhores cumprimentos,\nJuan Silva — TraduccionesJuradas.net",
@@ -170,10 +179,11 @@ const MSG: Record<PublicLang, MsgDict> = {
     vat: "IVA incl.",
     noVat: "operazione non soggetta a IVA — residente fuori dalla UE",
     total: "Totale",
+    firstPayment: "Primo pagamento",
+    secondPayment: "Secondo pagamento",
     delivery: "Consegna",
-    days: (n) => `${n} giorni lavorativi dal pagamento`,
     cta: "Vedere il preventivo e pagare",
-    translator: (n, m) => `La traduzione è eseguita da ${n}, traduttore/trice giurato/a${m ? ` n. ${m}` : ""}.`,
+    translator: (n, m) => `La traduzione è eseguita da ${n}, traduttore/trice giurato/a${m ? ` n. ${m} del MAEC` : ""}.`,
     paper: "La spedizione cartacea (12 € + IVA) è inclusa nel totale.",
     start: "Iniziamo la traduzione appena riceviamo il pagamento.",
     sign: "Cordiali saluti,\nJuan Silva — TraduccionesJuradas.net",
@@ -198,10 +208,11 @@ const MSG: Record<PublicLang, MsgDict> = {
     vat: "inkl. MwSt.",
     noVat: "nicht mehrwertsteuerpflichtig — Wohnsitz außerhalb der EU",
     total: "Gesamt",
+    firstPayment: "Erste Zahlung",
+    secondPayment: "Zweite Zahlung",
     delivery: "Lieferung",
-    days: (n) => `${n} Werktage ab Zahlungseingang`,
     cta: "Angebot ansehen und bezahlen",
-    translator: (n, m) => `Die Übersetzung erstellt ${n}, beeidigte/r Übersetzer/in${m ? ` Nr. ${m}` : ""}.`,
+    translator: (n, m) => `Die Übersetzung erstellt ${n}, beeidigte/r Übersetzer/in${m ? ` Nr. ${m} (MAEC)` : ""}.`,
     paper: "Der Papierversand (12 € + MwSt.) ist im Gesamtpreis enthalten.",
     start: "Wir beginnen mit der Übersetzung, sobald die Zahlung eingegangen ist.",
     sign: "Mit freundlichen Grüßen\nJuan Silva — TraduccionesJuradas.net",
@@ -225,12 +236,28 @@ function moneyIn(eur: number, lang: PublicLang) {
   return new Intl.NumberFormat(localeFor(lang), { style: "currency", currency: "EUR" }).format(eur);
 }
 
-// «Total X (IVA incl.) · Entrega …»: la línea que decide el pago.
+// «Total X (IVA incl.) · Entrega …»: la línea que decide el pago. La entrega solo
+// sale si el presupuesto trae plazo: no se inventa uno.
 function summaryLine(d: CommonData, m: MsgDict, lang: PublicLang) {
-  const days = d.deliveryType === "PAPER_SHIP" ? 3 : 2;
-  const term = d.deliveryTerm?.trim() || m.days(days);
-  const total = d.totalEur != null ? `${m.total} ${moneyIn(d.totalEur, lang)} (${d.vatExempt ? m.noVat : m.vat}) · ` : "";
-  return `${total}${m.delivery}: ${term}`;
+  const split = d.balanceEur != null && d.balanceEur > 0;
+  const parts: string[] = [];
+  if (d.totalEur != null) {
+    parts.push(`${split ? m.firstPayment : m.total} ${moneyIn(d.totalEur, lang)} (${d.vatExempt ? m.noVat : m.vat})`);
+  }
+  if (split) parts.push(`${m.secondPayment} ${moneyIn(d.balanceEur as number, lang)}`);
+  const term = d.deliveryTerm?.trim();
+  if (term) parts.push(`${m.delivery}: ${term}`);
+  return parts.join(" · ");
+}
+
+function langPair(d: CommonData, lang: PublicLang) {
+  if (!d.sourceLang || !d.targetLang) return "";
+  try {
+    const dn = new Intl.DisplayNames([localeFor(lang)], { type: "language" });
+    return `${dn.of(d.sourceLang) || d.sourceLang} → ${dn.of(d.targetLang) || d.targetLang}`;
+  } catch {
+    return `${d.sourceLang} → ${d.targetLang}`;
+  }
 }
 
 // Enlace directo al pago con tarjeta: solo para /q/<token> (la página que lo
@@ -301,6 +328,7 @@ export function buildWhatsAppPayText(data: CommonData) {
     `${m.hi} ${data.name} 👋`,
     summaryLine(data, m, lang),
     `${m.cta}: ${data.payUrl}`,
+    langPair(data, lang),
     data.translatorName ? m.translator(data.translatorName, data.translatorMaec) : "",
     data.deliveryType === "PAPER_SHIP" ? m.wa.paper : m.wa.digital,
     m.wa.anyLang,

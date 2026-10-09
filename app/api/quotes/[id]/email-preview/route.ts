@@ -38,6 +38,10 @@ export async function GET(req: Request, { params }: Params) {
       paymentMethods: true,
       pdfLang: true,
       total: true,
+      balanceAmount: true,
+      notesLegal: true,
+      sourceLang: true,
+      targetLang: true,
       deliveryTerm: true,
       vatRate: true,
     },
@@ -75,12 +79,16 @@ export async function GET(req: Request, { params }: Params) {
     subject = msg.subject;
     body = msg.body;
   } else {
+    const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
     const msg = buildPayLinkEmail({
       name,
       payUrl,
       lang: quote.pdfLang,
       totalEur: Number(quote.total),
-      deliveryTerm: quote.deliveryTerm,
+      balanceEur: Number(quote.balanceAmount ?? 0),
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      deliveryTerm: quote.deliveryTerm || (plazoMatch ? plazoMatch[1].trim() : null),
       deliveryType: quote.deliveryType,
       vatExempt: Number(quote.vatRate) <= 0,
       translatorName: quote.translatorName,

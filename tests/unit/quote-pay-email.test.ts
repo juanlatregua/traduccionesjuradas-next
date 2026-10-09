@@ -22,7 +22,7 @@ test("email del presupuesto: total, entrega y enlace en las 3 primeras líneas",
   assert.equal(l1, "Estimado/a Marta:");
   assert.match(l2, /^Total 90,00\s€ \(IVA incl\.\) · Entrega: 2-3 días hábiles$/);
   assert.equal(l3, `Ver el presupuesto y pagar: ${base.payUrl}`);
-  assert.match(body, /La traducción la realiza Ana Ruiz, traductor\/a-intérprete jurado\/a nº 1234\./);
+  assert.match(body, /La traducción la realiza Ana Ruiz, traductor\/a-intérprete jurado\/a nº 1234 del MAEC\./);
   assert.match(body, /Juan Silva — TraduccionesJuradas\.net$/);
 });
 
@@ -32,12 +32,24 @@ test("una sola llamada a la acción: sin métodos de pago ni justificante", () =
   assert.doesNotMatch(body, /Sabadell|Bizum|IBAN|justificante|tarjeta/i);
 });
 
-test("plazo por defecto según entrega y papel solo en PAPER_SHIP", () => {
-  assert.match(buildPayLinkEmail({ ...base, deliveryTerm: null }).body, /Entrega: 2 días hábiles desde el pago/);
-  const paper = buildPayLinkEmail({ ...base, deliveryTerm: null, deliveryType: "PAPER_SHIP" }).body;
-  assert.match(paper, /Entrega: 3 días hábiles/);
+test("sin plazo en el presupuesto no se inventa la entrega; papel solo en PAPER_SHIP", () => {
+  const noTerm = buildPayLinkEmail({ ...base, deliveryTerm: null }).body;
+  assert.match(noTerm.split("\n")[1], /^Total 90,00\s€ \(IVA incl\.\)$/);
+  assert.doesNotMatch(noTerm, /Entrega|días hábiles/);
+  assert.doesNotMatch(buildWhatsAppPayText({ ...base, deliveryTerm: null }), /Entrega|días hábiles/);
+  const paper = buildPayLinkEmail({ ...base, deliveryType: "PAPER_SHIP" }).body;
   assert.match(paper, /envío en papel \(12 € \+ IVA\)/);
   assert.doesNotMatch(buildPayLinkEmail({ ...base, deliveryType: "DIGITAL_PDF" }).body, /papel/);
+});
+
+test("dos plazos: «Primer pago» y el segundo en la línea del resumen", () => {
+  const line = buildPayLinkEmail({ ...base, totalEur: 40, balanceEur: 60 }).body.split("\n")[1];
+  assert.match(line, /^Primer pago 40,00\s€ \(IVA incl\.\) · Segundo pago 60,00\s€ · Entrega: 2-3 días hábiles$/);
+});
+
+test("el jurado lleva «del MAEC» y el WhatsApp el par de idiomas", () => {
+  assert.match(buildPayLinkEmail({ ...base, translatorName: "Ana", translatorMaec: "1234" }).body, /nº 1234 del MAEC\./);
+  assert.match(buildWhatsAppPayText({ ...base, sourceLang: "fr", targetLang: "es" }), /francés → español/);
 });
 
 test("no residente UE: no dice IVA incluido", () => {
@@ -45,9 +57,9 @@ test("no residente UE: no dice IVA incluido", () => {
 });
 
 test("idioma del cliente: inglés, y los desconocidos caen a inglés", () => {
-  const en = buildPayLinkEmail({ ...base, lang: "en", deliveryTerm: null });
+  const en = buildPayLinkEmail({ ...base, lang: "en", deliveryTerm: "2 business days" });
   assert.equal(en.subject, "Your sworn translation quote");
-  assert.match(en.body, /Total .*90\.00.* \(VAT incl\.\) · Delivery: 2 business days from payment/);
+  assert.match(en.body, /Total .*90\.00.* \(VAT incl\.\) · Delivery: 2 business days/);
   assert.match(buildPayLinkEmail({ ...base, lang: "ru" }).body, /\(VAT incl\.\)/);
   assert.match(buildPayLinkEmail({ ...base, lang: "fr" }).body, /^Bonjour Marta,/);
 });
