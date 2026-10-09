@@ -22,7 +22,7 @@ export async function syncQuoteTranslatorWithAcceptor(opts: {
   maec?: string | null;
   miembroId?: string | null;
   /** Carril de leads: solo si el presupuesto no está cobrado; un nombre fijado al
-   * enviarlo a mano (adminSentBy) se respeta. */
+   * enviarlo a mano (adminSentBy humano) se respeta; el envío automático (system:*) no lo fija. */
   soloSinEnviar?: boolean;
 }): Promise<{ changed: boolean }> {
   const nombre = String(opts.nombre || "").trim();
@@ -31,7 +31,7 @@ export async function syncQuoteTranslatorWithAcceptor(opts: {
     where: { id: opts.quoteId },
     select: { id: true, quoteNumber: true, translatorName: true, translatorMaec: true, status: true, adminSentBy: true },
   });
-  if (quote && opts.soloSinEnviar && (["PAID", "IN_PROGRESS", "DELIVERED"].includes(quote.status) || quote.adminSentBy)) return { changed: false };
+  if (quote && opts.soloSinEnviar && (["PAID", "IN_PROGRESS", "DELIVERED"].includes(quote.status) || (quote.adminSentBy && !quote.adminSentBy.startsWith("system:")))) return { changed: false };
   if (!quote || sameTranslatorName(quote.translatorName, nombre)) return { changed: false };
   await prisma.quote.update({
     where: { id: quote.id },

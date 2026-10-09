@@ -92,6 +92,7 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
     duplicate,
     alreadyCustomer,
     avisos: extraAvisos,
+    leadPar: lead.par,
   });
 
   if (decision.action === "skip") return { result: "skipped", reason: decision.reason };
@@ -101,8 +102,11 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
 
   if (decision.action === "send") {
     try {
+      // El presupuesto nombra al jurado que cotizó (nombre + MAEC) ANTES de salir: si el
+      // borrador traía otro o ninguno, la sync lo corrige (el actor system:* no la bloquea).
+      await syncLeadTranslator(lead, quote.id);
       const { finalizeAndSendQuote } = await import("@/lib/quote-send");
-      await finalizeAndSendQuote({ quoteId: quote.id, actorEmail: "system:cierre-auto" });
+      await finalizeAndSendQuote({ quoteId: quote.id, actorEmail: "system:cierre-auto", requireDraft: true });
       await alertStaff(
         `✅ Presupuesto ${quote.quoteNumber} enviado solo a ${cliente}: ${total} € IVA incl.`,
         [`${lead.miembroNombre || "El jurado"} cotizó ${((lead.priceCents ?? 0) / 100).toFixed(2)} € (${lead.par}) y el presupuesto ${quote.quoteNumber} (${total} € con IVA) ha salido al cliente: margen OK, importe ≤ tope y par no FR.`, `Ficha: ${SITE}/zona-traductor/presupuestos/${quote.id}`],
@@ -118,6 +122,19 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
   }
 
   return await alertReview(lead.ref, lead.par, quote, cliente, total, decision.reasons);
+}
+
+async function syncLeadTranslator(lead: { miembroId: string | null; miembroNombre: string | null }, quoteId: string) {
+  if (!lead.miembroNombre) return;
+  try {
+    const { LAVORI_MEMBER_COLLABORATOR_EMAIL } = await import("@/lib/lavori-bridge");
+    const { syncQuoteTranslatorWithAcceptor } = await import("@/lib/lavori-assign");
+    const email = lead.miembroId ? LAVORI_MEMBER_COLLABORATOR_EMAIL[lead.miembroId] : undefined;
+    const colab = email ? await prisma.collaborator.findUnique({ where: { email }, select: { fullName: true, swornNumber: true } }) : null;
+    await syncQuoteTranslatorWithAcceptor({ quoteId, nombre: colab?.fullName || lead.miembroNombre, maec: colab?.swornNumber ?? null, miembroId: lead.miembroId, soloSinEnviar: true });
+  } catch (err) {
+    console.error("[cierre] sync jurado antes del envío falló", err);
+  }
 }
 
 async function alertReview(

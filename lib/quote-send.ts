@@ -89,6 +89,8 @@ export async function finalizeAndSendQuote(opts: {
   // "lavori-directo" = funnel directo: la base sale de la cifra líquida del
   // propio jurado y el coste de las líneas sale del mismo canal por construcción.
   channelPriceSource?: "learned-rate" | "lavori-directo";
+  // Envío automático: solo toma el candado si el presupuesto sigue siendo un borrador.
+  requireDraft?: boolean;
 }): Promise<{ pdfUrl: string; payUrl: string; whatsappText: string; emailSent: boolean }> {
   const quote = await prisma.quote.findUnique({
     where: { id: opts.quoteId },
@@ -105,10 +107,12 @@ export async function finalizeAndSendQuote(opts: {
   const claimedAt = new Date();
   const stale = new Date(claimedAt.getTime() - 10 * 60 * 1000);
   const claim = await prisma.quote.updateMany({
-    where: { id: quote.id, OR: [{ sendingAt: null }, { sendingAt: { lt: stale } }] },
+    where: { id: quote.id, ...(opts.requireDraft ? { status: "DRAFT" as const, sentAt: null } : {}), OR: [{ sendingAt: null }, { sendingAt: { lt: stale } }] },
     data: { sendingAt: claimedAt },
   });
-  if (claim.count === 0) throw new QuoteSendError("Este presupuesto se está enviando ahora mismo. Espera unos segundos.", 409);
+  if (claim.count === 0) {
+    throw new QuoteSendError(opts.requireDraft ? "El presupuesto ya no es un borrador (o se está enviando): no se envía solo." : "Este presupuesto se está enviando ahora mismo. Espera unos segundos.", 409);
+  }
 
   // Cualquier fallo (freno de margen/canal, Blob, email) suelta el candado: si no,
   // el reintento con «Enviar igualmente» chocaba 10 min con «se está enviando».
