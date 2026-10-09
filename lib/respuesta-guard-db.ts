@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { listInboxMessages, isInboxConfigured } from "@/lib/azure-mail-read";
+import { hasInboxMessageFrom, isInboxConfigured } from "@/lib/azure-mail-read";
 import {
-  expandIdentity, liveBlock, repliedSince, LIVE_DAYS,
-  type Identity, type Incoming, type LiveFact, type Pair,
+  expandIdentity, liveBlock, LIVE_DAYS,
+  type Identity, type LiveFact, type Pair,
 } from "@/lib/respuesta-guard";
 
 const eq = (f: string, emails: string[]) => emails.map((e) => ({ [f]: { equals: e, mode: "insensitive" as const } }));
@@ -60,34 +60,46 @@ export async function findLiveBlock(seed: Pair, now = new Date()) {
   return liveBlock(id, facts, now);
 }
 
-export type InboxSnapshot = { ok: boolean; msgs: Incoming[] };
+export const GRAPH_CHECKS_PER_RUN = 40;
 
-/** UNA consulta al buzón hola@ por ejecución (72 h). ok=false si Graph falla o la lista puede estar truncada. */
-export async function loadInboxSnapshot(now = new Date()): Promise<InboxSnapshot> {
-  if (!isInboxConfigured()) return { ok: false, msgs: [] };
-  try {
-    const top = 100;
-    const rows = await listInboxMessages({ since: new Date(now.getTime() - 72 * 3600e3), top });
-    if (rows.length >= top) {
-      console.error("[respuesta-guard] buzón con ≥100 mensajes en 72 h: lectura truncada, no se actúa");
-      return { ok: false, msgs: [] };
+export type ReplyCheck = { ok: boolean; replied: boolean };
+
+/**
+ * Comprobador de respuestas de UNA ejecución: primero lo ya importado (email/WhatsApp en InboundEmail),
+ * luego Graph por remitente (una consulta por email distinto, máx. `limit` por ejecución).
+ * ok=false (Graph caído, sin configurar o sin cupo) → quien llama NO cierra ni recuerda.
+ */
+export function createReplyChecker(limit = GRAPH_CHECKS_PER_RUN) {
+  const cache = new Map<string, boolean>();
+  let used = 0;
+  return async function check(seed: Pair, since: Date): Promise<ReplyCheck> {
+    const id = await loadIdentity(seed);
+    const emails = [...id.emails];
+    const phones = [...id.phones];
+    if (!emails.length && !phones.length) return { ok: true, replied: false };
+    const n = await prisma.inboundEmail.count({
+      where: { receivedAt: { gt: since }, OR: [...eq("fromEmail", emails), ...ends("fromPhone", phones)] },
+    });
+    if (n > 0) return { ok: true, replied: true };
+    if (!emails.length) return { ok: true, replied: false };
+    if (!isInboxConfigured()) return { ok: false, replied: false };
+    for (const e of emails) {
+      const key = `${e}|${since.getTime()}`;
+      let r = cache.get(key);
+      if (r === undefined) {
+        if (used >= limit) return { ok: false, replied: false };
+        used += 1;
+        try {
+          r = await hasInboxMessageFrom(e, since);
+        } catch (err) {
+          console.error("[respuesta-guard] Graph falló, no se cierra/recuerda:", err);
+          return { ok: false, replied: false };
+        }
+        cache.set(key, r);
+      }
+      if (r) return { ok: true, replied: true };
     }
-    return { ok: true, msgs: rows.map((m) => ({ from: m.fromEmail, at: m.receivedAt })) };
-  } catch (err) {
-    console.error("[respuesta-guard] Graph falló, no se cierra/recuerda en esta ejecución:", err);
-    return { ok: false, msgs: [] };
-  }
+    return { ok: true, replied: false };
+  };
 }
 
-/** ¿Contestó (email en hola@ o entrante ya importado: email/WhatsApp) después de `since`? */
-export async function hasReplied(seed: Pair, since: Date, snap: InboxSnapshot): Promise<boolean> {
-  const id = await loadIdentity(seed);
-  if (repliedSince(id, snap.msgs, since)) return true;
-  const emails = [...id.emails];
-  const phones = [...id.phones];
-  if (!emails.length && !phones.length) return false;
-  const n = await prisma.inboundEmail.count({
-    where: { receivedAt: { gt: since }, OR: [...eq("fromEmail", emails), ...ends("fromPhone", phones)] },
-  });
-  return n > 0;
-}

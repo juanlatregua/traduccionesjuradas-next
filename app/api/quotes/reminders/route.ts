@@ -9,7 +9,7 @@ import { buildQuotePostMortem } from "@/lib/quote-post-mortem";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
 import { deduceLostReasonFor } from "@/lib/cierre";
-import { hasReplied, loadInboxSnapshot, type InboxSnapshot } from "@/lib/respuesta-guard-db";
+import { createReplyChecker } from "@/lib/respuesta-guard-db";
 import { replyGate } from "@/lib/respuesta-guard";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
@@ -78,7 +78,7 @@ export async function GET(req: Request) {
   const skippedClients: Record<string, number> = {}; // ya pagó / ya es cliente: no se le escribe
   let heldReplied = 0; // el cliente contestó después del último contacto: ni cierre ni recordatorio, aviso a Juan
   let heldUnknown = 0; // no se pudo leer el buzón: fail-safe, no se cierra ni recuerda en esta ejecución
-  let inboxSnap: InboxSnapshot | null = null; // UNA lectura de hola@ por ejecución, perezosa
+  const checkReply = createReplyChecker(); // Graph por remitente, máx. 40 por ejecución
   let smsSkipped = 0; // CLIENT_SMS=off o número con 2+ SMS FAILED en 7 días
 
   const candidates = await prisma.quote.findMany({
@@ -198,17 +198,15 @@ export async function GET(req: Request) {
     // leer el buzón, tampoco: fail-safe.
     if (decision.action === "close" || decision.action === "remind_email") {
       const lastContact = decision.action === "close" ? (sentLog ? at(sentLog) : baseAt) : baseAt;
-      inboxSnap ??= await loadInboxSnapshot(now);
-      let replied = false;
-      if (lastContact && inboxSnap.ok) {
+      let chk = { ok: false, replied: false };
+      if (lastContact) {
         try {
-          replied = await hasReplied({ email: quote.customerEmail, phone: quote.customerPhone }, lastContact, inboxSnap);
+          chk = await checkReply({ email: quote.customerEmail, phone: quote.customerPhone }, lastContact);
         } catch (err) {
           console.error("[quotes:reminders] comprobar respuesta falló", quote.quoteNumber, err);
-          inboxSnap = { ok: false, msgs: [] };
         }
       }
-      const gate = replyGate({ action: decision.action, replied, inboxOk: inboxSnap.ok && !!lastContact });
+      const gate = replyGate({ action: decision.action, replied: chk.replied, inboxOk: chk.ok });
       if (gate === "hold_unknown") {
         heldUnknown += 1;
         continue;

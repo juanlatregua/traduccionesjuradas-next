@@ -68,6 +68,15 @@ export async function listInboxMessages(opts: {
   return rows.map(toSummary).filter((m) => m.fromEmail);
 }
 
+/** ¿Ha escrito `email` a la bandeja desde `since`? Una consulta con $top=1 (sin listar el buzón). Lanza si Graph falla. */
+export async function hasInboxMessageFrom(email: string, since: Date): Promise<boolean> {
+  const mailbox = getMailboxAddress();
+  const addr = email.trim().toLowerCase().replace(/'/g, "''");
+  const filter = encodeURIComponent(`from/emailAddress/address eq '${addr}' and receivedDateTime ge ${since.toISOString()}`);
+  const data = await graphGet(`/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages?$top=1&$filter=${filter}&$select=id`);
+  return Array.isArray(data.value) && data.value.length > 0;
+}
+
 export interface SentMessageSummary {
   graphId: string;
   conversationId: string | null;
