@@ -15,6 +15,11 @@ import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
 import { directMembersFor } from "@/lib/lavori-directo";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
+import { findRecurrentClient } from "@/lib/recurrent-client-db";
+import { recurrentLabel } from "@/lib/recurrent-client";
+import { findOpenSiblings } from "@/lib/open-siblings-db";
+import { blockingSibling, describeSibling } from "@/lib/open-siblings";
+import { parFromLangs } from "@/lib/lavori-dup-guard";
 
 export type PuertaQuoteResult = { status: number; body: Record<string, unknown> };
 
@@ -85,8 +90,14 @@ export async function routePuertaQuoteRequest(input: {
       });
     }
 
+    // Cliente que vuelve: solo para staff (avisos). La respuesta de la puerta es idéntica para todos.
+    const recurrente = await findRecurrentClient({ email: contactEmail, phone: contactPhone });
+    let recurrenteTxt = recurrentLabel(recurrente);
+    const recurrenteSms = recurrente.kind === "recurrent" ? "RECURRENTE · " : recurrente.kind === "possible" ? "¿recurrente? · " : "";
+
     const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+    if (recurrente.kind !== "none") recurrenteTxt += ` · Historial: ${baseUrl}/zona-traductor/clientes/${encodeURIComponent(recurrente.email)}`;
     const lineas = docs.map((d) => {
       const par = `${getLanguageName(d.sourceLanguage || "?")} → ${getLanguageName(d.targetLanguage || "?")}`;
       const ref = d.quoteAmount ? ` · motor (referencia interna): ${Number(d.quoteAmount).toFixed(2)} € netos` : "";
@@ -106,6 +117,46 @@ export async function routePuertaQuoteRequest(input: {
     // Con LAVORI_LEAD_AUTO_LANGS (p. ej. "de,he") la solicitud sale sola al llegar
     // el lead y el aviso ya dice a quién fue. Sin PII en el sobre (regla madre).
     const lead = await leadFromPuertaSession(token);
+
+    // MISMA persona con otra cosa abierta (9-oct-2026: 69 casos en 60 días, 7 con dos
+    // solicitudes a lavori, 11 con dos presupuestos enviados). Mismo email y mismo par con
+    // solicitud o presupuesto abierto → NO sale otra solicitud ni otro borrador: solo aviso a
+    // Juan con [DUPLICADO?] y enlace al abierto. Solo teléfono = aviso, nunca bloqueo.
+    // La respuesta pública es idéntica en todos los casos.
+    const hermanos = await findOpenSiblings({
+      email: contactEmail,
+      phone: contactPhone,
+      par: lead?.sourceLang ? parFromLangs(lead.sourceLang, lead.targetLang) : null,
+      excludeSession: token,
+    });
+    const bloqueo = blockingSibling(hermanos);
+    const hermanosTxt = hermanos.length
+      ? `${bloqueo ? "⚠ [DUPLICADO?] NO se ha lanzado lavori ni borrador: " : "Ojo, esta persona ya tiene abierto: "}${hermanos
+          .slice(0, 3)
+          .map((h) => `${describeSibling(h)} → ${h.url}`)
+          .join(" · ")}`
+      : "";
+    if (bloqueo) {
+      await sendMail({
+        to: adminEmail,
+        subject: `[DUPLICADO?] ${fromWhatsApp ? "[WhatsApp] " : ""}Lead con ${bloqueo.ref} ya abierto — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
+        html: renderSimpleEmailHtml(
+          [
+            hermanosTxt,
+            `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+            ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
+            ...lineas,
+            `Si de verdad es otro encargo, móntalo a mano (documentos ya dentro): ${builderUrl}`,
+          ].join("\n")
+        ),
+      }).catch((err) => console.error("[puerta:request-quote] aviso duplicado fallo:", err));
+      await sendStaffAlertSMS(
+        `${recurrenteSms}[DUPLICADO?] ${(lead?.sourceLang || "?").toUpperCase()}>${(lead?.targetLang || "es").toUpperCase()} · ya abierto ${bloqueo.ref} (${describeSibling(bloqueo).split("(")[1]?.replace(")", "") || ""}) · ${bloqueo.url}`,
+        "puerta_duplicado"
+      ).catch(() => {});
+      await sendPriceRequestAckToClient({ name: docs[0]?.clientName, email: contactEmail, phone: contactPhone, locale, translatorLangName: null });
+      return out({ ok: true, lavori: { sent: false } });
+    }
 
     // AGENTE DE PRECIOS (27-ago-2026): documento ya conocido con tarifa APROBADA →
     // borrador listo para que Juan lo revise y envíe (21-sep-2026), sin molestar
@@ -127,6 +178,7 @@ export async function routePuertaQuoteRequest(input: {
           [
             `El agente de precios ha preparado el BORRADOR ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido. ${auto.sent ? "Ha salido SOLO al cliente (LEARNED_RATES_AUTOSEND=on: guardas, margen y procedencia OK)." : `NO se ha enviado: revísalo y envíalo tú.${auto.autoSendReasons.length ? ` Motivo del auto-envío frenado: ${auto.autoSendReasons.join("; ")}.` : ""}`}`,
             `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+            ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
             auto.miembroNombre
               ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
               : "Sin jurado asociado a la tarifa: al pagar irá por el carril normal de lavori.",
@@ -136,7 +188,7 @@ export async function routePuertaQuoteRequest(input: {
         ),
       }).catch((err) => console.error("[puerta:request-quote] aviso auto fallo:", err));
       await sendStaffAlertSMS(
-        `🤖 ${auto.sent ? "Tarifario ENVIADO" : "Borrador tarifario"} ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€${auto.sent ? "" : " (enviar tú)"} · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
+        `🤖 ${recurrenteSms}${auto.sent ? "Tarifario ENVIADO" : "Borrador tarifario"} ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€${auto.sent ? "" : " (enviar tú)"} · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
         "puerta_auto_quote"
       ).catch(() => {});
       return out({
@@ -261,11 +313,13 @@ export async function routePuertaQuoteRequest(input: {
     // Aviso a staff — dos transportes independientes; con await (lambda).
     await sendMail({
       to: adminEmail,
-      subject: `${fromWhatsApp ? "[WhatsApp] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
+      subject: `${fromWhatsApp ? "[WhatsApp] " : ""}${recurrente.kind === "recurrent" ? "[RECURRENTE] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
       html: renderSimpleEmailHtml(
         [
           "Un lead de la puerta ha pedido presupuesto humano (idioma sin precio instantáneo o importe alto).",
           `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+          ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
+          ...(hermanosTxt ? [hermanosTxt] : []),
           ...(fromWhatsApp
             ? [`Origen: WhatsApp — contéstale por ahí${waDigits ? `: https://wa.me/${waDigits}` : " (no dejó teléfono)"}`]
             : []),
@@ -276,7 +330,7 @@ export async function routePuertaQuoteRequest(input: {
       ),
     }).catch((err) => console.error("[puerta:request-quote] aviso staff fallo:", err));
     await sendStaffAlertSMS(
-      `${fromWhatsApp ? "[WA] " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
+      `${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}${hermanos.length ? "¿dup? " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
       "puerta_request_quote"
     ).catch(() => {});
 

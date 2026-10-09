@@ -13,6 +13,7 @@ import {
 import { parseCreateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
 import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
+import { inheritBillingFromHistory } from "@/lib/recurrent-client-db";
 
 export const runtime = "nodejs";
 
@@ -103,8 +104,14 @@ export async function POST(req: Request) {
     ]);
 
     const createdTx = await prisma.$transaction(async (tx) => {
+      // Cliente que vuelve con el email en otra capitalización: se enlaza a SU ficha
+      // (con sus datos de facturación) en vez de crear una ficha gemela vacía.
+      const existente = await tx.customer.findFirst({
+        where: { email: { equals: parsed.data.customerEmail.trim(), mode: "insensitive" } },
+        select: { email: true },
+      });
       const customer = await tx.customer.upsert({
-        where: { email: parsed.data.customerEmail },
+        where: { email: existente?.email ?? parsed.data.customerEmail },
         update: {
           name: parsed.data.customerName,
           phone: parsed.data.customerPhone || undefined,
@@ -200,6 +207,9 @@ export async function POST(req: Request) {
       return { quote, huerfano };
     });
     const created = createdTx.quote;
+    await inheritBillingFromHistory(created.customerId, parsed.data.customerEmail).catch((err) =>
+      console.error("[quotes:create] herencia de facturación falló:", err)
+    );
     if (createdTx.huerfano) {
       console.log(`[quotes:create] borrador huérfano ${createdTx.huerfano.quoteNumber} retirado por ${created.quoteNumber}`);
       await prisma.lavoriPriceRequest

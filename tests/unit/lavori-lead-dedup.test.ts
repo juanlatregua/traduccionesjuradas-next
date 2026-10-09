@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { leadDocKeys, type LeadDocKeyed as LeadDoc } from "../../lib/lavori-doc-keys.ts";
+import { leadDocKeys, leadDocKeyVariants, type LeadDocKeyed as LeadDoc } from "../../lib/lavori-doc-keys.ts";
 
 // Caso real (19-sep-2026): Walid subió su certificado tres veces. Blob le dio
 // una url distinta cada vez, así que la ref del lead salía distinta y la guarda
@@ -45,4 +45,33 @@ test("un expediente de dos documentos no colisiona con el de uno solo", () => {
   const uno: LeadDoc[] = [{ url: "u1", hash: "h1" }];
   const dos: LeadDoc[] = [{ url: "u1", hash: "h1" }, { url: "u2", hash: "h2" }];
   assert.notEqual(leadDocKeys(uno), leadDocKeys(dos));
+});
+
+// Caso real (5-oct-2026, Susana ES>PT): la puerta manda el documento sin pageEnd y
+// el constructor con pageEnd = nº de páginas. Misma cosa, dos huellas.
+test("documento entero: sin pageEnd (puerta) y con pageEnd = pageCount (constructor) dan la MISMA huella", () => {
+  const puerta: LeadDoc[] = [{ url: "u", hash: HASH, pageCount: 3 }];
+  const constructor: LeadDoc[] = [{ url: "u", hash: HASH, pageStart: 1, pageEnd: 3, pageCount: 3 }];
+  assert.equal(leadDocKeys(puerta), leadDocKeys(constructor));
+  const una: LeadDoc[] = [{ url: "u", hash: HASH, pageCount: 1 }];
+  const unaB: LeadDoc[] = [{ url: "u", hash: HASH, pageStart: 1, pageEnd: 1, pageCount: 1 }];
+  assert.equal(leadDocKeys(una), leadDocKeys(unaB));
+});
+
+test("un rango parcial de un documento más largo NO es el entero", () => {
+  const entero: LeadDoc[] = [{ url: "u", hash: HASH, pageCount: 4 }];
+  const parcial: LeadDoc[] = [{ url: "u", hash: HASH, pageStart: 1, pageEnd: 2, pageCount: 4 }];
+  assert.notEqual(leadDocKeys(entero), leadDocKeys(parcial));
+});
+
+test("transición: las variantes de una solicitud nueva incluyen las dos huellas antiguas", () => {
+  const puertaVieja = leadDocKeyVariants([{ url: "u", hash: HASH, pageCount: 3 }]);
+  const constructorViejo = `${HASH}#1-3`;
+  const puertaViejaKey = `${HASH}#1-`;
+  assert.ok(puertaVieja.includes(puertaViejaKey));
+  assert.ok(leadDocKeyVariants([{ url: "u", hash: HASH, pageStart: 1, pageEnd: 3, pageCount: 3 }]).includes(constructorViejo));
+  // y ambas variantes se solapan: cualquiera de los dos orígenes reconoce al otro
+  const a = new Set(leadDocKeyVariants([{ url: "u", hash: HASH, pageCount: 3 }]));
+  const b = leadDocKeyVariants([{ url: "u", hash: HASH, pageStart: 1, pageEnd: 3, pageCount: 3 }]);
+  assert.ok(b.some((k) => a.has(k)));
 });

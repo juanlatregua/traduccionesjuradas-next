@@ -12,7 +12,7 @@ import { checkQuoteLinesMargin } from "@/lib/quote-margin";
 import { findLiveLavoriDuplicate, isHeldByJuan } from "@/lib/lavori-dup-guard";
 import { alreadyCustomerFor, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { cierreReviewUrl } from "@/lib/cierre-token";
-import { decideAutoSend, deduceLostReason, hasCostGap, hasHumanOpen, autoLostNote, type CostGapOrder } from "@/lib/cierre-math";
+import { decideAutoSend, isRealEmail, deduceLostReason, hasCostGap, hasHumanOpen, autoLostNote, type CostGapOrder } from "@/lib/cierre-math";
 import type { AutoLostCode } from "@/lib/quote-lost-reasons";
 
 const SITE = "https://www.traduccionesjuradas.net";
@@ -111,7 +111,7 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
 }
 
 /** Guardas anti-duplicado de un presupuesto: otro del mismo expediente ya en manos del cliente, y cliente que ya pagó. */
-async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string | null; customerEmail: string }) {
+async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string | null; customerEmail: string; sourceLang: string; targetLang: string }) {
   let duplicate: string | null = null;
   if (quote.expedienteRef) {
     const otro = await prisma.quote.findFirst({
@@ -119,6 +119,25 @@ async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string |
       select: { quoteNumber: true, status: true },
     });
     if (otro) duplicate = `el mismo expediente ya tiene el presupuesto ${otro.quoteNumber} (${otro.status})`;
+  }
+  // Misma persona con OTRO presupuesto ya enviado y abierto del mismo par en 72 h (9-oct-2026:
+  // 11 casos en 60 días con dos presupuestos enviados): no sale solo, lo revisa Juan.
+  if (!duplicate && isRealEmail(quote.customerEmail)) {
+    const hermano = await prisma.quote
+      .findFirst({
+        where: {
+          id: { not: quote.id },
+          deletedAt: null,
+          customerEmail: { equals: quote.customerEmail.trim(), mode: "insensitive" },
+          sourceLang: quote.sourceLang,
+          targetLang: quote.targetLang,
+          status: { in: ["SENT", "OPENED", "ACCEPTED"] },
+          sentAt: { gte: new Date(Date.now() - 72 * 3_600_000) },
+        },
+        select: { quoteNumber: true, status: true },
+      })
+      .catch(() => null);
+    if (hermano) duplicate = `la misma persona ya tiene enviado ${hermano.quoteNumber} (${hermano.status}) del mismo par en las últimas 72 h`;
   }
   let alreadyCustomer: string | null = null;
   try {

@@ -6,7 +6,7 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { orderRefFromMotorRef } from "@/lib/lavori-bridge";
-import { leadDocKeys } from "@/lib/lavori-doc-keys";
+import { leadDocKeyVariants } from "@/lib/lavori-doc-keys";
 
 // ESCALATED cuenta como viva: su encargo nunca se retiró en lavori. DISCARDED y
 // RETIRED no: pasan por /api/motor/retirada antes de cerrarse (lib/lavori-retire.ts).
@@ -18,6 +18,14 @@ export const LIVE_STATUSES = LIVE;
 
 export function lavoriContentKey(docKeys: string, par: string): string {
   return createHash("sha256").update(`${docKeys}|${par}`).digest("hex").slice(0, 24);
+}
+
+type ContentKeys = string | string[] | null | undefined;
+const asList = (k: ContentKeys): string[] => (Array.isArray(k) ? k : k ? [k] : []);
+
+/** Huella canónica primero, después las antiguas del documento entero (transición 9-oct-2026). */
+export function lavoriContentKeys(docs: Parameters<typeof leadDocKeyVariants>[0], par: string): string[] {
+  return leadDocKeyVariants(docs).map((k) => lavoriContentKey(k, par));
 }
 
 /** "it->es" | "it>es" → "IT>ES" (formato de LavoriPriceRequest.par). */
@@ -35,7 +43,7 @@ export function parFromLangPair(langPair: string | null | undefined): string | n
 /** Huella de los documentos de un presupuesto con el mismo cálculo que la solicitud
  * (lib/lavori-lead.ts): permite reconocer la solicitud que Juan pidió desde el
  * constructor aunque no quedara atada (26_C3617B, 2-oct-2026). */
-export async function contentKeyForQuote(quoteId: string, par: string): Promise<string | null> {
+export async function contentKeyForQuote(quoteId: string, par: string): Promise<string[] | null> {
   const lines = await prisma.quoteLine.findMany({
     where: { quoteId, sourceFileUrl: { not: null } },
     select: { sourceFileUrl: true, pageStart: true, pageEnd: true },
@@ -43,26 +51,28 @@ export async function contentKeyForQuote(quoteId: string, par: string): Promise<
   if (lines.length === 0) return null;
   const urls = Array.from(new Set(lines.map((l) => l.sourceFileUrl!)));
   const filas = await prisma.documentAnalysis
-    .findMany({ where: { fileUrl: { in: urls }, fileHash: { not: null } }, select: { fileUrl: true, fileHash: true } })
+    .findMany({ where: { fileUrl: { in: urls } }, select: { fileUrl: true, fileHash: true, pageCount: true } })
     .catch(() => []);
-  const porUrl = new Map(filas.map((r) => [r.fileUrl, r.fileHash]));
+  const porUrl = new Map(filas.filter((r) => r.fileHash).map((r) => [r.fileUrl, r.fileHash]));
+  const paginas = new Map(filas.filter((r) => r.pageCount).map((r) => [r.fileUrl, r.pageCount]));
   const docs = lines.map((l) => ({
     url: l.sourceFileUrl!,
     pageStart: l.pageStart ?? undefined,
     pageEnd: l.pageEnd ?? undefined,
     hash: porUrl.get(l.sourceFileUrl!) ?? null,
+    pageCount: paginas.get(l.sourceFileUrl!) ?? null,
   }));
-  return lavoriContentKey(leadDocKeys(docs), par);
+  return lavoriContentKeys(docs, par);
 }
 
 /** Solicitudes candidatas por huella: misma huella, sin atar, recientes (14 días) y
  * NO consumidas por otro pedido — el mismo cliente puede volver a pedir el mismo
  * certificado y la cifra vieja no puede reciclarse (marca de consumo = el evento
  * del otro pedido que la nombra, como en el emparejamiento por cliente). */
-export async function freshLeadsByContentKey(contentKey: string, statuses: string[], exceptOrderId?: string | null) {
+export async function freshLeadsByContentKey(contentKey: string | string[], statuses: string[], exceptOrderId?: string | null) {
   const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const candidatas = await prisma.lavoriPriceRequest.findMany({
-    where: { contentKey, quoteId: null, status: { in: statuses }, createdAt: { gte: since } },
+    where: { contentKey: { in: asList(contentKey) }, quoteId: null, status: { in: statuses }, createdAt: { gte: since } },
     orderBy: { updatedAt: "desc" },
     take: 5,
   });
@@ -117,7 +127,7 @@ export type LiveLavoriDuplicate = {
 
 export async function findLiveLavoriDuplicate(opts: {
   par?: string | null;
-  contentKey?: string | null;
+  contentKey?: ContentKeys;
   expedienteRef?: string | null;
   quoteId?: string | null;
   excludeRef?: string | null;
@@ -126,7 +136,7 @@ export async function findLiveLavoriDuplicate(opts: {
   const par = opts.par ? { par: opts.par } : {};
   // Mismos documentos (huella). La sesión solo cuenta en solicitudes antiguas sin
   // huella: documentos distintos del mismo expediente sí pueden pedirse aparte.
-  if (opts.contentKey) or.push({ contentKey: opts.contentKey });
+  if (asList(opts.contentKey).length) or.push({ contentKey: { in: asList(opts.contentKey) } });
   if (opts.expedienteRef) or.push({ expedienteRef: opts.expedienteRef, contentKey: null, ...par });
   if (opts.quoteId) or.push({ quoteId: opts.quoteId, ...par });
   if (or.length === 0) return null;

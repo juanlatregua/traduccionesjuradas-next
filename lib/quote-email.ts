@@ -3,6 +3,9 @@ import { sendMail, isEmailConfigured, type MailAttachment } from "@/lib/azure-ma
 import { sendClientNotification, formatPhoneSpain } from "@/lib/sms";
 import { smsAcuseSolicitudPrecio, type SmsLang } from "@/lib/sms-templates";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { findRecurrentClient } from "@/lib/recurrent-client-db";
+import { recurrentClientLine, trustLine } from "@/lib/recurrent-client";
+import { GOOGLE_RATING } from "@/lib/google-rating";
 
 export function isQuoteEmailConfigured() {
   return isEmailConfigured();
@@ -94,16 +97,22 @@ export async function sendPriceRequestAckToClient(opts: {
     }
     if (email && !isPlaceholderEmail(email)) {
       const name = (opts.name || "").trim();
+      // Solo coincidencia por EMAIL (el cliente que vuelve); va a su propio buzón, nunca a pantalla pública.
+      const recurrente = recurrentClientLine(await findRecurrentClient({ email, phone: null }), lang);
       const body =
         lang === "fr"
           ? `Bonjour${name ? ` ${name}` : ""},\n` +
             `Nous avons bien reçu votre demande de devis : ${tl ? `votre document est déjà entre les mains d'un traducteur assermenté (${tl}) nommé par le MAEC, qui` : "un traducteur assermenté nommé par le MAEC"} étudie vos documents et prépare sa proposition.\n` +
             "C'est Juan Silva Moreno, traducteur assermenté nº 3850 (traduccionesjuradas.net), qui vous répondra : vous recevrez le devis avec le prix et le délai en général dans la journée. Vous n'avez rien d'autre à faire.\n" +
-            "Merci de votre confiance."
+            "Merci de votre confiance." +
+            (recurrente ? `\n${recurrente}` : "") +
+            `\n${trustLine("fr", GOOGLE_RATING.reviews)}`
           : `Hola${name ? ` ${name}` : ""},\n` +
             `Hemos recibido tu solicitud de presupuesto y ya está en marcha: ${tl ? `tu documento ya está con un traductor jurado de ${tl} nombrado por el MAEC, que` : "un traductor jurado nombrado por el MAEC"} está estudiando tus documentos y preparando su propuesta.\n` +
             "Te responde Juan Silva Moreno, traductor jurado nº 3850 (traduccionesjuradas.net): recibirás el presupuesto con el precio y el plazo normalmente en el día. No tienes que hacer nada más.\n" +
-            "Gracias por tu confianza.";
+            "Gracias por tu confianza." +
+            (recurrente ? `\n${recurrente}` : "") +
+            `\n${trustLine("es", GOOGLE_RATING.reviews)}`;
       await sendMail({
         to: email,
         subject:

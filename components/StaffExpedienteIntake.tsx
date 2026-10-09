@@ -190,6 +190,7 @@ type PriorPrice = {
   issuedAt: string;
   status: string;
   translatorName: string | null;
+  own?: boolean;
 };
 
 const priorKey = (source: string, target: string, label: string) => `${source}>${target}|${label}`;
@@ -206,7 +207,7 @@ function PriorPricesHint({ matches, onUse }: { matches?: PriorPrice[]; onUse: (m
         return (
           <p key={m.quoteNumber + m.unitPrice} className="flex flex-wrap items-center gap-x-1">
             <span>
-              Ya presupuestado: <strong className="text-slate-200">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
+              {m.own ? "Ya presupuestado a este cliente" : "Ya presupuestado"}: <strong className="text-slate-200">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
               {m.supplierUnitCost != null ? ` · traductor ${eur(m.supplierUnitCost)}` : ""}
               {m.status === "PAID" || m.status === "IN_PROGRESS" || m.status === "DELIVERED" ? " · pagado" : ""}
             </span>
@@ -333,6 +334,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Solicitud de precio vía lavori (leads de WhatsApp sin pedido).
   const [lavoriState, setLavoriState] = useState<{ phase: "idle" | "sending" | "done" | "error"; msg?: string }>({ phase: "idle" });
+  const confirmDuplicateRef = useRef(false);
   const [lavoriSpecs, setLavoriSpecs] = useState("");
   const [lavoriPick, setLavoriPick] = useState<LavoriPick>({ mode: "carril" });
   // Ref de la solicitud enviada DESDE este builder: viaja a /api/quotes para que el
@@ -919,7 +921,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       fetch("/api/zona-traductor/expediente/prior-prices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: priorItems }),
+        body: JSON.stringify({ items: priorItems, customerEmail }),
       })
         .then((r) => r.json())
         .then((d) => {
@@ -929,7 +931,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     }, 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priorSig]);
+  }, [priorSig, customerEmail]);
 
   const applyPriorPrice = useCallback(
     (localId: string, m: PriorPrice) => {
@@ -1051,8 +1053,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           words: lavoriDocs.reduce((acc, d) => acc + (d.words || 0), 0) || undefined,
           expedienteRef: expedienteRef || undefined,
           customerHint:
-            [customerName.trim(), customerPhone.trim()].filter(Boolean).join(" · ") || undefined,
+            [customerName.trim(), customerPhone.trim(), customerEmail.trim()].filter(Boolean).join(" · ") || undefined,
           customerPhone: customerPhone.trim() || undefined,
+          confirmDuplicate: confirmDuplicateRef.current || undefined,
           customerEmail: customerEmail.trim() || undefined,
           customerName: customerName.trim() || undefined,
           especificaciones: lavoriSpecs.trim() || undefined,
@@ -1060,6 +1063,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         }),
       });
       const data = await res.json();
+      confirmDuplicateRef.current = !!data.needsConfirm;
       if (!data.ok) {
         setLavoriState({ phase: "error", msg: data.error || "No se pudo enviar la solicitud." });
         return null;

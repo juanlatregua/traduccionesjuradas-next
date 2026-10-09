@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Pencil } from "lucide-react";
 import AdminQuoteDetailPanel from "@/components/AdminQuoteDetailPanel";
+import RecurrentClientBadge from "@/components/RecurrentClientBadge";
+import OpenSiblingsBanner from "@/components/OpenSiblingsBanner";
 import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
 import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
@@ -91,6 +93,17 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             en su propia tarjeta blanca para no reescribirlo entero en este paso.
             Repintarlo es S2: aquí lo que se arregla es la NAVEGACIÓN, que era el
             motivo real de perderse. */}
+        <div className="mb-4 -mt-2">
+          <RecurrentClientBadge email={(serialized as any).customerEmail} phone={(serialized as any).customerPhone} />
+          <OpenSiblingsBanner
+            email={(serialized as any).customerEmail}
+            phone={(serialized as any).customerPhone}
+            par={`${(serialized as any).sourceLang}>${(serialized as any).targetLang}`.toUpperCase()}
+            excludeQuoteId={params.id}
+            excludeLprRef={solicitud?.ref ?? null}
+            excludeSession={String((quote as any).expedienteRef || "").startsWith("puerta:") ? String((quote as any).expedienteRef).slice(7) : null}
+          />
+        </div>
         {pendiente && (
           <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
             <strong>Pendiente de completar:</strong> el cliente dice que faltaban documentos y los ha subido. Envíale el presupuesto actualizado (puede pagar el viejo, pero la página se lo desaconseja).
