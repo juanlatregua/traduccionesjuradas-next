@@ -334,6 +334,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Solicitud de precio vía lavori (leads de WhatsApp sin pedido).
   const [lavoriState, setLavoriState] = useState<{ phase: "idle" | "sending" | "done" | "error"; msg?: string }>({ phase: "idle" });
+  const confirmDuplicateRef = useRef(false);
   const [lavoriSpecs, setLavoriSpecs] = useState("");
   const [lavoriPick, setLavoriPick] = useState<LavoriPick>({ mode: "carril" });
   // Ref de la solicitud enviada DESDE este builder: viaja a /api/quotes para que el
@@ -1050,8 +1051,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           words: lavoriDocs.reduce((acc, d) => acc + (d.words || 0), 0) || undefined,
           expedienteRef: expedienteRef || undefined,
           customerHint:
-            [customerName.trim(), customerPhone.trim()].filter(Boolean).join(" · ") || undefined,
+            [customerName.trim(), customerPhone.trim(), customerEmail.trim()].filter(Boolean).join(" · ") || undefined,
           customerPhone: customerPhone.trim() || undefined,
+          confirmDuplicate: confirmDuplicateRef.current || undefined,
           customerEmail: customerEmail.trim() || undefined,
           customerName: customerName.trim() || undefined,
           especificaciones: lavoriSpecs.trim() || undefined,
@@ -1059,6 +1061,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
         }),
       });
       const data = await res.json();
+      confirmDuplicateRef.current = !!data.needsConfirm;
       if (!data.ok) {
         setLavoriState({ phase: "error", msg: data.error || "No se pudo enviar la solicitud." });
         return null;

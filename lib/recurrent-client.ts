@@ -85,3 +85,24 @@ export function trustLine(lang: "es" | "fr", reviews?: number | null): string {
   const reviewsPart = reviews && reviews > 0 ? ` · ${reviews} ${lang === "fr" ? "avis sur Google" : "reseñas en Google"}` : "";
   return `${lang === "fr" ? "Traducteur assermenté MAEC nº 3850" : "Traductor jurado MAEC nº 3850"}${reviewsPart}`;
 }
+
+export type BillingRow = { fiscalName: string; nif: string; address: string; city: string; postalCode: string; country: string };
+
+const holderKey = (b: BillingRow) => {
+  const nif = String(b.nif || "").replace(/[\s.\-]/g, "").toUpperCase();
+  if (nif) return `nif:${nif}`;
+  return `name:${String(b.fiscalName || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
+};
+
+/**
+ * Qué datos de facturación heredar del historial de UN email (más reciente primero).
+ * Un solo titular → se hereda el último. Más de un titular distinto (despacho vs
+ * particular con el mismo correo: Nadal Fortuny) → NO se copia nada y se marca para staff.
+ */
+export function pickBillingToInherit(history: BillingRow[]): { kind: "none" } | { kind: "multiple"; holders: number } | { kind: "inherit"; billing: BillingRow } {
+  const usable = history.filter((b) => String(b.fiscalName || "").trim());
+  if (usable.length === 0) return { kind: "none" };
+  const holders = new Set(usable.map(holderKey));
+  if (holders.size > 1) return { kind: "multiple", holders: holders.size };
+  return { kind: "inherit", billing: usable[0] };
+}

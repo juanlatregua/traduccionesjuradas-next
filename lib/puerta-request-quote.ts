@@ -17,6 +17,9 @@ import { directMembersFor } from "@/lib/lavori-directo";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
 import { findRecurrentClient } from "@/lib/recurrent-client-db";
 import { recurrentLabel } from "@/lib/recurrent-client";
+import { findOpenSiblings } from "@/lib/open-siblings-db";
+import { blockingSibling, describeSibling } from "@/lib/open-siblings";
+import { parFromLangs } from "@/lib/lavori-dup-guard";
 
 export type PuertaQuoteResult = { status: number; body: Record<string, unknown> };
 
@@ -114,6 +117,46 @@ export async function routePuertaQuoteRequest(input: {
     // Con LAVORI_LEAD_AUTO_LANGS (p. ej. "de,he") la solicitud sale sola al llegar
     // el lead y el aviso ya dice a quién fue. Sin PII en el sobre (regla madre).
     const lead = await leadFromPuertaSession(token);
+
+    // MISMA persona con otra cosa abierta (9-oct-2026: 69 casos en 60 días, 7 con dos
+    // solicitudes a lavori, 11 con dos presupuestos enviados). Mismo email y mismo par con
+    // solicitud o presupuesto abierto → NO sale otra solicitud ni otro borrador: solo aviso a
+    // Juan con [DUPLICADO?] y enlace al abierto. Solo teléfono = aviso, nunca bloqueo.
+    // La respuesta pública es idéntica en todos los casos.
+    const hermanos = await findOpenSiblings({
+      email: contactEmail,
+      phone: contactPhone,
+      par: lead?.sourceLang ? parFromLangs(lead.sourceLang, lead.targetLang) : null,
+      excludeSession: token,
+    });
+    const bloqueo = blockingSibling(hermanos);
+    const hermanosTxt = hermanos.length
+      ? `${bloqueo ? "⚠ [DUPLICADO?] NO se ha lanzado lavori ni borrador: " : "Ojo, esta persona ya tiene abierto: "}${hermanos
+          .slice(0, 3)
+          .map((h) => `${describeSibling(h)} → ${h.url}`)
+          .join(" · ")}`
+      : "";
+    if (bloqueo) {
+      await sendMail({
+        to: adminEmail,
+        subject: `[DUPLICADO?] ${fromWhatsApp ? "[WhatsApp] " : ""}Lead con ${bloqueo.ref} ya abierto — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
+        html: renderSimpleEmailHtml(
+          [
+            hermanosTxt,
+            `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+            ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
+            ...lineas,
+            `Si de verdad es otro encargo, móntalo a mano (documentos ya dentro): ${builderUrl}`,
+          ].join("\n")
+        ),
+      }).catch((err) => console.error("[puerta:request-quote] aviso duplicado fallo:", err));
+      await sendStaffAlertSMS(
+        `${recurrenteSms}[DUPLICADO?] ${(lead?.sourceLang || "?").toUpperCase()}>${(lead?.targetLang || "es").toUpperCase()} · ya abierto ${bloqueo.ref} (${describeSibling(bloqueo).split("(")[1]?.replace(")", "") || ""}) · ${bloqueo.url}`,
+        "puerta_duplicado"
+      ).catch(() => {});
+      await sendPriceRequestAckToClient({ name: docs[0]?.clientName, email: contactEmail, phone: contactPhone, locale, translatorLangName: null });
+      return out({ ok: true, lavori: { sent: false } });
+    }
 
     // AGENTE DE PRECIOS (27-ago-2026): documento ya conocido con tarifa APROBADA →
     // borrador listo para que Juan lo revise y envíe (21-sep-2026), sin molestar
@@ -276,6 +319,7 @@ export async function routePuertaQuoteRequest(input: {
           "Un lead de la puerta ha pedido presupuesto humano (idioma sin precio instantáneo o importe alto).",
           `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
           ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
+          ...(hermanosTxt ? [hermanosTxt] : []),
           ...(fromWhatsApp
             ? [`Origen: WhatsApp — contéstale por ahí${waDigits ? `: https://wa.me/${waDigits}` : " (no dejó teléfono)"}`]
             : []),
@@ -286,7 +330,7 @@ export async function routePuertaQuoteRequest(input: {
       ),
     }).catch((err) => console.error("[puerta:request-quote] aviso staff fallo:", err));
     await sendStaffAlertSMS(
-      `${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
+      `${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}${hermanos.length ? "¿dup? " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
       "puerta_request_quote"
     ).catch(() => {});
 

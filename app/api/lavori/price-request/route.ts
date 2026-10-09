@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
-import { sendLeadPriceRequest, type LeadDoc } from "@/lib/lavori-lead";
+import { findLiveSiblingLeadRequest, sendLeadPriceRequest, type LeadDoc } from "@/lib/lavori-lead";
+import { parFromLangs } from "@/lib/lavori-dup-guard";
 
 export const runtime = "nodejs";
 
@@ -31,7 +32,26 @@ export async function POST(req: Request) {
       customerName?: string;
       especificaciones?: string;
       candidatos?: string[];
+      /** El staff ya vio el aviso de solicitud viva de esta persona y quiere otra igualmente. */
+      confirmDuplicate?: boolean;
     } | null;
+
+    // Misma persona + mismo par con solicitud YA viva (otra gestión): avisa antes de pedir
+    // precio otra vez a un jurado. Un segundo clic con confirmDuplicate la deja pasar.
+    const parSolicitado = parFromLangs(body?.sourceLang, body?.targetLang);
+    if (parSolicitado && !body?.confirmDuplicate && (body?.customerEmail || body?.customerPhone)) {
+      const viva = await findLiveSiblingLeadRequest({ email: body?.customerEmail, phone: body?.customerPhone, par: parSolicitado, days: 7 }).catch(() => null);
+      if (viva && (viva.request.expedienteRef || null) !== (body?.expedienteRef || null)) {
+        return NextResponse.json(
+          {
+            ok: false,
+            needsConfirm: true,
+            error: `Esta persona ya tiene una solicitud viva para ${parSolicitado}: ${viva.request.ref} (${viva.request.status}${viva.quote ? `, presupuesto ${viva.quote.quoteNumber}` : ""}). Continúa ahí; si de verdad es otro encargo, pulsa de nuevo para pedirlo igualmente.`,
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     const result = await sendLeadPriceRequest({
       docs: Array.isArray(body?.docs) ? body!.docs! : [],

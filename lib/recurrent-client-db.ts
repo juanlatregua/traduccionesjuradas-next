@@ -1,23 +1,33 @@
 import { prisma } from "@/lib/prisma";
-import { classifyRecurrent, type RecurrentMatch } from "@/lib/recurrent-client";
+import { classifyRecurrent, pickBillingToInherit, type RecurrentMatch } from "@/lib/recurrent-client";
 import { emailKey, phoneKey } from "@/lib/client-identity";
 
-/**
- * Cliente que vuelve (MISMO email): si su ficha no tiene datos fiscales y un pedido
- * anterior suyo sí, se copian a la ficha — /q y la factura leen de ahí. Solo por email;
- * por teléfono nunca (ver lib/recurrent-client.ts). No pisa datos ya existentes.
- */
-export async function inheritBillingFromHistory(customerId: string, email: string): Promise<boolean> {
-  const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { fiscalName: true } });
-  if (!customer || customer.fiscalName?.trim()) return false;
-  const prev = await prisma.billingData.findFirst({
+/** Datos de facturación de los pedidos anteriores de este email EXACTO (más reciente primero). */
+export async function billingHistoryForEmail(email: string) {
+  return prisma.billingData.findMany({
     where: { order: { clientEmail: { equals: emailKey(email), mode: "insensitive" } }, fiscalName: { not: "" } },
     orderBy: { order: { createdAt: "desc" } },
+    take: 50,
     select: { fiscalName: true, nif: true, address: true, city: true, postalCode: true, country: true },
   });
-  if (!prev) return false;
-  await prisma.customer.update({ where: { id: customerId }, data: prev });
-  return true;
+}
+
+/**
+ * Cliente que vuelve (MISMO email exacto): si su ficha NO tiene ningún dato fiscal y su
+ * historial tiene UN solo titular de facturación, se copia el último a la ficha — /q y la
+ * factura leen de ahí. Con varios titulares distintos (despacho vs particular) no se copia
+ * y se devuelve "multiple" para marcarlo a staff. Por teléfono, nunca.
+ */
+export async function inheritBillingFromHistory(customerId: string, email: string): Promise<"inherited" | "multiple" | "none" | "has-data"> {
+  const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { fiscalName: true, nif: true, address: true } });
+  if (!customer) return "none";
+  if ([customer.fiscalName, customer.nif, customer.address].some((v) => String(v || "").trim())) return "has-data";
+  const pick = pickBillingToInherit(await billingHistoryForEmail(email));
+  if (pick.kind === "inherit") {
+    await prisma.customer.update({ where: { id: customerId }, data: pick.billing });
+    return "inherited";
+  }
+  return pick.kind;
 }
 
 /** Cruza email/teléfono con los pedidos PAGADOS anteriores. Nunca lanza. */

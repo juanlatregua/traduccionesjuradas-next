@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyRecurrent, recurrentLabel, recurrentClientLine, trustLine, type PaidOrderRow } from "../../lib/recurrent-client.ts";
+import { pickBillingToInherit, type BillingRow, classifyRecurrent, recurrentLabel, recurrentClientLine, trustLine, type PaidOrderRow } from "../../lib/recurrent-client.ts";
 
 const d = (s: string) => new Date(s);
 const orders: PaidOrderRow[] = [
@@ -56,4 +56,22 @@ test("línea de confianza: con y sin cifra de reseñas", () => {
   assert.equal(trustLine("es", 49), "Traductor jurado MAEC nº 3850 · 49 reseñas en Google");
   assert.equal(trustLine("es", null), "Traductor jurado MAEC nº 3850");
   assert.equal(trustLine("fr", 49), "Traducteur assermenté MAEC nº 3850 · 49 avis sur Google");
+});
+
+const fila = (fiscalName: string, nif: string): BillingRow => ({ fiscalName, nif, address: "C/ Mayor 1", city: "Málaga", postalCode: "29001", country: "España" });
+
+test("facturación: un solo titular (aunque varios pedidos) se hereda, el más reciente", () => {
+  const r = pickBillingToInherit([fila("Ana Pérez", "12345678z"), fila("ANA  PEREZ", "12345678Z")]);
+  assert.equal(r.kind, "inherit");
+  if (r.kind === "inherit") assert.equal(r.billing.fiscalName, "Ana Pérez");
+});
+
+test("facturación: despacho y particular con el mismo email → varios titulares, no se copia", () => {
+  const r = pickBillingToInherit([fila("Miquela Fortuny", "11111111H"), fila("NADALFORTUNYLEGAL SLP", "B12345678")]);
+  assert.deepEqual(r, { kind: "multiple", holders: 2 });
+});
+
+test("facturación: sin historial con titular no hay nada que heredar", () => {
+  assert.deepEqual(pickBillingToInherit([]), { kind: "none" });
+  assert.deepEqual(pickBillingToInherit([fila("  ", "")]), { kind: "none" });
 });

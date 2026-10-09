@@ -5,9 +5,9 @@
 // Regla madre: al payload no viaja PII del lead (ni nombre ni teléfono ni email);
 // customerHint se queda en NUESTRA base para que el staff sepa de quién era.
 // SOLO SERVIDOR (node:crypto, Blob, Prisma).
-import { findLiveLavoriDuplicate, lavoriContentKey, liveDuplicateMessage } from "@/lib/lavori-dup-guard";
+import { findLiveLavoriDuplicate, lavoriContentKey, lavoriContentKeys, liveDuplicateMessage } from "@/lib/lavori-dup-guard";
 import { createHash } from "node:crypto";
-import { leadDocKeys } from "@/lib/lavori-doc-keys";
+import { leadDocKeys, leadDocKeyVariants } from "@/lib/lavori-doc-keys";
 import { clientIdentityKeys } from "@/lib/client-identity";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
@@ -257,8 +257,15 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     const porUrl = new Map(filas.map((r) => [r.fileUrl, r.fileHash]));
     for (const d of docs) if (!d.hash) d.hash = porUrl.get(d.url) ?? null;
   }
-  const docKeys = leadDocKeys(docs);
-  const refSeed = `${docKeys}|${route.par}${eleccion.elegidos ? `|${[...candidatos].sort().join(",")}` : ""}`;
+  // Nº de páginas de cada documento: sin él no se sabe si un rango es «entero» (huella 9-oct-2026).
+  const paginas = await prisma.documentAnalysis
+    .findMany({ where: { fileUrl: { in: docs.map((d) => d.url) } }, select: { fileUrl: true, pageCount: true } })
+    .catch(() => []);
+  const paginasPorUrl = new Map(paginas.map((r) => [r.fileUrl, r.pageCount]));
+  const claveDocs = docs.map((d) => ({ ...d, pageCount: paginasPorUrl.get(d.url) ?? null }));
+  const docKeys = leadDocKeys(claveDocs);
+  const seedFor = (k: string) => `${k}|${route.par}${eleccion.elegidos ? `|${[...candidatos].sort().join(",")}` : ""}`;
+  const refSeed = seedFor(docKeys);
   // Una solicitud retirada o descartada ya no vive en lavori: volver a pedir lo
   // mismo es una solicitud NUEVA (ref con sufijo de ronda), no un «repetido» mudo.
   let ref = "";
@@ -268,6 +275,18 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     previo = await prisma.lavoriPriceRequest.findUnique({ where: { ref } });
     if (!previo || !["DISCARDED", "RETIRED"].includes(previo.status)) break;
   }
+  // Transición: la misma solicitud pudo guardarse con la huella anterior (rango sin fin / con fin).
+  if (!previo) {
+    const refOf = (seed: string) => `LEAD-${createHash("sha256").update(seed).digest("hex").slice(0, 10).toUpperCase()}`;
+    const antiguas = leadDocKeyVariants(claveDocs).filter((k) => k !== docKeys).map((k) => refOf(seedFor(k)));
+    const viva = antiguas.length
+      ? await prisma.lavoriPriceRequest.findFirst({ where: { ref: { in: antiguas }, status: { notIn: ["DISCARDED", "RETIRED"] } } })
+      : null;
+    if (viva) {
+      ref = viva.ref;
+      previo = viva;
+    }
+  }
   if (previo) {
     return { ok: true, repetido: true, ref, encargoId: previo.encargoId, candidatos: previo.candidatos, par: previo.par, nombres, respaldo };
   }
@@ -275,7 +294,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   // Mismos documentos (o misma sesión) y mismo par con OTRO encargo vivo: no se
   // manda otro, sea cual sea el carril o los candidatos (Juan, 24-sep-2026).
   const contentKey = lavoriContentKey(docKeys, route.par);
-  const duplicado = await findLiveLavoriDuplicate({ par: route.par, contentKey, expedienteRef: input.expedienteRef ?? null });
+  const duplicado = await findLiveLavoriDuplicate({ par: route.par, contentKey: lavoriContentKeys(claveDocs, route.par), expedienteRef: input.expedienteRef ?? null });
   if (duplicado) return { ok: false, status: 409, error: liveDuplicateMessage(duplicado) };
 
   const documentos: BridgeDoc[] = [];

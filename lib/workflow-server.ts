@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { contentKeyForQuote, findLiveLavoriDuplicate, freshLeadsByContentKey, isHeldByJuan, liveDuplicateMessage, lavoriContentKey, parFromLangPair } from "@/lib/lavori-dup-guard";
+import { contentKeyForQuote, findLiveLavoriDuplicate, freshLeadsByContentKey, isHeldByJuan, liveDuplicateMessage, lavoriContentKeys, parFromLangPair } from "@/lib/lavori-dup-guard";
 import { prisma } from "@/lib/prisma";
 import { addBusinessDays, getHolidaySetFromEnv, getMadridBusinessBaseDate } from "@/lib/eta";
 import {
@@ -33,7 +33,6 @@ import {
 } from "@/lib/lavori-bridge";
 import { packDocsForSobre } from "@/lib/lavori-sobre";
 import { dePagePactado, isDePageTariffQuote, type DePagePactado } from "@/lib/pricing-engine/page-pricing";
-import { leadDocKeys } from "@/lib/lavori-doc-keys";
 import { sendMail } from "@/lib/azure-mail";
 import { LEAD_LIVE_STATUSES, LEAD_PAIRABLE_STATUSES, matchLeadByCustomer, matchLiveLeadByCustomer } from "@/lib/lavori-lead-match";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
@@ -1234,10 +1233,10 @@ async function routeOrderToLavori(opts: {
 
 /** Pedido de la puerta DE→ES por página: coste pactado con Morton, recalculado
  * desde los análisis guardados del pedido (mismo cálculo que el precio mostrado). */
-async function dePagePactadoForOrder(orderId: string): Promise<(DePagePactado & { contentKey: string | null }) | null> {
+async function dePagePactadoForOrder(orderId: string): Promise<(DePagePactado & { contentKey: string[] | null }) | null> {
   const rows = await prisma.documentAnalysis.findMany({
     where: { orderId },
-    select: { analysisJson: true, fileUrl: true, fileHash: true },
+    select: { analysisJson: true, fileUrl: true, fileHash: true, pageCount: true },
   });
   if (rows.length === 0) return null;
   const docs = rows.map((r) => {
@@ -1253,8 +1252,8 @@ async function dePagePactadoForOrder(orderId: string): Promise<(DePagePactado & 
   });
   const pactado = dePagePactado(docs);
   if (!pactado) return null;
-  const contentKey = lavoriContentKey(
-    leadDocKeys(rows.map((r) => ({ url: r.fileUrl, hash: r.fileHash }))),
+  const contentKey = lavoriContentKeys(
+    rows.map((r) => ({ url: r.fileUrl, hash: r.fileHash, pageCount: r.pageCount })),
     "DE>ES"
   );
   return { ...pactado, contentKey };

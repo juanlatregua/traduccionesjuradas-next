@@ -1,4 +1,5 @@
 import RecurrentClientBadge from "@/components/RecurrentClientBadge";
+import OpenSiblingsBanner from "@/components/OpenSiblingsBanner";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
@@ -165,6 +166,14 @@ export default async function ZonaTraductorPresupuestoPage({
             Presupuesto{expRef ? ` de expediente · ${expRef}` : lead ? ` de solicitud lavori · ${lead.ref}` : ""}
           </h1>
           <RecurrentClientBadge email={recurrentEmail} phone={recurrentPhone} />
+          <OpenSiblingsBanner
+            email={recurrentEmail}
+            phone={recurrentPhone}
+            par={builderInitial.sourceLang && builderInitial.targetLang ? `${builderInitial.sourceLang}>${builderInitial.targetLang}`.toUpperCase() : null}
+            excludeSession={puertaSession || null}
+            excludeLprRef={lead?.ref ?? null}
+            excludeInboxId={inboxId}
+          />
           {lead && (
             <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
               {lead.priceCents
