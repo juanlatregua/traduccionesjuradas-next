@@ -104,7 +104,7 @@ export async function fillDraftQuoteFromLeadPrice(leadId: string): Promise<FillD
       String(quote.sourceLang || "").toLowerCase() === "de" &&
       String(quote.targetLang || "").toLowerCase() === "es" &&
       isDePageTariffLine(motorCents / 100, decimalToNumber(l.supplierUnitCost));
-    const clienteCents = clientCentsWithMotorPrice(motorCents, reparto, porPagina ? 0 : undefined);
+    const clienteCents = clientCentsWithMotorPrice(motorCents, reparto, porPagina ? 0 : undefined, porPagina);
     if (clienteCents > motorCents) subidas++;
     return {
       description: l.description,

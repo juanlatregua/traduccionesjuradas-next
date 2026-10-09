@@ -135,8 +135,11 @@ export function spreadCents(baseCents: number, weights: number[]): number[] {
  * manda el precio del MOTOR (el que Juan ya tiene puesto en el borrador) y solo
  * se sube si con ese precio no llega a la regla única autoClientPriceFromCost.
  * `floorCents` = 0 en las líneas de tarifa por página DE→ES (8-oct-2026): ahí el
- * suelo por documento no aplica. */
-export function clientCentsWithMotorPrice(motorCents: number, costCents: number, floorCents: number = DOC_FLOOR_CENTS): number {
+ * suelo por documento no aplica. `keepMotor` = tarifa por página publicada: el
+ * precio publicado manda y NUNCA se sube; si el margen no llega, lo frena el
+ * freno de margen del presupuesto (revisión de Juan), no esta regla. */
+export function clientCentsWithMotorPrice(motorCents: number, costCents: number, floorCents: number = DOC_FLOOR_CENTS, keepMotor: boolean = false): number {
+  if (keepMotor && motorCents > 0) return motorCents;
   const minimo = roundUp50(autoClientPriceCentsFromCost(costCents, floorCents));
   if (motorCents <= 0) return minimo;
   return canAutoQuote(motorCents, costCents) && motorCents >= minimo ? motorCents : minimo;

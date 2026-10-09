@@ -105,6 +105,16 @@ test("el precio del motor manda salvo que el margen no dé", async () => {
   assert.equal(clientCentsWithMotorPrice(0, 10000), 12500);
 });
 
+test("tarifa por página publicada: el precio manda, no se sube por margen", async () => {
+  const { clientCentsWithMotorPrice, canAutoQuote } = await import("../../lib/lavori-directo-math.ts");
+  // Coste 25 €/pág, precio 30 € → se queda en 30 y el margen (16,7 %) permite auto-envío.
+  assert.equal(clientCentsWithMotorPrice(3000, 2500, 0, true), 3000);
+  assert.equal(canAutoQuote(3000, 2500), true);
+  // Coste 28 €/pág → sigue en 30 € (no se sube) y el margen (6,7 %) NO permite auto-envío: revisión de Juan.
+  assert.equal(clientCentsWithMotorPrice(3000, 2800, 0, true), 3000);
+  assert.equal(canAutoQuote(3000, 2800), false);
+});
+
 // Cifra propuesta al jurado (orden Juan 21-sep-2026): el coste del tarifario
 // aprendido, solo si TODOS los documentos tienen tipo y tarifa.
 const { proposedCostCents, acceptsNewPrice, acceptanceMatchesPrice, isDirectLeadRequest } = await import("../../lib/lavori-directo-math.ts");
