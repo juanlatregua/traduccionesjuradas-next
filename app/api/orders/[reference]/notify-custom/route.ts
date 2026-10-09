@@ -32,6 +32,7 @@ export async function POST(req: Request, { params }: Params) {
       select: {
         id: true,
         reference: true,
+        quoteId: true,
         clientEmail: true,
         paymentStatus: true,
         clientInvoice: { select: { status: true, docKind: true, dueDate: true, paidAt: true } },
@@ -160,7 +161,7 @@ export async function POST(req: Request, { params }: Params) {
       .catch((e) => console.error("[notify-custom] event failed", e));
 
     await sendEmailWithRetry(() =>
-      sendCustomClientEmail({ toEmail: order.clientEmail, subject, bodyText, attachments })
+      sendCustomClientEmail({ toEmail: order.clientEmail, subject, bodyText, attachments, quoteId: order.quoteId })
     );
 
     return NextResponse.json({ ok: true, fileCount: attachments.length, smsSent });

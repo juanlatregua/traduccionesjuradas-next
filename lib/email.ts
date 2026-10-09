@@ -106,6 +106,9 @@ export async function sendCustomClientEmail(data: {
   subject: string;
   bodyText: string;
   attachments?: MailAttachment[];
+  /** Si el email va en relación a un presupuesto, deja constancia como contacto manual (MessageLog
+   * REMINDER SENT): el cron de recordatorios lo cuenta como 2º contacto y no escribe encima. */
+  quoteId?: string | null;
 }) {
   await sendMail({
     to: data.toEmail,
@@ -113,6 +116,12 @@ export async function sendCustomClientEmail(data: {
     html: renderClientMessageHtml(data.bodyText),
     attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
   });
+  if (data.quoteId) {
+    const { recordManualQuoteContact } = await import("@/lib/quote-manual-contact");
+    await recordManualQuoteContact({ quoteId: data.quoteId, recipient: data.toEmail, subject: data.subject, body: data.bodyText }).catch((e) =>
+      console.error("[email] no se pudo dejar constancia del contacto manual", e)
+    );
+  }
 }
 
 export async function sendPresupuestoEmail(payload: PresupuestoPayload) {
