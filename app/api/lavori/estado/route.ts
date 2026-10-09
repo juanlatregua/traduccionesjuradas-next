@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { LAVORI_MEMBER_COLLABORATOR_EMAIL } from "@/lib/lavori-bridge";
+import { LAVORI_MEMBER_COLLABORATOR_EMAIL, orderRefFromMotorRef } from "@/lib/lavori-bridge";
 import { hasMotorAuth } from "@/lib/lavori-motor-auth";
 import { isHeldByJuan, orderIdForLead } from "@/lib/lavori-dup-guard";
 
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
   if (!hasMotorAuth(req)) return NextResponse.json({ ok: false, error: "no autorizado" }, { status: 401 });
   const motorRef = String(new URL(req.url).searchParams.get("ref") || "").trim();
   if (!motorRef) return NextResponse.json({ ok: false, error: "ref obligatoria" }, { status: 400 });
-  const reference = motorRef.replace(/-precio$/, "");
+  const reference = orderRefFromMotorRef(motorRef);
 
   const prueba = PRUEBAS[reference];
   if (prueba) return NextResponse.json({ ref: motorRef, ...prueba });

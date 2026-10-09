@@ -11,7 +11,7 @@ import {
   PURPOSE_REGULARIZACION_2026,
 } from "@/lib/session-pricing";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
-import { clientPriceFromCost } from "@/lib/quote-math";
+import { clientBaseFromQuote } from "@/lib/pricing-engine/page-pricing";
 import { AUTO_PRICEABLE_FOREIGN, isPublicAutoPriceable, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
@@ -187,12 +187,39 @@ export async function POST(req: Request) {
       );
     }
 
+    let quote: ReturnType<typeof calculatePrice>;
+    try {
+      quote = calculatePrice(analysis);
+    } catch (err: any) {
+      console.error("[puerta/checkout] calculatePrice:", err?.message);
+      return NextResponse.json(
+        { ok: false, error: "No se pudo calcular el precio. Vuelve a empezar." },
+        { status: 422 }
+      );
+    }
+
+    // Apostilla clasificada como documento propio: no se cobra sola (puede llevar el
+    // acta dentro del mismo PDF). Presupuesto manual.
+    if (analysis.document_type.specific_type === "apostille") {
+      return NextResponse.json(
+        {
+          ok: false,
+          unsupported: true,
+          error:
+            "Este archivo parece una apostilla suelta. Súbelo junto al documento al que acompaña, o escríbenos por WhatsApp y te preparamos el presupuesto.",
+          whatsappUrl: WHATSAPP_URL,
+        },
+        { status: 422 }
+      );
+    }
+
     // GATE DURO: idioma fuera del precio instantáneo PÚBLICO (24-ago: solo
     // francés; el resto "previa cotización en lavori") NO crea OrderSession ni
     // llega a Stripe. Defensa en profundidad: aunque el diagnóstico/frontend
     // fallen, ningún idioma sin precio de escaparate se cobra.
     // Incidente TJ-20260602-NJ42 (ruso malclasificado "uk", cobrado 50,82€).
-    if (!isPublicAutoPriceable(foreignLang)) {
+    // Excepción (8-oct): DE→ES en documentos «por página» (tarifa por página).
+    if (!isPublicAutoPriceable(foreignLang) && !quote.pagePricing) {
       return NextResponse.json(
         {
           ok: false,
@@ -224,31 +251,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // El penal francés con anexo UE (Bulletin n°3, ~5 páginas) tiene precio
-    // fijo propio en el pricing-engine (61,98 € → 75 € c/IVA): el anexo
-    // multilingüe es trabajo real que el plano de campaña no cubre. Mismo
-    // criterio que lib/pricing-engine/calculator.ts (isFrenchCriminalRecord).
+    // El penal francés con anexo UE (Bulletin n°3, ~5 páginas) tiene precio fijo
+    // propio en el pricing-engine (61,98 € → 75 € c/IVA); el plano de campaña no lo cubre.
     const isFrenchCriminalRecord =
       analysis.document_type.specific_type === "criminal_record" &&
       foreignLang === "fr" &&
       (analysis.document_metrics?.pages ?? 0) >= 3;
 
-    let quotedCents: number;
-    try {
-      const quote = calculatePrice(analysis);
-      quotedCents =
-        purpose === PURPOSE_REGULARIZACION_2026 &&
-        foreignLang === "fr" &&
-        !isFrenchCriminalRecord
-          ? REGULARIZACION_FR_DOC_CENTS
-          : Math.round(clientPriceFromCost(quote.basePrice, foreignLang) * 100);
-    } catch (err: any) {
-      console.error("[puerta/checkout] calculatePrice:", err?.message);
-      return NextResponse.json(
-        { ok: false, error: "No se pudo calcular el precio. Vuelve a empezar." },
-        { status: 422 }
-      );
-    }
+    const quotedCents =
+      purpose === PURPOSE_REGULARIZACION_2026 &&
+      foreignLang === "fr" &&
+      !isFrenchCriminalRecord
+        ? REGULARIZACION_FR_DOC_CENTS
+        : Math.round(clientBaseFromQuote(quote, foreignLang) * 100);
 
     prepared.push({ rec, analysis, quotedCents });
   }

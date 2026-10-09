@@ -186,6 +186,9 @@ export type LeadRequestInput = {
   expedienteRef?: string | null;
   customerHint?: string | null;
   createdBy?: string | null;
+  /** Solo el constructor de staff con candidatos elegidos a mano: deja salir un par
+   * de la casa (francés). Nada automático lo pone. */
+  forzarCasa?: boolean;
 };
 
 export type LeadRequestResult =
@@ -211,7 +214,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   // lavori. Solo pasa si staff elige a mano a un jurado concreto desde el
   // builder — una decisión de Juan, no de la puerta. Ver CASA_LANGS.
   const langDelPar = sourceLang === "es" ? targetLang : sourceLang;
-  if (isCasaLang(langDelPar) && !Array.isArray(input.candidatos)) {
+  if (isCasaLang(langDelPar) && !(input.forzarCasa && Array.isArray(input.candidatos))) {
     const casa = casaJuradoFor(langDelPar)!;
     return {
       ok: false,
@@ -222,7 +225,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
 
   const resolved = await resolveLeadRoute(sourceLang, targetLang);
   if (!resolved || (resolved.route.candidatos.length === 0 && !Array.isArray(input.candidatos))) {
-    return { ok: false, status: 400, error: `El par ${sourceLang}→${targetLang} no tiene jurados en el tablón de lavori.` };
+    return { ok: false, status: 400, error: `El par ${sourceLang}→${targetLang} no tiene jurados en el tablón de lavori que puedan recibirlo (con papel único firmado, canal y libres).` };
   }
   const { route, cartera } = resolved;
   const eleccion = resolveLavoriCandidatos(route, input.candidatos, cartera);
@@ -296,7 +299,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     documentos,
     cifra,
   });
-  const result = await sendLavoriSolicitud(payload);
+  const result = await sendLavoriSolicitud(payload, { forzarCasa: Boolean(input.forzarCasa && Array.isArray(input.candidatos)) });
   if (!result.ok) return { ok: false, status: 502, error: result.error };
 
   await prisma.lavoriPriceRequest

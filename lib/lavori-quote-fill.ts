@@ -11,6 +11,7 @@
 import { prisma } from "@/lib/prisma";
 import { computeQuoteTotals, decimalToNumber } from "@/lib/quotes";
 import { checkQuoteLinesMargin } from "@/lib/quote-margin";
+import { isDePageTariffLine } from "@/lib/pricing-engine/page-pricing";
 import { priceBasisForMember } from "@/lib/lavori-directo";
 import { channelPriceToBaseCents, clientCentsWithMotorPrice, spreadCents } from "@/lib/lavori-directo-math";
 
@@ -98,7 +99,12 @@ export async function fillDraftQuoteFromLeadPrice(leadId: string): Promise<FillD
         supplierUnitCost: decimalToNumber(l.supplierUnitCost),
       };
     }
-    const clienteCents = clientCentsWithMotorPrice(motorCents, reparto);
+    // Línea de tarifa por página DE→ES (30↔10 / 35↔15): sin suelo de 40 €/doc.
+    const porPagina =
+      String(quote.sourceLang || "").toLowerCase() === "de" &&
+      String(quote.targetLang || "").toLowerCase() === "es" &&
+      isDePageTariffLine(motorCents / 100, decimalToNumber(l.supplierUnitCost));
+    const clienteCents = clientCentsWithMotorPrice(motorCents, reparto, porPagina ? 0 : undefined);
     if (clienteCents > motorCents) subidas++;
     return {
       description: l.description,

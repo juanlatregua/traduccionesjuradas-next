@@ -46,7 +46,7 @@ export async function generateMetadata({
 
   return {
     title: `Traductor Jurado en ${ciudad.nombre}${provinciaNote}${consuladoNote} · MAEC`,
-    description: `Traductor jurado en ${ciudad.nombre}: traducción jurada online válida ante ${validez}. Entrega en 24-48 h. Desde 35 €.`,
+    description: `Traductor jurado en ${ciudad.nombre}: traducción jurada online válida ante ${validez}. Entrega en 24-48 h. Francés y alemán: 30 € + IVA por página.`,
     alternates: {
       canonical: `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`,
     },

@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { contentKeyForQuote, findLiveLavoriDuplicate, freshLeadsByContentKey, isHeldByJuan, liveDuplicateMessage, parFromLangPair } from "@/lib/lavori-dup-guard";
+import { contentKeyForQuote, findLiveLavoriDuplicate, freshLeadsByContentKey, isHeldByJuan, liveDuplicateMessage, lavoriContentKey, parFromLangPair } from "@/lib/lavori-dup-guard";
 import { prisma } from "@/lib/prisma";
 import { addBusinessDays, getHolidaySetFromEnv, getMadridBusinessBaseDate } from "@/lib/eta";
 import {
@@ -17,13 +17,23 @@ import {
   fetchLavoriCartera,
   lavoriRouteFromPair,
   lavoriLangFromPair,
+  LAVORI_CANDIDATES,
+  LAVORI_NO_AUTO,
   isCasaPair,
   buildSolicitudPayload,
   sendLavoriSolicitud,
   sendLavoriPrecioAceptado,
+  isLavoriMemberAvailable,
+  isEncargoCaducado,
+  nextReactivationRef,
+  repetidoEsReactivacionPropia,
+  isRetiradaPorCaducidad,
+  motivoPedidoConTraductor,
   type LavoriRoute,
 } from "@/lib/lavori-bridge";
 import { packDocsForSobre } from "@/lib/lavori-sobre";
+import { dePagePactado, isDePageTariffQuote, type DePagePactado } from "@/lib/pricing-engine/page-pricing";
+import { leadDocKeys } from "@/lib/lavori-doc-keys";
 import { sendMail } from "@/lib/azure-mail";
 import { LEAD_LIVE_STATUSES, LEAD_PAIRABLE_STATUSES, matchLeadByCustomer, matchLiveLeadByCustomer } from "@/lib/lavori-lead-match";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
@@ -449,6 +459,23 @@ async function emitPrecioAceptadoIfApplicable(opts: {
         }
       }
     }
+    // Su encargo en lavori ya murió (caducó a los 3 días, el presupuesto vive 15) y
+    // lavori avisó con encargo_retirado: la solicitud quedó RETIRED con su cifra.
+    // Pagar no puede perderla: se intenta aceptar igual y, si el 409 confirma que no
+    // vive, deliverPrecioAceptado lo reactiva con SU precio. No vale la que se
+    // retiró a propósito para reabrir en otra.
+    if (!lpr) {
+      const retiradas = await prisma.lavoriPriceRequest.findMany({
+        where: { status: "RETIRED", quoteId: order.quoteId, priceCents: { gt: 0 }, miembroId: { not: null }, ...mismoPar },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+      });
+      // Solo la retirada POR CADUCIDAD en lavori, y solo si el pedido sigue sin traductor.
+      const caducada = retiradas.find((r) => isRetiradaPorCaducidad(r.notas));
+      if (caducada && !(await pedidoYaTieneTraductor(order.id))) {
+        lpr = caducada;
+      }
+    }
     if (lpr?.status === "ACCEPTED") return assignAlreadyAccepted(opts, lpr);
     if (lpr && !(lpr.priceCents && lpr.priceCents > 0)) return holdForPendingPrice(opts, lpr);
     if (lpr?.priceCents && lpr.priceCents > 0) {
@@ -686,6 +713,160 @@ async function assignAlreadyAccepted(
   return { handled: true, changed: Boolean(collaborator) };
 }
 
+// En lavori el encargo caduca a los 3 días y nuestro presupuesto a los 15 (cruce del
+// 8-oct-2026: 16 presupuestos vivos con el encargo ya cancelado). Si el cliente
+// paga entonces, precio_aceptado devuelve 409 con el estado. Un encargo MUERTO
+// (cancelado/caducado/retirado, sin nadie que lo haya aceptado) no es un conflicto
+// con otro jurado: se reactiva abriendo un dirigido NUEVO al mismo jurado con SU
+// cifra (carril «Precio ya pactado»: paraTi = su precio, su único paso es aceptar).
+// Un estado que no conocemos y sin aceptante se trata igual; con aceptante, nunca (isEncargoCaducado).
+/** ¿El pedido ya tiene traductor? assignedTo relleno, asignación ACCEPTED/DELIVERED o
+ * una asignación directa a mano («Precio ya pactado»). Con traductor, jamás se abre
+ * otro encargo a otro jurado. */
+async function pedidoYaTieneTraductor(orderId: string): Promise<string | null> {
+  const [o, asig, directa] = await Promise.all([
+    prisma.order.findUnique({ where: { id: orderId }, select: { assignedTo: true } }),
+    prisma.collaboratorAssignment.findMany({
+      where: { orderId, status: { in: ["ACCEPTED", "DELIVERED"] } },
+      select: { collaborator: { select: { fullName: true } } },
+    }),
+    prisma.orderEvent.findFirst({ where: { orderId, type: "collaborator.assignment.direct" }, select: { id: true } }),
+  ]);
+  return motivoPedidoConTraductor({
+    assignedTo: o?.assignedTo,
+    asignadosAceptados: asig.map((a) => a.collaborator.fullName),
+    asignacionDirecta: Boolean(directa),
+  });
+}
+
+async function reopenDirigidoAfterDeadEncargo(opts: {
+  orderId: string;
+  reference: string;
+  ref: string;
+  precioCents: number;
+  lprId?: string | null;
+  estado: string;
+}): Promise<{ ok: true; repetido: boolean; encargoId: string; miembro: string } | { ok: false; error: string }> {
+  const { orderId, reference, ref, precioCents, lprId, estado } = opts;
+  try {
+    const previos = await prisma.orderEvent.findMany({
+      where: { orderId, type: "lavori.solicitud_enviada", payload: { path: ["reactivado"], equals: true } },
+      select: { payload: true },
+    });
+    const refsUsadas = previos.map((e) => (e.payload as any)?.refReactivada as string | undefined);
+    // Ya reactivado y el 409 no viene de una ref -R<n> (reintento del pago sobre la ref
+    // original): nada que repetir. Si viene de la última -R<n>, esa también caducó -> la siguiente.
+    if (previos.length > 0 && !/-R\d+$/.test(ref)) {
+      return { ok: true, repetido: true, encargoId: String((previos[0].payload as any)?.lavoriEncargoId || ""), miembro: "" };
+    }
+    const refReactivada = nextReactivationRef(reference, refsUsadas);
+    const yaTiene = await pedidoYaTieneTraductor(orderId);
+    if (yaTiene) return { ok: false, error: `el pedido ${yaTiene}: no se abre otro encargo` };
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        langPair: true,
+        words: true,
+        amountCents: true,
+        dueDate: true,
+        events: {
+          where: { type: { in: ["presupuesto.submitted", "order.source_document_uploaded", "lavori.solicitud_precio_enviada", "lavori.solicitud_enviada", "lavori.precio_propuesto"] } },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: { type: true, payload: true },
+        },
+      },
+    });
+    if (!order) return { ok: false, error: "pedido no encontrado" };
+    if (isCasaPair(order.langPair)) return { ok: false, error: "par de la casa: no sale a lavori" };
+    const parsed = lavoriLangFromPair(order.langPair);
+    if (!parsed) return { ok: false, error: `par ilegible (${order.langPair})` };
+
+    const lpr = lprId
+      ? await prisma.lavoriPriceRequest.findUnique({ where: { id: lprId }, select: { id: true, miembroId: true, miembroNombre: true, notas: true } })
+      : null;
+    const propuesto = order.events.find((e) => e.type === "lavori.precio_propuesto");
+    const propuestoMiembro = (propuesto?.payload as { miembroId?: unknown } | null)?.miembroId;
+    const miembroId = lpr?.miembroId || (propuestoMiembro ? String(propuestoMiembro) : null);
+    if (!miembroId) return { ok: false, error: "no consta qué jurado propuso la cifra" };
+
+    const disp = await isLavoriMemberAvailable(parsed.lang, miembroId);
+    if (!disp.ok) {
+      return { ok: false, error: `${disp.nombre || lpr?.miembroNombre || miembroId} no puede recibir el encargo ahora: ${disp.reason}` };
+    }
+    const miembro = disp.nombre || lpr?.miembroNombre || miembroId;
+
+    const docs = getDocumentsFromOrder(order);
+    if (docs.length === 0) return { ok: false, error: "el pedido no tiene documentos enlazados" };
+    const sobre = await packDocsForSobre(docs);
+    if (!sobre.ok) return { ok: false, error: sobre.error };
+
+    const paraTi = (precioCents / 100).toFixed(2);
+    const payload = buildSolicitudPayload({
+      reference: refReactivada,
+      route: { lang: parsed.lang, par: parsed.par, candidatos: [miembroId] },
+      amountCents: order.amountCents,
+      words: order.words,
+      dueDate: order.dueDate,
+      documentos: sobre.documentos,
+      paraTiCents: precioCents,
+      especificaciones: `Precio ya acordado contigo: ${paraTi} € (tu propuesta; el cliente la ha aceptado y pagado). Tu encargo anterior caducó en lavori; este lo sustituye. Solo acepta y traduce.`,
+    });
+    const result = await sendLavoriSolicitud(payload);
+    if (!result.ok) return { ok: false, error: result.error };
+    // `repetido` solo es éxito si el encargoId es uno que ya teníamos anotado como reactivado
+    // (aquí no hay ninguno: la guarda de arriba corta antes). Si no, lavori tenía OTRO
+    // encargo con esta ref: no se anota «REACTIVADO» y se avisa al staff (email + SMS).
+    if (result.repetido && !repetidoEsReactivacionPropia(refReactivada, refsUsadas)) {
+      return { ok: false, error: `lavori ya tenía un encargo con esta ref (${refReactivada}, ${result.encargoId})` };
+    }
+
+    await prisma.orderEvent.create({
+      data: {
+        orderId,
+        type: "lavori.encargo_caducado",
+        message: `lavori: el encargo ${ref} ya no estaba vivo al pagar (estado: ${estado}). Se reactiva con un dirigido nuevo al mismo jurado.`,
+        payload: { ref, estado, miembroId },
+      },
+    });
+    await prisma.orderEvent.create({
+      data: {
+        orderId,
+        type: "lavori.solicitud_enviada",
+        message: `Encargo REACTIVADO ${parsed.par}: dirigido a ${miembro} con su precio (${paraTi} € para el traductor); su único paso es aceptar. El anterior (${ref}) estaba ${estado}.`,
+        payload: {
+          reactivado: true,
+          lavoriEncargoId: result.encargoId,
+          par: parsed.par,
+          paraTi: payload.paraTi,
+          precioCliente: payload.precioCliente,
+          candidatos: [miembroId],
+          documentos: sobre.documentos.length,
+          refReactivada,
+          refAnterior: ref,
+          estadoAnterior: estado,
+          lavoriPriceRequestId: lprId ?? null,
+        },
+      },
+    });
+    if (lpr) {
+      await prisma.lavoriPriceRequest
+        .update({
+          where: { id: lpr.id },
+          data: {
+            status: "RETIRED",
+            notas: [lpr.notas, `${new Date().toISOString().slice(0, 16)} encargo caducado en lavori (${estado}); reactivado como ${refReactivada}`].filter(Boolean).join("\n"),
+          },
+        })
+        .catch((err) => console.error("[lavori-reactivar] lpr update failed", err));
+    }
+    return { ok: true, repetido: false, encargoId: result.encargoId, miembro };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "error inesperado al reactivar" };
+  }
+}
+
 // Envía precio_aceptado a lavori y persiste el desenlace (evento + email staff).
 // Lo usan el emisor del pago (emitPrecioAceptadoIfApplicable) y el receptor de
 // eventos cuando un precio_propuesto llega sobre un pedido YA pagado
@@ -716,7 +897,7 @@ export async function deliverPrecioAceptado(opts: {
   const reservada = await isHeldByJuan(ref, orderId);
   const pedido = await prisma.order.findUnique({ where: { id: orderId }, select: { paidAt: true, paymentStatus: true } });
   const result: Awaited<ReturnType<typeof sendLavoriPrecioAceptado>> = reservada
-    ? { ok: false, conflicto: true, estado: "publicado", aceptadoPor: null, loLlevoYo: true }
+    ? { ok: false, conflicto: true, estado: "publicado", motivoCierre: null, aceptadoPor: null, loLlevoYo: true }
     : await sendLavoriPrecioAceptado({
         ref,
         precioParaTi: precio,
@@ -770,19 +951,39 @@ export async function deliverPrecioAceptado(opts: {
   }
 
   if ("conflicto" in result && result.conflicto) {
+    // Encargo caducado/cancelado/retirado: se reactiva con SU cifra. El pago ya está
+    // hecho y NUNCA falla por esto (reopen no lanza; cualquier fallo cae al aviso).
+    let reactivacionFallida: string | null = null;
+    if (isEncargoCaducado({ estado: result.estado, motivoCierre: result.motivoCierre, aceptadoPor: result.aceptadoPor })) {
+      const re = await reopenDirigidoAfterDeadEncargo({ orderId, reference, ref, precioCents, lprId, estado: result.estado });
+      if (re.ok) {
+        if (!re.repetido) {
+          await staffMail(`🔁 ${reference} pagado: encargo caducado en lavori, REACTIVADO para ${re.miembro}`, [
+            `El pedido ${reference} está pagado y el encargo ${ref} ya no estaba vivo en lavori (estado: ${result.estado}).`,
+            `Se ha abierto un encargo dirigido NUEVO a ${re.miembro} con su precio (${precio} € para el traductor): solo tiene que aceptar. Al aceptar se asignará solo.`,
+            `Ficha: ${ficha}`,
+          ]);
+        }
+        return { ok: true };
+      }
+      reactivacionFallida = re.error;
+    }
     await prisma.orderEvent.create({
       data: {
         orderId,
         type: "lavori.precio_aceptado_conflicto",
-        message: `lavori: el encargo ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}) — gestionar a mano.`,
-        payload: { ref, precioParaTi: precio, estado: result.estado, aceptadoPor: result.aceptadoPor },
+        message: `lavori: el encargo ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""})${reactivacionFallida ? `; NO se pudo reactivar: ${reactivacionFallida}` : ""} — gestionar a mano.`,
+        payload: { ref, precioParaTi: precio, estado: result.estado, motivoCierre: result.motivoCierre, aceptadoPor: result.aceptadoPor, reactivacionFallida },
       },
     });
+    const textoConflicto = `El pedido ${reference} está pagado, pero el encargo de lavori ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}).${reactivacionFallida ? ` No se pudo reactivar solo: ${reactivacionFallida}.` : ""}`;
     await staffMail(`⚠ Conflicto al aceptar precio en lavori (${reference}) — gestionar a mano`, [
-      `El pedido ${reference} está pagado, pero el encargo de lavori ya no está publicado (estado: ${result.estado}${result.aceptadoPor ? `, aceptado por ${result.aceptadoPor}` : ""}).`,
-      `Lavori no ha tocado nada. Aclara el encargo con el traductor o asígnalo a mano.`,
+      textoConflicto,
+      `Lavori no ha tocado nada. Aclara el encargo con el traductor o asígnalo a mano (ficha, «Precio ya pactado» con ${precio} €).`,
       `Ficha: ${ficha}`,
     ]);
+    const { sendStaffAlertSMS: smsConflicto } = await import("@/lib/sms");
+    await smsConflicto(textoConflicto, `precio_aceptado_conflicto ${reference}`).catch(() => {});
     return { ok: false, conflicto: true };
   }
 
@@ -801,6 +1002,8 @@ export async function deliverPrecioAceptado(opts: {
     `El traductor NO sabe que su precio fue aceptado. Avísale por lavori o gestiona a mano.`,
     `Ficha: ${ficha}`,
   ]);
+  const { sendStaffAlertSMS: smsFallo } = await import("@/lib/sms");
+  await smsFallo(`${reference} pagado: lavori NO recibió la aceptación del precio (${error}). Avisa al jurado.`, `precio_aceptado_fallo ${reference}`).catch(() => {});
   return { ok: false };
 }
 
@@ -921,6 +1124,9 @@ async function routeOrderToLavori(opts: {
       text: alertLines.join("\n"),
       html: alertLines.map((l) => `<p>${l}</p>`).join(""),
     }).catch((err) => console.error("[lavori-bridge] staff alert failed", err));
+    // Segundo transporte: un pedido pagado sin jurado no puede depender de un solo canal.
+    const { sendStaffAlertSMS } = await import("@/lib/sms");
+    await sendStaffAlertSMS(`${reference} (${route.par}) pagado SIN traductor: ${error}`.slice(0, 300), `lavori_fallback ${reference}`).catch(() => {});
     return { changed: false };
   };
 
@@ -951,7 +1157,7 @@ async function routeOrderToLavori(opts: {
     // aviso a staff y el envío a la cartera se hace a mano desde la ficha.
     if (vivo.respaldo && !routeViva.candidatos.some((id) => route.candidatos.includes(id))) {
       return await fallbackToStaff(
-        `el carril (${vivo.respaldo.sinAlta.length} jurado/s) no está de alta en lavori y no se envía a la cartera viva en automático — ` +
+        `el carril (${vivo.respaldo.sinAlta.length} jurado/s) no puede recibirlo en lavori (sin alta o sin papel único) y no se envía a la cartera viva en automático — ` +
           `si no lo cierras por fuera, pídelo desde la ficha («pedir precio en lavori»)`
       );
     }
@@ -1026,6 +1232,109 @@ async function routeOrderToLavori(opts: {
   }
 }
 
+/** Pedido de la puerta DE→ES por página: coste pactado con Morton, recalculado
+ * desde los análisis guardados del pedido (mismo cálculo que el precio mostrado). */
+async function dePagePactadoForOrder(orderId: string): Promise<(DePagePactado & { contentKey: string | null }) | null> {
+  const rows = await prisma.documentAnalysis.findMany({
+    where: { orderId },
+    select: { analysisJson: true, fileUrl: true, fileHash: true },
+  });
+  if (rows.length === 0) return null;
+  const docs = rows.map((r) => {
+    const a = r.analysisJson as any;
+    return {
+      specificType: a?.document_type?.specific_type ?? null,
+      sourceLang: a?.language?.source ?? null,
+      pages: a?.document_metrics?.pages ?? null,
+      hasTables: a?.document_metrics?.has_tables ?? null,
+      hasApostille: a?.requirements?.has_apostille ?? null,
+      apostilleSeparatePage: a?.requirements?.apostille_separate_page ?? null,
+    };
+  });
+  const pactado = dePagePactado(docs);
+  if (!pactado) return null;
+  const contentKey = lavoriContentKey(
+    leadDocKeys(rows.map((r) => ({ url: r.fileUrl, hash: r.fileHash }))),
+    "DE>ES"
+  );
+  return { ...pactado, contentKey };
+}
+
+/** Encargo dirigido a UN jurado con su cifra ya pactada (tarifario aprendido o
+ * tarifa por página). Re-comprueba al pagar que sigue libre (spec tarifa directa
+ * 4-sep §2.7): un firme a un candidato que lavori rechaza con 400 dejaba el
+ * pedido PAGADO en el fallback de staff. Si no puede, se abre a la cartera de la
+ * lengua con precio abierto y se avisa en las especificaciones; Juan decide. */
+async function routePactadoToMiembro(opts: {
+  order: Parameters<typeof routeOrderToLavori>[0]["order"];
+  reference: string;
+  actorEmail: string | null;
+  lang: string;
+  par: string;
+  miembroId: string;
+  miembroNombre: string | null;
+  paraTiCents: number;
+  acordadoTexto: string;
+  origenTexto: string;
+  quoteNumber: string | null;
+}): Promise<{ changed: boolean }> {
+  const { order, paraTiCents } = opts;
+  // NUNCA un encargo con paraTi 0 (ni negativo): se aborta y se avisa a staff. El
+  // pedido está pagado: sin esto quedaría un encargo regalado al jurado.
+  // Tampoco a un jurado vetado del envío automático (LAVORI_NO_AUTO).
+  const vetado = LAVORI_NO_AUTO[opts.miembroId];
+  if (!(paraTiCents > 0) || vetado) {
+    const motivo = !(paraTiCents > 0) ? "el precio pactado para el jurado es 0 €" : `el jurado está vetado del envío automático (${vetado})`;
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.pactado_abortado",
+        message: `Encargo con precio pactado NO enviado: ${motivo}. Pedir precio desde la ficha o asignar a mano.`,
+        payload: { miembroId: opts.miembroId, paraTiCents, origen: opts.origenTexto },
+      },
+    });
+    await staffMailLines(`⚠ Pedido ${opts.par} pagado SIN encargo a lavori (${opts.reference}) — ${motivo}`, [
+      `El pedido ${opts.reference} (${opts.par}) está pagado y NO se ha enviado el encargo con precio pactado: ${motivo}.`,
+      `Nadie ha sido avisado. Pide precio desde la ficha («pedir precio en lavori») o asigna a mano.`,
+      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${opts.reference}`,
+    ]);
+    return { changed: false };
+  }
+  const { isLavoriMemberAvailable } = await import("@/lib/lavori-bridge");
+  const disp = await isLavoriMemberAvailable(opts.lang, opts.miembroId);
+  if (!disp.ok) {
+    console.error(`[workflow] jurado de la tarifa ${opts.miembroNombre || opts.miembroId} no disponible al pagar ${opts.reference}: ${disp.reason}`);
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.tarifa_jurado_no_disponible",
+        message: `El jurado de la tarifa (${opts.miembroNombre || opts.miembroId}) no puede recibir el encargo: ${disp.reason}. Se abre a la cartera de ${opts.lang.toUpperCase()} con precio abierto; el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} €.`,
+        payload: { miembroId: opts.miembroId, reason: disp.reason, live: disp.live, paraTiCents, quoteNumber: opts.quoteNumber },
+      },
+    });
+    const abierta = lavoriRouteFromPair(order.langPair);
+    if (abierta) {
+      return await routeOrderToLavori({
+        order,
+        route: abierta,
+        reference: opts.reference,
+        actorEmail: opts.actorEmail,
+        tarifario: true,
+        especificaciones: `El jurado previsto (${opts.miembroNombre || "tarifa de la casa"}) no está disponible. Precio abierto: el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} € (${opts.origenTexto}); la cifra de referencia era ${(paraTiCents / 100).toFixed(2)} €.`,
+      });
+    }
+  }
+  return await routeOrderToLavori({
+    order,
+    route: { lang: opts.lang, par: opts.par, candidatos: [opts.miembroId] },
+    reference: opts.reference,
+    actorEmail: opts.actorEmail,
+    paraTiCents,
+    tarifario: true,
+    especificaciones: `${opts.acordadoTexto}: ${(paraTiCents / 100).toFixed(2)} €. Solo acepta y traduce.`,
+  });
+}
+
 export async function autoAssignCollaboratorIfNeeded(options: {
   reference: string;
   actorEmail?: string | null;
@@ -1066,10 +1375,43 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           lavoriMiembroId: true,
           lavoriMiembroNombre: true,
           quoteNumber: true,
-          lines: { select: { supplierUnitCost: true } },
+          sourceLang: true,
+          targetLang: true,
+          autoPricedBy: true,
+          lines: { select: { supplierUnitCost: true, unitPrice: true, quantity: true } },
         },
       });
       const parsed = lavoriLangFromPair(order.langPair);
+      // Presupuesto del builder con la tarifa por página DE→ES (30↔10 / 35↔15 por
+      // página): no trae jurado sellado, pero el jurado ES Morton por definición
+      // de la tarifa. Si había solicitud de precio previa, routeOrderToLavori la
+      // respeta (precio_aceptado) antes de abrir nada.
+      const mortonTarifa =
+        q && !q.lavoriMiembroId && isDePageTariffQuote({
+          autoPricedBy: q.autoPricedBy,
+          sourceLang: q.sourceLang,
+          targetLang: q.targetLang,
+          lines: q.lines.map((l) => ({ quantity: Number(l.quantity) || 1, unitPrice: Number(l.unitPrice) || 0, supplierUnitCost: Number(l.supplierUnitCost) || 0 })),
+        })
+          && String(process.env.LAVORI_PAGINA_DE || "").toLowerCase() !== "off"
+          ? { id: LAVORI_CANDIDATES.de?.[0] ?? null, nombre: "Morton" }
+          : null;
+      if (q && mortonTarifa?.id && parsed) {
+        const coste = q.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0);
+        return await routePactadoToMiembro({
+          order,
+          reference: options.reference,
+          actorEmail: options.actorEmail || null,
+          lang: parsed.lang,
+          par: parsed.par,
+          miembroId: mortonTarifa.id,
+          miembroNombre: mortonTarifa.nombre,
+          paraTiCents: coste,
+          acordadoTexto: `Precio ya acordado contigo por página (tarifa de la casa, presupuesto ${q.quoteNumber})`,
+          origenTexto: `presupuesto ${q.quoteNumber}`,
+          quoteNumber: q.quoteNumber,
+        });
+      }
       const costeBaseCents = q?.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0) || 0;
       // Las líneas guardan BASE; el firme va en el formato en que cotiza el
       // jurado (Daniela, líquido ×1,06). assignLavoriAcceptance lo devuelve a base.
@@ -1079,43 +1421,65 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       ]);
       const paraTiCents = baseToChannelPriceCents(costeBaseCents, priceBasisForMember(q?.lavoriMiembroId));
       if (q?.lavoriMiembroId && parsed && paraTiCents > 0) {
-        // Re-comprobación al pagar (spec tarifa directa 4-sep §2.7): entre
-        // cotizar y cobrar el jurado puede haber dejado de estar libre. Un firme
-        // a un candidato que lavori rechaza con 400 dejaba el pedido PAGADO en el
-        // fallback de staff. Si no puede, se abre a la cartera de la lengua con
-        // precio abierto y se avisa en las especificaciones; Juan decide.
-        const { isLavoriMemberAvailable } = await import("@/lib/lavori-bridge");
-        const disp = await isLavoriMemberAvailable(parsed.lang, q.lavoriMiembroId);
-        if (!disp.ok) {
-          console.error(`[workflow] jurado de la tarifa ${q.lavoriMiembroNombre || q.lavoriMiembroId} no disponible al pagar ${options.reference}: ${disp.reason}`);
+        return await routePactadoToMiembro({
+          order,
+          reference: options.reference,
+          actorEmail: options.actorEmail || null,
+          lang: parsed.lang,
+          par: parsed.par,
+          miembroId: q.lavoriMiembroId,
+          miembroNombre: q.lavoriMiembroNombre,
+          paraTiCents,
+          acordadoTexto: `Precio ya acordado contigo por documento (tarifario de la casa, presupuesto ${q.quoteNumber})`,
+          origenTexto: `presupuesto ${q.quoteNumber}`,
+          quoteNumber: q.quoteNumber,
+        });
+      }
+    }
+
+    // Tarifa por página DE→ES (8-oct-2026): el precio salió al momento en la puerta
+    // con el coste de Morton ya fijado (10 €/pág, 15 € con tablas). Al pagar, el
+    // encargo va a él con ese precio pactado: solo tiene que aceptar. Sin solicitud
+    // previa a lavori (la tarifa ES la solicitud). Se recalcula desde los análisis
+    // guardados del propio pedido; si algún documento no es «por página» no aplica.
+    // Kill-switch LAVORI_PAGINA_DE=off: vuelve al flujo de siempre (regla 14-sep:
+    // dirigido automático apagado; esta tarifa es una excepción explícita de Juan).
+    if (!order.quoteId && order.langPair && String(process.env.LAVORI_PAGINA_DE || "").toLowerCase() !== "off") {
+      const pactado = await dePagePactadoForOrder(order.id);
+      const parsedDe = lavoriLangFromPair(order.langPair);
+      const mortonId = LAVORI_CANDIDATES.de?.[0];
+      if (pactado && parsedDe?.lang === "de" && mortonId) {
+        // Un encargo vivo con estos documentos (solicitud previa del cliente o del
+        // staff) → no se abre otro: mismo guarda que la ficha y el puente (24-sep).
+        const duplicado = await findLiveLavoriDuplicate({ par: parsedDe.par, contentKey: pactado.contentKey });
+        if (duplicado) {
           await prisma.orderEvent.create({
             data: {
               orderId: order.id,
-              type: "lavori.tarifa_jurado_no_disponible",
-              message: `El jurado de la tarifa (${q.lavoriMiembroNombre || q.lavoriMiembroId}) no puede recibir el encargo: ${disp.reason}. Se abre a la cartera de ${parsed.lang.toUpperCase()} con precio abierto; el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} €.`,
-              payload: { miembroId: q.lavoriMiembroId, reason: disp.reason, live: disp.live, paraTiCents, quoteNumber: q.quoteNumber },
+              type: "lavori.pactado_abortado",
+              message: `Encargo con precio pactado NO enviado: ${liveDuplicateMessage(duplicado)}`,
+              payload: { ref: duplicado.ref, status: duplicado.status },
             },
           });
-          const abierta = lavoriRouteFromPair(order.langPair);
-          if (abierta) {
-            return await routeOrderToLavori({
-              order,
-              route: abierta,
-              reference: options.reference,
-              actorEmail: options.actorEmail || null,
-              tarifario: true,
-              especificaciones: `El jurado previsto (${q.lavoriMiembroNombre || "tarifa de la casa"}) no está disponible. Precio abierto: el cliente ya pagó ${(order.amountCents / 100).toFixed(2)} € (presupuesto ${q.quoteNumber}); la cifra de referencia era ${(paraTiCents / 100).toFixed(2)} €.`,
-            });
-          }
+          await staffMailLines(`⚠ Pedido DE>ES pagado con encargo vivo en lavori (${options.reference})`, [
+            `El pedido ${options.reference} está pagado y ya hay un encargo vivo con estos documentos: ${liveDuplicateMessage(duplicado)}`,
+            `No se ha abierto otro. Revisa la ficha y asigna a mano.`,
+            `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${options.reference}`,
+          ]);
+          return { changed: false };
         }
-        return await routeOrderToLavori({
+        return await routePactadoToMiembro({
           order,
-          route: { lang: parsed.lang, par: parsed.par, candidatos: [q.lavoriMiembroId] },
           reference: options.reference,
           actorEmail: options.actorEmail || null,
-          paraTiCents,
-          tarifario: true,
-          especificaciones: `Precio ya acordado contigo por documento (tarifario de la casa, presupuesto ${q.quoteNumber}): ${(paraTiCents / 100).toFixed(2)} €. Solo acepta y traduce.`,
+          lang: parsedDe.lang,
+          par: parsedDe.par,
+          miembroId: mortonId,
+          miembroNombre: "Morton",
+          paraTiCents: pactado.costCents,
+          acordadoTexto: `Precio ya acordado contigo por página (tarifa de la casa: ${pactado.pages} pág., 10 € por página y 15 € las que llevan tablas${pactado.tablePages ? `; ${pactado.tablePages} con tablas` : ""})`,
+          origenTexto: "tarifa por página",
+          quoteNumber: null,
         });
       }
     }

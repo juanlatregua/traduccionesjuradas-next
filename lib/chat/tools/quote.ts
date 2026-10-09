@@ -5,7 +5,8 @@ import {
   getLanguageName,
   AUTO_PRICEABLE_FOREIGN,
 } from "../../pricing-engine/languages.ts";
-import { clientPriceFromCost, round2 } from "../../quote-math.ts";
+import { round2 } from "../../quote-math.ts";
+import { clientBaseFromQuote, clientUrgentFromQuote, isPagePricedType } from "../../pricing-engine/page-pricing.ts";
 import { getMinimum, getApostilleSurcharge } from "../../pricing-engine/rules.ts";
 import { DOC_FLOOR_CENTS } from "../../learned-rates-math.ts";
 
@@ -18,6 +19,13 @@ export type QuoteEstimateInput = {
   estimated_words?: number;
   has_apostille?: boolean;
   country?: string;
+  // Dirección de la traducción. Sin ella NO se aplica la tarifa por página (solo
+  // vale hacia el español); la tool pide que se pregunte.
+  direction?: "to_spanish" | "from_spanish";
+  // La apostilla va en una hoja propia del archivo (solo entonces no cuenta como página).
+  apostille_separate_page?: boolean;
+  // Tablas (notas, expedientes, extractos): en alemán la página cuesta 35 € en vez de 30 €.
+  has_tables?: boolean;
 };
 
 export type QuoteEstimateOutput = {
@@ -36,7 +44,6 @@ export type QuoteEstimateOutput = {
   estimated_delivery_standard: string;
   estimated_delivery_urgent: string;
   is_french_criminal_record: boolean;
-  is_morocco_special: boolean;
   partial_info: boolean;
   note: string;
 };
@@ -66,7 +73,11 @@ export function getQuoteEstimate(
   // cotización en lavori"). El set del motor sigue siendo más amplio, pero el
   // chatbot es público: mismo gate que la puerta.
   // Carril directo (en/de/nl/pt/ro): se publica el suelo por documento (Juan, 29-sep-2026).
-  if (language !== "fr" || !AUTO_PRICEABLE_FOREIGN.has(language)) {
+  // Excepción (8-oct-2026): alemán→español en documentos «por página» también
+  // lleva cifra pública (30 € / 35 € con tablas por página).
+  const hacia = input.direction === "to_spanish";
+  const alemanPorPagina = language === "de" && hacia && isPagePricedType(input.document_type);
+  if ((language !== "fr" && !alemanPorPagina) || !AUTO_PRICEABLE_FOREIGN.has(language)) {
     const suelo = DIRECT_FLOOR_LANGS.has(language)
       ? `Puedes decir que parte de ${DOC_FLOOR_CENTS / 100} € + IVA por documento; no des otra cifra ni rango. `
       : "NO des ninguna cifra, ni orientativa ni de rango. ";
@@ -93,13 +104,11 @@ export function getQuoteEstimate(
       specific_type_es: "",
       confidence: 1,
     },
-    language: {
-      source: language,
-      source_name: getLanguageName(language),
-      target: "es",
-      target_name: "Español",
-      confidence: 1,
-    },
+    // Sin dirección explícita o hacia el idioma extranjero: el original se trata como
+    // español → sin tarifa por página (que solo existe FR→ES y DE→ES).
+    language: hacia
+      ? { source: language, source_name: getLanguageName(language), target: "es", target_name: "Español", confidence: 1 }
+      : { source: "es", source_name: "Español", target: language, target_name: getLanguageName(language), confidence: 1 },
     country: {
       origin: country ?? "",
       origin_name: "",
@@ -109,7 +118,7 @@ export function getQuoteEstimate(
     document_metrics: {
       estimated_words: words,
       pages,
-      has_tables: false,
+      has_tables: !!input.has_tables,
       has_stamps_seals: false,
       has_handwriting: false,
       scan_quality: "good",
@@ -126,6 +135,7 @@ export function getQuoteEstimate(
     requirements: {
       needs_apostille_translation: false,
       has_apostille: !!input.has_apostille,
+      apostille_separate_page: input.apostille_separate_page === true,
       has_legalization: false,
       special_notes: "",
     },
@@ -133,19 +143,19 @@ export function getQuoteEstimate(
   };
 
   const quote = calculatePrice(synthetic);
-  const partialInfo = input.pages === undefined || input.document_type === undefined;
+  const partialInfo = input.pages === undefined || input.document_type === undefined || !input.direction;
   const isFrenchCriminalRecord =
-    documentType === "criminal_record" && language === "fr" && pages >= 3;
-  // Aquí solo llega francés (gate de arriba): Marruecos especial aplica siempre.
-  const isMoroccoSpecial = country === "MA";
+    documentType === "criminal_record" && language === "fr" && input.direction === "to_spanish" && pages >= 3;
 
   let note: string;
   if (isFrenchCriminalRecord) {
     note =
       "Bulletin n°3 francés con anexo multilingüe UE: precio fijo 75 € IVA incluido (paquete).";
-  } else if (isMoroccoSpecial) {
+  } else if (quote.pagePricing) {
     note =
-      "Marruecos (francés): tarifa fija por páginas, no por palabras. Apostilla aparte si aplica.";
+      language === "de"
+        ? `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página${quote.pagePricing.tables ? " (con tablas)" : " (35 € si la página lleva tablas)"}.`
+        : `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página.`;
   } else if (partialInfo) {
     note =
       "Estimación con información parcial. Para precio cerrado real, sube el documento al presupuesto instantáneo.";
@@ -163,14 +173,13 @@ export function getQuoteEstimate(
     rate_per_word_eur: getRate(language),
     apostille_surcharge_eur: input.has_apostille ? getApostilleSurcharge(language) : 0,
     // Precio CLIENTE = coste × (1 + margen tiered); FR sin margen. IVA encima.
-    base_price_eur: clientPriceFromCost(quote.basePrice, language),
-    base_price_with_vat_eur: round2(clientPriceFromCost(quote.basePrice, language) * (1 + VAT_RATE)),
-    urgent_price_eur: clientPriceFromCost(quote.urgentPrice, language),
-    urgent_price_with_vat_eur: round2(clientPriceFromCost(quote.urgentPrice, language) * (1 + VAT_RATE)),
+    base_price_eur: clientBaseFromQuote(quote, language),
+    base_price_with_vat_eur: round2(clientBaseFromQuote(quote, language) * (1 + VAT_RATE)),
+    urgent_price_eur: clientUrgentFromQuote(quote, language),
+    urgent_price_with_vat_eur: round2(clientUrgentFromQuote(quote, language) * (1 + VAT_RATE)),
     estimated_delivery_standard: quote.estimatedDaysStandard,
     estimated_delivery_urgent: quote.estimatedDaysUrgent,
     is_french_criminal_record: isFrenchCriminalRecord,
-    is_morocco_special: isMoroccoSpecial,
     partial_info: partialInfo,
     note,
   };

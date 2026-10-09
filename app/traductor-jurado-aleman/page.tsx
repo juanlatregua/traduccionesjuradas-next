@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Alem\u00E1n \u00B7 Traducci\u00F3n Oficial Alem\u00E1n\u2194Espa\u00F1ol \u00B7 MAEC",
   description:
-    "Traducci\u00F3n jurada de alem\u00E1n por traductor oficial MAEC. Documentos legales, certificados, t\u00EDtulos universitarios. Alem\u00E1n-espa\u00F1ol y espa\u00F1ol-alem\u00E1n. Presupuesto gratis.",
+    "Traducci\u00F3n jurada de alem\u00E1n por traductor oficial MAEC. Documentos legales, certificados, t\u00EDtulos universitarios. Alem\u00E1n-espa\u00F1ol y espa\u00F1ol-alem\u00E1n. Alem\u00E1n a espa\u00F1ol: 30\u20AC + IVA por p\u00E1gina.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-aleman",
   },
@@ -38,12 +38,12 @@ export default function TraductorJuradoAlemanPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de alemán?",
           answer:
-            "Un certificado sencillo (Geburtsurkunde, Heiratsurkunde) parte de 42 € IVA incluido. Los documentos extensos se presupuestan por palabras (desde 0,08 €/palabra). Sube tu documento y un traductor jurado lo valora personalmente antes de cerrarte el presupuesto.",
+            "Traducción jurada de alemán a español: 30 € + IVA por página del original en certificados (Geburtsurkunde, Heiratsurkunde), actas, títulos, expedientes y antecedentes; 35 € + IVA por página si la página lleva tablas (notas, expedientes académicos, extractos bancarios); +5 € si está apostillado. Los contratos y textos largos se presupuestan por palabras, y de español a alemán un traductor jurado valora tu documento antes de cerrarte el presupuesto.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de alemán?",
           answer:
-            "El plazo lo confirma el traductor jurado en el presupuesto, normalmente el mismo día.",
+            "De alemán a español, 48 horas desde el pago. En otros documentos, el plazo lo confirma el traductor jurado en el presupuesto, normalmente el mismo día.",
         },
         {
           question: "¿Se necesita Apostilla para usar una traducción jurada en Alemania, Austria o Suiza?",

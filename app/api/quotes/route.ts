@@ -1,3 +1,4 @@
+import { PAGE_TARIFF_MARK } from "@/lib/pricing-engine/page-pricing";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
@@ -170,6 +171,9 @@ export async function POST(req: Request) {
           total: totals.total,
           adminCreatedBy: access.email,
           expedienteRef,
+          // Marca de la tarifa por página DE→ES (el builder solo la manda si todas
+          // las filas siguen tal cual las dejó el motor). Cualquier otro valor se ignora.
+          ...(body.autoPricedBy === PAGE_TARIFF_MARK ? { autoPricedBy: PAGE_TARIFF_MARK } : {}),
           marginPct: parsed.data.marginPct,
           paymentMethods: parsed.data.paymentMethods,
           contactWhatsapp: parsed.data.contactWhatsapp,

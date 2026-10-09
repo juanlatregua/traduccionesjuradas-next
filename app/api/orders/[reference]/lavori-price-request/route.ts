@@ -7,6 +7,7 @@ import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 import {
   lavoriLangFromPair,
   lavoriManualRoute,
+  isCasaPair,
   fetchLavoriCartera,
   buildPriceRequestPayload,
   bridgeDescription,
@@ -99,7 +100,7 @@ export async function POST(req: Request, { params }: Params) {
     const route = cartera ? lavoriManualRoute(order.langPair, cartera.miembros) : null;
     if (!route || (route.candidatos.length === 0 && !Array.isArray(body?.candidatos))) {
       return NextResponse.json(
-        { ok: false, error: `El par "${order.langPair}" no tiene jurados en el tablón de lavori.` },
+        { ok: false, error: `El par "${order.langPair}" no tiene jurados en el tablón de lavori que puedan recibirlo (con papel único firmado, canal y libres).` },
         { status: 400 }
       );
     }
@@ -108,6 +109,14 @@ export async function POST(req: Request, { params }: Params) {
       const q = await prisma.quote.findUnique({ where: { id: order.quoteId }, select: { expedienteRef: true } });
       const duplicado = await findLiveLavoriDuplicate({ par: route.par, quoteId: order.quoteId, expedienteRef: q?.expedienteRef ?? null });
       if (duplicado) return NextResponse.json({ ok: false, error: liveDuplicateMessage(duplicado) }, { status: 409 });
+    }
+    // Francés = Juan: desde la ficha solo sale a lavori con jurados elegidos a mano (staff).
+    const forzarCasa = Array.isArray(body?.candidatos) && (body.candidatos as unknown[]).length > 0;
+    if (isCasaPair(order.langPair) && !forzarCasa) {
+      return NextResponse.json(
+        { ok: false, error: `El par "${order.langPair}" lo jura la casa: no sale a lavori salvo eligiendo jurados a mano.` },
+        { status: 400 }
+      );
     }
     const eleccion = resolveLavoriCandidatos(route, body?.candidatos, cartera!.miembros);
     if (!eleccion.ok) {
@@ -173,7 +182,7 @@ export async function POST(req: Request, { params }: Params) {
           especificaciones,
           documentos,
         });
-    const result = await sendLavoriSolicitud(payload);
+    const result = await sendLavoriSolicitud(payload, { forzarCasa });
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 502 });
     }

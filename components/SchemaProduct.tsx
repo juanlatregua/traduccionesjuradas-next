@@ -1,5 +1,9 @@
 
 type Offer = {
+  name?: string; // p. ej. «1 página», «1 página apostillada»
+  // false = el precio NO incluye IVA (se añade priceSpecification con
+  // valueAddedTaxIncluded=false). Solo para tarifas FR→ES / DE→ES con «+ IVA».
+  vatIncluded?: boolean;
   price: string;
   priceCurrency: string;
   availability?: string;
@@ -68,8 +72,19 @@ export function SchemaProduct({ name, description, category, sku, offers }: Sche
     image: ["https://www.traduccionesjuradas.net/api/og"],
     offers: offers.map((o) => ({
       "@type": "Offer",
+      name: o.name,
       price: o.price,
       priceCurrency: o.priceCurrency,
+      ...(o.vatIncluded === false
+        ? {
+            priceSpecification: {
+              "@type": "UnitPriceSpecification",
+              price: o.price,
+              priceCurrency: o.priceCurrency,
+              valueAddedTaxIncluded: false,
+            },
+          }
+        : {}),
       priceValidUntil: `${new Date().getFullYear()}-12-31`,
       availability: o.availability || "https://schema.org/InStock",
       url: o.url,

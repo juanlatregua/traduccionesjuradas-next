@@ -129,7 +129,7 @@ export default function DocumentosAcademicosPage() {
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {[
-              { title: "DELF / DALF (fr → es)", price: "45 €", plazo: "1 día" },
+              { title: "DELF / DALF (fr → es)", price: "30 € + IVA por página (35 € si está apostillado)", plazo: "1 día" },
               {
                 title: "Título universitario esp → fr (apostillado)",
                 price: "50 €",

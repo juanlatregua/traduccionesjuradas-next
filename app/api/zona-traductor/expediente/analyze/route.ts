@@ -11,6 +11,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { runDocumentSegmentation, type SegmentedRun } from "@/lib/ai/run-analysis";
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
+import { PAGE_PRICED_LANGS } from "@/lib/pricing-engine/page-pricing";
 import { getLanguageName, isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 
 export const runtime = "nodejs";
@@ -53,7 +54,10 @@ function toBuilderDocuments(
       a.language = { ...a.language, target: targetLang, target_name: getLanguageName(targetLang) };
     }
     const foreign = resolvePriceablePair(a.language.source, a.language.target);
-    const priceable = !!foreign && isAutoPriceable(foreign);
+    // Apostilla clasificada como documento propio (fr/de): no se cobra sola; el
+    // builder le suma +5 € si acompaña a un documento por página (pairApostilles).
+    const apostilleAlone = a.document_type.specific_type === "apostille" && a.language.source !== "es" && PAGE_PRICED_LANGS.has(String(foreign));
+    const priceable = !!foreign && isAutoPriceable(foreign) && !apostilleAlone;
     const quote = priceable ? calculatePrice(a) : null;
     return {
       id: ctx.id,
@@ -77,14 +81,24 @@ function toBuilderDocuments(
       absorbedPages: d.absorbedPages ?? null,
       complexity: a.complexity.level,
       confidence: a.document_type.confidence,
-      basePrice: quote ? quote.basePrice : null,
+      hasTables: !!a.document_metrics.has_tables,
+      apostilleSeparatePage: a.requirements?.apostille_separate_page === true,
+      // En el builder basePrice es el COSTE de la línea. Con tarifa por página
+      // DE→ES el coste es el de Morton (10/15 €/pág.) y el precio de venta va
+      // aparte en clientPrice; FR (coste 0, motor propio) conserva coste = precio.
+      basePrice: quote ? (quote.pagePricing && quote.pagePricing.costPerPage > 0 ? quote.pagePricing.costEur : quote.basePrice) : null,
+      clientPrice: quote?.pagePricing && quote.pagePricing.costPerPage > 0 ? quote.pagePricing.priceEur : null,
       totalPrice: quote ? quote.totalPrice : null,
       // El precio viene del SUELO del par (las palabras dan menos): el
       // builder lo señala para que el staff lo vea antes de enviar
       // (expedientes con varios certificados cortos suman un mínimo por doc).
       minimumApplied: quote ? quote.breakdown.minimumApplied : false,
       minimumAmount: quote ? quote.breakdown.minimumAmount : null,
-      manualPriceReason: priceable ? null : manualPriceReason(a.language.source, foreign),
+      manualPriceReason: priceable
+        ? null
+        : apostilleAlone
+          ? "Apostilla suelta: +5 € si acompaña a un documento por página; si no, precio a mano"
+          : manualPriceReason(a.language.source, foreign),
       warnings: a.warnings || [],
     };
   });
