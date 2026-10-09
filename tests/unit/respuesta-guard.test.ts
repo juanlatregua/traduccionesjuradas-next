@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { expandIdentity, liveBlock, repliedSince, replyGate, matchesIdentity, type LiveFact } from "../../lib/respuesta-guard.ts";
+import { expandIdentity, isOwnAddress, isAutoReplySubject, liveBlock, repliedSince, replyGate, matchesIdentity, type LiveFact } from "../../lib/respuesta-guard.ts";
 
 const d = (s: string) => new Date(s);
 const NOW = d("2026-10-09T12:00:00Z");
@@ -28,19 +28,37 @@ test("presupuesto vivo de hace más de 30 días, perdido o caducado no frena", (
   assert.ok(liveBlock(id, [f({})], NOW));
   assert.equal(liveBlock(id, [f({ createdAt: d("2026-08-01T00:00:00Z") })], NOW), null);
   assert.equal(liveBlock(id, [f({ status: "EXPIRED" })], NOW), null);
+  assert.equal(liveBlock(id, [f({ status: "PAID" })], NOW), null);
 });
 
-test("pedido pagado en 30 días frena; pedido pendiente de pago no", () => {
+test("pedido: IN_PROGRESS frena; PAID/DELIVERED solo si es posterior al lead; pendiente de pago no", () => {
   const id = expandIdentity({ email: "a@x.com" }, []);
   const o = (o: Partial<LiveFact>): LiveFact => ({ kind: "order", ref: "TJ-1", status: "PAID", createdAt: d("2026-10-02T00:00:00Z"), paidAt: d("2026-10-02T00:00:00Z"), email: "A@X.com", ...o });
-  assert.ok(liveBlock(id, [o({})], NOW));
+  assert.ok(liveBlock(id, [o({ status: "IN_PROGRESS" })], NOW, { leadAt: d("2026-10-05T00:00:00Z") }));
+  assert.equal(liveBlock(id, [o({})], NOW, { leadAt: d("2026-10-05T00:00:00Z") }), null);
+  assert.ok(liveBlock(id, [o({})], NOW, { leadAt: d("2026-10-01T00:00:00Z") }));
   assert.equal(liveBlock(id, [o({ status: "PENDING_PAYMENT", paidAt: null })], NOW), null);
 });
 
-test("un intermediario con muchos teléfonos no liga a nadie", () => {
-  const pairs = ["600000001", "600000002", "600000003", "600000004"].map((phone) => ({ email: "agencia@x.com", phone }));
-  const id = expandIdentity({ email: "agencia@x.com" }, pairs);
-  assert.equal(id.phones.size, 0);
+test("un solo salto: email→teléfono sí, email→teléfono→otro email no", () => {
+  const pairs = [{ email: "a@x.com", phone: "600000001" }, { email: "b@x.com", phone: "600000001" }];
+  const id = expandIdentity({ email: "a@x.com" }, pairs);
+  assert.deepEqual([...id.phones], ["600000001"]);
+  assert.deepEqual([...id.emails], ["a@x.com"]);
+});
+
+test("intermediario (contrapartes contadas aparte) no liga; buzón propio y staff se excluyen", () => {
+  const pairs = [{ email: "agencia@x.com", phone: "600000001" }];
+  const fanout = (kind: string, key: string) => (kind === "email" && key === "agencia@x.com" ? 9 : 1);
+  assert.equal(expandIdentity({ email: "agencia@x.com" }, pairs, { fanout }).phones.size, 0);
+  assert.equal(expandIdentity({ email: "hola@traduccionesjuradas.net" }, pairs, { isOwn: (e) => isOwnAddress(e) }).emails.size, 0);
+  assert.ok(isOwnAddress("x@lavori.es") && isOwnAddress("a@holabonjour.es") && isOwnAddress("juan@gmail.com", ["juan@gmail.com"]));
+  assert.equal(isOwnAddress("cliente@gmail.com"), false);
+});
+
+test("respuestas automáticas por asunto no cuentan", () => {
+  for (const s of ["Automatic reply: presupuesto", "Réponse automatique : devis", "Respuesta automática: x", "Out of Office", "Abwesenheit", "Risposta automatica"]) assert.ok(isAutoReplySubject(s), s);
+  assert.equal(isAutoReplySubject("Re: Presupuesto 2026-00236"), false);
 });
 
 test("respuesta: solo cuenta lo posterior al último contacto y de la misma persona", () => {

@@ -117,11 +117,11 @@ export async function GET(req: Request) {
       continue;
     }
     // Presupuesto vivo (p.ej. por WhatsApp, 9-oct Hella) o pedido pagado/en curso en 30 días: no se escribe.
-    // Si no se puede comprobar, tampoco (fail-safe); se marca para no reevaluarlo cada día.
+    // Si no se puede comprobar, tampoco (fail-safe).
     try {
-      const live = await findLiveBlock({ email, phone: group.find((l) => l.clientPhone)?.clientPhone });
+      const live = await findLiveBlock({ email, phone: group.find((l) => l.clientPhone)?.clientPhone }, { leadAt: new Date(Math.min(...group.map((l) => l.createdAt.getTime()))) });
       if (live) {
-        await prisma.documentAnalysis.updateMany({ where: { id: { in: group.map((l) => l.id) } }, data: { reminderSentAt: now } });
+        // Sin reminderSentAt: si el bloqueo desaparece, el lead aún puede recordarse dentro de su ventana.
         countSkip(skippedClients, "presupuesto_vivo");
         continue;
       }

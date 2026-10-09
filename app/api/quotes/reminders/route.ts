@@ -9,12 +9,13 @@ import { buildQuotePostMortem } from "@/lib/quote-post-mortem";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
 import { deduceLostReasonFor } from "@/lib/cierre";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { createReplyChecker } from "@/lib/respuesta-guard-db";
 import { replyGate } from "@/lib/respuesta-guard";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 
-const REPLIED_MARK = "cierre:cliente_contesto";
+const REPLIED_MARK = "[AVISO STAFF] cliente contestó";
 
 export const runtime = "nodejs";
 
@@ -111,12 +112,14 @@ export async function GET(req: Request) {
             { type: "REMINDER", status: { in: ["SENT", "SKIPPED", "FAILED"] } },
             { type: { in: ["PAY_LINK", "RESEND_PAY_LINK"] }, status: "SENT" },
             { channel: "WHATSAPP", status: "SENT" },
+            { subject: REPLIED_MARK },
           ],
         },
         orderBy: { createdAt: "desc" },
         take: 40,
       },
     },
+    orderBy: { sentAt: "asc" },
     take: 200,
   });
 
@@ -199,7 +202,11 @@ export async function GET(req: Request) {
     if (decision.action === "close" || decision.action === "remind_email") {
       const lastContact = decision.action === "close" ? (sentLog ? at(sentLog) : baseAt) : baseAt;
       let chk = { ok: false, replied: false };
-      if (lastContact) {
+      // Ya avisado de su respuesta tras este contacto: sigue retenido sin volver a consultar Graph
+      // (hasta que staff contacte de nuevo y mueva el último contacto).
+      const noticed = !!lastContact && quote.messageLogs.some((m) => m.subject === REPLIED_MARK && m.createdAt >= lastContact);
+      if (noticed) chk = { ok: true, replied: true };
+      else if (lastContact) {
         try {
           chk = await checkReply({ email: quote.customerEmail, phone: quote.customerPhone }, lastContact);
         } catch (err) {
@@ -467,6 +474,25 @@ export async function GET(req: Request) {
       `TraduccionesJuradas (cron presupuestos): ${remindersFailed + expiredFailed} envío(s) fallido(s) [${failedQuotes.join(", ")}].`,
       "quotes_reminders"
     ).catch(() => {});
+  }
+
+  // No se pudo comprobar si contestaron (Graph caído/sin cupo): UN aviso al día a Juan, por email y SMS.
+  if (heldUnknown > 0) {
+    try {
+      const gate = await checkRateLimit({ key: "cierre-sin-buzon", limit: 1, windowMs: 24 * 60 * 60 * 1000 });
+      if (gate.ok) {
+        const text = `${heldUnknown} presupuesto(s) no se han cerrado ni recordado porque no se pudo comprobar si el cliente contestó (error de Graph o cupo de ${40} consultas). Revisa el log de /api/quotes/reminders.`;
+        await sendMail({
+          to: process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net",
+          subject: "Cierre retenido: no se pudo leer el buzón",
+          text,
+          html: renderSimpleEmailHtml(text),
+        }).catch((err) => console.error("[quotes:reminders] aviso buzón email fallo", err));
+        await sendStaffAlertSMS(`Cierre retenido: no se pudo leer hola@ para ${heldUnknown} presupuesto(s). Revisa Graph.`, "cierre_sin_buzon").catch(() => {});
+      }
+    } catch (err) {
+      console.error("[quotes:reminders] aviso buzón falló", err);
+    }
   }
 
   return NextResponse.json({

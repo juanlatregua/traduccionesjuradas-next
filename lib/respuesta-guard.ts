@@ -22,29 +22,33 @@ function normPair(p: Pair): { e: string; ph: string } {
   return { e, ph };
 }
 
+const OWN_DOMAINS = /@(traduccionesjuradas\.net|lavori\.es|holabonjour\.es)$/i;
+
+/** Buzón propio / dominios del grupo: nunca identifican a un cliente. `extra` = EMAIL_FROM, staff… */
+export function isOwnAddress(email: string | null | undefined, extra: (string | null | undefined)[] = []): boolean {
+  const e = String(email || "").trim().toLowerCase();
+  if (!e) return false;
+  return OWN_DOMAINS.test(e) || extra.some((x) => String(x || "").trim().toLowerCase() === e);
+}
+
+export type Fanout = (kind: "email" | "phone", key: string) => number;
+
 /**
- * Identidad de una persona: lo suyo más lo que LIGAN los registros que tienen email Y teléfono a la
- * vez (presupuestos, pedidos, fichas, análisis, buzón). Un solo salto; no adivina por nombre.
+ * Identidad de una persona: lo suyo más UN salto directo: el teléfono que acompaña a su email (o el email
+ * que acompaña a su teléfono) en un mismo registro. Nunca email→teléfono→email. `fanout` cuenta (con
+ * consulta propia, no sobre `pairs`) las contrapartes distintas de cada clave: más de MAX_FANOUT = intermediario.
  */
-export function expandIdentity(seed: Pair, pairs: Pair[]): Identity {
+export function expandIdentity(seed: Pair, pairs: Pair[], opts: { isOwn?: (email: string) => boolean; fanout?: Fanout } = {}): Identity {
+  const own = opts.isOwn ?? (() => false);
+  const fan = opts.fanout ?? (() => 0);
   const s = normPair(seed);
-  const id: Identity = { emails: new Set(s.e ? [s.e] : []), phones: new Set(s.ph ? [s.ph] : []) };
-  const byEmail = new Map<string, Set<string>>();
-  const byPhone = new Map<string, Set<string>>();
-  const add = (m: Map<string, Set<string>>, k: string, v: string) => m.set(k, (m.get(k) || new Set()).add(v));
+  const e0 = s.e && !own(s.e) ? s.e : "";
+  const id: Identity = { emails: new Set(e0 ? [e0] : []), phones: new Set(s.ph ? [s.ph] : []) };
   for (const p of pairs) {
     const { e, ph } = normPair(p);
-    if (!e || !ph) continue;
-    add(byEmail, e, ph);
-    add(byPhone, ph, e);
-  }
-  for (const e of [...id.emails]) {
-    const ps = byEmail.get(e);
-    if (ps && ps.size <= MAX_FANOUT) for (const ph of ps) if ((byPhone.get(ph)?.size ?? 0) <= MAX_FANOUT) id.phones.add(ph);
-  }
-  for (const ph of [...id.phones]) {
-    const es = byPhone.get(ph);
-    if (es && es.size <= MAX_FANOUT) for (const e of es) if ((byEmail.get(e)?.size ?? 0) <= MAX_FANOUT) id.emails.add(e);
+    if (!e || !ph || own(e)) continue;
+    if (e0 && e === e0 && fan("email", e) <= MAX_FANOUT && fan("phone", ph) <= MAX_FANOUT) id.phones.add(ph);
+    if (s.ph && ph === s.ph && fan("phone", ph) <= MAX_FANOUT && fan("email", e) <= MAX_FANOUT) id.emails.add(e);
   }
   return id;
 }
@@ -64,20 +68,27 @@ export type LiveFact = {
   phone?: string | null;
 };
 
-const QUOTE_LIVE = new Set(["DRAFT", "SENT", "OPENED", "ACCEPTED", "PAID"]);
-const ORDER_LIVE = new Set(["PAID","IN_PROGRESS", "DELIVERED"]);
+const QUOTE_LIVE = new Set(["DRAFT", "SENT", "OPENED", "ACCEPTED"]);
 
-/** El hecho que frena a la puerta: presupuesto vivo, pedido en curso o pagado en los últimos `days`. */
-export function liveBlock(id: Identity, facts: LiveFact[], now: Date, days = LIVE_DAYS): LiveFact | null {
-  const since = now.getTime() - days * 864e5;
+/**
+ * Lo que frena a la puerta: presupuesto DRAFT/SENT/OPENED/ACCEPTED o pedido IN_PROGRESS de los últimos `days`,
+ * o pedido PAID/DELIVERED creado DESPUÉS del lead (`leadAt`; el que pagó antes no frena un documento nuevo).
+ */
+export function liveBlock(id: Identity, facts: LiveFact[], now: Date, opts: { days?: number; leadAt?: Date } = {}): LiveFact | null {
+  const since = now.getTime() - (opts.days ?? LIVE_DAYS) * 864e5;
   for (const f of facts) {
-    if (!matchesIdentity(id, f)) continue;
-    const at = Math.max(f.createdAt.getTime(), f.paidAt ? f.paidAt.getTime() : 0);
-    if (at < since) continue;
-    if (f.kind === "quote" ? QUOTE_LIVE.has(f.status) : ORDER_LIVE.has(f.status) || !!f.paidAt) return f;
+    if (!matchesIdentity(id, f) || f.createdAt.getTime() < since) continue;
+    if (f.kind === "quote") {
+      if (QUOTE_LIVE.has(f.status)) return f;
+    } else if (f.status === "IN_PROGRESS") return f;
+    else if ((f.status === "PAID" || f.status === "DELIVERED") && (!opts.leadAt || f.createdAt.getTime() > opts.leadAt.getTime())) return f;
   }
   return null;
 }
+
+/** Respuesta automática (no cuenta como que el cliente contestó). */
+export const AUTO_REPLY_SUBJECT = /automatic reply|r[ée]ponse automatique|respuesta autom[aá]tica|out of office|abwesenheit|risposta automatica/i;
+export const isAutoReplySubject = (subject: string | null | undefined) => AUTO_REPLY_SUBJECT.test(String(subject || ""));
 
 export type Incoming = { from?: string | null; phone?: string | null; at: Date };
 

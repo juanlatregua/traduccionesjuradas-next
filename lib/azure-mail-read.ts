@@ -3,6 +3,7 @@
 // para enviar) concedido en el App Registration de Azure AD. Si falta, Graph
 // devuelve 403 ErrorAccessDenied y la sincronización lo reporta tal cual.
 
+import { isAutoReplySubject } from "@/lib/respuesta-guard";
 import { getGraphAccessToken, getMailboxAddress, isEmailConfigured } from "@/lib/azure-mail";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
@@ -68,13 +69,14 @@ export async function listInboxMessages(opts: {
   return rows.map(toSummary).filter((m) => m.fromEmail);
 }
 
-/** ¿Ha escrito `email` a la bandeja desde `since`? Una consulta con $top=1 (sin listar el buzón). Lanza si Graph falla. */
+/** ¿Ha escrito `email` a la bandeja desde `since`? Una consulta con $top=5 (sin listar el buzón; ignora respuestas automáticas por asunto). Lanza si Graph falla. */
 export async function hasInboxMessageFrom(email: string, since: Date): Promise<boolean> {
   const mailbox = getMailboxAddress();
   const addr = email.trim().toLowerCase().replace(/'/g, "''");
   const filter = encodeURIComponent(`from/emailAddress/address eq '${addr}' and receivedDateTime ge ${since.toISOString()}`);
-  const data = await graphGet(`/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages?$top=1&$filter=${filter}&$select=id`);
-  return Array.isArray(data.value) && data.value.length > 0;
+  const data = await graphGet(`/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages?$top=5&$filter=${filter}&$select=id,subject`);
+  const rows: any[] = Array.isArray(data.value) ? data.value : [];
+  return rows.some((m) => !isAutoReplySubject(m.subject));
 }
 
 export interface SentMessageSummary {
