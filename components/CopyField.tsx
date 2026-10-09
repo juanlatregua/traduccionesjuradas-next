@@ -10,6 +10,9 @@ type CopyFieldProps = {
   actionLabel?: string;
   actionHref?: string;
   onCopied?: (label: string) => void;
+  copyLabel?: string;
+  copyingLabel?: string;
+  errorLabel?: string;
 };
 
 async function copyText(value: string) {
@@ -42,6 +45,9 @@ export default function CopyField({
   actionLabel,
   actionHref,
   onCopied,
+  copyLabel = "Copiar",
+  copyingLabel = "Copiando...",
+  errorLabel = "No se pudo copiar.",
 }: CopyFieldProps) {
   const [copying, setCopying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +59,7 @@ export default function CopyField({
       await copyText(copyValue || value);
       onCopied?.(label);
     } catch {
-      setError("No se pudo copiar.");
+      setError(errorLabel);
     } finally {
       setCopying(false);
     }
@@ -61,7 +67,7 @@ export default function CopyField({
 
   return (
     <div className="rounded-xl border border-cream bg-white px-3 py-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-graphite">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{label}</p>
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <p className={`min-w-0 flex-1 break-all text-sm text-encre ${mono ? "font-mono" : ""}`}>{value}</p>
         {actionHref && actionLabel && (
@@ -69,7 +75,7 @@ export default function CopyField({
             href={actionHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg border border-cream px-2 py-1 text-xs font-semibold text-sepia hover:bg-cream"
+            className="inline-flex min-h-[44px] items-center rounded-lg border border-cream px-3 text-sm font-semibold text-sepia hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu"
           >
             {actionLabel}
           </a>
@@ -78,13 +84,13 @@ export default function CopyField({
           type="button"
           onClick={handleCopy}
           disabled={copying}
-          className="rounded-lg border border-cream px-2 py-1 text-xs font-semibold text-sepia hover:bg-cream disabled:opacity-60"
-          aria-label={`Copiar ${label}`}
+          className="min-h-[44px] rounded-lg border border-cream px-3 text-sm font-semibold text-sepia hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu disabled:opacity-60"
+          aria-label={`${copyLabel} ${label}`}
         >
-          {copying ? "Copiando..." : "Copiar"}
+          {copying ? copyingLabel : copyLabel}
         </button>
       </div>
-      {error && <p className="mt-1 text-xs font-semibold text-red-600">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-xs font-semibold text-red-700">{error}</p>}
     </div>
   );
 }
