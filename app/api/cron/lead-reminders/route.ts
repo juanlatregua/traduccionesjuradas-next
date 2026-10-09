@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { sendMail, isPlaceholderEmail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendClientSMS, sendStaffAlertSMS, formatPhoneSpain } from "@/lib/sms";
+import { findLiveBlock } from "@/lib/respuesta-guard-db";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
 
 
@@ -113,6 +114,20 @@ export async function GET(req: Request) {
         data: { reminderSentAt: now },
       });
       countSkip(skippedClients, verdict.reason);
+      continue;
+    }
+    // Presupuesto vivo (p.ej. por WhatsApp, 9-oct Hella) o pedido pagado/en curso en 30 días: no se escribe.
+    // Si no se puede comprobar, tampoco (fail-safe); se marca para no reevaluarlo cada día.
+    try {
+      const live = await findLiveBlock({ email, phone: group.find((l) => l.clientPhone)?.clientPhone });
+      if (live) {
+        await prisma.documentAnalysis.updateMany({ where: { id: { in: group.map((l) => l.id) } }, data: { reminderSentAt: now } });
+        countSkip(skippedClients, "presupuesto_vivo");
+        continue;
+      }
+    } catch (err) {
+      console.error(`[lead-reminders] guarda presupuesto vivo falló para ${email}, no se envía:`, err);
+      failed++;
       continue;
     }
     try {

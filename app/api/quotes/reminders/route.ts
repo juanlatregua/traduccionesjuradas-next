@@ -9,6 +9,12 @@ import { buildQuotePostMortem } from "@/lib/quote-post-mortem";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
 import { deduceLostReasonFor } from "@/lib/cierre";
+import { hasReplied, loadInboxSnapshot, type InboxSnapshot } from "@/lib/respuesta-guard-db";
+import { replyGate } from "@/lib/respuesta-guard";
+import { sendMail } from "@/lib/azure-mail";
+import { renderSimpleEmailHtml } from "@/lib/quote-messages";
+
+const REPLIED_MARK = "cierre:cliente_contesto";
 
 export const runtime = "nodejs";
 
@@ -17,6 +23,32 @@ function hasCronAuth(req: Request) {
   if (!secret) return false;
   const header = req.headers.get("x-cron-secret") || req.headers.get("authorization") || "";
   return header === secret || header === `Bearer ${secret}`;
+}
+
+// Aviso a Juan por dos canales (email + SMS) una sola vez por contacto; el rastro es un MessageLog.
+async function notifyClientReplied(
+  quote: { id: string; quoteNumber: string; customerEmail: string; customerName: string | null },
+  lastContact: Date,
+  baseUrl: string,
+  action: string,
+) {
+  try {
+    const dup = await prisma.messageLog.findFirst({ where: { quoteId: quote.id, subject: REPLIED_MARK, createdAt: { gte: lastContact } }, select: { id: true } });
+    if (dup) return;
+    const url = `${baseUrl}/zona-traductor/presupuestos/${quote.id}`;
+    const what = action === "close" ? "no se ha cerrado" : "no se le ha recordado";
+    const text = `El cliente contestó después del último contacto del presupuesto ${quote.quoteNumber} (${quote.customerName || quote.customerEmail}): ${what}. Revisa su respuesta en el buzón: ${url}`;
+    await prisma.messageLog.create({ data: { quoteId: quote.id, channel: "EMAIL", type: "INBOX_REPLY", recipient: "staff", subject: REPLIED_MARK, body: text, status: "NOTICE" } });
+    await sendMail({
+      to: process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net",
+      subject: `El cliente contestó: revisa ${quote.quoteNumber}`,
+      text,
+      html: renderSimpleEmailHtml(text),
+    }).catch((err) => console.error("[quotes:reminders] aviso email fallo", err));
+    await sendStaffAlertSMS(`Cliente contesto (${quote.quoteNumber}): ${what}. Revisa: ${url}`, `cliente_contesto ${quote.quoteNumber}`).catch(() => {});
+  } catch (err) {
+    console.error("[quotes:reminders] aviso respuesta falló", quote.quoteNumber, err);
+  }
 }
 
 export async function GET(req: Request) {
@@ -44,6 +76,9 @@ export async function GET(req: Request) {
   let expiredFailed = 0;
   const failedQuotes: string[] = [];
   const skippedClients: Record<string, number> = {}; // ya pagó / ya es cliente: no se le escribe
+  let heldReplied = 0; // el cliente contestó después del último contacto: ni cierre ni recordatorio, aviso a Juan
+  let heldUnknown = 0; // no se pudo leer el buzón: fail-safe, no se cierra ni recuerda en esta ejecución
+  let inboxSnap: InboxSnapshot | null = null; // UNA lectura de hola@ por ejecución, perezosa
   let smsSkipped = 0; // CLIENT_SMS=off o número con 2+ SMS FAILED en 7 días
 
   const candidates = await prisma.quote.findMany({
@@ -157,6 +192,32 @@ export async function GET(req: Request) {
     if (decision.action === "none") {
       if (!sentLog && failedLog && now.getTime() - failedLog.createdAt.getTime() < 20 * 3_600_000) failedHeld += 1;
       continue;
+    }
+    // Si el cliente escribió después del último contacto (email a hola@ o WhatsApp entrante), no se
+    // cierra ni se recuerda (9-oct, Hella 2026-00236: cerrado a las 12:00 tras contestar). Sin poder
+    // leer el buzón, tampoco: fail-safe.
+    if (decision.action === "close" || decision.action === "remind_email") {
+      const lastContact = decision.action === "close" ? (sentLog ? at(sentLog) : baseAt) : baseAt;
+      inboxSnap ??= await loadInboxSnapshot(now);
+      let replied = false;
+      if (lastContact && inboxSnap.ok) {
+        try {
+          replied = await hasReplied({ email: quote.customerEmail, phone: quote.customerPhone }, lastContact, inboxSnap);
+        } catch (err) {
+          console.error("[quotes:reminders] comprobar respuesta falló", quote.quoteNumber, err);
+          inboxSnap = { ok: false, msgs: [] };
+        }
+      }
+      const gate = replyGate({ action: decision.action, replied, inboxOk: inboxSnap.ok && !!lastContact });
+      if (gate === "hold_unknown") {
+        heldUnknown += 1;
+        continue;
+      }
+      if (gate === "hold_replied") {
+        heldReplied += 1;
+        await notifyClientReplied(quote, lastContact!, baseUrl, decision.action);
+        continue;
+      }
     }
     // Cierre suave: lostReason es un campo existente; el status NO cambia a EXPIRED, así que el
     // cliente puede pagar si vuelve dentro de validUntil (y pagar limpia estas marcas).
@@ -415,6 +476,8 @@ export async function GET(req: Request) {
     remindersSent,
     remindersFailed,
     softClosed,
+    heldReplied,
+    heldUnknown,
     failedHeld,
     whatsappTasks,
     lostAuto,

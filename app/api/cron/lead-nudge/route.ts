@@ -7,6 +7,7 @@ import { isPlaceholderEmail } from "@/lib/azure-mail";
 import { isStaffEmail } from "@/lib/staff-access";
 import { SITE_BASE_URL } from "@/lib/contact";
 import { resolveLocale } from "@/lib/i18n/locales";
+import { findLiveBlock } from "@/lib/respuesta-guard-db";
 import { createReviewToken, groupNudgeLeads, nudgeSkipReason } from "@/lib/lead-nudge";
 
 export const runtime = "nodejs";
@@ -87,6 +88,13 @@ export async function GET(req: Request) {
       });
       if (why) {
         skip(why);
+        continue;
+      }
+
+      // Quien ya tiene un presupuesto vivo (aunque sea por WhatsApp) o un pedido pagado/en curso no es un lead.
+      const live = await findLiveBlock({ email: g.email, phone: g.rows.find((r) => r.clientPhone)?.clientPhone });
+      if (live) {
+        skip("presupuesto-vivo");
         continue;
       }
 

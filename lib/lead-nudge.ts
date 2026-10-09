@@ -11,6 +11,7 @@ export type NudgeRow = {
   id: string;
   clientEmail: string | null;
   clientName: string | null;
+  clientPhone?: string | null;
   sessionToken: string | null;
   fileName: string;
   documentType: string | null;
