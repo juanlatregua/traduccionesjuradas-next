@@ -8,7 +8,6 @@ import {
   hashValue,
   isQuotePayableStatus,
   normalizeQuoteStatus,
-  calculateEtaDate,
   type QuoteStatus,
 } from "@/lib/quotes";
 import QuoteProofCta from "@/components/QuoteProofCta";
@@ -19,7 +18,7 @@ import QuoteFeedbackForm from "@/components/QuoteFeedbackForm";
 import QuoteDocumentsViewer from "@/components/QuoteDocumentsViewer";
 import QuoteJourney from "@/components/QuoteJourney";
 import { billingLockState, getSavedQuoteBilling } from "@/lib/quote-billing";
-import { billingLocked, COMPLETION_EVENT, completionBlobPrefix, isPendingCompletion, isWhatsappPlaceholder, payPhase, pickBillingPrefill } from "@/lib/q-journey";
+import { billingLocked, COMPLETION_EVENT, completionBlobPrefix, isPendingCompletion, isWhatsappPlaceholder, payPhase, pickBillingPrefill, quoteDeliveryTerm } from "@/lib/q-journey";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { pickPublicLang, publicDict, statusLabel, localeFor } from "@/lib/quote-public-i18n";
 import { buildSignedOrderUrl } from "@/lib/order-token";
@@ -171,6 +170,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
         select: { fiscalName: true, companyName: true, nif: true, address: true, city: true, postalCode: true, country: true },
       },
       deliveryTerm: true,
+      notesLegal: true,
       vatRate: true,
       orders: {
         orderBy: { createdAt: "desc" },
@@ -246,8 +246,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   const confirming = phase === "confirming";
   const partial = phase === "partial";
   const vatIncluded = Number(refreshed.vatRate) > 0;
-  const etaDate = calculateEtaDate({ from: refreshed.paidAt ?? new Date(), deliveryType: refreshed.deliveryType });
-  const etaText = refreshed.deliveryTerm?.trim() || etaDate.toLocaleDateString(loc, { day: "numeric", month: "long" });
+  const deliveryTerm = quoteDeliveryTerm(refreshed);
   const orderRef = (refreshed.orders.find((o) => o.paymentStatus === "PAID") ?? refreshed.orders[0])?.reference ?? null;
   let trackUrl: string | null = null;
   if (orderRef) {
@@ -508,9 +507,11 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 </li>
               ))}
             </ol>
-            <p className="mt-3 text-sm text-encre">
-              {t.paidEta}: <strong>{refreshed.deliveryTerm?.trim() || etaDate.toLocaleDateString(loc, { day: "numeric", month: "long", year: "numeric" })}</strong>
-            </p>
+            {deliveryTerm && (
+              <p className="mt-3 text-sm text-encre">
+                {t.paidEta}: <strong>{deliveryTerm}</strong>
+              </p>
+            )}
             {trackUrl && (
               <a
                 href={trackUrl}
@@ -547,11 +548,14 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                     </p>
                   )}
                 </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{t.etaLabel}</p>
-                  <p className="text-base font-semibold text-encre">{etaText}</p>
-                  {!refreshed.deliveryTerm?.trim() && <p className="text-xs text-sepia">{t.etaFromPayment}</p>}
-                </div>
+                {deliveryTerm ? (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{t.etaLabel}</p>
+                    <p className="text-base font-semibold text-encre">{deliveryTerm}</p>
+                  </div>
+                ) : (
+                  <div aria-hidden="true" />
+                )}
                 <a
                   href="#pago"
                   className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-bleu px-5 py-3 text-sm font-semibold text-white hover:bg-bleu-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu focus-visible:ring-offset-2"

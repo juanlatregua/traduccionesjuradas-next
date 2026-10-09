@@ -262,3 +262,11 @@ export function payPhase(input: { paidAt: Date | null; paidParam: boolean; balan
   if (input.paidAt) return input.balance > 0 && !input.balancePaidAt ? "partial" : "paid";
   return input.paidParam ? "confirming" : "open";
 }
+
+// Plazo escrito del presupuesto: Quote.deliveryTerm o, si falta, «Plazo de entrega: …» en las notas legales. Sin plazo no se muestra entrega.
+export function quoteDeliveryTerm(q: { deliveryTerm?: string | null; notesLegal?: string | null }): string | null {
+  const direct = q.deliveryTerm?.trim();
+  if (direct) return direct;
+  const m = q.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
+  return m ? m[1].trim() || null : null;
+}

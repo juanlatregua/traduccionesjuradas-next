@@ -18,6 +18,7 @@ import {
   isPendingCompletion,
   parseCompletionFiles,
   payPhase,
+  quoteDeliveryTerm,
   pickBillingPrefill,
   validateBilling,
   validateCompletionFiles,
@@ -235,4 +236,10 @@ test("payPhase: dos plazos con el segundo pendiente es partial", () => {
   const d = new Date();
   assert.equal(payPhase({ paidAt: d, paidParam: true, balance: 60, balancePaidAt: null }), "partial");
   assert.equal(payPhase({ paidAt: d, paidParam: true, balance: 60, balancePaidAt: d }), "paid");
+});
+
+test("quoteDeliveryTerm: deliveryTerm, luego notesLegal, y sin plazo es null", () => {
+  assert.equal(quoteDeliveryTerm({ deliveryTerm: " 2-3 días hábiles " }), "2-3 días hábiles");
+  assert.equal(quoteDeliveryTerm({ deliveryTerm: null, notesLegal: "Validez 15 días. Plazo de entrega: 4 días hábiles. Otra nota" }), "4 días hábiles");
+  assert.equal(quoteDeliveryTerm({ deliveryTerm: "", notesLegal: "Sin plazo" }), null);
 });
