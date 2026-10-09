@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPayLinkEmail, buildWhatsAppPayText, cardPayUrl } from "../../lib/quote-messages.ts";
+import { buildPayLinkEmail, buildWhatsAppPayText, buildPaidDigitalEmail, buildPaidPaperEmail, cardPayUrl } from "../../lib/quote-messages.ts";
 
 const base = {
   name: "Marta",
   payUrl: "https://www.traduccionesjuradas.net/q/abc123",
-  proofUrl: "https://www.traduccionesjuradas.net/q/abc123?paso=justificante",
+  totalEur: 90,
+  deliveryTerm: "2-3 días hábiles",
 };
 
 test("enlace de tarjeta solo para /q/ y respetando la query", () => {
@@ -15,28 +16,60 @@ test("enlace de tarjeta solo para /q/ y respetando la query", () => {
   assert.equal(cardPayUrl("no es url"), null);
 });
 
-test("email del presupuesto: corto, en usted, con tarjeta", () => {
-  const { body } = buildPayLinkEmail({ ...base, translatorName: "Ana Ruiz", translatorMaec: "1234", paymentMethods: ["sabadell"] });
-  assert.match(body, /^Estimado\/a Marta:\n\nLe enviamos el presupuesto de su traducción jurada \(lo realiza Ana Ruiz, traductor\/a-intérprete jurado\/a nº 1234\)\./);
-  assert.match(body, /Pagar con tarjeta: https:\/\/www\.traduccionesjuradas\.net\/q\/abc123\?pago=tarjeta\nVer el presupuesto: https:\/\/www\.traduccionesjuradas\.net\/q\/abc123\n/);
-  assert.match(body, /También puede pagar:\n1\. por transferencia a Banco Sabadell/);
-  assert.match(body, /adjunte el justificante aquí/);
-  assert.match(body, /Un saludo,\nJuan Silva — TraduccionesJuradas\.net$/);
-  assert.doesNotMatch(body, /escanear|tu idioma|12 €/);
+test("email del presupuesto: total, entrega y enlace en las 3 primeras líneas", () => {
+  const { body } = buildPayLinkEmail({ ...base, translatorName: "Ana Ruiz", translatorMaec: "1234" });
+  const [l1, l2, l3] = body.split("\n");
+  assert.equal(l1, "Estimado/a Marta:");
+  assert.match(l2, /^Total 90,00\s€ \(IVA incl\.\) · Entrega: 2-3 días hábiles$/);
+  assert.equal(l3, `Ver el presupuesto y pagar: ${base.payUrl}`);
+  assert.match(body, /La traducción la realiza Ana Ruiz, traductor\/a-intérprete jurado\/a nº 1234\./);
+  assert.match(body, /Juan Silva — TraduccionesJuradas\.net$/);
 });
 
-test("el envío en papel solo sale en PAPER_SHIP", () => {
-  assert.match(buildPayLinkEmail({ ...base, deliveryType: "PAPER_SHIP" }).body, /envío en papel cuesta 12 € \+ IVA/);
+test("una sola llamada a la acción: sin métodos de pago ni justificante", () => {
+  const { body } = buildPayLinkEmail(base);
+  assert.equal(body.match(/https?:\/\//g)?.length, 1);
+  assert.doesNotMatch(body, /Sabadell|Bizum|IBAN|justificante|tarjeta/i);
+});
+
+test("plazo por defecto según entrega y papel solo en PAPER_SHIP", () => {
+  assert.match(buildPayLinkEmail({ ...base, deliveryTerm: null }).body, /Entrega: 2 días hábiles desde el pago/);
+  const paper = buildPayLinkEmail({ ...base, deliveryTerm: null, deliveryType: "PAPER_SHIP" }).body;
+  assert.match(paper, /Entrega: 3 días hábiles/);
+  assert.match(paper, /envío en papel \(12 € \+ IVA\)/);
   assert.doesNotMatch(buildPayLinkEmail({ ...base, deliveryType: "DIGITAL_PDF" }).body, /papel/);
 });
 
-test("enlace de pedido (no /q/): sin línea de tarjeta", () => {
-  const { body } = buildPayLinkEmail({ ...base, payUrl: "https://www.traduccionesjuradas.net/pedido/2026-1?t=firma" });
-  assert.doesNotMatch(body, /tarjeta/);
-  assert.match(body, /Puede pagar:/);
+test("no residente UE: no dice IVA incluido", () => {
+  assert.doesNotMatch(buildPayLinkEmail({ ...base, vatExempt: true }).body, /IVA incl/);
 });
 
-test("WhatsApp: línea de tarjeta si es /q/", () => {
-  assert.match(buildWhatsAppPayText({ name: "Marta", payUrl: base.payUrl }), /Pagar con tarjeta: .*\?pago=tarjeta/);
-  assert.doesNotMatch(buildWhatsAppPayText({ name: "Marta", payUrl: "https://x.es/pedido/1" }), /tarjeta/);
+test("idioma del cliente: inglés, y los desconocidos caen a inglés", () => {
+  const en = buildPayLinkEmail({ ...base, lang: "en", deliveryTerm: null });
+  assert.equal(en.subject, "Your sworn translation quote");
+  assert.match(en.body, /Total .*90\.00.* \(VAT incl\.\) · Delivery: 2 business days from payment/);
+  assert.match(buildPayLinkEmail({ ...base, lang: "ru" }).body, /\(VAT incl\.\)/);
+  assert.match(buildPayLinkEmail({ ...base, lang: "fr" }).body, /^Bonjour Marta,/);
+});
+
+test("WhatsApp: saludo, total·entrega y un solo enlace", () => {
+  const text = buildWhatsAppPayText({ ...base, translatorName: "Ana Ruiz" });
+  const lines = text.split("\n");
+  assert.equal(lines[0], "Hola Marta 👋");
+  assert.match(lines[1], /Total 90,00\s€ \(IVA incl\.\) · Entrega: 2-3 días hábiles/);
+  assert.equal(lines[2], `Ver el presupuesto y pagar: ${base.payUrl}`);
+  assert.equal(text.match(/https?:\/\//g)?.length, 1);
+});
+
+test("email de pago recibido: referencia, fecha, seguimiento y contacto, en el idioma", () => {
+  const etaDate = new Date("2026-10-14T10:00:00Z");
+  const es = buildPaidDigitalEmail({ name: "Marta", etaDate, quoteNumber: "P-2026-0042", trackUrl: base.payUrl });
+  assert.match(es.body, /Referencia: P-2026-0042/);
+  assert.match(es.body, /Fecha estimada de entrega: 14 de octubre de 2026/);
+  assert.match(es.body, /Siga su pedido aquí: https:\/\/www\.traduccionesjuradas\.net\/q\/abc123/);
+  assert.match(es.body, /hola@traduccionesjuradas\.net/);
+  const fr = buildPaidPaperEmail({ name: "Luc", etaDate, quoteNumber: "P-1", lang: "fr" });
+  assert.match(fr.subject, /Paiement reçu/);
+  assert.match(fr.body, /Date de livraison estimée: 14 octobre 2026/);
+  assert.match(fr.body, /24\/48 h/);
 });
