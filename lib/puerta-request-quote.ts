@@ -192,7 +192,7 @@ export async function routePuertaQuoteRequest(input: {
     } else {
       // Carril directo (orden Juan 25-ago/15-sep/21-sep): para ciertas lenguas hay
       // jurado(s) DIRECTO(s) — la solicitud va SOLO a ellos y, con la primera
-      // cifra, se monta el borrador (+20 %) que revisa Juan; nunca sale solo al
+      // cifra, se monta el borrador (regla de margen única) que revisa Juan; nunca sale solo al
       // cliente. No depende de LAVORI_LEAD_AUTO_LANGS. Si falla el envío, cae a
       // la lógica normal (auto-lang / one-tap) sin romper.
       const directos = lead && leadLang ? await directMembersFor(leadLang).catch(() => []) : [];
@@ -225,7 +225,7 @@ export async function routePuertaQuoteRequest(input: {
           esDirecto = true;
           lavoriSent = { lang: leadLang!, langName: getLanguageName(leadLang!) };
           const nombres = directos.map((d) => d.nombre).join(", ");
-          lavoriEmail = `✓ Solicitud DIRECTA a ${nombres} (ref ${directoReq.ref}). Con la primera cifra y plazo se monta el BORRADOR (+20 %, suelo 40 €/doc) y te aviso; no sale solo al cliente. Si en 6 h laborables nadie cotiza, te aviso para que decidas (no se reabre sola).`;
+          lavoriEmail = `✓ Solicitud DIRECTA a ${nombres} (ref ${directoReq.ref}). Con la primera cifra y plazo se monta el BORRADOR (regla de margen: ≥10 €, tope +60 %, suelo 40 €/doc) y te aviso; no sale solo al cliente. Si en 6 h laborables nadie cotiza, te aviso para que decidas (no se reabre sola).`;
           lavoriSms = `✓ Directa a ${nombres} (lavori)`;
         }
       }

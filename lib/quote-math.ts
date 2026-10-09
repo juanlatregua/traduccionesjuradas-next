@@ -63,6 +63,28 @@ export function clientPriceFromCost(
   return round2(cost * (1 + marginPctForCost(cost) / 100));
 }
 
+// ── Regla de margen del precio AUTOMÁTICO no-FR (Juan, 9-oct-2026) ──────────
+// Por documento/línea, sobre el coste real sin IVA:
+//   precio = max(suelo, min(coste × 1,60, max(coste × (1 + marginPctForCost/100), coste + 10)))
+// mínimo 10 € de margen, tope +60 % sobre coste, y el suelo (40 €/doc) gana al tope.
+// UNA sola función para auto-envío/relleno con la cifra del jurado, tarifario aprendido,
+// funnel lavori-directo y el precio de la puerta/estimador. FR queda fuera (motor de Juan);
+// los precios manuales del constructor y el freno de margen (10 %) no pasan por aquí.
+export const AUTO_MIN_MARGIN_EUR = 10;
+export const AUTO_MAX_MARKUP = 1.6;
+export const AUTO_DOC_FLOOR_EUR = 40;
+
+export function autoClientPriceFromCost(costEur: number, floorEur: number = AUTO_DOC_FLOOR_EUR): number {
+  const cost = Number.isFinite(costEur) ? Math.max(0, costEur) : 0;
+  const withMargin = Math.max(cost * (1 + marginPctForCost(cost) / 100), cost + AUTO_MIN_MARGIN_EUR);
+  return round2(Math.max(floorEur, Math.min(cost * AUTO_MAX_MARKUP, withMargin)));
+}
+
+/** Misma regla en céntimos (sin redondeo extra; el llamador redondea a 0,50 si lo hacía). */
+export function autoClientPriceCentsFromCost(costCents: number, floorCents: number = AUTO_DOC_FLOOR_EUR * 100): number {
+  return Math.round(autoClientPriceFromCost(costCents / 100, floorCents / 100) * 100);
+}
+
 export function computeQuoteTotals(params: {
   lines: QuoteLineInput[];
   discountType: QuoteDiscountType;

@@ -732,7 +732,7 @@ async function handleLeadEvento(opts: {
 
       // Funnel directo (Juan 15/21-sep-2026): esta solicitud fue SOLO a los
       // jurados directos de su lengua y aún no tiene presupuesto atado → el
-      // primer precio monta el BORRADOR (+20 % sobre su base) y se avisa a staff;
+      // primer precio monta el BORRADOR (regla de margen única sobre su base) y se avisa a staff;
       // nunca sale solo al cliente. Claim atómico para que dos eventos casi
       // simultáneos no monten dos borradores.
       let directoResultado:
@@ -805,7 +805,7 @@ async function handleLeadEvento(opts: {
         ? (() => {
             const margen = borradorDirecto.subtotalEur - borradorDirecto.costEur;
             const pct = borradorDirecto.costEur > 0 ? (margen / borradorDirecto.costEur) * 100 : 0;
-            return `coste base ${borradorDirecto.costEur.toFixed(2)} € · venta sugerida ${borradorDirecto.subtotalEur.toFixed(2)} € netos (+20 %, suelo 40 €/doc) · margen ${margen.toFixed(2)} € (${pct.toFixed(0)} %)`;
+            return `coste base ${borradorDirecto.costEur.toFixed(2)} € · venta sugerida ${borradorDirecto.subtotalEur.toFixed(2)} € netos (regla de margen: ≥10 €, tope +60 %, suelo 40 €/doc) · margen ${margen.toFixed(2)} € (${pct.toFixed(0)} %)`;
           })()
         : "";
       const subject = cifraCambiadaTrasEnvio

@@ -4,6 +4,8 @@
 // cliente y servidor usen exactamente los mismos números.
 // Mismo espíritu que lib/quote-math.ts.
 
+import { autoClientPriceCentsFromCost } from "./quote-math.ts";
+
 export const LEARNED_MARGIN_PCT = 12; // margen sobre coste del jurado (horquilla Juan 10-15 %)
 export const DOC_FLOOR_CENTS = 4000; // 40 € netos mínimo por documento (regla Juan 26-ago)
 export const WORD_UNIT_MIN_WORDS = 1000; // desde aquí (y más de 2 páginas) la tarifa se aprende por 1000 palabras
@@ -32,14 +34,20 @@ export function priceDocWithRate(
   rate: { unit: string; costCents: number; clientCents: number | null },
   words: number | null
 ) {
-  const perUnitClient = rate.clientCents ?? Math.round(rate.costCents * (1 + LEARNED_MARGIN_PCT / 100));
+  // Tarifa con precio cliente aprendido/aprobado (clientCents): se respeta. Sin él, el precio sale
+  // de la regla única sobre el COSTE DEL DOCUMENTO (autoClientPriceFromCost, 9-oct-2026).
   if (rate.unit === "kword") {
     const w = Math.max(1, words || 0);
-    const client = Math.max(DOC_FLOOR_CENTS, roundUp50((w * perUnitClient) / 1000));
     const cost = Math.round((w * rate.costCents) / 1000);
+    const client = rate.clientCents != null
+      ? Math.max(DOC_FLOOR_CENTS, roundUp50((w * rate.clientCents) / 1000))
+      : roundUp50(autoClientPriceCentsFromCost(cost, DOC_FLOOR_CENTS));
     return { clientCents: client, costCents: cost };
   }
-  return { clientCents: Math.max(DOC_FLOOR_CENTS, roundUp50(perUnitClient)), costCents: rate.costCents };
+  const client = rate.clientCents != null
+    ? Math.max(DOC_FLOOR_CENTS, roundUp50(rate.clientCents))
+    : roundUp50(autoClientPriceCentsFromCost(rate.costCents, DOC_FLOOR_CENTS));
+  return { clientCents: client, costCents: rate.costCents };
 }
 
 /** Margen en % sobre el coste. 0 si no hay coste (una tarifa sin coste real no tarifica sola). */

@@ -12,7 +12,12 @@
 //    antecedentes, apostillas…). Contratos, escrituras y textos largos siguen
 //    por palabra. ES→FR y ES→DE no se tocan (solo originales extranjeros).
 
-import { clientPriceFromCost, round2 } from "../quote-math.ts";
+import { autoClientPriceFromCost, isFrenchForeign, round2 } from "../quote-math.ts";
+
+/** Precio cliente sin IVA desde el COSTE del motor: FR tal cual; no-FR con la regla única (sin suelo propio: el motor ya aplica sus mínimos). */
+export function clientPriceFromEngineCost(cost: number, foreignLang: string | null | undefined): number {
+  return isFrenchForeign(foreignLang) ? round2(cost) : autoClientPriceFromCost(cost, 0);
+}
 
 export const PAGE_PRICE_EUR = 30;
 export const PAGE_PRICE_DE_TABLES_EUR = 35;
@@ -118,11 +123,11 @@ type QuoteLike = { basePrice: number; urgentPrice: number; pagePricing?: PagePri
 /** Precio CLIENTE sin IVA de un Quote del motor. Con tarifa por página el motor
  * ya devuelve el precio de venta (no un coste): NO se le añade el margen tiered. */
 export function clientBaseFromQuote(quote: QuoteLike, foreignLang: string | null | undefined): number {
-  return quote.pagePricing ? round2(quote.basePrice) : clientPriceFromCost(quote.basePrice, foreignLang);
+  return quote.pagePricing ? round2(quote.basePrice) : clientPriceFromEngineCost(quote.basePrice, foreignLang);
 }
 
 export function clientUrgentFromQuote(quote: QuoteLike, foreignLang: string | null | undefined): number {
-  return quote.pagePricing ? round2(quote.urgentPrice) : clientPriceFromCost(quote.urgentPrice, foreignLang);
+  return quote.pagePricing ? round2(quote.urgentPrice) : clientPriceFromEngineCost(quote.urgentPrice, foreignLang);
 }
 
 /** ¿Esta línea de presupuesto (precio cliente, coste del traductor) es la

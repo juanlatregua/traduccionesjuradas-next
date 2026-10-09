@@ -4,10 +4,12 @@
 // (cifra + plazo), el presupuesto se monta con +20 % sobre su BASE. Puro, sin
 // imports de servidor — mismo espíritu que lib/learned-rates-math.ts.
 
+import { autoClientPriceCentsFromCost } from "./quote-math.ts";
 import { DOC_FLOOR_CENTS, SIZE_TOLERANCE, roundUp50, canAutoQuote, priceDocWithRate } from "./learned-rates-math.ts";
 
 export { DOC_FLOOR_CENTS, roundUp50, canAutoQuote };
 
+/** @deprecated Sustituido por la regla única autoClientPriceFromCost (lib/quote-math.ts, 9-oct-2026). Solo informativo. */
 export const DIRECT_MARGIN_PCT = 20;
 export const DIRECT_AUTO_MAX_CENTS = 30000; // 300 € netos, tope del carril directo
 export const DIRECT_FALLBACK_HOURS = 6; // horas LABORABLES (08-21 Madrid), ver workingHoursMadrid
@@ -107,8 +109,8 @@ export function proposedCostCents(docs: CifraDoc[], basis: PriceBasis): number |
 /** Reparte la base del jurado entre los documentos del expediente, proporcional
  * a palabras (a partes iguales si algún documento no trae palabras). El último
  * documento absorbe el redondeo para que la suma de costes sea EXACTA. Precio
- * al cliente por documento: +20 % sobre su coste, con el mismo suelo de 40 €
- * netos/doc del tarifario aprendido. */
+ * al cliente por documento: regla única autoClientPriceFromCost (lib/quote-math.ts),
+ * con el suelo de 40 € netos/doc. */
 export function spreadCents(baseCents: number, weights: number[]): number[] {
   const n = weights.length;
   if (n === 0) return [];
@@ -131,11 +133,11 @@ export function spreadCents(baseCents: number, weights: number[]): number[] {
 
 /** Precio al cliente de una línea cuando ya se conoce el coste real del jurado:
  * manda el precio del MOTOR (el que Juan ya tiene puesto en el borrador) y solo
- * se sube si con ese precio el margen no llega (+20 %, suelo de 40 €/doc).
+ * se sube si con ese precio no llega a la regla única autoClientPriceFromCost.
  * `floorCents` = 0 en las líneas de tarifa por página DE→ES (8-oct-2026): ahí el
  * suelo por documento no aplica. */
 export function clientCentsWithMotorPrice(motorCents: number, costCents: number, floorCents: number = DOC_FLOOR_CENTS): number {
-  const minimo = Math.max(floorCents, roundUp50(costCents * (1 + DIRECT_MARGIN_PCT / 100)));
+  const minimo = roundUp50(autoClientPriceCentsFromCost(costCents, floorCents));
   if (motorCents <= 0) return minimo;
   return canAutoQuote(motorCents, costCents) && motorCents >= minimo ? motorCents : minimo;
 }
@@ -149,7 +151,7 @@ export function directQuoteLines(
   const costs = spreadCents(baseCents, docs.map((d) => (d.words && d.words > 0 ? d.words : 0)));
   return costs.map((costCents) => ({
     costCents,
-    clientCents: Math.max(DOC_FLOOR_CENTS, roundUp50(costCents * (1 + DIRECT_MARGIN_PCT / 100))),
+    clientCents: roundUp50(autoClientPriceCentsFromCost(costCents, DOC_FLOOR_CENTS)),
   }));
 }
 

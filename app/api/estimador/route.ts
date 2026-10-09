@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { analyzeDocumentForBudget, normalizeOcrText } from "@/lib/ai-document";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
-import { isFrenchForeign, marginPctForCost } from "@/lib/quote-math";
+import { isFrenchForeign, autoClientPriceFromCost } from "@/lib/quote-math";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -831,8 +831,8 @@ export async function POST(req: Request) {
     // francés sin margen. Sustituye al antiguo colchón SAFETY_MARGIN del 10% y
     // alinea el estimador con la puerta (que ya cobra IVA). Ver lib/quote-math.ts.
     const subtotal = Math.round(base * urgencyMultiplier);
-    const marginPct = isFrenchForeign(lang) ? 0 : marginPctForCost(subtotal);
-    const withMargin = Math.round(subtotal * (1 + marginPct / 100));
+    const withMargin = isFrenchForeign(lang) ? subtotal : Math.round(autoClientPriceFromCost(subtotal, 0));
+    const marginPct = subtotal > 0 ? Math.round(((withMargin - subtotal) / subtotal) * 100) : 0;
     const total = Math.round(withMargin * (1 + 0.21));
 
     const ai = analyzeDocumentForBudget(extraction.text, words);

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
-import { isFrenchForeign, marginPctForCost } from "@/lib/quote-math";
+import { isFrenchForeign, autoClientPriceFromCost } from "@/lib/quote-math";
 import { MAX_INLINE_UPLOAD_BYTES, FILE_TOO_LARGE_MSG, parseEstimadorResponse } from "@/lib/upload-limits";
 
 type Lang = "fr" | "de" | "en" | "it" | "pt" | "nl" | "ca" | "sv" | "no";
@@ -340,8 +340,9 @@ export default function PriceEstimator() {
     const subtotal = Math.round(base * (fileUrgency === "urgente24" ? 1.25 : 1));
     // Misma fórmula que el backend (/api/estimador): coste × (1 + margen tiered)
     // × IVA; francés sin margen. Mantener en paridad con la ruta por archivo.
-    const marginPct = isFrenchForeign(fileLangPair) ? 0 : marginPctForCost(subtotal);
-    const total = Math.round(Math.round(subtotal * (1 + marginPct / 100)) * 1.21);
+    const withMargin = isFrenchForeign(fileLangPair) ? subtotal : Math.round(autoClientPriceFromCost(subtotal, 0));
+    const marginPct = subtotal > 0 ? Math.round(((withMargin - subtotal) / subtotal) * 100) : 0;
+    const total = Math.round(withMargin * 1.21);
     setResult({
       total,
       base,

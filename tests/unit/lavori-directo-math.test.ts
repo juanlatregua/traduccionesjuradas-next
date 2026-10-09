@@ -35,11 +35,10 @@ test("Daniela 62 € payable, 2 docs 100/75 pal: base 5849, Σcost exacto y suel
   const sumCost = lines.reduce((a, l) => a + l.costCents, 0);
   assert.equal(sumCost, base, "la suma de costes tiene que ser EXACTA (el último absorbe el redondeo)");
   for (const l of lines) assert.ok(l.clientCents >= DOC_FLOOR_CENTS, "nunca por debajo del suelo de 40 €");
-  // Reparto proporcional a palabras (100/175 y 75/175): el primero queda justo
-  // por encima del punto donde el suelo deja de mandar (3342 × 1,20 → 4050
-  // tras roundUp50); el segundo se queda en el suelo (2507 × 1,20 = 3050 < 4000).
+  // Reparto proporcional a palabras (100/175 y 75/175). Regla única (9-oct): 33,42 € × 1,30 = 43,45
+  // → 43,50 tras roundUp50; 25,07 € → 35,07 (mín. +10 €) < suelo 40 €.
   assert.deepEqual(lines.map((l) => l.costCents), [3342, 2507]);
-  assert.deepEqual(lines.map((l) => l.clientCents), [4050, 4000]);
+  assert.deepEqual(lines.map((l) => l.clientCents), [4350, 4000]);
 });
 
 test("Morton 10 € base, 1 doc: suelo de 40 € manda", () => {
@@ -50,11 +49,11 @@ test("Morton 10 € base, 1 doc: suelo de 40 € manda", () => {
   assert.equal(lines[0].clientCents, 4000);
 });
 
-test("Lourdes 140 € base, 1 doc: +20 % ya está por encima del suelo", () => {
+test("Lourdes 140 € base, 1 doc: regla única (25 % al ser coste 100-190) por encima del suelo", () => {
   const base = channelPriceToBaseCents(14000, "base");
   const lines = directQuoteLines(base, [{ words: 900 }]);
   assert.equal(lines[0].costCents, 14000);
-  assert.equal(lines[0].clientCents, 16800);
+  assert.equal(lines[0].clientCents, 17500);
 });
 
 test("sin palabras en algún documento, reparto a partes iguales", () => {
@@ -98,12 +97,12 @@ test("el precio del motor manda salvo que el margen no dé", async () => {
   const { clientCentsWithMotorPrice } = await import("../../lib/lavori-directo-math.ts");
   // Motor 120 €, coste real 50 € → se respeta el motor (margen de sobra).
   assert.equal(clientCentsWithMotorPrice(12000, 5000), 12000);
-  // Motor 55 €, coste 50 € → margen insuficiente: sube a la regla (+20 %, redondeo 50 c).
-  assert.equal(clientCentsWithMotorPrice(5500, 5000), 6000);
+  // Motor 55 €, coste 50 € → margen insuficiente: sube a la regla única (65 €).
+  assert.equal(clientCentsWithMotorPrice(5500, 5000), 6500);
   // Motor por debajo del suelo de 40 €/doc con coste pequeño → suelo.
   assert.equal(clientCentsWithMotorPrice(2500, 1000), 4000);
   // Sin precio del motor → regla pura.
-  assert.equal(clientCentsWithMotorPrice(0, 10000), 12000);
+  assert.equal(clientCentsWithMotorPrice(0, 10000), 12500);
 });
 
 // Cifra propuesta al jurado (orden Juan 21-sep-2026): el coste del tarifario

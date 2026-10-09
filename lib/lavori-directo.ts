@@ -2,7 +2,7 @@
 //
 // Para ciertas lenguas hay jurado(s) DIRECTO(s). La puerta les lanza la
 // solicitud de precio SOLO a ellos; cuando llega el PRIMER precio_propuesto
-// (cifra + plazo), tj.net monta el borrador con +20 % sobre la BASE del jurado
+// (cifra + plazo), tj.net monta el borrador con la regla de margen única sobre la BASE del jurado
 // (suelo 40 €/doc) y avisa a staff. Nunca lo envía al cliente: lo monta Juan si
 // el jurado confirma (orden 21-sep-2026). Si nadie cotiza en 6 h, la solicitud
 // se reabre a todos los jurados de la lengua (escalateStaleDirectRequests,
@@ -116,7 +116,7 @@ export type AutoQuoteFromDirectPriceResult =
   | { ok: false; reason: string };
 
 /** El PRIMER precio de un jurado directo ya llegó (precio_propuesto): monta el
- * borrador con +20 % sobre su base, atado a la solicitud. Siempre DRAFT: nunca
+ * borrador con la regla de margen única sobre su base, atado a la solicitud. Siempre DRAFT: nunca
  * sale solo al cliente (orden Juan 21-sep-2026). */
 export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuoteFromDirectPriceResult> {
   const lead = await prisma.lavoriPriceRequest.findUnique({ where: { id: leadId } });
