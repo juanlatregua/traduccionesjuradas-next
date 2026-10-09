@@ -114,33 +114,59 @@ export async function runAgentePrecios(now = new Date()): Promise<RunResult> {
   for (const a of plan.approvals) {
     const { rate, verdict } = a;
     // Condición en el UPDATE: si Juan la vetó o pausó entre la lectura y ahora, no se toca.
-    const res = await prisma.learnedRate.updateMany({ where: { id: rate.id, status: "CANDIDATE" }, data: { status: "APPROVED", clientCents: verdict.clientCents } });
-    if (res.count === 0) continue;
-    await prisma.learnedRateSample.create({
-      data: { rateId: rate.id, kind: "auto_approve", costCents: verdict.costCents, clientCents: verdict.priceCents, note: `auto-aprobada: ${verdict.samples} muestras, dispersión ${verdict.dispersionPct.toFixed(0)} %, margen ${verdict.marginPct.toFixed(0)} %` },
+    // Cambio de estado y muestra de rastro, o las dos cosas o ninguna.
+    const done = await prisma.$transaction(async (tx) => {
+      const res = await tx.learnedRate.updateMany({ where: { id: rate.id, status: "CANDIDATE" }, data: { status: "APPROVED", clientCents: verdict.clientCents } });
+      if (res.count === 0) return false;
+      await tx.learnedRateSample.create({
+        data: { rateId: rate.id, kind: "auto_approve", costCents: verdict.costCents, clientCents: verdict.priceCents, note: `auto-aprobada: ${verdict.samples} muestras, dispersión ${verdict.dispersionPct.toFixed(0)} %, margen ${verdict.marginPct.toFixed(0)} %` },
+      });
+      return true;
     });
+    if (!done) continue;
   }
 
   for (const d of plan.degradations) {
     const { rate, verdict } = d;
-    const res = await prisma.learnedRate.updateMany({ where: { id: rate.id, status: "APPROVED" }, data: { status: "CANDIDATE" } });
-    if (res.count === 0) continue;
-    await prisma.learnedRateSample.create({
-      data: { rateId: rate.id, kind: "auto_degrade", costCents: rate.costCents, clientCents: null, note: `degradada: ${verdict.reason}` },
+    const done = await prisma.$transaction(async (tx) => {
+      const res = await tx.learnedRate.updateMany({ where: { id: rate.id, status: "APPROVED" }, data: { status: "CANDIDATE" } });
+      if (res.count === 0) return false;
+      await tx.learnedRateSample.create({
+        data: { rateId: rate.id, kind: "auto_degrade", costCents: rate.costCents, clientCents: null, note: `degradada: ${verdict.reason}` },
+      });
+      return true;
     });
-    if (verdict.cause === "coste_sube") {
+    if (!done) continue;
+    if (verdict.cause === "coste_sube" || verdict.cause === "coste_baja") {
       const label = rateKeyLabel(rate);
       const manual = verdict.handManaged ? " (aprobada/fijada por ti)" : "";
-      await alertTwoChannels(
-        `⚠ Tarifa ${label} degradada: el coste sube`,
-        [
+      const sube = verdict.cause === "coste_sube";
+      if (sube) {
+        await alertTwoChannels(
+          `⚠ Tarifa ${label} degradada: el coste sube`,
+          [
+            `La tarifa ${label}${manual} vuelve a CANDIDATE porque ${verdict.reason}. Deja de presupuestar sola hasta que la revises.`,
+            `Ahora: coste ${eur(rate.costCents)} · cliente ${eur(rate.clientCents)} · jurado ${rate.miembroNombre || "—"}.`,
+            `Revisar: https://www.traduccionesjuradas.net/zona-traductor/tarifario`,
+          ],
+          `Tarifa ${label}${manual} degradada: coste ${eur(verdict.fromCents)} → ${eur(verdict.toCents)}. Ya no presupuesta sola. Revisar en /zona-traductor/tarifario`,
+          `tarifa_degradada ${rate.id}`
+        );
+      } else {
+        // El coste baja: no se pierde dinero, basta un canal (email).
+        const { sendMail } = await import("@/lib/azure-mail");
+        const lines = [
           `La tarifa ${label}${manual} vuelve a CANDIDATE porque ${verdict.reason}. Deja de presupuestar sola hasta que la revises.`,
           `Ahora: coste ${eur(rate.costCents)} · cliente ${eur(rate.clientCents)} · jurado ${rate.miembroNombre || "—"}.`,
           `Revisar: https://www.traduccionesjuradas.net/zona-traductor/tarifario`,
-        ],
-        `Tarifa ${label}${manual} degradada: coste ${eur(verdict.fromCents)} → ${eur(verdict.toCents)}. Ya no presupuesta sola. Revisar en /zona-traductor/tarifario`,
-        `tarifa_degradada ${rate.id}`
-      );
+        ];
+        await sendMail({
+          to: process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net",
+          subject: `Tarifa ${label} degradada: el coste baja`,
+          text: lines.join("\n"),
+          html: lines.map((l) => `<p>${l}</p>`).join(""),
+        }).catch((e) => console.error("[agente-precios] mail fallo", e));
+      }
     }
   }
 

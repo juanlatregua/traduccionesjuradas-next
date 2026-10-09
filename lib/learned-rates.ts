@@ -244,7 +244,8 @@ export async function recordSample(
     rate = await prisma.learnedRate.update({
       where: { id: existing.id },
       data: {
-        ...(cost != null && sample.kind !== "auto_quote" ? { costCents: cost } : {}),
+        // Ni el precio de un presupuesto (auto_quote) ni un pago del cliente dicen lo que cobra el jurado.
+        ...(cost != null && sample.kind !== "auto_quote" && sample.kind !== "client_paid" ? { costCents: cost } : {}),
         ...(client != null && sample.kind !== "auto_quote" && !keepAutoPrice ? { clientCents: client } : {}),
         wordsRef,
         ...(sample.plazoDias ? { plazoDias: sample.plazoDias } : {}),

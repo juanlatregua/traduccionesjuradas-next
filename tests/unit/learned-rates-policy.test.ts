@@ -19,11 +19,11 @@ import { isAutoPriceable } from "../../lib/pricing-engine/languages.ts";
 const NOW = new Date("2026-10-09T08:00:00Z");
 const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000);
 const rate = (o: Partial<PolicyRate> = {}): PolicyRate => ({
-  lang: "de", direction: "to_es", docType: "birth_certificate", unit: "doc",
+  lang: "pt", direction: "to_es", docType: "birth_certificate", unit: "doc",
   costCents: 3000, clientCents: null, wordsRef: 250, status: "CANDIDATE", lastSampleAt: daysAgo(2), ...o,
 });
 const cost = (c: number, d: number, extra: Partial<PolicySample> = {}): PolicySample => ({ kind: "translator_price", costCents: c, clientCents: null, at: daysAgo(d), ...extra });
-const good = (): PolicySample[] => [cost(3000, 40), cost(3100, 20), cost(3000, 5, { accepted: true })];
+const good = (): PolicySample[] => [cost(3000, 40), cost(3000, 20), cost(3000, 5, { accepted: true })];
 
 test("auto-aprueba con 3 muestras, dispersión baja y un encargo aceptado; precio = regla de margen", () => {
   const v = evaluateAutoApprove(rate(), good(), NOW, isAutoPriceable);
@@ -41,14 +41,14 @@ test("el precio auto sale de autoClientPriceFromCost (tramos, +10 € mínimo)",
 });
 
 test("nunca francés, ni ru/uk, ni lenguas fuera de isAutoPriceable", () => {
-  for (const lang of ["fr", "ru", "uk", "he"]) {
+  for (const lang of ["fr", "de", "ru", "uk", "he"]) {
     const v = evaluateAutoApprove(rate({ lang }), good(), NOW, isAutoPriceable);
     assert.equal(v.ok, false, lang);
   }
 });
 
 test("menos de 3 muestras en 90 días no aprueba (las viejas no cuentan)", () => {
-  const v = evaluateAutoApprove(rate(), [cost(3000, 200), cost(3000, 120), cost(3000, 5, { accepted: true }), cost(3000, 3)], NOW, isAutoPriceable);
+  const v = evaluateAutoApprove(rate(), [cost(3000, 200), cost(3000, 120, { accepted: true }), cost(3000, 5), cost(3000, 3)], NOW, isAutoPriceable);
   assert.equal(v.ok, false);
 });
 
@@ -149,8 +149,43 @@ test("conversión y kill-switch", () => {
 });
 
 test("«a un paso» solo si falta un requisito y, de muestras, solo una", () => {
-  const dos = evaluateAutoApprove(rate(), [cost(3000, 20), cost(3000, 5, { accepted: true })], NOW, isAutoPriceable);
+  const dos = evaluateAutoApprove(rate(), [cost(3000, 200, { accepted: true }), cost(3000, 20), cost(3000, 5)], NOW, isAutoPriceable);
   assert.equal(!dos.ok && dos.near, true);
   const una = evaluateAutoApprove(rate(), [cost(3000, 5, { accepted: true })], NOW, isAutoPriceable);
   assert.equal(!una.ok && una.near, false);
+});
+
+// ── Revisión opus (9-oct): solo cuenta lo que el jurado pidió ───────────────
+test("semillas, ajustes manuales y pagos del cliente NO cuentan como muestras de coste", () => {
+  const falsas: PolicySample[] = [
+    { kind: "seed", costCents: 3000, clientCents: null, at: daysAgo(30) },
+    { kind: "manual", costCents: 3000, clientCents: null, at: daysAgo(20) },
+    { kind: "client_paid", costCents: 3000, clientCents: 4000, at: daysAgo(5), accepted: true },
+  ];
+  const v = evaluateAutoApprove(rate(), falsas, NOW, isAutoPriceable);
+  assert.equal(v.ok, false);
+  assert.match(!v.ok ? v.reason : "", /0\/3 precios del jurado/);
+});
+
+test("bastan 2 precios del jurado si uno es de un encargo aceptado; 2 sin aceptado, no", () => {
+  const dos = [cost(3000, 20), cost(3000, 5, { accepted: true })];
+  assert.equal(evaluateAutoApprove(rate(), dos, NOW, isAutoPriceable).ok, true);
+  const sinAcept = [cost(3000, 20), cost(3000, 5), { kind: "client_paid", costCents: null, clientCents: 4000, at: daysAgo(1), accepted: true } as PolicySample];
+  assert.equal(evaluateAutoApprove(rate(), sinAcept, NOW, isAutoPriceable).ok, false);
+  assert.equal(evaluateAutoApprove(rate(), [cost(3000, 5, { accepted: true })], NOW, isAutoPriceable).ok, false);
+});
+
+test("no aprueba si el coste de la tarifa está por debajo del máximo pedido por el jurado", () => {
+  const muestras = [cost(3000, 40), cost(3300, 20), cost(3000, 5, { accepted: true })];
+  const bajo = evaluateAutoApprove(rate({ costCents: 3000 }), muestras, NOW, isAutoPriceable);
+  assert.equal(bajo.ok, false);
+  assert.match(!bajo.ok ? bajo.reason : "", /por debajo del máximo/);
+  const igual = evaluateAutoApprove(rate({ costCents: 3300 }), muestras, NOW, isAutoPriceable);
+  assert.equal(igual.ok, true);
+});
+
+test("coste que baja > 15 % degrada (coste_baja); justo -15 % no", () => {
+  const v = evaluateDegrade(rate({ status: "APPROVED" }), [...autoMarked(), cost(2400, 1)], NOW);
+  assert.equal(v.degrade && v.cause, "coste_baja");
+  assert.equal(evaluateDegrade(rate({ status: "APPROVED" }), [...autoMarked(), cost(2550, 1)], NOW).degrade, false);
 });

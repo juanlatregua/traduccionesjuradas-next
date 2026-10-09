@@ -70,7 +70,12 @@ export function canAutoQuote(clientCents: number, costCents: number) {
 export const AUTO_WINDOW_DAYS = 90;
 export const AUTO_MIN_SAMPLES = 3;
 export const AUTO_MAX_DISPERSION = 0.15; // max/min − 1 del coste en la ventana
+export const AUTO_MIN_SAMPLES_ACCEPTED = 2; // con un encargo aceptado/pagado entre ellas bastan 2
 export const AUTO_COST_RISE = 0.15; // muestra de coste > 15 % por encima del aprobado → degrada
+export const AUTO_COST_DROP = 0.15; // muestra de coste > 15 % por debajo del aprobado → degrada y avisa
+// Idiomas con tarifa por página publicada (lib/pricing-engine/page-pricing.ts PAGE_PRICED_LANGS):
+// su precio no sale del tarifario aprendido. Duplicado a propósito: este módulo no importa nada.
+export const AUTO_EXCLUDED_LANGS = new Set(["fr", "de", "ru", "uk"]);
 export const LEGACY_RISE_WINDOW_DAYS = 14; // sin marca de aprobación solo se mira lo reciente
 
 export type PolicySample = {
@@ -99,6 +104,11 @@ const MARK_KINDS = new Set(["auto_approve", "auto_degrade", "manual_approve", "m
 const DAY = 86_400_000;
 
 const byTime = (a: PolicySample, b: PolicySample) => a.at.getTime() - b.at.getTime();
+
+/** Muestras que prueban lo que cobra el jurado: SOLO su precio (translator_price). */
+export function translatorSamplesIn(samples: PolicySample[], now: Date, days = AUTO_WINDOW_DAYS) {
+  return costSamplesIn(samples, now, days).filter((s) => s.kind === "translator_price");
+}
 
 export function costSamplesIn(samples: PolicySample[], now: Date, days = AUTO_WINDOW_DAYS) {
   const since = now.getTime() - days * DAY;
@@ -146,17 +156,23 @@ export function evaluateAutoApprove(
   isPriceableLang: (lang: string) => boolean
 ): AutoApproveVerdict {
   if (rate.status !== "CANDIDATE") return { ok: false, reason: `estado ${rate.status}` };
-  if (rate.lang === "fr") return { ok: false, reason: "francés: motor de Juan" };
+  if (AUTO_EXCLUDED_LANGS.has(rate.lang)) return { ok: false, reason: `${rate.lang}: precio propio (casa, tarifa por página o fuera de la auto-tarificación)` };
   if (rate.lang === "es" || !isPriceableLang(rate.lang)) return { ok: false, reason: `idioma ${rate.lang} no auto-presupuestable` };
   if (rate.unit !== "doc" && rate.unit !== "kword") return { ok: false, reason: `unidad ${rate.unit} no válida` };
   if (isPausedByHand(samples)) return { ok: false, reason: "pausada a mano por Juan" };
 
-  const cost = costSamplesIn(samples, now);
+  // Solo cuentan como prueba de coste los precios que el jurado propuso (translator_price):
+  // una semilla, un ajuste manual o un pago del cliente no demuestran lo que cobra.
+  const cost = translatorSamplesIn(samples, now);
   const accepted = samples.some((s) => s.accepted);
   const dispersion = costDispersion(cost);
+  const maxCost = cost.length ? Math.max(...cost.map((s) => s.costCents!)) : 0;
   const fails: string[] = [];
-  if (cost.length < AUTO_MIN_SAMPLES) fails.push(`${cost.length}/${AUTO_MIN_SAMPLES} muestras de coste en ${AUTO_WINDOW_DAYS} d`);
+  const enough = cost.length >= AUTO_MIN_SAMPLES || (cost.length >= AUTO_MIN_SAMPLES_ACCEPTED && cost.some((s) => s.accepted));
+  if (!enough) fails.push(`${cost.length}/${AUTO_MIN_SAMPLES} precios del jurado en ${AUTO_WINDOW_DAYS} d (bastan ${AUTO_MIN_SAMPLES_ACCEPTED} si uno es de un encargo aceptado/pagado)`);
   if (cost.length > 0 && dispersion > AUTO_MAX_DISPERSION) fails.push(`dispersión de coste ${(dispersion * 100).toFixed(0)} % (máx ${AUTO_MAX_DISPERSION * 100} %)`);
+  // Nunca se aprueba con un coste por debajo del máximo que el jurado ha pedido: se frena y lo revisa Juan.
+  if (maxCost > 0 && rate.costCents < maxCost) fails.push(`coste de la tarifa ${(rate.costCents / 100).toFixed(2)} € por debajo del máximo pedido por el jurado (${(maxCost / 100).toFixed(2)} €)`);
   if (!accepted) fails.push("sin encargo aceptado ni presupuesto pagado");
 
   const fixed = handFixedClientCents(samples);
@@ -167,7 +183,7 @@ export function evaluateAutoApprove(
 
   if (fails.length > 0) {
     // «A un paso»: falla un solo requisito y, si es el de muestras, solo falta una.
-    const near = fails.length === 1 && (cost.length >= AUTO_MIN_SAMPLES || cost.length === AUTO_MIN_SAMPLES - 1);
+    const near = fails.length === 1 && (enough || cost.length === AUTO_MIN_SAMPLES - 1);
     return { ok: false, reason: fails.join("; "), near };
   }
   return { ok: true, costCents: rate.costCents, clientCents: fixed, priceCents: p.clientCents, marginPct: marginPctOf(p.clientCents, p.costCents), samples: cost.length, dispersionPct: dispersion * 100 };
@@ -175,7 +191,7 @@ export function evaluateAutoApprove(
 
 export type DegradeVerdict =
   | { degrade: false }
-  | { degrade: true; cause: "coste_sube" | "sin_muestras"; handManaged: boolean; reason: string; fromCents?: number; toCents?: number };
+  | { degrade: true; cause: "coste_sube" | "coste_baja" | "sin_muestras"; handManaged: boolean; reason: string; fromCents?: number; toCents?: number };
 
 /** ¿Debe una APPROVED volver a CANDIDATE? VETOED y CANDIDATE no se tocan. */
 export function evaluateDegrade(rate: PolicyRate, samples: PolicySample[], now: Date): DegradeVerdict {
@@ -209,6 +225,21 @@ export function evaluateDegrade(rate: PolicyRate, samples: PolicySample[], now: 
         fromCents: ref,
         toCents: worst.costCents!,
         reason: `llegó un coste de ${(worst.costCents! / 100).toFixed(2)} € (+${((worst.costCents! / ref - 1) * 100).toFixed(0)} %) sobre el aprobado ${(ref / 100).toFixed(2)} €`,
+      };
+    }
+  }
+
+  // (a2) un coste nuevo > 15 % por debajo del aprobado: la tarifa ya no refleja lo que cobra el jurado.
+  if (ref) {
+    const low = fresh.reduce<PolicySample | null>((m, s) => (!m || s.costCents! < m.costCents! ? s : m), null);
+    if (low && low.costCents! * 100 < ref * Math.round(100 - AUTO_COST_DROP * 100)) {
+      return {
+        degrade: true,
+        cause: "coste_baja",
+        handManaged,
+        fromCents: ref,
+        toCents: low.costCents!,
+        reason: `llegó un coste de ${(low.costCents! / 100).toFixed(2)} € (${((low.costCents! / ref - 1) * 100).toFixed(0)} %) bajo el aprobado ${(ref / 100).toFixed(2)} €`,
       };
     }
   }
