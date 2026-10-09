@@ -21,7 +21,6 @@ import { canAutoQuote } from "@/lib/learned-rates-math";
 import { workingHoursMadrid,
   DIRECT_AUTO_MAX_CENTS,
   DIRECT_FALLBACK_HOURS,
-  DIRECT_MARGIN_PCT,
   channelPriceToBaseCents,
   directQuoteLines,
   isAnomalousPrice,
@@ -188,6 +187,7 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
   }
 
   const subtotalCents = docLines.reduce((a, l) => a + l.clientCents, 0);
+  const costTotalCents = docLines.reduce((a, l) => a + l.costCents, 0);
   if (subtotalCents > DIRECT_AUTO_MAX_CENTS) {
     avisos.push(`importe ${(subtotalCents / 100).toFixed(2)} € por encima del tope del funnel directo (${(DIRECT_AUTO_MAX_CENTS / 100).toFixed(2)} €)`);
   }
@@ -212,7 +212,7 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
     deliveryTerm,
     sourceLang,
     targetLang,
-    marginPct: DIRECT_MARGIN_PCT,
+    marginPct: costTotalCents > 0 ? Math.round(((subtotalCents - costTotalCents) / costTotalCents) * 100) : 0,
     autoPricedBy: "lavori-directo",
     adminCreatedBy: "system:lavori-directo",
     channelPriceSource: "lavori-directo",

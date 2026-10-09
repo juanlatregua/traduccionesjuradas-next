@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
-import { isLearnedRatesLive, LEARNED_MARGIN_PCT, DOC_FLOOR_CENTS, AUTO_QUOTE_MAX_CENTS } from "@/lib/learned-rates";
+import { isLearnedRatesLive, DOC_FLOOR_CENTS, AUTO_QUOTE_MAX_CENTS } from "@/lib/learned-rates";
 import TarifarioTable, { type TarifarioRow } from "@/components/TarifarioTable";
 
 export const metadata: Metadata = {
@@ -73,7 +73,7 @@ export default async function TarifarioPage() {
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            Reglas: margen {LEARNED_MARGIN_PCT} % sobre el coste si nadie ha pagado aún · mínimo {(DOC_FLOOR_CENTS / 100).toFixed(0)} € netos por documento ·
+            Reglas: margen por tramos (30/25/20 % según coste, mínimo 10 €, tope +60 % sobre coste) si nadie ha pagado aún · suelo {(DOC_FLOOR_CENTS / 100).toFixed(0)} € netos por documento ·
             tope automático {(AUTO_QUOTE_MAX_CENTS / 100).toFixed(0)} € netos · tarifa por documento solo si el tamaño es parecido (±30 %) ·
             por 1000 palabras desde 600 palabras · CLI: <code className="text-slate-400">scripts/tarifario.ts</code>.
           </p>

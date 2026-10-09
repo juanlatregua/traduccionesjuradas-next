@@ -666,6 +666,8 @@ export async function autoQuoteFromPuertaSession(opts: {
   const subtotalCents = priced.reduce((a, p) => a + p.clientCents, 0);
   if (subtotalCents > AUTO_QUOTE_MAX_CENTS) return { ok: false, reason: `importe ${(subtotalCents / 100).toFixed(2)} € por encima del tope automático` };
 
+  const costTotalCents = priced.reduce((a, p) => a + p.costCents, 0);
+  const realMarginPct = costTotalCents > 0 ? Math.round(((subtotalCents - costTotalCents) / costTotalCents) * 100) : 0;
   const sourceLang = infos[0].direction === "to_es" ? infos[0].lang : "es";
   const targetLang = infos[0].direction === "to_es" ? "es" : infos[0].lang;
   const plazo = Math.max(0, ...priced.map((p) => p.rate.plazoDias || 0));
@@ -686,7 +688,7 @@ export async function autoQuoteFromPuertaSession(opts: {
     deliveryTerm,
     sourceLang,
     targetLang,
-    marginPct: LEARNED_MARGIN_PCT,
+    marginPct: realMarginPct,
     autoPricedBy: "tarifario",
     adminCreatedBy: "system:tarifario",
     channelPriceSource: "learned-rate",
