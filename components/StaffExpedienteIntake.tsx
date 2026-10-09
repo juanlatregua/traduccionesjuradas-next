@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS } from "@/lib/quote-pdf-langs";
 import { upload } from "@vercel/blob/client";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors, Merge } from "lucide-react";
-import { clientPriceFromCost, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
+import { autoClientPriceFromCost, clientPriceFromCost, isFrenchForeign, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { PAGE_PRICED_LANGS, APOSTILLE_EXTRA_EUR, PAGE_TARIFF_MARK, pairApostilles } from "@/lib/pricing-engine/page-pricing";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
@@ -888,7 +888,9 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const clientPriceOf = useCallback(
     (cost: number) =>
       marginPct === null
-        ? clientPriceFromCost(cost || 0, `${sourceLang}-${targetLang}`)
+        ? isFrenchForeign(`${sourceLang}-${targetLang}`)
+          ? clientPriceFromCost(cost || 0, `${sourceLang}-${targetLang}`)
+          : autoClientPriceFromCost(cost || 0)
         : Math.round((cost || 0) * (1 + marginPct / 100) * 100) / 100,
     [marginPct, sourceLang, targetLang]
   );
