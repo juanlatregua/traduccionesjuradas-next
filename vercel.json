@@ -47,6 +47,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/cron/agente-precios",
+      "schedule": "45 6 * * *"
+    },
+    {
       "path": "/api/cron/verifactu-flush",
       "schedule": "15 * * * *"
     },

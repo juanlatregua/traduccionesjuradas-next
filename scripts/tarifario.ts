@@ -7,7 +7,7 @@
 //   npx tsx --env-file=.env.local scripts/tarifario.ts fijar <id> --coste 25 --cliente 40 --plazo 2
 
 import { prisma } from "../lib/prisma";
-import { learnFromLeadPrice, learnFromPaidQuote, rateKeyLabel, recordSample } from "../lib/learned-rates";
+import { learnFromLeadPrice, learnFromPaidQuote, rateKeyLabel, recordSample, markRateEvent } from "../lib/learned-rates";
 
 const eur = (c: number | null | undefined) => (c == null ? "—" : `${(c / 100).toFixed(2)} €`);
 const fecha = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "—");
@@ -87,6 +87,7 @@ async function backfill() {
 
 async function setStatus(id: string, status: "APPROVED" | "VETOED") {
   const r = await prisma.learnedRate.update({ where: { id }, data: { status } });
+  if (status === "APPROVED") await markRateEvent(id, "manual_approve", r.costCents, "aprobada por CLI");
   console.log(`${rateKeyLabel(r)} → ${status}`);
 }
 

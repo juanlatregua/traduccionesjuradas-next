@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { recordSample } from "@/lib/learned-rates";
+import { recordSample, markRateEvent } from "@/lib/learned-rates";
 
 export const runtime = "nodejs";
 
@@ -25,6 +25,9 @@ export async function POST(req: Request) {
     if (action === "approve" || action === "veto" || action === "candidate") {
       const status = action === "approve" ? "APPROVED" : action === "veto" ? "VETOED" : "CANDIDATE";
       await prisma.learnedRate.update({ where: { id }, data: { status, note: rate.note } });
+      // Rastro para la política autónoma: lo aprobado a mano no caduca; lo pausado a mano no se resucita.
+      if (action === "approve") await markRateEvent(id, "manual_approve", rate.costCents, `aprobada por ${access.email}`);
+      else if (action === "candidate") await markRateEvent(id, "manual_pause", rate.costCents, `pausada por ${access.email}`);
       return NextResponse.json({ ok: true, status });
     }
     if (action === "update") {

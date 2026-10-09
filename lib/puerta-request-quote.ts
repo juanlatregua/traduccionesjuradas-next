@@ -122,10 +122,10 @@ export async function routePuertaQuoteRequest(input: {
       const n = docs.length;
       await sendMail({
         to: adminEmail,
-        subject: `🤖 Borrador del tarifario ${auto.quoteNumber} — ${auto.totalEur.toFixed(2)} € (${getLanguageName(docs[0]?.sourceLanguage || "?")})`,
+        subject: `🤖 ${auto.sent ? "Presupuesto del tarifario ENVIADO" : "Borrador del tarifario"} ${auto.quoteNumber} — ${auto.totalEur.toFixed(2)} € (${getLanguageName(docs[0]?.sourceLanguage || "?")})`,
         html: renderSimpleEmailHtml(
           [
-            `El agente de precios ha preparado el BORRADOR ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido. NO se ha enviado: revísalo y envíalo tú.`,
+            `El agente de precios ha preparado el BORRADOR ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido. ${auto.sent ? "Ha salido SOLO al cliente (LEARNED_RATES_AUTOSEND=on: guardas, margen y procedencia OK)." : `NO se ha enviado: revísalo y envíalo tú.${auto.autoSendReasons.length ? ` Motivo del auto-envío frenado: ${auto.autoSendReasons.join("; ")}.` : ""}`}`,
             `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
             auto.miembroNombre
               ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
@@ -136,13 +136,13 @@ export async function routePuertaQuoteRequest(input: {
         ),
       }).catch((err) => console.error("[puerta:request-quote] aviso auto fallo:", err));
       await sendStaffAlertSMS(
-        `🤖 Borrador tarifario ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€ (enviar tú) · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
+        `🤖 ${auto.sent ? "Tarifario ENVIADO" : "Borrador tarifario"} ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€${auto.sent ? "" : " (enviar tú)"} · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
         "puerta_auto_quote"
       ).catch(() => {});
       return out({
         ok: true,
         lavori: { sent: false },
-        quote: { sent: false, draft: true, number: auto.quoteNumber },
+        quote: { sent: auto.sent, draft: !auto.sent, number: auto.quoteNumber },
       });
     }
     console.log("[puerta:request-quote] tarifario no aplica:", auto.reason);
