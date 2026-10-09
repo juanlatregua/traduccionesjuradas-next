@@ -17,7 +17,7 @@ import { directMembersFor } from "@/lib/lavori-directo";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
 import { findRecurrentClient } from "@/lib/recurrent-client-db";
 import { recurrentLabel } from "@/lib/recurrent-client";
-import { findOpenSiblings } from "@/lib/open-siblings-db";
+import { findOpenSiblings, sameDocumentSiblingIds } from "@/lib/open-siblings-db";
 import { blockingSibling, describeSibling } from "@/lib/open-siblings";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
 
@@ -119,23 +119,36 @@ export async function routePuertaQuoteRequest(input: {
     const lead = await leadFromPuertaSession(token);
 
     // MISMA persona con otra cosa abierta (9-oct-2026: 69 casos en 60 días, 7 con dos
-    // solicitudes a lavori, 11 con dos presupuestos enviados). Mismo email y mismo par con
-    // solicitud o presupuesto abierto → NO sale otra solicitud ni otro borrador: solo aviso a
-    // Juan con [DUPLICADO?] y enlace al abierto. Solo teléfono = aviso, nunca bloqueo.
+    // solicitudes a lavori, 11 con dos presupuestos enviados). Solo se BLOQUEA si es el MISMO
+    // DOCUMENTO (huella del dup-guard) con solicitud o presupuesto abierto por el mismo email:
+    // solo aviso a Juan con [DUPLICADO?] y enlace al abierto. Misma persona y par pero otro
+    // documento → flujo normal + aviso [MISMA PERSONA]. Solo teléfono = aviso, nunca bloqueo.
     // La respuesta pública es idéntica en todos los casos.
-    const hermanos = await findOpenSiblings({
-      email: contactEmail,
-      phone: contactPhone,
-      par: lead?.sourceLang ? parFromLangs(lead.sourceLang, lead.targetLang) : null,
-      excludeSession: token,
-    });
-    const bloqueo = blockingSibling(hermanos);
+    const parLead = lead?.sourceLang ? parFromLangs(lead.sourceLang, lead.targetLang) : null;
+    const hermanos = await findOpenSiblings({ email: contactEmail, phone: contactPhone, par: parLead, excludeSession: token });
+    const mismoDoc = await sameDocumentSiblingIds(
+      hermanos,
+      (lead?.rows || []).map((r) => ({ url: r.fileUrl, hash: r.fileHash, pageCount: r.pageCount })),
+      parLead
+    );
+    const bloqueo = blockingSibling(hermanos, mismoDoc);
     const hermanosTxt = hermanos.length
-      ? `${bloqueo ? "⚠ [DUPLICADO?] NO se ha lanzado lavori ni borrador: " : "Ojo, esta persona ya tiene abierto: "}${hermanos
+      ? `${bloqueo ? "⚠ [DUPLICADO?] NO se ha lanzado lavori ni borrador: " : "[MISMA PERSONA] ya tiene abierto: "}${hermanos
           .slice(0, 3)
           .map((h) => `${describeSibling(h)} → ${h.url}`)
           .join(" · ")}`
       : "";
+    if (hermanos.length && !bloqueo) {
+      // Rastro en BD ANTES de avisar (FunnelEvent: uno por sesión y paso); el aviso [MISMA PERSONA]
+      // viaja en el email de Juan de cada rama (hermanosTxt).
+      await prisma.funnelEvent
+        .upsert({
+          where: { sessionId_step: { sessionId: `puerta:${token}`, step: "misma_persona" } },
+          create: { sessionId: `puerta:${token}`, step: "misma_persona", reference: hermanos[0].ref.slice(0, 60), metadata: { hermanos: hermanos.slice(0, 5).map((h) => h.ref) } },
+          update: {},
+        })
+        .catch((err) => console.error("[puerta:request-quote] rastro misma_persona fallo:", err));
+    }
     if (bloqueo) {
       await sendMail({
         to: adminEmail,
@@ -179,6 +192,7 @@ export async function routePuertaQuoteRequest(input: {
             `El agente de precios ha preparado el BORRADOR ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido. ${auto.sent ? "Ha salido SOLO al cliente (LEARNED_RATES_AUTOSEND=on: guardas, margen y procedencia OK)." : `NO se ha enviado: revísalo y envíalo tú.${auto.autoSendReasons.length ? ` Motivo del auto-envío frenado: ${auto.autoSendReasons.join("; ")}.` : ""}`}`,
             `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
             ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
+            ...(hermanosTxt ? [hermanosTxt] : []),
             auto.miembroNombre
               ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
               : "Sin jurado asociado a la tarifa: al pagar irá por el carril normal de lavori.",

@@ -28,6 +28,16 @@ export function emailKey(email: string | null | undefined): string {
   return String(email || "").trim().toLowerCase();
 }
 
+/** Email-marcador de los clientes solo-WhatsApp (<dígitos>@whatsapp.local): no es un email. */
+export function isPlaceholderEmailKey(email: string | null | undefined): boolean {
+  return /@whatsapp\.local$/i.test(String(email || "").trim());
+}
+
+/** emailKey, pero el email-marcador cuenta como SIN email (nunca casa por correo). */
+export function realEmailKey(email: string | null | undefined): string {
+  return isPlaceholderEmailKey(email) ? "" : emailKey(email);
+}
+
 /** Clave canónica de cualquier identidad suelta (correo o teléfono). */
 export function identityKey(value: string | null | undefined): string {
   const raw = String(value || "").trim();

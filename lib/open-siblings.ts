@@ -10,7 +10,7 @@
 // solo por TELÉFONO con email distinto = «posible»: se avisa, NUNCA se fusiona ni se
 // bloquea (enseñaría o frenaría a otra persona).
 
-import { emailKey, phoneKey } from "./client-identity.ts";
+import { realEmailKey as emailKey, phoneKey } from "./client-identity.ts";
 
 export type OpenKind = "lead" | "quote" | "lpr" | "inbox";
 
@@ -64,9 +64,13 @@ export function matchOpenSiblings(
   return out.sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
-/** Lo que frena lo automático: solicitud o presupuesto abierto, mismo par, mismo EMAIL. */
-export function blockingSibling(sibs: OpenSibling[]): OpenSibling | null {
-  return sibs.find((s) => s.via === "email" && s.samePar && (s.kind === "lpr" || s.kind === "quote")) ?? null;
+/**
+ * Lo que frena lo automático: solicitud o presupuesto abierto, mismo EMAIL y el MISMO
+ * DOCUMENTO (`sameDoc` = ids de hermanos cuya huella coincide; la calcula la capa de BD con
+ * el dup-guard). Misma persona y par pero otro documento NO bloquea: se avisa, sin bloquear.
+ */
+export function blockingSibling(sibs: OpenSibling[], sameDoc: ReadonlySet<string> = new Set()): OpenSibling | null {
+  return sibs.find((s) => s.via === "email" && (s.kind === "lpr" || s.kind === "quote") && sameDoc.has(s.id)) ?? null;
 }
 
 const CHAN_ES: Record<string, string> = {

@@ -26,6 +26,11 @@ export default async function RecurrentClientBadge({ email, phone }: { email?: s
           Varios titulares de facturación ({titulares.holders}): no se han copiado datos; confirma a quién se factura.
         </span>
       )}
+      {titulares?.kind === "company" && (
+        <span className="mt-1 block font-semibold text-rose-200">
+          Posible titular: {titulares.name}. No se han copiado datos de facturación; confirma a quién se factura.
+        </span>
+      )}
     </p>
   );
 }

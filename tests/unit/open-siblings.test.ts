@@ -9,11 +9,14 @@ const item = (o: Partial<OpenItem>): OpenItem => ({
   email: "ana@x.com", phone: "+34 658 40 41 51", url: "u", ...o,
 });
 
-test("mismo email (mayúsculas/espacios) y mismo par: hermano que bloquea", () => {
+test("mismo email (mayúsculas/espacios) y mismo documento: hermano que bloquea", () => {
   const s = matchOpenSiblings({ email: "  ANA@x.com ", par: "PT>ES" }, [item({})], { now: NOW });
   assert.equal(s.length, 1);
   assert.equal(s[0].via, "email");
-  assert.equal(blockingSibling(s)?.ref, "2026-00219");
+  assert.equal(blockingSibling(s, new Set(["q1"]))?.ref, "2026-00219");
+  // misma persona y par pero OTRO documento: no bloquea
+  assert.equal(blockingSibling(s), null);
+  assert.equal(blockingSibling(s, new Set(["otro"])), null);
   assert.equal(describeSibling(s[0], NOW), "2026-00219 (presupuesto, hace 2 h)");
 });
 
@@ -55,4 +58,16 @@ test("un lead o una conversación abiertos informan pero no bloquean; el más re
   assert.equal(s.length, 2);
   assert.equal(s[0].kind, "inbox");
   assert.equal(blockingSibling(s), null);
+});
+
+test("email-marcador @whatsapp.local = sin email: no casa por correo, solo por teléfono (posible)", () => {
+  const it = item({ email: "34658404151@whatsapp.local" });
+  const a = matchOpenSiblings({ email: "34658404151@whatsapp.local", par: "PT>ES" }, [it], { now: NOW });
+  assert.equal(a.length, 0);
+  const b = matchOpenSiblings({ email: "34658404151@whatsapp.local", phone: "+34658404151", par: "PT>ES" }, [it], { now: NOW });
+  assert.equal(b.length, 1);
+  assert.equal(b[0].via, "phone");
+  assert.equal(blockingSibling(b, new Set(["q1"])), null);
+  const c = matchOpenSiblings({ email: "ana@x.com" }, [item({ email: "WA@whatsapp.local" })], { now: NOW });
+  assert.equal(c.length, 0);
 });

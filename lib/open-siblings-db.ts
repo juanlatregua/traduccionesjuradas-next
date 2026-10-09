@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { SITE_BASE_URL } from "@/lib/contact";
-import { emailKey, phoneKey } from "@/lib/client-identity";
+import { realEmailKey as emailKey, phoneKey } from "@/lib/client-identity";
 import { matchOpenSiblings, blockingSibling, type OpenItem, type OpenSibling } from "@/lib/open-siblings";
-import { parFromLangs } from "@/lib/lavori-dup-guard";
+import { parFromLangs, lavoriContentKeys, contentKeyForQuote } from "@/lib/lavori-dup-guard";
 
 const QUOTE_OPEN = ["DRAFT", "SENT", "OPENED", "ACCEPTED"] as const;
 const LPR_OPEN = ["SENT", "PRICED", "ACCEPTED"];
@@ -111,3 +111,32 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
 }
 
 export { blockingSibling };
+
+/**
+ * Ids de los hermanos (solicitud lavori o presupuesto) que tienen el MISMO DOCUMENTO que este
+ * lead: misma huella (lib/lavori-dup-guard) y mismo par. Par desconocido o sin documentos →
+ * vacío (nunca bloquea). Nunca lanza.
+ */
+export async function sameDocumentSiblingIds(
+  sibs: OpenSibling[],
+  docs: { url: string; hash?: string | null; pageCount?: number | null }[],
+  par: string | null
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (!par || docs.length === 0) return out;
+  try {
+    const keys = new Set(lavoriContentKeys(docs, par));
+    const lprIds = sibs.filter((s) => s.kind === "lpr").map((s) => s.id);
+    if (lprIds.length) {
+      const rows = await prisma.lavoriPriceRequest.findMany({ where: { id: { in: lprIds }, contentKey: { in: Array.from(keys) } }, select: { id: true } });
+      for (const r of rows) out.add(r.id);
+    }
+    for (const q of sibs.filter((s) => s.kind === "quote")) {
+      const qk = await contentKeyForQuote(q.id, par);
+      if (qk?.some((k) => keys.has(k))) out.add(q.id);
+    }
+  } catch (err) {
+    console.error("[open-siblings] huella fallo:", err);
+  }
+  return out;
+}

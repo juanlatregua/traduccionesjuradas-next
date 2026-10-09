@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { classifyRecurrent, pickBillingToInherit, type RecurrentMatch } from "@/lib/recurrent-client";
-import { emailKey, phoneKey } from "@/lib/client-identity";
+import { emailKey, realEmailKey, phoneKey, isPlaceholderEmailKey } from "@/lib/client-identity";
 
 /** Datos de facturación de los pedidos anteriores de este email EXACTO (más reciente primero). */
 export async function billingHistoryForEmail(email: string) {
@@ -18,7 +18,9 @@ export async function billingHistoryForEmail(email: string) {
  * factura leen de ahí. Con varios titulares distintos (despacho vs particular) no se copia
  * y se devuelve "multiple" para marcarlo a staff. Por teléfono, nunca.
  */
-export async function inheritBillingFromHistory(customerId: string, email: string): Promise<"inherited" | "multiple" | "none" | "has-data"> {
+export async function inheritBillingFromHistory(customerId: string, email: string): Promise<"inherited" | "multiple" | "company" | "none" | "has-data"> {
+  // Email-marcador de WhatsApp: no es un email; nunca se hereda por teléfono.
+  if (isPlaceholderEmailKey(email)) return "none";
   const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { fiscalName: true, nif: true, address: true } });
   if (!customer) return "none";
   if ([customer.fiscalName, customer.nif, customer.address].some((v) => String(v || "").trim())) return "has-data";
@@ -32,7 +34,7 @@ export async function inheritBillingFromHistory(customerId: string, email: strin
 
 /** Cruza email/teléfono con los pedidos PAGADOS anteriores. Nunca lanza. */
 export async function findRecurrentClient(input: { email?: string | null; phone?: string | null }): Promise<RecurrentMatch> {
-  const email = emailKey(input.email);
+  const email = realEmailKey(input.email);
   const phone = phoneKey(input.phone);
   if (!email && !phone) return { kind: "none" };
   try {
@@ -44,6 +46,7 @@ export async function findRecurrentClient(input: { email?: string | null; phone?
           ...(phone ? [{ clientPhone: { not: null } }] : []),
         ],
       },
+      orderBy: { createdAt: "desc" },
       select: { reference: true, clientEmail: true, clientPhone: true, amountCents: true, paidAt: true, createdAt: true },
       take: 3000,
     });

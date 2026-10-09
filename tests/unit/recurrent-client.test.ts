@@ -47,7 +47,7 @@ test("el email manda sobre el teléfono", () => {
 
 test("línea al cliente solo si recurrente, en su idioma", () => {
   const m = classifyRecurrent({ email: "ana@ejemplo.com" }, orders);
-  assert.match(recurrentClientLine(m, "es"), /historial con nosotros; tus datos de facturación ya están puestos/);
+  assert.match(recurrentClientLine(m, "es"), /historial con nosotros\.$/);
   assert.match(recurrentClientLine(m, "fr"), /historique/);
   assert.equal(recurrentClientLine({ kind: "none" }, "es"), "");
 });
@@ -74,4 +74,21 @@ test("facturación: despacho y particular con el mismo email → varios titulare
 test("facturación: sin historial con titular no hay nada que heredar", () => {
   assert.deepEqual(pickBillingToInherit([]), { kind: "none" });
   assert.deepEqual(pickBillingToInherit([fila("  ", "")]), { kind: "none" });
+});
+
+test("titular único: particular (DNI/NIE) se hereda, empresa (CIF) solo se marca", () => {
+  const b = (nif: string, fiscalName = "X"): BillingRow => ({ fiscalName, nif, address: "a", city: "c", postalCode: "1", country: "ES" });
+  assert.equal(pickBillingToInherit([b("12345678Z")]).kind, "inherit");
+  assert.equal(pickBillingToInherit([b("X1234567L")]).kind, "inherit");
+  assert.equal(pickBillingToInherit([b("", "Ana Pérez")]).kind, "inherit");
+  for (const cif of ["B12345678", "A1234567B", "J1234567A", "N1234567A", "P1234567A", "S1234567A", "U12345678", "V12345678", "W1234567A", "b-12.345.678"]) {
+    const r = pickBillingToInherit([b(cif, "Despacho SL")]);
+    assert.equal(r.kind, "company", cif);
+    if (r.kind === "company") assert.equal(r.name, "Despacho SL");
+  }
+});
+
+test("el email-marcador de WhatsApp no es 'recurrente por email': solo teléfono", () => {
+  const rows: PaidOrderRow[] = [{ reference: "R1", clientEmail: "34600111222@whatsapp.local", clientPhone: "+34600111222", amountCents: 5000, paidAt: new Date("2026-09-01"), createdAt: new Date("2026-09-01") }];
+  assert.equal(classifyRecurrent({ email: "34600111222@whatsapp.local", phone: "600111222" }, rows).kind, "possible");
 });
