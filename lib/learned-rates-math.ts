@@ -62,6 +62,180 @@ export function canAutoQuote(clientCents: number, costCents: number) {
 }
 
 
+// --- Política AUTÓNOMA del agente de precios (Juan, 9-oct-2026) ------------
+// Los patrones repetidos se gestionan solos: CANDIDATE → APPROVED cuando hay
+// evidencia suficiente y APPROVED → CANDIDATE cuando el coste se mueve o la
+// tarifa envejece. Todo puro: la BD solo aporta muestras y eventos.
+
+export const AUTO_WINDOW_DAYS = 90;
+export const AUTO_MIN_SAMPLES = 3;
+export const AUTO_MAX_DISPERSION = 0.15; // max/min − 1 del coste en la ventana
+export const AUTO_COST_RISE = 0.15; // muestra de coste > 15 % por encima del aprobado → degrada
+export const LEGACY_RISE_WINDOW_DAYS = 14; // sin marca de aprobación solo se mira lo reciente
+
+export type PolicySample = {
+  kind: string; // translator_price | seed | manual | client_paid | auto_quote | auto_approve | auto_degrade | manual_approve | manual_pause
+  costCents: number | null;
+  clientCents: number | null;
+  at: Date;
+  /** Muestra de un encargo realmente aceptado por un jurado, o de un presupuesto pagado. */
+  accepted?: boolean;
+};
+
+export type PolicyRate = {
+  lang: string;
+  direction: string;
+  docType: string;
+  unit: string;
+  costCents: number;
+  clientCents: number | null;
+  wordsRef: number | null;
+  status: string;
+  lastSampleAt: Date | null;
+};
+
+const COST_KINDS = new Set(["translator_price", "seed", "manual"]);
+const MARK_KINDS = new Set(["auto_approve", "auto_degrade", "manual_approve", "manual_pause"]);
+const DAY = 86_400_000;
+
+const byTime = (a: PolicySample, b: PolicySample) => a.at.getTime() - b.at.getTime();
+
+export function costSamplesIn(samples: PolicySample[], now: Date, days = AUTO_WINDOW_DAYS) {
+  const since = now.getTime() - days * DAY;
+  return samples.filter((s) => COST_KINDS.has(s.kind) && s.costCents != null && s.costCents > 0 && s.at.getTime() >= since).sort(byTime);
+}
+
+/** max/min − 1 del coste. Infinity si no hay datos. */
+export function costDispersion(samples: PolicySample[]) {
+  const costs = samples.map((s) => s.costCents!).filter((c) => c > 0);
+  if (costs.length === 0) return Infinity;
+  return Math.max(...costs) / Math.min(...costs) - 1;
+}
+
+/** Último evento de gestión (aprobar/degradar/pausar, a mano o automático) o ajuste manual de cifras. */
+function lastManagementEvent(samples: PolicySample[]) {
+  const ev = samples.filter((s) => MARK_KINDS.has(s.kind) || s.kind === "manual").sort(byTime);
+  return ev.length ? ev[ev.length - 1] : null;
+}
+
+/** Gestionada por la política (la aprobó ella y nadie la ha tocado después). */
+export function isAutoManaged(samples: PolicySample[]) {
+  return lastManagementEvent(samples)?.kind === "auto_approve";
+}
+
+/** Juan la pausó a mano y no la ha vuelto a aprobar: la política no la resucita. */
+export function isPausedByHand(samples: PolicySample[]) {
+  return lastManagementEvent(samples)?.kind === "manual_pause";
+}
+
+/** Precio al cliente fijado a mano por Juan (último manual/semilla con precio), o null. */
+export function handFixedClientCents(samples: PolicySample[]) {
+  const fixed = samples.filter((s) => (s.kind === "manual" || s.kind === "seed") && s.clientCents != null && s.clientCents > 0).sort(byTime);
+  return fixed.length ? fixed[fixed.length - 1].clientCents! : null;
+}
+
+export type AutoApproveVerdict =
+  | { ok: true; costCents: number; clientCents: number | null; priceCents: number; marginPct: number; samples: number; dispersionPct: number }
+  | { ok: false; reason: string; near?: boolean };
+
+/** ¿Puede esta CANDIDATE aprobarse sola? `near` = le falta un solo requisito (candidata a un paso). */
+export function evaluateAutoApprove(
+  rate: PolicyRate,
+  samples: PolicySample[],
+  now: Date,
+  isPriceableLang: (lang: string) => boolean
+): AutoApproveVerdict {
+  if (rate.status !== "CANDIDATE") return { ok: false, reason: `estado ${rate.status}` };
+  if (rate.lang === "fr") return { ok: false, reason: "francés: motor de Juan" };
+  if (rate.lang === "es" || !isPriceableLang(rate.lang)) return { ok: false, reason: `idioma ${rate.lang} no auto-presupuestable` };
+  if (rate.unit !== "doc" && rate.unit !== "kword") return { ok: false, reason: `unidad ${rate.unit} no válida` };
+  if (isPausedByHand(samples)) return { ok: false, reason: "pausada a mano por Juan" };
+
+  const cost = costSamplesIn(samples, now);
+  const accepted = samples.some((s) => s.accepted);
+  const dispersion = costDispersion(cost);
+  const fails: string[] = [];
+  if (cost.length < AUTO_MIN_SAMPLES) fails.push(`${cost.length}/${AUTO_MIN_SAMPLES} muestras de coste en ${AUTO_WINDOW_DAYS} d`);
+  if (cost.length > 0 && dispersion > AUTO_MAX_DISPERSION) fails.push(`dispersión de coste ${(dispersion * 100).toFixed(0)} % (máx ${AUTO_MAX_DISPERSION * 100} %)`);
+  if (!accepted) fails.push("sin encargo aceptado ni presupuesto pagado");
+
+  const fixed = handFixedClientCents(samples);
+  const words = rate.unit === "kword" ? rate.wordsRef || 1000 : null;
+  const p = priceDocWithRate({ unit: rate.unit, costCents: rate.costCents, clientCents: fixed }, words);
+  if (!(rate.costCents > 0) || p.clientCents <= p.costCents) fails.push("coste = precio o sin coste");
+  else if (!canAutoQuote(p.clientCents, p.costCents)) fails.push(`margen ${marginPctOf(p.clientCents, p.costCents).toFixed(0)} % < ${MIN_AUTO_MARGIN_PCT} %`);
+
+  if (fails.length > 0) {
+    // «A un paso»: falla un solo requisito y, si es el de muestras, solo falta una.
+    const near = fails.length === 1 && (cost.length >= AUTO_MIN_SAMPLES || cost.length === AUTO_MIN_SAMPLES - 1);
+    return { ok: false, reason: fails.join("; "), near };
+  }
+  return { ok: true, costCents: rate.costCents, clientCents: fixed, priceCents: p.clientCents, marginPct: marginPctOf(p.clientCents, p.costCents), samples: cost.length, dispersionPct: dispersion * 100 };
+}
+
+export type DegradeVerdict =
+  | { degrade: false }
+  | { degrade: true; cause: "coste_sube" | "sin_muestras"; handManaged: boolean; reason: string; fromCents?: number; toCents?: number };
+
+/** ¿Debe una APPROVED volver a CANDIDATE? VETOED y CANDIDATE no se tocan. */
+export function evaluateDegrade(rate: PolicyRate, samples: PolicySample[], now: Date): DegradeVerdict {
+  if (rate.status !== "APPROVED") return { degrade: false };
+  const handManaged = !isAutoManaged(samples);
+  const marks = samples.filter((s) => s.kind === "auto_approve" || s.kind === "manual_approve").sort(byTime);
+  const mark = marks.length ? marks[marks.length - 1] : null;
+  const costAll = samples.filter((s) => COST_KINDS.has(s.kind) && s.costCents != null && s.costCents > 0).sort(byTime);
+
+  // (a) un coste nuevo > 15 % sobre el aprobado.
+  let ref: number | null = null;
+  let fresh: PolicySample[] = [];
+  if (mark && mark.costCents && mark.costCents > 0) {
+    ref = mark.costCents;
+    fresh = costAll.filter((s) => s.at.getTime() > mark.at.getTime());
+  } else if (costAll.length >= 2) {
+    // Aprobada antes de que hubiera marca: la referencia es la muestra anterior a la última.
+    const last = costAll[costAll.length - 1];
+    if (now.getTime() - last.at.getTime() <= LEGACY_RISE_WINDOW_DAYS * DAY) {
+      ref = costAll[costAll.length - 2].costCents!;
+      fresh = [last];
+    }
+  }
+  if (ref) {
+    const worst = fresh.reduce<PolicySample | null>((m, s) => (!m || s.costCents! > m.costCents! ? s : m), null);
+    if (worst && worst.costCents! * 100 > ref * Math.round(100 + AUTO_COST_RISE * 100)) {
+      return {
+        degrade: true,
+        cause: "coste_sube",
+        handManaged,
+        fromCents: ref,
+        toCents: worst.costCents!,
+        reason: `llegó un coste de ${(worst.costCents! / 100).toFixed(2)} € (+${((worst.costCents! / ref - 1) * 100).toFixed(0)} %) sobre el aprobado ${(ref / 100).toFixed(2)} €`,
+      };
+    }
+  }
+
+  // (b) 90 días sin muestras: solo las que gestiona la política (las de Juan no caducan).
+  if (!handManaged) {
+    const last = rate.lastSampleAt ? rate.lastSampleAt.getTime() : mark?.at.getTime() ?? 0;
+    if (now.getTime() - last > AUTO_WINDOW_DAYS * DAY) {
+      return { degrade: true, cause: "sin_muestras", handManaged, reason: `${AUTO_WINDOW_DAYS} días sin muestras` };
+    }
+  }
+  return { degrade: false };
+}
+
+/** Conversión de una tarifa: presupuestos suyos enviados vs pagados. */
+export function conversionOf(quotes: { sent: boolean; paid: boolean }[]) {
+  const sent = quotes.filter((q) => q.sent).length;
+  const paid = quotes.filter((q) => q.paid).length;
+  return { sent, paid, pct: sent > 0 ? (paid / sent) * 100 : null };
+}
+
+/** Política autónoma apagada con LEARNED_RATES_AUTO=off (o LEARNED_RATES_LIVE=off). */
+export function isAutoPolicyOn(env: Record<string, string | undefined>) {
+  const off = (v: string | undefined) => String(v || "").toLowerCase() === "off";
+  return !off(env.LEARNED_RATES_AUTO) && !off(env.LEARNED_RATES_LIVE);
+}
+
 // --- Guarda de margen de presupuestos de STAFF (31-ago-2026) ---------------
 // Aritmetica pura y testable; el "es frances" llega como flag (lo decide
 // isFrenchPair en lib/workflow, que el llamador compone en lib/quote-margin).
