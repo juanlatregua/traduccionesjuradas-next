@@ -8,7 +8,7 @@ import {
   hashValue,
   isQuotePayableStatus,
   normalizeQuoteStatus,
-  QUOTE_STATUS_LABELS,
+  calculateEtaDate,
   type QuoteStatus,
 } from "@/lib/quotes";
 import QuoteProofCta from "@/components/QuoteProofCta";
@@ -22,6 +22,8 @@ import { billingLockState, getSavedQuoteBilling } from "@/lib/quote-billing";
 import { billingLocked, COMPLETION_EVENT, completionBlobPrefix, isPendingCompletion, isWhatsappPlaceholder, pickBillingPrefill } from "@/lib/q-journey";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { pickPublicLang, publicDict, statusLabel, localeFor } from "@/lib/quote-public-i18n";
+import { buildSignedOrderUrl } from "@/lib/order-token";
+import { buildWhatsAppLinkFromText, EMAIL } from "@/lib/contact";
 
 type Props = {
   params: { token: string };
@@ -34,16 +36,20 @@ type Props = {
   };
 };
 
-export const metadata: Metadata = {
-  title: "Presupuesto",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
+  const row = await prisma.quote
+    .findUnique({ where: { publicToken: params.token }, select: { pdfLang: true, quoteNumber: true } })
+    .catch(() => null);
+  const title = row ? `${publicDict(pickPublicLang(row.pdfLang)).pageTitle} ${row.quoteNumber}` : "Presupuesto";
+  return { title, robots: { index: false, follow: false } };
+}
 
-function formatMoney(value: number) {
-  return `${value.toFixed(2)} EUR`;
+function langName(code: string, loc: string) {
+  try {
+    return new Intl.DisplayNames([loc], { type: "language" }).of(code) || code;
+  } catch {
+    return code;
+  }
 }
 
 function resolveIp() {
@@ -95,10 +101,11 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
+    const rlLang = pickPublicLang(headers().get("accept-language")?.split(",")[0]?.split("-")[0]);
     return (
-      <main className="min-h-screen bg-parchment px-4 py-10">
-        <section className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
-          Has superado el límite de consultas para este enlace. Espera unos minutos e inténtalo de nuevo.
+      <main className="min-h-screen bg-parchment px-4 py-10" lang={rlLang}>
+        <section role="alert" className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
+          {publicDict(rlLang).rateLimited}
         </section>
       </main>
     );
@@ -163,9 +170,11 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       customer: {
         select: { fiscalName: true, companyName: true, nif: true, address: true, city: true, postalCode: true, country: true },
       },
+      deliveryTerm: true,
+      vatRate: true,
       orders: {
         take: 1,
-        select: { billing: { select: { fiscalName: true, nif: true, address: true, city: true, postalCode: true, country: true, email: true } } },
+        select: { reference: true, billing: { select: { fiscalName: true, nif: true, address: true, city: true, postalCode: true, country: true, email: true } } },
       },
       // «Pendiente de completar»: el cliente añadió documentos y no se ha reenviado desde entonces.
       stripeEvents: { where: { eventType: COMPLETION_EVENT }, select: { processedAt: true } },
@@ -230,9 +239,23 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   const lang = pickPublicLang(refreshed.pdfLang);
   const t = publicDict(lang);
   const loc = localeFor(lang);
+  const money = (value: number) => new Intl.NumberFormat(loc, { style: "currency", currency: "EUR" }).format(value);
+  const paid = !!refreshed.paidAt || searchParams?.paid === "1";
+  const vatIncluded = Number(refreshed.vatRate) > 0;
+  const etaDate = calculateEtaDate({ from: refreshed.paidAt ?? new Date(), deliveryType: refreshed.deliveryType });
+  const etaText = refreshed.deliveryTerm?.trim() || etaDate.toLocaleDateString(loc, { day: "numeric", month: "long" });
+  const orderRef = refreshed.orders[0]?.reference ?? null;
+  let trackUrl: string | null = null;
+  if (orderRef) {
+    try {
+      trackUrl = buildSignedOrderUrl(orderRef, "estado");
+    } catch (err) {
+      console.error("[q/token] track url failed", err);
+    }
+  }
 
   // Recorrido guiado (documentos → facturación → pago) mientras el presupuesto se puede pagar.
-  const showJourney = isPayable && !refreshed.paidAt;
+  const showJourney = isPayable && !paid;
   let journeyProps: Omit<React.ComponentProps<typeof QuoteJourney>, "children"> | null = null;
   if (showJourney) {
     const totalCents = Math.round((total + balance) * 100);
@@ -278,10 +301,6 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
 
   const payBlocks = (
     <>
-        {isPayable && !refreshed.paidAt && resolvePaymentAccounts(refreshed.paymentMethods).length > 0 && (
-          <QuoteProofCta token={params.token} lang={lang} focus={searchParams?.paso === "justificante"} />
-        )}
-
         <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div className="space-y-4 rounded-2xl border border-cream p-4">
             <h2 className="text-lg font-semibold text-encre">{t.detail}</h2>
@@ -289,7 +308,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
               {t.client}: <strong>{t.clientProtected}</strong>
             </p>
             <p className="text-sm text-sepia">
-              {t.languages}: <strong>{refreshed.sourceLang}</strong> → <strong>{refreshed.targetLang}</strong>
+              {t.languages}: <strong>{langName(refreshed.sourceLang, loc)}</strong> → <strong>{langName(refreshed.targetLang, loc)}</strong>
             </p>
             <p className="text-sm text-sepia">
               {t.delivery}:{" "}
@@ -304,7 +323,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
             )}
             {refreshed.translatorName && (
               <p className="rounded-xl border border-cream bg-cream/60 px-3 py-2 text-sm text-encre">
-                🖋 {t.translatorIntro} <strong>{refreshed.translatorName}</strong>, {t.translatorSworn}
+                <span aria-hidden="true">🖋</span> {t.translatorIntro} <strong>{refreshed.translatorName}</strong>, {t.translatorSworn}
                 {refreshed.translatorMaec ? <> {t.translatorNumber} <strong>{refreshed.translatorMaec}</strong></> : null}{" "}
                 {t.translatorAppointed}{" "}
                 <a href="/red-de-traductores-jurados" className="font-semibold text-bleu hover:underline">
@@ -329,7 +348,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                       <td className="px-3 py-2">
                         {line.description}
                         {line.sourceFileUrl && (
-                          <span className="ml-2 whitespace-nowrap text-[11px]">
+                          <span className="ml-2 whitespace-nowrap text-xs">
                             <a
                               href={`/api/q/${params.token}/document?line=${encodeURIComponent(line.id)}`}
                               target="_blank"
@@ -349,8 +368,8 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                         )}
                       </td>
                       <td className="px-3 py-2 text-right">{decimalToNumber(line.quantity)}</td>
-                      <td className="px-3 py-2 text-right">{formatMoney(decimalToNumber(line.unitPrice))}</td>
-                      <td className="px-3 py-2 text-right">{formatMoney(decimalToNumber(line.lineTotal))}</td>
+                      <td className="px-3 py-2 text-right">{money(decimalToNumber(line.unitPrice))}</td>
+                      <td className="px-3 py-2 text-right">{money(decimalToNumber(line.lineTotal))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -362,23 +381,23 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
             <h2 className="text-base font-semibold text-encre">{t.summary}</h2>
             <p className="flex items-center justify-between text-sm text-sepia">
               <span>{t.subtotal}</span>
-              <strong>{formatMoney(subtotal)}</strong>
+              <strong>{money(subtotal)}</strong>
             </p>
             <p className="flex items-center justify-between text-sm text-sepia">
               <span>{t.discount}</span>
-              <strong>- {formatMoney(discountAmount)}</strong>
+              <strong>- {money(discountAmount)}</strong>
             </p>
             <p className="flex items-center justify-between text-sm text-sepia">
               <span>{t.shipping}</span>
-              <strong>{formatMoney(shippingAmount)}</strong>
+              <strong>{money(shippingAmount)}</strong>
             </p>
             <p className="flex items-center justify-between text-sm text-sepia">
               <span>{t.vat}</span>
-              <strong>{formatMoney(vatAmount)}</strong>
+              <strong>{money(vatAmount)}</strong>
             </p>
             <p className="flex items-center justify-between border-t border-cream pt-2 text-base text-encre">
               <span>{t.total}</span>
-              <strong>{formatMoney(total)}</strong>
+              <strong>{money(total)}</strong>
             </p>
             {refreshed.deliveryType === "PAPER_SHIP" && (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">
@@ -392,26 +411,30 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                     {t.secondPayment}
                     {refreshed.balanceDueAt ? ` (${refreshed.balanceDueAt.toLocaleDateString(loc, { day: "numeric", month: "long" })})` : ""}
                   </span>
-                  <strong>{formatMoney(balance)}</strong>
+                  <strong>{money(balance)}</strong>
                 </p>
                 {refreshed.balancePaidAt ? (
                   <p className="font-semibold text-emerald-700">{t.paidFull}</p>
                 ) : refreshed.paidAt ? (
-                  <QuoteBalancePayButton token={params.token} amountLabel={formatMoney(balance)} lang={lang} />
+                  <QuoteBalancePayButton token={params.token} amountLabel={money(balance)} lang={lang} />
                 ) : (
                   <p className="text-xs text-sepia">{t.secondPayLater}</p>
                 )}
               </div>
             )}
-            <QuotePublicPayButton
-              token={params.token}
-              isPayable={isPayable}
-              quoteNumber={refreshed.quoteNumber}
-              totalLabel={formatMoney(total)}
-              autoStartCard={searchParams?.pago === "tarjeta"}
-              paymentMethods={refreshed.paymentMethods}
-              lang={lang}
-            />
+            {!paid && (
+              <div id="pago" className="scroll-mt-4">
+                <QuotePublicPayButton
+                  token={params.token}
+                  isPayable={isPayable}
+                  quoteNumber={refreshed.quoteNumber}
+                  totalLabel={money(total)}
+                  autoStartCard={searchParams?.pago === "tarjeta"}
+                  paymentMethods={refreshed.paymentMethods}
+                  lang={lang}
+                />
+              </div>
+            )}
             <p className="text-xs text-graphite">{t.writeYourLang}</p>
           </aside>
         </div>
@@ -426,19 +449,94 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
         </p>
         <h1 className="mt-2 text-2xl font-bold text-encre">{t.swornTranslation}</h1>
         <p className="mt-1 text-sm text-sepia">
-          {t.status}: <strong>{statusLabel(status, lang)}</strong> · {t.validUntil}{" "}
+          {t.status}: <strong>{paid ? t.paidTitle : statusLabel(status, lang)}</strong> · {t.validUntil}{" "}
           <strong>{refreshed.validUntil.toLocaleDateString(loc)}</strong>
         </p>
 
-        {searchParams?.paid === "1" && (
-          <p className="mt-3 rounded-xl border border-cream bg-cream px-3 py-2 text-sm text-bleu">
-            {t.paidOk}
-          </p>
-        )}
-        {searchParams?.canceled === "1" && (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        {searchParams?.canceled === "1" && !paid && (
+          <p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             {t.canceled}
           </p>
+        )}
+
+        {paid ? (
+          <section className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-encre" aria-labelledby="paid-title">
+            <h2 id="paid-title" className="text-lg font-semibold text-emerald-900">
+              <span aria-hidden="true">✓ </span>
+              {t.paidTitle}
+            </h2>
+            <p role="status" className="mt-1 text-sm text-sepia">{t.paidOk}</p>
+            <ol className="mt-3 grid gap-2 sm:grid-cols-3">
+              {[t.paidStepReceived, t.paidStepProgress, t.paidStepDelivery].map((label, i) => (
+                <li
+                  key={label}
+                  aria-current={i === 1 ? "step" : undefined}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
+                    i === 0 ? "border-emerald-300 bg-white font-semibold text-emerald-800" : i === 1 ? "border-bleu bg-white font-semibold text-bleu" : "border-cream bg-white text-sepia"
+                  }`}
+                >
+                  <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cream text-xs font-bold">
+                    {i === 0 ? "✓" : i + 1}
+                  </span>
+                  {label}
+                </li>
+              ))}
+            </ol>
+            <p className="mt-3 text-sm text-encre">
+              {t.paidEta}: <strong>{refreshed.deliveryTerm?.trim() || etaDate.toLocaleDateString(loc, { day: "numeric", month: "long", year: "numeric" })}</strong>
+            </p>
+            {trackUrl && (
+              <a
+                href={trackUrl}
+                className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-bleu px-4 py-2.5 text-sm font-semibold text-white hover:bg-bleu-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu focus-visible:ring-offset-2"
+              >
+                {t.followOrder}
+              </a>
+            )}
+            <p className="mt-3 text-sm text-sepia">
+              {t.paidContact}{" "}
+              <a href={`mailto:${EMAIL}`} className="font-semibold text-bleu underline">{EMAIL}</a>
+              {" · "}
+              <a
+                href={buildWhatsAppLinkFromText(refreshed.quoteNumber)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-bleu underline"
+              >
+                WhatsApp
+              </a>
+            </p>
+          </section>
+        ) : (
+          isPayable && (
+            <section className="mt-4 rounded-2xl border border-bleu/30 bg-cream/50 p-4" aria-label={t.summary}>
+              <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{vatIncluded ? t.totalVatIncl : t.total}</p>
+                  <p className="text-2xl font-bold text-encre">{money(total)}</p>
+                  {balance > 0 && (
+                    <p className="text-xs text-sepia">
+                      {t.secondPayment}: {money(balance)}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{t.etaLabel}</p>
+                  <p className="text-base font-semibold text-encre">{etaText}</p>
+                  {!refreshed.deliveryTerm?.trim() && <p className="text-xs text-sepia">{t.etaFromPayment}</p>}
+                </div>
+                <a
+                  href="#pago"
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-bleu px-5 py-3 text-sm font-semibold text-white hover:bg-bleu-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu focus-visible:ring-offset-2"
+                >
+                  {t.payNowCta}
+                </a>
+              </div>
+              {resolvePaymentAccounts(refreshed.paymentMethods).length > 0 && (
+                <QuoteProofCta token={params.token} lang={lang} focus={searchParams?.paso === "justificante"} />
+              )}
+            </section>
+          )
         )}
 
         {journeyProps ? <QuoteJourney {...journeyProps}>{payBlocks}</QuoteJourney> : payBlocks}
