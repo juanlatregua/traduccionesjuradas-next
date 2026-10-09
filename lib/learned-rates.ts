@@ -29,6 +29,7 @@ import {
   unitFor,
   priceDocWithRate,
   marginPctOf,
+  isAutoManaged,
 } from "@/lib/learned-rates-math";
 
 // Re-export para no romper a quien ya los importaba de aquí.
@@ -80,6 +81,19 @@ export const ANALYSIS_SELECT = {
   quoteBreakdown: true,
   analysisJson: true,
 } as const;
+
+export const AUTO_QUOTE_MAX_CENTS_WITH_VAT = 30000; // 300 € con IVA para enviar sin intervención
+
+/** Auto-envío del borrador del tarifario (por defecto OFF): el 21-sep Juan ordenó
+ * «nada sale solo al cliente». Se enciende con LEARNED_RATES_AUTOSEND=on. */
+export function isLearnedAutosendOn() {
+  return String(process.env.LEARNED_RATES_AUTOSEND || "").toLowerCase() === "on" && isLearnedRatesLive();
+}
+
+/** Rastro de gestión a mano de una tarifa (aprobada o pausada por Juan). */
+export async function markRateEvent(rateId: string, kind: "manual_approve" | "manual_pause", costCents: number | null, note?: string) {
+  await prisma.learnedRateSample.create({ data: { rateId, kind, costCents, note: note ?? null } });
+}
 
 export function isLearnedRatesLive() {
   return String(process.env.LEARNED_RATES_LIVE || "").toLowerCase() !== "off";
@@ -220,11 +234,18 @@ export async function recordSample(
           ? Math.round((existing.wordsRef * n + sample.words) / (n + 1))
           : sample.words
         : existing.wordsRef;
+    // Tarifa auto-aprobada: su precio sale de la regla de margen sobre el coste; el
+    // último precio pagado no lo pisa (solo un precio fijado a mano por Juan).
+    let keepAutoPrice = false;
+    if (sample.kind === "client_paid" && existing.status === "APPROVED") {
+      const marks = await prisma.learnedRateSample.findMany({ where: { rateId: existing.id }, select: { kind: true, costCents: true, clientCents: true, createdAt: true } });
+      keepAutoPrice = isAutoManaged(marks.map((m) => ({ ...m, at: m.createdAt })));
+    }
     rate = await prisma.learnedRate.update({
       where: { id: existing.id },
       data: {
         ...(cost != null && sample.kind !== "auto_quote" ? { costCents: cost } : {}),
-        ...(client != null && sample.kind !== "auto_quote" ? { clientCents: client } : {}),
+        ...(client != null && sample.kind !== "auto_quote" && !keepAutoPrice ? { clientCents: client } : {}),
         wordsRef,
         ...(sample.plazoDias ? { plazoDias: sample.plazoDias } : {}),
         ...(sample.miembroId ? { miembroId: sample.miembroId, miembroNombre: sample.miembroNombre ?? existing.miembroNombre } : {}),
@@ -435,7 +456,7 @@ export async function findApprovedRate(info: DocInfo) {
 
 
 export type AutoQuoteResult =
-  | { ok: true; quoteId: string; quoteNumber: string; totalEur: number; payUrl: string | null; miembroNombre: string | null; lines: number; emailSent: boolean; smsSent: boolean }
+  | { ok: true; quoteId: string; quoteNumber: string; totalEur: number; payUrl: string | null; miembroNombre: string | null; lines: number; emailSent: boolean; smsSent: boolean; sent: boolean; autoSendReasons: string[] }
   | { ok: false; reason: string };
 
 export type AutoQuoteLineInput = {
@@ -699,9 +720,26 @@ export async function autoQuoteFromPuertaSession(opts: {
     },
     locale: opts.locale,
     // Borrador para que lo revise y envíe Juan (orden 21-sep-2026): nada sale solo.
+    // Salvo LEARNED_RATES_AUTOSEND=on: entonces se intenta enviar abajo, tras las guardas.
     send: false,
   });
   if (!result.ok) return result;
+
+  let autoSent = false;
+  let autoSendReasons: string[] = [];
+  let payUrl = result.payUrl;
+  if (isLearnedAutosendOn()) {
+    const totalCents = Math.round(result.totalEur * 100);
+    if (totalCents > AUTO_QUOTE_MAX_CENTS_WITH_VAT) {
+      autoSendReasons = [`${result.totalEur.toFixed(2)} € con IVA superan el tope de envío solo (${AUTO_QUOTE_MAX_CENTS_WITH_VAT / 100} €)`];
+    } else {
+      const { autoSendTarifarioDraft } = await import("@/lib/cierre");
+      const out = await autoSendTarifarioDraft(result.quoteId);
+      autoSent = out.sent;
+      autoSendReasons = out.reasons;
+      payUrl = out.payUrl ?? payUrl;
+    }
+  }
 
   for (const p of priced) {
     await recordSample(
@@ -715,10 +753,12 @@ export async function autoQuoteFromPuertaSession(opts: {
     quoteId: result.quoteId,
     quoteNumber: result.quoteNumber,
     totalEur: result.totalEur,
-    payUrl: result.payUrl,
+    payUrl,
     miembroNombre,
     lines: lines.length,
-    emailSent: result.emailSent,
+    emailSent: result.emailSent || autoSent,
     smsSent: result.smsSent,
+    sent: autoSent,
+    autoSendReasons,
   };
 }

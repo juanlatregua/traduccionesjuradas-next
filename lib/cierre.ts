@@ -59,23 +59,9 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
   // Guardas anti-duplicado: otro encargo vivo con los mismos documentos, otro presupuesto
   // del mismo expediente ya en manos del cliente, y cliente que ya pagó este encargo.
   const dup = await findLiveLavoriDuplicate({ par: lead.par, contentKey: lead.contentKey, expedienteRef: lead.expedienteRef, excludeRef: lead.ref });
-  let duplicate: string | null = dup ? `ya hay otro encargo vivo para estos documentos (${dup.ref}, ${dup.status})` : null;
-  if (!duplicate && quote.expedienteRef) {
-    const otro = await prisma.quote.findFirst({
-      where: { id: { not: quote.id }, expedienteRef: quote.expedienteRef, deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED", "PAID", "IN_PROGRESS", "DELIVERED"] } },
-      select: { quoteNumber: true, status: true },
-    });
-    if (otro) duplicate = `el mismo expediente ya tiene el presupuesto ${otro.quoteNumber} (${otro.status})`;
-  }
-  let alreadyCustomer: string | null = null;
-  try {
-    const index = await loadCustomerIndex({ since: new Date(), emails: [quote.customerEmail], expedienteRefs: [quote.expedienteRef || ""] });
-    const ya = alreadyCustomerFor({ mode: "encargo", expedienteRef: quote.expedienteRef, quoteId: quote.id }, { index });
-    if (ya.skip) alreadyCustomer = `${ya.reason} ${ya.ref}`;
-  } catch (err) {
-    // Sin poder consultar la guarda, no se envía solo: mejor un aviso que un doble cobro.
-    alreadyCustomer = `no se pudo consultar la guarda de clientes (${String((err as Error)?.message || err)})`;
-  }
+  const guards = await quoteDuplicateGuards(quote);
+  const duplicate: string | null = dup ? `ya hay otro encargo vivo para estos documentos (${dup.ref}, ${dup.status})` : guards.duplicate;
+  const alreadyCustomer = guards.alreadyCustomer;
 
   const decision = decideAutoSend({
     sourceLang: quote.sourceLang,
@@ -122,6 +108,69 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
   }
 
   return await alertReview(lead.ref, lead.par, quote, cliente, total, decision.reasons);
+}
+
+/** Guardas anti-duplicado de un presupuesto: otro del mismo expediente ya en manos del cliente, y cliente que ya pagó. */
+async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string | null; customerEmail: string }) {
+  let duplicate: string | null = null;
+  if (quote.expedienteRef) {
+    const otro = await prisma.quote.findFirst({
+      where: { id: { not: quote.id }, expedienteRef: quote.expedienteRef, deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED", "PAID", "IN_PROGRESS", "DELIVERED"] } },
+      select: { quoteNumber: true, status: true },
+    });
+    if (otro) duplicate = `el mismo expediente ya tiene el presupuesto ${otro.quoteNumber} (${otro.status})`;
+  }
+  let alreadyCustomer: string | null = null;
+  try {
+    const index = await loadCustomerIndex({ since: new Date(), emails: [quote.customerEmail], expedienteRefs: [quote.expedienteRef || ""] });
+    const ya = alreadyCustomerFor({ mode: "encargo", expedienteRef: quote.expedienteRef, quoteId: quote.id }, { index });
+    if (ya.skip) alreadyCustomer = `${ya.reason} ${ya.ref}`;
+  } catch (err) {
+    // Sin poder consultar la guarda, no se envía solo: mejor un aviso que un doble cobro.
+    alreadyCustomer = `no se pudo consultar la guarda de clientes (${String((err as Error)?.message || err)})`;
+  }
+  return { duplicate, alreadyCustomer };
+}
+
+/**
+ * Borrador del TARIFARIO APRENDIDO (puerta, sin solicitud a lavori) → se envía solo si pasa
+ * las mismas guardas que el cierre por precio de jurado. Detrás de LEARNED_RATES_AUTOSEND=on
+ * (lo llama learned-rates.ts). Nunca lanza: si algo falla, el borrador queda para Juan.
+ * finalizeAndSendQuote añade el freno de margen y la procedencia (channelPriceSource
+ * "learned-rate") y requireDraft + candado evitan el doble envío.
+ */
+export async function autoSendTarifarioDraft(quoteId: string): Promise<{ sent: boolean; reasons: string[]; payUrl: string | null }> {
+  try {
+    const quote = await prisma.quote.findUnique({ where: { id: quoteId }, include: { lines: { orderBy: { createdAt: "asc" } } } });
+    if (!quote || quote.deletedAt) return { sent: false, reasons: ["presupuesto no disponible"], payUrl: null };
+    const lines = quote.lines.map((l) => ({ quantity: Number(l.quantity) || 1, unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) }));
+    const discountCents = Math.round(decimalToNumber(quote.discountAmount) * 100);
+    const margin = checkQuoteLinesMargin({ sourceLang: quote.sourceLang, targetLang: quote.targetLang, lines, discountCents });
+    const netCents = Math.round(decimalToNumber(quote.subtotal) * 100) - discountCents;
+    const guards = await quoteDuplicateGuards(quote);
+    const decision = decideAutoSend({
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      quoteStatus: quote.status,
+      sentAt: quote.sentAt,
+      sendingAt: quote.sendingAt,
+      netCents,
+      customerEmail: quote.customerEmail,
+      customerPhone: quote.customerPhone,
+      marginDetail: margin.ok ? null : margin.detail,
+      costMissing: lines.some((l) => l.unitPrice > 0 && !(l.supplierUnitCost && l.supplierUnitCost > 0)),
+      heldByJuan: false,
+      duplicate: guards.duplicate,
+      alreadyCustomer: guards.alreadyCustomer,
+    });
+    if (decision.action === "skip") return { sent: false, reasons: [decision.reason], payUrl: null };
+    if (decision.action === "alert") return { sent: false, reasons: decision.reasons, payUrl: null };
+    const { finalizeAndSendQuote } = await import("@/lib/quote-send");
+    const out = await finalizeAndSendQuote({ quoteId: quote.id, actorEmail: "system:tarifario-auto", channelPriceSource: "learned-rate", requireDraft: true });
+    return { sent: true, reasons: [], payUrl: out.payUrl };
+  } catch (err) {
+    return { sent: false, reasons: [`el envío automático falló: ${String((err as Error)?.message || err)}`], payUrl: null };
+  }
 }
 
 async function syncLeadTranslator(lead: { miembroId: string | null; miembroNombre: string | null }, quoteId: string) {
