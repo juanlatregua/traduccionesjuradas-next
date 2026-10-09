@@ -261,3 +261,20 @@ test("workingHoursMadrid: la ventana del carril directo no cuenta la noche (Gabr
   // Un festivo tampoco cuenta.
   assert.equal(workingHoursMadrid(new Date("2026-10-12T06:00:00Z"), new Date("2026-10-12T12:00:00Z"), new Set(["2026-10-12"])), 0);
 });
+
+test("apostilla suelta DE (+5 €, sin coste) no sube al suelo de 40 €", async () => {
+  const { isLooseApostilleLine } = await import("../../lib/pricing-engine/page-pricing.ts");
+  const { clientCentsWithMotorPrice } = await import("../../lib/lavori-directo-math.ts");
+  assert.equal(isLooseApostilleLine(5, 0), true);
+  assert.equal(isLooseApostilleLine(5, 3), false);
+  assert.equal(isLooseApostilleLine(30, 0), false);
+  assert.equal(clientCentsWithMotorPrice(500, 0, 0, true), 500);
+});
+
+test("margen Auto no-FR: coste 0 o fila con nota no recibe el suelo de 40 €", async () => {
+  const { autoClientPriceForRow } = await import("../../lib/quote-math.ts");
+  assert.equal(autoClientPriceForRow(0), 0);
+  assert.equal(autoClientPriceForRow(NaN), 0);
+  assert.equal(autoClientPriceForRow(10, true) < 40, true);
+  assert.equal(autoClientPriceForRow(10), 40);
+});

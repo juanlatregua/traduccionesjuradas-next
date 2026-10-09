@@ -80,6 +80,14 @@ export function autoClientPriceFromCost(costEur: number, floorEur: number = AUTO
   return round2(Math.max(floorEur, Math.min(cost * AUTO_MAX_MARKUP, withMargin)));
 }
 
+/** Margen «Auto» no-FR en una fila del constructor: coste 0/vacío o fila con nota
+ * de precio (a mano, par no auto-presupuestable, apostilla suelta) → sin suelo
+ * de 40 €/doc, queda en 0 como antes. */
+export function autoClientPriceForRow(costEur: number, sinSuelo: boolean = false): number {
+  const cost = Number.isFinite(costEur) ? Math.max(0, costEur) : 0;
+  return autoClientPriceFromCost(cost, cost <= 0 || sinSuelo ? 0 : AUTO_DOC_FLOOR_EUR);
+}
+
 /** Misma regla en céntimos (sin redondeo extra; el llamador redondea a 0,50 si lo hacía). */
 export function autoClientPriceCentsFromCost(costCents: number, floorCents: number = AUTO_DOC_FLOOR_EUR * 100): number {
   return Math.round(autoClientPriceFromCost(costCents / 100, floorCents / 100) * 100);

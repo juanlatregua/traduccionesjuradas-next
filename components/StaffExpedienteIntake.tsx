@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS } from "@/lib/quote-pdf-langs";
 import { upload } from "@vercel/blob/client";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors, Merge } from "lucide-react";
-import { autoClientPriceFromCost, clientPriceFromCost, isFrenchForeign, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
+import { autoClientPriceForRow, clientPriceFromCost, isFrenchForeign, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { PAGE_PRICED_LANGS, APOSTILLE_EXTRA_EUR, PAGE_TARIFF_MARK, pairApostilles } from "@/lib/pricing-engine/page-pricing";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
@@ -886,17 +886,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
   const clientPriceOf = useCallback(
-    (cost: number) =>
+    (cost: number, sinSuelo: boolean = false) =>
       marginPct === null
         ? isFrenchForeign(`${sourceLang}-${targetLang}`)
           ? clientPriceFromCost(cost || 0, `${sourceLang}-${targetLang}`)
-          : autoClientPriceFromCost(cost || 0)
+          : autoClientPriceForRow(cost, sinSuelo)
         : Math.round((cost || 0) * (1 + marginPct / 100) * 100) / 100,
     [marginPct, sourceLang, targetLang]
   );
 
   const rowClientPrice = useCallback(
-    (d: DocRow) => (d.clientPrice != null ? d.clientPrice : clientPriceOf(d.unitPrice)),
+    (d: DocRow) => (d.clientPrice != null ? d.clientPrice : clientPriceOf(d.unitPrice, !!d.priceNote)),
     [clientPriceOf]
   );
 

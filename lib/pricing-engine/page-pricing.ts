@@ -147,6 +147,11 @@ export function isDePageTariffLine(unitPriceEur: number, supplierCostEur: number
   return match(PAGE_PRICE_EUR, PAGE_COST_DE_EUR) || match(PAGE_PRICE_DE_TABLES_EUR, PAGE_COST_DE_TABLES_EUR);
 }
 
+/** Apostilla suelta del expediente DE→ES: +5 € sin coste propio. */
+export function isLooseApostilleLine(unitPriceEur: number, supplierCostEur: number | null | undefined): boolean {
+  return Number(unitPriceEur) === APOSTILLE_EXTRA_EUR && !(Number(supplierCostEur) > 0);
+}
+
 /** ¿Todas las líneas con precio son la tarifa por página DE→ES (30↔10 / 35↔15 por página)? */
 /** Marca explícita que el builder guarda en Quote.autoPricedBy cuando TODAS sus
  * líneas salen sin tocar de la tarifa por página DE→ES. Sin ella no se asume. */
@@ -170,7 +175,7 @@ export function isDePageTariffQuote(input: {
         (Number(l.quantity) || 1) === 1 &&
         (isDePageTariffLine(Number(l.unitPrice), l.supplierUnitCost) ||
           // apostilla suelta del expediente: +5 € sin coste
-          (Number(l.unitPrice) === APOSTILLE_EXTRA_EUR && !(Number(l.supplierUnitCost) > 0)))
+          isLooseApostilleLine(Number(l.unitPrice), l.supplierUnitCost))
     )
   );
 }

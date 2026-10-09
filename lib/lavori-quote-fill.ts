@@ -11,7 +11,7 @@
 import { prisma } from "@/lib/prisma";
 import { computeQuoteTotals, decimalToNumber } from "@/lib/quotes";
 import { checkQuoteLinesMargin } from "@/lib/quote-margin";
-import { isDePageTariffLine } from "@/lib/pricing-engine/page-pricing";
+import { isDePageTariffLine, isLooseApostilleLine } from "@/lib/pricing-engine/page-pricing";
 import { priceBasisForMember } from "@/lib/lavori-directo";
 import { channelPriceToBaseCents, clientCentsWithMotorPrice, spreadCents } from "@/lib/lavori-directo-math";
 
@@ -103,7 +103,8 @@ export async function fillDraftQuoteFromLeadPrice(leadId: string): Promise<FillD
     const porPagina =
       String(quote.sourceLang || "").toLowerCase() === "de" &&
       String(quote.targetLang || "").toLowerCase() === "es" &&
-      isDePageTariffLine(motorCents / 100, decimalToNumber(l.supplierUnitCost));
+      (isDePageTariffLine(motorCents / 100, decimalToNumber(l.supplierUnitCost)) ||
+        isLooseApostilleLine(motorCents / 100, decimalToNumber(l.supplierUnitCost)));
     const clienteCents = clientCentsWithMotorPrice(motorCents, reparto, porPagina ? 0 : undefined, porPagina);
     if (clienteCents > motorCents) subidas++;
     return {
