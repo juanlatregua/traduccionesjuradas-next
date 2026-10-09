@@ -607,6 +607,7 @@ export async function updateOrderPayment(
         paymentStatus: true,
         paymentMethod: true,
         externalPaymentId: true,
+        quoteId: true,
       },
     });
     if (!order) {
@@ -666,6 +667,14 @@ export async function updateOrderPayment(
       });
 
       return { changed: false as const, alreadyPaid: true as const, duplicate: false as const };
+    }
+
+    // Cierre suave por falta de respuesta: si el pedido enlazado se paga, el presupuesto no está perdido.
+    if (order.quoteId) {
+      await tx.quote.updateMany({
+        where: { id: order.quoteId, OR: [{ lostReason: { not: null } }, { lostReasonNote: { not: null } }, { lostFeedbackAt: { not: null } }] },
+        data: { lostReason: null, lostReasonNote: null, lostFeedbackAt: null },
+      });
     }
 
     await tx.orderEvent.create({

@@ -48,11 +48,10 @@ export async function GET(req: Request) {
 
   const candidates = await prisma.quote.findMany({
     where: {
-      OR: [
-        { status: { in: ["SENT", "OPENED"] } },
-        // ACCEPTED con pedido = carril de crédito: se persigue por su factura, no por aquí.
-        { status: "ACCEPTED", orders: { none: {} } },
-      ],
+      status: { in: ["SENT", "OPENED", "ACCEPTED"] },
+      // Con pedido (declaró transferencia, carril de crédito…) se persigue por el pedido/factura,
+      // no por aquí: ni 2º contacto ni cierre.
+      orders: { none: {} },
       sentAt: {
         lte: threshold,
       },
@@ -69,10 +68,18 @@ export async function GET(req: Request) {
       // Solo un recordatorio ENVIADO cuenta como hecho (los borradores WHATSAPP nunca
       // salían). SKIPPED = omitido por ser ya cliente. FAILED recientes frenan el reintento:
       // el cron corre 4×/día y sin esto el mismo recordatorio caído se reintentaba 4 veces.
+      // También los envíos del enlace (el reloj de 24 h cuenta desde el último) y los WhatsApp
+      // SENT (la marca «Ya lo traté» del vigía se refleja así: es el 2º contacto de solo-WhatsApp).
       messageLogs: {
-        where: { type: "REMINDER", status: { in: ["SENT", "SKIPPED", "FAILED"] } },
+        where: {
+          OR: [
+            { type: "REMINDER", status: { in: ["SENT", "SKIPPED", "FAILED"] } },
+            { type: { in: ["PAY_LINK", "RESEND_PAY_LINK"] }, status: "SENT" },
+            { channel: "WHATSAPP", status: "SENT" },
+          ],
+        },
         orderBy: { createdAt: "desc" },
-        take: 20,
+        take: 40,
       },
     },
     take: 200,
@@ -126,19 +133,25 @@ export async function GET(req: Request) {
       : ({ skip: false } as const);
 
   for (const quote of candidates) {
-    const logs = quote.messageLogs;
-    const sentLog = logs.find((m) => m.status === "SENT");
-    const failedLog = logs.find((m) => m.status === "FAILED");
+    const at = (m: { sentAt: Date | null; createdAt: Date }) => m.sentAt ?? m.createdAt;
+    const placeholder = isPlaceholderEmail(quote.customerEmail);
+    // Reloj: desde el último envío del enlace (si lo hay), no desde el primer sentAt.
+    const lastLink = quote.messageLogs.filter((m) => m.type === "PAY_LINK" || m.type === "RESEND_PAY_LINK").map(at).sort((a, b) => b.getTime() - a.getTime())[0];
+    const baseAt = lastLink && quote.sentAt && lastLink > quote.sentAt ? lastLink : quote.sentAt;
+    // Solo cuenta lo posterior al último envío (un reenvío reabre el ciclo).
+    const logs = quote.messageLogs.filter((m) => m.status === "SKIPPED" || (baseAt && at(m) >= baseAt));
+    const sentLog = logs.find((m) => (placeholder ? m.status === "SENT" && (m.type === "REMINDER" || m.channel === "WHATSAPP") : m.type === "REMINDER" && m.status === "SENT"));
+    const failedLog = logs.find((m) => m.type === "REMINDER" && m.status === "FAILED");
     const decision = decideFollowUp({
       status: quote.status,
-      sentAt: quote.sentAt,
+      sentAt: baseAt,
       now,
       events: quote.accessEvents,
       openedAt: quote.openedAt,
       customerEmail: quote.customerEmail,
       paidAt: quote.paidAt,
-      reminderSentAt: sentLog ? sentLog.sentAt ?? sentLog.createdAt : null,
-      reminderSkipped: logs.some((m) => m.status === "SKIPPED"),
+      reminderSentAt: sentLog ? at(sentLog) : null,
+      reminderSkipped: logs.some((m) => m.type === "REMINDER" && m.status === "SKIPPED"),
       lastFailedAt: failedLog ? failedLog.createdAt : null,
     });
     if (decision.action === "none") {
@@ -193,6 +206,26 @@ export async function GET(req: Request) {
       opened: decision.opened,
     });
 
+    // Reclamo previo (carrera cron/cron o cron/envío manual): sendingAt es el mismo candado que
+    // usa finalizeAndSendQuote; si alguien lo tiene, o ya se pagó/cerró, no se escribe.
+    const claimedAt = new Date();
+    const claim = await prisma.quote.updateMany({
+      where: {
+        id: quote.id,
+        paidAt: null,
+        lostReason: null,
+        status: { in: ["SENT", "OPENED", "ACCEPTED"] },
+        OR: [{ sendingAt: null }, { sendingAt: { lt: new Date(claimedAt.getTime() - 10 * 60 * 1000) } }],
+      },
+      data: { sendingAt: claimedAt },
+    });
+    if (claim.count === 0) continue;
+    const dupe = await prisma.messageLog.count({ where: { quoteId: quote.id, type: "REMINDER", status: "SENT", ...(baseAt ? { createdAt: { gte: baseAt } } : {}) } });
+    if (dupe > 0) {
+      await prisma.quote.updateMany({ where: { id: quote.id, sendingAt: claimedAt }, data: { sendingAt: null } });
+      continue;
+    }
+
     try {
       const sent = await sendQuoteEmailWithRetry({
         to: quote.customerEmail,
@@ -237,6 +270,10 @@ export async function GET(req: Request) {
           status: "FAILED",
         },
       });
+    } finally {
+      await prisma.quote
+        .updateMany({ where: { id: quote.id, sendingAt: claimedAt }, data: { sendingAt: null } })
+        .catch((e) => console.error("[quotes:reminders] no se pudo soltar el candado", quote.quoteNumber, e));
     }
   }
 
@@ -278,6 +315,9 @@ export async function GET(req: Request) {
         console.error("[quotes:reminders] lost reason deduction failed", quote.quoteNumber, err);
       }
     }
+
+    // Cerrado sin respuesta (cierre suave): ya hubo 2º contacto; no se le añade un «ha caducado».
+    if (quote.lostReasonNote === NO_RESPONSE_NOTE) continue;
 
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
 

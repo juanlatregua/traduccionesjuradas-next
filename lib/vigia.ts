@@ -318,25 +318,28 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     const reminders = q.messageLogs.filter((m) => m.type === "REMINDER" && m.status === "SENT").length;
     const smsFailed = q.messageLogs.some((m) => m.channel === "SMS" && m.status === "FAILED");
     const opened = q.status === "OPENED" || !!q.openedAt || hasHumanOpen(q.accessEvents);
+    // Solo-WhatsApp a las 24 h: tarea de 2º contacto, lo haya abierto o no (distinto texto).
     const waSinAbrir = isPlaceholderAddr(q.customerEmail) && !opened && (hoursAgo(sent) ?? 0) >= 24;
+    const waAbierto = isPlaceholderAddr(q.customerEmail) && opened && (hoursAgo(sent) ?? 0) >= 24;
     const caducado = !!q.validUntil && new Date(q.validUntil) < NOW;
     const avisadoCaducado = chase.touches >= 1 || q.messageLogs.some((m) => m.type === "EXPIRED_NOTICE" && m.status === "SENT");
     let accion: string;
     if (caducado) accion = avisadoCaducado ? `caducado el ${madrid(q.validUntil)} y ya avisado → dejarlo o marcar "No aceptado"` : `caducado el ${madrid(q.validUntil)} → último toque por WhatsApp o marcar "No aceptado"`;
     else if (q.status === "ACCEPTED") accion = `ya aceptó y no ha pagado → reenviar enlace de pago`;
     else if (chase.touches >= MAX_TOUCHES) accion = `ya tocado ${chase.touches} veces sin respuesta → marcar "No aceptado"`;
+    else if (waAbierto) accion = `WhatsApp a ${q.customerName}: lo abrió y no ha pagado → ${whatsappNudgeText({ lang: q.pdfLang, name: q.customerName, quoteNumber: q.quoteNumber, payUrl: `${SITE}/q/${q.publicToken}`, opened: true })}`;
     else if (waSinAbrir) accion = `WhatsApp a ${q.customerName}: no ha abierto el presupuesto → ${whatsappNudgeText({ lang: q.pdfLang, name: q.customerName, quoteNumber: q.quoteNumber, payUrl: `${SITE}/q/${q.publicToken}` })}`;
     else if (smsFailed || smsDead(phone)) accion = `SMS muerto (Twilio Geo) → recordatorio a mano por WhatsApp${q.customerEmail.endsWith("@whatsapp.local") ? "" : " o email"}`;
     else if (d >= 3 && !opened) accion = `${d} días sin abrir → WhatsApp corto: "¿lo recibiste?"`;
     else if (d >= 3 && opened) accion = `abierto y sin pagar ${d} días → preguntar qué le frena (precio/plazo)`;
     else accion = `reciente (${d} d) → esperar; el cron recuerda solo`;
-    if (d >= 2 || q.status === "ACCEPTED" || waSinAbrir) {
+    if (d >= 2 || q.status === "ACCEPTED" || waSinAbrir || waAbierto) {
       const quien = `presupuesto ${q.quoteNumber}`;
       if (caducado && avisadoCaducado) ocultos.push({ quien, motivo: "caducado, ya avisado" });
       else if (chase.hidden) ocultos.push({ quien, motivo: chase.reason! });
       else {
         const urg = caducado ? 1 : q.status === "ACCEPTED" ? 4 : chase.touches >= MAX_TOUCHES ? 1 : 2;
-        act(Number(q.total), urg, waSinAbrir && !caducado && q.status !== "ACCEPTED" && chase.touches < MAX_TOUCHES ? `WhatsApp a ${q.customerName}: no ha abierto el presupuesto ${q.quoteNumber} (${eur(Number(q.total))}, ${pairOf(q.sourceLang, q.targetLang)}). Texto: «${accion.split("→")[1]?.trim()}»` : `Presupuesto ${q.quoteNumber} ${eur(Number(q.total))} (${q.customerName}, ${pairOf(q.sourceLang, q.targetLang)}): ${accion.split("→")[1]?.trim() || accion}`, waLink(phone) || `${SITE}/zona-traductor/presupuestos/${q.id}`, personExtra(root, q.id, { key: `q:${q.id}`, line: chase.line }));
+        act(Number(q.total), urg, (waSinAbrir || waAbierto) && !caducado && q.status !== "ACCEPTED" && chase.touches < MAX_TOUCHES ? `WhatsApp a ${q.customerName}: ${waAbierto ? "abrió y no ha pagado" : "no ha abierto"} el presupuesto ${q.quoteNumber} (${eur(Number(q.total))}, ${pairOf(q.sourceLang, q.targetLang)}). Texto: «${accion.split("→")[1]?.trim()}»` : `Presupuesto ${q.quoteNumber} ${eur(Number(q.total))} (${q.customerName}, ${pairOf(q.sourceLang, q.targetLang)}): ${accion.split("→")[1]?.trim() || accion}`, waLink(phone) || `${SITE}/zona-traductor/presupuestos/${q.id}`, personExtra(root, q.id, { key: `q:${q.id}`, line: chase.line }));
       }
     }
     return { numero: q.quoteNumber, cliente: q.customerName, email: q.customerEmail, phone, wa: waLink(phone), par: pairOf(q.sourceLang, q.targetLang), total: Number(q.total), status: q.status, enviado: madrid(sent), dias: d, abierto: opened, recordatorios: reminders, smsFallido: smsFailed, caducado, accion, estado: chase.line, link: `${SITE}/zona-traductor/presupuestos/${q.id}` };

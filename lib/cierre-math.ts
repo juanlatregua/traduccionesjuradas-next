@@ -91,7 +91,7 @@ export function decideAutoSend(i: AutoSendInput): AutoSendDecision {
 // suave (lostReason NO_LONGER_NEEDED + marca auto:sin_respuesta) SIN pasar a EXPIRED, para
 // que pueda pagar si vuelve dentro de validUntil.
 
-export const NO_RESPONSE_NOTE = "auto:sin_respuesta";
+export const NO_RESPONSE_NOTE = AUTO_LOST_NOTES.NO_RESPONSE;
 export const CLOSE_AFTER_HOURS = 24; // tras el 2º contacto
 export const RETRY_FAILED_AFTER_HOURS = 20; // el cron corre 4×/día: un FAILED reciente no se reintenta
 
@@ -111,7 +111,7 @@ export type FollowUpInput = {
   openedAt: Date | null;
   customerEmail: string | null;
   paidAt?: Date | null;
-  /** Cuándo salió el 2º contacto (REMINDER SENT); null si no ha salido. */
+  /** Cuándo salió el 2º contacto (REMINDER SENT; en solo-WhatsApp, el WhatsApp marcado «Ya lo traté»); null si no consta. */
   reminderSentAt: Date | null;
   /** Hay un REMINDER SKIPPED (ya es cliente): ni se escribe ni se cierra. */
   reminderSkipped: boolean;
@@ -130,8 +130,8 @@ export function decideFollowUp(i: FollowUpInput): FollowUpDecision {
     return { action: i.now.getTime() - i.reminderSentAt.getTime() >= CLOSE_AFTER_HOURS * HOUR ? "close" : "none", opened };
   }
   if (isPlaceholderAddr(i.customerEmail)) {
-    // Sin email: el 2º contacto es la tarea del vigía (WhatsApp a mano); si a las 48 h sigue sin pagar, adiós.
-    if (age >= (REMINDER_AFTER_HOURS + CLOSE_AFTER_HOURS) * HOUR) return { action: "close", opened };
+    // Sin email: el 2º contacto es la tarea del vigía (WhatsApp a mano, abra o no). Sin constancia
+    // de que Juan lo hizo («Ya lo traté»), NUNCA se cierra solo.
     return { action: age >= REMINDER_AFTER_HOURS * HOUR ? "whatsapp_task" : "none", opened };
   }
   if (age < REMINDER_AFTER_HOURS * HOUR) return { action: "none", opened };
@@ -179,6 +179,16 @@ const COPY: Record<RLang, { subject: (n: string) => string; opened: (name: strin
   },
 };
 
+/** Texto de WhatsApp del 2º contacto para quien ya abrió el presupuesto. */
+const WA_OPENED: Record<RLang, (name: string, n: string, card: string) => string> = {
+  es: (name, n, card) => `Hola ${name}, ¿te ayudo a terminar el pedido del presupuesto ${n}? Puedes pagar directamente aquí: ${card}`,
+  fr: (name, n, card) => `Bonjour ${name}, puis-je vous aider à finaliser votre commande (devis ${n}) ? Paiement direct : ${card}`,
+  en: (name, n, card) => `Hi ${name}, can I help you finish your order (quote ${n})? You can pay directly here: ${card}`,
+  de: (name, n, card) => `Guten Tag ${name}, kann ich Ihnen helfen, die Bestellung (Angebot ${n}) abzuschließen? Direkt bezahlen: ${card}`,
+  pt: (name, n, card) => `Olá ${name}, posso ajudá-lo a concluir o pedido (orçamento ${n})? Pagamento direto: ${card}`,
+  it: (name, n, card) => `Buongiorno ${name}, posso aiutarla a completare l'ordine (preventivo ${n})? Pagamento diretto: ${card}`,
+};
+
 type CopyOpts = { lang: string | null | undefined; name: string; quoteNumber: string; payUrl: string; /** Lo abrió o aceptó: «¿te ayudo a terminar?» en vez de «¿lo recibiste?». */ opened?: boolean };
 const copyFor = (lang: string | null | undefined) => COPY[(norm(lang) in COPY ? norm(lang) : "es") as RLang];
 
@@ -190,6 +200,7 @@ export function buildCierreReminder(o: CopyOpts) {
 
 /** Texto listo para copiar en WhatsApp (cliente solo-WhatsApp que no abrió el presupuesto). */
 export function whatsappNudgeText(o: CopyOpts) {
+  if (o.opened) return WA_OPENED[(norm(o.lang) in WA_OPENED ? norm(o.lang) : "es") as RLang](o.name || "", o.quoteNumber, cardPayUrl(o.payUrl) || o.payUrl);
   return copyFor(o.lang).wa(o.name || "", o.quoteNumber, o.payUrl, cardPayUrl(o.payUrl));
 }
 

@@ -8,6 +8,7 @@ import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/z
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
 import { prisma } from "@/lib/prisma";
 import { serializeQuote } from "@/lib/quote-serializer";
+import { NO_RESPONSE_NOTE } from "@/lib/cierre-math";
 import { COMPLETION_EVENT, isPendingCompletion } from "@/lib/q-journey";
 
 export const metadata: Metadata = {
@@ -102,6 +103,11 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             </ul>
             {adjuntos.find((f) => f.note)?.note && <p className="mt-1 italic">«{adjuntos.find((f) => f.note)!.note}»</p>}
           </div>
+        )}
+        {(serialized as any).status !== "EXPIRED" && (serialized as any).lostReasonNote === NO_RESPONSE_NOTE && (
+          <p className="mb-4 rounded-lg border border-slate-600 bg-slate-800/60 px-3 py-2 text-sm text-slate-200">
+            Cerrado sin respuesta tras 2º contacto. Sigue pudiendo pagar hasta que caduque; si paga, la marca se borra sola.
+          </p>
         )}
         {solicitud && (
           <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">

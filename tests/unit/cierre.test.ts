@@ -148,11 +148,42 @@ test("cierre suave: 24 h después del 2º contacto sin pago → close (no antes)
   assert.equal(NO_RESPONSE_NOTE, "auto:sin_respuesta");
 });
 
-test("solo-WhatsApp: tarea del vigía a las 24 h y cierre a las 48 h; nunca email", () => {
+test("solo-WhatsApp: tarea del vigía a las 24 h abra o no el presupuesto; nunca email", () => {
   const wa = { ...fu, customerEmail: "34600111222@whatsapp.local" };
-  assert.equal(decideFollowUp(wa).action, "whatsapp_task");
+  assert.deepEqual(decideFollowUp(wa), { action: "whatsapp_task", opened: false });
+  assert.deepEqual(decideFollowUp({ ...wa, status: "OPENED" }), { action: "whatsapp_task", opened: true });
   assert.equal(decideFollowUp({ ...wa, sentAt: hoursAgo(23) }).action, "none");
-  assert.equal(decideFollowUp({ ...wa, sentAt: hoursAgo(49) }).action, "close");
+});
+
+test("solo-WhatsApp: sin constancia del 2º contacto NO se cierra solo, por antiguo que sea", () => {
+  const wa = { ...fu, customerEmail: "34600111222@whatsapp.local" };
+  assert.equal(decideFollowUp({ ...wa, sentAt: hoursAgo(200) }).action, "whatsapp_task");
+  assert.equal(decideFollowUp({ ...wa, sentAt: hoursAgo(200), status: "OPENED" }).action, "whatsapp_task");
+});
+
+test("solo-WhatsApp: con «Ya lo traté» (WhatsApp enviado) se cierra 24 h después, no antes", () => {
+  const wa = { ...fu, customerEmail: "34600111222@whatsapp.local", sentAt: hoursAgo(60) };
+  assert.equal(decideFollowUp({ ...wa, reminderSentAt: hoursAgo(25) }).action, "close");
+  assert.equal(decideFollowUp({ ...wa, reminderSentAt: hoursAgo(5) }).action, "none");
+});
+
+test("reloj: un reenvío del enlace reinicia las 24 h (el llamador pasa sentAt = último envío)", () => {
+  assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(10) }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(25) }).action, "remind_email");
+});
+
+test("etiqueta: auto:sin_respuesta se muestra como cerrado sin respuesta aunque lostReason sea NO_LONGER_NEEDED", () => {
+  const q = { lostReason: "NO_LONGER_NEEDED", lostReasonNote: NO_RESPONSE_NOTE };
+  assert.equal(effectiveLostReason(q), "NO_RESPONSE");
+  assert.match(effectiveLostReasonLabel(q) || "", /Cerrado sin respuesta/);
+  assert.equal(effectiveLostReason({ lostReason: "PRICE", lostReasonNote: "caro" }), "PRICE");
+});
+
+test("copy WhatsApp 2º contacto abierto: «terminar» con pago directo", () => {
+  const payUrl = "https://www.traduccionesjuradas.net/q/abc";
+  assert.match(whatsappNudgeText({ lang: "es", name: "Ana", quoteNumber: "Q1", payUrl, opened: true }), /terminar/);
+  assert.ok(whatsappNudgeText({ lang: "fr", name: "Ana", quoteNumber: "Q1", payUrl, opened: true }).includes("pago=tarjeta"));
+  assert.doesNotMatch(whatsappNudgeText({ lang: "es", name: "Ana", quoteNumber: "Q1", payUrl }), /terminar/);
 });
 
 test("copy del 2º contacto: abierto → «te ayudo a terminar» con enlace de pago directo, en el idioma", () => {
