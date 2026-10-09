@@ -8,6 +8,7 @@ import { verifyOrderToken, buildSignedOrderUrl } from "@/lib/order-token";
 import { getWorkflowState, type WorkflowState } from "@/lib/workflow";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { EMAIL } from "@/lib/contact";
+import { pickPublicLang } from "@/lib/quote-public-i18n";
 
 export const metadata: Metadata = {
   title: "Estado de tu pedido — Traducciones Juradas",
@@ -19,7 +20,7 @@ type Props = {
   searchParams: { token?: string };
 };
 
-type Lang = "es" | "fr";
+type Lang = "es" | "fr" | "en";
 
 /* ------------------------------------------------------------------ */
 /*  i18n — el cliente francófono recibe el SMS en francés (lib/sms-     */
@@ -159,6 +160,51 @@ const STRINGS: Record<Lang, Strings> = {
       `Bonjour, j'ai une question concernant ma commande ${ref}.`,
     mailSubject: (ref: string) => `Question commande ${ref}`,
   },
+  en: {
+    steps: ["Quote", "Payment", "Translating", "Delivered", "Closed"],
+    rateLimited: "You have exceeded the request limit. Please wait a few minutes and try again.",
+    tracking: "Order tracking",
+    title: "Your order status",
+    reference: "Reference",
+    createdOn: "Created on",
+    cardBudget: "Quote",
+    cardPayment: "Payment",
+    cardTranslation: "Translation",
+    estimatedDelivery: "Estimated delivery",
+    pay: {
+      PAID: "Paid",
+      FAILED: "Failed",
+      REFUNDED: "Refunded",
+      PENDING: "Awaiting payment",
+    },
+    delivery: {
+      delivered: "Translation delivered",
+      inProgress: "In progress",
+      done: "Completed",
+      pending: "Pending",
+    },
+    pendingPaymentBanner: "Your order is awaiting payment.",
+    payNow: "Pay now",
+    proofBanner: "We have received your proof of payment. We are checking it.",
+    inProgressBanner: "Your translation is in progress. Estimated delivery:",
+    readyBanner: "Your translation is ready.",
+    download: "Download translation",
+    ship: { title: "Your paper translation is on its way", courier: "Courier", tracking: "Tracking number", on: "Shipped on", follow: "Track the shipment", proof: "View shipping receipt" },
+    history: "History",
+    timeline: {
+      created: "Order created",
+      paid: "Payment confirmed",
+      proof: "Proof of payment received",
+      started: "Translation started",
+      delivered: "Translation delivered",
+      closed: "Order closed",
+      deliveryNotif: "Delivery notification sent",
+    },
+    doubts: "Any questions?",
+    contactUs: "Contact us quoting your reference",
+    whatsappText: (ref: string) => `Hello, I have a question about my order ${ref}.`,
+    mailSubject: (ref: string) => `Order enquiry ${ref}`,
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -193,16 +239,16 @@ function workflowToStep(state: WorkflowState): number {
 
 function formatDate(d: Date | string | null | undefined, lang: Lang) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString(lang === "fr" ? "fr-FR" : "es-ES", {
+  return new Date(d).toLocaleDateString(lang === "fr" ? "fr-FR" : lang === "en" ? "en-GB" : "es-ES", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 }
 
-function formatMoney(cents: number | null | undefined) {
+function formatMoney(cents: number | null | undefined, lang: Lang) {
   if (cents == null) return "—";
-  return `${(cents / 100).toFixed(2)} €`;
+  return new Intl.NumberFormat(lang === "fr" ? "fr-FR" : lang === "en" ? "en-GB" : "es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
 
 function paymentLabelFor(status: string, t: Strings) {
@@ -373,7 +419,9 @@ export default async function PedidoPortalPage({
     notFound();
   }
 
-  const lang: Lang = order.clientLocale === "fr" ? "fr" : "es";
+  // Textos propios en es/fr; pt/it/de y el resto se atienden en inglés (sin textos traducidos aún).
+  const picked = pickPublicLang(order.clientLocale);
+  const lang: Lang = picked === "es" || picked === "fr" ? picked : "en";
   const t = STRINGS[lang];
 
   const workflowState = getWorkflowState({
@@ -397,7 +445,7 @@ export default async function PedidoPortalPage({
   const whatsappUrl = `https://wa.me/34951333614?text=${encodeURIComponent(t.whatsappText(reference))}`;
 
   return (
-    <main className="min-h-screen bg-parchment px-4 py-8">
+    <main className="min-h-screen bg-parchment px-4 py-8" lang={lang}>
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header */}
         <section className="rounded-3xl border border-cream bg-card p-6 shadow-sm">
@@ -421,25 +469,25 @@ export default async function PedidoPortalPage({
               const isActive = i === currentStep;
               const isDone = i < currentStep;
               return (
-                <div key={label} className="flex flex-1 flex-col items-center gap-1.5">
+                <div key={label} aria-current={isActive ? "step" : undefined} className="flex flex-1 flex-col items-center gap-1.5">
                   <div
                     className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
                       isActive
                         ? "bg-bleu text-white"
                         : isDone
                           ? "bg-bleu/20 text-bleu"
-                          : "bg-cream text-sepia/50"
+                          : "bg-cream text-sepia"
                     }`}
                   >
                     {isDone ? "✓" : i + 1}
                   </div>
                   <span
-                    className={`text-center text-[11px] leading-tight ${
+                    className={`text-center text-xs leading-tight ${
                       isActive
                         ? "font-semibold text-bleu"
                         : isDone
-                          ? "font-medium text-bleu/70"
-                          : "text-sepia/50"
+                          ? "font-medium text-bleu"
+                          : "text-sepia"
                     }`}
                   >
                     {label}
@@ -458,7 +506,7 @@ export default async function PedidoPortalPage({
               {t.cardBudget}
             </p>
             <p className="mt-2 text-xl font-bold text-encre">
-              {formatMoney(order.amountCents)}
+              {formatMoney(order.amountCents, lang)}
             </p>
             {order.langPair && (
               <p className="mt-1 text-xs text-sepia">
