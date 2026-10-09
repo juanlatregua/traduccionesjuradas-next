@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import CopyField from "@/components/CopyField";
+import QuoteProofCta from "@/components/QuoteProofCta";
 import { resolvePaymentAccounts } from "@/lib/payment-labels";
 import { publicDict, type PublicLang } from "@/lib/quote-public-i18n";
 
@@ -29,13 +30,13 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
   const accounts = resolvePaymentAccounts(paymentMethods);
   const bizums = accounts.filter((a) => a.account.kind === "bizum");
   const banks = accounts.filter((a) => a.account.kind === "transfer");
-  const firstTab: PayTab = bizums.length ? "bizum" : banks.length ? "transferencia" : "tarjeta";
-  const [tab, setTab] = useState<PayTab>(autoStartCard ? "tarjeta" : firstTab);
+  const [tab, setTab] = useState<PayTab>("tarjeta");
   const autoStarted = useRef(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  const copyProps = { copyLabel: t.copyBtn, copyingLabel: t.copyingBtn, errorLabel: t.copyFail };
   const onCopy = (label: string) => {
     setToast(`${t.copied}: ${label}`);
     setTimeout(() => setToast(null), 1600);
@@ -67,9 +68,19 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStartCard, isPayable]);
 
+  const keys = [...(bizums.length ? ["bizum"] : []), ...(banks.length ? ["transferencia"] : []), "tarjeta"] as PayTab[];
+  const onTabKey = (e: React.KeyboardEvent, current: PayTab) => {
+    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = keys[(keys.indexOf(current) + step + keys.length) % keys.length];
+    setTab(next);
+    document.getElementById(`paytab-${next}`)?.focus();
+  };
+
   if (!isPayable) {
     return (
-      <p className="text-xs text-sepia">
+      <p className="text-sm text-sepia">
         {t.notPayable}
       </p>
     );
@@ -86,23 +97,30 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
       <p className="text-xs font-semibold uppercase tracking-wide text-graphite">{t.payHow}</p>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-cream bg-parchment p-1">
-        {tabs.map((t) => (
+      <div role="tablist" aria-label={t.payHow} className="flex gap-1 rounded-xl border border-cream bg-parchment p-1">
+        {tabs.map((tb) => (
           <button
-            key={t.key}
+            key={tb.key}
             type="button"
-            onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
-              tab === t.key
+            role="tab"
+            id={`paytab-${tb.key}`}
+            aria-selected={tab === tb.key}
+            aria-controls="paypanel"
+            tabIndex={tab === tb.key ? 0 : -1}
+            onClick={() => setTab(tb.key)}
+            onKeyDown={(e) => onTabKey(e, tb.key)}
+            className={`flex-1 rounded-lg px-2 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu ${
+              tab === tb.key
                 ? "bg-bleu text-white shadow-sm"
                 : "text-sepia hover:bg-card"
             }`}
           >
-            {t.label}
+            {tb.label}
           </button>
         ))}
       </div>
 
+      <div id="paypanel" role="tabpanel" aria-labelledby={`paytab-${tab}`} className="space-y-3">
       {/* Bizum */}
       {tab === "bizum" && (
         <div className="space-y-2">
@@ -110,12 +128,13 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
             {t.bizumSendPre} <strong>{totalLabel}</strong> {t.bizumSendPost}
           </p>
           {bizums.map((b) => (
-            <CopyField key={b.key} label="Bizum" value={b.account.kind === "bizum" ? b.account.phone : ""} onCopied={onCopy} />
+            <CopyField key={b.key} label="Bizum" value={b.account.kind === "bizum" ? b.account.phone : ""} onCopied={onCopy} {...copyProps} />
           ))}
-          <CopyField label={t.concept} value={quoteNumber} onCopied={onCopy} />
-          <p className="text-[11px] text-graphite">
+          <CopyField label={t.concept} value={quoteNumber} onCopied={onCopy} {...copyProps} />
+          <p className="text-xs text-graphite">
             {t.conceptHint}
           </p>
+          <QuoteProofCta token={token} lang={lang} variant="button" />
         </div>
       )}
 
@@ -128,26 +147,27 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
           {banks.map((b) =>
             b.account.kind === "transfer" ? (
               <div key={b.key} className="space-y-2">
-                {banks.length > 1 && <p className="text-[11px] font-semibold text-graphite">{b.account.bank}</p>}
-                <CopyField label={t.beneficiary} value={b.account.holder} mono={false} onCopied={onCopy} />
-                <CopyField label={t.iban} value={b.account.iban} onCopied={onCopy} />
-                <CopyField label={t.bic} value={b.account.bic} onCopied={onCopy} />
+                {banks.length > 1 && <p className="text-xs font-semibold text-graphite">{b.account.bank}</p>}
+                <CopyField label={t.beneficiary} value={b.account.holder} mono={false} onCopied={onCopy} {...copyProps} />
+                <CopyField label={t.iban} value={b.account.iban} onCopied={onCopy} {...copyProps} />
+                <CopyField label={t.bic} value={b.account.bic} onCopied={onCopy} {...copyProps} />
                 {b.account.holderAddress && (
-                  <CopyField label={t.beneficiaryAddress} value={b.account.holderAddress} mono={false} onCopied={onCopy} />
+                  <CopyField label={t.beneficiaryAddress} value={b.account.holderAddress} mono={false} onCopied={onCopy} {...copyProps} />
                 )}
                 {b.account.bankAddress && (
-                  <CopyField label={t.bankAddress} value={b.account.bankAddress} mono={false} onCopied={onCopy} />
+                  <CopyField label={t.bankAddress} value={b.account.bankAddress} mono={false} onCopied={onCopy} {...copyProps} />
                 )}
               </div>
             ) : null
           )}
-          <CopyField label={t.concept} value={quoteNumber} onCopied={onCopy} />
-          <p className="text-[11px] text-graphite">
+          <CopyField label={t.concept} value={quoteNumber} onCopied={onCopy} {...copyProps} />
+          <p className="text-xs text-graphite">
             {t.conceptHint}
           </p>
-          <p className="text-[11px] text-graphite">
+          <p className="text-xs text-graphite">
             {t.sepaNote}
           </p>
+          <QuoteProofCta token={token} lang={lang} variant="button" />
         </div>
       )}
 
@@ -158,22 +178,27 @@ export default function QuotePublicPayButton({ token, isPayable, quoteNumber, to
             type="button"
             onClick={startCardCheckout}
             disabled={loading}
-            className="w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-60"
+            aria-describedby={message ? "pay-err" : undefined}
+            className="min-h-[44px] w-full rounded-xl bg-bleu px-4 py-3 text-sm font-semibold text-white hover:bg-bleu-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? t.redirecting : `${t.payCard} ${totalLabel}`}
           </button>
-          <p className="text-[11px] text-graphite">
+          <p className="text-xs text-graphite">
             {t.cardNote}
           </p>
-          {message && <p className="text-xs font-semibold text-red-700">{message}</p>}
+          {message && <p id="pay-err" role="alert" className="text-xs font-semibold text-red-700">{message}</p>}
         </div>
       )}
 
-      {toast && (
-        <p className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full bg-encre px-3 py-1 text-xs font-semibold text-white">
-          {toast}
-        </p>
-      )}
+      </div>
+
+      <div role="status" aria-live="polite">
+        {toast && (
+          <p className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full bg-encre px-4 py-2 text-sm font-semibold text-white">
+            {toast}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

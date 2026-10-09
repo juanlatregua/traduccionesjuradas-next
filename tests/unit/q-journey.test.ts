@@ -17,6 +17,8 @@ import {
   completionBlobPrefix,
   isPendingCompletion,
   parseCompletionFiles,
+  payPhase,
+  quoteDeliveryTerm,
   pickBillingPrefill,
   validateBilling,
   validateCompletionFiles,
@@ -221,4 +223,23 @@ test("tope por presupuesto: 3 envíos al día y 10 archivos en total", () => {
   // los de hace más de 24 h no cuentan para el día, sí para el total
   assert.equal(completionQuota([h(30), h(40), h(50)], 1, now), null);
   assert.equal(completionQuota([h(30, 5), h(40, 5)], 1, now), "total");
+});
+
+test("payPhase: ?paid=1 sin paidAt es confirming, nunca paid", () => {
+  const d = new Date();
+  assert.equal(payPhase({ paidAt: null, paidParam: true, balance: 0, balancePaidAt: null }), "confirming");
+  assert.equal(payPhase({ paidAt: null, paidParam: false, balance: 0, balancePaidAt: null }), "open");
+  assert.equal(payPhase({ paidAt: d, paidParam: false, balance: 0, balancePaidAt: null }), "paid");
+});
+
+test("payPhase: dos plazos con el segundo pendiente es partial", () => {
+  const d = new Date();
+  assert.equal(payPhase({ paidAt: d, paidParam: true, balance: 60, balancePaidAt: null }), "partial");
+  assert.equal(payPhase({ paidAt: d, paidParam: true, balance: 60, balancePaidAt: d }), "paid");
+});
+
+test("quoteDeliveryTerm: deliveryTerm, luego notesLegal, y sin plazo es null", () => {
+  assert.equal(quoteDeliveryTerm({ deliveryTerm: " 2-3 días hábiles " }), "2-3 días hábiles");
+  assert.equal(quoteDeliveryTerm({ deliveryTerm: null, notesLegal: "Validez 15 días. Plazo de entrega: 4 días hábiles. Otra nota" }), "4 días hábiles");
+  assert.equal(quoteDeliveryTerm({ deliveryTerm: "", notesLegal: "Sin plazo" }), null);
 });

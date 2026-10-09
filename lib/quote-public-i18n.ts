@@ -159,6 +159,32 @@ export type PublicDict = {
   billLocked: string;
   billSuggest: string;
   billUse: string;
+  totalVatIncl: string;
+  etaLabel: string;
+  etaFromPayment: string;
+  payNowCta: string;
+  proofLinePre: string;
+  proofLineLink: string;
+  paidTitle: string;
+  paidStepReceived: string;
+  paidStepProgress: string;
+  paidStepDelivery: string;
+  paidEta: string;
+  followOrder: string;
+  paidContact: string;
+  needDocsFirst: string;
+  rateLimited: string;
+  pageTitle: string;
+  copyBtn: string;
+  copyingBtn: string;
+  copyFail: string;
+  firstPayment: string;
+  firstPaid: string;
+  remaining: string;
+  goSecond: string;
+  confirming: string;
+  confirmingHelp: string;
+  retryPay: string;
 };
 
 const ES: PublicDict = {
@@ -176,11 +202,11 @@ const ES: PublicDict = {
   deliveryPaper: "Papel con envío 24/48h",
   deliveryDigital: "PDF digital firmado",
   holders: "Titulares",
-  translatorIntro: "Su traducción la realiza",
+  translatorIntro: "Tu traducción la realiza",
   translatorSworn: "traductor/a-intérprete jurado/a",
   translatorNumber: "nº",
   translatorAppointed: "nombrado/a por el Ministerio de Asuntos Exteriores.",
-  ourNetwork: "Conozca nuestra red directa →",
+  ourNetwork: "Conoce nuestra red directa →",
   colDescription: "Descripción",
   colQty: "Cant.",
   colPrice: "Precio",
@@ -194,7 +220,7 @@ const ES: PublicDict = {
   vat: "IVA",
   total: "Total",
   paperIncluded: "El envío en papel (12 € + IVA) está incluido en el total.",
-  yourDocuments: "Sus documentos",
+  yourDocuments: "Tus documentos",
   pdfTitle: "PDF del presupuesto",
   pdfOpen: "Abrir / descargar PDF completo",
   pdfPending: "El PDF final se mostrará en cuanto el presupuesto sea confirmado por el equipo.",
@@ -236,9 +262,9 @@ const ES: PublicDict = {
   docDownload: "Descargar",
   docPage: "pág.",
   docPages: "págs.",
-  docNoPreview: "Formato sin vista previa: use «Abrir en otra pestaña» o «Descargar».",
+  docNoPreview: "Formato sin vista previa: usa «Abrir en otra pestaña» o «Descargar».",
   docMobileHint: "En el móvil puede verse solo la primera página: «Abrir en otra pestaña» enseña el documento entero.",
-  fbPrompt: "Si ha decidido no seguir adelante, ¿nos dice el motivo? Un clic basta.",
+  fbPrompt: "Si has decidido no seguir adelante, ¿nos dices el motivo? Un clic basta.",
   fbPrice: "El precio",
   fbDeadline: "El plazo",
   fbNoNeed: "Ya no lo necesito",
@@ -246,7 +272,7 @@ const ES: PublicDict = {
   fbOther: "Otro motivo",
   fbThanks: "Gracias por contárnoslo. Nos ayuda a mejorar.",
   fbPickReason: "Elige un motivo.",
-  fbNote: "Algo más que quiera contarnos (opcional)",
+  fbNote: "Algo más que quieras contarnos (opcional)",
   fbSend: "Enviar motivo",
   fbSending: "Enviando…",
   fbErrSend: "No se pudo enviar.",
@@ -294,6 +320,32 @@ const ES: PublicDict = {
   billLocked: "Tus datos de facturación ya están registrados. Si necesitas cambiarlos, escríbenos.",
   billSuggest: "¿Es este el titular de la factura?",
   billUse: "Usar",
+  totalVatIncl: "Total (IVA incl.)",
+  etaLabel: "Entrega estimada",
+  etaFromPayment: "desde la confirmación del pago",
+  payNowCta: "Pagar ahora",
+  proofLinePre: "¿Ya pagaste por transferencia o Bizum?",
+  proofLineLink: "Sube el justificante",
+  paidTitle: "Pagado",
+  paidStepReceived: "Pago recibido",
+  paidStepProgress: "Traducción en curso",
+  paidStepDelivery: "Entrega",
+  paidEta: "Fecha estimada de entrega",
+  followOrder: "Seguir mi pedido",
+  paidContact: "¿Dudas? Escríbenos por WhatsApp o a",
+  needDocsFirst: "Primero confirma tus documentos",
+  rateLimited: "Has superado el límite de consultas para este enlace. Espera unos minutos e inténtalo de nuevo.",
+  pageTitle: "Presupuesto",
+  copyBtn: "Copiar",
+  copyingBtn: "Copiando…",
+  copyFail: "No se pudo copiar.",
+  firstPayment: "Primer pago",
+  firstPaid: "Primer pago recibido",
+  remaining: "Queda por pagar",
+  goSecond: "Pagar el segundo plazo",
+  confirming: "Pago en confirmación",
+  confirmingHelp: "Estamos esperando la confirmación de tu pago. Si no recibes el email de confirmación en unos minutos, escríbenos.",
+  retryPay: "¿No se completó? Inténtalo de nuevo",
 };
 
 const EN: PublicDict = {
@@ -429,6 +481,32 @@ const EN: PublicDict = {
   billLocked: "Your billing details are already registered. If you need to change them, write to us.",
   billSuggest: "Is this the invoice holder?",
   billUse: "Use",
+  totalVatIncl: "Total (VAT incl.)",
+  etaLabel: "Estimated delivery",
+  etaFromPayment: "from payment confirmation",
+  payNowCta: "Pay now",
+  proofLinePre: "Already paid by bank transfer or Bizum?",
+  proofLineLink: "Upload your proof of payment",
+  paidTitle: "Paid",
+  paidStepReceived: "Payment received",
+  paidStepProgress: "Translation in progress",
+  paidStepDelivery: "Delivery",
+  paidEta: "Estimated delivery date",
+  followOrder: "Track my order",
+  paidContact: "Questions? Write to us on WhatsApp or at",
+  needDocsFirst: "First confirm your documents",
+  rateLimited: "You have exceeded the request limit for this link. Please wait a few minutes and try again.",
+  pageTitle: "Quote",
+  copyBtn: "Copy",
+  copyingBtn: "Copying…",
+  copyFail: "Could not copy.",
+  firstPayment: "First payment",
+  firstPaid: "First payment received",
+  remaining: "Remaining",
+  goSecond: "Pay the second instalment",
+  confirming: "Payment being confirmed",
+  confirmingHelp: "We are waiting for your payment to be confirmed. If you do not get a confirmation email in a few minutes, write to us.",
+  retryPay: "Did it not go through? Try again",
 };
 
 const FR: PublicDict = {
@@ -564,6 +642,32 @@ const FR: PublicDict = {
   billLocked: "Vos données de facturation sont déjà enregistrées. Si vous devez les modifier, écrivez-nous.",
   billSuggest: "Est-ce le titulaire de la facture ?",
   billUse: "Utiliser",
+  totalVatIncl: "Total (TVA incl.)",
+  etaLabel: "Livraison estimée",
+  etaFromPayment: "à compter de la confirmation du paiement",
+  payNowCta: "Payer maintenant",
+  proofLinePre: "Déjà payé par virement ou Bizum ?",
+  proofLineLink: "Envoyez votre justificatif",
+  paidTitle: "Payé",
+  paidStepReceived: "Paiement reçu",
+  paidStepProgress: "Traduction en cours",
+  paidStepDelivery: "Livraison",
+  paidEta: "Date de livraison estimée",
+  followOrder: "Suivre ma commande",
+  paidContact: "Des questions ? Écrivez-nous sur WhatsApp ou à",
+  needDocsFirst: "Confirmez d'abord vos documents",
+  rateLimited: "Vous avez dépassé la limite de consultations pour ce lien. Patientez quelques minutes et réessayez.",
+  pageTitle: "Devis",
+  copyBtn: "Copier",
+  copyingBtn: "Copie…",
+  copyFail: "Copie impossible.",
+  firstPayment: "Premier paiement",
+  firstPaid: "Premier paiement reçu",
+  remaining: "Reste à payer",
+  goSecond: "Payer le second versement",
+  confirming: "Paiement en cours de confirmation",
+  confirmingHelp: "Nous attendons la confirmation de votre paiement. Sans e-mail de confirmation dans quelques minutes, écrivez-nous.",
+  retryPay: "Le paiement n'a pas abouti ? Réessayez",
 };
 
 const PT: PublicDict = {
@@ -699,6 +803,32 @@ const PT: PublicDict = {
   billLocked: "Os seus dados de faturação já estão registados. Se precisar de os alterar, escreva-nos.",
   billSuggest: "É este o titular da fatura?",
   billUse: "Usar",
+  totalVatIncl: "Total (IVA incl.)",
+  etaLabel: "Entrega estimada",
+  etaFromPayment: "a partir da confirmação do pagamento",
+  payNowCta: "Pagar agora",
+  proofLinePre: "Já pagou por transferência ou Bizum?",
+  proofLineLink: "Envie o comprovativo",
+  paidTitle: "Pago",
+  paidStepReceived: "Pagamento recebido",
+  paidStepProgress: "Tradução em andamento",
+  paidStepDelivery: "Entrega",
+  paidEta: "Data estimada de entrega",
+  followOrder: "Acompanhar meu pedido",
+  paidContact: "Dúvidas? Escreva-nos pelo WhatsApp ou para",
+  needDocsFirst: "Primeiro confirme os seus documentos",
+  rateLimited: "Excedeu o limite de consultas para este link. Aguarde uns minutos e tente novamente.",
+  pageTitle: "Orçamento",
+  copyBtn: "Copiar",
+  copyingBtn: "Copiando…",
+  copyFail: "Não foi possível copiar.",
+  firstPayment: "Primeiro pagamento",
+  firstPaid: "Primeiro pagamento recebido",
+  remaining: "Falta pagar",
+  goSecond: "Pagar a segunda prestação",
+  confirming: "Pagamento em confirmação",
+  confirmingHelp: "Estamos a aguardar a confirmação do seu pagamento. Se não receber o email de confirmação em alguns minutos, escreva-nos.",
+  retryPay: "Não foi concluído? Tente novamente",
 };
 
 const IT: PublicDict = {
@@ -834,6 +964,32 @@ const IT: PublicDict = {
   billLocked: "I tuoi dati di fatturazione sono già registrati. Se devi modificarli, scrivici.",
   billSuggest: "È questo l'intestatario della fattura?",
   billUse: "Usa",
+  totalVatIncl: "Totale (IVA incl.)",
+  etaLabel: "Consegna stimata",
+  etaFromPayment: "dalla conferma del pagamento",
+  payNowCta: "Paga ora",
+  proofLinePre: "Hai già pagato con bonifico o Bizum?",
+  proofLineLink: "Carica la ricevuta",
+  paidTitle: "Pagato",
+  paidStepReceived: "Pagamento ricevuto",
+  paidStepProgress: "Traduzione in corso",
+  paidStepDelivery: "Consegna",
+  paidEta: "Data di consegna stimata",
+  followOrder: "Segui il mio ordine",
+  paidContact: "Domande? Scrivici su WhatsApp o a",
+  needDocsFirst: "Prima conferma i tuoi documenti",
+  rateLimited: "Hai superato il limite di consultazioni per questo link. Attendi qualche minuto e riprova.",
+  pageTitle: "Preventivo",
+  copyBtn: "Copia",
+  copyingBtn: "Copia…",
+  copyFail: "Impossibile copiare.",
+  firstPayment: "Primo pagamento",
+  firstPaid: "Primo pagamento ricevuto",
+  remaining: "Resta da pagare",
+  goSecond: "Paga la seconda rata",
+  confirming: "Pagamento in conferma",
+  confirmingHelp: "Stiamo attendendo la conferma del pagamento. Se non ricevi l'email di conferma entro pochi minuti, scrivici.",
+  retryPay: "Non è andato a buon fine? Riprova",
 };
 
 const DE: PublicDict = {
@@ -969,6 +1125,32 @@ const DE: PublicDict = {
   billLocked: "Ihre Rechnungsdaten sind bereits erfasst. Wenn Sie sie ändern müssen, schreiben Sie uns.",
   billSuggest: "Ist das der Rechnungsempfänger?",
   billUse: "Übernehmen",
+  totalVatIncl: "Gesamt (inkl. MwSt.)",
+  etaLabel: "Voraussichtliche Lieferung",
+  etaFromPayment: "ab Zahlungseingang",
+  payNowCta: "Jetzt bezahlen",
+  proofLinePre: "Schon per Überweisung oder Bizum bezahlt?",
+  proofLineLink: "Zahlungsbeleg hochladen",
+  paidTitle: "Bezahlt",
+  paidStepReceived: "Zahlung eingegangen",
+  paidStepProgress: "Übersetzung in Arbeit",
+  paidStepDelivery: "Lieferung",
+  paidEta: "Voraussichtliches Lieferdatum",
+  followOrder: "Meine Bestellung verfolgen",
+  paidContact: "Fragen? Schreiben Sie uns per WhatsApp oder an",
+  needDocsFirst: "Bestätigen Sie zuerst Ihre Dokumente",
+  rateLimited: "Sie haben das Abfragelimit für diesen Link überschritten. Bitte warten Sie einige Minuten.",
+  pageTitle: "Angebot",
+  copyBtn: "Kopieren",
+  copyingBtn: "Kopiere…",
+  copyFail: "Kopieren nicht möglich.",
+  firstPayment: "Erste Zahlung",
+  firstPaid: "Erste Zahlung eingegangen",
+  remaining: "Noch offen",
+  goSecond: "Zweite Rate bezahlen",
+  confirming: "Zahlung wird bestätigt",
+  confirmingHelp: "Wir warten auf die Bestätigung Ihrer Zahlung. Falls Sie in einigen Minuten keine Bestätigungs-E-Mail erhalten, schreiben Sie uns.",
+  retryPay: "Nicht abgeschlossen? Erneut versuchen",
 };
 
 const DICTS: Record<PublicLang, PublicDict> = { es: ES, en: EN, fr: FR, pt: PT, it: IT, de: DE };
@@ -980,12 +1162,12 @@ export function publicDict(lang: PublicLang): PublicDict {
 /** Etiqueta del estado del presupuesto en el idioma del cliente. */
 export function statusLabel(status: string, lang: PublicLang): string {
   const mapa: Record<PublicLang, Record<string, string>> = {
-    es: { DRAFT: "Borrador", SENT: "Enviado", OPENED: "Abierto", ACCEPTED: "Aceptado", PAID: "Pagado", IN_PROGRESS: "En curso", DELIVERED: "Entregado", EXPIRED: "Caducado" },
-    en: { DRAFT: "Draft", SENT: "Sent", OPENED: "Opened", ACCEPTED: "Accepted", PAID: "Paid", IN_PROGRESS: "In progress", DELIVERED: "Delivered", EXPIRED: "Expired" },
-    fr: { DRAFT: "Brouillon", SENT: "Envoyé", OPENED: "Ouvert", ACCEPTED: "Accepté", PAID: "Payé", IN_PROGRESS: "En cours", DELIVERED: "Livré", EXPIRED: "Expiré" },
-    pt: { DRAFT: "Rascunho", SENT: "Enviado", OPENED: "Aberto", ACCEPTED: "Aceito", PAID: "Pago", IN_PROGRESS: "Em andamento", DELIVERED: "Entregue", EXPIRED: "Expirado" },
-    it: { DRAFT: "Bozza", SENT: "Inviato", OPENED: "Aperto", ACCEPTED: "Accettato", PAID: "Pagato", IN_PROGRESS: "In corso", DELIVERED: "Consegnato", EXPIRED: "Scaduto" },
-    de: { DRAFT: "Entwurf", SENT: "Gesendet", OPENED: "Geöffnet", ACCEPTED: "Angenommen", PAID: "Bezahlt", IN_PROGRESS: "In Bearbeitung", DELIVERED: "Geliefert", EXPIRED: "Abgelaufen" },
+    es: { DRAFT: "Borrador", SENT: "Pendiente de pago", OPENED: "Pendiente de pago", ACCEPTED: "Pendiente de pago", PAID: "Pagado", IN_PROGRESS: "En curso", DELIVERED: "Entregado", EXPIRED: "Caducado" },
+    en: { DRAFT: "Draft", SENT: "Awaiting payment", OPENED: "Awaiting payment", ACCEPTED: "Awaiting payment", PAID: "Paid", IN_PROGRESS: "In progress", DELIVERED: "Delivered", EXPIRED: "Expired" },
+    fr: { DRAFT: "Brouillon", SENT: "En attente de paiement", OPENED: "En attente de paiement", ACCEPTED: "En attente de paiement", PAID: "Payé", IN_PROGRESS: "En cours", DELIVERED: "Livré", EXPIRED: "Expiré" },
+    pt: { DRAFT: "Rascunho", SENT: "Aguarda pagamento", OPENED: "Aguarda pagamento", ACCEPTED: "Aguarda pagamento", PAID: "Pago", IN_PROGRESS: "Em andamento", DELIVERED: "Entregue", EXPIRED: "Expirado" },
+    it: { DRAFT: "Bozza", SENT: "In attesa di pagamento", OPENED: "In attesa di pagamento", ACCEPTED: "In attesa di pagamento", PAID: "Pagato", IN_PROGRESS: "In corso", DELIVERED: "Consegnato", EXPIRED: "Scaduto" },
+    de: { DRAFT: "Entwurf", SENT: "Zahlung ausstehend", OPENED: "Zahlung ausstehend", ACCEPTED: "Zahlung ausstehend", PAID: "Bezahlt", IN_PROGRESS: "In Bearbeitung", DELIVERED: "Geliefert", EXPIRED: "Abgelaufen" },
   };
   return mapa[lang]?.[status] ?? mapa.es[status] ?? status;
 }

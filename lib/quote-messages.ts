@@ -1,21 +1,263 @@
 import { formatDateEs } from "./quotes.ts";
 import { PAYMENT_LABELS } from "./payment-labels.ts";
+import { localeFor, pickPublicLang, type PublicLang } from "./quote-public-i18n.ts";
 
 export { PAYMENT_LABELS };
 
 type CommonData = {
   name: string;
   payUrl: string;
-  proofUrl?: string | null;
+  // Idioma del cliente (Quote.pdfLang); español por defecto.
+  lang?: string | null;
+  totalEur?: number | null;
+  // Dos plazos: totalEur es el primer pago y balanceEur el segundo.
+  balanceEur?: number | null;
+  sourceLang?: string | null;
+  targetLang?: string | null;
+  // Plazo escrito del presupuesto ("2-3 días hábiles"); si falta, el estándar según el tipo de entrega.
+  deliveryTerm?: string | null;
+  deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP" | null;
+  // No residentes UE (vatRate 0): mentir "IVA incluido" no vale.
+  vatExempt?: boolean;
   // Identidad del jurado que hará la traducción (directriz 12-ago: "da
   // seriedad") — la línea solo sale si hay nombre; el nº MAEC si se conoce.
   translatorName?: string | null;
   translatorMaec?: string | null;
 };
 
-function translatorLine(name?: string | null, maec?: string | null): string {
-  if (!name) return "";
-  return ` (lo realiza ${name}, traductor/a-intérprete jurado/a${maec ? ` nº ${maec}` : ""})`;
+type MsgDict = {
+  hello: (name: string) => string;
+  hi: string;
+  subject: string;
+  vat: string;
+  noVat: string;
+  total: string;
+  firstPayment: string;
+  secondPayment: string;
+  delivery: string;
+  cta: string;
+  translator: (name: string, maec?: string | null) => string;
+  paper: string;
+  start: string;
+  sign: string;
+  wa: { digital: string; paper: string; anyLang: string };
+  paid: {
+    subjectDigital: string;
+    subjectPaper: string;
+    confirmed: string;
+    ref: string;
+    eta: string;
+    digital: string;
+    paper: string;
+    track: string;
+    contact: string;
+    sign: string;
+  };
+};
+
+const MSG: Record<PublicLang, MsgDict> = {
+  es: {
+    hello: (n) => `Estimado/a ${n}:`,
+    hi: "Hola",
+    subject: "Su presupuesto de traducción jurada",
+    vat: "IVA incl.",
+    noVat: "operación no sujeta a IVA — residente fuera de la UE",
+    total: "Total",
+    firstPayment: "Primer pago",
+    secondPayment: "Segundo pago",
+    delivery: "Entrega",
+    cta: "Ver el presupuesto y pagar",
+    translator: (n, m) => `La traducción la realiza ${n}, traductor/a-intérprete jurado/a${m ? ` nº ${m} del MAEC` : ""}.`,
+    paper: "El envío en papel (12 € + IVA) está incluido en el total.",
+    start: "En cuanto recibamos el pago empezamos la traducción.",
+    sign: "Un saludo,\nJuan Silva — TraduccionesJuradas.net",
+    wa: { digital: "Traducción jurada oficial en PDF con firma digital.", paper: "Traducción jurada oficial en papel, por mensajería.", anyLang: "Puede escribirnos en su idioma: le respondemos en él." },
+    paid: {
+      subjectDigital: "Pago recibido – Traducción jurada en formato digital",
+      subjectPaper: "Pago recibido – Envío de traducción jurada en papel",
+      confirmed: "Confirmamos la recepción del pago.",
+      ref: "Referencia",
+      eta: "Fecha estimada de entrega",
+      digital: "Le enviaremos la traducción jurada en PDF firmado digitalmente a este mismo email.",
+      paper: "Envío por mensajería 24/48 h una vez terminada la traducción (12 € + IVA incluidos en el importe abonado).",
+      track: "Siga su pedido aquí",
+      contact: "¿Dudas? Escriba a hola@traduccionesjuradas.net o por WhatsApp al +34 951 333 614 indicando la referencia.",
+      sign: "Atentamente, Juan Silva – Traductor Jurado (MAEC).",
+    },
+  },
+  en: {
+    hello: (n) => `Dear ${n},`,
+    hi: "Hello",
+    subject: "Your sworn translation quote",
+    vat: "VAT incl.",
+    noVat: "not subject to VAT — non-EU resident",
+    total: "Total",
+    firstPayment: "First payment",
+    secondPayment: "Second payment",
+    delivery: "Delivery",
+    cta: "View the quote and pay",
+    translator: (n, m) => `Your translation is done by ${n}, sworn translator${m ? ` MAEC no. ${m}` : ""}.`,
+    paper: "Paper shipping (EUR 12 + VAT) is included in the total.",
+    start: "We start the translation as soon as we receive your payment.",
+    sign: "Best regards,\nJuan Silva — TraduccionesJuradas.net",
+    wa: { digital: "Official sworn translation as a digitally signed PDF.", paper: "Official sworn translation on paper, by courier.", anyLang: "You can write to us in your language: we reply in it." },
+    paid: {
+      subjectDigital: "Payment received – Sworn translation (digital)",
+      subjectPaper: "Payment received – Sworn translation (paper)",
+      confirmed: "We confirm we have received your payment.",
+      ref: "Reference",
+      eta: "Estimated delivery date",
+      digital: "We will send the sworn translation as a digitally signed PDF to this same email.",
+      paper: "Courier shipping 24/48 h once the translation is finished (EUR 12 + VAT included in the amount paid).",
+      track: "Track your order here",
+      contact: "Questions? Write to hola@traduccionesjuradas.net or on WhatsApp at +34 951 333 614 quoting the reference.",
+      sign: "Kind regards, Juan Silva – Sworn Translator (MAEC).",
+    },
+  },
+  fr: {
+    hello: (n) => `Bonjour ${n},`,
+    hi: "Bonjour",
+    subject: "Votre devis de traduction assermentée",
+    vat: "TVA incl.",
+    noVat: "opération non soumise à la TVA — résident hors UE",
+    total: "Total",
+    firstPayment: "Premier paiement",
+    secondPayment: "Second paiement",
+    delivery: "Livraison",
+    cta: "Voir le devis et payer",
+    translator: (n, m) => `Votre traduction est réalisée par ${n}, traducteur/trice assermenté(e)${m ? ` n° ${m} du MAEC` : ""}.`,
+    paper: "L'envoi papier (12 € + TVA) est inclus dans le total.",
+    start: "Nous commençons la traduction dès réception du paiement.",
+    sign: "Cordialement,\nJuan Silva — TraduccionesJuradas.net",
+    wa: { digital: "Traduction assermentée officielle en PDF signé numériquement.", paper: "Traduction assermentée officielle sur papier, par transporteur.", anyLang: "Vous pouvez nous écrire dans votre langue : nous répondons dans la même." },
+    paid: {
+      subjectDigital: "Paiement reçu – Traduction assermentée (numérique)",
+      subjectPaper: "Paiement reçu – Traduction assermentée (papier)",
+      confirmed: "Nous confirmons la réception de votre paiement.",
+      ref: "Référence",
+      eta: "Date de livraison estimée",
+      digital: "Nous vous enverrons la traduction assermentée en PDF signé numériquement à cette même adresse.",
+      paper: "Envoi par transporteur 24/48 h une fois la traduction terminée (12 € + TVA inclus dans le montant payé).",
+      track: "Suivez votre commande ici",
+      contact: "Une question ? Écrivez à hola@traduccionesjuradas.net ou sur WhatsApp au +34 951 333 614 en indiquant la référence.",
+      sign: "Cordialement, Juan Silva – Traducteur assermenté (MAEC).",
+    },
+  },
+  pt: {
+    hello: (n) => `Caro/a ${n},`,
+    hi: "Olá",
+    subject: "O seu orçamento de tradução juramentada",
+    vat: "IVA incl.",
+    noVat: "operação não sujeita a IVA — residente fora da UE",
+    total: "Total",
+    firstPayment: "Primeiro pagamento",
+    secondPayment: "Segundo pagamento",
+    delivery: "Entrega",
+    cta: "Ver o orçamento e pagar",
+    translator: (n, m) => `A tradução é feita por ${n}, tradutor/a juramentado/a${m ? ` n.º ${m} do MAEC` : ""}.`,
+    paper: "O envio em papel (12 € + IVA) está incluído no total.",
+    start: "Começamos a tradução assim que recebermos o pagamento.",
+    sign: "Com os melhores cumprimentos,\nJuan Silva — TraduccionesJuradas.net",
+    wa: { digital: "Tradução juramentada oficial em PDF com assinatura digital.", paper: "Tradução juramentada oficial em papel, por correio expresso.", anyLang: "Pode escrever-nos no seu idioma: respondemos nele." },
+    paid: {
+      subjectDigital: "Pagamento recebido – Tradução juramentada (digital)",
+      subjectPaper: "Pagamento recebido – Tradução juramentada (papel)",
+      confirmed: "Confirmamos a receção do seu pagamento.",
+      ref: "Referência",
+      eta: "Data estimada de entrega",
+      digital: "Enviaremos a tradução juramentada em PDF com assinatura digital para este mesmo email.",
+      paper: "Envio por correio expresso 24/48 h após terminar a tradução (12 € + IVA incluídos no valor pago).",
+      track: "Acompanhe o seu pedido aqui",
+      contact: "Dúvidas? Escreva para hola@traduccionesjuradas.net ou por WhatsApp para +34 951 333 614 indicando a referência.",
+      sign: "Com os melhores cumprimentos, Juan Silva – Tradutor Juramentado (MAEC).",
+    },
+  },
+  it: {
+    hello: (n) => `Gentile ${n},`,
+    hi: "Ciao",
+    subject: "Il suo preventivo di traduzione giurata",
+    vat: "IVA incl.",
+    noVat: "operazione non soggetta a IVA — residente fuori dalla UE",
+    total: "Totale",
+    firstPayment: "Primo pagamento",
+    secondPayment: "Secondo pagamento",
+    delivery: "Consegna",
+    cta: "Vedere il preventivo e pagare",
+    translator: (n, m) => `La traduzione è eseguita da ${n}, traduttore/trice giurato/a${m ? ` n. ${m} del MAEC` : ""}.`,
+    paper: "La spedizione cartacea (12 € + IVA) è inclusa nel totale.",
+    start: "Iniziamo la traduzione appena riceviamo il pagamento.",
+    sign: "Cordiali saluti,\nJuan Silva — TraduccionesJuradas.net",
+    wa: { digital: "Traduzione giurata ufficiale in PDF con firma digitale.", paper: "Traduzione giurata ufficiale su carta, con corriere.", anyLang: "Può scriverci nella sua lingua: rispondiamo nella stessa." },
+    paid: {
+      subjectDigital: "Pagamento ricevuto – Traduzione giurata (digitale)",
+      subjectPaper: "Pagamento ricevuto – Traduzione giurata (cartacea)",
+      confirmed: "Confermiamo la ricezione del pagamento.",
+      ref: "Riferimento",
+      eta: "Data di consegna stimata",
+      digital: "Le invieremo la traduzione giurata in PDF con firma digitale a questo stesso indirizzo.",
+      paper: "Spedizione con corriere 24/48 h a traduzione terminata (12 € + IVA inclusi nell'importo pagato).",
+      track: "Segua il suo ordine qui",
+      contact: "Domande? Scriva a hola@traduccionesjuradas.net o su WhatsApp al +34 951 333 614 indicando il riferimento.",
+      sign: "Cordiali saluti, Juan Silva – Traduttore Giurato (MAEC).",
+    },
+  },
+  de: {
+    hello: (n) => `Guten Tag ${n},`,
+    hi: "Hallo",
+    subject: "Ihr Angebot für die beeidigte Übersetzung",
+    vat: "inkl. MwSt.",
+    noVat: "nicht mehrwertsteuerpflichtig — Wohnsitz außerhalb der EU",
+    total: "Gesamt",
+    firstPayment: "Erste Zahlung",
+    secondPayment: "Zweite Zahlung",
+    delivery: "Lieferung",
+    cta: "Angebot ansehen und bezahlen",
+    translator: (n, m) => `Die Übersetzung erstellt ${n}, beeidigte/r Übersetzer/in${m ? ` Nr. ${m} (MAEC)` : ""}.`,
+    paper: "Der Papierversand (12 € + MwSt.) ist im Gesamtpreis enthalten.",
+    start: "Wir beginnen mit der Übersetzung, sobald die Zahlung eingegangen ist.",
+    sign: "Mit freundlichen Grüßen\nJuan Silva — TraduccionesJuradas.net",
+    wa: { digital: "Offizielle beeidigte Übersetzung als digital signiertes PDF.", paper: "Offizielle beeidigte Übersetzung auf Papier, per Kurier.", anyLang: "Sie können uns in Ihrer Sprache schreiben: Wir antworten in ihr." },
+    paid: {
+      subjectDigital: "Zahlung eingegangen – Beeidigte Übersetzung (digital)",
+      subjectPaper: "Zahlung eingegangen – Beeidigte Übersetzung (Papier)",
+      confirmed: "Wir bestätigen den Eingang Ihrer Zahlung.",
+      ref: "Referenz",
+      eta: "Voraussichtliches Lieferdatum",
+      digital: "Wir senden Ihnen die beeidigte Übersetzung als digital signiertes PDF an diese E-Mail-Adresse.",
+      paper: "Kurierversand 24/48 h nach Fertigstellung (12 € + MwSt. im bezahlten Betrag enthalten).",
+      track: "Bestellung hier verfolgen",
+      contact: "Fragen? Schreiben Sie an hola@traduccionesjuradas.net oder per WhatsApp an +34 951 333 614 mit der Referenz.",
+      sign: "Mit freundlichen Grüßen, Juan Silva – Beeidigter Übersetzer (MAEC).",
+    },
+  },
+};
+
+function moneyIn(eur: number, lang: PublicLang) {
+  return new Intl.NumberFormat(localeFor(lang), { style: "currency", currency: "EUR" }).format(eur);
+}
+
+// «Total X (IVA incl.) · Entrega …»: la línea que decide el pago. La entrega solo
+// sale si el presupuesto trae plazo: no se inventa uno.
+function summaryLine(d: CommonData, m: MsgDict, lang: PublicLang) {
+  const split = d.balanceEur != null && d.balanceEur > 0;
+  const parts: string[] = [];
+  if (d.totalEur != null) {
+    parts.push(`${split ? m.firstPayment : m.total} ${moneyIn(d.totalEur, lang)} (${d.vatExempt ? m.noVat : m.vat})`);
+  }
+  if (split) parts.push(`${m.secondPayment} ${moneyIn(d.balanceEur as number, lang)}`);
+  const term = d.deliveryTerm?.trim();
+  if (term) parts.push(`${m.delivery}: ${term}`);
+  return parts.join(" · ");
+}
+
+function langPair(d: CommonData, lang: PublicLang) {
+  if (!d.sourceLang || !d.targetLang) return "";
+  try {
+    const dn = new Intl.DisplayNames([localeFor(lang)], { type: "language" });
+    return `${dn.of(d.sourceLang) || d.sourceLang} → ${dn.of(d.targetLang) || d.targetLang}`;
+  } catch {
+    return `${d.sourceLang} → ${d.targetLang}`;
+  }
 }
 
 // Enlace directo al pago con tarjeta: solo para /q/<token> (la página que lo
@@ -60,117 +302,66 @@ export function renderSimpleEmailHtml(body: string) {
   `;
 }
 
-export function buildPayLinkEmail(
-  data: CommonData & { paymentMethods?: string[]; deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP" | null }
-) {
-  const subject = "Presupuesto traducción jurada – Instrucciones de pago";
-  // Las formas de pago son LAS DEL PRESUPUESTO, no una lista fija (antes el email
-  // ofrecía PayPal aunque Juan solo hubiera elegido Sabadell y Bizum).
-  const methods = (data.paymentMethods && data.paymentMethods.length > 0
-    ? data.paymentMethods
-    : ["sabadell", "bizum607"]
-  ).filter((m) => PAYMENT_LABELS[m]);
-  const payLines = methods.map((m, i) => `${i + 1}. ${PAYMENT_LABELS[m]}`).join("\n");
-  const card = cardPayUrl(data.payUrl);
-  const extras = [
-    data.deliveryType === "PAPER_SHIP" ? "El envío en papel cuesta 12 € + IVA (incluido en el total)." : "",
-    data.proofUrl ? `Si ya ha pagado por transferencia, adjunte el justificante aquí: ${data.proofUrl}` : "",
-  ].filter(Boolean);
+export function buildPayLinkEmail(data: CommonData) {
+  const lang = pickPublicLang(data.lang);
+  const m = MSG[lang];
+  // Una sola llamada a la acción: el enlace al presupuesto. Los métodos de pago
+  // (Bizum, transferencia, tarjeta, justificante) viven solo en /q.
+  const top = [m.hello(data.name), summaryLine(data, m, lang), `${m.cta}: ${data.payUrl}`].join("\n");
   const body = [
-    `Estimado/a ${data.name}:`,
-    `Le enviamos el presupuesto de su traducción jurada${translatorLine(data.translatorName, data.translatorMaec)}.`,
-    [card ? `Pagar con tarjeta: ${card}` : "", `Ver el presupuesto: ${data.payUrl}`].filter(Boolean).join("\n"),
-    `${card ? "También puede pagar" : "Puede pagar"}:\n${payLines}`,
-    ...(extras.length ? [extras.join("\n")] : []),
-    "En cuanto recibamos el pago empezamos la traducción.",
-    "Un saludo,\nJuan Silva — TraduccionesJuradas.net",
-  ].join("\n\n");
+    top,
+    data.translatorName ? m.translator(data.translatorName, data.translatorMaec) : "",
+    data.deliveryType === "PAPER_SHIP" ? m.paper : "",
+    m.start,
+    m.sign,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
-  return { subject, body };
+  return { subject: m.subject, body };
 }
 
-
-const LANG_NAMES: Record<string, string> = {
-  es: "español", fr: "francés", en: "inglés", de: "alemán", it: "italiano",
-  pt: "portugués", ca: "catalán", nl: "neerlandés", sv: "sueco", no: "noruego",
-  ar: "árabe", ro: "rumano",
-};
-
-export function buildWhatsAppPayText(data: {
-  name: string;
-  totalEur?: number;
-  deliveryType?: "DIGITAL_PDF" | "PAPER_SHIP";
-  plazo?: string | null;
-  paymentMethods?: string[];
-  sourceLang?: string;
-  targetLang?: string;
-  payUrl?: string;
-  proofUrl?: string | null;
-  // Nota fiscal del coste: por defecto "IVA incluido"; para no residentes UE
-  // (vatRate 0) el que llama pasa la no sujeción — mentir "IVA incluido" no vale.
-  vatNote?: string;
-  translatorName?: string | null;
-  translatorMaec?: string | null;
-}) {
-  const methods = (data.paymentMethods && data.paymentMethods.length > 0
-    ? data.paymentMethods
-    : ["sabadell", "bizum607"]
-  ).filter((m) => PAYMENT_LABELS[m]);
-  const payLines = methods.map((m, i) => `${i + 1}️⃣ ${PAYMENT_LABELS[m]}`).join("\n");
-
-  const src = data.sourceLang ? LANG_NAMES[data.sourceLang] || data.sourceLang : "";
-  const tgt = data.targetLang ? LANG_NAMES[data.targetLang] || data.targetLang : "";
-  const par = src && tgt ? ` del ${src} al ${tgt}` : "";
-  const costeLine =
-    data.totalEur != null
-      ? `- 💰 El coste de la traducción jurada${par} es de ${data.totalEur.toFixed(2)}€ (${data.vatNote || "IVA incluido"}).`
-      : "";
-  const entrega =
-    data.deliveryType === "PAPER_SHIP"
-      ? "- 📑 La traducción jurada es oficial y se envía en papel por mensajería."
-      : "- 📑 La traducción jurada es oficial y se envía en PDF con firma digital.";
-
-  const jurado = data.translatorName
-    ? `- 🖋 La realiza ${data.translatorName}, traductor/a jurado/a${data.translatorMaec ? ` nº ${data.translatorMaec}` : ""} del MAEC.`
-    : "";
-
+export function buildWhatsAppPayText(data: CommonData) {
+  const lang = pickPublicLang(data.lang);
+  const m = MSG[lang];
   return [
-    `Hola ${data.name} 👋`,
-    costeLine,
-    jurado,
-    data.plazo ? `- 🕙 El plazo es de ${data.plazo}.` : "",
-    entrega,
-    data.payUrl && cardPayUrl(data.payUrl) ? `- 💳 Pagar con tarjeta: ${cardPayUrl(data.payUrl)}` : "",
-    `- 🤝 Para confirmar su encargo puede hacer el pago:`,
-    payLines,
-    data.proofUrl
-      ? `- 📥 ¿Ya has pagado por transferencia? Adjunta el justificante aquí: ${data.proofUrl}`
-      : `- 📥 Nos envía el justificante de pago para finalizar el encargo. ¡Gracias!`,
-    `- 🌍 Puedes escribirnos en tu idioma: te respondemos en él.`,
+    `${m.hi} ${data.name} 👋`,
+    summaryLine(data, m, lang),
+    `${m.cta}: ${data.payUrl}`,
+    langPair(data, lang),
+    data.translatorName ? m.translator(data.translatorName, data.translatorMaec) : "",
+    data.deliveryType === "PAPER_SHIP" ? m.wa.paper : m.wa.digital,
+    m.wa.anyLang,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
-export function buildPaidDigitalEmail(data: { name: string; etaDate: Date }) {
-  const subject = "Pago recibido – Traducción jurada en formato digital";
-  const body = `Estimado/a ${data.name},
-Confirmamos recepción del pago ✅
-Plazo estimado de entrega: ${formatDateEs(data.etaDate)}.
-Le enviaremos la traducción jurada en PDF firmado digitalmente a este mismo email dentro del plazo indicado.
-Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
-  return { subject, body };
+type PaidData = { name: string; etaDate: Date; quoteNumber?: string | null; trackUrl?: string | null; lang?: string | null };
+
+function buildPaidEmail(data: PaidData, paper: boolean) {
+  const lang = pickPublicLang(data.lang);
+  const m = MSG[lang].paid;
+  const eta = data.etaDate.toLocaleDateString(localeFor(lang), { day: "numeric", month: "long", year: "numeric" });
+  const body = [
+    `${MSG[lang].hello(data.name)}\n${m.confirmed} ✅`,
+    [data.quoteNumber ? `${m.ref}: ${data.quoteNumber}` : "", `${m.eta}: ${eta}`].filter(Boolean).join("\n"),
+    paper ? m.paper : m.digital,
+    data.trackUrl ? `${m.track}: ${data.trackUrl}` : "",
+    m.contact,
+    m.sign,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return { subject: paper ? m.subjectPaper : m.subjectDigital, body };
 }
 
-export function buildPaidPaperEmail(data: { name: string; etaDate: Date }) {
-  const subject = "Pago recibido – Envío de traducción jurada en papel";
-  const body = `Estimado/a ${data.name},
-Confirmamos recepción del pago ✅
-Finalización estimada: ${formatDateEs(data.etaDate)}.
-Envío: mensajería 24/48h una vez terminada la traducción.
-El coste de envío (12 € + IVA) está incluido en el importe abonado.
-Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
-  return { subject, body };
+export function buildPaidDigitalEmail(data: PaidData) {
+  return buildPaidEmail(data, false);
+}
+
+export function buildPaidPaperEmail(data: PaidData) {
+  return buildPaidEmail(data, true);
 }
 
 export function buildReminderEmail(data: {

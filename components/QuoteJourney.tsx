@@ -38,7 +38,7 @@ type Props = {
 };
 
 const input =
-  "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-encre focus:border-bleu focus:outline-none focus:ring-2 focus:ring-bleu/20";
+  "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-encre focus:border-bleu focus:outline-none focus:ring-2 focus:ring-bleu/40";
 
 function StepTitle({ n, children }: { n: number; children: ReactNode }) {
   return (
@@ -215,6 +215,7 @@ export default function QuoteJourney({
             />
             <button
               type="button"
+              aria-describedby={missErr ? "miss-err" : undefined}
               onClick={() => fileRef.current?.click()}
               className="mt-3 w-full rounded-xl border border-bleu/40 bg-white px-4 py-3 text-sm font-semibold text-bleu hover:bg-cream sm:w-auto"
             >
@@ -234,12 +235,14 @@ export default function QuoteJourney({
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
+                aria-invalid={!!missErr}
+                aria-describedby={missErr ? "miss-err" : undefined}
                 rows={3}
                 maxLength={1000}
                 className={`${input} font-normal`}
               />
             </label>
-            {missErr && <p className="mt-2 text-xs font-semibold text-red-700">{missErr}</p>}
+            {missErr && <p id="miss-err" role="alert" className="mt-2 text-xs font-semibold text-red-700">{missErr}</p>}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
@@ -264,8 +267,9 @@ export default function QuoteJourney({
 
       {/* 2 · Datos de facturación: el formulario se abre tras «Sí, está todo» */}
       {answer !== "yes" && (
-        <section className="rounded-2xl border border-cream p-4 opacity-60">
+        <section className="rounded-2xl border border-cream p-4">
           <StepTitle n={2}>{t.billTitle}</StepTitle>
+          <p className="mt-1 text-sm text-sepia">{t.needDocsFirst}</p>
         </section>
       )}
       {answer === "yes" && locked && (
@@ -301,11 +305,11 @@ export default function QuoteJourney({
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-encre sm:col-span-2">
               {t.billName}
-              <input value={bill.fiscalName} onChange={set("fiscalName")} autoComplete="name" className={`${input} font-normal`} />
+              <input value={bill.fiscalName} onChange={set("fiscalName")} aria-invalid={!!billErr} aria-describedby={billErr ? "bill-err" : undefined} autoComplete="name" className={`${input} font-normal`} />
             </label>
             <label className="block text-sm font-semibold text-encre">
               {t.billNif}
-              <input value={bill.nif} onChange={set("nif")} autoComplete="off" className={`${input} font-normal`} />
+              <input value={bill.nif} onChange={set("nif")} aria-invalid={!!billErr} aria-describedby={billErr ? "bill-err" : undefined} autoComplete="off" className={`${input} font-normal`} />
             </label>
             <label className="block text-sm font-semibold text-encre">
               {t.billCountry}
@@ -313,7 +317,7 @@ export default function QuoteJourney({
             </label>
             <label className="block text-sm font-semibold text-encre sm:col-span-2">
               {t.billAddress}
-              <input value={bill.address} onChange={set("address")} autoComplete="street-address" className={`${input} font-normal`} />
+              <input value={bill.address} onChange={set("address")} aria-invalid={!!billErr} aria-describedby={billErr ? "bill-err" : undefined} autoComplete="street-address" className={`${input} font-normal`} />
             </label>
             <label className="block text-sm font-semibold text-encre">
               {t.billPostal}
@@ -325,7 +329,7 @@ export default function QuoteJourney({
             </label>
           </div>
           <p className="mt-2 text-xs text-sepia">{noNif ? (totalCents > 40000 ? t.billNifRequired : t.billSimplified) : ""}</p>
-          {billErr && <p className="mt-2 text-xs font-semibold text-red-700">{billErr}</p>}
+          {billErr && <p id="bill-err" role="alert" className="mt-2 text-xs font-semibold text-red-700">{billErr}</p>}
           {saved ? (
             <p className="mt-3 text-sm font-semibold text-emerald-700">{t.billSaved}</p>
           ) : (

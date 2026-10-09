@@ -32,7 +32,6 @@ export async function POST(req: Request, { params }: Params) {
     // Siempre /q: cobra el total vivo del presupuesto; el amountCents de un pedido
     // enlazado no sigue a las ediciones del PATCH.
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
-    const proofUrl = `${baseUrl}/q/${quote.publicToken}?paso=justificante`;
 
     // Las líneas de un SENT/OPENED/ACCEPTED se pueden editar después de enviar:
     // sin regenerar, /q y el adjunto enseñaban el PDF viejo con el total nuevo.
@@ -42,15 +41,22 @@ export async function POST(req: Request, { params }: Params) {
       await prisma.quote.update({ where: { id: quote.id }, data: { pdfUrl: pdf.pdfUrl, pdfHash: pdf.pdfHash } });
       pdfBuffer = pdf.pdfBuffer;
     }
-    const msg = buildPayLinkEmail({
+    const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
+    const msgData = {
       name: quote.customerName || "cliente",
       payUrl,
-      proofUrl,
+      lang: quote.pdfLang,
+      totalEur: Number(quote.total),
+      balanceEur: Number(quote.balanceAmount ?? 0),
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      deliveryTerm: quote.deliveryTerm || (plazoMatch ? plazoMatch[1].trim() : null),
+      deliveryType: quote.deliveryType,
+      vatExempt: Number(quote.vatRate) <= 0,
       translatorName: quote.translatorName,
       translatorMaec: quote.translatorMaec,
-      paymentMethods: quote.paymentMethods,
-      deliveryType: quote.deliveryType,
-    });
+    };
+    const msg = buildPayLinkEmail(msgData);
     // Guardia anti-Graph: si el email es un marcador de WhatsApp (no entregable),
     // NO intentamos enviar (antes esto provocaba un 500). Se devuelve el texto de
     // WhatsApp para que el staff lo envíe a mano.
@@ -68,22 +74,7 @@ export async function POST(req: Request, { params }: Params) {
       });
       providerId = sendResult.providerId;
     }
-    const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
-    const whatsappText = buildWhatsAppPayText({
-      name: quote.customerName || "cliente",
-      totalEur: Number(quote.total),
-      deliveryType: quote.deliveryType,
-      plazo: plazoMatch ? plazoMatch[1].trim() : null,
-      paymentMethods: quote.paymentMethods,
-      sourceLang: quote.sourceLang,
-      targetLang: quote.targetLang,
-      payUrl,
-      proofUrl,
-      vatNote:
-        Number(quote.vatRate) > 0
-          ? undefined
-          : "operación no sujeta a IVA — residente fuera de la UE",
-    });
+    const whatsappText = buildWhatsAppPayText(msgData);
 
     if (!placeholder) {
       await prisma.messageLog.create({

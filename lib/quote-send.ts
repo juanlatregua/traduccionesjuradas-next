@@ -181,7 +181,6 @@ export async function finalizeAndSendQuote(opts: {
       select: { id: true, reference: true, events: { orderBy: { createdAt: "desc" }, take: 30 } },
     });
     const payUrl = await resolveQuotePayUrl(quote, linkedOrders[0]?.reference ?? null);
-    const proofUrl = `${baseUrl}/q/${quote.publicToken}?paso=justificante`;
 
     const { pdfBuffer, pdfUrl, pdfHash } = await buildAndUploadFinalQuotePdf(quote, payUrl);
 
@@ -190,15 +189,24 @@ export async function finalizeAndSendQuote(opts: {
     const placeholderEmail = isPlaceholderEmail(quote.customerEmail);
     const doSendEmail = !opts.skipEmail && !placeholderEmail;
 
-    const standardCopy = buildPayLinkEmail({
+    const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
+    // El mensaje enseña el total del presupuesto: el enlace tiene que cobrar ese mismo importe, y /q
+    // cobra el total vivo (el amountCents de un pedido enlazado no sigue a las ediciones).
+    const msgData = {
       name: quote.customerName || "cliente",
-      payUrl,
-      proofUrl,
+      payUrl: `${baseUrl}/q/${quote.publicToken}`,
+      lang: quote.pdfLang,
+      totalEur: decimalToNumber(quote.total),
+      balanceEur: decimalToNumber(quote.balanceAmount),
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      deliveryTerm: quote.deliveryTerm || (plazoMatch ? plazoMatch[1].trim() : null),
+      deliveryType: quote.deliveryType,
+      vatExempt: Number(quote.vatRate) <= 0,
       translatorName: quote.translatorName,
       translatorMaec: quote.translatorMaec,
-      paymentMethods: quote.paymentMethods,
-      deliveryType: quote.deliveryType,
-    });
+    };
+    const standardCopy = buildPayLinkEmail(msgData);
     const customSubject = String(opts.customSubject || "").trim();
     const customBody = String(opts.customBody || "").trim();
     const emailCopy = customSubject && customBody ? { subject: customSubject.slice(0, 200), body: customBody.slice(0, 8000) } : standardCopy;
@@ -221,21 +229,7 @@ export async function finalizeAndSendQuote(opts: {
       sendResult = await sendQuoteEmailWithRetry({ to: quote.customerEmail, subject: emailCopy.subject, body: emailCopy.body, attachments });
     }
 
-    const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
-    const whatsappBody = buildWhatsAppPayText({
-      name: quote.customerName || "cliente",
-      totalEur: decimalToNumber(quote.total),
-      deliveryType: quote.deliveryType,
-      plazo: quote.deliveryTerm || (plazoMatch ? plazoMatch[1].trim() : null),
-      paymentMethods: quote.paymentMethods,
-      sourceLang: quote.sourceLang,
-      targetLang: quote.targetLang,
-      payUrl,
-      proofUrl,
-      translatorName: quote.translatorName,
-      translatorMaec: quote.translatorMaec,
-      vatNote: Number(quote.vatRate) > 0 ? undefined : "operación no sujeta a IVA — residente fuera de la UE",
-    });
+    const whatsappBody = buildWhatsAppPayText(msgData);
 
     const now = new Date();
     await prisma.$transaction(async (tx) => {

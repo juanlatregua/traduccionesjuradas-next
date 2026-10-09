@@ -77,6 +77,8 @@ export async function processQuoteStripeEvent(event: any) {
         id: true,
         status: true,
         quoteNumber: true,
+        publicToken: true,
+        pdfLang: true,
         customerName: true,
         customerEmail: true,
         customerPhone: true,
@@ -111,10 +113,16 @@ export async function processQuoteStripeEvent(event: any) {
       deliveryType: quote.deliveryType,
     });
 
+    const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+    const paidData = {
+      name: quote.customerName || "cliente",
+      etaDate,
+      quoteNumber: quote.quoteNumber,
+      trackUrl: `${baseUrl}/q/${quote.publicToken}`,
+      lang: quote.pdfLang,
+    };
     const paidMessage =
-      quote.deliveryType === "PAPER_SHIP"
-        ? buildPaidPaperEmail({ name: quote.customerName || "cliente", etaDate })
-        : buildPaidDigitalEmail({ name: quote.customerName || "cliente", etaDate });
+      quote.deliveryType === "PAPER_SHIP" ? buildPaidPaperEmail(paidData) : buildPaidDigitalEmail(paidData);
 
     // Graph no devuelve id de mensaje (providerId siempre null): el éxito es que
     // sendQuoteEmail no lance, no que haya providerId (21 confirmaciones quedaron FAILED

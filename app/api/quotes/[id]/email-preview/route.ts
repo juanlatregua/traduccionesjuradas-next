@@ -36,6 +36,14 @@ export async function GET(req: Request, { params }: Params) {
       translatorName: true,
       translatorMaec: true,
       paymentMethods: true,
+      pdfLang: true,
+      total: true,
+      balanceAmount: true,
+      notesLegal: true,
+      sourceLang: true,
+      targetLang: true,
+      deliveryTerm: true,
+      vatRate: true,
     },
   });
   if (!quote) {
@@ -66,19 +74,25 @@ export async function GET(req: Request, { params }: Params) {
     });
     const msg =
       quote.deliveryType === "PAPER_SHIP"
-        ? buildPaidPaperEmail({ name, etaDate })
-        : buildPaidDigitalEmail({ name, etaDate });
+        ? buildPaidPaperEmail({ name, etaDate, quoteNumber: quote.quoteNumber, trackUrl: payUrl, lang: quote.pdfLang })
+        : buildPaidDigitalEmail({ name, etaDate, quoteNumber: quote.quoteNumber, trackUrl: payUrl, lang: quote.pdfLang });
     subject = msg.subject;
     body = msg.body;
   } else {
+    const plazoMatch = quote.notesLegal?.match(/Plazo de entrega:\s*([^.]+)/);
     const msg = buildPayLinkEmail({
       name,
       payUrl,
-      proofUrl: `${payUrl}?paso=justificante`,
+      lang: quote.pdfLang,
+      totalEur: Number(quote.total),
+      balanceEur: Number(quote.balanceAmount ?? 0),
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      deliveryTerm: quote.deliveryTerm || (plazoMatch ? plazoMatch[1].trim() : null),
+      deliveryType: quote.deliveryType,
+      vatExempt: Number(quote.vatRate) <= 0,
       translatorName: quote.translatorName,
       translatorMaec: quote.translatorMaec,
-      paymentMethods: quote.paymentMethods,
-      deliveryType: quote.deliveryType,
     });
     subject = msg.subject;
     body = msg.body;
