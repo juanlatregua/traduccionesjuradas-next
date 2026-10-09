@@ -134,7 +134,7 @@ test("tras confirmar, el presupuesto enlazado queda PAID con su QuotePayment (pa
   const quote = { id: "q1", status: "OPENED", paidAt: null, totalEur: 66.55, currency: "EUR" };
   assert.deepEqual(planQuotePaidSync(quote, "TRANSFER", now), {
     payment: { quoteId: "q1", provider: "TRANSFER", amount: 66.55, currency: "EUR" },
-    update: { status: "PAID", paidAt: now },
+    update: { status: "PAID", paidAt: now, lostReason: null, lostReasonNote: null, lostFeedbackAt: null },
   });
   assert.equal(planQuotePaidSync({ ...quote, paidAt: now }, "TRANSFER", now), null, "ya pagado: no se duplica");
   assert.equal(planQuotePaidSync({ ...quote, status: "PAID" }, "TRANSFER", now), null);

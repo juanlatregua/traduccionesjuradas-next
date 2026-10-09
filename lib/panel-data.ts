@@ -155,7 +155,7 @@ export async function loadPanelAgenda(now: Date = new Date()): Promise<PanelAgen
       },
     }),
     prisma.quote.findMany({
-      where: { status: { in: ["SENT", "OPENED", "ACCEPTED"] }, deletedAt: null, validUntil: { gte: now, lte: soon } },
+      where: { status: { in: ["SENT", "OPENED", "ACCEPTED"] }, deletedAt: null, validUntil: { gte: now, lte: soon }, OR: [{ lostReasonNote: null }, { lostReasonNote: { not: "auto:sin_respuesta" } }] },
       select: { id: true, quoteNumber: true, customerName: true, validUntil: true },
       orderBy: { validUntil: "asc" },
     }),

@@ -7,7 +7,7 @@ import { sendStaffAlertSMS, sendClientNotification, formatPhoneSpain } from "@/l
 import { smsPresupuestoCaducado } from "@/lib/sms-templates";
 import { buildQuotePostMortem } from "@/lib/quote-post-mortem";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
-import { buildCierreReminder, decideReminder, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
+import { buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
 import { deduceLostReasonFor } from "@/lib/cierre";
 
 export const runtime = "nodejs";
@@ -28,14 +28,16 @@ export async function GET(req: Request) {
   }
 
   const now = new Date();
-  // Cierre (Juan, 8-oct-2026): UN solo recordatorio, a las 24 h del envío y solo a quien
-  // no ha abierto el presupuesto (apertura humana). Nada de insistir a quien ya lo vio.
+  // Cierre (Juan, 9-oct-2026): «2º contacto a las 24 h; si no responde, adiós». A las 24 h del
+  // envío TODO presupuesto sin pagar (SENT/OPENED/ACCEPTED) recibe UN segundo contacto (texto
+  // distinto si lo abrió); 24 h después, cierre suave sin EXPIRED (ver decideFollowUp).
   const threshold = new Date(now.getTime() - REMINDER_AFTER_HOURS * 60 * 60 * 1000);
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
 
   let remindersSent = 0;
   let remindersFailed = 0;
-  let remindersOpened = 0; // abiertos por una persona: sin recordatorio
+  let softClosed = 0; // sin respuesta 24 h tras el 2º contacto: cierre suave (sigue pudiendo pagar)
+  let failedHeld = 0; // reintento aplazado: FAILED en las últimas ~20 h
   let whatsappTasks = 0; // solo-WhatsApp sin abrir: lo gestiona el vigía, no se les escribe desde aquí
   let lostAuto = 0; // caducados con motivo deducido
   let expiredUpdated = 0;
@@ -46,9 +48,11 @@ export async function GET(req: Request) {
 
   const candidates = await prisma.quote.findMany({
     where: {
-      status: {
-        in: ["SENT", "OPENED"],
-      },
+      OR: [
+        { status: { in: ["SENT", "OPENED"] } },
+        // ACCEPTED con pedido = carril de crédito: se persigue por su factura, no por aquí.
+        { status: "ACCEPTED", orders: { none: {} } },
+      ],
       sentAt: {
         lte: threshold,
       },
@@ -56,20 +60,19 @@ export async function GET(req: Request) {
       validUntil: {
         gt: now,
       },
+      // Ya cerrado (suave o con motivo del cliente): sin más recordatorios.
+      lostReason: null,
+      AND: [{ OR: [{ lostReasonNote: null }, { lostReasonNote: { not: NO_RESPONSE_NOTE } }] }],
     },
     include: {
       accessEvents: { select: { userAgent: true } },
-      // Solo un recordatorio ENVIADO cuenta como hecho: los borradores WHATSAPP
-      // que dejaba el cron para "envío manual" nunca salían (auditoría 24-ago:
-      // 0 WhatsApp SENT en toda la tabla) y aun así bloqueaban el reproceso.
+      // Solo un recordatorio ENVIADO cuenta como hecho (los borradores WHATSAPP nunca
+      // salían). SKIPPED = omitido por ser ya cliente. FAILED recientes frenan el reintento:
+      // el cron corre 4×/día y sin esto el mismo recordatorio caído se reintentaba 4 veces.
       messageLogs: {
-        where: {
-          type: "REMINDER",
-          // SKIPPED = recordatorio omitido por ser ya cliente (no cuenta como toque en el vigía).
-          status: { in: ["SENT", "SKIPPED"] },
-        },
+        where: { type: "REMINDER", status: { in: ["SENT", "SKIPPED", "FAILED"] } },
         orderBy: { createdAt: "desc" },
-        take: 1,
+        take: 20,
       },
     },
     take: 200,
@@ -123,7 +126,43 @@ export async function GET(req: Request) {
       : ({ skip: false } as const);
 
   for (const quote of candidates) {
-    if (quote.messageLogs.length > 0) continue;
+    const logs = quote.messageLogs;
+    const sentLog = logs.find((m) => m.status === "SENT");
+    const failedLog = logs.find((m) => m.status === "FAILED");
+    const decision = decideFollowUp({
+      status: quote.status,
+      sentAt: quote.sentAt,
+      now,
+      events: quote.accessEvents,
+      openedAt: quote.openedAt,
+      customerEmail: quote.customerEmail,
+      paidAt: quote.paidAt,
+      reminderSentAt: sentLog ? sentLog.sentAt ?? sentLog.createdAt : null,
+      reminderSkipped: logs.some((m) => m.status === "SKIPPED"),
+      lastFailedAt: failedLog ? failedLog.createdAt : null,
+    });
+    if (decision.action === "none") {
+      if (!sentLog && failedLog && now.getTime() - failedLog.createdAt.getTime() < 20 * 3_600_000) failedHeld += 1;
+      continue;
+    }
+    // Cierre suave: lostReason es un campo existente; el status NO cambia a EXPIRED, así que el
+    // cliente puede pagar si vuelve dentro de validUntil (y pagar limpia estas marcas).
+    if (decision.action === "close") {
+      if (yaCliente(quote).skip) continue; // ya pagó otro presupuesto de este encargo: no se marca perdido
+      const closed = await prisma.quote.updateMany({
+        where: { id: quote.id, paidAt: null, lostReason: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] } },
+        data: { lostReason: "NO_LONGER_NEEDED", lostReasonNote: NO_RESPONSE_NOTE, lostFeedbackAt: now },
+      });
+      softClosed += closed.count;
+      continue;
+    }
+    // Solo-WhatsApp (@whatsapp.local): no se le escribe por email; aparece en el vigía con el
+    // texto listo (lib/vigia.ts) y a las 48 h sin pago se cierra.
+    if (decision.action === "whatsapp_task") {
+      whatsappTasks += 1;
+      continue;
+    }
+
     const ya = yaCliente(quote);
     if (ya.skip) {
       countSkip(skippedClients, ya.reason);
@@ -141,26 +180,6 @@ export async function GET(req: Request) {
     }
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
 
-    const decision = decideReminder({
-      status: quote.status,
-      sentAt: quote.sentAt,
-      now,
-      events: quote.accessEvents,
-      openedAt: quote.openedAt,
-      customerEmail: quote.customerEmail,
-      alreadyReminded: false, // el filtro de messageLogs de arriba ya descartó los recordados
-    });
-    if (decision === "none") {
-      remindersOpened += 1;
-      continue;
-    }
-    // Solo-WhatsApp (@whatsapp.local): no se le escribe por email; aparece en el vigía como
-    // «WhatsApp a X: no ha abierto el presupuesto» con el texto listo (lib/vigia.ts).
-    if (decision === "whatsapp_task") {
-      whatsappTasks += 1;
-      continue;
-    }
-
     const waText = buildWhatsAppReminderText({
       name: quote.customerName || "cliente",
       payUrl,
@@ -171,6 +190,7 @@ export async function GET(req: Request) {
       name: quote.customerName || "",
       quoteNumber: quote.quoteNumber,
       payUrl,
+      opened: decision.opened,
     });
 
     try {
@@ -354,7 +374,8 @@ export async function GET(req: Request) {
     ok: true,
     remindersSent,
     remindersFailed,
-    remindersOpened,
+    softClosed,
+    failedHeld,
     whatsappTasks,
     lostAuto,
     smsSkipped,

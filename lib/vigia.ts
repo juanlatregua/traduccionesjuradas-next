@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed, periodLabel } from "@/lib/credit-terms";
 import { PersonIndex, chaseState, solicitudChase, consolidate, duplicateOf, intermediaryEmails, personKeys, primaryKey, textKeys, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
 import { vigiaMarkUrl } from "@/lib/vigia-mark";
-import { SEND_OVERDUE_HOURS, deduceLostReason, hasHumanOpen, whatsappNudgeText, isPlaceholderAddr } from "@/lib/cierre-math";
+import { NO_RESPONSE_NOTE, SEND_OVERDUE_HOURS, deduceLostReason, hasHumanOpen, whatsappNudgeText, isPlaceholderAddr } from "@/lib/cierre-math";
 import { findCostGapOrders, hasPaidSibling } from "@/lib/cierre";
 import { cierreLostReasonUrl } from "@/lib/cierre-token";
 import { QUOTE_LOST_REASONS, QUOTE_LOST_REASON_LABELS, effectiveLostReasonLabel } from "@/lib/quote-lost-reasons";
@@ -110,7 +110,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     prisma.quote.findMany({ where: { createdAt: { gte: SINCE }, deletedAt: null }, select: { id: true, customerEmail: true, customerPhone: true, quoteNumber: true, status: true, sourceLang: true, targetLang: true, expedienteRef: true, holderNames: true, createdAt: true } }),
     prisma.quote.findMany({
       // Sin pedido: los de carril de crédito ya tienen pedido y se persiguen por su factura.
-      where: { deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] }, orders: { none: {} } },
+      where: { deletedAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] }, orders: { none: {} }, OR: [{ lostReasonNote: null }, { lostReasonNote: { not: NO_RESPONSE_NOTE } }] }, // cierre suave (auto:sin_respuesta): fuera de pendientes
       orderBy: { sentAt: "asc" },
       include: { messageLogs: { where: { createdAt: { gte: new Date(NOW.getTime() - 90 * 864e5) } }, select: { channel: true, type: true, status: true, subject: true, sentAt: true, createdAt: true } }, _count: { select: { accessEvents: true } }, accessEvents: { select: { userAgent: true } } },
     }),

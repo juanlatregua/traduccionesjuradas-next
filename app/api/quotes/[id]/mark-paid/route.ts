@@ -68,7 +68,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
       await tx.quote.update({
         where: { id: quote.id },
-        data: { status: "PAID", paidAt: new Date() },
+        data: { status: "PAID", paidAt: new Date(), lostReason: null, lostReasonNote: null, lostFeedbackAt: null },
       });
       await tx.messageLog.create({
         data: {

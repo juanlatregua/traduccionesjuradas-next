@@ -7,7 +7,7 @@ const OPEN_STATUSES = new Set(["DRAFT", "SENT", "OPENED", "ACCEPTED"]);
 
 export type QuotePaidPlan = {
   payment: { quoteId: string; provider: "BIZUM" | "TRANSFER"; amount: number; currency: string };
-  update: { status: "PAID"; paidAt: Date };
+  update: { status: "PAID"; paidAt: Date; lostReason: null; lostReasonNote: null; lostFeedbackAt: null };
 };
 
 export function planQuotePaidSync(
@@ -18,6 +18,6 @@ export function planQuotePaidSync(
   if (!quote || quote.paidAt || !OPEN_STATUSES.has(quote.status)) return null;
   return {
     payment: { quoteId: quote.id, provider: method, amount: quote.totalEur, currency: quote.currency || "EUR" },
-    update: { status: "PAID", paidAt: now },
+    update: { status: "PAID", paidAt: now, lostReason: null, lostReasonNote: null, lostFeedbackAt: null },
   };
 }

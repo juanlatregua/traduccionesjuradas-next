@@ -180,6 +180,9 @@ export async function processQuoteStripeEvent(event: any) {
         data: {
           status: "PAID",
           paidAt: now,
+          lostReason: null,
+          lostReasonNote: null,
+          lostFeedbackAt: null, // cierre suave por falta de respuesta: pagó, no está perdido
         },
       });
 

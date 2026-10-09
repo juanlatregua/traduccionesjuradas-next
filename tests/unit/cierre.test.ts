@@ -6,7 +6,9 @@ import {
   AUTO_SEND_MAX_CENTS,
   buildCierreReminder,
   decideAutoSend,
-  decideReminder,
+  decideFollowUp,
+  normalizePair,
+  NO_RESPONSE_NOTE,
   deduceLostReason,
   hasCostGap,
   hasHumanOpen,
@@ -82,35 +84,88 @@ test("no hay doble envío: un presupuesto ya enviado o en envío se salta sin av
   assert.equal(decideAutoSend({ ...base, quoteStatus: "OPENED", marginDetail: "x" }).action, "skip");
 });
 
-/* ───── (b) recordatorio único ───── */
-const NOW = new Date("2026-10-08T10:00:00Z");
+/* ───── (a bis) par del lead ≠ par del presupuesto ───── */
+test("par: coincide (DE>ES vs de/es) → send; distinto o ilegible → solo aviso", () => {
+  assert.deepEqual(decideAutoSend({ ...base, leadPar: "DE>ES" }), { action: "send" });
+  const d = decideAutoSend({ ...base, leadPar: "NL>ES" });
+  assert.equal(d.action, "alert");
+  assert.match((d as { reasons: string[] }).reasons.join("|"), /no coincide/);
+  assert.equal(decideAutoSend({ ...base, leadPar: "ES>DE" }).action, "alert", "el sentido importa");
+  assert.equal(decideAutoSend({ ...base, leadPar: "???" }).action, "alert");
+  assert.equal(decideAutoSend({ ...base, leadPar: "DE>ES", sourceLang: null }).action, "alert");
+  assert.equal(normalizePair("de→es"), "de>es");
+  assert.equal(normalizePair("DE", "ES"), "de>es");
+});
+
+/* ───── (b) segundo contacto a las 24 h y cierre suave ───── */
+const NOW = new Date("2026-10-09T10:00:00Z");
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
-const rem = { status: "SENT", sentAt: hoursAgo(25), now: NOW, events: [], openedAt: null, customerEmail: "ana@example.com", alreadyReminded: false };
+const fu = { status: "SENT", sentAt: hoursAgo(25), now: NOW, events: [], openedAt: null, customerEmail: "ana@example.com", reminderSentAt: null, reminderSkipped: false, lastFailedAt: null };
 
-test("recordatorio: a las 24 h sin apertura humana → un email", () => {
-  assert.equal(decideReminder(rem), "remind_email");
-  assert.equal(decideReminder({ ...rem, sentAt: hoursAgo(23) }), "none");
+test("2º contacto: a las 24 h sin apertura → email «¿lo recibiste?»; antes de 24 h nada", () => {
+  assert.deepEqual(decideFollowUp(fu), { action: "remind_email", opened: false });
+  assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(23) }).action, "none");
 });
 
-test("recordatorio: nunca más de uno", () => {
-  assert.equal(decideReminder({ ...rem, alreadyReminded: true }), "none");
-});
-
-test("recordatorio: apertura humana (o openedAt) lo cancela; la vista previa de WhatsApp no cuenta", () => {
-  assert.equal(decideReminder({ ...rem, events: [{ userAgent: "Mozilla/5.0 (iPhone) Safari" }] }), "none");
-  assert.equal(decideReminder({ ...rem, openedAt: hoursAgo(3) }), "none");
-  assert.equal(decideReminder({ ...rem, events: [{ userAgent: "WhatsApp/2.23" }, { userAgent: "facebookexternalhit/1.1" }] }), "remind_email");
+test("2º contacto: lo abrió (OPENED, openedAt o apertura humana) o aceptó → también, con texto de ayuda", () => {
+  assert.deepEqual(decideFollowUp({ ...fu, status: "OPENED" }), { action: "remind_email", opened: true });
+  assert.deepEqual(decideFollowUp({ ...fu, status: "ACCEPTED" }), { action: "remind_email", opened: true });
+  assert.deepEqual(decideFollowUp({ ...fu, openedAt: hoursAgo(3) }), { action: "remind_email", opened: true });
+  assert.deepEqual(decideFollowUp({ ...fu, events: [{ userAgent: "Mozilla/5.0 (iPhone) Safari" }] }), { action: "remind_email", opened: true });
+  assert.deepEqual(decideFollowUp({ ...fu, events: [{ userAgent: "WhatsApp/2.23" }, { userAgent: "facebookexternalhit/1.1" }] }), { action: "remind_email", opened: false });
   assert.equal(hasHumanOpen([{ userAgent: null }]), true);
 });
 
-test("recordatorio: solo-WhatsApp no recibe email, va a la tarea del vigía", () => {
-  assert.equal(decideReminder({ ...rem, customerEmail: "34600111222@whatsapp.local" }), "whatsapp_task");
+test("2º contacto: nunca dos; no a quien pagó ni a quien ya es cliente", () => {
+  assert.equal(decideFollowUp({ ...fu, reminderSentAt: hoursAgo(2) }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, paidAt: hoursAgo(1) }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, reminderSkipped: true }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, reminderSkipped: true, reminderSentAt: hoursAgo(30) }).action, "none", "ya cliente: ni se cierra");
+  for (const status of ["DRAFT", "PAID", "EXPIRED", "IN_PROGRESS"]) assert.equal(decideFollowUp({ ...fu, status }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, sentAt: null }).action, "none");
 });
 
-test("recordatorio: sólo SENT/OPENED enviados", () => {
-  assert.equal(decideReminder({ ...rem, status: "DRAFT" }), "none");
-  assert.equal(decideReminder({ ...rem, status: "PAID" }), "none");
-  assert.equal(decideReminder({ ...rem, sentAt: null }), "none");
+test("2º contacto: un FAILED de las últimas 20 h frena el reintento (cron 4×/día); pasado ese margen se reintenta", () => {
+  assert.equal(decideFollowUp({ ...fu, lastFailedAt: hoursAgo(6) }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, lastFailedAt: hoursAgo(19) }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, lastFailedAt: hoursAgo(21) }).action, "remind_email");
+  // Simulación de las 4 ejecuciones del día tras un fallo: solo la primera intenta.
+  let failedAt: Date | null = null;
+  let attempts = 0;
+  for (const h of [0, 6, 12, 18]) {
+    const now = new Date(NOW.getTime() + h * 3_600_000);
+    const d = decideFollowUp({ ...fu, now, sentAt: new Date(now.getTime() - 25 * 3_600_000), lastFailedAt: failedAt });
+    if (d.action === "remind_email") { attempts++; failedAt = now; }
+  }
+  assert.equal(attempts, 1);
+});
+
+test("cierre suave: 24 h después del 2º contacto sin pago → close (no antes)", () => {
+  assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(49), reminderSentAt: hoursAgo(25) }).action, "close");
+  assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(49), reminderSentAt: hoursAgo(23) }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, status: "ACCEPTED", sentAt: hoursAgo(49), reminderSentAt: hoursAgo(25) }).action, "close");
+  assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(49), reminderSentAt: hoursAgo(25), paidAt: hoursAgo(1) }).action, "none", "pagó: no se cierra");
+  assert.equal(NO_RESPONSE_NOTE, "auto:sin_respuesta");
+});
+
+test("solo-WhatsApp: tarea del vigía a las 24 h y cierre a las 48 h; nunca email", () => {
+  const wa = { ...fu, customerEmail: "34600111222@whatsapp.local" };
+  assert.equal(decideFollowUp(wa).action, "whatsapp_task");
+  assert.equal(decideFollowUp({ ...wa, sentAt: hoursAgo(23) }).action, "none");
+  assert.equal(decideFollowUp({ ...wa, sentAt: hoursAgo(49) }).action, "close");
+});
+
+test("copy del 2º contacto: abierto → «te ayudo a terminar» con enlace de pago directo, en el idioma", () => {
+  const payUrl = "https://www.traduccionesjuradas.net/q/abc123";
+  const es = buildCierreReminder({ lang: "es", name: "Ana", quoteNumber: "Q1", payUrl, opened: true });
+  assert.match(es.body, /terminar/);
+  assert.ok(es.body.includes(`${payUrl}?pago=tarjeta`));
+  assert.doesNotMatch(buildCierreReminder({ lang: "es", name: "Ana", quoteNumber: "Q1", payUrl }).body, /terminar/);
+  for (const lang of ["fr", "en", "de", "pt", "it"]) {
+    const o = buildCierreReminder({ lang, name: "X", quoteNumber: "Q1", payUrl, opened: true });
+    assert.ok(o.body.includes("pago=tarjeta"), lang);
+    assert.notEqual(o.body, buildCierreReminder({ lang, name: "X", quoteNumber: "Q1", payUrl }).body, lang);
+  }
 });
 
 test("copy del recordatorio: idioma del presupuesto, enlace /q y pago con tarjeta", () => {
