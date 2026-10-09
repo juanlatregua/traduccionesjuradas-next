@@ -5,6 +5,8 @@ export type PriorPrice = {
   issuedAt: string;
   status: string;
   translatorName: string | null;
+  /** Precio de ESTE mismo cliente (se prioriza sobre los de otros). */
+  own?: boolean;
 };
 
 export type PriorLine = PriorPrice & { description: string; paid: boolean; issuedMs: number };
@@ -40,7 +42,7 @@ export function pickPriorMatches(lines: PriorLine[], label: string): PriorPrice[
   const seen = new Set<string>();
   return lines
     .filter((l) => labelsMatch(labelOfDescription(l.description), target))
-    .sort((a, b) => Number(b.paid) - Number(a.paid) || b.issuedMs - a.issuedMs)
+    .sort((a, b) => Number(!!b.own) - Number(!!a.own) || Number(b.paid) - Number(a.paid) || b.issuedMs - a.issuedMs)
     .filter((l) => {
       const k = `${l.quoteNumber}|${l.unitPrice}`;
       if (seen.has(k)) return false;
@@ -48,12 +50,13 @@ export function pickPriorMatches(lines: PriorLine[], label: string): PriorPrice[
       return true;
     })
     .slice(0, MAX_MATCHES)
-    .map(({ unitPrice, supplierUnitCost, quoteNumber, issuedAt, status, translatorName }) => ({
+    .map(({ unitPrice, supplierUnitCost, quoteNumber, issuedAt, status, translatorName, own }) => ({
       unitPrice,
       supplierUnitCost,
       quoteNumber,
       issuedAt,
       status,
       translatorName,
+      ...(own ? { own: true } : {}),
     }));
 }

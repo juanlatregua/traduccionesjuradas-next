@@ -1,3 +1,4 @@
+import RecurrentClientBadge from "@/components/RecurrentClientBadge";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
@@ -150,6 +151,9 @@ export default async function ZonaTraductorPresupuestoPage({
     }
   }
 
+  const recurrentEmail = builderInitial.customerEmail || initialCustomer?.email;
+  const recurrentPhone = builderInitial.customerPhone || initialCustomer?.phone;
+
   return (
     <div className="min-h-screen bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -160,6 +164,7 @@ export default async function ZonaTraductorPresupuestoPage({
           <h1 className="mt-2 text-2xl font-semibold text-white">
             Presupuesto{expRef ? ` de expediente · ${expRef}` : lead ? ` de solicitud lavori · ${lead.ref}` : ""}
           </h1>
+          <RecurrentClientBadge email={recurrentEmail} phone={recurrentPhone} />
           {lead && (
             <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
               {lead.priceCents

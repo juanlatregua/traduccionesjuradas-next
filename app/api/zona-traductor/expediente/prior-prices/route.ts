@@ -26,6 +26,6 @@ export async function POST(req: Request) {
     }))
     .filter((i: { source: string; target: string; label: string }) => i.source && i.target && i.label);
 
-  const matches = await findPriorPrices(items).catch(() => ({}));
+  const matches = await findPriorPrices(items, typeof body?.customerEmail === "string" ? body.customerEmail.slice(0, 200) : null).catch(() => ({}));
   return NextResponse.json({ ok: true, matches });
 }

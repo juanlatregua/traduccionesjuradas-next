@@ -62,3 +62,16 @@ test("prefiere pagados y luego los más recientes, máximo 3", () => {
   const r = pickPriorMatches(lines, "certificado de Acciones");
   assert.deepEqual(r.map((m) => m.quoteNumber), ["B", "D", "A"]);
 });
+
+test("los precios propios del cliente van antes aunque sean más viejos y sin pagar", () => {
+  const r = pickPriorMatches(
+    [
+      line("Certificado de acciones", { quoteNumber: "A", unitPrice: 40, paid: true }),
+      line("Certificado de acciones", { quoteNumber: "B", unitPrice: 35, own: true, issuedMs: 1 }),
+    ],
+    "Certificado de acciones"
+  );
+  assert.equal(r[0].quoteNumber, "B");
+  assert.equal(r[0].own, true);
+  assert.equal(r[1].own, undefined);
+});

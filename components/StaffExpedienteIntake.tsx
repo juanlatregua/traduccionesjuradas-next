@@ -190,6 +190,7 @@ type PriorPrice = {
   issuedAt: string;
   status: string;
   translatorName: string | null;
+  own?: boolean;
 };
 
 const priorKey = (source: string, target: string, label: string) => `${source}>${target}|${label}`;
@@ -206,7 +207,7 @@ function PriorPricesHint({ matches, onUse }: { matches?: PriorPrice[]; onUse: (m
         return (
           <p key={m.quoteNumber + m.unitPrice} className="flex flex-wrap items-center gap-x-1">
             <span>
-              Ya presupuestado: <strong className="text-slate-200">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
+              {m.own ? "Ya presupuestado a este cliente" : "Ya presupuestado"}: <strong className="text-slate-200">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
               {m.supplierUnitCost != null ? ` · traductor ${eur(m.supplierUnitCost)}` : ""}
               {m.status === "PAID" || m.status === "IN_PROGRESS" || m.status === "DELIVERED" ? " · pagado" : ""}
             </span>
@@ -917,7 +918,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       fetch("/api/zona-traductor/expediente/prior-prices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: priorItems }),
+        body: JSON.stringify({ items: priorItems, customerEmail }),
       })
         .then((r) => r.json())
         .then((d) => {
@@ -927,7 +928,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     }, 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priorSig]);
+  }, [priorSig, customerEmail]);
 
   const applyPriorPrice = useCallback(
     (localId: string, m: PriorPrice) => {

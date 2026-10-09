@@ -15,6 +15,8 @@ import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
 import { directMembersFor } from "@/lib/lavori-directo";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
+import { findRecurrentClient } from "@/lib/recurrent-client-db";
+import { recurrentLabel } from "@/lib/recurrent-client";
 
 export type PuertaQuoteResult = { status: number; body: Record<string, unknown> };
 
@@ -85,8 +87,14 @@ export async function routePuertaQuoteRequest(input: {
       });
     }
 
+    // Cliente que vuelve: solo para staff (avisos). La respuesta de la puerta es idéntica para todos.
+    const recurrente = await findRecurrentClient({ email: contactEmail, phone: contactPhone });
+    let recurrenteTxt = recurrentLabel(recurrente);
+    const recurrenteSms = recurrente.kind === "recurrent" ? "RECURRENTE · " : recurrente.kind === "possible" ? "¿recurrente? · " : "";
+
     const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
+    if (recurrente.kind !== "none") recurrenteTxt += ` · Historial: ${baseUrl}/zona-traductor/clientes/${encodeURIComponent(recurrente.email)}`;
     const lineas = docs.map((d) => {
       const par = `${getLanguageName(d.sourceLanguage || "?")} → ${getLanguageName(d.targetLanguage || "?")}`;
       const ref = d.quoteAmount ? ` · motor (referencia interna): ${Number(d.quoteAmount).toFixed(2)} € netos` : "";
@@ -127,6 +135,7 @@ export async function routePuertaQuoteRequest(input: {
           [
             `El agente de precios ha preparado el BORRADOR ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido. NO se ha enviado: revísalo y envíalo tú.`,
             `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+            ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
             auto.miembroNombre
               ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
               : "Sin jurado asociado a la tarifa: al pagar irá por el carril normal de lavori.",
@@ -136,7 +145,7 @@ export async function routePuertaQuoteRequest(input: {
         ),
       }).catch((err) => console.error("[puerta:request-quote] aviso auto fallo:", err));
       await sendStaffAlertSMS(
-        `🤖 Borrador tarifario ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€ (enviar tú) · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
+        `🤖 ${recurrenteSms}Borrador tarifario ${auto.quoteNumber} ${auto.totalEur.toFixed(2)}€ (enviar tú) · ${n} doc${lead?.words ? ` · ${lead.words} pal.` : ""} · ${contactEmail || contactPhone}`,
         "puerta_auto_quote"
       ).catch(() => {});
       return out({
@@ -261,11 +270,12 @@ export async function routePuertaQuoteRequest(input: {
     // Aviso a staff — dos transportes independientes; con await (lambda).
     await sendMail({
       to: adminEmail,
-      subject: `${fromWhatsApp ? "[WhatsApp] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
+      subject: `${fromWhatsApp ? "[WhatsApp] " : ""}${recurrente.kind === "recurrent" ? "[RECURRENTE] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
       html: renderSimpleEmailHtml(
         [
           "Un lead de la puerta ha pedido presupuesto humano (idioma sin precio instantáneo o importe alto).",
           `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+          ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
           ...(fromWhatsApp
             ? [`Origen: WhatsApp — contéstale por ahí${waDigits ? `: https://wa.me/${waDigits}` : " (no dejó teléfono)"}`]
             : []),
@@ -276,7 +286,7 @@ export async function routePuertaQuoteRequest(input: {
       ),
     }).catch((err) => console.error("[puerta:request-quote] aviso staff fallo:", err));
     await sendStaffAlertSMS(
-      `${fromWhatsApp ? "[WA] " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
+      `${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
       "puerta_request_quote"
     ).catch(() => {});
 
