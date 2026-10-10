@@ -62,7 +62,7 @@ export async function GET(req: Request) {
 
   const now = new Date();
   // Cierre (Juan, 9-oct-2026): «2º contacto a las 24 h; si no responde, adiós». A las 24 h del
-  // envío TODO presupuesto sin pagar (SENT/OPENED/ACCEPTED) recibe UN segundo contacto (texto
+  // envío TODO presupuesto sin pagar (SENT/OPENED) recibe UN segundo contacto (texto
   // distinto si lo abrió); 24 h después, cierre suave sin EXPIRED (ver decideFollowUp).
   const threshold = new Date(now.getTime() - REMINDER_AFTER_HOURS * 60 * 60 * 1000);
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
@@ -84,7 +84,8 @@ export async function GET(req: Request) {
 
   const candidates = await prisma.quote.findMany({
     where: {
-      status: { in: ["SENT", "OPENED", "ACCEPTED"] },
+      // ACCEPTED = el cliente abrió el pago: ni 2º contacto ni cierre (2026-00245).
+      status: { in: ["SENT", "OPENED"] },
       // Con pedido (declaró transferencia, carril de crédito…) se persigue por el pedido/factura,
       // no por aquí: ni 2º contacto ni cierre.
       orders: { none: {} },
@@ -229,7 +230,7 @@ export async function GET(req: Request) {
     if (decision.action === "close") {
       if (yaCliente(quote).skip) continue; // ya pagó otro presupuesto de este encargo: no se marca perdido
       const closed = await prisma.quote.updateMany({
-        where: { id: quote.id, paidAt: null, lostReason: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] } },
+        where: { id: quote.id, paidAt: null, lostReason: null, status: { in: ["SENT", "OPENED"] } },
         data: { lostReason: "NO_LONGER_NEEDED", lostReasonNote: NO_RESPONSE_NOTE, lostFeedbackAt: now },
       });
       softClosed += closed.count;
@@ -280,7 +281,7 @@ export async function GET(req: Request) {
         id: quote.id,
         paidAt: null,
         lostReason: null,
-        status: { in: ["SENT", "OPENED", "ACCEPTED"] },
+        status: { in: ["SENT", "OPENED"] },
         OR: [{ sendingAt: null }, { sendingAt: { lt: new Date(claimedAt.getTime() - 10 * 60 * 1000) } }],
       },
       data: { sendingAt: claimedAt },

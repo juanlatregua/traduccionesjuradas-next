@@ -122,7 +122,7 @@ export type FollowUpDecision = { action: "none" | "remind_email" | "whatsapp_tas
 
 export function decideFollowUp(i: FollowUpInput): FollowUpDecision {
   const none = { action: "none" as const, opened: false };
-  if (i.paidAt || !["SENT", "OPENED", "ACCEPTED"].includes(i.status) || !i.sentAt) return none;
+  if (i.paidAt || !["SENT", "OPENED"].includes(i.status) || !i.sentAt) return none;
   const opened = i.status !== "SENT" || Boolean(i.openedAt) || hasHumanOpen(i.events);
   if (i.reminderSkipped) return { ...none, opened };
   const age = i.now.getTime() - i.sentAt.getTime();

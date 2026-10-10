@@ -109,7 +109,6 @@ test("2º contacto: a las 24 h sin apertura → email «¿lo recibiste?»; antes
 
 test("2º contacto: lo abrió (OPENED, openedAt o apertura humana) o aceptó → también, con texto de ayuda", () => {
   assert.deepEqual(decideFollowUp({ ...fu, status: "OPENED" }), { action: "remind_email", opened: true });
-  assert.deepEqual(decideFollowUp({ ...fu, status: "ACCEPTED" }), { action: "remind_email", opened: true });
   assert.deepEqual(decideFollowUp({ ...fu, openedAt: hoursAgo(3) }), { action: "remind_email", opened: true });
   assert.deepEqual(decideFollowUp({ ...fu, events: [{ userAgent: "Mozilla/5.0 (iPhone) Safari" }] }), { action: "remind_email", opened: true });
   assert.deepEqual(decideFollowUp({ ...fu, events: [{ userAgent: "WhatsApp/2.23" }, { userAgent: "facebookexternalhit/1.1" }] }), { action: "remind_email", opened: false });
@@ -121,7 +120,7 @@ test("2º contacto: nunca dos; no a quien pagó ni a quien ya es cliente", () =>
   assert.equal(decideFollowUp({ ...fu, paidAt: hoursAgo(1) }).action, "none");
   assert.equal(decideFollowUp({ ...fu, reminderSkipped: true }).action, "none");
   assert.equal(decideFollowUp({ ...fu, reminderSkipped: true, reminderSentAt: hoursAgo(30) }).action, "none", "ya cliente: ni se cierra");
-  for (const status of ["DRAFT", "PAID", "EXPIRED", "IN_PROGRESS"]) assert.equal(decideFollowUp({ ...fu, status }).action, "none");
+  for (const status of ["DRAFT", "ACCEPTED", "PAID", "EXPIRED", "IN_PROGRESS"]) assert.equal(decideFollowUp({ ...fu, status }).action, "none");
   assert.equal(decideFollowUp({ ...fu, sentAt: null }).action, "none");
 });
 
@@ -143,7 +142,7 @@ test("2º contacto: un FAILED de las últimas 20 h frena el reintento (cron 4×/
 test("cierre suave: 24 h después del 2º contacto sin pago → close (no antes)", () => {
   assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(49), reminderSentAt: hoursAgo(25) }).action, "close");
   assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(49), reminderSentAt: hoursAgo(23) }).action, "none");
-  assert.equal(decideFollowUp({ ...fu, status: "ACCEPTED", sentAt: hoursAgo(49), reminderSentAt: hoursAgo(25) }).action, "close");
+  assert.equal(decideFollowUp({ ...fu, status: "OPENED", sentAt: hoursAgo(49), reminderSentAt: hoursAgo(25) }).action, "close");
   assert.equal(decideFollowUp({ ...fu, sentAt: hoursAgo(49), reminderSentAt: hoursAgo(25), paidAt: hoursAgo(1) }).action, "none", "pagó: no se cierra");
   assert.equal(NO_RESPONSE_NOTE, "auto:sin_respuesta");
 });
@@ -261,4 +260,9 @@ test("token de cierre: vale para su presupuesto y propósito, y caduca", () => {
   assert.equal(verifyCierreToken("q1", m, "motivo-PRICE"), true);
   assert.equal(verifyCierreToken("q1", m, "motivo-OTHER"), false);
   assert.equal(verifyCierreToken("q1", generateCierreToken("q1", -1)), false);
+});
+
+test("ACCEPTED (cliente en el pago): ni 2º contacto ni cierre suave aunque pasen las horas", () => {
+  assert.equal(decideFollowUp({ ...fu, status: "ACCEPTED" }).action, "none");
+  assert.equal(decideFollowUp({ ...fu, status: "ACCEPTED", reminderSentAt: hoursAgo(48) }).action, "none");
 });
