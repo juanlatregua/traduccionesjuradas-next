@@ -7,11 +7,14 @@ type Props = {
   reference: string;
   currentAssignedTo?: string | null;
   currentDueDate?: string | null;
+  currentSupplierCostCents?: number | null;
 };
 
-export default function AssignOrderForm({ reference, currentAssignedTo, currentDueDate }: Props) {
+export default function AssignOrderForm({ reference, currentAssignedTo, currentDueDate, currentSupplierCostCents }: Props) {
   const [assignedTo, setAssignedTo] = useState(currentAssignedTo || "");
   const [dueDate, setDueDate] = useState(currentDueDate || "");
+  const [costEur, setCostEur] = useState(currentSupplierCostCents != null ? (currentSupplierCostCents / 100).toFixed(2).replace(".", ",") : "");
+  const [needsCost, setNeedsCost] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const selectedProfile = findTranslatorProfile(assignedTo);
@@ -33,12 +36,15 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
           assignedTo: assignedTo.trim() || null,
           dueDate: dueDate || null,
           clear: clearing,
+          supplierCostEur: !clearing && costEur.trim() ? costEur.trim() : null,
         }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
+        if (data?.needsCost) setNeedsCost(true);
         throw new Error(data?.error || "Error al asignar.");
       }
+      setNeedsCost(false);
       setMessage(clearing ? "Asignación quitada." : "Asignación guardada.");
     } catch (err: any) {
       setMessage(err?.message || "Error al asignar.");
@@ -75,6 +81,14 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
           className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
         />
       </div>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={costEur}
+        onChange={(e) => setCostEur(e.target.value)}
+        placeholder="Coste del traductor (€ sin IVA) — obligatorio si no es Juan Silva"
+        className={`mt-3 w-full rounded-xl border bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 ${needsCost ? "border-red-500" : "border-slate-600"}`}
+      />
       {selectedProfile && (
         <p className="mt-2 text-xs text-amber-200">
           {formatTranslatorCredential(selectedProfile)}

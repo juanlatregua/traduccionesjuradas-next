@@ -1539,6 +1539,10 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       html: staffLines.map((l) => `<p>${l}</p>`).join(""),
     }).catch((err) => console.error("[auto-assign] staff notice failed", err));
 
+    // Juan Amor es jurado ajeno: sin coste pactado, aviso inmediato (no a las 24 h).
+    const { alertUnpricedAssignment } = await import("@/lib/money-alerts");
+    await alertUnpricedAssignment({ orderId: order.id, translator: collaborator.fullName, origin: "auto-asignación al pagar" });
+
     await prisma.orderEvent.create({
       data: {
         orderId: order.id,

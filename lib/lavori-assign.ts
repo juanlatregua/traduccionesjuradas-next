@@ -9,6 +9,7 @@ import { LAVORI_MEMBER_COLLABORATOR_EMAIL, sameTranslatorName } from "@/lib/lavo
 import { priceBasisForMember } from "@/lib/lavori-directo";
 import { channelPriceToBaseCents } from "@/lib/lavori-directo-math";
 import { netFromGross } from "@/lib/quotes";
+import { needsSupplierCost } from "@/lib/cierre-math";
 
 /** El presupuesto lleva el jurado que se anunció al cliente (la primera cifra de la
  * cartera o de la solicitud). Si quien ACEPTA en lavori es otro (26_546077, 26_95DA0E,
@@ -99,7 +100,16 @@ export async function assignLavoriAcceptance(opts: {
         ...(baseCents ? { quotedPriceCents: baseCents } : {}),
       },
     });
-    await prisma.order.update({ where: { id: order.id }, data: { assignedTo: collaborator.fullName } });
+    const asignado = await prisma.order.update({
+      where: { id: order.id },
+      data: { assignedTo: collaborator.fullName },
+      select: { langPair: true, supplierCostCents: true },
+    });
+    // Un evento no se puede rechazar: sin cifra, aviso inmediato por dos canales.
+    if (!baseCents && needsSupplierCost({ translator: collaborator.fullName, langPair: asignado.langPair, supplierCostCents: asignado.supplierCostCents, winningPriceCents: assignment.quotedPriceCents })) {
+      const { alertUnpricedAssignment } = await import("@/lib/money-alerts");
+      await alertUnpricedAssignment({ orderId: order.id, translator: collaborator.fullName, origin: "aceptación en lavori sin cifra" });
+    }
     if (baseCents && !yaContabilizado) {
       const full = await prisma.order.findUniqueOrThrow({
         where: { id: order.id },

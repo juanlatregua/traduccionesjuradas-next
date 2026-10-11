@@ -850,6 +850,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                 reference={order.reference}
                 currentAssignedTo={order.assignedTo}
                 currentDueDate={dueDateInput}
+                currentSupplierCostCents={order.supplierCostCents}
               />
             </div>
           </details>

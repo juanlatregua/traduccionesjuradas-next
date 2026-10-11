@@ -226,7 +226,7 @@ export type CostGapOrder = {
 
 /**
  * Pedido pagado hace ≥24 h sin coste: ni supplierCostCents ni asignación ganadora con precio.
- * El francés propio (sin asignar o asignado a Juan) cuenta como coste 0 explícito, no como hueco.
+ * El francés propio (sin asignar o asignado a Juan Silva) cuenta como coste 0 explícito, no como hueco.
  * supplierCostCents = 0 es un coste explícito.
  */
 export function hasCostGap(o: CostGapOrder, now: Date): boolean {
@@ -234,7 +234,36 @@ export function hasCostGap(o: CostGapOrder, now: Date): boolean {
   if (now.getTime() - o.paidAt.getTime() < COST_GAP_AFTER_HOURS * HOUR) return false;
   if (o.supplierCostCents != null) return false;
   if (o.assignments.some((a) => (a.isWinning || a.status === "ACCEPTED") && a.quotedPriceCents != null)) return false;
-  const fr = norm(o.langPair).split(/->|>|-/).includes("fr");
-  const own = !o.assignedTo || /juan/i.test(o.assignedTo);
-  return !(fr && own);
+  const own = !o.assignedTo?.trim() || isOwnTranslator(o.assignedTo);
+  return !(isFrLangPair(o.langPair) && own);
+}
+
+const isFrLangPair = (langPair: string | null | undefined) => norm(langPair).split(/->|>|-|_|\s+/).includes("fr");
+
+/** Juan Silva (FR propio): su coste legítimo es null. «Juan Amor» y cualquier otro jurado no lo son. */
+export function isOwnTranslator(name: string | null | undefined): boolean {
+  const n = norm(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+  return n === "juan" || n === "juan silva" || n.startsWith("juan silva ");
+}
+
+/** «45,50» / 45.5 → 4550 céntimos; vacío o no válido → null. */
+export function parseEurToCents(v: unknown): number | null {
+  if (v == null || (typeof v === "string" && !v.trim())) return null;
+  const n = typeof v === "number" ? v : Number(String(v).trim().replace(/\s|€/g, "").replace(",", "."));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
+}
+
+/**
+ * ¿Asignar este traductor exige coste? Sí si hay traductor, no es el francés propio y no hay
+ * cifra (supplierCostCents, aunque sea 0, o asignación ganadora con precio).
+ */
+export function needsSupplierCost(i: {
+  translator: string | null | undefined;
+  langPair: string | null | undefined;
+  supplierCostCents: number | null | undefined;
+  winningPriceCents?: number | null;
+}): boolean {
+  if (!String(i.translator || "").trim()) return false;
+  if (i.supplierCostCents != null || i.winningPriceCents != null) return false;
+  return !(isFrLangPair(i.langPair) && isOwnTranslator(i.translator));
 }

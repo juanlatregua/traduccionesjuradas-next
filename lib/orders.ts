@@ -858,19 +858,22 @@ export async function saveShippingData(
 export async function assignOrder(
   reference: string,
   assignedTo: string | null,
-  dueDate: Date | null
+  dueDate: Date | null,
+  supplierCostCents?: number | null
 ) {
   return prisma.order.update({
     where: { reference },
     data: {
       assignedTo,
       dueDate,
+      ...(supplierCostCents != null ? { supplierCostCents } : {}),
       events: {
         create: {
           type: "order.assigned",
           message: assignedTo
-            ? `Pedido asignado a ${assignedTo}${dueDate ? ` con fecha límite ${dueDate.toLocaleDateString("es-ES")}` : ""}.`
+            ? `Pedido asignado a ${assignedTo}${dueDate ? ` con fecha límite ${dueDate.toLocaleDateString("es-ES")}` : ""}${supplierCostCents != null ? ` · coste ${(supplierCostCents / 100).toFixed(2)} € sin IVA` : ""}.`
             : "Asignación de pedido eliminada.",
+          ...(supplierCostCents != null ? { payload: { supplierCostCents } } : {}),
         },
       },
     },

@@ -12,6 +12,9 @@ import {
   deduceLostReason,
   hasCostGap,
   hasHumanOpen,
+  isOwnTranslator,
+  needsSupplierCost,
+  parseEurToCents,
   whatsappNudgeText,
   type AutoSendInput,
   type CostGapOrder,
@@ -244,6 +247,27 @@ test("coste: francés propio cuenta como coste 0 explícito, no como hueco", () 
   assert.equal(hasCostGap({ ...order, langPair: "es-fr", assignedTo: "Juan Silva" }, NOW), false);
   // Francés asignado a otro traductor sin coste sí es hueco.
   assert.equal(hasCostGap({ ...order, langPair: "fr-es", assignedTo: "Maria" }, NOW), true);
+  // Juan Amor es jurado ajeno: sin coste es hueco aunque se llame Juan.
+  assert.equal(hasCostGap({ ...order, langPair: "fr-es", assignedTo: "Juan Amor" }, NOW), true);
+});
+
+test("traductor propio: solo Juan Silva, nunca Juan Amor", () => {
+  for (const n of ["Juan Silva", "Juan Silva Moreno", " juan  silva moreno ", "Juan"]) assert.equal(isOwnTranslator(n), true, n);
+  for (const n of ["Juan Amor", "Juan Amor Fernández", "Maria", "", null]) assert.equal(isOwnTranslator(n), false, String(n));
+});
+
+test("asignar exige coste: jurado ajeno sin cifra sí; FR propio, vacío o con cifra no", () => {
+  const b = { translator: "Daniela Pop", langPair: "ro->es", supplierCostCents: null };
+  assert.equal(needsSupplierCost(b), true);
+  assert.equal(needsSupplierCost({ ...b, translator: "  " }), false, "quitar asignación no pide coste");
+  assert.equal(needsSupplierCost({ ...b, supplierCostCents: 0 }), false, "0 es coste explícito");
+  assert.equal(needsSupplierCost({ ...b, supplierCostCents: 4500 }), false);
+  assert.equal(needsSupplierCost({ ...b, winningPriceCents: 3000 }), false);
+  assert.equal(needsSupplierCost({ ...b, translator: "Juan Silva Moreno", langPair: "fr->es" }), false);
+  assert.equal(needsSupplierCost({ ...b, translator: "Juan Silva", langPair: "es-fr" }), false);
+  assert.equal(needsSupplierCost({ ...b, translator: "Juan Amor", langPair: "pt->es" }), true, "Juan Amor necesita coste");
+  assert.equal(needsSupplierCost({ ...b, translator: "Juan Amor", langPair: "fr->es" }), true);
+  assert.equal(needsSupplierCost({ ...b, translator: "Juan Silva", langPair: "en->es" }), true, "fuera del francés no es coste propio");
 });
 test("coste: no pagados o cancelados no cuentan", () => {
   assert.equal(hasCostGap({ ...order, paymentStatus: "PENDING" }, NOW), false);
@@ -265,4 +289,12 @@ test("token de cierre: vale para su presupuesto y propósito, y caduca", () => {
 test("ACCEPTED (cliente en el pago): ni 2º contacto ni cierre suave aunque pasen las horas", () => {
   assert.equal(decideFollowUp({ ...fu, status: "ACCEPTED" }).action, "none");
   assert.equal(decideFollowUp({ ...fu, status: "ACCEPTED", reminderSentAt: hoursAgo(48) }).action, "none");
+});
+
+test("coste en euros del formulario → céntimos", () => {
+  assert.equal(parseEurToCents("45,50"), 4550);
+  assert.equal(parseEurToCents(" 30 € "), 3000);
+  assert.equal(parseEurToCents(12.345), 1235);
+  assert.equal(parseEurToCents("0"), 0);
+  for (const v of ["", "  ", null, undefined, "abc", -5]) assert.equal(parseEurToCents(v), null, String(v));
 });

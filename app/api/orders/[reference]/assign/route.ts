@@ -6,6 +6,9 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { getWorkflowState } from "@/lib/workflow";
 import { findTranslatorProfile } from "@/lib/translators";
 import { sendTranslationStartedAssignedEmail } from "@/lib/email";
+import { needsSupplierCost, parseEurToCents } from "@/lib/cierre-math";
+import { sameTranslatorName } from "@/lib/lavori-bridge";
+import { netFromGross } from "@/lib/quotes";
 
 export const runtime = "nodejs";
 
@@ -15,6 +18,8 @@ type AssignBody = {
   assignedTo?: string | null;
   clear?: boolean;
   dueDate?: string | null;
+  // Coste del traductor en € SIN IVA: obligatorio si no es el francés propio y el pedido no tiene coste.
+  supplierCostEur?: number | string | null;
 };
 
 export async function POST(req: Request, { params }: Params) {
@@ -48,7 +53,35 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    await assignOrder(params.reference, assignedTo, dueDate);
+    const rawCost = body.supplierCostEur;
+    const supplierCostCents = parseEurToCents(rawCost);
+    if (rawCost != null && String(rawCost).trim() && supplierCostCents == null) {
+      return NextResponse.json({ ok: false, error: "Coste del traductor no válido (euros sin IVA, p. ej. 45,50)." }, { status: 400 });
+    }
+    if (assignedTo && supplierCostCents == null) {
+      const winning = await prisma.collaboratorAssignment.findMany({
+        where: { orderId: orderBefore.id, quotedPriceCents: { not: null }, OR: [{ isWinning: true }, { status: { in: ["ACCEPTED", "DELIVERED"] } }] },
+        select: { quotedPriceCents: true, collaborator: { select: { fullName: true } } },
+      });
+      const win = winning.find((a) => sameTranslatorName(a.collaborator.fullName, assignedTo));
+      if (needsSupplierCost({ translator: assignedTo, langPair: orderBefore.langPair, supplierCostCents: orderBefore.supplierCostCents, winningPriceCents: win?.quotedPriceCents ?? null })) {
+        return NextResponse.json(
+          { ok: false, needsCost: true, error: `Indica el coste de ${assignedTo} (€ sin IVA): sin él el pedido queda sin margen conocido.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    await assignOrder(params.reference, assignedTo, dueDate, assignedTo ? supplierCostCents : null);
+
+    if (assignedTo && supplierCostCents != null && orderBefore.paymentStatus === "PAID") {
+      const revenueNetCents = netFromGross(orderBefore.amountCents || 0);
+      const marginCents = revenueNetCents - supplierCostCents;
+      if (marginCents <= 0) {
+        const { alertStaffMargin } = await import("@/lib/ai/outage-alert");
+        await alertStaffMargin({ orderId: orderBefore.id, supplier: assignedTo, supplierCostCents, revenueNetCents, marginCents });
+      }
+    }
 
     const workflowBefore = getWorkflowState(orderBefore);
     if (assignedTo && orderBefore.paymentStatus === "PAID" && workflowBefore === "PAGO_VALIDADO") {
