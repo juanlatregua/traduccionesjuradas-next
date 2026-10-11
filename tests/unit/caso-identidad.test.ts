@@ -80,10 +80,9 @@ test("teléfono de intermediario: no une (muchos emails, o 2 emails con 2 nombre
   assert.equal(compararIdentidad(a, b), "ninguna");
 });
 
-test("agencia: ficha de empresa, crédito, factura mensual o 2+ titulares", () => {
+test("agencia: solo por la ficha (empresa, crédito, factura mensual)", () => {
   assert.equal(esAgencia({ isBusiness: true }), true);
   assert.equal(esAgencia({ creditEnabled: true }), true);
   assert.equal(esAgencia({ billingCycle: "MONTHLY" }), true);
-  assert.equal(esAgencia({ titulares: 2 }), true);
-  assert.equal(esAgencia({ billingCycle: "PER_ORDER", titulares: 1 }), false);
+  assert.equal(esAgencia({ billingCycle: "PER_ORDER", isBusiness: false, creditEnabled: false }), false);
 });

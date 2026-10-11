@@ -61,6 +61,7 @@ test("vivos: presupuesto sin formalizar ni borrar; solicitud viva reciente", () 
   assert.ok(quoteVivo({ status: "SENT" }));
   assert.ok(!quoteVivo({ status: "SENT", deletedAt: new Date() }));
   assert.ok(!quoteVivo({ status: "EXPIRED" }));
+  assert.ok(!quoteVivo({ status: "SENT", lostReason: "NO_LONGER_NEEDED" }), "cierre suave / No aceptado: ya no vive");
   const ahora = new Date("2026-10-11T12:00:00Z");
   assert.ok(lprViva({ status: "PRICED", createdAt: new Date("2026-10-01T00:00:00Z") }, ahora));
   assert.ok(!lprViva({ status: "PRICED", createdAt: new Date("2026-08-01T00:00:00Z") }, ahora));

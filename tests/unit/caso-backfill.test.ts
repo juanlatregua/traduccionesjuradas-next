@@ -11,7 +11,7 @@ const quote = (o: Partial<BQuote>): BQuote => {
   return {
     id: `q${seq}`, quoteNumber: `2026-${String(seq).padStart(5, "0")}`, status: "EXPIRED", deletedAt: null, customerId: "cu1",
     customerEmail: "ana@x.com", customerPhone: null, customerName: "Ana", sourceLang: "en", targetLang: "es", expedienteRef: null,
-    holderNames: null, createdAt: dia(10), paidAt: null, balanceAmount: null, balancePaidAt: null, lostReason: null, lostReasonNote: null,
+    createdAt: dia(10), paidAt: null, balanceAmount: null, balancePaidAt: null, lostReason: null, lostReasonNote: null,
     fileKeys: [], casoId: null, liveCasoKey: null, supersededAt: null, ...o,
   };
 };
@@ -143,11 +143,40 @@ test("lo nuevo se ata al caso existente por su presupuesto", () => {
   assert.equal(p.casos[0].vigenteId, null, "ya tenía vigente");
 });
 
-test("agencia (2 titulares): presupuesto sin documentos no se une, queda dudoso", () => {
-  const a = quote({ customerEmail: "nuria@nf.es", holderNames: "Pérez", expedienteRef: "EXP-1A", createdAt: dia(10) });
-  const b = quote({ customerEmail: "nuria@nf.es", holderNames: "López", createdAt: dia(9) });
-  const p = planBackfill(input({ quotes: [a, b] }));
+test("agencia solo por la ficha: presupuesto sin documentos no se une, queda dudoso", () => {
+  const a = quote({ customerId: "cuA", customerEmail: "nuria@nf.es", expedienteRef: "EXP-1A", createdAt: dia(10) });
+  const b = quote({ customerId: "cuA", customerEmail: "nuria@nf.es", createdAt: dia(9) });
+  const p = planBackfill(input({ quotes: [a, b], customers: [{ id: "cuA", isBusiness: true, creditEnabled: false, billingCycle: "PER_ORDER" }] }));
   assert.equal(p.casos.length, 2);
   assert.ok(p.casos.every((c) => c.esAgencia));
   assert.equal(p.casos.find((c) => c.quoteIds.includes(b.id))!.dudoso, true);
+});
+
+test("holderNames distintos NO hacen agencia (describen documentos)", () => {
+  const a = quote({ customerEmail: "tanas@x.com", expedienteRef: "EXP-T", createdAt: dia(10), ...({ holderNames: "Certificado de nacimiento" } as object) });
+  const b = quote({ customerEmail: "tanas@x.com", createdAt: dia(9), ...({ holderNames: "Antecedentes penales" } as object) });
+  const p = planBackfill(input({ quotes: [a, b], customers: [{ id: "cu1", isBusiness: false, creditEnabled: false, billingCycle: "PER_ORDER" }] }));
+  assert.equal(p.casos.length, 1);
+  assert.equal(p.casos[0].esAgencia, false);
+});
+
+test("presupuesto SENT con motivo de pérdida (cierre suave) no deja el caso ABIERTO", () => {
+  const q = quote({ status: "SENT", lostReason: "NO_LONGER_NEEDED", lostReasonNote: "auto:sin_respuesta" });
+  const p = planBackfill(input({ quotes: [q], lprs: [lpr({ quoteId: q.id, status: "PRICED", createdAt: dia(3) })] }));
+  assert.equal(p.casos.length, 1);
+  assert.equal(p.casos[0].estado, "PERDIDO", "la solicitud PRICED no lo reabre");
+  // sin presupuesto, la solicitud viva sí lo mantiene abierto
+  assert.equal(planBackfill(input({ lprs: [lpr({ status: "PRICED", createdAt: dia(3) })] })).casos[0].estado, "ABIERTO");
+});
+
+test("misma huella en un caso cerrado hace más de 30 d: caso nuevo", () => {
+  const vieja = quote({ expedienteRef: "EXP-V", createdAt: dia(90), status: "PAID", paidAt: dia(89) });
+  const l1 = lpr({ id: "l1", ref: "LEAD-1", quoteId: vieja.id, contentKey: "kv", createdAt: dia(90) });
+  const l2 = lpr({ id: "l2", ref: "LEAD-2", contentKey: "kv", createdAt: dia(2), customerHint: null });
+  const p = planBackfill(input({ quotes: [vieja], lprs: [l1, l2], orders: [order({ quoteId: vieja.id, createdAt: dia(89) })] }));
+  assert.notEqual(p.casos.find((c) => c.lprIds.includes("l1"))!.id, p.casos.find((c) => c.lprIds.includes("l2"))!.id);
+  // dentro de 30 d sí es el mismo caso
+  const l3 = lpr({ id: "l3", ref: "LEAD-3", contentKey: "kv", createdAt: dia(80) });
+  const p2 = planBackfill(input({ quotes: [vieja], lprs: [l1, l3], orders: [order({ quoteId: vieja.id, createdAt: dia(89) })] }));
+  assert.equal(p2.casos.find((c) => c.lprIds.includes("l1"))!.id, p2.casos.find((c) => c.lprIds.includes("l3"))!.id);
 });

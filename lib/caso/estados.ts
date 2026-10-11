@@ -73,8 +73,9 @@ export function estadoDeCaso(i: { pedidos: PedidoParaEstado[]; vivo: boolean }):
   return estadoPorPedidos(i.pedidos) ?? (i.vivo ? "ABIERTO" : "PERDIDO");
 }
 
-export function quoteVivo(q: { status: string; deletedAt?: Date | null }): boolean {
-  return !q.deletedAt && (QUOTE_VIVOS as readonly string[]).includes(q.status);
+/** Con motivo de pérdida (cierre suave, «No aceptado») ya no está vivo aunque siga SENT. */
+export function quoteVivo(q: { status: string; deletedAt?: Date | null; lostReason?: string | null }): boolean {
+  return !q.deletedAt && !q.lostReason && (QUOTE_VIVOS as readonly string[]).includes(q.status);
 }
 
 export function lprViva(l: { status: string; createdAt: Date }, ahora: Date, dias = LPR_VIVA_DIAS): boolean {

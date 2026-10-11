@@ -25,6 +25,7 @@ const DAY = 864e5;
 export const VENTANA_VERSION_DIAS = 21;
 export const VENTANA_LPR_IDENTIDAD_DIAS = 14;
 export const MAX_VERSIONES_SIN_DUDA = 3;
+export const VENTANA_HUELLA_CERRADO_DIAS = 30;
 
 export type BQuote = {
   id: string;
@@ -38,7 +39,6 @@ export type BQuote = {
   sourceLang: string;
   targetLang: string;
   expedienteRef: string | null;
-  holderNames: string | null;
   createdAt: Date;
   paidAt: Date | null;
   balanceAmount: number | null;
@@ -207,26 +207,17 @@ export function planBackfill(input: BackfillInput): BackfillPlan {
     return g || null;
   };
 
-  // Agencia por titulares distintos bajo la misma identidad primaria.
-  const titulares = new Map<string, Set<string>>();
-  for (const q of input.quotes) {
-    const k = ident(q.customerEmail, q.customerPhone).primaria;
-    const h = q.holderNames?.trim().toLowerCase();
-    if (!k || !h) continue;
-    const s = titulares.get(k) || new Set<string>();
-    s.add(h);
-    titulares.set(k, s);
-  }
   const quoteEsAgencia = (q: BQuote) => {
     const c = customers.get(q.customerId);
-    const k = ident(q.customerEmail, q.customerPhone).primaria;
-    return esAgencia({ ...(c || {}), titulares: k ? titulares.get(k)?.size ?? 0 : 0 });
+    return c ? esAgencia(c) : false;
   };
 
   const grupoDeQuote = new Map<string, Grupo>();
   const grupoDeOrder = new Map<string, Grupo>();
   const grupoDeLpr = new Map<string, Grupo>();
   const conPedido = new Set(input.orders.filter((o) => o.quoteId).map((o) => o.quoteId!));
+  const ultimaActividad = (g: Grupo) =>
+    Math.max(0, ...[...g.quotes.map((q) => q.createdAt), ...g.orders.map((o) => o.createdAt), ...g.lprs.map((l) => l.createdAt)].map((d) => d.getTime()));
   const cerrado = (g: Grupo) => g.orders.length > 0 || g.quotes.some((q) => quoteIntocable(q) || conPedido.has(q.id));
 
   // 1. Presupuestos
@@ -316,7 +307,8 @@ export function planBackfill(input: BackfillInput): BackfillPlan {
     }
     if (!g && l.contentKey) {
       const otra = lprs.find((x) => x !== l && x.contentKey === l.contentKey && grupoDeLpr.has(x.id));
-      if (otra) g = grupoDeLpr.get(otra.id)!;
+      const og = otra ? grupoDeLpr.get(otra.id)! : null;
+      if (og && (!cerrado(og) || Math.abs(l.createdAt.getTime() - ultimaActividad(og)) <= VENTANA_HUELLA_CERRADO_DIAS * DAY)) g = og;
     }
     if (!g) {
       const id = identDeHint(l.customerHint);
@@ -428,7 +420,8 @@ export function planBackfill(input: BackfillInput): BackfillPlan {
     }
     if (g.quotes.length > MAX_VERSIONES_SIN_DUDA) g.motivos.push(`cadena de ${g.quotes.length} presupuestos`);
 
-    const vivo = (!!vigente && quoteVivo(vigente)) || g.lprs.some((l) => lprViva(l, ahora));
+    // Con presupuesto, manda él (una solicitud PRICED no reabre un presupuesto perdido); sin él, la solicitud viva.
+    const vivo = vigente ? quoteVivo(vigente) : g.lprs.some((l) => lprViva(l, ahora));
     let estado = estadoDeCaso({ pedidos: g.orders, vivo });
     if (!g.nuevo && esCasoEstado(g.estadoAnterior) && !puedeCaso(g.estadoAnterior, estado)) estado = g.estadoAnterior;
 
@@ -442,7 +435,6 @@ export function planBackfill(input: BackfillInput): BackfillPlan {
     const identidad = g.identidad || ident(null, null);
     const pares = [...new Set([...g.quotes.map(quotePar), ...g.orders.map((o) => normPar(o.langPair)), ...g.lprs.map((l) => normPar(l.par))].filter(Boolean))];
     const primerQuote = cronologico[0];
-    const titularesAgencia = g.quotes.some(quoteEsAgencia);
     casos.push({
       id: g.id,
       nuevo: g.nuevo,
@@ -453,7 +445,7 @@ export function planBackfill(input: BackfillInput): BackfillPlan {
       phone9: identidad.phone9,
       nombre: g.nombre,
       pares,
-      esAgencia: titularesAgencia,
+      esAgencia: g.quotes.some(quoteEsAgencia),
       dudoso: g.motivos.length > 0,
       motivos: g.motivos,
       posibles: [...g.posibles].filter((x) => x !== g.id),

@@ -116,9 +116,9 @@ export function telefonosIntermediario(filas: { email?: string | null; phone?: s
   return out;
 }
 
-/** Cliente con encargos en paralelo: nunca se le une por identidad con documentos. */
-export function esAgencia(c: { isBusiness?: boolean | null; creditEnabled?: boolean | null; billingCycle?: string | null; titulares?: number }): boolean {
-  return Boolean(c.isBusiness || c.creditEnabled || c.billingCycle === "MONTHLY" || (c.titulares ?? 0) >= 2);
+/** Cliente con encargos en paralelo, solo por su ficha (holderNames describe documentos, no titulares). */
+export function esAgencia(c: { isBusiness?: boolean | null; creditEnabled?: boolean | null; billingCycle?: string | null }): boolean {
+  return Boolean(c.isBusiness || c.creditEnabled || c.billingCycle === "MONTHLY");
 }
 
 export function identityKeyDe(id: Identidad, ancla: string): string {
