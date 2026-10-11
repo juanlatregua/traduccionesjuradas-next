@@ -200,12 +200,15 @@ model Order {
   // propia. SetNull: borrar el borrador devuelve el pedido a "sin asegurar".
   monthlyInvoiceId String?
   monthlyInvoice   ClientInvoice? @relation("MonthlyInvoiceOrders", fields: [monthlyInvoiceId], references: [id], onDelete: SetNull)
+  casoId           String?
+  caso             Caso?          @relation(fields: [casoId], references: [id], onDelete: SetNull)
 
   @@index([clientEmail])
   @@index([createdAt])
   @@index([paymentStatus, status])
   @@index([caseRef])
   @@index([monthlyInvoiceId])
+  @@index([casoId])
 }
 
 // Documentos individuales de un pedido (expediente). Poblado por el puente
@@ -576,6 +579,7 @@ model Customer {
   updatedAt DateTime @updatedAt
 
   quotes Quote[]
+  casos  Caso[]
 
   @@index([email])
   @@index([intermediaryId])
@@ -655,9 +659,15 @@ model Quote {
   balanceAmount  Decimal?          @db.Decimal(12, 2) // segundo plazo, IVA incluido
   balanceDueAt   DateTime?
   balancePaidAt  DateTime?
+  // Caso (lib/caso): liveCasoKey = casoId solo en la versión vigente del caso; el
+  // @unique impide dos vigentes. null = sustituida, borrada o sin caso.
+  casoId         String?
+  liveCasoKey    String?           @unique
+  supersededAt   DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
+  caso         Caso?            @relation(fields: [casoId], references: [id], onDelete: SetNull)
   customer     Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
   orders       Order[]
   lines        QuoteLine[]
@@ -670,6 +680,7 @@ model Quote {
   @@index([status, sentAt])
   @@index([validUntil])
   @@index([deletedAt])
+  @@index([casoId])
 }
 
 model QuoteLine {
@@ -911,6 +922,9 @@ model DocumentAnalysis {
 
   reminderSentAt   DateTime?
 
+  casoId           String?
+  caso             Caso?                  @relation(fields: [casoId], references: [id], onDelete: SetNull)
+
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
@@ -919,6 +933,7 @@ model DocumentAnalysis {
   @@index([status, createdAt])
   @@index([clientEmail])
   @@index([orderReference])
+  @@index([casoId])
 }
 
 model FailedEmail {
@@ -961,12 +976,16 @@ model LavoriPriceRequest {
   contentKey    String?   // huella documentos+par: un cliente nunca tiene dos encargos vivos con lo mismo (Juan, 24-sep)
   heldByJuanAt  DateTime? // «lo llevo yo» marcado en lavori (contrato 3-oct): el motor no acepta precios solo
   createdBy     String?
+  casoId        String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  caso Caso? @relation(fields: [casoId], references: [id], onDelete: SetNull)
 
   @@index([quoteId])
   @@index([contentKey])
   @@index([expedienteRef])
+  @@index([casoId])
 }
 
 enum CollaboratorSupplierType {
@@ -1096,12 +1115,16 @@ model InboundEmail {
   // no volver a pagar la misma lectura (misma lección que el hash de documentos).
   proofJson         Json?
   proofAt           DateTime?
+  casoId            String?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+
+  caso Caso? @relation(fields: [casoId], references: [id], onDelete: SetNull)
 
   @@index([status, receivedAt])
   @@index([fromEmail])
   @@index([fromPhone])
+  @@index([casoId])
 }
 
 // ── Tarifario aprendido (agente de precios, 27-ago-2026) ─────────────────────
@@ -1150,4 +1173,58 @@ model LearnedRateSample {
   rate LearnedRate @relation(fields: [rateId], references: [id], onDelete: Cascade)
 
   @@index([rateId, createdAt])
+}
+
+// Caso (lib/caso, F1 11-oct-2026): UN encargo de un cliente de la captación al
+// cierre; ata solicitudes de precio, presupuestos (versiones), pedido, emails y
+// análisis. Solo interno: lavori nunca ve casoId ni ref. El estado es grueso
+// (lib/caso/estados.ts); la fase fina se calcula de los hijos.
+model Caso {
+  id             String    @id @default(cuid())
+  ref            String    @unique // CASO-XXXXXX, solo staff
+  estado         String    @default("ABIERTO") // CASO_ESTADOS (validado en código)
+  identityKey    String    // "e:<email>" | "p:<9 dígitos>" | "anon:<ancla>"
+  email          String?   // email REAL normalizado; nunca el marcador @whatsapp.local
+  phone9         String?
+  nombre         String?
+  pares          String[]  // "EN>ES"…; vacío = aún no se sabe
+  origen         String    // entrada que lo creó (puerta, whatsapp, constructor…, backfill)
+  esAgencia      Boolean   @default(false)
+  dudoso         Boolean   @default(false) // el resolver no supo a qué caso pertenece: revisar a mano
+  customerId     String?
+  lastActivityAt DateTime  @default(now())
+  closedAt       DateTime?
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  customer      Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  quotes        Quote[]
+  priceRequests LavoriPriceRequest[]
+  orders        Order[]
+  inbound       InboundEmail[]
+  analyses      DocumentAnalysis[]
+  eventos       CasoEvento[]
+
+  @@index([identityKey, estado])
+  @@index([email])
+  @@index([phone9])
+  @@index([estado, lastActivityAt])
+}
+
+// Rastro del caso (CASO_EVENTOS). dedupeKey con valor = idempotente.
+model CasoEvento {
+  id        String   @id @default(cuid())
+  casoId    String?
+  tipo      String
+  dedupeKey String?
+  actor     String   // email staff | system:<x>
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  caso Caso? @relation(fields: [casoId], references: [id], onDelete: Cascade)
+
+  @@unique([casoId, tipo, dedupeKey])
+  @@index([tipo, createdAt])
+  @@index([casoId, createdAt])
 }
