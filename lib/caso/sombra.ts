@@ -32,7 +32,7 @@ export type Sombra = {
   simulado: boolean;
 };
 
-const QUOTE_SELECT = { id: true, status: true, deletedAt: true, lostReason: true, liveCasoKey: true, supersededAt: true, createdAt: true } as const;
+const QUOTE_SELECT = { id: true, status: true, deletedAt: true, lostReason: true, lostReasonNote: true, liveCasoKey: true, supersededAt: true, expiredAt: true, createdAt: true } as const;
 const LPR_SELECT = { par: true, status: true, createdAt: true } as const;
 
 async function cargarVivo(casoId: string, par: string | null): Promise<VivoEnCaso> {

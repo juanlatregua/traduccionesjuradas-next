@@ -2,7 +2,7 @@
 // Un solo paso y un solo botón. Orden: pago congelado (pierde dinero) > pedido >
 // presupuesto vigente > solicitud viva a lavori > nada vivo.
 
-import { estadoPorPedidos, lprViva, quoteVivo, type PedidoParaEstado } from "./estados.ts";
+import { estadoPorPedidos, lprViva, quotePagable, quoteVivo, type PedidoParaEstado } from "./estados.ts";
 
 export type QuotePaso = {
   id: string;
@@ -10,8 +10,10 @@ export type QuotePaso = {
   status: string;
   deletedAt: Date | null;
   lostReason: string | null;
+  lostReasonNote: string | null;
   liveCasoKey: string | null;
   supersededAt: Date | null;
+  expiredAt: Date | null;
   paymentFrozenAt: Date | null;
   paidAt: Date | null;
   sentAt: Date | null;
@@ -44,6 +46,8 @@ export type Paso = {
     | "cancelado"
     | "borrador"
     | "presupuesto_enviado"
+    | "pagable_cerrado"
+    | "presupuesto_muerto"
     | "precio_recibido"
     | "esperando_precio"
     | "jurado_no_responde"
@@ -140,6 +144,18 @@ export function siguientePaso(i: {
     };
   }
 
+  // Cerrado por silencio (o pago iniciado con motivo de pérdida) pero aún pagable: se espera al cliente.
+  const pagable = i.quotes.filter((q) => quotePagable(q)).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  if (pagable) {
+    return {
+      clave: "pagable_cerrado",
+      grupo: "cliente",
+      titulo: `Esperando cliente: ${pagable.quoteNumber} ${pagable.status === "ACCEPTED" ? "con pago iniciado" : "cerrado por silencio"} · aún puede pagar`,
+      detalle: `${pagable.sentAt ? `Enviado el ${fmtHora(pagable.sentAt)} · ` : ""}${pagable.openedAt ? `abierto el ${fmtHora(pagable.openedAt)}` : "sin abrir"}`,
+      accion: { label: "Copiar enlace /q", href: urlPublicaQuote(i.baseUrl, pagable.publicToken), copiar: true },
+    };
+  }
+
   // Una solicitud que ya tuvo presupuesto (aunque haya muerto) no vuelve a pedir que se monte otro.
   const vivas = i.lprs
     .filter((l) => lprViva(l, i.ahora) && !l.quoteId)
@@ -166,6 +182,15 @@ export function siguientePaso(i: {
     };
   }
 
+  const ultimo = i.quotes.filter((q) => !q.deletedAt).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  if (ultimo) {
+    return {
+      clave: "presupuesto_muerto",
+      grupo: "cerrado",
+      titulo: `Presupuesto ${ultimo.quoteNumber} ${ultimo.status === "EXPIRED" || ultimo.expiredAt ? "caducado" : ultimo.lostReason ? "no aceptado" : "sin vida"}`,
+      accion: { label: "Ir al presupuesto", href: hrefPresupuesto(ultimo.id) },
+    };
+  }
   if (i.estado === "ABIERTO") {
     return {
       clave: "sin_nada",

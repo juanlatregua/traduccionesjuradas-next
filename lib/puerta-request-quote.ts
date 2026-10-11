@@ -40,12 +40,13 @@ async function reclamarAvisoHumano(
   casoId: string | null,
   claves: string[],
   solicitudNueva: string | null,
-  sesion: string
-): Promise<{ tipo: "completo" | "corto" | "nada"; casoRef: string | null }> {
-  if (!casoId) return { tipo: "completo", casoRef: null };
+  sesion: string,
+  contacto: { email: string; phone: string }
+): Promise<{ tipo: "completo" | "corto" | "nada"; casoRef: string | null; eventoId: string | null }> {
+  if (!casoId) return { tipo: "completo", casoRef: null, eventoId: null };
   try {
     const [c, eventos] = await Promise.all([
-      prisma.caso.findUnique({ where: { id: casoId }, select: { ref: true } }),
+      prisma.caso.findUnique({ where: { id: casoId }, select: { ref: true, estado: true } }),
       prisma.casoEvento.findMany({
         where: { casoId, tipo: { in: ["aviso_humano", "aviso_humano_repetido"] } },
         select: { tipo: true, createdAt: true, payload: true },
@@ -56,34 +57,39 @@ async function reclamarAvisoHumano(
       tipo: e.tipo as AvisoPrevio["tipo"],
       createdAt: e.createdAt,
       docs: ((e.payload as { docs?: string[] } | null)?.docs || []).map(String),
+      email: (e.payload as { email?: string | null } | null)?.email ?? null,
+      phone: (e.payload as { phone?: string | null } | null)?.phone ?? null,
     }));
     const ahora = new Date();
-    const d = decidirAvisoHumano({ casoId, docs: claves, previos, solicitudNueva: Boolean(solicitudNueva), ahora });
-    if (d.tipo === "nada") return { tipo: "nada", casoRef };
+    const d = decidirAvisoHumano({ casoId, casoEstado: c?.estado, contacto, docs: claves, previos, solicitudNueva: Boolean(solicitudNueva), ahora });
+    if (d.tipo === "nada") return { tipo: "nada", casoRef, eventoId: null };
     const base = dedupeAviso(claves);
     const dedupeKey =
       d.tipo === "completo"
-        ? `${base}${solicitudNueva ? `|${solicitudNueva}` : ""}`.slice(0, 190)
+        ? // nº de avisos completos previos: dos peticiones simultáneas chocan; las siguientes no.
+          `${base}|n${previos.filter((p) => p.tipo === "aviso_humano").length}`.slice(0, 190)
         : `${base}|${Math.floor(ahora.getTime() / (AVISO_REPETIDO_HORAS * 36e5))}`.slice(0, 190);
+    let eventoId: string;
     try {
-      await prisma.casoEvento.create({
+      ({ id: eventoId } = await prisma.casoEvento.create({
         data: {
           casoId,
           tipo: d.tipo === "completo" ? "aviso_humano" : "aviso_humano_repetido",
           dedupeKey,
           actor: "system:puerta",
-          payload: { docs: claves, docsNuevos: d.docsNuevos, solicitud: solicitudNueva, sesion },
+          payload: { docs: claves, docsNuevos: d.docsNuevos, solicitud: solicitudNueva, sesion, email: contacto.email || null, phone: contacto.phone || null },
         },
-      });
+        select: { id: true },
+      }));
     } catch (err: any) {
       // Otra petición simultánea ya lo reclamó: ese aviso basta.
-      if (err?.code === "P2002") return { tipo: "nada", casoRef };
+      if (err?.code === "P2002") return { tipo: "nada", casoRef, eventoId: null };
       throw err;
     }
-    return { tipo: d.tipo, casoRef };
+    return { tipo: d.tipo, casoRef, eventoId };
   } catch (err) {
     console.error("[puerta:request-quote] rastro del aviso falló; se avisa igual:", err);
-    return { tipo: "completo", casoRef: null };
+    return { tipo: "completo", casoRef: null, eventoId: null };
   }
 }
 
@@ -418,12 +424,12 @@ export async function routePuertaQuoteRequest(input: {
     // Aviso a staff — idempotente por caso (lib/caso/aviso-humano): el rastro se
     // reclama ANTES de enviar; mismo cliente y mismos documentos = no se repite.
     const claves = clavesDocs(lead?.rows?.length ? lead.rows.map((r) => ({ id: r.id, hash: r.fileHash })) : docs.map((d) => ({ id: d.id })));
-    const aviso = await reclamarAvisoHumano(caso?.casoId ?? null, claves, solicitudNueva, token);
+    const aviso = await reclamarAvisoHumano(caso?.casoId ?? null, claves, solicitudNueva, token, { email: contactEmail, phone: contactPhone });
     const casoUrl = aviso.casoRef ? `${baseUrl}/zona-traductor/casos/${caso!.casoId}` : null;
     const etiqueta = aviso.casoRef ? `[${aviso.casoRef}] ` : "";
     const quienCliente = docs[0]?.clientName || contactEmail || contactPhone || "El cliente";
     if (aviso.tipo === "completo") {
-      await sendMail({
+      const enviado = await sendMail({
         to: adminEmail,
         subject: `${etiqueta}${fromWhatsApp ? "[WhatsApp] " : ""}${recurrente.kind === "recurrent" ? "[RECURRENTE] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
         html: renderSimpleEmailHtml(
@@ -441,7 +447,16 @@ export async function routePuertaQuoteRequest(input: {
             ...(casoUrl ? [`Montar presupuesto (documentos ya dentro): ${builderUrl}`] : []),
           ].join("\n")
         ),
-      }).catch((err) => console.error("[puerta:request-quote] aviso staff fallo:", err));
+      })
+        .then(() => true)
+        .catch((err) => {
+          console.error("[puerta:request-quote] aviso staff fallo:", err);
+          return false;
+        });
+      // Sin email no hubo aviso: se suelta el rastro para que la siguiente petición vuelva a avisar completo.
+      if (!enviado && aviso.eventoId) {
+        await prisma.casoEvento.delete({ where: { id: aviso.eventoId } }).catch((err) => console.error("[puerta:request-quote] no se pudo soltar el rastro del aviso:", err));
+      }
       await sendStaffAlertSMS(
         `${etiqueta}${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}${hermanos.length ? "¿dup? " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
         "puerta_request_quote"
@@ -461,17 +476,14 @@ export async function routePuertaQuoteRequest(input: {
       }).catch((err) => console.error("[puerta:request-quote] aviso repetido fallo:", err));
     }
 
-    // Acuse al cliente: un solo canal (email real o SMS). Repetición dentro de las
-    // 12 h (doble clic, reintento) = ya lo tiene: no se le duplica.
-    if (aviso.tipo !== "nada") {
-      await sendPriceRequestAckToClient({
-        name: docs[0]?.clientName,
-        email: contactEmail,
-        phone: contactPhone,
-        locale,
-        translatorLangName: lavoriSent?.langName ?? null,
-      });
-    }
+    // Acuse al cliente: un solo canal (email real o SMS); ya deduplica 24 h por destinatario.
+    await sendPriceRequestAckToClient({
+      name: docs[0]?.clientName,
+      email: contactEmail,
+      phone: contactPhone,
+      locale,
+      translatorLangName: lavoriSent?.langName ?? null,
+    });
 
     return out({ ok: true, lavori: lavoriSent ? { sent: true, ...lavoriSent, ...(esDirecto ? { directo: true } : {}) } : { sent: false } });
   } catch (err: any) {

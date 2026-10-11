@@ -1,16 +1,28 @@
 // lib/caso/aviso-humano.ts — F3a, lógica PURA: ¿el aviso «Lead pide presupuesto
 // humano» sale entero, corto o no sale? Idempotente por caso: el mismo cliente que
 // repite con los mismos documentos no genera otro aviso completo.
-//   completo = primera vez en el caso, hay documentos nuevos, o esta vez SÍ salió
-//              una solicitud nueva a lavori (es noticia).
+//   completo = primera vez en el caso, hay documentos nuevos, esta vez SÍ salió
+//              una solicitud nueva a lavori (es noticia), el contacto cambió o el
+//              caso no está ABIERTO (vuelve alguien de un caso cerrado).
 //   corto    = repite sin nada nuevo y hace ≥ 12 h del último aviso del caso:
 //              «ha vuelto a pedir» (señal de interés), solo email, sin SMS.
-//   nada     = repite dentro de las 12 h (doble clic, reintento): ni aviso ni
-//              acuse al cliente, que ya lo recibió.
+//   nada     = repite dentro de las 12 h (doble clic, reintento): sin aviso a staff
+//              (el acuse al cliente lo deduplica sendPriceRequestAckToClient).
 
 export const AVISO_REPETIDO_HORAS = 12;
 
-export type AvisoPrevio = { tipo: "aviso_humano" | "aviso_humano_repetido"; createdAt: Date; docs: string[] };
+export type AvisoPrevio = { tipo: "aviso_humano" | "aviso_humano_repetido"; createdAt: Date; docs: string[]; email?: string | null; phone?: string | null };
+
+const normEmail = (e: string | null | undefined) => String(e || "").trim().toLowerCase();
+const normTel = (t: string | null | undefined) => String(t || "").replace(/\D/g, "").slice(-9);
+
+/** Hay contacto ahora y no coincide con el del último aviso. */
+export function contactoCambia(ahora: { email?: string | null; phone?: string | null }, ultimo: { email?: string | null; phone?: string | null } | undefined): boolean {
+  if (!ultimo) return false;
+  const e = normEmail(ahora.email);
+  const t = normTel(ahora.phone);
+  return (!!e && e !== normEmail(ultimo.email)) || (!!t && t !== normTel(ultimo.phone));
+}
 export type DecisionAviso = { tipo: "completo" | "corto" | "nada"; docsNuevos: string[] };
 
 /** Huella estable de los documentos (hash del archivo o, si falta, id del análisis). */
@@ -24,15 +36,17 @@ export function dedupeAviso(claves: string[]): string {
 
 export function decidirAvisoHumano(i: {
   casoId: string | null;
+  casoEstado?: string | null;
+  contacto?: { email?: string | null; phone?: string | null };
   docs: string[];
   previos: AvisoPrevio[];
   solicitudNueva: boolean;
   ahora: Date;
 }): DecisionAviso {
-  if (!i.casoId) return { tipo: "completo", docsNuevos: i.docs };
+  if (!i.casoId || (i.casoEstado && i.casoEstado !== "ABIERTO")) return { tipo: "completo", docsNuevos: i.docs };
   const avisados = new Set(i.previos.filter((p) => p.tipo === "aviso_humano").flatMap((p) => p.docs));
   const docsNuevos = i.docs.filter((d) => !avisados.has(d));
-  if (avisados.size === 0 || docsNuevos.length > 0 || i.solicitudNueva) return { tipo: "completo", docsNuevos };
-  const ultimo = Math.max(...i.previos.map((p) => p.createdAt.getTime()));
-  return { tipo: i.ahora.getTime() - ultimo >= AVISO_REPETIDO_HORAS * 36e5 ? "corto" : "nada", docsNuevos };
+  const ultimoAviso = [...i.previos].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  if (avisados.size === 0 || docsNuevos.length > 0 || i.solicitudNueva || contactoCambia(i.contacto || {}, ultimoAviso)) return { tipo: "completo", docsNuevos };
+  return { tipo: i.ahora.getTime() - ultimoAviso.createdAt.getTime() >= AVISO_REPETIDO_HORAS * 36e5 ? "corto" : "nada", docsNuevos };
 }

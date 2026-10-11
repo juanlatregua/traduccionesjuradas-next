@@ -62,7 +62,7 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
       lastActivityAt: true,
       quotes: {
         orderBy: { createdAt: "asc" },
-        select: { ...QUOTE_PASO_SELECT, total: true, vatAmount: true, expiredAt: true, autoPricedBy: true, translatorName: true, lavoriMiembroNombre: true },
+        select: { ...QUOTE_PASO_SELECT, total: true, vatAmount: true, autoPricedBy: true, translatorName: true, lavoriMiembroNombre: true },
       },
       priceRequests: { orderBy: { createdAt: "asc" }, select: { ...LPR_PASO_SELECT, id: true, plazoDias: true, updatedAt: true, docsCount: true, words: true } },
       orders: {

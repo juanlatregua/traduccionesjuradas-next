@@ -3,7 +3,7 @@
 // (discrepancia) y qué estado le toca al caso. Nada de esto decide negocio: las
 // guardas viejas siguen creando/bloqueando; esto solo asigna casoId y anota.
 
-import { estadoDeCaso, quoteVivo, quoteIntocable, lprViva, puedeCaso, esCasoEstado, casoTerminal, type CasoEstado, type PedidoParaEstado } from "./estados.ts";
+import { estadoDeCaso, quoteVivo, quotePagable, quoteIntocable, lprViva, puedeCaso, esCasoEstado, casoTerminal, type CasoEstado, type PedidoParaEstado } from "./estados.ts";
 import { normPar, paresCompatibles, type Decision } from "./resolver.ts";
 
 export type Entrada =
@@ -52,8 +52,10 @@ export type QuoteDelCaso = {
   status: string;
   deletedAt: Date | null;
   lostReason: string | null;
+  lostReasonNote?: string | null;
   liveCasoKey: string | null;
   supersededAt: Date | null;
+  expiredAt?: Date | null;
   createdAt: Date;
 };
 export type LprDelCaso = { par: string; status: string; createdAt: Date };
@@ -66,9 +68,9 @@ export function vivoEnCaso(i: { casoId: string; par: string | null; quotes: Quot
   };
 }
 
-/** A efectos de estado, un presupuesto formalizado (PAID/IN_PROGRESS/DELIVERED) también sostiene el caso. */
-export function quoteCuentaViva(q: { status: string; deletedAt: Date | null; lostReason: string | null }): boolean {
-  return quoteVivo(q) || (!q.deletedAt && quoteIntocable({ status: q.status }));
+/** A efectos de estado, un presupuesto formalizado (PAID/IN_PROGRESS/DELIVERED) o aún pagable (cierre suave, pago iniciado) también sostiene el caso. */
+export function quoteCuentaViva(q: Parameters<typeof quotePagable>[0] & { deletedAt: Date | null; lostReason: string | null }): boolean {
+  return quoteVivo(q) || quotePagable(q) || (!q.deletedAt && quoteIntocable({ status: q.status }));
 }
 
 export type Vieja = "crea" | "bloquea";

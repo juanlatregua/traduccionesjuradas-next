@@ -12,8 +12,10 @@ const quote = (o: Partial<QuotePaso> = {}): QuotePaso => ({
   status: "SENT",
   deletedAt: null,
   lostReason: null,
+  lostReasonNote: null,
   liveCasoKey: "c1",
   supersededAt: null,
+  expiredAt: null,
   paymentFrozenAt: null,
   paidAt: null,
   sentAt: horasAntes(26),
@@ -107,7 +109,7 @@ test("nada vivo: abierto → montar con la sesión; perdido → sin botón", () 
   const a = paso({ sesion: "s1", lprs: [lpr({ createdAt: horasAntes(24 * 40) })] });
   assert.equal(a.clave, "sin_nada");
   assert.equal(a.accion?.href, "/zona-traductor/presupuesto?session=s1");
-  const b = paso({ estado: "PERDIDO", quotes: [quote({ status: "EXPIRED" })] });
+  const b = paso({ estado: "PERDIDO" });
   assert.equal(b.clave, "perdido");
   assert.equal(b.accion, null);
 });
@@ -143,4 +145,35 @@ test("aviso humano: documento nuevo o solicitud nueva = completo; sin caso = com
 test("claves de documentos: hash o id, sin duplicados y ordenadas", () => {
   assert.deepEqual(clavesDocs([{ id: "z", hash: null }, { id: "a", hash: "ff" }, { id: "b", hash: "ff" }]), ["d:z", "h:ff"]);
   assert.equal(dedupeAviso([]), "sin-docs");
+});
+
+test("cerrado por silencio o pago iniciado con motivo: esperando cliente, copiar /q", () => {
+  const silencio = paso({ estado: "PERDIDO", quotes: [quote({ lostReason: "NO_LONGER_NEEDED", lostReasonNote: "auto:sin_respuesta" })] });
+  assert.equal(silencio.clave, "pagable_cerrado");
+  assert.equal(silencio.grupo, "cliente");
+  assert.equal(silencio.accion?.copiar, true);
+  assert.match(silencio.titulo, /cerrado por silencio · aún puede pagar/);
+  const iniciado = paso({ quotes: [quote({ status: "ACCEPTED", lostReason: "PRICE", lostReasonNote: null })] });
+  assert.equal(iniciado.clave, "pagable_cerrado");
+  assert.match(iniciado.titulo, /pago iniciado/);
+});
+
+test("con presupuesto sin borrar nunca «Montar presupuesto»: caducado, no aceptado o sustituido", () => {
+  const caducado = paso({ sesion: "s1", quotes: [quote({ status: "EXPIRED", expiredAt: horasAntes(5) })] });
+  assert.equal(caducado.clave, "presupuesto_muerto");
+  assert.equal(caducado.accion?.href, "/zona-traductor/presupuestos/q1");
+  assert.equal(paso({ quotes: [quote({ lostReason: "PRICE", lostReasonNote: "precio alto" })] }).clave, "presupuesto_muerto");
+  assert.equal(paso({ quotes: [quote({ lostReason: "NO_LONGER_NEEDED", lostReasonNote: "auto:sustituido" })] }).clave, "presupuesto_muerto");
+  assert.equal(paso({ sesion: "s1", quotes: [quote({ deletedAt: horasAntes(1), status: "DRAFT" })] }).clave, "sin_nada");
+});
+
+test("aviso humano: contacto distinto o caso no ABIERTO = completo", () => {
+  const docs = clavesDocs([{ id: "d1", hash: "aa" }]);
+  const previo = { tipo: "aviso_humano" as const, createdAt: horasAntes(1), docs, email: "a@x.com", phone: "600111222" };
+  const base = { casoId: "c1", docs, previos: [previo], solicitudNueva: false, ahora: AHORA };
+  assert.equal(decidirAvisoHumano({ ...base, contacto: { email: "A@x.com ", phone: "+34 600 111 222" } }).tipo, "nada");
+  assert.equal(decidirAvisoHumano({ ...base, contacto: { email: "b@x.com", phone: "600111222" } }).tipo, "completo");
+  assert.equal(decidirAvisoHumano({ ...base, contacto: { email: "a@x.com", phone: "699999999" } }).tipo, "completo");
+  assert.equal(decidirAvisoHumano({ ...base, casoEstado: "ENTREGADO" }).tipo, "completo");
+  assert.equal(decidirAvisoHumano({ ...base, casoEstado: "ABIERTO" }).tipo, "nada");
 });

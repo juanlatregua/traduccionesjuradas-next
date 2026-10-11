@@ -78,6 +78,26 @@ export function quoteVivo(q: { status: string; deletedAt?: Date | null; lostReas
   return !q.deletedAt && !q.lostReason && (QUOTE_VIVOS as readonly string[]).includes(q.status);
 }
 
+/**
+ * Pagable: el cliente aún puede pagar por /q. Incluye el cierre suave automático
+ * (lostReason con nota auto:*, salvo auto:sustituido) y el pago iniciado (ACCEPTED),
+ * siempre que no esté borrado, sustituido ni caducado.
+ */
+export function quotePagable(q: {
+  status: string;
+  deletedAt?: Date | null;
+  lostReason?: string | null;
+  lostReasonNote?: string | null;
+  supersededAt?: Date | null;
+  expiredAt?: Date | null;
+}): boolean {
+  if (q.deletedAt || q.supersededAt || q.expiredAt) return false;
+  if (!(QUOTE_VIVOS as readonly string[]).includes(q.status)) return false;
+  if (!q.lostReason || q.status === "ACCEPTED") return true;
+  const nota = String(q.lostReasonNote || "");
+  return nota.startsWith("auto:") && nota !== "auto:sustituido";
+}
+
 export function lprViva(l: { status: string; createdAt: Date }, ahora: Date, dias = LPR_VIVA_DIAS): boolean {
   return (LPR_VIVAS as readonly string[]).includes(l.status) && ahora.getTime() - l.createdAt.getTime() <= dias * 864e5;
 }

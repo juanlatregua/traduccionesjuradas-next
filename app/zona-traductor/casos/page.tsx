@@ -36,6 +36,8 @@ const GRUPO_CLS: Record<GrupoPaso, string> = {
   cerrado: "border-l-slate-700",
 };
 
+const PAGABLE_DIAS = 14;
+
 const fmt = (d: Date) => d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 type Props = { searchParams?: { f?: string; ver?: string } };
@@ -49,7 +51,16 @@ export default async function CasosBandejaPage({ searchParams }: Props) {
   const casos = await prisma.caso.findMany({
     where: cerrados
       ? { estado: { notIn: ["ABIERTO", "EN_CURSO"] }, lastActivityAt: { gte: new Date(ahora.getTime() - 60 * 864e5) } }
-      : { estado: { in: ["ABIERTO", "EN_CURSO"] } },
+      : {
+          OR: [
+            { estado: { in: ["ABIERTO", "EN_CURSO"] } },
+            // Perdido por silencio pero con presupuesto aún pagable: se espera al cliente.
+            {
+              estado: "PERDIDO",
+              quotes: { some: { deletedAt: null, supersededAt: null, expiredAt: null, status: { in: ["DRAFT", "SENT", "OPENED", "ACCEPTED"] }, sentAt: { gte: new Date(ahora.getTime() - PAGABLE_DIAS * 864e5) } } },
+            },
+          ],
+        },
     orderBy: { lastActivityAt: "desc" },
     take: cerrados ? 100 : 300,
     select: {
@@ -65,7 +76,7 @@ export default async function CasosBandejaPage({ searchParams }: Props) {
       quotes: { select: QUOTE_PASO_SELECT },
       priceRequests: { select: LPR_PASO_SELECT },
       orders: { select: PEDIDO_PASO_SELECT },
-      analyses: { where: { sessionToken: { not: null } }, orderBy: { createdAt: "desc" }, take: 1, select: { sessionToken: true } },
+      analyses: { where: { sessionToken: { not: null }, NOT: { sessionToken: { startsWith: "exp:" } } }, orderBy: { createdAt: "desc" }, take: 1, select: { sessionToken: true } },
     },
   });
   const ids = casos.map((c) => c.id);
@@ -84,11 +95,11 @@ export default async function CasosBandejaPage({ searchParams }: Props) {
       pedidos: c.orders,
       baseUrl,
       ahora,
-      sesion: sesion && !sesion.startsWith("exp:") ? sesion : null,
+      sesion: sesion ?? null,
       nombreDe: nombreMiembro,
     });
     return { c, paso, posible: posibles.has(c.id) };
-  });
+  }).filter((f) => cerrados || f.c.estado !== "PERDIDO" || f.paso.clave === "pagable_cerrado");
   const cuenta = (g: GrupoPaso[] | null) => (g ? filas.filter((f) => g.includes(f.paso.grupo)).length : filas.length);
   const visibles = (filtro.grupos ? filas.filter((f) => filtro.grupos!.includes(f.paso.grupo)) : filas).sort(
     (a, b) => Number(b.paso.grupo === "accion") - Number(a.paso.grupo === "accion")

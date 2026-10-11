@@ -9,6 +9,7 @@ import {
   estadoDeCaso,
   quoteIntocable,
   quoteVivo,
+  quotePagable,
   lprViva,
 } from "../../lib/caso/estados.ts";
 
@@ -66,4 +67,16 @@ test("vivos: presupuesto sin formalizar ni borrar; solicitud viva reciente", () 
   assert.ok(lprViva({ status: "PRICED", createdAt: new Date("2026-10-01T00:00:00Z") }, ahora));
   assert.ok(!lprViva({ status: "PRICED", createdAt: new Date("2026-08-01T00:00:00Z") }, ahora));
   assert.ok(!lprViva({ status: "RETIRED", createdAt: ahora }, ahora));
+});
+
+test("quotePagable: cierre suave auto:* y pago iniciado siguen pagables; borrado, sustituido o caducado no", () => {
+  assert.ok(quotePagable({ status: "SENT" }));
+  assert.ok(quotePagable({ status: "SENT", lostReason: "NO_LONGER_NEEDED", lostReasonNote: "auto:sin_respuesta" }));
+  assert.ok(quotePagable({ status: "ACCEPTED", lostReason: "PRICE" }));
+  assert.ok(!quotePagable({ status: "SENT", lostReason: "PRICE", lostReasonNote: "caro" }));
+  assert.ok(!quotePagable({ status: "SENT", lostReason: "NO_LONGER_NEEDED", lostReasonNote: "auto:sustituido" }));
+  assert.ok(!quotePagable({ status: "ACCEPTED", deletedAt: new Date() }));
+  assert.ok(!quotePagable({ status: "ACCEPTED", supersededAt: new Date() }));
+  assert.ok(!quotePagable({ status: "SENT", expiredAt: new Date() }));
+  assert.ok(!quotePagable({ status: "EXPIRED" }));
 });
