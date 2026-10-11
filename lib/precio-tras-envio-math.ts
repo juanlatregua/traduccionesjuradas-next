@@ -39,6 +39,8 @@ export function decideSentQuotePrice(input: {
   realCostCents: number;
   /** Otra solicitud con precio atada al mismo presupuesto: no se sabe qué línea es de quién. */
   otherPricedRequests?: boolean;
+  /** Líneas que no son de esta solicitud (otro par, apostilla…): ver foreignLinesReason. */
+  foreignLinesReason?: string | null;
 }): SentPriceDecision {
   const lineTotal = (l: SentPriceLine, unit: number | null | undefined) => Math.round((Number(l.quantity) || 1) * (Number(unit) || 0) * 100);
   const clientBaseCents = input.lines.reduce((a, l) => a + lineTotal(l, l.unitPrice), 0) - Math.max(0, Math.round(input.discountCents || 0));
@@ -47,15 +49,22 @@ export function decideSentQuotePrice(input: {
   const marginCents = clientBaseCents - realCostCents;
   const marginPct = marginPctOf(clientBaseCents, realCostCents);
   const estimatedMarginCents = clientBaseCents - estimatedCostCents;
+  // Margen ≤ 0 = pérdida (a cero también se pierde: comisiones, IVA de gastos…).
+  // Con líneas ajenas a la solicitud el margen no es fiable: como mucho «margen bajo».
   const kind: SentPriceDecision["kind"] =
-    marginCents < 0 ? "perdida" : marginCents > 0 && marginPct >= MIN_AUTO_MARGIN_PCT ? "ok" : "margen_bajo";
+    marginCents <= 0
+      ? "perdida"
+      : marginPct >= MIN_AUTO_MARGIN_PCT && !input.foreignLinesReason
+        ? "ok"
+        : "margen_bajo";
   const marginDown = estimatedCostCents > 0 ? marginCents < estimatedMarginCents : kind !== "ok";
 
   let noSpreadReason: string | null = null;
   let newLineCostCents: number[] | null = null;
   if (kind !== "perdida") {
     const conPrecio = input.lines.map((l, i) => ({ l, i })).filter(({ l }) => cents(l.unitPrice) > 0);
-    if (input.otherPricedRequests) noSpreadReason = "hay otra solicitud con precio atada a este presupuesto";
+    if (input.foreignLinesReason) noSpreadReason = input.foreignLinesReason;
+    else if (input.otherPricedRequests) noSpreadReason = "hay otra solicitud con precio atada a este presupuesto";
     else if (input.lines.some((l) => Number(l.quantity) !== 1)) noSpreadReason = "hay líneas con cantidad distinta de 1";
     else if (conPrecio.length === 0) noSpreadReason = "el presupuesto no tiene líneas con precio";
     else {
@@ -91,15 +100,47 @@ export function freezeKeyFor(leadRef: string, priceCents: number, miembroId: str
   return `${leadRef}:${priceCents}:${miembroId || "-"}`;
 }
 
-/** ¿Hay que congelar? Solo con pérdida y si no lo congeló ya esta misma cifra. */
-export function shouldFreeze(decision: Pick<SentPriceDecision, "kind">, quote: { paymentFrozenAt: Date | null; paymentFreezeKey: string | null }, key: string): boolean {
+/** ¿Hay que congelar? Solo con pérdida y si no lo congeló ya esta misma cifra (la clave
+ *  solo sobrevive a «Desbloquear igualmente»; un margen correcto la borra). */
+export function shouldFreeze(decision: Pick<SentPriceDecision, "kind">, quote: { paymentFreezeKey: string | null; paymentFrozenAt?: Date | null }, key: string): boolean {
   if (decision.kind !== "perdida") return false;
-  return !(quote.paymentFreezeKey === key);
+  return quote.paymentFreezeKey !== key;
 }
 
-/** Presupuesto vivo para este carril: enviado, sin cobrar y sin pedido. */
-export function isUnpaidSentQuote(q: { status: string; paidAt: Date | null; ordersCount: number }): boolean {
-  return (SENT_PRICE_STATUSES as readonly string[]).includes(q.status) && !q.paidAt && q.ordersCount === 0;
+export type FreezeState = { paymentFrozenAt: Date | null; paymentFreezeKey: string | null };
+
+/** Estado de congelación tras una cifra: pérdida nueva congela con su clave; margen
+ *  correcto descongela y BORRA la clave (X pérdida → Y ok → X otra vez vuelve a congelar). */
+export function nextFreezeState(state: FreezeState, decision: Pick<SentPriceDecision, "kind">, key: string, now: Date): { state: FreezeState; action: "freeze" | "repetido" | "clear" } {
+  if (decision.kind === "perdida") {
+    return shouldFreeze(decision, state, key) ? { state: { paymentFrozenAt: now, paymentFreezeKey: key }, action: "freeze" } : { state, action: "repetido" };
+  }
+  return { state: { paymentFrozenAt: null, paymentFreezeKey: null }, action: "clear" };
+}
+
+const LANG_PAIR_RE = /\(([^\s,()→]+)\s*→\s*([^\s,()]+)/g;
+
+/** Líneas del presupuesto que no son de esta solicitud: otro par, más de un par, apostillas.
+ *  Entonces la cifra del jurado no se puede repartir sola. */
+export function foreignLinesReason(input: { descriptions: string[]; leadPar: string; sourceLang: string; targetLang: string }): string | null {
+  const norm = (p: string) => p.replace("->", ">").replace(/\s+/g, "").toUpperCase();
+  const quotePar = norm(`${input.sourceLang}>${input.targetLang}`);
+  if (input.leadPar && norm(input.leadPar) !== quotePar) return `el par de la solicitud (${norm(input.leadPar)}) no es el del presupuesto (${quotePar})`;
+  if (input.descriptions.some((d) => /apostill/i.test(d))) return "hay líneas de apostilla";
+  const pares = new Set<string>();
+  for (const d of input.descriptions) for (const m of d.matchAll(LANG_PAIR_RE)) pares.add(`${m[1].toLowerCase()}→${m[2].toLowerCase()}`);
+  if (pares.size > 1) return `hay líneas de más de un par (${Array.from(pares).join(", ")})`;
+  return null;
+}
+
+/** Presupuesto vivo para este carril: enviado y sin cobrar. Un pedido SIN pagar (transferencia
+ *  declarada, crédito) no lo saca: también se congela, y la confirmación manual no asigna sola. */
+export function isUnpaidSentQuote(q: { status: string; paidAt: Date | null; paidOrdersCount: number }): boolean {
+  return (SENT_PRICE_STATUSES as readonly string[]).includes(q.status) && !q.paidAt && q.paidOrdersCount === 0;
+}
+
+export function isSentPriceStatus(status: string | null | undefined): boolean {
+  return (SENT_PRICE_STATUSES as readonly string[]).includes(String(status || ""));
 }
 
 /** Pago bloqueado: congelado y aún sin cobrar. */

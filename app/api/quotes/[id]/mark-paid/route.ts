@@ -41,6 +41,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       deliveryType: true,
       total: true,
       currency: true,
+      paymentFrozenAt: true,
       lines: { select: { description: true, unitPrice: true, sourceFileUrl: true, pageStart: true, pageEnd: true } },
     },
   });
@@ -109,7 +110,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       providerEventId: `manual:${method}:${quote.id}`,
       source: "staff_manual_quote_payment",
       payload: { actorEmail: access.email },
+      // Pago congelado (lib/precio-tras-envio): se registra el cobro, pero no se asigna solo.
+      skipAutoAssign: Boolean(quote.paymentFrozenAt),
     });
+    if (quote.paymentFrozenAt) {
+      await import("@/lib/precio-tras-envio")
+        .then((m) => m.alertPaidWhileFrozen({ quoteId: quote.id, via: `${method} (marcado a mano por ${access.email})`, amountEur: totalEur, reference: order?.reference }))
+        .catch((e) => console.error("[quotes:mark-paid] aviso cobrado congelado fallo", e));
+    }
 
     return NextResponse.json({ ok: true, orderReference: order?.reference || null });
   } catch (err: any) {

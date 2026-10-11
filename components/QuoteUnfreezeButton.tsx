@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function QuoteUnfreezeButton({ quoteId }: { quoteId: string }) {
+export default function QuoteUnfreezeButton({ quoteId, estimatedCostZero = false }: { quoteId: string; estimatedCostZero?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [confirmSinCoste, setConfirmSinCoste] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +18,7 @@ export default function QuoteUnfreezeButton({ quoteId }: { quoteId: string }) {
       const res = await fetch(`/api/quotes/${quoteId}/unfreeze-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, confirmSinCoste }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo desbloquear.");
@@ -49,10 +50,18 @@ export default function QuoteUnfreezeButton({ quoteId }: { quoteId: string }) {
         placeholder="Por qué se desbloquea asumiendo la pérdida (queda en el registro)"
         className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
       />
+      {estimatedCostZero && (
+        <label className="flex items-start gap-2 text-sm text-rose-100">
+          <input type="checkbox" checked={confirmSinCoste} onChange={(e) => setConfirmSinCoste(e.target.checked)} className="mt-1" />
+          <span>
+            Sin coste estimado en las líneas: al pagar, la cifra del jurado se aceptará SOLA en lavori (no hay freno). Lo asumo.
+          </span>
+        </label>
+      )}
       <div className="flex items-center gap-2">
         <button
           type="button"
-          disabled={busy || reason.trim().length < 10}
+          disabled={busy || reason.trim().length < 10 || (estimatedCostZero && !confirmSinCoste)}
           onClick={submit}
           className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
         >

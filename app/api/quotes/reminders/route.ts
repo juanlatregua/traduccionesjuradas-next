@@ -89,6 +89,8 @@ export async function GET(req: Request) {
       // Con pedido (declaró transferencia, carril de crédito…) se persigue por el pedido/factura,
       // no por aquí: ni 2º contacto ni cierre.
       orders: { none: {} },
+      // Pago congelado (lib/precio-tras-envio): ni recordatorio ni cierre hasta que el staff decida.
+      paymentFrozenAt: null,
       sentAt: {
         lte: threshold,
       },
@@ -230,7 +232,7 @@ export async function GET(req: Request) {
     if (decision.action === "close") {
       if (yaCliente(quote).skip) continue; // ya pagó otro presupuesto de este encargo: no se marca perdido
       const closed = await prisma.quote.updateMany({
-        where: { id: quote.id, paidAt: null, lostReason: null, status: { in: ["SENT", "OPENED"] } },
+        where: { id: quote.id, paidAt: null, lostReason: null, paymentFrozenAt: null, status: { in: ["SENT", "OPENED"] } },
         data: { lostReason: "NO_LONGER_NEEDED", lostReasonNote: NO_RESPONSE_NOTE, lostFeedbackAt: now },
       });
       softClosed += closed.count;

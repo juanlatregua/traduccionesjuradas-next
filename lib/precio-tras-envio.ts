@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
 import {
   decideSentQuotePrice,
+  foreignLinesReason,
   freezeKeyFor,
   isUnpaidSentQuote,
   shouldFreeze,
@@ -74,8 +75,11 @@ async function expireOpenStripeSessions(quoteId: string): Promise<{ expired: str
       (await prisma.quotePayment.findMany({ where: { quoteId, stripeSessionId: { not: null } }, select: { stripeSessionId: true } }))
         .map((p) => p.stripeSessionId as string)
     );
-    const list = await stripe.checkout.sessions.list({ status: "open", created: { gte: Math.floor(Date.now() / 1000) - 24 * 3600 }, limit: 100 });
-    for (const s of list.data) if (s.metadata?.quoteId === quoteId) ids.add(s.id);
+    await stripe.checkout.sessions
+      .list({ status: "open", created: { gte: Math.floor(Date.now() / 1000) - 24 * 3600 }, limit: 100 })
+      .autoPagingEach((s) => {
+        if (s.metadata?.quoteId === quoteId) ids.add(s.id);
+      });
     for (const id of Array.from(ids)) {
       try {
         await stripe.checkout.sessions.expire(id);
@@ -94,7 +98,7 @@ async function expireOpenStripeSessions(quoteId: string): Promise<{ expired: str
 export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQuotePriceResult> {
   const lead = await prisma.lavoriPriceRequest.findUnique({
     where: { id: leadId },
-    select: { id: true, ref: true, par: true, quoteId: true, priceCents: true, miembroId: true, miembroNombre: true },
+    select: { id: true, ref: true, par: true, quoteId: true, priceCents: true, miembroId: true, miembroNombre: true, expedienteRef: true },
   });
   if (!lead?.quoteId || !lead.priceCents) return { handled: false, reason: "solicitud sin presupuesto atado o sin precio" };
 
@@ -105,17 +109,39 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
       quoteNumber: true,
       status: true,
       paidAt: true,
+      createdAt: true,
+      sourceLang: true,
+      targetLang: true,
+      customerId: true,
+      expedienteRef: true,
       discountAmount: true,
       paymentFrozenAt: true,
       paymentFreezeKey: true,
-      _count: { select: { orders: true } },
-      lines: { orderBy: { createdAt: "asc" }, select: { id: true, quantity: true, unitPrice: true, supplierUnitCost: true } },
+      _count: { select: { orders: { where: { paymentStatus: "PAID" } } } },
+      lines: { orderBy: { createdAt: "asc" }, select: { id: true, description: true, quantity: true, unitPrice: true, supplierUnitCost: true } },
     },
   });
   if (!quote) return { handled: false, reason: "presupuesto atado no encontrado" };
-  if (!isUnpaidSentQuote({ status: quote.status, paidAt: quote.paidAt, ordersCount: quote._count.orders })) {
-    return { handled: false, reason: `presupuesto ${quote.quoteNumber} en ${quote.status}${quote.paidAt ? " (pagado)" : ""}${quote._count.orders ? " con pedido" : ""}` };
+  if (!isUnpaidSentQuote({ status: quote.status, paidAt: quote.paidAt, paidOrdersCount: quote._count.orders })) {
+    return { handled: false, reason: `presupuesto ${quote.quoteNumber} en ${quote.status}${quote.paidAt ? " (pagado)" : ""}${quote._count.orders ? " con pedido pagado" : ""}` };
   }
+  // Reemitido a mano: si hay uno más reciente ya enviado del mismo expediente (o cliente)
+  // y par, el viejo no se toca; la alarma de siempre cita el nuevo.
+  const expediente = quote.expedienteRef || lead.expedienteRef;
+  const nuevo = await prisma.quote.findFirst({
+    where: {
+      id: { not: quote.id },
+      createdAt: { gt: quote.createdAt },
+      status: { not: "DRAFT" },
+      deletedAt: null,
+      sourceLang: quote.sourceLang,
+      targetLang: quote.targetLang,
+      OR: [{ customerId: quote.customerId }, ...(expediente ? [{ expedienteRef: expediente }] : [])],
+    },
+    orderBy: { createdAt: "desc" },
+    select: { quoteNumber: true, status: true },
+  });
+  if (nuevo) return { handled: false, reason: `hay un presupuesto más reciente ${nuevo.quoteNumber} (${nuevo.status}) del mismo cliente y par: revisa ese, el ${quote.quoteNumber} no se ha tocado` };
 
   // Coste real en BASE: la cifra del canal puede venir en líquido o con IVA (Daniela ÷1,06,
   // Nielson ÷1,21). Con varias solicitudes con precio atadas al presupuesto, cuentan todas.
@@ -132,6 +158,7 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
     discountCents: Math.round(decimalToNumber(quote.discountAmount) * 100),
     realCostCents,
     otherPricedRequests: otras.length > 0,
+    foreignLinesReason: foreignLinesReason({ descriptions: quote.lines.map((l) => l.description), leadPar: lead.par, sourceLang: quote.sourceLang, targetLang: quote.targetLang }),
   });
   const key = freezeKeyFor(lead.ref, lead.priceCents, lead.miembroId);
   const ficha = `${SITE}/zona-traductor/presupuestos/${quote.id}`;
@@ -148,20 +175,26 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
     if (!shouldFreeze(decision, quote, key)) {
       return { handled: true, repetido: true, quoteNumber: quote.quoteNumber, decision, written: false, frozen: Boolean(quote.paymentFrozenAt), unfrozen: false };
     }
-    const reason = `Pérdida: ${miembro} ${cifra} (${lead.ref}) frente a ${eur(decision.clientBaseCents)} de base al cliente; margen ${eur(decision.marginCents)}.`;
+    const reason = `Pérdida: ${miembro} ${cifra} (${lead.ref}) · coste estimado ${eur(decision.estimatedCostCents)} · base al cliente ${eur(decision.clientBaseCents)} · margen ${eur(decision.marginCents)}.`;
     const logId = (await rastro(quote.id, `pago CONGELADO ${quote.quoteNumber}`, [...resumen, reason].join("\n")))?.id ?? null;
+    // Condición atómica: un pedido pagado entre medias o el mismo evento simultáneo
+    // (misma clave) no congela dos veces.
     const congelado = await prisma.quote.updateMany({
-      where: { id: quote.id, paidAt: null },
+      where: { id: quote.id, paidAt: null, orders: { none: { paymentStatus: "PAID" } }, OR: [{ paymentFreezeKey: null }, { paymentFreezeKey: { not: key } }] },
       data: { paymentFrozenAt: new Date(), paymentFrozenReason: reason.slice(0, 500), paymentFreezeKey: key },
     });
-    if (congelado.count === 0) return { handled: false, reason: `presupuesto ${quote.quoteNumber} pagado entre la lectura y la congelación` };
+    if (congelado.count === 0) {
+      const ahora = await prisma.quote.findUnique({ where: { id: quote.id }, select: { paymentFreezeKey: true } });
+      if (ahora?.paymentFreezeKey === key) return { handled: true, repetido: true, quoteNumber: quote.quoteNumber, decision, written: false, frozen: true, unfrozen: false };
+      return { handled: false, reason: `presupuesto ${quote.quoteNumber} pagado entre la lectura y la congelación` };
+    }
     const stripe = await expireOpenStripeSessions(quote.id);
     await avisar({
       logId,
       subject: `⛔ ${quote.quoteNumber} CONGELADO: el jurado cobra más de lo que paga el cliente (${eur(decision.marginCents)})`,
       lines: [
         ...resumen,
-        `El pago está CONGELADO: /q enseña «Estamos actualizando tu presupuesto» y tarjeta, transferencia y crédito dan 409. El coste NO se ha escrito en las líneas (el freno de lavori al pagar sigue activo).`,
+        `El pago está CONGELADO: /q enseña «Estamos actualizando tu presupuesto» y tarjeta, transferencia y crédito dan 409; si aun así entra un cobro, no se asigna solo al jurado. El coste NO se ha escrito en las líneas${decision.estimatedCostCents > 0 ? " (el freno de lavori al pagar sigue activo)" : " — ⚠ y no hay coste estimado: el freno de lavori al pagar NO actuaría"}.`,
         stripe.error ? `⚠ No se pudieron revisar las sesiones de Stripe abiertas: ${stripe.error}` : stripe.expired.length ? `Sesiones de Stripe abiertas expiradas: ${stripe.expired.join(", ")}` : "No había sesiones de Stripe abiertas.",
         `Decide: monta uno nuevo o «Desbloquear igualmente» (asumes la pérdida): ${ficha}`,
       ],
@@ -172,9 +205,11 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
   }
 
   // ok / margen_bajo: el coste real entra en las líneas (si se puede repartir) y, si una
-  // cifra anterior lo había congelado, se descongela solo: ya no hay pérdida.
+  // cifra anterior lo había congelado, se descongela solo: ya no hay pérdida. La clave se
+  // borra siempre: solo «Desbloquear igualmente» la conserva (X pérdida → Y ok → X recongela).
   const wasFrozen = Boolean(quote.paymentFrozenAt);
   if (decision.unchanged && !wasFrozen) {
+    if (quote.paymentFreezeKey) await prisma.quote.updateMany({ where: { id: quote.id }, data: { paymentFreezeKey: null } });
     return { handled: true, repetido: true, quoteNumber: quote.quoteNumber, decision, written: false, frozen: false, unfrozen: false };
   }
   const bajo = decision.kind === "margen_bajo";
@@ -183,8 +218,8 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
   const newCosts = decision.newLineCostCents;
   const written = await prisma.$transaction(async (tx) => {
     const vivo = await tx.quote.updateMany({
-      where: { id: quote.id, paidAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] } },
-      data: wasFrozen ? { paymentFrozenAt: null } : { updatedAt: new Date() },
+      where: { id: quote.id, paidAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] }, orders: { none: { paymentStatus: "PAID" } } },
+      data: { paymentFrozenAt: null, paymentFreezeKey: null },
     });
     if (vivo.count === 0) return null;
     if (!newCosts || decision.unchanged) return false;
@@ -216,4 +251,21 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
     smsContext: `precio_tras_envio ${quote.quoteNumber}`,
   });
   return { handled: true, repetido: false, quoteNumber: quote.quoteNumber, decision, written: Boolean(written), frozen: false, unfrozen: wasFrozen };
+}
+
+/** Cobro registrado con el pago CONGELADO (tarjeta, Bizum/transferencia confirmados, pago
+ *  manual): el dinero se acepta, pero el encargo NO va solo al jurado. Rastro + dos canales. */
+export async function alertPaidWhileFrozen(input: { quoteId: string; via: string; amountEur?: number | null; reference?: string | null }): Promise<void> {
+  const quote = await prisma.quote.findUnique({ where: { id: input.quoteId }, select: { quoteNumber: true, paymentFrozenReason: true } });
+  if (!quote) return;
+  const ficha = `${SITE}/zona-traductor/presupuestos/${input.quoteId}`;
+  const aviso = `COBRADO CONGELADO: ${quote.quoteNumber}${input.reference ? ` (pedido ${input.reference})` : ""} se ha cobrado por ${input.via}${input.amountEur ? ` (${input.amountEur.toFixed(2)} €)` : ""} con el pago congelado. NO se ha asignado al jurado: revisar. ${quote.paymentFrozenReason || ""} ${ficha}`;
+  const logId = (await rastro(input.quoteId, `cobrado congelado ${quote.quoteNumber}`, aviso))?.id ?? null;
+  await avisar({
+    logId,
+    subject: `⛔ ${quote.quoteNumber} COBRADO CONGELADO: revisar antes de asignar`,
+    lines: [aviso],
+    sms: aviso.slice(0, 300),
+    smsContext: `cobrado_congelado ${quote.quoteNumber}`,
+  });
 }

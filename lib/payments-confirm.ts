@@ -44,8 +44,12 @@ export async function confirmManualPaymentWithSideEffects(
   }
 
   // Bizum ⇒ sin factura (regla Juan 21-ago-2026).
+  let frozenQuoteId: string | null = null;
   {
-    const o = await prisma.order.findUnique({ where: { reference }, select: { id: true, quoteId: true } });
+    const o = await prisma.order.findUnique({ where: { reference }, select: { id: true, quoteId: true, quote: { select: { paymentFrozenAt: true } } } });
+    // Pedido de un presupuesto con el pago CONGELADO (lib/precio-tras-envio): se confirma
+    // el cobro, pero el encargo no va solo al jurado.
+    if (o?.quoteId && o.quote?.paymentFrozenAt) frozenQuoteId = o.quoteId;
     if (o) await excludeFromBillingIfBizum(o.id, method).catch((e) => console.error("[confirm-payment] billing exclusion failed", e));
     if (o?.quoteId) {
       await markLinkedQuotePaid(o.quoteId, method).catch((e) =>
@@ -63,9 +67,15 @@ export async function confirmManualPaymentWithSideEffects(
   await assignDefaultFrenchEtaIfNeeded({ reference, actorEmail }).catch((err) => {
     console.error("[confirm-payment] default FR ETA assignment failed", err);
   });
-  await autoAssignCollaboratorIfNeeded({ reference, actorEmail }).catch((err) => {
-    console.error("[confirm-payment] auto collaborator assignment failed", err);
-  });
+  if (frozenQuoteId) {
+    await import("@/lib/precio-tras-envio")
+      .then((m) => m.alertPaidWhileFrozen({ quoteId: frozenQuoteId!, via: `${method} confirmado por ${actorEmail}`, reference }))
+      .catch((e) => console.error("[confirm-payment] aviso cobrado congelado fallo", e));
+  } else {
+    await autoAssignCollaboratorIfNeeded({ reference, actorEmail }).catch((err) => {
+      console.error("[confirm-payment] auto collaborator assignment failed", err);
+    });
+  }
 
   // Aviso al cliente (no bloqueante): email + SMS.
   const order = await getOrderDetail(reference);

@@ -659,11 +659,14 @@ async function handleLeadEvento(opts: {
       const quoteAtadoEstado = lead.quoteId
         ? (await prisma.quote.findUnique({ where: { id: lead.quoteId }, select: { status: true } }))?.status ?? null
         : null;
-      // También cuando es el PRIMER precio y llega con el presupuesto ya enviado
-      // (Florian 2026-00250, Bianca 2026-00245): antes no avisaba nadie.
+      // También cuando es el PRIMER precio y llega con el presupuesto enviado y SIN cobrar
+      // (Florian 2026-00250, Bianca 2026-00245). Primer precio tras el cobro es el flujo
+      // normal (PAID/IN_PROGRESS…): ahí no se avisa.
+      const primerPrecioTrasEnvio =
+        Boolean(lead.quoteId) && lead.priceCents == null && ["SENT", "OPENED", "ACCEPTED"].includes(String(quoteAtadoEstado));
       const cifraCambiadaTrasEnvio =
-        Boolean(lead.quoteId) && quoteAtadoEstado != null && quoteAtadoEstado !== "DRAFT" && lead.priceCents !== precioCents;
-      const primerPrecioTrasEnvio = cifraCambiadaTrasEnvio && lead.priceCents == null;
+        primerPrecioTrasEnvio ||
+        (Boolean(lead.quoteId) && quoteAtadoEstado != null && quoteAtadoEstado !== "DRAFT" && lead.priceCents != null && lead.priceCents !== precioCents);
       let quoteNumeroCambiado: string | null = null;
       if (cifraCambiadaTrasEnvio && lead.quoteId) {
         const q = await prisma.quote.findUnique({ where: { id: lead.quoteId }, select: { quoteNumber: true } });

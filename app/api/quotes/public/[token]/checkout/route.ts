@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { decimalToNumber, isQuotePayableStatus, moneyToCents, normalizeQuoteStatus } from "@/lib/quotes";
 import { createQuoteStripeCheckoutSession } from "@/lib/quote-stripe";
-import { FROZEN_PAYMENT_ERROR } from "@/lib/precio-tras-envio-math";
+import { FROZEN_PAYMENT_ERROR, isPaymentFrozen } from "@/lib/precio-tras-envio-math";
 
 export const runtime = "nodejs";
 
@@ -52,8 +52,9 @@ export async function POST(req: Request, { params }: Params) {
     if (!quote) {
       return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
     }
-    // Pago congelado (la cifra del jurado deja pérdida): ni primer ni segundo plazo.
-    if (quote.paymentFrozenAt) {
+    // Pago congelado (la cifra del jurado deja pérdida) mientras no esté cobrado; el segundo
+    // plazo de un presupuesto ya cobrado no se bloquea.
+    if (isPaymentFrozen(quote)) {
       return NextResponse.json({ ok: false, frozen: true, error: FROZEN_PAYMENT_ERROR }, { status: 409 });
     }
 
