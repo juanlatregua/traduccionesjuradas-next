@@ -22,6 +22,70 @@ import { blockingSibling, describeSibling } from "@/lib/open-siblings";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
 import { casoEnSombra, compararGuarda, estamparSesion } from "@/lib/caso/sombra";
 import { paresDe } from "@/lib/caso/sombra-plan";
+import { AVISO_REPETIDO_HORAS, clavesDocs, decidirAvisoHumano, dedupeAviso, type AvisoPrevio } from "@/lib/caso/aviso-humano";
+
+const horaMadrid = (d: Date) =>
+  d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+/** «Ya está en lavori: LEAD-x enviada a <jurado> a las HH:MM» con la hora real de la solicitud. */
+async function lineaEnLavori(ref: string, nombres: string, repetido: boolean): Promise<string> {
+  const l = await prisma.lavoriPriceRequest.findUnique({ where: { ref }, select: { createdAt: true } }).catch(() => null);
+  return `Ya está en lavori: ${ref} enviada a ${nombres || "el jurado"} el ${horaMadrid(l?.createdAt ?? new Date())}${
+    repetido ? " (es la misma solicitud de antes: NO se ha enviado otra)" : " (ahora)"
+  }.`;
+}
+
+/** Reclama el aviso en el rastro del caso antes de enviarlo. Sin caso o si el rastro falla: aviso completo (fail-open). */
+async function reclamarAvisoHumano(
+  casoId: string | null,
+  claves: string[],
+  solicitudNueva: string | null,
+  sesion: string
+): Promise<{ tipo: "completo" | "corto" | "nada"; casoRef: string | null }> {
+  if (!casoId) return { tipo: "completo", casoRef: null };
+  try {
+    const [c, eventos] = await Promise.all([
+      prisma.caso.findUnique({ where: { id: casoId }, select: { ref: true } }),
+      prisma.casoEvento.findMany({
+        where: { casoId, tipo: { in: ["aviso_humano", "aviso_humano_repetido"] } },
+        select: { tipo: true, createdAt: true, payload: true },
+      }),
+    ]);
+    const casoRef = c?.ref ?? null;
+    const previos: AvisoPrevio[] = eventos.map((e) => ({
+      tipo: e.tipo as AvisoPrevio["tipo"],
+      createdAt: e.createdAt,
+      docs: ((e.payload as { docs?: string[] } | null)?.docs || []).map(String),
+    }));
+    const ahora = new Date();
+    const d = decidirAvisoHumano({ casoId, docs: claves, previos, solicitudNueva: Boolean(solicitudNueva), ahora });
+    if (d.tipo === "nada") return { tipo: "nada", casoRef };
+    const base = dedupeAviso(claves);
+    const dedupeKey =
+      d.tipo === "completo"
+        ? `${base}${solicitudNueva ? `|${solicitudNueva}` : ""}`.slice(0, 190)
+        : `${base}|${Math.floor(ahora.getTime() / (AVISO_REPETIDO_HORAS * 36e5))}`.slice(0, 190);
+    try {
+      await prisma.casoEvento.create({
+        data: {
+          casoId,
+          tipo: d.tipo === "completo" ? "aviso_humano" : "aviso_humano_repetido",
+          dedupeKey,
+          actor: "system:puerta",
+          payload: { docs: claves, docsNuevos: d.docsNuevos, solicitud: solicitudNueva, sesion },
+        },
+      });
+    } catch (err: any) {
+      // Otra petición simultánea ya lo reclamó: ese aviso basta.
+      if (err?.code === "P2002") return { tipo: "nada", casoRef };
+      throw err;
+    }
+    return { tipo: d.tipo, casoRef };
+  } catch (err) {
+    console.error("[puerta:request-quote] rastro del aviso falló; se avisa igual:", err);
+    return { tipo: "completo", casoRef: null };
+  }
+}
 
 export type PuertaQuoteResult = { status: number; body: Record<string, unknown> };
 
@@ -249,6 +313,7 @@ export async function routePuertaQuoteRequest(input: {
     let lavoriSms = "";
     let lavoriSent: { lang: string; langName: string } | null = null;
     let esDirecto = false;
+    let solicitudNueva: string | null = null;
     // Cliente que vuelve a subir (Cosmos, 10-sep): ya tiene una solicitud viva del
     // mismo par → NO sale otra a lavori; el aviso apunta a la que existe.
     // BAJA 8 (Juan, 15-sep): sin carril por defecto pero CON jurado directo, el
@@ -263,7 +328,7 @@ export async function routePuertaQuoteRequest(input: {
     // viva (LEAD-0B0C46A29D, LEAD-C4699A93B1, LEAD-6E846030BB).
     const casa = leadLang ? casaJuradoFor(leadLang) : null;
     if (casa) {
-      lavoriEmail = `${getLanguageName(leadLang!).toUpperCase()}: lo jura la casa (${casa.nombre}, T-IJ ${casa.maec}) — NO se ha mandado a lavori. Móntalo tú: ${builderUrl}`;
+      lavoriEmail = `NO se ha enviado a lavori (${getLanguageName(leadLang!).toLowerCase()}: lo jura la casa, ${casa.nombre}, T-IJ ${casa.maec}). Móntalo tú: ${builderUrl}`;
       lavoriSms = `${getLanguageName(leadLang!)}: tuyo, al builder`;
     } else if (hermana) {
       const h = hermana.request;
@@ -273,7 +338,7 @@ export async function routePuertaQuoteRequest(input: {
         h.priceCents ? `${(h.priceCents / 100).toFixed(2)} € de ${h.miembroNombre || "el traductor"}` : "sin precio aún",
         hermana.quote ? `presupuesto ${hermana.quote.quoteNumber} ${hermana.quote.status}` : "sin presupuesto",
       ].join(" · ");
-      lavoriEmail = `⚠ NO se ha enviado otra solicitud a lavori: este cliente ya tiene la ${h.ref} en curso (${detalle}). Sigue por ahí: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(h.ref)}`;
+      lavoriEmail = `Ya está en lavori: ${h.ref} enviada a ${h.miembroNombre || `${h.candidatos.length} jurado(s)`} el ${horaMadrid(h.createdAt)} (${detalle}). NO se ha enviado otra. Solicitud: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(h.ref)}`;
       lavoriSms = `Ya en curso ${h.ref} (${h.status}) — sin 2.ª solicitud`;
     } else {
       // Carril directo (orden Juan 25-ago/15-sep/21-sep): para ciertas lenguas hay
@@ -312,9 +377,10 @@ export async function routePuertaQuoteRequest(input: {
         if (directoReq?.ok) {
           esDirecto = true;
           lavoriSent = { lang: leadLang!, langName: getLanguageName(leadLang!) };
+          if (!directoReq.repetido) solicitudNueva = directoReq.ref;
           const nombres = directos.map((d) => d.nombre).join(", ");
-          lavoriEmail = `✓ Solicitud DIRECTA a ${nombres} (ref ${directoReq.ref}). Con la primera cifra y plazo se monta el BORRADOR (regla de margen: ≥10 €, tope +60 %, suelo 40 €/doc) y te aviso; no sale solo al cliente. Si en 6 h laborables nadie cotiza, te aviso para que decidas (no se reabre sola).`;
-          lavoriSms = `✓ Directa a ${nombres} (lavori)`;
+          lavoriEmail = `${await lineaEnLavori(directoReq.ref, nombres, directoReq.repetido)} Directa: con la primera cifra y plazo se monta el BORRADOR (regla de margen: ≥10 €, tope +60 %, suelo 40 €/doc) y te aviso; no sale solo al cliente. Si en 6 h laborables nadie cotiza, te aviso para que decidas (no se reabre sola).`;
+          lavoriSms = directoReq.repetido ? `Ya en lavori ${directoReq.ref} — sin 2.ª solicitud` : `✓ Directa a ${nombres} (lavori)`;
         }
       }
       if (!esDirecto) {
@@ -332,54 +398,80 @@ export async function routePuertaQuoteRequest(input: {
           }).catch(() => null);
           if (auto?.ok) {
             lavoriSent = { lang: leadLang, langName: getLanguageName(leadLang) };
-            lavoriEmail = `✓ Solicitud de precio ENVIADA automáticamente a ${auto.nombres.join(", ")} en lavori (ref ${auto.ref}).${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
-            lavoriSms = `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
+            if (!auto.repetido) solicitudNueva = auto.ref;
+            lavoriEmail = `${await lineaEnLavori(auto.ref, auto.nombres.join(", "), auto.repetido)}${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
+            lavoriSms = auto.repetido ? `Ya en lavori ${auto.ref} — sin 2.ª solicitud` : `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
           } else {
-            lavoriEmail = `⚠ El envío automático a lavori falló${auto && !auto.ok ? `: ${auto.error}` : ""}. Pedir precio en lavori (${quien}) → ${lavoriOneTapUrl(token)}`;
+            lavoriEmail = `NO se ha enviado a lavori (falló el envío automático${auto && !auto.ok ? `: ${auto.error}` : ""}). Pedir precio en lavori (${quien}) → ${lavoriOneTapUrl(token)}`;
             lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
           }
         } else if (carril) {
-          lavoriEmail = `Pedir precio en lavori (${quien}) con un toque: ${lavoriOneTapUrl(token)}`;
+          lavoriEmail = `NO se ha enviado a lavori (envío automático apagado para esta lengua). Pedir precio a ${quien} con un toque: ${lavoriOneTapUrl(token)}`;
           lavoriSms = `Pedir precio en lavori (${quien}): ${lavoriOneTapUrl(token)}`;
         } else {
-          lavoriEmail = `Sin carril en lavori para este par${leadLang ? ` (${leadLang.toUpperCase()})` : ""}: presupuestar a mano.${resolved ? " Ningún jurado del tablón puede recibirlo ahora (sin papel único firmado, sin canal o no libre): no se ha enviado nada a ciegas." : ""}`;
+          lavoriEmail = `NO se ha enviado a lavori (sin carril para este par${leadLang ? `, ${leadLang.toUpperCase()}` : ""}): presupuestar a mano.${resolved ? " Ningún jurado del tablón puede recibirlo ahora (sin papel único firmado, sin canal o no libre): no se ha enviado nada a ciegas." : ""}`;
           lavoriSms = `Sin carril lavori. Montar presupuesto (docs dentro): ${builderUrl}`;
         }
       }
     }
 
-    // Aviso a staff — dos transportes independientes; con await (lambda).
-    await sendMail({
-      to: adminEmail,
-      subject: `${fromWhatsApp ? "[WhatsApp] " : ""}${recurrente.kind === "recurrent" ? "[RECURRENTE] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
-      html: renderSimpleEmailHtml(
-        [
-          "Un lead de la puerta ha pedido presupuesto humano (idioma sin precio instantáneo o importe alto).",
-          `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
-          ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
-          ...(hermanosTxt ? [hermanosTxt] : []),
-          ...(fromWhatsApp
-            ? [`Origen: WhatsApp — contéstale por ahí${waDigits ? `: https://wa.me/${waDigits}` : " (no dejó teléfono)"}`]
-            : []),
-          ...lineas,
-          lavoriEmail,
-          `Montar presupuesto (documentos ya dentro): ${builderUrl}`,
-        ].join("\n")
-      ),
-    }).catch((err) => console.error("[puerta:request-quote] aviso staff fallo:", err));
-    await sendStaffAlertSMS(
-      `${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}${hermanos.length ? "¿dup? " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
-      "puerta_request_quote"
-    ).catch(() => {});
+    // Aviso a staff — idempotente por caso (lib/caso/aviso-humano): el rastro se
+    // reclama ANTES de enviar; mismo cliente y mismos documentos = no se repite.
+    const claves = clavesDocs(lead?.rows?.length ? lead.rows.map((r) => ({ id: r.id, hash: r.fileHash })) : docs.map((d) => ({ id: d.id })));
+    const aviso = await reclamarAvisoHumano(caso?.casoId ?? null, claves, solicitudNueva, token);
+    const casoUrl = aviso.casoRef ? `${baseUrl}/zona-traductor/casos/${caso!.casoId}` : null;
+    const etiqueta = aviso.casoRef ? `[${aviso.casoRef}] ` : "";
+    const quienCliente = docs[0]?.clientName || contactEmail || contactPhone || "El cliente";
+    if (aviso.tipo === "completo") {
+      await sendMail({
+        to: adminEmail,
+        subject: `${etiqueta}${fromWhatsApp ? "[WhatsApp] " : ""}${recurrente.kind === "recurrent" ? "[RECURRENTE] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
+        html: renderSimpleEmailHtml(
+          [
+            "Un lead de la puerta ha pedido presupuesto humano (idioma sin precio instantáneo o importe alto).",
+            lavoriEmail,
+            casoUrl ? `Ficha del caso: ${casoUrl}` : `Montar presupuesto (documentos ya dentro): ${builderUrl}`,
+            `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+            ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
+            ...(hermanosTxt ? [hermanosTxt] : []),
+            ...(fromWhatsApp
+              ? [`Origen: WhatsApp — contéstale por ahí${waDigits ? `: https://wa.me/${waDigits}` : " (no dejó teléfono)"}`]
+              : []),
+            ...lineas,
+            ...(casoUrl ? [`Montar presupuesto (documentos ya dentro): ${builderUrl}`] : []),
+          ].join("\n")
+        ),
+      }).catch((err) => console.error("[puerta:request-quote] aviso staff fallo:", err));
+      await sendStaffAlertSMS(
+        `${etiqueta}${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}${hermanos.length ? "¿dup? " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
+        "puerta_request_quote"
+      ).catch(() => {});
+    } else if (aviso.tipo === "corto") {
+      // Repetición sin nada nuevo: un email corto como mucho cada 12 h, sin SMS.
+      await sendMail({
+        to: adminEmail,
+        subject: `${etiqueta}${quienCliente} ha vuelto a pedir · añadido al caso, no se ha enviado otra solicitud`,
+        html: renderSimpleEmailHtml(
+          [
+            `${quienCliente} ha vuelto a pedir presupuesto con los mismos documentos. Queda en el caso; no se ha enviado nada nuevo a lavori.`,
+            lavoriEmail,
+            casoUrl ? `Ficha del caso: ${casoUrl}` : `Montar presupuesto: ${builderUrl}`,
+          ].join("\n")
+        ),
+      }).catch((err) => console.error("[puerta:request-quote] aviso repetido fallo:", err));
+    }
 
-    // Acuse al cliente: un solo canal (email real o SMS).
-    await sendPriceRequestAckToClient({
-      name: docs[0]?.clientName,
-      email: contactEmail,
-      phone: contactPhone,
-      locale,
-      translatorLangName: lavoriSent?.langName ?? null,
-    });
+    // Acuse al cliente: un solo canal (email real o SMS). Repetición dentro de las
+    // 12 h (doble clic, reintento) = ya lo tiene: no se le duplica.
+    if (aviso.tipo !== "nada") {
+      await sendPriceRequestAckToClient({
+        name: docs[0]?.clientName,
+        email: contactEmail,
+        phone: contactPhone,
+        locale,
+        translatorLangName: lavoriSent?.langName ?? null,
+      });
+    }
 
     return out({ ok: true, lavori: lavoriSent ? { sent: true, ...lavoriSent, ...(esDirecto ? { directo: true } : {}) } : { sent: false } });
   } catch (err: any) {
