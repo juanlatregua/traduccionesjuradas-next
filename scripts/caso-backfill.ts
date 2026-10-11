@@ -19,7 +19,7 @@ import { nuevaRefCaso, bloquearClaves } from "../lib/caso/resolver-db";
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
 const VERIFICAR = args.includes("verificar");
-const LOTE = 50;
+const LOTE = 10;
 const WRITE_OPS = new Set(["create", "createMany", "createManyAndReturn", "update", "updateMany", "updateManyAndReturn", "upsert", "delete", "deleteMany"]);
 
 const prisma = base.$extends({
@@ -248,7 +248,7 @@ async function aplicar(plan: BackfillPlan) {
           }
         }
       },
-      { timeout: 60_000 }
+      { timeout: 120_000, maxWait: 20_000 }
     );
     console.log(`lote ${i / LOTE + 1}: ${lote.length} casos`);
   }
