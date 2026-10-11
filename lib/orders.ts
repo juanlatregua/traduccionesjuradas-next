@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { OrderDocument, OrderSession, PaymentMethod } from "@prisma/client";
+import type { OrderDocument, OrderSession, PaymentMethod, Prisma } from "@prisma/client";
 import crypto from "node:crypto";
 import {
   buildManualPaymentProviderEventId,
@@ -317,96 +317,112 @@ type CreateOrderFromQuoteInput = {
 // Puebla OrderDocumentItem para que un pedido grande sea gestionable documento a
 // documento. Si el presupuesto vino de un expediente del cliente, usa los
 // DocumentAnalysis (ricos: tipo/idioma/palabras/archivo) y los enlaza al pedido;
-// si no, cae a las líneas del presupuesto.
-async function populateOrderItemsFromQuote(orderId: string, input: CreateOrderFromQuoteInput) {
-  try {
-    if (input.expedienteRef) {
-      const docs = await prisma.documentAnalysis.findMany({
-        where: { sessionToken: `exp:${input.expedienteRef}` },
-        orderBy: { createdAt: "asc" },
-      });
-      if (docs.length > 0) {
-        await prisma.orderDocumentItem.createMany({
-          data: docs.map((d) => ({
-            orderId,
-            fileName: d.fileName,
-            fileUrl: d.fileUrl,
-            documentType: d.documentType,
-            sourceLang: d.sourceLanguage,
-            targetLang: d.targetLanguage,
-            words: d.estimatedWords,
-            quotedCents: d.quoteAmount != null ? Math.round(d.quoteAmount * 100) : null,
-          })),
-        });
-        // Enlaza los DocumentAnalysis del expediente al pedido (workspace los ve).
-        await prisma.documentAnalysis.updateMany({
-          where: { sessionToken: `exp:${input.expedienteRef}`, orderId: null },
-          data: { orderId },
-        });
-        // Evento canónico por documento: es lo único que lee el enlace del
-        // colaborador externo (getDocumentsFromOrder) — sin él, el pedido
-        // nacido de presupuesto llegaba al colaborador sin archivos.
-        await prisma.orderEvent.createMany({
-          data: docs
-            .filter((d) => d.fileUrl)
-            .map((d) => ({
-              orderId,
-              type: "order.source_document_uploaded",
-              message: "Documento fuente adjuntado desde el presupuesto.",
-              payload: {
-                fileUrl: d.fileUrl,
-                fileName: d.fileName,
-                fileType: d.mimeType || null,
-                fileSize: d.fileSize,
-                uploadedAt: new Date().toISOString(),
-                uploadedBy: "presupuesto",
-              },
-            })),
-        });
-        return;
-      }
-    }
-    // Fallback: presupuesto SIN expediente (documentos soltados a mano por el
-    // staff en el builder). El archivo vive en QuoteLine.sourceFileUrl. Hay que
-    // hacer lo MISMO que el camino de expediente o el pedido nace sin archivos:
-    // item con fileUrl + evento canónico (lo único que lee el enlace del
-    // colaborador externo, ver getDocumentsFromOrder).
-    if (input.lines && input.lines.length > 0) {
-      await prisma.orderDocumentItem.createMany({
-        data: input.lines.map((l) => ({
+// si no, cae a las líneas del presupuesto. Va en la transacción del pedido: si falla,
+// no nace un pedido sin documentos (el reintento del puente lo crea entero).
+async function populateOrderItemsFromQuote(db: Prisma.TransactionClient, orderId: string, input: CreateOrderFromQuoteInput) {
+  if (input.expedienteRef) {
+    const docs = await db.documentAnalysis.findMany({
+      where: { sessionToken: `exp:${input.expedienteRef}` },
+      orderBy: { createdAt: "asc" },
+    });
+    if (docs.length > 0) {
+      await db.orderDocumentItem.createMany({
+        data: docs.map((d) => ({
           orderId,
-          fileName: l.description,
-          fileUrl: l.sourceFileUrl || null,
-          // Quote.unitPrice es SIN IVA (quote-math); OrderDocumentItem.quotedCents
-          // se consume como BRUTO (invoice-pdf y delivery-attachments hacen /1.21).
-          // Escribir el neto aquí infra-declaraba la base imponible de la factura.
-          quotedCents: Math.round((l.unitPrice || 0) * 100 * 1.21),
+          fileName: d.fileName,
+          fileUrl: d.fileUrl,
+          documentType: d.documentType,
+          sourceLang: d.sourceLanguage,
+          targetLang: d.targetLanguage,
+          words: d.estimatedWords,
+          quotedCents: d.quoteAmount != null ? Math.round(d.quoteAmount * 100) : null,
         })),
       });
-
-      const withFiles = input.lines.filter((l) => l.sourceFileUrl);
-      if (withFiles.length > 0) {
-        await prisma.orderEvent.createMany({
-          data: withFiles.map((l) => ({
+      // Enlaza los DocumentAnalysis del expediente al pedido (workspace los ve).
+      await db.documentAnalysis.updateMany({
+        where: { sessionToken: `exp:${input.expedienteRef}`, orderId: null },
+        data: { orderId },
+      });
+      // Evento canónico por documento: es lo único que lee el enlace del
+      // colaborador externo (getDocumentsFromOrder) — sin él, el pedido
+      // nacido de presupuesto llegaba al colaborador sin archivos.
+      await db.orderEvent.createMany({
+        data: docs
+          .filter((d) => d.fileUrl)
+          .map((d) => ({
             orderId,
             type: "order.source_document_uploaded",
             message: "Documento fuente adjuntado desde el presupuesto.",
             payload: {
-              fileUrl: l.sourceFileUrl,
-              fileName: l.description,
-              fileType: null,
-              fileSize: null,
-              pageStart: l.pageStart ?? null,
-              pageEnd: l.pageEnd ?? null,
+              fileUrl: d.fileUrl,
+              fileName: d.fileName,
+              fileType: d.mimeType || null,
+              fileSize: d.fileSize,
               uploadedAt: new Date().toISOString(),
               uploadedBy: "presupuesto",
             },
           })),
-        });
-      }
+      });
+      return;
     }
-  } catch (err) {
-    console.error("[populateOrderItemsFromQuote] failed", err);
+  }
+  // Fallback: presupuesto SIN expediente (documentos soltados a mano por el
+  // staff en el builder). El archivo vive en QuoteLine.sourceFileUrl. Hay que
+  // hacer lo MISMO que el camino de expediente o el pedido nace sin archivos:
+  // item con fileUrl + evento canónico (lo único que lee el enlace del
+  // colaborador externo, ver getDocumentsFromOrder).
+  if (input.lines && input.lines.length > 0) {
+    await db.orderDocumentItem.createMany({
+      data: input.lines.map((l) => ({
+        orderId,
+        fileName: l.description,
+        fileUrl: l.sourceFileUrl || null,
+        // Quote.unitPrice es SIN IVA (quote-math); OrderDocumentItem.quotedCents
+        // se consume como BRUTO (invoice-pdf y delivery-attachments hacen /1.21).
+        // Escribir el neto aquí infra-declaraba la base imponible de la factura.
+        quotedCents: Math.round((l.unitPrice || 0) * 100 * 1.21),
+      })),
+    });
+
+    const withFiles = input.lines.filter((l) => l.sourceFileUrl);
+    if (withFiles.length > 0) {
+      await db.orderEvent.createMany({
+        data: withFiles.map((l) => ({
+          orderId,
+          type: "order.source_document_uploaded",
+          message: "Documento fuente adjuntado desde el presupuesto.",
+          payload: {
+            fileUrl: l.sourceFileUrl,
+            fileName: l.description,
+            fileType: null,
+            fileSize: null,
+            pageStart: l.pageStart ?? null,
+            pageEnd: l.pageEnd ?? null,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: "presupuesto",
+          },
+        })),
+      });
+    }
+  }
+}
+
+// Fuera de la transacción y best-effort: facturación del /q y agrupado de la ampliación.
+// Idempotente: un reintento sobre un pedido ya creado completa lo que falte.
+async function completeQuoteOrderExtras(orderId: string, input: CreateOrderFromQuoteInput) {
+  const hasBilling = await prisma.billingData.findUnique({ where: { orderId }, select: { id: true } }).catch(() => ({ id: "?" }));
+  if (!hasBilling) {
+    // Datos de facturación que el cliente dejó en /q antes de pagar.
+    await import("@/lib/quote-billing")
+      .then((m) => m.applySavedBillingToNewOrder(orderId, input.quoteId, input.clientEmail))
+      .catch((e) => console.error("[orders] facturación del presupuesto no aplicada", e));
+  }
+  // Ampliación (lote AMPL-<padre>-…): el pedido nuevo se agrupa con su padre
+  // en el mismo trámite. Best-effort: nunca impide que nazca el pedido.
+  if (input.expedienteRef?.startsWith("AMPL-")) {
+    await import("@/lib/order-case")
+      .then((m) => m.attachExtensionToParentCase(orderId, input.expedienteRef))
+      .catch((e) => console.error("[orders] ampliacion: no se pudo agrupar en el tramite", e));
   }
 }
 
@@ -416,7 +432,10 @@ async function populateOrderItemsFromQuote(orderId: string, input: CreateOrderFr
 // updateOrderPayment + workflow), solo crea el "cascarón" del pedido.
 export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput) {
   const existing = await prisma.order.findFirst({ where: { quoteId: input.quoteId } });
-  if (existing) return existing;
+  if (existing) {
+    await completeQuoteOrderExtras(existing.id, input);
+    return existing;
+  }
 
   const langPair =
     input.sourceLang && input.targetLang ? `${input.sourceLang}->${input.targetLang}` : null;
@@ -426,47 +445,40 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const reference = await generateOrderReference();
     try {
-      const order = await prisma.order.create({
-        data: {
-          reference,
-          quoteId: input.quoteId,
-          clientEmail: input.clientEmail,
-          clientName: input.clientName || null,
-          clientPhone: input.clientPhone || null,
-          source: "quote",
-          title: `Traducción jurada · ${input.documentCount} ${docLabel} (presupuesto ${input.quoteNumber})`,
-          langPair,
-          amountCents: Math.round((input.totalEur || 0) * 100),
-          currency: (input.currency || "eur").toLowerCase(),
-          deliveryType: input.deliveryType === "PAPER_SHIP" ? "paper" : "pdf",
-          events: {
-            create: [
-              {
-                type: "order.created",
-                message: input.createdMessage || "Pedido creado desde presupuesto pagado.",
-                payload: { quoteId: input.quoteId, quoteNumber: input.quoteNumber, docCount: input.documentCount },
-              },
-              {
-                type: "order.flow_profile",
-                message: `Perfil de flujo detectado: ${flowProfile}.`,
-                payload: { profile: flowProfile, source: "quote" },
-              },
-            ],
+      const order = await prisma.$transaction(async (tx) => {
+        const created = await tx.order.create({
+          data: {
+            reference,
+            quoteId: input.quoteId,
+            clientEmail: input.clientEmail,
+            clientName: input.clientName || null,
+            clientPhone: input.clientPhone || null,
+            source: "quote",
+            title: `Traducción jurada · ${input.documentCount} ${docLabel} (presupuesto ${input.quoteNumber})`,
+            langPair,
+            amountCents: Math.round((input.totalEur || 0) * 100),
+            currency: (input.currency || "eur").toLowerCase(),
+            deliveryType: input.deliveryType === "PAPER_SHIP" ? "paper" : "pdf",
+            events: {
+              create: [
+                {
+                  type: "order.created",
+                  message: input.createdMessage || "Pedido creado desde presupuesto pagado.",
+                  payload: { quoteId: input.quoteId, quoteNumber: input.quoteNumber, docCount: input.documentCount },
+                },
+                {
+                  type: "order.flow_profile",
+                  message: `Perfil de flujo detectado: ${flowProfile}.`,
+                  payload: { profile: flowProfile, source: "quote" },
+                },
+              ],
+            },
           },
-        },
+        });
+        await populateOrderItemsFromQuote(tx, created.id, input);
+        return created;
       });
-      await populateOrderItemsFromQuote(order.id, input);
-      // Datos de facturación que el cliente dejó en /q antes de pagar.
-      await import("@/lib/quote-billing").then((m) =>
-        m.applySavedBillingToNewOrder(order.id, input.quoteId, input.clientEmail)
-      );
-      // Ampliación (lote AMPL-<padre>-…): el pedido nuevo se agrupa con su padre
-      // en el mismo trámite. Best-effort: nunca impide que nazca el pedido.
-      if (input.expedienteRef?.startsWith("AMPL-")) {
-        await import("@/lib/order-case")
-          .then((m) => m.attachExtensionToParentCase(order.id, input.expedienteRef))
-          .catch((e) => console.error("[orders] ampliacion: no se pudo agrupar en el tramite", e));
-      }
+      await completeQuoteOrderExtras(order.id, input);
       return order;
     } catch (err: any) {
       if (err?.code === "P2002") {
@@ -859,6 +871,7 @@ export async function assignOrder(
   reference: string,
   assignedTo: string | null,
   dueDate: Date | null,
+  // undefined = no tocar; null = quitar (cambio de traductor sin cifra).
   supplierCostCents?: number | null
 ) {
   return prisma.order.update({
@@ -866,14 +879,14 @@ export async function assignOrder(
     data: {
       assignedTo,
       dueDate,
-      ...(supplierCostCents != null ? { supplierCostCents } : {}),
+      ...(supplierCostCents !== undefined ? { supplierCostCents } : {}),
       events: {
         create: {
           type: "order.assigned",
           message: assignedTo
             ? `Pedido asignado a ${assignedTo}${dueDate ? ` con fecha límite ${dueDate.toLocaleDateString("es-ES")}` : ""}${supplierCostCents != null ? ` · coste ${(supplierCostCents / 100).toFixed(2)} € sin IVA` : ""}.`
             : "Asignación de pedido eliminada.",
-          ...(supplierCostCents != null ? { payload: { supplierCostCents } } : {}),
+          ...(supplierCostCents !== undefined ? { payload: { supplierCostCents } } : {}),
         },
       },
     },

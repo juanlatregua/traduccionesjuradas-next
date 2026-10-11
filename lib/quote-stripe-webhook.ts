@@ -8,6 +8,7 @@ import { isDuplicateStripeEventError } from "@/lib/quote-idempotency";
 import { sendMail } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { emailSendStatus } from "@/lib/message-status";
+import { bridgeFailureAction, shouldSendPaidConfirmation } from "@/lib/money-alerts-math";
 
 const BRIDGE_ATTEMPTS = 3;
 const BRIDGE_BACKOFF_MS = [1000, 3000];
@@ -111,7 +112,7 @@ export async function processQuoteStripeEvent(event: any) {
     }
 
     // Reintento de Stripe tras un puente fallido (se borró el StripeEventLog, abajo): el
-    // cobro ya consta (PAID + este pago), así que no se repite email ni registros; solo el puente.
+    // cobro ya consta (PAID + este pago), así que no se repiten los registros; solo el puente.
     const reprocess =
       quote.status === "PAID" &&
       Boolean(stripeSessionId || stripePaymentIntentId) &&
@@ -144,23 +145,6 @@ export async function processQuoteStripeEvent(event: any) {
     };
     const paidMessage =
       quote.deliveryType === "PAPER_SHIP" ? buildPaidPaperEmail(paidData) : buildPaidDigitalEmail(paidData);
-
-    // Graph no devuelve id de mensaje (providerId siempre null): el éxito es que
-    // sendQuoteEmail no lance, no que haya providerId (21 confirmaciones quedaron FAILED
-    // estando enviadas, auditoría 8-oct).
-    let providerId: string | null = null;
-    let emailError: string | null = null;
-    if (!reprocess) try {
-      const sent = await sendQuoteEmail({
-        to: quote.customerEmail,
-        subject: paidMessage.subject,
-        body: paidMessage.body,
-      });
-      providerId = sent.providerId;
-    } catch (emailErr) {
-      emailError = String((emailErr as any)?.message || emailErr || "unknown");
-      console.error("[quotes:webhook] paid email send failed", emailErr);
-    }
 
     const whatsappDraft = buildPaidWhatsAppDraft({
       name: quote.customerName || "cliente",
@@ -218,20 +202,6 @@ export async function processQuoteStripeEvent(event: any) {
       await tx.messageLog.create({
         data: {
           quoteId: quote.id,
-          channel: "EMAIL",
-          type: "PAID_CONFIRMATION",
-          recipient: quote.customerEmail,
-          subject: paidMessage.subject,
-          body: emailError ? `${paidMessage.body}\n\n[ERROR]: ${emailError}` : paidMessage.body,
-          sentAt: emailError === null ? now : null,
-          providerId,
-          status: emailSendStatus(emailError),
-        },
-      });
-
-      await tx.messageLog.create({
-        data: {
-          quoteId: quote.id,
           channel: "WHATSAPP",
           type: "DRAFT_WHATSAPP",
           recipient: quote.customerPhone || quote.customerEmail,
@@ -243,6 +213,44 @@ export async function processQuoteStripeEvent(event: any) {
         },
       });
     });
+
+    // «Pago confirmado» DESPUÉS de registrar el cobro: si la transacción falla y Stripe
+    // reintenta, el cliente no recibe el email dos veces. Graph no devuelve id de mensaje
+    // (providerId siempre null): el éxito es que sendQuoteEmail no lance (auditoría 8-oct).
+    const previousConfirmations = await prisma.messageLog.findMany({
+      where: { quoteId: quote.id, type: "PAID_CONFIRMATION", channel: "EMAIL" },
+      select: { status: true, recipient: true },
+    });
+    if (shouldSendPaidConfirmation(previousConfirmations)) {
+      let providerId: string | null = null;
+      let emailError: string | null = null;
+      try {
+        const sent = await sendQuoteEmail({
+          to: quote.customerEmail,
+          subject: paidMessage.subject,
+          body: paidMessage.body,
+        });
+        providerId = sent.providerId;
+      } catch (emailErr) {
+        emailError = String((emailErr as any)?.message || emailErr || "unknown");
+        console.error("[quotes:webhook] paid email send failed", emailErr);
+      }
+      await prisma.messageLog
+        .create({
+          data: {
+            quoteId: quote.id,
+            channel: "EMAIL",
+            type: "PAID_CONFIRMATION",
+            recipient: quote.customerEmail,
+            subject: paidMessage.subject,
+            body: emailError ? `${paidMessage.body}\n\n[ERROR]: ${emailError}` : paidMessage.body,
+            sentAt: emailError === null ? now : null,
+            providerId,
+            status: emailSendStatus(emailError),
+          },
+        })
+        .catch((err) => console.error("[quotes:webhook] paid email log failed", err));
+    }
 
     // KEYSTONE: presupuesto pagado → crear el Pedido de producción + cascada
     // (mismo flujo que el funnel: workflow PAGO_VALIDADO, ETA francés,
@@ -292,9 +300,9 @@ export async function processQuoteStripeEvent(event: any) {
         console.error(`[quotes:webhook] quote→order bridge failed (intento ${attempt + 1}/${BRIDGE_ATTEMPTS})`, err);
       }
     }
+    const { alertQuoteBridgeFailure, alertQuoteBridgeResolved } = await import("@/lib/money-alerts");
     if (bridgeErr) {
-      const { alertQuoteBridgeFailure } = await import("@/lib/money-alerts");
-      await alertQuoteBridgeFailure({
+      const failedDeliveries = await alertQuoteBridgeFailure({
         quoteId: quote.id,
         quoteNumber: quote.quoteNumber,
         customerEmail: quote.customerEmail,
@@ -302,11 +310,16 @@ export async function processQuoteStripeEvent(event: any) {
         error: String((bridgeErr as any)?.message || bridgeErr),
         stripeEventId: String(event.id || ""),
       });
+      // Tras N entregas fallidas se deja de pedir reintentos: lo cubre la conciliación de las 8:00.
+      if (bridgeFailureAction(failedDeliveries) === "give_up") {
+        return NextResponse.json({ ok: true, bridgeFailed: true, failedDeliveries });
+      }
       await prisma.stripeEventLog
         .deleteMany({ where: { eventId: event.id } })
         .catch((err) => console.error("[quotes:webhook] no se pudo liberar el evento para el reintento", err));
       return NextResponse.json({ ok: false, error: "Pago registrado; el pedido no se pudo crear (Stripe reintentará)." }, { status: 500 });
     }
+    await alertQuoteBridgeResolved({ quoteId: quote.id, quoteNumber: quote.quoteNumber });
 
     return NextResponse.json({ ok: true, ...(reprocess ? { reprocessed: true } : {}) });
   } catch (err: any) {

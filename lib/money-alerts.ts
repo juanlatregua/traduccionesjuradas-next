@@ -4,22 +4,24 @@ import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { costAlertAlreadySent } from "@/lib/money-alerts-math";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const adminEmail = () => process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
 
 export const COST_MISSING_EVENT = "finance.cost_missing_alert";
 export const BRIDGE_FAILED_MARK = "[AVISO STAFF] cobro sin pedido";
+export const BRIDGE_RESOLVED_MARK = "[AVISO STAFF] cobro sin pedido resuelto";
 
-/** Un automatismo asignó traductor ajeno sin coste: aviso inmediato, una vez por pedido. */
+/** Un automatismo asignó traductor ajeno sin coste: aviso inmediato, una vez por pedido y traductor. */
 export async function alertUnpricedAssignment(input: {
   orderId: string;
   translator: string;
   origin: string;
 }): Promise<void> {
   try {
-    const ya = await prisma.orderEvent.findFirst({ where: { orderId: input.orderId, type: COST_MISSING_EVENT }, select: { id: true } });
-    if (ya) return;
+    const previos = await prisma.orderEvent.findMany({ where: { orderId: input.orderId, type: COST_MISSING_EVENT }, select: { payload: true } });
+    if (costAlertAlreadySent(previos, input.translator)) return;
     const order = await prisma.order.findUnique({
       where: { id: input.orderId },
       select: { reference: true, clientName: true, langPair: true, amountCents: true },
@@ -67,9 +69,9 @@ export async function alertQuoteBridgeFailure(input: {
   amountEur: number;
   error: string;
   stripeEventId: string;
-}): Promise<void> {
+}): Promise<number> {
   try {
-    const ya = await prisma.messageLog.findFirst({ where: { quoteId: input.quoteId, subject: BRIDGE_FAILED_MARK }, select: { id: true } });
+    const previos = await prisma.messageLog.count({ where: { quoteId: input.quoteId, subject: BRIDGE_FAILED_MARK } });
     const texto = [
       `Stripe ha cobrado el presupuesto ${input.quoteNumber} (${input.amountEur.toFixed(2)} €) y NO se ha creado el pedido.`,
       "",
@@ -83,7 +85,7 @@ export async function alertQuoteBridgeFailure(input: {
     await prisma.messageLog.create({
       data: { quoteId: input.quoteId, channel: "EMAIL", type: "PAID_CONFIRMATION", recipient: "staff", subject: BRIDGE_FAILED_MARK, body: texto, status: "NOTICE" },
     });
-    if (ya) return;
+    if (previos > 0) return previos + 1;
     await Promise.all([
       sendMail({
         to: adminEmail(),
@@ -96,7 +98,33 @@ export async function alertQuoteBridgeFailure(input: {
         `cobro_sin_pedido ${input.quoteNumber}`
       ).catch(() => {}),
     ]);
+    return 1;
   } catch (err) {
     console.error("[cobro-sin-pedido] aviso fallo:", err);
+    return 1;
+  }
+}
+
+/** Un reintento sí creó el pedido tras un aviso de cobro sin pedido: se dice, una vez. */
+export async function alertQuoteBridgeResolved(input: { quoteId: string; quoteNumber: string }): Promise<void> {
+  try {
+    const [fallos, resuelto] = await Promise.all([
+      prisma.messageLog.count({ where: { quoteId: input.quoteId, subject: BRIDGE_FAILED_MARK } }),
+      prisma.messageLog.count({ where: { quoteId: input.quoteId, subject: BRIDGE_RESOLVED_MARK } }),
+    ]);
+    if (fallos === 0 || resuelto > 0) return;
+    const order = await prisma.order.findFirst({ where: { quoteId: input.quoteId }, select: { reference: true } });
+    const texto = `Resuelto: el presupuesto ${input.quoteNumber} ya tiene pedido${order ? ` (${order.reference})` : ""} tras ${fallos} intento(s) fallido(s) del puente.${order ? `\n${SITE}/zona-traductor/pedido/${order.reference}` : ""}`;
+    await prisma.messageLog.create({
+      data: { quoteId: input.quoteId, channel: "EMAIL", type: "PAID_CONFIRMATION", recipient: "staff", subject: BRIDGE_RESOLVED_MARK, body: texto, status: "NOTICE" },
+    });
+    await Promise.all([
+      sendMail({ to: adminEmail(), subject: `✅ Cobro con pedido: presupuesto ${input.quoteNumber}`, text: texto, html: renderSimpleEmailHtml(texto) }).catch((err) =>
+        console.error("[cobro-sin-pedido] email resuelto fallo:", err)
+      ),
+      sendStaffAlertSMS(`TraduccionesJuradas: resuelto, el presupuesto ${input.quoteNumber} ya tiene pedido${order ? ` ${order.reference}` : ""}.`, `cobro_resuelto ${input.quoteNumber}`).catch(() => {}),
+    ]);
+  } catch (err) {
+    console.error("[cobro-sin-pedido] aviso resuelto fallo:", err);
   }
 }
