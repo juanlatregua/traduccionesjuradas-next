@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { sendPaymentReconciliationAlertEmail } from "@/lib/email";
+import { sendStaffAlertSMS } from "@/lib/sms";
 
 export const runtime = "nodejs";
 
@@ -140,7 +141,35 @@ export async function GET(req: Request) {
         .replace("T", " "),
     }));
 
+  // 4. Presupuestos PAID en la BD sin pedido (cualquier proveedor, 7 días): el puente
+  // falló y nadie ha pedido traductor. Las sesiones de Stripe ya cubiertas arriba no se repiten.
+  const seen = new Set(sessions.map((s) => s.quoteId).filter(Boolean));
+  const orphanQuotes = await prisma.quote.findMany({
+    where: {
+      status: "PAID",
+      deletedAt: null,
+      paidAt: { gte: new Date((now - 7 * 86400) * 1000), lte: new Date(graceCutoff * 1000) },
+      orders: { none: {} },
+    },
+    select: { id: true, quoteNumber: true, customerEmail: true, total: true, paidAt: true },
+  });
+  for (const q of orphanQuotes) {
+    if (seen.has(q.id)) continue;
+    discrepancies.push({
+      reference: `presupuesto ${q.quoteNumber} PAID sin pedido`,
+      clientEmail: q.customerEmail,
+      amount: `${Number(q.total).toFixed(2)} EUR`,
+      stripeSessionId: "—",
+      createdAt: (q.paidAt || new Date()).toISOString().slice(0, 16).replace("T", " "),
+    });
+  }
+
   if (discrepancies.length > 0) {
+    // Segundo transporte: un cobro sin pedido no puede depender solo del email.
+    await sendStaffAlertSMS(
+      `TraduccionesJuradas: ${discrepancies.length} cobro(s) sin pedido: ${discrepancies.slice(0, 3).map((d) => d.reference || d.amount).join("; ")}. Mira el email.`.slice(0, 300),
+      "payment_reconciliation"
+    ).catch((err) => console.error("[payment-reconciliation] SMS fallo:", err));
     try {
       await sendPaymentReconciliationAlertEmail({ discrepancies });
     } catch (err: any) {

@@ -9,6 +9,9 @@ import { sendMail } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { emailSendStatus } from "@/lib/message-status";
 
+const BRIDGE_ATTEMPTS = 3;
+const BRIDGE_BACKOFF_MS = [1000, 3000];
+
 function buildPaidWhatsAppDraft(params: { name: string; quoteNumber: string; etaDate: Date }) {
   return `Hola ${params.name}, desde TraduccionesJuradas.net confirmamos el pago del presupuesto ${params.quoteNumber}. Fecha estimada de entrega: ${formatDateEs(params.etaDate)}.`;
 }
@@ -107,6 +110,24 @@ export async function processQuoteStripeEvent(event: any) {
       });
     }
 
+    // Reintento de Stripe tras un puente fallido (se borró el StripeEventLog, abajo): el
+    // cobro ya consta (PAID + este pago), así que no se repite email ni registros; solo el puente.
+    const reprocess =
+      quote.status === "PAID" &&
+      Boolean(stripeSessionId || stripePaymentIntentId) &&
+      Boolean(
+        await prisma.quotePayment.findFirst({
+          where: {
+            quoteId: quote.id,
+            OR: [
+              ...(stripeSessionId ? [{ stripeSessionId }] : []),
+              ...(stripePaymentIntentId ? [{ stripePaymentIntentId }] : []),
+            ],
+          },
+          select: { id: true },
+        })
+      );
+
     const now = new Date();
     const etaDate = calculateEtaDate({
       from: now,
@@ -129,7 +150,7 @@ export async function processQuoteStripeEvent(event: any) {
     // estando enviadas, auditoría 8-oct).
     let providerId: string | null = null;
     let emailError: string | null = null;
-    try {
+    if (!reprocess) try {
       const sent = await sendQuoteEmail({
         to: quote.customerEmail,
         subject: paidMessage.subject,
@@ -147,7 +168,7 @@ export async function processQuoteStripeEvent(event: any) {
       etaDate,
     });
 
-    await prisma.$transaction(async (tx) => {
+    if (!reprocess) await prisma.$transaction(async (tx) => {
       const existingPayment =
         stripePaymentIntentId || stripeSessionId
           ? await tx.quotePayment.findFirst({
@@ -225,46 +246,73 @@ export async function processQuoteStripeEvent(event: any) {
 
     // KEYSTONE: presupuesto pagado → crear el Pedido de producción + cascada
     // (mismo flujo que el funnel: workflow PAGO_VALIDADO, ETA francés,
-    // auto-asignación de colaborador, emails). No rompe el webhook si falla:
-    // el Quote ya quedó PAID.
-    try {
-      const { runQuoteToOrderBridge } = await import("@/lib/quote-to-order");
-      await runQuoteToOrderBridge({
-        quote: {
-          id: quote.id,
-          quoteNumber: quote.quoteNumber,
-          customerEmail: quote.customerEmail,
-          customerName: quote.customerName,
-          customerPhone: quote.customerPhone,
-          sourceLang: quote.sourceLang,
-          targetLang: quote.targetLang,
-          totalEur: amountRaw > 0 ? amountRaw : decimalToNumber(quote.total),
-          currency,
-          expedienteRef: quote.expedienteRef,
-          deliveryType: quote.deliveryType,
-          lines: quote.lines.map((l) => ({
-            description: l.description,
-            unitPrice: decimalToNumber(l.unitPrice),
-            sourceFileUrl: l.sourceFileUrl,
-            pageStart: l.pageStart,
-            pageEnd: l.pageEnd,
-          })),
-        },
-        provider: "STRIPE",
-        providerEventId: stripePaymentIntentId || stripeSessionId || `quote:${quote.id}`,
-        source: "quote_webhook",
-        // El webhook ya envió su propio email de pago (buildPaidDigitalEmail con
-        // ETA, arriba) → el puente NO debe mandar otro. Evita el doble email.
-        sendClientPaidEmail: false,
-        payload: { stripeEventId: String(event.id || ""), quoteId: quote.id },
+    // auto-asignación de colaborador, emails). El Quote ya quedó PAID.
+    const bridgeInput = {
+      quote: {
+        id: quote.id,
+        quoteNumber: quote.quoteNumber,
+        customerEmail: quote.customerEmail,
+        customerName: quote.customerName,
+        customerPhone: quote.customerPhone,
+        sourceLang: quote.sourceLang,
+        targetLang: quote.targetLang,
+        totalEur: amountRaw > 0 ? amountRaw : decimalToNumber(quote.total),
+        currency,
+        expedienteRef: quote.expedienteRef,
+        deliveryType: quote.deliveryType,
+        lines: quote.lines.map((l) => ({
+          description: l.description,
+          unitPrice: decimalToNumber(l.unitPrice),
+          sourceFileUrl: l.sourceFileUrl,
+          pageStart: l.pageStart,
+          pageEnd: l.pageEnd,
+        })),
+      },
+      provider: "STRIPE" as const,
+      providerEventId: stripePaymentIntentId || stripeSessionId || `quote:${quote.id}`,
+      source: "quote_webhook",
+      // El webhook ya envió su propio email de pago (buildPaidDigitalEmail con
+      // ETA, arriba) → el puente NO debe mandar otro. Evita el doble email.
+      sendClientPaidEmail: false,
+      payload: { stripeEventId: String(event.id || ""), quoteId: quote.id },
+    };
+    // El puente es idempotente por quoteId (cascarón) y por providerEventId (pago):
+    // reintentar en el acto es seguro. Si sigue fallando, rastro + aviso por dos canales
+    // y 500 para que Stripe reintente (sin el StripeEventLog, que lo daría por duplicado).
+    const { runQuoteToOrderBridge } = await import("@/lib/quote-to-order");
+    let bridgeErr: unknown = null;
+    for (let attempt = 0; attempt < BRIDGE_ATTEMPTS; attempt += 1) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, BRIDGE_BACKOFF_MS[attempt - 1] ?? 3000));
+      try {
+        await runQuoteToOrderBridge(bridgeInput);
+        bridgeErr = null;
+        break;
+      } catch (err) {
+        bridgeErr = err;
+        console.error(`[quotes:webhook] quote→order bridge failed (intento ${attempt + 1}/${BRIDGE_ATTEMPTS})`, err);
+      }
+    }
+    if (bridgeErr) {
+      const { alertQuoteBridgeFailure } = await import("@/lib/money-alerts");
+      await alertQuoteBridgeFailure({
+        quoteId: quote.id,
+        quoteNumber: quote.quoteNumber,
+        customerEmail: quote.customerEmail,
+        amountEur: bridgeInput.quote.totalEur,
+        error: String((bridgeErr as any)?.message || bridgeErr),
+        stripeEventId: String(event.id || ""),
       });
-    } catch (bridgeErr) {
-      console.error("[quotes:webhook] quote→order bridge failed", bridgeErr);
+      await prisma.stripeEventLog
+        .deleteMany({ where: { eventId: event.id } })
+        .catch((err) => console.error("[quotes:webhook] no se pudo liberar el evento para el reintento", err));
+      return NextResponse.json({ ok: false, error: "Pago registrado; el pedido no se pudo crear (Stripe reintentará)." }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, ...(reprocess ? { reprocessed: true } : {}) });
   } catch (err: any) {
     console.error("[quotes:webhook] error", err);
+    // Sin liberar el evento, el reintento de Stripe se daría por duplicado y el cobro quedaría a medias.
+    await prisma.stripeEventLog.deleteMany({ where: { eventId: event.id } }).catch(() => {});
     return NextResponse.json(
       { ok: false, error: err?.message || "Error procesando webhook." },
       { status: 500 }
