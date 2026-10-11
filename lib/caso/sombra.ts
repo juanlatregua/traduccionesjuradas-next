@@ -13,6 +13,7 @@ import {
   compararDecisiones,
   decidirBarrido,
   planRecalculo,
+  soloEventosDesechables,
   vivoEnCaso,
   NADA_VIVO,
   BARRIDO_VACIO_DIAS,
@@ -152,8 +153,14 @@ export async function sombraBloqueo(
  * misma transacción; ningún status cambia). Si la tiene uno vivo, no se toma y la
  * comparación queda en desacuerdo («segundo_presupuesto_vivo»).
  */
-export async function tomarVigente(quoteId: string, casoId: string | null | undefined, entrada: Entrada | string): Promise<void> {
+export async function tomarVigente(
+  quoteId: string,
+  casoId: string | null | undefined,
+  entrada: Entrada | string,
+  opts: { restaurado?: boolean } = {}
+): Promise<void> {
   if (!casoId) return;
+  const dedupeKey = `presupuesto:${quoteId}${opts.restaurado ? ":restore" : ""}`;
   try {
     const ocupada = await prisma.quote.findUnique({ where: { liveCasoKey: casoId }, select: { ...QUOTE_SELECT, quoteNumber: true } });
     const viva = !!ocupada && ocupada.id !== quoteId && quoteVivo(ocupada);
@@ -168,7 +175,7 @@ export async function tomarVigente(quoteId: string, casoId: string | null | unde
     await registrarComparacion({
       entrada,
       casoId,
-      dedupeKey: `presupuesto:${quoteId}`,
+      dedupeKey,
       payload: {
         entrada,
         guarda: "liveCasoKey",
@@ -185,7 +192,7 @@ export async function tomarVigente(quoteId: string, casoId: string | null | unde
       await registrarComparacion({
         entrada,
         casoId,
-        dedupeKey: `presupuesto:${quoteId}`,
+        dedupeKey,
         payload: { entrada, guarda: "liveCasoKey", objeto: "presupuesto", decisionVieja: "crea", acuerdo: false, motivo: "segundo_presupuesto_vivo", casoResolver: casoId, refs: { nuevo: quoteId, carrera: true } },
       });
     } else {
@@ -219,6 +226,8 @@ export async function descartarCasoSiVacio(sombra: Sombra | null | undefined): P
   if (!sombra?.creado || !sombra.casoId) return;
   try {
     if ((await contarHijos(sombra.casoId)) > 0) return;
+    const eventos = await prisma.casoEvento.findMany({ where: { casoId: sombra.casoId }, select: { tipo: true } });
+    if (!soloEventosDesechables(eventos.map((e) => e.tipo))) return;
     await prisma.caso.deleteMany({ where: { id: sombra.casoId } });
   } catch (err) {
     console.error("[caso] descartar caso vacío falló:", sombra.casoId, err);
@@ -273,7 +282,7 @@ export async function adjuntarPedidoACaso(orderId: string, actor: string): Promi
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { casoId: true, reference: true, quote: { select: { casoId: true } } },
+      select: { casoId: true, reference: true, clientEmail: true, clientPhone: true, quote: { select: { casoId: true } } },
     });
     if (!order) return;
     let casoId = order.casoId;
@@ -287,6 +296,15 @@ export async function adjuntarPedidoACaso(orderId: string, actor: string): Promi
           })
         )?.casoId ||
         null;
+      // Autopago de la puerta sin caso (p. ej. el resolver falló al pedir presupuesto): se resuelve ahora.
+      if (!casoId && !order.quote) {
+        casoId = await casoIdEnSombra({
+          entrada: "puerta_pago",
+          contacto: { email: order.clientEmail, phone: order.clientPhone },
+          anclas: { orderId },
+          actor,
+        });
+      }
       if (!casoId) return;
       await prisma.order.updateMany({ where: { id: orderId, casoId: null }, data: { casoId } });
     }

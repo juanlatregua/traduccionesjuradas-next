@@ -4,6 +4,8 @@ import {
   anclasDeExpediente,
   compararDecisiones,
   decidirBarrido,
+  quoteCuentaViva,
+  soloEventosDesechables,
   decidirDiscrepancia,
   entradaDeCreador,
   paresDe,
@@ -180,4 +182,14 @@ test("recalcular: un presupuesto vivo manda aunque la clave la tenga uno muerto"
   const muerta = quote({ id: "q0", status: "EXPIRED", lostReason: "PRICE", liveCasoKey: "c1", createdAt: hace(5) });
   const viva = quote({ id: "q2", liveCasoKey: null, createdAt: hace(1) });
   assert.equal(planRecalculo({ ...base, estado: "PERDIDO", closedAt: hace(2), quotes: [muerta, viva] })!.estado, "ABIERTO");
+});
+
+test("formalizado cuenta como vivo para el estado; borrado no", () => {
+  assert.ok(quoteCuentaViva(quote({ status: "PAID", lostReason: null })));
+  assert.ok(quoteCuentaViva(quote({ status: "DELIVERED" })));
+  assert.ok(!quoteCuentaViva(quote({ status: "PAID", deletedAt: hace(1) })));
+  assert.ok(!quoteCuentaViva(quote({ status: "EXPIRED" })));
+  assert.equal(planRecalculo({ ...base, quotes: [quote({ status: "PAID", liveCasoKey: null })] })!.estado, "ABIERTO", "pagado sin pedido aún: no se pierde");
+  assert.equal(decidirBarrido({ ...barrido, lastActivityAt: hace(8), quotes: [quote({ status: "IN_PROGRESS" })] }), null);
+  assert.ok(soloEventosDesechables(["creado", "adjuntado"]) && !soloEventosDesechables(["creado", "comparacion"]));
 });

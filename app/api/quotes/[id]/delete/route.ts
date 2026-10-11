@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (body.restore) {
     await prisma.quote.update({ where: { id: params.id }, data: { deletedAt: null } });
     // Vuelve a ser la vigente si la clave está libre o la tiene uno ya no vivo (y recalcula el caso).
-    await tomarVigente(params.id, quote.casoId, "constructor");
+    await tomarVigente(params.id, quote.casoId, "constructor", { restaurado: true });
     return NextResponse.json({ ok: true, restored: true });
   }
 

@@ -23,11 +23,16 @@ export async function POST(req: Request) {
   const evento = await prisma.casoEvento.findUnique({ where: { id: String(body.eventoId) }, select: { id: true, tipo: true, casoId: true } });
   if (!evento || evento.tipo !== "comparacion") return NextResponse.json({ ok: false, error: "Comparación no encontrada." }, { status: 404 });
 
-  await prisma.$transaction([
-    prisma.casoEvento.deleteMany({ where: { tipo: "veredicto", dedupeKey: evento.id } }),
-    prisma.casoEvento.create({
-      data: { casoId: evento.casoId, tipo: "veredicto", dedupeKey: evento.id, actor: access.email || "staff", payload: { eventoId: evento.id, veredicto } },
-    }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.casoEvento.deleteMany({ where: { tipo: "veredicto", dedupeKey: evento.id } }),
+      prisma.casoEvento.create({
+        data: { casoId: evento.casoId, tipo: "veredicto", dedupeKey: evento.id, actor: access.email || "staff", payload: { eventoId: evento.id, veredicto } },
+      }),
+    ]);
+  } catch (err: any) {
+    // Doble clic simultáneo: el otro ya dejó el veredicto.
+    if (err?.code !== "P2002") throw err;
+  }
   return NextResponse.json({ ok: true });
 }

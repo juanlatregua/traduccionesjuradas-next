@@ -3,7 +3,7 @@
 // (discrepancia) y qué estado le toca al caso. Nada de esto decide negocio: las
 // guardas viejas siguen creando/bloqueando; esto solo asigna casoId y anota.
 
-import { estadoDeCaso, quoteVivo, lprViva, puedeCaso, esCasoEstado, casoTerminal, type CasoEstado, type PedidoParaEstado } from "./estados.ts";
+import { estadoDeCaso, quoteVivo, quoteIntocable, lprViva, puedeCaso, esCasoEstado, casoTerminal, type CasoEstado, type PedidoParaEstado } from "./estados.ts";
 import { normPar, paresCompatibles, type Decision } from "./resolver.ts";
 
 export type Entrada =
@@ -64,6 +64,11 @@ export function vivoEnCaso(i: { casoId: string; par: string | null; quotes: Quot
     lprMismoPar: i.lprs.some((l) => lprViva(l, i.ahora) && paresCompatibles(par, [l.par])),
     vigente: i.quotes.some((q) => quoteVivo(q)),
   };
+}
+
+/** A efectos de estado, un presupuesto formalizado (PAID/IN_PROGRESS/DELIVERED) también sostiene el caso. */
+export function quoteCuentaViva(q: { status: string; deletedAt: Date | null; lostReason: string | null }): boolean {
+  return quoteVivo(q) || (!q.deletedAt && quoteIntocable({ status: q.status }));
 }
 
 export type Vieja = "crea" | "bloquea";
@@ -131,6 +136,10 @@ export function compararDecisiones(i: {
 export const BARRIDO_SIN_VIDA_DIAS = 7;
 export const BARRIDO_VACIO_DIAS = 1;
 const EVENTOS_DESECHABLES = new Set(["creado", "adjuntado", "posible", "transicion"]);
+/** Sin rastro útil (comparaciones, veredictos…): se puede borrar sin perder medición. */
+export function soloEventosDesechables(tipos: string[]): boolean {
+  return tipos.every((t) => EVENTOS_DESECHABLES.has(t));
+}
 
 /**
  * Caso ABIERTO que ya no lleva a nada: sin hijos y sin rastro útil → borrar (>1 d);
@@ -148,9 +157,9 @@ export function decidirBarrido(i: {
 }): "borrar" | "perder" | null {
   if (i.estado !== "ABIERTO") return null;
   const dias = (i.ahora.getTime() - i.lastActivityAt.getTime()) / 864e5;
-  if (i.hijos === 0 && dias > BARRIDO_VACIO_DIAS) return i.tiposEventos.every((t) => EVENTOS_DESECHABLES.has(t)) ? "borrar" : "perder";
+  if (i.hijos === 0 && dias > BARRIDO_VACIO_DIAS) return soloEventosDesechables(i.tiposEventos) ? "borrar" : "perder";
   if (dias <= BARRIDO_SIN_VIDA_DIAS) return null;
-  const vivo = i.pedidos > 0 || i.quotes.some((q) => quoteVivo(q)) || i.lprs.some((l) => lprViva(l, i.ahora));
+  const vivo = i.pedidos > 0 || i.quotes.some(quoteCuentaViva) || i.lprs.some((l) => lprViva(l, i.ahora));
   return vivo ? null : "perder";
 }
 
@@ -175,11 +184,11 @@ export function planRecalculo(i: {
   const vivos = i.quotes.filter((q) => !q.deletedAt);
   if (i.pedidos.length === 0 && vivos.length === 0 && i.lprs.length === 0) return { estado: actual, cambia: false, closedAt: "dejar" };
   const vigente =
-    vivos.find((q) => quoteVivo(q)) ||
+    vivos.find(quoteCuentaViva) ||
     vivos.find((q) => q.liveCasoKey === i.casoId) ||
     [...vivos].filter((q) => !q.supersededAt).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ||
     null;
-  const vivo = vigente ? quoteVivo(vigente) : i.lprs.some((l) => lprViva(l, i.ahora));
+  const vivo = vigente ? quoteCuentaViva(vigente) : i.lprs.some((l) => lprViva(l, i.ahora));
   const propuesto = estadoDeCaso({ pedidos: i.pedidos, vivo });
   const estado = puedeCaso(actual, propuesto) ? propuesto : actual;
   const cerrado = casoTerminal(estado) || estado === "PERDIDO";
