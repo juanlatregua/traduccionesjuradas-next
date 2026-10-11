@@ -6,7 +6,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { getWorkflowState } from "@/lib/workflow";
 import { findTranslatorProfile } from "@/lib/translators";
 import { sendTranslationStartedAssignedEmail } from "@/lib/email";
-import { OWN_TRANSLATOR_EMAIL, needsSupplierCost, parseEurToCents } from "@/lib/cierre-math";
+import { OWN_TRANSLATOR_EMAIL, needsSupplierCost, parseEurToCents, sameTranslatorExact } from "@/lib/cierre-math";
 import { sameTranslatorName } from "@/lib/lavori-bridge";
 import { netFromGross } from "@/lib/quotes";
 
@@ -59,7 +59,8 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Coste del traductor no válido (euros sin IVA, p. ej. 45,50)." }, { status: 400 });
     }
     const previousTranslator = orderBefore.assignedTo?.trim() || null;
-    const translatorChanged = Boolean(assignedTo && previousTranslator && !sameTranslatorName(previousTranslator, assignedTo));
+    const translatorChanged = Boolean(assignedTo && previousTranslator && !sameTranslatorExact(previousTranslator, assignedTo));
+    let winningPriceCents: number | null = null;
     if (assignedTo && supplierCostCents == null) {
       const [winning, own] = await Promise.all([
         prisma.collaboratorAssignment.findMany({
@@ -68,13 +69,13 @@ export async function POST(req: Request, { params }: Params) {
         }),
         prisma.collaborator.findUnique({ where: { email: OWN_TRANSLATOR_EMAIL }, select: { fullName: true } }).catch(() => null),
       ]);
-      const win = winning.find((a) => sameTranslatorName(a.collaborator.fullName, assignedTo));
+      winningPriceCents = winning.find((a) => sameTranslatorName(a.collaborator.fullName, assignedTo))?.quotedPriceCents ?? null;
       if (
         needsSupplierCost({
           translator: assignedTo,
           langPair: orderBefore.langPair,
           supplierCostCents: orderBefore.supplierCostCents,
-          winningPriceCents: win?.quotedPriceCents ?? null,
+          winningPriceCents,
           previousTranslator,
           ownNames: own ? [own.fullName] : [],
         })
@@ -86,8 +87,15 @@ export async function POST(req: Request, { params }: Params) {
       }
     }
 
-    // Coste nuevo si lo hay; al cambiar de traductor sin cifra (FR propio) el del anterior se quita.
-    const costToWrite = !assignedTo ? undefined : supplierCostCents != null ? supplierCostCents : translatorChanged ? null : undefined;
+    // Coste nuevo si lo hay; al cambiar de traductor, el precio ganador del nuevo o, sin él
+    // (FR propio), se quita el del anterior.
+    const costToWrite = !assignedTo
+      ? undefined
+      : supplierCostCents != null
+        ? supplierCostCents
+        : translatorChanged
+          ? winningPriceCents
+          : undefined;
     await assignOrder(params.reference, assignedTo, dueDate, costToWrite);
 
     const costChanged = supplierCostCents != null && supplierCostCents !== orderBefore.supplierCostCents;

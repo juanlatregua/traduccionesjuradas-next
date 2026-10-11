@@ -446,6 +446,11 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
     const reference = await generateOrderReference();
     try {
       const order = await prisma.$transaction(async (tx) => {
+        // Order.quoteId no es único: dos llamadas a la vez (webhook + transferencia, o
+        // reintento) se serializan por presupuesto y la segunda devuelve el pedido creado.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.quoteId}))`;
+        const already = await tx.order.findFirst({ where: { quoteId: input.quoteId } });
+        if (already) return already;
         const created = await tx.order.create({
           data: {
             reference,

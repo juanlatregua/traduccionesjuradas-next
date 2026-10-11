@@ -164,6 +164,28 @@ export async function GET(req: Request) {
     });
   }
 
+  // 5. Presupuestos cobrados por Stripe (7 días) sin «pago confirmado» SENT al cliente.
+  const sinConfirmacion = await prisma.quote.findMany({
+    where: {
+      status: { in: ["PAID", "IN_PROGRESS", "DELIVERED"] },
+      deletedAt: null,
+      paidAt: { gte: new Date((now - 7 * 86400) * 1000), lte: new Date(graceCutoff * 1000) },
+      payments: { some: { provider: "STRIPE" } },
+      NOT: { customerEmail: { endsWith: "@whatsapp.local" } },
+      messageLogs: { none: { type: "PAID_CONFIRMATION", status: "SENT", recipient: { not: "staff" } } },
+    },
+    select: { quoteNumber: true, customerEmail: true, total: true, paidAt: true },
+  });
+  for (const q of sinConfirmacion) {
+    discrepancies.push({
+      reference: `presupuesto ${q.quoteNumber} cobrado SIN email de pago confirmado al cliente`,
+      clientEmail: q.customerEmail,
+      amount: `${Number(q.total).toFixed(2)} EUR`,
+      stripeSessionId: "—",
+      createdAt: (q.paidAt || new Date()).toISOString().slice(0, 16).replace("T", " "),
+    });
+  }
+
   if (discrepancies.length > 0) {
     // Segundo transporte: un cobro sin pedido no puede depender solo del email.
     await sendStaffAlertSMS(

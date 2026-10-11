@@ -12,7 +12,7 @@ import { checkQuoteLinesMargin } from "@/lib/quote-margin";
 import { findLiveLavoriDuplicate, isHeldByJuan } from "@/lib/lavori-dup-guard";
 import { alreadyCustomerFor, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { cierreReviewUrl } from "@/lib/cierre-token";
-import { decideAutoSend, isRealEmail, deduceLostReason, hasCostGap, hasHumanOpen, autoLostNote, type CostGapOrder } from "@/lib/cierre-math";
+import { decideAutoSend, isRealEmail, deduceLostReason, hasCostGap, hasHumanOpen, autoLostNote, OWN_TRANSLATOR_EMAIL, type CostGapOrder } from "@/lib/cierre-math";
 import type { AutoLostCode } from "@/lib/quote-lost-reasons";
 
 const SITE = "https://www.traduccionesjuradas.net";
@@ -274,5 +274,6 @@ export async function findCostGapOrders(now = new Date()) {
     select: COST_GAP_SELECT,
     take: 200,
   });
-  return rows.filter((o) => hasCostGap({ ...o, assignments: o.collaboratorAssignments } as CostGapOrder, now));
+  const own = await prisma.collaborator.findUnique({ where: { email: OWN_TRANSLATOR_EMAIL }, select: { fullName: true } }).catch(() => null);
+  return rows.filter((o) => hasCostGap({ ...o, assignments: o.collaboratorAssignments } as CostGapOrder, now, own ? [own.fullName] : []));
 }

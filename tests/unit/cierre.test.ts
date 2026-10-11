@@ -15,6 +15,7 @@ import {
   isOwnTranslator,
   needsSupplierCost,
   parseEurToCents,
+  sameTranslatorExact,
   whatsappNudgeText,
   type AutoSendInput,
   type CostGapOrder,
@@ -251,6 +252,20 @@ test("coste: francés propio cuenta como coste 0 explícito, no como hueco", () 
   assert.equal(hasCostGap({ ...order, langPair: "fr-es", assignedTo: "Juan Amor" }, NOW), true);
 });
 
+test("coste: pedidos FR antiguos con «Juan» a secas o con el nombre de la ficha no son hueco", () => {
+  assert.equal(hasCostGap({ ...order, langPair: "fr-es", assignedTo: "Juan" }, NOW), false);
+  assert.equal(hasCostGap({ ...order, langPair: "de-es", assignedTo: "Juan" }, NOW), true, "fuera del francés sí");
+  assert.equal(hasCostGap({ ...order, langPair: "fr-es", assignedTo: "J. Silva" }, NOW, ["J. Silva"]), false);
+  assert.equal(hasCostGap({ ...order, langPair: "fr-es", assignedTo: "J. Silva" }, NOW), true);
+});
+
+test("cambio de traductor: igualdad exacta de nombre, no por tokens", () => {
+  assert.equal(sameTranslatorExact("Juan Amor", "juan  amor"), true);
+  assert.equal(sameTranslatorExact("Juan", "Juan Amor"), false);
+  assert.equal(sameTranslatorExact("Daniela", "Daniela Cleintuar"), false);
+  assert.equal(sameTranslatorExact("", ""), false);
+});
+
 test("traductor propio: solo Juan Silva, nunca Juan Amor", () => {
   // Valores reales de Order.assignedTo (BD, 90 días): «Juan Silva Moreno», «Juan Amor», «Juan Amor Fernández».
   for (const n of ["Juan Silva", "Juan Silva Moreno", " juan  silva moreno "]) assert.equal(isOwnTranslator(n), true, n);
@@ -278,7 +293,8 @@ test("reasignar X→Y: el coste de X no vale para Y", () => {
   const b = { translator: "Daniela Cleintuar", langPair: "ro->es", supplierCostCents: 4000 };
   assert.equal(needsSupplierCost({ ...b, previousTranslator: "Maria Murariu Ursu" }), true);
   assert.equal(needsSupplierCost({ ...b, previousTranslator: "Daniela Cleintuar" }), false, "mismo traductor: su coste vale");
-  assert.equal(needsSupplierCost({ ...b, previousTranslator: "Daniela" }), false, "mismo nombre abreviado");
+  assert.equal(needsSupplierCost({ ...b, previousTranslator: "daniela  cleintuar" }), false, "mismo nombre normalizado");
+  assert.equal(needsSupplierCost({ ...b, previousTranslator: "Daniela" }), true, "nombre distinto: se pide cifra (lado seguro)");
   assert.equal(needsSupplierCost({ ...b, previousTranslator: null }), false, "sin traductor previo: el coste del pedido vale");
   assert.equal(needsSupplierCost({ ...b, previousTranslator: "Maria Murariu Ursu", winningPriceCents: 3500 }), false, "Y ya tiene precio ganador");
   assert.equal(needsSupplierCost({ ...b, translator: "Juan Silva Moreno", langPair: "fr->es", previousTranslator: "Inge Luken" }), false, "a FR propio no pide coste");

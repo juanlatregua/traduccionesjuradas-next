@@ -6,7 +6,7 @@
 import { DIRECT_AUTO_MAX_CENTS } from "./lavori-directo-math.ts";
 import { AUTO_LOST_NOTES, type AutoLostCode } from "./quote-lost-reasons.ts";
 import { cardPayUrl } from "./quote-messages.ts";
-import { CASA_LANGS, sameTranslatorName } from "./lavori-bridge.ts";
+import { CASA_LANGS } from "./lavori-bridge.ts";
 
 /** Tope del envío automático: el mismo que el carril directo (300 € netos). */
 export const AUTO_SEND_MAX_CENTS = DIRECT_AUTO_MAX_CENTS;
@@ -16,6 +16,10 @@ export const COST_GAP_AFTER_HOURS = 24;
 
 const HOUR = 3_600_000;
 const norm = (v: string | null | undefined) => String(v || "").trim().toLowerCase();
+const normName = (v: string | null | undefined) => norm(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+
+/** Mismo traductor por nombre normalizado EXACTO (no por tokens): decide si cambió el traductor. */
+export const sameTranslatorExact = (a: string | null | undefined, b: string | null | undefined) => !!normName(a) && normName(a) === normName(b);
 
 export const isFrPair = (s: string | null | undefined, t: string | null | undefined) => norm(s) === "fr" || norm(t) === "fr";
 export const isPlaceholderAddr = (email: string | null | undefined) => /@whatsapp\.local$/i.test(email || "");
@@ -230,12 +234,13 @@ export type CostGapOrder = {
  * El francés propio (sin asignar o asignado a Juan Silva) cuenta como coste 0 explícito, no como hueco.
  * supplierCostCents = 0 es un coste explícito.
  */
-export function hasCostGap(o: CostGapOrder, now: Date): boolean {
+export function hasCostGap(o: CostGapOrder, now: Date, ownNames: string[] = []): boolean {
   if (o.paymentStatus !== "PAID" || !o.paidAt || o.status === "CANCELLED") return false;
   if (now.getTime() - o.paidAt.getTime() < COST_GAP_AFTER_HOURS * HOUR) return false;
   if (o.supplierCostCents != null) return false;
   if (o.assignments.some((a) => (a.isWinning || a.status === "ACCEPTED") && a.quotedPriceCents != null)) return false;
-  const own = !o.assignedTo?.trim() || isOwnTranslator(o.assignedTo);
+  // Solo en la alarma (lado seguro, sin ruido): «Juan» a secas en un par con francés es Juan Silva.
+  const own = !o.assignedTo?.trim() || isOwnTranslator(o.assignedTo, ownNames) || normName(o.assignedTo) === "juan";
   return !(isFrLangPair(o.langPair) && own);
 }
 
@@ -244,7 +249,6 @@ const isFrLangPair = (langPair: string | null | undefined) => norm(langPair).spl
 /** Ficha de Collaborator del francés propio: identifica a Juan por email; el nombre es respaldo. */
 export const OWN_TRANSLATOR_EMAIL = CASA_LANGS.fr.collaboratorEmail;
 
-const normName = (v: string | null | undefined) => norm(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
 
 /**
  * Juan Silva (FR propio): su coste legítimo es null. ownNames = fullName de su ficha en BD
@@ -281,6 +285,6 @@ export function needsSupplierCost(i: {
   if (isFrLangPair(i.langPair) && isOwnTranslator(i.translator, i.ownNames)) return false;
   if (i.winningPriceCents != null) return false;
   const prev = String(i.previousTranslator || "").trim();
-  const costIsHis = !prev || sameTranslatorName(prev, i.translator);
+  const costIsHis = !prev || sameTranslatorExact(prev, i.translator);
   return !(i.supplierCostCents != null && costIsHis);
 }
