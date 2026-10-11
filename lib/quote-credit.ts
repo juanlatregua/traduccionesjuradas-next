@@ -46,6 +46,7 @@ export async function authorizeQuoteCredit(input: {
       total: true,
       currency: true,
       paidAt: true,
+      paymentFrozenAt: true,
       lines: { select: { description: true, unitPrice: true, sourceFileUrl: true, pageStart: true, pageEnd: true } },
       orders: { select: { reference: true }, orderBy: { createdAt: "desc" }, take: 1 },
       customer: {
@@ -55,6 +56,9 @@ export async function authorizeQuoteCredit(input: {
   });
   if (!quote) throw new CreditError("Presupuesto no encontrado.", 404);
   if (quote.paidAt || quote.status === "PAID") throw new CreditError("Este presupuesto ya está pagado.", 409);
+  if (quote.paymentFrozenAt) {
+    throw new CreditError("El pago de este presupuesto está CONGELADO (la cifra del jurado deja pérdida): desbloquéalo en la ficha antes de autorizar el crédito.", 409);
+  }
 
   const existing = quote.orders[0]?.reference ?? null;
   if (!existing && !CREDITABLE.has(quote.status)) {

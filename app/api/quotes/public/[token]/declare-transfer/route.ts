@@ -29,6 +29,7 @@ import { decimalToNumber, isQuotePayableStatus, normalizeQuoteStatus } from "@/l
 import { createOrderShellFromQuote } from "@/lib/orders";
 import { buildSignedOrderUrl } from "@/lib/order-token";
 import { sendNewOrderStaffEmail } from "@/lib/email";
+import { FROZEN_PAYMENT_ERROR, isPaymentFrozen } from "@/lib/precio-tras-envio-math";
 
 export const runtime = "nodejs";
 
@@ -70,10 +71,14 @@ export async function POST(req: Request, { params }: Params) {
           select: { description: true, unitPrice: true, sourceFileUrl: true, pageStart: true, pageEnd: true },
         },
         orders: { select: { reference: true }, take: 1 },
+        paymentFrozenAt: true,
       },
     });
     if (!quote) {
       return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
+    }
+    if (isPaymentFrozen(quote)) {
+      return NextResponse.json({ ok: false, frozen: true, error: FROZEN_PAYMENT_ERROR }, { status: 409 });
     }
 
     // Si ya hay pedido (clic anterior, crédito o pago), su pantalla de pago es la

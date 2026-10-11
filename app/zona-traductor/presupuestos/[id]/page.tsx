@@ -12,6 +12,10 @@ import { prisma } from "@/lib/prisma";
 import { serializeQuote } from "@/lib/quote-serializer";
 import { NO_RESPONSE_NOTE } from "@/lib/cierre-math";
 import { COMPLETION_EVENT, isPendingCompletion } from "@/lib/q-journey";
+import QuoteUnfreezeButton from "@/components/QuoteUnfreezeButton";
+import { decideSentQuotePrice } from "@/lib/precio-tras-envio-math";
+import { priceBasisForMember } from "@/lib/lavori-directo";
+import { channelPriceToBaseCents } from "@/lib/lavori-directo-math";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -52,6 +56,30 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
       select: { sentAt: true },
     }),
   ]);
+  // Pago congelado por precio del jurado tras el envío (lib/precio-tras-envio).
+  const congelacion = await prisma.quote.findUnique({
+    where: { id: params.id },
+    select: {
+      paymentFrozenAt: true,
+      paymentFrozenReason: true,
+      paidAt: true,
+      discountAmount: true,
+      lines: { select: { quantity: true, unitPrice: true, supplierUnitCost: true } },
+    },
+  });
+  let frozenInfo: { clientBase: number; estimated: number; real: number; margin: number } | null = null;
+  if (congelacion?.paymentFrozenAt) {
+    const conPrecio = await prisma.lavoriPriceRequest.findMany({
+      where: { quoteId: params.id, priceCents: { not: null }, status: { in: ["PRICED", "ACCEPTED"] } },
+      select: { priceCents: true, miembroId: true },
+    });
+    const d = decideSentQuotePrice({
+      lines: congelacion.lines.map((l) => ({ quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : Number(l.supplierUnitCost) })),
+      discountCents: Math.round(Number(congelacion.discountAmount) * 100),
+      realCostCents: conPrecio.reduce((a, r) => a + channelPriceToBaseCents(r.priceCents!, priceBasisForMember(r.miembroId)), 0),
+    });
+    frozenInfo = { clientBase: d.clientBaseCents / 100, estimated: d.estimatedCostCents / 100, real: d.realCostCents / 100, margin: d.marginCents / 100 };
+  }
   const pendiente = isPendingCompletion(docsEvents.map((e) => e.processedAt), lastSend?.sentAt);
   const adjuntos = docsEvents
     .filter((e) => !lastSend?.sentAt || e.processedAt > lastSend.sentAt)
@@ -104,6 +132,26 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             excludeSession={String((quote as any).expedienteRef || "").startsWith("puerta:") ? String((quote as any).expedienteRef).slice(7) : null}
           />
         </div>
+        {congelacion?.paymentFrozenAt && (
+          <div className="mb-4 rounded-lg border border-rose-500/50 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+            <strong>{congelacion.paidAt ? "Cobrado con el pago CONGELADO: no se ha asignado al jurado." : "Pago CONGELADO: el cliente no puede pagar."}</strong>{" "}
+            La cifra del jurado llegó tras enviar el presupuesto y deja pérdida.
+            {frozenInfo && (
+              <span>
+                {" "}Precio del jurado (base) {frozenInfo.real.toFixed(2)} € · coste estimado {frozenInfo.estimated.toFixed(2)} € · base al cliente {frozenInfo.clientBase.toFixed(2)} € · margen {frozenInfo.margin.toFixed(2)} €.
+              </span>
+            )}
+            {congelacion.paymentFrozenReason && <p className="mt-1 italic">{congelacion.paymentFrozenReason}</p>}
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <QuoteUnfreezeButton quoteId={params.id} />
+              {solicitud && (
+                <Link href={`/zona-traductor/presupuesto?lead=${encodeURIComponent(solicitud.ref)}&nuevo=1`} className="underline hover:text-white">
+                  Montar uno nuevo con la cifra del jurado
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
         {pendiente && (
           <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
             <strong>Pendiente de completar:</strong> el cliente dice que faltaban documentos y los ha subido. Envíale el presupuesto actualizado (puede pagar el viejo, pero la página se lo desaconseja).

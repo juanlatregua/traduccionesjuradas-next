@@ -45,6 +45,9 @@ export async function runQuoteToOrderBridge(input: {
   // (buildPaidDigitalEmail con ETA) → pasa false para no duplicar. El pago
   // manual no mandaba ninguno → lo deja en true (default) y lo envía el puente.
   sendClientPaidEmail?: boolean;
+  // Pago de un presupuesto CONGELADO (lib/precio-tras-envio): el cobro se registra
+  // pero el encargo NO va solo al jurado; lo decide el staff.
+  skipAutoAssign?: boolean;
 }) {
   const { quote } = input;
 
@@ -89,9 +92,11 @@ export async function runQuoteToOrderBridge(input: {
     await assignDefaultFrenchEtaIfNeeded({ reference: order.reference, actorEmail: input.source }).catch((e) =>
       console.error("[quote-to-order] FR ETA failed", e)
     );
-    await autoAssignCollaboratorIfNeeded({ reference: order.reference, actorEmail: input.source }).catch((e) =>
-      console.error("[quote-to-order] auto collaborator failed", e)
-    );
+    if (!input.skipAutoAssign) {
+      await autoAssignCollaboratorIfNeeded({ reference: order.reference, actorEmail: input.source }).catch((e) =>
+        console.error("[quote-to-order] auto collaborator failed", e)
+      );
+    }
 
     // Aviso al CLIENTE: pago confirmado. Antes el pago MANUAL de presupuesto solo
     // avisaba a staff → el cliente pagaba (Bizum/transferencia) y no recibía nada.

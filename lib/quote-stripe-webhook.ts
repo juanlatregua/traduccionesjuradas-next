@@ -93,6 +93,8 @@ export async function processQuoteStripeEvent(event: any) {
         expedienteRef: true,
         balanceAmount: true,
         balancePaidAt: true,
+        paymentFrozenAt: true,
+        paymentFrozenReason: true,
         lines: { select: { description: true, unitPrice: true, sourceFileUrl: true, pageStart: true, pageEnd: true } },
       },
     });
@@ -283,7 +285,23 @@ export async function processQuoteStripeEvent(event: any) {
       // ETA, arriba) → el puente NO debe mandar otro. Evita el doble email.
       sendClientPaidEmail: false,
       payload: { stripeEventId: String(event.id || ""), quoteId: quote.id },
+      // Cobrado con el pago CONGELADO (sesión abierta antes de congelar): el dinero se
+      // acepta, pero el encargo no sale solo hacia el jurado.
+      skipAutoAssign: Boolean(quote.paymentFrozenAt),
     };
+    if (quote.paymentFrozenAt && !reprocess) {
+      const ficha = `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${quote.id}`;
+      const aviso = `COBRADO CONGELADO: ${quote.quoteNumber} se ha pagado con tarjeta (${bridgeInput.quote.totalEur.toFixed(2)} €) estando el pago congelado. NO se ha asignado al jurado: revisar. ${quote.paymentFrozenReason || ""} ${ficha}`;
+      await prisma.messageLog
+        .create({ data: { quoteId: quote.id, channel: "EMAIL", type: "MARGIN_OVERRIDE", recipient: process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net", subject: `[precio-tras-envio] cobrado congelado ${quote.quoteNumber}`, body: aviso, sentAt: new Date(), status: "SENT" } })
+        .catch((e) => console.error("[quotes:webhook] rastro cobrado congelado", e));
+      await Promise.all([
+        sendMail({ to: process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net", subject: `⛔ ${quote.quoteNumber} COBRADO CONGELADO: revisar antes de asignar`, text: aviso, html: `<p>${aviso}</p>` }).catch((e) =>
+          console.error("[quotes:webhook] aviso cobrado congelado email", e)
+        ),
+        sendStaffAlertSMS(aviso.slice(0, 300), `cobrado_congelado ${quote.quoteNumber}`).catch((e) => console.error("[quotes:webhook] aviso cobrado congelado SMS", e)),
+      ]);
+    }
     // El puente es idempotente por quoteId (cascarón) y por providerEventId (pago):
     // reintentar en el acto es seguro. Si sigue fallando, rastro + aviso por dos canales
     // y 500 para que Stripe reintente (sin el StripeEventLog, que lo daría por duplicado).

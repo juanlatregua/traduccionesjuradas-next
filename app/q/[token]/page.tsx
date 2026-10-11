@@ -24,6 +24,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { pickPublicLang, publicDict, statusLabel, localeFor } from "@/lib/quote-public-i18n";
 import { buildSignedOrderUrl } from "@/lib/order-token";
 import { buildWhatsAppLinkFromText, EMAIL } from "@/lib/contact";
+import { isPaymentFrozen } from "@/lib/precio-tras-envio-math";
 
 type Props = {
   params: { token: string };
@@ -191,6 +192,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       balanceAmount: true,
       balanceDueAt: true,
       balancePaidAt: true,
+      paymentFrozenAt: true,
       lines: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -212,7 +214,9 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
   if (!refreshed) notFound();
 
   const status = normalizeQuoteStatus(refreshed.status);
-  const isPayable = isQuotePayableStatus(status);
+  // Pago congelado (lib/precio-tras-envio): se ve el presupuesto, pero no se paga.
+  const frozen = isPaymentFrozen(refreshed);
+  const isPayable = isQuotePayableStatus(status) && !frozen;
   const subtotal = decimalToNumber(refreshed.subtotal);
   const discountAmount = decimalToNumber(refreshed.discountAmount);
   const shippingAmount = decimalToNumber(refreshed.shippingAmount);
@@ -439,7 +443,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                 )}
               </div>
             )}
-            {!paid && (
+            {!paid && !frozen && (
               <div id="pago" className="scroll-mt-4">
                 <QuotePublicPayButton
                   token={params.token}
@@ -522,6 +526,13 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
           </section>
         ) : (
           <>
+          {frozen && (
+            <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-encre" aria-labelledby="frozen-title">
+              <h2 id="frozen-title" className="text-lg font-semibold text-amber-900">{t.paymentFrozenTitle}</h2>
+              <p role="status" className="mt-1 text-sm text-sepia">{t.paymentFrozen}</p>
+              {contact}
+            </section>
+          )}
           {confirming && (
             <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-encre" aria-labelledby="confirming-title">
               <h2 id="confirming-title" className="text-lg font-semibold text-amber-900">{t.confirming}</h2>
