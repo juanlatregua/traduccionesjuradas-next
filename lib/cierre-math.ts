@@ -6,6 +6,7 @@
 import { DIRECT_AUTO_MAX_CENTS } from "./lavori-directo-math.ts";
 import { AUTO_LOST_NOTES, type AutoLostCode } from "./quote-lost-reasons.ts";
 import { cardPayUrl } from "./quote-messages.ts";
+import { CASA_LANGS, sameTranslatorName } from "./lavori-bridge.ts";
 
 /** Tope del envío automático: el mismo que el carril directo (300 € netos). */
 export const AUTO_SEND_MAX_CENTS = DIRECT_AUTO_MAX_CENTS;
@@ -240,10 +241,20 @@ export function hasCostGap(o: CostGapOrder, now: Date): boolean {
 
 const isFrLangPair = (langPair: string | null | undefined) => norm(langPair).split(/->|>|-|_|\s+/).includes("fr");
 
-/** Juan Silva (FR propio): su coste legítimo es null. «Juan Amor» y cualquier otro jurado no lo son. */
-export function isOwnTranslator(name: string | null | undefined): boolean {
-  const n = norm(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
-  return n === "juan" || n === "juan silva" || n.startsWith("juan silva ");
+/** Ficha de Collaborator del francés propio: identifica a Juan por email; el nombre es respaldo. */
+export const OWN_TRANSLATOR_EMAIL = CASA_LANGS.fr.collaboratorEmail;
+
+const normName = (v: string | null | undefined) => norm(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+
+/**
+ * Juan Silva (FR propio): su coste legítimo es null. ownNames = fullName de su ficha en BD
+ * (por OWN_TRANSLATOR_EMAIL); sin ella, respaldo por nombre. «Juan Amor» nunca lo es.
+ */
+export function isOwnTranslator(name: string | null | undefined, ownNames: string[] = []): boolean {
+  const n = normName(name);
+  if (!n) return false;
+  if ([...ownNames, CASA_LANGS.fr.nombre].some((o) => normName(o) === n)) return true;
+  return n === "juan silva" || n.startsWith("juan silva ");
 }
 
 /** «45,50» / 45.5 → 4550 céntimos; vacío o no válido → null. */
@@ -262,8 +273,14 @@ export function needsSupplierCost(i: {
   langPair: string | null | undefined;
   supplierCostCents: number | null | undefined;
   winningPriceCents?: number | null;
+  /** Traductor que tenía el pedido: si cambia, su coste no vale para el nuevo. */
+  previousTranslator?: string | null;
+  ownNames?: string[];
 }): boolean {
   if (!String(i.translator || "").trim()) return false;
-  if (i.supplierCostCents != null || i.winningPriceCents != null) return false;
-  return !(isFrLangPair(i.langPair) && isOwnTranslator(i.translator));
+  if (isFrLangPair(i.langPair) && isOwnTranslator(i.translator, i.ownNames)) return false;
+  if (i.winningPriceCents != null) return false;
+  const prev = String(i.previousTranslator || "").trim();
+  const costIsHis = !prev || sameTranslatorName(prev, i.translator);
+  return !(i.supplierCostCents != null && costIsHis);
 }

@@ -252,8 +252,12 @@ test("coste: francés propio cuenta como coste 0 explícito, no como hueco", () 
 });
 
 test("traductor propio: solo Juan Silva, nunca Juan Amor", () => {
-  for (const n of ["Juan Silva", "Juan Silva Moreno", " juan  silva moreno ", "Juan"]) assert.equal(isOwnTranslator(n), true, n);
-  for (const n of ["Juan Amor", "Juan Amor Fernández", "Maria", "", null]) assert.equal(isOwnTranslator(n), false, String(n));
+  // Valores reales de Order.assignedTo (BD, 90 días): «Juan Silva Moreno», «Juan Amor», «Juan Amor Fernández».
+  for (const n of ["Juan Silva", "Juan Silva Moreno", " juan  silva moreno "]) assert.equal(isOwnTranslator(n), true, n);
+  for (const n of ["Juan Amor", "Juan Amor Fernández", "Juan Latregua (EN)", "Juan", "Maria", "", null]) assert.equal(isOwnTranslator(n), false, String(n));
+  // La ficha de BD (por email) manda: si Juan figura con otro nombre, también es propio.
+  assert.equal(isOwnTranslator("J. Silva", ["J. Silva"]), true);
+  assert.equal(isOwnTranslator("Juan Amor", ["Juan Silva Moreno"]), false);
 });
 
 test("asignar exige coste: jurado ajeno sin cifra sí; FR propio, vacío o con cifra no", () => {
@@ -268,6 +272,16 @@ test("asignar exige coste: jurado ajeno sin cifra sí; FR propio, vacío o con c
   assert.equal(needsSupplierCost({ ...b, translator: "Juan Amor", langPair: "pt->es" }), true, "Juan Amor necesita coste");
   assert.equal(needsSupplierCost({ ...b, translator: "Juan Amor", langPair: "fr->es" }), true);
   assert.equal(needsSupplierCost({ ...b, translator: "Juan Silva", langPair: "en->es" }), true, "fuera del francés no es coste propio");
+});
+
+test("reasignar X→Y: el coste de X no vale para Y", () => {
+  const b = { translator: "Daniela Cleintuar", langPair: "ro->es", supplierCostCents: 4000 };
+  assert.equal(needsSupplierCost({ ...b, previousTranslator: "Maria Murariu Ursu" }), true);
+  assert.equal(needsSupplierCost({ ...b, previousTranslator: "Daniela Cleintuar" }), false, "mismo traductor: su coste vale");
+  assert.equal(needsSupplierCost({ ...b, previousTranslator: "Daniela" }), false, "mismo nombre abreviado");
+  assert.equal(needsSupplierCost({ ...b, previousTranslator: null }), false, "sin traductor previo: el coste del pedido vale");
+  assert.equal(needsSupplierCost({ ...b, previousTranslator: "Maria Murariu Ursu", winningPriceCents: 3500 }), false, "Y ya tiene precio ganador");
+  assert.equal(needsSupplierCost({ ...b, translator: "Juan Silva Moreno", langPair: "fr->es", previousTranslator: "Inge Luken" }), false, "a FR propio no pide coste");
 });
 test("coste: no pagados o cancelados no cuentan", () => {
   assert.equal(hasCostGap({ ...order, paymentStatus: "PENDING" }, NOW), false);

@@ -62,7 +62,11 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
         <input
           type="text"
           value={assignedTo}
-          onChange={(e) => setAssignedTo(e.target.value)}
+          onChange={(e) => {
+            setAssignedTo(e.target.value);
+            // Otro traductor = otra cifra: el coste del anterior no se arrastra.
+            if (e.target.value.trim() !== (currentAssignedTo || "").trim()) setCostEur("");
+          }}
           list="translator-profiles"
           placeholder="Nombre del traductor"
           className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
