@@ -97,6 +97,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
     where: { quoteId: null, status: { in: ["SENT", "PRICED"] } },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 20,
+    include: { caso: { select: { id: true, ref: true } } },
   });
 
   // Encargos vivos en lavori que ya no salen arriba (con presupuesto, aceptados o
@@ -226,6 +227,15 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {lead.caso && (
+                        <Link
+                          href={`/zona-traductor/casos/${lead.caso.id}`}
+                          className="rounded-lg border border-cyan-500/40 px-3 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                          title={lead.caso.ref}
+                        >
+                          Ver caso
+                        </Link>
+                      )}
                       {priced ? (
                         <Link href={href} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
                           Montar presupuesto

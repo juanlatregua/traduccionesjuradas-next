@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PMQuickCreatePanel from "./PMQuickCreatePanel";
 
-type ModoActivo = "pedidos" | "clientes" | "presupuestos" | "facturas" | "contabilidad" | "ajustes" | "panel";
+type ModoActivo = "pedidos" | "casos" | "clientes" | "presupuestos" | "facturas" | "contabilidad" | "ajustes" | "panel";
 
 type Props = {
   pedidosAccionables: number;
@@ -15,7 +15,7 @@ type Props = {
   staffRole?: string | null;
 };
 
-// Barra de 6 pestañas: una por ETAPA del ciclo, no una por pantalla.
+// Barra de pestañas: una por ETAPA del ciclo, no una por pantalla (Casos = la vista que las cose, F3a).
 // Lo que antes eran pestañas sueltas vive ahora dentro de su etapa:
 //   Resumen/control  → Pedidos (vista Tabla)
 //   Presupuesto      → Presupuestos (sub-vista Builder)
@@ -26,6 +26,7 @@ type Props = {
 const TABS: { href: string; label: string; key: ModoActivo }[] = [
   { href: "/zona-traductor", label: "Pedidos", key: "pedidos" },
   { href: "/zona-traductor/presupuestos", label: "Presupuestos", key: "presupuestos" },
+  { href: "/zona-traductor/casos", label: "Casos", key: "casos" },
   { href: "/zona-traductor/clientes", label: "Clientes", key: "clientes" },
   { href: "/zona-traductor/facturas", label: "Facturas", key: "facturas" },
   { href: "/zona-traductor/contabilidad", label: "Contabilidad", key: "contabilidad" },

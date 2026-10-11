@@ -202,6 +202,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
       clientInvoice: { select: { number: true, totalCents: true, status: true, docKind: true, issuedAt: true, dueDate: true, paidAt: true, annulledAt: true } },
       monthlyInvoice: { select: { id: true, number: true, status: true, docKind: true, periodKey: true, issuedAt: true, dueDate: true, paidAt: true, annulledAt: true } },
       quote: { select: { id: true, quoteNumber: true } },
+      caso: { select: { id: true, ref: true } },
       documentItems: { orderBy: { createdAt: "asc" } },
       documentAnalyses: {
         select: { fileName: true, fileUrl: true, mimeType: true, fileSize: true, createdAt: true },
@@ -464,6 +465,15 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               >
                 ⤓ Descargar expediente
               </a>
+              {order.caso && (
+                <a
+                  href={`/zona-traductor/casos/${order.caso.id}`}
+                  className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-cyan-300 hover:bg-cyan-500/20"
+                  title="Toda la historia del cliente: entradas, solicitudes, presupuestos y pedido"
+                >
+                  Ver caso {order.caso.ref}
+                </a>
+              )}
               <span className="rounded-md bg-slate-700/50 px-2 py-1 text-slate-100">
                 {getWorkflowStateLabel(workflowState)}
               </span>

@@ -61,6 +61,7 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
       paymentFrozenReason: true,
       paidAt: true,
       lines: { select: { supplierUnitCost: true } },
+      caso: { select: { id: true, ref: true } },
     },
   });
   const costeEstimadoCero =
@@ -93,6 +94,14 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             </Link>
             <span className="text-slate-600">·</span>
             <h1 className="font-mono text-sm font-bold text-cyan-300">{numero}</h1>
+            {congelacion?.caso && (
+              <Link
+                href={`/zona-traductor/casos/${congelacion.caso.id}`}
+                className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20"
+              >
+                Ver caso {congelacion.caso.ref}
+              </Link>
+            )}
           </div>
           <Link
             href={`/zona-traductor/presupuestos/${params.id}/editar`}
