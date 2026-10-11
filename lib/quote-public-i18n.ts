@@ -185,6 +185,8 @@ export type PublicDict = {
   confirming: string;
   confirmingHelp: string;
   retryPay: string;
+  paymentFrozenTitle: string;
+  paymentFrozen: string;
 };
 
 const ES: PublicDict = {
@@ -346,6 +348,8 @@ const ES: PublicDict = {
   confirming: "Pago en confirmación",
   confirmingHelp: "Estamos esperando la confirmación de tu pago. Si no recibes el email de confirmación en unos minutos, escríbenos.",
   retryPay: "¿No se completó? Inténtalo de nuevo",
+  paymentFrozenTitle: "Presupuesto en revisión",
+  paymentFrozen: "Estamos actualizando tu presupuesto; te escribimos en breve.",
 };
 
 const EN: PublicDict = {
@@ -507,6 +511,8 @@ const EN: PublicDict = {
   confirming: "Payment being confirmed",
   confirmingHelp: "We are waiting for your payment to be confirmed. If you do not get a confirmation email in a few minutes, write to us.",
   retryPay: "Did it not go through? Try again",
+  paymentFrozenTitle: "Quote under review",
+  paymentFrozen: "We are updating your quote; we will write to you shortly.",
 };
 
 const FR: PublicDict = {
@@ -668,6 +674,8 @@ const FR: PublicDict = {
   confirming: "Paiement en cours de confirmation",
   confirmingHelp: "Nous attendons la confirmation de votre paiement. Sans e-mail de confirmation dans quelques minutes, écrivez-nous.",
   retryPay: "Le paiement n'a pas abouti ? Réessayez",
+  paymentFrozenTitle: "Devis en cours de révision",
+  paymentFrozen: "Nous mettons à jour votre devis ; nous vous écrivons très bientôt.",
 };
 
 const PT: PublicDict = {
@@ -829,6 +837,8 @@ const PT: PublicDict = {
   confirming: "Pagamento em confirmação",
   confirmingHelp: "Estamos a aguardar a confirmação do seu pagamento. Se não receber o email de confirmação em alguns minutos, escreva-nos.",
   retryPay: "Não foi concluído? Tente novamente",
+  paymentFrozenTitle: "Orçamento em revisão",
+  paymentFrozen: "Estamos atualizando o seu orçamento; escreveremos em breve.",
 };
 
 const IT: PublicDict = {
@@ -990,6 +1000,8 @@ const IT: PublicDict = {
   confirming: "Pagamento in conferma",
   confirmingHelp: "Stiamo attendendo la conferma del pagamento. Se non ricevi l'email di conferma entro pochi minuti, scrivici.",
   retryPay: "Non è andato a buon fine? Riprova",
+  paymentFrozenTitle: "Preventivo in revisione",
+  paymentFrozen: "Stiamo aggiornando il tuo preventivo; ti scriveremo a breve.",
 };
 
 const DE: PublicDict = {
@@ -1151,6 +1163,8 @@ const DE: PublicDict = {
   confirming: "Zahlung wird bestätigt",
   confirmingHelp: "Wir warten auf die Bestätigung Ihrer Zahlung. Falls Sie in einigen Minuten keine Bestätigungs-E-Mail erhalten, schreiben Sie uns.",
   retryPay: "Nicht abgeschlossen? Erneut versuchen",
+  paymentFrozenTitle: "Angebot wird überarbeitet",
+  paymentFrozen: "Wir aktualisieren Ihr Angebot und melden uns in Kürze bei Ihnen.",
 };
 
 const DICTS: Record<PublicLang, PublicDict> = { es: ES, en: EN, fr: FR, pt: PT, it: IT, de: DE };

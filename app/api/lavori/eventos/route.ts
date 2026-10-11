@@ -659,8 +659,11 @@ async function handleLeadEvento(opts: {
       const quoteAtadoEstado = lead.quoteId
         ? (await prisma.quote.findUnique({ where: { id: lead.quoteId }, select: { status: true } }))?.status ?? null
         : null;
+      // También cuando es el PRIMER precio y llega con el presupuesto ya enviado
+      // (Florian 2026-00250, Bianca 2026-00245): antes no avisaba nadie.
       const cifraCambiadaTrasEnvio =
-        Boolean(lead.quoteId) && quoteAtadoEstado !== "DRAFT" && lead.priceCents != null && lead.priceCents !== precioCents;
+        Boolean(lead.quoteId) && quoteAtadoEstado != null && quoteAtadoEstado !== "DRAFT" && lead.priceCents !== precioCents;
+      const primerPrecioTrasEnvio = cifraCambiadaTrasEnvio && lead.priceCents == null;
       let quoteNumeroCambiado: string | null = null;
       if (cifraCambiadaTrasEnvio && lead.quoteId) {
         const q = await prisma.quote.findUnique({ where: { id: lead.quoteId }, select: { quoteNumber: true } });
@@ -728,6 +731,22 @@ async function handleLeadEvento(opts: {
           .catch((err) => ({ ok: false as const, reason: String(err?.message || err) }));
         if (relleno.ok) borradorRelleno = relleno;
         else borradorFallo = relleno.reason;
+      }
+
+      // Presupuesto YA ENVIADO y sin pagar: el coste real entra en las líneas sin
+      // tocar el precio al cliente, o se congela el pago si hay pérdida
+      // (lib/precio-tras-envio). Nunca tumba la respuesta a lavori (un 500 = reintentos).
+      let trasEnvio: Awaited<ReturnType<typeof import("@/lib/precio-tras-envio").handleLeadPriceOnSentQuote>> | null = null;
+      if (lead.quoteId && quoteAtadoEstado && ["SENT", "OPENED", "ACCEPTED"].includes(quoteAtadoEstado)) {
+        try {
+          trasEnvio = await import("@/lib/precio-tras-envio").then((m) => m.handleLeadPriceOnSentQuote(lead.id));
+        } catch (err) {
+          console.error("[lavori-eventos] precio tras envío fallo:", err);
+        }
+      }
+      if (trasEnvio?.handled) {
+        // Ya avisó por su cuenta (email y, según el margen, SMS) con antes/después.
+        return NextResponse.json({ ok: true, repetido: false }, { status: 201 });
       }
 
       // Funnel directo (Juan 15/21-sep-2026): esta solicitud fue SOLO a los
@@ -809,7 +828,9 @@ async function handleLeadEvento(opts: {
           })()
         : "";
       const subject = cifraCambiadaTrasEnvio
-        ? `⚠ ${miembro} ha CAMBIADO la cifra tras enviar el presupuesto ${quoteNumeroCambiado}: antes ${(lead.priceCents! / 100).toFixed(2)} €, ahora ${precio} €`
+        ? primerPrecioTrasEnvio
+          ? `⚠ Precio de ${miembro} recibido DESPUÉS de enviar el presupuesto ${quoteNumeroCambiado}: ${precio} €`
+          : `⚠ ${miembro} ha CAMBIADO la cifra tras enviar el presupuesto ${quoteNumeroCambiado}: antes ${(lead.priceCents! / 100).toFixed(2)} €, ahora ${precio} €`
         : borradorDirecto
           ? `🧾 Borrador directo ${borradorDirecto.quoteNumber}: ${miembro} cotiza ${precio} € — revísalo y envíalo tú`
           : `💶 Precio de ${miembro} para la solicitud ${lead.par}${quien}: ${precio} €`;
@@ -828,13 +849,15 @@ async function handleLeadEvento(opts: {
       // cliente (presupuesto enviado) y esto puede dejar el margen a cero.
       if (cifraCambiadaTrasEnvio) {
         await sendStaffAlertSMS(
-          `${miembro} cambió la cifra tras enviar ${quoteNumeroCambiado}: ${(lead.priceCents! / 100).toFixed(2)}€ → ${precio}€`,
+          primerPrecioTrasEnvio
+            ? `Precio de ${miembro} recibido tras enviar ${quoteNumeroCambiado}: ${precio}€ — revisa el coste`
+            : `${miembro} cambió la cifra tras enviar ${quoteNumeroCambiado}: ${(lead.priceCents! / 100).toFixed(2)}€ → ${precio}€`,
           `cifra_cambiada ${lead.ref}`
         ).catch(() => {});
       }
       await staffMail(subject, [
         cifraCambiadaTrasEnvio
-          ? `El presupuesto ${quoteNumeroCambiado} ya salió al cliente con la cifra anterior. Al pagar, NO se aceptará sola si la nueva cifra supera el coste ya puesto en las líneas — decide tú.`
+          ? `El presupuesto ${quoteNumeroCambiado} ya salió al cliente ${primerPrecioTrasEnvio ? "con el coste estimado" : "con la cifra anterior"}${trasEnvio && !trasEnvio.handled ? ` (no se pudo tratar solo: ${trasEnvio.reason})` : ""}. Al pagar, NO se aceptará sola si la nueva cifra supera el coste ya puesto en las líneas — decide tú.`
           : "",
         directoResultado?.kind === "fallo" ? `No salió solo: ${directoResultado.reason}` : "",
         `${miembro} ha propuesto ${precio} € por la solicitud de precio ${lead.ref} (${lead.par})${quien}.`,

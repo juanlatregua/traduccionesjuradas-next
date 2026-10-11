@@ -664,6 +664,13 @@ model Quote {
   casoId         String?
   liveCasoKey    String?           @unique
   supersededAt   DateTime?
+  // Pago CONGELADO (lib/precio-tras-envio): la cifra del jurado llegó tras enviar
+  // el presupuesto y deja pérdida. /q no deja pagar y los endpoints de pago dan 409
+  // hasta que el staff lo desbloquea. paymentFreezeKey = la cifra que lo congeló
+  // (ref:precio:miembro), para no recongelar con el mismo evento repetido.
+  paymentFrozenAt     DateTime?
+  paymentFrozenReason String?
+  paymentFreezeKey    String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
