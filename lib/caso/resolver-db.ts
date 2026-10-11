@@ -64,6 +64,16 @@ export function clavesDeLock(id: Identidad, a: Anclas = {}): string[] {
   return [...out].sort();
 }
 
+/** Toma los locks en orden; lo usa también scripts/caso-backfill.ts (mismas claves, mismo espacio). */
+export async function bloquearClaves(
+  tx: { $executeRaw: (query: TemplateStringsArray, ...values: unknown[]) => PromiseLike<number> },
+  claves: string[]
+): Promise<void> {
+  for (const k of [...new Set(claves)].sort()) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('caso'), hashtext(${k}))`;
+  }
+}
+
 function anclaPrincipal(a: Anclas): string {
   return a.quoteId || a.lprRef || a.orderId || a.sessionToken || a.expedienteRef || a.inboundId || randomBytes(6).toString("hex");
 }
@@ -96,9 +106,7 @@ export async function resolverCaso(input: ResolverInput): Promise<ResolverResult
   return prisma.$transaction(
     async (tx) => {
       const base = identidadDe(input.contacto, { alias, propios });
-      for (const k of clavesDeLock(base, anclas)) {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('caso'), hashtext(${k}))`;
-      }
+      await bloquearClaves(tx, clavesDeLock(base, anclas));
 
       const vecinos = base.phone9
         ? await tx.caso.findMany({ where: { phone9: base.phone9 }, select: { email: true, phone9: true, nombre: true } })

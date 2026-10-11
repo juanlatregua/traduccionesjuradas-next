@@ -11,10 +11,10 @@
 import { prisma as base } from "../lib/prisma";
 import { getWorkflowState } from "../lib/workflow";
 import { expedienteRefForInbound } from "../lib/inbox";
-import { aliasDesdeEnv } from "../lib/caso/identidad";
+import { aliasDesdeEnv, identidadDe } from "../lib/caso/identidad";
 import { puedeCaso, esCasoEstado } from "../lib/caso/estados";
-import { planBackfill, casoCerradoEn, NOTA_SUSTITUIDO, type BackfillInput, type BackfillPlan, type BSesion } from "../lib/caso/backfill-plan";
-import { nuevaRefCaso } from "../lib/caso/resolver-db";
+import { planBackfill, casoCerradoEn, NOTA_SUSTITUIDO, type BackfillInput, type BackfillPlan, type BSesion, type CasoPlan } from "../lib/caso/backfill-plan";
+import { nuevaRefCaso, bloquearClaves } from "../lib/caso/resolver-db";
 
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
@@ -48,7 +48,7 @@ async function leer(tx: Tx): Promise<{ input: BackfillInput; hayCaso: boolean; a
       orderBy: { createdAt: "asc" },
       select: {
         id: true, quoteNumber: true, status: true, deletedAt: true, customerId: true, customerEmail: true, customerPhone: true, customerName: true,
-        sourceLang: true, targetLang: true, expedienteRef: true, holderNames: true, createdAt: true, paidAt: true, balanceAmount: true,
+        sourceLang: true, targetLang: true, expedienteRef: true, createdAt: true, paidAt: true, balanceAmount: true,
         balancePaidAt: true, lostReason: true, lostReasonNote: true, lines: { select: { sourceFileUrl: true } },
       },
     }),
@@ -148,13 +148,15 @@ function informe(plan: BackfillPlan, extra: { hayCaso: boolean; analisisSinSesio
   L.push(`Casos nuevos: ${nuevos.length} · existentes tocados: ${plan.casos.length - nuevos.length}`);
   L.push(`Por estado (nuevos): ${[...porEstado].map(([e, n]) => `${e} ${n}`).join(" · ")}`);
   const abiertos = plan.casos.filter((c) => c.estado === "ABIERTO");
-  const vivos = new Set(i.quotes.filter((q) => !q.deletedAt && ["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status)).map((q) => q.id));
+  const vivos = new Set(i.quotes.filter((q) => !q.deletedAt && !q.lostReason && ["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status)).map((q) => q.id));
   const conQuoteViva = abiertos.filter((c) => c.vigenteId && vivos.has(c.vigenteId)).length;
   L.push(`Abiertos: ${abiertos.length} (${conQuoteViva} con presupuesto vigente vivo, ${abiertos.length - conQuoteViva} solo por solicitud de precio viva ≤30 d)`);
   L.push(`Con 2+ presupuestos: ${multi.length} (máx. ${Math.max(0, ...multi.map((c) => c.refs.filter((r) => /^\d{4}-\d{5}$/.test(r)).length))})`);
   for (const c of multi) L.push(`  - ${name(c.id)} [${c.estado}] ${c.refs.join(" + ")}`);
   L.push(`Vigentes a fijar (liveCasoKey): ${plan.casos.filter((c) => c.vigenteId).length}`);
   L.push(`Sustituciones: ${plan.sustituciones.length} (supersededAt ${plan.sustituciones.filter((s) => s.supersededAt).length} · nota ${NOTA_SUSTITUIDO} ${plan.sustituciones.filter((s) => s.notaSustituido).length} · quitar clave ${plan.sustituciones.filter((s) => s.quitarClave).length}) — el status de ningún presupuesto cambia`);
+  const notas = plan.sustituciones.filter((s) => s.notaSustituido).map((s) => s.quoteNumber);
+  L.push(`Nota ${NOTA_SUSTITUIDO} a escribir en: ${notas.length ? notas.join(", ") : "ninguno"}`);
   const vivasViejas = plan.sustituciones.filter((s) => s.sigueViva);
   L.push(`Versiones antiguas aún vivas (status sin tocar; revisar): ${vivasViejas.length}${vivasViejas.length ? " → " + vivasViejas.map((s) => s.quoteNumber).join(", ") : ""}`);
   L.push(`Conflictos de vigente resueltos (2+ presupuestos vivos/pagados en un caso): ${plan.conflictosVigente.length}`);
@@ -177,6 +179,16 @@ function informe(plan: BackfillPlan, extra: { hayCaso: boolean; analisisSinSesio
   return L.join("\n");
 }
 
+function clavesDeCaso(c: CasoPlan): string[] {
+  const id = identidadDe({ email: c.email, phone: c.phone9 }, { alias: aliasDesdeEnv() });
+  return [
+    ...id.keys,
+    ...c.quoteIds.map((q) => `q:${q}`),
+    ...c.orderIds.map((o) => `o:${o}`),
+    ...c.refs.filter((r) => r.startsWith("LEAD-")).map((r) => `l:${r}`),
+  ];
+}
+
 async function aplicar(plan: BackfillPlan) {
   const ids = new Map<string, string>();
   const real = (id: string) => ids.get(id) || id;
@@ -188,6 +200,8 @@ async function aplicar(plan: BackfillPlan) {
     const lote = plan.casos.slice(i, i + LOTE);
     await prisma.$transaction(
       async (tx) => {
+        // Mismas claves y mismo espacio de locks que resolver-db: el backfill relanzado no pisa a una entrada en vivo.
+        await bloquearClaves(tx, lote.flatMap(clavesDeCaso));
         for (const c of lote) {
           let casoId = c.id;
           if (c.nuevo) {
@@ -224,22 +238,19 @@ async function aplicar(plan: BackfillPlan) {
               await tx.quote.updateMany({ where: { id: s.quoteId, status: "EXPIRED", lostReason: null, lostReasonNote: null }, data: { lostReasonNote: NOTA_SUSTITUIDO } });
           }
           if (c.vigenteId) await tx.quote.updateMany({ where: { id: c.vigenteId, deletedAt: null, casoId }, data: { liveCasoKey: casoId } });
+          const notaSustituido = (sust.get(c.id) || []).filter((s) => s.notaSustituido).map((s) => s.quoteNumber);
           await tx.casoEvento.create({
-            data: { casoId, tipo: "backfill", actor, payload: { nuevo: c.nuevo, motivos: c.motivos, refs: c.refs } },
+            data: { casoId, tipo: "backfill", actor, payload: { nuevo: c.nuevo, motivos: c.motivos, refs: c.refs, notaSustituido } },
           });
+          // Dentro del lote: si se corta, lo ya escrito lleva su «posible» y el relanzamiento no lo repite.
+          if (c.posibles.length) {
+            await tx.casoEvento.create({ data: { casoId, tipo: "posible", actor, payload: { con: c.posibles.map(real) } } });
+          }
         }
       },
       { timeout: 60_000 }
     );
     console.log(`lote ${i / LOTE + 1}: ${lote.length} casos`);
-  }
-  const conPosibles = plan.casos.filter((c) => c.posibles.length);
-  for (let i = 0; i < conPosibles.length; i += LOTE) {
-    await prisma.$transaction(
-      conPosibles.slice(i, i + LOTE).map((c) =>
-        prisma.casoEvento.create({ data: { casoId: real(c.id), tipo: "posible", actor, payload: { con: c.posibles.map(real) } } })
-      )
-    );
   }
 }
 
