@@ -16,6 +16,8 @@
 // Nunca francés (motor de reglas de Juan) ni pares sin español.
 
 import { prisma } from "@/lib/prisma";
+import { casoIdEnSombra, tomarVigente } from "@/lib/caso/sombra";
+import { anclasDeExpediente, paresDe } from "@/lib/caso/sombra-plan";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import { computeQuoteTotals, calculateValidUntil, generateQuoteNumber, generateQuoteToken, decimalToNumber } from "@/lib/quotes";
 import { QUOTE_PDF_LANGS } from "@/lib/quote-pdf-langs";
@@ -486,6 +488,8 @@ export type CreateAutoQuoteOpts = {
   /** Se ejecuta justo tras crear el Quote, ANTES de enviarlo (p. ej. atar el
    * quoteId a la solicitud de lavori de la que salió el precio). */
   onQuoteCreated?: (quoteId: string) => Promise<void>;
+  /** Caso ya conocido (la puerta, la solicitud de la que sale el precio); undefined = se resuelve aquí. */
+  casoId?: string | null;
 };
 
 export type CreateAutoQuoteResult =
@@ -521,6 +525,19 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
     const t = generateQuoteToken(28);
     if (!(await prisma.quote.findUnique({ where: { publicToken: t }, select: { id: true } }))) publicToken = t;
   }
+
+  // Caso ANTES de la transacción y fuera de ella (fail-open: sin caso, el presupuesto se crea igual).
+  const entradaCaso = opts.channelPriceSource === "learned-rate" ? "tarifario" : "directo";
+  const casoId =
+    opts.casoId !== undefined
+      ? opts.casoId
+      : await casoIdEnSombra({
+          entrada: entradaCaso,
+          contacto: { email: opts.contacto.email, phone: opts.contacto.phone, nombre: opts.contacto.name },
+          pares: paresDe(opts.sourceLang, opts.targetLang),
+          anclas: anclasDeExpediente(opts.expedienteRef),
+          actor: opts.adminCreatedBy,
+        });
 
   const created = await prisma.$transaction(async (tx) => {
     const customer = await tx.customer.upsert({
@@ -559,6 +576,7 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
         paymentMethods: ["sabadell", "bizum607"],
         pdfLang,
         autoPricedBy: opts.autoPricedBy,
+        casoId,
         lavoriMiembroId: opts.miembro.id,
         lavoriMiembroNombre: opts.miembro.nombre,
         lines: {
@@ -576,6 +594,7 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
     });
   });
 
+  await tomarVigente(created.id, casoId, entradaCaso);
   if (opts.onQuoteCreated) await opts.onQuoteCreated(created.id);
 
   if (!opts.send) {
@@ -611,6 +630,7 @@ export async function autoQuoteFromPuertaSession(opts: {
   contactPhone: string;
   contactName?: string | null;
   locale?: string | null;
+  casoId?: string | null;
 }): Promise<AutoQuoteResult> {
   if (!isLearnedRatesLive()) return { ok: false, reason: "LEARNED_RATES_LIVE=off" };
   const rows = await prisma.documentAnalysis.findMany({
@@ -725,6 +745,7 @@ export async function autoQuoteFromPuertaSession(opts: {
     // Borrador para que lo revise y envíe Juan (orden 21-sep-2026): nada sale solo.
     // Salvo LEARNED_RATES_AUTOSEND=on: entonces se intenta enviar abajo, tras las guardas.
     send: false,
+    ...(opts.casoId !== undefined ? { casoId: opts.casoId } : {}),
   });
   if (!result.ok) return result;
 

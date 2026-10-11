@@ -14,6 +14,8 @@ import { parseCreateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
 import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 import { inheritBillingFromHistory } from "@/lib/recurrent-client-db";
+import { casoIdEnSombra, tomarVigente } from "@/lib/caso/sombra";
+import { anclasDeExpediente, paresDe } from "@/lib/caso/sombra-plan";
 
 export const runtime = "nodejs";
 
@@ -103,6 +105,26 @@ export async function POST(req: Request) {
       generateUniquePublicToken(),
     ]);
 
+    // Caso en sombra (F2): en su propia transacción y ANTES de la del alta; un fallo = sin caso.
+    const urlsCaso = totals.lines.map((l) => l.sourceFileUrl).filter((u): u is string => Boolean(u));
+    const [hashesCaso, clienteCaso] = await Promise.all([
+      urlsCaso.length
+        ? prisma.documentAnalysis.findMany({ where: { fileUrl: { in: urlsCaso }, fileHash: { not: null } }, select: { fileHash: true } }).catch(() => [])
+        : Promise.resolve([]),
+      prisma.customer
+        .findFirst({ where: { email: { equals: parsed.data.customerEmail.trim(), mode: "insensitive" } }, select: { id: true } })
+        .catch(() => null),
+    ]);
+    const casoId = await casoIdEnSombra({
+      entrada: "constructor",
+      contacto: { email: parsed.data.customerEmail, phone: parsed.data.customerPhone, nombre: parsed.data.customerName },
+      pares: paresDe(parsed.data.sourceLang, parsed.data.targetLang),
+      docs: { hashes: [...new Set(hashesCaso.map((h) => h.fileHash!))], contentKeys: [] },
+      anclas: { ...anclasDeExpediente(expedienteRef), lprRef: lavoriLeadRef },
+      customerId: clienteCaso?.id ?? null,
+      actor: access.email || "staff",
+    });
+
     const createdTx = await prisma.$transaction(async (tx) => {
       // Cliente que vuelve con el email en otra capitalización: se enlaza a SU ficha
       // (con sus datos de facturación) en vez de crear una ficha gemela vacía.
@@ -144,7 +166,7 @@ export async function POST(req: Request) {
         select: { id: true, quoteNumber: true },
         orderBy: { createdAt: "desc" },
       });
-      if (huerfano) await tx.quote.update({ where: { id: huerfano.id }, data: { deletedAt: new Date() } });
+      if (huerfano) await tx.quote.update({ where: { id: huerfano.id }, data: { deletedAt: new Date(), liveCasoKey: null } });
 
       const quote = await tx.quote.create({
         data: {
@@ -178,6 +200,7 @@ export async function POST(req: Request) {
           total: totals.total,
           adminCreatedBy: access.email,
           expedienteRef,
+          casoId,
           // Marca de la tarifa por página DE→ES (el builder solo la manda si todas
           // las filas siguen tal cual las dejó el motor). Cualquier otro valor se ignora.
           ...(body.autoPricedBy === PAGE_TARIFF_MARK ? { autoPricedBy: PAGE_TARIFF_MARK } : {}),
@@ -207,6 +230,7 @@ export async function POST(req: Request) {
       return { quote, huerfano };
     });
     const created = createdTx.quote;
+    await tomarVigente(created.id, casoId, "constructor");
     await inheritBillingFromHistory(created.customerId, parsed.data.customerEmail).catch((err) =>
       console.error("[quotes:create] herencia de facturación falló:", err)
     );

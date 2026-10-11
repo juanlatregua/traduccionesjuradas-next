@@ -9,6 +9,7 @@ import { inferFlowProfile, getWorkflowState } from "@/lib/workflow";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { findTranslatorProfile } from "@/lib/translators";
 import { sendTranslationStartedAssignedEmail } from "@/lib/email";
+import { adjuntarPedidoACaso } from "@/lib/caso/sombra";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -127,6 +128,7 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
   if (existing) {
     await linkDocumentAnalysesToOrder(reference, existing.id);
     await wireSessionDocsToOrder(existing.id, docs);
+    await adjuntarPedidoACaso(existing.id, "system:pedido");
     return existing;
   }
   try {
@@ -189,6 +191,7 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
     });
     await linkDocumentAnalysesToOrder(reference, order.id);
     await wireSessionDocsToOrder(order.id, docs);
+    await adjuntarPedidoACaso(order.id, "system:pedido");
     return order;
   } catch (err: any) {
     if (err?.code === "P2002") {
@@ -434,6 +437,7 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
   const existing = await prisma.order.findFirst({ where: { quoteId: input.quoteId } });
   if (existing) {
     await completeQuoteOrderExtras(existing.id, input);
+    await adjuntarPedidoACaso(existing.id, "system:pedido");
     return existing;
   }
 
@@ -484,6 +488,8 @@ export async function createOrderShellFromQuote(input: CreateOrderFromQuoteInput
         return created;
       });
       await completeQuoteOrderExtras(order.id, input);
+      // El pedido hereda el caso de su presupuesto (fuera de la transacción; fail-open).
+      await adjuntarPedidoACaso(order.id, "system:pedido");
       return order;
     } catch (err: any) {
       if (err?.code === "P2002") {

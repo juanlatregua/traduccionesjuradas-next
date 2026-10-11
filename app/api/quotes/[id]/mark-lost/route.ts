@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { QUOTE_LOST_REASONS, type QuoteLostReasonCode } from "@/lib/quote-lost-reasons";
+import { recalcularCaso } from "@/lib/caso/sombra";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,7 @@ export async function POST(req: Request, { params }: Params) {
     select: {
       id: true,
       status: true,
+      casoId: true,
       paidAt: true,
       orders: { where: { paymentStatus: "PAID" }, select: { id: true }, take: 1 },
     },
@@ -58,6 +60,7 @@ export async function POST(req: Request, { params }: Params) {
       lostFeedbackAt: now,
     },
   });
+  await recalcularCaso(quote.casoId, access.email || "staff", "no aceptado");
 
   return NextResponse.json({ ok: true });
 }

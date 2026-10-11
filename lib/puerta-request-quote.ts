@@ -20,6 +20,8 @@ import { recurrentLabel } from "@/lib/recurrent-client";
 import { findOpenSiblings, sameDocumentSiblingIds } from "@/lib/open-siblings-db";
 import { blockingSibling, describeSibling } from "@/lib/open-siblings";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
+import { casoEnSombra, compararGuarda, estamparSesion } from "@/lib/caso/sombra";
+import { paresDe } from "@/lib/caso/sombra-plan";
 
 export type PuertaQuoteResult = { status: number; body: Record<string, unknown> };
 
@@ -125,6 +127,21 @@ export async function routePuertaQuoteRequest(input: {
     // documento → flujo normal + aviso [MISMA PERSONA]. Solo teléfono = aviso, nunca bloqueo.
     // La respuesta pública es idéntica en todos los casos.
     const parLead = lead?.sourceLang ? parFromLangs(lead.sourceLang, lead.targetLang) : null;
+    // Caso en sombra (F2): se resuelve aquí, antes de crear nada, y se estampa en la sesión.
+    // Las guardas de abajo siguen decidiendo; si el resolver falla, caso = null y nada cambia.
+    const contacto = { email: contactEmail, phone: contactPhone, nombre: docs[0]?.clientName };
+    const caso = await casoEnSombra(
+      {
+        entrada: "puerta",
+        contacto,
+        pares: parLead ? [parLead] : paresDe(docs[0]?.sourceLanguage, docs[0]?.targetLanguage),
+        docs: { hashes: (lead?.rows || []).map((r) => r.fileHash).filter((h): h is string => Boolean(h)), contentKeys: [] },
+        anclas: { sessionToken: token, expedienteRef: `puerta:${token}` },
+        actor: "system:puerta",
+      },
+      parLead
+    );
+    await estamparSesion(token, caso?.casoId);
     const hermanos = await findOpenSiblings({ email: contactEmail, phone: contactPhone, par: parLead, excludeSession: token });
     const mismoDoc = await sameDocumentSiblingIds(
       hermanos,
@@ -150,6 +167,7 @@ export async function routePuertaQuoteRequest(input: {
         .catch((err) => console.error("[puerta:request-quote] rastro misma_persona fallo:", err));
     }
     if (bloqueo) {
+      await compararGuarda({ vieja: "bloquea", guarda: "open-siblings", objeto: "solicitud", sombra: caso, refs: { bloqueo: bloqueo.ref, sesion: token }, dedupeKey: token });
       await sendMail({
         to: adminEmail,
         subject: `[DUPLICADO?] ${fromWhatsApp ? "[WhatsApp] " : ""}Lead con ${bloqueo.ref} ya abierto — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
@@ -181,6 +199,7 @@ export async function routePuertaQuoteRequest(input: {
       contactPhone,
       contactName: docs[0]?.clientName,
       locale,
+      casoId: caso ? caso.casoId : null,
     }).catch((err) => ({ ok: false as const, reason: String(err?.message || err) }));
     if (auto.ok) {
       const n = docs.length;
@@ -248,6 +267,7 @@ export async function routePuertaQuoteRequest(input: {
       lavoriSms = `${getLanguageName(leadLang!)}: tuyo, al builder`;
     } else if (hermana) {
       const h = hermana.request;
+      await compararGuarda({ vieja: "bloquea", guarda: "findLiveSiblingLeadRequest", objeto: "solicitud", sombra: caso, refs: { hermana: h.ref, sesion: token }, dedupeKey: token });
       const detalle = [
         h.status,
         h.priceCents ? `${(h.priceCents / 100).toFixed(2)} € de ${h.miembroNombre || "el traductor"}` : "sin precio aún",
@@ -286,6 +306,8 @@ export async function routePuertaQuoteRequest(input: {
           customerHint: [lead!.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
           candidatos: directos.map((d) => d.miembroId),
           createdBy: "puerta-directo",
+          contacto,
+          caso,
         }).catch(() => null);
         if (directoReq?.ok) {
           esDirecto = true;
@@ -305,6 +327,8 @@ export async function routePuertaQuoteRequest(input: {
             expedienteRef: `puerta:${token}`,
             customerHint: [lead.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
             createdBy: "puerta-auto",
+            contacto,
+            caso,
           }).catch(() => null);
           if (auto?.ok) {
             lavoriSent = { lang: leadLang, langName: getLanguageName(leadLang) };

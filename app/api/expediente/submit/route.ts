@@ -13,6 +13,8 @@ import { sendExpedienteReceiptEmail, sendExpedienteStaffEmail } from "@/lib/emai
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { normalizeDeclaredLang, isDeclaredPairValid } from "@/lib/puerta-languages";
+import { casoIdEnSombra } from "@/lib/caso/sombra";
+import { paresDe } from "@/lib/caso/sombra-plan";
 
 export const runtime = "nodejs";
 
@@ -94,10 +96,19 @@ export async function POST(req: Request) {
   const ref = createExpedienteRef();
   const token = createExpedienteToken(ref);
   const sessionToken = `exp:${ref}`;
+  // Caso en sombra antes de registrar (fail-open: sin caso, el expediente entra igual).
+  const casoId = await casoIdEnSombra({
+    entrada: "expediente",
+    contacto: { email: clientEmail, phone: clientPhone, nombre: clientName },
+    pares: paresDe(sourceLanguage, targetLanguage),
+    anclas: { sessionToken, expedienteRef: ref },
+    actor: "system:expediente",
+  });
 
   try {
     await prisma.documentAnalysis.createMany({
       data: clean.map((d) => ({
+        casoId,
         fileName: d.fileName,
         fileUrl: d.blobUrl,
         fileSize: d.fileSize,

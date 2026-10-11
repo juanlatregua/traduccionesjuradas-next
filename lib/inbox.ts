@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { put } from "@vercel/blob";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { casoIdEnSombra } from "@/lib/caso/sombra";
 import { getMailboxAddress } from "@/lib/azure-mail";
 import {
   listInboxMessages,
@@ -255,8 +256,18 @@ export async function syncInboxEmails(): Promise<InboxSyncResult> {
     }
 
     const match = await matchClientContext(msg.fromEmail);
+    // Caso en sombra: un email solo se UNE a un caso existente, nunca crea (fail-open).
+    const casoId = await casoIdEnSombra({
+      entrada: "email",
+      contacto: { email: msg.fromEmail, nombre: msg.fromName },
+      anclas: { quoteId: match.quoteId },
+      customerId: match.customerId,
+      soloAdjuntar: true,
+      actor: "system:inbox",
+    });
     await prisma.inboundEmail.create({
       data: {
+        casoId,
         graphId: msg.graphId,
         internetMessageId: msg.internetMessageId,
         conversationId: msg.conversationId,
@@ -335,6 +346,22 @@ export async function buildExpedienteFromInbound(inbound: {
   const existing = await prisma.documentAnalysis.count({ where: { sessionToken } });
   if (existing > 0) return { ref, docs: existing, skipped: [], reused: true };
 
+  // Caso en sombra justo antes de registrar los documentos (crea si hace falta; fail-open).
+  const casoDelExpediente = async () => {
+    const casoId = await casoIdEnSombra({
+      entrada: inbound.channel === "WHATSAPP" ? "whatsapp" : "email",
+      contacto: { email: inbound.fromEmail, phone: inbound.fromPhone, nombre: inbound.fromName },
+      anclas: { inboundId: inbound.id, sessionToken, expedienteRef: ref },
+      actor: "system:inbox",
+    });
+    if (casoId) {
+      await prisma.inboundEmail
+        .updateMany({ where: { id: inbound.id, casoId: null }, data: { casoId } })
+        .catch((err) => console.error("[inbox] caso del email falló:", err));
+    }
+    return casoId;
+  };
+
   // Medias ya en nuestro Blob: WhatsApp (las bajó el webhook) o email cuya
   // sincronización ya ingirió los adjuntos (mediaJson). Solo los emails viejos
   // sin mediaJson bajan de Graph aquí.
@@ -358,10 +385,12 @@ export async function buildExpedienteFromInbound(inbound: {
         mimeType: String(m.contentType).toLowerCase(),
       }));
     if (rowsWa.length === 0) return { ref: null, docs: 0, skipped: skippedWa, reused: false };
+    const casoIdWa = await casoDelExpediente();
     await prisma.documentAnalysis.createMany({
       data: rowsWa.map((d) => ({
         ...d,
         sessionToken,
+        casoId: casoIdWa,
         clientName: inbound.fromName,
         clientEmail: inbound.fromEmail,
         clientPhone: inbound.fromPhone || null,
@@ -407,10 +436,12 @@ export async function buildExpedienteFromInbound(inbound: {
     rows.push({ fileName: a.name.slice(0, 255), fileUrl: blob.url, fileSize: buf.length, mimeType: a.contentType });
   }
 
+  const casoId = await casoDelExpediente();
   await prisma.documentAnalysis.createMany({
     data: rows.map((d) => ({
       ...d,
       sessionToken,
+      casoId,
       clientName: inbound.fromName,
       clientEmail: inbound.fromEmail,
       gdprConsent: true,

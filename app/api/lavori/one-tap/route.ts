@@ -51,6 +51,7 @@ export async function GET(req: Request) {
     expedienteRef: `puerta:${sessionToken}`,
     customerHint: hint,
     createdBy: "one-tap",
+    contacto: { email: lead.contact.email, phone: lead.contact.phone, nombre: lead.contact.name },
   });
   if (!result.ok) {
     const builder = `${baseUrl}/zona-traductor/presupuesto?session=${encodeURIComponent(sessionToken)}`;

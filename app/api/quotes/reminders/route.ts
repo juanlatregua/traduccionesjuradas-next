@@ -14,6 +14,7 @@ import { createReplyChecker } from "@/lib/respuesta-guard-db";
 import { replyGate } from "@/lib/respuesta-guard";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
+import { recalcularCaso } from "@/lib/caso/sombra";
 
 const REPLIED_MARK = "[AVISO STAFF] cliente contestó";
 
@@ -236,6 +237,7 @@ export async function GET(req: Request) {
         data: { lostReason: "NO_LONGER_NEEDED", lostReasonNote: NO_RESPONSE_NOTE, lostFeedbackAt: now },
       });
       softClosed += closed.count;
+      if (closed.count) await recalcularCaso(quote.casoId, "system:cierre", "cierre suave");
       continue;
     }
     // Solo-WhatsApp (@whatsapp.local): no se le escribe por email; aparece en el vigía con el
@@ -359,6 +361,7 @@ export async function GET(req: Request) {
       },
     });
     expiredUpdated += 1;
+    await recalcularCaso(quote.casoId, "system:cierre", "caducado");
 
     // Post-mortem determinista (una sola vez, en el instante de expirar): el
     // digest diario lo lee de Quote.postMortemJson. Best-effort: un fallo aquí

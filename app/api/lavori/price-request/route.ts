@@ -3,6 +3,8 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 import { findLiveSiblingLeadRequest, sendLeadPriceRequest, type LeadDoc } from "@/lib/lavori-lead";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
+import { sombraBloqueo } from "@/lib/caso/sombra";
+import { anclasDeExpediente } from "@/lib/caso/sombra-plan";
 
 export const runtime = "nodejs";
 
@@ -42,6 +44,17 @@ export async function POST(req: Request) {
     if (parSolicitado && !body?.confirmDuplicate && (body?.customerEmail || body?.customerPhone)) {
       const viva = await findLiveSiblingLeadRequest({ email: body?.customerEmail, phone: body?.customerPhone, par: parSolicitado, days: 7 }).catch(() => null);
       if (viva && (viva.request.expedienteRef || null) !== (body?.expedienteRef || null)) {
+        await sombraBloqueo(
+          {
+            entrada: "price_request",
+            contacto: { email: body?.customerEmail, phone: body?.customerPhone, nombre: body?.customerName },
+            pares: [parSolicitado],
+            anclas: anclasDeExpediente(body?.expedienteRef),
+            actor: staff.email || "staff",
+          },
+          parSolicitado,
+          { guarda: "findLiveSiblingLeadRequest", refs: { viva: viva.request.ref }, dedupeKey: `${viva.request.ref}|${body?.expedienteRef || ""}` }
+        );
         return NextResponse.json(
           {
             ok: false,
@@ -65,6 +78,7 @@ export async function POST(req: Request) {
       expedienteRef: body?.expedienteRef,
       customerHint: body?.customerHint,
       createdBy: staff.email ?? null,
+      contacto: { email: body?.customerEmail, phone: body?.customerPhone, nombre: body?.customerName },
     });
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: result.status });

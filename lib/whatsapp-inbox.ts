@@ -10,6 +10,7 @@ import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { twilioSend } from "@/lib/sms";
 import { matchClientContext } from "@/lib/inbox";
+import { casoIdEnSombra } from "@/lib/caso/sombra";
 import { verifyTwilioSignature, whatsappLocalEmail, phoneFromWhatsAppAddress } from "@/lib/twilio-signature";
 
 export { verifyTwilioSignature, whatsappLocalEmail, phoneFromWhatsAppAddress };
@@ -100,8 +101,18 @@ export async function ingestWhatsAppMessage(form: TwilioInboundForm): Promise<In
     (media.length ? `WhatsApp con ${media.length} archivo${media.length === 1 ? "" : "s"}` : "WhatsApp");
   const preview = body || (media.length ? `[${media.length} archivo(s) adjunto(s)]` : "");
 
+  // Caso en sombra: un WhatsApp solo se UNE a un caso existente, nunca crea (fail-open).
+  const casoId = await casoIdEnSombra({
+    entrada: "whatsapp",
+    contacto: { email: fromEmail, phone: from, nombre: profileName },
+    anclas: { quoteId: match.quoteId },
+    customerId: match.customerId,
+    soloAdjuntar: true,
+    actor: "system:whatsapp",
+  });
   const row = await prisma.inboundEmail.create({
     data: {
+      casoId,
       graphId: sid,
       channel: "WHATSAPP",
       fromEmail,

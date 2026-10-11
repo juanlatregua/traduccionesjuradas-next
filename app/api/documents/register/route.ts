@@ -5,6 +5,8 @@ import { isDeclaredPairValid, normalizeDeclaredLang } from "@/lib/puerta-languag
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { casoIdEnSombra } from "@/lib/caso/sombra";
+import { paresDe } from "@/lib/caso/sombra-plan";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -78,9 +80,21 @@ export async function POST(req: Request) {
     }
 
     const token = sessionToken || crypto.randomUUID();
+    // Caso en sombra antes de registrar (solo la puerta con email; el lector no abre caso.
+    // Fail-open: sin caso, se registra igual; «pedir presupuesto» lo resuelve y estampa luego).
+    const casoId = emailOk && gate === "puerta"
+      ? await casoIdEnSombra({
+          entrada: "puerta",
+          contacto: { email },
+          pares: srcLang && srcLang !== "other" && tgtLang ? paresDe(srcLang, tgtLang) : [],
+          anclas: { sessionToken: token },
+          actor: "system:puerta",
+        })
+      : null;
 
     const doc = await prisma.documentAnalysis.create({
       data: {
+        casoId,
         fileName: String(fileName).slice(0, 255),
         fileUrl: blobUrl,
         fileSize: fileSize || 0,

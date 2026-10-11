@@ -11,6 +11,8 @@ import { leadDocKeys, leadDocKeyVariants } from "@/lib/lavori-doc-keys";
 import { clientIdentityKeys } from "@/lib/client-identity";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
+import { casoEnSombra, compararGuarda, sombraBloqueo, type Sombra } from "@/lib/caso/sombra";
+import { anclasDeExpediente, entradaDeCreador } from "@/lib/caso/sombra-plan";
 import {
   applyLiveFallback,
   buildPriceRequestPayload,
@@ -189,6 +191,12 @@ export type LeadRequestInput = {
   /** Solo el constructor de staff con candidatos elegidos a mano: deja salir un par
    * de la casa (francés). Nada automático lo pone. */
   forzarCasa?: boolean;
+  /** Contacto del cliente para el caso (modo sombra). */
+  contacto?: { email?: string | null; phone?: string | null; nombre?: string | null };
+  /** Caso ya resuelto por quien llama (la puerta); undefined = se resuelve aquí antes del envío. */
+  caso?: Sombra | null;
+  /** Caso conocido sin comparar guardas (reapertura del carril directo: el de la solicitud vieja). */
+  casoId?: string | null;
 };
 
 export type LeadRequestResult =
@@ -295,7 +303,30 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   // manda otro, sea cual sea el carril o los candidatos (Juan, 24-sep-2026).
   const contentKey = lavoriContentKey(docKeys, route.par);
   const duplicado = await findLiveLavoriDuplicate({ par: route.par, contentKey: lavoriContentKeys(claveDocs, route.par), expedienteRef: input.expedienteRef ?? null });
-  if (duplicado) return { ok: false, status: 409, error: liveDuplicateMessage(duplicado) };
+  const senalCaso = {
+    entrada: entradaDeCreador(input.createdBy),
+    contacto: input.contacto || {},
+    pares: [route.par],
+    docs: { hashes: docs.map((d) => d.hash).filter((h): h is string => Boolean(h)), contentKeys: [contentKey] },
+    anclas: anclasDeExpediente(input.expedienteRef),
+    actor: input.createdBy || "system:lavori-lead",
+  };
+  if (duplicado) {
+    if (input.casoId === undefined) {
+      const refs = { duplicado: duplicado.ref, expedienteRef: input.expedienteRef ?? null };
+      if (input.caso !== undefined) await compararGuarda({ vieja: "bloquea", guarda: "lavori-dup-guard", objeto: "solicitud", sombra: input.caso, refs, dedupeKey: `${duplicado.ref}|${contentKey}` });
+      else await sombraBloqueo(senalCaso, route.par, { guarda: "lavori-dup-guard", refs, dedupeKey: `${duplicado.ref}|${contentKey}` });
+    }
+    return { ok: false, status: 409, error: liveDuplicateMessage(duplicado) };
+  }
+  // Caso ANTES del envío (fail-open: sin caso, la solicitud sale igual).
+  const caso: Sombra | null =
+    input.casoId !== undefined
+      ? null
+      : input.caso !== undefined
+        ? input.caso
+        : await casoEnSombra(senalCaso, route.par);
+  const casoId = input.casoId !== undefined ? input.casoId : caso?.casoId ?? null;
 
   const documentos: BridgeDoc[] = [];
   for (const [i, doc] of docs.entries()) {
@@ -325,6 +356,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     .create({
       data: {
         ref,
+        casoId,
         par: route.par,
         candidatos,
         expedienteRef: input.expedienteRef ? String(input.expedienteRef).slice(0, 60) : null,
@@ -341,6 +373,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
       // idempotente en lavori, así que no es un fallo.
       if (err?.code !== "P2002") throw err;
     });
+  await compararGuarda({ vieja: "crea", guarda: "lavori-dup-guard", objeto: "solicitud", sombra: caso, refs: { ref, par: route.par }, dedupeKey: ref });
 
   return { ok: true, repetido: result.repetido, ref, encargoId: result.encargoId, candidatos, par: route.par, nombres, respaldo };
 }

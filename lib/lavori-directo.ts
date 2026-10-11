@@ -225,6 +225,7 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
     },
     locale: null,
     send: false,
+    ...(lead.casoId ? { casoId: lead.casoId } : {}),
     onQuoteCreated: async (quoteId) => {
       await prisma.lavoriPriceRequest.update({ where: { id: lead.id }, data: { quoteId } });
     },
@@ -459,6 +460,8 @@ export async function escalateStaleDirectRequests(now: Date = new Date()): Promi
         customerHint: lpr.customerHint,
         candidatos: candidatosLengua,
         createdBy: "directo-escalado",
+        // Misma petición reabierta: el caso es el de la solicitud vieja (sin caso, se resuelve por expediente).
+        ...(lpr.casoId ? { casoId: lpr.casoId } : {}),
       });
       if (!nueva.ok) {
         fallidas++;

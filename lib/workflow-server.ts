@@ -37,6 +37,7 @@ import { sendMail } from "@/lib/azure-mail";
 import { LEAD_LIVE_STATUSES, LEAD_PAIRABLE_STATUSES, matchLeadByCustomer, matchLiveLeadByCustomer } from "@/lib/lavori-lead-match";
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 import { isOrderSecured } from "@/lib/credit-terms";
+import { recalcularCasoDePedido } from "@/lib/caso/sombra";
 
 type TransitionOptions = {
   reference: string;
@@ -240,6 +241,10 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
   // hito (p.ej. la tarjeta se movio en el tablero ANTES de subir el fichero):
   // la entrega real (payload.delivered) aun no habia disparado el aviso "lista".
   // notifyClientMilestone es idempotente, asi que nunca duplica.
+  // Estado del caso al día (pagos y entregas pasan por aquí). Fail-open.
+  if (result.changed) {
+    await recalcularCasoDePedido(options.reference, options.actorEmail || "system:workflow", `${result.from} -> ${result.to}`);
+  }
   const redeliveredMilestone = !result.changed && options.payload?.delivered === true;
   if (result.changed || redeliveredMilestone) {
     void notifyClientMilestone(options.reference, result.to, options.payload);

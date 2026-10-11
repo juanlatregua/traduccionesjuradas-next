@@ -60,6 +60,8 @@ export type StaffDigest = {
   costGaps: { reference: string; amountEur: number; langPair: string | null; paidDays: number }[];
   lostQuotes: LostQuoteEntry[];
   leads: LeadEntry[];
+  /** Modo sombra del caso (F2): discrepancias guarda vieja ↔ resolver por entrada. */
+  casoDiscrepancias: { entrada: string; n: number }[];
 };
 
 // Lead del presupuesto automático: dejó su email en la puerta y no compró.
@@ -260,7 +262,20 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
       };
     }),
     leads: [...leadMap.values()],
+    casoDiscrepancias: await casoDiscrepanciasDesde(since),
   };
+}
+
+async function casoDiscrepanciasDesde(since: Date): Promise<{ entrada: string; n: number }[]> {
+  const rows = await prisma.casoEvento
+    .findMany({ where: { tipo: "discrepancia", createdAt: { gte: since } }, select: { payload: true }, take: 1000 })
+    .catch(() => []);
+  const tally = new Map<string, number>();
+  for (const r of rows) {
+    const entrada = String((r.payload as { entrada?: string } | null)?.entrada || "?");
+    tally.set(entrada, (tally.get(entrada) || 0) + 1);
+  }
+  return [...tally.entries()].map(([entrada, n]) => ({ entrada, n })).sort((a, b) => b.n - a.n);
 }
 
 function stageRows(counts: StageCounts | FunnelCounts): string {
@@ -347,6 +362,13 @@ export function buildDigestHtml(d: StaffDigest): string {
       </div>`
     : `<p style="color:#059669; margin:6px 0;">✓ Sin emails fallidos en 24 h.</p>`;
 
+  const casoTotal = d.casoDiscrepancias.reduce((a, x) => a + x.n, 0);
+  const casoHtml = casoTotal
+    ? `<p style="margin:10px 0; font-size:13px; color:#6b7280;">🧭 Caso (modo sombra): ${casoTotal} discrepancia(s) en ${d.windowHours} h — ${d.casoDiscrepancias
+        .map((x) => `${escapeHtml(x.entrada)}: ${x.n}`)
+        .join(" · ")} · <a href="https://www.traduccionesjuradas.net/zona-traductor/casos/discrepancias">ver</a></p>`
+    : "";
+
   return `
     <h2 style="margin:0 0 4px;">Resumen diario · traduccionesjuradas.net</h2>
     <p style="color:#6b7280; margin:0 0 16px; font-size:13px;">Si dejas de recibir este correo, algo de la automatización se ha parado.</p>
@@ -361,6 +383,8 @@ export function buildDigestHtml(d: StaffDigest): string {
     ${leadsHtml}
 
     ${lostHtml}
+
+    ${casoHtml}
 
     <h3 style="margin:16px 0 4px;">Embudo — últimas ${d.windowHours} h</h3>
     <table style="border-collapse:collapse; font-size:14px;"><tbody>${stageRows(d.day)}</tbody></table>

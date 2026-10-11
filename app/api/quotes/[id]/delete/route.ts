@@ -35,6 +35,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     );
   }
 
-  await prisma.quote.update({ where: { id: params.id }, data: { deletedAt: new Date() } });
+  await prisma.quote.update({ where: { id: params.id }, data: { deletedAt: new Date(), liveCasoKey: null } });
   return NextResponse.json({ ok: true, deleted: true });
 }
