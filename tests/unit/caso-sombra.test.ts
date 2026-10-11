@@ -189,7 +189,17 @@ test("formalizado cuenta como vivo para el estado; borrado no", () => {
   assert.ok(quoteCuentaViva(quote({ status: "DELIVERED" })));
   assert.ok(!quoteCuentaViva(quote({ status: "PAID", deletedAt: hace(1) })));
   assert.ok(!quoteCuentaViva(quote({ status: "EXPIRED" })));
-  assert.equal(planRecalculo({ ...base, quotes: [quote({ status: "PAID", liveCasoKey: null })] })!.estado, "ABIERTO", "pagado sin pedido aún: no se pierde");
+  assert.equal(planRecalculo({ ...base, quotes: [quote({ status: "PAID", liveCasoKey: null })] })!.estado, "EN_CURSO", "pagado sin pedido aún: en curso, no se pierde");
   assert.equal(decidirBarrido({ ...barrido, lastActivityAt: hace(8), quotes: [quote({ status: "IN_PROGRESS" })] }), null);
   assert.ok(soloEventosDesechables(["creado", "adjuntado"]) && !soloEventosDesechables(["creado", "comparacion"]));
+});
+
+test("planRecalculo: presupuesto formalizado sin pedido no deja el caso abierto ni perdido", () => {
+  const base = { casoId: "c1", closedAt: null, pedidos: [], lprs: [], ahora: AHORA };
+  assert.equal(planRecalculo({ ...base, estado: "ABIERTO", quotes: [quote({ status: "PAID" })] })?.estado, "EN_CURSO");
+  assert.equal(planRecalculo({ ...base, estado: "PERDIDO", quotes: [quote({ status: "IN_PROGRESS" })] })?.estado, "EN_CURSO");
+  const entregado = planRecalculo({ ...base, estado: "PERDIDO", quotes: [quote({ status: "DELIVERED" })] });
+  assert.equal(entregado?.estado, "ENTREGADO");
+  assert.equal(entregado?.closedAt, "poner");
+  assert.equal(planRecalculo({ ...base, estado: "PERDIDO", quotes: [quote({ status: "PAID", deletedAt: hace(1) })] })?.estado, "PERDIDO");
 });

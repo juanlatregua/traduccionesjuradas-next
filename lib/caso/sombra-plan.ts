@@ -165,6 +165,13 @@ export function decidirBarrido(i: {
   return vivo ? null : "perder";
 }
 
+/** Sin pedido, un presupuesto formalizado hace sus veces: PAID/IN_PROGRESS → EN_CURSO, DELIVERED → ENTREGADO. */
+export function pedidosDeFormalizados(quotes: { status: string; deletedAt: Date | null }[]): PedidoParaEstado[] {
+  return quotes
+    .filter((q) => !q.deletedAt && (q.status === "PAID" || q.status === "IN_PROGRESS" || q.status === "DELIVERED"))
+    .map((q) => (q.status === "DELIVERED" ? { status: "DELIVERED" } : { status: "PAID", paymentStatus: "PAID" }));
+}
+
 export type PlanRecalculo = { estado: CasoEstado; cambia: boolean; closedAt: "poner" | "quitar" | "dejar" };
 
 /**
@@ -191,7 +198,8 @@ export function planRecalculo(i: {
     [...vivos].filter((q) => !q.supersededAt).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ||
     null;
   const vivo = vigente ? quoteCuentaViva(vigente) : i.lprs.some((l) => lprViva(l, i.ahora));
-  const propuesto = estadoDeCaso({ pedidos: i.pedidos, vivo });
+  const pedidos = i.pedidos.length ? i.pedidos : pedidosDeFormalizados(vivos);
+  const propuesto = estadoDeCaso({ pedidos, vivo });
   const estado = puedeCaso(actual, propuesto) ? propuesto : actual;
   const cerrado = casoTerminal(estado) || estado === "PERDIDO";
   const closedAt = cerrado ? (i.closedAt ? "dejar" : "poner") : i.closedAt ? "quitar" : "dejar";
