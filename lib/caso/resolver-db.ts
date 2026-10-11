@@ -40,7 +40,8 @@ export type ResolverInput = {
   dryRun?: boolean;
 };
 
-export type ResolverResultado = { casoId: string | null; creado: boolean; decision: Decision };
+/** decisionSinAncla: lo que habría decidido sin anclas (para medir; solo si la decisión fue por ancla). */
+export type ResolverResultado = { casoId: string | null; creado: boolean; decision: Decision; decisionSinAncla?: Decision };
 
 const DAY = 864e5;
 const CERRADOS_VISIBLES_DIAS = 60;
@@ -169,16 +170,23 @@ export async function resolverCaso(input: ResolverInput): Promise<ResolverResult
         ? await tx.customer.findUnique({ where: { id: input.customerId }, select: { isBusiness: true, creditEnabled: true, billingCycle: true } })
         : null;
       const agencia = customer ? esAgencia(customer) : false;
-      const decision = decidirCaso({ entrada: input.entrada, identidad, pares, docs, esAgencia: agencia, ahora }, candidatos);
+      const senal = { entrada: input.entrada, identidad, pares, docs, esAgencia: agencia, ahora };
+      const decision = decidirCaso(senal, candidatos);
+      const sinAncla =
+        decision.regla === "ancla" || decision.regla === "ancla_conflicto"
+          ? { decisionSinAncla: decidirCaso(senal, candidatos.map((c) => ({ ...c, porAncla: false }))) }
+          : {};
 
-      if (input.dryRun) return { casoId: decision.casoId ?? null, creado: false, decision };
+      if (input.dryRun) return { casoId: decision.casoId ?? null, creado: false, decision, ...sinAncla };
 
       if (decision.accion === "adjuntar" && decision.casoId) {
         const actual = casos.find((c) => c.id === decision.casoId);
+        // Un entrante (email/WhatsApp) que cae en un caso cerrado no lo «despierta».
+        const refresca = !input.soloAdjuntar || actual?.estado === "ABIERTO";
         await tx.caso.update({
           where: { id: decision.casoId },
           data: {
-            lastActivityAt: ahora,
+            ...(refresca ? { lastActivityAt: ahora } : {}),
             pares: [...new Set([...(actual?.pares || []), ...pares])],
             ...(actual && !actual.email && identidad.email ? { email: identidad.email } : {}),
             ...(actual && !actual.phone9 && identidad.phone9 ? { phone9: identidad.phone9 } : {}),
@@ -187,10 +195,10 @@ export async function resolverCaso(input: ResolverInput): Promise<ResolverResult
         await tx.casoEvento.create({
           data: { casoId: decision.casoId, tipo: "adjuntado", actor: input.actor, payload: { entrada: input.entrada, regla: decision.regla, yaEncargado: !!decision.yaEncargado } },
         });
-        return { casoId: decision.casoId, creado: false, decision };
+        return { casoId: decision.casoId, creado: false, decision, ...sinAncla };
       }
 
-      if (input.soloAdjuntar) return { casoId: null, creado: false, decision };
+      if (input.soloAdjuntar) return { casoId: null, creado: false, decision, ...sinAncla };
 
       const caso = await tx.caso.create({
         data: {
@@ -215,7 +223,7 @@ export async function resolverCaso(input: ResolverInput): Promise<ResolverResult
       if (decision.posibles.length) {
         await tx.casoEvento.create({ data: { casoId: caso.id, tipo: "posible", actor: input.actor, payload: { con: decision.posibles, regla: decision.regla } } });
       }
-      return { casoId: caso.id, creado: true, decision };
+      return { casoId: caso.id, creado: true, decision, ...sinAncla };
     },
     { timeout: 15_000 }
   );

@@ -14,7 +14,7 @@ import { createReplyChecker } from "@/lib/respuesta-guard-db";
 import { replyGate } from "@/lib/respuesta-guard";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
-import { recalcularCaso } from "@/lib/caso/sombra";
+import { barrerCasosSinVida, recalcularCaso } from "@/lib/caso/sombra";
 
 const REPLIED_MARK = "[AVISO STAFF] cliente contestó";
 
@@ -501,8 +501,12 @@ export async function GET(req: Request) {
     }
   }
 
+  // Casos sin nada vivo (modo sombra): vacíos fuera, sin vida → PERDIDO. Fail-open.
+  const casosBarridos = await barrerCasosSinVida(now);
+
   return NextResponse.json({
     ok: true,
+    casosBarridos,
     remindersSent,
     remindersFailed,
     softClosed,

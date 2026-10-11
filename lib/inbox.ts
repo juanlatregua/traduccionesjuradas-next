@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { put } from "@vercel/blob";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { casoIdEnSombra } from "@/lib/caso/sombra";
+import { casoIdEnSombra, quoteVivoComoAncla } from "@/lib/caso/sombra";
 import { getMailboxAddress } from "@/lib/azure-mail";
 import {
   listInboxMessages,
@@ -256,11 +256,12 @@ export async function syncInboxEmails(): Promise<InboxSyncResult> {
     }
 
     const match = await matchClientContext(msg.fromEmail);
-    // Caso en sombra: un email solo se UNE a un caso existente, nunca crea (fail-open).
+    // Caso en sombra: un email solo se UNE a un caso ABIERTO, nunca crea; el presupuesto
+    // casado solo ancla si sigue vivo y su caso no está cerrado (fail-open).
     const casoId = await casoIdEnSombra({
       entrada: "email",
       contacto: { email: msg.fromEmail, nombre: msg.fromName },
-      anclas: { quoteId: match.quoteId },
+      anclas: { quoteId: await quoteVivoComoAncla(match.quoteId) },
       customerId: match.customerId,
       soloAdjuntar: true,
       actor: "system:inbox",
@@ -347,11 +348,13 @@ export async function buildExpedienteFromInbound(inbound: {
   if (existing > 0) return { ref, docs: existing, skipped: [], reused: true };
 
   // Caso en sombra justo antes de registrar los documentos (crea si hace falta; fail-open).
+  // Sin ancla del email: el caso al que se unió el mensaje puede ser uno viejo y cerrado,
+  // y un expediente es un encargo; une por identidad solo a un caso ABIERTO.
   const casoDelExpediente = async () => {
     const casoId = await casoIdEnSombra({
       entrada: inbound.channel === "WHATSAPP" ? "whatsapp" : "email",
       contacto: { email: inbound.fromEmail, phone: inbound.fromPhone, nombre: inbound.fromName },
-      anclas: { inboundId: inbound.id, sessionToken, expedienteRef: ref },
+      anclas: { sessionToken, expedienteRef: ref },
       actor: "system:inbox",
     });
     if (casoId) {

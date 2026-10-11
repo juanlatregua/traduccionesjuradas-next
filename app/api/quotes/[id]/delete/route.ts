@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { recalcularCaso, tomarVigente } from "@/lib/caso/sombra";
 
 export const runtime = "nodejs";
 
@@ -20,11 +21,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     /* opcional */
   }
 
-  const quote = await prisma.quote.findUnique({ where: { id: params.id }, select: { status: true } });
+  const quote = await prisma.quote.findUnique({ where: { id: params.id }, select: { status: true, casoId: true } });
   if (!quote) return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
 
   if (body.restore) {
     await prisma.quote.update({ where: { id: params.id }, data: { deletedAt: null } });
+    // Vuelve a ser la vigente si la clave está libre o la tiene uno ya no vivo (y recalcula el caso).
+    await tomarVigente(params.id, quote.casoId, "constructor");
     return NextResponse.json({ ok: true, restored: true });
   }
 
@@ -36,5 +39,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   await prisma.quote.update({ where: { id: params.id }, data: { deletedAt: new Date(), liveCasoKey: null } });
+  await recalcularCaso(quote.casoId, access.email || "staff", "presupuesto borrado");
   return NextResponse.json({ ok: true, deleted: true });
 }

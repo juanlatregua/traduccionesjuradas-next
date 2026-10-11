@@ -62,7 +62,7 @@ export function vivoEnCaso(i: { casoId: string; par: string | null; quotes: Quot
   const par = i.par ? [i.par] : [];
   return {
     lprMismoPar: i.lprs.some((l) => lprViva(l, i.ahora) && paresCompatibles(par, [l.par])),
-    vigente: i.quotes.some((q) => q.liveCasoKey === i.casoId && quoteVivo(q)),
+    vigente: i.quotes.some((q) => quoteVivo(q)),
   };
 }
 
@@ -78,7 +78,8 @@ export type Vieja = "crea" | "bloquea";
 export function decidirDiscrepancia(
   vieja: Vieja,
   sombra: { decision: Decision; vivo: VivoEnCaso } | null,
-  objeto: "solicitud" | "presupuesto"
+  objeto: "solicitud" | "presupuesto",
+  simulado = false
 ): string | null {
   if (!sombra) return null;
   const adjunta = sombra.decision.accion === "adjuntar";
@@ -89,7 +90,68 @@ export function decidirDiscrepancia(
     return null;
   }
   if (adjunta && (sombra.vivo.lprMismoPar || sombra.vivo.vigente)) return null;
-  return adjunta ? "bloquea_caso_sin_nada_vivo" : "bloquea_resolver_crearia_caso";
+  if (adjunta) return "bloquea_caso_sin_nada_vivo";
+  // Simulado = dry-run (no se escribió nada); si no, el resolver SÍ creó el caso (la puerta resuelve de verdad).
+  return simulado ? "bloquea_resolver_crearia_caso" : "bloquea_resolver_creo_caso";
+}
+
+export type Comparacion = {
+  acuerdo: boolean;
+  motivo: string | null;
+  reglaOriginal: string; // la del resolver sin anclas heredadas
+  accionResolver: string;
+  casoResolver: string | null;
+  casoGuarda: string | null; // caso del objeto que cita la guarda (viva/hermana/duplicado)
+  mismoCaso: boolean | null; // null = la guarda no cita objeto o este no tiene caso
+  simulacion: boolean;
+};
+
+/** Toda comparación guarda↔resolver (acuerde o no), para medir la tasa de acuerdo. */
+export function compararDecisiones(i: {
+  vieja: Vieja;
+  objeto: "solicitud" | "presupuesto";
+  sombra: { casoId: string | null; decision: Decision; decisionSinAncla?: Decision; vivo: VivoEnCaso };
+  casoGuarda: string | null;
+  simulado: boolean;
+}): Comparacion {
+  const motivo = decidirDiscrepancia(i.vieja, i.sombra, i.objeto, i.simulado);
+  const casoResolver = i.sombra.decision.accion === "adjuntar" ? i.sombra.decision.casoId ?? null : i.sombra.casoId;
+  return {
+    acuerdo: motivo === null,
+    motivo,
+    reglaOriginal: (i.sombra.decisionSinAncla || i.sombra.decision).regla,
+    accionResolver: i.sombra.decision.accion,
+    casoResolver,
+    casoGuarda: i.casoGuarda,
+    mismoCaso: i.casoGuarda && casoResolver ? i.casoGuarda === casoResolver : null,
+    simulacion: i.simulado,
+  };
+}
+
+export const BARRIDO_SIN_VIDA_DIAS = 7;
+export const BARRIDO_VACIO_DIAS = 1;
+const EVENTOS_DESECHABLES = new Set(["creado", "adjuntado", "posible", "transicion"]);
+
+/**
+ * Caso ABIERTO que ya no lleva a nada: sin hijos y sin rastro útil → borrar (>1 d);
+ * sin presupuesto vivo, solicitud viva ni pedido → PERDIDO (>7 d). null = se queda.
+ */
+export function decidirBarrido(i: {
+  estado: string;
+  lastActivityAt: Date;
+  ahora: Date;
+  hijos: number; // quotes + lprs + orders + inbound + analyses
+  quotes: QuoteDelCaso[];
+  lprs: LprDelCaso[];
+  pedidos: number;
+  tiposEventos: string[];
+}): "borrar" | "perder" | null {
+  if (i.estado !== "ABIERTO") return null;
+  const dias = (i.ahora.getTime() - i.lastActivityAt.getTime()) / 864e5;
+  if (i.hijos === 0 && dias > BARRIDO_VACIO_DIAS) return i.tiposEventos.every((t) => EVENTOS_DESECHABLES.has(t)) ? "borrar" : "perder";
+  if (dias <= BARRIDO_SIN_VIDA_DIAS) return null;
+  const vivo = i.pedidos > 0 || i.quotes.some((q) => quoteVivo(q)) || i.lprs.some((l) => lprViva(l, i.ahora));
+  return vivo ? null : "perder";
 }
 
 export type PlanRecalculo = { estado: CasoEstado; cambia: boolean; closedAt: "poner" | "quitar" | "dejar" };
@@ -113,6 +175,7 @@ export function planRecalculo(i: {
   const vivos = i.quotes.filter((q) => !q.deletedAt);
   if (i.pedidos.length === 0 && vivos.length === 0 && i.lprs.length === 0) return { estado: actual, cambia: false, closedAt: "dejar" };
   const vigente =
+    vivos.find((q) => quoteVivo(q)) ||
     vivos.find((q) => q.liveCasoKey === i.casoId) ||
     [...vivos].filter((q) => !q.supersededAt).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ||
     null;

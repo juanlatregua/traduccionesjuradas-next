@@ -11,7 +11,7 @@ import { leadDocKeys, leadDocKeyVariants } from "@/lib/lavori-doc-keys";
 import { clientIdentityKeys } from "@/lib/client-identity";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
-import { casoEnSombra, compararGuarda, sombraBloqueo, type Sombra } from "@/lib/caso/sombra";
+import { casoEnSombra, compararGuarda, descartarCasoSiVacio, recalcularCaso, sombraBloqueo, type Sombra } from "@/lib/caso/sombra";
 import { anclasDeExpediente, entradaDeCreador } from "@/lib/caso/sombra-plan";
 import {
   applyLiveFallback,
@@ -314,8 +314,8 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
   if (duplicado) {
     if (input.casoId === undefined) {
       const refs = { duplicado: duplicado.ref, expedienteRef: input.expedienteRef ?? null };
-      if (input.caso !== undefined) await compararGuarda({ vieja: "bloquea", guarda: "lavori-dup-guard", objeto: "solicitud", sombra: input.caso, refs, dedupeKey: `${duplicado.ref}|${contentKey}` });
-      else await sombraBloqueo(senalCaso, route.par, { guarda: "lavori-dup-guard", refs, dedupeKey: `${duplicado.ref}|${contentKey}` });
+      if (input.caso !== undefined) await compararGuarda({ vieja: "bloquea", guarda: "lavori-dup-guard", objeto: "solicitud", sombra: input.caso, objetoGuarda: { lprRef: duplicado.ref }, refs, dedupeKey: `${duplicado.ref}|${contentKey}` });
+      else await sombraBloqueo(senalCaso, route.par, { guarda: "lavori-dup-guard", objetoGuarda: { lprRef: duplicado.ref }, refs, dedupeKey: `${duplicado.ref}|${contentKey}` });
     }
     return { ok: false, status: 409, error: liveDuplicateMessage(duplicado) };
   }
@@ -333,7 +333,10 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     const empaquetado = await packLeadDoc(doc, i);
     if (empaquetado) documentos.push(empaquetado);
   }
-  if (documentos.length === 0) return { ok: false, status: 400, error: "No se pudo descargar ningún documento." };
+  if (documentos.length === 0) {
+    await descartarCasoSiVacio(caso);
+    return { ok: false, status: 400, error: "No se pudo descargar ningún documento." };
+  }
 
   const words = Number.isFinite(Number(input.words)) && Number(input.words) > 0 ? Math.round(Number(input.words)) : null;
   const especificaciones = String(input.especificaciones || "").trim().slice(0, 2000) || null;
@@ -350,7 +353,10 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     cifra,
   });
   const result = await sendLavoriSolicitud(payload, { forzarCasa: Boolean(input.forzarCasa && Array.isArray(input.candidatos)) });
-  if (!result.ok) return { ok: false, status: 502, error: result.error };
+  if (!result.ok) {
+    await descartarCasoSiVacio(caso);
+    return { ok: false, status: 502, error: result.error };
+  }
 
   await prisma.lavoriPriceRequest
     .create({
@@ -374,6 +380,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
       if (err?.code !== "P2002") throw err;
     });
   await compararGuarda({ vieja: "crea", guarda: "lavori-dup-guard", objeto: "solicitud", sombra: caso, refs: { ref, par: route.par }, dedupeKey: ref });
+  await recalcularCaso(casoId, input.createdBy || "system:lavori-lead", `solicitud ${ref}`);
 
   return { ok: true, repetido: result.repetido, ref, encargoId: result.encargoId, candidatos, par: route.par, nombres, respaldo };
 }

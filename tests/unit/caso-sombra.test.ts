@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   anclasDeExpediente,
+  compararDecisiones,
+  decidirBarrido,
   decidirDiscrepancia,
   entradaDeCreador,
   paresDe,
@@ -64,7 +66,8 @@ test("vivo en el caso: solicitud viva del mismo par y vigente viva con la clave"
   );
   assert.equal(vivoEnCaso({ casoId: "c1", par: null, quotes: [quote({})], lprs: [], ahora: AHORA }).vigente, true);
   assert.equal(vivoEnCaso({ casoId: "c1", par: null, quotes: [quote({ lostReason: "NO_LONGER_NEEDED" })], lprs: [], ahora: AHORA }).vigente, false);
-  assert.equal(vivoEnCaso({ casoId: "c1", par: null, quotes: [quote({ liveCasoKey: null })], lprs: [], ahora: AHORA }).vigente, false, "sin clave no es la vigente");
+  assert.equal(vivoEnCaso({ casoId: "c1", par: null, quotes: [quote({ liveCasoKey: null })], lprs: [], ahora: AHORA }).vigente, true, "vivo aunque no tenga la clave");
+  assert.equal(vivoEnCaso({ casoId: "c1", par: null, quotes: [quote({ deletedAt: hace(1) })], lprs: [], ahora: AHORA }).vigente, false);
 });
 
 test("discrepancia: vieja crea y el caso ya tenía lo mismo vivo", () => {
@@ -83,9 +86,10 @@ test("discrepancia: vieja bloquea y el resolver no ve nada vivo", () => {
   assert.equal(decidirDiscrepancia("bloquea", { decision: adjunta, vivo: { lprMismoPar: true, vigente: false } }, "solicitud"), null);
   assert.equal(decidirDiscrepancia("bloquea", { decision: adjunta, vivo: { lprMismoPar: false, vigente: true } }, "solicitud"), null);
   assert.equal(decidirDiscrepancia("bloquea", { decision: adjunta, vivo: NADA_VIVO }, "solicitud"), "bloquea_caso_sin_nada_vivo");
-  assert.equal(decidirDiscrepancia("bloquea", { decision: crea, vivo: NADA_VIVO }, "solicitud"), "bloquea_resolver_crearia_caso");
+  assert.equal(decidirDiscrepancia("bloquea", { decision: crea, vivo: NADA_VIVO }, "solicitud", true), "bloquea_resolver_crearia_caso", "dry-run");
+  assert.equal(decidirDiscrepancia("bloquea", { decision: crea, vivo: NADA_VIVO }, "solicitud"), "bloquea_resolver_creo_caso", "la puerta resolvió de verdad");
   assert.equal(
-    decidirDiscrepancia("bloquea", { decision: { accion: "dudoso", regla: "agencia", posibles: ["c1"] }, vivo: NADA_VIVO }, "solicitud"),
+    decidirDiscrepancia("bloquea", { decision: { accion: "dudoso", regla: "agencia", posibles: ["c1"] }, vivo: NADA_VIVO }, "solicitud", true),
     "bloquea_resolver_crearia_caso"
   );
 });
@@ -110,8 +114,8 @@ test("recalcular: sin pedido manda la vigente; perdida → PERDIDO; caso perdido
     planRecalculo({ ...base, estado: "PERDIDO", closedAt: hace(3), quotes: [quote({})] }),
     { estado: "ABIERTO", cambia: true, closedAt: "quitar" }
   );
-  // Sin clave: la última no sustituida.
-  const vieja = quote({ id: "q0", liveCasoKey: null, status: "SENT", createdAt: hace(5) });
+  // Sin ninguno vivo y sin clave: la última no sustituida.
+  const vieja = quote({ id: "q0", liveCasoKey: null, status: "EXPIRED", createdAt: hace(5) });
   const nueva = quote({ id: "q2", liveCasoKey: null, status: "EXPIRED", lostReason: "PRICE", createdAt: hace(1) });
   assert.equal(planRecalculo({ ...base, quotes: [vieja, nueva] })!.estado, "PERDIDO");
   // Con presupuesto manda él aunque haya solicitud viva.
@@ -135,4 +139,45 @@ test("recalcular: transiciones prohibidas se quedan (un entregado no vuelve a ab
     closedAt: "dejar",
   });
   assert.equal(planRecalculo({ ...base, estado: "EN_CURSO", quotes: [quote({ status: "EXPIRED", lostReason: "PRICE" })], pedidos: [] })!.estado, "EN_CURSO");
+});
+
+test("comparación: registra acuerdo, regla original (no la del ancla) y si es el mismo caso que cita la guarda", () => {
+  const porAncla: Decision = { accion: "adjuntar", casoId: "c1", regla: "ancla", posibles: [] };
+  const c = compararDecisiones({
+    vieja: "bloquea",
+    objeto: "solicitud",
+    sombra: { casoId: "c1", decision: porAncla, decisionSinAncla: adjunta, vivo: { lprMismoPar: true, vigente: false } },
+    casoGuarda: "c1",
+    simulado: false,
+  });
+  assert.deepEqual(
+    { acuerdo: c.acuerdo, motivo: c.motivo, regla: c.reglaOriginal, mismo: c.mismoCaso, caso: c.casoResolver },
+    { acuerdo: true, motivo: null, regla: "mismo_documento", mismo: true, caso: "c1" }
+  );
+  const d = compararDecisiones({ vieja: "bloquea", objeto: "solicitud", sombra: { casoId: "c9", decision: crea, vivo: NADA_VIVO }, casoGuarda: "c1", simulado: true });
+  assert.deepEqual(
+    { acuerdo: d.acuerdo, motivo: d.motivo, regla: d.reglaOriginal, mismo: d.mismoCaso, sim: d.simulacion },
+    { acuerdo: false, motivo: "bloquea_resolver_crearia_caso", regla: "nuevo", mismo: false, sim: true }
+  );
+  assert.equal(compararDecisiones({ vieja: "crea", objeto: "solicitud", sombra: { casoId: "c1", decision: adjunta, vivo: NADA_VIVO }, casoGuarda: null, simulado: false }).mismoCaso, null);
+});
+
+const barrido = { estado: "ABIERTO", ahora: AHORA, hijos: 1, quotes: [], lprs: [], pedidos: 0, tiposEventos: ["creado"] };
+
+test("barrido: vacío >1 d se borra (o se pierde si tiene rastro útil); sin vida >7 d → PERDIDO", () => {
+  assert.equal(decidirBarrido({ ...barrido, hijos: 0, lastActivityAt: hace(2) }), "borrar");
+  assert.equal(decidirBarrido({ ...barrido, hijos: 0, lastActivityAt: hace(0.5) }), null);
+  assert.equal(decidirBarrido({ ...barrido, hijos: 0, lastActivityAt: hace(2), tiposEventos: ["creado", "comparacion"] }), "perder");
+  assert.equal(decidirBarrido({ ...barrido, lastActivityAt: hace(3) }), null, "con hijos espera 7 días");
+  assert.equal(decidirBarrido({ ...barrido, lastActivityAt: hace(8) }), "perder", "solo documentos/emails");
+  assert.equal(decidirBarrido({ ...barrido, lastActivityAt: hace(8), quotes: [quote({})] }), null, "presupuesto vivo");
+  assert.equal(decidirBarrido({ ...barrido, lastActivityAt: hace(8), lprs: [{ par: "DE>ES", status: "SENT", createdAt: hace(8) }] }), null, "solicitud viva");
+  assert.equal(decidirBarrido({ ...barrido, lastActivityAt: hace(8), pedidos: 1 }), null);
+  assert.equal(decidirBarrido({ ...barrido, estado: "EN_CURSO", hijos: 0, lastActivityAt: hace(30) }), null);
+});
+
+test("recalcular: un presupuesto vivo manda aunque la clave la tenga uno muerto", () => {
+  const muerta = quote({ id: "q0", status: "EXPIRED", lostReason: "PRICE", liveCasoKey: "c1", createdAt: hace(5) });
+  const viva = quote({ id: "q2", liveCasoKey: null, createdAt: hace(1) });
+  assert.equal(planRecalculo({ ...base, estado: "PERDIDO", closedAt: hace(2), quotes: [muerta, viva] })!.estado, "ABIERTO");
 });

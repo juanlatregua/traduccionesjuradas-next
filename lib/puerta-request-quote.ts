@@ -167,7 +167,7 @@ export async function routePuertaQuoteRequest(input: {
         .catch((err) => console.error("[puerta:request-quote] rastro misma_persona fallo:", err));
     }
     if (bloqueo) {
-      await compararGuarda({ vieja: "bloquea", guarda: "open-siblings", objeto: "solicitud", sombra: caso, refs: { bloqueo: bloqueo.ref, sesion: token }, dedupeKey: token });
+      await compararGuarda({ vieja: "bloquea", guarda: "open-siblings", objeto: "solicitud", sombra: caso, objetoGuarda: bloqueo.kind === "quote" ? { quoteId: bloqueo.id } : { lprId: bloqueo.id }, refs: { bloqueo: bloqueo.ref, sesion: token }, dedupeKey: token });
       await sendMail({
         to: adminEmail,
         subject: `[DUPLICADO?] ${fromWhatsApp ? "[WhatsApp] " : ""}Lead con ${bloqueo.ref} ya abierto — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
@@ -267,7 +267,7 @@ export async function routePuertaQuoteRequest(input: {
       lavoriSms = `${getLanguageName(leadLang!)}: tuyo, al builder`;
     } else if (hermana) {
       const h = hermana.request;
-      await compararGuarda({ vieja: "bloquea", guarda: "findLiveSiblingLeadRequest", objeto: "solicitud", sombra: caso, refs: { hermana: h.ref, sesion: token }, dedupeKey: token });
+      await compararGuarda({ vieja: "bloquea", guarda: "findLiveSiblingLeadRequest", objeto: "solicitud", sombra: caso, objetoGuarda: { lprId: h.id }, refs: { hermana: h.ref, sesion: token }, dedupeKey: token });
       const detalle = [
         h.status,
         h.priceCents ? `${(h.priceCents / 100).toFixed(2)} € de ${h.miembroNombre || "el traductor"}` : "sin precio aún",

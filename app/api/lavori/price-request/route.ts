@@ -53,7 +53,7 @@ export async function POST(req: Request) {
             actor: staff.email || "staff",
           },
           parSolicitado,
-          { guarda: "findLiveSiblingLeadRequest", refs: { viva: viva.request.ref }, dedupeKey: `${viva.request.ref}|${body?.expedienteRef || ""}` }
+          { guarda: "findLiveSiblingLeadRequest", objetoGuarda: { lprId: viva.request.id }, refs: { viva: viva.request.ref }, dedupeKey: `${viva.request.ref}|${body?.expedienteRef || ""}` }
         );
         return NextResponse.json(
           {

@@ -60,8 +60,8 @@ export type StaffDigest = {
   costGaps: { reference: string; amountEur: number; langPair: string | null; paidDays: number }[];
   lostQuotes: LostQuoteEntry[];
   leads: LeadEntry[];
-  /** Modo sombra del caso (F2): discrepancias guarda vieja ↔ resolver por entrada. */
-  casoDiscrepancias: { entrada: string; n: number }[];
+  /** Modo sombra del caso (F2): comparaciones guarda vieja ↔ resolver por entrada (n = desacuerdos). */
+  casoDiscrepancias: { entrada: string; n: number; total: number }[];
 };
 
 // Lead del presupuesto automático: dejó su email en la puerta y no compró.
@@ -266,16 +266,20 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
   };
 }
 
-async function casoDiscrepanciasDesde(since: Date): Promise<{ entrada: string; n: number }[]> {
+async function casoDiscrepanciasDesde(since: Date): Promise<{ entrada: string; n: number; total: number }[]> {
   const rows = await prisma.casoEvento
-    .findMany({ where: { tipo: "discrepancia", createdAt: { gte: since } }, select: { payload: true }, take: 1000 })
+    .findMany({ where: { tipo: "comparacion", createdAt: { gte: since } }, select: { payload: true }, take: 2000 })
     .catch(() => []);
-  const tally = new Map<string, number>();
+  const tally = new Map<string, { n: number; total: number }>();
   for (const r of rows) {
-    const entrada = String((r.payload as { entrada?: string } | null)?.entrada || "?");
-    tally.set(entrada, (tally.get(entrada) || 0) + 1);
+    const p = (r.payload || {}) as { entrada?: string; acuerdo?: boolean };
+    const k = String(p.entrada || "?");
+    const t = tally.get(k) || { n: 0, total: 0 };
+    t.total += 1;
+    if (p.acuerdo === false) t.n += 1;
+    tally.set(k, t);
   }
-  return [...tally.entries()].map(([entrada, n]) => ({ entrada, n })).sort((a, b) => b.n - a.n);
+  return [...tally.entries()].map(([entrada, t]) => ({ entrada, ...t })).sort((a, b) => b.n - a.n);
 }
 
 function stageRows(counts: StageCounts | FunnelCounts): string {
@@ -362,10 +366,11 @@ export function buildDigestHtml(d: StaffDigest): string {
       </div>`
     : `<p style="color:#059669; margin:6px 0;">✓ Sin emails fallidos en 24 h.</p>`;
 
-  const casoTotal = d.casoDiscrepancias.reduce((a, x) => a + x.n, 0);
+  const casoTotal = d.casoDiscrepancias.reduce((a, x) => a + x.total, 0);
+  const casoDesacuerdos = d.casoDiscrepancias.reduce((a, x) => a + x.n, 0);
   const casoHtml = casoTotal
-    ? `<p style="margin:10px 0; font-size:13px; color:#6b7280;">🧭 Caso (modo sombra): ${casoTotal} discrepancia(s) en ${d.windowHours} h — ${d.casoDiscrepancias
-        .map((x) => `${escapeHtml(x.entrada)}: ${x.n}`)
+    ? `<p style="margin:10px 0; font-size:13px; color:#6b7280;">🧭 Caso (modo sombra): ${casoDesacuerdos} desacuerdo(s) de ${casoTotal} comparaciones en ${d.windowHours} h — ${d.casoDiscrepancias
+        .map((x) => `${escapeHtml(x.entrada)}: ${x.n}/${x.total}`)
         .join(" · ")} · <a href="https://www.traduccionesjuradas.net/zona-traductor/casos/discrepancias">ver</a></p>`
     : "";
 
