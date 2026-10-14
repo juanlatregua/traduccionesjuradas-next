@@ -5,7 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolverCaso, type Anclas, type ResolverInput } from "@/lib/caso/resolver-db";
 import { LPR_VIVAS, LPR_VIVA_DIAS } from "@/lib/caso/estados";
-import { presupuestoDelHilo } from "@/lib/caso/hilo";
+import { presupuestoDelHilo, reservaViva, RESERVA_MIN } from "@/lib/caso/hilo";
 
 export const LPR_HILO_SELECT = {
   id: true,
@@ -81,19 +81,44 @@ export async function casoDeLaPeticion(
 }
 
 /**
- * Serializa por caso+par (pg_advisory_xact_lock, espacio propio 'hilo') lo que decide
- * y crea dentro de fn. Sin caso no hay nada que serializar. fn usa su propio cliente:
- * la transacción solo sostiene el candado.
+ * Reserva corta del hilo caso+par (CasoEvento «reserva_solicitud», único por caso+tipo+clave):
+ * bajo pg_advisory_xact_lock en una transacción breve se mira si hay una viva y, si no, se
+ * crea con caducidad. El envío va FUERA de la transacción; al acabar se libera.
  */
-export async function conCandadoHilo<T>(casoId: string | null | undefined, par: string, fn: (tx: Prisma.TransactionClient | null) => Promise<T>): Promise<T> {
-  if (!casoId) return fn(null);
-  return prisma.$transaction(
-    async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('hilo'), hashtext(${`${casoId}|${par}`}))`;
-      return fn(tx);
-    },
-    { maxWait: 20_000, timeout: 280_000 }
-  );
+export async function reservarHilo(
+  casoId: string,
+  par: string,
+  actor: string
+): Promise<{ ok: true; liberar: () => Promise<void> } | { ok: false; error: string }> {
+  const dedupeKey = `reserva:${par.toUpperCase()}`;
+  try {
+    const id = await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('hilo'), hashtext(${`${casoId}|${par.toUpperCase()}`}))`;
+        const prev = await tx.casoEvento.findFirst({ where: { casoId, tipo: "reserva_solicitud", dedupeKey }, select: { id: true, payload: true } });
+        if (prev && reservaViva(prev.payload, new Date())) return null;
+        if (prev) await tx.casoEvento.delete({ where: { id: prev.id } });
+        const ev = await tx.casoEvento.create({
+          data: { casoId, tipo: "reserva_solicitud", dedupeKey, actor, payload: { par, expiresAt: new Date(Date.now() + RESERVA_MIN * 60_000).toISOString() } },
+          select: { id: true },
+        });
+        return ev.id;
+      },
+      { maxWait: 3_000, timeout: 5_000 }
+    );
+    if (!id) return { ok: false, error: "Envío en curso para este caso y par: espera unos segundos y vuelve a mirar." };
+    return {
+      ok: true,
+      liberar: () =>
+        prisma.casoEvento
+          .deleteMany({ where: { id } })
+          .then(() => undefined)
+          .catch((err) => console.error("[caso] liberar reserva del hilo falló:", err)),
+    };
+  } catch (err) {
+    console.error("[caso] reservar hilo falló:", err);
+    return { ok: false, error: "No se pudo reservar el envío (base de datos ocupada): inténtalo de nuevo." };
+  }
 }
 
 /** El presupuesto vivo o aún pagable del caso y par, con lo que hace falta para saber si es un borrador sustituible. */

@@ -123,3 +123,15 @@ export async function retirarEnOrden<T extends { ref: string }>(
   }
   return { retiradas, fallo: null };
 }
+
+/** Reserva del hilo (caso+par) mientras se pide precio: dura RESERVA_MIN minutos como mucho. */
+export const RESERVA_MIN = 5;
+export function reservaViva(payload: unknown, ahora: Date): boolean {
+  const exp = Date.parse(String((payload as { expiresAt?: unknown } | null)?.expiresAt || ""));
+  return Number.isFinite(exp) && exp > ahora.getTime();
+}
+
+/** Solo un envío correcto a lavori congela el presupuesto enviado: si falla, nada se congela. */
+export function quotesACongelar(envioOk: boolean, congelar: string[]): string[] {
+  return envioOk ? congelar : [];
+}

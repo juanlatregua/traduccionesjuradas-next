@@ -8,8 +8,8 @@ import { freezeQuoteForRepricing } from "@/lib/precio-tras-envio";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
 import { sombraBloqueo } from "@/lib/caso/sombra";
 import { anclasDeExpediente } from "@/lib/caso/sombra-plan";
-import { decidirSolicitud, retirarEnOrden } from "@/lib/caso/hilo";
-import { casoDeLaPeticion, conCandadoHilo, rastroHilo, solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
+import { decidirSolicitud, quotesACongelar, retirarEnOrden } from "@/lib/caso/hilo";
+import { casoDeLaPeticion, rastroHilo, reservarHilo, solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
 import type { Anclas } from "@/lib/caso/resolver-db";
 
 export const runtime = "nodejs";
@@ -97,7 +97,11 @@ export async function POST(req: Request) {
     }
     const casoHilo = caso.casoId ?? anclas.casoId ?? null;
 
-    return await conCandadoHilo(parSolicitado ? casoHilo : null, parSolicitado || "", async () => {
+    // Reserva corta del hilo (caso+par): una segunda petición mientras esta envía → 409.
+    const reserva = parSolicitado && casoHilo ? await reservarHilo(casoHilo, parSolicitado, actor) : null;
+    if (reserva && !reserva.ok) return NextResponse.json({ ok: false, error: reserva.error }, { status: 409 });
+
+    const flujo = async () => {
       let casoId = casoHilo;
       if (parSolicitado) {
         const vivas = await solicitudesVivasDelHilo(casoId, anclas);
@@ -163,13 +167,13 @@ export async function POST(req: Request) {
               { status: fallo.status }
             );
           }
+          const result = await sendLeadPriceRequest(nueva);
           const congelados: string[] = [];
-          for (const quoteId of d.congelar) {
+          for (const quoteId of quotesACongelar(result.ok, d.congelar)) {
             if (await freezeQuoteForRepricing({ quoteId, retiradas, actorEmail: actor })) congelados.push(quoteId);
           }
-          const result = await sendLeadPriceRequest(nueva);
           if (!result.ok) {
-            await rastroHilo(casoId, "solicitud_reemplazada", actor, `fallo:${retiradas.join(",")}:${Date.now()}`, { retiradas, nueva: null, error: result.error, congelados });
+            await rastroHilo(casoId, "solicitud_reemplazada", actor, `fallo:${retiradas.join(",")}:${Date.now()}`, { retiradas, nueva: null, error: result.error, sinCongelar: d.congelar });
             return NextResponse.json(
               { ok: false, error: `${retiradas.join(", ")} quedó retirada en lavori, pero la nueva no salió (${result.error}). Vuelve a pedir desde aquí.` },
               { status: result.status }
@@ -236,7 +240,12 @@ export async function POST(req: Request) {
         { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres },
         { status: result.repetido ? 200 : 201 }
       );
-    });
+    };
+    try {
+      return await flujo();
+    } finally {
+      if (reserva?.ok) await reserva.liberar();
+    }
   } catch (err) {
     console.error("[lavori-price-request lead] error", err);
     return NextResponse.json(

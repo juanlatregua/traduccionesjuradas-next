@@ -157,9 +157,10 @@ export async function POST(req: Request) {
 
     const createdTx = await prisma.$transaction(async (tx) => {
       if (casoId && parCaso) {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('hilo'), hashtext(${`${casoId}|${parCaso}`}))`;
+        const [candado] = await tx.$queryRaw<{ ok: boolean }[]>`SELECT pg_try_advisory_xact_lock(hashtext('hilo'), hashtext(${`${casoId}|${parCaso}`})) AS ok`;
+        if (!candado?.ok) return { quote: null, huerfano: null, carrera: null, ocupadoAhora: true };
         const carrera = bloqueante(await presupuestoVivoDelCaso(casoId, parCaso, tx));
-        if (carrera) return { quote: null, huerfano: null, carrera };
+        if (carrera) return { quote: null, huerfano: null, carrera, ocupadoAhora: false };
       }
       // Cliente que vuelve con el email en otra capitalización: se enlaza a SU ficha
       // (con sus datos de facturación) en vez de crear una ficha gemela vacía.
@@ -262,8 +263,11 @@ export async function POST(req: Request) {
         },
       });
 
-      return { quote, huerfano, carrera: null };
+      return { quote, huerfano, carrera: null, ocupadoAhora: false };
     });
+    if (createdTx.ocupadoAhora) {
+      return NextResponse.json({ ok: false, error: "Se está creando otro presupuesto de este caso y par ahora mismo: espera unos segundos y vuelve a intentarlo." }, { status: 409 });
+    }
     if (!createdTx.quote) return ocupado(createdTx.carrera!);
     const created = createdTx.quote;
     await tomarVigente(created.id, casoId, "constructor");
@@ -342,6 +346,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, quote: serializeQuote(created) });
   } catch (err: any) {
     console.error("[quotes:create] error", err);
+    if (err?.code === "P2028" || err?.code === "P2024") {
+      return NextResponse.json({ ok: false, error: "La base de datos está ocupada: vuelve a intentarlo en unos segundos." }, { status: 409 });
+    }
     return NextResponse.json(
       { ok: false, error: err?.message || "No se pudo crear el presupuesto." },
       { status: 500 }

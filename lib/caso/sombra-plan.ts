@@ -137,7 +137,7 @@ export function compararDecisiones(i: {
 
 export const BARRIDO_SIN_VIDA_DIAS = 7;
 export const BARRIDO_VACIO_DIAS = 1;
-const EVENTOS_DESECHABLES = new Set(["creado", "adjuntado", "posible", "transicion"]);
+const EVENTOS_DESECHABLES = new Set(["creado", "adjuntado", "posible", "transicion", "reserva_solicitud"]);
 /** Sin rastro útil (comparaciones, veredictos…): se puede borrar sin perder medición. */
 export function soloEventosDesechables(tipos: string[]): boolean {
   return tipos.every((t) => EVENTOS_DESECHABLES.has(t));

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decidirSolicitud, retirarEnOrden, vivasDelPar, presupuestoDelHilo, esBorradorSustituible, type LprDelHilo, type QuoteDelHilo } from "../../lib/caso/hilo.ts";
+import { decidirSolicitud, quotesACongelar, reservaViva, RESERVA_MIN, retirarEnOrden, vivasDelPar, presupuestoDelHilo, esBorradorSustituible, type LprDelHilo, type QuoteDelHilo } from "../../lib/caso/hilo.ts";
 import { aplicarCosteJurado, type LineaCoste } from "../../lib/caso/coste-lead.ts";
+import { salidaPorPresupuestoNuevo } from "../../lib/precio-tras-envio-math.ts";
 import { separarPorCaso, type OpenSibling } from "../../lib/open-siblings.ts";
 
 const AHORA = new Date("2026-10-14T12:00:00Z");
@@ -201,4 +202,30 @@ test("retirada a medias: para en el primer fallo y devuelve lo ya retirado (para
   assert.deepEqual(r.fallo, { ref: "B", status: 409, error: "ya lo tiene Morton" });
   assert.deepEqual(llamadas, ["A", "B"], "C no se toca");
   assert.deepEqual(await retirarEnOrden([{ ref: "A" }], async () => ({ ok: true })), { retiradas: ["A"], fallo: null });
+});
+
+test("reserva del hilo: viva → otra petición recibe 409 «envío en curso»; caducada o sin fecha → libre", () => {
+  const exp = (min: number) => ({ expiresAt: new Date(AHORA.getTime() + min * 60_000).toISOString() });
+  assert.ok(reservaViva(exp(RESERVA_MIN), AHORA));
+  assert.ok(!reservaViva(exp(-1), AHORA));
+  assert.ok(!reservaViva(null, AHORA));
+  assert.ok(!reservaViva({ expiresAt: "basura" }, AHORA));
+});
+
+test("volver a pedir: solo un envío correcto congela el presupuesto enviado", () => {
+  assert.deepEqual(quotesACongelar(true, ["q1"]), ["q1"]);
+  assert.deepEqual(quotesACongelar(false, ["q1"]), []);
+});
+
+test("presupuesto más reciente: el congelado por «volver a pedir» se descongela si no hay pérdida", () => {
+  assert.equal(salidaPorPresupuestoNuevo("volver:LEAD-A", true, "ok"), "descongelar");
+  assert.equal(salidaPorPresupuestoNuevo("volver:LEAD-A", true, "margen_bajo"), "descongelar");
+  assert.equal(salidaPorPresupuestoNuevo("volver:LEAD-A", true, "perdida"), "salir");
+  assert.equal(salidaPorPresupuestoNuevo("LEAD-A|9000|m1", true, "ok"), "salir", "congelado por pérdida: no se toca");
+  assert.equal(salidaPorPresupuestoNuevo("volver:LEAD-A", false, "ok"), "salir");
+});
+
+test("coste del jurado: margen ≤0 visible", () => {
+  const r = aplicarCosteJurado([linea({ costeCents: 1000, ventaCents: 3000, porPagina: true })], { baseCents: 3500, docsCount: 1 });
+  assert.ok(r.ok && r.margenCents <= 0);
 });
