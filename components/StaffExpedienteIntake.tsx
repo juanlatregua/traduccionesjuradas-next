@@ -13,7 +13,7 @@ import LavoriCandidatePicker, { describeLavoriPick, lavoriPickError, lavoriPickT
 import { suggestClientLang } from "@/lib/client-lang";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 import { UNREAD_PAGES_TYPE_ES } from "@/lib/ai/unread-pages";
-import { repartirCosteLead } from "@/lib/caso/coste-lead";
+import { aplicarCosteJurado } from "@/lib/caso/coste-lead";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -285,6 +285,9 @@ export type SolicitudViva = {
   miembroNombre: string | null;
   nombres: string[];
   createdAt: string;
+  /** Cifra del jurado en base (sin IVA ni IRPF), céntimos. */
+  baseCents?: number | null;
+  docsCount?: number;
 };
 
 function haceHoras(iso: string): string {
@@ -308,8 +311,6 @@ type Props = {
   casoId?: string | null;
   puertaSession?: string | null;
   solicitudesVivas?: SolicitudViva[];
-  // Cifra del jurado: coste de las líneas, el análisis no la pisa.
-  costeJuradoCents?: number | null;
 };
 
 export default function StaffExpedienteIntake({
@@ -322,7 +323,6 @@ export default function StaffExpedienteIntake({
   casoId,
   puertaSession,
   solicitudesVivas = [],
-  costeJuradoCents,
 }: Props = {}) {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [customerName, setCustomerName] = useState(initialCustomer?.name || initialData?.customerName || "");
@@ -378,6 +378,7 @@ export default function StaffExpedienteIntake({
   const [solicitudEnviada, setSolicitudEnviada] = useState<SolicitudViva | null>(null);
   const [volverAPedir, setVolverAPedir] = useState(false);
   const costeJuradoAplicadoRef = useRef(false);
+  const [costeJuradoAviso, setCosteJuradoAviso] = useState<string | null>(null);
 
   // Lectura IA del email (solo cuando el presupuesto nace de la bandeja).
   const [brief, setBrief] = useState<EmailBrief | null>(null);
@@ -922,25 +923,6 @@ export default function StaffExpedienteIntake({
     });
   }, [targetLang, docs]);
 
-  // Cifra del jurado (solicitud del hilo): ES el coste de las líneas. Se pone una vez,
-  // cuando el análisis ha terminado, y como precio a mano para que nada la recalcule.
-  useEffect(() => {
-    if (costeJuradoAplicadoRef.current || !costeJuradoCents || initialData?.lineAmount) return;
-    if (docs.length === 0 || docs.some((d) => d.status === "uploading" || d.status === "analyzing")) return;
-    const lineas = docs.filter((d) => d.include && isPriceable(d.status));
-    if (lineas.length === 0) return;
-    costeJuradoAplicadoRef.current = true;
-    const costes = repartirCosteLead(lineas.map((d) => ({ coste: d.unitPrice, palabras: d.words })), costeJuradoCents);
-    const porId = new Map(lineas.map((d, i) => [d.localId, costes[i]]));
-    setDocs((prev) =>
-      prev.map((d) =>
-        porId.has(d.localId)
-          ? { ...d, unitPrice: porId.get(d.localId)!, clientPrice: undefined, autoPriced: false, pageTariff: undefined, priceNote: undefined, minApplied: false }
-          : d
-      )
-    );
-  }, [docs, costeJuradoCents, initialData?.lineAmount]);
-
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
   const clientPriceOf = useCallback(
@@ -1092,6 +1074,40 @@ export default function StaffExpedienteIntake({
     [solicitudEnviada, solicitudesVivas, parActual]
   );
 
+  // Cifra del jurado (solicitud viva del MISMO par): es el coste de las líneas que cubre
+  // su solicitud; venta = la del motor, que solo sube si el margen no llega. Una vez,
+  // con el análisis terminado, y como precio a mano para que nada la recalcule.
+  useEffect(() => {
+    if (costeJuradoAplicadoRef.current || initialData?.lineAmount) return;
+    const lead = solicitudesVivas.find((l) => l.par.toUpperCase() === parActual && l.baseCents);
+    if (!lead?.baseCents) return;
+    if (docs.length === 0 || docs.some((d) => d.status === "uploading" || d.status === "analyzing")) return;
+    const lineas = docs.filter((d) => d.include && isPriceable(d.status));
+    if (lineas.length === 0) return;
+    costeJuradoAplicadoRef.current = true;
+    const r = aplicarCosteJurado(
+      lineas.map((d) => ({
+        id: d.localId,
+        url: d.blobUrl || null,
+        costeCents: Math.round((d.unitPrice || 0) * 100),
+        ventaCents: d.unitPrice > 0 || d.clientPrice != null ? Math.round(rowClientPrice(d) * 100) : 0,
+        porPagina: !!d.pageTariff,
+      })),
+      { baseCents: lead.baseCents, docsCount: lead.docsCount ?? 0 }
+    );
+    if (!r.ok) {
+      setCosteJuradoAviso(`${lead.ref}: ${r.motivo}`);
+      return;
+    }
+    const porId = new Map(r.lineas.map((l) => [l.id, l]));
+    setDocs((prev) =>
+      prev.map((d) => {
+        const l = porId.get(d.localId);
+        return l ? { ...d, unitPrice: l.costeCents / 100, clientPrice: l.ventaCents / 100, autoPriced: false, priceNote: undefined } : d;
+      })
+    );
+  }, [docs, solicitudesVivas, parActual, rowClientPrice, initialData?.lineAmount]);
+
   const sendLavoriPrice = useCallback(async (opts: { volverAPedir?: boolean } = {}): Promise<string | null> => {
     if (!lavoriRoute || lavoriDocs.length === 0) return null;
     const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
@@ -1102,10 +1118,11 @@ export default function StaffExpedienteIntake({
     }
     setLavoriState({ phase: "sending" });
     try {
-      const res = await fetch("/api/lavori/price-request", {
+      const post = (confirmarCongelar: boolean) => fetch("/api/lavori/price-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          confirmarCongelar: confirmarCongelar || undefined,
           docs: lavoriDocs.map((d) => ({
             url: d.blobUrl,
             // Nombre neutro (tipo documental); el fichero original del cliente
@@ -1131,7 +1148,14 @@ export default function StaffExpedienteIntake({
           volverAPedir: opts.volverAPedir || undefined,
         }),
       });
-      const data = await res.json();
+      let data = await (await post(false)).json();
+      if (data.needsFreezeConfirm) {
+        if (!window.confirm(`${data.error}\n\n¿Volver a pedir igualmente?`)) {
+          setLavoriState({ phase: "idle" });
+          return null;
+        }
+        data = await (await post(true)).json();
+      }
       if (!data.ok) {
         setLavoriState({ phase: "error", msg: data.error || "No se pudo enviar la solicitud." });
         return null;
@@ -2001,6 +2025,7 @@ export default function StaffExpedienteIntake({
               <span className="tabular-nums">+{(subtotal - costTotal).toFixed(2)} €</span>
             </div>
           </div>
+          {costeJuradoAviso && <p className="text-sm text-amber-400">{costeJuradoAviso}</p>}
           {submitError && (
             <p className="text-sm text-amber-400">
               {submitError}

@@ -8,6 +8,9 @@ import { findLiveSiblingLeadRequest } from "@/lib/lavori-lead";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
 import { presupuestoVivoDelCaso, solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
 import { nombreMiembro } from "@/lib/caso/vista";
+import { parFromLangs } from "@/lib/lavori-dup-guard";
+import { priceBasisForMember } from "@/lib/lavori-directo";
+import { channelPriceToBaseCents } from "@/lib/lavori-directo-math";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -82,15 +85,28 @@ export default async function ZonaTraductorPresupuestoPage({
     sessionParam || (lead?.expedienteRef?.startsWith("puerta:") ? lead.expedienteRef.slice("puerta:".length).slice(0, 80) : "");
   const sessionKey = expRef ? `exp:${expRef}` : puertaSession || null;
 
-  // Hilo único (F3b): el caso de esta gestión ya tiene presupuesto vivo → se va a ÉL.
-  // Cambiarlo es «Editar datos y líneas», nunca otro número.
+  // Hilo único (F3b): el caso de esta gestión ya tiene presupuesto vivo DEL PAR → se va a
+  // ÉL. Cambiarlo es «Editar datos y líneas», nunca otro número. Par: el de la solicitud,
+  // el del enlace o el único de los documentos de la sesión (varios pares → no se adivina).
   const casoId =
     lead?.casoId ||
     (sessionKey ? (await prisma.documentAnalysis.findFirst({ where: { sessionToken: sessionKey, casoId: { not: null } }, select: { casoId: true } }))?.casoId : null) ||
     (expRef ? (await prisma.quote.findFirst({ where: { expedienteRef: expRef, casoId: { not: null } }, select: { casoId: true } }))?.casoId : null) ||
     inboundEmail?.casoId ||
     null;
-  const vigente = await presupuestoVivoDelCaso(casoId).catch(() => null);
+  const parEnlace = parseLangPair(s(searchParams.langPair));
+  const parDeSesion = async () => {
+    if (!sessionKey) return null;
+    const filas = await prisma.documentAnalysis.findMany({ where: { sessionToken: sessionKey }, select: { sourceLanguage: true, targetLanguage: true } });
+    const known = (l: string | null) => (l && l !== "unknown" ? l : null);
+    const pares = new Set(filas.map((f) => parFromLangs(known(f.sourceLanguage), known(f.targetLanguage) || "es")).filter(Boolean));
+    return pares.size === 1 ? [...pares][0] : null;
+  };
+  const parPagina =
+    lead?.par ||
+    parFromLangs(s(searchParams.sourceLang) || parEnlace.source, s(searchParams.targetLang) || parEnlace.target) ||
+    (casoId ? await parDeSesion() : null);
+  const vigente = await presupuestoVivoDelCaso(casoId, parPagina).catch(() => null);
   if (vigente) redirect(`/zona-traductor/presupuestos/${vigente.id}`);
 
   // La solicitud ya tiene presupuesto: se va a ESE presupuesto, no se monta otro
@@ -113,7 +129,7 @@ export default async function ZonaTraductorPresupuestoPage({
   }
 
   // Prefill del builder manual (deep-links desde el panel del pedido, PM, etc.).
-  const pair = parseLangPair(s(searchParams.langPair));
+  const pair = parEnlace;
   const builderInitial = {
     customerName: s(searchParams.customerName) || undefined,
     customerEmail: s(searchParams.customerEmail) || undefined,
@@ -150,11 +166,9 @@ export default async function ZonaTraductorPresupuestoPage({
     miembroNombre: l.miembroNombre,
     nombres: l.candidatos.map((id) => nombreMiembro(id) || id),
     createdAt: l.createdAt.toISOString(),
+    baseCents: l.priceCents ? channelPriceToBaseCents(l.priceCents, priceBasisForMember(l.miembroId)) : null,
+    docsCount: l.docsCount,
   }));
-  const costeJuradoCents = lead?.priceCents || vivas.find((l) => l.priceCents && (!lead || l.par === lead.par))?.priceCents || null;
-  const builderInitialConLead = lead
-    ? { ...builderInitial, lineCost: costeJuradoCents ? (costeJuradoCents / 100).toFixed(2) : undefined }
-    : builderInitial;
   let initialDocs: { documentId: string; fileName: string; fileUrl?: string }[] | undefined;
   let initialCustomer: { name?: string; email?: string; phone?: string } | undefined;
 
@@ -206,7 +220,7 @@ export default async function ZonaTraductorPresupuestoPage({
           {lead && (
             <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
               {lead.priceCents
-                ? `${lead.miembroNombre || "El traductor"} propuso ${(lead.priceCents / 100).toFixed(2)} €${lead.plazoDias ? ` · ${lead.plazoDias} días` : ""} (${lead.par}). Coste ya puesto en la línea; neto de cliente 75/25 sugerido: ${(lead.priceCents / 0.75 / 100).toFixed(2)} € + IVA.`
+                ? `${lead.miembroNombre || "El traductor"} propuso ${(lead.priceCents / 100).toFixed(2)} €${lead.plazoDias ? ` · ${lead.plazoDias} días` : ""} (${lead.par}). Entra como coste de las líneas que cubre; el precio de venta es el del motor y solo sube si el margen no llega.`
                 : `Solicitud ${lead.par} enviada a lavori; el traductor aún no ha pasado precio.`}
               {" "}Al crear el presupuesto queda atado a esta solicitud: el pago avisará al traductor.
               {initialDocs?.length ? ` Los ${initialDocs.length} documento${initialDocs.length === 1 ? "" : "s"} de la puerta ya están abajo.` : lead.docsCount > 0 ? " Suelta aquí los documentos del cliente (no hay expediente)." : ""}
@@ -241,13 +255,12 @@ export default async function ZonaTraductorPresupuestoPage({
         <StaffExpedienteIntake
           initialDocs={initialDocs}
           initialCustomer={initialCustomer}
-          initialData={expRef ? undefined : builderInitialConLead}
+          initialData={expRef ? undefined : builderInitial}
           expedienteRef={expRef}
           lavoriLeadRef={lead?.ref ?? null}
           casoId={casoId}
           puertaSession={puertaSession || null}
           solicitudesVivas={solicitudesVivas}
-          costeJuradoCents={costeJuradoCents}
           emailContext={
             inboundEmail
               ? { id: inboundEmail.id, fromName: inboundEmail.fromName, fromEmail: inboundEmail.fromEmail, subject: inboundEmail.subject, text: (inboundEmail.bodyText || inboundEmail.bodyPreview || "").split(/\n(?:>|El .{0,120}escribi[oó]:|On .{0,120}wrote:|Le .{0,120}a écrit)/)[0].slice(0, 600) }
