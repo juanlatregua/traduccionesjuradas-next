@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decidirSolicitud, vivasDelPar, presupuestoDelHilo, esBorradorSustituible, type LprDelHilo, type QuoteDelHilo } from "../../lib/caso/hilo.ts";
-import { repartirCosteLead } from "../../lib/caso/coste-lead.ts";
+import { decidirSolicitud, retirarEnOrden, vivasDelPar, presupuestoDelHilo, esBorradorSustituible, type LprDelHilo, type QuoteDelHilo } from "../../lib/caso/hilo.ts";
+import { aplicarCosteJurado, type LineaCoste } from "../../lib/caso/coste-lead.ts";
 import { separarPorCaso, type OpenSibling } from "../../lib/open-siblings.ts";
 
 const AHORA = new Date("2026-10-14T12:00:00Z");
@@ -42,7 +42,30 @@ test("volver a pedir: retira todas las vivas del par y hereda el presupuesto", (
   if (d.accion !== "reemplazar") return;
   assert.deepEqual(d.retirar.map((l) => l.ref).sort(), ["A", "B"]);
   assert.equal(d.quoteId, "q1");
+  assert.deepEqual(d.congelar, []);
   assert.deepEqual(decidirSolicitud({ lprs: [], par: "ES>IT", ahora: AHORA, volverAPedir: true }), { accion: "crear" });
+});
+
+test("volver a pedir: nunca retira ACCEPTED ni una atada a presupuesto formalizado", () => {
+  const a = decidirSolicitud({ lprs: [lpr({ ref: "A", status: "ACCEPTED" }), lpr({ ref: "B" })], par: "ES>IT", ahora: AHORA, volverAPedir: true });
+  assert.equal(a.accion, "bloquear");
+  assert.equal(a.accion === "bloquear" && a.viva.ref, "A");
+  for (const quoteStatus of ["PAID", "IN_PROGRESS", "DELIVERED"]) {
+    const d = decidirSolicitud({ lprs: [lpr({ ref: "P", status: "PRICED", priceCents: 9000, quoteId: "q", quoteStatus })], par: "ES>IT", ahora: AHORA, volverAPedir: true });
+    assert.equal(d.accion, "bloquear", quoteStatus);
+  }
+  assert.equal(decidirSolicitud({ lprs: [lpr({ status: "ACCEPTED" })], par: "ES>IT", ahora: AHORA }).accion, "reutilizar", "sin volver a pedir, se reutiliza");
+});
+
+test("volver a pedir: retirar una cifra con presupuesto enviado pide congelar ese presupuesto", () => {
+  const d = decidirSolicitud({
+    lprs: [lpr({ ref: "P", status: "PRICED", priceCents: 12000, quoteId: "q1", quoteStatus: "SENT" }), lpr({ ref: "S", quoteId: "q2", quoteStatus: "DRAFT" })],
+    par: "ES>IT",
+    ahora: AHORA,
+    volverAPedir: true,
+  });
+  assert.equal(d.accion, "reemplazar");
+  assert.deepEqual(d.accion === "reemplazar" && d.congelar, ["q1"]);
 });
 
 test("volver a pedir mientras se retira: esperar", () => {
@@ -60,20 +83,30 @@ const q = (o: Partial<QuoteDelHilo>): QuoteDelHilo => ({
   supersededAt: null,
   expiredAt: null,
   createdAt: hace(1),
+  sourceLang: "es",
+  targetLang: "it",
   ...o,
 });
 
 test("presupuesto del hilo: la vigente primero; borrado, perdido a mano, pagado o caducado no", () => {
-  assert.equal(presupuestoDelHilo([q({ id: "a" }), q({ id: "b", liveCasoKey: "C1", createdAt: hace(5) })], "C1")?.id, "b");
-  assert.equal(presupuestoDelHilo([q({ id: "a", createdAt: hace(3) }), q({ id: "b", createdAt: hace(1) })], "C1")?.id, "b");
+  assert.equal(presupuestoDelHilo([q({ id: "a" }), q({ id: "b", liveCasoKey: "C1", createdAt: hace(5) })], "C1", "ES>IT")?.id, "b");
+  assert.equal(presupuestoDelHilo([q({ id: "a", createdAt: hace(3) }), q({ id: "b", createdAt: hace(1) })], "C1", "ES>IT")?.id, "b");
   assert.equal(
     presupuestoDelHilo(
       [q({ deletedAt: hace(1) }), q({ lostReason: "PRICE", lostReasonNote: "caro" }), q({ status: "PAID" }), q({ expiredAt: hace(1) })],
-      "C1"
+      "C1",
+      "ES>IT"
     ),
     null
   );
-  assert.equal(presupuestoDelHilo([q({ id: "s", lostReason: "NO_RESPONSE", lostReasonNote: "auto:sin_respuesta" })], "C1")?.id, "s", "cierre suave: aún pagable");
+  assert.equal(presupuestoDelHilo([q({ id: "s", lostReason: "NO_RESPONSE", lostReasonNote: "auto:sin_respuesta" })], "C1", "ES>IT")?.id, "s", "cierre suave: aún pagable");
+});
+
+test("multi-par: IT>ES presupuestado no impide presupuestar EN>ES del mismo caso", () => {
+  const it = q({ id: "it", sourceLang: "it", targetLang: "es", liveCasoKey: "C1" });
+  assert.equal(presupuestoDelHilo([it], "C1", "IT>ES")?.id, "it");
+  assert.equal(presupuestoDelHilo([it], "C1", "EN>ES"), null);
+  assert.equal(presupuestoDelHilo([it], "C1", null), null, "par desconocido: no se adivina");
 });
 
 test("borrador sustituible: mismo cliente/par/expediente, sin enviar ni pedido, ≤2 h", () => {
@@ -86,15 +119,44 @@ test("borrador sustituible: mismo cliente/par/expediente, sin enviar ni pedido, 
   assert.ok(!esBorradorSustituible(base, { ...nuevo, targetLang: "en" }, AHORA));
 });
 
-test("coste desde la solicitud: la cifra del jurado es el coste, suma exacta", () => {
-  assert.deepEqual(repartirCosteLead([{ coste: 150 }], 12000), [120]);
-  assert.deepEqual(repartirCosteLead([{ coste: 30 }, { coste: 90 }], 12000), [30, 90]);
-  assert.deepEqual(repartirCosteLead([{ coste: 0, palabras: 100 }, { coste: 50, palabras: 300 }], 10000), [25, 75]);
-  const tres = repartirCosteLead([{}, {}, {}], 10000);
-  assert.deepEqual(tres, [33.33, 33.33, 33.34]);
-  assert.equal(Math.round(tres.reduce((a, x) => a + x, 0) * 100), 10000);
-  assert.deepEqual(repartirCosteLead([], 10000), []);
-  assert.deepEqual(repartirCosteLead([{ coste: 10 }], 0), []);
+const linea = (o: Partial<LineaCoste>): LineaCoste => ({ id: "l", url: "u1", costeCents: 0, ventaCents: 0, porPagina: false, ...o });
+
+test("coste del jurado: es el coste y la venta del motor se conserva si el margen da", () => {
+  const r = aplicarCosteJurado([linea({ costeCents: 15000, ventaCents: 30000 })], { baseCents: 12000, docsCount: 1 });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(r.lineas[0].costeCents, 12000, "120 del jurado, no los 150 del análisis");
+  assert.equal(r.lineas[0].ventaCents, 30000, "venta del motor intacta");
+});
+
+test("coste del jurado: la venta solo sube si con la del motor no hay margen", () => {
+  const r = aplicarCosteJurado([linea({ costeCents: 3000, ventaCents: 4000 })], { baseCents: 9000, docsCount: 1 });
+  assert.ok(r.ok && r.lineas[0].ventaCents > 9000);
+});
+
+test("coste del jurado: solo a los documentos de la solicitud; extras manuales intactos; reparto exacto", () => {
+  const r = aplicarCosteJurado(
+    [linea({ id: "a", url: "u1", costeCents: 3000, ventaCents: 6000 }), linea({ id: "b", url: "u1", costeCents: 9000, ventaCents: 15000 }), linea({ id: "m", url: null, costeCents: 500, ventaCents: 1000 })],
+    { baseCents: 10000, docsCount: 1 }
+  );
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.deepEqual(r.lineas.map((l) => l.id), ["a", "b"]);
+  assert.equal(r.lineas.reduce((a, l) => a + l.costeCents, 0), 10000);
+  assert.deepEqual(r.lineas.map((l) => l.costeCents), [2500, 7500]);
+});
+
+test("coste del jurado: si los documentos no cuadran no reparte y avisa", () => {
+  const r = aplicarCosteJurado([linea({ id: "a", url: "u1" }), linea({ id: "b", url: "u2" })], { baseCents: 10000, docsCount: 3 });
+  assert.equal(r.ok, false);
+  assert.match(!r.ok ? r.motivo : "", /cubre 3 docs/);
+  assert.ok(aplicarCosteJurado([linea({ url: null })], { baseCents: 5000, docsCount: 2 }).ok, "lead sin documentos: la única línea manual");
+  assert.equal(aplicarCosteJurado([linea({ url: null }), linea({ id: "x", url: null })], { baseCents: 5000, docsCount: 2 }).ok, false);
+});
+
+test("coste del jurado: tarifa por página conserva la venta publicada", () => {
+  const r = aplicarCosteJurado([linea({ costeCents: 1000, ventaCents: 3000, porPagina: true })], { baseCents: 2500, docsCount: 1 });
+  assert.ok(r.ok && r.lineas[0].ventaCents === 3000);
 });
 
 const sib = (o: Partial<OpenSibling>): OpenSibling => ({
@@ -127,4 +189,16 @@ test("banner: la sesión cuya solicitud es la propia (excluida) sigue siendo hil
   assert.deepEqual(separarPorCaso([sesion], "C1", ["puerta:tok"]).hilo.length, 1);
   assert.deepEqual(separarPorCaso([sesion], "C1").otros.length, 1);
   assert.deepEqual(separarPorCaso([sesion], null).otros.length, 1, "sin caso todo avisa como antes");
+});
+
+test("retirada a medias: para en el primer fallo y devuelve lo ya retirado (para el rastro)", async () => {
+  const llamadas: string[] = [];
+  const r = await retirarEnOrden([{ ref: "A" }, { ref: "B" }, { ref: "C" }], async (l) => {
+    llamadas.push(l.ref);
+    return l.ref === "B" ? { ok: false, status: 409, error: "ya lo tiene Morton" } : { ok: true };
+  });
+  assert.deepEqual(r.retiradas, ["A"]);
+  assert.deepEqual(r.fallo, { ref: "B", status: 409, error: "ya lo tiene Morton" });
+  assert.deepEqual(llamadas, ["A", "B"], "C no se toca");
+  assert.deepEqual(await retirarEnOrden([{ ref: "A" }], async () => ({ ok: true })), { retiradas: ["A"], fallo: null });
 });

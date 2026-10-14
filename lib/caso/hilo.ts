@@ -2,7 +2,7 @@
 // caso+par, un presupuesto vivo por caso y el coste que manda la cifra del jurado.
 // El acceso a BD vive en lib/caso/hilo-db.ts.
 
-import { lprViva, quoteVivo, quotePagable } from "./estados.ts";
+import { lprViva, quoteVivo, quotePagable, QUOTE_FORMALIZADOS } from "./estados.ts";
 import { normPar } from "./resolver.ts";
 
 export type LprDelHilo = {
@@ -13,7 +13,11 @@ export type LprDelHilo = {
   priceCents: number | null;
   quoteId: string | null;
   createdAt: Date;
+  /** Estado del presupuesto atado (quoteId), si lo hay. */
+  quoteStatus?: string | null;
 };
+
+const QUOTE_ENVIADO = ["SENT", "OPENED", "ACCEPTED"];
 
 const PESO_ESTADO: Record<string, number> = { ACCEPTED: 3, PRICED: 2 };
 
@@ -29,13 +33,16 @@ export function vivasDelPar<T extends LprDelHilo>(lprs: T[], par: string, ahora:
 export type DecisionSolicitud<T extends LprDelHilo = LprDelHilo> =
   | { accion: "crear" }
   | { accion: "reutilizar"; viva: T }
-  | { accion: "reemplazar"; retirar: T[]; quoteId: string | null }
-  | { accion: "esperar"; viva: T };
+  | { accion: "reemplazar"; retirar: T[]; quoteId: string | null; congelar: string[] }
+  | { accion: "esperar"; viva: T }
+  | { accion: "bloquear"; viva: T; motivo: string };
 
 /**
  * Pedir precio en un caso: con solicitud viva del par se reutiliza (nunca otra).
  * «Volver a pedir» retira TODAS las vivas del par y crea una nueva que hereda su
- * presupuesto; si alguna está retirándose ahora mismo, se espera.
+ * presupuesto; si alguna está retirándose ahora mismo, se espera. Nunca se retira
+ * una aceptada en lavori ni una atada a un presupuesto ya formalizado. congelar =
+ * presupuestos enviados sin pagar que llevan la cifra que se retira.
  */
 export function decidirSolicitud<T extends LprDelHilo>(i: { lprs: T[]; par: string; ahora: Date; volverAPedir?: boolean }): DecisionSolicitud<T> {
   const vivas = vivasDelPar(i.lprs, i.par, i.ahora);
@@ -43,7 +50,14 @@ export function decidirSolicitud<T extends LprDelHilo>(i: { lprs: T[]; par: stri
   if (!i.volverAPedir) return { accion: "reutilizar", viva: vivas[0] };
   const retirando = vivas.find((l) => l.status === "RETIRING");
   if (retirando) return { accion: "esperar", viva: retirando };
-  return { accion: "reemplazar", retirar: vivas, quoteId: vivas.find((l) => l.quoteId)?.quoteId ?? null };
+  const aceptada = vivas.find((l) => l.status === "ACCEPTED");
+  if (aceptada) return { accion: "bloquear", viva: aceptada, motivo: `${aceptada.ref} ya está aceptada en lavori: no se retira desde aquí` };
+  const formalizada = vivas.find((l) => (QUOTE_FORMALIZADOS as readonly string[]).includes(String(l.quoteStatus || "")));
+  if (formalizada) return { accion: "bloquear", viva: formalizada, motivo: `${formalizada.ref} está atada a un presupuesto ya pagado (${formalizada.quoteStatus})` };
+  const congelar = [
+    ...new Set(vivas.filter((l) => l.status === "PRICED" && !!l.priceCents && !!l.quoteId && QUOTE_ENVIADO.includes(String(l.quoteStatus || ""))).map((l) => l.quoteId!)),
+  ];
+  return { accion: "reemplazar", retirar: vivas, quoteId: vivas.find((l) => l.quoteId)?.quoteId ?? null, congelar };
 }
 
 export type QuoteDelHilo = {
@@ -57,11 +71,17 @@ export type QuoteDelHilo = {
   supersededAt?: Date | null;
   expiredAt?: Date | null;
   createdAt: Date;
+  sourceLang: string | null;
+  targetLang: string | null;
 };
 
-/** El presupuesto que el cliente aún puede pagar o que sigue vivo en el caso (la vigente primero). */
-export function presupuestoDelHilo<T extends QuoteDelHilo>(quotes: T[], casoId: string): T | null {
-  const abiertos = quotes.filter((q) => !q.deletedAt && !q.expiredAt && !q.supersededAt && (quoteVivo(q) || quotePagable(q)));
+/** El presupuesto del caso y par que el cliente aún puede pagar o que sigue vivo (la vigente primero). Par desconocido → null. */
+export function presupuestoDelHilo<T extends QuoteDelHilo>(quotes: T[], casoId: string, par: string | null | undefined): T | null {
+  const p = normPar(par);
+  if (!p) return null;
+  const abiertos = quotes.filter(
+    (q) => normPar(`${q.sourceLang || ""}>${q.targetLang || ""}`) === p && !q.deletedAt && !q.expiredAt && !q.supersededAt && (quoteVivo(q) || quotePagable(q))
+  );
   return (
     abiertos.find((q) => q.liveCasoKey === casoId) ||
     [...abiertos].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ||
@@ -88,4 +108,18 @@ export function esBorradorSustituible(
     q.targetLang === nuevo.targetLang &&
     (q.expedienteRef ?? null) === (nuevo.expedienteRef ?? null)
   );
+}
+
+/** Retira en orden y para en el primer fallo: devuelve lo ya retirado (para el rastro) y el fallo. */
+export async function retirarEnOrden<T extends { ref: string }>(
+  lprs: T[],
+  retirar: (l: T) => Promise<{ ok: true } | { ok: false; status: number; error: string }>
+): Promise<{ retiradas: string[]; fallo: { ref: string; status: number; error: string } | null }> {
+  const retiradas: string[] = [];
+  for (const l of lprs) {
+    const r = await retirar(l);
+    if (!r.ok) return { retiradas, fallo: { ref: l.ref, status: r.status, error: r.error } };
+    retiradas.push(l.ref);
+  }
+  return { retiradas, fallo: null };
 }

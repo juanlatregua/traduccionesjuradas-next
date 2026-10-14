@@ -1,9 +1,10 @@
 // lib/caso/hilo-db.ts — Lecturas del hilo único (F3b): a qué caso va una petición
 // de precio y qué solicitud/presupuesto vivo tiene ya. Decisiones en lib/caso/hilo.ts.
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolverCaso, type Anclas, type ResolverInput } from "@/lib/caso/resolver-db";
-import { LPR_VIVAS } from "@/lib/caso/estados";
+import { LPR_VIVAS, LPR_VIVA_DIAS } from "@/lib/caso/estados";
 import { presupuestoDelHilo } from "@/lib/caso/hilo";
 
 export const LPR_HILO_SELECT = {
@@ -14,6 +15,8 @@ export const LPR_HILO_SELECT = {
   priceCents: true,
   plazoDias: true,
   miembroNombre: true,
+  miembroId: true,
+  docsCount: true,
   candidatos: true,
   encargoId: true,
   quoteId: true,
@@ -40,7 +43,7 @@ const QUOTE_HILO_SELECT = {
   _count: { select: { messageLogs: true, orders: true } },
 } as const;
 
-/** Solicitudes vivas del caso y las ancladas a la misma gestión (ref, expediente, presupuesto). */
+/** Solicitudes vivas (misma edad que lprViva) del caso y las ancladas a la misma gestión (ref, expediente, presupuesto), con el estado de su presupuesto. */
 export async function solicitudesVivasDelHilo(casoId: string | null, anclas: Anclas = {}) {
   const or = [
     ...(casoId ? [{ casoId }] : []),
@@ -49,28 +52,55 @@ export async function solicitudesVivasDelHilo(casoId: string | null, anclas: Anc
     ...(anclas.quoteId ? [{ quoteId: anclas.quoteId }] : []),
   ];
   if (or.length === 0) return [];
-  return prisma.lavoriPriceRequest.findMany({ where: { status: { in: [...LPR_VIVAS] }, OR: or }, select: LPR_HILO_SELECT, orderBy: { createdAt: "desc" } });
+  const desde = new Date(Date.now() - LPR_VIVA_DIAS * 864e5);
+  const lprs = await prisma.lavoriPriceRequest.findMany({
+    where: { status: { in: [...LPR_VIVAS] }, createdAt: { gte: desde }, OR: or },
+    select: LPR_HILO_SELECT,
+    orderBy: { createdAt: "desc" },
+  });
+  const quoteIds = [...new Set(lprs.map((l) => l.quoteId).filter((x): x is string => Boolean(x)))];
+  const quotes = quoteIds.length ? await prisma.quote.findMany({ where: { id: { in: quoteIds } }, select: { id: true, status: true, paidAt: true } }) : [];
+  const estado = new Map(quotes.map((q) => [q.id, q.paidAt && q.status !== "DELIVERED" && q.status !== "IN_PROGRESS" ? "PAID" : q.status]));
+  return lprs.map((l) => ({ ...l, quoteStatus: l.quoteId ? estado.get(l.quoteId) ?? null : null }));
 }
 
 /**
  * Caso al que iría esta petición, SIN escribir (dry-run del resolver). resuelto=false
  * si el resolver falló: quien llama no sabe de qué caso es y aplica la guarda vieja.
  */
-export async function casoDeLaPeticion(input: Omit<ResolverInput, "dryRun">): Promise<{ resuelto: boolean; casoId: string | null }> {
+export async function casoDeLaPeticion(
+  input: Omit<ResolverInput, "dryRun">
+): Promise<{ resuelto: boolean; casoId: string | null; accion: string | null; regla: string | null }> {
   try {
     const r = await resolverCaso({ ...input, dryRun: true });
-    return { resuelto: true, casoId: r.decision.accion === "adjuntar" ? r.decision.casoId ?? null : null };
+    return { resuelto: true, casoId: r.decision.accion === "adjuntar" ? r.decision.casoId ?? null : null, accion: r.decision.accion, regla: r.decision.regla };
   } catch (err) {
     console.error("[caso] hilo: resolver (dry-run) falló:", err);
-    return { resuelto: false, casoId: null };
+    return { resuelto: false, casoId: null, accion: null, regla: null };
   }
 }
 
-/** El presupuesto vivo o aún pagable del caso, con lo que hace falta para saber si es un borrador sustituible. */
-export async function presupuestoVivoDelCaso(casoId: string | null | undefined) {
-  if (!casoId) return null;
-  const quotes = await prisma.quote.findMany({ where: { casoId, deletedAt: null }, select: QUOTE_HILO_SELECT });
-  return presupuestoDelHilo(quotes, casoId);
+/**
+ * Serializa por caso+par (pg_advisory_xact_lock, espacio propio 'hilo') lo que decide
+ * y crea dentro de fn. Sin caso no hay nada que serializar. fn usa su propio cliente:
+ * la transacción solo sostiene el candado.
+ */
+export async function conCandadoHilo<T>(casoId: string | null | undefined, par: string, fn: (tx: Prisma.TransactionClient | null) => Promise<T>): Promise<T> {
+  if (!casoId) return fn(null);
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('hilo'), hashtext(${`${casoId}|${par}`}))`;
+      return fn(tx);
+    },
+    { maxWait: 20_000, timeout: 280_000 }
+  );
+}
+
+/** El presupuesto vivo o aún pagable del caso y par, con lo que hace falta para saber si es un borrador sustituible. */
+export async function presupuestoVivoDelCaso(casoId: string | null | undefined, par: string | null | undefined, db: Prisma.TransactionClient = prisma) {
+  if (!casoId || !par) return null;
+  const quotes = await db.quote.findMany({ where: { casoId, deletedAt: null }, select: QUOTE_HILO_SELECT });
+  return presupuestoDelHilo(quotes, casoId, par);
 }
 
 export async function rastroHilo(casoId: string | null, tipo: string, actor: string, dedupeKey: string, payload: Record<string, unknown>) {
