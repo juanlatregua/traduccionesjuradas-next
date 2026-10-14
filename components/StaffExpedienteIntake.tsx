@@ -285,9 +285,6 @@ export type SolicitudViva = {
   miembroNombre: string | null;
   nombres: string[];
   createdAt: string;
-  /** Cifra del jurado en base (sin IVA ni IRPF), céntimos. */
-  baseCents?: number | null;
-  docsCount?: number;
 };
 
 function haceHoras(iso: string): string {
@@ -311,6 +308,8 @@ type Props = {
   casoId?: string | null;
   puertaSession?: string | null;
   solicitudesVivas?: SolicitudViva[];
+  // Cifras del jurado por par (también de una solicitud ya no viva): coste de las líneas.
+  costesJurado?: { ref: string; par: string; baseCents: number; docsCount: number }[];
 };
 
 export default function StaffExpedienteIntake({
@@ -323,6 +322,7 @@ export default function StaffExpedienteIntake({
   casoId,
   puertaSession,
   solicitudesVivas = [],
+  costesJurado = [],
 }: Props = {}) {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [customerName, setCustomerName] = useState(initialCustomer?.name || initialData?.customerName || "");
@@ -1079,8 +1079,8 @@ export default function StaffExpedienteIntake({
   // con el análisis terminado, y como precio a mano para que nada la recalcule.
   useEffect(() => {
     if (costeJuradoAplicadoRef.current || initialData?.lineAmount) return;
-    const lead = solicitudesVivas.find((l) => l.par.toUpperCase() === parActual && l.baseCents);
-    if (!lead?.baseCents) return;
+    const lead = costesJurado.find((l) => l.par.toUpperCase() === parActual);
+    if (!lead) return;
     if (docs.length === 0 || docs.some((d) => d.status === "uploading" || d.status === "analyzing")) return;
     const lineas = docs.filter((d) => d.include && isPriceable(d.status));
     if (lineas.length === 0) return;
@@ -1093,12 +1093,13 @@ export default function StaffExpedienteIntake({
         ventaCents: d.unitPrice > 0 || d.clientPrice != null ? Math.round(rowClientPrice(d) * 100) : 0,
         porPagina: !!d.pageTariff,
       })),
-      { baseCents: lead.baseCents, docsCount: lead.docsCount ?? 0 }
+      { baseCents: lead.baseCents, docsCount: lead.docsCount }
     );
     if (!r.ok) {
       setCosteJuradoAviso(`${lead.ref}: ${r.motivo}`);
       return;
     }
+    if (r.margenCents <= 0) setCosteJuradoAviso(`${lead.ref}: con la cifra del jurado el margen es ${(r.margenCents / 100).toFixed(2)} € — revisa el precio antes de generar.`);
     const porId = new Map(r.lineas.map((l) => [l.id, l]));
     setDocs((prev) =>
       prev.map((d) => {
@@ -1106,7 +1107,7 @@ export default function StaffExpedienteIntake({
         return l ? { ...d, unitPrice: l.costeCents / 100, clientPrice: l.ventaCents / 100, autoPriced: false, priceNote: undefined } : d;
       })
     );
-  }, [docs, solicitudesVivas, parActual, rowClientPrice, initialData?.lineAmount]);
+  }, [docs, costesJurado, parActual, rowClientPrice, initialData?.lineAmount]);
 
   const sendLavoriPrice = useCallback(async (opts: { volverAPedir?: boolean } = {}): Promise<string | null> => {
     if (!lavoriRoute || lavoriDocs.length === 0) return null;
@@ -2026,6 +2027,11 @@ export default function StaffExpedienteIntake({
             </div>
           </div>
           {costeJuradoAviso && <p className="text-sm text-amber-400">{costeJuradoAviso}</p>}
+          {costTotal > 0 && subtotal - discountAmount - costTotal <= 0 && (
+            <p className="text-sm font-semibold text-rose-400">
+              Margen {(subtotal - discountAmount - costTotal).toFixed(2)} €: con este precio se pierde o no se gana. Sube el precio antes de generar.
+            </p>
+          )}
           {submitError && (
             <p className="text-sm text-amber-400">
               {submitError}

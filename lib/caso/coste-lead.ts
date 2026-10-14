@@ -7,7 +7,7 @@ import { clientCentsWithMotorPrice, spreadCents } from "../lavori-directo-math.t
 
 export type LineaCoste = { id: string; url: string | null; costeCents: number; ventaCents: number; porPagina: boolean };
 export type CosteJurado =
-  | { ok: true; lineas: { id: string; costeCents: number; ventaCents: number }[] }
+  | { ok: true; lineas: { id: string; costeCents: number; ventaCents: number }[]; margenCents: number }
   | { ok: false; motivo: string };
 
 /**
@@ -25,12 +25,10 @@ export function aplicarCosteJurado(lineas: LineaCoste[], lead: { baseCents: numb
   }
   const pesos = cubre.every((l) => l.costeCents > 0) ? cubre.map((l) => l.costeCents) : cubre.map((l) => l.ventaCents);
   const costes = spreadCents(lead.baseCents, pesos);
-  return {
-    ok: true,
-    lineas: cubre.map((l, i) => ({
-      id: l.id,
-      costeCents: costes[i],
-      ventaCents: clientCentsWithMotorPrice(l.ventaCents, costes[i], l.porPagina ? 0 : undefined, l.porPagina),
-    })),
-  };
+  const out = cubre.map((l, i) => ({
+    id: l.id,
+    costeCents: costes[i],
+    ventaCents: clientCentsWithMotorPrice(l.ventaCents, costes[i], l.porPagina ? 0 : undefined, l.porPagina),
+  }));
+  return { ok: true, lineas: out, margenCents: out.reduce((a, l) => a + l.ventaCents - l.costeCents, 0) };
 }
