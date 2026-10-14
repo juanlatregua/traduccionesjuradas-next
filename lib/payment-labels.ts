@@ -6,9 +6,10 @@ export const PAYMENT_LABELS: Record<string, string> = {
   bbva: "por transferencia a BBVA: ES66 0182 3370 67 0201616991 (BIC BBVAESMM)",
   openbank: "por transferencia a Openbank: ES33 0073 0100 5207 9242 5264 (BIC OPENESMM)",
   sabadell: "por transferencia a Banco Sabadell: ES47 0081 0240 1100 0378 7991 (BIC BSABESBB)",
-  bizum607: "por Bizum al 607356273",
+  // bizum607 retirado (14-oct-2026): claves guardadas en presupuestos viejos muestran el 654.
+  bizum607: "por Bizum al 654069126",
   bizum654: "por Bizum al 654069126",
-  bizum: "por Bizum al 607356273 / 654069126",
+  bizum: "por Bizum al 654069126",
   paypal: "por PayPal a hola@traduccionesjuradas.net",
   // Cuenta internacional (SWIFT): clientes fuera de España/UE.
   revolut:
@@ -29,7 +30,6 @@ const HBTJ_ADDRESS = "Calle Esperanto 9, 29007 Málaga, España";
 const JUAN_ADDRESS = "Eugenio Sellés 5, 29017 Málaga, España";
 
 export const PAYMENT_ACCOUNTS: Record<string, PaymentAccount> = {
-  bizum607: { kind: "bizum", phone: "607 356 273" },
   bizum654: { kind: "bizum", phone: "654 069 126" },
   sabadell: { kind: "transfer", bank: "Banco Sabadell", holder: "HBTJ Consultores Lingüísticos S.L.", iban: "ES47 0081 0240 1100 0378 7991", bic: "BSABESBB", holderAddress: HBTJ_ADDRESS, bankAddress: "Avda. Óscar Esplá 37, 03007 Alicante, España" },
   bbva: { kind: "transfer", bank: "BBVA", holder: "HBTJ Consultores Lingüísticos S.L.", iban: "ES66 0182 3370 67 0201616991", bic: "BBVAESMM", holderAddress: HBTJ_ADDRESS, bankAddress: "Plaza de San Nicolás 4, 48005 Bilbao, España" },
@@ -38,10 +38,10 @@ export const PAYMENT_ACCOUNTS: Record<string, PaymentAccount> = {
   paypal: { kind: "paypal", email: "hola@traduccionesjuradas.net" },
 };
 
-/** Expande "bizum" (ambos números) y descarta claves desconocidas. */
+/** "bizum" y el antiguo "bizum607" van al 654; descarta claves desconocidas. */
 export function resolvePaymentAccounts(methods: string[] | null | undefined): { key: string; account: PaymentAccount }[] {
-  const list = methods && methods.length ? methods : ["sabadell", "bizum607"];
-  const keys = list.flatMap((m) => (m === "bizum" ? ["bizum607", "bizum654"] : [m]));
+  const list = methods && methods.length ? methods : ["sabadell", "bizum654"];
+  const keys = list.map((m) => (m === "bizum" || m === "bizum607" ? "bizum654" : m));
   return Array.from(new Set(keys))
     .filter((k) => PAYMENT_ACCOUNTS[k])
     .map((k) => ({ key: k, account: PAYMENT_ACCOUNTS[k] }));

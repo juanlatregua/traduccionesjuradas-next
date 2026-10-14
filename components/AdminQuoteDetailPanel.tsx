@@ -195,7 +195,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
   // elegidos en el presupuesto (Bizum 607/654, BBVA/Openbank…) vía PAYMENT_LABELS,
   // la misma fuente que el PDF — nada hardcodeado.
   const waMsg = useMemo(() => {
-    const PAY = quote.paymentMethods && quote.paymentMethods.length ? quote.paymentMethods : ["sabadell", "bizum607"];
+    const PAY = quote.paymentMethods && quote.paymentMethods.length ? quote.paymentMethods : ["sabadell", "bizum654"];
     const firstName = (quote.customerName || "").trim().split(/\s+/)[0] || "";
     // Siempre TODAS las opciones (Juan 26-ago: "las distintas opciones y sobre todo
     // el link a Stripe y a la página del PDF"); el selector solo decide cuál va primero.

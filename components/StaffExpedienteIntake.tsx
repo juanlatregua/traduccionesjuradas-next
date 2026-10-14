@@ -328,7 +328,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [deliveryNote, setDeliveryNote] = useState("");
   // Orden Juan 24-ago: la cuenta de los presupuestos es SIEMPRE Sabadell — BBVA
   // está en cierre y NO debe salir en presupuestos nuevos.
-  const [paymentMethods, setPaymentMethods] = useState<string[]>(["sabadell", "bizum607"]);
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(["sabadell", "bizum654"]);
   const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -1800,7 +1800,6 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
                 {[
                   { id: "sabadell", label: "Banco Sabadell" },
                   { id: "openbank", label: "Openbank" },
-                  { id: "bizum607", label: "Bizum 607356273" },
                   { id: "bizum654", label: "Bizum 654069126" },
                   { id: "paypal", label: "PayPal" },
                   { id: "bbva", label: "BBVA (en cierre)" },

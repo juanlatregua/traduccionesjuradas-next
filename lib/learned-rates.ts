@@ -573,7 +573,7 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
         adminCreatedBy: opts.adminCreatedBy,
         expedienteRef: opts.expedienteRef,
         marginPct: opts.marginPct,
-        paymentMethods: ["sabadell", "bizum607"],
+        paymentMethods: ["sabadell", "bizum654"],
         pdfLang,
         autoPricedBy: opts.autoPricedBy,
         casoId,
