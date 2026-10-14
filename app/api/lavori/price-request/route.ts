@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { prisma } from "@/lib/prisma";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 import { findLiveSiblingLeadRequest, sendLeadPriceRequest, type LeadDoc } from "@/lib/lavori-lead";
+import { retireLeadRequest } from "@/lib/lavori-retire";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
 import { sombraBloqueo } from "@/lib/caso/sombra";
 import { anclasDeExpediente } from "@/lib/caso/sombra-plan";
+import { decidirSolicitud } from "@/lib/caso/hilo";
+import { casoDeLaPeticion, rastroHilo, solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
+import type { Anclas } from "@/lib/caso/resolver-db";
 
 export const runtime = "nodejs";
 
@@ -13,13 +18,22 @@ export const runtime = "nodejs";
    al candidato del par como encargo dirigido sin precio (adenda 11-ago-2026).
    La vuelta (precio_propuesto) aterriza en LavoriPriceRequest vía /api/lavori/eventos.
    Toda la lógica vive en lib/lavori-lead.ts (mismo carril que el enlace de un
-   toque del aviso a staff); aquí solo auth, forma del body y acuse al cliente. */
+   toque del aviso a staff); aquí solo auth, forma del body, hilo del caso y acuse.
+
+   Hilo único (F3b, Juan 14-oct-2026): como mucho UNA solicitud viva por caso+par.
+   Si ya la hay, se devuelve esa (200, existing). «Volver a pedir» (otro jurado,
+   reclamar) va sobre el hilo: lavori no admite añadir candidatos a una ref, así que
+   se retira la viva en lavori y solo entonces sale la nueva, con su caso y su
+   presupuesto heredados. */
+
+const s = (x: unknown, max: number) => (typeof x === "string" && x.trim() ? x.trim().slice(0, max) : null);
 
 export async function POST(req: Request) {
   const staff = await requireStaffAccess(req);
   if (!staff.ok) {
     return NextResponse.json({ ok: false, error: staff.error }, { status: 403 });
   }
+  const actor = staff.email || "staff";
 
   try {
     const body = (await req.json().catch(() => null)) as {
@@ -34,32 +48,121 @@ export async function POST(req: Request) {
       customerName?: string;
       especificaciones?: string;
       candidatos?: string[];
-      /** El staff ya vio el aviso de solicitud viva de esta persona y quiere otra igualmente. */
-      confirmDuplicate?: boolean;
+      casoId?: string;
+      lavoriLeadRef?: string;
+      sessionToken?: string;
+      quoteId?: string;
+      /** Retirar la solicitud viva del caso+par y pedir de nuevo (otro jurado o reclamar). */
+      volverAPedir?: boolean;
     } | null;
 
-    // Misma persona + mismo par con solicitud YA viva (otra gestión): avisa antes de pedir
-    // precio otra vez a un jurado. Un segundo clic con confirmDuplicate la deja pasar.
+    const docs = Array.isArray(body?.docs) ? body!.docs! : [];
     const parSolicitado = parFromLangs(body?.sourceLang, body?.targetLang);
-    if (parSolicitado && !body?.confirmDuplicate && (body?.customerEmail || body?.customerPhone)) {
+    const contacto = { email: body?.customerEmail, phone: body?.customerPhone, nombre: body?.customerName };
+    const sessionToken = s(body?.sessionToken, 80);
+    const anclas: Anclas = {
+      ...anclasDeExpediente(body?.expedienteRef),
+      ...(sessionToken ? { sessionToken, expedienteRef: `puerta:${sessionToken}` } : {}),
+      casoId: s(body?.casoId, 40),
+      lprRef: s(body?.lavoriLeadRef, 40),
+      quoteId: s(body?.quoteId, 40),
+    };
+
+    let casoId: string | null = null;
+    let resuelto = false;
+    if (parSolicitado) {
+      const urls = docs.map((d) => String(d?.url || "")).filter(Boolean);
+      const hashes = urls.length
+        ? (await prisma.documentAnalysis.findMany({ where: { fileUrl: { in: urls }, fileHash: { not: null } }, select: { fileHash: true } }).catch(() => [])).map((h) => h.fileHash!)
+        : [];
+      ({ casoId, resuelto } = await casoDeLaPeticion({ entrada: "price_request", contacto, pares: [parSolicitado], docs: { hashes, contentKeys: [] }, anclas, actor }));
+      const vivas = await solicitudesVivasDelHilo(casoId ?? anclas.casoId ?? null, anclas);
+      const d = decidirSolicitud({ lprs: vivas, par: parSolicitado, ahora: new Date(), volverAPedir: body?.volverAPedir === true });
+      casoId ||= vivas.find((l) => l.casoId)?.casoId ?? null;
+
+      if (d.accion === "reutilizar") {
+        const v = d.viva;
+        return NextResponse.json({
+          ok: true,
+          existing: v.ref,
+          ref: v.ref,
+          estado: v.status,
+          precio: v.priceCents,
+          plazoDias: v.plazoDias,
+          miembroNombre: v.miembroNombre,
+          repetido: true,
+        });
+      }
+      if (d.accion === "esperar") {
+        return NextResponse.json({ ok: false, error: `${d.viva.ref} se está retirando en lavori ahora mismo: espera unos segundos y vuelve a pedir.` }, { status: 409 });
+      }
+      if (d.accion === "reemplazar") {
+        for (const l of d.retirar) {
+          const r = await retireLeadRequest({
+            id: l.id,
+            actorEmail: actor,
+            motivo: "volver a pedir precio desde el constructor",
+            terminal: "RETIRED",
+            lavoriMotivo: "reasignado",
+            relanzar: false,
+          });
+          if (!r.ok) {
+            return NextResponse.json({ ok: false, error: `No se vuelve a pedir: ${l.ref} — ${r.error}` }, { status: r.status });
+          }
+        }
+        const retiradas = d.retirar.map((l) => l.ref);
+        const result = await sendLeadPriceRequest({
+          docs,
+          sourceLang: String(body?.sourceLang || ""),
+          targetLang: String(body?.targetLang || ""),
+          words: body?.words,
+          especificaciones: body?.especificaciones,
+          candidatos: body?.candidatos,
+          forzarCasa: Array.isArray(body?.candidatos) && body!.candidatos!.length > 0,
+          expedienteRef: body?.expedienteRef || d.retirar.find((l) => l.expedienteRef)?.expedienteRef || null,
+          customerHint: body?.customerHint,
+          createdBy: staff.email ?? null,
+          contacto,
+          anclas,
+          ...(casoId ? { casoId } : {}),
+        });
+        if (!result.ok) {
+          await rastroHilo(casoId, "solicitud_reemplazada", actor, `fallo:${retiradas.join(",")}:${Date.now()}`, { retiradas, nueva: null, error: result.error });
+          return NextResponse.json(
+            { ok: false, error: `${retiradas.join(", ")} quedó retirada en lavori, pero la nueva no salió (${result.error}). Vuelve a pedir desde aquí.` },
+            { status: result.status }
+          );
+        }
+        if (d.quoteId) {
+          await prisma.lavoriPriceRequest
+            .updateMany({ where: { ref: result.ref, quoteId: null }, data: { quoteId: d.quoteId } })
+            .catch((err) => console.error("[lavori-price-request] heredar presupuesto falló:", err));
+        }
+        await rastroHilo(casoId, "solicitud_reemplazada", actor, result.ref, { retiradas, nueva: result.ref, candidatos: result.candidatos, quoteId: d.quoteId });
+        return NextResponse.json(
+          { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres, reemplaza: retiradas },
+          { status: 201 }
+        );
+      }
+    }
+
+    // Guarda vieja (red): misma persona + par con solicitud viva en OTRA gestión. Si el
+    // caso dice que es otro caso, manda el caso; sin caso que lo diga, se frena (sin
+    // segundo clic que lo deje pasar).
+    if (parSolicitado && (body?.customerEmail || body?.customerPhone)) {
       const viva = await findLiveSiblingLeadRequest({ email: body?.customerEmail, phone: body?.customerPhone, par: parSolicitado, days: 7 }).catch(() => null);
-      if (viva && (viva.request.expedienteRef || null) !== (body?.expedienteRef || null)) {
+      const otraGestion = viva && (viva.request.expedienteRef || null) !== (body?.expedienteRef || null);
+      const casoLoSepara = resuelto && !!viva?.request.casoId && viva.request.casoId !== casoId;
+      if (viva && otraGestion && !casoLoSepara) {
         await sombraBloqueo(
-          {
-            entrada: "price_request",
-            contacto: { email: body?.customerEmail, phone: body?.customerPhone, nombre: body?.customerName },
-            pares: [parSolicitado],
-            anclas: anclasDeExpediente(body?.expedienteRef),
-            actor: staff.email || "staff",
-          },
+          { entrada: "price_request", contacto, pares: [parSolicitado], anclas, actor },
           parSolicitado,
           { guarda: "findLiveSiblingLeadRequest", objetoGuarda: { lprId: viva.request.id }, refs: { viva: viva.request.ref }, dedupeKey: `${viva.request.ref}|${body?.expedienteRef || ""}` }
         );
         return NextResponse.json(
           {
             ok: false,
-            needsConfirm: true,
-            error: `Esta persona ya tiene una solicitud viva para ${parSolicitado}: ${viva.request.ref} (${viva.request.status}${viva.quote ? `, presupuesto ${viva.quote.quoteNumber}` : ""}). Continúa ahí; si de verdad es otro encargo, pulsa de nuevo para pedirlo igualmente.`,
+            error: `Esta persona ya tiene una solicitud viva para ${parSolicitado}: ${viva.request.ref} (${viva.request.status}${viva.quote ? `, presupuesto ${viva.quote.quoteNumber}` : ""}). Continúa ahí (ábrela con ?lead=${viva.request.ref}) o vuelve a pedir sobre ella.`,
           },
           { status: 409 }
         );
@@ -67,7 +170,7 @@ export async function POST(req: Request) {
     }
 
     const result = await sendLeadPriceRequest({
-      docs: Array.isArray(body?.docs) ? body!.docs! : [],
+      docs,
       sourceLang: String(body?.sourceLang || ""),
       targetLang: String(body?.targetLang || ""),
       words: body?.words,
@@ -78,7 +181,8 @@ export async function POST(req: Request) {
       expedienteRef: body?.expedienteRef,
       customerHint: body?.customerHint,
       createdBy: staff.email ?? null,
-      contacto: { email: body?.customerEmail, phone: body?.customerPhone, nombre: body?.customerName },
+      contacto,
+      anclas,
     });
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
@@ -99,7 +203,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres },
-      { status: 201 }
+      { status: result.repetido ? 200 : 201 }
     );
   } catch (err) {
     console.error("[lavori-price-request lead] error", err);

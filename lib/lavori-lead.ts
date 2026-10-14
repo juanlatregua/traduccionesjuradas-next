@@ -13,6 +13,9 @@ import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { casoEnSombra, compararGuarda, descartarCasoSiVacio, recalcularCaso, sombraBloqueo, type Sombra } from "@/lib/caso/sombra";
 import { anclasDeExpediente, entradaDeCreador } from "@/lib/caso/sombra-plan";
+import type { Anclas } from "@/lib/caso/resolver-db";
+import { decidirSolicitud } from "@/lib/caso/hilo";
+import { solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
 import {
   applyLiveFallback,
   buildPriceRequestPayload,
@@ -197,6 +200,8 @@ export type LeadRequestInput = {
   caso?: Sombra | null;
   /** Caso conocido sin comparar guardas (reapertura del carril directo: el de la solicitud vieja). */
   casoId?: string | null;
+  /** Anclas extra para el caso (constructor: caso, solicitud o sesión de la que nace). */
+  anclas?: Anclas;
 };
 
 export type LeadRequestResult =
@@ -308,7 +313,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     contacto: input.contacto || {},
     pares: [route.par],
     docs: { hashes: docs.map((d) => d.hash).filter((h): h is string => Boolean(h)), contentKeys: [contentKey] },
-    anclas: anclasDeExpediente(input.expedienteRef),
+    anclas: { ...anclasDeExpediente(input.expedienteRef), ...input.anclas },
     actor: input.createdBy || "system:lavori-lead",
   };
   if (duplicado) {
@@ -327,6 +332,25 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
         ? input.caso
         : await casoEnSombra(senalCaso, route.par);
   const casoId = input.casoId !== undefined ? input.casoId : caso?.casoId ?? null;
+
+  // Hilo único (F3b): el caso ya tiene solicitud viva de este par → esa, nunca otra.
+  if (casoId) {
+    const enCaso = await solicitudesVivasDelHilo(casoId).catch(() => []);
+    const d = decidirSolicitud({ lprs: enCaso, par: route.par, ahora: new Date() });
+    if (d.accion === "reutilizar") {
+      const v = d.viva;
+      return {
+        ok: true,
+        repetido: true,
+        ref: v.ref,
+        encargoId: v.encargoId,
+        candidatos: v.candidatos,
+        par: v.par,
+        nombres: v.miembroNombre ? [v.miembroNombre] : v.candidatos.map((id) => cartera.find((m) => m.id === id)?.nombre || id),
+        respaldo,
+      };
+    }
+  }
 
   const documentos: BridgeDoc[] = [];
   for (const [i, doc] of docs.entries()) {
