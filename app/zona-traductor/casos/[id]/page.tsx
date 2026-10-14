@@ -82,7 +82,7 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
       inbound: { orderBy: { receivedAt: "asc" }, take: 50, select: { id: true, channel: true, receivedAt: true, subject: true, fromEmail: true } },
       analyses: { orderBy: { createdAt: "asc" }, take: 100, select: { sessionToken: true, source: true, fileName: true, createdAt: true } },
       eventos: {
-        where: { tipo: { notIn: ["comparacion", "veredicto"] } },
+        where: { tipo: { notIn: ["comparacion", "veredicto", "reserva_solicitud"] } },
         orderBy: { createdAt: "asc" },
         take: 200,
         select: { tipo: true, actor: true, createdAt: true, payload: true },

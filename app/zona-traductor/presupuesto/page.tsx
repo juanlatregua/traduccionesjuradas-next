@@ -168,7 +168,7 @@ export default async function ZonaTraductorPresupuestoPage({
     createdAt: l.createdAt.toISOString(),
   }));
   // Cifra del jurado como coste: de las vivas y de la solicitud abierta aunque ya no viva (más de 30 días, retirada).
-  const conCifra = [...vivas, ...(lead && !vivas.some((l) => l.ref === lead.ref) ? [lead] : [])].filter((l) => l.priceCents);
+  const conCifra = [...vivas, ...(lead && !vivas.some((l) => l.ref === lead.ref) && !["RETIRED", "RETIRING", "DISCARDED"].includes(String(lead.status)) ? [lead] : [])].filter((l) => l.priceCents);
   const costesJurado = conCifra.map((l) => ({
     ref: l.ref,
     par: l.par,
@@ -267,7 +267,7 @@ export default async function ZonaTraductorPresupuestoPage({
           casoId={casoId}
           puertaSession={puertaSession || null}
           solicitudesVivas={solicitudesVivas}
-          costesJurado={lead?.priceCents ? [...costesJurado].sort((a) => (a.ref === lead.ref ? -1 : 1)) : costesJurado}
+          costesJurado={lead?.priceCents ? [...costesJurado].sort((a, b) => Number(b.ref === lead.ref) - Number(a.ref === lead.ref)) : costesJurado}
           emailContext={
             inboundEmail
               ? { id: inboundEmail.id, fromName: inboundEmail.fromName, fromEmail: inboundEmail.fromEmail, subject: inboundEmail.subject, text: (inboundEmail.bodyText || inboundEmail.bodyPreview || "").split(/\n(?:>|El .{0,120}escribi[oó]:|On .{0,120}wrote:|Le .{0,120}a écrit)/)[0].slice(0, 600) }
