@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { SITE_BASE_URL } from "@/lib/contact";
 import { realEmailKey as emailKey, phoneKey } from "@/lib/client-identity";
-import { matchOpenSiblings, blockingSibling, type OpenItem, type OpenSibling } from "@/lib/open-siblings";
+import { matchOpenSiblings, blockingSibling, separarPorCaso, type OpenItem, type OpenSibling } from "@/lib/open-siblings";
 import { parFromLangs, lavoriContentKeys, contentKeyForQuote } from "@/lib/lavori-dup-guard";
 
 const QUOTE_OPEN = ["DRAFT", "SENT", "OPENED", "ACCEPTED"] as const;
@@ -33,12 +33,12 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
     const exp = opts.excludeSession ? `puerta:${opts.excludeSession}` : null;
     const [quotes, lprs, docs, inbox] = await Promise.all([
       prisma.quote.findMany({
-        where: { deletedAt: null, status: { in: [...QUOTE_OPEN] }, createdAt: { gte: since }, ...(opts.excludeQuoteId ? { id: { not: opts.excludeQuoteId } } : {}) },
-        select: { id: true, quoteNumber: true, customerEmail: true, customerPhone: true, createdAt: true, sourceLang: true, targetLang: true, expedienteRef: true },
+        where: { deletedAt: null, status: { in: [...QUOTE_OPEN] }, createdAt: { gte: since } },
+        select: { id: true, quoteNumber: true, customerEmail: true, customerPhone: true, createdAt: true, sourceLang: true, targetLang: true, expedienteRef: true, casoId: true },
       }),
       prisma.lavoriPriceRequest.findMany({
-        where: { status: { in: LPR_OPEN }, createdAt: { gte: since }, ...(opts.excludeLprRef ? { ref: { not: opts.excludeLprRef } } : {}) },
-        select: { ref: true, id: true, par: true, customerHint: true, createdAt: true, expedienteRef: true, quoteId: true },
+        where: { status: { in: LPR_OPEN }, createdAt: { gte: since } },
+        select: { ref: true, id: true, par: true, customerHint: true, createdAt: true, expedienteRef: true, quoteId: true, casoId: true },
       }),
       prisma.documentAnalysis.findMany({
         where: {
@@ -47,34 +47,36 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
           sessionToken: { not: null },
           NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }, ...(opts.excludeSession ? [{ sessionToken: opts.excludeSession }] : [])],
         },
-        select: { sessionToken: true, clientEmail: true, clientPhone: true, createdAt: true, source: true, sourceLanguage: true, targetLanguage: true },
+        select: { sessionToken: true, clientEmail: true, clientPhone: true, createdAt: true, source: true, sourceLanguage: true, targetLanguage: true, casoId: true },
       }),
       prisma.inboundEmail.findMany({
         where: { status: { in: ["NEW", "DRAFTED"] }, receivedAt: { gte: since }, ...(opts.excludeInboxId ? { id: { not: opts.excludeInboxId } } : {}) },
-        select: { id: true, channel: true, fromEmail: true, fromPhone: true, receivedAt: true, subject: true },
+        select: { id: true, channel: true, fromEmail: true, fromPhone: true, receivedAt: true, subject: true, casoId: true },
       }),
     ]);
 
     const items: OpenItem[] = [];
     const flows = new Set<string>();
     for (const q of quotes) {
-      if (exp && q.expedienteRef === exp) continue;
       if (q.expedienteRef) flows.add(q.expedienteRef);
+      if ((exp && q.expedienteRef === exp) || q.id === opts.excludeQuoteId) continue;
       items.push({
         kind: "quote", ref: q.quoteNumber, id: q.id, at: q.createdAt, chan: "presupuesto",
         par: parFromLangs(q.sourceLang, q.targetLang), email: q.customerEmail, phone: q.customerPhone,
         url: `${SITE_BASE_URL}/zona-traductor/presupuestos/${q.id}`,
+        casoId: q.casoId, expedienteRef: q.expedienteRef,
       });
     }
     for (const l of lprs) {
-      if (exp && l.expedienteRef === exp) continue;
       if (l.expedienteRef) flows.add(l.expedienteRef);
+      if ((exp && l.expedienteRef === exp) || l.ref === opts.excludeLprRef) continue;
       const parts = (l.customerHint || "").split(" · ").map((x) => x.trim());
       const em = parts.find((x) => x.includes("@")) || null;
       const ph = parts.find((x) => !x.includes("@") && x.replace(/\D/g, "").length >= 9) || null;
       items.push({
         kind: "lpr", ref: l.ref, id: l.id, at: l.createdAt, chan: "lavori", par: l.par, email: em, phone: ph,
         url: `${SITE_BASE_URL}/zona-traductor/presupuesto?lead=${encodeURIComponent(l.ref)}`,
+        casoId: l.casoId, expedienteRef: l.expedienteRef,
       });
     }
     const sessions = new Map<string, OpenItem>();
@@ -88,10 +90,12 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
           par: parFromLangs(d.sourceLanguage === "unknown" ? null : d.sourceLanguage, d.targetLanguage === "unknown" ? null : d.targetLanguage),
           email: d.clientEmail, phone: d.clientPhone,
           url: `${SITE_BASE_URL}/zona-traductor/presupuesto?session=${encodeURIComponent(tok)}`,
+          casoId: d.casoId,
         });
       } else {
         cur.email ||= d.clientEmail;
         cur.phone ||= d.clientPhone;
+        cur.casoId ||= d.casoId;
         if (d.createdAt < cur.at) cur.at = d.createdAt;
       }
     }
@@ -101,6 +105,7 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
         kind: "inbox", ref: m.subject.slice(0, 40) || "(sin asunto)", id: m.id, at: m.receivedAt,
         chan: m.channel === "WHATSAPP" ? "whatsapp" : "email", par: null, email: m.fromEmail, phone: m.fromPhone,
         url: `${SITE_BASE_URL}/zona-traductor/presupuesto?inbox=${encodeURIComponent(m.id)}`,
+        casoId: m.casoId,
       });
     }
     return matchOpenSiblings({ email, phone, par: opts.par }, items, { days });
@@ -111,6 +116,22 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
 }
 
 export { blockingSibling };
+
+/** Hermanos separados por caso: «hilo» = lo del mismo caso (no avisa), «otros» = aviso. Nunca lanza. */
+export async function findOpenSiblingsPorCaso(opts: FindOpenSiblingsOpts & { casoId?: string | null }): Promise<{ hilo: OpenSibling[]; otros: OpenSibling[] }> {
+  const sibs = await findOpenSiblings(opts);
+  if (!opts.casoId || sibs.length === 0) return { hilo: [], otros: sibs };
+  try {
+    const [qs, ls] = await Promise.all([
+      prisma.quote.findMany({ where: { casoId: opts.casoId, expedienteRef: { not: null } }, select: { expedienteRef: true } }),
+      prisma.lavoriPriceRequest.findMany({ where: { casoId: opts.casoId, expedienteRef: { not: null } }, select: { expedienteRef: true } }),
+    ]);
+    return separarPorCaso(sibs, opts.casoId, [...qs, ...ls].map((x) => x.expedienteRef!));
+  } catch (err) {
+    console.error("[open-siblings] flujos del caso fallo:", err);
+    return separarPorCaso(sibs, opts.casoId);
+  }
+}
 
 /**
  * Ids de los hermanos (solicitud lavori o presupuesto) que tienen el MISMO DOCUMENTO que este
