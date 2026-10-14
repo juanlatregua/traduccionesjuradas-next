@@ -5,7 +5,7 @@
 export const CASO_ESTADOS = ["ABIERTO", "EN_CURSO", "ENTREGADO", "PERDIDO", "CANCELADO"] as const;
 export type CasoEstado = (typeof CASO_ESTADOS)[number];
 
-export const CASO_EVENTOS = ["creado", "adjuntado", "posible", "transicion", "discrepancia", "comparacion", "veredicto", "fallo_resolver", "backfill", "aviso_humano", "aviso_humano_repetido"] as const;
+export const CASO_EVENTOS = ["creado", "adjuntado", "posible", "transicion", "discrepancia", "comparacion", "veredicto", "fallo_resolver", "backfill", "aviso_humano", "aviso_humano_repetido", "solicitud_reemplazada", "reserva_solicitud"] as const;
 export type CasoEventoTipo = (typeof CASO_EVENTOS)[number];
 
 // = LIVE de lib/lavori-dup-guard.ts

@@ -27,6 +27,8 @@ export type OpenItem = {
   phone: string | null;
   /** Enlace de staff para continuar ahí. */
   url: string;
+  casoId?: string | null;
+  expedienteRef?: string | null;
 };
 
 export type OpenSibling = OpenItem & { via: "email" | "phone"; samePar: boolean };
@@ -71,6 +73,26 @@ export function matchOpenSiblings(
  */
 export function blockingSibling(sibs: OpenSibling[], sameDoc: ReadonlySet<string> = new Set()): OpenSibling | null {
   return sibs.find((s) => s.via === "email" && (s.kind === "lpr" || s.kind === "quote") && sameDoc.has(s.id)) ?? null;
+}
+
+/**
+ * Lo del MISMO caso no es un aviso, es el hilo: su sesión, su solicitud o su
+ * presupuesto (también la sesión «puerta:<token>» que cita como expediente algo
+ * del caso). Solo lo de otro caso, o sin caso, queda como «otros».
+ */
+export function separarPorCaso<T extends OpenSibling>(
+  sibs: T[],
+  casoId: string | null | undefined,
+  flujosDelCaso: Iterable<string> = []
+): { hilo: T[]; otros: T[] } {
+  if (!casoId) return { hilo: [], otros: sibs };
+  const flujos = new Set(flujosDelCaso);
+  for (const s of sibs) if (s.casoId === casoId && s.expedienteRef) flujos.add(s.expedienteRef);
+  const delCaso = (s: T) =>
+    s.casoId === casoId ||
+    (!s.casoId && s.kind === "lead" && flujos.has(`puerta:${s.id}`)) ||
+    (!s.casoId && !!s.expedienteRef && flujos.has(s.expedienteRef));
+  return { hilo: sibs.filter(delCaso), otros: sibs.filter((s) => !delCaso(s)) };
 }
 
 const CHAN_ES: Record<string, string> = {

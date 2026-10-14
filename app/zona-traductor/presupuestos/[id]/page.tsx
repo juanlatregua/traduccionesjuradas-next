@@ -124,6 +124,7 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             excludeQuoteId={params.id}
             excludeLprRef={solicitud?.ref ?? null}
             excludeSession={String((quote as any).expedienteRef || "").startsWith("puerta:") ? String((quote as any).expedienteRef).slice(7) : null}
+            casoId={congelacion?.caso?.id ?? null}
           />
         </div>
         {congelacion?.paymentFrozenAt && (
@@ -134,8 +135,8 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <QuoteUnfreezeButton quoteId={params.id} estimatedCostZero={costeEstimadoCero} />
               {solicitud && (
-                <Link href={`/zona-traductor/presupuesto?lead=${encodeURIComponent(solicitud.ref)}&nuevo=1`} className="underline hover:text-white">
-                  Montar uno nuevo con la cifra del jurado
+                <Link href={`/zona-traductor/presupuestos/${params.id}/editar`} className="underline hover:text-white">
+                  Editar las líneas con la cifra del jurado
                 </Link>
               )}
             </div>
@@ -165,10 +166,7 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             {solicitud.priceCents
               ? ` · ${solicitud.miembroNombre || "el traductor"}: ${(solicitud.priceCents / 100).toFixed(2)} €${solicitud.plazoDias ? ` · ${solicitud.plazoDias} días` : ""}`
               : " · sin precio del traductor todavía"}
-            . El pago de este presupuesto avisa a ese encargo; no hace falta montar otro.{" "}
-            <Link href={`/zona-traductor/presupuesto?lead=${encodeURIComponent(solicitud.ref)}&nuevo=1`} className="underline hover:text-white">
-              Montar otro a propósito
-            </Link>
+            . El pago de este presupuesto avisa a ese encargo; para cambiar algo, «Editar datos y líneas».
           </p>
         )}
         <div className="rounded-2xl bg-cream p-1 shadow-xl">

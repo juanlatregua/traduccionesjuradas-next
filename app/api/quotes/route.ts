@@ -16,6 +16,8 @@ import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 import { inheritBillingFromHistory } from "@/lib/recurrent-client-db";
 import { casoIdEnSombra, tomarVigente } from "@/lib/caso/sombra";
 import { anclasDeExpediente, paresDe } from "@/lib/caso/sombra-plan";
+import { esBorradorSustituible } from "@/lib/caso/hilo";
+import { casoDeLaPeticion, presupuestoVivoDelCaso } from "@/lib/caso/hilo-db";
 
 export const runtime = "nodejs";
 
@@ -105,7 +107,6 @@ export async function POST(req: Request) {
       generateUniquePublicToken(),
     ]);
 
-    // Caso en sombra (F2): en su propia transacción y ANTES de la del alta; un fallo = sin caso.
     const urlsCaso = totals.lines.map((l) => l.sourceFileUrl).filter((u): u is string => Boolean(u));
     const [hashesCaso, clienteCaso] = await Promise.all([
       urlsCaso.length
@@ -115,17 +116,52 @@ export async function POST(req: Request) {
         .findFirst({ where: { email: { equals: parsed.data.customerEmail.trim(), mode: "insensitive" } }, select: { id: true } })
         .catch(() => null),
     ]);
-    const casoId = await casoIdEnSombra({
+    const parCaso = paresDe(parsed.data.sourceLang, parsed.data.targetLang)[0] ?? null;
+    const senalCaso = {
       entrada: "constructor",
       contacto: { email: parsed.data.customerEmail, phone: parsed.data.customerPhone, nombre: parsed.data.customerName },
-      pares: paresDe(parsed.data.sourceLang, parsed.data.targetLang),
+      pares: parCaso ? [parCaso] : [],
       docs: { hashes: [...new Set(hashesCaso.map((h) => h.fileHash!))], contentKeys: [] },
       anclas: { ...anclasDeExpediente(expedienteRef), lprRef: lavoriLeadRef },
       customerId: clienteCaso?.id ?? null,
       actor: access.email || "staff",
-    });
+    };
+
+    // Un presupuesto vivo por caso y par (F3b): cambiarlo es editar el mismo, no montar
+    // otro número. Se mira antes de escribir el caso (dry-run) y otra vez bajo candado.
+    type Vivo = Awaited<ReturnType<typeof presupuestoVivoDelCaso>>;
+    const bloqueante = (vivo: Vivo) =>
+      vivo &&
+      !esBorradorSustituible(
+        { ...vivo, envios: vivo._count.messageLogs, pedidos: vivo._count.orders },
+        { customerEmail: parsed.data.customerEmail, sourceLang: parsed.data.sourceLang, targetLang: parsed.data.targetLang, expedienteRef },
+        new Date()
+      )
+        ? vivo
+        : null;
+    const ocupado = (vivo: NonNullable<Vivo>) =>
+      NextResponse.json(
+        {
+          ok: false,
+          existingQuoteId: vivo.id,
+          error: `Este caso ya tiene el presupuesto ${vivo.quoteNumber} para ${parCaso}: cámbialo con «Editar datos y líneas» en vez de montar otro.`,
+        },
+        { status: 409 }
+      );
+    const previo = await casoDeLaPeticion(senalCaso);
+    const yaVivo = bloqueante(await presupuestoVivoDelCaso(previo.casoId, parCaso).catch(() => null));
+    if (yaVivo) return ocupado(yaVivo);
+
+    // Caso en sombra (F2): en su propia transacción y ANTES de la del alta; un fallo = sin caso.
+    const casoId = await casoIdEnSombra(senalCaso);
 
     const createdTx = await prisma.$transaction(async (tx) => {
+      if (casoId && parCaso) {
+        const [candado] = await tx.$queryRaw<{ ok: boolean }[]>`SELECT pg_try_advisory_xact_lock(hashtext('hilo'), hashtext(${`${casoId}|${parCaso}`})) AS ok`;
+        if (!candado?.ok) return { quote: null, huerfano: null, carrera: null, ocupadoAhora: true };
+        const carrera = bloqueante(await presupuestoVivoDelCaso(casoId, parCaso, tx));
+        if (carrera) return { quote: null, huerfano: null, carrera, ocupadoAhora: false };
+      }
       // Cliente que vuelve con el email en otra capitalización: se enlaza a SU ficha
       // (con sus datos de facturación) en vez de crear una ficha gemela vacía.
       const existente = await tx.customer.findFirst({
@@ -227,8 +263,12 @@ export async function POST(req: Request) {
         },
       });
 
-      return { quote, huerfano };
+      return { quote, huerfano, carrera: null, ocupadoAhora: false };
     });
+    if (createdTx.ocupadoAhora) {
+      return NextResponse.json({ ok: false, error: "Se está creando otro presupuesto de este caso y par ahora mismo: espera unos segundos y vuelve a intentarlo." }, { status: 409 });
+    }
+    if (!createdTx.quote) return ocupado(createdTx.carrera!);
     const created = createdTx.quote;
     await tomarVigente(created.id, casoId, "constructor");
     await inheritBillingFromHistory(created.customerId, parsed.data.customerEmail).catch((err) =>
@@ -306,6 +346,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, quote: serializeQuote(created) });
   } catch (err: any) {
     console.error("[quotes:create] error", err);
+    if (err?.code === "P2028" || err?.code === "P2024") {
+      return NextResponse.json({ ok: false, error: "La base de datos está ocupada: vuelve a intentarlo en unos segundos." }, { status: 409 });
+    }
     return NextResponse.json(
       { ok: false, error: err?.message || "No se pudo crear el presupuesto." },
       { status: 500 }

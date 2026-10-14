@@ -13,6 +13,9 @@ import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { casoEnSombra, compararGuarda, descartarCasoSiVacio, recalcularCaso, sombraBloqueo, type Sombra } from "@/lib/caso/sombra";
 import { anclasDeExpediente, entradaDeCreador } from "@/lib/caso/sombra-plan";
+import type { Anclas } from "@/lib/caso/resolver-db";
+import { decidirSolicitud } from "@/lib/caso/hilo";
+import { solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
 import {
   applyLiveFallback,
   buildPriceRequestPayload,
@@ -197,6 +200,8 @@ export type LeadRequestInput = {
   caso?: Sombra | null;
   /** Caso conocido sin comparar guardas (reapertura del carril directo: el de la solicitud vieja). */
   casoId?: string | null;
+  /** Anclas extra para el caso (constructor: caso, solicitud o sesión de la que nace). */
+  anclas?: Anclas;
 };
 
 export type LeadRequestResult =
@@ -205,7 +210,20 @@ export type LeadRequestResult =
 
 /** Crea (o reutiliza, idempotente por contenido) la solicitud de precio en lavori
  * y la fila LavoriPriceRequest. NO acusa al cliente: eso lo decide quien llama. */
-export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<LeadRequestResult> {
+type LeadPreparado = {
+  ok: true;
+  docs: LeadDoc[];
+  route: LavoriRoute;
+  cartera: LavoriMember[];
+  elegidos: boolean;
+  candidatos: string[];
+  respaldo: string | null;
+  nombres: string[];
+  claveDocs: (LeadDoc & { pageCount: number | null })[];
+};
+
+/** Validación y huella de una solicitud de lead, sin enviar ni escribir nada. */
+async function prepararLead(input: LeadRequestInput): Promise<LeadPreparado | { ok: false; status: 400; error: string }> {
   const docs = Array.isArray(input.docs) ? input.docs.slice(0, LEAD_MAX_DOCS) : [];
   if (docs.length === 0) return { ok: false, status: 400, error: "Sin documentos que enviar." };
   if (docs.some((d) => !LEAD_BLOB_HOST_RE.test(String(d?.url || "")))) {
@@ -271,6 +289,27 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     .catch(() => []);
   const paginasPorUrl = new Map(paginas.map((r) => [r.fileUrl, r.pageCount]));
   const claveDocs = docs.map((d) => ({ ...d, pageCount: paginasPorUrl.get(d.url) ?? null }));
+  return { ok: true, docs, route, cartera, elegidos: eleccion.elegidos, candidatos, respaldo, nombres, claveDocs };
+}
+
+/** «Volver a pedir»: todo lo que haría fallar el envío nuevo, comprobado ANTES de retirar las vivas. */
+export async function validarAntesDeRetirar(input: LeadRequestInput, retirarRefs: string[]): Promise<{ ok: true } | { ok: false; status: 400 | 409; error: string }> {
+  const prep = await prepararLead(input);
+  if (!prep.ok) return prep;
+  const duplicado = await findLiveLavoriDuplicate({
+    par: prep.route.par,
+    contentKey: lavoriContentKeys(prep.claveDocs, prep.route.par),
+    expedienteRef: input.expedienteRef ?? null,
+    excludeRefs: retirarRefs,
+  });
+  return duplicado ? { ok: false, status: 409, error: liveDuplicateMessage(duplicado) } : { ok: true };
+}
+
+export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<LeadRequestResult> {
+  const prep = await prepararLead(input);
+  if (!prep.ok) return prep;
+  const { docs, route, cartera, candidatos, respaldo, nombres, claveDocs } = prep;
+  const eleccion = { elegidos: prep.elegidos };
   const docKeys = leadDocKeys(claveDocs);
   const seedFor = (k: string) => `${k}|${route.par}${eleccion.elegidos ? `|${[...candidatos].sort().join(",")}` : ""}`;
   const refSeed = seedFor(docKeys);
@@ -308,7 +347,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
     contacto: input.contacto || {},
     pares: [route.par],
     docs: { hashes: docs.map((d) => d.hash).filter((h): h is string => Boolean(h)), contentKeys: [contentKey] },
-    anclas: anclasDeExpediente(input.expedienteRef),
+    anclas: { ...anclasDeExpediente(input.expedienteRef), ...input.anclas },
     actor: input.createdBy || "system:lavori-lead",
   };
   if (duplicado) {
@@ -327,6 +366,25 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
         ? input.caso
         : await casoEnSombra(senalCaso, route.par);
   const casoId = input.casoId !== undefined ? input.casoId : caso?.casoId ?? null;
+
+  // Hilo único (F3b): el caso ya tiene solicitud viva de este par → esa, nunca otra.
+  if (casoId) {
+    const enCaso = await solicitudesVivasDelHilo(casoId).catch(() => []);
+    const d = decidirSolicitud({ lprs: enCaso, par: route.par, ahora: new Date() });
+    if (d.accion === "reutilizar") {
+      const v = d.viva;
+      return {
+        ok: true,
+        repetido: true,
+        ref: v.ref,
+        encargoId: v.encargoId,
+        candidatos: v.candidatos,
+        par: v.par,
+        nombres: v.miembroNombre ? [v.miembroNombre] : v.candidatos.map((id) => cartera.find((m) => m.id === id)?.nombre || id),
+        respaldo,
+      };
+    }
+  }
 
   const documentos: BridgeDoc[] = [];
   for (const [i, doc] of docs.entries()) {
