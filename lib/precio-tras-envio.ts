@@ -269,3 +269,22 @@ export async function alertPaidWhileFrozen(input: { quoteId: string; via: string
     smsContext: `cobrado_congelado ${quote.quoteNumber}`,
   });
 }
+
+/** «Volver a pedir» retira la cifra que lleva un presupuesto ya enviado sin pagar: el pago
+ *  se congela (mismo mecanismo) hasta que llegue la nueva cifra, que lo descongela sola si
+ *  no deja pérdida (handleLeadPriceOnSentQuote). Nunca lanza; devuelve si se congeló. */
+export async function freezeQuoteForRepricing(input: { quoteId: string; retiradas: string[]; actorEmail: string }): Promise<boolean> {
+  const reason = `Precio en revisión: ${input.actorEmail} ha vuelto a pedir precio (${input.retiradas.join(", ")} retirada). Se descongela al llegar la nueva cifra si no deja pérdida.`;
+  try {
+    const congelado = await prisma.quote.updateMany({
+      where: { id: input.quoteId, paidAt: null, status: { in: ["SENT", "OPENED", "ACCEPTED"] }, orders: { none: { paymentStatus: "PAID" } } },
+      data: { paymentFrozenAt: new Date(), paymentFrozenReason: reason.slice(0, 500), paymentFreezeKey: `volver:${input.retiradas.join(",")}`.slice(0, 190) },
+    });
+    if (congelado.count === 0) return false;
+    await expireOpenStripeSessions(input.quoteId);
+    return true;
+  } catch (err) {
+    console.error("[precio-tras-envio] congelar por volver a pedir falló:", err);
+    return false;
+  }
+}

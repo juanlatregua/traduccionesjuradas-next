@@ -131,6 +131,7 @@ export async function findLiveLavoriDuplicate(opts: {
   expedienteRef?: string | null;
   quoteId?: string | null;
   excludeRef?: string | null;
+  excludeRefs?: string[];
 }): Promise<LiveLavoriDuplicate | null> {
   const or: any[] = [];
   const par = opts.par ? { par: opts.par } : {};
@@ -147,6 +148,7 @@ export async function findLiveLavoriDuplicate(opts: {
       encargoId: { not: null },
       createdAt: { gte: new Date(Date.now() - LIVE_WINDOW_DAYS * 24 * 3_600_000) },
       ...(opts.excludeRef ? { ref: { not: opts.excludeRef } } : {}),
+      ...(opts.excludeRefs?.length ? { NOT: { ref: { in: opts.excludeRefs } } } : {}),
     },
     orderBy: { createdAt: "desc" },
     select: { ref: true, status: true, encargoId: true, miembroNombre: true, createdAt: true },
