@@ -13,6 +13,7 @@ import LavoriCandidatePicker, { describeLavoriPick, lavoriPickError, lavoriPickT
 import { suggestClientLang } from "@/lib/client-lang";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 import { UNREAD_PAGES_TYPE_ES } from "@/lib/ai/unread-pages";
+import { repartirCosteLead } from "@/lib/caso/coste-lead";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -275,6 +276,22 @@ type StaffIntakeInitialData = {
   lineCost?: string;
 };
 
+export type SolicitudViva = {
+  ref: string;
+  par: string;
+  status: string;
+  priceCents: number | null;
+  plazoDias: number | null;
+  miembroNombre: string | null;
+  nombres: string[];
+  createdAt: string;
+};
+
+function haceHoras(iso: string): string {
+  const h = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 3_600_000));
+  return h < 1 ? "menos de 1 h" : h < 48 ? `${h} h` : `${Math.round(h / 24)} días`;
+}
+
 type Props = {
   // Expediente entrante ya subido por el cliente: se analizan por documentId.
   initialDocs?: { documentId: string; fileName: string; fileUrl?: string }[];
@@ -287,9 +304,26 @@ type Props = {
   // Email de la bandeja del que nace el presupuesto: la IA lo lee (par,
   // urgencia, entrega, documento provisional, notas, preguntas) y prerrellena.
   emailContext?: { id: string; fromName: string | null; fromEmail: string; subject: string; text?: string | null } | null;
+  // Hilo del caso (F3b): solicitudes lavori vivas del caso; con una del par no se pide otra.
+  casoId?: string | null;
+  puertaSession?: string | null;
+  solicitudesVivas?: SolicitudViva[];
+  // Cifra del jurado: coste de las líneas, el análisis no la pisa.
+  costeJuradoCents?: number | null;
 };
 
-export default function StaffExpedienteIntake({ initialDocs, initialCustomer, initialData, expedienteRef, lavoriLeadRef, emailContext }: Props = {}) {
+export default function StaffExpedienteIntake({
+  initialDocs,
+  initialCustomer,
+  initialData,
+  expedienteRef,
+  lavoriLeadRef,
+  emailContext,
+  casoId,
+  puertaSession,
+  solicitudesVivas = [],
+  costeJuradoCents,
+}: Props = {}) {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [customerName, setCustomerName] = useState(initialCustomer?.name || initialData?.customerName || "");
   const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || initialData?.customerEmail || "");
@@ -332,15 +366,18 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
   const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
   // Solicitud de precio vía lavori (leads de WhatsApp sin pedido).
   const [lavoriState, setLavoriState] = useState<{ phase: "idle" | "sending" | "done" | "error"; msg?: string }>({ phase: "idle" });
-  const confirmDuplicateRef = useRef(false);
   const [lavoriSpecs, setLavoriSpecs] = useState("");
   const [lavoriPick, setLavoriPick] = useState<LavoriPick>({ mode: "carril" });
   // Ref de la solicitud enviada DESDE este builder: viaja a /api/quotes para que el
   // presupuesto nazca atado (antes se tiraba y el pago abría otro encargo — Mario
   // Moreno/Vanessa, 8-sep-2026).
   const [lavoriLeadRefSent, setLavoriLeadRefSent] = useState<string | null>(null);
+  const [solicitudEnviada, setSolicitudEnviada] = useState<SolicitudViva | null>(null);
+  const [volverAPedir, setVolverAPedir] = useState(false);
+  const costeJuradoAplicadoRef = useRef(false);
 
   // Lectura IA del email (solo cuando el presupuesto nace de la bandeja).
   const [brief, setBrief] = useState<EmailBrief | null>(null);
@@ -885,6 +922,25 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     });
   }, [targetLang, docs]);
 
+  // Cifra del jurado (solicitud del hilo): ES el coste de las líneas. Se pone una vez,
+  // cuando el análisis ha terminado, y como precio a mano para que nada la recalcule.
+  useEffect(() => {
+    if (costeJuradoAplicadoRef.current || !costeJuradoCents || initialData?.lineAmount) return;
+    if (docs.length === 0 || docs.some((d) => d.status === "uploading" || d.status === "analyzing")) return;
+    const lineas = docs.filter((d) => d.include && isPriceable(d.status));
+    if (lineas.length === 0) return;
+    costeJuradoAplicadoRef.current = true;
+    const costes = repartirCosteLead(lineas.map((d) => ({ coste: d.unitPrice, palabras: d.words })), costeJuradoCents);
+    const porId = new Map(lineas.map((d, i) => [d.localId, costes[i]]));
+    setDocs((prev) =>
+      prev.map((d) =>
+        porId.has(d.localId)
+          ? { ...d, unitPrice: porId.get(d.localId)!, clientPrice: undefined, autoPriced: false, pageTariff: undefined, priceNote: undefined, minApplied: false }
+          : d
+      )
+    );
+  }, [docs, costeJuradoCents, initialData?.lineAmount]);
+
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
   const clientPriceOf = useCallback(
@@ -1026,7 +1082,17 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
     setLavoriPick(lavoriFixed ? { mode: "carril" } : { mode: "todos" });
   }, [lavoriFixed]);
 
-  const sendLavoriPrice = useCallback(async (): Promise<string | null> => {
+  // Solicitud viva del hilo para este par: la enviada desde aquí o la que ya tenía el caso.
+  const parActual = lavoriRoute?.par || (sourceLang && targetLang ? `${sourceLang}>${targetLang}`.toUpperCase() : "");
+  const yaPedida = useMemo(
+    () =>
+      (solicitudEnviada && solicitudEnviada.par === parActual ? solicitudEnviada : null) ||
+      solicitudesVivas.find((l) => l.par.toUpperCase() === parActual) ||
+      null,
+    [solicitudEnviada, solicitudesVivas, parActual]
+  );
+
+  const sendLavoriPrice = useCallback(async (opts: { volverAPedir?: boolean } = {}): Promise<string | null> => {
     if (!lavoriRoute || lavoriDocs.length === 0) return null;
     const candidatos = lavoriPickToCandidatos(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
     const pickError = lavoriPickError(lavoriPick, lavoriCartera.miembros, lavoriRoute.lang);
@@ -1055,35 +1121,52 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           customerHint:
             [customerName.trim(), customerPhone.trim(), customerEmail.trim()].filter(Boolean).join(" · ") || undefined,
           customerPhone: customerPhone.trim() || undefined,
-          confirmDuplicate: confirmDuplicateRef.current || undefined,
           customerEmail: customerEmail.trim() || undefined,
           customerName: customerName.trim() || undefined,
           especificaciones: lavoriSpecs.trim() || undefined,
           ...(candidatos ? { candidatos } : {}),
+          casoId: casoId || undefined,
+          lavoriLeadRef: lavoriLeadRef || yaPedida?.ref || undefined,
+          sessionToken: puertaSession || undefined,
+          volverAPedir: opts.volverAPedir || undefined,
         }),
       });
       const data = await res.json();
-      confirmDuplicateRef.current = !!data.needsConfirm;
       if (!data.ok) {
         setLavoriState({ phase: "error", msg: data.error || "No se pudo enviar la solicitud." });
         return null;
       }
       const refEnviada = typeof data.ref === "string" && data.ref ? data.ref : null;
-      if (refEnviada) setLavoriLeadRefSent(refEnviada);
+      if (refEnviada) {
+        setLavoriLeadRefSent(refEnviada);
+        setSolicitudEnviada({
+          ref: refEnviada,
+          par: lavoriRoute.par,
+          status: data.estado || "SENT",
+          priceCents: typeof data.precio === "number" ? data.precio : null,
+          plazoDias: typeof data.plazoDias === "number" ? data.plazoDias : null,
+          miembroNombre: data.miembroNombre || null,
+          nombres: Array.isArray(data.nombres) ? data.nombres : [],
+          createdAt: new Date().toISOString(),
+        });
+      }
+      setVolverAPedir(false);
       const aQuien = describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros);
       const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       setLavoriState({
         phase: "done",
-        msg: data.repetido
-          ? `Esta solicitud ya estaba enviada a ${aQuien} (no se ha duplicado).`
-          : `✓ Enviada a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador (el precio del motor se mantiene salvo que el margen no dé). Si no lo generas, el email con su precio te traerá aquí ya atado.`,
+        msg: data.existing
+          ? `El caso ya tenía la solicitud ${data.existing}: no se ha pedido otra.`
+          : data.repetido
+            ? `Esta solicitud ya estaba enviada (no se ha duplicado).`
+            : `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador.`,
       });
       return refEnviada;
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
       return null;
     }
-  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros]);
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros, casoId, lavoriLeadRef, yaPedida, puertaSession]);
 
   const handleSubmit = useCallback(async (leadRefRecienEnviada?: string) => {
     setSubmitError(null);
@@ -1134,7 +1217,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
               ? PAGE_TARIFF_MARK
               : undefined,
           expedienteRef: expedienteRef || undefined,
-          lavoriLeadRef: lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || undefined,
+          lavoriLeadRef: lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || yaPedida?.ref || undefined,
           pdfLang,
           discountType: discountPct > 0 ? "PERCENT" : "NONE",
           discountValue: discountPct,
@@ -1152,6 +1235,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       const data = await res.json();
       if (!data.ok) {
         setSubmitError(data.error || "No se pudo crear el presupuesto.");
+        setExistingQuoteId(typeof data.existingQuoteId === "string" ? data.existingQuoteId : null);
         setSubmitting(false);
         return;
       }
@@ -1160,7 +1244,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, rowClientPrice, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, yaPedida, rowClientPrice, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
 
   // "Pedir precio y dejar en espera" (19-sep-2026, orden de Juan: «hay momentos
   // que no quiero aventurarme»). Hace los DOS pasos en el único orden que ata la
@@ -1820,10 +1904,35 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           en el tablón. El traductor ve los documentos y propone su precio; la
           respuesta llega por email y queda anclada al lead. Destinatarios: carril
           por defecto, toda la lengua o uno en concreto (21-ago-2026). */}
-      {lavoriRoute && lavoriDocs.length > 0 && (
+      {lavoriRoute && yaPedida && !volverAPedir && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-700/60 bg-violet-950/30 px-4 py-3 text-sm text-violet-200">
+          <span>
+            Ya pedido: <span className="font-mono">{yaPedida.ref}</span>
+            {yaPedida.priceCents
+              ? ` · ${yaPedida.miembroNombre || "el jurado"} ${(yaPedida.priceCents / 100).toFixed(2)} €${yaPedida.plazoDias ? ` · ${yaPedida.plazoDias} días` : ""}`
+              : ` · esperando precio desde hace ${haceHoras(yaPedida.createdAt)}${yaPedida.nombres.length ? ` (${yaPedida.nombres.join(", ")})` : ""}`}
+            {yaPedida.status === "ACCEPTED" ? " · aceptado en lavori" : ""}
+          </span>
+          {lavoriDocs.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setVolverAPedir(true)}
+              disabled={lavoriState.phase === "sending" || busy}
+              className="rounded-lg border border-violet-500/60 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-600/30 disabled:opacity-40"
+            >
+              Volver a pedir / cambiar jurado
+            </button>
+          )}
+          {lavoriState.msg && (
+            <span className={`text-xs ${lavoriState.phase === "error" ? "text-amber-400" : "text-violet-300"}`}>{lavoriState.msg}</span>
+          )}
+        </div>
+      )}
+
+      {lavoriRoute && lavoriDocs.length > 0 && (!yaPedida || volverAPedir) && (
         <div className="space-y-2 rounded-xl border border-violet-700/60 bg-violet-950/30 p-4">
           <h3 className="text-sm font-semibold text-violet-200">
-            Solicitar precio vía lavori · {lavoriRoute.par}
+            {yaPedida ? `Volver a pedir precio · ${yaPedida.ref} se retira en lavori` : `Solicitar precio vía lavori · ${lavoriRoute.par}`}
           </h3>
           <p className="text-xs text-violet-300/80">
             Manda {lavoriDocs.length === 1 ? "el documento" : `los ${lavoriDocs.length} documentos`} a
@@ -1838,12 +1947,12 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             cartera={lavoriCartera}
             value={lavoriPick}
             onChange={setLavoriPick}
-            disabled={lavoriState.phase === "sending" || lavoriState.phase === "done"}
+            disabled={lavoriState.phase === "sending" || (!yaPedida && lavoriState.phase === "done")}
           />
           <textarea
             value={lavoriSpecs}
             onChange={(e) => setLavoriSpecs(e.target.value)}
-            disabled={lavoriState.phase === "sending" || lavoriState.phase === "done"}
+            disabled={lavoriState.phase === "sending" || (!yaPedida && lavoriState.phase === "done")}
             maxLength={2000}
             rows={2}
             placeholder="Especificaciones del encargo (opcional): apostilla íntegra, plazo deseado, grafía de nombres… Sin datos del cliente."
@@ -1852,16 +1961,23 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           <div className="flex items-center gap-3">
             <button
               type="button"
-              disabled={lavoriState.phase === "sending" || lavoriState.phase === "done" || busy}
-              onClick={sendLavoriPrice}
+              disabled={lavoriState.phase === "sending" || (!yaPedida && lavoriState.phase === "done") || busy}
+              onClick={() => sendLavoriPrice({ volverAPedir: !!yaPedida })}
               className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {lavoriState.phase === "sending"
                 ? "Enviando…"
-                : lavoriState.phase === "done"
-                  ? "Solicitud enviada"
-                  : `Solicitar precio (${lavoriDocs.length} doc${lavoriDocs.length > 1 ? "s" : ""})`}
+                : yaPedida
+                  ? `Retirar ${yaPedida.ref} y pedir de nuevo`
+                  : lavoriState.phase === "done"
+                    ? "Solicitud enviada"
+                    : `Solicitar precio (${lavoriDocs.length} doc${lavoriDocs.length > 1 ? "s" : ""})`}
             </button>
+            {yaPedida && (
+              <button type="button" onClick={() => setVolverAPedir(false)} className="text-xs text-violet-300 underline hover:text-white">
+                Cancelar
+              </button>
+            )}
             {lavoriState.msg && (
               <span className={`text-xs ${lavoriState.phase === "error" ? "text-amber-400" : "text-violet-300"}`}>
                 {lavoriState.msg}
@@ -1885,7 +2001,19 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
               <span className="tabular-nums">+{(subtotal - costTotal).toFixed(2)} €</span>
             </div>
           </div>
-          {submitError && <p className="text-sm text-amber-400">{submitError}</p>}
+          {submitError && (
+            <p className="text-sm text-amber-400">
+              {submitError}
+              {existingQuoteId && (
+                <>
+                  {" "}
+                  <a href={`/zona-traductor/presupuestos/${existingQuoteId}`} className="underline hover:text-white">
+                    Abrir ese presupuesto →
+                  </a>
+                </>
+              )}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -1895,7 +2023,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
             >
               {submitting ? "Creando…" : `Generar presupuesto (${includedDocs.length} doc${includedDocs.length > 1 ? "s" : ""})`}
             </button>
-            {lavoriRoute && lavoriDocs.length > 0 && !lavoriLeadRefSent && (
+            {lavoriRoute && lavoriDocs.length > 0 && !lavoriLeadRefSent && !yaPedida && (
               <button
                 type="button"
                 disabled={!canSubmit || lavoriState.phase === "sending"}
@@ -1912,7 +2040,7 @@ export default function StaffExpedienteIntake({ initialDocs, initialCustomer, in
           )}
           <p className="text-xs text-slate-500">
             Se crea como borrador en Presupuestos para revisar y enviar.
-            {lavoriRoute && lavoriDocs.length > 0 && !lavoriLeadRefSent
+            {lavoriRoute && lavoriDocs.length > 0 && !lavoriLeadRefSent && !yaPedida
               ? " Si el precio lo pone el jurado, usa «Pedir precio y dejar en espera»: el borrador queda atado a la solicitud y su cifra cae sola cuando conteste."
               : ""}
           </p>

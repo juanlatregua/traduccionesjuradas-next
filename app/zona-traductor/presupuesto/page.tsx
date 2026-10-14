@@ -6,6 +6,8 @@ import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { findLiveSiblingLeadRequest } from "@/lib/lavori-lead";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
+import { presupuestoVivoDelCaso, solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
+import { nombreMiembro } from "@/lib/caso/vista";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -28,7 +30,6 @@ export default async function ZonaTraductorPresupuestoPage({
     exp?: string;
     lead?: string;
     session?: string;
-    nuevo?: string;
     inbox?: string;
     customerEmail?: string;
     customerName?: string;
@@ -60,7 +61,7 @@ export default async function ZonaTraductorPresupuestoPage({
   const inboundEmail = inboxId
     ? await prisma.inboundEmail.findUnique({
         where: { id: inboxId },
-        select: { id: true, channel: true, fromName: true, fromEmail: true, fromPhone: true, subject: true, bodyText: true, bodyPreview: true, receivedAt: true },
+        select: { id: true, channel: true, fromName: true, fromEmail: true, fromPhone: true, subject: true, bodyText: true, bodyPreview: true, receivedAt: true, casoId: true },
       })
     : null;
   const leadRef = s(searchParams.lead).trim().slice(0, 40) || null;
@@ -74,9 +75,27 @@ export default async function ZonaTraductorPresupuestoPage({
     : sessionParam || expRef
       ? await prisma.lavoriPriceRequest.findFirst({ where: { expedienteRef: sessionParam ? `puerta:${sessionParam}` : expRef! }, orderBy: { createdAt: "desc" } })
       : null;
+  // Lead de la PUERTA (25-ago-2026): ?session=<token> o una solicitud lavori nacida
+  // de la puerta (expedienteRef "puerta:<token>") → los documentos ya subidos por
+  // el cliente entran en el builder sin volver a soltar el PDF.
+  const puertaSession =
+    sessionParam || (lead?.expedienteRef?.startsWith("puerta:") ? lead.expedienteRef.slice("puerta:".length).slice(0, 80) : "");
+  const sessionKey = expRef ? `exp:${expRef}` : puertaSession || null;
+
+  // Hilo único (F3b): el caso de esta gestión ya tiene presupuesto vivo → se va a ÉL.
+  // Cambiarlo es «Editar datos y líneas», nunca otro número.
+  const casoId =
+    lead?.casoId ||
+    (sessionKey ? (await prisma.documentAnalysis.findFirst({ where: { sessionToken: sessionKey, casoId: { not: null } }, select: { casoId: true } }))?.casoId : null) ||
+    (expRef ? (await prisma.quote.findFirst({ where: { expedienteRef: expRef, casoId: { not: null } }, select: { casoId: true } }))?.casoId : null) ||
+    inboundEmail?.casoId ||
+    null;
+  const vigente = await presupuestoVivoDelCaso(casoId).catch(() => null);
+  if (vigente) redirect(`/zona-traductor/presupuestos/${vigente.id}`);
+
   // La solicitud ya tiene presupuesto: se va a ESE presupuesto, no se monta otro
-  // (Juan 9-sep: "los duplica"). ?nuevo=1 fuerza uno nuevo a propósito.
-  if (lead?.quoteId && !s(searchParams.nuevo)) {
+  // (Juan 9-sep: "los duplica").
+  if (lead?.quoteId) {
     const existente = await prisma.quote.findFirst({ where: { id: lead.quoteId, deletedAt: null }, select: { id: true } });
     if (existente) redirect(`/zona-traductor/presupuestos/${existente.id}`);
   }
@@ -87,8 +106,8 @@ export default async function ZonaTraductorPresupuestoPage({
   const leadEmail = leadHintParts.find((x) => x.includes("@"));
   // Solicitud sin presupuesto pero con HERMANA viva del mismo cliente y par que sí lo
   // tiene (Cosmos, 14-sep-2026: la 2.ª subida abrió otra solicitud a Morton): se va al
-  // presupuesto existente en vez de montar el duplicado. ?nuevo=1 lo fuerza igual.
-  if (lead && !lead.quoteId && !s(searchParams.nuevo)) {
+  // presupuesto existente en vez de montar el duplicado.
+  if (lead && !lead.quoteId) {
     const hermana = await findLiveSiblingLeadRequest({ email: leadEmail, phone: leadPhone, par: lead.par, days: 30, excludeRef: lead.ref }).catch(() => null);
     if (hermana?.quote) redirect(`/zona-traductor/presupuestos/${hermana.quote.id}`);
   }
@@ -116,8 +135,25 @@ export default async function ZonaTraductorPresupuestoPage({
     builderInitial.targetLang ||= leadPair[1];
     builderInitial.lineDescription ||= `Traducción jurada ${lead.par} · ${lead.docsCount} documento${lead.docsCount === 1 ? "" : "s"}${lead.words ? ` (~${lead.words} palabras)` : ""}`;
   }
+  // Solicitudes vivas del hilo (caso + esta gestión): con una del par, el constructor
+  // no ofrece pedir otra; su cifra es el coste de las líneas.
+  const vivas = await solicitudesVivasDelHilo(casoId, {
+    lprRef: lead?.ref,
+    expedienteRef: lead?.expedienteRef || (expRef ?? (puertaSession ? `puerta:${puertaSession}` : undefined)),
+  }).catch(() => []);
+  const solicitudesVivas = vivas.map((l) => ({
+    ref: l.ref,
+    par: l.par,
+    status: l.status,
+    priceCents: l.priceCents,
+    plazoDias: l.plazoDias,
+    miembroNombre: l.miembroNombre,
+    nombres: l.candidatos.map((id) => nombreMiembro(id) || id),
+    createdAt: l.createdAt.toISOString(),
+  }));
+  const costeJuradoCents = lead?.priceCents || vivas.find((l) => l.priceCents && (!lead || l.par === lead.par))?.priceCents || null;
   const builderInitialConLead = lead
-    ? { ...builderInitial, lineCost: lead.priceCents ? (lead.priceCents / 100).toFixed(2) : undefined }
+    ? { ...builderInitial, lineCost: costeJuradoCents ? (costeJuradoCents / 100).toFixed(2) : undefined }
     : builderInitial;
   let initialDocs: { documentId: string; fileName: string; fileUrl?: string }[] | undefined;
   let initialCustomer: { name?: string; email?: string; phone?: string } | undefined;
@@ -128,14 +164,6 @@ export default async function ZonaTraductorPresupuestoPage({
     builderInitial.customerPhone ||= inboundEmail.fromPhone || undefined;
   }
 
-  // Lead de la PUERTA (25-ago-2026): ?session=<token> o una solicitud lavori nacida
-  // de la puerta (expedienteRef "puerta:<token>") → los documentos ya subidos por
-  // el cliente entran en el builder sin volver a soltar el PDF.
-  const puertaSession =
-    s(searchParams.session).trim().slice(0, 80) ||
-    expPuertaSession.slice(0, 80) ||
-    (lead?.expedienteRef?.startsWith("puerta:") ? lead.expedienteRef.slice("puerta:".length) : "");
-  const sessionKey = expRef ? `exp:${expRef}` : puertaSession || null;
   if (sessionKey) {
     const rows = await prisma.documentAnalysis.findMany({
       where: { sessionToken: sessionKey },
@@ -173,6 +201,7 @@ export default async function ZonaTraductorPresupuestoPage({
             excludeSession={puertaSession || null}
             excludeLprRef={lead?.ref ?? null}
             excludeInboxId={inboxId}
+            casoId={casoId}
           />
           {lead && (
             <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
@@ -215,6 +244,10 @@ export default async function ZonaTraductorPresupuestoPage({
           initialData={expRef ? undefined : builderInitialConLead}
           expedienteRef={expRef}
           lavoriLeadRef={lead?.ref ?? null}
+          casoId={casoId}
+          puertaSession={puertaSession || null}
+          solicitudesVivas={solicitudesVivas}
+          costeJuradoCents={costeJuradoCents}
           emailContext={
             inboundEmail
               ? { id: inboundEmail.id, fromName: inboundEmail.fromName, fromEmail: inboundEmail.fromEmail, subject: inboundEmail.subject, text: (inboundEmail.bodyText || inboundEmail.bodyPreview || "").split(/\n(?:>|El .{0,120}escribi[oó]:|On .{0,120}wrote:|Le .{0,120}a écrit)/)[0].slice(0, 600) }
