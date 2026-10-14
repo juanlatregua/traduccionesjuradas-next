@@ -476,6 +476,21 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     act(b.totalCents / 100, 4, `Factura agrupada de ${periodLabel(b.periodKey)} de ${b.fiscalName} (${b.monthlyOrders.length} pedido(s), ${eur(b.totalCents / 100)}) sin emitir → emitirla en la ficha del cliente`, `${SITE}/zona-traductor/clientes/${encodeURIComponent(String(b.email || ""))}`, { key: `f:${b.id}`, tier: 1 });
   }
 
+  /* ───────── 4c. Pago congelado por «volver a pedir» y la nueva solicitud sin precio > 24 h ───────── */
+  const congeladosVolver = await prisma.quote.findMany({
+    where: { paymentFrozenAt: { not: null }, paidAt: null, deletedAt: null, paymentFreezeKey: { startsWith: "volver:" } },
+    select: { id: true, quoteNumber: true, total: true, paymentFrozenAt: true },
+  });
+  for (const q of congeladosVolver) {
+    const sinPrecio = await prisma.lavoriPriceRequest.findFirst({
+      where: { quoteId: q.id, status: "SENT", priceCents: null, createdAt: { lt: new Date(NOW.getTime() - 24 * 3600e3) } },
+      orderBy: { createdAt: "desc" },
+      select: { ref: true, createdAt: true },
+    });
+    if (!sinPrecio) continue;
+    act(Number(q.total), 4, `Presupuesto ${q.quoteNumber} con el pago CONGELADO desde ${madrid(q.paymentFrozenAt)} (volviste a pedir precio) y ${sinPrecio.ref} lleva ${Math.round((NOW.getTime() - sinPrecio.createdAt.getTime()) / 3600e3)} h sin precio → reclama al jurado o desbloquea`, `${SITE}/zona-traductor/presupuestos/${q.id}`, { key: `q:${q.id}:volver`, tier: 0 });
+  }
+
   const byDue = (a: AgendaItem, b: AgendaItem) => (a.venceDias ?? 99) - (b.venceDias ?? 99);
   traducir.sort(byDue); seguir.sort(byDue);
   const palabrasSemana = traducir.reduce((s, t) => s + (t.palabras || 0), 0);

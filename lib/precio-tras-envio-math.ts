@@ -149,3 +149,9 @@ export function isPaymentFrozen(q: { paymentFrozenAt: Date | null; paidAt?: Date
 }
 
 export const FROZEN_PAYMENT_ERROR = "Estamos actualizando tu presupuesto; te escribimos en breve.";
+
+/** Hay un presupuesto más reciente: el viejo no se toca, salvo descongelar el que se
+ *  congeló al «volver a pedir» si la nueva cifra no deja pérdida. */
+export function salidaPorPresupuestoNuevo(freezeKey: string | null | undefined, congelado: boolean, kind: SentPriceDecision["kind"]): "descongelar" | "salir" {
+  return congelado && String(freezeKey || "").startsWith("volver:") && kind !== "perdida" ? "descongelar" : "salir";
+}

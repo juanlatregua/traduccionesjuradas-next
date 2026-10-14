@@ -12,6 +12,7 @@ import {
   foreignLinesReason,
   freezeKeyFor,
   isUnpaidSentQuote,
+  salidaPorPresupuestoNuevo,
   shouldFreeze,
   type SentPriceDecision,
 } from "@/lib/precio-tras-envio-math";
@@ -141,7 +142,6 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
     orderBy: { createdAt: "desc" },
     select: { quoteNumber: true, status: true },
   });
-  if (nuevo) return { handled: false, reason: `hay un presupuesto más reciente ${nuevo.quoteNumber} (${nuevo.status}) del mismo cliente y par: revisa ese, el ${quote.quoteNumber} no se ha tocado` };
 
   // Coste real en BASE: la cifra del canal puede venir en líquido o con IVA (Daniela ÷1,06,
   // Nielson ÷1,21). Con varias solicitudes con precio atadas al presupuesto, cuentan todas.
@@ -160,6 +160,18 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
     otherPricedRequests: otras.length > 0,
     foreignLinesReason: foreignLinesReason({ descriptions: quote.lines.map((l) => l.description), leadPar: lead.par, sourceLang: quote.sourceLang, targetLang: quote.targetLang }),
   });
+  if (nuevo) {
+    const reason = `hay un presupuesto más reciente ${nuevo.quoteNumber} (${nuevo.status}) del mismo cliente y par: revisa ese, el ${quote.quoteNumber} no se ha tocado`;
+    // Congelado por «volver a pedir» y la nueva cifra no deja pérdida: se descongela (nada más).
+    if (salidaPorPresupuestoNuevo(quote.paymentFreezeKey, Boolean(quote.paymentFrozenAt), decision.kind) === "descongelar") {
+      const hecho = await prisma.quote.updateMany({
+        where: { id: quote.id, paidAt: null, paymentFreezeKey: quote.paymentFreezeKey },
+        data: { paymentFrozenAt: null, paymentFreezeKey: null },
+      });
+      if (hecho.count) return { handled: false, reason: `${reason}; pago descongelado: ${lead.ref} no deja pérdida` };
+    }
+    return { handled: false, reason };
+  }
   const key = freezeKeyFor(lead.ref, lead.priceCents, lead.miembroId);
   const ficha = `${SITE}/zona-traductor/presupuestos/${quote.id}`;
   const miembro = lead.miembroNombre || lead.miembroId || "el jurado";
