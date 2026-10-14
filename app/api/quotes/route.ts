@@ -16,6 +16,8 @@ import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 import { inheritBillingFromHistory } from "@/lib/recurrent-client-db";
 import { casoIdEnSombra, tomarVigente } from "@/lib/caso/sombra";
 import { anclasDeExpediente, paresDe } from "@/lib/caso/sombra-plan";
+import { esBorradorSustituible } from "@/lib/caso/hilo";
+import { presupuestoVivoDelCaso } from "@/lib/caso/hilo-db";
 
 export const runtime = "nodejs";
 
@@ -124,6 +126,26 @@ export async function POST(req: Request) {
       customerId: clienteCaso?.id ?? null,
       actor: access.email || "staff",
     });
+
+    // Un presupuesto vivo por caso (F3b): cambiarlo es editar el mismo, no montar otro número.
+    const vivo = await presupuestoVivoDelCaso(casoId).catch(() => null);
+    if (
+      vivo &&
+      !esBorradorSustituible(
+        { ...vivo, envios: vivo._count.messageLogs, pedidos: vivo._count.orders },
+        { customerEmail: parsed.data.customerEmail, sourceLang: parsed.data.sourceLang, targetLang: parsed.data.targetLang, expedienteRef },
+        new Date()
+      )
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          existingQuoteId: vivo.id,
+          error: `Este caso ya tiene el presupuesto ${vivo.quoteNumber}: cámbialo con «Editar datos y líneas» en vez de montar otro.`,
+        },
+        { status: 409 }
+      );
+    }
 
     const createdTx = await prisma.$transaction(async (tx) => {
       // Cliente que vuelve con el email en otra capitalización: se enlaza a SU ficha
