@@ -60,6 +60,7 @@ export async function POST(req: Request, { params }: Params) {
         clientEmail: true,
         clientPhone: true,
         clientLocale: true,
+        paymentStatus: true,
         events: {
           where: {
             type: {
@@ -213,7 +214,8 @@ export async function POST(req: Request, { params }: Params) {
     // el precio ya está pactado fuera — "le indicaremos el precio en breve" sería
     // mentira. Solo si el encargo es NUEVO (un reintento repetido ya acusó).
     // Con await + catch interno: un fallo del acuse no tumba el POST.
-    if (!paraTi && !result.repetido) {
+    // Pedido ya pagado: el cliente no espera precio, el acuse le confundiría.
+    if (!paraTi && !result.repetido && order.paymentStatus !== "PAID") {
       await sendPriceRequestAckToClient({
         name: order.clientName,
         email: order.clientEmail,
