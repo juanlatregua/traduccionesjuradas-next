@@ -91,7 +91,7 @@ export default function DocumentosMercantilesPage() {
           </li>
           <li>
             <Link
-              href="/traduccion-jurada-de-estatutos-sociales"
+              href="/traduccion-jurada-de-estatutos-sociales#precios"
               className="font-semibold text-bleu hover:underline"
             >
               Estatutos sociales

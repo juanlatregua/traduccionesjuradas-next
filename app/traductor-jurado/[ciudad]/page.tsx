@@ -226,6 +226,30 @@ export default async function PaginaCiudad({
               {dato}
             </p>
           ))}
+          {ciudad.contenidoPropio && (
+            <>
+              <h3 className="mt-6 font-baskerville text-lg font-bold text-encre">
+                {ciudad.contenidoPropio.titulo}
+              </h3>
+              {ciudad.contenidoPropio.parrafos.map((parrafo, i) => (
+                <p key={i} className="mt-3 text-sm leading-relaxed text-sepia">
+                  {parrafo}
+                </p>
+              ))}
+              {ciudad.contenidoPropio.enlaces && (
+                <p className="mt-3 text-sm text-sepia">
+                  {ciudad.contenidoPropio.enlaces.map((e, i) => (
+                    <span key={e.href}>
+                      {i > 0 && " · "}
+                      <Link href={e.href} className="font-semibold text-bleu hover:underline">
+                        {e.label}
+                      </Link>
+                    </span>
+                  ))}
+                </p>
+              )}
+            </>
+          )}
           {ciudad.tieneConsulado && !ciudad.consuladoFrances && (
             <p className="mt-3 text-sm leading-relaxed text-sepia">
               En {ciudad.nombre} hay Consulado de Francia — si necesitas

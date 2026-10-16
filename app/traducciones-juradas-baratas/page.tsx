@@ -73,13 +73,56 @@ export default function TraduccionesJuradasBaratas() {
       </section>
 
       {/* PRECIO */}
-      <section className="mt-8">
+      <section id="precios" className="mt-8 scroll-mt-24">
         <h2 className="text-xl font-semibold">
           ¿Cuál es el precio de una traducción jurada?
         </h2>
+        <p className="mt-3 font-medium text-encre">
+          Una traducción jurada de francés o alemán a español cuesta 30 € + IVA
+          por página del original (35 € + IVA si lleva apostilla); en otros
+          idiomas parte de 40 € + IVA. La firma un traductor jurado nombrado por
+          el MAEC, así que ese es el suelo real de una traducción válida.
+        </p>
         <p className="mt-3 text-sepia">
           El precio depende del idioma, el tipo de documento, la extensión y el
           plazo de entrega. Como referencia orientativa:
+        </p>
+
+        <div className="mt-4 overflow-x-auto rounded-2xl border border-cream">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-parchment text-encre">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Caso</th>
+                <th className="px-4 py-3 font-semibold">Precio (IVA no incluido)</th>
+              </tr>
+            </thead>
+            <tbody className="text-sepia">
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3">Francés → español, certificado, acta, título, expediente o antecedentes</td>
+                <td className="px-4 py-3">30 € por página del original</td>
+              </tr>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3">Alemán → español, mismos documentos</td>
+                <td className="px-4 py-3">30 € por página (35 € si tiene tablas)</td>
+              </tr>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3">Documento con apostilla</td>
+                <td className="px-4 py-3">+5 € por documento (la apostilla no cuenta como página)</td>
+              </tr>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3">Inglés, portugués, neerlandés y rumano</td>
+                <td className="px-4 py-3">desde 40 €</td>
+              </tr>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3">Contratos, escrituras y textos largos en francés</td>
+                <td className="px-4 py-3">por palabras, desde 0,08 € por palabra</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-xs text-sepia">
+          Cifras de la tarifa vigente de octubre de 2026. El precio cerrado de tu
+          documento se muestra antes de pagar.
         </p>
 
         <p className="mt-4 text-lg font-semibold text-encre">

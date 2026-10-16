@@ -21,6 +21,7 @@ export interface Ciudad {
   };
   datosUnicos: string[];
   documentosMasFrecuentes: string[];
+  contenidoPropio?: { titulo: string; parrafos: string[]; enlaces?: { href: string; label: string }[] };
   // Cola consolidada: ciudad satélite de otra mayor. Se marca noindex y se
   // excluye del hub /traductor-jurado y del sitemap para concentrar crawl
   // budget/autoridad en las ciudades con demanda propia. Sigue viva para
@@ -870,6 +871,18 @@ export const CIUDADES: Ciudad[] = [
       "Documentos marroquíes para reagrupación familiar",
       "Contratos mercantiles para el sector hostelero francés",
     ],
+    contenidoPropio: {
+      titulo: "Documentos que traducimos a vecinos y empresas de Marbella",
+      parrafos: [
+        "Quien compra o vende una vivienda en Marbella con documentación francesa suele necesitar traducción jurada de su acta de nacimiento, su livret de famille o sus justificantes de ingresos, y del extrait Kbis si la operación se hace a través de una sociedad. Qué documentos pide cada notaría o banco lo decide ella; con el documento a la vista te decimos cuáles hay que traducir y cuáles no.",
+        "En la hostelería y el comercio de la zona es habitual traducir contratos de trabajo, nóminas y certificados de empresa de trabajadores que llegan de Francia. Te dejamos a continuación las guías de documentos laborales y de documentos mercantiles.",
+        "Los trámites de extranjería de Marbella se resuelven en Málaga, y el Registro Civil de Marbella está en la Avda. Arias de Velasco 15. Como estamos en Málaga y el servicio es online, no tienes que desplazarte: envías el documento y recibes el PDF firmado. Francés y alemán a español: 30 € + IVA por página, 35 € si lleva apostilla.",
+      ],
+      enlaces: [
+        { href: "/documentos-oficiales/documentos-laborales", label: "Documentos laborales" },
+        { href: "/documentos-oficiales/documentos-mercantiles", label: "Documentos mercantiles" },
+      ],
+    },
   },
 
   {

@@ -9,6 +9,7 @@ const posts = defineCollection({
     .object({
       title: s.string().max(120),
       description: s.string().max(300),
+      seoTitle: s.string().max(70).optional(),
       date: s.isodate(),
       dateModified: s.isodate().optional(),
       slug: s.path(),

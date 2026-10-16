@@ -294,6 +294,34 @@ export default function DocumentosLaboralesPage() {
         </div>
       </section>
 
+      {/* CÓMO TRADUCIMOS UN EXPEDIENTE LABORAL */}
+      <section className="mt-10 space-y-3 text-sm text-sepia">
+        <h2 className="text-lg font-semibold text-encre">
+          Cómo traducimos un expediente laboral
+        </h2>
+        <p>
+          En una nómina o un certificado de empresa se traduce todo lo que
+          aparece en el original: membrete, conceptos salariales, cotizaciones,
+          deducciones, sellos y firmas. Las cifras y la divisa se mantienen
+          tal cual figuran en el documento (no se convierten a euros), y el
+          traductor jurado deja constancia de los elementos que no se pueden
+          traducir, como un sello ilegible o un manuscrito.
+        </p>
+        <p>
+          Un contrato de trabajo o un convenio se presupuesta por palabras
+          (en francés, desde 0,08 € por palabra, más IVA), porque su longitud
+          varía mucho de un contrato a otro. En las nóminas y los certificados
+          cortos el precio se cierra al subir el documento, antes de pagar.
+        </p>
+        <p>
+          Si el expediente mezcla documentos de varias empresas o países, lo
+          recomendable es enviarlo completo de una vez: así se unifica la
+          traducción de nombres propios, cargos y denominaciones de las
+          sociedades en todos los documentos, y la administración no encuentra
+          el mismo cargo traducido de dos formas distintas.
+        </p>
+      </section>
+
       {/* INFORMACIÓN PRÁCTICA */}
       <section className="mt-10 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">

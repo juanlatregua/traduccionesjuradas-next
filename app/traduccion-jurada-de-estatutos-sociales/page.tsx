@@ -7,9 +7,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Traducci\u00F3n Jurada de Estatutos Sociales: desde 80 \u20AC \u00B7 MAEC",
+    "Traducción Jurada de Estatutos Sociales · MAEC nº 3850",
   description:
-    "Traducci\u00F3n jurada de estatutos sociales desde 80 \u20AC para el Registro Mercantil, constituci\u00F3n de sucursales y tr\u00E1mites notariales. Traductor jurado oficial acreditado por el MAEC. Presupuesto cerrado al instante, entrega en 2-5 d\u00EDas.",
+    "Traducción jurada de estatutos sociales para el Registro Mercantil, constitución de sucursales y trámites notariales. Traductor jurado oficial acreditado por el MAEC. Francés: desde 0,08 € por palabra. Presupuesto cerrado antes de pagar.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traduccion-jurada-de-estatutos-sociales",
@@ -18,24 +18,24 @@ export const metadata: Metadata = {
 
 const FAQ_ITEMS = [
   {
-    question: "\u00BFCu\u00E1ndo necesito traducir los estatutos sociales de una empresa?",
+    question: "¿Cuándo necesito traducir los estatutos sociales de una empresa?",
     answer:
-      "Para inscribir una sucursal en el Registro Mercantil espa\u00F1ol, constituir una sociedad con socios extranjeros, o presentar documentaci\u00F3n mercantil ante un tribunal o notario en Espa\u00F1a.",
+      "Para inscribir una sucursal en el Registro Mercantil español, constituir una sociedad con socios extranjeros, o presentar documentación mercantil ante un tribunal o notario en España.",
   },
   {
-    question: "\u00BFSe necesita apostilla en los estatutos?",
+    question: "¿Se necesita apostilla en los estatutos?",
     answer:
-      "S\u00ED, los estatutos notariales extranjeros deben ir apostillados o legalizados. La apostilla se traduce conjuntamente con los estatutos.",
+      "Sí, los estatutos notariales extranjeros deben ir apostillados o legalizados. La apostilla se traduce conjuntamente con los estatutos.",
   },
   {
-    question: "\u00BFCu\u00E1nto cuesta traducir unos estatutos sociales?",
+    question: "¿Cuánto cuesta traducir unos estatutos sociales?",
     answer:
-      "El precio depende de la extensi\u00F3n. Unos estatutos de 10-20 p\u00E1ginas cuestan habitualmente entre 120 y 250 \u20AC. Env\u00EDa el documento para un presupuesto exacto.",
+      "Se presupuesta por palabras, no por página: en francés desde 0,08 € por palabra más IVA, y en otros idiomas con presupuesto previo. Envía el documento y recibes el precio cerrado antes de pagar.",
   },
   {
-    question: "\u00BFTambi\u00E9n traduc\u00EDs actas de la junta y certificados del Registre du Commerce?",
+    question: "¿También traducís actas de la junta y certificados del Registre du Commerce?",
     answer:
-      "S\u00ED, traducimos todos los documentos mercantiles: actas de junta, certificados de registro mercantil (Registre du Commerce), balances y cuentas anuales.",
+      "Sí, traducimos todos los documentos mercantiles: actas de junta, certificados de registro mercantil (Registre du Commerce), balances y cuentas anuales.",
   },
 ];
 
@@ -44,14 +44,14 @@ export default function TraduccionJuradaEstatutosSocialesPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       <SchemaService
         id="service-estatutos-sociales"
-        serviceName="Traducci\u00F3n jurada de estatutos sociales"
-        serviceDescription="Traducci\u00F3n jurada oficial de estatutos sociales y documentaci\u00F3n mercantil para Registro Mercantil, notar\u00EDa y tribunales en Espa\u00F1a."
+        serviceName="Traducción jurada de estatutos sociales"
+        serviceDescription="Traducción jurada oficial de estatutos sociales y documentación mercantil para Registro Mercantil, notaría y tribunales en España."
         serviceUrl="https://www.traduccionesjuradas.net/traduccion-jurada-de-estatutos-sociales"
-        brand={{ "@type": "Brand", name: "HBTJ Consultores Ling\u00FC\u00EDsticos" }}
+        brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
           "@type": "Person",
           name: "Juan Silva Moreno",
-          jobTitle: "Traductor Jurado Oficial MAEC n\u00BA 3850",
+          jobTitle: "Traductor Jurado Oficial MAEC nº 3850",
         }}
       />
       <SchemaBreadcrumbs
@@ -59,7 +59,7 @@ export default function TraduccionJuradaEstatutosSocialesPage() {
         items={[
           { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
           {
-            name: "Traducci\u00F3n jurada estatutos sociales",
+            name: "Traducción jurada estatutos sociales",
             url: "https://www.traduccionesjuradas.net/traduccion-jurada-de-estatutos-sociales",
           },
         ]}
@@ -71,69 +71,91 @@ export default function TraduccionJuradaEstatutosSocialesPage() {
           Estatutos sociales
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
-          Traducci\u00F3n jurada de estatutos sociales
+          Traducción jurada de estatutos sociales
         </h1>
         {/* Respuesta-arriba citable (AEO): precio y plazo en la primera frase. */}
         <p className="mt-3 text-base font-medium text-encre">
-          La traducci\u00F3n jurada de estatutos sociales cuesta desde 80 \u20AC
-          (estatutos breves) y se entrega en 2-5 d\u00EDas laborables, firmada por
-          traductor jurado oficial MAEC n\u00BA 3850.
+          Los estatutos sociales son el documento que fija el nombre, el objeto, el
+          capital y el funcionamiento de una sociedad. Su traducción jurada, firmada
+          por traductor jurado oficial MAEC nº 3850, se presupuesta por palabras:
+          en francés, desde 0,08 € por palabra más IVA.
         </p>
         <p className="mt-3 text-sm text-sepia sm:text-base">
           Los estatutos sociales de una empresa extranjera necesitan{" "}
-          <strong>traducci\u00F3n jurada</strong> para ser v\u00E1lidos ante el Registro Mercantil,
-          notar\u00EDas y tribunales espa\u00F1oles. Realizamos la traducci\u00F3n jurada de
-          estatutos de cualquier pa\u00EDs.
+          <strong>traducción jurada</strong> para ser válidos ante el Registro Mercantil,
+          notarías y tribunales españoles. Realizamos la traducción jurada de
+          estatutos de cualquier país.
         </p>
       </header>
 
       <section className="mt-8 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          \u00BFCu\u00E1ndo se necesita traducir los estatutos sociales?
+          ¿Cuándo se necesita traducir los estatutos sociales?
         </h2>
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            <strong>Inscripci\u00F3n de sucursal</strong> \u2014 para registrar una sucursal
-            de empresa extranjera en el Registro Mercantil espa\u00F1ol.
+            <strong>Inscripción de sucursal</strong> — para registrar una sucursal
+            de empresa extranjera en el Registro Mercantil español.
           </li>
           <li>
-            <strong>Constituci\u00F3n de sociedad</strong> \u2014 cuando los socios
-            fundadores son extranjeros y aportan documentaci\u00F3n de su pa\u00EDs.
+            <strong>Constitución de sociedad</strong> — cuando los socios
+            fundadores son extranjeros y aportan documentación de su país.
           </li>
           <li>
-            <strong>Procedimientos judiciales</strong> \u2014 para acreditar la
-            personalidad jur\u00EDdica de una empresa extranjera.
+            <strong>Procedimientos judiciales</strong> — para acreditar la
+            personalidad jurídica de una empresa extranjera.
           </li>
           <li>
-            <strong>Licitaciones p\u00FAblicas</strong> \u2014 cuando una empresa extranjera
-            participa en concursos p\u00FAblicos en Espa\u00F1a.
+            <strong>Licitaciones públicas</strong> — cuando una empresa extranjera
+            participa en concursos públicos en España.
           </li>
           <li>
-            <strong>Operaciones notariales</strong> \u2014 compraventas,
-            ampliaciones de capital y fusiones con participaci\u00F3n de empresas
+            <strong>Operaciones notariales</strong> — compraventas,
+            ampliaciones de capital y fusiones con participación de empresas
             extranjeras.
           </li>
         </ul>
       </section>
 
-      <section className="mt-10 rounded-2xl border border-cream bg-card p-5 text-sm text-encre shadow-sm">
+      <section id="precios" className="mt-10 scroll-mt-24 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          Precios orientativos
+          Qué se traduce, en qué formato y a qué precio
         </h2>
-        <ul className="mt-3 space-y-2 text-sepia">
-          <li>
-            <strong>Estatutos breves (5-10 p\u00E1ginas):</strong> desde 80 \u20AC
-          </li>
-          <li>
-            <strong>Estatutos est\u00E1ndar (10-20 p\u00E1ginas):</strong> desde 150 \u20AC
-          </li>
-          <li>
-            <strong>Estatutos extensos (20+ p\u00E1ginas):</strong> presupuesto personalizado
-          </li>
-        </ul>
-        <p className="mt-3 text-xs text-sepia">
-          El precio definitivo depende del idioma, la extensi\u00F3n y la terminolog\u00EDa.
-          Env\u00EDanos el documento para un presupuesto exacto.
+        <div className="mt-3 overflow-x-auto rounded-2xl border border-cream">
+          <table className="w-full text-left">
+            <thead className="bg-parchment text-encre">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Concepto</th>
+                <th className="px-4 py-3 font-semibold">Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3 font-medium text-encre">Qué se traduce</td>
+                <td className="px-4 py-3">El texto íntegro de los estatutos, incluidas las modificaciones inscritas, y la apostilla o legalización si la lleva.</td>
+              </tr>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3 font-medium text-encre">Formato de entrega</td>
+                <td className="px-4 py-3">PDF firmado digitalmente por el traductor jurado; copia en papel según el caso.</td>
+              </tr>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3 font-medium text-encre">Precio en francés</td>
+                <td className="px-4 py-3">Por palabras, desde 0,08 € por palabra más IVA. La apostilla suma 5 € por documento.</td>
+              </tr>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3 font-medium text-encre">Otros idiomas</td>
+                <td className="px-4 py-3">Presupuesto previo según idioma y extensión.</td>
+              </tr>
+              <tr className="border-t border-cream">
+                <td className="px-4 py-3 font-medium text-encre">Plazo</td>
+                <td className="px-4 py-3">Se fija en el presupuesto según la extensión y la urgencia.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs">
+          El precio definitivo depende del idioma, la extensión y la terminología.
+          Tarifa vigente de octubre de 2026.
         </p>
       </section>
 
@@ -142,27 +164,27 @@ export default function TraduccionJuradaEstatutosSocialesPage() {
           Documentos mercantiles relacionados
         </h2>
         <p>
-          Adem\u00E1s de los estatutos sociales, traducimos toda la documentaci\u00F3n
-          mercantil que suele acompa\u00F1arlos:
+          Además de los estatutos sociales, traducimos toda la documentación
+          mercantil que suele acompañarlos:
         </p>
         <ul className="list-disc space-y-2 pl-5">
-          <li>Actas de junta general y del consejo de administraci\u00F3n.</li>
+          <li>Actas de junta general y del consejo de administración.</li>
           <li>
             Certificados del <strong>Registre du Commerce</strong> (Kbis, extracto
             K, etc.) y Handelsregister.
           </li>
-          <li>Cuentas anuales y balances de situaci\u00F3n.</li>
-          <li>Poderes de representaci\u00F3n y certificados de vigencia.</li>
+          <li>Cuentas anuales y balances de situación.</li>
+          <li>Poderes de representación y certificados de vigencia.</li>
         </ul>
       </section>
 
       <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
         <h2 className="text-lg font-semibold text-bleu">
-          \u00BFNecesitas traducir los estatutos de una empresa?
+          ¿Necesitas traducir los estatutos de una empresa?
         </h2>
         <p className="mt-1 text-encre">
-          Env\u00EDanos los estatutos en PDF y te damos presupuesto cerrado con plazo
-          de entrega. Tambi\u00E9n podemos traducir el resto de documentaci\u00F3n mercantil
+          Envíanos los estatutos en PDF y te damos presupuesto cerrado con plazo
+          de entrega. También podemos traducir el resto de documentación mercantil
           del expediente.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
@@ -184,19 +206,19 @@ export default function TraduccionJuradaEstatutosSocialesPage() {
       </section>
 
       <p className="mt-6 text-xs text-sepia">
-        Ver tambi\u00E9n:{" "}
+        Ver también:{" "}
         <Link
           href="/documentos-oficiales/documentos-mercantiles"
           className="font-semibold text-bleu hover:underline"
         >
           Documentos mercantiles
         </Link>
-        {" \u00B7 "}
+        {" · "}
         <Link
           href="/traductor-jurado-frances"
           className="font-semibold text-bleu hover:underline"
         >
-          Traductor jurado de franc\u00E9s
+          Traductor jurado de francés
         </Link>
       </p>
     </main>
