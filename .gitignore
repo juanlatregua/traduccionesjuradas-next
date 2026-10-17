@@ -51,3 +51,7 @@ exports/
 
 # Estado local del ping de IndexNow (qué URL se envió con qué lastmod)
 scripts/.indexnow-sent.json
+
+# Archivo de sesiones y facturas emitidas sueltas (datos de clientes): nunca al repo
+CONTEXT.archive.md
+/26_*.pdf
