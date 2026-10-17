@@ -99,7 +99,12 @@ type DocRow = {
   mode?: "text" | "vision";
   unitPrice: number; // editable, pre-IVA (coste TOTAL de la linea)
   clientPrice?: number; // precio cliente fijado desde «Ya presupuestado» (anula coste × margen)
-  wordRate?: number; // €/palabra de esta linea (modo "palabra"); unitPrice = words × wordRate
+  // Base del coste de la línea: undefined = coste fijo tecleado; "word" =
+  // palabras × wordRate; "unit" = nº de documentos × unitRate (p. ej. 15 €/extracto).
+  basis?: "word" | "unit";
+  wordRate?: number; // €/palabra de esta linea; unitPrice = words × wordRate
+  unitCount?: number; // nº de documentos de la línea (base "unit")
+  unitRate?: number; // €/documento de esta línea; unitPrice = unitCount × unitRate
   // true = precio gestionado por el engine (se re-calcula al cambiar el idioma
   // destino del expediente); editarlo a mano lo desactiva.
   autoPriced?: boolean;
@@ -341,8 +346,8 @@ export default function StaffExpedienteIntake({
   const [marginPct, setMarginPct] = useState<number | null>(initialData?.lineAmount ? 0 : null);
   // Modo de precio del COSTE por línea: "document" = precio fijo por documento
   // (escribes el coste a mano); "word" = por palabra (coste = palabras × tarifa).
-  const [priceMode, setPriceMode] = useState<"document" | "word">("document");
   const [wordRate, setWordRate] = useState<number>(0.07);
+  const [docRate, setDocRate] = useState<number>(15);
   // P2: si false, soltar documentos NO lanza el conteo IA (precio a mano / fijo).
   const [autoCount, setAutoCount] = useState(true);
   const [pdfLang, setPdfLang] = useState<string>("es");
@@ -753,12 +758,12 @@ export default function StaffExpedienteIntake({
           include: a.include || b.include,
           hasApostille: a.hasApostille || b.hasApostille,
           unitPrice:
-            priceMode === "word" && words
+            host.basis === "word" && words
               ? Math.round(words * (host.wordRate ?? wordRate) * 100) / 100
               : keepB
                 ? b.unitPrice
                 : host.unitPrice,
-          clientPrice: priceMode === "word" && words ? undefined : keepB ? b.clientPrice : host.clientPrice,
+          clientPrice: host.basis === "word" && words ? undefined : keepB ? b.clientPrice : host.clientPrice,
           autoPriced: keepB ? false : host.autoPriced,
           priceNote: keepB ? undefined : host.priceNote,
           absorbedPages: absorbed.length ? absorbed : undefined,
@@ -767,7 +772,7 @@ export default function StaffExpedienteIntake({
       });
       resuggestDiscount();
     },
-    [priceMode, wordRate, resuggestDiscount]
+    [wordRate, resuggestDiscount]
   );
 
   // Inverso de la unión automática: saca como fila aparte (precio a mano) las
@@ -831,11 +836,45 @@ export default function StaffExpedienteIntake({
     setDocs((prev) =>
       prev.map((d) =>
         isPriceable(d.status) && d.words && d.words > 0
-          ? { ...d, wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined }
+          ? { ...d, basis: "word", wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined }
           : d
       )
     );
   }, [wordRate]);
+
+  // Tarifa por documento a todas las líneas: coste = nº de documentos × €/doc.
+  const applyDocRate = useCallback(() => {
+    setDocs((prev) =>
+      prev.map((d) => {
+        if (!isPriceable(d.status)) return d;
+        const n = d.unitCount ?? 1;
+        return { ...d, basis: "unit", unitCount: n, unitRate: docRate, unitPrice: Math.round(n * (docRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined };
+      })
+    );
+  }, [docRate]);
+
+  // Cambia la base del coste de UNA línea (fijo / por palabra / por documento).
+  const setRowBasis = useCallback(
+    (localId: string, basis: DocRow["basis"]) => {
+      setDocs((prev) =>
+        prev.map((d) => {
+          if (d.localId !== localId) return d;
+          const manual = { clientPrice: undefined, autoPriced: false, priceNote: undefined };
+          if (basis === "word") {
+            const r = d.wordRate ?? wordRate;
+            return { ...d, ...manual, basis, wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100 };
+          }
+          if (basis === "unit") {
+            const n = d.unitCount ?? 1;
+            const r = d.unitRate ?? docRate;
+            return { ...d, ...manual, basis, unitCount: n, unitRate: r, unitPrice: Math.round(n * r * 100) / 100 };
+          }
+          return { ...d, basis: undefined };
+        })
+      );
+    },
+    [wordRate, docRate]
+  );
 
   // Re-precio al cambiar el idioma destino del expediente: las filas cuyo
   // precio gestiona el engine (autoPriced) se recalculan con computeBase —
@@ -1212,13 +1251,20 @@ export default function StaffExpedienteIntake({
           (knownLangCode(d.sourceLang) && d.sourceLang !== "es" ? "Español" : "");
         const parts: string[] = [];
         if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
-        if (d.words) parts.push(`${d.words} palabras`);
+        // Por documento: la línea sale como cantidad × precio unitario (15 × 15 €)
+        // si el total del cliente se reparte exacto entre los documentos.
+        const count = d.basis === "unit" && d.unitCount && d.unitCount > 1 ? d.unitCount : 1;
+        const client = rowClientPrice(d);
+        const perUnit = Math.round((client / count) * 100) / 100;
+        const asUnits = count > 1 && Math.round(perUnit * count * 100) === Math.round(client * 100);
+        if (d.basis === "unit" && d.unitCount) parts.push(`${d.unitCount} documento${d.unitCount === 1 ? "" : "s"}`);
+        else if (d.words) parts.push(`${d.words} palabras`);
         if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
         return {
           description: parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
-          quantity: 1,
-          unitPrice: rowClientPrice(d), // precio CLIENTE = coste × (1+margen)
-          supplierUnitCost: d.unitPrice, // coste del traductor (interno)
+          quantity: asUnits ? count : 1,
+          unitPrice: asUnits ? perUnit : client, // precio CLIENTE = coste × (1+margen)
+          supplierUnitCost: asUnits ? Math.round((d.unitPrice / count) * 100) / 100 : d.unitPrice, // coste del traductor (interno), por unidad
           sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
           pageStart: d.pageStart,
           pageEnd: d.pageEnd,
@@ -1503,8 +1549,7 @@ export default function StaffExpedienteIntake({
                 <th className="px-3 py-2">Tipo</th>
                 <th className="px-3 py-2">Dirección</th>
                 <th className="px-3 py-2 text-right">Palabras</th>
-                {priceMode === "word" && <th className="px-3 py-2 text-right">€/palabra</th>}
-                <th className="px-3 py-2 text-right">{priceMode === "word" ? "Total coste" : "Coste fijo"}</th>
+                <th className="px-3 py-2 text-right">Coste</th>
                 <th className="px-3 py-2 text-right">Precio cliente</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -1692,7 +1737,7 @@ export default function StaffExpedienteIntake({
                           const w = e.target.value === "" ? undefined : Number(e.target.value);
                           patch(
                             d.localId,
-                            priceMode === "word"
+                            d.basis === "word"
                               ? { words: w, unitPrice: Math.round((w || 0) * (d.wordRate ?? wordRate) * 100) / 100, autoPriced: false, priceNote: undefined }
                               : { words: w }
                           );
@@ -1704,40 +1749,76 @@ export default function StaffExpedienteIntake({
                       "—"
                     )}
                   </td>
-                  {priceMode === "word" && (
-                    <td className="px-3 py-2 text-right">
-                      {isPriceable(d.status) ? (
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.001"
-                          value={d.wordRate ?? wordRate}
-                          onChange={(e) => {
-                            const r = Math.max(0, Number(e.target.value));
-                            patch(d.localId, { wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100, autoPriced: false, priceNote: undefined });
-                          }}
-                          className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
-                          title="€ por palabra (coste del traductor) de esta línea"
-                        />
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  )}
                   <td className="px-3 py-2 text-right">
                     {isPriceable(d.status) ? (
-                      priceMode === "word" ? (
-                        <span className="tabular-nums text-slate-300">{(d.unitPrice || 0).toFixed(2)} €</span>
-                      ) : (
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={d.unitPrice}
-                          onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value), clientPrice: undefined, autoPriced: false, priceNote: undefined })}
-                          className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
-                        />
-                      )
+                      <div className="flex flex-col items-end gap-1">
+                        <select
+                          value={d.basis ?? "fixed"}
+                          onChange={(e) => setRowBasis(d.localId, e.target.value === "fixed" ? undefined : (e.target.value as "word" | "unit"))}
+                          className="rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[11px] text-slate-300"
+                          title="Cómo se calcula el coste de esta línea"
+                        >
+                          <option value="fixed">Fijo</option>
+                          <option value="word">Por palabra</option>
+                          <option value="unit">Por documento</option>
+                        </select>
+                        {d.basis === "word" ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.001"
+                              value={d.wordRate ?? wordRate}
+                              onChange={(e) => {
+                                const r = Math.max(0, Number(e.target.value));
+                                patch(d.localId, { wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100, autoPriced: false, priceNote: undefined });
+                              }}
+                              className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              title="€ por palabra (coste del traductor) de esta línea"
+                            />
+                            <span className="text-[11px] text-slate-400">€/pal.</span>
+                          </div>
+                        ) : d.basis === "unit" ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={1}
+                              step="1"
+                              value={d.unitCount ?? 1}
+                              onChange={(e) => {
+                                const n = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                                patch(d.localId, { unitCount: n, unitPrice: Math.round(n * (d.unitRate ?? docRate) * 100) / 100, autoPriced: false, priceNote: undefined });
+                              }}
+                              className="w-14 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              title="Nº de documentos de esta línea"
+                            />
+                            <span className="text-[11px] text-slate-400">docs ×</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={d.unitRate ?? docRate}
+                              onChange={(e) => {
+                                const r = Math.max(0, Number(e.target.value));
+                                patch(d.localId, { unitRate: r, unitPrice: Math.round((d.unitCount ?? 1) * r * 100) / 100, autoPriced: false, priceNote: undefined });
+                              }}
+                              className="w-16 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              title="€ por documento (coste del traductor) de esta línea"
+                            />
+                            <span className="text-[11px] text-slate-400">€</span>
+                          </div>
+                        ) : (
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={d.unitPrice}
+                            onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value), clientPrice: undefined, autoPriced: false, priceNote: undefined })}
+                            className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                          />
+                        )}
+                        {d.basis && <span className="tabular-nums text-[11px] text-slate-400">= {(d.unitPrice || 0).toFixed(2)} €</span>}
+                      </div>
                     ) : (
                       "—"
                     )}
@@ -1842,50 +1923,48 @@ export default function StaffExpedienteIntake({
               <p className="text-xs text-amber-400">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
             )}
 
-            {/* Modo de precio del coste por línea: por documento (fijo) o por palabra */}
+            {/* Base del coste: cada línea elige Fijo / Por palabra / Por documento en su fila; aquí se aplica a todas de golpe */}
             <div className="border-t border-slate-700 pt-3">
-              <label className="text-xs text-slate-400">Precio del coste por</label>
+              <label className="text-xs text-slate-400">Aplicar a todas las líneas</label>
               <div className="mt-1 flex flex-wrap items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step="0.001"
+                  value={wordRate}
+                  onChange={(e) => setWordRate(Math.max(0, Number(e.target.value)))}
+                  className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                  title="€ por palabra (coste del traductor)"
+                />
+                <span className="text-xs text-slate-400">€/palabra</span>
                 <button
                   type="button"
-                  onClick={() => setPriceMode("document")}
-                  className={`rounded border px-2 py-1 text-xs ${priceMode === "document" ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}
+                  onClick={applyWordRate}
+                  className="rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30"
                 >
-                  Documento (fijo)
+                  Por palabra
                 </button>
+                <span className="mx-1 text-slate-600">·</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={docRate}
+                  onChange={(e) => setDocRate(Math.max(0, Number(e.target.value)))}
+                  className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                  title="€ por documento (coste del traductor)"
+                />
+                <span className="text-xs text-slate-400">€/documento</span>
                 <button
                   type="button"
-                  onClick={() => setPriceMode("word")}
-                  className={`rounded border px-2 py-1 text-xs ${priceMode === "word" ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}
+                  onClick={applyDocRate}
+                  className="rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30"
                 >
-                  Palabra
+                  Por documento
                 </button>
-                {priceMode === "word" && (
-                  <>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.001"
-                      value={wordRate}
-                      onChange={(e) => setWordRate(Math.max(0, Number(e.target.value)))}
-                      className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
-                      title="€ por palabra (coste del traductor)"
-                    />
-                    <span className="text-xs text-slate-400">€/palabra</span>
-                    <button
-                      type="button"
-                      onClick={applyWordRate}
-                      className="rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30"
-                    >
-                      Aplicar a las líneas
-                    </button>
-                  </>
-                )}
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
-                {priceMode === "document"
-                  ? "Escribe el coste fijo de cada documento en su fila."
-                  : "Coste = palabras × tarifa. Pulsa “Aplicar” para rellenar las líneas con palabras; luego puedes ajustar cada una a mano."}
+                Cada línea elige en su fila: coste fijo, palabras × €/palabra o nº de documentos × €/documento. Estos botones la aplican a todas; luego puedes ajustar cada una.
               </p>
             </div>
 
