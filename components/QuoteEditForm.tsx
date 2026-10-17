@@ -54,7 +54,7 @@ function eur(n: number) {
   return `${n.toFixed(2)} €`;
 }
 
-export default function QuoteEditForm({ quote }: { quote: Quote }) {
+export default function QuoteEditForm({ quote, nuevaLinea = false }: { quote: Quote; nuevaLinea?: boolean }) {
   const router = useRouter();
   const [customerName, setCustomerName] = useState(quote.customerName || "");
   const [customerEmail, setCustomerEmail] = useState(quote.customerEmail || "");
@@ -62,7 +62,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
   const [sourceLang, setSourceLang] = useState(quote.sourceLang || "");
   const [targetLang, setTargetLang] = useState(quote.targetLang || "");
   const [lines, setLines] = useState<Line[]>(
-    (quote.lines || []).map((l) => ({
+    (quote.lines || []).map((l): Line => ({
       description: l.description,
       quantity: l.quantity,
       unitPrice: l.unitPrice,
@@ -71,7 +71,7 @@ export default function QuoteEditForm({ quote }: { quote: Quote }) {
       sourceFileUrl: (l as any).sourceFileUrl ?? null,
       pageStart: (l as any).pageStart ?? null,
       pageEnd: (l as any).pageEnd ?? null,
-    }))
+    })).concat(nuevaLinea ? [{ description: "", quantity: 1, unitPrice: 0 } as Line] : [])
   );
   const [discountType, setDiscountType] = useState(quote.discountType || "NONE");
   const [discountValue, setDiscountValue] = useState(quote.discountValue ?? 0);

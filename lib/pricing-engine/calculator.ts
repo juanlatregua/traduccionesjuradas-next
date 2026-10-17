@@ -138,6 +138,7 @@ export type PriceMetricsInput = {
   inbound?: boolean;
   hasTables?: boolean;
   apostilleSeparatePage?: boolean;
+  bankStatementsInQuote?: number;
 };
 
 export function computeBase(input: PriceMetricsInput): {
@@ -185,6 +186,7 @@ export function computeBase(input: PriceMetricsInput): {
     hasTables: input.hasTables,
     hasApostille: input.hasApostille,
     apostilleSeparatePage: input.apostilleSeparatePage,
+    bankStatementsInQuote: input.bankStatementsInQuote,
   });
   if (pagePricing) {
     return {

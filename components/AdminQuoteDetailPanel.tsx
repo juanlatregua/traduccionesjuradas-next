@@ -77,6 +77,9 @@ function formatMoney(value: number) {
   return `${Number(value || 0).toFixed(2)} EUR`;
 }
 
+// Estados en los que el editor deja tocar las líneas.
+const LINES_EDITABLE = new Set(["DRAFT", "SENT", "OPENED", "ACCEPTED"]);
+
 function statusLabel(status: string) {
   const map: Record<string, string> = {
     DRAFT: "Borrador",
@@ -1007,7 +1010,17 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Líneas</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-slate-900">Líneas</h2>
+          {LINES_EDITABLE.has(quote.status) && (
+            <a
+              href={`/zona-traductor/presupuestos/${quote.id}/editar?nuevaLinea=1`}
+              className="rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+            >
+              + Añadir línea
+            </a>
+          )}
+        </div>
         <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-100 text-slate-600">

@@ -14,7 +14,13 @@ export const metadata: Metadata = {
 };
 
 /** S1: editar el presupuesto sin salir de la cáscara oscura. Ver la ficha. */
-export default async function PresupuestoEditarPage({ params }: { params: { id: string } }) {
+export default async function PresupuestoEditarPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { nuevaLinea?: string };
+}) {
   await authZonaTraductorOrRedirect();
   const expedientesPendientes = await countExpedientesPendientes();
 
@@ -45,7 +51,7 @@ export default async function PresupuestoEditarPage({ params }: { params: { id: 
           <h1 className="font-mono text-sm font-bold text-cyan-300">{numero}</h1>
         </div>
         <div className="rounded-2xl bg-cream p-4 shadow-xl">
-          <QuoteEditForm quote={serialized as any} />
+          <QuoteEditForm quote={serialized as any} nuevaLinea={searchParams.nuevaLinea === "1"} />
         </div>
       </main>
     </div>

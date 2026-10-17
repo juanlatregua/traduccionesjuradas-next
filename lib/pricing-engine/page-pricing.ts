@@ -27,6 +27,18 @@ export const PAGE_COST_DE_TABLES_EUR = 15;
  * que la lleve. Coste Morton: no hay tarifa de apostilla → +0 (pendiente de Juan). */
 export const APOSTILLE_EXTRA_EUR = 5;
 
+/** RC francés (company_registration FR→ES, decisión Juan 17-oct): por documento
+ * según páginas — 1 pág. 30 €, 2 pág. 35 €, 3 pág. 40 €, +5 € por página más. */
+export const FR_RC_BASE_EUR = 30;
+export const FR_RC_EXTRA_PAGE_EUR = 5;
+/** Extractos bancarios FR→ES (decisión Juan 17-oct): 30 € por documento sea cual
+ * sea su nº de páginas. En lote (≥ FR_BANK_BULK_MIN extractos en el mismo
+ * presupuesto): 15 € el de 1 página, 20 € el de 2, +5 € por página más. */
+export const FR_BANK_DOC_EUR = 30;
+export const FR_BANK_BULK_MIN = 5;
+export const FR_BANK_BULK_1P_EUR = 15;
+export const FR_BANK_BULK_EXTRA_PAGE_EUR = 5;
+
 /** Idiomas con precio por página (siempre hacia el español). */
 export const PAGE_PRICED_LANGS = new Set(["fr", "de"]);
 
@@ -66,6 +78,20 @@ export function isPagePricedType(specificType: string | null | undefined): boole
   return PAGE_PRICED_TYPES.has(String(specificType || "").trim().toLowerCase());
 }
 
+/** Tipos con tarifa propia solo en francés (no van a Morton). */
+const FR_ONLY_PAGE_TYPES = new Set(["company_registration"]);
+
+/** Precio FR→ES de un documento con tarifa por documento (RC, extractos), o null. */
+function frDocumentPrice(type: string, pages: number, bankStatementsInQuote: number): number | null {
+  if (type === "company_registration") return FR_RC_BASE_EUR + FR_RC_EXTRA_PAGE_EUR * (pages - 1);
+  if (type === "bank_statement") {
+    return bankStatementsInQuote >= FR_BANK_BULK_MIN
+      ? FR_BANK_BULK_1P_EUR + FR_BANK_BULK_EXTRA_PAGE_EUR * (pages - 1)
+      : FR_BANK_DOC_EUR;
+  }
+  return null;
+}
+
 /** ¿El documento lleva tablas? has_tables del análisis de IA, o por tipo. */
 export function detectTables(input: {
   specificType?: string | null;
@@ -94,10 +120,13 @@ export function computePagePricing(input: {
   hasApostille?: boolean | null;
   /** El análisis dice EXPRESAMENTE que la apostilla ocupa una hoja aparte. */
   apostilleSeparatePage?: boolean | null;
+  /** Extractos bancarios del mismo presupuesto (precio de lote en francés). */
+  bankStatementsInQuote?: number | null;
 }): PagePricing | null {
   const lang = String(input.foreignLang || "").trim().toLowerCase();
+  const type = String(input.specificType || "").trim().toLowerCase();
   if (!input.inbound || !PAGE_PRICED_LANGS.has(lang)) return null;
-  if (!isPagePricedType(input.specificType)) return null;
+  if (!isPagePricedType(type) && !(lang === "fr" && FR_ONLY_PAGE_TYPES.has(type))) return null;
   const apostille = input.hasApostille === true;
   // La hoja de apostilla solo se descuenta si el análisis dice expresamente que
   // ocupa una página aparte. En la duda se cobran todas las páginas (+5 €): antes
@@ -107,6 +136,18 @@ export function computePagePricing(input: {
   const tables = lang === "de" && detectTables({ specificType: input.specificType, hasTables: input.hasTables });
   const pricePerPage = tables ? PAGE_PRICE_DE_TABLES_EUR : PAGE_PRICE_EUR;
   const costPerPage = lang === "de" ? (tables ? PAGE_COST_DE_TABLES_EUR : PAGE_COST_DE_EUR) : 0;
+  const frDoc = lang === "fr" ? frDocumentPrice(type, pages, Number(input.bankStatementsInQuote) || 1) : null;
+  if (frDoc !== null) {
+    return {
+      pages,
+      tables,
+      apostille,
+      pricePerPage: round2(frDoc / pages),
+      priceEur: round2(frDoc + (apostille ? APOSTILLE_EXTRA_EUR : 0)),
+      costPerPage: 0,
+      costEur: 0,
+    };
+  }
   return {
     pages,
     tables,

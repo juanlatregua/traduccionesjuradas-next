@@ -611,7 +611,13 @@ export default function StaffExpedienteIntake({
       // Re-sugerir descuento por volumen con los documentos finalizados.
       if (!discountTouched) {
         setDocs((cur) => {
-          const includedDone = cur.filter((d) => d.include && (d.status === "done" || d.status === "split")).length;
+          // Los extractos FR ya llevan su precio de lote: no suman al descuento.
+          const includedDone = cur.filter(
+            (d) =>
+              d.include &&
+              (d.status === "done" || d.status === "split") &&
+              !(d.documentType === "bank_statement" && d.sourceLang === "fr")
+          ).length;
           setDiscountPct(suggestVolumeDiscountPct(includedDone));
           return cur;
         });
@@ -894,6 +900,10 @@ export default function StaffExpedienteIntake({
           hasApostille: d.hasApostille,
         }))
       );
+      // Extractos bancarios FR del expediente: a partir de FR_BANK_BULK_MIN, precio de lote.
+      const bankStatementsInQuote = prev.filter(
+        (d) => d.include !== false && d.documentType === "bank_statement" && d.sourceLang === "fr"
+      ).length;
       const next = prev.map((d, idx) => {
         if (!d.autoPriced || d.basis || !isPriceable(d.status) || d.status === "manual" || !d.sourceLang) return d;
         // Destino efectivo: el del expediente; "" = Auto (al español).
@@ -928,6 +938,7 @@ export default function StaffExpedienteIntake({
           inbound: d.sourceLang !== "es",
           hasTables: d.hasTables,
           apostilleSeparatePage: d.apostilleSeparatePage,
+          bankStatementsInQuote,
         });
         // Tarifa por página DE→ES: el coste de la línea es el de Morton y el
         // precio de venta se fija aparte (sin margen tiered ni suelo de 40 €).

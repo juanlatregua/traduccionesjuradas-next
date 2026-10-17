@@ -352,3 +352,29 @@ test("encargo a Morton: payload dirigido con paraTi = coste por página y precio
   assert.equal(payload.par, "DE>ES");
   assert.equal(payload.ref, "26_TEST01"); // ref SIN sufijo: carril pagado, no solicitud de precio
 });
+
+// Decisión de Juan, 17-oct-2026: RC francés por documento según páginas; extractos
+// bancarios 30 €/documento, y en lote (≥5) 15 € el de 1 página y 20 € el de 2.
+test("RC FR→ES: 30 / 35 / 40 € por documento según páginas, sin coste de traductor", () => {
+  const rc = (pages: number) =>
+    computePagePricing({ specificType: "company_registration", foreignLang: "fr", inbound: true, pages });
+  assert.deepEqual([1, 2, 3, 4].map((n) => rc(n)?.priceEur), [30, 35, 40, 45]);
+  assert.equal(rc(2)?.costEur, 0);
+  assert.equal(computePagePricing({ specificType: "company_registration", foreignLang: "de", inbound: true, pages: 2 }), null);
+  assert.equal(calculatePrice(analysis({ type: "company_registration", pages: 3, words: 2000 })).basePrice, 40);
+});
+
+test("extractos FR→ES: 30 €/documento suelto; en lote 15 € (1 pág.) y 20 € (2 pág.)", () => {
+  const ext = (pages: number, n?: number) =>
+    computePagePricing({ specificType: "bank_statement", foreignLang: "fr", inbound: true, pages, bankStatementsInQuote: n })?.priceEur;
+  assert.equal(ext(1), 30);
+  assert.equal(ext(2), 30);
+  assert.equal(ext(2, 4), 30);
+  assert.equal(ext(1, 5), 15);
+  assert.equal(ext(2, 13), 20);
+  assert.equal(ext(3, 13), 25);
+  // Imad (2026-00273): 7 de una página + 6 de dos = 225 €
+  assert.equal(7 * ext(1, 13)! + 6 * ext(2, 13)!, 225);
+  // alemán sigue por página con tablas
+  assert.equal(computePagePricing({ specificType: "bank_statement", foreignLang: "de", inbound: true, pages: 2, bankStatementsInQuote: 13 })?.priceEur, 70);
+});
