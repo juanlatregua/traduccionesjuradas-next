@@ -5,8 +5,9 @@
 // documentos; esto evita presupuestar a ciegas lo que el email ya aclara.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { SONNET_MODEL, assertNotRefused } from "./models";
 
-const BRIEF_MODEL = "claude-sonnet-4-6";
+const BRIEF_MODEL = SONNET_MODEL;
 
 const SYSTEM_PROMPT = `Eres el asistente de presupuestos de TraduccionesJuradas.net (traducción jurada en España, Juan Silva Moreno, traductor jurado nº 3850 MAEC). Lees el email de un cliente (y, si existe, la lista de documentos adjuntos ya analizados) y extraes SOLO lo que el email dice o implica con claridad, para que el staff monte el presupuesto sin presupuestar a ciegas.
 
@@ -119,13 +120,15 @@ export async function generateEmailBrief(input: {
     const resp = await client.messages.create(
       {
         model: BRIEF_MODEL,
-        max_tokens: 900,
+        max_tokens: 2048,
+        output_config: { effort: "low" },
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: sections.join("\n\n") }],
       },
       { signal: controller.signal }
     );
     clearTimeout(timeout);
+    assertNotRefused(resp, "emailBrief");
     const block = resp.content.find((b) => b.type === "text");
     const raw = block && block.type === "text" ? block.text : "";
     if (!raw.trim()) throw new Error("El modelo no devolvió texto.");

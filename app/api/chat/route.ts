@@ -9,6 +9,7 @@ import { SYSTEM_PROMPT } from "@/lib/chat/system-prompt";
 import { sanitizeMessage, isPromptInjection } from "@/lib/chat/sanitize";
 import { detectLanguage } from "@/lib/chat/detect-language";
 import { CHAT_TOOLS, executeToolCall } from "@/lib/chat/tools";
+import { SONNET_MODEL, assertNotRefused } from "@/lib/ai/models";
 
 type ImageBlock = {
   type: "image";
@@ -50,7 +51,7 @@ async function alertStaffChatLimit(limit: number) {
     html: `<p>El asistente de la web ha llegado al tope global de <strong>${limit} mensajes en 24 h</strong> y ha dejado de llamar a la IA: a los visitantes se les deriva a WhatsApp.</p><p>Si es tráfico legítimo, sube <code>CHAT_DAILY_LIMIT</code> en Vercel; si es abuso, revisa las sesiones en ChatSession (ipHash/userEmail).</p>`,
   });
 }
-const MODEL = "claude-sonnet-4-6"; // Sonnet 4 (20250514) retirado 15-jun-2026 → 404
+const MODEL = SONNET_MODEL;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES: ImageBlock["source"]["media_type"][] = [
   "image/jpeg",
@@ -233,7 +234,8 @@ export async function POST(req: NextRequest) {
           for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
             const stream = anthropic.messages.stream({
               model: MODEL,
-              max_tokens: 1024,
+              max_tokens: 4096,
+              output_config: { effort: "low" },
               system: [
                 {
                   type: "text",
@@ -259,6 +261,7 @@ export async function POST(req: NextRequest) {
             }
 
             const final = await stream.finalMessage();
+            assertNotRefused(final, "chat");
             apiMessages.push({ role: "assistant", content: final.content });
 
             if (final.stop_reason !== "tool_use") break;

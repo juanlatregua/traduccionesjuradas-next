@@ -6,8 +6,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
+import { SONNET_MODEL, assertNotRefused } from "./models";
 
-const DRAFT_MODEL = "claude-sonnet-4-6";
+const DRAFT_MODEL = SONNET_MODEL;
 
 const SYSTEM_PROMPT = `Eres el asistente de redacción de emails de TraduccionesJuradas.net (HBTJ Consultores Lingüísticos S.L., Málaga). Escribes en nombre de Juan Silva Moreno, Traductor-Intérprete Jurado de francés nº 3850 nombrado por el MAEC.
 
@@ -299,7 +300,8 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
     const resp = await client.messages.create(
       {
         model: DRAFT_MODEL,
-        max_tokens: 1800,
+        max_tokens: 4096,
+        output_config: { effort: "medium" },
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
         messages: [
           {
@@ -311,6 +313,7 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
       { signal: controller.signal }
     );
     clearTimeout(timeout);
+    assertNotRefused(resp, "emailReply");
     if (resp.stop_reason === "max_tokens") {
       throw new Error("El borrador quedó cortado (max_tokens). Reintenta con instrucciones más cortas.");
     }

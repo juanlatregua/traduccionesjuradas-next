@@ -8,12 +8,13 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { TRANSLATION_DRAFT_SYSTEM_PROMPT } from "@/lib/translation-prompts";
 import type { TranslationDraftResult } from "@/lib/translation-prompts";
 import { generateDraftDocx } from "@/lib/draft-docx";
+import { SONNET_MODEL } from "@/lib/ai/models";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MODEL = "claude-sonnet-4-6"; // Sonnet 4 (20250514) retirado 15-jun-2026 → 404
-const MAX_TOKENS = 8192;
+const MODEL = SONNET_MODEL;
+const MAX_TOKENS = 16_000;
 
 type RequestBody = {
   orderReference: string;
@@ -188,6 +189,7 @@ export async function POST(req: Request) {
         {
           model: MODEL,
           max_tokens: MAX_TOKENS,
+          output_config: { effort: "medium" },
           system: TRANSLATION_DRAFT_SYSTEM_PROMPT,
           messages: [{ role: "user", content: contentBlocks }],
         },
@@ -195,6 +197,11 @@ export async function POST(req: Request) {
       );
     } finally {
       clearTimeout(timeout);
+    }
+
+    if (response.stop_reason === "refusal") {
+      console.error("[traduccion-automatica] refusal", JSON.stringify(response.stop_details ?? null));
+      return NextResponse.json({ ok: false, error: "El modelo declinó traducir este documento." }, { status: 422 });
     }
 
     const textBlock = response.content.find((b) => b.type === "text");

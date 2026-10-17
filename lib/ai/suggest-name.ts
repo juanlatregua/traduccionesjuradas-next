@@ -10,6 +10,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { TEXT_MODEL_ID, VISION_MODEL } from "./analyze-document";
+import { assertNotRefused } from "./models";
 import { extractPdfText } from "./extract-text";
 
 const NAME_SYSTEM = `Eres un clasificador de documentos para una agencia de traduccion jurada.
@@ -100,13 +101,15 @@ export async function suggestDocumentName(input: {
     const resp = await client.messages.create(
       {
         model,
-        max_tokens: 40,
+        max_tokens: 1024,
+        output_config: { effort: "low" },
         system: [{ type: "text", text: NAME_SYSTEM, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content }],
       },
       { signal: controller.signal }
     );
     clearTimeout(timeout);
+    assertNotRefused(resp, "suggestName");
     const block = resp.content.find((b) => b.type === "text");
     const raw = block && block.type === "text" ? block.text.trim() : "";
     const name = raw

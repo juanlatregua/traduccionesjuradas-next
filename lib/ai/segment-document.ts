@@ -10,11 +10,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { DOCUMENT_SEGMENTATION_PROMPT } from "./prompts";
 import { TEXT_MODEL_ID, parseModelJson } from "./analyze-document";
+import { assertNotRefused } from "./models";
 import type { DocumentAnalysisResult } from "./analyze-document";
 import { billableWordCount } from "./word-counter";
 import { UNREAD_PAGES_TYPE_ES } from "./unread-pages";
 
-const MAX_TOKENS = 8_192;
+const MAX_TOKENS = 16_384;
 const TIMEOUT_MS = 110_000;
 const MAX_RETRIES = 4;
 
@@ -164,6 +165,7 @@ export async function segmentDocumentText(input: {
       {
         model: TEXT_MODEL_ID,
         max_tokens: MAX_TOKENS,
+        output_config: { effort: "medium" },
         system: [
           { type: "text", text: DOCUMENT_SEGMENTATION_PROMPT, cache_control: { type: "ephemeral" } },
         ],
@@ -187,6 +189,7 @@ export async function segmentDocumentText(input: {
 
     clearTimeout(timeout);
 
+    assertNotRefused(response, "segmentDocumentText");
     if (response.stop_reason === "max_tokens") {
       throw new Error("TRUNCATED: segmentación truncada por límite de tokens.");
     }

@@ -14,8 +14,9 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { normalizeConfidence } from "@/lib/payment-proof-match";
+import { HAIKU_MODEL, assertNotRefused } from "./models";
 
-const MODEL = "claude-haiku-4-5-20251001";
+const MODEL = HAIKU_MODEL;
 
 export type PaymentProofRead = {
   esJustificante: boolean;
@@ -89,7 +90,8 @@ export async function extractPaymentProof(input: {
     const response = await client.messages.create(
       {
         model: MODEL,
-        max_tokens: 700,
+        max_tokens: 4096,
+        output_config: { effort: "medium" },
         system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
         messages: [
           {
@@ -106,6 +108,7 @@ export async function extractPaymentProof(input: {
       },
       { signal: controller.signal }
     );
+    assertNotRefused(response, "extractPaymentProof");
     const text = response.content
       .filter((c): c is Anthropic.TextBlock => c.type === "text")
       .map((c) => c.text)

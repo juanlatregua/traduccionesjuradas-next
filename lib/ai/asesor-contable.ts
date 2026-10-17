@@ -4,6 +4,7 @@
 // existentes y lo que depende de la ley, a «preguntas_gestoria».
 
 import Anthropic from "@anthropic-ai/sdk";
+import { OPUS_MODEL } from "./models";
 import { dossierForModel, type Dossier } from "../asesor-contable/dossier";
 import {
   ANALISIS_SCHEMA,
@@ -18,7 +19,7 @@ import {
 // Modelo por defecto: Claude Opus 5.5 (el Opus vigente: análisis de dinero, poco
 // volumen — máx. 10 análisis/h — y más barato que Fable). Se cambia sin desplegar
 // código con ASESOR_CONTABLE_MODEL.
-export const ASESOR_DEFAULT_MODEL = "claude-opus-5-5";
+export const ASESOR_DEFAULT_MODEL = OPUS_MODEL;
 export const asesorModel = () => process.env.ASESOR_CONTABLE_MODEL?.trim() || ASESOR_DEFAULT_MODEL;
 
 const RULES = `Eres el asesor contable interno de HBTJ Consultores Lingüísticos S.L. (traducciones juradas, Málaga). Hablas con Juan, el administrador. Analizas UN periodo a partir de un DOSSIER en JSON que calculó el código con cifras exactas.

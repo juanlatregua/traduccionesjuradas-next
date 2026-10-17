@@ -11,6 +11,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { parseModelJson, VISION_MODEL, TEXT_MODEL_ID } from "./analyze-document";
+import { assertNotRefused } from "./models";
 import { extractPdfText } from "./extract-text";
 import {
   REQUIREMENTS_EXTRACTION_PROMPT,
@@ -65,7 +66,7 @@ export type RequirementsExtraction = {
   disclaimerVersion: string;
 };
 
-const MAX_TOKENS = 4096;
+const MAX_TOKENS = 8192;
 const TIMEOUT_MS = 110_000;
 const MAX_RETRIES = 4;
 const MAX_TEXT_CHARS = 24_000;
@@ -202,6 +203,7 @@ export async function analyzeRequirement(input: {
       {
         model,
         max_tokens: MAX_TOKENS,
+        output_config: { effort: "medium" },
         system: [
           {
             type: "text",
@@ -216,6 +218,7 @@ export async function analyzeRequirement(input: {
 
     clearTimeout(timeout);
 
+    assertNotRefused(response, "analyzeRequirement");
     if (response.stop_reason === "max_tokens") {
       throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");
     }

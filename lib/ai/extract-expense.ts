@@ -2,8 +2,9 @@
 // (factura recibida) con Claude visión, para prerellenar el alta de gasto.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { SONNET_MODEL, assertNotRefused } from "./models";
 
-const MODEL = "claude-sonnet-4-6"; // Sonnet 4 (20250514) retirado 15-jun-2026 → 404
+const MODEL = SONNET_MODEL;
 
 export type ExtractedExpense = {
   supplier?: string | null;
@@ -76,7 +77,8 @@ export async function extractExpenseFromDocument(input: { fileBase64?: string; m
     const response = await client.messages.create(
       {
         model: MODEL,
-        max_tokens: 1024,
+        max_tokens: 4096,
+        output_config: { effort: "medium" },
         system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
         messages: [
           {
@@ -87,6 +89,7 @@ export async function extractExpenseFromDocument(input: { fileBase64?: string; m
       },
       { signal: controller.signal }
     );
+    assertNotRefused(response, "extractExpense");
     const text = response.content
       .filter((c): c is Anthropic.TextBlock => c.type === "text")
       .map((c) => c.text)

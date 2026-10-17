@@ -3,15 +3,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { DOCUMENT_ANALYSIS_PROMPT, LARGE_DOCUMENT_ADDENDUM } from "./prompts";
 import { countDocumentWords, billableWordCount } from "./word-counter";
+import { SONNET_MODEL, HAIKU_MODEL, assertNotRefused } from "./models";
 
-// Sonnet 4.6 (alias estable, sin sufijo de fecha): el anterior
-// claude-sonnet-4-20250514 (Sonnet 4, may-2025) quedo retirado y devolvia 404,
-// rompiendo TODO el analisis por vision (escaneos/imagenes) en produccion.
-const MODEL = "claude-sonnet-4-6";
+const MODEL = SONNET_MODEL;
 // Camino barato: PDFs con capa de texto se clasifican con Haiku sobre el texto
 // extraído (sin imagen). ~15× más barato que Sonnet visión y sin tokens de
 // imagen. Ver lib/ai/extract-text.ts y lib/ai/run-analysis.ts.
-const TEXT_MODEL = "claude-haiku-4-5-20251001";
+const TEXT_MODEL = HAIKU_MODEL;
 
 // Reutilizables por otros analizadores que comparten el mismo criterio de
 // coste (texto→Haiku, visión→Sonnet), p.ej. lib/ai/requirements.ts.
@@ -179,6 +177,7 @@ export async function analyzeDocumentText(input: {
       {
         model: TEXT_MODEL,
         max_tokens: MAX_TOKENS_LARGE,
+        output_config: { effort: "medium" },
         system: [
           {
             type: "text",
@@ -206,6 +205,7 @@ export async function analyzeDocumentText(input: {
 
     clearTimeout(timeout);
 
+    assertNotRefused(response, "analyzeDocumentText");
     if (response.stop_reason === "max_tokens") {
       console.error("[analyzeDocumentText] Response truncated (max_tokens). Usage:", JSON.stringify(response.usage));
       throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");
@@ -301,6 +301,7 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
       {
         model: MODEL,
         max_tokens: isLargeDoc ? MAX_TOKENS_LARGE : MAX_TOKENS,
+        output_config: { effort: "medium" },
         system: [
           {
             type: "text",
@@ -320,6 +321,7 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
 
   try {
     let response = await callModel(contentBlocks);
+    assertNotRefused(response, "analyzeDocument");
 
     // Respuesta truncada: el modelo se quedó sin margen transcribiendo. Antes se
     // lanzaba aquí y el análisis moría entero (documento escaneado largo = lead
@@ -344,6 +346,7 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<DocumentAnal
             'que el conteo es aproximado. No transcribas NADA.',
         },
       ]);
+      assertNotRefused(response, "analyzeDocument");
       if (response.stop_reason === "max_tokens") {
         console.error("[analyzeDocument] Truncado de nuevo tras degradar. Usage:", JSON.stringify(response.usage));
         throw new Error("TRUNCATED: respuesta truncada por límite de tokens.");
