@@ -895,7 +895,7 @@ export default function StaffExpedienteIntake({
         }))
       );
       const next = prev.map((d, idx) => {
-        if (!d.autoPriced || !isPriceable(d.status) || d.status === "manual" || !d.sourceLang) return d;
+        if (!d.autoPriced || d.basis || !isPriceable(d.status) || d.status === "manual" || !d.sourceLang) return d;
         // Destino efectivo: el del expediente; "" = Auto (al español).
         const foreign = resolvePriceablePair(d.sourceLang, targetLang || "es");
         if (!foreign || !isAutoPriceable(foreign)) {
@@ -962,6 +962,23 @@ export default function StaffExpedienteIntake({
     });
   }, [targetLang, docs]);
 
+  // Líneas por palabra / por documento: el coste es SIEMPRE nº × tarifa. Las filas
+  // nuevas que heredan la base (tijeras, unir, separar) llegan con unitPrice 0;
+  // aquí se recalculan en un solo sitio (captura Juan 17-oct: «1 × 15 = 0,00 €»).
+  useEffect(() => {
+    setDocs((prev) => {
+      const next = prev.map((d) => {
+        if (!d.basis || !isPriceable(d.status)) return d;
+        const cost =
+          d.basis === "unit"
+            ? Math.round((d.unitCount ?? 1) * (d.unitRate ?? docRate) * 100) / 100
+            : Math.round((d.words || 0) * (d.wordRate ?? wordRate) * 100) / 100;
+        return d.unitPrice === cost ? d : { ...d, unitPrice: cost, clientPrice: undefined };
+      });
+      return next.every((row, i) => row === prev[i]) ? prev : next;
+    });
+  }, [docs, docRate, wordRate]);
+
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
   const clientPriceOf = useCallback(
@@ -1018,6 +1035,7 @@ export default function StaffExpedienteIntake({
             ? d
             : {
                 ...d,
+                basis: undefined, // precio cerrado de un presupuesto anterior: la línea pasa a coste fijo
                 clientPrice: m.unitPrice,
                 unitPrice: !d.unitPrice && m.supplierUnitCost != null ? m.supplierUnitCost : d.unitPrice,
                 autoPriced: false,
