@@ -214,3 +214,103 @@ test("cadena con corte: el primer no-LOCAL con prevHash vacío reinicia; LOCAL s
   // Un no-LOCAL encadenado al LOCAL anterior (proveedor activado sin corte) también es válido.
   assert.equal(verifyChainWithCut([l1, row(2, l1.hash, "PENDING")]), -1);
 });
+
+// ── Arreglos de la revisión ─────────────────────────────────────────────────────
+import { anulacionSinRegistroPrevio, shouldChain, subsanacionFlags, unresolvedRejected } from "../../lib/verifactu/hash.ts";
+import { pdfEnvMatches, verifactuEnv } from "../../lib/verifactu/provider.ts";
+import { validateAltaData } from "../../lib/verifactu/aeat-xml.ts";
+
+test("verifactuEnv: fail-closed en producción de Vercel", () => {
+  const saved = { v: process.env.VERCEL_ENV, e: process.env.VERIFACTU_ENV };
+  try {
+    process.env.VERCEL_ENV = "production";
+    delete process.env.VERIFACTU_ENV;
+    assert.throws(() => verifactuEnv(), /VERIFACTU_ENV/);
+    process.env.VERIFACTU_ENV = "Prod";
+    assert.throws(() => verifactuEnv(), /exactamente/);
+    process.env.VERIFACTU_ENV = "prod";
+    assert.equal(verifactuEnv(), "prod");
+    process.env.VERIFACTU_ENV = "test";
+    assert.equal(verifactuEnv(), "test");
+    process.env.VERCEL_ENV = "development";
+    delete process.env.VERIFACTU_ENV;
+    assert.equal(verifactuEnv(), "test", "fuera de producción cae a pruebas");
+  } finally {
+    if (saved.v === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = saved.v;
+    if (saved.e === undefined) delete process.env.VERIFACTU_ENV;
+    else process.env.VERIFACTU_ENV = saved.e;
+  }
+});
+
+test("PDF: QR solo si el entorno guardado coincide con el actual", () => {
+  assert.equal(pdfEnvMatches("prod", "prod"), true);
+  assert.equal(pdfEnvMatches("test", "prod"), false);
+  assert.equal(pdfEnvMatches(undefined, "test"), false);
+  assert.equal(pdfEnvMatches(null, "prod"), false);
+});
+
+test("modo cadena: nunca LOCAL tras el primer no-LOCAL aunque falte el proveedor", () => {
+  assert.equal(shouldChain(true, false), true);
+  assert.equal(shouldChain(false, true), true);
+  assert.equal(shouldChain(false, false), false);
+});
+
+test("validación al emitir: la misma que el XML", () => {
+  const ok = { invoiceType: "F1", vatRate: 0.21, recipient: { name: "X SL", nif: "B12345674", country: "España" } };
+  assert.doesNotThrow(() => validateAltaData(ok));
+  assert.throws(() => validateAltaData({ ...ok, vatRate: 0 }), /IVA/);
+  assert.throws(() => validateAltaData({ ...ok, recipient: { name: "X", nif: "123", country: "Narnia" } }), /no reconocido/);
+  assert.throws(() => validateAltaData({ ...ok, recipient: { name: "X", nif: "", country: "Francia" } }), /NIF/);
+  assert.throws(() => validateAltaData({ ...ok, recipient: null }), AeatDataError);
+  assert.throws(() => validateAltaData({ ...ok, invoiceType: "R1", hasRectified: false }), /rectificada/);
+  assert.doesNotThrow(() => validateAltaData({ invoiceType: "F2", vatRate: 0.21, recipient: null }), "la simplificada no pide destinatario");
+  assert.doesNotThrow(() => validateAltaData({ invoiceType: "R5", vatRate: 0.21, recipient: null, hasRectified: true }));
+});
+
+test("mapa de países ampliado: Latinoamérica, variantes con y sin tilde y puntos", () => {
+  const casos: [string, string][] = [
+    ["Estados Unidos de América", "US"], ["Estados Unidos de America", "US"], ["United States of America", "US"], ["E.E.U.U.", "US"], ["EE. UU.", "US"],
+    ["UK", "GB"], ["Reino Unido", "GB"], ["México", "MX"], ["Perú", "PE"], ["Panamá", "PA"], ["República Dominicana", "DO"], ["Uruguay", "UY"],
+    ["Venezuela", "VE"], ["Chile", "CL"], ["Ecuador", "EC"], ["Bolivia", "BO"], ["Paraguay", "PY"], ["Costa Rica", "CR"], ["El Salvador", "SV"],
+    ["Guatemala", "GT"], ["Honduras", "HN"], ["Nicaragua", "NI"], ["Cuba", "CU"], ["Colombia", "CO"], ["Argentina", "AR"], ["Brasil", "BR"],
+    ["Côte d'Ivoire", "CI"], ["Türkiye", "TR"], ["Arabia Saudí", "SA"],
+  ];
+  for (const [txt, iso] of casos) assert.equal(countryToIso(txt), iso, txt);
+});
+
+test("R5: la rectificativa de una simplificada no lleva destinatario", () => {
+  const xml = registroXml(alta({ invoiceType: "R5", recipient: null, cuotaTotalCents: -2100, importeTotalCents: -12100, rectifies: { numSerie: "26_030", issueDate: "01-10-2026" } }));
+  assert.match(xml, /<sf:TipoFactura>R5<\/sf:TipoFactura><sf:TipoRectificativa>I/);
+  assert.doesNotMatch(xml, /Destinatarios/);
+  const conDatos = registroXml(alta({ invoiceType: "R5", recipient: { name: "X", nif: "B12345674", country: "España" }, rectifies: { numSerie: "26_030", issueDate: "01-10-2026" } }));
+  assert.doesNotMatch(conDatos, /Destinatarios/, "aunque vengan datos, R5 no los envía");
+});
+
+test("subsanación: Subsanacion=S y RechazoPrevio=X solo si el anterior se rechazó", () => {
+  assert.deepEqual(subsanacionFlags([]), { subsanacion: false, rechazoPrevio: false });
+  assert.deepEqual(subsanacionFlags(["REJECTED"]), { subsanacion: true, rechazoPrevio: true });
+  assert.deepEqual(subsanacionFlags(["REJECTED", "REJECTED"]), { subsanacion: true, rechazoPrevio: true });
+  assert.deepEqual(subsanacionFlags(["ACCEPTED_WITH_ERRORS"]), { subsanacion: true, rechazoPrevio: false });
+  const rech = registroXml(alta({ subsanacion: true, rechazoPrevio: true }));
+  order(rech, ["NombreRazonEmisor", "Subsanacion", "RechazoPrevio", "TipoFactura"]);
+  const sola = registroXml(alta({ subsanacion: true }));
+  assert.match(sola, /<sf:Subsanacion>S<\/sf:Subsanacion><sf:TipoFactura>/);
+  assert.doesNotMatch(sola, /RechazoPrevio/);
+  assert.doesNotMatch(registroXml(alta()), /Subsanacion/);
+});
+
+test("cadena bloqueada solo por rechazados SIN subsanar", () => {
+  const rej = [{ invoiceId: "a", chainIndex: 3 }, { invoiceId: "b", chainIndex: 5 }];
+  assert.equal(unresolvedRejected(rej, []).length, 2);
+  assert.deepEqual(unresolvedRejected(rej, [{ invoiceId: "a", chainIndex: 9 }]).map((r) => r.invoiceId), ["b"]);
+  assert.equal(unresolvedRejected(rej, [{ invoiceId: "a", chainIndex: 2 }]).length, 2, "un alta ANTERIOR no releva al rechazado");
+});
+
+test("anulación: SinRegistroPrevio si ningún alta está registrado (LOCAL o REJECTED)", () => {
+  assert.equal(anulacionSinRegistroPrevio(["LOCAL"]), true);
+  assert.equal(anulacionSinRegistroPrevio(["REJECTED"]), true);
+  assert.equal(anulacionSinRegistroPrevio(["REJECTED", "ACCEPTED"]), false);
+  assert.equal(anulacionSinRegistroPrevio(["ACCEPTED_WITH_ERRORS"]), false);
+  assert.equal(anulacionSinRegistroPrevio([]), true);
+});

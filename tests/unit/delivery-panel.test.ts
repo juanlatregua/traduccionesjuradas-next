@@ -134,3 +134,13 @@ test("la etiqueta del panel anticipa lo que hará el servidor", () => {
   assert.match(label({ invoice: annulled }), /anulada: se envía sin factura/);
   assert.equal(decideInvoiceAction({ amountCents: 9000, existing: annulled }), "annulled");
 });
+
+test("corrección de destinatario con registro VeriFactu rechazado o con error de datos", () => {
+  const now = new Date("2026-10-30T12:00:00Z");
+  const base = { annulled: false, issuedAt: new Date("2026-10-01T12:00:00Z"), hasRectification: false, periodClosed: false, sentToClient: true, recordSendStatus: "REJECTED", recordNeedsFix: true, now };
+  assert.equal(recipientLockReasonOf(base), null, "pasadas 72 h, enviada al cliente y registrada: se puede corregir si está rechazada");
+  assert.match(recipientLockReasonOf({ ...base, annulled: true })!, /anulada/);
+  assert.match(recipientLockReasonOf({ ...base, hasRectification: true })!, /rectificativa/);
+  assert.match(recipientLockReasonOf({ ...base, periodClosed: true })!, /trimestre/);
+  assert.match(recipientLockReasonOf({ ...base, recordNeedsFix: false })!, /Hacienda|72 h/, "sin necesidad de corrección sigue bloqueada");
+});

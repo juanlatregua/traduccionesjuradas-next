@@ -201,10 +201,18 @@ export function recipientLockReasonOf(f: {
   hasRectification: boolean;
   periodClosed: boolean;
   recordSendStatus?: string | null;
+  // Registro rechazado por la AEAT, o en cola con un error de datos que impide enviarlo: el destinatario
+  // se puede corregir (y reenviar como subsanación) aunque haya pasado el plazo o se haya enviado ya.
+  recordNeedsFix?: boolean;
   sentToClient: boolean;
   now?: Date;
 }): string | null {
   if (f.annulled) return "está anulada";
+  if (f.recordNeedsFix) {
+    if (f.hasRectification) return "tiene una rectificativa";
+    if (f.periodClosed) return "su trimestre ya está cerrado";
+    return null;
+  }
   if (!isRecentlyIssued(f.issuedAt, f.now)) return "se emitió hace más de 72 h";
   if (f.hasRectification) return "tiene una rectificativa";
   if (f.periodClosed) return "su trimestre ya está cerrado";

@@ -10,17 +10,18 @@ const adminEmail = () => process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.ne
 
 export const VERIFACTU_ALERT_EVENT = "record.alert";
 
-export type VerifactuAlertKind = "rejected" | "send_failed" | "build_error";
+export type VerifactuAlertKind = "rejected" | "send_failed" | "build_error" | "no_provider";
 
 const LABEL: Record<VerifactuAlertKind, string> = {
   rejected: "RECHAZADO por la AEAT",
   send_failed: "ENVÍO FALLIDO a la AEAT",
   build_error: "NO SE PUEDE ENVIAR (datos incompletos)",
+  no_provider: "PENDIENTE SIN PROVEEDOR configurado",
 };
 
 export async function alertVerifactuProblem(input: {
   recordId: string;
-  invoiceId: string;
+  invoiceId: string | null;
   numSerie: string;
   kind: VerifactuAlertKind;
   detail: string;
@@ -45,11 +46,11 @@ export async function alertVerifactuProblem(input: {
       },
     });
     const texto = [
-      `VeriFactu: la factura ${input.numSerie} está ${LABEL[input.kind]}.`,
+      `VeriFactu: ${input.kind === "no_provider" ? "emisor" : "la factura"} ${input.numSerie} está ${LABEL[input.kind]}.`,
       "",
       detail,
       "",
-      "Mientras no se resuelva, los registros posteriores de la cadena de ese emisor no se envían.",
+      input.kind === "no_provider" ? "Restaura VERIFACTU_PROVIDER y VERIFACTU_ENV: los registros siguen en cola." : "Mientras no se resuelva, los registros posteriores de la cadena de ese emisor no se envían.",
     ].join("\n");
     await Promise.all([
       sendMail({

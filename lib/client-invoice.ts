@@ -456,7 +456,7 @@ export async function createRectificativeDraft(originalId: string, actor: string
     { allowNegative: true }
   );
   const draft = await prisma.clientInvoice.create({
-    data: { status: "DRAFT", origin: "rectificative", invoiceType: "R1", rectifiesId: orig.id, rectifiesNumber: orig.number, emitterNif: orig.emitterNif, ...data },
+    data: { status: "DRAFT", origin: "rectificative", invoiceType: orig.simplified || orig.invoiceType === "F2" ? "R5" : "R1", rectifiesId: orig.id, rectifiesNumber: orig.number, emitterNif: orig.emitterNif, ...data },
   });
   await logInvoiceEvent(prisma, { invoiceId: orig.id, type: "invoice.rectified", actor, message: `Borrador de rectificativa creado (${draft.id})${reason ? `: ${reason}` : ""}.`, payload: { draftId: draft.id, reason: reason ?? null } });
   return draft;
