@@ -40,12 +40,13 @@ test("lavoriRouteFromPair: carriles 12-ago — rumano (Maria) e inglés (Vanessa
   assert.deepEqual(esEn.candidatos, ["43dwlkzsr6lsltpwcj32m88s"]);
 });
 
-test("lavoriRouteFromPair: carriles — pt prioriza a Cristina (Carmen fuera 8-oct), árabe y neerlandés multi-candidato", () => {
+test("lavoriRouteFromPair: carriles — pt prioriza a Nielson y luego Cristina (Carmen fuera 8-oct), árabe y neerlandés multi-candidato", () => {
   const ptEs = lavoriRouteFromPair("pt->es");
   assert.ok(ptEs);
   // 19-sep (Juan): "ellas dos ponlas en prioritario de pt porque son activas".
   // Van primero y Juan Amor queda de respaldo. Carballo sigue fuera (31-ago).
   assert.deepEqual(ptEs.candidatos, [
+    "zyuep34us3e33h3fd98w3yyz", // Nielson Vilela SL (primero desde el 19-oct)
     "nhucqnd3q4znddxhe8qs5c51", // Cristina Aguilera Viladés
     "rk1x2kq63rm6ba6mco7c6u2k", // Juan Amor (respaldo); Carmen Lencastre excluida el 8-oct (LAVORI_NO_AVISAR)
   ]);

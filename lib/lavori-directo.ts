@@ -39,12 +39,10 @@ export const LAVORI_DIRECT: Record<string, { miembros: DirectMember[]; enabled: 
   de: { miembros: [{ miembroId: "ngus1uku6x5uw2pqbmflpbbt", nombre: "Morton Sebastian Peter Münster", priceBasis: "base" }], enabled: true },
   en: { miembros: [{ miembroId: "exwzhhwv5fyegllvblt76uvb", nombre: "María Lourdes Yagüe", priceBasis: "base" }], enabled: true },
   ro: { miembros: [{ miembroId: "8npqw6hd5vavn4maio2173lq", nombre: "Maria Murariu", priceBasis: "base" }], enabled: true },
-  // Dos juradas: gana el PRIMER precio que llega (lo impone /api/lavori/eventos).
+  // Nielson primero y solo (orden Juan 19-oct-2026: más barato); si no cotiza,
+  // la reapertura a 6 h va al resto de la cartera PT (Cristina).
   pt: {
-    miembros: [
-      { miembroId: "nhucqnd3q4znddxhe8qs5c51", nombre: "Cristina Aguilera Viladés", priceBasis: "base" },
-      { miembroId: "1h8tul4zycnayru8bsi1tmu4", nombre: "María Carmen Lencastre De Albuquerque Charrua", priceBasis: "base" },
-    ],
+    miembros: [{ miembroId: "zyuep34us3e33h3fd98w3yyz", nombre: "Nielson Maycon de Souza Vilela", priceBasis: "total_con_iva" }],
     enabled: true,
   },
   // Ya tiene Collaborator (alta 15-sep) pero apagado a propósito: hasta que

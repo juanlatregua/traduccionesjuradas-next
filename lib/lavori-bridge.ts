@@ -68,6 +68,7 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // reapertura a 6 h NO la usa: va a pickLavoriAuto sobre la cartera viva
   // menos las directas (hoy, en la práctica, solo Juan Amor si tiene canal).
   pt: [
+    "zyuep34us3e33h3fd98w3yyz", // Nielson Maycon de Souza Vilela SL (primero, orden Juan 19-oct-2026)
     "nhucqnd3q4znddxhe8qs5c51", // Cristina Aguilera Viladés (PT>ES; aceptó 26_94B23C)
     // María Carmen Lencastre (1h8tul4zycnayru8bsi1tmu4) FUERA del carril desde el
     // 8-oct-2026: ver LAVORI_NO_AVISAR.
@@ -208,6 +209,7 @@ export const LAVORI_MEMBERS: LavoriMember[] = [
   { id: "qetmckaaselyjwn072805xue", nombre: "Ángeles Garrido", tij: "1087", langs: ["en"] },
   // pt / it
   { id: "whvx8ft5w6wi50hchczh48hp", nombre: "Francisco Carballo Cruz", tij: "3783", langs: ["pt"], papelUnico: true },
+  { id: "zyuep34us3e33h3fd98w3yyz", nombre: "Nielson Maycon de Souza Vilela", langs: ["pt"] },
   { id: "nhucqnd3q4znddxhe8qs5c51", nombre: "Cristina Aguilera Viladés", langs: ["pt"] },
   { id: "1h8tul4zycnayru8bsi1tmu4", nombre: "María Carmen Lencastre De Albuquerque Charrua", langs: ["pt"] },
   { id: "f4pyspe0hsa1ss99siaokqti", nombre: "María García Garmendia", tij: "4176", langs: ["it", "pt"], canal: false, nota: "sin email ni push" },
