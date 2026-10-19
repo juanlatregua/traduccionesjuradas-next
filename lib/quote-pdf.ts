@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { resolvePaymentAccounts } from "@/lib/payment-labels";
+import { resolvePaymentAccounts, transferLinesEn } from "@/lib/payment-labels";
 import { jsPDF } from "jspdf";
 import { put } from "@vercel/blob";
 import { isBlobConfigured } from "@/lib/payment-config";
@@ -322,7 +322,9 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   // zona SEPA el banco del cliente los exige (27-ago, caso EE. UU.).
   const payLines: string[] = [];
   for (const { account } of resolvePaymentAccounts(methods)) {
-    if (account.kind === "transfer") {
+    if (account.kind === "transfer" && lang === "en") {
+      payLines.push(...transferLinesEn(account));
+    } else if (account.kind === "transfer") {
       payLines.push(`${account.bank} · IBAN ${account.iban} · BIC/SWIFT ${account.bic} · EUR`);
       payLines.push(`${t.beneficiary}: ${account.holder}${account.holderAddress ? ` · ${account.holderAddress}` : ""}`);
       if (account.bankAddress) payLines.push(`${t.bank}: ${account.bank} · ${account.bankAddress}`);
