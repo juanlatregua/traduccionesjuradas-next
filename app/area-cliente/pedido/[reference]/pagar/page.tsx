@@ -57,7 +57,7 @@ type PaymentCapabilities = {
 };
 
 const MANUAL_PAYMENT = {
-  bizumPhone: process.env.NEXT_PUBLIC_BIZUM_IDENTIFIER || "+34 654 069 126",
+  bizumPhone: process.env.NEXT_PUBLIC_BIZUM_IDENTIFIER || "+34 614 619 682",
   accountHolder: process.env.NEXT_PUBLIC_TRANSFER_ACCOUNT_HOLDER || "HBTJ Consultores Lingüísticos S.L.",
   iban: process.env.NEXT_PUBLIC_TRANSFER_IBAN || COBRO.iban,
   bic: process.env.NEXT_PUBLIC_TRANSFER_BIC || COBRO.bic,

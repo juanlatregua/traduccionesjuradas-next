@@ -2017,7 +2017,7 @@ export default function StaffExpedienteIntake({
                 {[
                   { id: "sabadell", label: "Banco Sabadell" },
                   { id: "openbank", label: "Openbank" },
-                  { id: "bizum654", label: "Bizum 654069126" },
+                  { id: "bizum654", label: "Bizum 614619682" },
                   { id: "paypal", label: "PayPal" },
                   { id: "bbva", label: "BBVA (en cierre)" },
                 ].map((m) => (

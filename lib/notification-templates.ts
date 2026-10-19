@@ -48,7 +48,7 @@ export function buildNotificationTemplate(input: BuildTemplateInput) {
         ? `Pedido ${input.reference}: traduccion jurada lista para descarga en ${input.downloadUrl}`
         : `Pedido ${input.reference}: traduccion jurada lista. Falta enlace de descarga final.`;
     case "wa_bizum_payment":
-      return `Hola ${name}, tu pedido ${input.reference}: ${input.amountEur || ""} (IVA incl.). Puedes pagarlo por Bizum al 654 069 126 (TraduccionesJuradas). Avísame cuando lo hagas y empiezo. ¡Gracias!`;
+      return `Hola ${name}, tu pedido ${input.reference}: ${input.amountEur || ""} (IVA incl.). Puedes pagarlo por Bizum al 614 619 682 (TraduccionesJuradas). Avísame cuando lo hagas y empiezo. ¡Gracias!`;
     case "wa_review_request":
       return `Hola ${name}, gracias por confiar en nosotros para tu traduccion jurada. Si el servicio te ha sido util, nos ayudaria mucho tu valoracion: ${input.reviewUrl || ""}`;
     case "email_review_request":

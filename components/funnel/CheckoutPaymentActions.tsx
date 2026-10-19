@@ -23,7 +23,7 @@ const MANUAL = {
   beneficiary: process.env.NEXT_PUBLIC_TRANSFER_ACCOUNT_HOLDER || "HBTJ Consultores Lingüísticos S.L.",
   iban: process.env.NEXT_PUBLIC_TRANSFER_IBAN || COBRO.iban,
   bic: process.env.NEXT_PUBLIC_TRANSFER_BIC || COBRO.bic,
-  bizum: process.env.NEXT_PUBLIC_BIZUM_IDENTIFIER || "+34 654 069 126",
+  bizum: process.env.NEXT_PUBLIC_BIZUM_IDENTIFIER || "+34 614 619 682",
   paypalLink: process.env.NEXT_PUBLIC_PAYPAL_MANUAL_LINK || "",
   paypalAccount: process.env.NEXT_PUBLIC_PAYPAL_ACCOUNT || "hola@traduccionesjuradas.net",
 };
