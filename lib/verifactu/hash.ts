@@ -132,6 +132,31 @@ export function verifyChain(records: { canonical: string; hash: string; prevHash
   return -1;
 }
 
+/**
+ * Como verifyChain, pero con el CORTE de activación del envío directo: el primer
+ * registro no-LOCAL puede llevar prevHash vacío y reinicia la cadena (los LOCAL
+ * anteriores quedan como histórico interno, nunca enviado). Un registro no-LOCAL
+ * encadena con el último no-LOCAL (o, si no hay corte posible, con el anterior).
+ */
+export function verifyChainWithCut(records: { canonical: string; hash: string; prevHash: string | null; sendStatus: string }[]): number {
+  let prev = "";
+  let prevSent: string | null = null;
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    const p = r.prevHash || "";
+    if (sha256Upper(r.canonical) !== r.hash) return i;
+    if (r.sendStatus === "LOCAL") {
+      if (p !== prev) return i;
+    } else {
+      const ok = prevSent === null ? p === "" || p === prev : p === prevSent || p === prev;
+      if (!ok) return i;
+      prevSent = r.hash;
+    }
+    prev = r.hash;
+  }
+  return -1;
+}
+
 function clean(s: string): string {
   return String(s ?? "").trim();
 }

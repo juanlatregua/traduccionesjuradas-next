@@ -7,7 +7,10 @@
 // PDF NO lleva QR ni frase "verificable". Cuando llegue la clave, solo hay que
 // implementar `send` para el proveedor elegido y poner VERIFACTU_PROVIDER.
 
+import { aeatDirectProvider } from "./aeat-direct.ts";
+
 export type ProviderSendInput = {
+  recordId?: string; // RefExterna: la AEAT lo devuelve y sirve para casar la respuesta
   kind: "ALTA" | "ANULACION";
   emitterNif: string;
   numSerie: string;
@@ -15,12 +18,16 @@ export type ProviderSendInput = {
   invoiceType: string;
   cuotaTotalCents: number;
   importeTotalCents: number;
+  vatRate?: number; // 0.21
+  description?: string;
   hash: string;
   prevHash: string | null;
+  prev?: { emitterNif: string; numSerie: string; issueDate: string } | null; // registro anterior de la cadena
   generatedAtIso: string;
   recipient?: { name: string; nif?: string | null; country?: string | null } | null;
   lines?: { description: string; baseCents: number; vatRate: number; vatCents: number }[];
   rectifies?: { numSerie: string; issueDate: string } | null;
+  sinRegistroPrevio?: boolean; // anulación de una factura cuyo alta nunca se remitió (LOCAL)
 };
 
 export type ProviderSendResult = {
@@ -30,17 +37,23 @@ export type ProviderSendResult = {
   error?: string | null;
 };
 
+export type ProviderBatchResult = {
+  results: ProviderSendResult[]; // mismo orden que la entrada
+  waitSeconds?: number | null; // TiempoEsperaEnvio de la AEAT
+};
+
 export interface VerifactuProvider {
   readonly name: string;
   send(input: ProviderSendInput): Promise<ProviderSendResult>;
+  // Envío en lote (un emisor por llamada). Lanza si el envío entero falla.
+  sendBatch?(inputs: ProviderSendInput[]): Promise<ProviderBatchResult>;
 }
 
 export function getVerifactuProvider(): VerifactuProvider | null {
   const name = String(process.env.VERIFACTU_PROVIDER || "").trim().toLowerCase();
   if (!name) return null;
-  // Aquí se registra el adaptador del proveedor elegido (Binovo, apiverifactu,
-  // InvoCash…). Hasta entonces, configurar la variable sin adaptador es un error
-  // visible, no un silencio.
+  if (name === "aeat") return aeatDirectProvider(verifactuEnv());
+  // Configurar la variable con un nombre sin adaptador es un error visible, no un silencio.
   throw new Error(`VERIFACTU_PROVIDER="${name}" no tiene adaptador implementado todavía.`);
 }
 

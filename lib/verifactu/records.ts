@@ -18,7 +18,9 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { altaHash, anulacionHash, formatGeneratedAt, formatIssueDate, type InvoiceType } from "@/lib/verifactu/hash";
-import { getVerifactuProvider } from "@/lib/verifactu/provider";
+import { getVerifactuProvider, type ProviderSendInput, type ProviderSendResult, type VerifactuProvider } from "@/lib/verifactu/provider";
+import { AeatDataError, MAX_RECORDS_PER_BATCH, registroXml } from "@/lib/verifactu/aeat-xml";
+import { alertVerifactuProblem } from "@/lib/verifactu/alerts";
 import { getBrand } from "@/lib/invoice-brands";
 
 type Tx = Prisma.TransactionClient;
@@ -42,12 +44,23 @@ async function lockEmitter(tx: Tx, emitterNif: string) {
   await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(hashtext($1))`, emitterNif);
 }
 
-async function lastRecord(tx: Tx, emitterNif: string) {
-  return tx.invoiceRecord.findFirst({
+// chainIndex sigue correlativo por emisor (unique). El registro anterior para encadenar
+// es el último del emisor; con proveedor activo, el último que NO sea LOCAL: los LOCAL
+// son histórico interno anterior a la activación y no se envían nunca (corte de cadena).
+async function lastRecord(tx: Tx, emitterNif: string, withProvider: boolean) {
+  const last = await tx.invoiceRecord.findFirst({
     where: { emitterNif },
     orderBy: { chainIndex: "desc" },
     select: { chainIndex: true, hash: true },
   });
+  const prev = withProvider
+    ? await tx.invoiceRecord.findFirst({
+        where: { emitterNif, sendStatus: { not: "LOCAL" } },
+        orderBy: { chainIndex: "desc" },
+        select: { hash: true },
+      })
+    : last;
+  return { chainIndex: last?.chainIndex ?? 0, hash: prev?.hash ?? null };
 }
 
 /** Registro de ALTA para una factura recién emitida. Idempotente por factura. */
@@ -74,7 +87,8 @@ export async function createAltaRecord(
 
   const emitterNif = emitterNifFor(invoice);
   await lockEmitter(tx, emitterNif);
-  const prev = await lastRecord(tx, emitterNif);
+  const provider = safeProvider();
+  const prev = await lastRecord(tx, emitterNif, Boolean(provider));
   const generatedAt = new Date();
   const generatedAtIso = formatGeneratedAt(generatedAt);
   const invoiceType = invoiceTypeFor(invoice);
@@ -85,22 +99,21 @@ export async function createAltaRecord(
     invoiceType,
     cuotaTotalCents: invoice.vatCents,
     importeTotalCents: invoice.totalCents,
-    prevHash: prev?.hash ?? null,
+    prevHash: prev.hash,
     generatedAt: generatedAtIso,
   });
-  const provider = safeProvider();
   const record = await tx.invoiceRecord.create({
     data: {
       invoiceId: invoice.id,
       kind: "ALTA",
       emitterNif,
-      chainIndex: (prev?.chainIndex ?? 0) + 1,
+      chainIndex: prev.chainIndex + 1,
       numSerie: invoice.number,
       issueDate: formatIssueDate(invoice.issuedAt),
       invoiceType,
       cuotaTotalCents: invoice.vatCents,
       importeTotalCents: invoice.totalCents,
-      prevHash: prev?.hash ?? null,
+      prevHash: prev.hash,
       hash,
       canonical,
       generatedAt,
@@ -116,7 +129,7 @@ export async function createAltaRecord(
       type: "record.alta",
       actor,
       message: `Registro de alta ${record.chainIndex} del emisor ${emitterNif}: ${invoice.number}, ${invoiceType}, huella ${hash.slice(0, 12)}…`,
-      payload: { recordId: record.id, chainIndex: record.chainIndex, hash, prevHash: prev?.hash ?? null, sendStatus: record.sendStatus },
+      payload: { recordId: record.id, chainIndex: record.chainIndex, hash, prevHash: prev.hash, sendStatus: record.sendStatus },
     },
   });
   return record;
@@ -134,29 +147,29 @@ export async function createAnulacionRecord(
   if (existing) return existing;
   const emitterNif = emitterNifFor(invoice);
   await lockEmitter(tx, emitterNif);
-  const prev = await lastRecord(tx, emitterNif);
+  const provider = safeProvider();
+  const prev = await lastRecord(tx, emitterNif, Boolean(provider));
   const generatedAt = new Date();
   const generatedAtIso = formatGeneratedAt(generatedAt);
   const { canonical, hash } = anulacionHash({
     emitterNif,
     numSerie: invoice.number,
     issueDate: invoice.issuedAt,
-    prevHash: prev?.hash ?? null,
+    prevHash: prev.hash,
     generatedAt: generatedAtIso,
   });
-  const provider = safeProvider();
   const record = await tx.invoiceRecord.create({
     data: {
       invoiceId: invoice.id,
       kind: "ANULACION",
       emitterNif,
-      chainIndex: (prev?.chainIndex ?? 0) + 1,
+      chainIndex: prev.chainIndex + 1,
       numSerie: invoice.number,
       issueDate: formatIssueDate(invoice.issuedAt),
       invoiceType: "",
       cuotaTotalCents: 0,
       importeTotalCents: 0,
-      prevHash: prev?.hash ?? null,
+      prevHash: prev.hash,
       hash,
       canonical,
       generatedAt,
@@ -197,18 +210,100 @@ export async function verifactuStateOf(invoiceId: string) {
   return rec;
 }
 
-/** Verifica la cadena entera de un emisor en BD. Devuelve el primer índice roto o -1. */
+/** Verifica la cadena entera de un emisor en BD (con el corte de activación). Devuelve el primer índice roto o -1. */
 export async function verifyEmitterChain(emitterNif: string) {
-  const { verifyChain } = await import("@/lib/verifactu/hash");
+  const { verifyChainWithCut } = await import("@/lib/verifactu/hash");
   const rows = await prisma.invoiceRecord.findMany({
     where: { emitterNif: emitterNif.toUpperCase() },
     orderBy: { chainIndex: "asc" },
-    select: { canonical: true, hash: true, prevHash: true },
+    select: { canonical: true, hash: true, prevHash: true, sendStatus: true },
   });
-  return { count: rows.length, brokenAt: verifyChain(rows) };
+  return { count: rows.length, brokenAt: verifyChainWithCut(rows) };
 }
 
-/** Remite a la AEAT (vía proveedor) los registros en cola. Sin proveedor: no hace nada. */
+const DEFAULT_WAIT_SECONDS = 60;
+type PendingRow = Prisma.InvoiceRecordGetPayload<{
+  include: { invoice: { select: { fiscalName: true; nif: true; country: true; vatRate: true; rectifiesId: true } } };
+}>;
+
+/** Datos para el proveedor: registro anterior de la cadena, rectificada y anulación sin alta enviada. */
+async function toSendInput(r: PendingRow): Promise<ProviderSendInput> {
+  const prevRec = r.prevHash ? await prisma.invoiceRecord.findUnique({ where: { hash: r.prevHash }, select: { emitterNif: true, numSerie: true, issueDate: true } }) : null;
+  if (r.prevHash && !prevRec) throw new AeatDataError("No se encuentra en BD el registro anterior de la cadena.");
+  let rectifies: ProviderSendInput["rectifies"] = null;
+  if (r.invoiceType.startsWith("R") && r.invoice.rectifiesId) {
+    const orig = await prisma.clientInvoice.findUnique({ where: { id: r.invoice.rectifiesId }, select: { number: true, issuedAt: true } });
+    if (orig?.number && orig.issuedAt) rectifies = { numSerie: orig.number, issueDate: formatIssueDate(orig.issuedAt) };
+  }
+  let sinRegistroPrevio = false;
+  if (r.kind === "ANULACION") {
+    const alta = await prisma.invoiceRecord.findFirst({ where: { invoiceId: r.invoiceId, kind: "ALTA" }, select: { sendStatus: true } });
+    sinRegistroPrevio = !alta || alta.sendStatus === "LOCAL";
+  }
+  return {
+    recordId: r.id,
+    kind: r.kind as "ALTA" | "ANULACION",
+    emitterNif: r.emitterNif,
+    numSerie: r.numSerie,
+    issueDate: r.issueDate,
+    invoiceType: r.invoiceType,
+    cuotaTotalCents: r.cuotaTotalCents,
+    importeTotalCents: r.importeTotalCents,
+    vatRate: r.invoice.vatRate,
+    hash: r.hash,
+    prevHash: r.prevHash,
+    prev: prevRec,
+    generatedAtIso: r.generatedAtIso,
+    recipient: r.invoiceType === "F2" ? null : { name: r.invoice.fiscalName, nif: r.invoice.nif, country: r.invoice.country },
+    rectifies,
+    sinRegistroPrevio,
+  };
+}
+
+async function markResult(r: PendingRow, res: ProviderSendResult, provider: string, extra?: Record<string, unknown>) {
+  const accepted = res.status.startsWith("ACCEPTED");
+  const response = { ...((res.response as object) ?? {}), ...extra };
+  await prisma.invoiceRecord.update({
+    where: { id: r.id },
+    data: {
+      sendStatus: res.status,
+      provider,
+      providerRef: res.providerRef ?? null,
+      providerResponse: response as Prisma.InputJsonValue,
+      sentAt: new Date(),
+      acceptedAt: accepted ? new Date() : null,
+    },
+  });
+  await logInvoiceEvent(prisma, {
+    invoiceId: r.invoiceId,
+    type: `record.${res.status.toLowerCase()}`,
+    actor: "system",
+    message: res.error || `Registro ${r.chainIndex} remitido (${res.status}).`,
+    payload: { recordId: r.id, providerRef: res.providerRef ?? null },
+  });
+  if (res.status === "REJECTED") {
+    await alertVerifactuProblem({ recordId: r.id, invoiceId: r.invoiceId, numSerie: r.numSerie, kind: "rejected", detail: res.error || "Rechazado sin detalle." });
+  }
+}
+
+/** Segundos que faltan para poder volver a enviar (TiempoEsperaEnvio del último envío del emisor). */
+async function secondsToWait(emitterNif: string, now: Date): Promise<number> {
+  const lastSent = await prisma.invoiceRecord.findFirst({
+    where: { emitterNif, sentAt: { not: null }, provider: { not: null } },
+    orderBy: { sentAt: "desc" },
+    select: { sentAt: true, providerResponse: true },
+  });
+  if (!lastSent?.sentAt) return 0;
+  const t = Number((lastSent.providerResponse as any)?.tiempoEsperaEnvio);
+  const wait = Number.isFinite(t) && t >= 0 ? t : DEFAULT_WAIT_SECONDS;
+  return Math.max(0, Math.ceil((lastSent.sentAt.getTime() + wait * 1000 - now.getTime()) / 1000));
+}
+
+/**
+ * Remite a la AEAT (vía proveedor) los registros en cola. Sin proveedor: no hace nada.
+ * Con sendBatch (proveedor «aeat»): un envío por emisor y ejecución, en orden de cadena,
+ * respetando el TiempoEsperaEnvio y sin saltarse un registro rechazado o no enviable.
+ */
 export async function flushPendingRecords(limit = 50) {
   const provider = safeProvider();
   if (!provider) return { sent: 0, skipped: "no-provider" as const };
@@ -216,41 +311,76 @@ export async function flushPendingRecords(limit = 50) {
     where: { sendStatus: "PENDING" },
     orderBy: [{ emitterNif: "asc" }, { chainIndex: "asc" }],
     take: limit,
-    include: { invoice: { select: { fiscalName: true, nif: true, country: true, lineItemsJson: true, vatRate: true, rectifiesNumber: true } } },
+    include: { invoice: { select: { fiscalName: true, nif: true, country: true, vatRate: true, rectifiesId: true } } },
   });
+  if (!provider.sendBatch) return { sent: await flushOneByOne(provider, pending) };
+
+  const byEmitter = new Map<string, PendingRow[]>();
+  for (const r of pending) byEmitter.set(r.emitterNif, [...(byEmitter.get(r.emitterNif) ?? []), r]);
+  let sent = 0;
+  const notes: string[] = [];
+  for (const [nif, rows] of Array.from(byEmitter)) {
+    const blocked = await prisma.invoiceRecord.findFirst({ where: { emitterNif: nif, sendStatus: "REJECTED", chainIndex: { lt: rows[0].chainIndex } }, select: { numSerie: true } });
+    if (blocked) {
+      notes.push(`${nif}: cadena bloqueada por el registro rechazado ${blocked.numSerie}`);
+      continue;
+    }
+    const wait = await secondsToWait(nif, new Date());
+    if (wait > 0) {
+      notes.push(`${nif}: esperar ${wait}s (TiempoEsperaEnvio)`);
+      continue;
+    }
+    const batch: PendingRow[] = [];
+    const inputs: ProviderSendInput[] = [];
+    for (const r of rows.slice(0, MAX_RECORDS_PER_BATCH)) {
+      try {
+        const input = await toSendInput(r);
+        registroXml(input); // un dato imposible se detecta aquí, no en la AEAT
+        inputs.push(input);
+        batch.push(r);
+      } catch (e: any) {
+        if (!(e instanceof AeatDataError)) throw e;
+        const msg = String(e.message);
+        await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: "record.build_error", actor: "system", message: msg, payload: { recordId: r.id } });
+        await alertVerifactuProblem({ recordId: r.id, invoiceId: r.invoiceId, numSerie: r.numSerie, kind: "build_error", detail: msg });
+        notes.push(`${r.numSerie}: ${msg}`);
+        break; // los siguientes dependen de su huella: no se envían saltándolo
+      }
+    }
+    if (!batch.length) continue;
+    try {
+      const out = await provider.sendBatch(inputs);
+      for (let i = 0; i < batch.length; i++) {
+        await markResult(batch[i], out.results[i], provider.name, { tiempoEsperaEnvio: out.waitSeconds ?? null });
+        sent++;
+      }
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      for (const r of batch) {
+        await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: "record.send_failed", actor: "system", message: msg, payload: { recordId: r.id } });
+        await alertVerifactuProblem({ recordId: r.id, invoiceId: r.invoiceId, numSerie: r.numSerie, kind: "send_failed", detail: msg });
+      }
+      notes.push(`${nif}: envío fallido: ${msg.slice(0, 200)}`);
+    }
+  }
+  return { sent, notes };
+}
+
+/** Proveedores sin envío en lote: un registro por llamada (comportamiento original). */
+async function flushOneByOne(provider: VerifactuProvider, pending: PendingRow[]) {
   let sent = 0;
   for (const r of pending) {
     try {
-      const res = await provider.send({
-        kind: r.kind as "ALTA" | "ANULACION",
-        emitterNif: r.emitterNif,
-        numSerie: r.numSerie,
-        issueDate: r.issueDate,
-        invoiceType: r.invoiceType,
-        cuotaTotalCents: r.cuotaTotalCents,
-        importeTotalCents: r.importeTotalCents,
-        hash: r.hash,
-        prevHash: r.prevHash,
-        generatedAtIso: r.generatedAtIso,
-        recipient: { name: r.invoice.fiscalName, nif: r.invoice.nif, country: r.invoice.country },
-      });
-      await prisma.invoiceRecord.update({
-        where: { id: r.id },
-        data: {
-          sendStatus: res.status,
-          providerRef: res.providerRef ?? null,
-          providerResponse: (res.response ?? null) as Prisma.InputJsonValue,
-          sentAt: new Date(),
-          acceptedAt: res.status.startsWith("ACCEPTED") ? new Date() : null,
-        },
-      });
-      await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: `record.${res.status.toLowerCase()}`, actor: "system", message: res.error || `Registro ${r.chainIndex} remitido (${res.status}).`, payload: { recordId: r.id, providerRef: res.providerRef ?? null } });
+      const res = await provider.send(await toSendInput(r));
+      await markResult(r, res, provider.name);
       sent++;
     } catch (e: any) {
-      await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: "record.send_failed", actor: "system", message: String(e?.message || e), payload: { recordId: r.id } });
+      const msg = String(e?.message || e);
+      await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: "record.send_failed", actor: "system", message: msg, payload: { recordId: r.id } });
+      await alertVerifactuProblem({ recordId: r.id, invoiceId: r.invoiceId, numSerie: r.numSerie, kind: "send_failed", detail: msg });
     }
   }
-  return { sent };
+  return sent;
 }
 
 function safeProvider() {
