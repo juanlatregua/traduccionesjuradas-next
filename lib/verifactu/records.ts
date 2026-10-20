@@ -21,6 +21,7 @@ import { altaHash, anulacionHash, anulacionMustWait, anulacionSinRegistroPrevio,
 import { getVerifactuProvider, verifactuEnv, type ProviderSendInput, type ProviderSendResult, type VerifactuProvider } from "@/lib/verifactu/provider";
 import { AeatDataError, MAX_RECORDS_PER_BATCH, registroXml, reviewReasonOf, validateAltaData } from "@/lib/verifactu/aeat-xml";
 import { alertVerifactuProblem } from "@/lib/verifactu/alerts";
+import { IMMEDIATE_TIMEOUT_MS, isIncidentError, leadingRunLength, remainingWaitSeconds, shouldSendNow } from "@/lib/verifactu/envio";
 import { getBrand } from "@/lib/invoice-brands";
 
 type Tx = Prisma.TransactionClient;
@@ -342,10 +343,7 @@ async function secondsToWait(emitterNif: string, now: Date): Promise<number> {
     orderBy: { sentAt: "desc" },
     select: { sentAt: true, providerResponse: true },
   });
-  if (!lastSent?.sentAt) return 0;
-  const t = Number((lastSent.providerResponse as any)?.tiempoEsperaEnvio);
-  const wait = Number.isFinite(t) && t >= 0 ? t : DEFAULT_WAIT_SECONDS;
-  return Math.max(0, Math.ceil((lastSent.sentAt.getTime() + wait * 1000 - now.getTime()) / 1000));
+  return remainingWaitSeconds(lastSent?.sentAt ?? null, (lastSent?.providerResponse as any)?.tiempoEsperaEnvio, now, DEFAULT_WAIT_SECONDS);
 }
 
 /**
@@ -359,10 +357,36 @@ export async function flushPendingRecords(limit = 50) {
     async (tx) => {
       const [{ locked }] = await tx.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_xact_lock(hashtext('verifactu-flush')) AS locked`;
       if (!locked) return { sent: 0, skipped: "locked" as const };
+      await tx.$executeRawUnsafe(`SET LOCAL idle_in_transaction_session_timeout = '150s'`);
       return flushLocked(limit);
     },
     { timeout: 120_000, maxWait: 5_000 }
   );
+}
+
+/**
+ * Envío inmediato tras el COMMIT de una emisión/anulación (nunca dentro de la transacción). No lanza
+ * ni espera más de IMMEDIATE_TIMEOUT_MS: lo que no salga lo reintenta el cron. Sin proveedor no hace nada.
+ * El cerrojo de flushPendingRecords impide que este envío y el cron manden el mismo registro.
+ */
+export async function flushAfterCommit(): Promise<void> {
+  if (!safeProvider()) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const work = (async () => {
+    const nifs = await prisma.invoiceRecord.findMany({ where: { sendStatus: "PENDING" }, select: { emitterNif: true }, distinct: ["emitterNif"] });
+    if (!nifs.length) return;
+    const waits = await Promise.all(nifs.map((n) => secondsToWait(n.emitterNif, new Date())));
+    if (!shouldSendNow(true, Math.max(0, ...waits))) return;
+    await flushPendingRecords();
+  })();
+  try {
+    await Promise.race([work, new Promise<void>((resolve) => { timer = setTimeout(resolve, IMMEDIATE_TIMEOUT_MS); })]);
+  } catch (e: any) {
+    console.error("[verifactu] envío inmediato fallido (lo reintenta el cron):", e?.message || e);
+  } finally {
+    if (timer) clearTimeout(timer);
+    work.catch(() => {});
+  }
 }
 
 async function flushLocked(limit: number) {
@@ -429,16 +453,25 @@ async function flushLocked(limit: number) {
       }
     }
     if (!batch.length) continue;
+    const failedBefore = await prisma.invoiceEvent.findMany({ where: { invoiceId: { in: batch.map((b) => b.invoiceId) }, type: "record.send_failed" }, select: { payload: true } });
+    const incidentIds = new Set(failedBefore.filter((e) => (e.payload as any)?.incidencia === true).map((e) => String((e.payload as any)?.recordId)));
+    const run = leadingRunLength(batch.map((b) => incidentIds.has(b.id)));
+    if (run < batch.length) {
+      batch.length = run;
+      inputs.length = run;
+      notes.push(`${nif}: lote cortado en ${run} registro(s) para no mezclar Incidencia`);
+    }
     try {
-      const out = await provider.sendBatch(inputs);
+      const out = await provider.sendBatch(inputs, { incidencia: incidentIds.has(batch[0].id) });
       for (let i = 0; i < batch.length; i++) {
         await markResult(batch[i], out.results[i], provider.name, { tiempoEsperaEnvio: out.waitSeconds ?? null });
         sent++;
       }
     } catch (e: any) {
       const msg = String(e?.message || e);
+      const incidencia = isIncidentError(msg);
       for (const r of batch) {
-        await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: "record.send_failed", actor: "system", message: msg, payload: { recordId: r.id } });
+        await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: "record.send_failed", actor: "system", message: msg, payload: { recordId: r.id, incidencia } });
       }
       // UN aviso por emisor y episodio de fallo (clave = primer registro del lote), no uno por registro.
       await alertVerifactuProblem({

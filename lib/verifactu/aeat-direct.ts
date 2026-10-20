@@ -66,8 +66,8 @@ export function postSoap(endpoint: string, xml: string, opts?: { timeoutMs?: num
 }
 
 /** Envía un lote y devuelve la respuesta ya parseada. Lanza si no hay respuesta SOAP utilizable. */
-export async function submitBatch(endpoint: string, inputs: ProviderSendInput[]): Promise<{ parsed: AeatResponse; status: number; body: string }> {
-  const xml = buildEnvelope(inputs);
+export async function submitBatch(endpoint: string, inputs: ProviderSendInput[], opts: { incidencia?: boolean } = {}): Promise<{ parsed: AeatResponse; status: number; body: string }> {
+  const xml = buildEnvelope(inputs, opts);
   const { status, body } = await postSoap(endpoint, xml);
   const parsed = parseAeatResponse(body);
   if (parsed.fault) throw new Error(`SOAP Fault de la AEAT (HTTP ${status}): ${parsed.fault}`);
@@ -93,8 +93,8 @@ export function aeatDirectProvider(env: "prod" | "test"): VerifactuProvider {
   const endpoint = AEAT_ENDPOINTS[env];
   return {
     name: "aeat",
-    async sendBatch(inputs) {
-      const { parsed } = await submitBatch(endpoint, inputs);
+    async sendBatch(inputs, opts) {
+      const { parsed } = await submitBatch(endpoint, inputs, opts);
       return resultsFromResponse(inputs, parsed);
     },
     async send(input) {

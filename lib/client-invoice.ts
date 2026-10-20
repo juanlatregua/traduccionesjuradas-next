@@ -13,7 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { assertNotInClosedPeriod } from "@/lib/tax-close-store";
-import { createAltaRecord, createAnulacionRecord, logInvoiceEvent } from "@/lib/verifactu/records";
+import { createAltaRecord, createAnulacionRecord, flushAfterCommit, logInvoiceEvent } from "@/lib/verifactu/records";
 import {
   clampVatRate,
   computeLineTotals,
@@ -162,7 +162,7 @@ export async function issueOrUpdateInvoice(input: {
     try {
       // Emisión + registro de facturación en la MISMA transacción: si el
       // registro no se puede crear, la factura no se emite.
-      return await prisma.$transaction(async (tx) => {
+      const issuedInv = await prisma.$transaction(async (tx) => {
         const inv = await tx.clientInvoice.upsert({
           where: { orderId: input.orderId },
           create: {
@@ -178,6 +178,8 @@ export async function issueOrUpdateInvoice(input: {
         await logInvoiceEvent(tx, { invoiceId: inv.id, type: "invoice.issued", actor: input.origin || "system", message: `Emitida ${inv.number} (${inv.totalCents / 100} €) desde pedido.`, payload: { orderId: input.orderId, origin: input.origin ?? null } });
         return inv;
       });
+      await flushAfterCommit();
+      return issuedInv;
     } catch (err: any) {
       // Colisión de número @unique desde el propio upsert (carrera con otra emisión).
       if (err?.code === "P2002") {
@@ -322,7 +324,7 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
     }
 
     try {
-      return await prisma.$transaction(async (tx) => {
+      const issuedInv = await prisma.$transaction(async (tx) => {
         const issued = await tx.clientInvoice.update({
           where: { id },
           data: {
@@ -340,6 +342,8 @@ export async function issueInvoice(id: string, opts?: { number?: string | null; 
         }
         return issued;
       });
+      if (docKind === "invoice") await flushAfterCommit();
+      return issuedInv;
     } catch (err: any) {
       if (err?.code === "P2002") {
         if (manualNumber) throw numberTakenError(finalNumber);
@@ -465,7 +469,7 @@ export async function createRectificativeDraft(originalId: string, actor: string
 // ANULACIÓN: registro de anulación; la fila se conserva con annulledAt.
 export async function annulInvoice(id: string, actor: string, reason: string) {
   if (String(reason || "").trim().length < 10) throw new Error("Escribe un motivo de al menos 10 caracteres.");
-  return prisma.$transaction(async (tx) => {
+  const annulled = await prisma.$transaction(async (tx) => {
     const inv = await tx.clientInvoice.findUnique({ where: { id } });
     if (!inv) throw new Error("Factura no encontrada.");
     if (inv.status !== "ISSUED" || inv.docKind !== "invoice") throw new Error("Solo se anula una factura emitida.");
@@ -474,6 +478,8 @@ export async function annulInvoice(id: string, actor: string, reason: string) {
     await createAnulacionRecord(tx, inv, actor, reason.trim());
     return tx.clientInvoice.findUnique({ where: { id } });
   });
+  await flushAfterCommit();
+  return annulled;
 }
 
 // Importación: crea una factura ya EMITIDA a partir de un registro histórico
