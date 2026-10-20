@@ -11,13 +11,16 @@ import {
   NO_RESPONSE_NOTE,
   deduceLostReason,
   hasCostGap,
+  groupedInvoiceCovers,
   hasHumanOpen,
+  linkedExpenseFor,
   isOwnTranslator,
   needsSupplierCost,
   parseEurToCents,
   sameTranslatorExact,
   whatsappNudgeText,
   type AutoSendInput,
+  type ColabExpense,
   type CostGapOrder,
 } from "../../lib/cierre-math.ts";
 import { effectiveLostReason, effectiveLostReasonLabel, AUTO_LOST_NOTES } from "../../lib/quote-lost-reasons.ts";
@@ -327,4 +330,28 @@ test("coste en euros del formulario → céntimos", () => {
   assert.equal(parseEurToCents(12.345), 1235);
   assert.equal(parseEurToCents("0"), 0);
   for (const v of ["", "  ", null, undefined, "abc", -5]) assert.equal(parseEurToCents(v), null, String(v));
+});
+
+const exp = (o: Partial<ColabExpense>): ColabExpense => ({ orderReference: null, isAccrual: false, concept: "", supplier: null, baseCents: 1000, date: new Date("2026-10-05"), ...o });
+
+test("linkedExpenseFor: coste por orderReference o por la ref en el concepto de la factura; la factura manda sobre el devengo", () => {
+  const inv = exp({ concept: "Factura Vanessa Bech · 3 encargo(s): 26_388DD7, 26_213E8E, 26_4A0ABA", supplier: "Vanessa Bech" });
+  assert.equal(linkedExpenseFor("26_4A0ABA", [inv])?.supplier, "Vanessa Bech");
+  assert.equal(linkedExpenseFor("26_OTRO00", [inv]), null);
+  const acc = exp({ orderReference: "26_388DD7", isAccrual: true, baseCents: 6200 });
+  const fin = exp({ orderReference: "26_388DD7", baseCents: 6000 });
+  assert.equal(linkedExpenseFor("26_388DD7", [acc, fin])?.baseCents, 6000);
+  assert.equal(linkedExpenseFor("26_388DD7", [acc])?.baseCents, 6200);
+  assert.equal(linkedExpenseFor("26_388DD7", [exp({ orderReference: "26_388DD7", isAccrual: true, concept: "x" })].slice(0, 0)), null);
+});
+
+test("groupedInvoiceCovers: factura del mes sin refs de su sociedad cubre pedidos pagados antes; con refs ajenas o antes del pago no", () => {
+  const grouped = exp({ concept: "Factura Montemar25 215/2026 · 5 encargos de septiembre", supplier: "Montemar25 Traducciones, S.L." });
+  const o = { assignedTo: "Juan Amor", paidAt: new Date("2026-09-12") };
+  assert.equal(groupedInvoiceCovers(o, [grouped], ["Juan Amor Fernández", "Montemar25 Traducciones, S.L."]), true);
+  assert.equal(groupedInvoiceCovers(o, [grouped], []), false);
+  assert.equal(groupedInvoiceCovers({ ...o, paidAt: new Date("2026-10-06") }, [grouped], ["Montemar25 Traducciones, S.L."]), false);
+  assert.equal(groupedInvoiceCovers({ ...o, paidAt: new Date("2026-08-01") }, [grouped], ["Montemar25 Traducciones, S.L."]), false);
+  const conRefs = { ...grouped, concept: "Factura Montemar25 · 1 encargo(s): 26_3BBE08" };
+  assert.equal(groupedInvoiceCovers(o, [conRefs], ["Montemar25 Traducciones, S.L."]), false);
 });

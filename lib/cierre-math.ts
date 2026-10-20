@@ -244,7 +244,32 @@ export function hasCostGap(o: CostGapOrder, now: Date, ownNames: string[] = []):
   return !(isFrLangPair(o.langPair) && own);
 }
 
-const isFrLangPair = (langPair: string | null | undefined) => norm(langPair).split(/->|>|-|_|\s+/).includes("fr");
+/** Gasto de colaborador (devengo o factura recibida) tal como lo lee el vigía. */
+export type ColabExpense = { orderReference: string | null; isAccrual: boolean; concept: string; supplier: string | null; baseCents: number; date: Date };
+const GROUPED_INVOICE_DAYS = 45;
+
+/**
+ * El coste de un pedido vive en el libro de gastos, no en Order.supplierCostCents:
+ * devengo/factura con orderReference, o factura del mes cuyo concepto lista la ref
+ * («Factura X · 3 encargo(s): 26_AAA, 26_BBB»). La factura manda sobre el devengo.
+ */
+export function linkedExpenseFor(reference: string, expenses: ColabExpense[]): ColabExpense | null {
+  const mine = expenses.filter((e) => e.orderReference === reference || (!e.orderReference && !e.isAccrual && e.concept.includes(reference)));
+  return mine.find((e) => !e.isAccrual) || mine[0] || null;
+}
+
+/**
+ * Factura agrupada del mes sin refs en el concepto (Juan Amor vía su sociedad): cubre los pedidos
+ * del asignado pagados hasta 45 d antes de su fecha. aliases = nombres con que factura ese colaborador.
+ */
+export function groupedInvoiceCovers(o: { assignedTo: string | null; paidAt: Date | null }, expenses: ColabExpense[], aliases: string[]): boolean {
+  if (!o.paidAt || !o.assignedTo) return false;
+  const names = [o.assignedTo, ...aliases].map(normName).filter(Boolean);
+  return expenses.some((e) => !e.orderReference && !e.isAccrual && !/\b\d{2}_[0-9A-F]{6}\b/i.test(e.concept) && names.includes(normName(e.supplier))
+    && e.date.getTime() >= o.paidAt!.getTime() && e.date.getTime() - o.paidAt!.getTime() <= GROUPED_INVOICE_DAYS * 24 * HOUR);
+}
+
+const isFrLangPair =(langPair: string | null | undefined) => norm(langPair).split(/->|>|-|_|\s+/).includes("fr");
 
 /** Ficha de Collaborator del francés propio: identifica a Juan por email; el nombre es respaldo. */
 export const OWN_TRANSLATOR_EMAIL = CASA_LANGS.fr.collaboratorEmail;
