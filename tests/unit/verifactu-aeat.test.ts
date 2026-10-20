@@ -339,3 +339,11 @@ test("guarda de revisión: IVA 0 y F1 sin NIF no se envían", () => {
   assert.equal(reviewReasonOf({ ...ok, invoiceType: "F2", recipient: null }), null);
   assert.equal(reviewReasonOf({ ...ok, kind: "ANULACION", vatRate: 0 }), null);
 });
+
+test("un alta rechazada que se anula después desbloquea la cadena", () => {
+  const rej = [{ invoiceId: "a", chainIndex: 3, kind: "ALTA" }];
+  assert.equal(unresolvedRejected(rej, []).length, 1);
+  assert.equal(unresolvedRejected(rej, [{ invoiceId: "a", chainIndex: 5, kind: "ANULACION" }]).length, 0);
+  assert.equal(unresolvedRejected(rej, [{ invoiceId: "b", chainIndex: 5, kind: "ANULACION" }]).length, 1, "otra factura no cuenta");
+  assert.equal(unresolvedRejected(rej, [{ invoiceId: "a", chainIndex: 2, kind: "ANULACION" }]).length, 1, "una anulación anterior no cuenta");
+});

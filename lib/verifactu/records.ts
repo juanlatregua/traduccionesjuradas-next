@@ -397,7 +397,7 @@ async function flushLocked(limit: number) {
     const later = rejected.length ? await prisma.invoiceRecord.findMany({ where: { invoiceId: { in: rejected.map((x) => x.invoiceId) } }, select: { invoiceId: true, chainIndex: true, kind: true } }) : [];
     const blocked = unresolvedRejected(rejected, later)[0];
     if (blocked) {
-      notes.push(`${nif}: cadena bloqueada por el registro rechazado ${blocked.numSerie} (corrige los datos y reenvía: subsanación del alta o nueva anulación)`);
+      notes.push(`${nif}: cadena bloqueada por el registro rechazado ${blocked.numSerie} ${blocked.kind === "ANULACION" ? "(reenvía la anulación desde el endpoint de reenvío)" : "(corrige los datos y reenvía como subsanación)"}`);
       continue;
     }
     const wait = await secondsToWait(nif, new Date());
