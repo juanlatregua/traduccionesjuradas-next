@@ -21,6 +21,7 @@ import { altaHash, anulacionHash, anulacionMustWait, anulacionSinRegistroPrevio,
 import { getVerifactuProvider, verifactuEnv, type ProviderSendInput, type ProviderSendResult, type VerifactuProvider } from "@/lib/verifactu/provider";
 import { AeatDataError, MAX_RECORDS_PER_BATCH, registroXml, reviewReasonOf, validateAltaData } from "@/lib/verifactu/aeat-xml";
 import { alertVerifactuProblem } from "@/lib/verifactu/alerts";
+import { batchHasIncidencia, IMMEDIATE_TIMEOUT_MS, remainingWaitSeconds, shouldSendNow } from "@/lib/verifactu/envio";
 import { getBrand } from "@/lib/invoice-brands";
 
 type Tx = Prisma.TransactionClient;
@@ -342,10 +343,7 @@ async function secondsToWait(emitterNif: string, now: Date): Promise<number> {
     orderBy: { sentAt: "desc" },
     select: { sentAt: true, providerResponse: true },
   });
-  if (!lastSent?.sentAt) return 0;
-  const t = Number((lastSent.providerResponse as any)?.tiempoEsperaEnvio);
-  const wait = Number.isFinite(t) && t >= 0 ? t : DEFAULT_WAIT_SECONDS;
-  return Math.max(0, Math.ceil((lastSent.sentAt.getTime() + wait * 1000 - now.getTime()) / 1000));
+  return remainingWaitSeconds(lastSent?.sentAt ?? null, (lastSent?.providerResponse as any)?.tiempoEsperaEnvio, now, DEFAULT_WAIT_SECONDS);
 }
 
 /**
@@ -363,6 +361,27 @@ export async function flushPendingRecords(limit = 50) {
     },
     { timeout: 120_000, maxWait: 5_000 }
   );
+}
+
+/**
+ * Envío inmediato tras el COMMIT de una emisión/anulación (nunca dentro de la transacción). No lanza
+ * ni espera más de IMMEDIATE_TIMEOUT_MS: lo que no salga lo reintenta el cron. Sin proveedor no hace nada.
+ * El cerrojo de flushPendingRecords impide que este envío y el cron manden el mismo registro.
+ */
+export async function flushAfterCommit(): Promise<void> {
+  if (!safeProvider()) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const nifs = await prisma.invoiceRecord.findMany({ where: { sendStatus: "PENDING" }, select: { emitterNif: true }, distinct: ["emitterNif"] });
+    if (!nifs.length) return;
+    const waits = await Promise.all(nifs.map((n) => secondsToWait(n.emitterNif, new Date())));
+    if (!shouldSendNow(true, Math.max(0, ...waits))) return;
+    await Promise.race([flushPendingRecords(), new Promise<void>((resolve) => { timer = setTimeout(resolve, IMMEDIATE_TIMEOUT_MS); })]);
+  } catch (e: any) {
+    console.error("[verifactu] envío inmediato fallido (lo reintenta el cron):", e?.message || e);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 async function flushLocked(limit: number) {
@@ -430,7 +449,7 @@ async function flushLocked(limit: number) {
     }
     if (!batch.length) continue;
     try {
-      const out = await provider.sendBatch(inputs);
+      const out = await provider.sendBatch(inputs, { incidencia: batchHasIncidencia(batch.map((b) => b.generatedAt), new Date()) });
       for (let i = 0; i < batch.length; i++) {
         await markResult(batch[i], out.results[i], provider.name, { tiempoEsperaEnvio: out.waitSeconds ?? null });
         sent++;

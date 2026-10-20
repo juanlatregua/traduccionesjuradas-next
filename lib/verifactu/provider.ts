@@ -48,7 +48,7 @@ export interface VerifactuProvider {
   readonly name: string;
   send(input: ProviderSendInput): Promise<ProviderSendResult>;
   // Envío en lote (un emisor por llamada). Lanza si el envío entero falla.
-  sendBatch?(inputs: ProviderSendInput[]): Promise<ProviderBatchResult>;
+  sendBatch?(inputs: ProviderSendInput[], opts?: { incidencia?: boolean }): Promise<ProviderBatchResult>;
 }
 
 export function getVerifactuProvider(): VerifactuProvider | null {

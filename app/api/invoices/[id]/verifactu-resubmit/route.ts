@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { resubmitAsSubsanacion } from "@/lib/verifactu/records";
+import { flushAfterCommit, resubmitAsSubsanacion } from "@/lib/verifactu/records";
 
 export const runtime = "nodejs";
 
@@ -18,6 +18,7 @@ export async function POST(req: Request, { params }: Params) {
   if (!rl.ok) return NextResponse.json({ ok: false, error: "Demasiados reenvíos seguidos. Espera unos minutos." }, { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } });
   try {
     const r = await resubmitAsSubsanacion(params.id, access.email);
+    await flushAfterCommit();
     return NextResponse.json({ ok: true, ...r });
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: err?.message || "No se pudo reenviar." }, { status: 400 });

@@ -4,6 +4,8 @@
 //   npx tsx --env-file=.env.local scripts/verifactu-prueba.ts subsanacion # rechazo (NIF-IVA inválido) + subsanación hasta Correcto
 //   npx tsx --env-file=.env.local scripts/verifactu-prueba.ts r5          # F2 y su rectificativa R5
 //   npx tsx --env-file=.env.local scripts/verifactu-prueba.ts huella      # ¿valida la AEAT que la huella anterior exista?
+//   npx tsx --env-file=.env.local scripts/verifactu-prueba.ts inmediato   # registro nuevo enviado al momento (sin 2004)
+//   npx tsx --env-file=.env.local scripts/verifactu-prueba.ts tardio      # registro de 5 min, sin y con Incidencia=S
 // Se niega a correr si VERIFACTU_ENV no es "test" o el endpoint no es de preproducción.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -27,7 +29,8 @@ if (!/^https:\/\/prewww\d*\.aeat\.es\//.test(endpoint)) {
 const now = new Date();
 const stamp = String(now.getTime());
 const issue = formatIssueDate(now);
-const gen = () => formatGeneratedAt(new Date());
+let ageMs = 0;
+const gen = () => formatGeneratedAt(new Date(Date.now() - ageMs));
 
 type Prev = { numSerie: string; issueDate: string; hash: string };
 type Rec = ProviderSendInput;
@@ -81,9 +84,9 @@ const STATE = process.env.VERIFACTU_PRUEBA_STATE || join(tmpdir(), "verifactu-pr
 let last: Prev | null = existsSync(STATE) ? JSON.parse(readFileSync(STATE, "utf8")) : null;
 const asPrev = (r: Rec): Prev => ({ numSerie: r.numSerie, issueDate: r.issueDate, hash: r.hash });
 
-async function send(label: string, batch: Rec[]) {
+async function send(label: string, batch: Rec[], opts: { incidencia?: boolean } = {}) {
   console.log(`\n== ${label}: ${batch.map((i) => `${i.numSerie}${i.subsanacion ? "(subsanación)" : ""} ${i.kind === "ANULACION" ? "ANUL" : i.invoiceType}`).join(", ")}`);
-  const { parsed, status, body } = await submitBatch(endpoint, batch);
+  const { parsed, status, body } = await submitBatch(endpoint, batch, opts);
   console.log(`HTTP ${status} · EstadoEnvio=${parsed.estadoEnvio} · CSV=${parsed.csv} · TiempoEsperaEnvio=${parsed.tiempoEsperaEnvio}`);
   parsed.lines.forEach((l, i) => {
     console.log(`  ${l.numSerie} [${l.operacion}] ${l.estadoRegistro}${l.codigoError ? ` · ${l.codigoError}: ${l.descripcionError}` : ""}${l.duplicado ? ` · DUPLICADO(${l.duplicado.estado})` : ""}`);
@@ -131,6 +134,15 @@ async function main() {
     const orphan = build(`TEST-${stamp}-J`, "F2", 12100, last, null);
     const ghost = build(`TEST-${stamp}-K`, "F2", 12100, { numSerie: orphan.numSerie, issueDate: orphan.issueDate, hash: orphan.hash }, null);
     await send("K encadenada a un J que NO se envía (huella anterior inexistente en la AEAT)", [ghost]);
+  } else if (mode === "inmediato") {
+    const a = build(`TEST-${stamp}-N`, "F2", 12100, last, null);
+    await send("registro recién generado, enviado al momento", [a]);
+  } else if (mode === "tardio") {
+    ageMs = 5 * 60 * 1000;
+    const a = build(`TEST-${stamp}-T`, "F2", 12100, last, null);
+    await send("registro con 5 min de antigüedad, sin Incidencia", [a]);
+    const b = build(`TEST-${stamp}-U`, "F2", 12100, asPrev(a), null);
+    await send("registro con 5 min de antigüedad, con Incidencia=S", [b], { incidencia: true });
   } else {
     console.error("Modo desconocido");
     process.exit(1);

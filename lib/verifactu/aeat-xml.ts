@@ -259,7 +259,7 @@ export function registroXml(i: ProviderSendInput): string {
 }
 
 /** Sobre SOAP completo para un lote de registros de UN emisor. */
-export function buildEnvelope(inputs: ProviderSendInput[]): string {
+export function buildEnvelope(inputs: ProviderSendInput[], opts: { incidencia?: boolean } = {}): string {
   if (!inputs.length) throw new AeatDataError("Lote vacío.");
   if (inputs.length > MAX_RECORDS_PER_BATCH) throw new AeatDataError(`Máximo ${MAX_RECORDS_PER_BATCH} registros por envío.`);
   const nif = inputs[0].emitterNif.toUpperCase();
@@ -268,7 +268,7 @@ export function buildEnvelope(inputs: ProviderSendInput[]): string {
     `<?xml version="1.0" encoding="UTF-8"?>` +
     `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sum="${NS_LR}" xmlns:sf="${NS_SF}">` +
     `<soapenv:Header/><soapenv:Body><sum:RegFactuSistemaFacturacion>` +
-    `<sum:Cabecera><sf:ObligadoEmision>${el("NombreRazon", EMITTER_NAME)}${el("NIF", nif)}</sf:ObligadoEmision></sum:Cabecera>` +
+    `<sum:Cabecera><sf:ObligadoEmision>${el("NombreRazon", EMITTER_NAME)}${el("NIF", nif)}</sf:ObligadoEmision>${opts.incidencia ? "<sf:RemisionVoluntaria>" + el("Incidencia", "S") + "</sf:RemisionVoluntaria>" : ""}</sum:Cabecera>` +
     inputs.map(registroXml).join("") +
     `</sum:RegFactuSistemaFacturacion></soapenv:Body></soapenv:Envelope>`
   );
