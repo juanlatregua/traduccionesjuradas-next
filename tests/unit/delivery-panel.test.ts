@@ -4,6 +4,7 @@ import {
   decideInvoiceAction,
   isRecentlyIssued,
   recipientLockReasonOf,
+  recordNeedsFixOf,
   invoiceStatusLabel,
   invoiceStatusOf,
   invoiceWasSent,
@@ -133,4 +134,22 @@ test("la etiqueta del panel anticipa lo que hará el servidor", () => {
   const annulled = { number: "26_025", status: "ISSUED", docKind: "invoice", annulledAt: "2026-10-01" };
   assert.match(label({ invoice: annulled }), /anulada: se envía sin factura/);
   assert.equal(decideInvoiceAction({ amountCents: 9000, existing: annulled }), "annulled");
+});
+
+test("corrección de destinatario con registro VeriFactu rechazado o con error de datos", () => {
+  const now = new Date("2026-10-30T12:00:00Z");
+  const base = { annulled: false, issuedAt: new Date("2026-10-01T12:00:00Z"), hasRectification: false, periodClosed: false, sentToClient: true, recordSendStatus: "REJECTED", recordNeedsFix: true, now };
+  assert.equal(recipientLockReasonOf({ ...base, sentToClient: false }), null, "pasadas 72 h y registrada: se puede corregir si está rechazada");
+  assert.match(recipientLockReasonOf(base)!, /envió al cliente/, "enviada al cliente: sigue bloqueada aunque esté rechazada");
+  assert.match(recipientLockReasonOf({ ...base, annulled: true })!, /anulada/);
+  assert.match(recipientLockReasonOf({ ...base, hasRectification: true })!, /rectificativa/);
+  assert.match(recipientLockReasonOf({ ...base, periodClosed: true })!, /trimestre/);
+  assert.match(recipientLockReasonOf({ ...base, recordNeedsFix: false })!, /Hacienda|72 h/, "sin necesidad de corrección sigue bloqueada");
+});
+
+test("recordNeedsFixOf cuenta los errores de datos del registro, no de la factura", () => {
+  assert.equal(recordNeedsFixOf("REJECTED", 0), true);
+  assert.equal(recordNeedsFixOf("PENDING", 1), true);
+  assert.equal(recordNeedsFixOf("PENDING", 0), false, "errores de un registro anterior ya subsanado no cuentan");
+  assert.equal(recordNeedsFixOf("ACCEPTED", 3), false);
 });

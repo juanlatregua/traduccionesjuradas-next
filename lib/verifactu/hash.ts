@@ -132,6 +132,60 @@ export function verifyChain(records: { canonical: string; hash: string; prevHash
   return -1;
 }
 
+/**
+ * Como verifyChain, pero con el CORTE de activación del envío directo: el primer
+ * registro no-LOCAL puede llevar prevHash vacío y reinicia la cadena (los LOCAL
+ * anteriores quedan como histórico interno, nunca enviado). Un registro no-LOCAL
+ * encadena con el último no-LOCAL (o, si no hay corte posible, con el anterior).
+ */
+export function verifyChainWithCut(records: { canonical: string; hash: string; prevHash: string | null; sendStatus: string }[]): number {
+  let prev = "";
+  let prevSent: string | null = null;
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    const p = r.prevHash || "";
+    if (sha256Upper(r.canonical) !== r.hash) return i;
+    if (r.sendStatus === "LOCAL") {
+      if (p !== prev) return i;
+    } else {
+      const ok = prevSent === null ? p === "" || p === prev : p === prevSent || p === prev;
+      if (!ok) return i;
+      prevSent = r.hash;
+    }
+    prev = r.hash;
+  }
+  return -1;
+}
+
+/** ¿Se encadena y envía el registro nuevo? Con proveedor, o si el emisor ya tiene algún registro no-LOCAL: nunca vuelve a haber LOCAL tras el primer no-LOCAL. */
+export function shouldChain(providerActive: boolean, hasNonLocal: boolean): boolean {
+  return providerActive || hasNonLocal;
+}
+
+/** Rechazados SIN resolver: los releva un registro posterior del mismo tipo de la misma factura (subsanación o nueva anulación); a un alta rechazada también la releva su anulación. */
+export function unresolvedRejected<T extends { invoiceId: string; chainIndex: number; kind?: string }>(rejected: T[], later: { invoiceId: string; chainIndex: number; kind?: string }[]): T[] {
+  return rejected.filter((r) => !later.some((a) => a.invoiceId === r.invoiceId && (a.kind === r.kind || a.kind === "ANULACION") && a.chainIndex > r.chainIndex));
+}
+
+/** Una anulación espera a que el alta de su factura deje de estar en cola: así SinRegistroPrevio se calcula con el estado real. */
+export function anulacionMustWait(altaStatuses: string[]): boolean {
+  return altaStatuses.some((s) => s === "PENDING");
+}
+
+/**
+ * Marcas de un alta según los altas anteriores de la MISMA factura: Subsanacion=S si hay alguno,
+ * y RechazoPrevio=X si ninguno llegó a registrarse en la AEAT (todos rechazados o sin enviar).
+ */
+export function subsanacionFlags(earlierStatuses: string[]): { subsanacion: boolean; rechazoPrevio: boolean } {
+  if (!earlierStatuses.length) return { subsanacion: false, rechazoPrevio: false };
+  return { subsanacion: true, rechazoPrevio: !earlierStatuses.some((s) => s === "ACCEPTED" || s === "ACCEPTED_WITH_ERRORS") };
+}
+
+/** Una anulación lleva SinRegistroPrevio=S si ningún alta de la factura está registrado en la AEAT. */
+export function anulacionSinRegistroPrevio(altaStatuses: string[]): boolean {
+  return !altaStatuses.some((s) => s === "ACCEPTED" || s === "ACCEPTED_WITH_ERRORS");
+}
+
 function clean(s: string): string {
   return String(s ?? "").trim();
 }

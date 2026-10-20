@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { flushPendingRecords } from "@/lib/verifactu/records";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
