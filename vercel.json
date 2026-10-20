@@ -52,7 +52,7 @@
     },
     {
       "path": "/api/cron/verifactu-flush",
-      "schedule": "15 * * * *"
+      "schedule": "*/2 * * * *"
     },
     {
       "path": "/api/cron/lavori-directo-fallback",

@@ -1,7 +1,5 @@
 // lib/verifactu/envio.ts — decisiones PURAS del envío a la AEAT (sin Prisma).
 
-export const AEAT_CLOCK_MARGIN_SECONDS = 240;
-const LATE_SAFETY_SECONDS = 20;
 export const IMMEDIATE_TIMEOUT_MS = 8_000;
 
 /** Segundos que faltan para poder volver a enviar (TiempoEsperaEnvio del último envío). */
@@ -12,14 +10,16 @@ export function remainingWaitSeconds(lastSentAt: Date | null, tiempoEspera: unkn
   return Math.max(0, Math.ceil((lastSentAt.getTime() + wait * 1000 - now.getTime()) / 1000));
 }
 
-/** El registro llegaría a la AEAT fuera del margen de FechaHoraHusoGenRegistro (error 2004). */
-export function isLateRecord(generatedAt: Date, now: Date): boolean {
-  return (now.getTime() - generatedAt.getTime()) / 1000 > AEAT_CLOCK_MARGIN_SECONDS - LATE_SAFETY_SECONDS;
+/** Fallo real de comunicación con la AEAT (red, timeout, SOAP Fault, 5xx): único caso en que un registro se declara con Incidencia=S. */
+export function isIncidentError(message: string): boolean {
+  return /timeout|soap fault|econn|enotfound|eai_again|etimedout|epipe|socket hang up|HTTP 5\d\d/i.test(message);
 }
 
-/** Un envío con algún registro tardío se declara con Incidencia=S en la cabecera. */
-export function batchHasIncidencia(generatedAts: Date[], now: Date): boolean {
-  return generatedAts.some((g) => isLateRecord(g, now));
+/** La cabecera Incidencia es por envío: longitud del tramo inicial de registros con el mismo valor, para no mezclar. */
+export function leadingRunLength(flags: boolean[]): number {
+  let n = 0;
+  while (n < flags.length && flags[n] === flags[0]) n++;
+  return n;
 }
 
 /** El envío inmediato tras emitir solo se intenta con proveedor y sin espera pendiente; si no, lo envía el cron. */

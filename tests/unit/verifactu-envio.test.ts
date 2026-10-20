@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { batchHasIncidencia, isLateRecord, remainingWaitSeconds, shouldSendNow } from "../../lib/verifactu/envio.ts";
+import { isIncidentError, leadingRunLength, remainingWaitSeconds, shouldSendNow } from "../../lib/verifactu/envio.ts";
 import { buildEnvelope, EMITTER_NIF } from "../../lib/verifactu/aeat-xml.ts";
 
 const t0 = new Date("2026-10-20T10:00:00Z");
@@ -14,17 +14,20 @@ test("remainingWaitSeconds: sin envío previo no espera; respeta TiempoEsperaEnv
   assert.equal(remainingWaitSeconds(t0, 120, at(10)), 110);
 });
 
-test("isLateRecord: tardío a partir del margen de 240 s menos seguridad", () => {
-  assert.equal(isLateRecord(t0, at(5)), false);
-  assert.equal(isLateRecord(t0, at(200)), false);
-  assert.equal(isLateRecord(t0, at(230)), true);
-  assert.equal(isLateRecord(t0, at(3600)), true);
+test("isIncidentError: red, timeout, SOAP Fault y 5xx cuentan; retraso, línea ausente o config no", () => {
+  assert.equal(isIncidentError("Timeout de 30s hablando con la AEAT."), true);
+  assert.equal(isIncidentError("connect ECONNRESET"), true);
+  assert.equal(isIncidentError("SOAP Fault de la AEAT (HTTP 500): x"), true);
+  assert.equal(isIncidentError("Respuesta de la AEAT sin EstadoEnvio (HTTP 503): <html>"), true);
+  assert.equal(isIncidentError("Envío Incorrecto: la AEAT no devolvió línea para 26_001."), false);
+  assert.equal(isIncidentError("Falta VERIFACTU_CERT_PASSWORD."), false);
 });
 
-test("batchHasIncidencia: basta un registro tardío", () => {
-  assert.equal(batchHasIncidencia([at(0), at(10)], at(30)), false);
-  assert.equal(batchHasIncidencia([at(0), at(290)], at(300)), true);
-  assert.equal(batchHasIncidencia([], at(300)), false);
+test("leadingRunLength: corta el lote donde cambia la Incidencia", () => {
+  assert.equal(leadingRunLength([]), 0);
+  assert.equal(leadingRunLength([false, false, false]), 3);
+  assert.equal(leadingRunLength([true, true, false, true]), 2);
+  assert.equal(leadingRunLength([false, true]), 1);
 });
 
 test("shouldSendNow: solo con proveedor y sin espera pendiente", () => {

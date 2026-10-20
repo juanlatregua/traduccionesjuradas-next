@@ -140,9 +140,9 @@ async function main() {
   } else if (mode === "tardio") {
     ageMs = 5 * 60 * 1000;
     const a = build(`TEST-${stamp}-T`, "F2", 12100, last, null);
-    await send("registro con 5 min de antigüedad, sin Incidencia", [a]);
+    await send("registro de 5 min SIN send_failed previo: sin Incidencia (2004 esperado)", [a]);
     const b = build(`TEST-${stamp}-U`, "F2", 12100, asPrev(a), null);
-    await send("registro con 5 min de antigüedad, con Incidencia=S", [b], { incidencia: true });
+    await send("registro de 5 min CON send_failed previo simulado: Incidencia=S (Correcto esperado)", [b], { incidencia: true });
   } else {
     console.error("Modo desconocido");
     process.exit(1);
