@@ -12,7 +12,7 @@ import { checkQuoteLinesMargin } from "@/lib/quote-margin";
 import { findLiveLavoriDuplicate, isHeldByJuan } from "@/lib/lavori-dup-guard";
 import { alreadyCustomerFor, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { cierreReviewUrl } from "@/lib/cierre-token";
-import { decideAutoSend, isRealEmail, deduceLostReason, hasCostGap, groupedInvoiceCovers, linkedExpenseFor, hasHumanOpen, autoLostNote, OWN_TRANSLATOR_EMAIL, type ColabExpense, type CostGapOrder } from "@/lib/cierre-math";
+import { decideAutoSend, isRealEmail, deduceLostReason, hasCostGap, linkedExpenseFor, hasHumanOpen, autoLostNote, OWN_TRANSLATOR_EMAIL, type ColabExpense, type CostGapOrder } from "@/lib/cierre-math";
 import type { AutoLostCode } from "@/lib/quote-lost-reasons";
 
 const SITE = "https://www.traduccionesjuradas.net";
@@ -275,32 +275,17 @@ export async function findCostGapOrders(now = new Date()) {
     take: 200,
   });
   const own = await prisma.collaborator.findUnique({ where: { email: OWN_TRANSLATOR_EMAIL }, select: { fullName: true } }).catch(() => null);
-  const { expenses, aliases } = await loadColabExpenses(now);
+  const { expenses } = await loadColabExpenses(now);
   return rows.filter((o) => hasCostGap({ ...o, assignments: o.collaboratorAssignments } as CostGapOrder, now, own ? [own.fullName] : [])
-    && !linkedExpenseFor(o.reference, expenses)
-    && !groupedInvoiceCovers(o, expenses, aliasesOf(aliases, o.assignedTo)));
+    && !linkedExpenseFor(o.reference, expenses));
 }
 
-const norm = (v: string | null | undefined) => String(v || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
-
-/** «Juan Amor» (assignedTo) ↔ ficha «Juan Amor Fernández»: casa por prefijo de nombre. */
-const aliasesOf = (aliases: Map<string, string[]>, name: string | null) => {
-  const n = norm(name);
-  return n ? [...aliases].filter(([k]) => k.startsWith(n) || n.startsWith(k)).flatMap(([, v]) => v) : [];
-};
-
-/** Gastos de colaborador de los últimos 130 d (coste real de los pedidos) + nombres con que factura cada uno. Solo lectura. */
+/** Gastos de colaborador de los últimos 130 d (coste real de los pedidos). Solo lectura. */
 export async function loadColabExpenses(now = new Date()) {
   const rows = await prisma.expense.findMany({
     where: { category: "colaborador", date: { gte: new Date(now.getTime() - 130 * 864e5) } },
-    select: { orderReference: true, isAccrual: true, concept: true, supplier: true, baseCents: true, date: true, collaborator: { select: { fullName: true } }, settledBy: { select: { supplier: true } } },
+    select: { orderReference: true, isAccrual: true, concept: true, supplier: true, baseCents: true, date: true },
   });
-  const aliases = new Map<string, string[]>();
-  for (const r of rows) {
-    const name = norm(r.collaborator?.fullName);
-    const alias = [r.supplier, r.settledBy?.supplier].filter((x): x is string => !!x);
-    if (name) aliases.set(name, [...(aliases.get(name) || []), ...alias]);
-  }
-  const expenses: ColabExpense[] = rows.map(({ collaborator: _c, settledBy: _s, ...e }) => e);
-  return { expenses, aliases };
+  const expenses: ColabExpense[] = rows;
+  return { expenses };
 }
