@@ -7,7 +7,8 @@ import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed,
 import { PersonIndex, chaseState, solicitudChase, consolidate, duplicateOf, intermediaryEmails, personKeys, primaryKey, textKeys, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
 import { vigiaMarkUrl } from "@/lib/vigia-mark";
 import { NO_RESPONSE_NOTE, SEND_OVERDUE_HOURS, deduceLostReason, hasHumanOpen, whatsappNudgeText, isPlaceholderAddr } from "@/lib/cierre-math";
-import { findCostGapOrders, hasPaidSibling } from "@/lib/cierre";
+import { findCostGapOrders, hasPaidSibling, loadColabExpenses } from "@/lib/cierre";
+import { linkedExpenseFor } from "@/lib/cierre-math";
 import { cierreLostReasonUrl } from "@/lib/cierre-token";
 import { QUOTE_LOST_REASONS, QUOTE_LOST_REASON_LABELS, effectiveLostReasonLabel } from "@/lib/quote-lost-reasons";
 
@@ -379,6 +380,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       events: { where: { OR: [{ type: { startsWith: "lavori." } }, { type: { in: ["order.archived", "order.unarchived", "order.source_document_uploaded", "order.extension_prepared"] } }] }, select: { type: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 16 },
     },
   });
+  const { expenses: colabExpenses } = await loadColabExpenses(NOW).catch(() => ({ expenses: [] }));
   const pedidos: any[] = [];
   const traducir: AgendaItem[] = [];
   const seguir: AgendaItem[] = [];
@@ -390,7 +392,8 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     if (arch?.type === "order.archived") { archivados++; continue; }
     const win = o.collaboratorAssignments.find((a) => a.isWinning || a.status === "ACCEPTED");
     const fr = isFr(o.langPair);
-    const asignado = o.assignedTo || win?.collaborator.fullName || null;
+    const gasto = linkedExpenseFor(o.reference, colabExpenses); // el coste real vive en el libro de gastos
+    const asignado = o.assignedTo || win?.collaborator.fullName || gasto?.supplier || null;
     const esDeJuan = !asignado && fr; // regla: francés es de Juan (24-ago)
     const quien = asignado || (fr ? "Juan (FR)" : "SIN TRADUCTOR");
     const lav = o.events.find((e) => e.type.startsWith("lavori."))?.type || null;
@@ -457,7 +460,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       const viejo = (daysAgo(o.paidAt || o.createdAt) ?? 0) >= 5;
       if (vencido || viejo) { accion = `${vencido ? `VENCIDO (${madrid(due)})` : `${daysAgo(o.paidAt || o.createdAt)} d en curso`} con ${asignado} → reclamar entrega`; actO(item.importe, vencido ? 5 : 3, `Pedido ${o.reference} ${eur(item.importe)} ${vencido ? "VENCIDO" : `${daysAgo(o.paidAt || o.createdAt)} d en curso`} (${asignado}) → reclamar entrega`, link); }
     }
-    pedidos.push({ ref: o.reference, cliente: item.cliente, par: o.langPair, importe: item.importe, status: o.status, pagado: madrid(o.paidAt), asignado, quien, coste: win?.quotedPriceCents != null ? win.quotedPriceCents / 100 : o.supplierCostCents != null ? o.supplierCostCents / 100 : null, puente: lav, vence: madrid(due), accion, link });
+    pedidos.push({ ref: o.reference, cliente: item.cliente, par: o.langPair, importe: item.importe, status: o.status, pagado: madrid(o.paidAt), asignado, quien, coste: win?.quotedPriceCents != null ? win.quotedPriceCents / 100 : o.supplierCostCents != null ? o.supplierCostCents / 100 : gasto && (gasto.orderReference || gasto.isAccrual) ? gasto.baseCents / 100 : esDeJuan ? 0 : null, puente: lav, vence: madrid(due), accion, link });
   }
   /* ───────── 4a. Pedidos pagados SIN COSTE a las 24 h (cierre, 8-oct) ───────── */
   // El francés propio cuenta como coste 0 explícito (lib/cierre-math.ts hasCostGap), no como hueco.

@@ -244,7 +244,20 @@ export function hasCostGap(o: CostGapOrder, now: Date, ownNames: string[] = []):
   return !(isFrLangPair(o.langPair) && own);
 }
 
-const isFrLangPair = (langPair: string | null | undefined) => norm(langPair).split(/->|>|-|_|\s+/).includes("fr");
+/** Gasto de colaborador (devengo o factura recibida) tal como lo lee el vigía. */
+export type ColabExpense = { orderReference: string | null; isAccrual: boolean; concept: string; supplier: string | null; baseCents: number; date: Date };
+
+/**
+ * El coste de un pedido vive en el libro de gastos, no en Order.supplierCostCents:
+ * devengo/factura con orderReference, o factura del mes cuyo concepto lista la ref
+ * («Factura X · 3 encargo(s): 26_AAA, 26_BBB»). La factura manda sobre el devengo.
+ */
+export function linkedExpenseFor(reference: string, expenses: ColabExpense[]): ColabExpense | null {
+  const mine = expenses.filter((e) => e.orderReference === reference || (!e.orderReference && !e.isAccrual && e.concept.includes(reference)));
+  return mine.find((e) => !e.isAccrual) || mine[0] || null;
+}
+
+const isFrLangPair =(langPair: string | null | undefined) => norm(langPair).split(/->|>|-|_|\s+/).includes("fr");
 
 /** Ficha de Collaborator del francés propio: identifica a Juan por email; el nombre es respaldo. */
 export const OWN_TRANSLATOR_EMAIL = CASA_LANGS.fr.collaboratorEmail;
