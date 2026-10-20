@@ -163,8 +163,13 @@ export function shouldChain(providerActive: boolean, hasNonLocal: boolean): bool
 }
 
 /** Rechazados SIN resolver: ningún alta posterior de la misma factura (la subsanación) los releva. */
-export function unresolvedRejected<T extends { invoiceId: string; chainIndex: number }>(rejected: T[], altas: { invoiceId: string; chainIndex: number }[]): T[] {
-  return rejected.filter((r) => !altas.some((a) => a.invoiceId === r.invoiceId && a.chainIndex > r.chainIndex));
+export function unresolvedRejected<T extends { invoiceId: string; chainIndex: number; kind?: string }>(rejected: T[], later: { invoiceId: string; chainIndex: number; kind?: string }[]): T[] {
+  return rejected.filter((r) => !later.some((a) => a.invoiceId === r.invoiceId && a.kind === r.kind && a.chainIndex > r.chainIndex));
+}
+
+/** Una anulación espera a que el alta de su factura deje de estar en cola: así SinRegistroPrevio se calcula con el estado real. */
+export function anulacionMustWait(altaStatuses: string[]): boolean {
+  return altaStatuses.some((s) => s === "PENDING");
 }
 
 /**

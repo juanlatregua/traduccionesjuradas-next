@@ -194,6 +194,11 @@ export function decideInvoiceAction(input: {
   return "issue";
 }
 
+// Un alta se corrige si la AEAT la rechazó, o si está en cola con un error de datos de ESE registro.
+export function recordNeedsFixOf(sendStatus: string | null | undefined, buildErrorsOfRecord: number): boolean {
+  return sendStatus === "REJECTED" || (sendStatus === "PENDING" && buildErrorsOfRecord > 0);
+}
+
 // Motivo por el que no se puede corregir el destinatario de una emitida (null = se puede).
 export function recipientLockReasonOf(f: {
   annulled: boolean;
@@ -202,7 +207,7 @@ export function recipientLockReasonOf(f: {
   periodClosed: boolean;
   recordSendStatus?: string | null;
   // Registro rechazado por la AEAT, o en cola con un error de datos que impide enviarlo: el destinatario
-  // se puede corregir (y reenviar como subsanación) aunque haya pasado el plazo o se haya enviado ya.
+  // se puede corregir (y reenviar como subsanación) aunque haya pasado el plazo, siempre que no se haya enviado al cliente.
   recordNeedsFix?: boolean;
   sentToClient: boolean;
   now?: Date;
@@ -211,6 +216,7 @@ export function recipientLockReasonOf(f: {
   if (f.recordNeedsFix) {
     if (f.hasRectification) return "tiene una rectificativa";
     if (f.periodClosed) return "su trimestre ya está cerrado";
+    if (f.sentToClient) return "ya se envió al cliente";
     return null;
   }
   if (!isRecentlyIssued(f.issuedAt, f.now)) return "se emitió hace más de 72 h";

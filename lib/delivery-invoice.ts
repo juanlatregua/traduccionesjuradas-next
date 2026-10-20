@@ -16,6 +16,7 @@ import {
   isSimplifiedInvoice,
   recipientDiffers,
   recipientLockReasonOf,
+  recordNeedsFixOf,
   type BillingFields,
 } from "@/lib/delivery-billing";
 
@@ -44,17 +45,17 @@ async function recipientLockReason(inv: Existing, orderId: string): Promise<stri
       periodClosed = true;
     }
   }
-  const [rectification, record, events, buildErrors] = await Promise.all([
+  const [rectification, record, events] = await Promise.all([
     prisma.clientInvoice.findFirst({ where: { rectifiesId: inv.id }, select: { id: true } }),
     prisma.invoiceRecord.findFirst({ where: { invoiceId: inv.id, kind: "ALTA" }, orderBy: { chainIndex: "desc" }, select: { id: true, sendStatus: true } }),
     prisma.orderEvent.findMany({
       where: { orderId, type: { startsWith: "notification." } },
       select: { type: true, createdAt: true },
     }),
-    prisma.invoiceEvent.count({ where: { invoiceId: inv.id, type: "record.build_error" } }),
   ]);
+  const buildErrors = record?.sendStatus === "PENDING" ? await prisma.invoiceEvent.count({ where: { invoiceId: inv.id, type: "record.build_error", payload: { path: ["recordId"], equals: record.id } } }) : 0;
   return recipientLockReasonOf({
-    recordNeedsFix: record?.sendStatus === "REJECTED" || (record?.sendStatus === "PENDING" && buildErrors > 0),
+    recordNeedsFix: recordNeedsFixOf(record?.sendStatus, buildErrors),
     annulled: !!inv.annulledAt,
     issuedAt: inv.issuedAt,
     hasRectification: !!rectification,

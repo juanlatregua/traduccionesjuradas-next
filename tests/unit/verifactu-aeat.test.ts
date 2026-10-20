@@ -216,9 +216,9 @@ test("cadena con corte: el primer no-LOCAL con prevHash vacío reinicia; LOCAL s
 });
 
 // ── Arreglos de la revisión ─────────────────────────────────────────────────────
-import { anulacionSinRegistroPrevio, shouldChain, subsanacionFlags, unresolvedRejected } from "../../lib/verifactu/hash.ts";
+import { anulacionMustWait, anulacionSinRegistroPrevio, shouldChain, subsanacionFlags, unresolvedRejected } from "../../lib/verifactu/hash.ts";
 import { pdfEnvMatches, verifactuEnv } from "../../lib/verifactu/provider.ts";
-import { validateAltaData } from "../../lib/verifactu/aeat-xml.ts";
+import { reviewReasonOf, validateAltaData } from "../../lib/verifactu/aeat-xml.ts";
 
 test("verifactuEnv: fail-closed en producción de Vercel", () => {
   const saved = { v: process.env.VERCEL_ENV, e: process.env.VERIFACTU_ENV };
@@ -313,4 +313,29 @@ test("anulación: SinRegistroPrevio si ningún alta está registrado (LOCAL o RE
   assert.equal(anulacionSinRegistroPrevio(["REJECTED", "ACCEPTED"]), false);
   assert.equal(anulacionSinRegistroPrevio(["ACCEPTED_WITH_ERRORS"]), false);
   assert.equal(anulacionSinRegistroPrevio([]), true);
+});
+
+test("una anulación rechazada solo bloquea hasta que se reintenta con otra anulación", () => {
+  const rej = [{ invoiceId: "a", chainIndex: 4, kind: "ANULACION" }];
+  assert.equal(unresolvedRejected(rej, []).length, 1);
+  assert.equal(unresolvedRejected(rej, [{ invoiceId: "a", chainIndex: 7, kind: "ALTA" }]).length, 1, "un alta posterior no resuelve una anulación");
+  assert.equal(unresolvedRejected(rej, [{ invoiceId: "a", chainIndex: 7, kind: "ANULACION" }]).length, 0);
+});
+
+test("la anulación espera a que su alta deje de estar en cola", () => {
+  assert.equal(anulacionMustWait(["PENDING"]), true);
+  assert.equal(anulacionMustWait(["REJECTED", "PENDING"]), true);
+  assert.equal(anulacionMustWait(["ACCEPTED"]), false);
+  assert.equal(anulacionMustWait(["REJECTED"]), false);
+  assert.equal(anulacionMustWait(["LOCAL"]), false);
+});
+
+test("guarda de revisión: IVA 0 y F1 sin NIF no se envían", () => {
+  const ok = { kind: "ALTA" as const, invoiceType: "F1", vatRate: 21, recipient: { name: "A", nif: "B12345674", country: "España" } };
+  assert.equal(reviewReasonOf(ok), null);
+  assert.match(reviewReasonOf({ ...ok, vatRate: 0 })!, /IVA 0/);
+  assert.match(reviewReasonOf({ ...ok, vatRate: null })!, /IVA 0/);
+  assert.match(reviewReasonOf({ ...ok, recipient: { name: "A", nif: " ", country: "España" } })!, /sin NIF/);
+  assert.equal(reviewReasonOf({ ...ok, invoiceType: "F2", recipient: null }), null);
+  assert.equal(reviewReasonOf({ ...ok, kind: "ANULACION", vatRate: 0 }), null);
 });

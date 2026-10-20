@@ -178,6 +178,15 @@ export function validateAltaData(d: { invoiceType: string; vatRate?: number | nu
   }
 }
 
+/** Casos cuya decisión fiscal está pendiente de Juan: no se envían y quedan marcados para revisar. */
+export function reviewReasonOf(i: Pick<ProviderSendInput, "kind" | "invoiceType" | "recipient"> & { vatRate?: number | null }): string | null {
+  if (i.kind !== "ALTA") return null;
+  const rate = i.vatRate ?? NaN;
+  if (!Number.isFinite(rate) || rate <= 0) return "factura con IVA 0 % (exenta/no sujeta o sin tipo): decide cómo declararla antes de enviarla";
+  if ((i.invoiceType === "F1" || i.invoiceType === "F3") && !String(i.recipient?.nif ?? "").trim()) return "factura completa (F1) sin NIF/identificación del destinatario: decide si pasa a F2 o se completa el dato";
+  return null;
+}
+
 /** RegistroAlta o RegistroAnulacion dentro de <sum:RegistroFactura>. */
 export function registroXml(i: ProviderSendInput): string {
   if (i.emitterNif.toUpperCase() !== EMITTER_NIF) throw new AeatDataError(`Emisor ${i.emitterNif} sin datos de sistema informático configurados.`);

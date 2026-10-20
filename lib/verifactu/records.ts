@@ -17,9 +17,9 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { altaHash, anulacionHash, anulacionSinRegistroPrevio, formatGeneratedAt, formatIssueDate, shouldChain, subsanacionFlags, unresolvedRejected, type InvoiceType } from "@/lib/verifactu/hash";
+import { altaHash, anulacionHash, anulacionMustWait, anulacionSinRegistroPrevio, formatGeneratedAt, formatIssueDate, shouldChain, subsanacionFlags, unresolvedRejected, type InvoiceType } from "@/lib/verifactu/hash";
 import { getVerifactuProvider, verifactuEnv, type ProviderSendInput, type ProviderSendResult, type VerifactuProvider } from "@/lib/verifactu/provider";
-import { AeatDataError, MAX_RECORDS_PER_BATCH, registroXml, validateAltaData } from "@/lib/verifactu/aeat-xml";
+import { AeatDataError, MAX_RECORDS_PER_BATCH, registroXml, reviewReasonOf, validateAltaData } from "@/lib/verifactu/aeat-xml";
 import { alertVerifactuProblem } from "@/lib/verifactu/alerts";
 import { getBrand } from "@/lib/invoice-brands";
 
@@ -182,8 +182,8 @@ export async function createAnulacionRecord(
   reason: string
 ) {
   if (!invoice.number || !invoice.issuedAt) throw new Error("Solo se anula una factura emitida.");
-  const existing = await tx.invoiceRecord.findFirst({ where: { invoiceId: invoice.id, kind: "ANULACION" }, select: { id: true } });
-  if (existing) return existing;
+  const existing = await tx.invoiceRecord.findFirst({ where: { invoiceId: invoice.id, kind: "ANULACION" }, orderBy: { chainIndex: "desc" }, select: { id: true, sendStatus: true } });
+  if (existing && existing.sendStatus !== "REJECTED") return existing;
   const emitterNif = emitterNifFor(invoice);
   await lockEmitter(tx, emitterNif);
   const mode = await chainModeFor(tx, emitterNif);
@@ -262,6 +262,8 @@ export async function verifyEmitterChain(emitterNif: string) {
 }
 
 const DEFAULT_WAIT_SECONDS = 60;
+class DeferredRecord extends Error {}
+
 type PendingRow = Prisma.InvoiceRecordGetPayload<{
   include: { invoice: { select: { fiscalName: true; nif: true; country: true; vatRate: true; rectifiesId: true } } };
 }>;
@@ -279,6 +281,7 @@ async function toSendInput(r: PendingRow): Promise<ProviderSendInput> {
   let flags = { subsanacion: false, rechazoPrevio: false };
   if (r.kind === "ANULACION") {
     const altas = await prisma.invoiceRecord.findMany({ where: { invoiceId: r.invoiceId, kind: "ALTA" }, select: { sendStatus: true } });
+    if (anulacionMustWait(altas.map((a) => a.sendStatus))) throw new DeferredRecord(`Anulación de ${r.numSerie} a la espera de que se confirme su alta.`);
     sinRegistroPrevio = anulacionSinRegistroPrevio(altas.map((a) => a.sendStatus));
   } else {
     const earlier = await prisma.invoiceRecord.findMany({ where: { invoiceId: r.invoiceId, kind: "ALTA", chainIndex: { lt: r.chainIndex } }, select: { sendStatus: true } });
@@ -390,11 +393,11 @@ async function flushLocked(limit: number) {
   let sent = 0;
   const notes: string[] = [];
   for (const [nif, rows] of Array.from(byEmitter)) {
-    const rejected = await prisma.invoiceRecord.findMany({ where: { emitterNif: nif, sendStatus: "REJECTED", chainIndex: { lt: rows[0].chainIndex } }, select: { invoiceId: true, chainIndex: true, numSerie: true } });
-    const altas = rejected.length ? await prisma.invoiceRecord.findMany({ where: { invoiceId: { in: rejected.map((x) => x.invoiceId) }, kind: "ALTA" }, select: { invoiceId: true, chainIndex: true } }) : [];
-    const blocked = unresolvedRejected(rejected, altas)[0];
+    const rejected = await prisma.invoiceRecord.findMany({ where: { emitterNif: nif, sendStatus: "REJECTED", chainIndex: { lt: rows[0].chainIndex } }, select: { invoiceId: true, chainIndex: true, numSerie: true, kind: true } });
+    const later = rejected.length ? await prisma.invoiceRecord.findMany({ where: { invoiceId: { in: rejected.map((x) => x.invoiceId) } }, select: { invoiceId: true, chainIndex: true, kind: true } }) : [];
+    const blocked = unresolvedRejected(rejected, later)[0];
     if (blocked) {
-      notes.push(`${nif}: cadena bloqueada por el registro rechazado ${blocked.numSerie} (corrige los datos y reenvía como subsanación)`);
+      notes.push(`${nif}: cadena bloqueada por el registro rechazado ${blocked.numSerie} (corrige los datos y reenvía: subsanación del alta o nueva anulación)`);
       continue;
     }
     const wait = await secondsToWait(nif, new Date());
@@ -407,10 +410,16 @@ async function flushLocked(limit: number) {
     for (const r of rows.slice(0, MAX_RECORDS_PER_BATCH)) {
       try {
         const input = await toSendInput(r);
+        const review = reviewReasonOf(input);
+        if (review) throw new AeatDataError(`REVISAR, no se envía: ${review}.`);
         registroXml(input); // un dato imposible se detecta aquí, no en la AEAT
         inputs.push(input);
         batch.push(r);
       } catch (e: any) {
+        if (e instanceof DeferredRecord) {
+          notes.push(e.message);
+          break;
+        }
         if (!(e instanceof AeatDataError)) throw e;
         const msg = String(e.message);
         await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: "record.build_error", actor: "system", message: msg, payload: { recordId: r.id } });
@@ -450,10 +459,14 @@ async function flushOneByOne(provider: VerifactuProvider, pending: PendingRow[])
   let sent = 0;
   for (const r of pending) {
     try {
-      const res = await provider.send(await toSendInput(r));
+      const input = await toSendInput(r);
+      const review = reviewReasonOf(input);
+      if (review) throw new AeatDataError(`REVISAR, no se envía: ${review}.`);
+      const res = await provider.send(input);
       await markResult(r, res, provider.name);
       sent++;
     } catch (e: any) {
+      if (e instanceof DeferredRecord) break;
       const msg = String(e?.message || e);
       await logInvoiceEvent(prisma, { invoiceId: r.invoiceId, type: "record.send_failed", actor: "system", message: msg, payload: { recordId: r.id } });
       await alertVerifactuProblem({ recordId: r.id, invoiceId: r.invoiceId, numSerie: r.numSerie, kind: "send_failed", detail: msg });
@@ -466,17 +479,22 @@ async function flushOneByOne(provider: VerifactuProvider, pending: PendingRow[])
  * «Reenviar como subsanación»: corrige un alta RECHAZADA (Subsanacion=S + RechazoPrevio=X) o ACEPTADA CON ERRORES
  * (Subsanacion=S). Según la doc de la AEAT el registro original no se modifica: se genera uno NUEVO con huella
  * propia, FechaHoraHusoGenRegistro nueva y encadenado con el registro inmediatamente anterior de la cadena.
- * Los datos del destinatario se corrigen antes en la factura. Si el registro sigue PENDING por un build_error,
+ * Los datos del destinatario se corrigen antes en la factura. Una anulación RECHAZADA se reintenta con un registro de anulación nuevo. Si el registro sigue PENDING por un build_error,
  * no hace falta registro nuevo (la huella no depende de esos datos): se reenvía solo en el próximo ciclo.
  */
-export async function resubmitAsSubsanacion(invoiceId: string, actor: string): Promise<{ mode: "subsanacion" | "retry"; recordId: string; message: string }> {
+export async function resubmitAsSubsanacion(invoiceId: string, actor: string): Promise<{ mode: "subsanacion" | "retry" | "anulacion"; recordId: string; message: string }> {
   return prisma.$transaction(async (tx) => {
     const inv = await tx.clientInvoice.findUnique({ where: { id: invoiceId } });
     if (!inv || inv.status !== "ISSUED" || !inv.number || !inv.issuedAt) throw new Error("Solo se subsana una factura emitida.");
-    if (inv.annulledAt) throw new Error("La factura está anulada.");
     if (!safeProvider()) throw new Error("No hay proveedor VeriFactu configurado.");
     const emitterNif = emitterNifFor(inv);
     await lockEmitter(tx, emitterNif);
+    if (inv.annulledAt) {
+      const anul = await tx.invoiceRecord.findFirst({ where: { invoiceId, kind: "ANULACION" }, orderBy: { chainIndex: "desc" }, select: { sendStatus: true } });
+      if (anul?.sendStatus !== "REJECTED") throw new Error("La factura está anulada.");
+      const rec = await createAnulacionRecord(tx, inv, actor, "Reintento tras el rechazo de la anulación por la AEAT");
+      return { mode: "anulacion" as const, recordId: rec.id, message: "Nueva anulación en cola tras el rechazo anterior." };
+    }
     const latest = await tx.invoiceRecord.findFirst({ where: { invoiceId, kind: "ALTA" }, orderBy: { chainIndex: "desc" } });
     if (!latest) throw new Error("La factura no tiene registro de alta.");
     if (latest.sendStatus === "PENDING") {
