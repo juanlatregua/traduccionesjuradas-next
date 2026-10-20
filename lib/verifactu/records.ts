@@ -357,7 +357,7 @@ export async function flushPendingRecords(limit = 50) {
     async (tx) => {
       const [{ locked }] = await tx.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_xact_lock(hashtext('verifactu-flush')) AS locked`;
       if (!locked) return { sent: 0, skipped: "locked" as const };
-      await tx.$executeRawUnsafe(`SET LOCAL idle_in_transaction_session_timeout = '60s'`);
+      await tx.$executeRawUnsafe(`SET LOCAL idle_in_transaction_session_timeout = '150s'`);
       return flushLocked(limit);
     },
     { timeout: 120_000, maxWait: 5_000 }

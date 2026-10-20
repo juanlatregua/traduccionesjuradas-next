@@ -12,6 +12,7 @@ export function remainingWaitSeconds(lastSentAt: Date | null, tiempoEspera: unkn
 
 /** Fallo real de comunicación con la AEAT (red, timeout, SOAP Fault, 5xx): único caso en que un registro se declara con Incidencia=S. */
 export function isIncidentError(message: string): boolean {
+  if (/Codigo\[4\d{3}\]/i.test(message)) return false;
   return /timeout|soap fault|econn|enotfound|eai_again|etimedout|epipe|socket hang up|HTTP 5\d\d/i.test(message);
 }
 

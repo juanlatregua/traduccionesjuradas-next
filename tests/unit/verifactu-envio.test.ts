@@ -18,6 +18,7 @@ test("isIncidentError: red, timeout, SOAP Fault y 5xx cuentan; retraso, línea a
   assert.equal(isIncidentError("Timeout de 30s hablando con la AEAT."), true);
   assert.equal(isIncidentError("connect ECONNRESET"), true);
   assert.equal(isIncidentError("SOAP Fault de la AEAT (HTTP 500): x"), true);
+  assert.equal(isIncidentError("SOAP Fault de la AEAT (HTTP 500): Codigo[4102] El XML no cumple el esquema"), false);
   assert.equal(isIncidentError("Respuesta de la AEAT sin EstadoEnvio (HTTP 503): <html>"), true);
   assert.equal(isIncidentError("Envío Incorrecto: la AEAT no devolvió línea para 26_001."), false);
   assert.equal(isIncidentError("Falta VERIFACTU_CERT_PASSWORD."), false);
