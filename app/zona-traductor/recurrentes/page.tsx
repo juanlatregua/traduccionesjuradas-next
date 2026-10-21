@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-type Line = { description: string; detail?: string; amountCents: number };
+type Line = { description: string; detail?: string; amountCents: number | null; style?: "group" };
 type ExpenseLine = { concept: string; baseCents: number; vatRate: number; ivaDeducible?: boolean; taxTreatment?: string };
 
 export default async function ZonaTraductorRecurrentesPage() {

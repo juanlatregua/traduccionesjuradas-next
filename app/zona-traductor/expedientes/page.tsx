@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
 import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
+import { QUOTE_STATUS_LABELS } from "@/lib/quotes";
 import { FileText } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -17,6 +18,8 @@ type Group = {
   count: number;
   createdAt: Date;
   analyzed: number;
+  casoIds: Set<string>;
+  quote: { id: string; quoteNumber: string; status: keyof typeof QUOTE_STATUS_LABELS; closed: boolean } | null;
 };
 
 export default async function ZonaTraductorExpedientesPage() {
@@ -34,6 +37,7 @@ export default async function ZonaTraductorExpedientesPage() {
       clientPhone: true,
       createdAt: true,
       status: true,
+      casoId: true,
     },
   });
 
@@ -46,6 +50,7 @@ export default async function ZonaTraductorExpedientesPage() {
       g.count += 1;
       if (r.status === "QUOTE_GENERATED" || r.status === "ANALYZED") g.analyzed += 1;
       if (r.createdAt > g.createdAt) g.createdAt = r.createdAt;
+      if (r.casoId) g.casoIds.add(r.casoId);
     } else {
       map.set(ref, {
         ref,
@@ -55,10 +60,26 @@ export default async function ZonaTraductorExpedientesPage() {
         count: 1,
         createdAt: r.createdAt,
         analyzed: r.status === "QUOTE_GENERATED" || r.status === "ANALYZED" ? 1 : 0,
+        casoIds: new Set(r.casoId ? [r.casoId] : []),
+        quote: null,
       });
     }
   }
   const groups = Array.from(map.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  // ¿Ya tratado? Presupuesto por su expedienteRef o por el caso del expediente;
+  // manda el más reciente que siga abierto (sin lostReason).
+  const casoIds = Array.from(new Set(groups.flatMap((g) => Array.from(g.casoIds))));
+  const quotes = await prisma.quote.findMany({
+    where: { deletedAt: null, OR: [{ expedienteRef: { in: groups.map((g) => g.ref) } }, { casoId: { in: casoIds } }] },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, quoteNumber: true, status: true, lostReason: true, expedienteRef: true, casoId: true },
+  });
+  for (const g of groups) {
+    const mine = quotes.filter((q) => q.expedienteRef === g.ref || (q.casoId && g.casoIds.has(q.casoId)));
+    const q = mine.find((x) => !x.lostReason) || mine[0];
+    if (q) g.quote = { id: q.id, quoteNumber: q.quoteNumber, status: q.status, closed: Boolean(q.lostReason) };
+  }
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -106,19 +127,32 @@ export default async function ZonaTraductorExpedientesPage() {
                       {g.createdAt.toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
                     </td>
                     <td className="px-4 py-3">
-                      {g.analyzed >= g.count ? (
-                        <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">Analizado</span>
+                      {g.quote ? (
+                        <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs text-slate-200">
+                          {g.quote.quoteNumber} · {g.quote.closed ? "Cerrado" : QUOTE_STATUS_LABELS[g.quote.status]}
+                        </span>
+                      ) : g.analyzed < g.count ? (
+                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-300">Nuevo · sin presupuesto</span>
                       ) : (
-                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-300">Nuevo</span>
+                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-300">Sin presupuesto</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <a
-                        href={`/zona-traductor/presupuesto?exp=${encodeURIComponent(g.ref)}`}
-                        className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500"
-                      >
-                        Preparar presupuesto
-                      </a>
+                      {g.quote ? (
+                        <a
+                          href={`/zona-traductor/presupuestos/${g.quote.id}`}
+                          className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                        >
+                          Ver presupuesto
+                        </a>
+                      ) : (
+                        <a
+                          href={`/zona-traductor/presupuesto?exp=${encodeURIComponent(g.ref)}`}
+                          className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500"
+                        >
+                          Preparar presupuesto
+                        </a>
+                      )}
                     </td>
                   </tr>
                 ))}

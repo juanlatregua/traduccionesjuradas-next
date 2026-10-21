@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { createDraftInvoice, type InvoiceLine } from "@/lib/client-invoice";
+import { createDraftInvoice, type LayoutLine } from "@/lib/client-invoice";
 
 export const runtime = "nodejs";
 
@@ -28,7 +28,7 @@ type Body = {
   poNumber?: string | null;
   langPair?: string | null;
   vatRate?: number;
-  lines?: InvoiceLine[];
+  lines?: LayoutLine[];
 };
 
 async function resolveOrderLink(reference: string) {

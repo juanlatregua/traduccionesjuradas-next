@@ -31,6 +31,19 @@ export { clampVatRate, computeLineTotals, isValidDocNumber, isValidInvoiceNumber
 
 export type DocKind = "invoice" | "quote";
 
+// Línea con maquetación de desglose (Vatel): cabecera de bloque y filas sin importe.
+export type LayoutLine = Omit<InvoiceLine, "amountCents"> & { amountCents: number | null; style?: "group" };
+
+// normalizeLines (núcleo compartido con lavori) convierte null en 0 y descarta
+// style; aquí se conservan para que el desglose por bloques sobreviva al guardar.
+export function normalizeLayoutLines(lines: LayoutLine[] | undefined, opts?: { allowNegative?: boolean }): LayoutLine[] {
+  return (lines || []).flatMap((src) => {
+    const [l] = normalizeLines([{ ...src, amountCents: src.amountCents ?? 0 }], opts);
+    if (!l) return [];
+    return [{ ...l, amountCents: src.amountCents == null ? null : l.amountCents, ...(src.style === "group" ? { style: "group" as const } : {}) }];
+  });
+}
+
 function yy(forYear?: number): string {
   return String((forYear ?? new Date().getFullYear()) % 100).padStart(2, "0");
 }
@@ -224,7 +237,7 @@ export type DraftInvoiceInput = {
   concept?: string | null;
   poNumber?: string | null;
   langPair?: string | null;
-  lines: InvoiceLine[];
+  lines: LayoutLine[];
   vatRate: number;
   orderId?: string | null;
   docKind?: string | null; // invoice | quote — quote = presupuesto: serie propia P·AA_NNN y fuera de contabilidad/303/gestoría
@@ -233,9 +246,9 @@ export type DraftInvoiceInput = {
 // Campos comunes de un borrador (sin orderId: lo gestiona cada caller para no
 // pisar el vínculo en una edición que no lo toca).
 function draftData(input: DraftInvoiceInput, opts?: { allowNegative?: boolean }) {
-  const lines = normalizeLines(input.lines, opts);
+  const lines = normalizeLayoutLines(input.lines, opts);
   const vatRate = clampVatRate(input.vatRate);
-  const { baseCents, vatCents, totalCents } = computeLineTotals(lines, vatRate, opts);
+  const { baseCents, vatCents, totalCents } = computeLineTotals(lines.map((l) => ({ ...l, amountCents: l.amountCents ?? 0 })), vatRate, opts);
   return {
     lines,
     data: {

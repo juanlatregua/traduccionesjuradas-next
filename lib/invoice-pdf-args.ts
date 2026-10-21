@@ -6,7 +6,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { getBrand } from "@/lib/invoice-brands";
 import type { ClientInvoice } from "@prisma/client";
-import type { InvoiceLine } from "@/lib/client-invoice";
+import type { LayoutLine } from "@/lib/client-invoice";
 
 // Carga el logo de marca (PNG) como data URL si el archivo existe.
 export async function loadBrandLogo(brandKey: string): Promise<string | undefined> {
@@ -20,8 +20,11 @@ export async function loadBrandLogo(brandKey: string): Promise<string | undefine
   }
 }
 
-export function invoiceLinesOf(invoice: ClientInvoice): InvoiceLine[] | undefined {
-  return Array.isArray(invoice.lineItemsJson) ? (invoice.lineItemsJson as unknown as InvoiceLine[]) : undefined;
+// Clientes cuya factura va sin logo: Vatel/SORENGAN (Juan, 21-sep-2026).
+const NO_LOGO_NIFS = new Set(["B88144597"]);
+
+export function invoiceLinesOf(invoice: ClientInvoice): LayoutLine[] | undefined {
+  return Array.isArray(invoice.lineItemsJson) ? (invoice.lineItemsJson as unknown as LayoutLine[]) : undefined;
 }
 
 export function clientInvoicePdfArgs(
@@ -38,6 +41,7 @@ export function clientInvoicePdfArgs(
     vatRate: invoice.vatRate,
     brand: invoice.brand,
     logoDataUrl,
+    noLogo: NO_LOGO_NIFS.has((invoice.nif || "").replace(/[^0-9A-Z]/gi, "").toUpperCase()),
     poNumber: invoice.poNumber,
     holderNames: invoice.holderNames,
     simplified: invoice.simplified,

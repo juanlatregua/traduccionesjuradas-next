@@ -308,7 +308,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Descripción (nº de páginas/palabras por documento)", cDesc + 2, ty + 5.6);
+  doc.text(data.brand === "holabonjour" ? "Descripción" : "Descripción (nº de páginas/palabras por documento)", cDesc + 2, ty + 5.6);
   doc.setFontSize(8);
   if (data.langPair) doc.text(langLabel(data.langPair), cLang + cLangW / 2, ty + 5.6, { align: "center" });
   doc.text("Importe", cImp - 2, ty + 5.6, { align: "right" });
@@ -325,6 +325,11 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   }
 
   const bodyTop = ty;
+  // Desglose largo (Vatel: una fila por fecha): filas compactas para que el
+  // TOTAL no quede bajo el pie (y=270).
+  const compact = bodyTop + lines.length * 8 + 24 > 266;
+  const rowBase = compact ? 6 : 8;
+  const textOff = compact ? 4.2 : 5.5;
   doc.setTextColor(...INK);
   for (const line of lines) {
     // El detalle (p.ej. nota legal de inversión del sujeto pasivo) se envuelve a
@@ -337,7 +342,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     const descLines = doc.splitTextToSize(line.description, cLang - cDesc - 4) as string[];
-    const descH = 8 + (descLines.length - 1) * 4;
+    const descH = rowBase + (descLines.length - 1) * 4;
     const rowH = line.detail ? descH + detailLines.length * 3.2 : descH;
     const isGroup = line.style === "group";
     if (isGroup && ty > bodyTop) {
@@ -348,11 +353,11 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     doc.setFillColor(...(isGroup ? INK : TABLE_BG));
     doc.rect(cDesc, ty, contentW, rowH, "F");
     doc.setTextColor(...(isGroup ? ([255, 255, 255] as [number, number, number]) : INK));
-    doc.text(descLines, cDesc + 2, ty + 5.5);
+    doc.text(descLines, cDesc + 2, ty + textOff);
     doc.setTextColor(...INK);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    if (line.amountCents != null) doc.text(eur(line.amountCents), cImp - 2, ty + 5.5, { align: "right" });
+    if (line.amountCents != null) doc.text(eur(line.amountCents), cImp - 2, ty + textOff, { align: "right" });
     if (line.detail) {
       doc.setFontSize(7.5);
       doc.setTextColor(...GREY);
