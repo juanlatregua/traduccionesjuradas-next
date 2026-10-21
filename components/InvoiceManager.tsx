@@ -8,7 +8,7 @@ import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 // pedido), editar líneas/IVA, emitir (asigna AA_NNN) y borrar. Las líneas se
 // teclean en BASE (sin IVA); el total se calcula en vivo.
 
-type Line = { description: string; detail?: string; amount: string }; // amount en euros (texto)
+type Line = { description: string; detail?: string; amount: string; group?: boolean }; // amount en euros (texto); vacío = fila sin importe
 
 export type InvoiceRow = {
   id: string;
@@ -32,7 +32,7 @@ export type InvoiceRow = {
   email: string | null;
   concept: string | null;
   langPair: string | null;
-  lines: { description: string; detail?: string; amountCents: number }[];
+  lines: { description: string; detail?: string; amountCents: number | null; style?: "group" }[];
   vatRate: number;
   baseCents: number;
   vatCents: number;
@@ -211,7 +211,7 @@ export default function InvoiceManager({
       vatRate: row.vatRate,
       lines:
         row.lines.length > 0
-          ? row.lines.map((l) => ({ description: l.description, detail: l.detail || "", amount: (l.amountCents / 100).toFixed(2) }))
+          ? row.lines.map((l) => ({ description: l.description, detail: l.detail || "", amount: l.amountCents == null ? "" : (l.amountCents / 100).toFixed(2), group: l.style === "group" }))
           : [{ description: "", detail: "", amount: "" }],
     });
     setMsg(null);
@@ -283,9 +283,10 @@ export default function InvoiceManager({
         .map((l) => ({
           description: l.description.trim(),
           detail: l.detail?.trim() || undefined,
-          amountCents: Math.round((parseFloat(l.amount.replace(",", ".")) || 0) * 100),
+          amountCents: l.amount.trim() ? Math.round((parseFloat(l.amount.replace(",", ".")) || 0) * 100) : null,
+          ...(l.group ? { style: "group" as const } : {}),
         }))
-        .filter((l) => l.description.length > 0 || l.amountCents > 0),
+        .filter((l) => l.description.length > 0 || (l.amountCents ?? 0) > 0),
     };
   }
 
@@ -628,6 +629,10 @@ export default function InvoiceManager({
                     value={l.amount}
                     onChange={(e) => setLine(i, { amount: e.target.value })}
                   />
+                  <label className="flex items-center gap-1 text-xs text-slate-400" title="Cabecera de bloque (p. ej. BACHELOR ES - Málaga)">
+                    <input type="checkbox" checked={Boolean(l.group)} onChange={(e) => setLine(i, { group: e.target.checked })} />
+                    Bloque
+                  </label>
                   <button
                     type="button"
                     onClick={() => removeLine(i)}

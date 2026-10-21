@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getStaffRole } from "@/lib/staff-access";
-import { updateDraftInvoice, deleteInvoice, type InvoiceLine } from "@/lib/client-invoice";
+import { updateDraftInvoice, deleteInvoice, type LayoutLine } from "@/lib/client-invoice";
 
 export const runtime = "nodejs";
 
@@ -30,7 +30,7 @@ type Body = {
   poNumber?: string | null;
   langPair?: string | null;
   vatRate?: number;
-  lines?: InvoiceLine[];
+  lines?: LayoutLine[];
 };
 
 export async function GET(req: Request, { params }: Params) {

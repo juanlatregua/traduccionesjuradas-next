@@ -13,7 +13,7 @@ function eur(cents: number) {
   return `${(cents / 100).toFixed(2)} €`;
 }
 
-type Line = { description: string; detail?: string; amountCents: number };
+type Line = { description: string; detail?: string; amountCents: number | null; style?: "group" };
 
 export default async function ZonaTraductorFacturasPage() {
   await authZonaTraductorOrRedirect();

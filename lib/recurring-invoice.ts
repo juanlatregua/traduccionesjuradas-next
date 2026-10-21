@@ -3,8 +3,8 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { createDraftInvoice, type InvoiceLine } from "@/lib/client-invoice";
-import { clampVatRate, normalizeLines } from "@/lib/invoice-math";
+import { createDraftInvoice, normalizeLayoutLines, type LayoutLine } from "@/lib/client-invoice";
+import { clampVatRate } from "@/lib/invoice-math";
 import { periodKey, resolveConcept, clampDay } from "@/lib/recurring-logic";
 
 export { periodKey, resolveConcept };
@@ -24,14 +24,14 @@ export type RecurringInput = {
   conceptTemplate?: string | null;
   poNumber?: string | null;
   langPair?: string | null;
-  lines: InvoiceLine[];
+  lines: LayoutLine[];
   vatRate: number;
   dayOfMonth: number;
   notes?: string | null;
 };
 
 function buildData(input: RecurringInput) {
-  const lines = normalizeLines(input.lines);
+  const lines = normalizeLayoutLines(input.lines);
   return {
     label: String(input.label || "").trim(),
     active: input.active ?? true,
@@ -98,7 +98,7 @@ export async function generateDraftForPeriod(templateId: string, opts?: { period
     }
   }
 
-  const lines = Array.isArray(tpl.lineItemsJson) ? (tpl.lineItemsJson as unknown as InvoiceLine[]) : [];
+  const lines = Array.isArray(tpl.lineItemsJson) ? (tpl.lineItemsJson as unknown as LayoutLine[]) : [];
   const draft = await createDraftInvoice({
     brand: tpl.brand,
     clientName: tpl.clientName,

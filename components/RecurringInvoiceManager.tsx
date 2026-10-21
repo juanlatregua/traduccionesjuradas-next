@@ -5,7 +5,7 @@ import { BRAND_OPTIONS } from "@/lib/invoice-brands";
 
 // Plantillas de facturas recurrentes. Genera BORRADORES (no emite).
 
-type Line = { description: string; detail?: string; amount: string };
+type Line = { description: string; detail?: string; amount: string; group?: boolean }; // amount vacío = fila sin importe
 
 export type RecurringRow = {
   id: string;
@@ -23,7 +23,7 @@ export type RecurringRow = {
   conceptTemplate: string | null;
   poNumber: string | null;
   langPair: string | null;
-  lines: { description: string; detail?: string; amountCents: number }[];
+  lines: { description: string; detail?: string; amountCents: number | null; style?: "group" }[];
   vatRate: number;
   dayOfMonth: number;
   lastGeneratedPeriod: string | null;
@@ -114,7 +114,7 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
       vatRate: r.vatRate,
       dayOfMonth: r.dayOfMonth,
       notes: r.notes || "",
-      lines: r.lines.length ? r.lines.map((l) => ({ description: l.description, detail: l.detail || "", amount: (l.amountCents / 100).toFixed(2) })) : [{ description: "", detail: "", amount: "" }],
+      lines: r.lines.length ? r.lines.map((l) => ({ description: l.description, detail: l.detail || "", amount: l.amountCents == null ? "" : (l.amountCents / 100).toFixed(2), group: l.style === "group" })) : [{ description: "", detail: "", amount: "" }],
     });
     setMsg(null);
     setOpen(true);
@@ -140,8 +140,13 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
       dayOfMonth: form.dayOfMonth,
       notes: form.notes.trim() || null,
       lines: form.lines
-        .map((l) => ({ description: l.description.trim(), detail: l.detail?.trim() || undefined, amountCents: Math.round((parseFloat(l.amount.replace(",", ".")) || 0) * 100) }))
-        .filter((l) => l.description.length > 0 || l.amountCents > 0),
+        .map((l) => ({
+          description: l.description.trim(),
+          detail: l.detail?.trim() || undefined,
+          amountCents: l.amount.trim() ? Math.round((parseFloat(l.amount.replace(",", ".")) || 0) * 100) : null,
+          ...(l.group ? { style: "group" as const } : {}),
+        }))
+        .filter((l) => l.description.length > 0 || (l.amountCents ?? 0) > 0),
     };
   }
 
@@ -240,6 +245,10 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
                   <input className={`${FIELD} min-w-[200px] flex-1`} placeholder="Descripción" value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
                   <input className={`${FIELD} min-w-[160px] flex-1`} placeholder="Detalle" value={l.detail} onChange={(e) => setLine(i, { detail: e.target.value })} />
                   <input className={`${FIELD} w-28 text-right`} placeholder="€ base" inputMode="decimal" value={l.amount} onChange={(e) => setLine(i, { amount: e.target.value })} />
+                  <label className="flex items-center gap-1 text-xs text-slate-400" title="Cabecera de bloque (p. ej. BACHELOR ES - Málaga)">
+                    <input type="checkbox" checked={Boolean(l.group)} onChange={(e) => setLine(i, { group: e.target.checked })} />
+                    Bloque
+                  </label>
                   <button type="button" onClick={() => setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }))} disabled={form.lines.length === 1} className="rounded-lg border border-slate-700 px-2 py-2 text-xs text-slate-400 hover:bg-slate-800 disabled:opacity-40">✕</button>
                 </div>
               ))}
