@@ -121,6 +121,7 @@ async function ingestEmailAttachments(graphId: string): Promise<InboundMedia[]> 
     const safeName = a.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
     const blob = await put(`inbox/${Date.now()}-${safeName}`, buf, {
       access: "public",
+      addRandomSuffix: true,
       contentType: a.contentType,
     });
     media.push({ url: blob.url, contentType: a.contentType, name: a.name.slice(0, 255), size: buf.length });
@@ -434,6 +435,7 @@ export async function buildExpedienteFromInbound(inbound: {
     const safeName = a.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
     const blob = await put(`expedientes/${Date.now()}-${safeName}`, buf, {
       access: "public",
+      addRandomSuffix: true,
       contentType: a.contentType,
     });
     rows.push({ fileName: a.name.slice(0, 255), fileUrl: blob.url, fileSize: buf.length, mimeType: a.contentType });

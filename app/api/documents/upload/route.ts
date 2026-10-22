@@ -18,6 +18,9 @@ const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB: puerta (el documento pasa por 
 const EXPEDIENTE_MAX_FILE_SIZE = 500 * 1024 * 1024;
 const ZIP_TYPES = ["application/zip", "application/x-zip-compressed"];
 
+// Tope global de ficheros públicos al día (generoso: un expediente son hasta ~300).
+const GLOBAL_DAILY_UPLOADS = 5000;
+
 const ALLOWED_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -78,6 +81,17 @@ export async function POST(req: Request) {
       request: req,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const parsed = clientPayload ? JSON.parse(clientPayload) : {};
+        // Tope global diario (una por fichero): las 400 por IP se esquivan rotando IP.
+        if (!staff.ok) {
+          const global = await checkRateLimit({
+            key: "upload:global",
+            limit: GLOBAL_DAILY_UPLOADS,
+            windowMs: 24 * 60 * 60 * 1000,
+          });
+          if (!global.ok) {
+            throw new Error("Hoy hemos alcanzado el límite de subidas. Escríbenos a hola@traduccionesjuradas.net y te ayudamos.");
+          }
+        }
         // «Falta algo» de /q: el cliente ya tiene presupuesto (no hay gate RGPD de
         // puerta); el enlace del presupuesto fija la carpeta, y solo caben tipos
         // de la puerta y 20 MB por fichero.

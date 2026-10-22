@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { validateGeneralUploadFile } from "@/lib/file-security";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { isBlobConfigured } from "@/lib/payment-config";
+import { isOwnBlobUrl } from "@/lib/q-journey";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,9 @@ export async function DELETE(req: Request) {
   }
   const url = String(body.url || "").trim();
   if (!url) return NextResponse.json({ ok: false, error: "Falta url." }, { status: 400 });
+  if (!isOwnBlobUrl(url, process.env.BLOB_READ_WRITE_TOKEN)) {
+    return NextResponse.json({ ok: false, error: "URL no válida." }, { status: 400 });
+  }
   try {
     await del(url);
     return NextResponse.json({ ok: true });
