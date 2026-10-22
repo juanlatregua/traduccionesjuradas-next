@@ -6,6 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { isOwnBlobUrl } from "@/lib/q-journey";
 import { suggestDocumentName } from "@/lib/ai/suggest-name";
 
 export const runtime = "nodejs";
@@ -28,6 +29,9 @@ export async function POST(req: Request) {
   const mimeType = String(body?.mimeType || "application/pdf");
   if (!blobUrl) {
     return NextResponse.json({ ok: false, error: "blobUrl requerido." }, { status: 400 });
+  }
+  if (!isOwnBlobUrl(blobUrl, process.env.BLOB_READ_WRITE_TOKEN)) {
+    return NextResponse.json({ ok: false, error: "blobUrl no válido." }, { status: 400 });
   }
 
   try {

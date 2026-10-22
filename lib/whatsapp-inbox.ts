@@ -87,7 +87,7 @@ export async function ingestWhatsAppMessage(form: TwilioInboundForm): Promise<In
       const buf = await downloadTwilioMedia(url);
       if (buf.length === 0 || buf.length > MEDIA_MAX_BYTES) continue;
       const name = `whatsapp-${sid.slice(-8)}-${i + 1}.${extFor(contentType)}`;
-      const blob = await put(`inbox/whatsapp/${Date.now()}-${name}`, buf, { access: "public", contentType });
+      const blob = await put(`inbox/whatsapp/${Date.now()}-${name}`, buf, { access: "public", addRandomSuffix: true, contentType });
       media.push({ url: blob.url, contentType, name, size: buf.length });
     } catch (err) {
       console.error("[whatsapp-inbox] media download failed", sid, i, err);

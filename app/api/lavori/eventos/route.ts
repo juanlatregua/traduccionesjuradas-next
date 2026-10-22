@@ -370,6 +370,7 @@ export async function POST(req: Request) {
         }
         const blob = await put(`orders/${order.reference}/facturas-lavori/${Date.now()}-${nombre}`, buf, {
           access: "public",
+          addRandomSuffix: true,
           contentType: datos.contentType ? String(datos.contentType) : "application/pdf",
         });
         attachmentUrl = blob.url;
@@ -428,6 +429,7 @@ export async function POST(req: Request) {
       const contentType = datos.contentType ? String(datos.contentType) : "application/pdf";
       const blob = await put(`orders/${order.reference}/entregas-lavori/${Date.now()}-${nombre}`, buf, {
         access: "public",
+        addRandomSuffix: true,
         contentType,
       });
       await prisma.order.updateMany({
@@ -962,6 +964,7 @@ async function handleLeadEvento(opts: {
         }
         const blob = await put(`leads/${lead.ref}/facturas-lavori/${Date.now()}-${nombre}`, buf, {
           access: "public",
+          addRandomSuffix: true,
           contentType: datos.contentType ? String(datos.contentType) : "application/pdf",
         });
         attachmentUrl = blob.url;

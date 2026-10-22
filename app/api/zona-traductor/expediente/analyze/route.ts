@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { isOwnBlobUrl } from "@/lib/q-journey";
 import { runDocumentSegmentation, type SegmentedRun } from "@/lib/ai/run-analysis";
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
@@ -159,6 +160,9 @@ export async function POST(req: Request) {
     const mimeType = String(body?.mimeType || "application/octet-stream");
     if (!blobUrl) {
       return NextResponse.json({ ok: false, error: "blobUrl o documentId requerido." }, { status: 400 });
+    }
+    if (!isOwnBlobUrl(blobUrl, process.env.BLOB_READ_WRITE_TOKEN)) {
+      return NextResponse.json({ ok: false, error: "blobUrl no válido." }, { status: 400 });
     }
     doc = await prisma.documentAnalysis.create({
       data: {

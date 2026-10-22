@@ -5,6 +5,7 @@ import { isDeclaredPairValid, normalizeDeclaredLang } from "@/lib/puerta-languag
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { isOwnBlobUrl } from "@/lib/q-journey";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -68,6 +69,10 @@ export async function POST(req: Request) {
         { ok: false, error: "Datos de archivo requeridos." },
         { status: 400 }
       );
+    }
+
+    if (!isOwnBlobUrl(blobUrl, process.env.BLOB_READ_WRITE_TOKEN)) {
+      return NextResponse.json({ ok: false, error: "Archivo no válido." }, { status: 400 });
     }
 
     if (!gdprConsent) {

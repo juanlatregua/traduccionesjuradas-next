@@ -26,6 +26,20 @@ export function blobHostFromToken(token: string | null | undefined): string | nu
   return m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null;
 }
 
+/** ¿Es una URL https de NUESTRA tienda de Blob? Sin id en el token, cae al sufijo común de Vercel Blob. */
+export function isOwnBlobUrl(url: unknown, token: string | null | undefined): boolean {
+  if (typeof url !== "string") return false;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return false;
+  const host = blobHostFromToken(token);
+  return host ? u.hostname === host : u.hostname.endsWith(".public.blob.vercel-storage.com");
+}
+
 export type CompletionBlock = "deleted" | "expired" | "status" | "paid";
 
 /** ¿Puede este presupuesto recibir documentos? Solo uno vivo, vigente, pagable y sin pagar. */

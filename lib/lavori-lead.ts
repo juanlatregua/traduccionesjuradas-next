@@ -104,6 +104,7 @@ export async function packLeadDoc(doc: LeadDoc, index: number): Promise<BridgeDo
     const key = createHash("sha256").update(`${doc.url}#${from}-${to}`).digest("hex").slice(0, 16);
     const blob = await put(`lavori-sobre/${key}-${nombre}`, slice, {
       access: "public",
+      addRandomSuffix: true,
       contentType: "application/pdf",
     });
     const recorte = describeDocForSobre({ url: blob.url, name: nombre, type: "application/pdf", buf: slice });

@@ -231,6 +231,7 @@ export async function POST(req: Request) {
     // Upload to Vercel Blob
     const blob = await put(`drafts/${filename}`, docxBuffer, {
       access: "public",
+      addRandomSuffix: true,
       contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
 
