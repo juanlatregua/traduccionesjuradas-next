@@ -212,7 +212,7 @@ export async function POST(req: Request, { params }: Params) {
       },
     });
 
-    if (trustedCustomer && (isStaff || hasValidToken)) {
+    if (trustedCustomer && (isStaff || isAuthenticatedOwner || hasValidToken)) {
       const method = paymentMethod === "BIZUM" ? "BIZUM" : "TRANSFER";
       const actor = sessionEmail || clientEmailRaw || order.clientEmail;
       let confirmed = false;

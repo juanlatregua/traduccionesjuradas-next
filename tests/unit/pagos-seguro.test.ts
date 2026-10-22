@@ -19,15 +19,15 @@ test("paidAmountMatches: solo importe exacto", () => {
   assert.equal(paidAmountMatches(0, 0), false);
 });
 
-test("regularizacionFlatApplies: 25 € solo FR con 1-2 páginas", () => {
+test("regularizacionFlatApplies: 25 € solo FR salvo 3+ páginas", () => {
   const base = { purposeIsRegularizacion: true, foreignLang: "fr", pages: 1, isFrenchCriminalRecord: false };
   assert.equal(REGULARIZACION_FR_DOC_CENTS, 2500);
   assert.equal(regularizacionFlatApplies(base), true);
   assert.equal(regularizacionFlatApplies({ ...base, pages: 2 }), true);
   assert.equal(regularizacionFlatApplies({ ...base, pages: 3 }), false);
   assert.equal(regularizacionFlatApplies({ ...base, pages: 40 }), false);
-  assert.equal(regularizacionFlatApplies({ ...base, pages: undefined }), false);
-  assert.equal(regularizacionFlatApplies({ ...base, pages: 0 }), false);
+  assert.equal(regularizacionFlatApplies({ ...base, pages: undefined }), true);
+  assert.equal(regularizacionFlatApplies({ ...base, pages: 0 }), true);
   assert.equal(regularizacionFlatApplies({ ...base, foreignLang: "en" }), false);
   assert.equal(regularizacionFlatApplies({ ...base, purposeIsRegularizacion: false }), false);
   assert.equal(regularizacionFlatApplies({ ...base, isFrenchCriminalRecord: true }), false);

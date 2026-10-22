@@ -111,6 +111,7 @@ export async function processQuoteStripeEvent(event: any) {
       await alertPaymentAmountMismatch({
         via: isBalance ? "Stripe (segundo pago)" : "Stripe (presupuesto)",
         ref: quote.quoteNumber,
+        quoteId: quote.id,
         expectedCents,
         receivedCents,
         detail: `Sesión ${stripeSessionId}`,

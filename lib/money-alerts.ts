@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendStaffAlertSMS } from "@/lib/sms";
-import { costAlertAlreadySent } from "@/lib/money-alerts-math";
+import { costAlertAlreadySent, AMOUNT_MISMATCH_EVENT, AMOUNT_MISMATCH_MARK } from "@/lib/money-alerts-math";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const adminEmail = () => process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
@@ -133,6 +133,8 @@ export async function alertQuoteBridgeResolved(input: { quoteId: string; quoteNu
 export async function alertPaymentAmountMismatch(input: {
   via: string;
   ref: string;
+  orderReference?: string;
+  quoteId?: string;
   expectedCents: number;
   receivedCents: number | null;
   detail?: string;
@@ -146,6 +148,28 @@ export async function alertPaymentAmountMismatch(input: {
     .filter(Boolean)
     .join("\n");
   console.error("[pago-importe]", texto);
+  try {
+    if (input.orderReference) {
+      const order = await prisma.order.findUnique({ where: { reference: input.orderReference }, select: { id: true } });
+      if (order) {
+        await prisma.orderEvent.create({
+          data: {
+            orderId: order.id,
+            type: AMOUNT_MISMATCH_EVENT,
+            message: texto,
+            payload: { via: input.via, expectedCents: input.expectedCents, receivedCents: input.receivedCents, detail: input.detail || null },
+          },
+        });
+      }
+    }
+    if (input.quoteId) {
+      await prisma.messageLog.create({
+        data: { quoteId: input.quoteId, channel: "EMAIL", type: "PAID_CONFIRMATION", recipient: "staff", subject: AMOUNT_MISMATCH_MARK, body: texto, status: "NOTICE" },
+      });
+    }
+  } catch (err) {
+    console.error("[pago-importe] rastro fallo:", err);
+  }
   await Promise.all([
     sendMail({ to: adminEmail(), subject: `⚠ Importe no coincide: ${input.ref} (${input.via})`, text: texto, html: renderSimpleEmailHtml(texto) }).catch((err) =>
       console.error("[pago-importe] email fallo:", err)

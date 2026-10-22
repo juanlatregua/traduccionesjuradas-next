@@ -9,5 +9,5 @@ export function regularizacionFlatApplies(input: {
 }): boolean {
   if (!input.purposeIsRegularizacion || input.foreignLang !== "fr" || input.isFrenchCriminalRecord) return false;
   const pages = Number(input.pages);
-  return Number.isFinite(pages) && pages >= 1 && pages <= REGULARIZACION_MAX_PAGES;
+  return !(Number.isFinite(pages) && pages > REGULARIZACION_MAX_PAGES);
 }

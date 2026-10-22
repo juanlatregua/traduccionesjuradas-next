@@ -74,17 +74,25 @@ export async function POST(req: Request) {
 
     if (captured.status === "COMPLETED") {
       const paypalReference = captured.purchase_units?.[0]?.reference_id;
-      if (!paypalReference || paypalReference !== body.reference) {
-        return NextResponse.json({ ok: false, error: "Referencia de PayPal no valida." }, { status: 400 });
-      }
-
       const capturedAmount = captured.purchase_units?.[0]?.payments?.captures?.[0]?.amount;
       const receivedCents =
         capturedAmount?.currency_code === "EUR" ? eurosToCents(capturedAmount.value) : null;
+      if (!paypalReference || paypalReference !== body.reference) {
+        await alertPaymentAmountMismatch({
+          via: "PayPal (referencia)",
+          ref: order.reference,
+          orderReference: order.reference,
+          expectedCents: order.amountCents,
+          receivedCents,
+          detail: `PayPal order ${body.paypalOrderId}, reference_id ${paypalReference || "ausente"}`,
+        }).catch((e) => console.error("[paypal-capture] reference alert failed", e));
+        return NextResponse.json({ ok: false, error: "Referencia de PayPal no valida." }, { status: 400 });
+      }
       if (!paidAmountMatches(order.amountCents, receivedCents)) {
         await alertPaymentAmountMismatch({
           via: "PayPal",
           ref: order.reference,
+          orderReference: order.reference,
           expectedCents: order.amountCents,
           receivedCents,
           detail: `PayPal order ${body.paypalOrderId}`,

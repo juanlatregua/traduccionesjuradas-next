@@ -19,3 +19,7 @@ export function shouldSendPaidConfirmation(logs: { status: string; recipient: st
 export function bridgeFailureAction(failedDeliveries: number): "retry" | "give_up" {
   return failedDeliveries >= BRIDGE_MAX_FAILED_DELIVERIES ? "give_up" : "retry";
 }
+
+/** Rastro durable de un cobro cuyo importe no cuadra: los recordatorios de pago lo saltan. */
+export const AMOUNT_MISMATCH_EVENT = "payment_amount_mismatch";
+export const AMOUNT_MISMATCH_MARK = "[AVISO STAFF] importe no coincide";
