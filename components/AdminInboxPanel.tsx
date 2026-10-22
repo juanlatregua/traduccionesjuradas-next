@@ -68,11 +68,17 @@ const VISTAS = [
 function EmailCard({
   row,
   onUpdate,
+  focused = false,
 }: {
   row: InboxRow;
   onUpdate: (id: string, patch: Partial<InboxRow>) => void;
+  focused?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(focused);
+  const cardRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (focused) cardRef.current?.scrollIntoView({ block: "center" });
+  }, [focused]);
   const [subject, setSubject] = useState(row.draftSubject || `RE: ${row.subject}`);
   const [body, setBody] = useState(row.draftBody || "");
   const [attachFiles, setAttachFiles] = useState((row.deliveredFileCount || 0) > 0);
@@ -191,7 +197,7 @@ function EmailCard({
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400";
 
   return (
-    <li className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <li ref={cardRef} className={`rounded-2xl border bg-white shadow-sm ${focused ? "border-amber-400 ring-2 ring-amber-200" : "border-slate-200"}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -522,11 +528,13 @@ function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel
 export default function AdminInboxPanel({
   initialRows,
   vista,
+  focusId = null,
   canal = "todos",
   counts,
 }: {
   initialRows: InboxRow[];
   vista: string;
+  focusId?: string | null;
   canal?: "todos" | "email" | "whatsapp";
   counts: { pendientes: number; respondidos: number; archivados: number };
 }) {
@@ -648,7 +656,7 @@ export default function AdminInboxPanel({
       ) : (
         <ul className="space-y-2">
           {rows.map((row) => (
-            <EmailCard key={row.id} row={row} onUpdate={updateRow} />
+            <EmailCard key={row.id} row={row} onUpdate={updateRow} focused={row.id === focusId} />
           ))}
         </ul>
       )}
