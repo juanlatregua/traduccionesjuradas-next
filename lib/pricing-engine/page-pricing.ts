@@ -3,7 +3,11 @@
 // (calculator.ts), el diagnóstico de la puerta, el checkout, el builder de staff,
 // el chatbot y el puente a lavori. Sin imports de servidor.
 //
-//  · FR→ES: 30 € + IVA por página. El traductor es Juan: coste 0, motor propio.
+//  · FR→ES: por DOCUMENTO (decisión Juan, 22-oct-2026), cualquier tipo salvo RC y
+//    extractos (tarifa propia) y los «por palabra» (FR_WORD_PRICED_TYPES): hasta
+//    2 páginas, 1 pág. 30 €, 2 pág. 35 €, y 55 € si pasa de 900 palabras. Desde 3
+//    páginas Juan precio a mano: los certificados siguen a 30 €/página y el resto
+//    cae al motor por palabra. El traductor es Juan: coste 0, motor propio.
 //  · DE→ES: 30 € + IVA por página; con TABLAS (notas, expedientes, extractos
 //    bancarios) 35 €. Coste de Morton: 10 €/página, 15 € con tablas. El precio
 //    sale AL MOMENTO (sin esperar a lavori) y al pagar el encargo va a Morton con
@@ -38,6 +42,28 @@ export const FR_BANK_DOC_EUR = 30;
 export const FR_BANK_BULK_MIN = 5;
 export const FR_BANK_BULK_1P_EUR = 15;
 export const FR_BANK_BULK_EXTRA_PAGE_EUR = 5;
+
+/** FR→ES por documento (22-oct): hasta FR_DOC_MAX_PAGES páginas, 1 pág. 30 €, 2 pág. 35 €,
+ * y 55 € si el documento pasa de FR_DOC_LONG_WORDS palabras. Sin palabras: ≤ 900. */
+export const FR_DOC_MAX_PAGES = 2;
+export const FR_DOC_LONG_WORDS = 900;
+export const FR_DOC_2P_EUR = 35;
+export const FR_DOC_LONG_EUR = 55;
+
+/** Tipos FR que NO entran en el precio por documento: se cobran por palabra por
+ * diseño (contratos, poderes, sentencias) o van a mano (apostilla suelta). */
+export const FR_WORD_PRICED_TYPES = new Set(["contract", "power_of_attorney", "divorce_decree", "apostille"]);
+
+/** ¿Este documento FR entra en el precio por documento? (tipo no excluido y categoría no «legal»: sentencias y escrituras que el análisis deja en «other»). */
+export function isFrPerDocType(specificType: string | null | undefined, category?: string | null): boolean {
+  const type = String(specificType || "").trim().toLowerCase();
+  return (
+    type !== "company_registration" &&
+    type !== "bank_statement" &&
+    !FR_WORD_PRICED_TYPES.has(type) &&
+    String(category || "").trim().toLowerCase() !== "legal"
+  );
+}
 
 /** Idiomas con precio por página (siempre hacia el español). */
 export const PAGE_PRICED_LANGS = new Set(["fr", "de"]);
@@ -122,11 +148,16 @@ export function computePagePricing(input: {
   apostilleSeparatePage?: boolean | null;
   /** Extractos bancarios del mismo presupuesto (precio de lote en francés). */
   bankStatementsInQuote?: number | null;
+  /** Palabras estimadas del documento (FR→ES por documento; sin dato = ≤ 900). */
+  words?: number | null;
+  /** Categoría del análisis (document_type.category): «legal» queda fuera del precio por documento. */
+  category?: string | null;
 }): PagePricing | null {
   const lang = String(input.foreignLang || "").trim().toLowerCase();
   const type = String(input.specificType || "").trim().toLowerCase();
   if (!input.inbound || !PAGE_PRICED_LANGS.has(lang)) return null;
-  if (!isPagePricedType(type) && !(lang === "fr" && FR_ONLY_PAGE_TYPES.has(type))) return null;
+  const frPerDoc = lang === "fr" && isFrPerDocType(type, input.category);
+  if (!isPagePricedType(type) && !(lang === "fr" && FR_ONLY_PAGE_TYPES.has(type)) && !frPerDoc) return null;
   const apostille = input.hasApostille === true;
   // La hoja de apostilla solo se descuenta si el análisis dice expresamente que
   // ocupa una página aparte. En la duda se cobran todas las páginas (+5 €): antes
@@ -136,6 +167,19 @@ export function computePagePricing(input: {
   const tables = lang === "de" && detectTables({ specificType: input.specificType, hasTables: input.hasTables });
   const pricePerPage = tables ? PAGE_PRICE_DE_TABLES_EUR : PAGE_PRICE_EUR;
   const costPerPage = lang === "de" ? (tables ? PAGE_COST_DE_TABLES_EUR : PAGE_COST_DE_EUR) : 0;
+  if (frPerDoc && pages <= FR_DOC_MAX_PAGES) {
+    const doc = Number(input.words) > FR_DOC_LONG_WORDS ? FR_DOC_LONG_EUR : pages === 1 ? PAGE_PRICE_EUR : FR_DOC_2P_EUR;
+    return {
+      pages,
+      tables,
+      apostille,
+      pricePerPage: round2(doc / pages),
+      priceEur: round2(doc + (apostille ? APOSTILLE_EXTRA_EUR : 0)),
+      costPerPage: 0,
+      costEur: 0,
+    };
+  }
+  if (frPerDoc && !isPagePricedType(type)) return null;
   const frDoc = lang === "fr" ? frDocumentPrice(type, pages, Number(input.bankStatementsInQuote) || 1) : null;
   if (frDoc !== null) {
     return {
@@ -258,7 +302,7 @@ export function dePagePactado(
  * páginas del mismo idioma? Solo esas suman +5 €; el resto (sin documento al que
  * acompañar) queda para precio a mano. Devuelve, por fila, si procede el +5 €. */
 export function pairApostilles(
-  rows: Array<{ specificType?: string | null; foreignLang?: string | null; include?: boolean; hasApostille?: boolean }>
+  rows: Array<{ specificType?: string | null; foreignLang?: string | null; include?: boolean; hasApostille?: boolean; pages?: number | null; category?: string | null }>
 ): boolean[] {
   return rows.map((r, i) => {
     if (String(r.specificType || "").toLowerCase() !== "apostille") return false;
@@ -271,7 +315,8 @@ export function pairApostilles(
         // si el documento ya lleva su apostilla (+5 € incluido), otra fila de
         // apostilla emparejada con él cobraría dos veces
         !o.hasApostille &&
-        isPagePricedType(o.specificType) &&
+        (isPagePricedType(o.specificType) ||
+          (lang === "fr" && billablePages(o.pages) <= FR_DOC_MAX_PAGES && isFrPerDocType(o.specificType, o.category))) &&
         String(o.foreignLang || "").toLowerCase() === lang
     );
   });
