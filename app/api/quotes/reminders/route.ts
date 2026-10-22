@@ -15,17 +15,11 @@ import { replyGate, replyLink, type ReplyEvidence } from "@/lib/respuesta-guard"
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { barrerCasosSinVida, recalcularCaso } from "@/lib/caso/sombra";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 const REPLIED_MARK = "[AVISO STAFF] cliente contestó";
 
 export const runtime = "nodejs";
-
-function hasCronAuth(req: Request) {
-  const secret = process.env.QUOTES_CRON_SECRET || process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("x-cron-secret") || req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
-}
 
 // Aviso a Juan por dos canales (email + SMS) una sola vez por contacto; el rastro es un MessageLog.
 async function notifyClientReplied(
@@ -56,7 +50,18 @@ async function notifyClientReplied(
 }
 
 export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+  return handle(req, false);
+}
+
+export async function POST(req: Request) {
+  return handle(req, true);
+}
+
+async function handle(req: Request, allowStaff: boolean) {
+  if (!hasCronSecret(req, process.env.QUOTES_CRON_SECRET || process.env.CRON_SECRET)) {
+    if (!allowStaff) {
+      return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+    }
     const access = await requireStaffAccess(req);
     if (!access.ok) {
       return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
@@ -526,4 +531,3 @@ export async function GET(req: Request) {
   });
 }
 
-export const POST = GET;

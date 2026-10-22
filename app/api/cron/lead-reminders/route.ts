@@ -8,19 +8,13 @@ import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendClientSMS, sendStaffAlertSMS, formatPhoneSpain } from "@/lib/sms";
 import { findLiveBlock } from "@/lib/respuesta-guard-db";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 
 export const runtime = "nodejs";
 
-function hasCronAuth(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
 

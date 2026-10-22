@@ -1,12 +1,11 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 const RETENTION_DAYS = 90;
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret (Vercel Cron uses this header)
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 

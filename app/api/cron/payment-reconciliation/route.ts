@@ -3,21 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { sendPaymentReconciliationAlertEmail } from "@/lib/email";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 
 /* Cron diario: cruza los pagos confirmados en Stripe contra los pedidos PAID
    de la BD y alerta por email de cualquier pago cobrado sin pedido. */
 
-function hasCronAuth(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
 

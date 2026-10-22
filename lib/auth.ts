@@ -21,6 +21,12 @@ export const authOptions: NextAuthOptions = {
     signIn: "/acceso",
   },
   callbacks: {
+    async signIn({ account, profile }) {
+      if (account?.provider === "google") {
+        return (profile as { email_verified?: boolean } | undefined)?.email_verified === true;
+      }
+      return true;
+    },
     async redirect({ url, baseUrl }) {
       try {
         const parsed = new URL(url, baseUrl);

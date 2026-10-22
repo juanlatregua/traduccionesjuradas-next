@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runLeadSla } from "@/lib/lead-sla";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -7,15 +8,8 @@ export const maxDuration = 60;
 /* Cron cada 10 min: lead sin presupuesto enviado a 1 h y a 2,5 h de su llegada → un
    aviso agrupado por email y por SMS (franja 08-22 Madrid). Regla de Juan 22-oct-2026. */
 
-function hasCronAuth(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
   try {

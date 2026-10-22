@@ -8,6 +8,7 @@ import {
 } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 
@@ -19,22 +20,24 @@ export const runtime = "nodejs";
  *   B) Entregado pero frío (SENT/OPENED, sin abrir, > COLD_DAYS) → EMAIL (con pay-link).
  *   C) Lead @whatsapp.local → borrador de WhatsApp para envío manual + aviso al staff.
  *
- * SEGURO POR DEFECTO: dry-run (solo lista candidatos). Envía únicamente con ?send=true.
+ * SEGURO POR DEFECTO: dry-run (solo lista candidatos). Envía únicamente con ?send=true por POST de staff o con el secreto del cron.
  * Dedup: omite quotes que ya tienen un TRANSLATOR_REVIEW_OFFER registrado.
  *
  * REQUISITO DE DESPLIEGUE: el enum QuoteMessageType.TRANSLATOR_REVIEW_OFFER es nuevo;
  * ejecutar `npx prisma db push` ANTES de usar ?send=true (el dry-run funciona sin migrar).
  */
 
-function hasCronAuth(req: Request) {
-  const secret = process.env.QUOTES_CRON_SECRET || process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("x-cron-secret") || req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
+export async function GET(req: Request) {
+  return handle(req, false);
 }
 
-export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+export async function POST(req: Request) {
+  return handle(req, true);
+}
+
+async function handle(req: Request, mayAuthorizeSend: boolean) {
+  const viaCron = hasCronSecret(req, process.env.QUOTES_CRON_SECRET || process.env.CRON_SECRET);
+  if (!viaCron) {
     const access = await requireStaffAccess(req);
     if (!access.ok) {
       return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
@@ -42,7 +45,7 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const send = searchParams.get("send") === "true";
+  const send = searchParams.get("send") === "true" && (viaCron || mayAuthorizeSend);
   const COLD_DAYS = Number(process.env.QUOTES_COLD_DAYS || 2);
   const now = new Date();
   const coldThreshold = new Date(now.getTime() - COLD_DAYS * 24 * 60 * 60 * 1000);
@@ -243,4 +246,3 @@ function candidatesName(c: { email: string }) {
   return local || "cliente";
 }
 
-export const POST = GET;
