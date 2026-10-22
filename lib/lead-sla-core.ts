@@ -92,7 +92,7 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
     });
   }
   for (const s of solicitudes) {
-    if (s.status !== "SENT" || s.priceCents != null) continue;
+    if (s.status !== "SENT" || s.priceCents != null || s.createdAt.getTime() < since) continue;
     arrivals.push({
       clientEmail: null, clientName: null, clientPhone: null, sessionToken: null, fileHash: null,
       at: s.createdAt, kind: "lavori", name: s.customerHint, email: null, phone: null, pair: s.par, fileKey: null, motor: null,
@@ -117,7 +117,7 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
   const byRoot = new Map<string, Arrival[]>();
   const push = (root: string | null, a: Arrival) => { if (root) byRoot.set(root, [...(byRoot.get(root) || []), a]); };
   for (const a of personArrivals) push(g.rootOf(g.leadKeys(a)), a);
-  const pendingSols = solicitudes.filter((s) => s.status === "SENT" && s.priceCents == null);
+  const pendingSols = solicitudes.filter((s) => s.status === "SENT" && s.priceCents == null && s.createdAt.getTime() >= since);
   pendingSols.forEach((s, i) => push(g.rootOf(g.solKeys(s)), solArrivals[i]));
 
   const out: SlaLead[] = [];

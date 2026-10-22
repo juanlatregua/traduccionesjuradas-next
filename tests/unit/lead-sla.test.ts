@@ -74,6 +74,11 @@ test("solicitud a lavori SENT sin precio cuenta; con precio no", () => {
   const sol = (priceCents: number | null) => ({ ref: "LEAD-1", customerHint: "Pepe pepe@x.com", expedienteRef: null, quoteId: null, status: "SENT", priceCents, par: "NL>ES", createdAt: ago(100) });
   assert.equal(run({ solicitudes: [sol(null)] }).length, 1);
   assert.equal(run({ solicitudes: [sol(5000)] }).length, 0);
+  const oldSol = { ...sol(null), ref: "LEAD-OLD", createdAt: ago(60 * 30) };
+  assert.equal(run({ solicitudes: [oldSol] }).length, 0, "solicitud de hace más de 24 h es historia, no llegada");
+  const mixed = run({ solicitudes: [oldSol], docs: [doc("pepe@x.com", 90)] });
+  assert.equal(mixed.length, 1);
+  assert.equal(mixed[0].minutes, 90, "la solicitud vieja no adelanta la primera llegada");
 });
 
 test("horas de SMS: 08:00-22:00 Madrid", () => {

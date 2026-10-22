@@ -36,7 +36,7 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
     prisma.order.findMany({ where: { paymentStatus: "PAID", paidAt: { gte: since } }, select: { clientEmail: true, clientName: true, clientPhone: true } }),
   ]);
   const hashesOfQuote = await loadQuoteHashes(quotes.map((q) => q.id));
-  const staffEmails = [...getStaffEmails(), process.env.PRESUPUESTO_TO, process.env.ADMIN_EMAIL, process.env.EMAIL_FROM].filter((e): e is string => !!e);
+  const staffEmails = [...getStaffEmails(), process.env.PRESUPUESTO_TO, process.env.ADMIN_EMAIL, process.env.EMAIL_FROM, "info@traduccionesjuradas.net"].filter((e): e is string => !!e);
   return selectLeadSla({
     now,
     docs: docs.map((d) => ({ ...d, quoteAmount: d.quoteAmount == null ? null : Number(d.quoteAmount) })),
@@ -132,7 +132,7 @@ export async function runLeadSla(now = new Date()) {
   if (claimed.length) {
     if (!staff) sms = "off";
     else {
-      sms = await sendSMS({ to: formatPhoneSpain(staff), body: renderSms(claimed.map((c) => c.lead)), channel: "sms" }).then((r) => (r.ok ? "ok" : "fail"), () => "fail");
+      sms = await sendSMS({ to: formatPhoneSpain(staff), body: renderSms([...new Map(claimed.map((c) => [c.lead.root, c.lead])).values()]), channel: "sms" }).then((r) => (r.ok ? "ok" : "fail"), () => "fail");
       if (sms === "fail") console.error("[lead-sla] sms failed");
     }
   }
