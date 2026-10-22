@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 }
 
 async function handle(req: Request, mayAuthorizeSend: boolean) {
-  const viaCron = hasCronSecret(req, process.env.QUOTES_CRON_SECRET || process.env.CRON_SECRET);
+  const viaCron = hasCronSecret(req, process.env.QUOTES_CRON_SECRET, process.env.CRON_SECRET);
   if (!viaCron) {
     const access = await requireStaffAccess(req);
     if (!access.ok) {

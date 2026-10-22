@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 }
 
 async function handle(req: Request, allowStaff: boolean) {
-  if (!hasCronSecret(req, process.env.QUOTES_CRON_SECRET || process.env.CRON_SECRET)) {
+  if (!hasCronSecret(req, process.env.QUOTES_CRON_SECRET, process.env.CRON_SECRET)) {
     if (!allowStaff) {
       return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
     }
