@@ -45,6 +45,7 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     include: true,
     documentTypeEs: d.documentTypeEs,
     documentType: d.documentType,
+    category: d.category ?? undefined,
     sourceLang: d.sourceLang,
     sourceName: d.sourceName,
     targetLang: d.targetLang,
@@ -84,6 +85,7 @@ type DocRow = {
   // datos extraídos
   documentTypeEs?: string;
   documentType?: string; // specific_type del engine (para re-pricear)
+  category?: string; // document_type.category del análisis («legal» sale del precio por documento)
   sourceLang?: string;
   sourceName?: string;
   targetLang?: string;
@@ -899,6 +901,7 @@ export default function StaffExpedienteIntake({
           include: d.include,
           hasApostille: d.hasApostille,
           pages: d.pages,
+          category: d.category,
         }))
       );
       // Extractos bancarios FR del expediente: a partir de FR_BANK_BULK_MIN, precio de lote.
@@ -940,6 +943,7 @@ export default function StaffExpedienteIntake({
           hasTables: d.hasTables,
           apostilleSeparatePage: d.apostilleSeparatePage,
           bankStatementsInQuote,
+          category: d.category,
         });
         // Tarifa por página DE→ES: el coste de la línea es el de Morton y el
         // precio de venta se fija aparte (sin margen tiered ni suelo de 40 €).
