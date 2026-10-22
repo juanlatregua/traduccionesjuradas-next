@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { hasInboxMessageFrom, isInboxConfigured } from "@/lib/azure-mail-read";
+import { findInboxMessageFrom, isInboxConfigured } from "@/lib/azure-mail-read";
 import { getMailboxAddress } from "@/lib/azure-mail";
 import { isStaffEmail } from "@/lib/staff-access";
 import { phoneKey, realEmailKey } from "@/lib/client-identity";
 import {
   expandIdentity, isOwnAddress, liveBlock, LIVE_DAYS,
-  type Identity, type LiveFact, type Pair,
+  type Identity, type LiveFact, type Pair, type ReplyEvidence,
 } from "@/lib/respuesta-guard";
 
 const eq = (f: string, emails: string[]) => emails.map((e) => ({ [f]: { equals: e, mode: "insensitive" as const } }));
@@ -105,7 +105,7 @@ export async function findLiveBlock(seed: Pair, opts: { now?: Date; leadAt?: Dat
 
 export const GRAPH_CHECKS_PER_RUN = 40;
 
-export type ReplyCheck = { ok: boolean; replied: boolean };
+export type ReplyCheck = { ok: boolean; replied: boolean; evidence?: ReplyEvidence };
 
 /**
  * Comprobador de respuestas de UNA ejecución: primero lo ya importado (email/WhatsApp en InboundEmail),
@@ -113,34 +113,37 @@ export type ReplyCheck = { ok: boolean; replied: boolean };
  * ok=false (Graph caído, sin configurar o sin cupo) → quien llama NO cierra ni recuerda.
  */
 export function createReplyChecker(limit = GRAPH_CHECKS_PER_RUN) {
-  const cache = new Map<string, boolean>();
+  const cache = new Map<string, ReplyEvidence | null>();
   let used = 0;
   return async function check(seed: Pair, since: Date): Promise<ReplyCheck> {
     const id = await loadIdentity(seed);
     const emails = [...id.emails].filter((e) => !isOwn(e));
     const phones = [...id.phones];
     if (!emails.length && !phones.length) return { ok: true, replied: false };
-    const n = await prisma.inboundEmail.count({
+    const inbound = await prisma.inboundEmail.findFirst({
       where: { receivedAt: { gt: since }, OR: [...eq("fromEmail", emails), ...ends("fromPhone", phones)] },
+      orderBy: { receivedAt: "desc" },
+      select: { id: true },
     });
-    if (n > 0) return { ok: true, replied: true };
+    if (inbound) return { ok: true, replied: true, evidence: { inboxEmailId: inbound.id } };
     if (!emails.length) return { ok: true, replied: false };
     if (!isInboxConfigured()) return { ok: false, replied: false };
     for (const e of emails) {
       const key = `${e}|${since.getTime()}`;
-      let r = cache.get(key);
+      let r: ReplyEvidence | null | undefined = cache.get(key);
       if (r === undefined) {
         if (used >= limit) return { ok: false, replied: false };
         used += 1;
         try {
-          r = await hasInboxMessageFrom(e, since);
+          const m = await findInboxMessageFrom(e, since);
+          r = m ? { webLink: m.webLink ?? undefined } : null;
         } catch (err) {
           console.error("[respuesta-guard] Graph falló, no se cierra/recuerda:", err);
           return { ok: false, replied: false };
         }
         cache.set(key, r);
       }
-      if (r) return { ok: true, replied: true };
+      if (r) return { ok: true, replied: true, evidence: r };
     }
     return { ok: true, replied: false };
   };

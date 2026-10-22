@@ -11,12 +11,13 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams?: { vista?: string; canal?: string } };
+type Props = { searchParams?: { vista?: string; canal?: string; id?: string } };
 
 export default async function AdminInboxPage({ searchParams }: Props) {
   await requireAdminPageAccess("/admin/inbox");
 
-  const vista = searchParams?.vista || "pendientes";
+  const focusId = searchParams?.id || null;
+  const vista = searchParams?.vista || (focusId ? "todos" : "pendientes");
   const canal = searchParams?.canal === "whatsapp" ? "WHATSAPP" : searchParams?.canal === "email" ? "EMAIL" : null;
   const where = {
     ...(vista === "respondidos"
@@ -29,11 +30,13 @@ export default async function AdminInboxPage({ searchParams }: Props) {
     ...(canal ? { channel: canal as "EMAIL" | "WHATSAPP" } : {}),
   };
 
-  const emails = await prisma.inboundEmail.findMany({
+  const listed = await prisma.inboundEmail.findMany({
     where,
     orderBy: { receivedAt: "desc" },
     take: 100,
   });
+  const focused = focusId && !listed.some((e) => e.id === focusId) ? await prisma.inboundEmail.findUnique({ where: { id: focusId } }) : null;
+  const emails = focused ? [focused, ...listed] : listed;
 
   const counts = await prisma.inboundEmail.groupBy({
     by: ["status"],
@@ -92,6 +95,7 @@ export default async function AdminInboxPage({ searchParams }: Props) {
       <AdminInboxPanel
         initialRows={rows}
         vista={vista}
+        focusId={focusId}
         canal={canal === "WHATSAPP" ? "whatsapp" : canal === "EMAIL" ? "email" : "todos"}
         counts={{
           pendientes: (countMap.NEW || 0) + (countMap.DRAFTED || 0),

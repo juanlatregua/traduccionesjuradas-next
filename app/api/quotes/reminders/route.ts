@@ -10,8 +10,8 @@ import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-c
 import { buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
 import { deduceLostReasonFor } from "@/lib/cierre";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { createReplyChecker } from "@/lib/respuesta-guard-db";
-import { replyGate } from "@/lib/respuesta-guard";
+import { createReplyChecker, type ReplyCheck } from "@/lib/respuesta-guard-db";
+import { replyGate, replyLink, type ReplyEvidence } from "@/lib/respuesta-guard";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { barrerCasosSinVida, recalcularCaso } from "@/lib/caso/sombra";
@@ -33,19 +33,21 @@ async function notifyClientReplied(
   lastContact: Date,
   baseUrl: string,
   action: string,
+  evidence?: ReplyEvidence,
 ) {
   try {
     const dup = await prisma.messageLog.findFirst({ where: { quoteId: quote.id, subject: REPLIED_MARK, createdAt: { gte: lastContact } }, select: { id: true } });
     if (dup) return;
-    const url = `${baseUrl}/zona-traductor/presupuestos/${quote.id}`;
+    const { url, quoteUrl, isMessage } = replyLink({ baseUrl, quoteId: quote.id, evidence });
     const what = action === "close" ? "no se ha cerrado" : "no se le ha recordado";
     const text = `El cliente contestó después del último contacto del presupuesto ${quote.quoteNumber} (${quote.customerName || quote.customerEmail}): ${what}. Revisa su respuesta en el buzón: ${url}`;
+    const emailText = isMessage ? `${text}\n\nPresupuesto: ${quoteUrl}` : text;
     await prisma.messageLog.create({ data: { quoteId: quote.id, channel: "EMAIL", type: "INBOX_REPLY", recipient: "staff", subject: REPLIED_MARK, body: text, status: "NOTICE" } });
     await sendMail({
       to: process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net",
       subject: `El cliente contestó: revisa ${quote.quoteNumber}`,
-      text,
-      html: renderSimpleEmailHtml(text),
+      text: emailText,
+      html: renderSimpleEmailHtml(emailText),
     }).catch((err) => console.error("[quotes:reminders] aviso email fallo", err));
     await sendStaffAlertSMS(`Cliente contesto (${quote.quoteNumber}): ${what}. Revisa: ${url}`, `cliente_contesto ${quote.quoteNumber}`).catch(() => {});
   } catch (err) {
@@ -205,7 +207,7 @@ export async function GET(req: Request) {
     // leer el buzón, tampoco: fail-safe.
     if (decision.action === "close" || decision.action === "remind_email") {
       const lastContact = decision.action === "close" ? (sentLog ? at(sentLog) : baseAt) : baseAt;
-      let chk = { ok: false, replied: false };
+      let chk: ReplyCheck = { ok: false, replied: false };
       // Ya avisado de su respuesta tras este contacto: sigue retenido sin volver a consultar Graph
       // (hasta que staff contacte de nuevo y mueva el último contacto).
       const noticed = !!lastContact && quote.messageLogs.some((m) => m.subject === REPLIED_MARK && m.createdAt >= lastContact);
@@ -224,7 +226,7 @@ export async function GET(req: Request) {
       }
       if (gate === "hold_replied") {
         heldReplied += 1;
-        await notifyClientReplied(quote, lastContact!, baseUrl, decision.action);
+        await notifyClientReplied(quote, lastContact!, baseUrl, decision.action, chk.evidence);
         continue;
       }
     }

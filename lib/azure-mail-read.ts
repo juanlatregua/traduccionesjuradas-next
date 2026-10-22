@@ -70,13 +70,18 @@ export async function listInboxMessages(opts: {
 }
 
 /** ¿Ha escrito `email` a la bandeja desde `since`? Una consulta con $top=5 (sin listar el buzón; ignora respuestas automáticas por asunto). Lanza si Graph falla. */
-export async function hasInboxMessageFrom(email: string, since: Date): Promise<boolean> {
+export async function findInboxMessageFrom(email: string, since: Date): Promise<{ id: string; webLink: string | null } | null> {
   const mailbox = getMailboxAddress();
   const addr = email.trim().toLowerCase().replace(/'/g, "''");
   const filter = encodeURIComponent(`from/emailAddress/address eq '${addr}' and receivedDateTime ge ${since.toISOString()}`);
-  const data = await graphGet(`/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages?$top=5&$filter=${filter}&$select=id,subject`);
+  const data = await graphGet(`/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages?$top=5&$filter=${filter}&$select=id,subject,webLink`);
   const rows: any[] = Array.isArray(data.value) ? data.value : [];
-  return rows.some((m) => !isAutoReplySubject(m.subject));
+  const m = rows.find((r) => !isAutoReplySubject(r.subject));
+  return m ? { id: String(m.id), webLink: m.webLink ? String(m.webLink) : null } : null;
+}
+
+export async function hasInboxMessageFrom(email: string, since: Date): Promise<boolean> {
+  return !!(await findInboxMessageFrom(email, since));
 }
 
 export interface SentMessageSummary {

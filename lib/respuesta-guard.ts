@@ -109,3 +109,14 @@ export function replyGate(i: { action: string; replied: boolean; inboxOk: boolea
   if (!i.inboxOk) return "hold_unknown";
   return "proceed";
 }
+
+export type ReplyEvidence = { inboxEmailId?: string; webLink?: string };
+
+/** Enlace al mensaje del cliente: bandeja propia > Outlook web > presupuesto. `quoteUrl` va siempre aparte. */
+export function replyLink(i: { baseUrl: string; quoteId: string; evidence?: ReplyEvidence | null }): { url: string; quoteUrl: string; isMessage: boolean } {
+  const quoteUrl = `${i.baseUrl}/zona-traductor/presupuestos/${i.quoteId}`;
+  const ev = i.evidence;
+  if (ev?.inboxEmailId) return { url: `${i.baseUrl}/admin/inbox?id=${encodeURIComponent(ev.inboxEmailId)}`, quoteUrl, isMessage: true };
+  if (ev?.webLink) return { url: ev.webLink, quoteUrl, isMessage: true };
+  return { url: quoteUrl, quoteUrl, isMessage: false };
+}
