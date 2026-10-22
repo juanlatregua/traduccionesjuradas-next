@@ -51,6 +51,10 @@
       "schedule": "45 6 * * *"
     },
     {
+      "path": "/api/cron/lead-sla",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/cron/verifactu-flush",
       "schedule": "*/2 * * * *"
     },
