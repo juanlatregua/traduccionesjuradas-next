@@ -16,6 +16,7 @@ import { isBlobConfigured } from "@/lib/payment-config";
 import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
 import { confirmManualPaymentWithSideEffects } from "@/lib/payments-confirm";
 import { issueOrUpdateInvoice } from "@/lib/client-invoice";
+import { verifyOrderToken } from "@/lib/order-token";
 
 export const runtime = "nodejs";
 
@@ -94,13 +95,16 @@ export async function POST(req: Request, { params }: Params) {
 
     const isStaff = !!sessionEmail && isStaffEmail(sessionEmail);
     const isAuthenticatedOwner = !!sessionEmail && sessionEmail === order.clientEmail.toLowerCase();
-    const isGuestOwner = !sessionEmail && !!clientEmailRaw && clientEmailRaw === order.clientEmail.toLowerCase();
+    const orderToken = String(formData.get("token") || new URL(req.url).searchParams.get("token") || "");
+    const hasValidToken = !!orderToken && verifyOrderToken(order.reference, orderToken);
+    const isGuestOwner =
+      !sessionEmail && hasValidToken && !!clientEmailRaw && clientEmailRaw === order.clientEmail.toLowerCase();
     if (!isStaff && !isAuthenticatedOwner && !isGuestOwner) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "No autorizado para subir comprobante. Inicia sesion o indica el mismo email del pedido.",
+            "No autorizado para subir comprobante. Inicia sesion o usa el enlace de pago que te enviamos.",
         },
         { status: 403 }
       );
@@ -208,7 +212,7 @@ export async function POST(req: Request, { params }: Params) {
       },
     });
 
-    if (trustedCustomer) {
+    if (trustedCustomer && (isStaff || hasValidToken)) {
       const method = paymentMethod === "BIZUM" ? "BIZUM" : "TRANSFER";
       const actor = sessionEmail || clientEmailRaw || order.clientEmail;
       let confirmed = false;

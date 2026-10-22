@@ -167,24 +167,13 @@ else
 fi
 
 echo
-echo "4) Idempotencia creación de pedidos"
-IDEMP_KEY="smoke-$(date +%s)-$RANDOM"
-ORDER_TITLE="SMOKE GO $(date +%s)"
-ORDER_BODY="$(cat <<JSON
-{"source":"file","title":"$ORDER_TITLE","langPair":"fr-es","amountCents":100,"guestEmail":"$TEST_EMAIL","idempotencyKey":"$IDEMP_KEY"}
-JSON
-)"
-
-resp1="$(curl -sS -H "content-type: application/json" -H "x-idempotency-key: $IDEMP_KEY" \
-  -d "$ORDER_BODY" "$BASE_URL/api/orders")"
-resp2="$(curl -sS -H "content-type: application/json" -H "x-idempotency-key: $IDEMP_KEY" \
-  -d "$ORDER_BODY" "$BASE_URL/api/orders")"
-ref1="$(echo "$resp1" | extract_reference)"
-ref2="$(echo "$resp2" | extract_reference)"
-if [[ -n "$ref1" && -n "$ref2" && "$ref1" == "$ref2" ]]; then
-  pass "Idempotencia activa: misma referencia en reintento"
+echo "4) Creación pública de pedidos cerrada"
+code="$(curl -sS -o /dev/null -w "%{http_code}" -H "content-type: application/json" \
+  -d "{\"source\":\"file\",\"title\":\"SMOKE GO\",\"langPair\":\"fr-es\",\"amountCents\":100,\"guestEmail\":\"$TEST_EMAIL\"}" "$BASE_URL/api/orders")"
+if [[ "$code" == "410" ]]; then
+  pass "POST /api/orders cerrado al público (410)"
 else
-  fail "Idempotencia fallida (ref1=$ref1 ref2=$ref2)"
+  fail "POST /api/orders debería devolver 410 sin sesión de staff (HTTP $code)"
 fi
 
 echo

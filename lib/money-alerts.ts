@@ -128,3 +128,31 @@ export async function alertQuoteBridgeResolved(input: { quoteId: string; quoteNu
     console.error("[cobro-sin-pedido] aviso resuelto fallo:", err);
   }
 }
+
+/** Pasarela y servidor no coinciden en el importe cobrado: no se marca PAID, aviso por dos canales. */
+export async function alertPaymentAmountMismatch(input: {
+  via: string;
+  ref: string;
+  expectedCents: number;
+  receivedCents: number | null;
+  detail?: string;
+}): Promise<void> {
+  const eur = (c: number | null) => (c == null ? "desconocido" : `${(c / 100).toFixed(2)} €`);
+  const texto = [
+    `IMPORTE NO COINCIDE (${input.via}) en ${input.ref}: cobrado ${eur(input.receivedCents)}, esperado ${eur(input.expectedCents)}.`,
+    "El pedido/presupuesto NO se ha marcado como pagado. Revisa el cobro en la pasarela y devuélvelo o regulariza a mano.",
+    input.detail || "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  console.error("[pago-importe]", texto);
+  await Promise.all([
+    sendMail({ to: adminEmail(), subject: `⚠ Importe no coincide: ${input.ref} (${input.via})`, text: texto, html: renderSimpleEmailHtml(texto) }).catch((err) =>
+      console.error("[pago-importe] email fallo:", err)
+    ),
+    sendStaffAlertSMS(
+      `TraduccionesJuradas: IMPORTE NO COINCIDE ${input.via} ${input.ref}, cobrado ${eur(input.receivedCents)} vs esperado ${eur(input.expectedCents)}. NO marcado pagado. Mira el email.`,
+      `importe_no_coincide ${input.ref}`
+    ).catch(() => {}),
+  ]);
+}

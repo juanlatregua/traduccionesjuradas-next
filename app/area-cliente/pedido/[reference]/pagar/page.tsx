@@ -398,6 +398,7 @@ export default function PagarPage() {
       if (proofEmail.trim()) {
         formData.append("clientEmail", proofEmail.trim().toLowerCase());
       }
+      if (orderToken) formData.append("token", orderToken);
       const res = await fetch(`/api/orders/${reference}/payment-proof`, {
         method: "POST",
         body: formData,
@@ -428,6 +429,7 @@ export default function PagarPage() {
       if (proofEmail.trim()) {
         formData.append("clientEmail", proofEmail.trim().toLowerCase());
       }
+      if (orderToken) formData.append("token", orderToken);
       const res = await fetch(`/api/orders/${reference}/documents`, {
         method: "POST",
         body: formData,

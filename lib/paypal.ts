@@ -97,7 +97,7 @@ export async function capturePayPalOrder(paypalOrderId: string, requestId?: stri
     purchase_units?: Array<{
       reference_id?: string;
       payments?: {
-        captures?: Array<{ id: string; status: string }>;
+        captures?: Array<{ id: string; status: string; amount?: { currency_code?: string; value?: string } }>;
       };
     }>;
   };
