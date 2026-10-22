@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { del, list } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 const RETENTION_DAYS = 30;
 // Expedientes de clientes (carpeta expedientes-clientes/): suben ANTES de pulsar
@@ -61,8 +62,7 @@ const PAID_STATUSES = [
 ] as const;
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 

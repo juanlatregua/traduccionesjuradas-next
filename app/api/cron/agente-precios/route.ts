@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runAgentePrecios, renderResumenHtml } from "@/lib/agente-precios";
 import { sendMail } from "@/lib/azure-mail";
 import { wrapClientEmailHtml } from "@/lib/email";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,15 +11,8 @@ export const maxDuration = 60;
    Auto-aprueba las tarifas con patrón repetido, degrada las que se mueven y manda
    a Juan UN email resumen. Kill-switch: LEARNED_RATES_AUTO=off. */
 
-function hasCronAuth(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
   try {

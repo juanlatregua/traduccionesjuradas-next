@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 const STUCK_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 

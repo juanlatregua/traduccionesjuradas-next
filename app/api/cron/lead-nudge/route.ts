@@ -9,21 +9,15 @@ import { SITE_BASE_URL } from "@/lib/contact";
 import { resolveLocale } from "@/lib/i18n/locales";
 import { findLiveBlock } from "@/lib/respuesta-guard-db";
 import { createReviewToken, groupNudgeLeads, nudgeSkipReason } from "@/lib/lead-nudge";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
-
-function hasCronAuth(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
-}
 
 // Orden de Juan (6-oct-2026): al lead de la puerta que VIO precio y no pagó, un
 // email a los ~5 min («No olvide finalizar su pedido» + «revisar a mano»).
 // Una vez por persona y 7 días (checkRateLimit), solo con consentimiento (LSSI).
 export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
   const secret = process.env.NEXTAUTH_SECRET;

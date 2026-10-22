@@ -4,6 +4,7 @@ import { sendPaymentReminderEmail, sendStaffPaymentPendingEmail } from "@/lib/em
 import { sendNotification } from "@/lib/sms";
 import { buildSignedOrderUrl } from "@/lib/order-token";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex, orderChaseSkipReason } from "@/lib/client-contact-guard";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 
@@ -19,13 +20,6 @@ const EV_STAGE1 = "order.payment_reminder_sent";
 const EV_STAGE2 = "order.payment_reminder_staff_only_sent";
 const EV_SKIPPED = "order.payment_reminder_skipped"; // ya es cliente o ya mandó justificante: no se le escribe
 const EV_PROOF = ["payment.proof_uploaded", "payment.transfer_declared"];
-
-function hasCronAuth(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
-}
 
 function staffWhatsApp() {
   return process.env.STAFF_WHATSAPP_ALERT || "+34663727415";
@@ -46,7 +40,7 @@ async function alertStaffWhatsApp(body: string) {
 }
 
 export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
 

@@ -3,6 +3,7 @@ import { buildSeoDigest, buildSeoDigestHtml, buildIndexingHtml } from "@/lib/seo
 import { buildIndexingReport, type IndexingReport } from "@/lib/seo-indexing";
 import { sendMail } from "@/lib/azure-mail";
 import { wrapClientEmailHtml } from "@/lib/email";
+import { hasCronSecret } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -12,15 +13,8 @@ export const maxDuration = 300;
    top páginas en los últimos 28 días. El análisis profundo (AEO/fixes) lo hace
    el subagente seo-aeo bajo demanda con estos datos. */
 
-function hasCronAuth(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get("authorization") || "";
-  return header === secret || header === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!hasCronAuth(req)) {
+  if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
 

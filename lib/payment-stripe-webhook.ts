@@ -4,6 +4,7 @@ import { createOrderFromSession, updateOrderPayment } from "@/lib/orders";
 import { sendPaymentConfirmedEmail, sendNewOrderStaffEmail, sendWebhookFailureAlertEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 
 export async function handleStripeOrderWebhook(req: Request, source = "stripe_webhook") {
@@ -18,11 +19,14 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
     event = verifyWebhookSignature(body, signature);
   } catch (err: any) {
     console.error(`[${source}] signature verification failed`, err?.message);
-    await sendWebhookFailureAlertEmail({
-      reason: "Verificacion de firma fallida",
-      detail: err?.message,
-      source,
-    }).catch((e) => console.error(`[${source}] alert email failed`, e));
+    const alertSlot = await checkRateLimit({ key: "stripe-webhook-alert", limit: 3, windowMs: 60 * 60 * 1000 });
+    if (alertSlot.ok) {
+      await sendWebhookFailureAlertEmail({
+        reason: "Verificacion de firma fallida",
+        detail: err?.message,
+        source,
+      }).catch((e) => console.error(`[${source}] alert email failed`, e));
+    }
     return NextResponse.json({ ok: false, error: "Invalid signature." }, { status: 400 });
   }
 
