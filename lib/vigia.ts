@@ -4,7 +4,9 @@
 // /api/cron/vigia-agenda (email de las 8:00). Una sola fuente de verdad.
 import { prisma } from "@/lib/prisma";
 import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed, periodLabel } from "@/lib/credit-terms";
-import { PersonIndex, chaseState, solicitudChase, consolidate, duplicateOf, intermediaryEmails, personKeys, primaryKey, textKeys, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
+import { buildPersonGraph } from "@/lib/vigia-graph";
+import { loadQuoteHashes } from "@/lib/vigia-graph-db";
+import { chaseState, solicitudChase, consolidate, duplicateOf, primaryKey, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
 import { vigiaMarkUrl } from "@/lib/vigia-mark";
 import { NO_RESPONSE_NOTE, SEND_OVERDUE_HOURS, deduceLostReason, hasHumanOpen, whatsappNudgeText, isPlaceholderAddr } from "@/lib/cierre-math";
 import { findCostGapOrders, hasPaidSibling, loadColabExpenses } from "@/lib/cierre";
@@ -122,36 +124,9 @@ export async function buildVigia(days = 7): Promise<Vigia> {
   const quoteMap = new Map<string, QLite>();
   for (const q of [...windowQuotes, ...openQuotes]) quoteMap.set(q.id, { holder: (q as any).holderNames ?? null, name: (q as any).customerName ?? "", id: q.id, email: q.customerEmail, phone: (q as any).customerPhone ?? null, numero: q.quoteNumber, status: q.status, par: pairOf(q.sourceLang, q.targetLang), expRef: q.expedienteRef, createdAt: q.createdAt });
   const allQuotes = [...quoteMap.values()];
-  // Huellas de los documentos de cada presupuesto (misma vía que lavori-dup-guard).
-  const qLines = allQuotes.length ? await prisma.quoteLine.findMany({ where: { quoteId: { in: allQuotes.map((q) => q.id) }, sourceFileUrl: { not: null } }, select: { quoteId: true, sourceFileUrl: true } }).catch(() => []) : [];
-  const lineUrls = [...new Set(qLines.map((l) => l.sourceFileUrl!))];
-  const hashRows = lineUrls.length ? await prisma.documentAnalysis.findMany({ where: { fileUrl: { in: lineUrls }, fileHash: { not: null } }, select: { fileUrl: true, fileHash: true } }).catch(() => []) : [];
-  const hashOfUrl = new Map(hashRows.map((r) => [r.fileUrl, r.fileHash!]));
-  const hashesOfQuote = new Map<string, string[]>();
-  for (const l of qLines) { const h = hashOfUrl.get(l.sourceFileUrl!); if (h) hashesOfQuote.set(l.quoteId, [...(hashesOfQuote.get(l.quoteId) || []), h]); }
+  const hashesOfQuote = await loadQuoteHashes(allQuotes.map((q) => q.id));
 
-  const multi = intermediaryEmails(allQuotes);
-  const quoteKeys = (q: QLite) => multi.has(normEmail(q.email)) ? personKeys({ refs: [q.expRef], hashes: hashesOfQuote.get(q.id), quoteIds: [q.id] }) : personKeys({ emails: [q.email], phones: [q.phone], refs: [q.expRef], hashes: hashesOfQuote.get(q.id), quoteIds: [q.id] });
-  const solKeys = (s: (typeof solicitudes)[number]) => [...textKeys(s.customerHint), ...personKeys({ refs: [s.expedienteRef], quoteIds: [s.quoteId] }), `r:${s.ref}`];
-  const leadKeys = (d: (typeof leadDocs)[number]) => personKeys({ emails: [d.clientEmail], phones: [d.clientPhone], sessions: [d.sessionToken], hashes: [d.fileHash] });
-  const orderKeys = (o: { clientEmail: string | null; clientPhone: string | null }) => personKeys({ emails: [o.clientEmail], phones: [o.clientPhone] });
-  // Huella del documento: une lead↔solicitud↔presupuesto de quien no ha comprado; nunca arrastra
-  // a otra persona a quien ya pagó (otro email y otro teléfono con el mismo PDF).
-  const graphItems: { keys: string[]; name?: string | null }[] = [
-    ...allQuotes.map((q) => ({ keys: quoteKeys(q), name: q.name })),
-    ...solicitudes.map((x) => ({ keys: solKeys(x) })),
-    ...leadDocs.map((d) => ({ keys: leadKeys(d), name: d.clientName })),
-    ...paidOrdersWindow.map((o) => ({ keys: orderKeys(o), name: o.clientName })),
-  ];
-  const idx0 = new PersonIndex(graphItems.map((i) => ({ ...i, keys: i.keys.filter((k) => !k.startsWith("h:")) })));
-  const paid0 = new Set(paidOrdersWindow.map((o) => idx0.rootOf(orderKeys(o))).filter((r): r is string => !!r));
-  const idx = new PersonIndex(graphItems.map((i) => { const r0 = idx0.rootOf(i.keys.filter((k) => !k.startsWith("h:"))); return r0 && paid0.has(r0) ? { ...i, keys: i.keys.filter((k) => !k.startsWith("h:")) } : i; }));
-  const rootOf = (keys: string[]) => idx.rootOf(keys) ?? keys[0] ?? null;
-  const quotesOfRoot = new Map<string, QLite[]>();
-  for (const q of allQuotes) { const r = rootOf(quoteKeys(q)); if (r) quotesOfRoot.set(r, [...(quotesOfRoot.get(r) || []), q]); }
-  const solsOfRoot = new Map<string, (typeof solicitudes)[number][]>();
-  for (const s of solicitudes) { const r = rootOf(solKeys(s)); if (r) solsOfRoot.set(r, [...(solsOfRoot.get(r) || []), s]); }
-  const paidRoots = new Set(paidOrdersWindow.map((o) => rootOf(orderKeys(o))).filter((r): r is string => !!r));
+  const { idx, rootOf, quoteKeys, solKeys, leadKeys, orderKeys, quotesOfRoot, solsOfRoot, paidRoots } = buildPersonGraph({ quotes: allQuotes, solicitudes, leadDocs, paidOrders: paidOrdersWindow, hashesOfQuote });
 
   // Qué se le ha dicho ya a cada persona (MessageLog de todos sus presupuestos + marcas).
   const marksByKey = new Map<string, ChaseMark[]>();
