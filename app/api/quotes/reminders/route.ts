@@ -13,6 +13,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { createReplyChecker, type ReplyCheck } from "@/lib/respuesta-guard-db";
 import { replyGate, replyLink, type ReplyEvidence } from "@/lib/respuesta-guard";
 import { sendMail } from "@/lib/azure-mail";
+import { AMOUNT_MISMATCH_MARK } from "@/lib/money-alerts-math";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { barrerCasosSinVida, recalcularCaso } from "@/lib/caso/sombra";
 import { hasCronSecret } from "@/lib/cron-auth";
@@ -97,6 +98,8 @@ async function handle(req: Request, allowStaff: boolean) {
       // Con pedido (declaró transferencia, carril de crédito…) se persigue por el pedido/factura,
       // no por aquí: ni 2º contacto ni cierre.
       orders: { none: {} },
+      // Cobro con importe que no cuadra: el cliente ya pagó algo, no se le vuelve a pedir.
+      messageLogs: { none: { subject: AMOUNT_MISMATCH_MARK } },
       // Pago congelado (lib/precio-tras-envio): ni recordatorio ni cierre hasta que el staff decida.
       paymentFrozenAt: null,
       sentAt: {
@@ -147,6 +150,7 @@ async function handle(req: Request, allowStaff: boolean) {
       // (se trabaja y entrega antes de cobrar; el Quote se queda ACCEPTED a
       // propósito para que el enlace de pago siga vivo hasta el vencimiento).
       orders: { none: {} },
+      messageLogs: { none: { subject: AMOUNT_MISMATCH_MARK } },
     },
     include: {
       // ¿Se entregó realmente al cliente alguna vez? (para no enviar un aviso de

@@ -14,6 +14,7 @@ import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { clientBaseFromQuote } from "@/lib/pricing-engine/page-pricing";
 import { AUTO_PRICEABLE_FOREIGN, isPublicAutoPriceable, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
+import { REGULARIZACION_FR_DOC_CENTS, regularizacionFlatApplies } from "@/lib/regularizacion-price";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 
 export const runtime = "nodejs";
@@ -24,8 +25,7 @@ const WHATSAPP_URL = "https://wa.me/34951333614";
 const KNOWN_LANGUAGES = AUTO_PRICEABLE_FOREIGN;
 
 // Precio de campaña del arraigo extraordinario: 25 € pre-IVA por documento,
-// solo para documentos en francés dentro de una sesión de regularización 2026.
-const REGULARIZACION_FR_DOC_CENTS = 2500;
+// solo para documentos en francés de hasta 2 páginas dentro de una sesión de regularización 2026.
 
 type DocInput = { id: string; targetLanguage?: string };
 
@@ -259,9 +259,12 @@ export async function POST(req: Request) {
       (analysis.document_metrics?.pages ?? 0) >= 3;
 
     const quotedCents =
-      purpose === PURPOSE_REGULARIZACION_2026 &&
-      foreignLang === "fr" &&
-      !isFrenchCriminalRecord
+      regularizacionFlatApplies({
+        purposeIsRegularizacion: purpose === PURPOSE_REGULARIZACION_2026,
+        foreignLang,
+        pages: analysis.document_metrics?.pages,
+        isFrenchCriminalRecord,
+      })
         ? REGULARIZACION_FR_DOC_CENTS
         : Math.round(clientBaseFromQuote(quote, foreignLang) * 100);
 

@@ -11,6 +11,7 @@ import { isBlobConfigured } from "@/lib/payment-config";
 import { getWorkflowState } from "@/lib/workflow";
 import { sendSourceDocsUploadedStaffEmail } from "@/lib/email";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { verifyOrderToken } from "@/lib/order-token";
 
 export const runtime = "nodejs";
 
@@ -103,13 +104,16 @@ export async function POST(req: Request, { params }: Params) {
     const staffAccess = await requireStaffAccess(req);
     const isStaff = staffAccess.ok;
     const isAuthenticatedOwner = !!sessionEmail && sessionEmail === order.clientEmail.toLowerCase();
-    const isGuestOwner = !sessionEmail && !isStaff && !!clientEmailRaw && clientEmailRaw === order.clientEmail.toLowerCase();
+    const orderToken = String(formData.get("token") || new URL(req.url).searchParams.get("token") || "");
+    const hasValidToken = !!orderToken && verifyOrderToken(order.reference, orderToken);
+    const isGuestOwner =
+      !sessionEmail && !isStaff && hasValidToken && !!clientEmailRaw && clientEmailRaw === order.clientEmail.toLowerCase();
     if (!isStaff && !isAuthenticatedOwner && !isGuestOwner) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "No autorizado para subir documentos en este pedido. Inicia sesion o indica el email del pedido.",
+            "No autorizado para subir documentos en este pedido. Inicia sesion o usa el enlace que te enviamos.",
         },
         { status: 403 }
       );

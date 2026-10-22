@@ -5,6 +5,8 @@ import { sendPaymentConfirmedEmail, sendNewOrderStaffEmail, sendWebhookFailureAl
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { paidAmountMatches } from "@/lib/payment-amount-math";
+import { alertPaymentAmountMismatch } from "@/lib/money-alerts";
 import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 
 export async function handleStripeOrderWebhook(req: Request, source = "stripe_webhook") {
@@ -115,6 +117,20 @@ export async function handleStripeOrderWebhook(req: Request, source = "stripe_we
   }
 
   try {
+    const expected = await prisma.order.findUnique({ where: { reference }, select: { amountCents: true } });
+    const receivedCents = typeof session?.amount_total === "number" ? session.amount_total : null;
+    if (expected && !paidAmountMatches(expected.amountCents, receivedCents)) {
+      await alertPaymentAmountMismatch({
+        via: "Stripe",
+        ref: reference,
+        orderReference: reference,
+        expectedCents: expected.amountCents,
+        receivedCents,
+        detail: `Sesión ${stripeSessionId}`,
+      }).catch((e) => console.error(`[${source}] mismatch alert failed`, e));
+      return NextResponse.json({ ok: true, amountMismatch: true });
+    }
+
     const paymentUpdate = await updateOrderPayment(
       reference,
       "STRIPE",

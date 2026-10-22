@@ -7,6 +7,8 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { assignDefaultFrenchEtaIfNeeded, autoAssignCollaboratorIfNeeded, transitionWorkflowState } from "@/lib/workflow-server";
 import { getWorkflowState } from "@/lib/workflow";
 import { isPayPalConfigured } from "@/lib/payment-config";
+import { eurosToCents, paidAmountMatches } from "@/lib/payment-amount-math";
+import { alertPaymentAmountMismatch } from "@/lib/money-alerts";
 import { hasUploadedSourceDocument, MISSING_SOURCE_DOCUMENT_ERROR } from "@/lib/payment-gating";
 
 export const runtime = "nodejs";
@@ -72,8 +74,33 @@ export async function POST(req: Request) {
 
     if (captured.status === "COMPLETED") {
       const paypalReference = captured.purchase_units?.[0]?.reference_id;
-      if (paypalReference && paypalReference !== body.reference) {
+      const capturedAmount = captured.purchase_units?.[0]?.payments?.captures?.[0]?.amount;
+      const receivedCents =
+        capturedAmount?.currency_code === "EUR" ? eurosToCents(capturedAmount.value) : null;
+      if (!paypalReference || paypalReference !== body.reference) {
+        await alertPaymentAmountMismatch({
+          via: "PayPal (referencia)",
+          ref: order.reference,
+          orderReference: order.reference,
+          expectedCents: order.amountCents,
+          receivedCents,
+          detail: `PayPal order ${body.paypalOrderId}, reference_id ${paypalReference || "ausente"}`,
+        }).catch((e) => console.error("[paypal-capture] reference alert failed", e));
         return NextResponse.json({ ok: false, error: "Referencia de PayPal no valida." }, { status: 400 });
+      }
+      if (!paidAmountMatches(order.amountCents, receivedCents)) {
+        await alertPaymentAmountMismatch({
+          via: "PayPal",
+          ref: order.reference,
+          orderReference: order.reference,
+          expectedCents: order.amountCents,
+          receivedCents,
+          detail: `PayPal order ${body.paypalOrderId}`,
+        }).catch((e) => console.error("[paypal-capture] mismatch alert failed", e));
+        return NextResponse.json(
+          { ok: false, error: "El importe cobrado no coincide con el del pedido. Hemos avisado al equipo; no repitas el pago." },
+          { status: 409 }
+        );
       }
 
       const captureId =

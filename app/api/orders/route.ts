@@ -23,6 +23,7 @@ import {
 } from "@/lib/quotes";
 import { getWordRateForLangOrPair } from "@/lib/pricing";
 import { generateOrderToken } from "@/lib/order-token";
+import { requireStaffAccess } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 
@@ -135,6 +136,13 @@ function inferAcquisitionSource(req: Request, body: CreateBody): AcquisitionSnap
 }
 
 export async function POST(req: Request) {
+  const staffAccess = await requireStaffAccess(req);
+  if (!staffAccess.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Esta vía ya no admite pedidos públicos. Usa el formulario de presupuesto." },
+      { status: 410 }
+    );
+  }
   const ip = getClientIp(req);
   const rl = await checkRateLimit({
     key: `orders:create:${ip}`,

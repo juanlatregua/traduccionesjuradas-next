@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendPaymentReminderEmail, sendStaffPaymentPendingEmail } from "@/lib/email";
 import { sendNotification } from "@/lib/sms";
 import { buildSignedOrderUrl } from "@/lib/order-token";
+import { AMOUNT_MISMATCH_EVENT, AMOUNT_MISMATCH_MARK } from "@/lib/money-alerts-math";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex, orderChaseSkipReason } from "@/lib/client-contact-guard";
 import { hasCronSecret } from "@/lib/cron-auth";
 
@@ -19,7 +20,7 @@ const WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // deja de recordar pasados 14 días
 const EV_STAGE1 = "order.payment_reminder_sent";
 const EV_STAGE2 = "order.payment_reminder_staff_only_sent";
 const EV_SKIPPED = "order.payment_reminder_skipped"; // ya es cliente o ya mandó justificante: no se le escribe
-const EV_PROOF = ["payment.proof_uploaded", "payment.transfer_declared"];
+const EV_PROOF = ["payment.proof_uploaded", "payment.transfer_declared", AMOUNT_MISMATCH_EVENT];
 
 function staffWhatsApp() {
   return process.env.STAFF_WHATSAPP_ALERT || "+34663727415";

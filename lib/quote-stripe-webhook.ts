@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStripeIntentIdFromEvent } from "@/lib/quote-stripe";
-import { decimalToNumber, calculateEtaDate, formatDateEs } from "@/lib/quotes";
+import { decimalToNumber, calculateEtaDate, formatDateEs, moneyToCents } from "@/lib/quotes";
 import { buildPaidDigitalEmail, buildPaidPaperEmail } from "@/lib/quote-messages";
 import { sendQuoteEmail } from "@/lib/quote-email";
 import { isDuplicateStripeEventError } from "@/lib/quote-idempotency";
 import { sendMail } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { emailSendStatus } from "@/lib/message-status";
+import { paidAmountMatches } from "@/lib/payment-amount-math";
+import { alertPaymentAmountMismatch } from "@/lib/money-alerts";
 import { bridgeFailureAction, shouldSendPaidConfirmation } from "@/lib/money-alerts-math";
 
 const BRIDGE_ATTEMPTS = 3;
@@ -102,7 +104,22 @@ export async function processQuoteStripeEvent(event: any) {
       return NextResponse.json({ ok: true, ignored: true });
     }
 
-    if (metadata.paymentKind === "balance") {
+    const isBalance = metadata.paymentKind === "balance";
+    const expectedCents = moneyToCents(decimalToNumber(isBalance ? quote.balanceAmount : quote.total));
+    const receivedCents = Math.round(amountRaw * 100);
+    if (!paidAmountMatches(expectedCents, receivedCents)) {
+      await alertPaymentAmountMismatch({
+        via: isBalance ? "Stripe (segundo pago)" : "Stripe (presupuesto)",
+        ref: quote.quoteNumber,
+        quoteId: quote.id,
+        expectedCents,
+        receivedCents,
+        detail: `Sesión ${stripeSessionId}`,
+      }).catch((e) => console.error("[quotes:webhook] mismatch alert failed", e));
+      return NextResponse.json({ ok: true, amountMismatch: true });
+    }
+
+    if (isBalance) {
       return processBalancePayment({
         quote,
         amountEur: amountRaw > 0 ? amountRaw : decimalToNumber(quote.balanceAmount),
