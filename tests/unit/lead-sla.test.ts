@@ -21,15 +21,17 @@ test("umbrales: nada antes de 60 min, aviso 1 a 60, aviso 2 a 150", () => {
   assert.equal(run({ docs: [doc("a@x.com", 200)] })[0].stage, 2);
 });
 
-test("corte a 7 días: un lead más viejo está muerto", () => {
-  assert.equal(run({ docs: [doc("a@x.com", 7 * 24 * 60 + 5)] }).length, 0);
-  assert.equal(run({ docs: [doc("a@x.com", 6 * 24 * 60)] }).length, 1);
+test("corte a 24 h: un lead más viejo ya no avisa", () => {
+  assert.equal(run({ docs: [doc("a@x.com", 24 * 60 + 5)] }).length, 0);
+  assert.equal(run({ docs: [doc("a@x.com", 23 * 60)] }).length, 1);
 });
 
 test("atendido: presupuesto enviado, pedido pagado o email contestado lo excluyen; un borrador no", () => {
-  const q = (sentAt: Date | null): SlaQuote => ({ id: "Q1", email: "a@x.com", phone: null, expRef: null, sentAt });
+  const q = (sentAt: Date | null, createdAt = ago(10)): SlaQuote => ({ id: "Q1", email: "a@x.com", phone: null, expRef: null, sentAt, createdAt });
   assert.equal(run({ docs: [doc("a@x.com", 90)], quotes: [q(ago(10))] }).length, 0);
-  assert.equal(run({ docs: [doc("a@x.com", 90)], quotes: [q(null)] }).length, 1);
+  assert.equal(run({ docs: [doc("a@x.com", 90)], quotes: [q(null)] }).length, 0, "borrador posterior: aviso 1 suprimido");
+  assert.equal(run({ docs: [doc("a@x.com", 200)], quotes: [q(null)] }).length, 1, "aviso 2 sigue hasta que se envíe");
+  assert.equal(run({ docs: [doc("a@x.com", 90)], quotes: [q(ago(60 * 24 * 3), ago(60 * 24 * 3))] }).length, 1, "presupuesto enviado hace días no contesta esta petición");
   assert.equal(run({ docs: [doc("a@x.com", 90)], paidOrders: [{ clientEmail: "a@x.com", clientPhone: null, clientName: "Ana" }] }).length, 0);
   const replied: SlaInbound = { fromEmail: "a@x.com", fromName: null, fromPhone: null, subject: "s", receivedAt: ago(80), status: "REPLIED", quoteId: null, repliedAt: ago(5), channel: "EMAIL" };
   assert.equal(run({ docs: [doc("a@x.com", 90)], inbound: [replied] }).length, 0);
@@ -56,13 +58,16 @@ test("clave de dedupe por persona y aviso, estable aunque entren más datos", ()
   assert.notEqual(dedupeId(a.keyBase, 1), dedupeId(a.keyBase, 2));
 });
 
-test("email NEW sin contestar avisa; WhatsApp solo con marcador; con quoteId no", () => {
+test("email del buzón no avisa; WhatsApp de persona nueva sí; con quoteId o con historial no", () => {
   const base: SlaInbound = { fromEmail: "cli@x.com", fromName: "Cli", fromPhone: null, subject: "Precio", receivedAt: ago(70), status: "NEW", quoteId: null, repliedAt: null, channel: "EMAIL" };
-  assert.equal(run({ inbound: [base] }).length, 1);
+  assert.equal(run({ inbound: [base] }).length, 0);
   const wa = run({ inbound: [{ ...base, fromEmail: "34600111222@whatsapp.local", fromPhone: "+34600111222", channel: "WHATSAPP" }] });
   assert.equal(wa[0].email, null);
   assert.equal(wa[0].via[0], "whatsapp");
-  assert.equal(run({ inbound: [{ ...base, quoteId: "Q9" }] }).length, 0);
+  const waMsg = { ...base, fromEmail: "34600111222@whatsapp.local", fromPhone: "+34600111222", channel: "WHATSAPP" };
+  assert.equal(run({ inbound: [{ ...waMsg, quoteId: "Q9" }] }).length, 0);
+  const old: SlaQuote = { id: "Q0", email: "x@x.com", phone: "600111222", expRef: null, sentAt: ago(60 * 24 * 20), createdAt: ago(60 * 24 * 20) };
+  assert.equal(run({ inbound: [waMsg], quotes: [old] }).length, 0, "cliente con historial: seguimiento, no lead nuevo");
 });
 
 test("solicitud a lavori SENT sin precio cuenta; con precio no", () => {

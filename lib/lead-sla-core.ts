@@ -1,12 +1,12 @@
 // Selección PURA de leads sin presupuesto enviado (regla de Juan, 22-oct-2026: precio
-// competitivo en 3-4 h; pasados 7 días el lead está muerto y no se avisa). La consulta
+// competitivo en 3-4 h; pasadas 24 h ya no se avisa). La consulta
 // y el envío viven en lib/lead-sla.ts.
 import { buildPersonGraph, type GraphLead, type GraphOrder, type GraphQuote, type GraphSolicitud } from "./vigia-graph.ts";
 import { normEmail, primaryKey } from "./vigia-persona.ts";
 
 export const SLA_STAGE1_MIN = 60;
 export const SLA_STAGE2_MIN = 150;
-export const SLA_DEAD_DAYS = 7;
+export const SLA_WINDOW_HOURS = 24;
 export const SLA_SMS_FROM_HOUR = 8;
 export const SLA_SMS_UNTIL_HOUR = 22;
 const SITE = "https://www.traduccionesjuradas.net";
@@ -15,7 +15,7 @@ const TEST_EMAIL = /yopmail\.com$|mailinator\.com$|^prueba@|^test@/;
 export type SlaDoc = GraphLead & { fileName: string | null; sourceLanguage: string | null; targetLanguage: string | null; estimatedWords: number | null; quoteAmount: number | string | null; createdAt: Date };
 export type SlaInbound = { fromEmail: string; fromName: string | null; fromPhone: string | null; subject: string; receivedAt: Date; status: string; quoteId: string | null; repliedAt: Date | null; channel: string };
 export type SlaSolicitud = GraphSolicitud & { status: string; priceCents: number | null; par: string; createdAt: Date };
-export type SlaQuote = GraphQuote & { sentAt: Date | null };
+export type SlaQuote = GraphQuote & { sentAt: Date | null; createdAt: Date };
 
 export type SlaInput = {
   now: Date;
@@ -61,7 +61,7 @@ export function smsAllowed(now: Date): boolean {
 export function selectLeadSla(input: SlaInput): SlaLead[] {
   const { now, docs, inbound, solicitudes, quotes, paidOrders } = input;
   const staff = new Set((input.staffEmails || []).map(normEmail).filter(Boolean));
-  const since = now.getTime() - SLA_DEAD_DAYS * 864e5;
+  const since = now.getTime() - SLA_WINDOW_HOURS * 36e5;
   const excluded = (email: string | null | undefined) => {
     const e = normEmail(email);
     return !!e && (TEST_EMAIL.test(e) || staff.has(e));
@@ -83,7 +83,8 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
     if (excluded(m.fromEmail)) continue;
     const lead: GraphLead = { clientEmail: m.fromEmail, clientName: m.fromName, clientPhone: m.fromPhone, sessionToken: null, fileHash: null };
     if (m.repliedAt || m.status === "REPLIED" || m.status === "ARCHIVED") { attendedKeys.push(lead); continue; }
-    if (m.status !== "NEW" || m.quoteId) continue;
+    // El email del buzón no trae clasificación fiable (briefJson solo se genera a mano): solo WhatsApp.
+    if (m.status !== "NEW" || m.quoteId || m.channel !== "WHATSAPP") continue;
     const wa = WA_LOCAL.exec(normEmail(m.fromEmail));
     arrivals.push({
       ...lead, at: m.receivedAt, kind: m.channel === "WHATSAPP" ? "whatsapp" : "email", name: m.fromName, email: wa ? null : normEmail(m.fromEmail),
@@ -111,7 +112,6 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
   });
 
   const attendedRoots = new Set<string>(g.paidRoots);
-  for (const q of quotes) if (q.sentAt) { const r = g.rootOf(g.quoteKeys(q)); if (r) attendedRoots.add(r); }
   for (const l of attendedKeys) { const r = g.rootOf(g.leadKeys(l)); if (r) attendedRoots.add(r); }
 
   const byRoot = new Map<string, Arrival[]>();
@@ -123,11 +123,15 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
   const out: SlaLead[] = [];
   for (const [root, items] of byRoot) {
     if (attendedRoots.has(root)) continue;
+    if (items.every((a) => a.kind === "whatsapp") && (g.quotesOfRoot.get(root)?.length || g.solsOfRoot.get(root)?.length)) continue;
     const firstAt = new Date(Math.min(...items.map((a) => a.at.getTime())));
+    // Un presupuesto enviado antes de que llegara la petición no la contesta.
+    if ((g.quotesOfRoot.get(root) || []).some((q) => q.sentAt && q.sentAt.getTime() >= firstAt.getTime() - 2 * 36e5)) continue;
     if (firstAt.getTime() < since) continue;
     const minutes = Math.floor((now.getTime() - firstAt.getTime()) / 60000);
     const stage = stageFor(minutes);
     if (!stage) continue;
+    if (stage === 1 && (g.quotesOfRoot.get(root) || []).some((q) => !q.sentAt && q.createdAt.getTime() >= firstAt.getTime())) continue;
     const keys = g.idx.keysOf(root);
     const keyBase = primaryKey([...keys].sort()) || root;
     const seen = new Set<string>();
