@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isStaffEmail } from "@/lib/staff-access";
 import {
   createVerifiedOtpToken,
+  isPendingOtpCodeValid,
   readPendingOtpToken,
   STAFF_OTP_PENDING_COOKIE,
   STAFF_OTP_VERIFIED_COOKIE,
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
     if (!isStaffEmail(pending.email)) {
       return NextResponse.json({ ok: false, error: "Correo no autorizado." }, { status: 403 });
     }
-    if (pending.code !== code) {
+    if (!isPendingOtpCodeValid(pending, code)) {
       return NextResponse.json({ ok: false, error: "Codigo incorrecto." }, { status: 400 });
     }
 
