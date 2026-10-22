@@ -187,6 +187,7 @@ export function computeBase(input: PriceMetricsInput): {
     hasApostille: input.hasApostille,
     apostilleSeparatePage: input.apostilleSeparatePage,
     bankStatementsInQuote: input.bankStatementsInQuote,
+    words,
   });
   if (pagePricing) {
     return {

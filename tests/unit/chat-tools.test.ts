@@ -150,9 +150,9 @@ test("get_quote_estimate: idioma sin tarifa oficial NO devuelve cifras", () => {
 });
 
 // Tarifa por página (8-oct-2026): la tool exige la dirección y solo la aplica hacia el español.
-test("get_quote_estimate: FR→ES 2 páginas apostillado = 65 € (hoja aparte solo si lo dice el cliente)", () => {
+test("get_quote_estimate: FR→ES 2 páginas apostillado = 40 € (hoja aparte solo si lo dice el cliente)", () => {
   const r = priced(getQuoteEstimate({ language: "fr", direction: "to_spanish", document_type: "birth_certificate", pages: 2, has_apostille: true }));
-  assert.equal(r.base_price_eur, 65);
+  assert.equal(r.base_price_eur, 40);
   const s = priced(getQuoteEstimate({ language: "fr", direction: "to_spanish", document_type: "birth_certificate", pages: 2, has_apostille: true, apostille_separate_page: true }));
   assert.equal(s.base_price_eur, 35);
 });

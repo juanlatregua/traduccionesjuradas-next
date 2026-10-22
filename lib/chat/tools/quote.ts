@@ -155,7 +155,9 @@ export function getQuoteEstimate(
     note =
       language === "de"
         ? `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página${quote.pagePricing.tables ? " (con tablas)" : " (35 € si la página lleva tablas)"}.`
-        : `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página.`;
+        : quote.pagePricing.pages <= 2
+          ? "Tarifa por documento: 30 € (1 página) o 35 € (2 páginas), + IVA; 55 € si pasa de 900 palabras."
+          : `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página.`;
   } else if (partialInfo) {
     note =
       "Estimación con información parcial. Para precio cerrado real, sube el documento al presupuesto instantáneo.";

@@ -65,7 +65,8 @@ const price = (a: any) => calculatePrice(a).basePrice;
 test("FR→ES: 1 página = 30 €, 3 páginas = 90 € (por página del original)", () => {
   assert.equal(price(analysis({ pages: 1 })), 30);
   assert.equal(price(analysis({ pages: 3 })), 90);
-  assert.equal(price(analysis({ pages: 2, type: "degree" })), 60);
+  assert.equal(price(analysis({ pages: 2, type: "degree" })), 35); // FR ≤ 2 pág.: 35 € por documento (22-oct)
+  assert.equal(price(analysis({ pages: 4, type: "degree" })), 120);
 });
 
 test("mínimo 1 página: pages 0 / null / NaN cobran 30 €", () => {
@@ -76,7 +77,7 @@ test("mínimo 1 página: pages 0 / null / NaN cobran 30 €", () => {
 
 test("FR→ES: coste 0 (Juan) y las tablas no suben el precio", () => {
   const p = computePagePricing({ specificType: "transcript", foreignLang: "fr", inbound: true, pages: 2, hasTables: true });
-  assert.equal(p?.priceEur, 60);
+  assert.equal(p?.priceEur, 35);
   assert.equal(p?.costEur, 0);
   assert.equal(p?.tables, false);
 });
@@ -105,7 +106,7 @@ test("apostilla: 3 páginas + apostilla en hoja aparte (4 hojas, confirmado) = 9
 });
 
 test("apostilla sin confirmar hoja aparte: se cobran TODAS las páginas + 5 € (2 páginas = 65 €)", () => {
-  assert.equal(price(analysis({ pages: 2, apostille: true })), 65);
+  assert.equal(price(analysis({ pages: 2, apostille: true })), 40); // FR ≤ 2 pág.: 35 + 5
   assert.equal(price(analysis({ pages: 4, apostille: true })), 125);
 });
 
@@ -156,7 +157,7 @@ test("FR: el Bulletin n°3 de 3+ páginas conserva el paquete de 61,98 € (pend
   assert.equal(price(analysis({ type: "criminal_record", pages: 5 })), 61.98);
   assert.equal(price(analysis({ type: "criminal_record", pages: 3, country: "MA" })), 61.98);
   assert.equal(price(analysis({ type: "criminal_record", pages: 1 })), 30);
-  assert.equal(price(analysis({ type: "criminal_record", pages: 2 })), 60);
+  assert.equal(price(analysis({ type: "criminal_record", pages: 2 })), 35);
 });
 
 test("Marruecos (fr) va a tarifa por página, sin paquete 40/40/45", () => {
@@ -377,4 +378,23 @@ test("extractos FR→ES: 30 €/documento suelto; en lote 15 € (1 pág.) y 20 
   assert.equal(7 * ext(1, 13)! + 6 * ext(2, 13)!, 225);
   // alemán sigue por página con tablas
   assert.equal(computePagePricing({ specificType: "bank_statement", foreignLang: "de", inbound: true, pages: 2, bankStatementsInQuote: 13 })?.priceEur, 70);
+});
+
+// Decisión de Juan, 22-oct-2026: FR→ES por documento hasta 2 páginas (30 / 35 €, 55 € si > 900 palabras).
+test("FR→ES por documento: 'other' y certificados hasta 2 páginas, 55 € si > 900 palabras", () => {
+  const fr = (specificType: string, pages: number, words?: number, hasApostille?: boolean) =>
+    computePagePricing({ specificType, foreignLang: "fr", inbound: true, pages, words, hasApostille })?.priceEur ?? null;
+  assert.equal(fr("other", 1, 207), 30);
+  assert.equal(fr("other", 2, 560), 35);
+  assert.equal(fr("other", 2, 1244), 55);
+  assert.equal(fr("criminal_record", 2, 102), 35);
+  assert.equal(fr("birth_certificate", 1, undefined, true), 35);
+  assert.equal(fr("birth_certificate", 4), 120);
+  assert.equal(fr("other", 3, 500), null);
+  assert.equal(fr("other", 1), 30, "sin palabras = ≤ 900");
+  assert.equal(fr("other", 2, 1244, true), 60);
+  for (const t of ["contract", "power_of_attorney", "divorce_decree", "apostille"]) assert.equal(fr(t, 1, 300), null, t);
+  assert.equal(computePagePricing({ specificType: "other", foreignLang: "de", inbound: true, pages: 1, words: 100 }), null);
+  assert.equal(computePagePricing({ specificType: "other", foreignLang: "fr", inbound: false, pages: 1, words: 100 }), null);
+  assert.equal(calculatePrice(analysis({ type: "other", pages: 2, words: 1244 })).basePrice, 55);
 });
