@@ -54,6 +54,17 @@ export const FR_DOC_LONG_EUR = 55;
  * diseño (contratos, poderes, sentencias) o van a mano (apostilla suelta). */
 export const FR_WORD_PRICED_TYPES = new Set(["contract", "power_of_attorney", "divorce_decree", "apostille"]);
 
+/** ¿Este documento FR entra en el precio por documento? (tipo no excluido y categoría no «legal»: sentencias y escrituras que el análisis deja en «other»). */
+export function isFrPerDocType(specificType: string | null | undefined, category?: string | null): boolean {
+  const type = String(specificType || "").trim().toLowerCase();
+  return (
+    type !== "company_registration" &&
+    type !== "bank_statement" &&
+    !FR_WORD_PRICED_TYPES.has(type) &&
+    String(category || "").trim().toLowerCase() !== "legal"
+  );
+}
+
 /** Idiomas con precio por página (siempre hacia el español). */
 export const PAGE_PRICED_LANGS = new Set(["fr", "de"]);
 
@@ -139,11 +150,13 @@ export function computePagePricing(input: {
   bankStatementsInQuote?: number | null;
   /** Palabras estimadas del documento (FR→ES por documento; sin dato = ≤ 900). */
   words?: number | null;
+  /** Categoría del análisis (document_type.category): «legal» queda fuera del precio por documento. */
+  category?: string | null;
 }): PagePricing | null {
   const lang = String(input.foreignLang || "").trim().toLowerCase();
   const type = String(input.specificType || "").trim().toLowerCase();
   if (!input.inbound || !PAGE_PRICED_LANGS.has(lang)) return null;
-  const frPerDoc = lang === "fr" && !FR_ONLY_PAGE_TYPES.has(type) && type !== "bank_statement" && !FR_WORD_PRICED_TYPES.has(type);
+  const frPerDoc = lang === "fr" && isFrPerDocType(type, input.category);
   if (!isPagePricedType(type) && !(lang === "fr" && FR_ONLY_PAGE_TYPES.has(type)) && !frPerDoc) return null;
   const apostille = input.hasApostille === true;
   // La hoja de apostilla solo se descuenta si el análisis dice expresamente que
@@ -289,7 +302,7 @@ export function dePagePactado(
  * páginas del mismo idioma? Solo esas suman +5 €; el resto (sin documento al que
  * acompañar) queda para precio a mano. Devuelve, por fila, si procede el +5 €. */
 export function pairApostilles(
-  rows: Array<{ specificType?: string | null; foreignLang?: string | null; include?: boolean; hasApostille?: boolean }>
+  rows: Array<{ specificType?: string | null; foreignLang?: string | null; include?: boolean; hasApostille?: boolean; pages?: number | null; category?: string | null }>
 ): boolean[] {
   return rows.map((r, i) => {
     if (String(r.specificType || "").toLowerCase() !== "apostille") return false;
@@ -302,7 +315,8 @@ export function pairApostilles(
         // si el documento ya lleva su apostilla (+5 € incluido), otra fila de
         // apostilla emparejada con él cobraría dos veces
         !o.hasApostille &&
-        isPagePricedType(o.specificType) &&
+        (isPagePricedType(o.specificType) ||
+          (lang === "fr" && billablePages(o.pages) <= FR_DOC_MAX_PAGES && isFrPerDocType(o.specificType, o.category))) &&
         String(o.foreignLang || "").toLowerCase() === lang
     );
   });

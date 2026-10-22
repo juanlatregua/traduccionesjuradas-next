@@ -105,7 +105,7 @@ test("apostilla: 3 páginas + apostilla en hoja aparte (4 hojas, confirmado) = 9
   assert.equal(price(sep({ pages: 2, apostille: true })), 35);
 });
 
-test("apostilla sin confirmar hoja aparte: se cobran TODAS las páginas + 5 € (2 páginas = 65 €)", () => {
+test("apostilla sin confirmar hoja aparte: se cobran TODAS las páginas + 5 € (DE 2 páginas = 65 €; FR ≤ 2 pág. = 40 €)", () => {
   assert.equal(price(analysis({ pages: 2, apostille: true })), 40); // FR ≤ 2 pág.: 35 + 5
   assert.equal(price(analysis({ pages: 4, apostille: true })), 125);
 });
@@ -397,4 +397,23 @@ test("FR→ES por documento: 'other' y certificados hasta 2 páginas, 55 € si 
   assert.equal(computePagePricing({ specificType: "other", foreignLang: "de", inbound: true, pages: 1, words: 100 }), null);
   assert.equal(computePagePricing({ specificType: "other", foreignLang: "fr", inbound: false, pages: 1, words: 100 }), null);
   assert.equal(calculatePrice(analysis({ type: "other", pages: 2, words: 1244 })).basePrice, 55);
+});
+
+test("FR: category «legal» (sentencia/escritura clasificada other) queda fuera del precio por documento", () => {
+  const f = (category: string | null, type = "other", pages = 1) =>
+    computePagePricing({ specificType: type, foreignLang: "fr", inbound: true, pages, words: 300, category })?.priceEur ?? null;
+  assert.equal(f("legal"), null);
+  assert.equal(f("other"), 30);
+  assert.equal(f(null), 30);
+  assert.equal(f("legal", "birth_certificate", 2), 60, "tipo por página con category legal: 30 €/página como antes");
+  assert.equal(calculatePrice({ ...analysis({ type: "other", pages: 1, words: 300 }), document_type: { ...analysis({ type: "other" }).document_type, category: "legal" } }).pagePricing, null);
+});
+
+test("pairApostilles: apostilla FR suelta se une a un documento por documento (≤ 2 pág., no excluido)", () => {
+  const r = (specificType: string, extra: object = {}) => ({ specificType, foreignLang: "fr", ...extra });
+  assert.deepEqual(pairApostilles([r("other", { pages: 1 }), r("apostille")]), [false, true]);
+  assert.deepEqual(pairApostilles([r("other", { pages: 3 }), r("apostille")]), [false, false]);
+  assert.deepEqual(pairApostilles([r("other", { pages: 1, category: "legal" }), r("apostille")]), [false, false]);
+  assert.deepEqual(pairApostilles([r("contract", { pages: 1 }), r("apostille")]), [false, false]);
+  assert.deepEqual(pairApostilles([r("other", { pages: 1, hasApostille: true }), r("apostille")]), [false, false], "sin doble +5");
 });

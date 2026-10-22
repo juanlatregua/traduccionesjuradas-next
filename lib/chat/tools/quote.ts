@@ -6,7 +6,7 @@ import {
   AUTO_PRICEABLE_FOREIGN,
 } from "../../pricing-engine/languages.ts";
 import { round2 } from "../../quote-math.ts";
-import { clientBaseFromQuote, clientUrgentFromQuote, isPagePricedType } from "../../pricing-engine/page-pricing.ts";
+import { clientBaseFromQuote, clientUrgentFromQuote, isPagePricedType, isFrPerDocType } from "../../pricing-engine/page-pricing.ts";
 import { getMinimum, getApostilleSurcharge } from "../../pricing-engine/rules.ts";
 import { DOC_FLOOR_CENTS } from "../../learned-rates-math.ts";
 
@@ -155,8 +155,8 @@ export function getQuoteEstimate(
     note =
       language === "de"
         ? `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página${quote.pagePricing.tables ? " (con tablas)" : " (35 € si la página lleva tablas)"}.`
-        : quote.pagePricing.pages <= 2
-          ? "Tarifa por documento: 30 € (1 página) o 35 € (2 páginas), + IVA; 55 € si pasa de 900 palabras."
+        : language === "fr" && quote.pagePricing.pages <= 2 && isFrPerDocType(documentType)
+          ? "Tarifa por documento: 30 € (1 página) o 35 € (2 páginas), + IVA; 55 € si pasa de 900 palabras; +5 € con apostilla."
           : `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página.`;
   } else if (partialInfo) {
     note =

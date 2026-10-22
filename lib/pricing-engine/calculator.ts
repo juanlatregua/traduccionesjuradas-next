@@ -139,6 +139,7 @@ export type PriceMetricsInput = {
   hasTables?: boolean;
   apostilleSeparatePage?: boolean;
   bankStatementsInQuote?: number;
+  category?: string | null;
 };
 
 export function computeBase(input: PriceMetricsInput): {
@@ -188,6 +189,7 @@ export function computeBase(input: PriceMetricsInput): {
     apostilleSeparatePage: input.apostilleSeparatePage,
     bankStatementsInQuote: input.bankStatementsInQuote,
     words,
+    category: input.category,
   });
   if (pagePricing) {
     return {
@@ -243,6 +245,7 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     inbound: language.source !== "es",
     hasTables: document_metrics.has_tables,
     apostilleSeparatePage: requirements?.apostille_separate_page === true,
+    category: document_type.category,
   });
 
   const estimatedDays = getEstimatedDays(

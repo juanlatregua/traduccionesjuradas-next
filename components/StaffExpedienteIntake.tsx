@@ -898,6 +898,7 @@ export default function StaffExpedienteIntake({
           foreignLang: d.sourceLang && d.sourceLang !== "es" ? d.sourceLang : null,
           include: d.include,
           hasApostille: d.hasApostille,
+          pages: d.pages,
         }))
       );
       // Extractos bancarios FR del expediente: a partir de FR_BANK_BULK_MIN, precio de lote.
