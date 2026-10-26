@@ -113,7 +113,7 @@ export async function sendPriceRequestAckToClient(opts: {
           : `Hola${name ? ` ${name}` : ""},\n` +
             `Hemos recibido tu solicitud de presupuesto y ya está en marcha: ${tl ? `tu documento ya está con un traductor jurado de ${tl} nombrado por el MAEC, que` : "un traductor jurado nombrado por el MAEC"} está estudiando tus documentos y preparando su propuesta.\n` +
             "Te responde Juan Silva Moreno, traductor jurado nº 3850 (traduccionesjuradas.net): recibirás el presupuesto con el precio y el plazo normalmente en el día. No tienes que hacer nada más.\n" +
-            (opts.askDeadline ? "¿Tiene una fecha límite? Respóndanos a este correo con ella y ajustamos el plazo.\n" : "") +
+            (opts.askDeadline ? "¿Tienes una fecha límite? Respóndenos a este correo con ella y ajustamos el plazo.\n" : "") +
             "Gracias por tu confianza." +
             (recurrente ? `\n${recurrente}` : "") +
             `\n${trustLine("es", GOOGLE_RATING.reviews)}`;

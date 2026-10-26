@@ -56,7 +56,7 @@ test("líneas para staff y jurado", () => {
 
 test("prefill FR del builder: en el día = +40 % (solo aviso); ≤5 págs = 1 día hábil", () => {
   assert.deepEqual(frDeliveryPrefill({ urgency: "DATE", neededBy: day("2026-10-26") }, 2, NOW), {
-    term: "Hoy (entrega en el día, +40 %)",
+    term: "En el día",
     hint: "Entrega en el día: +40 % sobre el precio normal",
   });
   assert.deepEqual(frDeliveryPrefill({ urgency: "DATE", neededBy: day("2026-10-27") }, 5, NOW), { term: "1 día hábil", hint: null });

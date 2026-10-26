@@ -271,7 +271,7 @@ export async function routePuertaQuoteRequest(input: {
         ),
       }).catch((err) => console.error("[puerta:request-quote] aviso duplicado fallo:", err));
       await sendStaffAlertSMS(
-        `${recurrenteSms}[DUPLICADO?] ${(lead?.sourceLang || "?").toUpperCase()}>${(lead?.targetLang || "es").toUpperCase()} · ya abierto ${bloqueo.ref} (${describeSibling(bloqueo).split("(")[1]?.replace(")", "") || ""}) · ${bloqueo.url}`,
+        `${plazoAsunto ? "URGENTE · " : ""}${recurrenteSms}[DUPLICADO?] ${(lead?.sourceLang || "?").toUpperCase()}>${(lead?.targetLang || "es").toUpperCase()} · ya abierto ${bloqueo.ref} (${describeSibling(bloqueo).split("(")[1]?.replace(")", "") || ""}) · ${bloqueo.url}`,
         "puerta_duplicado"
       ).catch(() => {});
       await sendPriceRequestAckToClient({ name: docs[0]?.clientName, email: contactEmail, phone: contactPhone, locale, translatorLangName: null, askDeadline: !plazo });
@@ -488,10 +488,11 @@ export async function routePuertaQuoteRequest(input: {
       // Repetición sin nada nuevo: un email corto como mucho cada 12 h, sin SMS.
       await sendMail({
         to: adminEmail,
-        subject: `${etiqueta}${quienCliente} ha vuelto a pedir · añadido al caso, no se ha enviado otra solicitud`,
+        subject: `${plazoAsunto}${etiqueta}${quienCliente} ha vuelto a pedir · añadido al caso, no se ha enviado otra solicitud`,
         html: renderSimpleEmailHtml(
           [
             `${quienCliente} ha vuelto a pedir presupuesto con los mismos documentos. Queda en el caso; no se ha enviado nada nuevo a lavori.`,
+            ...(plazoTxt ? [plazoTxt] : []),
             lavoriEmail,
             casoUrl ? `Ficha del caso: ${casoUrl}` : `Montar presupuesto: ${builderUrl}`,
           ].join("\n")

@@ -24,6 +24,7 @@ import { buildDiagnosis, type Diagnosis } from "@/lib/diagnosis";
 import DiagnosisCard from "@/components/puerta/DiagnosisCard";
 import DeadlineCountdown from "@/components/puerta/DeadlineCountdown";
 import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
+import { madridToday, NEEDED_BY_MAX_DAYS, parseNeededBy } from "@/lib/needed-by";
 import { PUERTA_LANG_CODES, isDeclaredPairValid } from "@/lib/puerta-languages";
 
 const DocumentUploader = dynamic(
@@ -45,12 +46,13 @@ type DocEntry = {
   diagnosis: Diagnosis;
 };
 
+// Mismas reglas que el servidor (hoy en Madrid → un año); devuelve fecha local.
 function parseDateInput(value: string): Date | null {
-  if (!value) return null;
-  const [y, m, d] = value.split("-").map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
+  const d = parseNeededBy(value);
+  return d ? new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) : null;
 }
+
+const isoDay = (d: Date) => d.toISOString().split("T")[0];
 
 export default function PuertaClient({
   purpose,
@@ -188,7 +190,10 @@ export default function PuertaClient({
     !!shippingValid;
 
   const neededBy = urgency === "DATE" ? parseDateInput(neededByInput) : null;
-  const todayInput = new Date().toISOString().split("T")[0];
+  const todayMadrid = madridToday();
+  const todayInput = isoDay(todayMadrid);
+  const maxInput = isoDay(new Date(todayMadrid.getTime() + NEEDED_BY_MAX_DAYS * 864e5));
+  const dateInvalid = urgency === "DATE" && !!neededByInput && !neededBy;
   const deadlineReady = urgency === "ASAP" || urgency === "FLEXIBLE" || (urgency === "DATE" && !!neededBy);
   const deadlineBody = useMemo(
     () => (deadlineReady ? { urgency, neededBy: urgency === "DATE" ? neededByInput : undefined } : {}),
@@ -233,13 +238,16 @@ export default function PuertaClient({
           id="needed-by"
           type="date"
           min={todayInput}
+          max={maxInput}
           value={neededByInput}
           onChange={(e) => setNeededByInput(e.target.value)}
           aria-label={t.deadlineDate}
-          className="mt-3 rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20"
+          aria-invalid={dateInvalid}
+          className={`mt-3 rounded-lg border ${dateInvalid ? "border-rouge" : "border-graphite/20"} bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20`}
         />
       )}
-      {showDeadlineMissing && !deadlineReady && <p className="mt-2 text-xs text-rouge">{t.deadlineRequired}</p>}
+      {dateInvalid && <p className="mt-2 text-xs text-rouge">{t.deadlineInvalid}</p>}
+      {showDeadlineMissing && !deadlineReady && !dateInvalid && <p className="mt-2 text-xs text-rouge">{t.deadlineRequired}</p>}
     </div>
   );
 

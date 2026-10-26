@@ -93,11 +93,12 @@ export function deadlineOf<T extends { urgency?: string | null; neededBy?: Date 
   return r ? { urgency: r.urgency ?? null, neededBy: r.neededBy ?? null } : null;
 }
 
-/** Plazo FR para el builder (regla de Juan, 26-oct-2026): ≤5 págs = 1 día hábil; en el día = +40 %. */
+/** Plazo FR para el builder (regla de Juan, 26-oct-2026): ≤5 págs = 1 día hábil; en el día = +40 %.
+ * `term` va al PDF y al email del cliente; `hint` es solo para staff. */
 export function frDeliveryPrefill(d: Deadline | null | undefined, pages: number, now = new Date()): { term: string; hint: string | null } | null {
   if (!d) return null;
   if (d.neededBy && d.urgency !== "FLEXIBLE" && daysUntil(d.neededBy, now) <= 0) {
-    return { term: "Hoy (entrega en el día, +40 %)", hint: "Entrega en el día: +40 % sobre el precio normal" };
+    return { term: "En el día", hint: "Entrega en el día: +40 % sobre el precio normal" };
   }
   if (pages > 5) return null;
   return { term: "1 día hábil", hint: d.urgency === "ASAP" ? "Si lo quiere en el día: +40 % sobre el precio normal" : null };

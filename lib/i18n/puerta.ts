@@ -18,6 +18,7 @@ export type PuertaStrings = {
   deadlineDate: string;
   deadlineFlexible: string;
   deadlineRequired: string;
+  deadlineInvalid: string;
   totalLabel: (n: number) => string;
   addAnother: string;
   startOver: string;
@@ -134,6 +135,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineDate: "Tengo una fecha",
     deadlineFlexible: "No tengo prisa",
     deadlineRequired: "Dinos para cuándo lo necesitas (y la fecha, si tienes una).",
+    deadlineInvalid: "Esa fecha no vale: elige un día entre hoy y dentro de un año.",
     neededForPrefix: "Lo necesitas para el",
     totalLabel: (n) => `Total (${n} documentos)`,
     addAnother: "Añadir otro documento",
@@ -221,6 +223,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineDate: "J'ai une date",
     deadlineFlexible: "Je ne suis pas pressé(e)",
     deadlineRequired: "Indiquez-nous pour quand vous en avez besoin (et la date, si vous en avez une).",
+    deadlineInvalid: "Cette date n'est pas valable : choisissez un jour entre aujourd'hui et dans un an.",
     neededForPrefix: "Vous en avez besoin pour le",
     totalLabel: (n) => `Total (${n} documents)`,
     addAnother: "Ajouter un autre document",
@@ -308,6 +311,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineDate: "I have a date",
     deadlineFlexible: "No rush",
     deadlineRequired: "Tell us when you need it (and the date, if you have one).",
+    deadlineInvalid: "That date isn't valid: pick a day between today and one year from now.",
     neededForPrefix: "You need it by",
     totalLabel: (n) => `Total (${n} documents)`,
     addAnother: "Add another document",
@@ -395,6 +399,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineDate: "Ich habe ein Datum",
     deadlineFlexible: "Keine Eile",
     deadlineRequired: "Sagen Sie uns, bis wann Sie es brauchen (und das Datum, falls Sie eines haben).",
+    deadlineInvalid: "Dieses Datum ist ungültig: Wählen Sie einen Tag zwischen heute und in einem Jahr.",
     neededForPrefix: "Sie brauchen es bis zum",
     totalLabel: (n) => `Gesamt (${n} Dokumente)`,
     addAnother: "Weiteres Dokument hinzufügen",
@@ -482,6 +487,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineDate: "Tenho uma data",
     deadlineFlexible: "Não tenho pressa",
     deadlineRequired: "Diga-nos para quando precisa (e a data, se tiver uma).",
+    deadlineInvalid: "Essa data não é válida: escolha um dia entre hoje e daqui a um ano.",
     neededForPrefix: "Precisa para o dia",
     totalLabel: (n) => `Total (${n} documentos)`,
     addAnother: "Adicionar outro documento",
