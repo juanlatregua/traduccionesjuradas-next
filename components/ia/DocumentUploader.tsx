@@ -34,6 +34,9 @@ type Props = {
   sourceLanguage?: string | null;
   targetLanguage?: string | null;
   gate?: "puerta" | null;
+  // Plazo del cliente (puerta): ASAP | DATE | FLEXIBLE + fecha YYYY-MM-DD.
+  urgency?: string | null;
+  neededBy?: string | null;
   // Motivo del bloqueo, para que `disabled` no sea un gris mudo.
   disabledReason?: string;
   // Puerta: la casilla RGPD la pinta el padre (junto a la de contacto).
@@ -64,6 +67,8 @@ export default function DocumentUploader({
   sourceLanguage,
   targetLanguage,
   gate,
+  urgency,
+  neededBy,
   disabledReason,
   hideConsent,
   onBlockedTap,
@@ -157,6 +162,8 @@ export default function DocumentUploader({
             sourceLanguage: sourceLanguage || undefined,
             targetLanguage: targetLanguage || undefined,
             gate: gate || undefined,
+            urgency: urgency || undefined,
+            neededBy: neededBy || undefined,
           }),
         });
 
@@ -184,7 +191,7 @@ export default function DocumentUploader({
         setUploading(false);
       }
     },
-    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t, clientEmail, marketingConsent, sourceLanguage, targetLanguage, gate, disabled, disabledReason]
+    [gdprConsent, sessionToken, onSessionToken, onUploadComplete, source, t, clientEmail, marketingConsent, sourceLanguage, targetLanguage, gate, urgency, neededBy, disabled, disabledReason]
   );
 
   const handleDrop = useCallback(

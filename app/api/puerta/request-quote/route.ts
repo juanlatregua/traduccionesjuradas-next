@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { routePuertaQuoteRequest } from "@/lib/puerta-request-quote";
+import { parseDeadline } from "@/lib/needed-by";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,8 @@ export async function POST(req: Request) {
   const phone = typeof body?.phone === "string" ? body.phone.trim().slice(0, 40) : "";
   const locale = typeof body?.lang === "string" ? body.lang.trim().slice(0, 5) : null;
 
-  const r = await routePuertaQuoteRequest({ sessionToken: token, email, phone, locale });
+  const deadline = parseDeadline(body?.urgency, body?.neededBy);
+
+  const r = await routePuertaQuoteRequest({ sessionToken: token, email, phone, locale, deadline });
   return NextResponse.json(r.body, { status: r.status });
 }

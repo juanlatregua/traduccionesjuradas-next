@@ -16,6 +16,8 @@ import { AUTO_PRICEABLE_FOREIGN, isPublicAutoPriceable, resolvePriceablePair } f
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import { REGULARIZACION_FR_DOC_CENTS, regularizacionFlatApplies } from "@/lib/regularizacion-price";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
+import { parseDeadline } from "@/lib/needed-by";
+import { saveSessionDeadline } from "@/lib/needed-by-db";
 
 export const runtime = "nodejs";
 
@@ -65,6 +67,8 @@ export async function POST(req: Request) {
     sessionToken?: string;
     lang?: string;
     deliveryType?: string;
+    urgency?: string;
+    neededBy?: string;
     shipping?: {
       name?: string;
       address?: string;
@@ -292,6 +296,8 @@ export async function POST(req: Request) {
       orderReference: session.reference,
     },
   });
+  const deadline = parseDeadline(body.urgency, body.neededBy);
+  if (deadline) await saveSessionDeadline(sessionToken, deadline).catch((err) => console.error("[puerta:checkout] plazo no guardado:", err));
 
   // Entrega en papel (+12 € + IVA): exige dirección de envío. Se persiste en la
   // sesión; computeSessionPricing suma el recargo y createOrderFromSession crea

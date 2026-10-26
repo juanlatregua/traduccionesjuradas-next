@@ -80,6 +80,8 @@ export async function sendPriceRequestAckToClient(opts: {
   locale?: string | null;
   /** Lengua del jurado que ya tiene el documento (carril lavori disparado): "alemán" */
   translatorLangName?: string | null;
+  /** No sabemos su fecha límite: se la pedimos (26-oct-2026). */
+  askDeadline?: boolean;
 }): Promise<{ channel: "email" | "sms" | null }> {
   const lang: SmsLang = opts.locale === "fr" ? "fr" : "es";
   const tl = (opts.translatorLangName || "").trim().toLowerCase();
@@ -104,12 +106,14 @@ export async function sendPriceRequestAckToClient(opts: {
           ? `Bonjour${name ? ` ${name}` : ""},\n` +
             `Nous avons bien reçu votre demande de devis : ${tl ? `votre document est déjà entre les mains d'un traducteur assermenté (${tl}) nommé par le MAEC, qui` : "un traducteur assermenté nommé par le MAEC"} étudie vos documents et prépare sa proposition.\n` +
             "C'est Juan Silva Moreno, traducteur assermenté nº 3850 (traduccionesjuradas.net), qui vous répondra : vous recevrez le devis avec le prix et le délai en général dans la journée. Vous n'avez rien d'autre à faire.\n" +
+            (opts.askDeadline ? "Avez-vous une date limite ? Répondez-nous à ce message en l'indiquant et nous adapterons le délai.\n" : "") +
             "Merci de votre confiance." +
             (recurrente ? `\n${recurrente}` : "") +
             `\n${trustLine("fr", GOOGLE_RATING.reviews)}`
           : `Hola${name ? ` ${name}` : ""},\n` +
             `Hemos recibido tu solicitud de presupuesto y ya está en marcha: ${tl ? `tu documento ya está con un traductor jurado de ${tl} nombrado por el MAEC, que` : "un traductor jurado nombrado por el MAEC"} está estudiando tus documentos y preparando su propuesta.\n` +
             "Te responde Juan Silva Moreno, traductor jurado nº 3850 (traduccionesjuradas.net): recibirás el presupuesto con el precio y el plazo normalmente en el día. No tienes que hacer nada más.\n" +
+            (opts.askDeadline ? "¿Tienes una fecha límite? Respóndenos a este correo con ella y ajustamos el plazo.\n" : "") +
             "Gracias por tu confianza." +
             (recurrente ? `\n${recurrente}` : "") +
             `\n${trustLine("es", GOOGLE_RATING.reviews)}`;

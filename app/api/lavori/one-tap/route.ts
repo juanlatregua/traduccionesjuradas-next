@@ -3,6 +3,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { verifyLavoriOneTapToken } from "@/lib/lavori-onetap";
 import { leadFromPuertaSession, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
+import { jurorDeadlineNote } from "@/lib/needed-by";
 
 export const runtime = "nodejs";
 
@@ -50,6 +51,7 @@ export async function GET(req: Request) {
     words: lead.words,
     expedienteRef: `puerta:${sessionToken}`,
     customerHint: hint,
+    especificaciones: jurorDeadlineNote(lead.deadline),
     createdBy: "one-tap",
     contacto: { email: lead.contact.email, phone: lead.contact.phone, nombre: lead.contact.name },
   });

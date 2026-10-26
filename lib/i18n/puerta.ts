@@ -14,6 +14,11 @@ export type PuertaStrings = {
   neededByLabel: string;
   neededByHelp: string;
   neededForPrefix: string;
+  deadlineAsap: string;
+  deadlineDate: string;
+  deadlineFlexible: string;
+  deadlineRequired: string;
+  deadlineInvalid: string;
   totalLabel: (n: number) => string;
   addAnother: string;
   startOver: string;
@@ -125,7 +130,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     cutoffBefore: (r) => `Pídela antes de las 18:00 y la ponemos en marcha hoy mismo — quedan ${r}.`,
     cutoffAfter: "La pondremos en marcha el próximo día laborable. El diagnóstico te confirma la fecha de entrega exacta.",
     neededByLabel: "¿Para cuándo lo necesitas?",
-    neededByHelp: "Opcional. Nos ayuda a confirmarte si el plazo llega a tu fecha.",
+    neededByHelp: "Obligatorio. Con tu fecha ajustamos el plazo y te confirmamos si llegamos.",
+    deadlineAsap: "Lo antes posible",
+    deadlineDate: "Tengo una fecha",
+    deadlineFlexible: "No tengo prisa",
+    deadlineRequired: "Dinos para cuándo lo necesitas (y la fecha, si tienes una).",
+    deadlineInvalid: "Esa fecha no vale: elige un día entre hoy y dentro de un año.",
     neededForPrefix: "Lo necesitas para el",
     totalLabel: (n) => `Total (${n} documentos)`,
     addAnother: "Añadir otro documento",
@@ -208,7 +218,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     cutoffBefore: (r) => `Commandez avant 18h00 et nous la lançons aujourd'hui même — il reste ${r}.`,
     cutoffAfter: "Nous la lancerons le prochain jour ouvrable. Le diagnostic vous confirme la date de livraison exacte.",
     neededByLabel: "Pour quand en avez-vous besoin ?",
-    neededByHelp: "Facultatif. Cela nous aide à confirmer si le délai correspond à votre date.",
+    neededByHelp: "Obligatoire. Avec votre date, nous adaptons le délai et vous confirmons si nous y arrivons.",
+    deadlineAsap: "Dès que possible",
+    deadlineDate: "J'ai une date",
+    deadlineFlexible: "Je ne suis pas pressé(e)",
+    deadlineRequired: "Indiquez-nous pour quand vous en avez besoin (et la date, si vous en avez une).",
+    deadlineInvalid: "Cette date n'est pas valable : choisissez un jour entre aujourd'hui et dans un an.",
     neededForPrefix: "Vous en avez besoin pour le",
     totalLabel: (n) => `Total (${n} documents)`,
     addAnother: "Ajouter un autre document",
@@ -291,7 +306,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     cutoffBefore: (r) => `Order before 6:00 p.m. and we'll start today — ${r} left.`,
     cutoffAfter: "We'll start it on the next business day. The diagnosis confirms your exact delivery date.",
     neededByLabel: "When do you need it by?",
-    neededByHelp: "Optional. It helps us confirm whether the deadline meets your date.",
+    neededByHelp: "Required. With your date we adjust the turnaround and confirm whether we can meet it.",
+    deadlineAsap: "As soon as possible",
+    deadlineDate: "I have a date",
+    deadlineFlexible: "No rush",
+    deadlineRequired: "Tell us when you need it (and the date, if you have one).",
+    deadlineInvalid: "That date isn't valid: pick a day between today and one year from now.",
     neededForPrefix: "You need it by",
     totalLabel: (n) => `Total (${n} documents)`,
     addAnother: "Add another document",
@@ -374,7 +394,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     cutoffBefore: (r) => `Bestellen Sie vor 18:00 Uhr und wir starten noch heute — nur noch ${r}.`,
     cutoffAfter: "Wir starten am nächsten Werktag. Die Diagnose bestätigt Ihren genauen Liefertermin.",
     neededByLabel: "Bis wann brauchen Sie es?",
-    neededByHelp: "Optional. So können wir bestätigen, ob der Termin zu Ihrem Datum passt.",
+    neededByHelp: "Pflichtangabe. Mit Ihrem Datum passen wir die Lieferzeit an und bestätigen, ob wir es schaffen.",
+    deadlineAsap: "So schnell wie möglich",
+    deadlineDate: "Ich habe ein Datum",
+    deadlineFlexible: "Keine Eile",
+    deadlineRequired: "Sagen Sie uns, bis wann Sie es brauchen (und das Datum, falls Sie eines haben).",
+    deadlineInvalid: "Dieses Datum ist ungültig: Wählen Sie einen Tag zwischen heute und in einem Jahr.",
     neededForPrefix: "Sie brauchen es bis zum",
     totalLabel: (n) => `Gesamt (${n} Dokumente)`,
     addAnother: "Weiteres Dokument hinzufügen",
@@ -457,7 +482,12 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     cutoffBefore: (r) => `Peça antes das 18:00 e começamos hoje mesmo — faltam ${r}.`,
     cutoffAfter: "Começamos no próximo dia útil. O diagnóstico confirma a data de entrega exata.",
     neededByLabel: "Para quando precisa da tradução?",
-    neededByHelp: "Opcional. Ajuda-nos a confirmar se cumprimos a data de que precisa.",
+    neededByHelp: "Obrigatório. Com a sua data ajustamos o prazo e confirmamos se conseguimos cumprir.",
+    deadlineAsap: "O mais rápido possível",
+    deadlineDate: "Tenho uma data",
+    deadlineFlexible: "Não tenho pressa",
+    deadlineRequired: "Diga-nos para quando precisa (e a data, se tiver uma).",
+    deadlineInvalid: "Essa data não é válida: escolha um dia entre hoje e daqui a um ano.",
     neededForPrefix: "Precisa para o dia",
     totalLabel: (n) => `Total (${n} documentos)`,
     addAnother: "Adicionar outro documento",

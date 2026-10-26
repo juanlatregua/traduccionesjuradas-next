@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { findLiveSiblingLeadRequest } from "@/lib/lavori-lead";
+import { deadlineLine, deadlineOf, frDeliveryPrefill, isUrgentDeadline, type Deadline } from "@/lib/needed-by";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
 import { presupuestoVivoDelCaso, solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
 import { nombreMiembro } from "@/lib/caso/vista";
@@ -177,6 +178,9 @@ export default async function ZonaTraductorPresupuestoPage({
   }));
   let initialDocs: { documentId: string; fileName: string; fileUrl?: string }[] | undefined;
   let initialCustomer: { name?: string; email?: string; phone?: string } | undefined;
+  let plazo: Deadline | null = null;
+  let plazoPages = 0;
+  let plazoFr = false;
 
   if (inboundEmail) {
     builderInitial.customerName ||= inboundEmail.fromName || undefined;
@@ -188,8 +192,11 @@ export default async function ZonaTraductorPresupuestoPage({
     const rows = await prisma.documentAnalysis.findMany({
       where: { sessionToken: sessionKey },
       orderBy: { createdAt: "asc" },
-      select: { id: true, fileName: true, fileUrl: true, clientName: true, clientEmail: true, clientPhone: true },
+      select: { id: true, fileName: true, fileUrl: true, clientName: true, clientEmail: true, clientPhone: true, urgency: true, neededBy: true, pageCount: true, sourceLanguage: true, targetLanguage: true },
     });
+    plazo = deadlineOf(rows);
+    plazoPages = rows.reduce((n, r) => n + (r.pageCount || 1), 0);
+    plazoFr = rows.some((r) => r.sourceLanguage === "fr" || r.targetLanguage === "fr");
     if (rows.length > 0) {
       initialDocs = rows.map((r) => ({ documentId: r.id, fileName: r.fileName, fileUrl: r.fileUrl }));
       initialCustomer = {
@@ -199,6 +206,15 @@ export default async function ZonaTraductorPresupuestoPage({
       };
     }
   }
+
+  if (!plazo && casoId) {
+    const c = await prisma.caso.findUnique({ where: { id: casoId }, select: { urgency: true, neededBy: true } });
+    if (c?.urgency || c?.neededBy) plazo = c;
+  }
+  plazoFr ||= (lead?.par || parPagina || "").toUpperCase().split(">").includes("FR");
+  const plazoTxt = deadlineLine(plazo);
+  // Francés (lo jura Juan): prefill del plazo según su regla; el +40 % NO se aplica solo.
+  const plazoFrPrefill = plazoFr ? frDeliveryPrefill(plazo, plazoPages) : null;
 
   const recurrentEmail = builderInitial.customerEmail || initialCustomer?.email;
   const recurrentPhone = builderInitial.customerPhone || initialCustomer?.phone;
@@ -230,6 +246,12 @@ export default async function ZonaTraductorPresupuestoPage({
                 : `Solicitud ${lead.par} enviada a lavori; el traductor aún no ha pasado precio.`}
               {" "}Al crear el presupuesto queda atado a esta solicitud: el pago avisará al traductor.
               {initialDocs?.length ? ` Los ${initialDocs.length} documento${initialDocs.length === 1 ? "" : "s"} de la puerta ya están abajo.` : lead.docsCount > 0 ? " Suelta aquí los documentos del cliente (no hay expediente)." : ""}
+            </p>
+          )}
+          {plazoTxt && (
+            <p className={`mt-2 rounded-lg border px-3 py-2 text-sm ${isUrgentDeadline(plazo) ? "border-rose-500/40 bg-rose-500/10 text-rose-100" : "border-amber-500/30 bg-amber-500/10 text-amber-100"}`}>
+              {plazoTxt.replace("Lo necesita:", "El cliente lo necesita:")}
+              {plazoFrPrefill?.hint ? ` · ${plazoFrPrefill.hint}` : ""}
             </p>
           )}
           {inboundEmail && (
@@ -266,6 +288,7 @@ export default async function ZonaTraductorPresupuestoPage({
           lavoriLeadRef={lead?.ref ?? null}
           casoId={casoId}
           puertaSession={puertaSession || null}
+          initialDeliveryNote={plazoFrPrefill?.term}
           solicitudesVivas={solicitudesVivas}
           costesJurado={lead?.priceCents ? [...costesJurado].sort((a, b) => Number(b.ref === lead.ref) - Number(a.ref === lead.ref)) : costesJurado}
           emailContext={

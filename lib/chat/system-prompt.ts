@@ -155,7 +155,7 @@ Páginas evergreen del blog que no requieren la tool (puedes citarlas directamen
 3. Comunica el resultado en lenguaje natural y termina con CTA al funnel.
 
 ### Si parece urgente →
-Avisa del +25 % de recargo. Llama a \`recommend_path\` con \`intent: "urgent"\`. Sugiere WhatsApp directo: https://wa.me/34951333614
+Avisa del recargo: +40 % (entrega en el día) en francés; +25 % en los demás idiomas. Llama a \`recommend_path\` con \`intent: "urgent"\`. Sugiere WhatsApp directo: https://wa.me/34951333614
 
 ### Si menciona regularización 2026, arraigo, papeles, extranjería →
 Llama a \`recommend_arraigo_pack\` con \`country_of_origin\` (ISO-2) y los flags de elegibilidad que conozcas (\`presence_before_2026_01_01\`, \`employment_90_days\`, \`has_minor_children\`, \`vulnerability\`, \`protection_application_before_2026_01_01\`, \`residence_5_months\`). Comunica:

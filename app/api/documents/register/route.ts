@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { isOwnBlobUrl } from "@/lib/q-journey";
+import { parseDeadline } from "@/lib/needed-by";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { blobUrl, fileName, fileSize, mimeType, sessionToken, gdprConsent, source, clientEmail, marketingConsent, sourceLanguage, targetLanguage, gate } =
+    const { blobUrl, fileName, fileSize, mimeType, sessionToken, gdprConsent, source, clientEmail, marketingConsent, sourceLanguage, targetLanguage, gate, urgency, neededBy } =
       await req.json();
 
     // Puerta (Juan, 4-sep-2026): NADA se sube sin email + par de idiomas. La UI
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
     }
 
     const token = sessionToken || crypto.randomUUID();
+    const deadline = parseDeadline(urgency, neededBy);
 
     const doc = await prisma.documentAnalysis.create({
       data: {
@@ -101,6 +103,7 @@ export async function POST(req: Request) {
         // Par declarado: el análisis lo respeta (applyDeclaredLanguages).
         ...(srcLang && srcLang !== "other" ? { sourceLanguage: srcLang } : {}),
         ...(tgtLang ? { targetLanguage: tgtLang } : {}),
+        ...(deadline ? { urgency: deadline.urgency, neededBy: deadline.neededBy } : {}),
       },
     });
 

@@ -929,6 +929,10 @@ model DocumentAnalysis {
 
   reminderSentAt   DateTime?
 
+  // Plazo del cliente en la puerta (26-oct-2026): ASAP | DATE | FLEXIBLE (lib/needed-by.ts)
+  urgency          String?
+  neededBy         DateTime?
+
   casoId           String?
   caso             Caso?                  @relation(fields: [casoId], references: [id], onDelete: SetNull)
 
@@ -1197,6 +1201,8 @@ model Caso {
   pares          String[]  // "EN>ES"…; vacío = aún no se sabe
   origen         String    // entrada que lo creó (puerta, whatsapp, constructor…, backfill)
   esAgencia      Boolean   @default(false)
+  urgency        String?   // plazo del cliente: ASAP | DATE | FLEXIBLE
+  neededBy       DateTime?
   dudoso         Boolean   @default(false) // el resolver no supo a qué caso pertenece: revisar a mano
   customerId     String?
   lastActivityAt DateTime  @default(now())

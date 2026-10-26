@@ -16,6 +16,7 @@ import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { retireLavoriEncargo, fetchLavoriCartera, isLavoriMemberAvailable, pickLavoriAuto, isLavoriNoAvisar } from "@/lib/lavori-bridge";
 import { docTypeLabelEs, leadFromPuertaSession, sendLeadPriceRequest } from "@/lib/lavori-lead";
+import { jurorDeadlineNote } from "@/lib/needed-by";
 import { ANALYSIS_SELECT, createAutoQuote } from "@/lib/learned-rates";
 import { canAutoQuote } from "@/lib/learned-rates-math";
 import { workingHoursMadrid,
@@ -456,6 +457,7 @@ export async function escalateStaleDirectRequests(now: Date = new Date()): Promi
         words: lead.words,
         expedienteRef: lpr.expedienteRef,
         customerHint: lpr.customerHint,
+        especificaciones: jurorDeadlineNote(lead.deadline),
         candidatos: candidatosLengua,
         createdBy: "directo-escalado",
         // Misma petición reabierta: el caso es el de la solicitud vieja (sin caso, se resuelve por expediente).
