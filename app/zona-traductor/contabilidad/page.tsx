@@ -94,6 +94,7 @@ export default async function ZonaTraductorContabilidadPage() {
     vatCents: i.vatCents,
     totalCents: i.totalCents,
     orderReference: i.order?.reference ?? null,
+    brand: i.brand,
   }));
 
   const orders: AcOrder[] = rawOrders.map((o) => {
