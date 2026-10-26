@@ -4,7 +4,7 @@
 // Entrada de documentos + fecha límite → diagnóstico completo → puente al
 // checkout. Es el funnel canónico desde el Bloque 1.4.
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import {
   CalendarClock,
@@ -75,6 +75,9 @@ export default function PuertaClient({
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
   const [neededByInput, setNeededByInput] = useState("");
+  // Plazo OBLIGATORIO antes de pedir presupuesto o pagar (Juan, 26-oct-2026).
+  const [urgency, setUrgency] = useState<"" | "ASAP" | "DATE" | "FLEXIBLE">("");
+  const [showDeadlineMissing, setShowDeadlineMissing] = useState(false);
   const [documents, setDocuments] = useState<DocEntry[]>([]);
   const [currentDocId, setCurrentDocId] = useState<string | null>(null);
   const [currentFileSize, setCurrentFileSize] = useState(0);
@@ -184,8 +187,61 @@ export default function PuertaClient({
     phone.replace(/\D/g, "").length >= 7 &&
     !!shippingValid;
 
-  const neededBy = parseDateInput(neededByInput);
+  const neededBy = urgency === "DATE" ? parseDateInput(neededByInput) : null;
   const todayInput = new Date().toISOString().split("T")[0];
+  const deadlineReady = urgency === "ASAP" || urgency === "FLEXIBLE" || (urgency === "DATE" && !!neededBy);
+  const deadlineBody = useMemo(
+    () => (deadlineReady ? { urgency, neededBy: urgency === "DATE" ? neededByInput : undefined } : {}),
+    [deadlineReady, urgency, neededByInput]
+  );
+
+  // El cliente cambia el plazo después de subir: se guarda en su sesión.
+  useEffect(() => {
+    if (!sessionToken || !deadlineReady) return;
+    fetch("/api/puerta/deadline", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionToken, urgency, neededBy: urgency === "DATE" ? neededByInput : undefined }),
+    }).catch(() => {});
+  }, [sessionToken, deadlineReady, urgency, neededByInput]);
+
+  const deadlineBlock = (
+    <div className={`rounded-xl border bg-card p-5 shadow-paper ${showDeadlineMissing && !deadlineReady ? "border-rouge ring-1 ring-rouge/30" : "border-bleu/15"}`}>
+      <p className="flex items-center gap-2 text-sm font-semibold text-encre">
+        <CalendarClock className="h-4 w-4 text-bleu" />
+        {t.neededByLabel}
+      </p>
+      <p className="mt-1 text-xs text-graphite">{t.neededByHelp}</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {([
+          ["ASAP", t.deadlineAsap],
+          ["DATE", t.deadlineDate],
+          ["FLEXIBLE", t.deadlineFlexible],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setUrgency(value)}
+            className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${urgency === value ? "border-bleu bg-bleu/5 font-semibold text-encre" : "border-graphite/20 text-graphite hover:bg-cream"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {urgency === "DATE" && (
+        <input
+          id="needed-by"
+          type="date"
+          min={todayInput}
+          value={neededByInput}
+          onChange={(e) => setNeededByInput(e.target.value)}
+          aria-label={t.deadlineDate}
+          className="mt-3 rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20"
+        />
+      )}
+      {showDeadlineMissing && !deadlineReady && <p className="mt-2 text-xs text-rouge">{t.deadlineRequired}</p>}
+    </div>
+  );
 
   const handleUploadComplete = useCallback(
     (docId: string, token: string, fileSize?: number, fileName?: string) => {
@@ -325,6 +381,10 @@ export default function PuertaClient({
   // Solicitud de presupuesto humano (24-ago): idiomas sin precio instantáneo,
   // documentos de riesgo y tickets altos. Avisa a staff y acusa al cliente.
   const handleRequestQuote = useCallback(async () => {
+    if (!deadlineReady) {
+      setShowDeadlineMissing(true);
+      return;
+    }
     setRequestState("sending");
     setCheckoutError(null);
     try {
@@ -336,6 +396,7 @@ export default function PuertaClient({
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
           lang,
+          ...deadlineBody,
         }),
       });
       const data = await res.json();
@@ -361,10 +422,14 @@ export default function PuertaClient({
       setRequestState("idle");
       setCheckoutError(t.checkoutErrorDefault);
     }
-  }, [sessionToken, email, phone, lang, t]);
+  }, [sessionToken, email, phone, lang, t, deadlineReady, deadlineBody]);
 
   // El puente: crea la OrderSession checkout-ready y redirige al checkout.
   const handleCheckout = useCallback(async () => {
+    if (!deadlineReady) {
+      setShowDeadlineMissing(true);
+      return;
+    }
     setCheckingOut(true);
     setCheckoutError(null);
     try {
@@ -379,6 +444,7 @@ export default function PuertaClient({
           lang,
           deliveryType,
           shipping: deliveryType === "paper" ? ship : undefined,
+          ...deadlineBody,
           documents: documents.map((d) => ({
             id: d.id,
             targetLanguage: d.analysis.language.target,
@@ -396,7 +462,7 @@ export default function PuertaClient({
       setCheckoutError(t.checkoutErrorDefault);
       setCheckingOut(false);
     }
-  }, [documents, purpose, email, phone, lang, sessionToken, deliveryType, ship, t]);
+  }, [documents, purpose, email, phone, lang, sessionToken, deliveryType, ship, t, deadlineReady, deadlineBody]);
 
   const docsTotal = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
   // El recargo de papel (12 € + IVA) se muestra aquí; el servidor lo recalcula.
@@ -540,6 +606,8 @@ export default function PuertaClient({
             marketingConsent={marketingConsent}
             sourceLanguage={srcLang}
             targetLanguage={tgtLang}
+            urgency={deadlineReady ? urgency : null}
+            neededBy={urgency === "DATE" && neededBy ? neededByInput : null}
             gate="puerta"
             hideConsent
             onBlockedTap={flagMissing}
@@ -547,26 +615,7 @@ export default function PuertaClient({
             openRequest={openPicker}
           />
 
-          {documents.length === 0 && (
-            <div className="rounded-xl border border-bleu/15 bg-card p-5 shadow-paper">
-              <label
-                htmlFor="needed-by"
-                className="flex items-center gap-2 text-sm font-semibold text-encre"
-              >
-                <CalendarClock className="h-4 w-4 text-bleu" />
-                {t.neededByLabel}
-              </label>
-              <p className="mt-1 text-xs text-graphite">{t.neededByHelp}</p>
-              <input
-                id="needed-by"
-                type="date"
-                min={todayInput}
-                value={neededByInput}
-                onChange={(e) => setNeededByInput(e.target.value)}
-                className="mt-3 rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu focus:ring-1 focus:ring-bleu/20"
-              />
-            </div>
-          )}
+          {deadlineBlock}
 
         </>
       )}
@@ -784,6 +833,8 @@ export default function PuertaClient({
               </div>
             )}
 
+            {requestState !== "done" && <div className="mt-4">{deadlineBlock}</div>}
+
             {humanQuoteFlow ? (
               requestState === "done" ? (
                 <p className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-vert/30 bg-vert/5 px-5 py-3 text-center text-sm font-medium text-vert">
@@ -864,6 +915,7 @@ export default function PuertaClient({
               ) : (
                 <>
                   <p className="text-sm text-encre">{t.errorAskHuman}</p>
+                  <div className="mt-3">{deadlineBlock}</div>
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                     <input
                       type="email"

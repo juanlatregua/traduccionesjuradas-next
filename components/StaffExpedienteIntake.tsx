@@ -304,6 +304,7 @@ type Props = {
   initialDocs?: { documentId: string; fileName: string; fileUrl?: string }[];
   initialCustomer?: { name?: string; email?: string; phone?: string };
   initialData?: StaffIntakeInitialData;
+  initialDeliveryNote?: string;
   expedienteRef?: string | null;
   // Solicitud de precio de lavori de la que nace este presupuesto (lead sin
   // expediente): viaja a /api/quotes para atar quoteId a la solicitud.
@@ -323,6 +324,7 @@ export default function StaffExpedienteIntake({
   initialDocs,
   initialCustomer,
   initialData,
+  initialDeliveryNote,
   expedienteRef,
   lavoriLeadRef,
   emailContext,
@@ -366,7 +368,7 @@ export default function StaffExpedienteIntake({
   const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">(
     initialData?.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
   );
-  const [deliveryNote, setDeliveryNote] = useState("");
+  const [deliveryNote, setDeliveryNote] = useState(initialDeliveryNote || "");
   // Orden Juan 24-ago: la cuenta de los presupuestos es SIEMPRE Sabadell — BBVA
   // está en cierre y NO debe salir en presupuestos nuevos.
   const [paymentMethods, setPaymentMethods] = useState<string[]>(["sabadell", "bizum654"]);

@@ -9,6 +9,7 @@ import {
   FRENCH_CRIMINAL_RECORD_PRICE,
   getApostilleSurcharge,
   URGENCY_MULTIPLIER,
+  FR_SAME_DAY_MULTIPLIER,
 } from "./rules.ts";
 import { computePagePricing, APOSTILLE_EXTRA_EUR, type PagePricing } from "./page-pricing.ts";
 
@@ -63,8 +64,22 @@ function pluralDias(min: number, max: number): string {
 function getEstimatedDays(
   specificType: string,
   pages: number,
-  estimatedWords: number
+  estimatedWords: number,
+  foreignLang?: string
 ): EstimatedDays {
+  // Francés (Juan, 26-oct-2026): hasta 5 páginas, 1 día hábil; urgente = en el día.
+  // Más páginas: plazo estándar proporcional (reglas de abajo), urgente en el día.
+  if (foreignLang === "fr") {
+    const rest = pages > 5 ? getEstimatedDays(specificType, pages, estimatedWords) : null;
+    return {
+      standard: rest ? rest.standard : "1 día hábil",
+      standardMin: rest ? rest.standardMin : 1,
+      standardMax: rest ? rest.standardMax : 1,
+      urgent: "en el día",
+      urgentMin: 0,
+      urgentMax: 0,
+    };
+  }
   // Certificados sencillos
   if (
     [
@@ -251,11 +266,12 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
   const estimatedDays = getEstimatedDays(
     document_type.specific_type,
     document_metrics.pages,
-    document_metrics.estimated_words
+    document_metrics.estimated_words,
+    foreignLang
   );
 
   const roundedBase = round2(basePrice);
-  const roundedUrgent = round2(basePrice * URGENCY_MULTIPLIER);
+  const roundedUrgent = round2(basePrice * (foreignLang === "fr" ? FR_SAME_DAY_MULTIPLIER : URGENCY_MULTIPLIER));
 
   return {
     pagePricing,

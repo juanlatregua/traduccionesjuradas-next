@@ -1073,6 +1073,7 @@ export async function sendLeadNudgeEmail(data: {
   // priceEur = NETO; se muestra con IVA (igual que sendLeadReminderEmail). null = lo confirma el traductor.
   docs: { label: string; priceEur: number | null }[];
   reviewUrl: string;
+  askDeadline?: boolean;
 }) {
   const t = NUDGE_COPY[data.locale && NUDGE_COPY[data.locale] ? data.locale : "es"];
   const resumeUrl = `${SITE_BASE_URL}/presupuesto-instantaneo`;
@@ -1093,6 +1094,7 @@ export async function sendLeadNudgeEmail(data: {
     <p><a href="${resumeUrl}" style="display:inline-block; background:#059669; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">${t.resume}</a></p>
     <p style="margin-top:18px;">${t.reviewLead}</p>
     <p><a href="${data.reviewUrl}" style="display:inline-block; background:#ffffff; color:#0f6b66; border:1px solid #0f6b66; padding:9px 22px; border-radius:8px; text-decoration:none; font-weight:600;">${t.reviewBtn}</a></p>
+    ${data.askDeadline ? `<p>${t.askDeadline}</p>` : ""}
     <p><a href="https://wa.me/34951333614" style="color:#059669; font-weight:600;">${t.whatsapp}</a></p>
     <p style="font-size:13px; color:#6b7280;">${t.ignore}</p>
     <p>${t.signature}</p>

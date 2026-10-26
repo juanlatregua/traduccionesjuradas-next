@@ -12,13 +12,13 @@ import {
 
 // ─── getDeliveryHours: tabla determinista (docs/v2-fase1-plan.md) ───
 
-test("francés 1-2 páginas → 24 h", () => {
+test("francés hasta 5 páginas → 24 h (1 día hábil)", () => {
   assert.equal(getDeliveryHours("fr", 1), 24);
-  assert.equal(getDeliveryHours("fr", 2), 24);
+  assert.equal(getDeliveryHours("fr", 5), 24);
 });
 
-test("francés más de 2 páginas → 48 h", () => {
-  assert.equal(getDeliveryHours("fr", 3), 48);
+test("francés más de 5 páginas → 48 h", () => {
+  assert.equal(getDeliveryHours("fr", 6), 48);
   assert.equal(getDeliveryHours("fr", 12), 48);
 });
 

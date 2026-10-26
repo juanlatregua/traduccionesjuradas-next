@@ -8,6 +8,7 @@ import { wrapClientEmailHtml } from "@/lib/email";
 import { formatPhoneSpain, sendSMS } from "@/lib/sms";
 import { getStaffEmails } from "@/lib/staff-access";
 import { loadQuoteHashes } from "@/lib/vigia-graph-db";
+import { deadlineLine, urgentSubjectPrefix } from "@/lib/needed-by";
 import { SLA_WINDOW_HOURS, dedupeId, selectLeadSla, smsAllowed, type SlaLead } from "@/lib/lead-sla-core";
 
 const STEP = "lead_sla";
@@ -22,7 +23,7 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
   const [docs, inbound, solicitudes, quotes, paidOrders] = await Promise.all([
     prisma.documentAnalysis.findMany({
       where: { createdAt: { gte: since }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "staff:" } }], AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] },
-      select: { clientEmail: true, clientName: true, clientPhone: true, sessionToken: true, fileHash: true, fileName: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, createdAt: true },
+      select: { clientEmail: true, clientName: true, clientPhone: true, sessionToken: true, fileHash: true, fileName: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, createdAt: true, urgency: true, neededBy: true },
     }),
     prisma.inboundEmail.findMany({
       where: { receivedAt: { gte: since } },
@@ -51,12 +52,15 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
 
 function renderEmail(leads: SlaLead[]): { subject: string; html: string } {
   const oldest = leads[0];
+  // Plazo corto (lo antes posible o ≤3 días) = urgente desde el primer aviso.
+  const byDeadline = leads.map((l) => urgentSubjectPrefix(l.deadline)).find(Boolean);
   const late = leads.some((l) => l.stage === 2);
-  const subject = `${late ? "URGENTE · " : ""}${leads.length} lead${leads.length > 1 ? "s" : ""} sin presupuesto · el más antiguo espera ${waiting(oldest.minutes)}`;
+  const subject = `${byDeadline || (late ? "URGENTE · " : "")}${leads.length} lead${leads.length > 1 ? "s" : ""} sin presupuesto · el más antiguo espera ${waiting(oldest.minutes)}`;
   const rows = leads
     .map((l) => {
       const who = [l.name, l.email, l.phone].filter(Boolean).map((x) => esc(String(x))).join(" · ") || "sin datos";
-      return `<li style="margin-bottom:12px"><b>${esc(l.name || l.email || l.phone || "Lead")}</b> — espera <b>${waiting(l.minutes)}</b>${l.stage === 2 ? " (2.º aviso)" : ""}<br>${who}<br>Par: ${esc(l.pairs.join(", ") || "sin par")}${l.motor != null ? ` · motor ${eur(l.motor)}` : ""} · vía ${esc(l.via.join("/"))}<br>${l.links.map((u) => `<a href="${esc(u)}">${u.includes("/admin/inbox") ? "Bandeja" : "Hacer presupuesto"}</a>`).join(" · ")}</li>`;
+      const plazo = deadlineLine(l.deadline);
+      return `<li style="margin-bottom:12px"><b>${esc(l.name || l.email || l.phone || "Lead")}</b> — espera <b>${waiting(l.minutes)}</b>${l.stage === 2 ? " (2.º aviso)" : ""}<br>${who}<br>${plazo ? `<b${l.urgent ? ' style="color:#b91c1c"' : ""}>${esc(plazo)}</b><br>` : ""}Par: ${esc(l.pairs.join(", ") || "sin par")}${l.motor != null ? ` · motor ${eur(l.motor)}` : ""} · vía ${esc(l.via.join("/"))}<br>${l.links.map((u) => `<a href="${esc(u)}">${u.includes("/admin/inbox") ? "Bandeja" : "Hacer presupuesto"}</a>`).join(" · ")}</li>`;
     })
     .join("");
   const html = wrapClientEmailHtml(`<p>Los clientes piden precio a varias agencias: hay que enviar presupuesto en 3-4 h.</p><ul style="padding-left:18px">${rows}</ul>`);
@@ -65,7 +69,7 @@ function renderEmail(leads: SlaLead[]): { subject: string; html: string } {
 
 function renderSms(leads: SlaLead[]): string {
   const parts = leads.slice(0, 4).map((l) => `${(l.name || l.email || l.phone || "lead").slice(0, 20)} ${waiting(l.minutes)}${l.pairs[0] ? ` ${l.pairs[0]}` : ""}`);
-  return `Lead sin presupuesto (${leads.length}): ${parts.join("; ")}${leads.length > 4 ? "…" : ""}. Detalle en el email.`.slice(0, 300);
+  return `${leads.some((l) => l.urgent) ? "URGENTE · " : ""}Lead sin presupuesto (${leads.length}): ${parts.join("; ")}${leads.length > 4 ? "…" : ""}. Detalle en el email.`.slice(0, 300);
 }
 
 /** Cron cada 10 min. Nunca lanza por un transporte caído: cada uno deja su resultado en el rastro. */

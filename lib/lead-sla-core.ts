@@ -3,6 +3,7 @@
 // y el envío viven en lib/lead-sla.ts.
 import { buildPersonGraph, type GraphLead, type GraphOrder, type GraphQuote, type GraphSolicitud } from "./vigia-graph.ts";
 import { normEmail, primaryKey } from "./vigia-persona.ts";
+import { deadlineOf, isUrgentDeadline, type Deadline } from "./needed-by.ts";
 
 export const SLA_STAGE1_MIN = 60;
 export const SLA_STAGE2_MIN = 150;
@@ -12,7 +13,7 @@ export const SLA_SMS_UNTIL_HOUR = 22;
 const SITE = "https://www.traduccionesjuradas.net";
 const TEST_EMAIL = /yopmail\.com$|mailinator\.com$|^prueba@|^test@/;
 
-export type SlaDoc = GraphLead & { fileName: string | null; sourceLanguage: string | null; targetLanguage: string | null; estimatedWords: number | null; quoteAmount: number | string | null; createdAt: Date };
+export type SlaDoc = GraphLead & { fileName: string | null; sourceLanguage: string | null; targetLanguage: string | null; estimatedWords: number | null; quoteAmount: number | string | null; createdAt: Date; urgency?: string | null; neededBy?: Date | null };
 export type SlaInbound = { fromEmail: string; fromName: string | null; fromPhone: string | null; subject: string; receivedAt: Date; status: string; quoteId: string | null; repliedAt: Date | null; channel: string };
 export type SlaSolicitud = GraphSolicitud & { status: string; priceCents: number | null; par: string; createdAt: Date };
 export type SlaQuote = GraphQuote & { sentAt: Date | null; createdAt: Date };
@@ -42,9 +43,11 @@ export type SlaLead = {
   stage: 1 | 2;
   via: string[];
   links: string[];
+  deadline: Deadline | null;
+  urgent: boolean;
 };
 
-type Arrival = GraphLead & { at: Date; kind: "puerta" | "email" | "whatsapp" | "lavori"; name: string | null; email: string | null; phone: string | null; pair: string | null; fileKey: string | null; motor: number | null; link: string };
+type Arrival = GraphLead & { at: Date; kind: "puerta" | "email" | "whatsapp" | "lavori"; name: string | null; email: string | null; phone: string | null; pair: string | null; fileKey: string | null; motor: number | null; link: string; urgency?: string | null; neededBy?: Date | null };
 
 const WA_LOCAL = /^(\d{8,15})@whatsapp\.local$/;
 const pairOf = (a: string | null | undefined, b: string | null | undefined) => `${a || "?"}→${b || "?"}`;
@@ -77,6 +80,7 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
       pair: pairOf(d.sourceLanguage, d.targetLanguage), fileKey: `${d.fileName}|${d.sourceLanguage}|${d.targetLanguage}|${d.estimatedWords}`,
       motor: d.quoteAmount == null ? null : Number(d.quoteAmount),
       link: `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(d.sessionToken || "")}`,
+      urgency: d.urgency ?? null, neededBy: d.neededBy ?? null,
     });
   }
   for (const m of inbound) {
@@ -138,6 +142,8 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
     const docsOnce = items.filter((a) => { if (!a.fileKey) return false; if (seen.has(a.fileKey)) return false; seen.add(a.fileKey); return true; });
     const motors = docsOnce.map((a) => a.motor).filter((m): m is number => m != null);
     const sorted = items.slice().sort((a, b) => a.at.getTime() - b.at.getTime());
+    // Plazo del cliente: el de su llegada más reciente que lo trae.
+    const deadline = deadlineOf(sorted.slice().reverse());
     out.push({
       root,
       keyBase,
@@ -152,6 +158,8 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
       stage,
       via: [...new Set(items.map((a) => a.kind))],
       links: [...new Set(sorted.map((a) => a.link))],
+      deadline,
+      urgent: stage === 2 || isUrgentDeadline(deadline, now),
     });
   }
   return out.sort((a, b) => b.minutes - a.minutes);

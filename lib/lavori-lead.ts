@@ -33,6 +33,7 @@ import {
 import { checkDocForSobre, describeDocForSobre } from "@/lib/lavori-sobre";
 import { TYPE_LABELS } from "@/lib/diagnosis";
 import { ANALYSIS_SELECT, docInfoFromAnalysis, isLearnedRatesLive } from "@/lib/learned-rates";
+import { deadlineOf } from "@/lib/needed-by";
 import { proposedCostCents, type CifraDoc, type PriceBasis } from "@/lib/lavori-directo-math";
 
 export const LEAD_BLOB_HOST_RE = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//;
@@ -504,6 +505,8 @@ export async function leadFromPuertaSession(sessionToken: string) {
       clientEmail: true,
       clientName: true,
       clientPhone: true,
+      urgency: true,
+      neededBy: true,
     },
   });
   if (rows.length === 0) return null;
@@ -522,5 +525,5 @@ export async function leadFromPuertaSession(sessionToken: string) {
     email: rows.find((r) => r.clientEmail)?.clientEmail || null,
     phone: rows.find((r) => r.clientPhone)?.clientPhone || null,
   };
-  return { rows, docs, sourceLang, targetLang, words, tipos, contact };
+  return { rows, docs, sourceLang, targetLang, words, tipos, contact, deadline: deadlineOf(rows) };
 }

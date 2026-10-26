@@ -20,6 +20,7 @@ export type NudgeRow = {
   estimatedWords: number | null;
   quoteAmount: number | null;
   orderReference?: string | null;
+  urgency?: string | null;
   createdAt: Date;
 };
 
@@ -137,6 +138,7 @@ export type NudgeCopy = {
   reviewLead: string;
   reviewBtn: string;
   whatsapp: string;
+  askDeadline: string;
   ignore: string;
   signature: string;
   pageTitle: string;
@@ -158,6 +160,7 @@ export const NUDGE_COPY: Record<NudgeLocale, NudgeCopy> = {
     reviewLead: "¿Quiere que revisemos su presupuesto a mano?",
     reviewBtn: "Haga clic aquí",
     whatsapp: "¿Prefiere hablar? WhatsApp 951 333 614",
+    askDeadline: "¿Tiene una fecha límite? Respóndanos a este correo con ella y ajustamos el plazo.",
     ignore: "Si ya no lo necesita, ignore este correo.",
     signature: SIGN,
     pageTitle: "Recibido",
@@ -175,6 +178,7 @@ export const NUDGE_COPY: Record<NudgeLocale, NudgeCopy> = {
     reviewLead: "Souhaitez-vous que nous révisions votre devis à la main ?",
     reviewBtn: "Cliquez ici",
     whatsapp: "Vous préférez en parler ? WhatsApp +34 951 333 614",
+    askDeadline: "Avez-vous une date limite ? Répondez-nous à ce message en l'indiquant et nous adapterons le délai.",
     ignore: "Si vous n'en avez plus besoin, ignorez simplement ce message.",
     signature: "Juan Silva Moreno<br/>Traducteur-Interprète Juré (MAEC n° 3850)",
     pageTitle: "Bien reçu",
@@ -192,6 +196,7 @@ export const NUDGE_COPY: Record<NudgeLocale, NudgeCopy> = {
     reviewLead: "Would you like us to review your quote by hand?",
     reviewBtn: "Click here",
     whatsapp: "Prefer to talk? WhatsApp +34 951 333 614",
+    askDeadline: "Do you have a deadline? Reply to this email with it and we will adjust the turnaround.",
     ignore: "If you no longer need it, simply ignore this email.",
     signature: "Juan Silva Moreno<br/>Sworn Translator-Interpreter (MAEC no. 3850)",
     pageTitle: "Received",
@@ -209,6 +214,7 @@ export const NUDGE_COPY: Record<NudgeLocale, NudgeCopy> = {
     reviewLead: "Möchten Sie, dass wir Ihr Angebot persönlich prüfen?",
     reviewBtn: "Hier klicken",
     whatsapp: "Lieber sprechen? WhatsApp +34 951 333 614",
+    askDeadline: "Haben Sie eine Frist? Antworten Sie uns einfach auf diese E-Mail mit dem Datum, und wir passen die Lieferzeit an.",
     ignore: "Wenn Sie es nicht mehr benötigen, ignorieren Sie diese E-Mail einfach.",
     signature: "Juan Silva Moreno<br/>Vereidigter Übersetzer und Dolmetscher (MAEC Nr. 3850)",
     pageTitle: "Eingegangen",
@@ -226,6 +232,7 @@ export const NUDGE_COPY: Record<NudgeLocale, NudgeCopy> = {
     reviewLead: "Quer que revejamos o seu orçamento manualmente?",
     reviewBtn: "Clique aqui",
     whatsapp: "Prefere falar? WhatsApp +34 951 333 614",
+    askDeadline: "Tem uma data limite? Responda a este email com ela e ajustamos o prazo.",
     ignore: "Se já não precisar, ignore simplesmente este email.",
     signature: "Juan Silva Moreno<br/>Tradutor-Intérprete Juramentado (MAEC n.º 3850)",
     pageTitle: "Recebido",

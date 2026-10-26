@@ -88,3 +88,13 @@ test("horas de SMS: 08:00-22:00 Madrid", () => {
   assert.equal(smsAllowed(new Date("2026-10-22T20:00:00Z")), false); // 22:00
   assert.equal(smsAllowed(new Date("2026-12-22T06:30:00Z")), false); // 07:30 CET
 });
+
+test("plazo del cliente: fecha a ≤3 días o lo antes posible = urgente ya en el 1.er aviso", () => {
+  const soon = run({ docs: [doc("a@x.com", 61, { urgency: "DATE", neededBy: new Date("2026-10-23T00:00:00Z") })] })[0];
+  assert.equal(soon.stage, 1);
+  assert.equal(soon.urgent, true);
+  assert.equal(soon.deadline?.urgency, "DATE");
+  assert.equal(run({ docs: [doc("a@x.com", 61, { urgency: "ASAP" })] })[0].urgent, true);
+  assert.equal(run({ docs: [doc("a@x.com", 61, { urgency: "DATE", neededBy: new Date("2026-11-20T00:00:00Z") })] })[0].urgent, false);
+  assert.equal(run({ docs: [doc("a@x.com", 61)] })[0].deadline, null);
+});

@@ -22,6 +22,8 @@ import { blockingSibling, describeSibling } from "@/lib/open-siblings";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
 import { casoEnSombra, compararGuarda, estamparSesion } from "@/lib/caso/sombra";
 import { paresDe } from "@/lib/caso/sombra-plan";
+import { deadlineLine, deadlineOf, jurorDeadlineNote, urgentSubjectPrefix, type DeadlineUrgency } from "@/lib/needed-by";
+import { saveSessionDeadline } from "@/lib/needed-by-db";
 import { AVISO_REPETIDO_HORAS, clavesDocs, decidirAvisoHumano, dedupeAviso, type AvisoPrevio } from "@/lib/caso/aviso-humano";
 
 const horaMadrid = (d: Date) =>
@@ -104,6 +106,7 @@ export async function routePuertaQuoteRequest(input: {
   email?: string;
   phone?: string;
   locale?: string | null;
+  deadline?: { urgency: DeadlineUrgency; neededBy: Date | null } | null;
 }): Promise<PuertaQuoteResult> {
   const token = input.sessionToken;
   const email = input.email || "";
@@ -129,6 +132,8 @@ export async function routePuertaQuoteRequest(input: {
         clientName: true,
         clientPhone: true,
         source: true,
+        urgency: true,
+        neededBy: true,
       },
     });
     if (docs.length === 0) {
@@ -212,6 +217,19 @@ export async function routePuertaQuoteRequest(input: {
       parLead
     );
     await estamparSesion(token, caso?.casoId);
+    // Plazo del cliente (26-oct-2026): el que manda ahora, o el que ya dejó en la sesión.
+    if (input.deadline) {
+      await saveSessionDeadline(token, input.deadline).catch((err) => console.error("[puerta:request-quote] plazo no guardado:", err));
+    } else if (caso?.casoId) {
+      const previo = deadlineOf(docs);
+      if (previo?.urgency) {
+        await prisma.caso.update({ where: { id: caso.casoId }, data: { urgency: String(previo.urgency), neededBy: previo.neededBy } }).catch(() => {});
+      }
+    }
+    const plazo = input.deadline ?? deadlineOf(docs);
+    const plazoTxt = deadlineLine(plazo);
+    const plazoAsunto = urgentSubjectPrefix(plazo);
+    const plazoJurado = jurorDeadlineNote(plazo);
     const hermanos = await findOpenSiblings({ email: contactEmail, phone: contactPhone, par: parLead, excludeSession: token });
     const mismoDoc = await sameDocumentSiblingIds(
       hermanos,
@@ -240,10 +258,11 @@ export async function routePuertaQuoteRequest(input: {
       await compararGuarda({ vieja: "bloquea", guarda: "open-siblings", objeto: "solicitud", sombra: caso, objetoGuarda: bloqueo.kind === "quote" ? { quoteId: bloqueo.id } : { lprId: bloqueo.id }, refs: { bloqueo: bloqueo.ref, sesion: token }, dedupeKey: token });
       await sendMail({
         to: adminEmail,
-        subject: `[DUPLICADO?] ${fromWhatsApp ? "[WhatsApp] " : ""}Lead con ${bloqueo.ref} ya abierto — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
+        subject: `${plazoAsunto}[DUPLICADO?] ${fromWhatsApp ? "[WhatsApp] " : ""}Lead con ${bloqueo.ref} ya abierto — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
         html: renderSimpleEmailHtml(
           [
             hermanosTxt,
+            ...(plazoTxt ? [plazoTxt] : []),
             `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
             ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
             ...lineas,
@@ -255,7 +274,7 @@ export async function routePuertaQuoteRequest(input: {
         `${recurrenteSms}[DUPLICADO?] ${(lead?.sourceLang || "?").toUpperCase()}>${(lead?.targetLang || "es").toUpperCase()} · ya abierto ${bloqueo.ref} (${describeSibling(bloqueo).split("(")[1]?.replace(")", "") || ""}) · ${bloqueo.url}`,
         "puerta_duplicado"
       ).catch(() => {});
-      await sendPriceRequestAckToClient({ name: docs[0]?.clientName, email: contactEmail, phone: contactPhone, locale, translatorLangName: null });
+      await sendPriceRequestAckToClient({ name: docs[0]?.clientName, email: contactEmail, phone: contactPhone, locale, translatorLangName: null, askDeadline: !plazo });
       return out({ ok: true, lavori: { sent: false } });
     }
 
@@ -275,10 +294,11 @@ export async function routePuertaQuoteRequest(input: {
       const n = docs.length;
       await sendMail({
         to: adminEmail,
-        subject: `🤖 ${auto.sent ? "Presupuesto del tarifario ENVIADO" : "Borrador del tarifario"} ${auto.quoteNumber} — ${auto.totalEur.toFixed(2)} € (${getLanguageName(docs[0]?.sourceLanguage || "?")})`,
+        subject: `${plazoAsunto}🤖 ${auto.sent ? "Presupuesto del tarifario ENVIADO" : "Borrador del tarifario"} ${auto.quoteNumber} — ${auto.totalEur.toFixed(2)} € (${getLanguageName(docs[0]?.sourceLanguage || "?")})`,
         html: renderSimpleEmailHtml(
           [
             `El agente de precios ha preparado el BORRADOR ${auto.quoteNumber} (${auto.totalEur.toFixed(2)} € IVA incl., ${auto.lines} línea${auto.lines === 1 ? "" : "s"}) con el tarifario aprendido. ${auto.sent ? "Ha salido SOLO al cliente (LEARNED_RATES_AUTOSEND=on: guardas, margen y procedencia OK)." : `NO se ha enviado: revísalo y envíalo tú.${auto.autoSendReasons.length ? ` Motivo del auto-envío frenado: ${auto.autoSendReasons.join("; ")}.` : ""}`}`,
+            ...(plazoTxt ? [plazoTxt] : []),
             `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
             ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
             ...(hermanosTxt ? [hermanosTxt] : []),
@@ -375,6 +395,7 @@ export async function routePuertaQuoteRequest(input: {
           words: lead!.words,
           expedienteRef: `puerta:${token}`,
           customerHint: [lead!.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
+          especificaciones: plazoJurado,
           candidatos: directos.map((d) => d.miembroId),
           createdBy: "puerta-directo",
           contacto,
@@ -398,6 +419,7 @@ export async function routePuertaQuoteRequest(input: {
             words: lead.words,
             expedienteRef: `puerta:${token}`,
             customerHint: [lead.contact.name, contactEmail, contactPhone].filter(Boolean).join(" · ") || null,
+            especificaciones: plazoJurado,
             createdBy: "puerta-auto",
             contacto,
             caso,
@@ -431,10 +453,11 @@ export async function routePuertaQuoteRequest(input: {
     if (aviso.tipo === "completo") {
       const enviado = await sendMail({
         to: adminEmail,
-        subject: `${etiqueta}${fromWhatsApp ? "[WhatsApp] " : ""}${recurrente.kind === "recurrent" ? "[RECURRENTE] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
+        subject: `${plazoAsunto}${etiqueta}${fromWhatsApp ? "[WhatsApp] " : ""}${recurrente.kind === "recurrent" ? "[RECURRENTE] " : ""}Lead pide presupuesto humano — ${docs.length} doc(s) ${getLanguageName(docs[0]?.sourceLanguage || "?")}`,
         html: renderSimpleEmailHtml(
           [
             "Un lead de la puerta ha pedido presupuesto humano (idioma sin precio instantáneo o importe alto).",
+            ...(plazoTxt ? [plazoTxt] : []),
             lavoriEmail,
             casoUrl ? `Ficha del caso: ${casoUrl}` : `Montar presupuesto (documentos ya dentro): ${builderUrl}`,
             `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
@@ -458,7 +481,7 @@ export async function routePuertaQuoteRequest(input: {
         await prisma.casoEvento.delete({ where: { id: aviso.eventoId } }).catch((err) => console.error("[puerta:request-quote] no se pudo soltar el rastro del aviso:", err));
       }
       await sendStaffAlertSMS(
-        `${etiqueta}${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}${hermanos.length ? "¿dup? " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
+        `${plazoAsunto ? "URGENTE · " : ""}${etiqueta}${fromWhatsApp ? "[WA] " : ""}${recurrenteSms}${hermanos.length ? "¿dup? " : ""}Lead ${(lead?.sourceLang || docs[0]?.sourceLanguage || "?").toUpperCase()}>${(lead?.targetLang || docs[0]?.targetLanguage || "es").toUpperCase()} · ${resumen} · ${lavoriSms}`,
         "puerta_request_quote"
       ).catch(() => {});
     } else if (aviso.tipo === "corto") {
@@ -483,6 +506,7 @@ export async function routePuertaQuoteRequest(input: {
       phone: contactPhone,
       locale,
       translatorLangName: lavoriSent?.langName ?? null,
+      askDeadline: !plazo,
     });
 
     return out({ ok: true, lavori: lavoriSent ? { sent: true, ...lavoriSent, ...(esDirecto ? { directo: true } : {}) } : { sent: false } });

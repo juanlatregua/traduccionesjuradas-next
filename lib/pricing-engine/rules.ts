@@ -86,6 +86,8 @@ export function getPageMinimum(specificType: string, pages: number, langCode?: s
 }
 
 export const URGENCY_MULTIPLIER = 1.25; // +25%
+// Francés (lo traduce Juan, regla 26-oct-2026): urgente = entrega en el día, +40 %.
+export const FR_SAME_DAY_MULTIPLIER = 1.4;
 
 export const COMPLEXITY_MULTIPLIER: Record<string, number> = {
   standard: 1.0,

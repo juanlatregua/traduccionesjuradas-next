@@ -75,7 +75,7 @@ export type Diagnosis = {
 const AUTOMATED_48H = new Set(["de", "en", "pt", "it"]);
 
 export function getDeliveryHours(foreignLang: string, pages: number): number {
-  if (foreignLang === "fr") return pages <= 2 ? 24 : 48;
+  if (foreignLang === "fr") return pages <= 5 ? 24 : 48; // Juan 26-oct-2026: hasta 5 págs, 1 día hábil
   if (AUTOMATED_48H.has(foreignLang)) return 48;
   // árabe y resto de idiomas (gestión manual): plazo conservador
   return 72;

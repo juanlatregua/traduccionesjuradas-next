@@ -417,3 +417,29 @@ test("pairApostilles: apostilla FR suelta se une a un documento por documento (�
   assert.deepEqual(pairApostilles([r("contract", { pages: 1 }), r("apostille")]), [false, false]);
   assert.deepEqual(pairApostilles([r("other", { pages: 1, hasApostille: true }), r("apostille")]), [false, false], "sin doble +5");
 });
+
+// ── Plazos FR (Juan, 26-oct-2026): ≤5 págs 1 día hábil; urgente = en el día, +40 % ──
+
+test("FR ≤5 páginas → 1 día hábil; urgente en el día ×1,40", () => {
+  for (const pages of [1, 5]) {
+    const q = calculatePrice(analysis({ source: "fr", pages }));
+    assert.equal(q.estimatedDaysStandard, "1 día hábil");
+    assert.equal(q.estimatedDaysUrgent, "en el día");
+    assert.equal(q.urgentPrice, Math.round(q.basePrice * 1.4 * 100) / 100);
+    assert.equal(clientUrgentFromQuote(q, "fr"), q.urgentPrice);
+  }
+  const es2fr = calculatePrice(analysis({ source: "es", target: "fr", country: "ES", type: "contract", pages: 2, words: 600 }));
+  assert.equal(es2fr.estimatedDaysStandard, "1 día hábil");
+  assert.equal(es2fr.urgentPrice, Math.round(es2fr.basePrice * 1.4 * 100) / 100);
+});
+
+test("FR >5 páginas: plazo estándar proporcional (no 1 día), urgente sigue ×1,40", () => {
+  const q = calculatePrice(analysis({ source: "fr", pages: 8, type: "contract", words: 2500 }));
+  assert.notEqual(q.estimatedDaysStandard, "1 día hábil");
+  assert.equal(q.urgentPrice, Math.round(q.basePrice * 1.4 * 100) / 100);
+});
+
+test("no-FR conserva urgente ×1,25", () => {
+  const q = calculatePrice(analysis({ source: "de", country: "DE", pages: 1 }));
+  assert.equal(q.urgentPrice, Math.round(q.basePrice * 1.25 * 100) / 100);
+});

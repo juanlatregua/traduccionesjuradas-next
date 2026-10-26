@@ -122,6 +122,7 @@ export async function GET(req: Request) {
           };
         }),
         reviewUrl: `${SITE_BASE_URL}/revisar-presupuesto?t=${encodeURIComponent(token)}`,
+        askDeadline: !g.rows.some((r) => r.urgency),
       });
       counts.sent++;
     } catch (err: any) {

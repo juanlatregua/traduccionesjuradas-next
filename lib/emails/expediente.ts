@@ -24,6 +24,7 @@ export async function sendExpedienteReceiptEmail(data: {
     <p style="margin:18px 0;">
       <a href="${consultaUrl}" style="display:inline-block; background:#0891b2; color:#fff; padding:11px 26px; border-radius:8px; text-decoration:none; font-weight:600;">Consultar mi expediente</a>
     </p>
+    <p>¿Tiene una fecha límite? Respóndanos a este correo con ella y ajustamos el plazo.</p>
     <p style="font-size:13px; color:#475569;">Si necesitas algo urgente, escríbenos por WhatsApp al 951 333 614.</p>
   `);
 
