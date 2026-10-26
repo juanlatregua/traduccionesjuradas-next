@@ -9,6 +9,7 @@ import { draftToText } from "@/lib/tax-drafts";
 import { aggregateFiscal, snapVat } from "@/lib/fiscal-aggregation";
 import { madridParts, quarterOf } from "@/lib/period-grouping"; // puro, mismo criterio que /periodos
 import CollapsibleSection from "@/components/CollapsibleSection";
+import { ACTIVITY_OPTIONS, filterByActivity, type Activity } from "@/lib/activity-filter";
 
 export type AcInvoice = {
   id: string;
@@ -20,6 +21,7 @@ export type AcInvoice = {
   vatCents: number;
   totalCents: number;
   orderReference: string | null; // null = factura libre (sin pedido) → sin enlace
+  brand: string;
 };
 
 export type AcOrder = {
@@ -55,7 +57,7 @@ export type AcExpense = {
 
 // Ingreso cobrado aún sin factura emitida (pedido pagado). Cuenta como ingreso real
 // para la salud del negocio, no para el 303 (que va por factura emitida).
-export type AcUnbilled = { date: string; baseCents: number };
+export type AcUnbilled = { date: string; baseCents: number; brand?: string }; // sin marca = traducción
 
 // Trimestre de IVA cerrado (303 presentado). period = "YYYY-TN".
 export type AcTaxClose = { period: string; closedAt: string };
@@ -177,7 +179,12 @@ export default function ContabilidadClient({
   // Los impuestos se derivan de la fuente única (build303/111) más abajo, tras `drafts`.
 
   // ── Balance por mes/trimestre/año (ingreso cobrado vs gasto) ──
+  // El filtro de actividad solo toca esta vista de gestión, nunca los borradores fiscales.
+  const [activity, setActivity] = useState<Activity>("todo");
   const balance = useMemo(() => {
+    const bInv = filterByActivity(invoices, activity);
+    const bUnb = filterByActivity(unbilled, activity);
+    const bExp = filterByActivity(expenses, activity);
     const yearNum = fYear === "all" ? null : Number(fYear);
     if (yearNum === null) {
       const map = new Map<number, { inc: number; exp: number }>();
@@ -186,21 +193,21 @@ export default function ContabilidadClient({
         b[f] += v;
         map.set(y, b);
       };
-      invoices.forEach((i) => add(madridParts(new Date(i.issuedAt)).year, "inc", i.baseCents));
-      unbilled.forEach((u) => add(madridParts(new Date(u.date)).year, "inc", u.baseCents));
-      expenses.forEach((e) => add(madridParts(new Date(e.date)).year, "exp", e.baseCents));
+      bInv.forEach((i) => add(madridParts(new Date(i.issuedAt)).year, "inc", i.baseCents));
+      bUnb.forEach((u) => add(madridParts(new Date(u.date)).year, "inc", u.baseCents));
+      bExp.forEach((e) => add(madridParts(new Date(e.date)).year, "exp", e.baseCents));
       const rows = [...map.entries()].sort((a, b) => b[0] - a[0]).map(([y, v]) => ({ label: String(y), inc: v.inc, exp: v.exp }));
       const maxBar = Math.max(1, ...rows.flatMap((r) => [r.inc, r.exp]));
       return { mode: "year" as const, rows, maxBar };
     }
     // madridParts.month es 1-12; el array de meses es 0-11.
     const months = Array.from({ length: 12 }, () => ({ inc: 0, exp: 0 }));
-    invoices.forEach((i) => { const p = madridParts(new Date(i.issuedAt)); if (p.year === yearNum) months[p.month - 1].inc += i.baseCents; });
-    unbilled.forEach((u) => { const p = madridParts(new Date(u.date)); if (p.year === yearNum) months[p.month - 1].inc += u.baseCents; });
-    expenses.forEach((e) => { const p = madridParts(new Date(e.date)); if (p.year === yearNum) months[p.month - 1].exp += e.baseCents; });
+    bInv.forEach((i) => { const p = madridParts(new Date(i.issuedAt)); if (p.year === yearNum) months[p.month - 1].inc += i.baseCents; });
+    bUnb.forEach((u) => { const p = madridParts(new Date(u.date)); if (p.year === yearNum) months[p.month - 1].inc += u.baseCents; });
+    bExp.forEach((e) => { const p = madridParts(new Date(e.date)); if (p.year === yearNum) months[p.month - 1].exp += e.baseCents; });
     const maxBar = Math.max(1, ...months.flatMap((m) => [m.inc, m.exp]));
     return { mode: "month" as const, months, maxBar, year: yearNum };
-  }, [invoices, unbilled, expenses, fYear]);
+  }, [invoices, unbilled, expenses, activity, fYear]);
 
   const yearKpis = useMemo(() => {
     if (balance.mode !== "month") return null;
@@ -693,6 +700,21 @@ export default function ContabilidadClient({
 
       {/* BALANCE */}
       <CollapsibleSection id="balance" title="Balance y salud del negocio" subtitle={`Ingresos cobrados vs gastos · ${fYear === "all" ? "por año" : fYear}`}>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {ACTIVITY_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setActivity(o.value)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                activity === o.value ? "border-cyan-500 bg-cyan-500/15 text-cyan-200" : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+          {activity !== "todo" && <span className="text-[11px] text-slate-500">solo gestión: impuestos y libros siguen con todas las actividades</span>}
+        </div>
         {yearKpis && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className={card}>
