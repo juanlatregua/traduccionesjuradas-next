@@ -23,28 +23,7 @@ export function classifyDocument(analysis: DocumentAnalysisResult): DocumentClas
   };
 }
 
-/**
- * Mapea el specific_type a un nombre legible en español
- */
-export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  birth_certificate: "Certificado de nacimiento",
-  marriage_certificate: "Certificado de matrimonio",
-  death_certificate: "Certificado de defunción",
-  divorce_decree: "Sentencia de divorcio",
-  criminal_record: "Antecedentes penales",
-  passport: "Pasaporte",
-  id_card: "Documento de identidad",
-  degree: "Título académico",
-  transcript: "Expediente académico",
-  contract: "Contrato",
-  power_of_attorney: "Poder notarial",
-  company_registration: "Registro mercantil",
-  payslip: "Nómina",
-  tax_return: "Declaración fiscal",
-  medical_report: "Informe médico",
-  apostille: "Apostilla",
-  other: "Otro documento",
-};
+export { DOCUMENT_TYPE_LABELS } from "@/lib/document-labels";
 
 /**
  * Mapea la categoría a un icono Lucide

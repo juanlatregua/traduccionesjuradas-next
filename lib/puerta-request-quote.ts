@@ -4,6 +4,7 @@
 // firmado «revisar a mano» del email de recuperación (app/revisar-presupuesto).
 // Comportamiento idéntico al de la ruta.
 
+import { documentTypeLabel } from "@/lib/document-labels";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
@@ -178,7 +179,7 @@ export async function routePuertaQuoteRequest(input: {
     const lineas = docs.map((d) => {
       const par = `${getLanguageName(d.sourceLanguage || "?")} → ${getLanguageName(d.targetLanguage || "?")}`;
       const ref = d.quoteAmount ? ` · motor (referencia interna): ${Number(d.quoteAmount).toFixed(2)} € netos` : "";
-      return `· ${d.fileName} — ${d.documentType || "documento"} · ${par} · ${d.estimatedWords ?? "?"} palabras / ${d.pageCount ?? "?"} págs${ref}`;
+      return `· ${d.fileName} — ${documentTypeLabel(d.documentType) || "documento"} · ${par} · ${d.estimatedWords ?? "?"} palabras / ${d.pageCount ?? "?"} págs${ref}`;
     });
     // El builder importa los documentos de la puerta por sesión (25-ago-2026):
     // ya no hay que volver a soltar el PDF.

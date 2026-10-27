@@ -32,6 +32,7 @@ import {
 } from "@/lib/lavori-bridge";
 import { checkDocForSobre, describeDocForSobre } from "@/lib/lavori-sobre";
 import { TYPE_LABELS } from "@/lib/diagnosis";
+import { documentTypeLabel } from "@/lib/document-labels";
 import { ANALYSIS_SELECT, docInfoFromAnalysis, isLearnedRatesLive } from "@/lib/learned-rates";
 import { deadlineOf } from "@/lib/needed-by";
 import { proposedCostCents, type CifraDoc, type PriceBasis } from "@/lib/lavori-directo-math";
@@ -60,7 +61,7 @@ export function docTypeLabelEs(documentType: string | null | undefined, analysis
   const fromJson = (analysisJson as any)?.document_type?.specific_type_es;
   if (typeof fromJson === "string" && fromJson.trim()) return fromJson.trim();
   const t = String(documentType || "").trim();
-  return t ? TYPE_LABELS.es?.[t] || t.replace(/_/g, " ") : undefined;
+  return t ? TYPE_LABELS.es?.[t] || documentTypeLabel(t) : undefined;
 }
 
 /** Prepara un documento del lead para el sobre (por URL, adenda 25-ago-2026).

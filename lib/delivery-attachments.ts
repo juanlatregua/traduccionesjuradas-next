@@ -2,6 +2,7 @@
 // Adjunta la traducción terminada y, SOLO si ya se ha emitido (ISSUED), la
 // factura. No crea facturas (respeta el proceso fiscal manual de Juan).
 
+import { documentTypeLabel } from "@/lib/document-labels";
 import { isOrderSecured } from "@/lib/credit-terms";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
 import { clientInvoicePdfArgs, loadBrandLogo } from "@/lib/invoice-pdf-args";
@@ -68,7 +69,7 @@ export async function buildIssuedInvoiceAttachment(
         const dir = it.sourceLang && it.targetLang ? `${it.sourceLang}-${it.targetLang}` : "";
         const meta = [it.words ? `${it.words} palabras` : "", dir].filter(Boolean).join(" · ");
         return {
-          description: it.documentType || it.fileName,
+          description: documentTypeLabel(it.documentType) || it.fileName,
           detail: meta || undefined,
           amountCents: Math.round((it.quotedCents as number) / 1.21),
         };
