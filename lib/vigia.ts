@@ -349,6 +349,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       collaboratorAssignments: { select: { status: true, isWinning: true, quotedPriceCents: true, quotedDeadline: true, deliveredAt: true, collaborator: { select: { fullName: true } } } },
       documentItems: { select: { words: true } },
       documentAnalyses: { select: { estimatedWords: true } },
+      caso: { select: { urgency: true, neededBy: true } },
       quote: { select: { lines: { select: { description: true } } } },
       clientInvoice: { select: { number: true, status: true, docKind: true, dueDate: true, paidAt: true } },
       monthlyInvoice: { select: { number: true, status: true, docKind: true, periodKey: true, dueDate: true, paidAt: true, annulledAt: true } },
@@ -375,7 +376,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     const link = `${SITE}/zona-traductor/pedido/${o.reference}`;
     const wordsFromQuote = (o.quote?.lines || []).reduce((s, l) => s + (Number(/(\d[\d.]*)\s*palabras/.exec(l.description)?.[1]?.replace(/\./g, "")) || 0), 0);
     const palabras = o.words || o.documentItems.reduce((s, d) => s + (d.words || 0), 0) || o.documentAnalyses.reduce((s, d) => s + (d.estimatedWords || 0), 0) || wordsFromQuote || null;
-    const due = o.dueDate || win?.quotedDeadline || null;
+    const due = o.dueDate || win?.quotedDeadline || o.caso?.neededBy || null;
     const item: AgendaItem = {
       ref: o.reference, cliente: o.clientName || o.clientEmail, par: o.langPair || "?", importe: o.amountCents / 100,
       docs: Math.max(o.documentItems.length, o.documentAnalyses.length, o.quote?.lines.length || 0, 1),

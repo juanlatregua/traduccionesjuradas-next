@@ -1,3 +1,4 @@
+import { deadlineLine, isUrgentDeadline } from "@/lib/needed-by";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -202,7 +203,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
       clientInvoice: { select: { number: true, totalCents: true, status: true, docKind: true, issuedAt: true, dueDate: true, paidAt: true, annulledAt: true } },
       monthlyInvoice: { select: { id: true, number: true, status: true, docKind: true, periodKey: true, issuedAt: true, dueDate: true, paidAt: true, annulledAt: true } },
       quote: { select: { id: true, quoteNumber: true } },
-      caso: { select: { id: true, ref: true } },
+      caso: { select: { id: true, ref: true, urgency: true, neededBy: true } },
       documentItems: { orderBy: { createdAt: "asc" } },
       documentAnalyses: {
         select: { fileName: true, fileUrl: true, mimeType: true, fileSize: true, createdAt: true },
@@ -212,6 +213,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
     },
   });
   if (!order) redirect("/zona-traductor");
+
+  const casoDeadline = order.caso ? { urgency: order.caso.urgency, neededBy: order.caso.neededBy } : null;
+  const casoDeadlineLine = deadlineLine(casoDeadline);
+  const casoUrgent = isUrgentDeadline(casoDeadline);
+  const casoPlazoPosterior = Boolean(order.dueDate && casoDeadline?.neededBy && order.dueDate.getTime() >= casoDeadline.neededBy.getTime() + 864e5);
 
   // Trámite: hermanos de papel sin enviar que irán EN EL MISMO SOBRE que este.
   const caseSiblingsToShip = order.caseRef
@@ -473,6 +479,14 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                 >
                   Ver caso {order.caso.ref}
                 </a>
+              )}
+              {casoDeadlineLine && (
+                <span
+                  className={`rounded-md border px-2 py-1 ${casoUrgent ? "border-red-500/40 bg-red-500/10 text-red-300" : "border-slate-600/50 bg-slate-700/30 text-slate-200"}`}
+                >
+                  {casoDeadlineLine}
+                  {casoPlazoPosterior && " ⚠ nuestro plazo es posterior"}
+                </span>
               )}
               <span className="rounded-md bg-slate-700/50 px-2 py-1 text-slate-100">
                 {getWorkflowStateLabel(workflowState)}
