@@ -136,7 +136,7 @@ export type SaidNoFacts = {
 /**
  * El cliente ya habló o ya dijo que no: (a) escribió (email/WhatsApp, no autorrespuesta ni propio) después de
  * `since` (por defecto 14 días); (b) presupuesto perdido por él en 30 días (el cierre automático por no
- * responder NO cuenta); (c) caso PERDIDO/CANCELADO (ENTREGADO no bloquea).
+ * responder NO cuenta); (c) caso CANCELADO (PERDIDO lo pone el sistema solo, también al cerrar por no responder; ENTREGADO no bloquea).
  */
 export function clientSaidNo(
   id: Identity,
@@ -161,7 +161,7 @@ export function clientSaidNo(
   }
   const casoFrom = now.getTime() - SAID_NO_CASO_DAYS * 864e5;
   for (const c of facts.casos) {
-    if ((c.estado === "PERDIDO" || c.estado === "CANCELADO") && c.lastActivityAt.getTime() >= casoFrom && matchesIdentity(id, { email: c.email, phone: c.phone })) {
+    if (c.estado === "CANCELADO" && c.lastActivityAt.getTime() >= casoFrom && matchesIdentity(id, { email: c.email, phone: c.phone })) {
       return { reason: "caso_cerrado", ref: c.ref };
     }
   }

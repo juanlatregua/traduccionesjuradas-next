@@ -106,16 +106,18 @@ export async function GET(req: Request) {
     }
     const hasStage1 = types.has(EV_STAGE1);
     const hasStage2 = types.has(EV_STAGE2);
-    // Fase 1 escribe al cliente: si ya habló o dijo que no, no. Sin marca permanente (la fase 2 es solo para staff).
+    // Fase 1 escribe al cliente: si ya habló o dijo que no, o no se puede comprobar, NO se le escribe,
+    // pero el aviso a staff sale igual y se registra EV_STAGE1 para que la fase 2 siga viva.
+    let skipClient: string | null = null;
     if (!hasStage1) {
       try {
-        const no = await findClientSaidNo({ email: order.clientEmail, phone: order.clientPhone });
-        if (no) { countSkip(skippedClients, `cliente_${no.reason}`); skipped++; continue; }
+        const no = await findClientSaidNo({ email: order.clientEmail, phone: order.clientPhone }, { excludeCasoId: order.casoId });
+        if (no) skipClient = `${no.reason} ${no.ref}`;
       } catch (err) {
-        console.error(`[order-reminders] guarda «ya habló» falló para ${order.reference}, no se escribe:`, err);
-        failed++;
-        continue;
+        console.error(`[order-reminders] guarda «ya habló» falló para ${order.reference}, no se escribe al cliente:`, err);
+        skipClient = "guarda no comprobable";
       }
+      if (skipClient) countSkip(skippedClients, "cliente_ya_hablo");
     }
     const ageMs = now.getTime() - order.createdAt.getTime();
     const lang = order.clientLocale === "fr" ? "fr" : "es";
@@ -131,14 +133,16 @@ export async function GET(req: Request) {
       if (!hasStage1) {
         // Fase 1: cliente + Juan (email + WhatsApp)
         const paymentUrl = buildSignedOrderUrl(order.reference, "pagar");
-        await sendPaymentReminderEmail({
-          toEmail: order.clientEmail,
-          reference: order.reference,
-          title: order.title,
-          amountCents: order.amountCents,
-          paymentUrl,
-          lang,
-        });
+        if (!skipClient) {
+          await sendPaymentReminderEmail({
+            toEmail: order.clientEmail,
+            reference: order.reference,
+            title: order.title,
+            amountCents: order.amountCents,
+            paymentUrl,
+            lang,
+          });
+        }
         await sendStaffPaymentPendingEmail({
           reference: order.reference,
           title: order.title,
@@ -147,13 +151,17 @@ export async function GET(req: Request) {
           stage: "client_plus_staff",
         });
         await alertStaffWhatsApp(
-          `TraduccionesJuradas: recordatorio de pago enviado al cliente ${order.clientEmail} (ref ${order.reference}, ${(order.amountCents / 100).toFixed(2)} €). Sin pagar 48h.`
+          skipClient
+            ? `TraduccionesJuradas: ${order.reference} sin pagar 48h; NO se ha escrito al cliente ${order.clientEmail} (${skipClient}). Revísalo tú.`
+            : `TraduccionesJuradas: recordatorio de pago enviado al cliente ${order.clientEmail} (ref ${order.reference}, ${(order.amountCents / 100).toFixed(2)} €). Sin pagar 48h.`
         );
         await prisma.orderEvent.create({
           data: {
             orderId: order.id,
             type: EV_STAGE1,
-            message: `Recordatorio de pago (48h) enviado al cliente ${order.clientEmail} + aviso a staff (email + WhatsApp).`,
+            message: skipClient
+              ? `Recordatorio de pago (48h) NO enviado al cliente (${skipClient}); aviso solo a staff (email + WhatsApp).`
+              : `Recordatorio de pago (48h) enviado al cliente ${order.clientEmail} + aviso a staff (email + WhatsApp).`,
           },
         });
         stage1++;

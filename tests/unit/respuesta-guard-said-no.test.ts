@@ -36,9 +36,9 @@ test("clientSaidNo: el cierre automático sin respuesta NO cuenta como «dijo qu
   assert.equal(clientSaidNo(cli, { ...NONE, quotes: [auto] }, NOW), null);
 });
 
-test("clientSaidNo: caso PERDIDO/CANCELADO bloquea; ENTREGADO y ABIERTO no", () => {
+test("clientSaidNo: solo caso CANCELADO bloquea; PERDIDO (lo pone el sistema), ENTREGADO y ABIERTO no", () => {
   const caso = (estado: string) => ({ ref: "CASO-1", estado, email: "cli@mail.com", lastActivityAt: d("2026-10-01T00:00:00Z") });
-  assert.equal(clientSaidNo(cli, { ...NONE, casos: [caso("PERDIDO")] }, NOW)?.reason, "caso_cerrado");
+  assert.equal(clientSaidNo(cli, { ...NONE, casos: [caso("PERDIDO")] }, NOW), null);
   assert.equal(clientSaidNo(cli, { ...NONE, casos: [caso("CANCELADO")] }, NOW)?.reason, "caso_cerrado");
   assert.equal(clientSaidNo(cli, { ...NONE, casos: [caso("ENTREGADO")] }, NOW), null);
   assert.equal(clientSaidNo(cli, { ...NONE, casos: [caso("ABIERTO")] }, NOW), null);

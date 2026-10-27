@@ -276,9 +276,19 @@ async function handle(req: Request, allowStaff: boolean) {
     // Ya habló tras nuestro último contacto o dijo que no en otro presupuesto/caso: no se le recuerda.
     // Sin poder comprobarlo, tampoco (fail-safe).
     try {
-      const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { since: baseAt ?? undefined });
+      const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { since: baseAt ?? undefined, excludeCasoId: quote.casoId });
       if (no) {
         countSkip(skippedClients, `cliente_${no.reason}`);
+        await prisma.messageLog.create({
+          data: {
+            quoteId: quote.id,
+            channel: isPlaceholderEmail(quote.customerEmail) ? "SMS" : "EMAIL",
+            type: "REMINDER",
+            recipient: quote.customerEmail,
+            body: `[omitido: el cliente ya habló o dijo que no — ${no.reason} ${no.ref}]`,
+            status: "SKIPPED",
+          },
+        });
         continue;
       }
     } catch (err) {
@@ -424,7 +434,7 @@ async function handle(req: Request, allowStaff: boolean) {
     }
     // Ya habló o dijo que no: nada de «ha caducado». Sin poder comprobarlo, tampoco.
     try {
-      const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone });
+      const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { excludeCasoId: quote.casoId });
       if (no) {
         countSkip(skippedClients, `cliente_${no.reason}`);
         continue;

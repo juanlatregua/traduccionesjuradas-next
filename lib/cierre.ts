@@ -114,7 +114,7 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
 }
 
 /** Guardas anti-duplicado de un presupuesto: otro del mismo expediente ya en manos del cliente, y cliente que ya pagó. */
-async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string | null; customerEmail: string; customerPhone?: string | null; createdAt: Date; sourceLang: string; targetLang: string }) {
+async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string | null; customerEmail: string; customerPhone?: string | null; casoId?: string | null; createdAt: Date; sourceLang: string; targetLang: string }) {
   let duplicate: string | null = null;
   if (quote.expedienteRef) {
     const otro = await prisma.quote.findFirst({
@@ -154,7 +154,7 @@ async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string |
   // El cliente ya habló (tras crearse el borrador) o dijo que no: no sale solo, el borrador queda para Juan.
   let clientSaidNo: string | null = null;
   try {
-    const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { since: quote.createdAt });
+    const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { since: quote.createdAt, excludeCasoId: quote.casoId });
     if (no) clientSaidNo = `el cliente ya habló o dijo que no (${no.reason} ${no.ref})`;
   } catch (err) {
     clientSaidNo = `no se pudo consultar si el cliente ya habló o dijo que no (${String((err as Error)?.message || err)})`;

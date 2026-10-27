@@ -107,7 +107,7 @@ export async function findLiveBlock(seed: Pair, opts: { now?: Date; leadAt?: Dat
  * El cliente ya escribió o ya dijo que no (ver clientSaidNo). Solo BD, sin Graph. Ante un fallo lanza:
  * quien llama NO envía. `since` = último contacto nuestro (por defecto, 14 días).
  */
-export async function findClientSaidNo(seed: Pair, opts: { since?: Date; now?: Date } = {}) {
+export async function findClientSaidNo(seed: Pair, opts: { since?: Date; now?: Date; excludeCasoId?: string | null } = {}) {
   const now = opts.now ?? new Date();
   const id = await loadIdentity(seed);
   const emails = [...id.emails];
@@ -133,7 +133,7 @@ export async function findClientSaidNo(seed: Pair, opts: { since?: Date; now?: D
       take: 50,
     }),
     prisma.caso.findMany({
-      where: { estado: { in: ["PERDIDO", "CANCELADO"] }, lastActivityAt: { gte: casoFrom }, OR: [...eq("email", emails), ...(phones.length ? [{ phone9: { in: phones } }] : [])] },
+      where: { estado: "CANCELADO", ...(opts.excludeCasoId ? { id: { not: opts.excludeCasoId } } : {}), lastActivityAt: { gte: casoFrom }, OR: [...eq("email", emails), ...(phones.length ? [{ phone9: { in: phones } }] : [])] },
       select: { ref: true, estado: true, email: true, phone9: true, lastActivityAt: true },
       take: 50,
     }),
