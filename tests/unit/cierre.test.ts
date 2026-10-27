@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 process.env.ORDER_TOKEN_SECRET = process.env.ORDER_TOKEN_SECRET || "test-secret";
 import {
   AUTO_SEND_MAX_CENTS,
+  buildAcceptedReminder,
   buildCierreReminder,
   decideAutoSend,
   decideFollowUp,
@@ -126,7 +127,7 @@ test("2º contacto: nunca dos; no a quien pagó ni a quien ya es cliente", () =>
   assert.equal(decideFollowUp({ ...fu, paidAt: hoursAgo(1) }).action, "none");
   assert.equal(decideFollowUp({ ...fu, reminderSkipped: true }).action, "none");
   assert.equal(decideFollowUp({ ...fu, reminderSkipped: true, reminderSentAt: hoursAgo(30) }).action, "none", "ya cliente: ni se cierra");
-  for (const status of ["DRAFT", "ACCEPTED", "PAID", "EXPIRED", "IN_PROGRESS"]) assert.equal(decideFollowUp({ ...fu, status }).action, "none");
+  for (const status of ["DRAFT", "PAID", "EXPIRED", "IN_PROGRESS"]) assert.equal(decideFollowUp({ ...fu, status }).action, "none");
   assert.equal(decideFollowUp({ ...fu, sentAt: null }).action, "none");
 });
 
@@ -143,6 +144,24 @@ test("2º contacto: un FAILED de las últimas 20 h frena el reintento (cron 4×/
     if (d.action === "remind_email") { attempts++; failedAt = now; }
   }
   assert.equal(attempts, 1);
+});
+
+test("ACCEPTED sin pagar: UN aviso a las 24 h y nunca close ni segundo", () => {
+  const acc = { ...fu, status: "ACCEPTED" };
+  assert.deepEqual(decideFollowUp(acc), { action: "remind_accepted", opened: true });
+  assert.equal(decideFollowUp({ ...acc, sentAt: hoursAgo(23) }).action, "none");
+  assert.equal(decideFollowUp({ ...acc, reminderSentAt: hoursAgo(2) }).action, "none");
+  assert.equal(decideFollowUp({ ...acc, sentAt: hoursAgo(300), reminderSentAt: hoursAgo(100) }).action, "none", "nunca close");
+  assert.equal(decideFollowUp({ ...acc, paidAt: hoursAgo(1) }).action, "none");
+  assert.equal(decideFollowUp({ ...acc, reminderSkipped: true }).action, "none");
+  assert.equal(decideFollowUp({ ...acc, lastFailedAt: hoursAgo(6) }).action, "none");
+  assert.equal(decideFollowUp({ ...acc, lastFailedAt: hoursAgo(21) }).action, "remind_accepted");
+  assert.equal(decideFollowUp({ ...acc, customerEmail: "34600111222@whatsapp.local" }).action, "whatsapp_task");
+  const m = buildAcceptedReminder({ lang: null, name: "Ana", quoteNumber: "2026-00245", totalEur: 72.6, payUrl: "https://x/q/t" });
+  assert.equal(m.subject, "Su presupuesto 2026-00245: ¿algún problema con el pago?");
+  assert.match(m.body, /72,60 €, IVA incluido/);
+  assert.match(m.body, /Bizum al 614 619 682/);
+  assert.equal(buildAcceptedReminder({ lang: "fr", name: "", quoteNumber: "n", totalEur: 1, payUrl: "u" }).subject.startsWith("Votre devis"), true);
 });
 
 test("cierre suave: 24 h después del 2º contacto sin pago → close (no antes)", () => {
@@ -318,8 +337,7 @@ test("token de cierre: vale para su presupuesto y propósito, y caduca", () => {
   assert.equal(verifyCierreToken("q1", generateCierreToken("q1", -1)), false);
 });
 
-test("ACCEPTED (cliente en el pago): ni 2º contacto ni cierre suave aunque pasen las horas", () => {
-  assert.equal(decideFollowUp({ ...fu, status: "ACCEPTED" }).action, "none");
+test("ACCEPTED (cliente en el pago): nunca cierre suave aunque pasen las horas", () => {
   assert.equal(decideFollowUp({ ...fu, status: "ACCEPTED", reminderSentAt: hoursAgo(48) }).action, "none");
 });
 

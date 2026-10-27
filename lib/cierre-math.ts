@@ -7,6 +7,7 @@ import { DIRECT_AUTO_MAX_CENTS } from "./lavori-directo-math.ts";
 import { AUTO_LOST_NOTES, type AutoLostCode } from "./quote-lost-reasons.ts";
 import { cardPayUrl } from "./quote-messages.ts";
 import { CASA_LANGS } from "./lavori-bridge.ts";
+import { PAYMENT_ACCOUNTS } from "./payment-labels.ts";
 
 /** Tope del envío automático: el mismo que el carril directo (300 € netos). */
 export const AUTO_SEND_MAX_CENTS = DIRECT_AUTO_MAX_CENTS;
@@ -126,11 +127,20 @@ export type FollowUpInput = {
   /** Último intento REMINDER FAILED, si lo hay. */
   lastFailedAt: Date | null;
 };
-export type FollowUpDecision = { action: "none" | "remind_email" | "whatsapp_task" | "close"; opened: boolean };
+export type FollowUpDecision = { action: "none" | "remind_email" | "remind_accepted" | "whatsapp_task" | "close"; opened: boolean };
 
 export function decideFollowUp(i: FollowUpInput): FollowUpDecision {
   const none = { action: "none" as const, opened: false };
-  if (i.paidAt || !["SENT", "OPENED"].includes(i.status) || !i.sentAt) return none;
+  if (i.paidAt || !["SENT", "OPENED", "ACCEPTED"].includes(i.status) || !i.sentAt) return none;
+  if (i.status === "ACCEPTED") {
+    // Abrió el pago y no lo completó: UN solo aviso; el cron no cierra ACCEPTED ni lo recuerda dos veces.
+    const held = { ...none, opened: true };
+    if (i.reminderSkipped || i.reminderSentAt) return held;
+    if (i.now.getTime() - i.sentAt.getTime() < REMINDER_AFTER_HOURS * HOUR) return held;
+    if (isPlaceholderAddr(i.customerEmail)) return { action: "whatsapp_task", opened: true };
+    if (i.lastFailedAt && i.now.getTime() - i.lastFailedAt.getTime() < RETRY_FAILED_AFTER_HOURS * HOUR) return held;
+    return { action: "remind_accepted", opened: true };
+  }
   const opened = i.status !== "SENT" || Boolean(i.openedAt) || hasHumanOpen(i.events);
   if (i.reminderSkipped) return { ...none, opened };
   const age = i.now.getTime() - i.sentAt.getTime();
@@ -186,6 +196,42 @@ const COPY: Record<RLang, { subject: (n: string) => string; opened: (name: strin
     wa: (name, n, view, card) => `Buongiorno ${name}, se non l'ha visto: il preventivo ${n} è pronto. ${view}${card ? ` · Pagare con carta: ${card}` : ""}`,
   },
 };
+
+const ACCEPTED_COPY: Record<RLang, { subject: (n: string) => string; body: (name: string, n: string, total: string, link: string, bizum: string) => string }> = {
+  es: {
+    subject: (n) => `Su presupuesto ${n}: ¿algún problema con el pago?`,
+    body: (name, n, total, link, bizum) => `Hola ${name}:\n\nHemos visto que intentó pagar el presupuesto ${n} (${total} €, IVA incluido) y el pago no llegó a completarse. ¿Tuvo algún problema con la tarjeta?\n\nPuede volver a intentarlo aquí: ${link}\n\nSi le resulta más cómodo, también puede pagar por Bizum al ${bizum} o por transferencia, indicando el número ${n}. Respóndanos y le pasamos los datos.\n\n¿Para qué fecha lo necesita? Así le confirmamos el plazo de entrega.\n\nUn saludo,\nJuan Silva Moreno · traductor jurado nº 3850 · traduccionesjuradas.net`,
+  },
+  fr: {
+    subject: (n) => `Votre devis ${n} : un problème de paiement ?`,
+    body: (name, n, total, link, bizum) => `Bonjour ${name},\n\nNous avons vu que vous avez tenté de payer le devis ${n} (${total} €, TVA incluse) et que le paiement n'a pas abouti. Avez-vous eu un problème avec la carte ?\n\nVous pouvez réessayer ici : ${link}\n\nSi c'est plus simple, vous pouvez aussi payer par Bizum au ${bizum} ou par virement, en indiquant le numéro ${n}. Répondez-nous et nous vous enverrons les coordonnées.\n\nPour quelle date en avez-vous besoin ? Nous vous confirmerons ainsi le délai de livraison.\n\nCordialement,\nJuan Silva Moreno · traducteur juré n° 3850 · traduccionesjuradas.net`,
+  },
+  en: {
+    subject: (n) => `Your quote ${n}: any problem with the payment?`,
+    body: (name, n, total, link, bizum) => `Hello ${name},\n\nWe saw that you tried to pay quote ${n} (€${total}, VAT included) and the payment did not go through. Did you have a problem with your card?\n\nYou can try again here: ${link}\n\nIf it is easier, you can also pay by Bizum to ${bizum} or by bank transfer, quoting number ${n}. Reply and we will send you the details.\n\nBy what date do you need it? That way we can confirm the delivery time.\n\nKind regards,\nJuan Silva Moreno · sworn translator no. 3850 · traduccionesjuradas.net`,
+  },
+  de: {
+    subject: (n) => `Ihr Angebot ${n}: Problem mit der Zahlung?`,
+    body: (name, n, total, link, bizum) => `Guten Tag ${name},\n\nwir haben gesehen, dass Sie versucht haben, das Angebot ${n} (${total} €, inkl. MwSt.) zu bezahlen, die Zahlung wurde jedoch nicht abgeschlossen. Gab es ein Problem mit der Karte?\n\nSie können es hier erneut versuchen: ${link}\n\nWenn es für Sie einfacher ist, können Sie auch per Bizum an ${bizum} oder per Überweisung zahlen, mit Angabe der Nummer ${n}. Antworten Sie uns, dann senden wir Ihnen die Daten.\n\nBis wann benötigen Sie die Übersetzung? So können wir die Lieferzeit bestätigen.\n\nMit freundlichen Grüßen\nJuan Silva Moreno · vereidigter Übersetzer Nr. 3850 · traduccionesjuradas.net`,
+  },
+  pt: {
+    subject: (n) => `O seu orçamento ${n}: algum problema com o pagamento?`,
+    body: (name, n, total, link, bizum) => `Olá ${name},\n\nVimos que tentou pagar o orçamento ${n} (${total} €, IVA incluído) e o pagamento não chegou a concluir-se. Teve algum problema com o cartão?\n\nPode tentar de novo aqui: ${link}\n\nSe for mais cómodo, também pode pagar por Bizum para o ${bizum} ou por transferência, indicando o número ${n}. Responda-nos e enviamos os dados.\n\nPara que data precisa da tradução? Assim confirmamos o prazo de entrega.\n\nCumprimentos,\nJuan Silva Moreno · tradutor juramentado n.º 3850 · traduccionesjuradas.net`,
+  },
+  it: {
+    subject: (n) => `Il suo preventivo ${n}: qualche problema con il pagamento?`,
+    body: (name, n, total, link, bizum) => `Buongiorno ${name},\n\nabbiamo visto che ha provato a pagare il preventivo ${n} (${total} €, IVA inclusa) e il pagamento non è stato completato. Ha avuto un problema con la carta?\n\nPuò riprovare qui: ${link}\n\nSe preferisce, può anche pagare con Bizum al ${bizum} o con bonifico, indicando il numero ${n}. Ci risponda e le inviamo i dati.\n\nPer quale data le serve? Così le confermiamo il termine di consegna.\n\nCordiali saluti,\nJuan Silva Moreno · traduttore giurato n. 3850 · traduccionesjuradas.net`,
+  },
+};
+
+/** Aviso único al cliente que abrió el pago (ACCEPTED) y no lo completó. */
+export function buildAcceptedReminder(o: { lang: string | null | undefined; name: string; quoteNumber: string; totalEur: number; payUrl: string }) {
+  const c = ACCEPTED_COPY[(norm(o.lang) in ACCEPTED_COPY ? norm(o.lang) : "es") as RLang];
+  const acc = PAYMENT_ACCOUNTS.bizum654;
+  const bizum = acc.kind === "bizum" ? acc.phone : "";
+  const total = o.totalEur.toFixed(2).replace(".", ",");
+  return { subject: c.subject(o.quoteNumber), body: c.body(o.name || "", o.quoteNumber, total, o.payUrl, bizum) };
+}
 
 /** Texto de WhatsApp del 2º contacto para quien ya abrió el presupuesto. */
 const WA_OPENED: Record<RLang, (name: string, n: string, card: string) => string> = {

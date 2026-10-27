@@ -109,7 +109,7 @@ export type ReplyGate = "proceed" | "hold_replied" | "hold_unknown";
  * buzón → tampoco (cerrar a ciegas es lo que falló con Hella). Otras acciones pasan.
  */
 export function replyGate(i: { action: string; replied: boolean; inboxOk: boolean }): ReplyGate {
-  if (i.action !== "close" && i.action !== "remind_email") return "proceed";
+  if (i.action !== "close" && i.action !== "remind_email" && i.action !== "remind_accepted") return "proceed";
   if (i.replied) return "hold_replied";
   if (!i.inboxOk) return "hold_unknown";
   return "proceed";
