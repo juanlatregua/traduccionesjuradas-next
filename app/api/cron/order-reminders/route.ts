@@ -149,6 +149,7 @@ export async function GET(req: Request) {
           amountCents: order.amountCents,
           clientEmail: order.clientEmail,
           stage: "client_plus_staff",
+          clientSkipped: skipClient ?? undefined,
         });
         await alertStaffWhatsApp(
           skipClient

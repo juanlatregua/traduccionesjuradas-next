@@ -1162,17 +1162,22 @@ export async function sendStaffPaymentPendingEmail(data: {
   amountCents: number;
   clientEmail: string;
   stage: "client_plus_staff" | "staff_only";
+  clientSkipped?: string;
 }): Promise<void> {
   const to = alertRecipient();
   if (!to) return;
   const amount = (data.amountCents / 100).toFixed(2);
   const staffOnly = data.stage === "staff_only";
-  const subject = staffOnly
+  const subject = data.clientSkipped
+    ? `⏳ Pago sin resolver — ${data.reference} (NO se ha escrito al cliente)`
+    : staffOnly
     ? `⏳ Pago sin resolver — ${data.reference} (encárgate tú)`
     : `💸 Recordatorio de pago enviado al cliente — ${data.reference}`;
   const html = `
-    <h2>${staffOnly ? "Pago aún pendiente tras el recordatorio" : "Recordatorio de pago enviado al cliente"}</h2>
-    <p>${staffOnly
+    <h2>${data.clientSkipped ? "Pago pendiente: no se ha escrito al cliente" : staffOnly ? "Pago aún pendiente tras el recordatorio" : "Recordatorio de pago enviado al cliente"}</h2>
+    <p>${data.clientSkipped
+      ? `Sin pagar a las 48 h, pero no se le ha mandado recordatorio (${data.clientSkipped}). Revísalo tú.`
+      : staffOnly
       ? "El cliente sigue sin pagar tras el recordatorio. Toca gestionarlo manualmente (al cobrar, sube el justificante y finaliza el pedido)."
       : "Se ha enviado al cliente el recordatorio de pago de 48 h. Te avisamos para que lo tengas en el radar."}</p>
     <table style="border-collapse:collapse; margin:12px 0;">
