@@ -13,6 +13,8 @@ import { PAYMENT_ACCOUNTS } from "./payment-labels.ts";
 export const AUTO_SEND_MAX_CENTS = DIRECT_AUTO_MAX_CENTS;
 export const SEND_OVERDUE_HOURS = 2; // PRICED sin presupuesto enviado a las 2 h → «emitir» en el vigía
 export const REMINDER_AFTER_HOURS = 24;
+// Aceptado sin pagar: el aviso solo sale si el enlace se envió hace menos de esto (no se persigue lo viejo, 22-oct).
+export const ACCEPTED_REMIND_MAX_HOURS = 72;
 export const COST_GAP_AFTER_HOURS = 24;
 
 const HOUR = 3_600_000;
@@ -137,6 +139,7 @@ export function decideFollowUp(i: FollowUpInput): FollowUpDecision {
     const held = { ...none, opened: true };
     if (i.reminderSkipped || i.reminderSentAt) return held;
     if (i.now.getTime() - i.sentAt.getTime() < REMINDER_AFTER_HOURS * HOUR) return held;
+    if (i.now.getTime() - i.sentAt.getTime() > ACCEPTED_REMIND_MAX_HOURS * HOUR) return held;
     if (isPlaceholderAddr(i.customerEmail)) return { action: "whatsapp_task", opened: true };
     if (i.lastFailedAt && i.now.getTime() - i.lastFailedAt.getTime() < RETRY_FAILED_AFTER_HOURS * HOUR) return held;
     return { action: "remind_accepted", opened: true };

@@ -150,6 +150,7 @@ test("ACCEPTED sin pagar: UN aviso a las 24 h y nunca close ni segundo", () => {
   const acc = { ...fu, status: "ACCEPTED" };
   assert.deepEqual(decideFollowUp(acc), { action: "remind_accepted", opened: true });
   assert.equal(decideFollowUp({ ...acc, sentAt: hoursAgo(23) }).action, "none");
+  assert.equal(decideFollowUp({ ...acc, sentAt: hoursAgo(73) }).action, "none", "lo viejo no se persigue");
   assert.equal(decideFollowUp({ ...acc, reminderSentAt: hoursAgo(2) }).action, "none");
   assert.equal(decideFollowUp({ ...acc, sentAt: hoursAgo(300), reminderSentAt: hoursAgo(100) }).action, "none", "nunca close");
   assert.equal(decideFollowUp({ ...acc, paidAt: hoursAgo(1) }).action, "none");
