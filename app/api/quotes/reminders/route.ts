@@ -19,6 +19,7 @@ import { barrerCasosSinVida, recalcularCaso } from "@/lib/caso/sombra";
 import { hasCronSecret } from "@/lib/cron-auth";
 
 const REPLIED_MARK = "[AVISO STAFF] cliente contestó";
+const SAID_NO_SKIP = "[omitido: el cliente ya habló o dijo que no";
 
 export const runtime = "nodejs";
 
@@ -191,8 +192,11 @@ async function handle(req: Request, allowStaff: boolean) {
     // Reloj: desde el último envío del enlace (si lo hay), no desde el primer sentAt.
     const lastLink = quote.messageLogs.filter((m) => m.type === "PAY_LINK" || m.type === "RESEND_PAY_LINK").map(at).sort((a, b) => b.getTime() - a.getTime())[0];
     const baseAt = lastLink && quote.sentAt && lastLink > quote.sentAt ? lastLink : quote.sentAt;
-    // Solo cuenta lo posterior al último envío (un reenvío reabre el ciclo).
-    const logs = quote.messageLogs.filter((m) => m.status === "SKIPPED" || (baseAt && at(m) >= baseAt));
+    // Solo cuenta lo posterior al último envío (un reenvío reabre el ciclo). El SKIPPED de «ya es
+    // cliente» es permanente; el de «ya habló» caduca con el siguiente reenvío.
+    const logs = quote.messageLogs.filter((m) =>
+      m.status === "SKIPPED" && !m.body?.startsWith(SAID_NO_SKIP) ? true : !!baseAt && at(m) >= baseAt,
+    );
     const sentLog = logs.find((m) => (placeholder ? m.status === "SENT" && (m.type === "REMINDER" || m.channel === "WHATSAPP") : m.type === "REMINDER" && m.status === "SENT"));
     const failedLog = logs.find((m) => m.type === "REMINDER" && m.status === "FAILED");
     const decision = decideFollowUp({
@@ -285,7 +289,7 @@ async function handle(req: Request, allowStaff: boolean) {
             channel: isPlaceholderEmail(quote.customerEmail) ? "SMS" : "EMAIL",
             type: "REMINDER",
             recipient: quote.customerEmail,
-            body: `[omitido: el cliente ya habló o dijo que no — ${no.reason} ${no.ref}]`,
+            body: `${SAID_NO_SKIP} — ${no.reason} ${no.ref}]`,
             status: "SKIPPED",
           },
         });
