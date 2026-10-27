@@ -6,7 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { sendMail, isPlaceholderEmail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendClientSMS, sendStaffAlertSMS, formatPhoneSpain } from "@/lib/sms";
-import { findLiveBlock } from "@/lib/respuesta-guard-db";
+import { findClientSaidNo, findLiveBlock } from "@/lib/respuesta-guard-db";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { hasCronSecret } from "@/lib/cron-auth";
 
@@ -119,6 +119,16 @@ export async function GET(req: Request) {
         countSkip(skippedClients, "presupuesto_vivo");
         continue;
       }
+      // Ya habló o dijo que no (6 casos en 30 días con «ya encontré otra opción»): no se le escribe.
+      // Un «no» firme (perdido/caso cerrado) se marca para no reevaluarlo; si solo escribió, puede volver a mirarse.
+      const no = await findClientSaidNo({ email, phone: group.find((l) => l.clientPhone)?.clientPhone });
+      if (no) {
+        if (no.reason !== "respondio") {
+          await prisma.documentAnalysis.updateMany({ where: { id: { in: group.map((l) => l.id) } }, data: { reminderSentAt: now } });
+        }
+        countSkip(skippedClients, `cliente_${no.reason}`);
+        continue;
+      }
     } catch (err) {
       console.error(`[lead-reminders] guarda presupuesto vivo falló para ${email}, no se envía:`, err);
       failed++;
@@ -175,8 +185,21 @@ export async function GET(req: Request) {
     const yaCliente = index
       ? alreadyCustomerFor({ email, phone, at: lpr.createdAt }, { index })
       : ({ skip: false } as const);
+    // Solo bloquea lo que va al CLIENTE; el aviso a staff sigue. Sin poder comprobarlo, tampoco se le escribe.
+    let clienteNo: string | null = null;
+    if (!yaCliente.skip && (email || phone)) {
+      try {
+        const no = await findClientSaidNo({ email, phone });
+        if (no) clienteNo = `cliente_${no.reason}`;
+      } catch (err) {
+        console.error(`[lead-24h] guarda «ya habló» falló para ${lpr.ref}, no se escribe al cliente:`, err);
+        clienteNo = "guarda_no_comprobable";
+      }
+    }
     if (yaCliente.skip) {
       countSkip(skippedClients, yaCliente.reason); // el aviso rojo a Juan sigue: puede ser un encargo nuevo
+    } else if (clienteNo) {
+      countSkip(skippedClients, clienteNo);
     } else if (email) {
       await sendMail({
         to: email,

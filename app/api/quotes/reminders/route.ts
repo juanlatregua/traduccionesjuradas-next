@@ -10,7 +10,7 @@ import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-c
 import { buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
 import { deduceLostReasonFor } from "@/lib/cierre";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { createReplyChecker, type ReplyCheck } from "@/lib/respuesta-guard-db";
+import { createReplyChecker, findClientSaidNo, type ReplyCheck } from "@/lib/respuesta-guard-db";
 import { replyGate, replyLink, type ReplyEvidence } from "@/lib/respuesta-guard";
 import { sendMail } from "@/lib/azure-mail";
 import { AMOUNT_MISMATCH_MARK } from "@/lib/money-alerts-math";
@@ -19,6 +19,7 @@ import { barrerCasosSinVida, recalcularCaso } from "@/lib/caso/sombra";
 import { hasCronSecret } from "@/lib/cron-auth";
 
 const REPLIED_MARK = "[AVISO STAFF] cliente contestó";
+const SAID_NO_SKIP = "[omitido: el cliente ya habló o dijo que no";
 
 export const runtime = "nodejs";
 
@@ -191,8 +192,11 @@ async function handle(req: Request, allowStaff: boolean) {
     // Reloj: desde el último envío del enlace (si lo hay), no desde el primer sentAt.
     const lastLink = quote.messageLogs.filter((m) => m.type === "PAY_LINK" || m.type === "RESEND_PAY_LINK").map(at).sort((a, b) => b.getTime() - a.getTime())[0];
     const baseAt = lastLink && quote.sentAt && lastLink > quote.sentAt ? lastLink : quote.sentAt;
-    // Solo cuenta lo posterior al último envío (un reenvío reabre el ciclo).
-    const logs = quote.messageLogs.filter((m) => m.status === "SKIPPED" || (baseAt && at(m) >= baseAt));
+    // Solo cuenta lo posterior al último envío (un reenvío reabre el ciclo). El SKIPPED de «ya es
+    // cliente» es permanente; el de «ya habló» caduca con el siguiente reenvío.
+    const logs = quote.messageLogs.filter((m) =>
+      m.status === "SKIPPED" && !m.body?.startsWith(SAID_NO_SKIP) ? true : !!baseAt && at(m) >= baseAt,
+    );
     const sentLog = logs.find((m) => (placeholder ? m.status === "SENT" && (m.type === "REMINDER" || m.channel === "WHATSAPP") : m.type === "REMINDER" && m.status === "SENT"));
     const failedLog = logs.find((m) => m.type === "REMINDER" && m.status === "FAILED");
     const decision = decideFollowUp({
@@ -271,6 +275,29 @@ async function handle(req: Request, allowStaff: boolean) {
           status: "SKIPPED",
         },
       });
+      continue;
+    }
+    // Ya habló tras nuestro último contacto o dijo que no en otro presupuesto/caso: no se le recuerda.
+    // Sin poder comprobarlo, tampoco (fail-safe).
+    try {
+      const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { since: baseAt ?? undefined, excludeCasoId: quote.casoId });
+      if (no) {
+        countSkip(skippedClients, `cliente_${no.reason}`);
+        await prisma.messageLog.create({
+          data: {
+            quoteId: quote.id,
+            channel: isPlaceholderEmail(quote.customerEmail) ? "SMS" : "EMAIL",
+            type: "REMINDER",
+            recipient: quote.customerEmail,
+            body: `${SAID_NO_SKIP} — ${no.reason} ${no.ref}]`,
+            status: "SKIPPED",
+          },
+        });
+        continue;
+      }
+    } catch (err) {
+      console.error("[quotes:reminders] guarda «ya habló» falló, no se recuerda", quote.quoteNumber, err);
+      heldUnknown += 1;
       continue;
     }
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
@@ -407,6 +434,19 @@ async function handle(req: Request, allowStaff: boolean) {
     const yaExp = yaCliente(quote);
     if (yaExp.skip) {
       countSkip(skippedClients, yaExp.reason);
+      continue;
+    }
+    // Ya habló o dijo que no: nada de «ha caducado». Sin poder comprobarlo, tampoco.
+    try {
+      const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { excludeCasoId: quote.casoId });
+      if (no) {
+        countSkip(skippedClients, `cliente_${no.reason}`);
+        continue;
+      }
+    } catch (err) {
+      console.error("[quotes:reminders] guarda «ya habló» falló, no se avisa de caducidad", quote.quoteNumber, err);
+      expiredFailed += 1;
+      failedQuotes.push(quote.quoteNumber);
       continue;
     }
 

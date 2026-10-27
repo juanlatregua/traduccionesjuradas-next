@@ -11,6 +11,7 @@ import { decimalToNumber } from "@/lib/quotes";
 import { checkQuoteLinesMargin } from "@/lib/quote-margin";
 import { findLiveLavoriDuplicate, isHeldByJuan } from "@/lib/lavori-dup-guard";
 import { alreadyCustomerFor, loadCustomerIndex } from "@/lib/client-contact-guard";
+import { findClientSaidNo } from "@/lib/respuesta-guard-db";
 import { cierreReviewUrl } from "@/lib/cierre-token";
 import { decideAutoSend, isRealEmail, deduceLostReason, hasCostGap, linkedExpenseFor, hasHumanOpen, autoLostNote, OWN_TRANSLATOR_EMAIL, type ColabExpense, type CostGapOrder } from "@/lib/cierre-math";
 import type { AutoLostCode } from "@/lib/quote-lost-reasons";
@@ -62,6 +63,7 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
   const guards = await quoteDuplicateGuards(quote);
   const duplicate: string | null = dup ? `ya hay otro encargo vivo para estos documentos (${dup.ref}, ${dup.status})` : guards.duplicate;
   const alreadyCustomer = guards.alreadyCustomer;
+  const clientSaidNo = guards.clientSaidNo;
 
   const decision = decideAutoSend({
     sourceLang: quote.sourceLang,
@@ -77,6 +79,7 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
     heldByJuan: Boolean(lead.heldByJuanAt),
     duplicate,
     alreadyCustomer,
+    clientSaidNo,
     avisos: extraAvisos,
     leadPar: lead.par,
   });
@@ -111,7 +114,7 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
 }
 
 /** Guardas anti-duplicado de un presupuesto: otro del mismo expediente ya en manos del cliente, y cliente que ya pagó. */
-async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string | null; customerEmail: string; sourceLang: string; targetLang: string }) {
+async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string | null; customerEmail: string; customerPhone?: string | null; casoId?: string | null; createdAt: Date; sourceLang: string; targetLang: string }) {
   let duplicate: string | null = null;
   if (quote.expedienteRef) {
     const otro = await prisma.quote.findFirst({
@@ -148,7 +151,15 @@ async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string |
     // Sin poder consultar la guarda, no se envía solo: mejor un aviso que un doble cobro.
     alreadyCustomer = `no se pudo consultar la guarda de clientes (${String((err as Error)?.message || err)})`;
   }
-  return { duplicate, alreadyCustomer };
+  // El cliente ya habló (tras crearse el borrador) o dijo que no: no sale solo, el borrador queda para Juan.
+  let clientSaidNo: string | null = null;
+  try {
+    const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { since: quote.createdAt, excludeCasoId: quote.casoId });
+    if (no) clientSaidNo = `el cliente ya habló o dijo que no (${no.reason} ${no.ref})`;
+  } catch (err) {
+    clientSaidNo = `no se pudo consultar si el cliente ya habló o dijo que no (${String((err as Error)?.message || err)})`;
+  }
+  return { duplicate, alreadyCustomer, clientSaidNo };
 }
 
 /**
@@ -181,6 +192,7 @@ export async function autoSendTarifarioDraft(quoteId: string): Promise<{ sent: b
       heldByJuan: false,
       duplicate: guards.duplicate,
       alreadyCustomer: guards.alreadyCustomer,
+      clientSaidNo: guards.clientSaidNo,
     });
     if (decision.action === "skip") return { sent: false, reasons: [decision.reason], payUrl: null };
     if (decision.action === "alert") return { sent: false, reasons: decision.reasons, payUrl: null };

@@ -46,6 +46,8 @@ export type AutoSendInput = {
   duplicate: string | null;
   /** El cliente ya pagó este encargo. */
   alreadyCustomer: string | null;
+  /** El cliente ya escribió o dijo que no (respuesta-guard): el borrador queda sin enviar. */
+  clientSaidNo?: string | null;
   /** Avisos que exigen ojo humano (precio anómalo, jurado no disponible…). */
   avisos?: string[];
   /** Par de la solicitud a lavori («DE>ES»). Si se informa y no es el del presupuesto, no sale solo. */
@@ -85,6 +87,7 @@ export function decideAutoSend(i: AutoSendInput): AutoSendDecision {
   if (i.heldByJuan) reasons.push("marcada «lo llevo yo» en lavori");
   if (i.duplicate) reasons.push(i.duplicate);
   if (i.alreadyCustomer) reasons.push(`el cliente ya pagó este encargo (${i.alreadyCustomer})`);
+  if (i.clientSaidNo) reasons.push(i.clientSaidNo);
   for (const a of i.avisos || []) reasons.push(a);
 
   return reasons.length ? { action: "alert", reasons } : { action: "send" };

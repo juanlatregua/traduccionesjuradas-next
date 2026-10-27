@@ -7,7 +7,7 @@ import { isPlaceholderEmail } from "@/lib/azure-mail";
 import { isStaffEmail } from "@/lib/staff-access";
 import { SITE_BASE_URL } from "@/lib/contact";
 import { resolveLocale } from "@/lib/i18n/locales";
-import { findLiveBlock } from "@/lib/respuesta-guard-db";
+import { findClientSaidNo, findLiveBlock } from "@/lib/respuesta-guard-db";
 import { createReviewToken, groupNudgeLeads, nudgeSkipReason } from "@/lib/lead-nudge";
 import { hasCronSecret } from "@/lib/cron-auth";
 
@@ -89,6 +89,12 @@ export async function GET(req: Request) {
       const live = await findLiveBlock({ email: g.email, phone: g.rows.find((r) => r.clientPhone)?.clientPhone }, { leadAt: new Date(Math.min(...g.rows.map((r) => r.createdAt.getTime()))) });
       if (live) {
         skip("presupuesto-vivo");
+        continue;
+      }
+      // Ya habló o dijo que no: no se le empuja. Si la guarda lanza, cae al catch (failed) y no se envía.
+      const no = await findClientSaidNo({ email: g.email, phone: g.rows.find((r) => r.clientPhone)?.clientPhone });
+      if (no) {
+        skip(`cliente-${no.reason}`);
         continue;
       }
 
