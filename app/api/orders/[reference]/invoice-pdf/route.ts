@@ -1,3 +1,4 @@
+import { documentTypeLabel } from "@/lib/document-labels";
 import { NextResponse } from "next/server";
 import { isOrderSecured } from "@/lib/credit-terms";
 import { getServerSession } from "next-auth";
@@ -126,7 +127,7 @@ export async function GET(req: Request, { params }: Params) {
         const dir = it.sourceLang && it.targetLang ? `${it.sourceLang}-${it.targetLang}` : "";
         const meta = [it.words ? `${it.words} palabras` : "", dir].filter(Boolean).join(" · ");
         return {
-          description: it.documentType || it.fileName,
+          description: documentTypeLabel(it.documentType) || it.fileName,
           detail: meta || undefined,
           amountCents: Math.round((it.quotedCents as number) / 1.21),
         };
