@@ -7,7 +7,7 @@ import { sendStaffAlertSMS, sendClientNotification, formatPhoneSpain } from "@/l
 import { smsPresupuestoCaducado } from "@/lib/sms-templates";
 import { buildQuotePostMortem } from "@/lib/quote-post-mortem";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
-import { buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
+import { buildAcceptedReminder, buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
 import { deduceLostReasonFor } from "@/lib/cierre";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createReplyChecker, findClientSaidNo, type ReplyCheck } from "@/lib/respuesta-guard-db";
@@ -94,8 +94,8 @@ async function handle(req: Request, allowStaff: boolean) {
 
   const candidates = await prisma.quote.findMany({
     where: {
-      // ACCEPTED = el cliente abrió el pago: ni 2º contacto ni cierre (2026-00245).
-      status: { in: ["SENT", "OPENED"] },
+      // ACCEPTED = abrió el pago: UN aviso (remind_accepted), nunca cierre (2026-00245).
+      status: { in: ["SENT", "OPENED", "ACCEPTED"] },
       // Con pedido (declaró transferencia, carril de crédito…) se persigue por el pedido/factura,
       // no por aquí: ni 2º contacto ni cierre.
       orders: { none: {} },
@@ -218,7 +218,7 @@ async function handle(req: Request, allowStaff: boolean) {
     // Si el cliente escribió después del último contacto (email a hola@ o WhatsApp entrante), no se
     // cierra ni se recuerda (9-oct, Hella 2026-00236: cerrado a las 12:00 tras contestar). Sin poder
     // leer el buzón, tampoco: fail-safe.
-    if (decision.action === "close" || decision.action === "remind_email") {
+    if (decision.action === "close" || decision.action === "remind_email" || decision.action === "remind_accepted") {
       const lastContact = decision.action === "close" ? (sentLog ? at(sentLog) : baseAt) : baseAt;
       let chk: ReplyCheck = { ok: false, replied: false };
       // Ya avisado de su respuesta tras este contacto: sigue retenido sin volver a consultar Graph
@@ -307,13 +307,16 @@ async function handle(req: Request, allowStaff: boolean) {
       payUrl,
     });
     // Corto y en el idioma del presupuesto, con el enlace /q y el de pago con tarjeta.
-    const msg = buildCierreReminder({
-      lang: quote.pdfLang,
-      name: quote.customerName || "",
-      quoteNumber: quote.quoteNumber,
-      payUrl,
-      opened: decision.opened,
-    });
+    const msg =
+      decision.action === "remind_accepted"
+        ? buildAcceptedReminder({ lang: quote.pdfLang, name: quote.customerName || "", quoteNumber: quote.quoteNumber, totalEur: Number(quote.total), payUrl })
+        : buildCierreReminder({
+            lang: quote.pdfLang,
+            name: quote.customerName || "",
+            quoteNumber: quote.quoteNumber,
+            payUrl,
+            opened: decision.opened,
+          });
 
     // Reclamo previo (carrera cron/cron o cron/envío manual): sendingAt es el mismo candado que
     // usa finalizeAndSendQuote; si alguien lo tiene, o ya se pagó/cerró, no se escribe.
@@ -323,7 +326,7 @@ async function handle(req: Request, allowStaff: boolean) {
         id: quote.id,
         paidAt: null,
         lostReason: null,
-        status: { in: ["SENT", "OPENED"] },
+        status: { in: ["SENT", "OPENED", "ACCEPTED"] },
         OR: [{ sendingAt: null }, { sendingAt: { lt: new Date(claimedAt.getTime() - 10 * 60 * 1000) } }],
       },
       data: { sendingAt: claimedAt },
