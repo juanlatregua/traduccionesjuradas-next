@@ -6,6 +6,7 @@
 //     último contacto (y, si no se puede saber, no cierran).
 // La lectura de BD y de Graph vive en lib/respuesta-guard-db.ts.
 
+import { AUTO_LOST_NOTES } from "./quote-lost-reasons.ts";
 import { phoneKey, realEmailKey, isPlaceholderEmailKey } from "./client-identity.ts";
 
 export type Pair = { email?: string | null; phone?: string | null };
@@ -14,6 +15,10 @@ export type Identity = { emails: Set<string>; phones: Set<string> };
 /** Una clave con más de MAX_FANOUT contrapartes es un intermediario: no liga a nadie. */
 export const MAX_FANOUT = 3;
 export const LIVE_DAYS = 30;
+/** «Ya habló / dijo que no»: ventana de mensajes entrantes, de presupuestos perdidos por el cliente y de casos cerrados. */
+export const SAID_NO_INBOUND_DAYS = 14;
+export const SAID_NO_LOST_DAYS = 30;
+export const SAID_NO_CASO_DAYS = 30;
 
 /** Email-marcador (<dígitos>@whatsapp.local) → su teléfono; un teléfono suelto → su clave. */
 function normPair(p: Pair): { e: string; ph: string } {
@@ -119,4 +124,46 @@ export function replyLink(i: { baseUrl: string; quoteId: string; evidence?: Repl
   if (ev?.inboxEmailId) return { url: `${i.baseUrl}/admin/inbox?id=${encodeURIComponent(ev.inboxEmailId)}`, quoteUrl, isMessage: true };
   if (ev?.webLink) return { url: ev.webLink, quoteUrl, isMessage: true };
   return { url: quoteUrl, quoteUrl, isMessage: false };
+}
+
+export type SaidNoReason = "respondio" | "perdido" | "caso_cerrado";
+export type SaidNoFacts = {
+  inbound: { id: string; email?: string | null; phone?: string | null; at: Date; subject?: string | null }[];
+  quotes: { ref: string; email?: string | null; phone?: string | null; lostReason?: string | null; lostReasonNote?: string | null; lostFeedbackAt?: Date | null; expiredAt?: Date | null; updatedAt: Date }[];
+  casos: { ref: string; estado: string; email?: string | null; phone?: string | null; lastActivityAt: Date }[];
+};
+
+/**
+ * El cliente ya habló o ya dijo que no: (a) escribió (email/WhatsApp, no autorrespuesta ni propio) después de
+ * `since` (por defecto 14 días); (b) presupuesto perdido por él en 30 días (el cierre automático por no
+ * responder NO cuenta); (c) caso PERDIDO/CANCELADO (ENTREGADO no bloquea).
+ */
+export function clientSaidNo(
+  id: Identity,
+  facts: SaidNoFacts,
+  now: Date,
+  opts: { since?: Date; isOwn?: (email: string) => boolean } = {},
+): { reason: SaidNoReason; ref: string } | null {
+  const isOwn = opts.isOwn ?? (() => false);
+  const from = opts.since ?? new Date(now.getTime() - SAID_NO_INBOUND_DAYS * 864e5);
+  for (const m of facts.inbound) {
+    if (m.at.getTime() <= from.getTime() || isAutoReplySubject(m.subject)) continue;
+    if (m.email && isOwn(m.email)) continue;
+    if (matchesIdentity(id, { email: m.email, phone: m.phone })) return { reason: "respondio", ref: m.id };
+  }
+  const lostFrom = now.getTime() - SAID_NO_LOST_DAYS * 864e5;
+  for (const q of facts.quotes) {
+    if (!matchesIdentity(id, { email: q.email, phone: q.phone })) continue;
+    if (q.lostReasonNote === AUTO_LOST_NOTES.NO_RESPONSE) continue;
+    const feedback = !!q.lostFeedbackAt && q.lostFeedbackAt.getTime() >= lostFrom;
+    const lost = !!q.lostReason && (q.expiredAt ?? q.updatedAt).getTime() >= lostFrom;
+    if (feedback || lost) return { reason: "perdido", ref: q.ref };
+  }
+  const casoFrom = now.getTime() - SAID_NO_CASO_DAYS * 864e5;
+  for (const c of facts.casos) {
+    if ((c.estado === "PERDIDO" || c.estado === "CANCELADO") && c.lastActivityAt.getTime() >= casoFrom && matchesIdentity(id, { email: c.email, phone: c.phone })) {
+      return { reason: "caso_cerrado", ref: c.ref };
+    }
+  }
+  return null;
 }

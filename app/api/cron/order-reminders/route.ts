@@ -4,6 +4,7 @@ import { sendPaymentReminderEmail, sendStaffPaymentPendingEmail } from "@/lib/em
 import { sendNotification } from "@/lib/sms";
 import { buildSignedOrderUrl } from "@/lib/order-token";
 import { AMOUNT_MISMATCH_EVENT } from "@/lib/money-alerts-math";
+import { findClientSaidNo } from "@/lib/respuesta-guard-db";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex, orderChaseSkipReason } from "@/lib/client-contact-guard";
 import { hasCronSecret } from "@/lib/cron-auth";
 
@@ -105,6 +106,17 @@ export async function GET(req: Request) {
     }
     const hasStage1 = types.has(EV_STAGE1);
     const hasStage2 = types.has(EV_STAGE2);
+    // Fase 1 escribe al cliente: si ya habló o dijo que no, no. Sin marca permanente (la fase 2 es solo para staff).
+    if (!hasStage1) {
+      try {
+        const no = await findClientSaidNo({ email: order.clientEmail, phone: order.clientPhone });
+        if (no) { countSkip(skippedClients, `cliente_${no.reason}`); skipped++; continue; }
+      } catch (err) {
+        console.error(`[order-reminders] guarda «ya habló» falló para ${order.reference}, no se escribe:`, err);
+        failed++;
+        continue;
+      }
+    }
     const ageMs = now.getTime() - order.createdAt.getTime();
     const lang = order.clientLocale === "fr" ? "fr" : "es";
 

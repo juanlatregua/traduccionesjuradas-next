@@ -10,7 +10,7 @@ import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-c
 import { buildCierreReminder, decideFollowUp, NO_RESPONSE_NOTE, REMINDER_AFTER_HOURS } from "@/lib/cierre-math";
 import { deduceLostReasonFor } from "@/lib/cierre";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { createReplyChecker, type ReplyCheck } from "@/lib/respuesta-guard-db";
+import { createReplyChecker, findClientSaidNo, type ReplyCheck } from "@/lib/respuesta-guard-db";
 import { replyGate, replyLink, type ReplyEvidence } from "@/lib/respuesta-guard";
 import { sendMail } from "@/lib/azure-mail";
 import { AMOUNT_MISMATCH_MARK } from "@/lib/money-alerts-math";
@@ -273,6 +273,19 @@ async function handle(req: Request, allowStaff: boolean) {
       });
       continue;
     }
+    // Ya habló tras nuestro último contacto o dijo que no en otro presupuesto/caso: no se le recuerda.
+    // Sin poder comprobarlo, tampoco (fail-safe).
+    try {
+      const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone }, { since: baseAt ?? undefined });
+      if (no) {
+        countSkip(skippedClients, `cliente_${no.reason}`);
+        continue;
+      }
+    } catch (err) {
+      console.error("[quotes:reminders] guarda «ya habló» falló, no se recuerda", quote.quoteNumber, err);
+      heldUnknown += 1;
+      continue;
+    }
     const payUrl = `${baseUrl}/q/${quote.publicToken}`;
 
     const waText = buildWhatsAppReminderText({
@@ -407,6 +420,19 @@ async function handle(req: Request, allowStaff: boolean) {
     const yaExp = yaCliente(quote);
     if (yaExp.skip) {
       countSkip(skippedClients, yaExp.reason);
+      continue;
+    }
+    // Ya habló o dijo que no: nada de «ha caducado». Sin poder comprobarlo, tampoco.
+    try {
+      const no = await findClientSaidNo({ email: quote.customerEmail, phone: quote.customerPhone });
+      if (no) {
+        countSkip(skippedClients, `cliente_${no.reason}`);
+        continue;
+      }
+    } catch (err) {
+      console.error("[quotes:reminders] guarda «ya habló» falló, no se avisa de caducidad", quote.quoteNumber, err);
+      expiredFailed += 1;
+      failedQuotes.push(quote.quoteNumber);
       continue;
     }
 

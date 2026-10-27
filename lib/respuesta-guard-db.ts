@@ -4,7 +4,7 @@ import { getMailboxAddress } from "@/lib/azure-mail";
 import { isStaffEmail } from "@/lib/staff-access";
 import { phoneKey, realEmailKey } from "@/lib/client-identity";
 import {
-  expandIdentity, isOwnAddress, liveBlock, LIVE_DAYS,
+  clientSaidNo, expandIdentity, isOwnAddress, liveBlock, LIVE_DAYS, SAID_NO_CASO_DAYS, SAID_NO_INBOUND_DAYS, SAID_NO_LOST_DAYS,
   type Identity, type LiveFact, type Pair, type ReplyEvidence,
 } from "@/lib/respuesta-guard";
 
@@ -101,6 +101,48 @@ export async function findLiveBlock(seed: Pair, opts: { now?: Date; leadAt?: Dat
     ...orders.filter((r) => String(r.status) !== "CANCELLED").map((r) => ({ kind: "order" as const, ref: r.reference, status: String(r.status), paidAt: r.paidAt, createdAt: r.createdAt, email: r.clientEmail, phone: r.clientPhone })),
   ];
   return liveBlock(id, facts, now, { leadAt: opts.leadAt });
+}
+
+/**
+ * El cliente ya escribió o ya dijo que no (ver clientSaidNo). Solo BD, sin Graph. Ante un fallo lanza:
+ * quien llama NO envía. `since` = último contacto nuestro (por defecto, 14 días).
+ */
+export async function findClientSaidNo(seed: Pair, opts: { since?: Date; now?: Date } = {}) {
+  const now = opts.now ?? new Date();
+  const id = await loadIdentity(seed);
+  const emails = [...id.emails];
+  const phones = [...id.phones];
+  if (!emails.length && !phones.length) return null;
+  const day = 864e5;
+  const inboundFrom = opts.since ?? new Date(now.getTime() - SAID_NO_INBOUND_DAYS * day);
+  const lostFrom = new Date(now.getTime() - SAID_NO_LOST_DAYS * day);
+  const casoFrom = new Date(now.getTime() - SAID_NO_CASO_DAYS * day);
+  const [inbound, quotes, casos] = await Promise.all([
+    prisma.inboundEmail.findMany({
+      where: { receivedAt: { gt: inboundFrom }, OR: [...eq("fromEmail", emails), ...ends("fromPhone", phones)] },
+      select: { id: true, fromEmail: true, fromPhone: true, receivedAt: true, subject: true },
+      take: 50,
+    }),
+    prisma.quote.findMany({
+      where: {
+        deletedAt: null,
+        OR: [...eq("customerEmail", emails), ...ends("customerPhone", phones)],
+        AND: [{ OR: [{ lostFeedbackAt: { gte: lostFrom } }, { lostReason: { not: null }, OR: [{ expiredAt: { gte: lostFrom } }, { expiredAt: null, updatedAt: { gte: lostFrom } }] }] }],
+      },
+      select: { quoteNumber: true, customerEmail: true, customerPhone: true, lostReason: true, lostReasonNote: true, lostFeedbackAt: true, expiredAt: true, updatedAt: true },
+      take: 50,
+    }),
+    prisma.caso.findMany({
+      where: { estado: { in: ["PERDIDO", "CANCELADO"] }, lastActivityAt: { gte: casoFrom }, OR: [...eq("email", emails), ...(phones.length ? [{ phone9: { in: phones } }] : [])] },
+      select: { ref: true, estado: true, email: true, phone9: true, lastActivityAt: true },
+      take: 50,
+    }),
+  ]);
+  return clientSaidNo(id, {
+    inbound: inbound.map((r) => ({ id: r.id, email: r.fromEmail, phone: r.fromPhone, at: r.receivedAt, subject: r.subject })),
+    quotes: quotes.map((r) => ({ ref: r.quoteNumber, email: r.customerEmail, phone: r.customerPhone, lostReason: r.lostReason, lostReasonNote: r.lostReasonNote, lostFeedbackAt: r.lostFeedbackAt, expiredAt: r.expiredAt, updatedAt: r.updatedAt })),
+    casos: casos.map((r) => ({ ref: r.ref, estado: r.estado, email: r.email, phone: r.phone9, lastActivityAt: r.lastActivityAt })),
+  }, now, { since: opts.since, isOwn });
 }
 
 export const GRAPH_CHECKS_PER_RUN = 40;
