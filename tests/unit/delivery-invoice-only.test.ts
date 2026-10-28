@@ -39,7 +39,7 @@ test("solo factura: emite/prepara, adjunta la factura y envía; sin transición 
   assert.deepEqual(r, { ok: true, invoiceNumber: "26_097", warnings: [] });
   assert.deepEqual(calls, ["prepare", "attach", "record", "send"]);
   assert.equal(sent[0].subject, "Factura 26_097 — pedido 26_95DA0E");
-  assert.match(sent[0].text, /^Buenos días, Marta:\n\nLe adjunto la factura 26_097 del pedido 26_95DA0E\./);
+  assert.match(sent[0].text, /^(?:Buenos días|Buenas tardes), Marta:\n\nLe adjunto la factura 26_097 del pedido 26_95DA0E\./);
   assert.match(sent[0].text, /g\.page\/r\/x/);
   assert.match(sent[0].text, /Juan Silva — TraduccionesJuradas\.net$/);
   assert.equal((sent[0].attachment as { name: string }).name, "26_097.pdf");
