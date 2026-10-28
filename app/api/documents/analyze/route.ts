@@ -13,6 +13,7 @@ import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
 import { buildDiagnosis, resolveForeignLang } from "@/lib/diagnosis";
 import { clientUrgentFromQuote } from "@/lib/pricing-engine/page-pricing";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
+import { createResumeToken } from "@/lib/puerta-resume-token";
 import { alertStaffAiOutage, alertStaffAnalysisFailure, isAiAccountError } from "@/lib/ai/outage-alert";
 
 export const runtime = "nodejs";
@@ -311,6 +312,10 @@ export async function POST(req: Request) {
         langPair: `${analysis.language.source_name} → ${analysis.language.target_name}`,
         estimatedDays: quote.estimatedDaysStandard,
         apostilleSurcharge: quote.breakdown.apostilleSurcharge || undefined,
+        resumeToken:
+          doc.sessionToken && process.env.NEXTAUTH_SECRET
+            ? createResumeToken(process.env.NEXTAUTH_SECRET, doc.sessionToken, documentId)
+            : undefined,
       }).catch((err) => {
         console.error("[documents/analyze] Follow-up email error:", err.message);
       });

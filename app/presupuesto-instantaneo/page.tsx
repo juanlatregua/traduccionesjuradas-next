@@ -40,12 +40,13 @@ export const metadata: Metadata = {
 export default function PresupuestoInstantaneoPage({
   searchParams,
 }: {
-  searchParams?: { p?: string; l?: string };
+  searchParams?: { p?: string; l?: string; r?: string };
 }) {
   const presetKey = searchParams?.p?.toLowerCase().trim();
   const purpose = (presetKey && PURPOSE_PRESETS[presetKey]) || null;
   const source = (presetKey && KNOWN_SOURCES.has(presetKey) && presetKey) || null;
   const lang = toPuertaLang(searchParams?.l);
+  const resumeToken = searchParams?.r || null;
 
   if (source === "whatsapp") {
     const head = WHATSAPP_HEAD[lang];
@@ -67,7 +68,7 @@ export default function PresupuestoInstantaneoPage({
         </nav>
         <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-base text-emerald-900">{head.banner}</p>
         <h1 className="mb-6 font-baskerville text-2xl font-bold leading-tight text-bleu sm:text-3xl">{head.title}</h1>
-        <PuertaClient purpose={purpose} source={source} lang={lang} />
+        <PuertaClient purpose={purpose} source={source} lang={lang} resumeToken={resumeToken} />
       </section>
     );
   }
@@ -101,7 +102,7 @@ export default function PresupuestoInstantaneoPage({
         </div>
       </div>
 
-      <PuertaClient purpose={purpose} source={source} />
+      <PuertaClient purpose={purpose} source={source} resumeToken={resumeToken} />
     </section>
   );
 }
