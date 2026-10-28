@@ -40,9 +40,15 @@ export function resolveInvoicePlaceholder(message: string, invoiceNumber: string
 
 export const DELIVERY_SIGNATURE = "Juan Silva — TraduccionesJuradas.net";
 
+// «Buenas tardes» a partir de las 13:00 hora de Madrid (Juan, 28-oct-2026).
+export function spanishGreeting(now: Date = new Date()): string {
+  const h = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hourCycle: "h23" }).format(now));
+  return h < 13 ? "Buenos días" : "Buenas tardes";
+}
+
 const COPY = {
   es: {
-    hello: (n: string) => (n ? `Buenos días, ${n}:` : "Buenos días:"),
+    hello: (n: string, now?: Date) => (n ? `${spanishGreeting(now)}, ${n}:` : `${spanishGreeting(now)}:`),
     attached: (ref: string, inv: string) => `Le adjunto la traducción jurada${inv ? ` y la factura ${inv}` : ""} del pedido ${ref}.`,
     corrected: (ref: string) => `Le adjunto la traducción corregida del pedido ${ref}.`,
     here: (ref: string) => `Aquí tiene la traducción jurada del pedido ${ref}`,
@@ -52,7 +58,7 @@ const COPY = {
     download: "Descarga",
   },
   fr: {
-    hello: (n: string) => (n ? `Bonjour ${n},` : "Bonjour,"),
+    hello: (n: string, _now?: Date) => (n ? `Bonjour ${n},` : "Bonjour,"),
     attached: (ref: string, inv: string) => `Veuillez trouver ci-joint la traduction assermentée${inv ? ` et la facture ${inv}` : ""} de la commande ${ref}.`,
     corrected: (ref: string) => `Veuillez trouver ci-joint la traduction corrigée de la commande ${ref}.`,
     here: (ref: string) => `Voici la traduction assermentée de la commande ${ref}`,
@@ -62,7 +68,7 @@ const COPY = {
     download: "Téléchargement",
   },
   en: {
-    hello: (n: string) => (n ? `Hello ${n},` : "Hello,"),
+    hello: (n: string, _now?: Date) => (n ? `Hello ${n},` : "Hello,"),
     attached: (ref: string, inv: string) => `Please find attached the sworn translation${inv ? ` and invoice ${inv}` : ""} for order ${ref}.`,
     corrected: (ref: string) => `Please find attached the corrected translation for order ${ref}.`,
     here: (ref: string) => `Here is the sworn translation for order ${ref}`,
@@ -85,11 +91,12 @@ export function buildDeliveryText(input: {
   invoiceNumber?: string | null;
   correction?: boolean;
   reviewUrl: string;
+  now?: Date;
 }): string {
   const c = COPY[input.lang];
   const inv = input.correction ? "" : (input.invoiceNumber || "").trim();
   return [
-    c.hello(greetingName(input.name)),
+    c.hello(greetingName(input.name), input.now),
     input.correction ? c.corrected(input.reference) : c.attached(input.reference, inv),
     c.review(input.reviewUrl),
     `${c.bye}\n${DELIVERY_SIGNATURE}`,
@@ -103,6 +110,7 @@ export function buildDeliveryWhatsappText(input: {
   reference: string;
   files: { name: string; url?: string }[];
   reviewUrl: string;
+  now?: Date;
 }): string {
   if (input.files.length === 0) return "";
   const c = COPY[input.lang || "es"];
@@ -110,7 +118,7 @@ export function buildDeliveryWhatsappText(input: {
     input.files.length === 1
       ? `${c.here(input.reference)}: ${input.files[0].url || ""}`
       : `${c.here(input.reference)}:\n${input.files.map((f) => `• ${f.name}: ${f.url || ""}`).join("\n")}`;
-  return [c.hello(greetingName(input.name)), links, c.review(input.reviewUrl), `${c.bye}\n${DELIVERY_SIGNATURE}`].join("\n\n");
+  return [c.hello(greetingName(input.name), input.now), links, c.review(input.reviewUrl), `${c.bye}\n${DELIVERY_SIGNATURE}`].join("\n\n");
 }
 
 // Si algún adjunto no pudo ir en el correo, su enlace se añade antes de la reseña.
@@ -200,10 +208,11 @@ export function buildInvoiceOnlyText(input: {
   reference: string;
   invoiceNumber: string;
   reviewUrl: string;
+  now?: Date;
 }): string {
   const c = COPY[input.lang];
   return [
-    c.hello(greetingName(input.name)),
+    c.hello(greetingName(input.name), input.now),
     INVOICE_ONLY[input.lang].line(input.reference, input.invoiceNumber),
     c.review(input.reviewUrl),
     `${c.bye}\n${DELIVERY_SIGNATURE}`,

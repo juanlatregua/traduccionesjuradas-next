@@ -63,7 +63,7 @@ test("el texto de entrega nombra la factura solo si existe", () => {
   const without = buildDeliveryText(base);
   assert.match(withInv, /traducción jurada y la factura 26_025 del pedido 2026-00123/);
   assert.doesNotMatch(without, /factura/);
-  assert.match(without, /^Buenos días, Marta:/);
+  assert.match(without, /^(?:Buenos días|Buenas tardes), Marta:/);
   assert.match(without, /valoración en Google: https:\/\/g\.page\/r\/x/);
   assert.match(without, /Juan Silva — TraduccionesJuradas\.net$/);
   const corr = buildDeliveryText({ ...base, invoiceNumber: "26_025", correction: true });

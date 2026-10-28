@@ -57,10 +57,10 @@ test("un delivery.corrected que sustituye un archivo lo pliega", () => {
 
 test("saludo limpio: dos puntos, sin dobles espacios y sin alias de email", () => {
   const t = buildDeliveryText({ lang: "es", name: "  Alejandro ", reference: "R1", reviewUrl: "u" });
-  assert.match(t, /^Buenos días, Alejandro:\n\n/);
+  assert.match(t, /^(?:Buenos días|Buenas tardes), Alejandro:\n\n/);
   assert.equal(greetingName("Ana   María,", "x@y.es"), "Ana María");
   assert.equal(greetingName("alejandrosilvera7", "alejandrosilvera7@gmail.com"), "");
-  assert.match(buildDeliveryText({ lang: "es", name: "", reference: "R1", reviewUrl: "u" }), /^Buenos días:\n/);
+  assert.match(buildDeliveryText({ lang: "es", name: "", reference: "R1", reviewUrl: "u" }), /^(?:Buenos días|Buenas tardes):\n/);
 });
 
 test("con factura emitida el mensaje lleva su número", () => {
@@ -102,7 +102,7 @@ test("la guarda de datos obligatorios de la IA", () => {
   const req = { reference: "2026-00123", invoiceNumber: "26_096", reviewUrl: "https://g.page/r/x" };
   const ok = buildDeliveryText({ lang: "es", name: "Ana", reference: req.reference, invoiceNumber: req.invoiceNumber, reviewUrl: req.reviewUrl });
   assert.deepEqual(missingRequiredData(ok, req), []);
-  const fr = ok.replace("Buenos días", "Bonjour");
+  const fr = ok.replace(/^(?:Buenos días|Buenas tardes)/, "Bonjour");
   assert.deepEqual(missingRequiredData(fr, req), []);
   assert.deepEqual(missingRequiredData(ok.replace("26_096", ""), req), ["número de factura"]);
   assert.deepEqual(missingRequiredData(ok.replace(req.reviewUrl, ""), req), ["enlace de reseña"]);
@@ -147,4 +147,12 @@ test("dos entregas de lavori distintas siguen marcadas las dos", () => {
   const l2 = `${L}1791380000000-traduccion.pdf`;
   const p = "https://x.public.blob.vercel-storage.com/orders/26_1/1791390000000-otro.pdf";
   assert.equal(splitDocumentVersions([{ url: l1 }, { url: l2 }, { url: p }], p).current.length, 3);
+});
+
+test("saludo según la hora de Madrid: «Buenas tardes» desde las 13:00", () => {
+  const at = (iso: string) => buildDeliveryText({ lang: "es", name: "Ana", reference: "R1", reviewUrl: "u", now: new Date(iso) });
+  assert.match(at("2026-10-28T11:59:00Z"), /^Buenos días, Ana:/); // 12:59 Madrid (CET)
+  assert.match(at("2026-10-28T12:00:00Z"), /^Buenas tardes, Ana:/); // 13:00 Madrid
+  assert.match(at("2026-07-15T10:30:00Z"), /^Buenos días, Ana:/); // 12:30 Madrid (CEST)
+  assert.match(at("2026-07-15T11:00:00Z"), /^Buenas tardes, Ana:/); // 13:00 Madrid (CEST)
 });
