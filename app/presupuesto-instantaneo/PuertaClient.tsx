@@ -60,7 +60,11 @@ export default function PuertaClient({
   lang = "es",
   defaultSourceLang = null,
   focusRequest = 0,
+  resumeToken = null,
 }: {
+  // ?r= del botón «Continuar con mi pedido» del email del presupuesto: reabre
+  // la puerta con ese documento ya analizado, listo para pagar.
+  resumeToken?: string | null;
   // Contador: cada incremento (p. ej. tocar la pestaña activa de la portada)
   // lleva el foco al primer campo que falte, o abre el selector de archivos.
   focusRequest?: number;
@@ -296,6 +300,30 @@ export default function PuertaClient({
     },
     [currentDocId, currentFileName, lang]
   );
+
+  useEffect(() => {
+    if (!resumeToken) return;
+    fetch("/api/puerta/resume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: resumeToken }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data?.ok) return;
+        const analysis = data.document.analysis as DocumentAnalysisResult;
+        const quote = calculatePrice(analysis);
+        setSessionToken(data.sessionToken);
+        setEmail(data.email);
+        setContactSaved(true);
+        setDocuments([
+          { id: data.document.id, fileName: data.document.fileName, analysis, quote, diagnosis: buildDiagnosis(analysis, quote, lang) },
+        ]);
+        setStep("diagnosis");
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeToken]);
 
   // Hay resultado y hay contacto: se revela, llegue en el orden que llegue.
   useEffect(() => {

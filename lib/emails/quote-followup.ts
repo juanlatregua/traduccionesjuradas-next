@@ -38,6 +38,8 @@ export type QuoteFollowupData = {
   langPair: string;
   estimatedDays: string;
   apostilleSurcharge?: number;
+  // Token de lib/puerta-resume-token: el botón reabre la puerta con ESTE documento.
+  resumeToken?: string;
 };
 
 export async function sendQuoteFollowupEmail(data: QuoteFollowupData) {
@@ -75,7 +77,7 @@ export async function sendQuoteFollowupEmail(data: QuoteFollowupData) {
     </div>
 
     <p style="text-align:center;">
-      <a href="${BRAND_HOME_URL}/presupuesto-instantaneo" style="display:inline-block; background:#0f766e; color:#ffffff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px;">
+      <a href="${BRAND_HOME_URL}/presupuesto-instantaneo${data.resumeToken ? `?r=${encodeURIComponent(data.resumeToken)}` : ""}" style="display:inline-block; background:#0f766e; color:#ffffff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px;">
         Continuar con mi pedido
       </a>
     </p>
