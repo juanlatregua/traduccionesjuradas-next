@@ -11,17 +11,22 @@ export default function ConfirmPaymentButton({ reference }: Props) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function confirm(method: "BIZUM" | "TRANSFER") {
+  async function confirm(method: "BIZUM" | "TRANSFER", bankVerified = false) {
     setConfirming(true);
     setError(null);
     try {
       const res = await fetch(`/api/orders/${reference}/confirm-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method }),
+        body: JSON.stringify({ method, bankVerified }),
       });
       const data = await res.json();
-      if (data.ok) {
+      if (data.needsProof && !bankVerified) {
+        if (window.confirm("El cliente no ha subido justificante. ¿Has visto el ingreso en el banco?")) {
+          return await confirm(method, true);
+        }
+        setError("Falta el justificante.");
+      } else if (data.ok) {
         setDone(true);
       } else {
         setError(data.error || "Error al confirmar.");
