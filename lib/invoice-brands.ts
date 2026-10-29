@@ -3,11 +3,13 @@
 // IBAN; cambia el logo, la dirección y la identidad comercial. La numeración
 // fiscal AA_NNN es ÚNICA y compartida entre todas las marcas.
 // Cuenta de cobro = Sabadell (Juan, 11-sep-2026: BBVA en cierre), la misma fuente
-// que los presupuestos (lib/payment-labels.ts).
+// que los presupuestos (lib/payment-labels.ts). Hola Bonjour cobra en BBVA: Oracle
+// tiene esa cuenta dada de alta y sigue abierta para ella (Juan, 29-oct-2026).
 
 import { PAYMENT_ACCOUNTS, type PaymentAccount } from "@/lib/payment-labels";
 
 const COBRO = PAYMENT_ACCOUNTS.sabadell as Extract<PaymentAccount, { kind: "transfer" }>;
+const COBRO_HOLABONJOUR = PAYMENT_ACCOUNTS.bbva as Extract<PaymentAccount, { kind: "transfer" }>;
 
 export type BrandKey = "traduccionesjuradas" | "holabonjour" | "dev";
 
@@ -43,8 +45,8 @@ export const BRANDS: Record<BrandKey, BrandProfile> = {
     cif: "B93712784",
     address: "C/ Barroso, 10 1ºIzq",
     city: "29001 Málaga",
-    bic: COBRO.bic,
-    iban: COBRO.iban,
+    bic: COBRO_HOLABONJOUR.bic,
+    iban: COBRO_HOLABONJOUR.iban,
     // Logo extraído de la plantilla original de facturas (burbuja "Hola Bonjour"
     // + señas SOHO). 532×650 px → mantener proporción 0,82 para no deformarlo.
     // Tamaño del modelo de Juan (26_054, 11-sep-2026): ~35×40 mm; a 26×32 salía
