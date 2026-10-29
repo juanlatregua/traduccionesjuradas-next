@@ -4,6 +4,15 @@ import { localeFor, pickPublicLang, type PublicLang } from "./quote-public-i18n.
 
 export { PAYMENT_LABELS };
 
+// Sin nombre real (vacío, email, o la parte del email que pone el carril automático
+// como «celinasu»): saludo genérico «Estimado/a cliente». Orden de Juan 29-oct-2026.
+export function knownName(name: string | null | undefined) {
+  const n = String(name || "").trim();
+  if (!n || n.includes("@") || /\d/.test(n) || /^cliente?$/i.test(n)) return "";
+  if (!/\s/.test(n) && n === n.toLowerCase()) return "";
+  return n;
+}
+
 type CommonData = {
   name: string;
   payUrl: string;
@@ -57,7 +66,7 @@ type MsgDict = {
 
 const MSG: Record<PublicLang, MsgDict> = {
   es: {
-    hello: (n) => `Estimado/a ${n}:`,
+    hello: (n) => (n ? `Estimado/a ${n}:` : "Estimado/a cliente:"),
     hi: "Hola",
     subject: "Su presupuesto de traducción jurada",
     vat: "IVA incl.",
@@ -86,7 +95,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     },
   },
   en: {
-    hello: (n) => `Dear ${n},`,
+    hello: (n) => (n ? `Dear ${n},` : "Dear customer,"),
     hi: "Hello",
     subject: "Your sworn translation quote",
     vat: "VAT incl.",
@@ -115,7 +124,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     },
   },
   fr: {
-    hello: (n) => `Bonjour ${n},`,
+    hello: (n) => (n ? `Bonjour ${n},` : "Bonjour,"),
     hi: "Bonjour",
     subject: "Votre devis de traduction assermentée",
     vat: "TVA incl.",
@@ -144,7 +153,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     },
   },
   pt: {
-    hello: (n) => `Caro/a ${n},`,
+    hello: (n) => (n ? `Caro/a ${n},` : "Caro/a cliente,"),
     hi: "Olá",
     subject: "O seu orçamento de tradução juramentada",
     vat: "IVA incl.",
@@ -173,7 +182,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     },
   },
   it: {
-    hello: (n) => `Gentile ${n},`,
+    hello: (n) => (n ? `Gentile ${n},` : "Gentile cliente,"),
     hi: "Ciao",
     subject: "Il suo preventivo di traduzione giurata",
     vat: "IVA incl.",
@@ -202,7 +211,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     },
   },
   de: {
-    hello: (n) => `Guten Tag ${n},`,
+    hello: (n) => (n ? `Guten Tag ${n},` : "Guten Tag,"),
     hi: "Hallo",
     subject: "Ihr Angebot für die beeidigte Übersetzung",
     vat: "inkl. MwSt.",
@@ -307,7 +316,7 @@ export function buildPayLinkEmail(data: CommonData) {
   const m = MSG[lang];
   // Una sola llamada a la acción: el enlace al presupuesto. Los métodos de pago
   // (Bizum, transferencia, tarjeta, justificante) viven solo en /q.
-  const top = [m.hello(data.name), summaryLine(data, m, lang), `${m.cta}: ${data.payUrl}`].join("\n");
+  const top = [m.hello(knownName(data.name)), summaryLine(data, m, lang), `${m.cta}: ${data.payUrl}`].join("\n");
   const body = [
     top,
     data.translatorName ? m.translator(data.translatorName, data.translatorMaec) : "",
@@ -325,7 +334,7 @@ export function buildWhatsAppPayText(data: CommonData) {
   const lang = pickPublicLang(data.lang);
   const m = MSG[lang];
   return [
-    `${m.hi} ${data.name} 👋`,
+    `${m.hi}${knownName(data.name) ? ` ${knownName(data.name)}` : ""} 👋`,
     summaryLine(data, m, lang),
     `${m.cta}: ${data.payUrl}`,
     langPair(data, lang),
@@ -344,7 +353,7 @@ function buildPaidEmail(data: PaidData, paper: boolean) {
   const m = MSG[lang].paid;
   const eta = data.etaDate.toLocaleDateString(localeFor(lang), { day: "numeric", month: "long", year: "numeric" });
   const body = [
-    `${MSG[lang].hello(data.name)}\n${m.confirmed} ✅`,
+    `${MSG[lang].hello(knownName(data.name))}\n${m.confirmed} ✅`,
     [data.quoteNumber ? `${m.ref}: ${data.quoteNumber}` : "", `${m.eta}: ${eta}`].filter(Boolean).join("\n"),
     paper ? m.paper : m.digital,
     data.trackUrl ? `${m.track}: ${data.trackUrl}` : "",
@@ -371,7 +380,7 @@ export function buildReminderEmail(data: {
   payUrl: string;
 }) {
   const subject = "Recordatorio: presupuesto pendiente de confirmación";
-  const body = `Estimado/a ${data.name},
+  const body = `Estimado/a ${knownName(data.name) || "cliente"},
 Le recordamos que el presupuesto ${data.quoteNumber} enviado el ${formatDateEs(data.sentDate)} sigue pendiente de confirmación.
 Puede revisarlo y realizar el pago aquí: ${data.payUrl}
 Quedo a su disposición. – Juan Silva`;
@@ -383,7 +392,7 @@ export function buildExpiredEmail(data: { name: string; quoteNumber: string; pay
   // Los enlaces de motivo aterrizan en la página pública con el motivo preseleccionado;
   // el registro real exige confirmar con un botón (POST) — los escáneres de email
   // pre-abren enlaces y un GET que escribiera en BD llenaría esto de motivos falsos.
-  const body = `Estimado/a ${data.name},
+  const body = `Estimado/a ${knownName(data.name) || "cliente"},
 El presupuesto ${data.quoteNumber} ha expirado.
 Si desea retomarlo, responda a este correo o use este enlace para solicitar actualización: ${data.payUrl}
 Si decidió no seguir adelante, nos ayudaría mucho conocer el motivo (solo un clic):
@@ -397,7 +406,7 @@ Atentamente, Juan Silva – Traductor Jurado (MAEC).`;
 }
 
 export function buildWhatsAppReminderText(data: { name: string; payUrl: string }) {
-  return `Hola ${data.name}, le escribo desde TraduccionesJuradas.net para recordarle que su presupuesto sigue pendiente de confirmación. Puede completarlo aquí: ${data.payUrl}. Quedo atento.`;
+  return `Hola${knownName(data.name) ? ` ${knownName(data.name)}` : ""}, le escribo desde TraduccionesJuradas.net para recordarle que su presupuesto sigue pendiente de confirmación. Puede completarlo aquí: ${data.payUrl}. Quedo atento.`;
 }
 
 // ── Captación de leads con presupuesto que no llegó / no se revisó ────────────
@@ -431,7 +440,7 @@ export function buildTranslatorReviewEmail(data: {
     const link = data.payUrl ? ` ${data.payUrl}` : "";
     return {
       subject: "Votre devis de traduction assermentée — souhaitez-vous qu'on le revoie ensemble ?",
-      body: `Bonjour ${data.name},
+      body: `Bonjour${knownName(data.name) ? ` ${knownName(data.name)}` : ""},
 Nous avons préparé le devis de votre traduction assermentée, mais il semble que vous n'ayez pas pu le consulter.
 Pour lever tout doute, un traducteur assermenté peut étudier votre dossier personnellement — document, délai et validité officielle auprès de l'organisme destinataire — sans engagement.
 Répondez à ce courriel ou écrivez-nous sur WhatsApp et nous le voyons aujourd'hui même.${link}
@@ -442,7 +451,7 @@ Cordialement, Juan Silva — Traducteur assermenté (MAEC).`,
     const link = data.payUrl ? ` ${data.payUrl}` : "";
     return {
       subject: "Your sworn translation quote — shall we review it together?",
-      body: `Dear ${data.name},
+      body: `Dear ${knownName(data.name) || "customer"},
 We've prepared the quote for your sworn translation, but it looks like you haven't had a chance to review it.
 To clear up any doubts, a sworn translator can review your case personally — document, turnaround time and official validity before the receiving authority — at no obligation.
 Reply to this email or message us on WhatsApp and we'll look at it today.${link}
@@ -452,7 +461,7 @@ Best regards, Juan Silva — Sworn Translator (MAEC).`,
   const link = data.payUrl ? ` ${data.payUrl}` : "";
   return {
     subject: "Su presupuesto de traducción jurada — ¿lo revisamos juntos?",
-    body: `Estimado/a ${data.name},
+    body: `Estimado/a ${knownName(data.name) || "cliente"},
 Hemos preparado el presupuesto de su traducción jurada, pero no nos consta que haya podido revisarlo.
 Para que no se quede con dudas, un traductor jurado puede analizar su caso personalmente —documento, plazo y validez oficial ante el organismo de destino— sin compromiso.
 Responda a este correo o escríbanos por WhatsApp y lo vemos hoy mismo.${link}
@@ -469,10 +478,10 @@ export function buildWhatsAppTranslatorReviewText(data: {
   const lang = data.lang || "es";
   const link = data.payUrl ? ` ${data.payUrl}` : "";
   if (lang === "fr") {
-    return `Bonjour ${data.name}, équipe de TraduccionesJuradas.net. Nous avons préparé votre devis de traduction assermentée mais il n'a pas été consulté. Souhaitez-vous qu'un traducteur assermenté étudie votre dossier personnellement ? Nous répondons aujourd'hui.${link}`;
+    return `Bonjour${knownName(data.name) ? ` ${knownName(data.name)}` : ""}, équipe de TraduccionesJuradas.net. Nous avons préparé votre devis de traduction assermentée mais il n'a pas été consulté. Souhaitez-vous qu'un traducteur assermenté étudie votre dossier personnellement ? Nous répondons aujourd'hui.${link}`;
   }
   if (lang === "en") {
-    return `Hi ${data.name}, this is the TraduccionesJuradas.net team. We prepared your sworn translation quote but it looks like you haven't seen it. Would you like a sworn translator to review your case personally? We'll reply today.${link}`;
+    return `Hi${knownName(data.name) ? ` ${knownName(data.name)}` : ""}, this is the TraduccionesJuradas.net team. We prepared your sworn translation quote but it looks like you haven't seen it. Would you like a sworn translator to review your case personally? We'll reply today.${link}`;
   }
-  return `Hola ${data.name}, soy del equipo de TraduccionesJuradas.net. Preparamos su presupuesto de traducción jurada pero no nos consta que lo viera. ¿Quiere que un traductor jurado revise su caso personalmente? Le respondemos hoy.${link}`;
+  return `Hola${knownName(data.name) ? ` ${knownName(data.name)}` : ""}, soy del equipo de TraduccionesJuradas.net. Preparamos su presupuesto de traducción jurada pero no nos consta que lo viera. ¿Quiere que un traductor jurado revise su caso personalmente? Le respondemos hoy.${link}`;
 }
