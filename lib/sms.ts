@@ -74,7 +74,14 @@ export async function sendSMS(
       return twilioSend(`whatsapp:${msg.to}`, waFrom, msg.body);
     }
     const from = process.env.TWILIO_FROM_NUMBER!;
-    return twilioSend(msg.to, from, msg.body);
+    const res = await twilioSend(msg.to, from, msg.body);
+    // Remitente alfanumérico no admitido en el destino (España sin registro: 21612):
+    // se reintenta desde el número de Twilio. Llega con número en vez de nombre.
+    const fallback = process.env.TWILIO_FALLBACK_NUMBER;
+    if (!res.ok && fallback && fallback !== from && /"code":\s*21612\b/.test(res.error || "")) {
+      return twilioSend(msg.to, fallback, msg.body);
+    }
+    return res;
   }
 
   return { ok: false, error: `Unknown SMS provider: ${provider}` };
