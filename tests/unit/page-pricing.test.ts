@@ -443,3 +443,9 @@ test("no-FR conserva urgente ×1,25", () => {
   const q = calculatePrice(analysis({ source: "de", country: "DE", pages: 1 }));
   assert.equal(q.urgentPrice, Math.round(q.basePrice * 1.25 * 100) / 100);
 });
+
+test("RC FR→ES: cada página suma según su tramo y el precio nunca baja", () => {
+  const rc = (pages: number) => computePagePricing({ specificType: "company_registration", foreignLang: "fr", inbound: true, pages })?.priceEur;
+  assert.deepEqual([1, 5, 6, 12, 13, 19, 20, 30].map(rc), [30, 50, 70, 190, 202, 274, 284, 384]);
+  for (let p = 2; p <= 40; p++) assert.ok(rc(p)! > rc(p - 1)!);
+});

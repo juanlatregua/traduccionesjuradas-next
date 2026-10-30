@@ -32,9 +32,22 @@ export const PAGE_COST_DE_TABLES_EUR = 15;
 export const APOSTILLE_EXTRA_EUR = 5;
 
 /** RC francés (company_registration FR→ES, decisión Juan 17-oct): por documento
- * según páginas — 1 pág. 30 €, 2 pág. 35 €, 3 pág. 40 €, +5 € por página más. */
+ * según páginas — 1 pág. 30 €, y cada página más suma según su tramo: hasta la 5.ª
+ * +5 €, de la 6.ª a la 12.ª +20 €, de la 13.ª a la 19.ª +12 € y desde la 20.ª +10 €
+ * (Juan, 30-oct: 12 pág. y 4000 palabras salían a 85 €). */
 export const FR_RC_BASE_EUR = 30;
-export const FR_RC_EXTRA_PAGE_EUR = 5;
+const FR_RC_PAGE_TIERS = [
+  { upToPage: 5, eur: 5 },
+  { upToPage: 12, eur: 20 },
+  { upToPage: 19, eur: 12 },
+  { upToPage: Infinity, eur: 10 },
+];
+
+function frRcPrice(pages: number): number {
+  let price = FR_RC_BASE_EUR;
+  for (let page = 2; page <= pages; page++) price += FR_RC_PAGE_TIERS.find((t) => page <= t.upToPage)!.eur;
+  return price;
+}
 /** Extractos bancarios FR→ES (decisión Juan 17-oct): 30 € por documento sea cual
  * sea su nº de páginas. En lote (≥ FR_BANK_BULK_MIN extractos en el mismo
  * presupuesto): 15 € el de 1 página, 20 € el de 2, +5 € por página más. */
@@ -109,7 +122,7 @@ const FR_ONLY_PAGE_TYPES = new Set(["company_registration"]);
 
 /** Precio FR→ES de un documento con tarifa por documento (RC, extractos), o null. */
 function frDocumentPrice(type: string, pages: number, bankStatementsInQuote: number): number | null {
-  if (type === "company_registration") return FR_RC_BASE_EUR + FR_RC_EXTRA_PAGE_EUR * (pages - 1);
+  if (type === "company_registration") return frRcPrice(pages);
   if (type === "bank_statement") {
     return bankStatementsInQuote >= FR_BANK_BULK_MIN
       ? FR_BANK_BULK_1P_EUR + FR_BANK_BULK_EXTRA_PAGE_EUR * (pages - 1)
