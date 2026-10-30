@@ -163,6 +163,22 @@ export default function HomeV2({ lang, hero }: { lang: HomeLang; hero?: ReactNod
         </div>
       </section>
 
+      {/* ───── Seguridad: comprobar la firma ───── */}
+      <section className="bg-parchment pb-14">
+        <div className="mx-auto max-w-3xl px-4">
+          <div className="rounded-2xl border border-cream bg-card p-6 text-center shadow-sm">
+            <ShieldCheck className="mx-auto h-7 w-7 text-bleu" aria-hidden="true" />
+            <p className="mt-2 text-xs font-bold uppercase tracking-wider text-or-dark">{h.verify.kicker[lang]}</p>
+            <h2 className="mt-2 font-baskerville text-2xl font-bold text-encre">{h.verify.h2[lang]}</h2>
+            <p className="mt-2 text-sm text-sepia">{h.verify.p[lang]}</p>
+            <Link href="/blog/comprobar-firma-electronica-traduccion-jurada" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-bleu hover:underline">
+              {h.verify.cta[lang]}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ───── Guías (AEO) ───── */}
       <section className="bg-cream py-14">
         <div className="mx-auto max-w-6xl px-4">

@@ -52,6 +52,7 @@ const COPY = {
     attached: (ref: string, inv: string) => `Le adjunto la traducción jurada${inv ? ` y la factura ${inv}` : ""} del pedido ${ref}.`,
     corrected: (ref: string) => `Le adjunto la traducción corregida del pedido ${ref}.`,
     here: (ref: string) => `Aquí tiene la traducción jurada del pedido ${ref}`,
+    verify: "Seguridad: si el PDF va firmado electrónicamente, puede comprobar su validez en «Validar Firma», el servicio del Gobierno de España: https://valide.redsara.es",
     review: (url: string) => `Si le ha sido útil, nos ayuda mucho su valoración en Google: ${url}`,
     bye: "Un saludo,",
     subject: (ref: string, c: boolean) => `Traducción jurada${c ? " corregida" : ""} — pedido ${ref}`,
@@ -62,6 +63,7 @@ const COPY = {
     attached: (ref: string, inv: string) => `Veuillez trouver ci-joint la traduction assermentée${inv ? ` et la facture ${inv}` : ""} de la commande ${ref}.`,
     corrected: (ref: string) => `Veuillez trouver ci-joint la traduction corrigée de la commande ${ref}.`,
     here: (ref: string) => `Voici la traduction assermentée de la commande ${ref}`,
+    verify: "Sécurité : si le PDF est signé électroniquement, vous pouvez vérifier sa validité avec « Validar Firma », le service du gouvernement espagnol : https://valide.redsara.es",
     review: (url: string) => `Si elle vous a été utile, votre avis sur Google nous aide beaucoup : ${url}`,
     bye: "Cordialement,",
     subject: (ref: string, c: boolean) => `Traduction assermentée${c ? " corrigée" : ""} — commande ${ref}`,
@@ -72,6 +74,7 @@ const COPY = {
     attached: (ref: string, inv: string) => `Please find attached the sworn translation${inv ? ` and invoice ${inv}` : ""} for order ${ref}.`,
     corrected: (ref: string) => `Please find attached the corrected translation for order ${ref}.`,
     here: (ref: string) => `Here is the sworn translation for order ${ref}`,
+    verify: 'Security: if the PDF is electronically signed, you can check its validity with "Validar Firma", the Spanish Government service: https://valide.redsara.es',
     review: (url: string) => `If it was useful, a Google review helps us a lot: ${url}`,
     bye: "Kind regards,",
     subject: (ref: string, c: boolean) => `Sworn translation${c ? " (corrected)" : ""} — order ${ref}`,
@@ -98,6 +101,7 @@ export function buildDeliveryText(input: {
   return [
     c.hello(greetingName(input.name), input.now),
     input.correction ? c.corrected(input.reference) : c.attached(input.reference, inv),
+    c.verify,
     c.review(input.reviewUrl),
     `${c.bye}\n${DELIVERY_SIGNATURE}`,
   ].join("\n\n");
@@ -118,7 +122,7 @@ export function buildDeliveryWhatsappText(input: {
     input.files.length === 1
       ? `${c.here(input.reference)}: ${input.files[0].url || ""}`
       : `${c.here(input.reference)}:\n${input.files.map((f) => `• ${f.name}: ${f.url || ""}`).join("\n")}`;
-  return [c.hello(greetingName(input.name), input.now), links, c.review(input.reviewUrl), `${c.bye}\n${DELIVERY_SIGNATURE}`].join("\n\n");
+  return [c.hello(greetingName(input.name), input.now), links, c.verify, c.review(input.reviewUrl), `${c.bye}\n${DELIVERY_SIGNATURE}`].join("\n\n");
 }
 
 // Si algún adjunto no pudo ir en el correo, su enlace se añade antes de la reseña.

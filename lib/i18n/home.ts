@@ -26,6 +26,7 @@ export type HomeStrings = {
   catalog: { kicker: Tr; h2: Tr; sub: Tr; idiomas: Tr; documentos: Tr; idiomasMore: Tr; docsMore: Tr };
   founder: { quote: Tr; role: Tr };
   reviews: { kicker: Tr; h2: Tr; items: { text: Tr; who: string; date: Tr }[] };
+  verify: { kicker: Tr; h2: Tr; p: Tr; cta: Tr };
   guides: { kicker: Tr; h2: Tr; sub: Tr; more: Tr; read: Tr; items: { title: Tr; desc: Tr; href: string }[] };
   finalCta: { h2: Tr; p: Tr; primary: Tr; secondary: Tr; micro: Tr };
 };
@@ -178,6 +179,24 @@ export const HOME: HomeStrings = {
         date: tr("abril 2026", "avril 2026", "April 2026", "April 2026", "abril de 2026"),
       },
     ],
+  },
+  verify: {
+    kicker: tr("Seguridad", "Sécurité", "Security", "Sicherheit", "Segurança"),
+    h2: tr(
+      "¿Cómo sé que mi traducción jurada es auténtica?",
+      "Comment savoir si ma traduction assermentée est authentique ?",
+      "How do I know my sworn translation is genuine?",
+      "Woher weiß ich, dass meine beglaubigte Übersetzung echt ist?",
+      "Como sei que a minha tradução certificada é autêntica?"
+    ),
+    p: tr(
+      "La traducción en PDF lleva firma electrónica cualificada. Puedes comprobar su validez tú mismo, sin depender de nosotros, en valide.redsara.es, el servicio del Gobierno de España.",
+      "La traduction en PDF porte une signature électronique qualifiée. Vous pouvez vérifier sa validité vous-même, sans dépendre de nous, sur valide.redsara.es, le service du gouvernement espagnol.",
+      "The PDF translation carries a qualified electronic signature. You can check its validity yourself, without relying on us, at valide.redsara.es, the Spanish Government service.",
+      "Die PDF-Übersetzung trägt eine qualifizierte elektronische Signatur. Die Gültigkeit können Sie selbst und unabhängig von uns unter valide.redsara.es prüfen, dem Dienst der spanischen Regierung.",
+      "A tradução em PDF tem assinatura eletrónica qualificada. Pode verificar a sua validade sozinho, sem depender de nós, em valide.redsara.es, o serviço do Governo de Espanha."
+    ),
+    cta: tr("Cómo comprobarlo paso a paso", "Comment la vérifier (guide en espagnol)", "How to check it (guide in Spanish)", "So prüfen Sie es (Anleitung auf Spanisch)", "Como verificar (guia em espanhol)"),
   },
   guides: {
     kicker: tr("Guías verificadas · citables", "Guides vérifiés · citables", "Verified guides · citable", "Geprüfte Leitfäden · zitierfähig", "Guias verificados · citáveis"),

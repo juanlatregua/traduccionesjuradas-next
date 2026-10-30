@@ -47,6 +47,7 @@ type MsgDict = {
   cta: string;
   translator: (name: string, maec?: string | null) => string;
   paper: string;
+  verify: string;
   start: string;
   sign: string;
   wa: { digital: string; paper: string; anyLang: string };
@@ -78,6 +79,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     cta: "Ver el presupuesto y pagar",
     translator: (n, m) => `La traducción la realiza ${n}, traductor/a-intérprete jurado/a${m ? ` nº ${m} del MAEC` : ""}.`,
     paper: "El envío en papel (12 € + IVA) está incluido en el total.",
+    verify: "Seguridad: la traducción en PDF lleva firma electrónica cualificada. Puede comprobar su validez en el servicio del Gobierno de España: valide.redsara.es",
     start: "En cuanto recibamos el pago empezamos la traducción.",
     sign: "Un saludo,\nJuan Silva — TraduccionesJuradas.net",
     wa: { digital: "Traducción jurada oficial en PDF con firma digital.", paper: "Traducción jurada oficial en papel, por mensajería.", anyLang: "Puede escribirnos en su idioma: le respondemos en él." },
@@ -107,6 +109,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     cta: "View the quote and pay",
     translator: (n, m) => `Your translation is done by ${n}, sworn translator${m ? ` MAEC no. ${m}` : ""}.`,
     paper: "Paper shipping (EUR 12 + VAT) is included in the total.",
+    verify: "Security: the PDF translation carries a qualified electronic signature. You can check its validity with the Spanish Government service: valide.redsara.es",
     start: "We start the translation as soon as we receive your payment.",
     sign: "Best regards,\nJuan Silva — TraduccionesJuradas.net",
     wa: { digital: "Official sworn translation as a digitally signed PDF.", paper: "Official sworn translation on paper, by courier.", anyLang: "You can write to us in your language: we reply in it." },
@@ -136,6 +139,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     cta: "Voir le devis et payer",
     translator: (n, m) => `Votre traduction est réalisée par ${n}, traducteur/trice assermenté(e)${m ? ` n° ${m} du MAEC` : ""}.`,
     paper: "L'envoi papier (12 € + TVA) est inclus dans le total.",
+    verify: "Sécurité : la traduction en PDF porte une signature électronique qualifiée. Vous pouvez vérifier sa validité sur le service du gouvernement espagnol : valide.redsara.es",
     start: "Nous commençons la traduction dès réception du paiement.",
     sign: "Cordialement,\nJuan Silva — TraduccionesJuradas.net",
     wa: { digital: "Traduction assermentée officielle en PDF signé numériquement.", paper: "Traduction assermentée officielle sur papier, par transporteur.", anyLang: "Vous pouvez nous écrire dans votre langue : nous répondons dans la même." },
@@ -165,6 +169,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     cta: "Ver o orçamento e pagar",
     translator: (n, m) => `A tradução é feita por ${n}, tradutor/a juramentado/a${m ? ` n.º ${m} do MAEC` : ""}.`,
     paper: "O envio em papel (12 € + IVA) está incluído no total.",
+    verify: "Segurança: a tradução em PDF tem assinatura eletrónica qualificada. Pode verificar a sua validade no serviço do Governo de Espanha: valide.redsara.es",
     start: "Começamos a tradução assim que recebermos o pagamento.",
     sign: "Com os melhores cumprimentos,\nJuan Silva — TraduccionesJuradas.net",
     wa: { digital: "Tradução juramentada oficial em PDF com assinatura digital.", paper: "Tradução juramentada oficial em papel, por correio expresso.", anyLang: "Pode escrever-nos no seu idioma: respondemos nele." },
@@ -194,6 +199,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     cta: "Vedere il preventivo e pagare",
     translator: (n, m) => `La traduzione è eseguita da ${n}, traduttore/trice giurato/a${m ? ` n. ${m} del MAEC` : ""}.`,
     paper: "La spedizione cartacea (12 € + IVA) è inclusa nel totale.",
+    verify: "Sicurezza: la traduzione in PDF ha una firma elettronica qualificata. Può verificarne la validità sul servizio del Governo spagnolo: valide.redsara.es",
     start: "Iniziamo la traduzione appena riceviamo il pagamento.",
     sign: "Cordiali saluti,\nJuan Silva — TraduccionesJuradas.net",
     wa: { digital: "Traduzione giurata ufficiale in PDF con firma digitale.", paper: "Traduzione giurata ufficiale su carta, con corriere.", anyLang: "Può scriverci nella sua lingua: rispondiamo nella stessa." },
@@ -223,6 +229,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     cta: "Angebot ansehen und bezahlen",
     translator: (n, m) => `Die Übersetzung erstellt ${n}, beeidigte/r Übersetzer/in${m ? ` Nr. ${m} (MAEC)` : ""}.`,
     paper: "Der Papierversand (12 € + MwSt.) ist im Gesamtpreis enthalten.",
+    verify: "Sicherheit: Die PDF-Übersetzung trägt eine qualifizierte elektronische Signatur. Die Gültigkeit können Sie beim Dienst der spanischen Regierung prüfen: valide.redsara.es",
     start: "Wir beginnen mit der Übersetzung, sobald die Zahlung eingegangen ist.",
     sign: "Mit freundlichen Grüßen\nJuan Silva — TraduccionesJuradas.net",
     wa: { digital: "Offizielle beeidigte Übersetzung als digital signiertes PDF.", paper: "Offizielle beeidigte Übersetzung auf Papier, per Kurier.", anyLang: "Sie können uns in Ihrer Sprache schreiben: Wir antworten in ihr." },
@@ -320,7 +327,7 @@ export function buildPayLinkEmail(data: CommonData) {
   const body = [
     top,
     data.translatorName ? m.translator(data.translatorName, data.translatorMaec) : "",
-    data.deliveryType === "PAPER_SHIP" ? m.paper : "",
+    data.deliveryType === "PAPER_SHIP" ? m.paper : m.verify,
     m.start,
     m.sign,
   ]
@@ -339,7 +346,7 @@ export function buildWhatsAppPayText(data: CommonData) {
     `${m.cta}: ${data.payUrl}`,
     langPair(data, lang),
     data.translatorName ? m.translator(data.translatorName, data.translatorMaec) : "",
-    data.deliveryType === "PAPER_SHIP" ? m.wa.paper : m.wa.digital,
+    data.deliveryType === "PAPER_SHIP" ? m.wa.paper : `${m.wa.digital} ${m.verify}`,
     m.wa.anyLang,
   ]
     .filter(Boolean)
