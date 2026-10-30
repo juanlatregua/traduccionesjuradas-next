@@ -10,6 +10,7 @@ import { transitionWorkflowState } from "@/lib/workflow-server";
 import { findTranslatorProfile } from "@/lib/translators";
 import { sendTranslationStartedAssignedEmail } from "@/lib/email";
 import { adjuntarPedidoACaso } from "@/lib/caso/sombra";
+import type { BillingForm } from "@/lib/q-journey";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -135,6 +136,8 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
     const langPair = buildFunnelLangPair(docs);
     const flowProfile = inferFlowProfile({ langPair });
     // Entrega en papel: materializar la dirección capturada en la puerta como
+    // Datos de la casilla «Quiero factura» (viajan en session.billingJson).
+    const sessionBilling = session.billingJson as (BillingForm & Record<string, string>) | null;
     // ShippingData del pedido (la dirección viaja en session.shippingJson).
     const isPaper = (session as any).deliveryType === "paper";
     const ship = isPaper ? ((session as any).shippingJson as Record<string, unknown> | null) : null;
@@ -165,6 +168,9 @@ export async function createOrderFromSession(input: CreateOrderFromSessionInput)
                 },
               },
             }
+          : {}),
+        ...(sessionBilling
+          ? { billing: { create: { ...sessionBilling, country: sessionBilling.country || "España", email: clientEmail, requested: true } } }
           : {}),
         events: {
           create: [

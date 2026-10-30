@@ -25,6 +25,8 @@ import DiagnosisCard from "@/components/puerta/DiagnosisCard";
 import DeadlineCountdown from "@/components/puerta/DeadlineCountdown";
 import { puertaT, type PuertaLang } from "@/lib/i18n/puerta";
 import { madridToday, NEEDED_BY_MAX_DAYS, parseNeededBy } from "@/lib/needed-by";
+import { needsNif } from "@/lib/delivery-billing";
+import { validateBilling } from "@/lib/q-journey";
 import { PUERTA_LANG_CODES, isDeclaredPairValid } from "@/lib/puerta-languages";
 
 const DocumentUploader = dynamic(
@@ -188,6 +190,9 @@ export default function PuertaClient({
   }, [focusRequest]);
   const bad = (on: boolean) => (showMissing && on ? "border-rouge ring-1 ring-rouge/30" : "border-graphite/20");
 
+  const [wantInvoice, setWantInvoice] = useState(false);
+  const [bill, setBill] = useState({ fiscalName: "", nif: "", address: "", city: "", postalCode: "", country: "España" });
+
   const contactValid =
     emailValid &&
     phone.replace(/\D/g, "").length >= 7 &&
@@ -254,6 +259,17 @@ export default function PuertaClient({
       {showDeadlineMissing && !deadlineReady && !dateInvalid && <p className="mt-2 text-xs text-rouge">{t.deadlineRequired}</p>}
     </div>
   );
+
+  const docsTotal = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
+  // El recargo de papel (12 € + IVA) se muestra aquí; el servidor lo recalcula.
+  const paperTotal = deliveryType === "paper" ? PAPER_SURCHARGE * 1.21 : 0;
+  const total = docsTotal + paperTotal;
+  const totalCentsShown = Math.round(total * 100);
+  // Por encima de 400 € la factura con NIF es obligatoria: la casilla queda marcada.
+  const invoiceRequired = needsNif("", totalCentsShown);
+  const invoiceOn = wantInvoice || invoiceRequired;
+  const invoiceValid = !invoiceOn || validateBilling(bill, totalCentsShown).ok;
+  const setBillField = (k: keyof typeof bill) => (e: React.ChangeEvent<HTMLInputElement>) => setBill((b) => ({ ...b, [k]: e.target.value }));
 
   const handleUploadComplete = useCallback(
     (docId: string, token: string, fileSize?: number, fileName?: string) => {
@@ -480,6 +496,7 @@ export default function PuertaClient({
           lang,
           deliveryType,
           shipping: deliveryType === "paper" ? ship : undefined,
+          billing: invoiceOn ? bill : undefined,
           ...deadlineBody,
           documents: documents.map((d) => ({
             id: d.id,
@@ -498,12 +515,8 @@ export default function PuertaClient({
       setCheckoutError(t.checkoutErrorDefault);
       setCheckingOut(false);
     }
-  }, [documents, purpose, email, phone, lang, sessionToken, deliveryType, ship, t, deadlineReady, deadlineBody]);
+  }, [documents, purpose, email, phone, lang, sessionToken, deliveryType, ship, t, deadlineReady, deadlineBody, invoiceOn, bill]);
 
-  const docsTotal = documents.reduce((sum, d) => sum + d.diagnosis.price.total, 0);
-  // El recargo de papel (12 € + IVA) se muestra aquí; el servidor lo recalcula.
-  const paperTotal = deliveryType === "paper" ? PAPER_SURCHARGE * 1.21 : 0;
-  const total = docsTotal + paperTotal;
   // Documento de riesgo (fiscal/multi-copia): bloquea el pago igual que un idioma
   // no soportado, pero NO es "falta idioma" → su mensaje lo da la DiagnosisCard.
   const hasRiskyDoc = documents.some((d) => d.diagnosis.priceRisky);
@@ -869,6 +882,30 @@ export default function PuertaClient({
               </div>
             )}
 
+            {!humanQuoteFlow && (
+              <div className="mt-4 rounded-xl border border-bleu/15 bg-card p-4 shadow-paper">
+                <label className="flex items-center gap-2 text-sm font-semibold text-encre">
+                  <input type="checkbox" checked={invoiceOn} disabled={invoiceRequired} onChange={(e) => setWantInvoice(e.target.checked)} className="h-4 w-4 accent-bleu" />
+                  {t.wantInvoice}
+                </label>
+                {invoiceRequired && <p className="mt-1 text-xs text-graphite">{t.invoiceRequired}</p>}
+                {invoiceOn && (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {([
+                      ["fiscalName", t.invoiceName, "sm:col-span-2", "organization"],
+                      ["nif", t.invoiceNif, "", "off"],
+                      ["country", t.invoiceCountry, "", "country-name"],
+                      ["address", t.invoiceAddress, "sm:col-span-2", "street-address"],
+                      ["city", t.invoiceCity, "", "address-level2"],
+                      ["postalCode", t.invoicePostal, "", "postal-code"],
+                    ] as const).map(([k, label, cls, ac]) => (
+                      <input key={k} aria-label={label} placeholder={label} autoComplete={ac} value={bill[k]} onChange={setBillField(k)} className={`rounded-lg border border-graphite/20 bg-white px-3 py-2 text-sm text-encre outline-none focus:border-bleu ${cls}`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {requestState !== "done" && <div className="mt-4">{deadlineBlock}</div>}
 
             {humanQuoteFlow ? (
@@ -893,7 +930,7 @@ export default function PuertaClient({
                 <button
                   type="button"
                   onClick={handleCheckout}
-                  disabled={checkingOut || blockCheckout || !contactValid}
+                  disabled={checkingOut || blockCheckout || !contactValid || !invoiceValid}
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-bleu px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-bleu/90 disabled:opacity-50"
                 >
                   {checkingOut && <Loader2 className="h-4 w-4 animate-spin" />}

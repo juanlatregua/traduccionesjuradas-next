@@ -17,6 +17,14 @@ export type PuertaStrings = {
   deadlineAsap: string;
   deadlineDate: string;
   deadlineFlexible: string;
+  wantInvoice: string;
+  invoiceRequired: string;
+  invoiceName: string;
+  invoiceNif: string;
+  invoiceCountry: string;
+  invoiceAddress: string;
+  invoiceCity: string;
+  invoicePostal: string;
   deadlineRequired: string;
   deadlineInvalid: string;
   totalLabel: (n: number) => string;
@@ -134,6 +142,14 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineAsap: "Lo antes posible",
     deadlineDate: "Tengo una fecha",
     deadlineFlexible: "No tengo prisa",
+    wantInvoice: "Quiero factura a mi nombre o empresa",
+    invoiceRequired: "Para este importe la factura lleva tu NIF y dirección.",
+    invoiceName: "Nombre o razón social",
+    invoiceNif: "NIF / CIF / NIE",
+    invoiceCountry: "País",
+    invoiceAddress: "Dirección fiscal",
+    invoiceCity: "Ciudad",
+    invoicePostal: "Código postal",
     deadlineRequired: "Dinos para cuándo lo necesitas (y la fecha, si tienes una).",
     deadlineInvalid: "Esa fecha no vale: elige un día entre hoy y dentro de un año.",
     neededForPrefix: "Lo necesitas para el",
@@ -222,6 +238,14 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineAsap: "Dès que possible",
     deadlineDate: "J'ai une date",
     deadlineFlexible: "Je ne suis pas pressé(e)",
+    wantInvoice: "Je veux une facture à mon nom ou à celui de mon entreprise",
+    invoiceRequired: "Pour ce montant, la facture doit indiquer votre numéro fiscal et votre adresse.",
+    invoiceName: "Nom ou raison sociale",
+    invoiceNif: "Numéro fiscal (NIF, TVA…)",
+    invoiceCountry: "Pays",
+    invoiceAddress: "Adresse fiscale",
+    invoiceCity: "Ville",
+    invoicePostal: "Code postal",
     deadlineRequired: "Indiquez-nous pour quand vous en avez besoin (et la date, si vous en avez une).",
     deadlineInvalid: "Cette date n'est pas valable : choisissez un jour entre aujourd'hui et dans un an.",
     neededForPrefix: "Vous en avez besoin pour le",
@@ -310,6 +334,14 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineAsap: "As soon as possible",
     deadlineDate: "I have a date",
     deadlineFlexible: "No rush",
+    wantInvoice: "I want an invoice in my or my company's name",
+    invoiceRequired: "For this amount the invoice must show your tax ID and address.",
+    invoiceName: "Name or company name",
+    invoiceNif: "Tax ID",
+    invoiceCountry: "Country",
+    invoiceAddress: "Billing address",
+    invoiceCity: "City",
+    invoicePostal: "Postcode",
     deadlineRequired: "Tell us when you need it (and the date, if you have one).",
     deadlineInvalid: "That date isn't valid: pick a day between today and one year from now.",
     neededForPrefix: "You need it by",
@@ -398,6 +430,14 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineAsap: "So schnell wie möglich",
     deadlineDate: "Ich habe ein Datum",
     deadlineFlexible: "Keine Eile",
+    wantInvoice: "Ich möchte eine Rechnung auf meinen Namen oder meine Firma",
+    invoiceRequired: "Bei diesem Betrag muss die Rechnung Ihre Steuernummer und Adresse enthalten.",
+    invoiceName: "Name oder Firma",
+    invoiceNif: "Steuernummer",
+    invoiceCountry: "Land",
+    invoiceAddress: "Rechnungsadresse",
+    invoiceCity: "Stadt",
+    invoicePostal: "Postleitzahl",
     deadlineRequired: "Sagen Sie uns, bis wann Sie es brauchen (und das Datum, falls Sie eines haben).",
     deadlineInvalid: "Dieses Datum ist ungültig: Wählen Sie einen Tag zwischen heute und in einem Jahr.",
     neededForPrefix: "Sie brauchen es bis zum",
@@ -486,6 +526,14 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     deadlineAsap: "O mais rápido possível",
     deadlineDate: "Tenho uma data",
     deadlineFlexible: "Não tenho pressa",
+    wantInvoice: "Quero fatura em meu nome ou da minha empresa",
+    invoiceRequired: "Para este valor, a fatura tem de indicar o seu NIF e a morada.",
+    invoiceName: "Nome ou denominação social",
+    invoiceNif: "NIF",
+    invoiceCountry: "País",
+    invoiceAddress: "Morada fiscal",
+    invoiceCity: "Cidade",
+    invoicePostal: "Código postal",
     deadlineRequired: "Diga-nos para quando precisa (e a data, se tiver uma).",
     deadlineInvalid: "Essa data não é válida: escolha um dia entre hoje e daqui a um ano.",
     neededForPrefix: "Precisa para o dia",

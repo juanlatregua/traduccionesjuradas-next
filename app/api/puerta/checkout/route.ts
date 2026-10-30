@@ -17,6 +17,9 @@ import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
 import { REGULARIZACION_FR_DOC_CENTS, regularizacionFlatApplies } from "@/lib/regularizacion-price";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import { parseDeadline } from "@/lib/needed-by";
+import { needsNif } from "@/lib/delivery-billing";
+import { validateBilling, type BillingForm } from "@/lib/q-journey";
+import { snapshotFromDocs, PAPER_SHIPPING_CENTS } from "@/lib/session-pricing-math";
 import { saveSessionDeadline } from "@/lib/needed-by-db";
 
 export const runtime = "nodejs";
@@ -69,6 +72,7 @@ export async function POST(req: Request) {
     deliveryType?: string;
     urgency?: string;
     neededBy?: string;
+    billing?: Record<string, unknown>;
     shipping?: {
       name?: string;
       address?: string;
@@ -275,6 +279,20 @@ export async function POST(req: Request) {
     prepared.push({ rec, analysis, quotedCents });
   }
 
+  // Casilla «Quiero factura»: se valida con el total real; más de 400 € exige NIF.
+  const paperCents = String(body.deliveryType || "").toLowerCase() === "paper" ? PAPER_SHIPPING_CENTS : 0;
+  const totalCents = snapshotFromDocs(prepared.map((p) => p.quotedCents), paperCents)?.totalCents ?? 0;
+  let billing: BillingForm | null = null;
+  if (body.billing) {
+    const check = validateBilling(body.billing, totalCents);
+    if (!check.ok) {
+      return NextResponse.json({ ok: false, error: "Revisa los datos de la factura: nombre, NIF y dirección." }, { status: 422 });
+    }
+    billing = check.value;
+  } else if (needsNif("", totalCents)) {
+    return NextResponse.json({ ok: false, error: "Para este importe necesitamos los datos de la factura, con NIF." }, { status: 422 });
+  }
+
   // Crear la sesión y sus documentos.
   const session = await createSessionRecord({
     purpose,
@@ -288,6 +306,8 @@ export async function POST(req: Request) {
   // de /admin/funnel) y estampar la referencia de la sesión: cuando el pago
   // cree el Order (reference == session.reference), createOrderFromSession
   // fijará orderId en estos análisis y cerrará el funnel (pedido/pagado).
+  if (billing) await prisma.orderSession.update({ where: { id: session.id }, data: { billingJson: billing } });
+
   await prisma.documentAnalysis.updateMany({
     where: { id: { in: ids } },
     data: {
