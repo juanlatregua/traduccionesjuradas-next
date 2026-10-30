@@ -26,7 +26,7 @@ export type HomeStrings = {
   catalog: { kicker: Tr; h2: Tr; sub: Tr; idiomas: Tr; documentos: Tr; idiomasMore: Tr; docsMore: Tr };
   founder: { quote: Tr; role: Tr };
   reviews: { kicker: Tr; h2: Tr; items: { text: Tr; who: string; date: Tr }[] };
-  verify: { kicker: Tr; h2: Tr; p: Tr; cta: Tr };
+  verify: { kicker: Tr; h2: Tr; p: Tr; cta: Tr; maecP: Tr; maecCta: Tr };
   guides: { kicker: Tr; h2: Tr; sub: Tr; more: Tr; read: Tr; items: { title: Tr; desc: Tr; href: string }[] };
   finalCta: { h2: Tr; p: Tr; primary: Tr; secondary: Tr; micro: Tr };
 };
@@ -196,6 +196,14 @@ export const HOME: HomeStrings = {
       "Die PDF-Übersetzung trägt eine qualifizierte elektronische Signatur. Die Gültigkeit können Sie selbst und unabhängig von uns unter valide.redsara.es prüfen, dem Dienst der spanischen Regierung.",
       "A tradução em PDF tem assinatura eletrónica qualificada. Pode verificar a sua validade sozinho, sem depender de nós, em valide.redsara.es, o serviço do Governo de Espanha."
     ),
+    maecP: tr(
+      "Y el nombramiento también: busca a Juan Silva Moreno, traductor jurado de francés n.º 3850, en el registro oficial del Ministerio de Asuntos Exteriores.",
+      "La nomination aussi : recherchez Juan Silva Moreno, traducteur assermenté de français n° 3850, dans le registre officiel du ministère espagnol des Affaires étrangères.",
+      "Appointments can be checked too, in the official register of the Spanish Ministry of Foreign Affairs.",
+      "Auch die Ermächtigung lässt sich prüfen: im offiziellen Register des spanischen Außenministeriums.",
+      "A nomeação também se pode verificar, no registo oficial do Ministério dos Negócios Estrangeiros de Espanha."
+    ),
+    maecCta: tr("Ir al buscador del Ministerio", "Aller au registre du ministère", "Go to the Ministry's register", "Zum Register des Ministeriums", "Ir ao registo do Ministério"),
     cta: tr("Cómo comprobarlo paso a paso", "Comment la vérifier (guide en espagnol)", "How to check it (guide in Spanish)", "So prüfen Sie es (Anleitung auf Spanisch)", "Como verificar (guia em espanhol)"),
   },
   guides: {

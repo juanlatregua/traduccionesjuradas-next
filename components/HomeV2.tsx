@@ -175,6 +175,16 @@ export default function HomeV2({ lang, hero }: { lang: HomeLang; hero?: ReactNod
               {h.verify.cta[lang]}
               <ArrowRight className="h-4 w-4" />
             </Link>
+            <p className="mt-4 text-sm text-sepia">{h.verify.maecP[lang]}</p>
+            <a
+              href="https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Buscador-STIJ.aspx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-bleu hover:underline"
+            >
+              {h.verify.maecCta[lang]}
+              <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
         </div>
       </section>

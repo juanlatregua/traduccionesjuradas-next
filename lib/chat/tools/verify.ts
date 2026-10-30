@@ -20,7 +20,7 @@ const JUAN_SILVA_DATA = {
 } as const;
 
 const MAEC_LISTING_URL =
-  "https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Traductores-.aspx";
+  "https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Buscador-STIJ.aspx";
 
 type VerifyMatchOutput = {
   verified: true;
