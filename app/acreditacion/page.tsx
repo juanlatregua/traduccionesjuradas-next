@@ -280,6 +280,13 @@ export default function AcreditacionPage() {
           </a>
         </div>
       </section>
+      <p className="mt-8 text-sm text-sepia">
+        ¿Necesitas una traducción oficial? Consulta el servicio de{" "}
+        <Link href="/traductor-jurado-frances" className="font-semibold text-bleu hover:underline">
+          traductor jurado de francés
+        </Link>
+        .
+      </p>
     </main>
   );
 }

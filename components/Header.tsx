@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SiteSearch from "@/components/SiteSearch";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import SiteUtilityBar from "@/components/SiteUtilityBar";
 import { useUiLang } from "@/lib/i18n/use-ui-lang";
 import {
   t,
@@ -46,10 +46,10 @@ function Logo() {
         alt="Traducciones Juradas"
         width={360}
         height={74}
-        className="hidden h-12 w-auto max-w-none sm:block lg:h-14"
+        className="hidden h-12 w-auto max-w-none sm:block lg:h-11 xl:h-14"
         priority
       />
-      <div className="hidden leading-tight min-[400px]:block sm:hidden">
+      <div className="hidden leading-tight min-[340px]:block sm:hidden">
         <span className="block text-sm font-semibold text-sepia">Traducciones Juradas</span>
       </div>
     </div>
@@ -78,7 +78,7 @@ function Dropdown({
       <button
         ref={btnRef}
         type="button"
-        className="flex items-center gap-1 rounded-md px-1 py-1 hover:text-bleu focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu focus-visible:ring-offset-2"
+        className="flex items-center gap-1 whitespace-nowrap rounded-md px-1 py-1 hover:text-bleu focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu focus-visible:ring-offset-2"
         aria-expanded={open}
         aria-controls={id}
         onClick={onToggle}
@@ -174,13 +174,15 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
   const ctaHref = NAV_CTA.href[lang];
 
   // Enlaces simples (desktop): cómo funciona + (dropdowns) + precios/blog/faq
-  const simpleAfter = [NAV_PRECIOS, NAV_FAQ, NAV_BLOG, NAV_AREA, NAV_ZONA];
+  const simpleAfter = [NAV_PRECIOS, NAV_BLOG];
   // Enlaces planos para el menú móvil
   const mobileLinks = [NAV_PROCESO, NAV_PRECIOS, NAV_FAQ, NAV_BLOG, NAV_AREA, NAV_ZONA];
 
   return (
+    <>
+    <SiteUtilityBar lang={lang} />
     <header className="sticky top-0 z-40 overflow-visible border-b-2 border-or bg-parchment/90 backdrop-blur">
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:flex sm:items-center sm:gap-6">
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:flex sm:items-center sm:gap-4">
         <div className="flex items-center justify-between gap-3 sm:flex sm:flex-1 sm:items-center">
           <Link href={homeHref} className="flex shrink-0 items-center gap-2" aria-label={t(NAV_UI.brandAria, lang)}>
             <Logo />
@@ -191,7 +193,6 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2 sm:hidden">
-            <LanguageSwitcher />
             <button
               type="button"
               aria-label={menuOpen ? t(NAV_UI.closeMenu, lang) : t(NAV_UI.openMenu, lang)}
@@ -209,7 +210,7 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
           id="primary-navigation"
           ref={navRef}
           aria-label={t(NAV_UI.navAria, lang)}
-          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none`}
+          className={`mt-3 ${menuOpen ? "flex" : "hidden"} w-full flex-col gap-3 rounded-2xl border border-cream bg-card px-4 py-4 text-sm font-medium text-sepia shadow-lg sm:mt-0 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-x-3 sm:gap-y-1.5 lg:flex-nowrap lg:gap-x-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none`}
         >
           {/* CTA + hubs (móvil) */}
           <Link href={ctaHref} className="sm:hidden font-bold text-or hover:text-or-dark" onClick={closeMenu}>
@@ -231,7 +232,7 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
           ))}
 
           {/* DESKTOP */}
-          <Link href={NAV_PROCESO.href} className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
+          <Link href={NAV_PROCESO.href} className="hidden whitespace-nowrap hover:text-bleu sm:inline lg:hidden xl:inline" onClick={closeMenu}>
             {t(NAV_PROCESO.label, lang)}
           </Link>
 
@@ -253,26 +254,22 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
           />
 
           {simpleAfter.map((it) => (
-            <Link key={"d" + it.href} href={it.href} className="hidden hover:text-bleu sm:inline" onClick={closeMenu}>
+            <Link key={"d" + it.href} href={it.href} className="hidden whitespace-nowrap hover:text-bleu sm:inline" onClick={closeMenu}>
               {t(it.label, lang)}
             </Link>
           ))}
 
           <Link
             href={NAV_EXPEDIENTE.href}
-            className="hidden rounded-2xl border border-bleu px-4 py-2 text-center text-sm font-semibold text-bleu hover:bg-bleu hover:text-white sm:inline-block"
+            className="hidden whitespace-nowrap rounded-2xl border border-bleu px-4 py-2 text-center text-sm font-semibold text-bleu hover:bg-bleu hover:text-white sm:inline-block"
             onClick={closeMenu}
           >
             {t(NAV_EXPEDIENTE.label, lang)}
           </Link>
 
-          <span className="hidden sm:block">
-            <LanguageSwitcher />
-          </span>
-
           <Link
             href={ctaHref}
-            className="w-full rounded-xl bg-or px-4 py-2 text-center text-sm font-semibold text-encre shadow-sm hover:bg-or-dark hover:text-white sm:w-auto sm:rounded-2xl"
+            className="w-full whitespace-nowrap rounded-xl bg-or px-4 py-2 text-center text-sm font-semibold text-encre shadow-sm hover:bg-or-dark hover:text-white sm:w-auto sm:rounded-2xl"
             onClick={closeMenu}
           >
             {t(NAV_CTA.label, lang)}
@@ -280,5 +277,6 @@ export function Header({ searchIndex }: { searchIndex: SearchEntry[] }) {
         </nav>
       </div>
     </header>
+    </>
   );
 }

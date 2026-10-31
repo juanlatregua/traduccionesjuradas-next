@@ -18,7 +18,7 @@ import type { ChatLang } from "@/lib/chat/ui-strings";
 export default function ChatWidget() {
   const pathname = usePathname();
   if (NEW_HERO_HOME_PATHS.has(pathname || "")) return null;
-  const uiLang: ChatLang = localeFromPath(pathname) === "fr" ? "fr" : "es";
+  const uiLang: ChatLang = localeFromPath(pathname);
   return <FloatingChat lang={uiLang} />;
 }
 

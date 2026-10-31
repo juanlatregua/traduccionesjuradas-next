@@ -29,7 +29,7 @@ export default function SiteTopBars() {
   return (
     <>
       <TrustStrip lang={lang} />
-      <div className="border-b border-bleu/20 bg-bleu/5">
+      {lang === "es" && <div className="hidden border-b border-bleu/20 bg-bleu/5 sm:block">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-xs text-encre sm:text-sm">
           <span className="inline-flex items-center gap-1.5 font-semibold text-bleu">
             <span className="inline-block h-2 w-2 rounded-full bg-bleu" />
@@ -42,7 +42,7 @@ export default function SiteTopBars() {
             Ver guía →
           </Link>
         </div>
-      </div>
+      </div>}
     </>
   );
 }

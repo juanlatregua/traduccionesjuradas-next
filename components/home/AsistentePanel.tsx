@@ -6,8 +6,7 @@
 // flotante, que tapaba la subida). Misma lógica que el widget flotante
 // (components/chat/useChat.ts + ChatConversation): puerta de email +
 // consentimiento dentro del panel, la pregunta sale sola al pasarla, y el
-// servidor sigue exigiendo ambos. El chat solo habla es/fr (CHAT_LANGS): en
-// los demás idiomas este panel es el de WhatsApp.
+// servidor sigue exigiendo ambos. Fuera de CHAT_LANGS este panel es el de WhatsApp.
 
 import { useEffect, useState } from "react";
 import { MessageCircle, ArrowRight, RotateCcw } from "lucide-react";
@@ -22,7 +21,7 @@ const CARD = "flex flex-col gap-4 rounded-2xl border border-cream bg-white p-5 s
 
 export default function AsistentePanel({ lang }: { lang: Locale }) {
   if (!CHAT_LANGS.includes(lang)) return <WhatsAppPanel lang={lang} />;
-  return <AsistenteChat lang={lang === "fr" ? "fr" : "es"} />;
+  return <AsistenteChat lang={lang} />;
 }
 
 function WhatsAppPanel({ lang }: { lang: Locale }) {

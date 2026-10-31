@@ -12,7 +12,7 @@ const tr = (es: string, fr: string, en: string, de: string, pt: string): Tr => (
 
 /** Idiomas en los que habla el asistente (components/ChatWidget.tsx). En el
  *  resto, el panel del asistente se sustituye por WhatsApp. */
-export const CHAT_LANGS: Locale[] = ["es", "fr"];
+export const CHAT_LANGS: Locale[] = ["es", "fr", "en", "de", "pt"];
 
 /** Las 5 portadas con hero nuevo (components/home/HomeHero.tsx): ya llevan su
  *  propio panel (chat anclado en es/fr, WhatsApp en en/de/pt), así que ni el
@@ -30,12 +30,20 @@ export const HOME_HERO = {
     "10 idiomas · validade oficial em toda a Espanha · 100 % online"
   ),
   h1: tr(
-    "Traducción jurada oficial: cuéntanos tu trámite o sube tu documento",
-    "Traduction assermentée officielle : dites-nous votre démarche ou déposez votre document",
-    "Official sworn translation: tell us your procedure or upload your document",
-    "Beglaubigte Übersetzung: Sagen Sie uns Ihr Anliegen oder laden Sie Ihr Dokument hoch",
-    "Tradução certificada (juramentada) oficial: diga-nos o seu trâmite ou envie o seu documento"
+    "Traducción jurada oficial: sube tu documento o pregunta en tu idioma",
+    "Traduction assermentée officielle : déposez votre document ou posez votre question dans votre langue",
+    "Official sworn translation: upload your document or ask in your language",
+    "Beglaubigte Übersetzung: Laden Sie Ihr Dokument hoch oder fragen Sie in Ihrer Sprache",
+    "Tradução certificada (juramentada) oficial: envie o seu documento ou pergunte no seu idioma"
   ),
+  // Lo primero que debe verse en el móvil: quién firma, desde cuánto y en qué idioma.
+  destacados: [
+    tr("Traductores jurados nombrados por el Ministerio", "Traducteurs assermentés nommés par le Ministère", "Sworn translators appointed by the Ministry", "Vereidigte Übersetzer, vom Ministerium ernannt", "Tradutores jurados nomeados pelo Ministério"),
+    tr("Desde 30 € + IVA", "À partir de 30 € HT", "From €30 + VAT", "Ab 30 € zzgl. MwSt.", "A partir de 30 € + IVA"),
+    tr("Te atendemos en tu idioma", "Nous vous répondons dans votre langue", "We answer in your language", "Wir antworten in Ihrer Sprache", "Respondemos no seu idioma"),
+  ],
+  accionSubir: tr("Subir documento", "Déposer un document", "Upload document", "Dokument hochladen", "Enviar documento"),
+  accionPreguntar: tr("Preguntar", "Poser une question", "Ask a question", "Frage stellen", "Perguntar"),
   lede: tr(
     "Te decimos qué necesitas traducir, con qué validez y cuánto cuesta. En francés, precio cerrado al momento; en los demás idiomas, un traductor jurado te lo presupuesta en el día.",
     "Nous vous disons quoi traduire, avec quelle validité et à quel prix. Pour le français, prix ferme immédiat ; pour les autres langues, un traducteur assermenté vous envoie le devis dans la journée.",

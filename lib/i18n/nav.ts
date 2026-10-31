@@ -127,4 +127,6 @@ export const NAV_UI = {
   closeMenu: tr("Cerrar menú", "Fermer le menu", "Close menu", "Menü schließen", "Fechar menu"),
   menu: tr("Menú", "Menu", "Menu", "Menü", "Menu"),
   close: tr("Cerrar", "Fermer", "Close", "Schließen", "Fechar"),
+  languagesAria: tr("Idioma de la web", "Langue du site", "Website language", "Sprache der Website", "Idioma do site"),
+  secondaryAria: tr("Accesos", "Accès", "Quick access", "Schnellzugriff", "Acessos"),
 };

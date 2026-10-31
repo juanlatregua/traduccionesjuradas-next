@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     absolute: "Traducción jurada oficial · 10 idiomas · validez en toda España",
   },
   description:
-    "Traducción jurada oficial en 10 idiomas, 100% online. Sube tu documento y recibe presupuesto cerrado antes de pagar. Entrega 24-48 h en francés. Traductores jurados acreditados por el MAEC. Traducción jurada de francés/alemán: 30 € + IVA por página.",
+    "Traducción jurada oficial en 10 idiomas, 100% online. Sube tu documento o pregunta en tu idioma y recibe presupuesto cerrado antes de pagar, desde 30 € + IVA. Entrega 24-48 h en francés. Traductores jurados acreditados por el MAEC. Traducción jurada de francés/alemán: 30 € + IVA por página.",
   alternates: {
     canonical: LOCALE_ABS.es,
     languages: HREFLANG_ALTERNATES,

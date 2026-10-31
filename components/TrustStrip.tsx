@@ -13,14 +13,14 @@ export function TrustStrip({ lang = "es" }: { lang?: Locale }) {
   const t = T[lang];
   return (
     <div className="bg-bleu text-cream/90 text-xs sm:text-sm">
-      <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 px-4 py-2 text-center sm:gap-4">
-        <span className="hidden sm:inline">{t.credential}</span>
-        <span className="hidden sm:inline" aria-hidden="true">·</span>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-2 gap-y-0.5 px-4 py-2 text-center sm:gap-4">
+        <span>{t.credential}</span>
+        <span aria-hidden="true">·</span>
         <span className="inline-flex items-center gap-1">
           {GOOGLE_RATING.stars.toString().replace(".", ",")} <span className="text-or" aria-hidden="true">★</span> {GOOGLE_RATING.reviews} {t.reviews}
         </span>
-        <span aria-hidden="true">·</span>
-        <span>{t.price}</span>
+        <span className="hidden sm:inline" aria-hidden="true">·</span>
+        <span className="hidden sm:inline">{t.price}</span>
       </div>
     </div>
   );

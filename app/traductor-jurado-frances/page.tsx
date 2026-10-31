@@ -3,7 +3,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 import { SchemaPerson } from "@/components/SchemaPerson";
 
 export const metadata: Metadata = {
-  title: "Traductor Jurado de Franc\u00E9s \u00B7 Oficial MAEC n\u00BA 3850 \u00B7 Franc\u00E9s\u2194Espa\u00F1ol",
+  title: { absolute: "Traductor jurado de franc\u00E9s \u00B7 MAEC n\u00BA 3850 \u00B7 desde 30 \u20AC" },
   description:
     "Traductor jurado de franc\u00E9s oficial (MAEC n\u00BA 3850). Traducci\u00F3n jurada franc\u00E9s-espa\u00F1ol y espa\u00F1ol-franc\u00E9s. Documentos legales, antecedentes penales, t\u00EDtulos acad\u00E9micos. Traducci\u00F3n jurada de franc\u00E9s: 30\u20AC + IVA por p\u00E1gina.",
   alternates: {
@@ -30,7 +30,7 @@ export default function TraductorJuradoFrancesPage() {
       idiomaSlug="frances"
       combinaciones={["fr-es", "es-fr"]}
       updated="2026-09-21"
-      tituloH1="Traducción jurada de francés para trámites oficiales en España y en países francófonos"
+      tituloH1="Traductor jurado de francés: traducción oficial para España y países francófonos"
       descripcion="Traductor jurado de francés nº 3850, nombrado por el MAEC: traducción jurada francés↔español con validez oficial en toda España y reconocida en países francófonos. Es el formato que te piden cuando un documento en francés debe presentarse ante una administración, notaría, universidad o juzgado en España, o cuando un documento español se utiliza en Francia. Precio cerrado, plazo estimado y entrega en PDF firmado digitalmente por un traductor jurado acreditado por el MAEC."
       faqItems={[
         {
