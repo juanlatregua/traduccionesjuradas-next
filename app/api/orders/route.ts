@@ -36,7 +36,8 @@ export async function GET() {
 
   try {
     const orders = await getOrdersByClientEmail(session.user.email);
-    return NextResponse.json({ ok: true, orders });
+    // Los eventos son internos (coste, margen, traductor): nunca viajan al cliente.
+    return NextResponse.json({ ok: true, orders: orders.map(({ events: _events, ...order }) => order) });
   } catch (err) {
     console.error("[orders] error listing orders", err);
     return NextResponse.json({ ok: false, error: "Error al consultar pedidos." }, { status: 500 });

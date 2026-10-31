@@ -329,24 +329,10 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         })()}
       </section>
 
-      <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-encre">{t.historyTitle}</h2>
-        {order.events.length === 0 ? (
-          <p className="mt-2 text-sm text-sepia">{t.historyEmpty}</p>
-        ) : (
-          <ul className="mt-4 space-y-2 text-sm text-sepia">
-            {order.events.map((entry) => (
-              <li key={entry.id} className="rounded-2xl border border-cream bg-parchment px-3 py-2">
-                <span className="font-semibold">{entry.createdAt.toISOString().slice(0, 16).replace("T", " ")}</span>{" "}
-                · {entry.message}
-              </li>
-            ))}
-          </ul>
-        )}
-        <Link href="/area-cliente" className="mt-4 inline-block text-sm font-semibold text-bleu hover:underline">
-          {tc.backClientArea}
-        </Link>
-      </section>
+      {/* Sin historial de eventos: son internos (coste, margen, traductor). El cliente ve la cronología de arriba. */}
+      <Link href="/area-cliente" className="mt-6 inline-block text-sm font-semibold text-bleu hover:underline">
+        {tc.backClientArea}
+      </Link>
     </main>
   );
 }

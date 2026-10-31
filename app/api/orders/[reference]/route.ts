@@ -21,7 +21,9 @@ export async function GET(_req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
     }
     const workflowState = getWorkflowState(order);
-    return NextResponse.json({ ok: true, order: { ...order, workflowState } });
+    // Los eventos son internos (coste, margen, traductor): al cliente solo sus documentos.
+    const events = order.events.filter((e) => e.type === "order.source_document_uploaded");
+    return NextResponse.json({ ok: true, order: { ...order, events, workflowState } });
   } catch (err) {
     console.error("[orders] error fetching order", err);
     return NextResponse.json({ ok: false, error: "Error al consultar pedido." }, { status: 500 });
