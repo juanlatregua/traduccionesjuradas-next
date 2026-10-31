@@ -12,6 +12,10 @@ import ImportInvoicesPanel from "@/components/ImportInvoicesPanel";
 import ReconcilePanel from "@/components/ReconcilePanel";
 import BankReconcilePanel from "@/components/BankReconcilePanel";
 import AsesorContableIA from "@/components/AsesorContableIA";
+import PanelDiarioContable, { type FacturaParada } from "@/components/PanelDiarioContable";
+import { resumenPanelContable } from "@/lib/panel-contable";
+import { EV_PARADA } from "@/lib/agente-contable";
+import { MOTIVO_TEXTO, referenciaPedido, type MotivoParada } from "@/lib/agente-contable-logic";
 import { periodOptions } from "@/lib/asesor-contable/dossier";
 import CollaboratorAccountPanel, { type CollaboratorAccountGroup } from "@/components/CollaboratorAccountPanel";
 
@@ -80,9 +84,38 @@ export default async function ZonaTraductorContabilidadPage() {
       baseCents: a.baseCents,
     });
   }
-  const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
-
   const unbilledIncome: AcUnbilled[] = unbilled.map((r) => ({ date: r.paidAt ?? r.createdAt, baseCents: r.bookableBaseCents }));
+
+  const resumenPanel = resumenPanelContable({
+    invoices: rawInvoices.map((i) => ({ issuedAt: i.issuedAt ?? i.createdAt, baseCents: i.baseCents, vatCents: i.vatCents })),
+    expenses: rawExpenses,
+    devengos: rawAccruals,
+    cobrosSinFactura: unbilledIncome.map((u) => ({ date: new Date(u.date), baseCents: u.baseCents })),
+    now: new Date(),
+  });
+
+  // Facturas de traductor que el agente no ha podido contabilizar, con su último motivo.
+  const facturasLavori = rawExpenses.filter(
+    (e) => e.needsReview && e.category === "colaborador" && e.concept.startsWith("Factura del sobre lavori")
+  );
+  const eventosParada = facturasLavori.length
+    ? await prisma.orderEvent.findMany({ where: { type: EV_PARADA }, orderBy: { createdAt: "desc" }, take: 500, select: { payload: true } })
+    : [];
+  const motivoPorFactura = new Map<string, string>();
+  for (const ev of eventosParada) {
+    const p = ev.payload as { expenseId?: string; motivo?: string; detalle?: string } | null;
+    if (p?.expenseId && !motivoPorFactura.has(p.expenseId)) {
+      motivoPorFactura.set(p.expenseId, MOTIVO_TEXTO[p.motivo as MotivoParada] ?? p.detalle ?? "sin detalle");
+    }
+  }
+  const paradas: FacturaParada[] = facturasLavori.map((e) => ({
+    expenseId: e.id,
+    reference: referenciaPedido(e.concept),
+    supplier: e.supplier,
+    motivo: motivoPorFactura.get(e.id) ?? (referenciaPedido(e.concept) ? "pendiente de que la lea el agente" : "llegó por lavori sin pedido atado"),
+  }));
+
+  const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
 
   const invoices: AcInvoice[] = rawInvoices.map((i) => ({
     id: i.id,
@@ -160,6 +193,7 @@ export default async function ZonaTraductorContabilidadPage() {
               ))}
           </div>
         </div>
+        {canIssue && <PanelDiarioContable resumen={resumenPanel} paradas={paradas} />}
         {role === "ADMIN" && <AsesorContableIA periods={periodOptions(new Date())} />}
         <ContabilidadClient
           invoices={invoices}
