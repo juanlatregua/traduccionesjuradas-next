@@ -108,12 +108,11 @@ export default async function ZonaTraductorContabilidadPage() {
       motivoPorFactura.set(p.expenseId, MOTIVO_TEXTO[p.motivo as MotivoParada] ?? p.detalle ?? "sin detalle");
     }
   }
-  const paradas: FacturaParada[] = facturasLavori.map((e) => ({
-    expenseId: e.id,
-    reference: referenciaPedido(e.concept),
-    supplier: e.supplier,
-    motivo: motivoPorFactura.get(e.id) ?? (referenciaPedido(e.concept) ? "pendiente de que la lea el agente" : "llegó por lavori sin pedido atado"),
-  }));
+  const paradas: FacturaParada[] = facturasLavori.flatMap((e) => {
+    const reference = referenciaPedido(e.concept);
+    const motivo = motivoPorFactura.get(e.id) ?? (reference ? null : "llegó por lavori sin pedido atado");
+    return motivo ? [{ expenseId: e.id, reference, supplier: e.supplier, motivo }] : [];
+  });
 
   const unbilledTotal = unbilled.reduce((s, r) => s + r.bookableAmountCents, 0);
 
@@ -193,7 +192,12 @@ export default async function ZonaTraductorContabilidadPage() {
               ))}
           </div>
         </div>
-        {canIssue && <PanelDiarioContable resumen={resumenPanel} paradas={paradas} />}
+        {canIssue && <PanelDiarioContable resumen={resumenPanel} paradas={paradas} porLeer={facturasLavori.length - paradas.length} />}
+        {/* El día a día es el panel: libros, impuestos y banco quedan para investigar. */}
+        <details open={!canIssue} className="mt-6">
+          <summary className="cursor-pointer rounded-lg border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm font-semibold text-slate-200 hover:border-slate-500">
+            Ver el detalle: libros, impuestos, banco y asesor
+          </summary>
         {role === "ADMIN" && <AsesorContableIA periods={periodOptions(new Date())} />}
         <ContabilidadClient
           invoices={invoices}
@@ -217,6 +221,7 @@ export default async function ZonaTraductorContabilidadPage() {
           importSlot={<ImportInvoicesPanel />}
           proveedoresSlot={<CollaboratorAccountPanel groups={[...accrualGroups.values()]} canIssue={canIssue} />}
         />
+        </details>
       </div>
     </div>
   );

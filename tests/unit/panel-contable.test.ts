@@ -49,6 +49,11 @@ test("un gasto por revisar no cuenta y queda señalado", () => {
   assert.equal(r.gastosSinCompletar, 1);
 });
 
+test("las facturas de traductor no cuentan como gasto sin completar", () => {
+  const r = resumenPanelContable({ invoices: [], expenses: [gasto({ needsReview: true, concept: "Factura del sobre lavori — encargo x (pedido 26_1)" })], devengos: [], cobrosSinFactura: [], now });
+  assert.equal(r.gastosSinCompletar, 0);
+});
+
 test("IVA a compensar no se reserva en negativo", () => {
   const r = resumenPanelContable({ invoices: [], expenses: [gasto({})], devengos: [], cobrosSinFactura: [], now });
   assert.equal(r.ivaTrimestreCents, 0);

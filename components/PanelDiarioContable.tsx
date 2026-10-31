@@ -16,7 +16,7 @@ function Cifra({ label, valor, nota, tono = "text-white" }: { label: string; val
   );
 }
 
-export default function PanelDiarioContable({ resumen, paradas }: { resumen: ResumenPanel; paradas: FacturaParada[] }) {
+export default function PanelDiarioContable({ resumen, paradas, porLeer }: { resumen: ResumenPanel; paradas: FacturaParada[]; porLeer: number }) {
   const r = resumen;
   return (
     <section aria-label="Panel diario" className="mt-6 space-y-3">
@@ -54,12 +54,14 @@ export default function PanelDiarioContable({ resumen, paradas }: { resumen: Res
           </ul>
         </div>
       ) : (
-        <p className="text-xs text-slate-400">Ninguna factura de traductor espera tu decisión.</p>
+        <p className="text-xs text-slate-400">Nada espera tu decisión.</p>
       )}
+
+      {porLeer > 0 && <p className="text-[11px] text-slate-500">{porLeer} factura(s) de traductor por leer: el agente pasa cada mañana.</p>}
 
       {r.gastosSinCompletar > 0 && (
         <p className="text-[11px] text-slate-500">
-          {r.gastosSinCompletar} gasto(s) del trimestre sin completar: no cuentan en estas cifras hasta confirmarse.
+          {r.gastosSinCompletar} gasto(s) del trimestre sin completar: no cuentan en estas cifras hasta confirmarse en el detalle.
         </p>
       )}
     </section>

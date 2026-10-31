@@ -5,7 +5,7 @@ import { aggregateFiscal, type FiscalExpense, type FiscalInvoice } from "./fisca
 import { madridParts, madridStartOfMonthUtc, quarterOf } from "./period-grouping.ts";
 
 export type PanelInvoice = FiscalInvoice & { issuedAt: Date };
-export type PanelExpense = FiscalExpense & { date: Date };
+export type PanelExpense = FiscalExpense & { date: Date; concept?: string };
 export type PanelDevengo = { date: Date; baseCents: number };
 export type PanelCobro = { date: Date; baseCents: number };
 
@@ -18,7 +18,7 @@ export type ResumenPanel = {
   ivaTrimestreCents: number;
   retencionesTrimestreCents: number;
   reservasCents: number;
-  gastosSinCompletar: number; // needsReview: fuera del IVA y del resultado hasta confirmarse
+  gastosSinCompletar: number; // needsReview sin las facturas de traductor, que lleva el agente
 };
 
 export function resumenPanelContable(input: {
@@ -58,6 +58,6 @@ export function resumenPanelContable(input: {
     ivaTrimestreCents,
     retencionesTrimestreCents,
     reservasCents: ivaTrimestreCents + retencionesTrimestreCents,
-    gastosSinCompletar: input.expenses.filter((e) => e.needsReview && delTrimestre(e.date)).length,
+    gastosSinCompletar: input.expenses.filter((e) => e.needsReview && delTrimestre(e.date) && !e.concept?.startsWith("Factura del sobre lavori")).length,
   };
 }

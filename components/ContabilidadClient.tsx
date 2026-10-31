@@ -115,7 +115,8 @@ export default function ContabilidadClient({
   // needsReview=true = gasto recurrente pendiente de confirmar → fuera de TODOS los
   // números (totales, balance, 303/130). Solo aparece en el banner de pendientes.
   const expenses = useMemo(() => allExpenses.filter((e) => !e.needsReview), [allExpenses]);
-  const pendingExpenses = useMemo(() => allExpenses.filter((e) => e.needsReview), [allExpenses]);
+  // Las facturas de traductor no son recurrentes: las lleva el agente contable y el panel.
+  const pendingExpenses = useMemo(() => allExpenses.filter((e) => e.needsReview && !e.concept.startsWith("Factura del sobre lavori")), [allExpenses]);
 
   const years = useMemo(() => {
     const ys = new Set<number>();
