@@ -8,6 +8,7 @@ import JSZip from "jszip";
 import { prisma } from "@/lib/prisma";
 import { getSourceDocumentsFromEvents } from "@/lib/order-source-documents";
 import { clientVisibleDeliveryFiles } from "@/lib/client-delivery";
+import { extractPageRange } from "@/lib/pdf-extract";
 
 const EXPEDIENTE_VERSION = 1;
 
@@ -90,9 +91,19 @@ export async function buildExpedienteZip(
   // Documentos originales: los ítems del pedido con fichero; si no hay, los
   // adjuntados por evento (pedidos antiguos / entrega directa).
   const items = order.documentItems.filter((d) => d.fileUrl);
-  const sources: Array<{ name: string; url: string; type?: string | null; words?: number | null }> =
+  // Un PDF con varios documentos llega como varias líneas con la misma URL: el rango
+  // de páginas de cada una solo consta en su evento (26_A43F4C: 4 copias de 12 págs.).
+  const rangos = new Map(
+    order.events
+      .filter((e) => e.type === "order.source_document_uploaded")
+      .map((e) => {
+        const p = (e.payload || {}) as { fileUrl?: string; fileName?: string; pageStart?: number | null; pageEnd?: number | null };
+        return [`${p.fileUrl}|${p.fileName}`, { pageStart: p.pageStart ?? null, pageEnd: p.pageEnd ?? null }] as const;
+      })
+  );
+  const sources: Array<{ name: string; url: string; type?: string | null; words?: number | null; pageStart?: number | null; pageEnd?: number | null }> =
     items.length > 0
-      ? items.map((d) => ({ name: d.fileName, url: d.fileUrl!, type: d.documentType, words: d.words }))
+      ? items.map((d) => ({ name: d.fileName, url: d.fileUrl!, type: d.documentType, words: d.words, ...rangos.get(`${d.fileUrl}|${d.fileName}`) }))
       : getSourceDocumentsFromEvents(order.events)
           .filter((d) => d.url)
           .map((d) => ({ name: d.name, url: d.url! }));
@@ -112,7 +123,9 @@ export async function buildExpedienteZip(
   for (const src of sources) {
     idx += 1;
     const analysis = byUrl.get(src.url);
-    const bytes = await fetchBytes(src.url);
+    const bytes = src.pageStart
+      ? await extractPageRange({ url: src.url, start: src.pageStart, end: src.pageEnd }).then((d) => d.buffer, () => null)
+      : await fetchBytes(src.url);
     let fileName = `${String(idx).padStart(2, "0")}_${safeFileName(src.name, `documento-${idx}${extFromUrl(src.url)}`)}`;
     if (!/\.[A-Za-z0-9]{2,5}$/.test(fileName)) fileName += extFromUrl(src.url);
     while (usados.has(fileName)) fileName = fileName.replace(/(\.[^.]+)$/, `_2$1`);
