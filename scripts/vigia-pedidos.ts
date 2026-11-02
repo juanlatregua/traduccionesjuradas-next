@@ -6,6 +6,8 @@
 import { buildVigia, renderVigiaText } from "@/lib/vigia";
 
 async function main() {
+  // Los enlaces del informe se abren en producción, no en el localhost de .env.local.
+  process.env.NEXTAUTH_URL = "https://www.traduccionesjuradas.net";
   const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=")));
   const v = await buildVigia(Number(args.dias || 7));
   console.log("json" in args ? JSON.stringify(v, null, 2) : renderVigiaText(v));
