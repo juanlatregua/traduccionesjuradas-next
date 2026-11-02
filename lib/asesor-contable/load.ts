@@ -3,9 +3,11 @@
 
 import { prisma } from "@/lib/prisma";
 import { buildDossier, madridDay, periodFromTag, previousPeriodTag, type Dossier, type RawExpense, type RawInvoice, type RawOrder } from "./dossier";
+import { serviciosContratados } from "./servicios";
 import { madridStartOfMonthUtc } from "@/lib/period-grouping";
 
 const WEEK_MS = 7 * 86_400_000;
+const YEAR_MS = 365 * 86_400_000;
 
 export async function loadDossier(periodTag: string, now: Date = new Date()): Promise<Dossier | null> {
   const period = periodFromTag(periodTag);
@@ -22,7 +24,7 @@ export async function loadDossier(periodTag: string, now: Date = new Date()): Pr
     order: { select: { reference: true, paymentStatus: true } },
   } as const;
 
-  const [invs, open, exps, ords] = await Promise.all([
+  const [invs, open, exps, ords, gastosAnio] = await Promise.all([
     prisma.clientInvoice.findMany({
       where: { status: "ISSUED", docKind: "invoice", issuedAt: { gte: invFrom, lt: period.lt } },
       select: invSelect,
@@ -48,6 +50,11 @@ export async function loadDossier(periodTag: string, now: Date = new Date()): Pr
         clientInvoice: { select: { status: true, docKind: true, annulledAt: true } },
         monthlyInvoice: { select: { status: true, annulledAt: true } },
       },
+      take: 5000,
+    }),
+    prisma.expense.findMany({
+      where: { isAccrual: false, date: { gte: new Date(now.getTime() - YEAR_MS) } },
+      select: { date: true, supplier: true, concept: true, category: true, totalCents: true, isAccrual: true, collaboratorId: true },
       take: 5000,
     }),
   ]);
@@ -80,5 +87,6 @@ export async function loadDossier(periodTag: string, now: Date = new Date()): Pr
     openInvoices: open.map(toInv),
     expenses: exps.map(toExp),
     orders: ords.map(toOrd),
+    servicios: serviciosContratados(gastosAnio, now),
   });
 }

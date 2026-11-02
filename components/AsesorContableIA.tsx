@@ -255,7 +255,7 @@ export default function AsesorContableIA({ periods }: { periods: { value: string
             value={q}
             onChange={(e) => setQ(e.target.value)}
             maxLength={500}
-            placeholder="Ej.: ¿qué gasto pesa más este trimestre?"
+            placeholder="Ej.: ¿dónde puedo ahorrar en servicios contratados?"
             className="min-w-0 flex-1 rounded border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
           />
           <button type="submit" disabled={asking || !q.trim()} className="rounded-lg border border-violet-500 px-4 py-2 text-sm font-semibold text-violet-200 hover:bg-violet-900/30 disabled:opacity-50">

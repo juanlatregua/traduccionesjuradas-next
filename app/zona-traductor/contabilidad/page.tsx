@@ -17,6 +17,8 @@ import { resumenPanelContable } from "@/lib/panel-contable";
 import { EV_PARADA } from "@/lib/agente-contable";
 import { MOTIVO_TEXTO, referenciaPedido, type MotivoParada } from "@/lib/agente-contable-logic";
 import { periodOptions } from "@/lib/asesor-contable/dossier";
+import { serviciosContratados } from "@/lib/asesor-contable/servicios";
+import ServiciosContratados from "@/components/ServiciosContratados";
 import CollaboratorAccountPanel, { type CollaboratorAccountGroup } from "@/components/CollaboratorAccountPanel";
 
 export const metadata: Metadata = {
@@ -199,6 +201,7 @@ export default async function ZonaTraductorContabilidadPage() {
             Ver el detalle: libros, impuestos, banco y asesor
           </summary>
         {role === "ADMIN" && <AsesorContableIA periods={periodOptions(new Date())} />}
+        {role === "ADMIN" && <ServiciosContratados servicios={serviciosContratados(rawExpenses, new Date())} />}
         <ContabilidadClient
           invoices={invoices}
           orders={orders}

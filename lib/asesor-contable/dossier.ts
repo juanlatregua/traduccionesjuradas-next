@@ -9,6 +9,7 @@
 import { parseFiscalPeriod, type FiscalPeriod } from "../fiscal-period.ts";
 import { madridParts } from "../period-grouping.ts";
 import { aggregateFiscal } from "../fiscal-aggregation.ts";
+import type { Servicio } from "./servicios.ts";
 
 export type RawInvoice = {
   id: string;
@@ -77,6 +78,8 @@ export type DossierInput = {
   expenses: RawExpense[];
   /** Pedidos PAID con cobro en el periodo anterior o en el actual. */
   orders: RawOrder[];
+  /** Coste anual de los servicios contratados (últimos 12 meses, no solo el periodo). */
+  servicios?: Servicio[];
 };
 
 export type Link = { label: string; url: string };
@@ -528,6 +531,7 @@ export function buildDossier(input: DossierInput) {
       huecos: num.huecos.length,
       fuera_de_orden: fueraDeOrden.length,
     },
+    servicios_contratados: input.servicios ?? [],
     hallazgos,
   };
 }

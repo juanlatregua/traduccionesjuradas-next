@@ -10,6 +10,7 @@ import {
   type RawInvoice,
   type RawOrder,
 } from "../../lib/asesor-contable/dossier.ts";
+import { serviciosContratados } from "../../lib/asesor-contable/servicios.ts";
 import { aggregateFiscal } from "../../lib/fiscal-aggregation.ts";
 import { invalidNumbers, normalizeAnalisis, validateAnalisis, validateRespuesta } from "../../lib/asesor-contable/validate.ts";
 
@@ -364,4 +365,41 @@ test("más de 12 hallazgos de un tipo pasan a un resumen, sin omitir nada en sil
   assert.deepEqual(b[0].importes, { total_eur: 140, base_eur: 115.7, iva_eur: 24.3 });
   assert.equal(b[0].enlaces.length, 14);
   assert.equal("hallazgos_omitidos_por_limite" in d, false);
+});
+
+test("servicios: agrupa por proveedor, deja fuera traductores y nómina, y estima el año", () => {
+  const now = new Date("2026-10-30T10:00:00Z");
+  const g = (mes: string, supplier: string, totalCents: number, category = "software", concept = "Servicio") =>
+    ({ date: new Date(`2026-${mes}-05T10:00:00Z`), supplier, concept, category, totalCents, isAccrual: false, collaboratorId: null });
+  const filas = serviciosContratados(
+    [
+      ...["03", "04", "05", "06", "07", "08"].map((m) => g(m, "Vercel Inc.", 2000)),
+      g("09", "Vercel Inc.", 0),
+      g("09", "cdmon (10dencehispahard, S.L.)", 15827),
+      g("08", "Una Traductora", 9000, "colaborador"),
+      g("08", "Isabelle (nómina)", 180000, "nómina"),
+      g("08", "TGSS", 44868, "seguridad social"),
+    ],
+    now,
+  );
+  assert.deepEqual(filas.map((f) => f.proveedor), ["Vercel Inc.", "cdmon (10dencehispahard, S.L.)"]);
+  const [vercel, cdmon] = filas;
+  assert.equal(vercel.frecuencia, "mensual");
+  assert.equal(vercel.anual_estimado_eur, 240);
+  assert.equal(vercel.total_12_meses_eur, 120);
+  assert.equal(vercel.meses_a_cero, 1);
+  assert.equal(vercel.ultimo_importe_eur, 20);
+  assert.equal(cdmon.frecuencia, "puntual");
+  assert.equal(cdmon.anual_estimado_eur, 158.27);
+  assert.match(cdmon.nota ?? "", /Vercel/);
+});
+
+test("servicios: el dossier los pasa a la IA y sus cifras se pueden citar", () => {
+  const servicios = serviciosContratados(
+    [{ date: new Date("2026-09-05T10:00:00Z"), supplier: "Zoom", concept: "Anual", category: "software", totalCents: 15990, isAccrual: false }],
+    new Date("2026-10-30T10:00:00Z"),
+  );
+  const d = buildDossier({ period: T3, previousPeriod: T2, today: "2026-10-30", invoices: [], openInvoices: [], expenses: [], orders: [], servicios });
+  assert.equal(dossierForModel(d).servicios_contratados[0].anual_estimado_eur, 159.9);
+  assert.deepEqual(invalidNumbers("Zoom cuesta 159,90 € al año.", d), []);
 });
