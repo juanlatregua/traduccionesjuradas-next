@@ -125,6 +125,20 @@ export function buildDeliveryWhatsappText(input: {
   return [c.hello(greetingName(input.name), input.now), links, c.verify, c.review(input.reviewUrl), `${c.bye}\n${DELIVERY_SIGNATURE}`].join("\n\n");
 }
 
+const BILLING_REQUEST = {
+  es: (url: string) => `Para emitirle la factura necesito su pasaporte o documento de identidad (NIF/CPF) y su dirección completa. Puede indicarlos aquí y la factura le llegará por email: ${url}`,
+  fr: (url: string) => `Pour émettre votre facture, j'ai besoin de votre passeport ou pièce d'identité (NIF/CPF) et de votre adresse complète. Vous pouvez les indiquer ici et la facture vous arrivera par email : ${url}`,
+  en: (url: string) => `To issue your invoice I need your passport or ID document (tax ID/CPF) and your full address. You can enter them here and the invoice will be emailed to you: ${url}`,
+} as const;
+
+// Petición de datos fiscales, antes de la reseña (como los enlaces de descarga).
+export function appendBillingRequest(text: string, lang: DeliveryLang, url: string | null | undefined): string {
+  if (!url) return text;
+  const parts = text.split("\n\n");
+  parts.splice(Math.max(parts.length - 2, 1), 0, BILLING_REQUEST[lang](url));
+  return parts.join("\n\n");
+}
+
 // Si algún adjunto no pudo ir en el correo, su enlace se añade antes de la reseña.
 export function appendDownloadLinks(text: string, lang: DeliveryLang, links: string[]): string {
   if (links.length === 0) return text;

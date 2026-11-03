@@ -35,6 +35,11 @@ export function needsNif(nif: string | null | undefined, amountCents: number): b
   return !clean(nif) && amountCents > SIMPLIFIED_MAX_CENTS;
 }
 
+// Más de 400 € sin documento o sin dirección: la entrega pide los datos al cliente para la factura completa.
+export function billingDataMissing(nif: string | null | undefined, address: string | null | undefined, amountCents: number): boolean {
+  return amountCents > SIMPLIFIED_MAX_CENTS && (!clean(nif) || !clean(address));
+}
+
 // Nombre de las facturas simplificadas sin nombre.
 export const ANONYMOUS_CLIENT_NAME = "Cliente";
 

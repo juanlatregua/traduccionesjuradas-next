@@ -26,6 +26,7 @@ import { toDeliveryLang } from "@/lib/delivery-message";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { billingRequestUrlFor } from "@/lib/delivery-invoice";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -131,11 +132,13 @@ export async function POST(req: Request) {
       const lang = toDeliveryLang(order.clientLocale);
       const invAttach = await buildIssuedInvoiceAttachment(reference);
       const invoiceNumber = invAttach ? invAttach.name.replace(/\.pdf$/i, "") : null;
+      const billingRequestUrl = invAttach ? null : await billingRequestUrlFor(order.id).catch(() => null);
       const composed = buildTranslationReadyEmail({
         reference,
         lang,
         clientName: order.clientName,
         invoiceNumber,
+        billingRequestUrl,
       });
       await prisma.orderEvent
         .create({
@@ -143,7 +146,7 @@ export async function POST(req: Request) {
             orderId: order.id,
             type: "notification.delivery_ready.sent",
             message: "Cliente notificado de traducción lista con enlace de descarga.",
-            payload: { actorEmail, channel: "EMAIL", toEmail: clientEmail, subject: composed.subject, bodyHtml: composed.html, downloadUrl: primary.url, fileCount: translations.length, invoiceAttached: !!invAttach, invoiceNumber },
+            payload: { actorEmail, channel: "EMAIL", toEmail: clientEmail, subject: composed.subject, bodyHtml: composed.html, downloadUrl: primary.url, fileCount: translations.length, invoiceAttached: !!invAttach, invoiceNumber, billingRequested: !!billingRequestUrl },
           },
         })
         .catch((err) => console.error("[customers-deliver] notif event failed", err));
@@ -157,7 +160,7 @@ export async function POST(req: Request) {
         const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
         const fallbackLinks = translations.filter((_, i) => !fileAttachments[i]).map((f) => f.url);
         await sendEmailWithRetry(() =>
-          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach })
+          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach, billingRequestUrl })
         );
       })().catch((e) => console.error("[customers-deliver] ready email failed", e));
     }

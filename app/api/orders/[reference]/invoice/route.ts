@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getOrderDetail, saveBillingData } from "@/lib/orders";
 import { sendInvoiceRequestEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { sendInvoiceAfterClientBilling } from "@/lib/delivery-invoice";
 
 export const runtime = "nodejs";
 
@@ -86,6 +87,9 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
     }
+
+    // Si la entrega pidió estos datos, la factura se emite y sale sola.
+    await sendInvoiceAfterClientBilling(order.id, session.user.email).catch((e) => console.error("[invoice] auto invoice failed", e));
 
     return NextResponse.json({ ok: true });
   } catch (err) {

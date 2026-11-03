@@ -9,6 +9,7 @@ import { sendStaffAlertSMS } from "@/lib/sms";
 import { escapeHtml } from "@/lib/collaborator-emails";
 import {
   appendDownloadLinks,
+  appendBillingRequest,
   buildDeliveryText,
   deliveryTextToHtml,
   deliverySubject,
@@ -271,6 +272,8 @@ export function buildTranslationReadyEmail(data: {
   // Enlaces de los archivos que no cupieron como adjunto.
   fallbackLinks?: string[];
   correction?: boolean;
+  // Enlace al formulario de facturación cuando faltan datos para la factura completa.
+  billingRequestUrl?: string | null;
 }): { subject: string; html: string } {
   const lang = data.lang || "es";
   const base =
@@ -283,7 +286,7 @@ export function buildTranslationReadyEmail(data: {
       correction: data.correction,
       reviewUrl: getReviewUrl(),
     });
-  const text = appendDownloadLinks(base, lang, data.fallbackLinks || []);
+  const text = appendBillingRequest(appendDownloadLinks(base, lang, data.fallbackLinks || []), lang, data.correction ? null : data.billingRequestUrl);
   return {
     subject: (data.subject || "").trim() || deliverySubject(lang, data.reference, data.correction),
     html: wrapClientEmailHtml(deliveryTextToHtml(text)),
@@ -302,6 +305,7 @@ export async function sendTranslationReadyEmail(data: {
   attachments?: MailAttachment[];
   invoiceAttached?: boolean;
   correction?: boolean;
+  billingRequestUrl?: string | null;
 }): Promise<{ subject: string; html: string }> {
   const composed = buildTranslationReadyEmail(data);
   await sendMail({

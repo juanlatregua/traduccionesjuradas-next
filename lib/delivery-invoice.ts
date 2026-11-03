@@ -7,8 +7,16 @@ import { prisma } from "@/lib/prisma";
 import { issueOrUpdateInvoice } from "@/lib/client-invoice";
 import { logInvoiceEvent } from "@/lib/verifactu/records";
 import { assertNotInClosedPeriod } from "@/lib/tax-close-store";
+import { buildSignedOrderUrl } from "@/lib/order-token";
+import { isOrderSecured } from "@/lib/credit-terms";
+import { runInvoiceOnly } from "@/lib/delivery-invoice-only";
+import { buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
+import { composeInvoiceOnlyEmail, sendInvoiceOnlyEmail } from "@/lib/email";
+import { sendEmailWithRetry } from "@/lib/email-retry";
+import { getReviewUrl, greetingName, toDeliveryLang } from "@/lib/delivery-message";
 import {
   ANONYMOUS_CLIENT_NAME,
+  billingDataMissing,
   NIF_REQUIRED_MESSAGE,
   decideInvoiceAction,
   needsNif,
@@ -154,4 +162,78 @@ export async function prepareDeliveryInvoice(input: {
     },
   });
   return {};
+}
+
+// Entrega sin factura porque faltan documento o dirección (más de 400 €): enlace
+// al formulario de facturación del área de cliente para pedirlos en el mismo email.
+export async function billingRequestUrlFor(orderId: string): Promise<string | null> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { reference: true, amountCents: true, billingExcluded: true, monthlyInvoiceId: true, paymentMethod: true, billing: true, clientInvoice: true },
+  });
+  if (!order || order.billingExcluded || order.monthlyInvoiceId) return null;
+  if (decideInvoiceAction({ existing: order.clientInvoice, amountCents: order.amountCents, paymentMethod: order.paymentMethod }) !== "issue") return null;
+  if (!billingDataMissing(order.billing?.nif, order.billing?.address, order.amountCents)) return null;
+  return buildSignedOrderUrl(order.reference, "detalle");
+}
+
+// El cliente completa los datos que pidió el email de entrega: se emite la factura
+// y se le envía sola. Solo si esa entrega los pidió y la factura no ha salido aún.
+export async function sendInvoiceAfterClientBilling(orderId: string, actorEmail: string): Promise<void> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { billing: true, clientInvoice: true },
+  });
+  if (!order || !order.billing?.requested || !isOrderSecured(order)) return;
+  const b = order.billing;
+  if (!b.fiscalName.trim() || billingDataMissing(b.nif, b.address, order.amountCents)) return;
+  const events = await prisma.orderEvent.findMany({
+    where: { orderId, type: { in: ["notification.delivery_ready.sent", "notification.invoice.sent"] } },
+    select: { type: true, createdAt: true, payload: true },
+  });
+  const asked = events.some((e) => e.type === "notification.delivery_ready.sent" && (e.payload as any)?.billingRequested === true);
+  if (!asked || events.some((e) => e.type === "notification.invoice.sent")) return;
+
+  const result = await runInvoiceOnly(
+    {
+      prepare: () =>
+        prepareDeliveryInvoice({
+          orderId,
+          amountCents: order.amountCents,
+          billingExcluded: order.billingExcluded,
+          paymentMethod: order.paymentMethod,
+          monthlyInvoiceId: order.monthlyInvoiceId,
+          billing: normalizeBillingInput(b, order.clientEmail),
+          actorEmail,
+        }),
+      attach: () => buildIssuedInvoiceAttachment(order.reference),
+      record: async ({ subject, text, invoiceNumber }) => {
+        const composed = composeInvoiceOnlyEmail(subject, text);
+        await prisma.orderEvent.create({
+          data: {
+            orderId,
+            type: "notification.invoice.sent",
+            message: `Factura ${invoiceNumber} enviada al cliente tras completar sus datos de facturación.`,
+            payload: { actorEmail, channel: "EMAIL", toEmail: order.clientEmail, subject: composed.subject, bodyHtml: composed.html, invoiceAttached: true, invoiceNumber },
+          },
+        });
+      },
+      send: ({ subject, text, attachment }) => {
+        void sendEmailWithRetry(() => sendInvoiceOnlyEmail({ toEmail: order.clientEmail, subject, text, attachments: [attachment] })).catch((e) =>
+          console.error("[client-billing] invoice email failed", e)
+        );
+      },
+    },
+    {
+      reference: order.reference,
+      lang: toDeliveryLang(order.clientLocale),
+      clientName: greetingName(order.clientName, order.clientEmail),
+      reviewUrl: getReviewUrl(),
+    }
+  );
+  if (!result.ok) {
+    await prisma.orderEvent.create({
+      data: { orderId, type: "billing.auto_invoice_failed", message: `El cliente completó sus datos pero la factura no salió: ${result.error}` },
+    });
+  }
 }

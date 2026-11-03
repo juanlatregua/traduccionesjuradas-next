@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOrderDetail, saveShippingData, saveBillingData } from "@/lib/orders";
 import { getWorkflowState } from "@/lib/workflow";
+import { sendInvoiceAfterClientBilling } from "@/lib/delivery-invoice";
 
 export const runtime = "nodejs";
 
@@ -75,6 +76,7 @@ export async function PATCH(req: Request, { params }: Params) {
         ...body.billing,
         requested: Boolean(order.billing?.requested),
       });
+      await sendInvoiceAfterClientBilling(order.id, session.user.email).catch((e) => console.error("[orders] auto invoice failed", e));
     }
 
     return NextResponse.json({ ok: true });

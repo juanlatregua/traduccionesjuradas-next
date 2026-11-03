@@ -10,7 +10,7 @@ import {
 import { runInvoiceOnly } from "@/lib/delivery-invoice-only";
 import { unreviewedForSend } from "@/lib/delivery-files";
 import { getReviewUrl, greetingName, resolveInvoicePlaceholder, toDeliveryLang } from "@/lib/delivery-message";
-import { normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
+import { billingRequestUrlFor, normalizeBillingInput, prepareDeliveryInvoice } from "@/lib/delivery-invoice";
 import { NIF_REQUIRED_MESSAGE, decideInvoiceAction, needsNif } from "@/lib/delivery-billing";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
@@ -425,6 +425,8 @@ export async function POST(req: Request, { params }: Params) {
       }
       const invAttach = await buildIssuedInvoiceAttachment(order.reference);
       invoiceNumber = invAttach ? invAttach.name.replace(/\.pdf$/i, "") : null;
+      const billingRequestUrl = invAttach || isCorrection ? null : await billingRequestUrlFor(order.id).catch(() => null);
+      if (billingRequestUrl) warnings.push("Faltan documento o dirección para la factura: el email se los pide al cliente y la factura saldrá sola cuando los rellene.");
 
       // 1) Registrar QUE se envia al cliente, SINCRONO y antes de responder: el
       //    contenido exacto (asunto + cuerpo) queda en OrderEvent aunque el envio
@@ -443,6 +445,7 @@ export async function POST(req: Request, { params }: Params) {
         message: customMessage,
         subject: customSubject,
         correction: isCorrection,
+        billingRequestUrl,
       });
       await prisma.orderEvent
         .create({
@@ -463,6 +466,7 @@ export async function POST(req: Request, { params }: Params) {
               correction: isCorrection,
               invoiceAttached: !!invAttach,
               invoiceNumber,
+              billingRequested: !!billingRequestUrl,
             },
           },
         })
@@ -496,6 +500,7 @@ export async function POST(req: Request, { params }: Params) {
             attachments,
             invoiceAttached: !!invAttach,
             correction: isCorrection,
+            billingRequestUrl,
           })
         );
       })().catch((e) => console.error("[orders-delivery] ready email failed", e));
