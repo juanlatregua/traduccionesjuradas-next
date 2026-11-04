@@ -320,8 +320,14 @@ export async function POST(req: Request) {
       });
       const aceptadoEv = recent.find((e) => e.type === "lavori.precio_aceptado_enviado")?.payload as { precioCents?: unknown } | undefined;
       const enviadaEv = recent.find((e) => e.type === "lavori.solicitud_enviada")?.payload as { paraTi?: unknown } | undefined;
+      // Primera fuente: la cifra que trae el propio evento (datos.paraTi, euros
+      // "30.00"). Un encargo creado en lavori fuera de nuestro envío no deja
+      // eventos aquí (26_92B82C llegó sin coste).
+      const eventoParaTi = Number(datos.paraTi);
       const paraTiCents =
-        Number.isFinite(Number(aceptadoEv?.precioCents)) && Number(aceptadoEv?.precioCents) > 0
+        Number.isFinite(eventoParaTi) && eventoParaTi > 0
+          ? Math.round(eventoParaTi * 100)
+          : Number.isFinite(Number(aceptadoEv?.precioCents)) && Number(aceptadoEv?.precioCents) > 0
           ? Math.round(Number(aceptadoEv?.precioCents))
           : Number.isFinite(Number(enviadaEv?.paraTi)) && Number(enviadaEv?.paraTi) > 0
             ? Math.round(Number(enviadaEv?.paraTi) * 100)
