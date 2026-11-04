@@ -55,6 +55,8 @@ export type AutoSendInput = {
   avisos?: string[];
   /** Par de la solicitud a lavori («DE>ES»). Si se informa y no es el del presupuesto, no sale solo. */
   leadPar?: string | null;
+  /** Opt-in SOLO del agente de bandeja: en par FR salta «el francés es tuyo» y «sin coste» (Juan, coste 0). */
+  frAllowed?: boolean;
 };
 
 /** «DE>ES», «de-es», «de→es» → «de>es»; null si no son dos idiomas. */
@@ -80,9 +82,10 @@ export function decideAutoSend(i: AutoSendInput): AutoSendDecision {
     const quote = normalizePair(i.sourceLang, i.targetLang);
     if (!lead || !quote || lead !== quote) reasons.push(`el par de la solicitud (${i.leadPar}) no coincide con el del presupuesto (${i.sourceLang || "?"}>${i.targetLang || "?"})`);
   }
-  if (isFrPair(i.sourceLang, i.targetLang)) reasons.push("par FR: el francés es tuyo, lo envías tú");
+  const frOk = i.frAllowed === true && isFrPair(i.sourceLang, i.targetLang);
+  if (isFrPair(i.sourceLang, i.targetLang) && !frOk) reasons.push("par FR: el francés es tuyo, lo envías tú");
   if (i.marginDetail) reasons.push(`no pasa el freno de margen: ${i.marginDetail}`);
-  if (i.costMissing) reasons.push("hay líneas sin coste registrado: no se puede verificar el margen");
+  if (i.costMissing && !frOk) reasons.push("hay líneas sin coste registrado: no se puede verificar el margen");
   if (i.netCents > AUTO_SEND_MAX_CENTS) reasons.push(`${(i.netCents / 100).toFixed(2)} € netos superan el tope de envío automático (${AUTO_SEND_MAX_CENTS / 100} €)`);
   const hasContact = isRealEmail(i.customerEmail) || String(i.customerPhone || "").replace(/\D/g, "").length >= 9;
   if (!hasContact) reasons.push("cliente sin identificar (ni email real ni teléfono)");

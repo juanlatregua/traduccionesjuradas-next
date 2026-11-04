@@ -478,8 +478,11 @@ export type CreateAutoQuoteOpts = {
   marginPct: number;
   autoPricedBy: string;
   adminCreatedBy: string;
-  channelPriceSource: "learned-rate" | "lavori-directo";
+  /** "fr-tarifa" = motor por página de Juan (agente de bandeja): FR está exento de la guarda del canal. */
+  channelPriceSource: "learned-rate" | "lavori-directo" | "fr-tarifa";
   miembro: { id: string | null; nombre: string | null };
+  /** Traductor que firma el presupuesto (nombre + MAEC), si se conoce al crear. */
+  translator?: { name: string; maec: string | null };
   expedienteRef: string;
   contacto: { email?: string | null; phone?: string | null; name?: string | null };
   locale?: string | null;
@@ -527,7 +530,7 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
   }
 
   // Caso ANTES de la transacción y fuera de ella (fail-open: sin caso, el presupuesto se crea igual).
-  const entradaCaso = opts.channelPriceSource === "learned-rate" ? "tarifario" : "directo";
+  const entradaCaso = opts.channelPriceSource === "learned-rate" ? "tarifario" : opts.channelPriceSource === "fr-tarifa" ? "email" : "directo";
   const casoId =
     opts.casoId !== undefined
       ? opts.casoId
@@ -579,6 +582,7 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
         casoId,
         lavoriMiembroId: opts.miembro.id,
         lavoriMiembroNombre: opts.miembro.nombre,
+        ...(opts.translator ? { translatorName: opts.translator.name, translatorMaec: opts.translator.maec } : {}),
         lines: {
           create: totals.lines.map((line) => ({
             description: line.description,
@@ -602,7 +606,11 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
   }
 
   const { finalizeAndSendQuote } = await import("@/lib/quote-send");
-  const sent = await finalizeAndSendQuote({ quoteId: created.id, actorEmail: opts.adminCreatedBy, channelPriceSource: opts.channelPriceSource });
+  const sent = await finalizeAndSendQuote({
+    quoteId: created.id,
+    actorEmail: opts.adminCreatedBy,
+    ...(opts.channelPriceSource !== "fr-tarifa" ? { channelPriceSource: opts.channelPriceSource } : {}),
+  });
 
   // Cliente solo-WhatsApp: el enlace de pago va por SMS (el email-marcador no llega).
   let smsSent = false;
@@ -631,6 +639,8 @@ export async function autoQuoteFromPuertaSession(opts: {
   contactName?: string | null;
   locale?: string | null;
   casoId?: string | null;
+  /** false = nunca intenta el envío solo aunque LEARNED_RATES_AUTOSEND=on (el agente de bandeja envía por el hilo). */
+  autoSend?: boolean;
 }): Promise<AutoQuoteResult> {
   if (!isLearnedRatesLive()) return { ok: false, reason: "LEARNED_RATES_LIVE=off" };
   const rows = await prisma.documentAnalysis.findMany({
@@ -752,7 +762,7 @@ export async function autoQuoteFromPuertaSession(opts: {
   let autoSent = false;
   let autoSendReasons: string[] = [];
   let payUrl = result.payUrl;
-  if (isLearnedAutosendOn()) {
+  if (opts.autoSend !== false && isLearnedAutosendOn()) {
     const totalCents = Math.round(result.totalEur * 100);
     if (totalCents > AUTO_QUOTE_MAX_CENTS_WITH_VAT) {
       autoSendReasons = [`${result.totalEur.toFixed(2)} € con IVA superan el tope de envío solo (${AUTO_QUOTE_MAX_CENTS_WITH_VAT / 100} €)`];

@@ -41,7 +41,7 @@ export function htmlToPlainText(html: string): string {
 }
 
 /** Remitentes que no son clientes: el propio buzón, staff y no-reply. */
-function isIgnoredSender(fromEmail: string): boolean {
+export function isIgnoredSender(fromEmail: string): boolean {
   const email = fromEmail.toLowerCase();
   if (!email.includes("@")) return true;
   if (email === getMailboxAddress().toLowerCase()) return true;

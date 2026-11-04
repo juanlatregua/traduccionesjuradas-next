@@ -13,7 +13,7 @@ import { findLiveLavoriDuplicate, isHeldByJuan } from "@/lib/lavori-dup-guard";
 import { alreadyCustomerFor, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { findClientSaidNo } from "@/lib/respuesta-guard-db";
 import { cierreReviewUrl } from "@/lib/cierre-token";
-import { decideAutoSend, isRealEmail, deduceLostReason, hasCostGap, linkedExpenseFor, hasHumanOpen, autoLostNote, OWN_TRANSLATOR_EMAIL, type ColabExpense, type CostGapOrder } from "@/lib/cierre-math";
+import { decideAutoSend, type AutoSendDecision, isRealEmail, deduceLostReason, hasCostGap, linkedExpenseFor, hasHumanOpen, autoLostNote, OWN_TRANSLATOR_EMAIL, type ColabExpense, type CostGapOrder } from "@/lib/cierre-math";
 import type { AutoLostCode } from "@/lib/quote-lost-reasons";
 
 const SITE = "https://www.traduccionesjuradas.net";
@@ -171,37 +171,48 @@ async function quoteDuplicateGuards(quote: { id: string; expedienteRef: string |
  */
 export async function autoSendTarifarioDraft(quoteId: string): Promise<{ sent: boolean; reasons: string[]; payUrl: string | null }> {
   try {
-    const quote = await prisma.quote.findUnique({ where: { id: quoteId }, include: { lines: { orderBy: { createdAt: "asc" } } } });
-    if (!quote || quote.deletedAt) return { sent: false, reasons: ["presupuesto no disponible"], payUrl: null };
-    const lines = quote.lines.map((l) => ({ quantity: Number(l.quantity) || 1, unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) }));
-    const discountCents = Math.round(decimalToNumber(quote.discountAmount) * 100);
-    const margin = checkQuoteLinesMargin({ sourceLang: quote.sourceLang, targetLang: quote.targetLang, lines, discountCents });
-    const netCents = Math.round(decimalToNumber(quote.subtotal) * 100) - discountCents;
-    const guards = await quoteDuplicateGuards(quote);
-    const decision = decideAutoSend({
-      sourceLang: quote.sourceLang,
-      targetLang: quote.targetLang,
-      quoteStatus: quote.status,
-      sentAt: quote.sentAt,
-      sendingAt: quote.sendingAt,
-      netCents,
-      customerEmail: quote.customerEmail,
-      customerPhone: quote.customerPhone,
-      marginDetail: margin.ok ? null : margin.detail,
-      costMissing: lines.some((l) => l.unitPrice > 0 && !(l.supplierUnitCost && l.supplierUnitCost > 0)),
-      heldByJuan: false,
-      duplicate: guards.duplicate,
-      alreadyCustomer: guards.alreadyCustomer,
-      clientSaidNo: guards.clientSaidNo,
-    });
-    if (decision.action === "skip") return { sent: false, reasons: [decision.reason], payUrl: null };
-    if (decision.action === "alert") return { sent: false, reasons: decision.reasons, payUrl: null };
+    const ev = await evaluateDraftAutoSend(quoteId);
+    if (!ev.quote) return { sent: false, reasons: ["presupuesto no disponible"], payUrl: null };
+    if (ev.decision.action === "skip") return { sent: false, reasons: [ev.decision.reason], payUrl: null };
+    if (ev.decision.action === "alert") return { sent: false, reasons: ev.decision.reasons, payUrl: null };
     const { finalizeAndSendQuote } = await import("@/lib/quote-send");
-    const out = await finalizeAndSendQuote({ quoteId: quote.id, actorEmail: "system:tarifario-auto", channelPriceSource: "learned-rate", requireDraft: true });
+    const out = await finalizeAndSendQuote({ quoteId: ev.quote.id, actorEmail: "system:tarifario-auto", channelPriceSource: "learned-rate", requireDraft: true });
     return { sent: true, reasons: [], payUrl: out.payUrl };
   } catch (err) {
     return { sent: false, reasons: [`el envío automático falló: ${String((err as Error)?.message || err)}`], payUrl: null };
   }
+}
+
+/**
+ * Decisión de envío automático de un borrador (margen + tope + guardas anti-duplicado),
+ * sin enviar nada. `frAllowed` solo lo pasa el agente de bandeja (par FR con coste 0 de Juan).
+ */
+export async function evaluateDraftAutoSend(quoteId: string, opts: { frAllowed?: boolean } = {}) {
+  const quote = await prisma.quote.findUnique({ where: { id: quoteId }, include: { lines: { orderBy: { createdAt: "asc" } } } });
+  if (!quote || quote.deletedAt) return { quote: null, decision: { action: "skip", reason: "presupuesto no disponible" } as AutoSendDecision };
+  const lines = quote.lines.map((l) => ({ quantity: Number(l.quantity) || 1, unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) }));
+  const discountCents = Math.round(decimalToNumber(quote.discountAmount) * 100);
+  const margin = checkQuoteLinesMargin({ sourceLang: quote.sourceLang, targetLang: quote.targetLang, lines, discountCents });
+  const netCents = Math.round(decimalToNumber(quote.subtotal) * 100) - discountCents;
+  const guards = await quoteDuplicateGuards(quote);
+  const decision = decideAutoSend({
+    sourceLang: quote.sourceLang,
+    targetLang: quote.targetLang,
+    quoteStatus: quote.status,
+    sentAt: quote.sentAt,
+    sendingAt: quote.sendingAt,
+    netCents,
+    customerEmail: quote.customerEmail,
+    customerPhone: quote.customerPhone,
+    marginDetail: margin.ok ? null : margin.detail,
+    costMissing: lines.some((l) => l.unitPrice > 0 && !(l.supplierUnitCost && l.supplierUnitCost > 0)),
+    heldByJuan: false,
+    duplicate: guards.duplicate,
+    alreadyCustomer: guards.alreadyCustomer,
+    clientSaidNo: guards.clientSaidNo,
+    frAllowed: opts.frAllowed,
+  });
+  return { quote, decision };
 }
 
 async function syncLeadTranslator(lead: { miembroId: string | null; miembroNombre: string | null }, quoteId: string) {

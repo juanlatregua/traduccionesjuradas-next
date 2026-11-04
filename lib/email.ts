@@ -82,15 +82,19 @@ export function wrapClientEmailHtml(content: string) {
 // HTML de un mensaje libre del staff al cliente (cuerpo + firma + nota legal).
 // Compartido entre sendCustomClientEmail y la respuesta desde /admin/inbox
 // para que TODO mensaje manual salga con el mismo formato.
-export function renderClientMessageHtml(bodyText: string) {
+export function renderClientMessageHtml(bodyText: string, opts: { houseSignature?: boolean } = {}) {
   const safe = String(bodyText)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+  // houseSignature: firma de la casa sin el nombre ni el nº de jurado de Juan (pares no FR).
+  const signer = opts.houseSignature
+    ? `<strong>TraduccionesJuradas.net</strong><br/>`
+    : `<strong>Juan Silva Moreno</strong><br/>
+    Jefe de proyectos · Traductor jurado de francés (Nº3850)<br/>`;
   // Firma completa + nota legal: SOLO en el email (el WhatsApp va sin firma).
   const signatureHtml = `
-    <p style="margin:12px 0 4px 0;"><strong>Juan Silva Moreno</strong><br/>
-    Jefe de proyectos · Traductor jurado de francés (Nº3850)<br/>
+    <p style="margin:12px 0 4px 0;">${signer}
     HBTJ Consultores Lingüísticos S.L. · CIF B93712784<br/>
     Calle Esperanto, 9 · 29007 Málaga<br/>
     Tel: <a href="tel:+34951333614">${WHATSAPP_DISPLAY}</a></p>

@@ -2,7 +2,8 @@
 //  1. lee los justificantes subidos a pedidos y lanza los que cuadran (lib/payment-proof-auto);
 //  2. sincroniza la bandeja, mira los justificantes que llegan por email y manda
 //     al cliente el enlace para subirlo (no confirma nada);
-//  3. recuerda la dirección de envío de los pedidos en papel ya lanzados.
+//  3. recuerda la dirección de envío de los pedidos en papel ya lanzados;
+//  4. agente de bandeja (AGENTE_BANDEJA=draft|on): presupuesta los emails nuevos con documento.
 // Fail-closed por CRON_SECRET como el resto de crons.
 import { NextResponse } from "next/server";
 import { processUploadedProofs } from "@/lib/payment-proof-auto";
@@ -11,6 +12,8 @@ import { isInboxConfigured } from "@/lib/azure-mail-read";
 import { syncInboxEmails } from "@/lib/inbox";
 import { remindPendingShipping } from "@/lib/shipping-request";
 import { hasCronSecret } from "@/lib/cron-auth";
+import { runAgenteBandeja } from "@/lib/agente-bandeja";
+import { agenteBandejaMode } from "@/lib/agente-bandeja-math";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -25,6 +28,7 @@ async function step<T>(name: string, fn: () => Promise<T>): Promise<T | { error:
 }
 
 export async function GET(req: Request) {
+  const startedAt = Date.now();
   if (!hasCronSecret(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
   }
@@ -34,6 +38,11 @@ export async function GET(req: Request) {
   const correo = await step("correo", () => scanInboxForPaymentProofs({ max: 20 }));
   const enlaces = await step("enlaces", () => sendUploadLinkForEmailedProofs());
   const envio = await step("envio", () => remindPendingShipping());
+  // Al final: es el paso largo (IA) y no debe dejar sin tiempo a los demás.
+  const agente =
+    isInboxConfigured() && agenteBandejaMode(process.env.AGENTE_BANDEJA) !== "off"
+      ? await step("agente", () => runAgenteBandeja({ deadlineAt: startedAt + maxDuration * 1000 }))
+      : { mode: "off" };
 
-  return NextResponse.json({ ok: true, subidos, bandeja, correo, enlaces, envio });
+  return NextResponse.json({ ok: true, subidos, bandeja, correo, enlaces, envio, agente });
 }
