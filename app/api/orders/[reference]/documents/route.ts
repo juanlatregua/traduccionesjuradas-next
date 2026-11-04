@@ -106,8 +106,11 @@ export async function POST(req: Request, { params }: Params) {
     const isAuthenticatedOwner = !!sessionEmail && sessionEmail === order.clientEmail.toLowerCase();
     const orderToken = String(formData.get("token") || new URL(req.url).searchParams.get("token") || "");
     const hasValidToken = !!orderToken && verifyOrderToken(order.reference, orderToken);
+    // El enlace firmado del pedido basta: /pagar pide el documento ANTES de mostrar
+    // la casilla del email, así que exigirlo dejaba fuera a todo invitado (26_FC08A5).
+    // Un email escrito que no coincide sigue rechazándose.
     const isGuestOwner =
-      !sessionEmail && !isStaff && hasValidToken && !!clientEmailRaw && clientEmailRaw === order.clientEmail.toLowerCase();
+      !isStaff && hasValidToken && (!clientEmailRaw || clientEmailRaw === order.clientEmail.toLowerCase());
     if (!isStaff && !isAuthenticatedOwner && !isGuestOwner) {
       return NextResponse.json(
         {
