@@ -18,6 +18,19 @@ export type PdfTextExtraction = {
 // debajo asumimos escaneo (texto residual o vacío) → camino de visión.
 const MIN_WORDS_PER_PAGE = 40;
 const MIN_TOTAL_WORDS = 30;
+// Una página «tiene texto» con al menos estas palabras. La media sola no basta:
+// un escaneo con la hoja de firma digital del notario (26_3D3B0C: 0,0,0,0,540)
+// daba 104 w/pág, iba por texto y contaba solo la última página.
+const MIN_WORDS_TEXT_PAGE = 10;
+const MIN_TEXT_PAGES_RATIO = 0.5;
+
+export function isReliableTextLayer(pageWords: number[], pageCount: number): boolean {
+  const pages = Math.max(pageCount, pageWords.length);
+  const total = pageWords.reduce((s, n) => s + n, 0);
+  if (total < MIN_TOTAL_WORDS || pages === 0 || total / pages < MIN_WORDS_PER_PAGE) return false;
+  const textPages = pageWords.filter((n) => n >= MIN_WORDS_TEXT_PAGE).length;
+  return textPages / pages >= MIN_TEXT_PAGES_RATIO;
+}
 
 function countWords(text: string): number {
   const tokens = text.split(/\s+/).filter(Boolean);
@@ -80,9 +93,7 @@ export async function extractPdfPages(buffer: Buffer): Promise<PdfPagesExtractio
 
     const parsed = await pdfParse(buffer, { pagerender: renderPage });
     const pageCount = Number(parsed?.numpages) || pages.length;
-    const totalWords = pages.reduce((s, p) => s + countWords(p), 0);
-    const wordsPerPage = pageCount > 0 ? totalWords / pageCount : totalWords;
-    const hasTextLayer = totalWords >= MIN_TOTAL_WORDS && wordsPerPage >= MIN_WORDS_PER_PAGE;
+    const hasTextLayer = isReliableTextLayer(pages.map(countWords), pageCount);
 
     return { pages, pageCount, hasTextLayer };
   } catch (err) {
@@ -102,12 +113,18 @@ export async function extractPdfText(buffer: Buffer): Promise<PdfTextExtraction>
     const pdfParse = require("pdf-parse/lib/pdf-parse.js");
     if (typeof pdfParse !== "function") return empty;
 
-    const parsed = await pdfParse(buffer, { pagerender: renderPageText });
+    const pageWords: number[] = [];
+    const renderPage = (pageData: any) =>
+      renderPageText(pageData).then((t) => {
+        pageWords.push(countWords(t));
+        return t;
+      });
+    const parsed = await pdfParse(buffer, { pagerender: renderPage });
     const text = normalizeWhitespace(String(parsed?.text || ""));
     const pages = Number(parsed?.numpages) || 0;
     const words = countWords(text);
     const wordsPerPage = pages > 0 ? words / pages : words;
-    const hasTextLayer = words >= MIN_TOTAL_WORDS && wordsPerPage >= MIN_WORDS_PER_PAGE;
+    const hasTextLayer = isReliableTextLayer(pageWords, pages);
 
     return { text, pages, wordsPerPage: Math.round(wordsPerPage), hasTextLayer };
   } catch (err) {
