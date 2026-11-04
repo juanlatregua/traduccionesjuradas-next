@@ -77,6 +77,12 @@ export async function assignLavoriAcceptance(opts: {
   // guardamos aquí es la base, o Daniela contabiliza 100 € en vez de 94,34 €.
   const baseCents = paraTiCents != null ? channelPriceToBaseCents(paraTiCents, priceBasisForMember(miembroId)) : null;
 
+  // La fecha del jurado se guarda ANTES del aviso al cliente, o el email sale sin plazo.
+  const fechaEntrega = opts.payload?.fechaEntrega ? Date.parse(String(opts.payload.fechaEntrega)) : NaN;
+  if (Number.isFinite(fechaEntrega)) {
+    await prisma.order.updateMany({ where: { id: order.id, dueDate: null }, data: { dueDate: new Date(fechaEntrega) } });
+  }
+
   if (collaborator) {
     const yaContabilizado = Boolean(
       await prisma.orderEvent.findFirst({ where: { orderId: order.id, type: "collaborator.quote.accepted" }, select: { id: true } })
@@ -143,7 +149,6 @@ export async function assignLavoriAcceptance(opts: {
 
   // Sin colaborador mapeado la asignación sigue a mano, pero el coste y el plazo
   // no se pierden (Juan, 25-sep-2026: el margen tiene que constar siempre).
-  const fechaEntrega = opts.payload?.fechaEntrega ? Date.parse(String(opts.payload.fechaEntrega)) : NaN;
   if (!collaborator && baseCents) {
     // Mismo snapshot y misma alarma que con colaborador: sin ficha el margen
     // cero o negativo también se avisa por email + SMS, no se descubre al asignar.
@@ -176,9 +181,6 @@ export async function assignLavoriAcceptance(opts: {
       const { alertStaffMargin } = await import("@/lib/ai/outage-alert");
       await alertStaffMargin({ orderId: order.id, supplier: miembro, supplierCostCents: baseCents, ...margen });
     }
-  }
-  if (Number.isFinite(fechaEntrega)) {
-    await prisma.order.updateMany({ where: { id: order.id, dueDate: null }, data: { dueDate: new Date(fechaEntrega) } });
   }
 
   // El presupuesto y los avisos al cliente nombran a quien aceptó, no al de la primera cifra.
