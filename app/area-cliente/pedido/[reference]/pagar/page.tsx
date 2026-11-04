@@ -352,6 +352,18 @@ export default function PagarPage() {
               {t.sourceRegistered}
             </p>
           )}
+          <label htmlFor="sourceEmail" className="mt-2 mb-1 block text-xs font-semibold text-sepia">
+            {t.proofEmailLabel}
+          </label>
+          <input
+            id="sourceEmail"
+            type="email"
+            value={proofEmail}
+            onChange={(e) => setProofEmail(e.target.value)}
+            placeholder={t.proofEmailPlaceholder}
+            className="block w-full rounded-xl border border-cream bg-card px-3 py-2 text-sm text-sepia"
+            disabled={!capabilities.manualProofUploadEnabled}
+          />
           <input
             ref={sourceInputRef}
             type="file"
