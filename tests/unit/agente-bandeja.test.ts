@@ -11,6 +11,7 @@ import {
   greetingName,
   isHouseAddress,
   looksAutomated,
+  looksLikeVendorPitch,
   looksLikePaymentOrInvoice,
   splitOrRepeatedReason,
   TARIFARIO_AUTOSEND_OFF,
@@ -260,4 +261,17 @@ test("borrador de un presupuesto en DRAFT: nota interna, sin /q ni «le adjunto�
   assert.doesNotMatch(body, /\/q\/tok/);
   assert.doesNotMatch(body, /adjunto/i);
   assert.match(body, /- Acta \(portugués→español, 1 pág\)\n/);
+});
+
+test("noreply en mitad de la dirección es automático", () => {
+  assert.equal(looksAutomated({ fromEmail: "googledevelopers-noreply@google.com", subject: "[Action Advised] Manage your unused OAuth clients" }), true);
+  assert.equal(looksAutomated({ fromEmail: "do-not-reply@banco.es" }), true);
+  assert.equal(looksAutomated({ fromEmail: "noelia.reyes@gmail.com" }), false);
+});
+
+test("oferta de proveedor no es un cliente", () => {
+  assert.equal(looksLikeVendorPitch({ subject: "Presentación profesional – Especialista en DTP y Maquetación Freelance", body: "Me pongo en contacto con ustedes para presentar mi trabajo" }), true);
+  assert.equal(looksLikeVendorPitch({ subject: "Collaboration", body: "I am a freelance translator and would like to offer my services" }), true);
+  assert.equal(looksLikeVendorPitch({ subject: "Traducción jurada", body: "Hola, necesito traducir mi acta de nacimiento y mi curriculum vitae para una oferta de trabajo" }), false);
+  assert.equal(looksLikeVendorPitch({ subject: "Presupuesto traducción", body: "Necesito traducir mi título del francés al español" }), false);
 });

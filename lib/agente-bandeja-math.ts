@@ -39,8 +39,15 @@ export function isHouseAddress(email: string | null | undefined): boolean {
 export function looksAutomated(o: { fromEmail: string; subject?: string | null; body?: string | null }): boolean {
   const from = String(o.fromEmail || "").toLowerCase();
   if (/^(news(letter)?|marketing|billing|invoices?|facturacion|facturas?|bounce|alerts?|support|soporte|notificaciones|avisos|info@mail|hello@mail)[@.+-]/.test(from)) return true;
+  if (/(^|[._+-])(no-?reply|do-?not-?reply|mailer-daemon|postmaster|notifications?)([._+-]|@)/.test(from)) return true;
   const t = fold(`${o.subject || ""}\n${o.body || ""}`);
   return /\b(unsubscribe|darse de baja|darte de baja|cancelar (la )?suscripcion|se desinscrire|se desabonner|desabonnement|view (this email )?in (your )?browser)\b/.test(t);
+}
+
+/** Proveedor ofreciendo servicios (traductor, maquetador, SEO, agencia): no es un cliente. */
+export function looksLikeVendorPitch(o: { subject?: string | null; body?: string | null }): boolean {
+  const t = fold(`${o.subject || ""}\n${o.body || ""}`);
+  return /\b(presentacion profesional|presentar(le|les)? (mi|mis|nuestro|nuestros) (trabajo|servicios|perfil|agencia)|ofrecer(le|les)? (mis|nuestros) servicios|ofrezco mis servicios|mis servicios (de|como)|soy (traductora?|interprete|maquetador|disenador|especialista)( freelance| autonom[oa])?|adjunto (mi|nuestro) (portfolio|portafolio)|colaborar con (ustedes|vosotros|su (agencia|empresa|equipo))|bolsa de traductores|offer (you )?my services|i am a (freelance )?(translator|interpreter)|freelance (translator|dtp|designer)|my (cv|resume|portfolio)|je (vous )?propose mes services|je suis traductrice?|guest post|backlinks?|link building|posicionamiento seo para su web|desarrollo web para su)\b/.test(t);
 }
 
 /** Justificante de pago o factura de un proveedor (no un documento a traducir): se salta sin gastar IA. */

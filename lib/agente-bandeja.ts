@@ -27,6 +27,7 @@ import {
   isHouseAddress,
   looksAutomated,
   looksLikePaymentOrInvoice,
+  looksLikeVendorPitch,
   mentionsDeadline,
   splitOrRepeatedReason,
   priceFrSegments,
@@ -113,7 +114,8 @@ export async function runAgenteBandeja(opts: { deadlineAt: number }): Promise<{ 
         !isHouseAddress(r.fromEmail) &&
         !collaborators.has(r.fromEmail.trim().toLowerCase()) &&
         !looksAutomated({ fromEmail: r.fromEmail, subject: r.subject, body: r.bodyText || r.bodyPreview }) &&
-        !looksLikePaymentOrInvoice({ subject: r.subject, body: r.bodyText || r.bodyPreview, proofJson: r.proofJson })
+        !looksLikePaymentOrInvoice({ subject: r.subject, body: r.bodyText || r.bodyPreview, proofJson: r.proofJson }) &&
+        !looksLikeVendorPitch({ subject: r.subject, body: r.bodyText || r.bodyPreview })
     )
     .slice(0, MAX_EMAILS_PER_RUN);
 
