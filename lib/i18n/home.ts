@@ -158,6 +158,17 @@ export const HOME: HomeStrings = {
     items: [
       {
         text: tr(
+          "¡Perfecto! El proceso fue muy fluido y el tiempo de espera, más que razonable. ¡Lo recomiendo!",
+          "Parfait ! Le processus a été très fluide et le délai d'attente plus que raisonnable. Je recommande !",
+          "Perfect! The process was very smooth and the waiting time more than reasonable. I recommend it!",
+          "Perfekt! Der Ablauf war sehr reibungslos und die Wartezeit mehr als angemessen. Sehr empfehlenswert!",
+          "Perfeito! O processo foi muito fluido e o tempo de espera, mais do que razoável. Recomendo!"
+        ),
+        who: "Yannick T.",
+        date: tr("octubre 2026", "octobre 2026", "October 2026", "Oktober 2026", "outubro de 2026"),
+      },
+      {
+        text: tr(
           "Excelente servicio, rapidez y buena respuesta.",
           "Excellent service, rapidité et bonne réactivité.",
           "Excellent service, fast and responsive.",
