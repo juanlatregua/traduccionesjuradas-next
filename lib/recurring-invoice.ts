@@ -98,7 +98,10 @@ export async function generateDraftForPeriod(templateId: string, opts?: { period
     }
   }
 
-  const lines = Array.isArray(tpl.lineItemsJson) ? (tpl.lineItemsJson as unknown as LayoutLine[]) : [];
+  // {MES}/{MES_AÑO} también en las líneas: Oracle rechaza la cuota sin el mes.
+  const lines = (Array.isArray(tpl.lineItemsJson) ? (tpl.lineItemsJson as unknown as LayoutLine[]) : []).map((l) =>
+    typeof l?.description === "string" ? { ...l, description: resolveConcept(l.description, period) } : l
+  );
   const draft = await createDraftInvoice({
     brand: tpl.brand,
     clientName: tpl.clientName,
