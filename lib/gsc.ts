@@ -14,7 +14,8 @@ const API = "https://searchconsole.googleapis.com/webmasters/v3";
 type ServiceAccount = { client_email: string; private_key: string };
 
 function loadServiceAccount(): ServiceAccount {
-  const raw = process.env.GSC_SERVICE_ACCOUNT_JSON;
+  // En local la cuenta de servicio está guardada como la de Vision (misma cuenta, propietaria en GSC).
+  const raw = process.env.GSC_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_VISION_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("GSC_SERVICE_ACCOUNT_JSON no configurada.");
   const sa = JSON.parse(raw) as ServiceAccount;
   if (!sa.client_email || !sa.private_key) {
@@ -64,7 +65,7 @@ export async function querySearchAnalytics(params: {
   endDate: string;
   rowLimit?: number;
 }): Promise<GscRow[]> {
-  const siteUrl = process.env.GSC_SITE_URL;
+  const siteUrl = process.env.GSC_SITE_URL || "sc-domain:traduccionesjuradas.net";
   if (!siteUrl) throw new Error("GSC_SITE_URL no configurada.");
   const token = await getAccessToken();
   const res = await fetch(`${API}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, {
@@ -93,7 +94,7 @@ export type UrlInspection = {
 };
 
 export async function inspectUrl(inspectionUrl: string, token: string): Promise<UrlInspection> {
-  const siteUrl = process.env.GSC_SITE_URL;
+  const siteUrl = process.env.GSC_SITE_URL || "sc-domain:traduccionesjuradas.net";
   if (!siteUrl) throw new Error("GSC_SITE_URL no configurada.");
   const res = await fetch(INSPECT_URL, {
     method: "POST",
@@ -121,7 +122,7 @@ export function defaultDateRange(daysBack = 28, lagDays = 3): { startDate: strin
 }
 
 export async function submitSitemap(feedpath: string): Promise<void> {
-  const siteUrl = process.env.GSC_SITE_URL;
+  const siteUrl = process.env.GSC_SITE_URL || "sc-domain:traduccionesjuradas.net";
   if (!siteUrl) throw new Error("GSC_SITE_URL no configurada.");
   const token = await getAccessToken(SCOPE_WRITE);
   const res = await fetch(`${API}/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(feedpath)}`, {
