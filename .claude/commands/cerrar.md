@@ -71,6 +71,12 @@ Lee el índice `MEMORY.md` y actualiza/añade memorias **sólo si hay algo no ob
 
 Si la sesión cerró tareas en Notion, actualizar estado. Referencia en `reference_notion.md`.
 
+## 6b. Tablero
+
+Convoca a `guardian-foco` en modo CIERRE con la lista de lo hecho: mueve tarjetas
+(Falta comprobar / Cerrado) y pone «Revisar el» a lo que espera a terceros. Los
+pendientes viven en el tablero, no en la memoria.
+
 ## 7. Entrega al usuario
 
 Salida en este orden, **conciso, una pantalla**:

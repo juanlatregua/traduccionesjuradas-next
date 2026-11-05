@@ -61,6 +61,12 @@ prisma db push                     # aplicar schema (NO migrate dev — shadow D
 - Workflows/ultracode: cada `agent()` con `model`; ultracode solo para auditorías y con aviso del coste.
 - Un subagente por tarea, con prompt cerrado y salida acotada (≤25 líneas). Si un resultado barato huele raro, re-verificar caro; nunca al revés.
 
+## Foco (orden de Juan, 5-nov-2026)
+- Pendientes y pedidos viven en UN sitio: Notion «🎯 Tablero tj.net» (https://app.notion.com/p/673b0936c5144c058450761c7efcafb1). No en la memoria.
+- Al arrancar: `guardian-foco` (ARRANQUE), abrir el tablero y revisarlo JUNTOS antes de programar.
+- Pedido nuevo a mitad de sesión → `guardian-foco` (NUEVO PEDIDO) lo apunta y dice si entra o espera. Máx. 3 en «Haciendo»; Dinero pasa delante.
+- Nada se cierra sin comprobar en prod o con caso real. Al cerrar: `guardian-foco` (CIERRE).
+
 ## Detalle por módulo
 → `.claude/skills/prisma-patterns.md` · `.claude/skills/auth-patterns.md` · `.claude/skills/email-patterns.md`
 → `.claude/skills/payments-patterns.md` · `.claude/skills/storage-patterns.md` · `.claude/skills/seo-patterns.md`

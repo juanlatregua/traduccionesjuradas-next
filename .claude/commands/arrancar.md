@@ -41,7 +41,14 @@ Lee `MEMORY.md` (índice). No abras los archivos individuales salvo que algo del
 
 Si hay cambios sin commitear, filtra ruido (`.DS_Store`, filemode, binarios sin diff) y resume sólo lo que tenga contenido real.
 
-## 6. Entrega al usuario
+## 6. Tablero (OBLIGATORIO, orden de Juan 5-nov-2026)
+
+Convoca al agente `guardian-foco` en modo ARRANQUE. Abre el tablero a Juan
+(https://app.notion.com/p/673b0936c5144c058450761c7efcafb1) y **revisadlo juntos
+antes de tocar código**: las «Decide Juan» se contestan una a una y se fijan como
+máximo 3 tarjetas en «Haciendo». Sin ese OK no se empieza a programar.
+
+## 7. Entrega al usuario
 
 Salida concisa, en este orden:
 
