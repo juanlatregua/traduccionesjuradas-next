@@ -229,10 +229,11 @@ export async function applyAcceptedQuoteSideEffects(
 ) {
   const { order, assignmentId, supplierCostCents, quotedDeadline, collaborator, actorEmail } = params;
   const marginPct = order.marginPct ?? DEFAULT_COLLABORATOR_MARGIN_PCT;
-  const alreadyCharged = order.paymentStatus === "PAID";
+  // Si el pedido ya tiene precio (pagado o con presupuesto aceptado por el
+  // cliente, p. ej. transferencia pendiente), se respeta: aceptar el coste del
+  // jurado nunca cambia lo que se le pidió al cliente. Solo sin precio se deriva.
+  const alreadyCharged = order.paymentStatus === "PAID" || order.amountCents > 0;
 
-  // Flujo competitivo (aún sin cobrar): el precio al cliente se deriva del coste.
-  // Pedido ya pagado (flujo antiguo): se respeta el importe cobrado, solo se registra el coste.
   const customerPriceCents = alreadyCharged
     ? order.amountCents
     : customerPriceFromSupplierCost(supplierCostCents, marginPct);
@@ -267,7 +268,7 @@ export async function applyAcceptedQuoteSideEffects(
     data: {
       orderId: order.id,
       type: "order.pricing.calculated",
-      message: `Precio cliente ${(customerPriceCents / 100).toFixed(2)}€ = coste ${(supplierCostCents / 100).toFixed(2)}€ × (1+${marginPct}%) + IVA${alreadyCharged ? " · pedido ya pagado, importe no modificado" : ""}.`,
+      message: `Precio cliente ${(customerPriceCents / 100).toFixed(2)}€ = coste ${(supplierCostCents / 100).toFixed(2)}€ × (1+${marginPct}%) + IVA${alreadyCharged ? " · pedido con precio, importe no modificado" : ""}.`,
       payload: {
         supplierCostCents,
         marginPct,
@@ -353,8 +354,9 @@ export async function applyAcceptedQuoteSideEffects(
   // $transaction (select-bid) y un email lento tumbaría la adjudicación.
   // Se devuelve como tarea pendiente y el llamador la AWAITEA fuera de su
   // transacción (patrón caso 26_34F612: fire-and-forget en lambda = aviso mudo).
+  // Con el precio del cliente respetado, también avisa si el margen baja del 10 %.
   const marginAlert =
-    marginCents <= 0
+    marginCents < Math.round(revenueNetCents * 0.1)
       ? () =>
           import("@/lib/ai/outage-alert")
             .then((m) =>

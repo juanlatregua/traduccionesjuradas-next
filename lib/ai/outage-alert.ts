@@ -131,7 +131,9 @@ export async function alertStaffMargin(input: {
     const eur = (c: number) => `${(c / 100).toFixed(2)} €`;
     const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
     const texto = [
-      `El pedido ${ref} se ha adjudicado SIN MARGEN.`,
+      input.marginCents > 0
+        ? `El pedido ${ref} se ha adjudicado con un margen por debajo del 10 %.`
+        : `El pedido ${ref} se ha adjudicado SIN MARGEN.`,
       "",
       `Cliente: ${order?.clientName || "—"} · ${order?.langPair || "—"}`,
       `Traductor: ${input.supplier}`,
@@ -141,19 +143,21 @@ export async function alertStaffMargin(input: {
       "",
       input.marginCents < 0
         ? "Estás pagando más de lo que cobras por este encargo."
-        : "Haces la gestión, adelantas el dinero y asumes el riesgo por cero.",
-      "El cliente ya pagó y el traductor ya tiene su cifra: si hay que mover algo, hay que hacerlo ahora.",
+        : input.marginCents === 0
+          ? "Haces la gestión, adelantas el dinero y asumes el riesgo por cero."
+          : "Queda muy poco para la gestión y el riesgo.",
+      "El traductor ya tiene su cifra: si hay que mover algo, hay que hacerlo ahora.",
       `https://www.traduccionesjuradas.net/zona-traductor/pedido/${ref}`,
     ].join("\n");
     await Promise.all([
       sendMail({
         to: adminEmail,
-        subject: `⚠ ${ref} adjudicado sin margen (${eur(input.marginCents)})`,
+        subject: `⚠ ${ref} adjudicado ${input.marginCents > 0 ? "con margen bajo" : "sin margen"} (${eur(input.marginCents)})`,
         text: texto,
         html: renderSimpleEmailHtml(texto),
       }).catch((err) => console.error("[margen] email fallo:", err)),
       sendStaffAlertSMS(
-        `TraduccionesJuradas: ${ref} adjudicado SIN MARGEN (${eur(input.marginCents)}). ${input.supplier}. Mira el email.`,
+        `TraduccionesJuradas: ${ref} adjudicado ${input.marginCents > 0 ? "con MARGEN BAJO" : "SIN MARGEN"} (${eur(input.marginCents)}). ${input.supplier}. Mira el email.`,
         `margen_cero ${ref}`
       ).catch(() => {}),
     ]);
