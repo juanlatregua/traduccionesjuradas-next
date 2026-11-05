@@ -42,6 +42,8 @@ type Props = {
   faqItems: FAQItem[];
   /** Fecha ISO de última revisión editorial (AEO/YMYL). Solo se pasa si es real. */
   updated?: string;
+  /** Secciones propias del idioma, tras el presupuesto. */
+  extra?: React.ReactNode;
 };
 
 export default async function PaginaIdioma({
@@ -53,6 +55,7 @@ export default async function PaginaIdioma({
   documentosHabituales,
   faqItems,
   updated,
+  extra,
 }: Props) {
   const canonicalUrl = `https://www.traduccionesjuradas.net/traductor-jurado-${idiomaSlug}`;
   const breadcrumbName = `Traductor jurado de ${idioma}`;
@@ -102,12 +105,12 @@ export default async function PaginaIdioma({
         answer: `${censoN} en activo según la lista oficial del Ministerio (${CENSO_STIJ_FECHA}). En traduccionesjuradas.net te respondemos en el día con el precio y el plazo.`,
       });
     }
-    if (!has(/tarda|plazo/i)) {
+    if (!has(/tarda|plazo|tiempo/i)) {
       dataFaqs.push({
         question: `¿Cuánto tarda una traducción jurada de ${idioma.toLowerCase()}?`,
         answer:
           lang === "fr"
-            ? "Los documentos habituales se entregan en 24-48 h en PDF firmado digitalmente."
+            ? "1 día hábil para documentos de hasta 5 páginas, en PDF firmado digitalmente."
             : "El plazo lo confirma tu traductor jurado en el presupuesto, junto con el precio, normalmente el mismo día.",
       });
     }
@@ -166,7 +169,7 @@ export default async function PaginaIdioma({
       />
       <SchemaProduct
         name={`Traducción jurada de ${idioma}`}
-        description={`Traducción jurada oficial de ${idioma} realizada por traductor jurado acreditado. ${idiomaSlug === "frances" ? "Entrega en 24-48h." : "Plazo confirmado en el presupuesto."} Válida ante organismos españoles.`}
+        description={`Traducción jurada oficial de ${idioma} realizada por traductor jurado acreditado. ${idiomaSlug === "frances" ? "Entrega en 1 día hábil hasta 5 páginas." : "Plazo confirmado en el presupuesto."} Válida ante organismos españoles.`}
         sku={`tj-${idiomaSlug}`}
         offers={
           // fr/de→es: tarifa por página, IVA no incluido (8-oct-2026). ES→FR/ES→DE
@@ -241,6 +244,8 @@ export default async function PaginaIdioma({
           </div>
         </div>
       </section>
+
+      {extra}
 
       {/* 3. DOCUMENTOS HABITUALES */}
       <section className="mt-10">
