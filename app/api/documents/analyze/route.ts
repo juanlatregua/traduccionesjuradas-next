@@ -15,6 +15,7 @@ import { clientUrgentFromQuote } from "@/lib/pricing-engine/page-pricing";
 import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 import { createResumeToken } from "@/lib/puerta-resume-token";
 import { alertStaffAiOutage, alertStaffAnalysisFailure, isAiAccountError } from "@/lib/ai/outage-alert";
+import { expandZipDocument, isZipDocument } from "@/lib/expediente-unzip";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // Allow up to 120s for IA analysis (PDFs pesados)
@@ -129,6 +130,21 @@ export async function POST(req: Request) {
         diagnosis: cachedDiagnosis,
         cached: true,
       });
+    }
+
+    // Un ZIP no se analiza: se abre y cada archivo de dentro queda como documento.
+    if (isZipDocument(doc)) {
+      const r = await expandZipDocument(documentId).catch((e) => ({ created: 0, skipped: [String(e?.message || e)] }));
+      return NextResponse.json(
+        {
+          ok: false,
+          unzipped: r.created,
+          error: r.created
+            ? `ZIP abierto: ${r.created} documento(s) añadidos al expediente. Recarga para analizarlos.`
+            : "No se pudo abrir el ZIP. Pide los documentos sueltos.",
+        },
+        { status: 409 }
+      );
     }
 
     // Mark as analyzing

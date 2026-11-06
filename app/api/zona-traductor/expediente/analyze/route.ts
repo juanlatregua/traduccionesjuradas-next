@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { isOwnBlobUrl } from "@/lib/q-journey";
+import { isZipDocument } from "@/lib/zip-entries";
 import { analyzeDocumentRow, analyzeExpedienteDocument, type ExpedienteAnalyzeResult } from "@/lib/expediente-analyze";
 
 export const runtime = "nodejs";
@@ -80,5 +81,6 @@ export async function POST(req: Request) {
       status: "ANALYZING",
     },
   });
+  if (isZipDocument(doc)) return toResponse(await analyzeExpedienteDocument(doc.id, { targetLang }));
   return toResponse(await analyzeDocumentRow(doc, targetLang));
 }

@@ -15,6 +15,7 @@ import { sendStaffAlertSMS } from "@/lib/sms";
 import { normalizeDeclaredLang, isDeclaredPairValid } from "@/lib/puerta-languages";
 import { casoIdEnSombra } from "@/lib/caso/sombra";
 import { paresDe } from "@/lib/caso/sombra-plan";
+import { expandZipDocument } from "@/lib/expediente-unzip";
 
 export const runtime = "nodejs";
 
@@ -130,17 +131,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "No se pudo registrar el expediente." }, { status: 500 });
   }
 
+  // ZIP → un documento por archivo de dentro. Si falla, el ZIP queda como estaba.
+  let documentCount = clean.length;
+  const zips = await prisma.documentAnalysis
+    .findMany({ where: { sessionToken, OR: [{ mimeType: { contains: "zip" } }, { fileName: { endsWith: ".zip", mode: "insensitive" } }] }, select: { id: true, fileName: true } })
+    .catch(() => []);
+  for (const z of zips) {
+    try {
+      const r = await expandZipDocument(z.id);
+      if (r.created > 0) documentCount += r.created - 1;
+    } catch (e: any) {
+      console.error(`[expediente/submit] no se pudo abrir ${z.fileName}:`, e?.message);
+    }
+  }
+
   // Emails fire-and-forget (no bloquean la respuesta) con retry: si agotan
   // reintentos persisten en FailedEmail y el digest diario los reporta.
   sendEmailWithRetry(() =>
-    sendExpedienteReceiptEmail({ clientEmail, clientName, ref, token, documentCount: clean.length })
+    sendExpedienteReceiptEmail({ clientEmail, clientName, ref, token, documentCount })
   ).catch((e) => console.error("[expediente/submit] receipt email error:", e?.message));
   sendEmailWithRetry(() =>
-    sendExpedienteStaffEmail({ ref, clientName, clientEmail, clientPhone, documentCount: clean.length, notes })
+    sendExpedienteStaffEmail({ ref, clientName, clientEmail, clientPhone, documentCount, notes })
   ).catch((e) => console.error("[expediente/submit] staff email error:", e?.message));
   // SMS al staff: nueva solicitud de presupuesto (antes solo había email).
   sendStaffAlertSMS(
-    `Nueva solicitud (expediente ${ref}) de ${clientName} <${clientEmail}>, ${clean.length} doc(s). Preparar presupuesto.`,
+    `Nueva solicitud (expediente ${ref}) de ${clientName} <${clientEmail}>, ${documentCount} doc(s). Preparar presupuesto.`,
     `expediente ${ref}`
   ).catch(() => {});
 

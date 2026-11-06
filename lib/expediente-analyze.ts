@@ -8,6 +8,7 @@ import { runDocumentSegmentation, type SegmentedRun } from "@/lib/ai/run-analysi
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { PAGE_PRICED_LANGS } from "@/lib/pricing-engine/page-pricing";
+import { expandZipDocument, isZipDocument } from "@/lib/expediente-unzip";
 import { getLanguageName, isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 
 // Análisis ya hecho por este endpoint (marca builderRun): se reconstruye sin volver
@@ -195,6 +196,35 @@ export async function analyzeDocumentRow(doc: AnalyzableDoc, targetLang?: string
 export async function analyzeExpedienteDocument(documentId: string, opts: { targetLang?: string } = {}): Promise<ExpedienteAnalyzeResult> {
   const existing = await prisma.documentAnalysis.findUnique({ where: { id: documentId } });
   if (!existing) return { ok: false, status: 404, error: "Documento no encontrado." };
+  // ZIP: se abre y se analiza cada archivo de dentro como documento propio.
+  if (isZipDocument(existing)) {
+    const z = await expandZipDocument(existing.id).catch((e) => {
+      console.error("[expediente/analyze] zip", e?.message || e);
+      return null;
+    });
+    if (!z || z.ids.length === 0) return { ok: false, status: 422, error: "No se pudo abrir el ZIP: pide los documentos sueltos." };
+    const parts: Extract<ExpedienteAnalyzeResult, { ok: true }>[] = [];
+    for (const id of z.ids) {
+      const r = await analyzeExpedienteDocument(id, opts);
+      if (r.ok) parts.push(r);
+    }
+    if (parts.length === 0) return { ok: false, status: 422, error: "ZIP abierto, pero no se pudo analizar ningún documento." };
+    const run: SegmentedRun = {
+      documents: parts.flatMap((p) => p.run.documents),
+      mode: parts.some((p) => p.mode === "vision") ? "vision" : "text",
+      pageCount: parts.reduce((s, p) => s + (p.run.pageCount || 0), 0),
+      split: true,
+    };
+    return {
+      ok: true,
+      mode: run.mode,
+      analysisMs: parts.reduce((s, p) => s + p.analysisMs, 0),
+      cached: parts.every((p) => p.cached),
+      split: true,
+      documents: parts.flatMap((p) => p.documents),
+      run,
+    };
+  }
   const saved = existing.status === "QUOTE_GENERATED" ? savedRun(existing.analysisJson, existing.pageCount) : null;
   if (saved) {
     const documents = toBuilderDocuments(saved, {
