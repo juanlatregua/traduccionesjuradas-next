@@ -9,6 +9,7 @@ import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
 import { acceptanceMatchesPrice, acceptsNewPrice, isDirectLeadRequest } from "@/lib/lavori-directo-math";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { hasMotorAuth, isMotorTestRef } from "@/lib/lavori-motor-auth";
+import { verifyLavoriBlob } from "@/lib/lavori-upload";
 
 export const runtime = "nodejs";
 
@@ -369,7 +370,12 @@ export async function POST(req: Request) {
       let attachmentUrl = datos.url ? String(datos.url) : null;
       let attachmentKey: string | null = null;
       const nombre = datos.nombre ? String(datos.nombre) : `factura-${encargoId}.pdf`;
-      if (typeof datos.base64 === "string" && datos.base64.length > 0) {
+      if (datos.blobUrl) {
+        const v = await verifyLavoriBlob(datos.blobUrl, motorRef, "factura");
+        if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: 400 });
+        attachmentUrl = v.blob.url;
+        attachmentKey = v.blob.pathname;
+      } else if (typeof datos.base64 === "string" && datos.base64.length > 0) {
         const buf = Buffer.from(datos.base64, "base64");
         if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
           return NextResponse.json({ ok: false, error: `datos.base64 vacío o >${Math.round(SOBRE_MAX_RAW_BYTES / 1e6)}MB` }, { status: 400 });
@@ -424,20 +430,33 @@ export async function POST(req: Request) {
       // expediente y NADA sale solo hacia el cliente — el envío es el botón
       // "revisar y enviar al cliente" de la ficha. Tope 3 MB en crudo por POST
       // (Vercel corta con 413 a ~4,5 MB de cuerpo; mismo número que la ida y que lavori).
-      if (typeof datos.base64 !== "string" || datos.base64.length === 0) {
-        return NextResponse.json({ ok: false, error: "datos.base64 obligatorio" }, { status: 400 });
-      }
-      const buf = Buffer.from(datos.base64, "base64");
-      if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
-        return NextResponse.json({ ok: false, error: `datos.base64 vacío o >${Math.round(SOBRE_MAX_RAW_BYTES / 1e6)}MB` }, { status: 400 });
-      }
+      // Fichero grande (6-nov-2026): lavori lo sube directo a nuestro Blob vía
+      // /api/lavori/subida y manda datos.blobUrl en vez de base64.
       const nombre = datos.nombre ? String(datos.nombre) : `entrega-${encargoId}.pdf`;
-      const contentType = datos.contentType ? String(datos.contentType) : "application/pdf";
-      const blob = await put(`orders/${order.reference}/entregas-lavori/${Date.now()}-${nombre}`, buf, {
-        access: "public",
-        addRandomSuffix: true,
-        contentType,
-      });
+      let contentType = datos.contentType ? String(datos.contentType) : "application/pdf";
+      let blob: { url: string; pathname: string };
+      let bytes: number;
+      if (datos.blobUrl) {
+        const v = await verifyLavoriBlob(datos.blobUrl, motorRef, "entrega");
+        if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: 400 });
+        blob = { url: v.blob.url, pathname: v.blob.pathname };
+        bytes = v.blob.bytes;
+        if (!datos.contentType && v.blob.contentType) contentType = v.blob.contentType;
+      } else {
+        if (typeof datos.base64 !== "string" || datos.base64.length === 0) {
+          return NextResponse.json({ ok: false, error: "datos.base64 o datos.blobUrl obligatorio" }, { status: 400 });
+        }
+        const buf = Buffer.from(datos.base64, "base64");
+        if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
+          return NextResponse.json({ ok: false, error: `datos.base64 vacío o >${Math.round(SOBRE_MAX_RAW_BYTES / 1e6)}MB (usa /api/lavori/subida)` }, { status: 400 });
+        }
+        blob = await put(`orders/${order.reference}/entregas-lavori/${Date.now()}-${nombre}`, buf, {
+          access: "public",
+          addRandomSuffix: true,
+          contentType,
+        });
+        bytes = buf.length;
+      }
       await prisma.order.updateMany({
         where: { id: order.id, translatorDeliveredAt: null },
         data: { translatorDeliveredAt: new Date() },
@@ -462,7 +481,7 @@ export async function POST(req: Request) {
             recogida,
             attachmentUrl: blob.url,
             attachmentKey: blob.pathname,
-            bytes: buf.length,
+            bytes,
           },
         },
       });
@@ -963,7 +982,12 @@ async function handleLeadEvento(opts: {
       const nombre = datos.nombre ? String(datos.nombre) : `factura-${encargoId}.pdf`;
       let attachmentUrl = datos.url ? String(datos.url) : null;
       let attachmentKey: string | null = null;
-      if (typeof datos.base64 === "string" && datos.base64.length > 0) {
+      if (datos.blobUrl) {
+        const v = await verifyLavoriBlob(datos.blobUrl, motorRef, "factura");
+        if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: 400 });
+        attachmentUrl = v.blob.url;
+        attachmentKey = v.blob.pathname;
+      } else if (typeof datos.base64 === "string" && datos.base64.length > 0) {
         const buf = Buffer.from(datos.base64, "base64");
         if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
           return NextResponse.json({ ok: false, error: `datos.base64 vacío o >${Math.round(SOBRE_MAX_RAW_BYTES / 1e6)}MB` }, { status: 400 });
