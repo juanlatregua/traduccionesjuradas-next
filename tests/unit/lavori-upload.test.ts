@@ -21,3 +21,13 @@ test("motorRef con caracteres raros no escapa del prefijo", () => {
   const p = lavoriUploadPathname("../../orders/X", "factura", "f.pdf");
   assert.ok(p.startsWith("lavori-subidas/_orders_X/facturas-lavori/"));
 });
+
+test("URL firmada: solo https y exactamente el Blob privado de lavori (anti-SSRF)", async () => {
+  const { isLavoriSignedUrl } = await import("../../lib/lavori-upload.ts");
+  assert.equal(isLavoriSignedUrl("https://wn84khe0mbw27abc.private.blob.vercel-storage.com/a.pdf?sig=x"), true);
+  assert.equal(isLavoriSignedUrl("http://wn84khe0mbw27abc.private.blob.vercel-storage.com/a.pdf"), false);
+  assert.equal(isLavoriSignedUrl("https://wn84khe0mbw27abc.private.blob.vercel-storage.com.evil.com/a.pdf"), false);
+  assert.equal(isLavoriSignedUrl("https://otro.private.blob.vercel-storage.com/a.pdf"), false);
+  assert.equal(isLavoriSignedUrl("https://169.254.169.254/latest"), false);
+  assert.equal(isLavoriSignedUrl(undefined), false);
+});

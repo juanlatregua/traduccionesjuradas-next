@@ -64,3 +64,48 @@ export async function verifyLavoriBlob(
   }
   return { ok: true, blob: { url: meta.url, pathname: meta.pathname, bytes: meta.size, contentType: meta.contentType } };
 }
+
+// Contrato de lavori (adenda 6-nov-2026): fichero > 3 MB → datos { url, urlCaducaEn, bytes }
+// con una URL firmada de SU Blob privado (solo GET; HEAD da 403). Se copia a nuestro Blob
+// en streaming. La URL firmada no se guarda en ningún sitio (enlace a una traducción jurada).
+export const LAVORI_PRIVATE_BLOB_HOST = "wn84khe0mbw27abc.private.blob.vercel-storage.com";
+export const LAVORI_SIGNED_MAX_BYTES = 500_000_000;
+
+export function isLavoriSignedUrl(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === "https:" && u.hostname === LAVORI_PRIVATE_BLOB_HOST;
+  } catch {
+    return false;
+  }
+}
+
+export async function ingestLavoriSignedUrl(opts: {
+  url: unknown;
+  bytes: unknown;
+  destPathname: string;
+  contentType: string;
+}): Promise<{ ok: true; url: string; pathname: string; bytes: number } | { ok: false; error: string }> {
+  if (!isLavoriSignedUrl(opts.url)) return { ok: false, error: "datos.url no es del Blob de lavori" };
+  const expected = Number(opts.bytes);
+  if (!Number.isFinite(expected) || expected <= 0 || expected > LAVORI_SIGNED_MAX_BYTES) {
+    return { ok: false, error: `datos.bytes inválido o >${Math.round(LAVORI_SIGNED_MAX_BYTES / 1e6)}MB` };
+  }
+  const res = await fetch(String(opts.url), { method: "GET", redirect: "error" }).catch(() => null);
+  if (!res || !res.ok || !res.body) return { ok: false, error: `no se pudo descargar datos.url (${res?.status ?? "red"})` };
+  const { put, head, del } = await import("@vercel/blob");
+  const blob = await put(opts.destPathname, res.body as any, {
+    access: "public",
+    addRandomSuffix: true,
+    contentType: opts.contentType,
+    multipart: true,
+  });
+  const meta = await head(blob.url);
+  if (meta.size !== expected) {
+    await del(blob.url).catch(() => {});
+    return { ok: false, error: `bytes recibidos ${meta.size} ≠ datos.bytes ${expected}` };
+  }
+  return { ok: true, url: blob.url, pathname: blob.pathname, bytes: meta.size };
+}
+

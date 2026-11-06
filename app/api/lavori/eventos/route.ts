@@ -9,9 +9,11 @@ import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
 import { acceptanceMatchesPrice, acceptsNewPrice, isDirectLeadRequest } from "@/lib/lavori-directo-math";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { hasMotorAuth, isMotorTestRef } from "@/lib/lavori-motor-auth";
-import { verifyLavoriBlob } from "@/lib/lavori-upload";
+import { ingestLavoriSignedUrl, isLavoriSignedUrl, verifyLavoriBlob } from "@/lib/lavori-upload";
 
 export const runtime = "nodejs";
+// Copia en streaming de ficheros grandes de lavori (hasta 500 MB; lavori espera 120 s).
+export const maxDuration = 300;
 
 /* Fase 1.5 del puente — VUELTA lavori→motor (contrato propuesto 11-ago-2026).
    Un solo endpoint, auth simétrica a la ida (MOTOR_LAVORI_SECRET):
@@ -367,7 +369,7 @@ export async function POST(req: Request) {
 
       // Los blobs de lavori son privados (sin URL firmada para máquinas): la
       // factura viaja en base64 y se persiste en NUESTRO Blob, como en la ida.
-      let attachmentUrl = datos.url ? String(datos.url) : null;
+      let attachmentUrl = datos.url && !isLavoriSignedUrl(datos.url) ? String(datos.url) : null;
       let attachmentKey: string | null = null;
       const nombre = datos.nombre ? String(datos.nombre) : `factura-${encargoId}.pdf`;
       if (datos.blobUrl) {
@@ -375,6 +377,16 @@ export async function POST(req: Request) {
         if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: 400 });
         attachmentUrl = v.blob.url;
         attachmentKey = v.blob.pathname;
+      } else if (isLavoriSignedUrl(datos.url)) {
+        const c = await ingestLavoriSignedUrl({
+          url: datos.url,
+          bytes: datos.bytes,
+          destPathname: `orders/${order.reference}/facturas-lavori/${Date.now()}-${nombre}`,
+          contentType: datos.contentType ? String(datos.contentType) : "application/pdf",
+        });
+        if (!c.ok) return NextResponse.json({ ok: false, error: c.error }, { status: 400 });
+        attachmentUrl = c.url;
+        attachmentKey = c.pathname;
       } else if (typeof datos.base64 === "string" && datos.base64.length > 0) {
         const buf = Buffer.from(datos.base64, "base64");
         if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
@@ -408,7 +420,7 @@ export async function POST(req: Request) {
           notes: `Creado por el webhook lavori (Fase 1.5). Revisar régimen fiscal (IVA/ISP/IRPF) antes de dar por bueno.`,
         },
       });
-      const { base64: _base64, ...datosSinBase64 } = datos;
+      const { base64: _base64, url: _signedUrl, urlCaducaEn: _urlCaduca, ...datosSinBase64 } = datos;
       await prisma.orderEvent.create({
         data: {
           orderId: order.id,
@@ -442,9 +454,19 @@ export async function POST(req: Request) {
         blob = { url: v.blob.url, pathname: v.blob.pathname };
         bytes = v.blob.bytes;
         if (!datos.contentType && v.blob.contentType) contentType = v.blob.contentType;
+      } else if (datos.url) {
+        const c = await ingestLavoriSignedUrl({
+          url: datos.url,
+          bytes: datos.bytes,
+          destPathname: `orders/${order.reference}/entregas-lavori/${Date.now()}-${nombre}`,
+          contentType,
+        });
+        if (!c.ok) return NextResponse.json({ ok: false, error: c.error }, { status: 400 });
+        blob = { url: c.url, pathname: c.pathname };
+        bytes = c.bytes;
       } else {
         if (typeof datos.base64 !== "string" || datos.base64.length === 0) {
-          return NextResponse.json({ ok: false, error: "datos.base64 o datos.blobUrl obligatorio" }, { status: 400 });
+          return NextResponse.json({ ok: false, error: "datos.base64, datos.url o datos.blobUrl obligatorio" }, { status: 400 });
         }
         const buf = Buffer.from(datos.base64, "base64");
         if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
@@ -465,7 +487,7 @@ export async function POST(req: Request) {
       // Adenda papel (13-ago-2026): datos.recogida = texto libre con dirección y
       // día/horario de disponibilidad para que la mensajería recoja el original.
       const recogida = datos.recogida ? String(datos.recogida).slice(0, 500) : null;
-      const { base64: _base64, ...datosSinBase64 } = datos;
+      const { base64: _base64, url: _signedUrl, urlCaducaEn: _urlCaduca, ...datosSinBase64 } = datos;
       await prisma.orderEvent.create({
         data: {
           orderId: order.id,
@@ -980,13 +1002,23 @@ async function handleLeadEvento(opts: {
       });
       if (yaAnotada) return NextResponse.json({ ok: true, repetido: true });
       const nombre = datos.nombre ? String(datos.nombre) : `factura-${encargoId}.pdf`;
-      let attachmentUrl = datos.url ? String(datos.url) : null;
+      let attachmentUrl = datos.url && !isLavoriSignedUrl(datos.url) ? String(datos.url) : null;
       let attachmentKey: string | null = null;
       if (datos.blobUrl) {
         const v = await verifyLavoriBlob(datos.blobUrl, motorRef, "factura");
         if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: 400 });
         attachmentUrl = v.blob.url;
         attachmentKey = v.blob.pathname;
+      } else if (isLavoriSignedUrl(datos.url)) {
+        const c = await ingestLavoriSignedUrl({
+          url: datos.url,
+          bytes: datos.bytes,
+          destPathname: `leads/${lead.ref}/facturas-lavori/${Date.now()}-${nombre}`,
+          contentType: datos.contentType ? String(datos.contentType) : "application/pdf",
+        });
+        if (!c.ok) return NextResponse.json({ ok: false, error: c.error }, { status: 400 });
+        attachmentUrl = c.url;
+        attachmentKey = c.pathname;
       } else if (typeof datos.base64 === "string" && datos.base64.length > 0) {
         const buf = Buffer.from(datos.base64, "base64");
         if (buf.length === 0 || buf.length > SOBRE_MAX_RAW_BYTES) {
