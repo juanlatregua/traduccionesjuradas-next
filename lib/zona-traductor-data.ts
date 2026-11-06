@@ -204,6 +204,15 @@ function requiresMarginApproval(order: any) {
   return order.financeSnapshot.requiresMarginApproval && order.financeSnapshot.marginApprovalStatus !== "APPROVED";
 }
 
+// Pagado y sin jurado: el francés lo traduce Juan, así que no cuenta.
+export function isPaidWithoutTranslator(order: any) {
+  if (order.paymentStatus !== "PAID" || ["DELIVERED", "CANCELLED"].includes(order.status)) return false;
+  if (/\bfr\b/.test(String(order.langPair || "").toLowerCase())) return false;
+  return !(order.collaboratorAssignments || []).some(
+    (a: any) => a.isWinning || a.status === "ACCEPTED" || a.status === "DELIVERED"
+  );
+}
+
 function hasMonthlyBatchPending(order: any) {
   return (
     order.financeSnapshot.supplierInvoiceBillingMode === "MONTHLY_BATCH" &&
@@ -232,6 +241,7 @@ function matchesSearch(order: any, q: string) {
 
 function topFinancialAlert(order: any) {
   const snapshot = order.financeSnapshot;
+  if (isPaidWithoutTranslator(order)) return "Pagado sin traductor asignado";
   if (snapshot.reconciliationStatus === "MISMATCH") return "Descuadre en conciliacion de cobro";
   if (snapshot.marginCents !== null && snapshot.marginCents < 0) return "Margen negativo";
   if (requiresMarginApproval(order)) return "Margen bajo pendiente de aprobacion";
@@ -542,15 +552,19 @@ export async function loadControlState(searchParams: ControlSearchParams) {
     riesgo: allBooks.filter(hasFinancialRisk).length,
   };
 
-  const criticalFinanceOrders = allBooks
-    .filter(
+  // Solo lo que pide acción hoy. «No cerrable» y «pendiente de cierre contable» no
+  // entran: lo son casi todos los pedidos (73 el 6-nov) y tapaban los pagados sin traductor.
+  const criticalFinanceOrders = [
+    ...allBooks.filter(isPaidWithoutTranslator),
+    ...allBooks.filter(
       (o) =>
-        hasFinancialRisk(o) ||
-        requiresMarginApproval(o) ||
-        hasMonthlyBatchPending(o) ||
-        (o.paymentStatus === "PAID" && o.financeSnapshot.accountingCutoffPassed && !o.financeSnapshot.hasFinanceCloseEvent)
-    )
-    .slice(0, 6);
+        !isPaidWithoutTranslator(o) &&
+        (o.financeSnapshot.reconciliationStatus === "MISMATCH" ||
+          (o.financeSnapshot.marginCents !== null && o.financeSnapshot.marginCents < 0) ||
+          requiresMarginApproval(o) ||
+          hasMonthlyBatchPending(o))
+    ),
+  ].slice(0, 6);
 
   const pedidosAccionables = computePedidosAccionables(allActiveRaw);
 
