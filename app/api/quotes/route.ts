@@ -254,6 +254,7 @@ export async function POST(req: Request) {
               sourceFileUrl: line.sourceFileUrl,
               pageStart: line.pageStart,
               pageEnd: line.pageEnd,
+              docKind: line.docKind,
             })),
           },
         },

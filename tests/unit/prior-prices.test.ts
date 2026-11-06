@@ -5,6 +5,7 @@ import {
   labelOfDescription,
   labelsMatch,
   pickPriorMatches,
+  isAutoApplicablePrior,
   type PriorLine,
 } from "../../lib/prior-prices-match.ts";
 
@@ -74,4 +75,39 @@ test("los precios propios del cliente van antes aunque sean más viejos y sin pa
   assert.equal(r[0].quoteNumber, "B");
   assert.equal(r[0].own, true);
   assert.equal(r[1].own, undefined);
+});
+
+test("etiqueta sin titular, mes ni apostilla (líneas a mano del 00322)", () => {
+  assert.equal(labelOfDescription("NFS-e Contabilidade agosto 2026 — Quintão Machado Advocacia (Portugués→Español)"), "nfs e contabilidade agosto 2026");
+  assert.equal(labelOfDescription("Diploma de Mestrado — Sarah Quintão con apostilla (Portugués→Español)"), "diploma de mestrado");
+  assert.equal(labelOfDescription("Certificado de antecedentes penales con apostilla"), "certificado de antecedentes penales");
+});
+
+test("casa por tipo de documento aunque la etiqueta sea otra; pagado del cliente primero", () => {
+  const base = { supplierUnitCost: 25, issuedAt: "2026-10-29", status: "PAID", translatorName: null, paid: true };
+  const lines = [
+    { ...base, description: "NFS-e (Portugués→Español)", unitPrice: 90, quoteNumber: "X", issuedMs: 3, docKind: "service_invoice", own: false, paid: false },
+    { ...base, description: "NFS-e Contabilidade agosto 2026 — Quintão (Portugués→Español)", unitPrice: 38, quoteNumber: "00322", issuedMs: 1, docKind: "service_invoice", own: true },
+  ];
+  const r = pickPriorMatches(lines as any, "Nota fiscal de servicios electrónica", "service_invoice");
+  assert.equal(r[0].quoteNumber, "00322");
+  assert.equal(r[0].paid, true);
+  assert.equal(r[0].own, true);
+  assert.equal(pickPriorMatches(lines as any, "Nota fiscal de servicios electrónica", null).length, 0);
+});
+
+test("tipos comodín no casan por docKind", () => {
+  const l = { description: "Carta de banco", unitPrice: 38, supplierUnitCost: 25, quoteNumber: "Q", issuedAt: "2026-10-01", issuedMs: 1, status: "PAID", translatorName: null, paid: true, docKind: "other" };
+  assert.equal(pickPriorMatches([l] as any, "Certificado de nacimiento", "other").length, 0);
+});
+
+test("solo se aplica solo: mismo cliente, pagado, con coste, 1 unidad y mismo tamaño", () => {
+  const m = { unitPrice: 38, supplierUnitCost: 25, quoteNumber: "00322", issuedAt: "", status: "PAID", translatorName: null, own: true, paid: true, quantity: 1, pages: 1 };
+  assert.equal(isAutoApplicablePrior(m, 1), true);
+  assert.equal(isAutoApplicablePrior(m, 12), false);
+  assert.equal(isAutoApplicablePrior({ ...m, supplierUnitCost: null }, 1), false);
+  assert.equal(isAutoApplicablePrior({ ...m, quantity: 5 }, 1), false);
+  assert.equal(isAutoApplicablePrior({ ...m, own: false }, 1), false);
+  assert.equal(isAutoApplicablePrior({ ...m, pages: null }, 2), true);
+  assert.equal(isAutoApplicablePrior({ ...m, pages: null }, 4), false);
 });

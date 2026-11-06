@@ -26,6 +26,7 @@ type Line = {
   sourceFileUrl?: string | null;
   pageStart?: number | null;
   pageEnd?: number | null;
+  docKind?: string | null;
 };
 
 type Quote = {
@@ -71,6 +72,7 @@ export default function QuoteEditForm({ quote, nuevaLinea = false }: { quote: Qu
       sourceFileUrl: (l as any).sourceFileUrl ?? null,
       pageStart: (l as any).pageStart ?? null,
       pageEnd: (l as any).pageEnd ?? null,
+      docKind: (l as any).docKind ?? null,
     })).concat(nuevaLinea ? [{ description: "", quantity: 1, unitPrice: 0 } as Line] : [])
   );
   const [discountType, setDiscountType] = useState(quote.discountType || "NONE");
@@ -140,6 +142,7 @@ export default function QuoteEditForm({ quote, nuevaLinea = false }: { quote: Qu
             ...(l.sourceFileUrl ? { sourceFileUrl: l.sourceFileUrl } : {}),
             ...(l.pageStart != null ? { pageStart: Number(l.pageStart) } : {}),
             ...(l.pageEnd != null ? { pageEnd: Number(l.pageEnd) } : {}),
+            ...(l.docKind ? { docKind: l.docKind } : {}),
           })),
         }),
       });

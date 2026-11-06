@@ -701,6 +701,7 @@ model QuoteLine {
   sourceFileUrl String? // PDF origen (Blob) de este documento, para ver/descargar
   pageStart   Int?      // rango de páginas del documento dentro del PDF origen
   pageEnd     Int?
+  docKind     String?   // tipo de documento del análisis (specific_type): casa precios con presupuestos anteriores
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

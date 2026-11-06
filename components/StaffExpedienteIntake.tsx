@@ -1,5 +1,6 @@
 "use client";
 
+import { isAutoApplicablePrior } from "@/lib/prior-prices-match";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS } from "@/lib/quote-pdf-langs";
 import { upload } from "@vercel/blob/client";
@@ -122,6 +123,7 @@ type DocRow = {
   pageStart?: number;
   pageEnd?: number;
   absorbedPages?: number[]; // páginas sin texto que el análisis unió a este documento
+  priorFrom?: string; // nº del presupuesto anterior cuyo precio y coste lleva la línea
 };
 
 // URL del endpoint que extrae el rango de páginas de un documento para
@@ -199,9 +201,24 @@ type PriorPrice = {
   status: string;
   translatorName: string | null;
   own?: boolean;
+  paid?: boolean;
+  quantity?: number;
+  pages?: number | null;
 };
 
-const priorKey = (source: string, target: string, label: string) => `${source}>${target}|${label}`;
+const kindForKey = (k?: string) => (k && /^[a-z0-9_]{2,60}$/.test(k) ? k : "");
+const priorKey = (source: string, target: string, label: string, docKind?: string) => `${source}>${target}|${label}|${kindForKey(docKind)}`;
+
+// Coste puesto por la tarifa de la casa, no por un jurado ni por un presupuesto
+// anterior (2026-00351, 6-nov-2026: 80-95 € de «coste» que nadie había dado).
+// Francés no cuenta (motor de Juan) ni la tarifa por página DE→ES (pactada con Morton).
+function isEngineCostRow(d: DocRow, source: string, target: string): boolean {
+  if (!d.include || !isPriceable(d.status) || d.autoPriced === false || d.basis || d.pageTariff || d.priorFrom) return false;
+  if (!(d.unitPrice > 0)) return false;
+  const src = knownLangCode(d.sourceLang) || source;
+  const tgt = knownLangCode(d.targetLang) || target || "es";
+  return src !== "fr" && tgt !== "fr";
+}
 
 const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const eur = (n: number) => `${n.toLocaleString("es-ES", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })} €`;
@@ -1015,18 +1032,22 @@ export default function StaffExpedienteIntake({
   );
 
   const [priorPrices, setPriorPrices] = useState<Record<string, PriorPrice[]>>({});
+  const priorKeyOf = useCallback(
+    (d: DocRow) => priorKey(knownLangCode(d.sourceLang) || sourceLang, knownLangCode(d.targetLang) || targetLang, (d.documentTypeEs || "").trim(), d.documentType),
+    [sourceLang, targetLang]
+  );
   const priorItems = useMemo(() => {
-    const seen = new Map<string, { source: string; target: string; label: string }>();
+    const seen = new Map<string, { source: string; target: string; label: string; docKind?: string }>();
     for (const d of docs) {
       const label = (d.documentTypeEs || "").trim();
       const source = knownLangCode(d.sourceLang) || sourceLang;
       const target = knownLangCode(d.targetLang) || targetLang;
       if (!label || !source || !target || !isPriceable(d.status)) continue;
-      seen.set(priorKey(source, target, label), { source, target, label });
+      seen.set(priorKey(source, target, label, d.documentType), { source, target, label, docKind: kindForKey(d.documentType) || undefined });
     }
     return Array.from(seen.values());
   }, [docs, sourceLang, targetLang]);
-  const priorSig = priorItems.map((i) => priorKey(i.source, i.target, i.label)).join("\n");
+  const priorSig = priorItems.map((i) => priorKey(i.source, i.target, i.label, i.docKind)).join("\n");
   useEffect(() => {
     if (!priorItems.length) return;
     const t = setTimeout(() => {
@@ -1055,15 +1076,44 @@ export default function StaffExpedienteIntake({
                 ...d,
                 basis: undefined, // precio cerrado de un presupuesto anterior: la línea pasa a coste fijo
                 clientPrice: m.unitPrice,
-                unitPrice: !d.unitPrice && m.supplierUnitCost != null ? m.supplierUnitCost : d.unitPrice,
+                // El coste del precedente manda: dejar el de la tarifa de la casa inventaba el margen.
+                unitPrice: m.supplierUnitCost != null ? m.supplierUnitCost : d.unitPrice,
                 autoPriced: false,
                 priceNote: undefined,
+                // Sin coste del precedente la línea sigue con el de la casa: sin marca, para que el aviso salte.
+                priorFrom: m.supplierUnitCost != null ? m.quoteNumber : undefined,
               }
         )
       );
     },
     []
   );
+
+  // Cliente que vuelve con un documento del mismo tipo ya PAGADO: la línea nace
+  // con ese precio y ese coste (orden de Juan, 6-nov-2026). Solo filas que sigue
+  // gestionando el motor; las tocadas a mano no se pisan.
+  useEffect(() => {
+    setDocs((prev) => {
+      let changed = false;
+      const next = prev.map((d) => {
+        if (!d.autoPriced || d.basis || d.priorFrom || d.pageTariff || d.priceNote || !isPriceable(d.status)) return d;
+        const m = priorPrices[priorKeyOf(d)]?.[0];
+        if (!m || !isAutoApplicablePrior(m, d.pages)) return d;
+        changed = true;
+        return {
+          ...d,
+          basis: undefined,
+          clientPrice: m.unitPrice,
+          unitPrice: m.supplierUnitCost!,
+          autoPriced: false,
+          priceNote: undefined,
+          minApplied: false,
+          priorFrom: m.quoteNumber,
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [priorPrices, priorKeyOf]);
 
   const togglePaymentMethod = useCallback((m: string) => {
     setPaymentMethods((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
@@ -1270,6 +1320,17 @@ export default function StaffExpedienteIntake({
 
   const handleSubmit = useCallback(async (leadRefRecienEnviada?: string) => {
     setSubmitError(null);
+    const conSolicitud = !!(lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || yaPedida?.ref);
+    const deMotor = conSolicitud ? [] : includedDocs.filter((d) => isEngineCostRow(d, sourceLang, targetLang));
+    if (
+      deMotor.length &&
+      !window.confirm(
+        `${deMotor.length} línea(s) llevan COSTE DE MOTOR: ningún jurado lo ha dado y el cliente no lo pagó antes.\n\n` +
+          deMotor.map((d) => `· ${d.documentTypeEs || d.fileName}: coste ${d.unitPrice} €`).join("\n") +
+          `\n\n¿Crear el presupuesto igualmente?`
+      )
+    )
+      return;
     setSubmitting(true);
     try {
       const lines = includedDocs.map((d) => {
@@ -1304,6 +1365,7 @@ export default function StaffExpedienteIntake({
           sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
           pageStart: d.pageStart,
           pageEnd: d.pageEnd,
+          docKind: kindForKey(d.documentType) || undefined,
         };
       });
       const res = await fetch("/api/quotes", {
@@ -1729,9 +1791,19 @@ export default function StaffExpedienteIntake({
                     )}
                     {isPriceable(d.status) && (
                       <PriorPricesHint
-                        matches={priorPrices[priorKey(knownLangCode(d.sourceLang) || sourceLang, knownLangCode(d.targetLang) || targetLang, (d.documentTypeEs || "").trim())]}
+                        matches={priorPrices[priorKeyOf(d)]}
                         onUse={(m) => applyPriorPrice(d.localId, m)}
                       />
+                    )}
+                    {d.priorFrom && (
+                      <span className="mt-1 inline-block rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Precio y coste copiados de un presupuesto anterior de este cliente">
+                        precedente {d.priorFrom}
+                      </span>
+                    )}
+                    {isEngineCostRow(d, sourceLang, targetLang) && (
+                      <span className="mt-1 inline-block rounded bg-red-500/20 px-1 text-[10px] font-semibold text-red-300" title="El coste sale de la tarifa de la casa: ningún jurado lo ha dado y el cliente no lo pagó antes. Pide precio por lavori o ponlo a mano.">
+                        coste de motor, sin precio de jurado
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-300">

@@ -23,6 +23,7 @@ export async function POST(req: Request) {
       source: String(i?.source || "").trim().toLowerCase().slice(0, 8),
       target: String(i?.target || "").trim().toLowerCase().slice(0, 8),
       label: String(i?.label || "").trim().slice(0, 200),
+      docKind: /^[a-z0-9_]{2,60}$/.test(String(i?.docKind || "")) ? String(i.docKind) : null,
     }))
     .filter((i: { source: string; target: string; label: string }) => i.source && i.target && i.label);
 

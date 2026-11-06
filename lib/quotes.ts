@@ -141,6 +141,8 @@ export function normalizeQuoteLines(raw: unknown) {
     const pe = Number((item as any)?.pageEnd);
     const pageStart = Number.isFinite(ps) && ps >= 1 ? Math.round(ps) : undefined;
     const pageEnd = Number.isFinite(pe) && pe >= 1 ? Math.round(pe) : undefined;
+    const rawKind = String((item as any)?.docKind || "").trim().toLowerCase();
+    const docKind = /^[a-z0-9_]{2,60}$/.test(rawKind) ? rawKind : undefined;
     lines.push({
       description,
       quantity: round2(quantity),
@@ -149,6 +151,7 @@ export function normalizeQuoteLines(raw: unknown) {
       ...(sourceFileUrl ? { sourceFileUrl } : {}),
       ...(pageStart !== undefined ? { pageStart } : {}),
       ...(pageEnd !== undefined ? { pageEnd } : {}),
+      ...(docKind ? { docKind } : {}),
     });
   }
 

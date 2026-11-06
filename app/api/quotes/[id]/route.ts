@@ -169,6 +169,7 @@ export async function PATCH(req: Request, { params }: Params) {
               sourceFileUrl: line.sourceFileUrl,
               pageStart: line.pageStart,
               pageEnd: line.pageEnd,
+              docKind: line.docKind,
             })),
           },
         },

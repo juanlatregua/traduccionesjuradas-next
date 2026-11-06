@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { emailKey } from "@/lib/client-identity";
 import { PRIOR_STATUSES, pickPriorMatches, type PriorLine, type PriorPrice } from "@/lib/prior-prices-match";
 
-export async function findPriorPrices(items: { source: string; target: string; label: string }[], customerEmail?: string | null) {
+export async function findPriorPrices(items: { source: string; target: string; label: string; docKind?: string | null }[], customerEmail?: string | null) {
   const own = emailKey(customerEmail);
   const since = new Date(Date.now() - 365 * 24 * 3600 * 1000);
   const pairs = new Map<string, { source: string; target: string }>();
@@ -29,6 +29,10 @@ export async function findPriorPrices(items: { source: string; target: string; l
           description: true,
           unitPrice: true,
           supplierUnitCost: true,
+          docKind: true,
+          quantity: true,
+          pageStart: true,
+          pageEnd: true,
           quote: { select: { quoteNumber: true, issuedAt: true, status: true, paidAt: true, translatorName: true } },
         },
       });
@@ -45,6 +49,9 @@ export async function findPriorPrices(items: { source: string; target: string; l
         description: r.description,
         unitPrice: Number(r.unitPrice),
         supplierUnitCost: r.supplierUnitCost == null ? null : Number(r.supplierUnitCost),
+        docKind: r.docKind,
+        quantity: Number(r.quantity),
+        pages: r.pageStart != null && r.pageEnd != null ? r.pageEnd - r.pageStart + 1 : null,
         quoteNumber: r.quote.quoteNumber,
         issuedAt: r.quote.issuedAt.toISOString(),
         issuedMs: r.quote.issuedAt.getTime(),
@@ -58,7 +65,7 @@ export async function findPriorPrices(items: { source: string; target: string; l
 
   const out: Record<string, PriorPrice[]> = {};
   for (const it of items) {
-    out[`${it.source}>${it.target}|${it.label}`] = pickPriorMatches(byPair.get(`${it.source}>${it.target}`) || [], it.label);
+    out[`${it.source}>${it.target}|${it.label}|${it.docKind || ""}`] = pickPriorMatches(byPair.get(`${it.source}>${it.target}`) || [], it.label, it.docKind);
   }
   return out;
 }

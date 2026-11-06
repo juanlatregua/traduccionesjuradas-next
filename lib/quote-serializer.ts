@@ -11,6 +11,7 @@ function serializeLine(line: any) {
     sourceFileUrl: line.sourceFileUrl ?? null,
     pageStart: line.pageStart ?? null,
     pageEnd: line.pageEnd ?? null,
+    docKind: line.docKind ?? null,
   };
 }
 

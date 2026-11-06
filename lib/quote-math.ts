@@ -13,6 +13,7 @@ export type QuoteLineInput = {
   sourceFileUrl?: string;
   pageStart?: number;
   pageEnd?: number;
+  docKind?: string;
 };
 
 export type QuoteDiscountType = "NONE" | "PERCENT" | "FIXED";
@@ -117,6 +118,7 @@ export function computeQuoteTotals(params: {
       sourceFileUrl: line.sourceFileUrl || null,
       pageStart: line.pageStart ?? null,
       pageEnd: line.pageEnd ?? null,
+      docKind: line.docKind || null,
     };
   });
 

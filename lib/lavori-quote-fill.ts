@@ -47,7 +47,7 @@ export async function fillDraftQuoteFromLeadPrice(leadId: string): Promise<FillD
       deliveryType: true,
       shippingBase: true,
       deliveryTerm: true,
-      lines: { orderBy: { createdAt: "asc" }, select: { id: true, description: true, quantity: true, unitPrice: true, supplierUnitCost: true, sourceFileUrl: true, pageStart: true, pageEnd: true } },
+      lines: { orderBy: { createdAt: "asc" }, select: { id: true, description: true, quantity: true, unitPrice: true, supplierUnitCost: true, sourceFileUrl: true, pageStart: true, pageEnd: true, docKind: true } },
     },
   });
   if (!quote) return { ok: false, reason: "presupuesto atado no encontrado" };
@@ -115,6 +115,7 @@ export async function fillDraftQuoteFromLeadPrice(leadId: string): Promise<FillD
       ...(l.sourceFileUrl ? { sourceFileUrl: l.sourceFileUrl } : {}),
       ...(l.pageStart != null ? { pageStart: l.pageStart } : {}),
       ...(l.pageEnd != null ? { pageEnd: l.pageEnd } : {}),
+      ...(l.docKind ? { docKind: l.docKind } : {}),
     };
   });
 
