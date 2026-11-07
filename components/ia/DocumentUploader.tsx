@@ -280,6 +280,7 @@ export default function DocumentUploader({
             <p className="font-baskerville text-base text-bleu">{t.dropTitle}</p>
             <p className="mt-0.5 text-xs text-graphite">{t.dropHint}</p>
           </div>
+          <p className="text-center text-sm font-medium text-encre">{t.reviewDocs}</p>
 
           {/* Buttons row */}
           <div className="flex flex-wrap items-center justify-center gap-3 mt-1">

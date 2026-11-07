@@ -368,6 +368,8 @@ export default function ExpedientePublicIntake({
 
       {error && <p role="alert" className="rounded-lg border border-rouge/20 bg-rouge/5 px-4 py-3 text-sm text-rouge">{error}</p>}
 
+      <p className="rounded-lg border border-sepia/30 bg-parchment px-4 py-3 text-sm font-medium text-encre">{t.reviewBeforeSend}</p>
+
       <button
         type="button"
         disabled={!canSubmit}

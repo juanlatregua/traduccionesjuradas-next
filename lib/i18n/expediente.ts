@@ -29,6 +29,7 @@ export type ExpedienteStrings = {
   submitSending: string;
   submitUploading: string;
   submit: (n: number) => string;
+  reviewBeforeSend: string;
   doneTitle: string;
   doneRef: string;
   doneEmail: string;
@@ -62,6 +63,7 @@ export const expedienteT: Record<Locale, ExpedienteStrings> = {
     submitSending: "Enviando…",
     submitUploading: "Subiendo documentos…",
     submit: (n) => `Enviar expediente (${n} doc${n === 1 ? "" : "s"})`,
+    reviewBeforeSend: "Repasa que estén todos los documentos antes de enviar. Si falta alguno, añádelo ahora: así el presupuesto los incluye todos.",
     doneTitle: "Expediente recibido",
     doneRef: "Referencia",
     doneEmail: "Te hemos enviado un email de confirmación a",
@@ -93,6 +95,7 @@ export const expedienteT: Record<Locale, ExpedienteStrings> = {
     submitSending: "Envoi…",
     submitUploading: "Envoi des documents…",
     submit: (n) => `Envoyer le dossier (${n} doc${n === 1 ? "" : "s"})`,
+    reviewBeforeSend: "Vérifiez que tous vos documents sont bien là avant d’envoyer. S’il en manque un, ajoutez-le maintenant : le devis les inclura tous.",
     doneTitle: "Dossier reçu",
     doneRef: "Référence",
     doneEmail: "Nous vous avons envoyé un e-mail de confirmation à",
@@ -124,6 +127,7 @@ export const expedienteT: Record<Locale, ExpedienteStrings> = {
     submitSending: "Sending…",
     submitUploading: "Uploading documents…",
     submit: (n) => `Send file (${n} doc${n === 1 ? "" : "s"})`,
+    reviewBeforeSend: "Check that all your documents are here before sending. If one is missing, add it now so the quote includes them all.",
     doneTitle: "File received",
     doneRef: "Reference",
     doneEmail: "We've sent a confirmation email to",
@@ -155,6 +159,7 @@ export const expedienteT: Record<Locale, ExpedienteStrings> = {
     submitSending: "Wird gesendet…",
     submitUploading: "Dokumente werden hochgeladen…",
     submit: (n) => `Akte senden (${n} Dok.)`,
+    reviewBeforeSend: "Prüfen Sie vor dem Senden, ob alle Dokumente dabei sind. Fehlt eines, fügen Sie es jetzt hinzu, damit das Angebot alle umfasst.",
     doneTitle: "Akte erhalten",
     doneRef: "Referenz",
     doneEmail: "Wir haben eine Bestätigungs-E-Mail gesendet an",
@@ -186,6 +191,7 @@ export const expedienteT: Record<Locale, ExpedienteStrings> = {
     submitSending: "A enviar…",
     submitUploading: "A enviar documentos…",
     submit: (n) => `Enviar processo (${n} doc${n === 1 ? "" : "s"})`,
+    reviewBeforeSend: "Confirme que estão todos os documentos antes de enviar. Se faltar algum, adicione-o agora para que o orçamento os inclua todos.",
     doneTitle: "Processo recebido",
     doneRef: "Referência",
     doneEmail: "Enviámos um email de confirmação para",

@@ -16,6 +16,8 @@ import { normalizeDeclaredLang, isDeclaredPairValid } from "@/lib/puerta-languag
 import { casoIdEnSombra } from "@/lib/caso/sombra";
 import { paresDe } from "@/lib/caso/sombra-plan";
 import { expandZipDocument } from "@/lib/expediente-unzip";
+import { expedienteAbiertoDelCaso } from "@/lib/caso/expediente-abierto";
+import { COMPLETION_EVENT } from "@/lib/q-journey";
 
 export const runtime = "nodejs";
 
@@ -94,17 +96,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "No se recibió ningún archivo válido." }, { status: 400 });
   }
 
-  const ref = createExpedienteRef();
-  const token = createExpedienteToken(ref);
-  const sessionToken = `exp:${ref}`;
+  let ref = createExpedienteRef();
   // Caso en sombra antes de registrar (fail-open: sin caso, el expediente entra igual).
   const casoId = await casoIdEnSombra({
     entrada: "expediente",
     contacto: { email: clientEmail, phone: clientPhone, nombre: clientName },
     pares: paresDe(sourceLanguage, targetLanguage),
-    anclas: { sessionToken, expedienteRef: ref },
+    anclas: { sessionToken: `exp:${ref}`, expedienteRef: ref },
     actor: "system:expediente",
   });
+  // Un expediente por caso: si la clienta ya tiene uno abierto (mismo par, sin
+  // pedido), los documentos nuevos se suman a él.
+  const previo = await expedienteAbiertoDelCaso(casoId, { source: sourceLanguage, target: targetLanguage }).catch(
+    (e) => {
+      console.error("[expediente/submit] expediente previo:", e?.message);
+      return null;
+    }
+  );
+  if (previo) ref = previo.ref;
+  const token = createExpedienteToken(ref);
+  const sessionToken = `exp:${ref}`;
 
   try {
     await prisma.documentAnalysis.createMany({
@@ -132,9 +143,17 @@ export async function POST(req: Request) {
   }
 
   // ZIP → un documento por archivo de dentro. Si falla, el ZIP queda como estaba.
+  // Solo los ZIP de esta subida: en un expediente reutilizado los anteriores ya se abrieron.
   let documentCount = clean.length;
   const zips = await prisma.documentAnalysis
-    .findMany({ where: { sessionToken, OR: [{ mimeType: { contains: "zip" } }, { fileName: { endsWith: ".zip", mode: "insensitive" } }] }, select: { id: true, fileName: true } })
+    .findMany({
+      where: {
+        sessionToken,
+        fileUrl: { in: clean.map((d) => d.blobUrl) },
+        OR: [{ mimeType: { contains: "zip" } }, { fileName: { endsWith: ".zip", mode: "insensitive" } }],
+      },
+      select: { id: true, fileName: true },
+    })
     .catch(() => []);
   for (const z of zips) {
     try {
@@ -144,18 +163,52 @@ export async function POST(req: Request) {
       console.error(`[expediente/submit] no se pudo abrir ${z.fileName}:`, e?.message);
     }
   }
+  const totalCount = previo
+    ? await prisma.documentAnalysis.count({ where: { sessionToken } }).catch(() => documentCount)
+    : documentCount;
+  const quoteVivo = previo?.quote ?? null;
+  // Mismo rastro que «añadir documentos» desde /q: el cliente ve en /q que espere la
+  // versión nueva y la ficha del presupuesto enseña los adjuntos pendientes.
+  if (quoteVivo) {
+    const at = new Date();
+    await prisma.stripeEventLog
+      .create({
+        data: {
+          eventId: `q-docs:${quoteVivo.id}:${at.getTime()}`,
+          eventType: COMPLETION_EVENT,
+          quoteId: quoteVivo.id,
+          payload: {
+            files: clean.map((d) => ({ url: d.blobUrl, name: d.fileName, size: d.fileSize })),
+            note: `Subidos por /expediente al expediente ${ref}`,
+            at: at.toISOString(),
+          },
+        },
+      })
+      .catch((e) => console.error("[expediente/submit] rastro docs_added:", e?.message));
+  }
 
   // Emails fire-and-forget (no bloquean la respuesta) con retry: si agotan
   // reintentos persisten en FailedEmail y el digest diario los reporta.
   sendEmailWithRetry(() =>
-    sendExpedienteReceiptEmail({ clientEmail, clientName, ref, token, documentCount })
+    sendExpedienteReceiptEmail({ clientEmail, clientName, ref, token, documentCount: totalCount })
   ).catch((e) => console.error("[expediente/submit] receipt email error:", e?.message));
   sendEmailWithRetry(() =>
-    sendExpedienteStaffEmail({ ref, clientName, clientEmail, clientPhone, documentCount, notes })
+    sendExpedienteStaffEmail({
+      ref,
+      clientName,
+      clientEmail,
+      clientPhone,
+      documentCount: totalCount,
+      notes,
+      added: previo ? { count: documentCount, quote: quoteVivo } : null,
+    })
   ).catch((e) => console.error("[expediente/submit] staff email error:", e?.message));
-  // SMS al staff: nueva solicitud de presupuesto (antes solo había email).
   sendStaffAlertSMS(
-    `Nueva solicitud (expediente ${ref}) de ${clientName} <${clientEmail}>, ${documentCount} doc(s). Preparar presupuesto.`,
+    quoteVivo
+      ? `${clientName} añadió ${documentCount} doc(s) al expediente ${ref} con presupuesto vivo ${quoteVivo.quoteNumber}: revisa el precio y reenvíalo.`
+      : previo
+        ? `${clientName} añadió ${documentCount} doc(s) al expediente ${ref} (${totalCount} en total). Preparar presupuesto.`
+        : `Nueva solicitud (expediente ${ref}) de ${clientName} <${clientEmail}>, ${documentCount} doc(s). Preparar presupuesto.`,
     `expediente ${ref}`
   ).catch(() => {});
 

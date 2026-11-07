@@ -60,6 +60,7 @@ export type PuertaStrings = {
   gdprPrivacyLink: string;
   dropTitle: string;
   dropHint: string;
+  reviewDocs: string;
   selectFile: string;
   takePhoto: string;
   scanGuidePre: string;
@@ -181,6 +182,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     gdprPrivacyLink: "Ver política de privacidad",
     dropTitle: "Arrastra tu documento aquí",
     dropHint: "PDF, foto o escaneo · Máx. 20 MB",
+    reviewDocs: "Antes de seguir, repasa que subes todos los documentos que necesitas traducir: así el presupuesto los incluye todos.",
     selectFile: "Seleccionar archivo",
     takePhoto: "Tomar foto",
     scanGuidePre: "¿No sabes cómo escanear bien?",
@@ -277,6 +279,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     gdprPrivacyLink: "Voir la politique de confidentialité",
     dropTitle: "Déposez votre document ici",
     dropHint: "PDF, photo ou scan · Max. 20 Mo",
+    reviewDocs: "Avant de continuer, vérifiez que vous envoyez tous les documents à traduire : le devis les inclura tous.",
     selectFile: "Sélectionner un fichier",
     takePhoto: "Prendre une photo",
     scanGuidePre: "Vous ne savez pas bien scanner ?",
@@ -373,6 +376,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     gdprPrivacyLink: "View privacy policy",
     dropTitle: "Drag your document here",
     dropHint: "PDF, photo or scan · Max. 20 MB",
+    reviewDocs: "Before you continue, check that you are uploading every document you need translated, so the quote includes them all.",
     selectFile: "Select file",
     takePhoto: "Take a photo",
     scanGuidePre: "Not sure how to scan well?",
@@ -469,6 +473,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     gdprPrivacyLink: "Datenschutzerklärung ansehen",
     dropTitle: "Ziehen Sie Ihr Dokument hierher",
     dropHint: "PDF, Foto oder Scan · Max. 20 MB",
+    reviewDocs: "Bevor Sie fortfahren: Prüfen Sie, ob Sie alle zu übersetzenden Dokumente hochladen, damit das Angebot alle umfasst.",
     selectFile: "Datei auswählen",
     takePhoto: "Foto aufnehmen",
     scanGuidePre: "Unsicher, wie man richtig scannt?",
@@ -565,6 +570,7 @@ export const puertaT: Record<PuertaLang, PuertaStrings> = {
     gdprPrivacyLink: "Ver política de privacidade",
     dropTitle: "Arraste o seu documento aqui",
     dropHint: "PDF, foto ou digitalização · Máx. 20 MB",
+    reviewDocs: "Antes de continuar, confirme que envia todos os documentos a traduzir, para que o orçamento os inclua todos.",
     selectFile: "Selecionar ficheiro",
     takePhoto: "Tirar foto",
     scanGuidePre: "Não sabe como digitalizar bem?",
