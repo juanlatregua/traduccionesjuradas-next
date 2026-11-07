@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
 import { buildExpedienteFromInbound, isIgnoredSender, matchClientContext } from "@/lib/inbox";
 import { analyzeExpedienteDocument } from "@/lib/expediente-analyze";
-import { createAutoQuote, autoQuoteFromPuertaSession, isLearnedAutosendOn, AUTO_QUOTE_MAX_CENTS_WITH_VAT } from "@/lib/learned-rates";
+import { createAutoQuote, autoQuoteFromPuertaSession, isLearnedAutosendOn, autoSendCapCentsWithVat } from "@/lib/learned-rates";
 import { evaluateDraftAutoSend } from "@/lib/cierre";
 import { replyToInboxMessage } from "@/lib/azure-mail-read";
 import { renderClientMessageHtml } from "@/lib/email";
@@ -305,8 +305,8 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
   const totalEur = decimalToNumber(quote.total);
   const netEur = Math.round((decimalToNumber(quote.subtotal) - decimalToNumber(quote.discountAmount)) * 100) / 100;
   const decision =
-    ev.decision.action === "send" && Math.round(totalEur * 100) > AUTO_QUOTE_MAX_CENTS_WITH_VAT
-      ? { action: "alert" as const, reasons: [`${totalEur.toFixed(2)} € con IVA superan el tope de envío solo (${AUTO_QUOTE_MAX_CENTS_WITH_VAT / 100} €)`] }
+    ev.decision.action === "send" && Math.round(totalEur * 100) > autoSendCapCentsWithVat()
+      ? { action: "alert" as const, reasons: [`${totalEur.toFixed(2)} € con IVA superan el tope de envío solo (${autoSendCapCentsWithVat() / 100} €)`] }
       : ev.decision;
   const isFr = check.lane === "fr";
   let action = bandejaAction(mode, decision, { fr: isFr, learnedAutosend: isLearnedAutosendOn() });

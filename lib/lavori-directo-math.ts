@@ -5,7 +5,7 @@
 // imports de servidor — mismo espíritu que lib/learned-rates-math.ts.
 
 import { autoClientPriceCentsFromCost } from "./quote-math.ts";
-import { DOC_FLOOR_CENTS, SIZE_TOLERANCE, roundUpEuro, roundDownEuro, canAutoQuote, priceDocWithRate } from "./learned-rates-math.ts";
+import { DOC_FLOOR_CENTS, fitsDocSize, roundUpEuro, roundDownEuro, canAutoQuote, priceDocWithRate } from "./learned-rates-math.ts";
 
 export { DOC_FLOOR_CENTS, canAutoQuote };
 
@@ -100,7 +100,7 @@ export function proposedCostCents(docs: CifraDoc[], basis: PriceBasis): number |
     const r = d.rate;
     if (!r || !(r.costCents > 0)) return null;
     if (r.unit === "kword" && !(d.words && d.words > 0)) return null;
-    if (r.unit === "doc" && r.wordsRef && d.words && Math.abs(d.words - r.wordsRef) / r.wordsRef > SIZE_TOLERANCE) return null;
+    if (r.unit === "doc" && !fitsDocSize(d.words, r.wordsRef)) return null;
     total += priceDocWithRate({ unit: r.unit, costCents: r.costCents, clientCents: null }, d.words).costCents;
   }
   return baseToChannelPriceCents(total, basis);

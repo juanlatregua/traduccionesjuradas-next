@@ -32,6 +32,8 @@ import {
   priceDocWithRate,
   marginPctOf,
   isAutoManaged,
+  fitsDocSize,
+  autoSendCapCentsWithVat,
 } from "@/lib/learned-rates-math";
 
 // Re-export para no romper a quien ya los importaba de aquí.
@@ -84,7 +86,7 @@ export const ANALYSIS_SELECT = {
   analysisJson: true,
 } as const;
 
-export const AUTO_QUOTE_MAX_CENTS_WITH_VAT = 30000; // 300 € con IVA para enviar sin intervención
+export { autoSendCapCentsWithVat };
 
 /** Auto-envío del borrador del tarifario (por defecto OFF): el 21-sep Juan ordenó
  * «nada sale solo al cliente». Se enciende con LEARNED_RATES_AUTOSEND=on. */
@@ -433,17 +435,14 @@ export async function learnFromPaidQuote(quoteId: string) {
 }
 
 /** Tarifa APPROVED aplicable a un documento: clave exacta, o comodín "any" por
- * palabra para documentos largos. Con unit=doc exige tamaño parecido (±30 %). */
+ * palabra para documentos largos. Con unit=doc: precio por tipo (fitsDocSize). */
 export async function findApprovedRate(info: DocInfo) {
   if (!isLearnedRatesLive()) return null;
   const exact = await prisma.learnedRate.findUnique({
     where: { lang_direction_docType_apostille: { lang: info.lang, direction: info.direction, docType: info.docType, apostille: info.apostille } },
   });
   if (exact?.status === "APPROVED") {
-    if (exact.unit === "doc" && exact.wordsRef && info.words) {
-      const diff = Math.abs(info.words - exact.wordsRef) / exact.wordsRef;
-      if (diff > SIZE_TOLERANCE) return null;
-    }
+    if (exact.unit === "doc" && !fitsDocSize(info.words, exact.wordsRef)) return null;
     if (exact.unit === "kword" && !info.words) return null;
     return exact;
   }
@@ -764,8 +763,9 @@ export async function autoQuoteFromPuertaSession(opts: {
   let payUrl = result.payUrl;
   if (opts.autoSend !== false && isLearnedAutosendOn()) {
     const totalCents = Math.round(result.totalEur * 100);
-    if (totalCents > AUTO_QUOTE_MAX_CENTS_WITH_VAT) {
-      autoSendReasons = [`${result.totalEur.toFixed(2)} € con IVA superan el tope de envío solo (${AUTO_QUOTE_MAX_CENTS_WITH_VAT / 100} €)`];
+    const cap = autoSendCapCentsWithVat();
+    if (totalCents > cap) {
+      autoSendReasons = [`${result.totalEur.toFixed(2)} € con IVA superan el tope de envío solo (${cap / 100} €; hasta el 9-nov, revisión de Juan por encima de 100 €)`];
     } else {
       const { autoSendTarifarioDraft } = await import("@/lib/cierre");
       const out = await autoSendTarifarioDraft(result.quoteId);

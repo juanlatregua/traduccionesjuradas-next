@@ -318,7 +318,7 @@ export async function routePuertaQuoteRequest(input: {
       return out({
         ok: true,
         lavori: { sent: false },
-        quote: { sent: auto.sent, draft: !auto.sent, number: auto.quoteNumber },
+        quote: { sent: auto.sent, draft: !auto.sent, number: auto.quoteNumber, payUrl: auto.sent ? auto.payUrl : null },
       });
     }
     console.log("[puerta:request-quote] tarifario no aplica:", auto.reason);

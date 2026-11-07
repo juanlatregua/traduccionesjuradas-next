@@ -458,7 +458,11 @@ export default function PuertaClient({
         return;
       }
       if (data.quote?.sent) {
-        // Agente de precios: el presupuesto ya salió con precio cerrado.
+        // Agente de precios: el presupuesto ya salió con precio cerrado → directo a pagar.
+        if (typeof data.quote.payUrl === "string" && data.quote.payUrl.startsWith("https://")) {
+          window.location.assign(data.quote.payUrl);
+          return;
+        }
         setRequestDoneMsg(t.requestQuoteDoneAuto);
       } else if (data.lavori?.sent && data.lavori.lang) {
         let langName = String(data.lavori.langName || data.lavori.lang);

@@ -9,8 +9,28 @@ import { autoClientPriceCentsFromCost } from "./quote-math.ts";
 export const LEARNED_MARGIN_PCT = 12; // margen sobre coste del jurado (horquilla Juan 10-15 %)
 export const DOC_FLOOR_CENTS = 4000; // 40 € netos mínimo por documento (regla Juan 26-ago)
 export const WORD_UNIT_MIN_WORDS = 1000; // desde aquí (y más de 2 páginas) la tarifa se aprende por 1000 palabras
+export const DOC_SIZE_MIN_RATIO = 0.25; // por debajo de 1/4 de la referencia: lectura dudosa, a mano
 export const SIZE_TOLERANCE = 0.3; // ±30 % de tamaño para reutilizar una tarifa por documento
 export const AUTO_QUOTE_MAX_CENTS = 60000; // por encima de 600 € netos, siempre humano
+
+// Envío solo del presupuesto del tarifario (Juan, 7-nov-2026): «menos de 100 con margen,
+// la compra se hace en el segundo». Hasta 100 € con IVA sale ya; por encima, 2 días de
+// revisión (borrador a Juan) y desde el 10-nov sale solo hasta 300 € con IVA.
+export const AUTO_INSTANT_MAX_CENTS_WITH_VAT = 10000;
+export const AUTO_SEND_FULL_MAX_CENTS_WITH_VAT = 30000;
+export const AUTO_REVIEW_UNTIL = new Date("2026-11-09T23:00:00Z"); // 10-nov 00:00 Madrid
+export function autoSendCapCentsWithVat(now: Date = new Date()) {
+  return now < AUTO_REVIEW_UNTIL ? AUTO_INSTANT_MAX_CENTS_WITH_VAT : AUTO_SEND_FULL_MAX_CENTS_WITH_VAT;
+}
+
+/** Precio por TIPO de documento (Juan, 7-nov-2026): un documento más corto que el de
+ * referencia cobra el precio de su tipo; solo uno MÁS grande (+30 %) o sospechosamente
+ * corto (<25 %, lectura incompleta) va a mano. */
+export function fitsDocSize(words: number | null | undefined, wordsRef: number | null | undefined) {
+  if (!words || !wordsRef) return true;
+  // Menos de un cuarto de la referencia huele a lectura incompleta (OCR de una sola página): a mano.
+  return words >= wordsRef * DOC_SIZE_MIN_RATIO && words <= wordsRef * (1 + SIZE_TOLERANCE);
+}
 
 // Suelo de margen del presupuesto automático. Regla de Juan (28-ago-2026):
 // «nunca puedo perder». Por debajo de esto NO sale solo: va a mano. Se pone en

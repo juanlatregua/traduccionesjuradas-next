@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +20,7 @@ export default async function RevisarPresupuestoPage({ searchParams }: { searchP
   const parsed = verifyReviewToken(secret, searchParams.t);
   const t = NUDGE_COPY[parsed?.locale ?? "es"];
   let ok = !!parsed;
+  let payUrl: string | null = null;
 
   if (parsed) {
     try {
@@ -36,6 +38,8 @@ export default async function RevisarPresupuestoPage({ searchParams }: { searchP
         if (!existing) {
           const r = await routePuertaQuoteRequest({ sessionToken: parsed.sessionToken, locale: parsed.locale });
           if (r.status >= 400) ok = false;
+          const pay = (r.body.quote as { payUrl?: unknown } | undefined)?.payUrl;
+          if (typeof pay === "string" && pay.startsWith("https://")) payUrl = pay;
         }
       }
     } catch (err) {
@@ -43,6 +47,9 @@ export default async function RevisarPresupuestoPage({ searchParams }: { searchP
       ok = false;
     }
   }
+
+  // Presupuesto del tarifario enviado al momento: el cliente va directo a verlo y pagarlo.
+  if (payUrl) redirect(payUrl);
 
   return (
     <main className="min-h-screen bg-cream px-4 py-16">
