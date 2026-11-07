@@ -25,8 +25,13 @@ export function unitFor(words: number | null | undefined, pages?: number | null)
   return words && words >= WORD_UNIT_MIN_WORDS ? "kword" : "doc";
 }
 
-export function roundUp50(cents: number) {
-  return Math.ceil(cents / 50) * 50;
+/** Base entera + IVA (Juan 7-nov-2026, «mejor precio»): la tarifa baja al euro;
+ * el mínimo de margen sube al euro (nunca por debajo de la regla). */
+export function roundUpEuro(cents: number) {
+  return Math.ceil(cents / 100) * 100;
+}
+export function roundDownEuro(cents: number) {
+  return Math.floor(cents / 100) * 100;
 }
 
 /** Precio neto al cliente y coste del jurado para un documento con su tarifa. */
@@ -40,13 +45,13 @@ export function priceDocWithRate(
     const w = Math.max(1, words || 0);
     const cost = Math.round((w * rate.costCents) / 1000);
     const client = rate.clientCents != null
-      ? Math.max(DOC_FLOOR_CENTS, roundUp50((w * rate.clientCents) / 1000))
-      : roundUp50(autoClientPriceCentsFromCost(cost, DOC_FLOOR_CENTS));
+      ? Math.max(DOC_FLOOR_CENTS, roundDownEuro((w * rate.clientCents) / 1000))
+      : roundUpEuro(autoClientPriceCentsFromCost(cost, DOC_FLOOR_CENTS));
     return { clientCents: client, costCents: cost };
   }
   const client = rate.clientCents != null
-    ? Math.max(DOC_FLOOR_CENTS, roundUp50(rate.clientCents))
-    : roundUp50(autoClientPriceCentsFromCost(rate.costCents, DOC_FLOOR_CENTS));
+    ? Math.max(DOC_FLOOR_CENTS, roundDownEuro(rate.clientCents))
+    : roundUpEuro(autoClientPriceCentsFromCost(rate.costCents, DOC_FLOOR_CENTS));
   return { clientCents: client, costCents: rate.costCents };
 }
 

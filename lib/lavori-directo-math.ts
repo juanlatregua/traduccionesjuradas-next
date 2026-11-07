@@ -5,9 +5,9 @@
 // imports de servidor — mismo espíritu que lib/learned-rates-math.ts.
 
 import { autoClientPriceCentsFromCost } from "./quote-math.ts";
-import { DOC_FLOOR_CENTS, SIZE_TOLERANCE, roundUp50, canAutoQuote, priceDocWithRate } from "./learned-rates-math.ts";
+import { DOC_FLOOR_CENTS, SIZE_TOLERANCE, roundUpEuro, roundDownEuro, canAutoQuote, priceDocWithRate } from "./learned-rates-math.ts";
 
-export { DOC_FLOOR_CENTS, roundUp50, canAutoQuote };
+export { DOC_FLOOR_CENTS, canAutoQuote };
 
 /** @deprecated Sustituido por la regla única autoClientPriceFromCost (lib/quote-math.ts, 9-oct-2026). Solo informativo. */
 export const DIRECT_MARGIN_PCT = 20;
@@ -140,22 +140,26 @@ export function spreadCents(baseCents: number, weights: number[]): number[] {
  * freno de margen del presupuesto (revisión de Juan), no esta regla. */
 export function clientCentsWithMotorPrice(motorCents: number, costCents: number, floorCents: number = DOC_FLOOR_CENTS, keepMotor: boolean = false): number {
   if (keepMotor && motorCents > 0) return motorCents;
-  const minimo = roundUp50(autoClientPriceCentsFromCost(costCents, floorCents));
+  const minimo = roundUpEuro(autoClientPriceCentsFromCost(costCents, floorCents));
   if (motorCents <= 0) return minimo;
   return canAutoQuote(motorCents, costCents) && motorCents >= minimo ? motorCents : minimo;
 }
 
+/** `tariffCents` = precio aprobado del tarifario para ese documento: MANDA (caso
+ * Daniela 2026-00352, 7-nov: salió a coste + 10 € con la tarifa aprobada más alta);
+ * la regla de margen solo es el suelo. */
 export function directQuoteLines(
   baseCents: number,
-  docs: { words: number | null }[]
+  docs: { words: number | null; tariffCents?: number | null }[]
 ): { clientCents: number; costCents: number }[] {
   const n = docs.length;
   if (n === 0) return [];
   const costs = spreadCents(baseCents, docs.map((d) => (d.words && d.words > 0 ? d.words : 0)));
-  return costs.map((costCents) => ({
-    costCents,
-    clientCents: roundUp50(autoClientPriceCentsFromCost(costCents, DOC_FLOOR_CENTS)),
-  }));
+  return costs.map((costCents, i) => {
+    const minimo = roundUpEuro(autoClientPriceCentsFromCost(costCents, DOC_FLOOR_CENTS));
+    const tariff = docs[i].tariffCents;
+    return { costCents, clientCents: tariff && tariff > 0 ? Math.max(minimo, roundDownEuro(tariff)) : minimo };
+  });
 }
 
 /** ¿La cifra €/palabra de este jurado se sale de madre frente a su propio

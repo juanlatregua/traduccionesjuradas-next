@@ -89,7 +89,7 @@ export function autoClientPriceForRow(costEur: number, sinSuelo: boolean = false
   return autoClientPriceFromCost(cost, cost <= 0 || sinSuelo ? 0 : AUTO_DOC_FLOOR_EUR);
 }
 
-/** Misma regla en céntimos (sin redondeo extra; el llamador redondea a 0,50 si lo hacía). */
+/** Misma regla en céntimos, sin redondeo: el llamador lo sube al euro entero (roundUpEuro, 7-nov-2026). */
 export function autoClientPriceCentsFromCost(costCents: number, floorCents: number = AUTO_DOC_FLOOR_EUR * 100): number {
   return Math.round(autoClientPriceFromCost(costCents / 100, floorCents / 100) * 100);
 }

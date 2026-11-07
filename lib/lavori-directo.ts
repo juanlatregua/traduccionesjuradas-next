@@ -17,8 +17,8 @@ import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { retireLavoriEncargo, fetchLavoriCartera, isLavoriMemberAvailable, pickLavoriAuto, isLavoriNoAvisar } from "@/lib/lavori-bridge";
 import { docTypeLabelEs, leadFromPuertaSession, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { jurorDeadlineNote } from "@/lib/needed-by";
-import { ANALYSIS_SELECT, createAutoQuote } from "@/lib/learned-rates";
-import { canAutoQuote } from "@/lib/learned-rates-math";
+import { ANALYSIS_SELECT, createAutoQuote, docInfoFromAnalysis, findApprovedRate } from "@/lib/learned-rates";
+import { canAutoQuote, priceDocWithRate } from "@/lib/learned-rates-math";
 import { workingHoursMadrid,
   DIRECT_AUTO_MAX_CENTS,
   DIRECT_FALLBACK_HOURS,
@@ -114,8 +114,9 @@ export type AutoQuoteFromDirectPriceResult =
   | { ok: false; reason: string };
 
 /** El PRIMER precio de un jurado directo ya llegó (precio_propuesto): monta el
- * borrador con la regla de margen única sobre su base, atado a la solicitud. Siempre DRAFT: nunca
- * sale solo al cliente (orden Juan 21-sep-2026). */
+ * borrador con la tarifa aprobada del documento (o la regla de margen única sobre su base si no
+ * la hay), atado a la solicitud. Siempre se crea en DRAFT (send: false): el envío
+ * al cliente solo lo decide autoSendQuoteForLead (lib/cierre.ts) con sus guardas. */
 export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuoteFromDirectPriceResult> {
   const lead = await prisma.lavoriPriceRequest.findUnique({ where: { id: leadId } });
   if (!lead) return { ok: false, reason: "solicitud no encontrada" };
@@ -156,7 +157,25 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
   });
 
   const baseCents = channelPriceToBaseCents(lead.priceCents, config.priceBasis);
-  const docLines = directQuoteLines(baseCents, uniqueRows.map((r) => ({ words: r.estimatedWords ?? null })));
+  // La tarifa aprobada del documento manda sobre «coste + mínimo» (Daniela 00352, 7-nov).
+  const avisosTarifa: string[] = [];
+  const tariffs = await Promise.all(
+    uniqueRows.map(async (r) => {
+      const info = docInfoFromAnalysis(r);
+      const rate = info
+        ? await findApprovedRate(info).catch((err) => {
+            console.error("[lavori-directo] tarifa aprobada no disponible:", err);
+            avisosTarifa.push(`no se pudo leer la tarifa de ${r.fileName}: precio por la regla de margen`);
+            return null;
+          })
+        : null;
+      return rate ? priceDocWithRate(rate, r.estimatedWords ?? null).clientCents : null;
+    })
+  );
+  const docLines = directQuoteLines(
+    baseCents,
+    uniqueRows.map((r, i) => ({ words: r.estimatedWords ?? null, tariffCents: tariffs[i] }))
+  );
 
   for (let i = 0; i < docLines.length; i++) {
     if (!canAutoQuote(docLines[i].clientCents, docLines[i].costCents)) {
@@ -167,7 +186,7 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
     }
   }
 
-  const avisos: string[] = [];
+  const avisos: string[] = [...avisosTarifa];
   const disp = await isLavoriMemberAvailable(lang, config.miembroId);
   if (!disp.ok) avisos.push(`${config.nombre} no puede recibir el encargo ahora: ${disp.reason}`);
 

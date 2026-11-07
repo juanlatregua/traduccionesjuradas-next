@@ -36,9 +36,20 @@ test("Daniela 62 € payable, 2 docs 100/75 pal: base 5849, Σcost exacto y suel
   assert.equal(sumCost, base, "la suma de costes tiene que ser EXACTA (el último absorbe el redondeo)");
   for (const l of lines) assert.ok(l.clientCents >= DOC_FLOOR_CENTS, "nunca por debajo del suelo de 40 €");
   // Reparto proporcional a palabras (100/175 y 75/175). Regla única (9-oct): 33,42 € × 1,30 = 43,45
-  // → 43,50 tras roundUp50; 25,07 € → 35,07 (mín. +10 €) < suelo 40 €.
+  // → 44 € (base entera, 7-nov); 25,07 € → 35,07 (mín. +10 €) < suelo 40 €.
   assert.deepEqual(lines.map((l) => l.costCents), [3342, 2507]);
-  assert.deepEqual(lines.map((l) => l.clientCents), [4350, 4000]);
+  assert.deepEqual(lines.map((l) => l.clientCents), [4400, 4000]);
+});
+
+test("directo: la tarifa aprobada manda (baja al euro) y la regla solo es suelo — Daniela 00352", () => {
+  // Daniela 35 € líquido → base 3302; tarifa aprobada 45 €: sale 45, no 44 (coste + 10 € al euro).
+  assert.deepEqual(directQuoteLines(3302, [{ words: 120, tariffCents: 4500 }]).map((l) => l.clientCents), [4500]);
+  // Tarifa con céntimos: baja al euro.
+  assert.deepEqual(directQuoteLines(3302, [{ words: 120, tariffCents: 4545 }]).map((l) => l.clientCents), [4500]);
+  // Tarifa por debajo de la regla: manda la regla (nunca perder).
+  assert.deepEqual(directQuoteLines(3302, [{ words: 120, tariffCents: 3500 }]).map((l) => l.clientCents), [4400]);
+  // Sin tarifa: la regla.
+  assert.deepEqual(directQuoteLines(3302, [{ words: 120, tariffCents: null }]).map((l) => l.clientCents), [4400]);
 });
 
 test("Morton 10 € base, 1 doc: suelo de 40 € manda", () => {

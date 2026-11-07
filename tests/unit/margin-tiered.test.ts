@@ -66,7 +66,8 @@ test("autoClientPriceFromCost: mínimo +10 € y tope +60 % sin suelo", () => {
 
 test("tarifario aprendido: sin precio aprendido usa la regla; con precio aprobado lo respeta", () => {
   assert.equal(priceDocWithRate({ unit: "doc", costCents: 6000, clientCents: null }, null).clientCents, 7800);
-  assert.equal(priceDocWithRate({ unit: "doc", costCents: 3500, clientCents: null }, null).clientCents, 4550);
+  assert.equal(priceDocWithRate({ unit: "doc", costCents: 3500, clientCents: null }, null).clientCents, 4600);
+  assert.equal(priceDocWithRate({ unit: "doc", costCents: 3302, clientCents: 4545 }, null).clientCents, 4500);
   assert.equal(priceDocWithRate({ unit: "doc", costCents: 6000, clientCents: 9000 }, null).clientCents, 9000);
   assert.deepEqual(priceDocWithRate({ unit: "kword", costCents: 3000, clientCents: null }, 2000), { clientCents: 7800, costCents: 6000 });
 });
