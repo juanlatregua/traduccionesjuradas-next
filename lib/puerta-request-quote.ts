@@ -14,7 +14,8 @@ import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { findLiveSiblingLeadRequest, leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
-import { directMembersFor } from "@/lib/lavori-directo";
+import { closedPriceLangOfPair } from "@/lib/lavori-directo-math";
+import { closedPriceCostHint, directMembersFor } from "@/lib/lavori-directo";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
 import { findRecurrentClient } from "@/lib/recurrent-client-db";
 import { recurrentLabel } from "@/lib/recurrent-client";
@@ -353,6 +354,7 @@ export async function routePuertaQuoteRequest(input: {
     // Lengua de la casa (francés = Juan, T-IJ 3850): NO sale a lavori por
     // ningún carril. Orden de Juan 16-sep-2026 tras tres escapes por la cartera
     // viva (LEAD-0B0C46A29D, LEAD-C4699A93B1, LEAD-6E846030BB).
+    const closedLang = closedPriceLangOfPair(lead?.sourceLang, lead?.targetLang || "es");
     const casa = leadLang ? casaJuradoFor(leadLang) : null;
     if (casa) {
       lavoriEmail = `NO se ha enviado a lavori (${getLanguageName(leadLang!).toLowerCase()}: lo jura la casa, ${casa.nombre}, T-IJ ${casa.maec}). Móntalo tú: ${builderUrl}`;
@@ -367,6 +369,12 @@ export async function routePuertaQuoteRequest(input: {
       ].join(" · ");
       lavoriEmail = `Ya está en lavori: ${h.ref} enviada a ${h.miembroNombre || `${h.candidatos.length} jurado(s)`} el ${horaMadrid(h.createdAt)} (${detalle}). NO se ha enviado otra. Solicitud: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(h.ref)}`;
       lavoriSms = `Ya en curso ${h.ref} (${h.status}) — sin 2.ª solicitud`;
+    } else if (closedLang) {
+      // NL/PT/DE (orden Juan 8-nov-2026): la puerta NUNCA pide precio previo al
+      // jurado. Sin tarifa aprobada el borrador llega a Juan, que pone el precio.
+      const sugerencia = await closedPriceCostHint(closedLang, parDelLead).catch(() => null);
+      lavoriEmail = `NO se ha enviado a lavori (${getLanguageName(closedLang).toLowerCase()}: sin tarifa aprobada, el precio lo pones tú): presupuestar a mano en el builder y al cobrar sale el encargo con precio cerrado. ${builderUrl}${sugerencia ? ` Sugerencia de coste (solo orientativa): ${sugerencia}` : ""}`;
+      lavoriSms = `Sin tarifa ${closedLang.toUpperCase()}: pon el precio en el builder: ${builderUrl}`;
     } else {
       // Carril directo (orden Juan 25-ago/15-sep/21-sep): para ciertas lenguas hay
       // jurado(s) DIRECTO(s) — la solicitud va SOLO a ellos y, con la primera

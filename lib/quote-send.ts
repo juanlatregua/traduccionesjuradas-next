@@ -10,6 +10,7 @@ import { buildQuotePdfBuffer, hashPdf, uploadFinalQuotePdf } from "@/lib/quote-p
 import { buildPayLinkEmail, buildWhatsAppPayText } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { transitionWorkflowState } from "@/lib/workflow-server";
+import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { checkQuoteLinesMargin, verifyTranslatorChannelPrice, notifyMarginOverride, MARGIN_BLOCK_CODE, CHANNEL_BLOCK_CODE } from "@/lib/quote-margin";
 
 export class QuoteSendError extends Error {
@@ -174,6 +175,8 @@ export async function finalizeAndSendQuote(opts: {
         quoteId: quote.id,
       });
     }
+
+    await sealClosedPriceQuote(quote.id).catch((err) => console.error("[quote-send] sellado NL/PT/DE fallo:", err));
 
     // Pedidos enlazados: el pago va por el enlace firmado del pedido, no por /q.
     const linkedOrders = await prisma.order.findMany({

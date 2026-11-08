@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { quoteCostCents } from "@/lib/lavori-directo-math";
 import { contentKeyForQuote, findLiveLavoriDuplicate, freshLeadsByContentKey, isHeldByJuan, liveDuplicateMessage, lavoriContentKeys, parFromLangPair } from "@/lib/lavori-dup-guard";
 import { prisma } from "@/lib/prisma";
 import { addBusinessDays, getHolidaySetFromEnv, getMadridBusinessBaseDate } from "@/lib/eta";
@@ -1052,6 +1053,17 @@ async function routeOrderToLavori(opts: {
     return { changed: aceptado.changed };
   }
 
+  // Camino pactado/tarifario: mismos documentos con un encargo vivo (huella) → no sale otro.
+  // Las solicitudes atadas a ESTE presupuesto ya las resolvió precio_aceptado / el guarda por quoteId.
+  if (opts.tarifario && order.quoteId) {
+    const contentKey = await contentKeyForQuote(order.quoteId, route.par).catch(() => null);
+    if (contentKey) {
+      const atadas = await prisma.lavoriPriceRequest.findMany({ where: { quoteId: order.quoteId }, select: { ref: true } });
+      const duplicado = await findLiveLavoriDuplicate({ par: route.par, contentKey, excludeRefs: atadas.map((r) => r.ref) });
+      if (duplicado) return await abortPactadoByDuplicate(order.id, reference, route.par, duplicado);
+    }
+  }
+
   // Traductor EXTERNO ya fijado en el presupuesto (sello) sin solicitud lavori
   // de por medio (caso Liliana 15-ago): pagar NO abre encargo en el tablón —
   // la gestión va fuera del puente. Sin este guarda, el pago duplicaba el
@@ -1264,6 +1276,25 @@ async function dePagePactadoForOrder(orderId: string): Promise<(DePagePactado & 
   return { ...pactado, contentKey };
 }
 
+async function abortPactadoByDuplicate(orderId: string, reference: string, par: string, duplicado: NonNullable<Awaited<ReturnType<typeof findLiveLavoriDuplicate>>>): Promise<{ changed: boolean }> {
+  await prisma.orderEvent.create({
+    data: {
+      orderId,
+      type: "lavori.pactado_abortado",
+      message: `Encargo con precio pactado NO enviado: ${liveDuplicateMessage(duplicado)}`,
+      payload: { ref: duplicado.ref, status: duplicado.status },
+    },
+  });
+  await staffMailLines(`⚠ Pedido ${par} pagado con encargo vivo en lavori (${reference})`, [
+    `El pedido ${reference} está pagado y ya hay un encargo vivo con estos documentos: ${liveDuplicateMessage(duplicado)}`,
+    `No se ha abierto otro. Revisa la ficha y asigna a mano.`,
+    `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+  ]);
+  const { sendStaffAlertSMS } = await import("@/lib/sms");
+  await sendStaffAlertSMS(`${reference} (${par}) pagado: NO se manda el encargo, ya hay uno vivo (${duplicado.ref}). Revisa la ficha.`, `pactado_duplicado ${reference}`).catch(console.error);
+  return { changed: false };
+}
+
 /** Encargo dirigido a UN jurado con su cifra ya pactada (tarifario aprendido o
  * tarifa por página). Re-comprueba al pagar que sigue libre (spec tarifa directa
  * 4-sep §2.7): un firme a un candidato que lavori rechaza con 400 dejaba el
@@ -1302,6 +1333,32 @@ async function routePactadoToMiembro(opts: {
       `Nadie ha sido avisado. Pide precio desde la ficha («pedir precio en lavori») o asigna a mano.`,
       `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${opts.reference}`,
     ]);
+    return { changed: false };
+  }
+  // Nunca un encargo con coste >= lo cobrado (sin IVA): se frena y se avisa por dos canales.
+  const [{ priceBasisForMember }, { channelPriceToBaseCents }] = await Promise.all([
+    import("@/lib/lavori-directo"),
+    import("@/lib/lavori-directo-math"),
+  ]);
+  const costeBase = channelPriceToBaseCents(paraTiCents, priceBasisForMember(opts.miembroId));
+  const q = order.quoteId ? await prisma.quote.findUnique({ where: { id: order.quoteId }, select: { subtotal: true, discountAmount: true } }) : null;
+  const cobradoCents = q ? Math.round((Number(q.subtotal || 0) - Number(q.discountAmount || 0)) * 100) : Math.round(order.amountCents / 1.21);
+  if (costeBase >= cobradoCents) {
+    const motivo = `el coste para el jurado (${(costeBase / 100).toFixed(2)} € base) no deja margen frente a lo cobrado (${(cobradoCents / 100).toFixed(2)} € sin IVA)`;
+    await prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "lavori.pactado_abortado",
+        message: `Encargo con precio pactado NO enviado: ${motivo}. Revisa el precio o asigna a mano.`,
+        payload: { miembroId: opts.miembroId, paraTiCents, costeBase, cobradoCents, origen: opts.origenTexto },
+      },
+    });
+    await staffMailLines(`⚠ Pedido ${opts.par} pagado SIN encargo a lavori (${opts.reference}) — sin margen`, [
+      `El pedido ${opts.reference} (${opts.par}) está pagado y NO se ha enviado el encargo: ${motivo}.`,
+      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${opts.reference}`,
+    ]);
+    const { sendStaffAlertSMS } = await import("@/lib/sms");
+    await sendStaffAlertSMS(`${opts.reference} (${opts.par}) pagado: encargo NO enviado, coste ${(costeBase / 100).toFixed(2)}€ >= cobrado ${(cobradoCents / 100).toFixed(2)}€`, `pactado_sin_margen ${opts.reference}`).catch(console.error);
     return { changed: false };
   }
   const { isLavoriMemberAvailable } = await import("@/lib/lavori-bridge");
@@ -1402,7 +1459,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           ? { id: LAVORI_CANDIDATES.de?.[0] ?? null, nombre: "Morton" }
           : null;
       if (q && mortonTarifa?.id && parsed) {
-        const coste = q.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0);
+        const coste = quoteCostCents(q.lines);
         return await routePactadoToMiembro({
           order,
           reference: options.reference,
@@ -1417,7 +1474,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           quoteNumber: q.quoteNumber,
         });
       }
-      const costeBaseCents = q?.lines.reduce((a, l) => a + Math.round(Number(l.supplierUnitCost || 0) * 100), 0) || 0;
+      const costeBaseCents = q ? quoteCostCents(q.lines) : 0;
       // Las líneas guardan BASE; el firme va en el formato en que cotiza el
       // jurado (Daniela, líquido ×1,06). assignLavoriAcceptance lo devuelve a base.
       const [{ priceBasisForMember }, { baseToChannelPriceCents }] = await Promise.all([
@@ -1458,20 +1515,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
         // staff) → no se abre otro: mismo guarda que la ficha y el puente (24-sep).
         const duplicado = await findLiveLavoriDuplicate({ par: parsedDe.par, contentKey: pactado.contentKey });
         if (duplicado) {
-          await prisma.orderEvent.create({
-            data: {
-              orderId: order.id,
-              type: "lavori.pactado_abortado",
-              message: `Encargo con precio pactado NO enviado: ${liveDuplicateMessage(duplicado)}`,
-              payload: { ref: duplicado.ref, status: duplicado.status },
-            },
-          });
-          await staffMailLines(`⚠ Pedido DE>ES pagado con encargo vivo en lavori (${options.reference})`, [
-            `El pedido ${options.reference} está pagado y ya hay un encargo vivo con estos documentos: ${liveDuplicateMessage(duplicado)}`,
-            `No se ha abierto otro. Revisa la ficha y asigna a mano.`,
-            `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${options.reference}`,
-          ]);
-          return { changed: false };
+          return await abortPactadoByDuplicate(order.id, options.reference, "DE>ES", duplicado);
         }
         return await routePactadoToMiembro({
           order,

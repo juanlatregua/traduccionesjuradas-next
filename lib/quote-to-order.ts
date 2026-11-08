@@ -8,6 +8,9 @@ import { isPlaceholderEmail } from "@/lib/azure-mail";
 import { excludeFromBillingIfBizum } from "@/lib/billing-exclusion";
 import { sendNewOrderStaffEmail, sendPaymentConfirmedEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
+import { prisma } from "@/lib/prisma";
+import { closedPriceLangOfPair } from "@/lib/lavori-directo-math";
+import { parseDeliveryTerm } from "@/lib/delivery-term";
 import type { PaymentMethod } from "@prisma/client";
 
 export type QuoteForBridge = {
@@ -33,6 +36,23 @@ export type QuoteForBridge = {
     pageEnd?: number | null;
   }[];
 };
+
+async function setDueDateFromQuoteTerm(orderId: string, quote: QuoteForBridge): Promise<Date | null> {
+  try {
+    const current = await prisma.order.findUnique({ where: { id: orderId }, select: { dueDate: true, paidAt: true } });
+    if (!current || current.dueDate) return current?.dueDate ?? null;
+    if (!closedPriceLangOfPair(quote.sourceLang, quote.targetLang)) return null;
+    const row = await prisma.quote.findUnique({ where: { id: quote.id }, select: { deliveryTerm: true } });
+    const dueDate = parseDeliveryTerm(row?.deliveryTerm, current.paidAt ?? new Date());
+    if (!dueDate) return null;
+    await prisma.order.updateMany({ where: { id: orderId, dueDate: null }, data: { dueDate } });
+    const fresh = await prisma.order.findUnique({ where: { id: orderId }, select: { dueDate: true } });
+    return fresh?.dueDate ?? null;
+  } catch (e) {
+    console.error("[quote-to-order] dueDate desde plazo del presupuesto fallo", e);
+    return null;
+  }
+}
 
 export async function runQuoteToOrderBridge(input: {
   quote: QuoteForBridge;
@@ -92,6 +112,7 @@ export async function runQuoteToOrderBridge(input: {
     await assignDefaultFrenchEtaIfNeeded({ reference: order.reference, actorEmail: input.source }).catch((e) =>
       console.error("[quote-to-order] FR ETA failed", e)
     );
+    const dueDate = await setDueDateFromQuoteTerm(order.id, quote);
     if (!input.skipAutoAssign) {
       await autoAssignCollaboratorIfNeeded({ reference: order.reference, actorEmail: input.source }).catch((e) =>
         console.error("[quote-to-order] auto collaborator failed", e)
@@ -121,7 +142,7 @@ export async function runQuoteToOrderBridge(input: {
             to: formatPhoneSpain(phone),
             body: smsPagoConfirmado({
               ref: order.reference,
-              plazo: formatDeliveryPlazo(order.dueDate, lang),
+              plazo: formatDeliveryPlazo(dueDate ?? order.dueDate, lang),
               url: buildSignedOrderUrl(order.reference, "estado"),
               lang,
             }),

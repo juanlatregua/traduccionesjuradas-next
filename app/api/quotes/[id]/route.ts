@@ -5,6 +5,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { computeQuoteTotals, calculateValidUntil, PAPER_SHIPPING_BASE_EUR } from "@/lib/quotes";
 import { parseUpdateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
+import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
 
 export const runtime = "nodejs";
@@ -185,6 +186,8 @@ export async function PATCH(req: Request, { params }: Params) {
 
       return updated;
     });
+
+    await sealClosedPriceQuote(params.id).catch((err) => console.error("[quotes:update] sellado NL/PT/DE fallo:", err));
 
     // En DRAFT no se avisa (nada ha salido al cliente; el freno de envio volvera a
     // saltar). En SENT/OPENED/ACCEPTED si: el enlace /q vivo cobra el total nuevo.

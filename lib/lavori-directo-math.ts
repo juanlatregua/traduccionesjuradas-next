@@ -188,3 +188,23 @@ export function isDiscardableLeadStatus(status: string): boolean {
 export function exceedsQuotedCost(basePriceCents: number, quotedCostCents: number): boolean {
   return basePriceCents > quotedCostCents + 1;
 }
+
+const CLOSED_PRICE_DIRECT_LANGS = new Set(["nl", "pt", "de"]);
+
+/** NL/PT/DE: la puerta nunca pide precio previo al jurado; el precio sale de la tarifa o de Juan (orden Juan 8-nov-2026). */
+export function isClosedPriceDirectLang(lang: string | null | undefined): boolean {
+  return CLOSED_PRICE_DIRECT_LANGS.has(String(lang || "").trim().toLowerCase());
+}
+
+/** Lengua NL/PT/DE de un par con español (ES>X o X>ES); null si no aplica. */
+export function closedPriceLangOfPair(source: string | null | undefined, target: string | null | undefined): string | null {
+  const s = String(source || "").trim().toLowerCase();
+  const t = String(target || "").trim().toLowerCase();
+  const lang = s === "es" ? t : t === "es" ? s : "";
+  return isClosedPriceDirectLang(lang) ? lang : null;
+}
+
+/** Coste total (céntimos, base) de un presupuesto: cantidad × coste unitario de cada línea. */
+export function quoteCostCents(lines: { quantity: unknown; supplierUnitCost: unknown }[]): number {
+  return lines.reduce((a, l) => a + Math.round((Number(l.quantity) || 1) * Number(l.supplierUnitCost || 0) * 100), 0);
+}

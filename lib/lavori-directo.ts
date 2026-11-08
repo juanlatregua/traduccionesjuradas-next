@@ -19,6 +19,7 @@ import { docTypeLabelEs, leadFromPuertaSession, sendLeadPriceRequest } from "@/l
 import { jurorDeadlineNote } from "@/lib/needed-by";
 import { ANALYSIS_SELECT, createAutoQuote, docInfoFromAnalysis, findApprovedRate } from "@/lib/learned-rates";
 import { canAutoQuote, priceDocWithRate } from "@/lib/learned-rates-math";
+import { closedPriceLangOfPair, isClosedPriceDirectLang } from "@/lib/lavori-directo-math";
 import { workingHoursMadrid,
   DIRECT_AUTO_MAX_CENTS,
   DIRECT_FALLBACK_HOURS,
@@ -29,6 +30,7 @@ import { workingHoursMadrid,
 } from "@/lib/lavori-directo-math";
 
 export type { PriceBasis };
+export { isClosedPriceDirectLang };
 
 const STAFF_ALERT_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
@@ -50,6 +52,38 @@ export const LAVORI_DIRECT: Record<string, { miembros: DirectMember[]; enabled: 
   // Miguel confirme si su cifra es base o líquido (orden Juan 15-sep-2026).
   it: { miembros: [{ miembroId: "k1obdgqfpxszjzr4za8rnc7x", nombre: "Miguel Ros González", priceBasis: "base" }], enabled: false },
 };
+
+/** Última cifra PRICED/ACCEPTED del jurado directo de la lengua para el par, como texto para el aviso a Juan. Nunca es un precio automático. */
+export async function closedPriceCostHint(lang: string, par: string | null): Promise<string | null> {
+  const miembro = LAVORI_DIRECT[String(lang || "").toLowerCase()]?.miembros[0];
+  if (!miembro || !par) return null;
+  const last = await prisma.lavoriPriceRequest.findFirst({
+    where: { miembroId: miembro.miembroId, par, status: { in: ["PRICED", "ACCEPTED"] }, priceCents: { gt: 0 } },
+    orderBy: { updatedAt: "desc" },
+    select: { priceCents: true, words: true, docsCount: true, updatedAt: true },
+  });
+  if (!last?.priceCents) return null;
+  const detalle = [last.words ? `${last.words} pal.` : null, last.docsCount ? `${last.docsCount} doc` : null].filter(Boolean).join(", ");
+  return `${miembro.nombre} cotizó para ${par} un coste base sin IVA de ${(channelPriceToBaseCents(last.priceCents, miembro.priceBasis) / 100).toFixed(2)} €${detalle ? ` (${detalle})` : ""} el ${last.updatedAt.toISOString().slice(0, 10)}.`;
+}
+
+/** NL/PT/DE: sella el presupuesto con el jurado directo para que al cobrar salga el encargo con precio cerrado (routePactadoToMiembro). Solo si hay coste en alguna línea y no tiene jurado ya. */
+export async function sealClosedPriceQuote(quoteId: string): Promise<boolean> {
+  const q = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    select: { sourceLang: true, targetLang: true, lavoriMiembroId: true, lines: { select: { supplierUnitCost: true } } },
+  });
+  if (!q || q.lavoriMiembroId) return false;
+  const lang = closedPriceLangOfPair(q.sourceLang, q.targetLang);
+  if (!lang || !q.lines.some((l) => Number(l.supplierUnitCost) > 0)) return false;
+  const miembro = LAVORI_DIRECT[lang]?.miembros[0];
+  if (!miembro) return false;
+  const res = await prisma.quote.updateMany({
+    where: { id: quoteId, lavoriMiembroId: null },
+    data: { lavoriMiembroId: miembro.miembroId, lavoriMiembroNombre: miembro.nombre },
+  });
+  return res.count > 0;
+}
 
 /** Jurados directos operativos HOY para esta lengua (los libres en el tablón).
  * Gates: kill-switch por env (LAVORI_DIRECTO=off, o lista "nl,de" que no

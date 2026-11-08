@@ -21,6 +21,7 @@ import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 
 import { evaluateLinesMargin, evaluateChannelPrice, MIN_AUTO_MARGIN_PCT, type StaffQuoteLine } from "@/lib/learned-rates-math";
 import { isFrenchPair } from "@/lib/workflow";
+import { closedPriceLangOfPair } from "@/lib/lavori-directo-math";
 import { isDePageTariffQuote } from "@/lib/pricing-engine/page-pricing";
 
 export const MARGIN_BLOCK_CODE = "MARGEN_INSUFICIENTE";
@@ -133,6 +134,12 @@ export async function verifyTranslatorChannelPrice(input: {
   // otra cifra sigue exigiendo el canal.
   if (isDePageTariffQuote(input)) return { ok: true };
 
+  // NL/PT/DE (orden Juan 8-nov-2026): el precio lo pone Juan en el builder y el
+  // presupuesto queda sellado con el jurado (sealClosedPriceQuote); al cobrar sale
+  // el encargo con ese coste cerrado. No se exige solicitud previa en lavori, salvo
+  // que ya haya una atada al presupuesto (entonces se compara contra su cifra).
+  const exentoCerrado = Boolean(closedPriceLangOfPair(input.sourceLang, input.targetLang)) && input.lines.some((l) => Number(l.supplierUnitCost) > 0);
+
   const { prisma } = await import("@/lib/prisma");
   const req = await prisma.lavoriPriceRequest.findFirst({
     where: {
@@ -151,6 +158,8 @@ export async function verifyTranslatorChannelPrice(input: {
     import("@/lib/lavori-directo"),
     import("@/lib/lavori-directo-math"),
   ]);
+  // Con solicitud atada en PRICED/ACCEPTED manda su cifra (se compara más abajo).
+  if (exentoCerrado && !req) return { ok: true };
   const channelBaseCents = req?.priceCents != null ? channelPriceToBaseCents(req.priceCents, priceBasisForMember(req.miembroId)) : null;
 
   const toCents = (n: number | null | undefined) => Math.round((Number(n) || 0) * 100);
