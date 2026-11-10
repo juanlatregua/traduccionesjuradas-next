@@ -102,7 +102,8 @@ export async function PATCH(req: Request, { params }: Params) {
       })),
     });
     const overrideLowMargin = !!(body as any)?.overrideLowMargin;
-    if (!marginCheck.ok && !overrideLowMargin) {
+    // Un DRAFT se guarda siempre: nada ha salido al cliente y el envío (quote-send) vuelve a frenar.
+    if (!marginCheck.ok && !overrideLowMargin && current.status !== "DRAFT") {
       return NextResponse.json(
         { ok: false, code: MARGIN_BLOCK_CODE, error: `${MARGIN_BLOCK_CODE}: ${marginCheck.detail}` },
         { status: 409 }

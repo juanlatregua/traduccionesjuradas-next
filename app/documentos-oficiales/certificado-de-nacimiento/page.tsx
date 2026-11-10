@@ -46,7 +46,7 @@ export default function CertificadoNacimientoPage() {
       <SchemaFAQ
         id="faq-nacimiento"
         items={[
-          { question: "¿Cuánto cuesta la traducción jurada de un certificado de nacimiento?", answer: "30 € + IVA por página en francés y en alemán (a español), 35 € si está apostillado; en inglés, neerlandés, portugués y rumano, desde 40 € + IVA. El precio depende del idioma y la extensión del documento." },
+          { question: "¿Cuánto cuesta la traducción jurada de un certificado de nacimiento?", answer: "30 € + IVA por página en francés (a español) y en alemán (en ambos sentidos; 35 € si lleva tablas o es manuscrito), +5 € si está apostillado; en inglés, neerlandés, portugués y rumano, desde 40 € + IVA. El precio depende del idioma y la extensión del documento." },
           { question: "¿Necesita apostilla el certificado de nacimiento para usarlo en España?", answer: "Depende del país emisor. Los certificados de países firmantes del Convenio de La Haya necesitan Apostilla. Para otros países se requiere legalización consular." },
           { question: "¿En cuánto tiempo se entrega la traducción jurada del certificado de nacimiento?", answer: "24-48 h en francés; en otros idiomas, el plazo que confirma el traductor en el presupuesto. Entrega en PDF firmado digitalmente." },
         ]}

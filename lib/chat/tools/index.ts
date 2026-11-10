@@ -60,7 +60,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
           type: "string",
           enum: ["to_spanish", "from_spanish"],
           description:
-            "OBLIGATORIO. 'to_spanish' si el documento está en el otro idioma y se traduce AL español; 'from_spanish' si el documento está en español y se traduce al otro idioma. Si no lo sabes, pregúntalo antes de llamar: la tarifa por página (30 €) solo existe en francés→español y alemán→español.",
+            "OBLIGATORIO. 'to_spanish' si el documento está en el otro idioma y se traduce AL español; 'from_spanish' si el documento está en español y se traduce al otro idioma. Si no lo sabes, pregúntalo antes de llamar: la tarifa por página (30 €) existe en francés→español y en alemán en ambos sentidos (alemán→español y español→alemán).",
         },
         apostille_separate_page: {
           type: "boolean",
@@ -71,6 +71,11 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
           type: "boolean",
           description:
             "True si las páginas del documento llevan tablas (notas, expedientes, extractos bancarios). Solo cambia el precio en alemán (35 € por página en vez de 30 €).",
+        },
+        has_handwriting: {
+          type: "boolean",
+          description:
+            "True si el contenido principal del documento está escrito a mano (no una simple firma). Solo cambia el precio en alemán: cuenta como tablas (35 € por página en vez de 30 €).",
         },
         country: {
           type: "string",

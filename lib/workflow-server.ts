@@ -826,7 +826,9 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
       dueDate: order.dueDate,
       documentos: sobre.documentos,
       paraTiCents: precioCents,
-      especificaciones: `Precio ya acordado contigo: ${paraTi} € (tu propuesta; el cliente la ha aceptado y pagado). Tu encargo anterior caducó en lavori; este lo sustituye. Solo acepta y traduce.`,
+      especificaciones: topeTarifa
+        ? `Precio según tu tarifa pactada: ${paraTi} € (10 € por página, 15 € si tiene tablas o es manuscrito; el cliente ya ha pagado). Tu encargo anterior caducó en lavori; este lo sustituye. Solo acepta y traduce.`
+        : `Precio ya acordado contigo: ${paraTi} € (tu propuesta; el cliente la ha aceptado y pagado). Tu encargo anterior caducó en lavori; este lo sustituye. Solo acepta y traduce.`,
     });
     const result = await sendLavoriSolicitud(payload);
     if (!result.ok) return { ok: false, error: result.error };
@@ -1542,7 +1544,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           miembroId: mortonId,
           miembroNombre: "Morton",
           paraTiCents: pactado.costCents,
-          acordadoTexto: `Precio ya acordado contigo por página (tarifa de la casa: ${pactado.pages} pág., 10 € por página y 15 € las que llevan tablas${pactado.tablePages ? `; ${pactado.tablePages} con tablas` : ""})`,
+          acordadoTexto: `Precio ya acordado contigo por página (tarifa de la casa: ${pactado.pages} pág., 10 € por página y 15 € las que llevan tablas o son manuscritas${pactado.tablePages ? `; ${pactado.tablePages} con tablas` : ""})`,
           origenTexto: "tarifa por página",
           quoteNumber: null,
         });

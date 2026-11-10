@@ -231,8 +231,14 @@ export async function POST(req: Request) {
         const parDe = lavoriLangFromPair(order.langPair);
         if (parDe?.lang === "de") {
           const { dePagePactadoForOrder } = await import("@/lib/workflow-server");
-          const pactadoDe = await dePagePactadoForOrder(order.id, parDe.par).catch(() => null);
-          if (pactadoDe && precioCents > pactadoDe.costCents) {
+          let falloTarifa = false;
+          const pactadoDe = await dePagePactadoForOrder(order.id, parDe.par).catch(() => {
+            falloTarifa = true;
+            return null;
+          });
+          if (falloTarifa) {
+            bloqueoAuto = `no se pudo comprobar la tarifa pactada de alemán: no se acepta sola.`;
+          } else if (pactadoDe && precioCents > pactadoDe.costCents) {
             bloqueoAuto = `${miembro} pide ${precio} € y la tarifa por página de alemán es ${(pactadoDe.costCents / 100).toFixed(2)} €: manda la tarifa.`;
           }
         }

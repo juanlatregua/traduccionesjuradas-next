@@ -121,7 +121,7 @@ export default async function PaginaIdioma({
           lang === "fr"
             ? "Traducción jurada de francés: 30 € + IVA por página del original (certificados, actas, títulos, expedientes, antecedentes) · 35 € si está apostillado. Sube el documento y recibes el precio cerrado al instante."
             : lang === "de"
-              ? "Traducción jurada de alemán a español: 30 € + IVA por página del original (35 € + IVA si la página lleva tablas: notas, expedientes, extractos bancarios) · +5 € si está apostillado. Sube el documento y recibes el precio cerrado al instante."
+              ? "Traducción jurada de alemán a español y de español a alemán: 30 € + IVA por página del original (35 € + IVA si la página lleva tablas —notas, expedientes, extractos bancarios— o es manuscrita) · +5 € si está apostillado. Sube el documento y recibes el precio cerrado al instante."
               : "Depende del documento. Súbelo y tu traductor jurado nombrado por el MAEC te confirma el precio hoy mismo, sin compromiso.",
       });
     }

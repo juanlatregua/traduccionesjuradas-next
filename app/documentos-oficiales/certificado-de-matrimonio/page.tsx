@@ -10,7 +10,7 @@ import { SchemaService } from "@/components/SchemaService";
 export const metadata: Metadata = {
   title: "Traducción jurada certificado de matrimonio | Desde 30 € + IVA",
   description:
-    "Traducción jurada de certificados de matrimonio: francés y alemán a español, 30 € + IVA por página; inglés y portugués desde 40 € + IVA. Entrega en PDF firmado y precio cerrado antes de pagar.",
+    "Traducción jurada de certificados de matrimonio: francés a español y alemán en ambos sentidos, 30 € + IVA por página; inglés y portugués desde 40 € + IVA. Entrega en PDF firmado y precio cerrado antes de pagar.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
   openGraph: {
     images: [
@@ -148,7 +148,8 @@ export default function CertificadoMatrimonioPage() {
             { pair: "Español → Francés", price: "35 € + IVA", plazo: "24 h" },
             { pair: "Portugués (apostillado) → Español", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
             { pair: "Francés → Español", price: "30 € + IVA por página · 35 € si está apostillado", plazo: "24 h" },
-            { pair: "Alemán → Español", price: "30 € + IVA por página (35 € con tablas) · +5 € si está apostillado", plazo: "48 h" },
+            { pair: "Alemán → Español", price: "30 € + IVA por página (35 € con tablas o manuscrito) · +5 € si está apostillado", plazo: "48 h" },
+            { pair: "Español → Alemán", price: "30 € + IVA por página (35 € con tablas o manuscrito) · +5 € si está apostillado", plazo: "48 h" },
           ].map((item) => (
             <div key={item.pair} className="rounded-xl border border-cream bg-parchment px-3 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-bleu">

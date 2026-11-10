@@ -38,7 +38,7 @@ export default function TraductorJuradoAlemanPage() {
         {
           question: "¿Cuánto cuesta una traducción jurada de alemán?",
           answer:
-            "Traducción jurada de alemán a español: 30 € + IVA por página del original en certificados (Geburtsurkunde, Heiratsurkunde), actas, títulos, expedientes y antecedentes; 35 € + IVA por página si la página lleva tablas (notas, expedientes académicos, extractos bancarios); +5 € si está apostillado. Los contratos y textos largos se presupuestan por palabras, y de español a alemán un traductor jurado valora tu documento antes de cerrarte el presupuesto.",
+            "Traducción jurada de alemán a español y de español a alemán: 30 € + IVA por página del original en certificados (Geburtsurkunde, Heiratsurkunde), actas, títulos, expedientes y antecedentes; 35 € + IVA por página si la página lleva tablas o está escrita a mano (notas, expedientes académicos, extractos bancarios); +5 € si está apostillado. Los contratos y textos largos se presupuestan por palabras.",
         },
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de alemán?",
