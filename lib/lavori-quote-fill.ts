@@ -99,10 +99,10 @@ export async function fillDraftQuoteFromLeadPrice(leadId: string): Promise<FillD
         supplierUnitCost: decimalToNumber(l.supplierUnitCost),
       };
     }
-    // Línea de tarifa por página DE→ES (30↔10 / 35↔15): sin suelo de 40 €/doc.
+    // Línea de tarifa por página de alemán, DE→ES o ES→DE (30↔10 / 35↔15): sin suelo de 40 €/doc.
     const porPagina =
-      String(quote.sourceLang || "").toLowerCase() === "de" &&
-      String(quote.targetLang || "").toLowerCase() === "es" &&
+      ((String(quote.sourceLang || "").toLowerCase() === "de" && String(quote.targetLang || "").toLowerCase() === "es") ||
+        (String(quote.sourceLang || "").toLowerCase() === "es" && String(quote.targetLang || "").toLowerCase() === "de")) &&
       (isDePageTariffLine(motorCents / 100, decimalToNumber(l.supplierUnitCost)) ||
         isLooseApostilleLine(motorCents / 100, decimalToNumber(l.supplierUnitCost)));
     const clienteCents = clientCentsWithMotorPrice(motorCents, reparto, porPagina ? 0 : undefined, porPagina);

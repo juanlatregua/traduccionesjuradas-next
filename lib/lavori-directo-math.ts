@@ -147,18 +147,25 @@ export function clientCentsWithMotorPrice(motorCents: number, costCents: number,
 
 /** `tariffCents` = precio aprobado del tarifario para ese documento: MANDA (caso
  * Daniela 2026-00352, 7-nov: salió a coste + 10 € con la tarifa aprobada más alta);
- * la regla de margen solo es el suelo. */
+ * la regla de margen solo es el suelo.
+ * `tariffCostCents` = coste de la tarifa por página de alemán (10/15 €): TOPE de la
+ * cifra del jurado (Juan, 10-nov-2026). Solo si TODOS los documentos la tienen y la
+ * cifra repartida la supera: manda la tarifa, `capped` lo marca y `rawCostCents`
+ * guarda lo que pidió el jurado. */
 export function directQuoteLines(
   baseCents: number,
-  docs: { words: number | null; tariffCents?: number | null }[]
-): { clientCents: number; costCents: number }[] {
+  docs: { words: number | null; tariffCents?: number | null; tariffCostCents?: number | null }[]
+): { clientCents: number; costCents: number; rawCostCents: number; capped: boolean }[] {
   const n = docs.length;
   if (n === 0) return [];
-  const costs = spreadCents(baseCents, docs.map((d) => (d.words && d.words > 0 ? d.words : 0)));
-  return costs.map((costCents, i) => {
+  const spread = spreadCents(baseCents, docs.map((d) => (d.words && d.words > 0 ? d.words : 0)));
+  const caps = docs.map((d) => (d.tariffCostCents && d.tariffCostCents > 0 ? d.tariffCostCents : null));
+  const capped = caps.every((c) => c != null) && baseCents > caps.reduce((a: number, c) => a + (c as number), 0);
+  return spread.map((rawCostCents, i) => {
+    const costCents = capped ? (caps[i] as number) : rawCostCents;
     const minimo = roundUpEuro(autoClientPriceCentsFromCost(costCents, DOC_FLOOR_CENTS));
     const tariff = docs[i].tariffCents;
-    return { costCents, clientCents: tariff && tariff > 0 ? Math.max(minimo, roundDownEuro(tariff)) : minimo };
+    return { costCents, rawCostCents, capped, clientCents: tariff && tariff > 0 ? Math.max(minimo, roundDownEuro(tariff)) : minimo };
   });
 }
 

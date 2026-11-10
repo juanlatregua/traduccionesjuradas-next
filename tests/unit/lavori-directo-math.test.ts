@@ -289,3 +289,16 @@ test("margen Auto no-FR: coste 0 o fila con nota no recibe el suelo de 40 €", 
   assert.equal(autoClientPriceForRow(10, true) < 40, true);
   assert.equal(autoClientPriceForRow(10), 40);
 });
+
+test("alemán: la tarifa por página es el TOPE de la cifra del jurado (35,71 € para 1 pág. manuscrita → coste 15 €)", () => {
+  const [l] = directQuoteLines(3571, [{ words: 200, tariffCostCents: 1500 }]);
+  assert.equal(l.costCents, 1500);
+  assert.equal(l.rawCostCents, 3571);
+  assert.equal(l.capped, true);
+  // cifra por debajo de la tarifa: manda la del jurado
+  const [b] = directQuoteLines(1200, [{ words: 200, tariffCostCents: 1500 }]);
+  assert.equal(b.costCents, 1200);
+  assert.equal(b.capped, false);
+  // sin tarifa calculable en algún documento: no se toca nada
+  assert.equal(directQuoteLines(3571, [{ words: 200, tariffCostCents: 1500 }, { words: 100 }]).some((x) => x.capped), false);
+});

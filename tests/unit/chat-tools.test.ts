@@ -161,7 +161,9 @@ test("get_quote_estimate: DE→ES por página 30 €, 35 € con tablas; sin dir
   assert.equal(priced(getQuoteEstimate({ language: "de", direction: "to_spanish", document_type: "birth_certificate", pages: 2 })).base_price_eur, 60);
   assert.equal(priced(getQuoteEstimate({ language: "de", direction: "to_spanish", document_type: "transcript", pages: 1 })).base_price_eur, 35);
   assert.ok("auto_priceable" in getQuoteEstimate({ language: "de", document_type: "birth_certificate", pages: 1 }));
-  assert.ok("auto_priceable" in getQuoteEstimate({ language: "de", direction: "from_spanish", document_type: "birth_certificate", pages: 1 }));
+  // ES→DE (10-nov-2026): misma tarifa por página; el manuscrito cuenta como tablas
+  assert.equal(priced(getQuoteEstimate({ language: "de", direction: "from_spanish", document_type: "birth_certificate", pages: 1 })).base_price_eur, 30);
+  assert.equal(priced(getQuoteEstimate({ language: "de", direction: "from_spanish", document_type: "birth_certificate", pages: 1, has_handwriting: true })).base_price_eur, 35);
 });
 
 test("get_quote_estimate: ES→FR no usa la tarifa por página (35 € mínimo de siempre)", () => {

@@ -95,13 +95,15 @@ export async function PATCH(req: Request, { params }: Params) {
       targetLang: parsed.data.targetLang,
       discountCents: Math.round(Number(totals.discountAmount || 0) * 100),
       lines: parsed.data.lines.map((l) => ({
+        description: l.description,
         quantity: l.quantity,
         unitPrice: l.unitPrice,
         supplierUnitCost: l.supplierUnitCost ?? null,
       })),
     });
     const overrideLowMargin = !!(body as any)?.overrideLowMargin;
-    if (!marginCheck.ok && !overrideLowMargin) {
+    // Un DRAFT se guarda siempre: nada ha salido al cliente y el envío (quote-send) vuelve a frenar.
+    if (!marginCheck.ok && !overrideLowMargin && current.status !== "DRAFT") {
       return NextResponse.json(
         { ok: false, code: MARGIN_BLOCK_CODE, error: `${MARGIN_BLOCK_CODE}: ${marginCheck.detail}` },
         { status: 409 }

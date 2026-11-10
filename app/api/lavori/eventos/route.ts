@@ -3,7 +3,7 @@ import { findLiveLavoriDuplicate, isHeldByJuan, liveDuplicateMessage, orderIdFor
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
-import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES, isCasaPair, orderRefFromMotorRef } from "@/lib/lavori-bridge";
+import { LAVORI_MEMBER_COLLABORATOR_EMAIL, SOBRE_MAX_RAW_BYTES, isCasaPair, lavoriLangFromPair, orderRefFromMotorRef } from "@/lib/lavori-bridge";
 import { assignLavoriAcceptance, syncQuoteTranslatorWithAcceptor } from "@/lib/lavori-assign";
 import { autoQuoteFromDirectPrice } from "@/lib/lavori-directo";
 import { acceptanceMatchesPrice, acceptsNewPrice, isDirectLeadRequest } from "@/lib/lavori-directo-math";
@@ -223,6 +223,24 @@ export async function POST(req: Request) {
           // Encargo abierto desde el pedido: frena si el presupuesto tiene una solicitud viva.
           const dup = await findLiveLavoriDuplicate({ quoteId: order.quoteId });
           if (dup) bloqueoAuto = liveDuplicateMessage(dup);
+        }
+      }
+      // Alemán (Juan, 10-nov-2026): si el jurado pide más que la tarifa por página, manda la tarifa:
+      // no se acepta solo y el aviso de staff (abajo) lo dice.
+      if (cabeEnModelo && !bloqueoAuto) {
+        const parDe = lavoriLangFromPair(order.langPair);
+        if (parDe?.lang === "de") {
+          const { dePagePactadoForOrder } = await import("@/lib/workflow-server");
+          let falloTarifa = false;
+          const pactadoDe = await dePagePactadoForOrder(order.id, parDe.par).catch(() => {
+            falloTarifa = true;
+            return null;
+          });
+          if (falloTarifa) {
+            bloqueoAuto = `no se pudo comprobar la tarifa pactada de alemán: no se acepta sola.`;
+          } else if (pactadoDe && precioCents > pactadoDe.costCents) {
+            bloqueoAuto = `${miembro} pide ${precio} € y la tarifa por página de alemán es ${(pactadoDe.costCents / 100).toFixed(2)} €: manda la tarifa.`;
+          }
         }
       }
       const autoAceptar = cabeEnModelo && !bloqueoAuto;

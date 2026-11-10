@@ -150,6 +150,30 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
+    // R3 (Juan, 10-nov-2026): fuera del francés no se envía un presupuesto sin coste
+    // del traductor comprometido (estas líneas no llevan coste propio).
+    const sinCosteComprometido = Boolean(body.sendToClient) && !isFrenchPair(order.langPair) && committedCost <= 0;
+    if (sinCosteComprometido && !body.overrideLowMargin) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: MARGIN_BLOCK_CODE,
+          error: `${MARGIN_BLOCK_CODE}: el pedido no tiene coste del traductor comprometido; no se envía el presupuesto sin saber cuánto cuesta.`,
+        },
+        { status: 409 }
+      );
+    }
+    if (sinCosteComprometido && body.overrideLowMargin) {
+      await notifyMarginOverride({
+        kind: "pedido",
+        action: "enviado",
+        label: order.reference,
+        actorEmail,
+        detail: `presupuesto enviado sin coste del traductor comprometido (precio ${(netFromGross(totalCents) / 100).toFixed(2)} € netos)`,
+        url: `https://www.traduccionesjuradas.net/zona-traductor/pedido/${order.reference}`,
+      });
+    }
+
     let workflowState = getWorkflowState(order);
     if (body.sendToClient && !SEND_ALLOWED_STATES.has(workflowState)) {
       return NextResponse.json(

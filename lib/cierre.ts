@@ -49,6 +49,7 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
   if (!quote || quote.deletedAt) return { result: "skipped", reason: "presupuesto no disponible" };
 
   const lines = quote.lines.map((l) => ({
+    description: l.description,
     quantity: Number(l.quantity) || 1,
     unitPrice: decimalToNumber(l.unitPrice),
     supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost),
@@ -190,7 +191,7 @@ export async function autoSendTarifarioDraft(quoteId: string): Promise<{ sent: b
 export async function evaluateDraftAutoSend(quoteId: string, opts: { frAllowed?: boolean } = {}) {
   const quote = await prisma.quote.findUnique({ where: { id: quoteId }, include: { lines: { orderBy: { createdAt: "asc" } } } });
   if (!quote || quote.deletedAt) return { quote: null, decision: { action: "skip", reason: "presupuesto no disponible" } as AutoSendDecision };
-  const lines = quote.lines.map((l) => ({ quantity: Number(l.quantity) || 1, unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) }));
+  const lines = quote.lines.map((l) => ({ description: l.description, quantity: Number(l.quantity) || 1, unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) }));
   const discountCents = Math.round(decimalToNumber(quote.discountAmount) * 100);
   const margin = checkQuoteLinesMargin({ sourceLang: quote.sourceLang, targetLang: quote.targetLang, lines, discountCents });
   const netCents = Math.round(decimalToNumber(quote.subtotal) * 100) - discountCents;

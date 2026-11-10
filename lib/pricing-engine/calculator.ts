@@ -149,9 +149,11 @@ export type PriceMetricsInput = {
   countryCode?: string | null;
   hasApostille?: boolean;
   // Precio por página: solo si el original NO está en español (inbound) y el
-  // tipo es «por página». hasTables solo importa en alemán (35 € en vez de 30 €).
+  // tipo es «por página». En alemán vale también ES→DE; hasTables y hasHandwriting
+  // solo importan en alemán (35 € en vez de 30 €).
   inbound?: boolean;
   hasTables?: boolean;
+  hasHandwriting?: boolean;
   apostilleSeparatePage?: boolean;
   bankStatementsInQuote?: number;
   category?: string | null;
@@ -200,6 +202,7 @@ export function computeBase(input: PriceMetricsInput): {
     inbound: input.inbound === true,
     pages,
     hasTables: input.hasTables,
+    hasHandwriting: input.hasHandwriting,
     hasApostille: input.hasApostille,
     apostilleSeparatePage: input.apostilleSeparatePage,
     bankStatementsInQuote: input.bankStatementsInQuote,
@@ -259,6 +262,7 @@ export function calculatePrice(analysis: DocumentAnalysisResult): Quote {
     hasApostille: requirements?.has_apostille,
     inbound: language.source !== "es",
     hasTables: document_metrics.has_tables,
+    hasHandwriting: document_metrics.has_handwriting === true,
     apostilleSeparatePage: requirements?.apostille_separate_page === true,
     category: document_type.category,
   });

@@ -123,7 +123,7 @@ La precisión del conteo de palabras determina directamente el precio del presup
 
 **Apostilla en hoja aparte (\`apostille_separate_page\`):** true SOLO si estás seguro de que la apostilla ocupa una hoja propia dentro del archivo (una página que es solo la apostilla). Si va sellada en la misma página del documento, o dudas, pon false: del número de páginas depende el precio y en la duda se cobra de más, no de menos.
 
-**Detección de tablas (\`has_tables\`):** pon \`has_tables\` a true si alguna página lleva el contenido principal en filas y columnas (notas y asignaturas de un expediente académico, extractos bancarios, listados de movimientos o importes). Un certificado con solo campos sueltos o una cuadrícula de formulario NO es una tabla. Este dato decide el precio por página en alemán: no lo marques por un simple encabezado o un sello.
+**Detección de tablas (\`has_tables\`):** pon \`has_tables\` a true si alguna página lleva el contenido principal en filas y columnas (notas y asignaturas de un expediente académico, extractos bancarios, listados de movimientos o importes). Un certificado con solo campos sueltos o una cuadrícula de formulario NO es una tabla. Este dato decide el precio por página en alemán: no lo marques por un simple encabezado o un sello. Lo mismo con \`has_handwriting\`: en alemán un original manuscrito también decide el precio por página (35 € como con tablas); márcalo a true solo si el contenido principal está escrito a mano, no por una firma o unas anotaciones sueltas.
 
 **Reglas específicas para tablas:**
 - Cada celda con contenido cuenta sus palabras individualmente.

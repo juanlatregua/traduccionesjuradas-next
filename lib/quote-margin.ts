@@ -13,8 +13,8 @@ import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 // resto, no"):
 //  · FRANCÉS exento: Juan es el traductor, coste = precio por construcción y el
 //    precio cerrado es la promesa pública.
-//  · Sin coste registrado en ninguna línea → pasa: la ausencia de dato no es
-//    evidencia de pérdida; el freno actúa sobre lo que sabe.
+//  · Fuera del francés, una línea con precio y sin coste del traductor → se
+//    FRENA (Juan, 10-nov-2026), salvo la apostilla suelta de 5 €.
 //  · Margen <= 0 o < MIN_AUTO_MARGIN_PCT → se FRENA antes de emitir, salvo
 //    override explícito del staff — y con override se avisa por email + SMS
 //    con await, no fire-and-forget (patrón caso 26_34F612).
@@ -48,7 +48,7 @@ export function checkQuoteLinesMargin(input: {
   const eur = (c: number) => `${(c / 100).toFixed(2)} €`;
   return {
     ...r,
-    detail: `precio ${eur(r.priceCents)} − coste ${eur(r.costCents)} = ${eur(r.marginCents)} de margen (${r.marginPct.toFixed(0)} %, mínimo ${MIN_AUTO_MARGIN_PCT} %)`,
+    detail: r.detail ?? `precio ${eur(r.priceCents)} − coste ${eur(r.costCents)} = ${eur(r.marginCents)} de margen (${r.marginPct.toFixed(0)} %, mínimo ${MIN_AUTO_MARGIN_PCT} %)`,
   };
 }
 

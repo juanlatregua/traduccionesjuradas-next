@@ -45,9 +45,19 @@ test("FRANCES exento aunque coste == precio: Juan es el traductor", () => {
   assert.equal(checkQuoteLinesMargin({ sourceLang: "FR", targetLang: "ES", lines: [line(70, 70)] }).ok, true);
 });
 
-test("sin coste registrado en ninguna linea, pasa: ausencia de dato no es perdida", () => {
-  const r = checkQuoteLinesMargin({ sourceLang: "ro", targetLang: "es", lines: [line(75), line(35, null)] });
-  assert.equal(r.ok, true);
+test("no FR: una linea con precio y sin coste FRENA (Juan, 10-nov-2026)", () => {
+  const r = checkQuoteLinesMargin({ sourceLang: "ro", targetLang: "es", lines: [{ description: "Acta", ...line(75) }, line(35, null)] });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.match((r as any).detail ?? "", /^Línea sin coste del traductor: "Acta"/);
+});
+
+test("FR con linea sin coste: pasa (exento)", () => {
+  assert.equal(checkQuoteLinesMargin({ sourceLang: "fr", targetLang: "es", lines: [line(75), line(35, null)] }).ok, true);
+});
+
+test("apostilla suelta de 5 € sin coste no frena; otra linea sin coste si", () => {
+  assert.equal(checkQuoteLinesMargin({ sourceLang: "es", targetLang: "de", lines: [line(30, 10), line(5, null)] }).ok, true);
+  assert.equal(checkQuoteLinesMargin({ sourceLang: "es", targetLang: "de", lines: [line(30, 10), line(6, null)] }).ok, false);
 });
 
 test("varias lineas: los margenes se compensan sobre el TOTAL", () => {
