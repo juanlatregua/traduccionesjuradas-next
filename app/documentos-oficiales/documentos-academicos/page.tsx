@@ -83,9 +83,9 @@ export default function DocumentosAcademicosPage() {
           Traducción jurada de títulos y documentos académicos
         </h1>
         <p className="mt-3 text-sm text-sepia sm:text-base">
-        Realizamos traducciones juradas de títulos universitarios, certificados de notas,
-        diplomas, planes de estudios y certificaciones oficiales de idiomas como
-        <a href="/traductor-jurado-frances" className="text-bleu underline"> DELF/DALF</a>, 
+        Realizamos traducciones juradas (con la <a href="/traductor-jurado-frances" className="text-bleu hover:underline">traducción jurada francés-español</a> como especialidad) de títulos universitarios, certificados de notas,
+        diplomas, planes de estudios y certificaciones oficiales de idiomas como DELF/DALF con
+        <a href="/traductor-jurado-frances" className="text-bleu underline"> traductor jurado de francés (MAEC nº 3850)</a>, 
         <a href="/traductor-jurado-ingles" className="text-bleu hover:underline"> TOEFL, IELTS, Cambridge</a>, 
         <a href="/traductor-jurado-aleman" className="text-bleu hover:underline"> Goethe</a> 
         y otras, para oposiciones, universidades, homologaciones y trámites administrativos en España y en el extranjero.

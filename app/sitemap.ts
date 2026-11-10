@@ -131,7 +131,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/traduccion-jurada-de-estatutos-sociales":        "2026-03-10",
   "/traduccion-jurada-de-certificado-de-seguridad-social": "2026-03-10",
   "/teletrabajo":                                   "2026-03-04",
-  "/traductor-jurado-frances":                      "2026-07-18",
+  "/traductor-jurado-frances":                      "2026-11-05",
   "/traductor-jurado-aleman":                       "2026-07-18",
   "/traductor-jurado-ingles":                       "2026-07-18",
   "/traductor-jurado-neerlandes":                   "2026-09-29",

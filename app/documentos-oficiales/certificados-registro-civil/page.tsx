@@ -92,7 +92,11 @@ export default function CertificadosRegistroCivilPage() {
         <p className="mt-3 text-sm text-sepia sm:text-base">
           El Registro Civil emite los certificados básicos de la vida de una
           persona: nacimiento, matrimonio, defunción, cambios de nombre, etc.
-          Traducimos estos certificados de forma jurada para que puedan
+          Traducimos estos certificados de forma jurada, también la{" "}
+          <Link href="/traductor-jurado-frances" className="text-bleu hover:underline">
+            traducción jurada francés-español
+          </Link>
+          , para que puedan
           utilizarse en trámites de extranjería, nacionalidad, matrimonio,
           herencias y muchos otros procedimientos en España y en el extranjero.
         </p>

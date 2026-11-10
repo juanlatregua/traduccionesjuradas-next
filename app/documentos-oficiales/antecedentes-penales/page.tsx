@@ -100,7 +100,11 @@ export default function AntecedentesPenalesPage() {
           países) es uno de los documentos más sensibles y solicitados en
           trámites de extranjería, nacionalidad, visados, empleo y teletrabajo.
           Realizamos la <strong>traducción jurada de antecedentes penales
-          extranjeros</strong> para que sean aceptados por las autoridades
+          extranjeros</strong> (incluida la{" "}
+          <Link href="/traductor-jurado-frances" className="text-bleu hover:underline">
+            traducción jurada francés-español
+          </Link>
+          ) para que sean aceptados por las autoridades
           españolas y, cuando corresponde, por otros países.
         </p>
         <p className="mt-2 text-xs text-sepia">

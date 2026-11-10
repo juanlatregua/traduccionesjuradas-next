@@ -92,7 +92,7 @@ function SeccionesFrances() {
 export const metadata: Metadata = {
   title: { absolute: "Traductor jurado de franc\u00E9s \u00B7 MAEC n\u00BA 3850 \u00B7 desde 30 \u20AC" },
   description:
-    "Traductor jurado de franc\u00E9s oficial (MAEC n\u00BA 3850). Traducci\u00F3n jurada franc\u00E9s-espa\u00F1ol y espa\u00F1ol-franc\u00E9s. Documentos legales, antecedentes penales, t\u00EDtulos acad\u00E9micos. Traducci\u00F3n jurada de franc\u00E9s: 30\u20AC + IVA por p\u00E1gina.",
+    "30 \u20AC + IVA por p\u00E1gina. Traductor jurado de franc\u00E9s MAEC n\u00BA 3850: franc\u00E9s-espa\u00F1ol y espa\u00F1ol-franc\u00E9s. Antecedentes penales, actas, t\u00EDtulos.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
   },
