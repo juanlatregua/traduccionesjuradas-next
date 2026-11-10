@@ -751,8 +751,9 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
   precioCents: number;
   lprId?: string | null;
   estado: string;
-}): Promise<{ ok: true; repetido: boolean; encargoId: string; miembro: string } | { ok: false; error: string }> {
-  const { orderId, reference, ref, precioCents, lprId, estado } = opts;
+}): Promise<{ ok: true; repetido: boolean; encargoId: string; miembro: string; topeTarifa?: { pidioCents: number; tarifaCents: number } } | { ok: false; error: string }> {
+  const { orderId, reference, ref, lprId, estado } = opts;
+  let precioCents = opts.precioCents;
   try {
     const previos = await prisma.orderEvent.findMany({
       where: { orderId, type: "lavori.solicitud_enviada", payload: { path: ["reactivado"], equals: true } },
@@ -807,6 +808,15 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
     const sobre = await packDocsForSobre(docs);
     if (!sobre.ok) return { ok: false, error: sobre.error };
 
+    // Alemán (Juan, 10-nov-2026): si la cifra vieja supera la tarifa por página, manda la tarifa.
+    let topeTarifa: { pidioCents: number; tarifaCents: number } | undefined;
+    if (parsed.lang === "de") {
+      const pactado = await dePagePactadoForOrder(orderId, parsed.par).catch(() => null);
+      if (pactado && precioCents > pactado.costCents) {
+        topeTarifa = { pidioCents: precioCents, tarifaCents: pactado.costCents };
+        precioCents = pactado.costCents;
+      }
+    }
     const paraTi = (precioCents / 100).toFixed(2);
     const payload = buildSolicitudPayload({
       reference: refReactivada,
@@ -839,7 +849,7 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
       data: {
         orderId,
         type: "lavori.solicitud_enviada",
-        message: `Encargo REACTIVADO ${parsed.par}: dirigido a ${miembro} con su precio (${paraTi} € para el traductor); su único paso es aceptar. El anterior (${ref}) estaba ${estado}.`,
+        message: `Encargo REACTIVADO ${parsed.par}: dirigido a ${miembro} con su precio (${paraTi} € para el traductor${topeTarifa ? `; él pidió ${(topeTarifa.pidioCents / 100).toFixed(2)} €, manda la tarifa por página` : ""}); su único paso es aceptar. El anterior (${ref}) estaba ${estado}.`,
         payload: {
           reactivado: true,
           lavoriEncargoId: result.encargoId,
@@ -866,7 +876,7 @@ async function reopenDirigidoAfterDeadEncargo(opts: {
         })
         .catch((err) => console.error("[lavori-reactivar] lpr update failed", err));
     }
-    return { ok: true, repetido: false, encargoId: result.encargoId, miembro };
+    return { ok: true, repetido: false, encargoId: result.encargoId, miembro, topeTarifa };
   } catch (err: any) {
     return { ok: false, error: err?.message || "error inesperado al reactivar" };
   }
@@ -965,7 +975,9 @@ export async function deliverPrecioAceptado(opts: {
         if (!re.repetido) {
           await staffMail(`🔁 ${reference} pagado: encargo caducado en lavori, REACTIVADO para ${re.miembro}`, [
             `El pedido ${reference} está pagado y el encargo ${ref} ya no estaba vivo en lavori (estado: ${result.estado}).`,
-            `Se ha abierto un encargo dirigido NUEVO a ${re.miembro} con su precio (${precio} € para el traductor): solo tiene que aceptar. Al aceptar se asignará solo.`,
+            re.topeTarifa
+              ? `Se ha abierto un encargo dirigido NUEVO a ${re.miembro}. ⚠ Había pedido ${(re.topeTarifa.pidioCents / 100).toFixed(2)} €, por encima de la tarifa por página de alemán: el encargo va a ${(re.topeTarifa.tarifaCents / 100).toFixed(2)} € (manda la tarifa). Si no acepta, decide tú.`
+              : `Se ha abierto un encargo dirigido NUEVO a ${re.miembro} con su precio (${precio} € para el traductor): solo tiene que aceptar. Al aceptar se asignará solo.`,
             `Ficha: ${ficha}`,
           ]);
         }
@@ -1248,9 +1260,11 @@ async function routeOrderToLavori(opts: {
   }
 }
 
-/** Pedido de la puerta DE→ES por página: coste pactado con Morton, recalculado
- * desde los análisis guardados del pedido (mismo cálculo que el precio mostrado). */
-async function dePagePactadoForOrder(orderId: string): Promise<(DePagePactado & { contentKey: string[] | null }) | null> {
+/** Pedido de la puerta DE↔ES por página: coste pactado con Morton, recalculado
+ * desde los análisis guardados del pedido (mismo cálculo que el precio mostrado).
+ * `par` ("DE>ES" | "ES>DE") sale del pedido; el destino de un original español es el del par. */
+export async function dePagePactadoForOrder(orderId: string, par: string): Promise<(DePagePactado & { contentKey: string[] | null }) | null> {
+  const [parSrc, parTgt] = par.toLowerCase().split(">");
   const rows = await prisma.documentAnalysis.findMany({
     where: { orderId },
     select: { analysisJson: true, fileUrl: true, fileHash: true, pageCount: true },
@@ -1261,8 +1275,10 @@ async function dePagePactadoForOrder(orderId: string): Promise<(DePagePactado & 
     return {
       specificType: a?.document_type?.specific_type ?? null,
       sourceLang: a?.language?.source ?? null,
+      targetLang: parSrc === "es" ? parTgt : null,
       pages: a?.document_metrics?.pages ?? null,
       hasTables: a?.document_metrics?.has_tables ?? null,
+      hasHandwriting: a?.document_metrics?.has_handwriting === true,
       hasApostille: a?.requirements?.has_apostille ?? null,
       apostilleSeparatePage: a?.requirements?.apostille_separate_page ?? null,
     };
@@ -1271,7 +1287,7 @@ async function dePagePactadoForOrder(orderId: string): Promise<(DePagePactado & 
   if (!pactado) return null;
   const contentKey = lavoriContentKeys(
     rows.map((r) => ({ url: r.fileUrl, hash: r.fileHash, pageCount: r.pageCount })),
-    "DE>ES"
+    par
   );
   return { ...pactado, contentKey };
 }
@@ -1444,7 +1460,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
         },
       });
       const parsed = lavoriLangFromPair(order.langPair);
-      // Presupuesto del builder con la tarifa por página DE→ES (30↔10 / 35↔15 por
+      // Presupuesto del builder con la tarifa por página de alemán (30↔10 / 35↔15 por
       // página): no trae jurado sellado, pero el jurado ES Morton por definición
       // de la tarifa. Si había solicitud de precio previa, routeOrderToLavori la
       // respeta (precio_aceptado) antes de abrir nada.
@@ -1499,7 +1515,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       }
     }
 
-    // Tarifa por página DE→ES (8-oct-2026): el precio salió al momento en la puerta
+    // Tarifa por página de alemán DE↔ES (8-oct-2026; ES→DE desde 10-nov): el precio salió al momento en la puerta
     // con el coste de Morton ya fijado (10 €/pág, 15 € con tablas). Al pagar, el
     // encargo va a él con ese precio pactado: solo tiene que aceptar. Sin solicitud
     // previa a lavori (la tarifa ES la solicitud). Se recalcula desde los análisis
@@ -1507,15 +1523,15 @@ export async function autoAssignCollaboratorIfNeeded(options: {
     // Kill-switch LAVORI_PAGINA_DE=off: vuelve al flujo de siempre (regla 14-sep:
     // dirigido automático apagado; esta tarifa es una excepción explícita de Juan).
     if (!order.quoteId && order.langPair && String(process.env.LAVORI_PAGINA_DE || "").toLowerCase() !== "off") {
-      const pactado = await dePagePactadoForOrder(order.id);
       const parsedDe = lavoriLangFromPair(order.langPair);
+      const pactado = parsedDe?.lang === "de" ? await dePagePactadoForOrder(order.id, parsedDe.par) : null;
       const mortonId = LAVORI_CANDIDATES.de?.[0];
       if (pactado && parsedDe?.lang === "de" && mortonId) {
         // Un encargo vivo con estos documentos (solicitud previa del cliente o del
         // staff) → no se abre otro: mismo guarda que la ficha y el puente (24-sep).
         const duplicado = await findLiveLavoriDuplicate({ par: parsedDe.par, contentKey: pactado.contentKey });
         if (duplicado) {
-          return await abortPactadoByDuplicate(order.id, options.reference, "DE>ES", duplicado);
+          return await abortPactadoByDuplicate(order.id, options.reference, parsedDe.par, duplicado);
         }
         return await routePactadoToMiembro({
           order,

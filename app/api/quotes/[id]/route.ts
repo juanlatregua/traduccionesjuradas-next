@@ -95,6 +95,7 @@ export async function PATCH(req: Request, { params }: Params) {
       targetLang: parsed.data.targetLang,
       discountCents: Math.round(Number(totals.discountAmount || 0) * 100),
       lines: parsed.data.lines.map((l) => ({
+        description: l.description,
         quantity: l.quantity,
         unitPrice: l.unitPrice,
         supplierUnitCost: l.supplierUnitCost ?? null,

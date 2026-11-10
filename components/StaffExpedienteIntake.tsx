@@ -59,6 +59,7 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     mode,
     unitPrice: Number(d.basePrice) || 0,
     hasTables: !!d.hasTables,
+    hasHandwriting: !!d.hasHandwriting,
     apostilleSeparatePage: !!d.apostilleSeparatePage,
     pageTariff: d.clientPrice != null ? true : undefined,
     clientPrice: d.clientPrice != null ? Number(d.clientPrice) : undefined,
@@ -97,8 +98,9 @@ type DocRow = {
   countryCode?: string;
   hasApostille?: boolean;
   apostilleSeparatePage?: boolean; // el análisis dice que la apostilla ocupa hoja propia
-  pageTariff?: boolean; // precio de tarifa por página DE→ES puesto por el motor (marca del presupuesto)
+  pageTariff?: boolean; // precio de tarifa por página de alemán (DE↔ES) puesto por el motor (marca del presupuesto)
   hasTables?: boolean; // el análisis vio tablas (solo cambia el precio por página en alemán)
+  hasHandwriting?: boolean; // manuscrito: en alemán cuenta como tablas
   mode?: "text" | "vision";
   unitPrice: number; // editable, pre-IVA (coste TOTAL de la linea)
   clientPrice?: number; // precio cliente fijado desde «Ya presupuestado» (anula coste × margen)
@@ -916,7 +918,7 @@ export default function StaffExpedienteIntake({
       const apostillePairs = pairApostilles(
         prev.map((d) => ({
           specificType: d.documentType,
-          foreignLang: d.sourceLang && d.sourceLang !== "es" ? d.sourceLang : null,
+          foreignLang: d.sourceLang && d.sourceLang !== "es" ? d.sourceLang : targetLang === "de" ? "de" : null,
           include: d.include,
           hasApostille: d.hasApostille,
           pages: d.pages,
@@ -937,7 +939,7 @@ export default function StaffExpedienteIntake({
         }
         // Apostilla SUELTA (fr/de): +5 € solo si acompaña a un documento por página
         // del expediente; si no, precio a mano. Nunca 30 € ni el mínimo por palabra.
-        if (d.documentType === "apostille" && d.sourceLang !== "es" && PAGE_PRICED_LANGS.has(foreign)) {
+        if (d.documentType === "apostille" && (d.sourceLang !== "es" || foreign === "de") && PAGE_PRICED_LANGS.has(foreign)) {
           if (apostillePairs[idx]) {
             const de = foreign === "de";
             const cost = de ? 0 : APOSTILLE_EXTRA_EUR;
@@ -960,19 +962,23 @@ export default function StaffExpedienteIntake({
           hasApostille: d.hasApostille,
           inbound: d.sourceLang !== "es",
           hasTables: d.hasTables,
+          hasHandwriting: d.hasHandwriting,
           apostilleSeparatePage: d.apostilleSeparatePage,
           bankStatementsInQuote,
           category: d.category,
         });
-        // Tarifa por página DE→ES: el coste de la línea es el de Morton y el
+        // Tarifa por página de alemán (DE↔ES): el coste de la línea es el de Morton y el
         // precio de venta se fija aparte (sin margen tiered ni suelo de 40 €).
         const pp = r.pagePricing && r.pagePricing.costPerPage > 0 ? r.pagePricing : null;
         if (pp) {
+          // Las filas es→de siguen el destino del expediente (como las del camino por palabra).
+          const ppTgt = d.sourceLang === "es" && targetLang ? { targetLang, targetName: langNameOf(targetLang) || undefined } : {};
           const unchangedPp =
-            d.unitPrice === pp.costEur && d.clientPrice === pp.priceEur && d.pageTariff === true && !d.priceNote && !d.minApplied;
+            d.unitPrice === pp.costEur && d.clientPrice === pp.priceEur && d.pageTariff === true && !d.priceNote && !d.minApplied &&
+            (!("targetLang" in ppTgt) || d.targetLang === targetLang);
           return unchangedPp
             ? d
-            : { ...d, unitPrice: pp.costEur, clientPrice: pp.priceEur, pageTariff: true, priceNote: undefined, minApplied: false, minAmount: pp.priceEur };
+            : { ...d, ...ppTgt, unitPrice: pp.costEur, clientPrice: pp.priceEur, pageTariff: true, priceNote: undefined, minApplied: false, minAmount: pp.priceEur };
         }
         const base = Math.round(r.basePrice * 100) / 100;
         const minApplied = !r.fixedPriceApplied && r.wordPrice < r.minimum;
@@ -1378,10 +1384,10 @@ export default function StaffExpedienteIntake({
           sourceLang,
           targetLang,
           deliveryType,
-          // Marca de tarifa por página DE→ES: solo si TODAS las filas incluidas siguen
+          // Marca de tarifa por página de alemán (DE↔ES): solo si TODAS las filas incluidas siguen
           // como las dejó el motor (cualquier edición a mano desactiva autoPriced).
           autoPricedBy:
-            sourceLang === "de" && (targetLang || "es") === "es" && includedDocs.length > 0 &&
+            ((sourceLang === "de" && (targetLang || "es") === "es") || (sourceLang === "es" && targetLang === "de")) && includedDocs.length > 0 &&
             includedDocs.every((d) => d.autoPriced && d.pageTariff)
               ? PAGE_TARIFF_MARK
               : undefined,

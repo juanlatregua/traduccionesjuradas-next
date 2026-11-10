@@ -5,6 +5,7 @@
 // Mismo espíritu que lib/quote-math.ts.
 
 import { autoClientPriceCentsFromCost } from "./quote-math.ts";
+import { isLooseApostilleLine } from "./pricing-engine/page-pricing.ts";
 
 export const LEARNED_MARGIN_PCT = 12; // margen sobre coste del jurado (horquilla Juan 10-15 %)
 export const DOC_FLOOR_CENTS = 4000; // 40 € netos mínimo por documento (regla Juan 26-ago)
@@ -297,6 +298,7 @@ export function isAutoPolicyOn(env: Record<string, string | undefined>) {
 // isFrenchPair en lib/workflow, que el llamador compone en lib/quote-margin).
 
 export type StaffQuoteLine = {
+  description?: string;
   quantity: number;
   unitPrice: number;
   supplierUnitCost?: number | null;
@@ -304,7 +306,7 @@ export type StaffQuoteLine = {
 
 export type StaffMarginResult =
   | { ok: true }
-  | { ok: false; priceCents: number; costCents: number; marginCents: number; marginPct: number };
+  | { ok: false; priceCents: number; costCents: number; marginCents: number; marginPct: number; detail?: string };
 
 export function evaluateLinesMargin(
   lines: StaffQuoteLine[],
@@ -324,14 +326,22 @@ export function evaluateLinesMargin(
   // AUTO-sugiere 5/10/15% por volumen — un margen del 10% con descuento del 10%
   // es margen CERO real.
   const priceCents = lines.reduce((a, l) => a + lineCents(l.quantity, l.unitPrice), 0) - Math.max(0, Math.round(opts.discountCents || 0));
-  // Sin coste registrado en ninguna linea, pasa: la ausencia de dato no es
-  // evidencia de perdida; el freno actua sobre lo que sabe.
-  const hasCost = lines.some((l) => l.supplierUnitCost != null && Number(l.supplierUnitCost) > 0);
-  if (!hasCost) return { ok: true };
-
   const costCents = lines.reduce((a, l) => a + lineCents(l.quantity, l.supplierUnitCost), 0);
   const marginCents = priceCents - costCents;
   const marginPct = marginPctOf(priceCents, costCents);
+  // Fuera del francés (Juan, 10-nov-2026): una línea con precio y SIN coste no se
+  // envía — la ausencia de dato dejaba pasar presupuestos sin saber cuánto cuestan.
+  // Única excepción: la apostilla suelta (5 € sin coste propio).
+  const sinCoste = lines.find(
+    (l) => Number(l.unitPrice) > 0 && !(Number(l.supplierUnitCost) > 0) && !isLooseApostilleLine(Number(l.unitPrice), l.supplierUnitCost)
+  );
+  if (sinCoste) {
+    return { ok: false, priceCents, costCents, marginCents, marginPct, detail: `Línea sin coste del traductor: "${String(sinCoste.description || "sin descripción").slice(0, 80)}"` };
+  }
+  // Solo apostillas sueltas (o nada con precio): no hay coste que comparar.
+  const hasCost = lines.some((l) => l.supplierUnitCost != null && Number(l.supplierUnitCost) > 0);
+  if (!hasCost) return { ok: true };
+
   if (marginCents > 0 && marginPct >= MIN_AUTO_MARGIN_PCT) return { ok: true };
   return { ok: false, priceCents, costCents, marginCents, marginPct };
 }

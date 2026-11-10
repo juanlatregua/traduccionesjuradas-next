@@ -19,6 +19,7 @@ import { docTypeLabelEs, leadFromPuertaSession, sendLeadPriceRequest } from "@/l
 import { jurorDeadlineNote } from "@/lib/needed-by";
 import { ANALYSIS_SELECT, createAutoQuote, docInfoFromAnalysis, findApprovedRate } from "@/lib/learned-rates";
 import { canAutoQuote, priceDocWithRate } from "@/lib/learned-rates-math";
+import { dePagePactado } from "@/lib/pricing-engine/page-pricing";
 import { closedPriceLangOfPair, isClosedPriceDirectLang } from "@/lib/lavori-directo-math";
 import { workingHoursMadrid,
   DIRECT_AUTO_MAX_CENTS,
@@ -206,9 +207,28 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
       return rate ? priceDocWithRate(rate, r.estimatedWords ?? null).clientCents : null;
     })
   );
+  // Alemán (Juan, 10-nov-2026): la tarifa por página (10/15 € de coste) es el TOPE de la cifra del jurado.
+  const tariffCosts = uniqueRows.map((r) => {
+    if (lang !== "de") return null;
+    const a = r.analysisJson as any;
+    return (
+      dePagePactado([
+        {
+          specificType: a?.document_type?.specific_type ?? null,
+          sourceLang,
+          targetLang,
+          pages: a?.document_metrics?.pages ?? r.pageCount ?? null,
+          hasTables: a?.document_metrics?.has_tables ?? null,
+          hasHandwriting: a?.document_metrics?.has_handwriting === true,
+          hasApostille: a?.requirements?.has_apostille ?? null,
+          apostilleSeparatePage: a?.requirements?.apostille_separate_page ?? null,
+        },
+      ])?.costCents ?? null
+    );
+  });
   const docLines = directQuoteLines(
     baseCents,
-    uniqueRows.map((r, i) => ({ words: r.estimatedWords ?? null, tariffCents: tariffs[i] }))
+    uniqueRows.map((r, i) => ({ words: r.estimatedWords ?? null, tariffCents: tariffs[i], tariffCostCents: tariffCosts[i] }))
   );
 
   for (let i = 0; i < docLines.length; i++) {
@@ -221,6 +241,12 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
   }
 
   const avisos: string[] = [...avisosTarifa];
+  if (docLines.some((l) => l.capped)) {
+    const pidio = docLines.reduce((a, l) => a + l.rawCostCents, 0);
+    const tarifa = docLines.reduce((a, l) => a + l.costCents, 0);
+    const aviso = `${config.nombre} pidió ${(pidio / 100).toFixed(2)} € por encima de la tarifa por página de alemán: el coste del presupuesto queda en ${(tarifa / 100).toFixed(2)} € (manda la tarifa). Revisa si el encargo se le puede dar a ese precio.`;
+    avisos.push(aviso);
+  }
   const disp = await isLavoriMemberAvailable(lang, config.miembroId);
   if (!disp.ok) avisos.push(`${config.nombre} no puede recibir el encargo ahora: ${disp.reason}`);
 
@@ -289,7 +315,7 @@ export async function autoQuoteFromDirectPrice(leadId: string): Promise<AutoQuot
     quoteId: result.quoteId,
     quoteNumber: result.quoteNumber,
     totalEur: result.totalEur,
-    costEur: baseCents / 100,
+    costEur: costTotalCents / 100,
     subtotalEur: subtotalCents / 100,
     avisos,
   };

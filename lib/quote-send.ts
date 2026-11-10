@@ -127,6 +127,7 @@ export async function finalizeAndSendQuote(opts: {
       targetLang: quote.targetLang,
       discountCents: Math.round(decimalToNumber(quote.discountAmount) * 100),
       lines: quote.lines.map((l) => ({
+        description: l.description,
         quantity: Number(l.quantity) || 1,
         unitPrice: decimalToNumber(l.unitPrice),
         supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost),

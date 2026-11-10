@@ -20,7 +20,8 @@ import { buildSolicitudPayload, LAVORI_CANDIDATES } from "../../lib/lavori-bridg
 import { clientCentsWithMotorPrice } from "../../lib/lavori-directo-math.ts";
 
 // Decisión de Juan, 8-oct-2026: FR→ES 30 € + IVA por página; DE→ES 30 € (35 € con
-// tablas) por página, coste de Morton 10 € (15 € con tablas). ES→FR y ES→DE no se tocan.
+// tablas) por página, coste de Morton 10 € (15 € con tablas). ES→FR no se toca.
+// 10-nov-2026: alemán en AMBOS sentidos y manuscrito = tablas (35 € / coste 15 €).
 
 function analysis(over: {
   type?: string;
@@ -29,6 +30,7 @@ function analysis(over: {
   pages?: number;
   words?: number;
   tables?: boolean;
+  handwriting?: boolean;
   country?: string;
   apostille?: boolean;
 }): any {
@@ -47,7 +49,7 @@ function analysis(over: {
       pages: over.pages ?? 1,
       has_tables: over.tables ?? false,
       has_stamps_seals: false,
-      has_handwriting: false,
+      has_handwriting: over.handwriting ?? false,
       scan_quality: "good",
       is_legible: true,
     },
@@ -208,15 +210,34 @@ test("DE→ES: contrato / escritura siguen por palabra y no llevan tarifa por p�
   assert.equal(q.basePrice, 240); // 2000 × 0,12 (coste; el cliente paga con margen)
 });
 
-test("ES→FR y ES→DE no se tocan: sin tarifa por página", () => {
+test("ES→FR no se toca: sin tarifa por página", () => {
   const fr = calculatePrice(analysis({ source: "es", target: "fr", pages: 1 }));
   assert.equal(fr.pagePricing ?? null, null);
   assert.equal(fr.basePrice, 35);
   const fr3 = calculatePrice(analysis({ source: "es", target: "fr", pages: 3 }));
   assert.equal(fr3.basePrice, 55);
-  const de = calculatePrice(analysis({ source: "es", target: "de", pages: 1 }));
-  assert.equal(de.pagePricing ?? null, null);
-  assert.equal(de.basePrice, 50); // mínimo de siempre
+});
+
+// Juan, 10-nov-2026: alemán en ambos sentidos; manuscrito = tablas; la extensión de la página no cuenta.
+test("alemán ES→DE y DE→ES: 30/10 normal, 35/15 con tablas o manuscrito, +5 € de apostilla sin coste", () => {
+  const p = (over: any) => {
+    const q = calculatePrice(analysis({ country: "DE", ...over }));
+    return q.pagePricing ? [q.pagePricing.priceEur, q.pagePricing.costEur] : null;
+  };
+  assert.deepEqual(p({ source: "es", target: "de", pages: 1 }), [30, 10]);
+  assert.deepEqual(p({ source: "es", target: "de", pages: 1, handwriting: true }), [35, 15]);
+  assert.deepEqual(p({ source: "es", target: "de", pages: 1, tables: true }), [35, 15]);
+  assert.deepEqual(p({ source: "es", target: "de", pages: 1, apostille: true }), [35, 10]);
+  assert.deepEqual(p({ source: "es", target: "de", pages: 2, handwriting: true }), [70, 30]);
+  assert.deepEqual(p({ source: "de", target: "es", pages: 1, handwriting: true }), [35, 15]);
+  assert.deepEqual(p({ source: "de", target: "es", pages: 1 }), [30, 10]);
+  // el manuscrito solo cuenta en alemán
+  assert.equal(calculatePrice(analysis({ source: "fr", pages: 1, handwriting: true })).pagePricing?.priceEur, 30);
+  assert.equal(calculatePrice(analysis({ source: "fr", pages: 1, handwriting: true })).pagePricing?.costEur, 0);
+  // ES→EN sigue sin tarifa por página
+  assert.equal(calculatePrice(analysis({ source: "es", target: "en", pages: 1 })).pagePricing ?? null, null);
+  // contrato ES→DE sigue por palabra
+  assert.equal(calculatePrice(analysis({ source: "es", target: "de", type: "contract", pages: 3, words: 1500 })).pagePricing ?? null, null);
 });
 
 test("otros idiomas (en) no cambian: por palabra con su suelo", () => {
@@ -246,11 +267,9 @@ test("diagnóstico: DE→ES por página sale al momento (público) a 30 € / 35
   assert.equal(buildDiagnosis(at, calculatePrice(at)).price.base, 35);
 });
 
-test("diagnóstico: DE contrato y ES→DE NO salen al momento (siguen a presupuesto humano)", () => {
+test("diagnóstico: DE contrato NO sale al momento (sigue a presupuesto humano)", () => {
   const c = analysis({ source: "de", country: "DE", type: "contract", pages: 3, words: 1500 });
   assert.equal(buildDiagnosis(c, calculatePrice(c)).publicAutoPriceable, false);
-  const o = analysis({ source: "es", target: "de", pages: 1 });
-  assert.equal(buildDiagnosis(o, calculatePrice(o)).publicAutoPriceable, false);
   const en = analysis({ source: "en", country: "GB", pages: 1 });
   assert.equal(buildDiagnosis(en, calculatePrice(en)).publicAutoPriceable, false);
 });
@@ -281,6 +300,12 @@ test("freno de margen: FR con coste 0 o coste marcador (= precio) no sale como m
   assert.equal(marginOk("es", "fr", [lineOf(35, 35)]), true);
 });
 
+test("freno de margen: no francés con una línea con precio y sin coste frena; FR no; apostilla suelta no", () => {
+  assert.equal(marginOk("de", "es", [lineOf(30, 10), lineOf(40, null)]), false);
+  assert.equal(marginOk("es", "de", [lineOf(30, 10), lineOf(5, null)]), true); // apostilla suelta
+  assert.equal(marginOk("fr", "es", [lineOf(30, 10), lineOf(40, null)]), true);
+});
+
 test("freno de margen: sigue frenando de verdad en alemán si el coste no cuadra", () => {
   assert.equal(marginOk("de", "es", [lineOf(30, 30)]), false); // coste inventado = precio
   assert.equal(marginOk("de", "es", [lineOf(30, 29)]), false); // 3 % de margen
@@ -306,7 +331,8 @@ test("presupuesto de tarifa por página: exige la MARCA, DE→ES y TODAS las lí
   assert.equal(isDePageTariffQuote({ sourceLang: "de", targetLang: "es", lines: [l(30, 10)] }), false); // sin marca, aunque cuadre
   assert.equal(isDePageTariffQuote({ autoPricedBy: "tarifario", sourceLang: "de", targetLang: "es", lines: [l(30, 10)] }), false);
   assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "de", targetLang: "es", lines: [l(30, 10), l(50, 20)] }), false);
-  assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "es", targetLang: "de", lines: [l(30, 10)] }), false);
+  assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "es", targetLang: "de", lines: [l(30, 10), l(5, 0)] }), true); // ES→DE también
+  assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "es", targetLang: "en", lines: [l(30, 10)] }), false);
   assert.equal(isDePageTariffQuote({ autoPricedBy: m, sourceLang: "fr", targetLang: "es", lines: [l(30, 10)] }), false);
 });
 
@@ -326,11 +352,19 @@ test("dePagePactado: paraTi = páginas × 10 (15 con tablas)", () => {
   assert.deepEqual(dePagePactado([doc(), doc({ specificType: "transcript", pages: 2 })]), { costCents: 4000, priceCents: 10000, pages: 3, tablePages: 2 });
 });
 
+test("dePagePactado: ES→DE y manuscrito (paraTi = páginas × 10, 15 si tablas o manuscrito)", () => {
+  const doc = (over: any = {}) => ({ specificType: "birth_certificate", sourceLang: "es", targetLang: "de", pages: 1, ...over });
+  assert.deepEqual(dePagePactado([doc()]), { costCents: 1000, priceCents: 3000, pages: 1, tablePages: 0 });
+  assert.deepEqual(dePagePactado([doc({ hasHandwriting: true })]), { costCents: 1500, priceCents: 3500, pages: 1, tablePages: 1 });
+  assert.deepEqual(dePagePactado([doc({ sourceLang: "de", targetLang: "es", hasHandwriting: true })]), { costCents: 1500, priceCents: 3500, pages: 1, tablePages: 1 });
+});
+
 test("dePagePactado: sin pactado si algún documento no es DE→ES por página", () => {
   const doc = (over: any = {}) => ({ specificType: "birth_certificate", sourceLang: "de", pages: 1, hasTables: false, ...over });
   assert.equal(dePagePactado([]), null);
   assert.equal(dePagePactado([doc({ sourceLang: "fr" })]), null); // FR es de Juan, nunca va a Morton
-  assert.equal(dePagePactado([doc({ sourceLang: "es" })]), null);
+  assert.equal(dePagePactado([doc({ sourceLang: "es" })]), null); // original español sin destino alemán
+  assert.equal(dePagePactado([doc({ sourceLang: "es", targetLang: "en" })]), null);
   assert.equal(dePagePactado([doc({ specificType: "contract" })]), null);
   assert.equal(dePagePactado([doc(), doc({ specificType: "contract" })]), null);
 });
