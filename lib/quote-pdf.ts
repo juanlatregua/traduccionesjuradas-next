@@ -1,3 +1,4 @@
+import { isPlaceholderEmailKey } from "@/lib/client-identity";
 import crypto from "crypto";
 import { resolvePaymentAccounts, transferLinesEn } from "@/lib/payment-labels";
 import { jsPDF } from "jspdf";
@@ -211,7 +212,7 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   doc.text(t.client, 14, y);
   y += 5;
   doc.setFont("helvetica", "normal");
-  doc.text(`${data.customerName} (${data.customerEmail})`, 14, y);
+  doc.text(isPlaceholderEmailKey(data.customerEmail) ? data.customerName : `${data.customerName} (${data.customerEmail})`, 14, y);
   y += 5;
   if (data.holderNames && data.holderNames.trim()) {
     const holderLines = doc.splitTextToSize(`${t.holders}: ${safe(data.holderNames)}`, 182) as string[];
@@ -222,10 +223,13 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   }
   doc.text(`${t.languages}: ${data.sourceLang.toUpperCase()} › ${data.targetLang.toUpperCase()}`, 14, y);
   y += 5;
+  const interpretacion = data.lines.some((l) => /interpretaci/i.test(l.description));
   doc.text(
-    `${t.delivery}: ${data.deliveryType === "DIGITAL_PDF" ? t.deliveryDigital : t.deliveryPaper}${
-      data.deliveryTerm ? ` · ${t.deadline}: ${safe(data.deliveryTerm)}` : ""
-    }`,
+    interpretacion
+      ? `Servicio: interpretación presencial${data.deliveryTerm ? ` · Fechas: ${safe(data.deliveryTerm)}` : ""}`
+      : `${t.delivery}: ${data.deliveryType === "DIGITAL_PDF" ? t.deliveryDigital : t.deliveryPaper}${
+          data.deliveryTerm ? ` · ${t.deadline}: ${safe(data.deliveryTerm)}` : ""
+        }`,
     14,
     y
   );
@@ -295,15 +299,20 @@ export function buildQuotePdfBuffer(data: QuotePdfData) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   // El enlace de pago NO va en el PDF (se envía aparte por WhatsApp/email, copia-pega).
-  if (data.deliveryType === "PAPER_SHIP") {
-    doc.text(t.paperNote, 14, y, { maxWidth: 180 });
-    y += 5;
-  }
-
-  if (data.notesLegal) {
-    doc.text(`${t.legalNotes}: ${safe(data.notesLegal)}`, 14, y, { maxWidth: 180 });
-    y += 5;
-  }
+  const block = (text: string) => {
+    const lines: string[] = doc.splitTextToSize(text, 180);
+    for (const line of lines) {
+      if (y > 280) {
+        doc.addPage();
+        y = 18;
+      }
+      doc.text(line, 14, y);
+      y += 4;
+    }
+    y += 1;
+  };
+  if (data.deliveryType === "PAPER_SHIP") block(t.paperNote);
+  if (data.notesLegal) block(`${t.legalNotes}: ${safe(data.notesLegal)}`);
 
   // Pago por transferencia / Bizum como alternativa al enlace online. En el
   // presupuesto se ofrecen las dos cuentas (BBVA principal + Openbank 2ª opción).
