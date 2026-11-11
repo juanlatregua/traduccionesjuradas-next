@@ -251,22 +251,20 @@ function EmailCard({
                 Sin ficha de cliente conocida
               </span>
             )}
-            {!replied && (
-              <button
-                type="button"
-                onClick={buildQuote}
-                disabled={building}
-                className="ml-auto rounded-md border border-sky-300 bg-sky-50 px-2 py-0.5 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
-                title="Trae los adjuntos del email como expediente y abre el builder con el cliente y el email a la vista"
-              >
-                {building ? "Preparando…" : "Montar presupuesto desde este email →"}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={buildQuote}
+              disabled={building}
+              className="ml-auto rounded-md border border-sky-300 bg-sky-50 px-2 py-0.5 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
+              title="Trae los adjuntos del email como expediente y abre el builder con el cliente y el email a la vista"
+            >
+              {building ? "Preparando…" : "Montar presupuesto desde este email →"}
+            </button>
             <button
               type="button"
               onClick={toggleArchive}
               disabled={archiving}
-              className={`${replied ? "ml-auto " : ""}rounded-md border border-slate-300 px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50`}
+              className={`rounded-md border border-slate-300 px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50`}
             >
               {row.status === "ARCHIVED" ? "Desarchivar" : "Archivar"}
             </button>
