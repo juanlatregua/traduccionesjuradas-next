@@ -71,8 +71,17 @@ export async function notifyMarginOverride(input: {
   const { sendStaffAlertSMS } = await import("@/lib/sms");
   const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
   const accion = input.action === "guardado" ? "se ha GUARDADO" : "ha salido";
+  // 13-nov-2026: 64 SMS en 30 días por los mismos presupuestos → si ya hay un override de este
+  // presupuesto en las últimas 24 h, solo email (el rastro se sigue guardando).
+  let repetido = false;
   if (input.quoteId) {
     const { prisma } = await import("@/lib/prisma");
+    repetido = !!(await prisma.messageLog
+      .findFirst({
+        where: { quoteId: input.quoteId, type: "MARGIN_OVERRIDE", createdAt: { gte: new Date(Date.now() - 24 * 3600e3) } },
+        select: { id: true },
+      })
+      .catch(() => null));
     await prisma.messageLog
       .create({
         data: {
@@ -103,7 +112,9 @@ export async function notifyMarginOverride(input: {
       text: texto,
       html: renderSimpleEmailHtml(texto),
     }).catch((err) => console.error("[quote-margin] email fallo:", err)),
-    sendStaffAlertSMS(
+    repetido
+      ? Promise.resolve()
+      : sendStaffAlertSMS(
       `TraduccionesJuradas: ${input.label} enviado BAJO EL SUELO DE MARGEN (override). Mira el email.`,
       `margen ${input.label}`
     ).catch((err) => console.error("[quote-margin] sms fallo:", err)),

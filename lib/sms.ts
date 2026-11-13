@@ -168,6 +168,34 @@ export async function getOrderPhone(orderId: string): Promise<string | null> {
  * no depender de plantillas business-initiated. Fire-and-forget.
  */
 async function sendStaffSMS(body: string, context: string): Promise<void> {
+  // 13-nov-2026: solo los avisos de DINERO van por SMS (lib/staff-sms-policy.ts); el resto, por email.
+  const { isCriticalStaffSms } = await import("@/lib/staff-sms-policy");
+  if (!isCriticalStaffSms(context, body)) {
+    const { sendMail } = await import("@/lib/azure-mail");
+    const mail = await sendMail({
+      to: process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net",
+      subject: `Aviso: ${body.slice(0, 80)}`,
+      text: `${body}\n\n(${context})`,
+      html: `<p>${body.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p><p style="color:#888">(${context.replace(/&/g, "&amp;").replace(/</g, "&lt;")})</p>`,
+    }).then(() => ({ ok: true as const, error: "" }), (e) => {
+      console.error("[staff-sms] aviso por email falló", e);
+      return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
+    });
+    const emailRef = context.match(/\b(\d{2}_[A-Z0-9]{6}|TJ-\d{8}-[A-Z0-9]+)\b/)?.[1];
+    if (emailRef) {
+      await prisma.orderEvent
+        .create({
+          data: {
+            order: { connect: { reference: emailRef } },
+            type: "staff.email_sent",
+            message: `Aviso a staff por email${mail.ok ? "" : " FALLIDO"} (${context})`,
+            payload: { context, ok: mail.ok, error: mail.error || null, body },
+          },
+        })
+        .catch(() => {});
+    }
+    return;
+  }
   const staff = process.env.STAFF_PHONE;
   let res: { ok: boolean; id?: string; error?: string };
   if (!staff) {
