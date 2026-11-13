@@ -347,3 +347,22 @@ test("un alta rechazada que se anula después desbloquea la cadena", () => {
   assert.equal(unresolvedRejected(rej, [{ invoiceId: "b", chainIndex: 5, kind: "ANULACION" }]).length, 1, "otra factura no cuenta");
   assert.equal(unresolvedRejected(rej, [{ invoiceId: "a", chainIndex: 2, kind: "ANULACION" }]).length, 1, "una anulación anterior no cuenta");
 });
+
+test("N2: servicio B2B a empresa UE con NIF-IVA, sin tipo ni cuota; el resto de IVA 0 sigue bloqueado", async () => {
+  const { validateAltaData, reviewReasonOf } = await import("../../lib/verifactu/aeat-xml.ts");
+  const de = { name: "RMT Rubber-Metal-Technic", nif: "DE458403999", country: "Deutschland" };
+  const xml = registroXml(alta({ vatRate: 0, cuotaTotalCents: 0, importeTotalCents: 8000, recipient: de }));
+  assert.match(xml, /<sf:CalificacionOperacion>N2<\/sf:CalificacionOperacion><sf:BaseImponibleOimporteNoSujeto>80\.00<\/sf:BaseImponibleOimporteNoSujeto><\/sf:DetalleDesglose>/);
+  assert.doesNotMatch(xml, /TipoImpositivo|CuotaRepercutida/);
+  assert.match(xml, /<sf:IDType>02<\/sf:IDType><sf:ID>DE458403999<\/sf:ID>/);
+  assert.match(xml, /<sf:CuotaTotal>0\.00<\/sf:CuotaTotal><sf:ImporteTotal>80\.00<\/sf:ImporteTotal>/);
+  assert.throws(() => registroXml(alta({ vatRate: 0, cuotaTotalCents: 100, importeTotalCents: 8100, recipient: de })), /N2/);
+  // Particular/español/extra-UE/F2 con IVA 0: siguen sin poder emitirse ni enviarse.
+  for (const recipient of [{ name: "X", nif: "B12345674", country: "España" }, { name: "X", nif: "123456", country: "Deutschland" }, { name: "X", nif: "US123456789", country: "Estados Unidos" }]) {
+    assert.throws(() => validateAltaData({ invoiceType: "F1", vatRate: 0, recipient }), /IVA/);
+    assert.match(reviewReasonOf({ kind: "ALTA", invoiceType: "F1", vatRate: 0, recipient })!, /IVA 0/);
+  }
+  assert.throws(() => validateAltaData({ invoiceType: "F2", vatRate: 0, recipient: de }), /IVA/);
+  assert.doesNotThrow(() => validateAltaData({ invoiceType: "F1", vatRate: 0, recipient: de }));
+  assert.equal(reviewReasonOf({ kind: "ALTA", invoiceType: "F1", vatRate: 0, recipient: de }), null);
+});

@@ -161,6 +161,19 @@ function rateXml(rate: number): string {
 }
 
 /**
+ * Servicio B2B a empresa de otro Estado UE con NIF-IVA: no sujeta en España por reglas de
+ * localización (art. 69.Uno.1º LIVA) → CalificacionOperacion N2, sin TipoImpositivo ni cuota
+ * (Validaciones VERI*FACTU §15.4; FAQ desarrolladores: Impuesto 01, ClaveRegimen 01, IDType 02).
+ */
+export function isNoSujetaUe(d: { invoiceType: string; vatRate?: number | null; recipient?: ProviderSendInput["recipient"] }): boolean {
+  if (d.vatRate !== 0 || !d.recipient || !/^(F1|F3|R[1-4])$/.test(d.invoiceType)) return false;
+  const iso = countryToIso(d.recipient.country);
+  if (!iso || iso === "ES" || !EU.has(iso)) return false;
+  const id = cleanId(String(d.recipient.nif ?? ""));
+  return id.startsWith(iso === "GR" ? "EL" : iso) && id.length > 4;
+}
+
+/**
  * Comprobaciones de datos de un alta, las MISMAS que aplica el XML. Se llama también al emitir
  * (createAltaRecord) para que una factura que la AEAT no podría registrar no llegue a emitirse.
  */
@@ -168,7 +181,8 @@ export function validateAltaData(d: { invoiceType: string; vatRate?: number | nu
   const type = d.invoiceType;
   if (!/^(F1|F2|F3|R[1-5])$/.test(type)) throw new AeatDataError(`Tipo de factura «${type}» no válido.`);
   const rate = d.vatRate ?? NaN;
-  if (!Number.isFinite(rate) || rate <= 0) throw new AeatDataError("Factura sin IVA o con tipo no informado: el envío con IVA 0 % (exenta/no sujeta) aún no está soportado. Revisa la factura.");
+  if (!Number.isFinite(rate) || rate < 0 || (rate === 0 && !isNoSujetaUe({ invoiceType: type, vatRate: rate, recipient: d.recipient })))
+    throw new AeatDataError("Factura sin IVA o con tipo no informado: solo se admite IVA 0 % como no sujeta (N2) a una empresa de otro país de la UE con NIF-IVA (F1/F3/R1-R4). Revisa la factura.");
   if (/^R[1-5]$/.test(type) && !d.hasRectified) throw new AeatDataError("Rectificativa sin número y fecha de la factura rectificada.");
   if (type === "F1" || type === "F3") {
     if (!d.recipient) throw new AeatDataError("Factura completa sin datos del destinatario.");
@@ -182,7 +196,8 @@ export function validateAltaData(d: { invoiceType: string; vatRate?: number | nu
 export function reviewReasonOf(i: Pick<ProviderSendInput, "kind" | "invoiceType" | "recipient"> & { vatRate?: number | null }): string | null {
   if (i.kind !== "ALTA") return null;
   const rate = i.vatRate ?? NaN;
-  if (!Number.isFinite(rate) || rate <= 0) return "factura con IVA 0 % (exenta/no sujeta o sin tipo): decide cómo declararla antes de enviarla";
+  if (!Number.isFinite(rate) || rate < 0 || (rate === 0 && !isNoSujetaUe({ invoiceType: i.invoiceType, vatRate: rate, recipient: i.recipient })))
+    return "factura con IVA 0 % (exenta/no sujeta o sin tipo): decide cómo declararla antes de enviarla";
   if ((i.invoiceType === "F1" || i.invoiceType === "F3") && !String(i.recipient?.nif ?? "").trim()) return "factura completa (F1) sin NIF/identificación del destinatario: decide si pasa a F2 o se completa el dato";
   return null;
 }
@@ -211,6 +226,8 @@ export function registroXml(i: ProviderSendInput): string {
   const isRect = /^R[1-5]$/.test(type);
   validateAltaData({ invoiceType: type, vatRate: i.vatRate, recipient: i.recipient, hasRectified: Boolean(i.rectifies?.numSerie && i.rectifies.issueDate) });
   const rate = i.vatRate as number;
+  const noSujeta = isNoSujetaUe({ invoiceType: type, vatRate: rate, recipient: i.recipient });
+  if (noSujeta && i.cuotaTotalCents !== 0) throw new AeatDataError("Factura no sujeta (N2) con cuota de IVA distinta de 0.");
 
   let rect = "";
   if (isRect) {
@@ -242,10 +259,12 @@ export function registroXml(i: ProviderSendInput): string {
     dest +
     `<sf:Desglose><sf:DetalleDesglose>` +
     el("ClaveRegimen", "01") +
-    el("CalificacionOperacion", "S1") +
-    el("TipoImpositivo", rateXml(rate)) +
-    el("BaseImponibleOimporteNoSujeto", formatAmount(base)) +
-    el("CuotaRepercutida", formatAmount(i.cuotaTotalCents)) +
+    (noSujeta
+      ? el("CalificacionOperacion", "N2") + el("BaseImponibleOimporteNoSujeto", formatAmount(base))
+      : el("CalificacionOperacion", "S1") +
+        el("TipoImpositivo", rateXml(rate)) +
+        el("BaseImponibleOimporteNoSujeto", formatAmount(base)) +
+        el("CuotaRepercutida", formatAmount(i.cuotaTotalCents))) +
     `</sf:DetalleDesglose></sf:Desglose>` +
     el("CuotaTotal", formatAmount(i.cuotaTotalCents)) +
     el("ImporteTotal", formatAmount(i.importeTotalCents)) +
