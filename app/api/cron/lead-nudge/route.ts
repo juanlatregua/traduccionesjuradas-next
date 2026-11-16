@@ -85,6 +85,13 @@ export async function GET(req: Request) {
         continue;
       }
 
+      // Presupuesto de la puerta FR (lib/puerta-fr.ts) sobre esta misma sesión: no se le manda el recordatorio.
+      const puertaQuote = await prisma.quote.findFirst({ where: { deletedAt: null, expedienteRef: `puerta:${g.sessionToken}` }, select: { id: true } });
+      if (puertaQuote) {
+        skip("presupuesto-puerta");
+        continue;
+      }
+
       // Quien ya tiene un presupuesto vivo (aunque sea por WhatsApp) o un pedido pagado/en curso no es un lead.
       const live = await findLiveBlock({ email: g.email, phone: g.rows.find((r) => r.clientPhone)?.clientPhone }, { leadAt: new Date(Math.min(...g.rows.map((r) => r.createdAt.getTime()))) });
       if (live) {

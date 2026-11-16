@@ -232,17 +232,41 @@ export const TARIFARIO_AUTOSEND_OFF = "autoenvío del tarifario apagado";
 export const BANDEJA_SOLO_FR = "modo solo francés (AGENTE_BANDEJA=fr)";
 
 /** «send» solo en modo on y con la decisión en verde; fuera de FR, además, LEARNED_RATES_AUTOSEND=on (doble llave). */
+export const WHATSAPP_SIEMPRE_BORRADOR = "WhatsApp: siempre borrador (nada sale solo)";
+
 export function bandejaAction(
   mode: AgenteBandejaMode,
   decision: SendDecisionLike,
-  lane: { fr: boolean; learnedAutosend: boolean } = { fr: true, learnedAutosend: false }
+  lane: { fr: boolean; learnedAutosend: boolean; channel?: "EMAIL" | "WHATSAPP" } = { fr: true, learnedAutosend: false }
 ): { action: "send" } | { action: "draft"; reasons: string[] } {
+  // Orden de Juan (16-nov-2026): por WhatsApp el agente nunca envía ni responde; solo prepara borrador.
+  if (lane.channel === "WHATSAPP") return { action: "draft", reasons: [WHATSAPP_SIEMPRE_BORRADOR] };
   if (mode === "on" && decision.action === "send") return lane.fr || lane.learnedAutosend ? { action: "send" } : { action: "draft", reasons: [TARIFARIO_AUTOSEND_OFF] };
   // Modo «fr» (Juan, 16-nov-2026): sale solo el francés; el resto, borrador.
   if (mode === "fr" && decision.action === "send") return lane.fr ? { action: "send" } : { action: "draft", reasons: [BANDEJA_SOLO_FR] };
   if (decision.action === "alert") return { action: "draft", reasons: decision.reasons };
   if (decision.action === "skip") return { action: "draft", reasons: [decision.reason] };
   return { action: "draft", reasons: [mode === "draft" ? "modo borrador (AGENTE_BANDEJA=draft)" : "agente apagado"] };
+}
+
+/** Últimos 9 dígitos: clave de comparación de teléfonos (+34 600… = 600…). */
+export function phoneKey(phone: string | null | undefined): string {
+  const d = String(phone || "").replace(/\D/g, "");
+  return d.length > 9 ? d.slice(-9) : d;
+}
+
+/** Teléfono de la casa, de un colaborador o del staff: nunca es un cliente nuevo. */
+export function isKnownPhone(phone: string | null | undefined, known: Set<string>): boolean {
+  const k = phoneKey(phone);
+  return k.length >= 7 && known.has(k);
+}
+
+/** Texto corto para pegar en WhatsApp: pide la fecha límite (precio y plazo son lo que decide). */
+export function buildWhatsAppAsk(o: { lang: ReplyLang; name: string | null }): string {
+  const n = o.name ? ` ${o.name}` : "";
+  if (o.lang === "fr") return `Bonjour${n}, merci pour votre document. Pour quelle date avez-vous besoin de la traduction assermentée ? Je vous envoie le devis tout de suite.`;
+  if (o.lang === "en") return `Hello${n}, thank you for your document. By what date do you need the sworn translation? I'll send you the quote right away.`;
+  return `Hola${n}, gracias por el documento. ¿Para qué fecha necesita la traducción jurada? Le paso el presupuesto enseguida.`;
 }
 
 /* ───────────── Textos ───────────── */

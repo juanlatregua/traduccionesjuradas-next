@@ -9,6 +9,7 @@ import { formatPhoneSpain, sendSMS } from "@/lib/sms";
 import { getStaffEmails } from "@/lib/staff-access";
 import { loadQuoteHashes } from "@/lib/vigia-graph-db";
 import { deadlineLine, urgentSubjectPrefix } from "@/lib/needed-by";
+import { runPuertaFr } from "@/lib/puerta-fr";
 import { SLA_WINDOW_HOURS, dedupeId, selectLeadSla, smsAllowed, type SlaLead } from "@/lib/lead-sla-core";
 
 const STEP = "lead_sla";
@@ -74,6 +75,11 @@ function renderSms(leads: SlaLead[]): string {
 
 /** Cron cada 10 min. Nunca lanza por un transporte caído: cada uno deja su resultado en el rastro. */
 export async function runLeadSla(now = new Date()) {
+  // Puerta FR primero: si crea o envía el presupuesto, el aviso de SLA de abajo ya lo ve y se calla.
+  const puertaFr = await runPuertaFr(now).catch((e) => {
+    console.error("[lead-sla] puerta FR falló", e);
+    return { mode: "error" as const, outcomes: [] };
+  });
   const leads = await loadLeadSla(now);
   const windowStart = new Date(now.getTime() - SLA_WINDOW_HOURS * 36e5);
   const basesOf = (l: SlaLead) => [l.keyBase, ...l.altBases];
@@ -146,5 +152,5 @@ export async function runLeadSla(now = new Date()) {
     ...claimed.map((c) => patch(`${c.main}:sms`, { sms })),
     ...claimed.filter((c) => !written.some((w) => w.id === c.main)).map((c) => patch(c.main, { ...c.meta, sms, retried: true })),
   ]);
-  return { leads: leads.length, avisados: toAlert.length, email, sms };
+  return { leads: leads.length, avisados: toAlert.length, email, sms, puertaFr: { mode: puertaFr.mode, procesadas: puertaFr.outcomes.length, resultados: puertaFr.outcomes.map((o) => o.result) } };
 }
