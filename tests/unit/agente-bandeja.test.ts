@@ -15,6 +15,7 @@ import {
   looksLikePaymentOrInvoice,
   splitOrRepeatedReason,
   TARIFARIO_AUTOSEND_OFF,
+  BANDEJA_SOLO_FR,
   mentionsDeadline,
   priceFrSegments,
   replyLang,
@@ -274,4 +275,11 @@ test("oferta de proveedor no es un cliente", () => {
   assert.equal(looksLikeVendorPitch({ subject: "Collaboration", body: "I am a freelance translator and would like to offer my services" }), true);
   assert.equal(looksLikeVendorPitch({ subject: "Traducción jurada", body: "Hola, necesito traducir mi acta de nacimiento y mi curriculum vitae para una oferta de trabajo" }), false);
   assert.equal(looksLikeVendorPitch({ subject: "Presupuesto traducción", body: "Necesito traducir mi título del francés al español" }), false);
+});
+
+test("modo fr: sale solo el francés; el resto, borrador aunque el tarifario esté encendido", () => {
+  assert.equal(agenteBandejaMode("fr"), "fr");
+  assert.deepEqual(bandejaAction("fr", { action: "send" }, { fr: true, learnedAutosend: false }), { action: "send" });
+  assert.deepEqual(bandejaAction("fr", { action: "send" }, { fr: false, learnedAutosend: true }), { action: "draft", reasons: [BANDEJA_SOLO_FR] });
+  assert.deepEqual(bandejaAction("fr", { action: "alert", reasons: ["x"] }, { fr: true, learnedAutosend: false }), { action: "draft", reasons: ["x"] });
 });

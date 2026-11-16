@@ -330,7 +330,7 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
     await saveDraft(row, subject, buildQuoteReply({ ...replyInput, draftOf: { quoteNumber: quote.quoteNumber } }), quote.id);
     const head = mode === "draft" ? "Agente bandeja (borrador)" : "Agente bandeja: NO sale solo";
     await sms(
-      `${head}: presupuesto ${quote.quoteNumber} (${totalEur.toFixed(2)} €) para ${row.fromEmail}${mode === "on" ? ` — ${short(action.reasons[0] || "", 100)}` : ""}. Ficha: ${reviewUrl} · respuesta en ${SITE}/admin/inbox`,
+      `${head}: presupuesto ${quote.quoteNumber} (${totalEur.toFixed(2)} €) para ${row.fromEmail}${mode !== "draft" ? ` — ${short(action.reasons[0] || "", 100)}` : ""}. Ficha: ${reviewUrl} · respuesta en ${SITE}/admin/inbox`,
       `agente_bandeja_borrador ${quote.quoteNumber}`
     );
     return out("drafted", `${quote.quoteNumber}: ${action.reasons.join("; ")}`);

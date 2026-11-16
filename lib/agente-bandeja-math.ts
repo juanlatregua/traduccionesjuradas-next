@@ -6,7 +6,7 @@ import type { DocumentAnalysisResult } from "./ai/analyze-document.ts";
 import { suggestClientLang } from "./client-lang.ts";
 import { billablePages, computePagePricing, FR_DOC_MAX_PAGES } from "./pricing-engine/page-pricing.ts";
 
-export type AgenteBandejaMode = "off" | "draft" | "on";
+export type AgenteBandejaMode = "off" | "draft" | "fr" | "on";
 export type ReplyLang = "es" | "fr" | "en";
 
 export const CANDIDATE_WINDOW_HOURS = 48;
@@ -27,7 +27,7 @@ export const SEND_MIN_REMAINING_MS = 60_000;
 
 export function agenteBandejaMode(raw: string | null | undefined): AgenteBandejaMode {
   const v = String(raw || "").trim().toLowerCase();
-  return v === "on" || v === "draft" ? v : "off";
+  return v === "on" || v === "draft" || v === "fr" ? v : "off";
 }
 
 /** Buzones de la casa (tj.net, lavori): nunca son un cliente nuevo. */
@@ -229,6 +229,7 @@ export function priceFrSegments(segs: Segment[]): FrPricing {
 export type SendDecisionLike = { action: "send" } | { action: "skip"; reason: string } | { action: "alert"; reasons: string[] };
 
 export const TARIFARIO_AUTOSEND_OFF = "autoenvío del tarifario apagado";
+export const BANDEJA_SOLO_FR = "modo solo francés (AGENTE_BANDEJA=fr)";
 
 /** «send» solo en modo on y con la decisión en verde; fuera de FR, además, LEARNED_RATES_AUTOSEND=on (doble llave). */
 export function bandejaAction(
@@ -237,6 +238,8 @@ export function bandejaAction(
   lane: { fr: boolean; learnedAutosend: boolean } = { fr: true, learnedAutosend: false }
 ): { action: "send" } | { action: "draft"; reasons: string[] } {
   if (mode === "on" && decision.action === "send") return lane.fr || lane.learnedAutosend ? { action: "send" } : { action: "draft", reasons: [TARIFARIO_AUTOSEND_OFF] };
+  // Modo «fr» (Juan, 16-nov-2026): sale solo el francés; el resto, borrador.
+  if (mode === "fr" && decision.action === "send") return lane.fr ? { action: "send" } : { action: "draft", reasons: [BANDEJA_SOLO_FR] };
   if (decision.action === "alert") return { action: "draft", reasons: decision.reasons };
   if (decision.action === "skip") return { action: "draft", reasons: [decision.reason] };
   return { action: "draft", reasons: [mode === "draft" ? "modo borrador (AGENTE_BANDEJA=draft)" : "agente apagado"] };
