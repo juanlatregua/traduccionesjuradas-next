@@ -14,6 +14,7 @@ import {
 } from "../../lib/puerta-fr-math.ts";
 import {
   bandejaAction,
+  bandejaWhatsappMode,
   buildWhatsAppAsk,
   isKnownPhone,
   phoneKey,
@@ -106,7 +107,7 @@ test("duplicados de la misma sesión cuentan una vez", () => {
 });
 
 test("puertaFrAction: todo con tarifa y decisión send, modo fr → send", () => {
-  assert.deepEqual(puertaFrAction({ mode: "fr", allTariffed: true, decision: { action: "send" } }), { action: "send" });
+  assert.deepEqual(puertaFrAction({ mode: "fr", allTariffed: true, decision: { action: "send" }, marketingConsent: true }), { action: "send" });
 });
 
 test("puertaFrAction: cualquier otro caso → borrador; off → skip", () => {
@@ -138,4 +139,29 @@ test("texto de WhatsApp pregunta la fecha en el idioma del cliente", () => {
   assert.match(buildWhatsAppAsk({ lang: "es", name: "Ana" }), /Hola Ana.*¿Para qué fecha/);
   assert.match(buildWhatsAppAsk({ lang: "fr", name: null }), /Pour quelle date/);
   assert.match(buildWhatsAppAsk({ lang: "en", name: null }), /what date/);
+});
+
+test("BANDEJA_WHATSAPP: off por defecto, solo draft lo activa", () => {
+  assert.equal(bandejaWhatsappMode(undefined), "off");
+  assert.equal(bandejaWhatsappMode("on"), "off");
+  assert.equal(bandejaWhatsappMode("fr"), "off");
+  assert.equal(bandejaWhatsappMode(" Draft "), "draft");
+});
+
+test("sin marketingConsent la puerta FR nunca envía", () => {
+  assert.equal(puertaFrAction({ mode: "fr", allTariffed: true, decision: { action: "send" } }).action, "draft");
+  assert.equal(puertaFrAction({ mode: "fr", allTariffed: true, decision: { action: "send" }, marketingConsent: false }).action, "draft");
+  assert.equal(puertaFrAction({ mode: "fr", allTariffed: true, decision: { action: "send" }, marketingConsent: true }).action, "send");
+});
+
+test("PAYMENT_PENDING y orderReference quedan fuera", () => {
+  assert.equal(segmentsFromPuertaRows([row({ status: "PAYMENT_PENDING" })]).ok, false);
+  assert.equal(segmentsFromPuertaRows([row({ orderReference: "26_ABC123" })]).ok, false);
+  assert.ok(segmentsFromPuertaRows([row({ orderReference: null })]).ok);
+});
+
+test("todas las filas deben tener destino es", () => {
+  assert.equal(segmentsFromPuertaRows([row({ targetLanguage: null })]).ok, false);
+  assert.equal(segmentsFromPuertaRows([row({ targetLanguage: "en" })]).ok, false);
+  assert.equal(segmentsFromPuertaRows([row(), row({ id: "d2", fileHash: "h2", targetLanguage: "fr" })]).ok, false);
 });

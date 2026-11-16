@@ -28,6 +28,10 @@ const CRITICAL_FIRST_TOKEN = new Set([
   "quote-stripe-webhook",
   "money-alerts",
   "payment-reconciliation",
+  "puerta_fr_error",
+  "puerta_fr_manual",
+  "puerta_fr_borrador",
+  "puerta_fr_enviado",
 ]);
 
 const CRITICAL_PREFIX = ["doble cobro", "segundo pago"];

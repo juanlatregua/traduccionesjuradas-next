@@ -10,9 +10,9 @@ import { prisma } from "@/lib/prisma";
 import { isStaffEmail } from "@/lib/staff-access";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { findClientSaidNo, findLiveBlock } from "@/lib/respuesta-guard-db";
-import { presupuestoVivoDelCaso } from "@/lib/caso/hilo-db";
+import { presupuestoVivoDelCaso, solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
 import { quoteFr } from "@/lib/quote-fr";
-import { buildQuoteReply, checkSegments, greetingName, splitOrRepeatedReason, FR_DELIVERY_TERM } from "@/lib/agente-bandeja-math";
+import { buildQuoteReply, checkSegments, greetingName, isHouseAddress, splitOrRepeatedReason, FR_DELIVERY_TERM, type ReplyLang } from "@/lib/agente-bandeja-math";
 import {
   dedupePuertaRows,
   isRealClientEmail,
@@ -35,7 +35,12 @@ const sms = (text: string, context: string) => sendStaffAlertSMS(short(text, 300
 
 export type PuertaFrOutcome = { session: string; email: string; result: "sent" | "drafted" | "manual" | "skipped" | "error"; detail: string };
 
-export async function runPuertaFr(now = new Date()): Promise<{ mode: PuertaFrMode; outcomes: PuertaFrOutcome[] }> {
+const MAX_SESSIONS_PER_RUN = 3;
+const STALE_CLAIM_MS = 10 * 60_000;
+
+/** `deadlineAt`: hora límite (ms). Pasada, no se empieza ninguna sesión más. */
+export async function runPuertaFr(now = new Date(), opts: { deadlineAt?: number; max?: number } = {}): Promise<{ mode: PuertaFrMode; outcomes: PuertaFrOutcome[] }> {
+  const max = opts.max ?? MAX_SESSIONS_PER_RUN;
   const mode = puertaFrMode(process.env.PUERTA_FR);
   if (mode === "off") return { mode, outcomes: [] };
 
@@ -55,21 +60,27 @@ export async function runPuertaFr(now = new Date()): Promise<{ mode: PuertaFrMod
     take: 300,
     select: {
       id: true, fileName: true, fileUrl: true, mimeType: true, fileHash: true, pageCount: true, estimatedWords: true,
-      sourceLanguage: true, targetLanguage: true, analysisJson: true, status: true, createdAt: true,
+      sourceLanguage: true, targetLanguage: true, analysisJson: true, status: true, createdAt: true, orderReference: true, marketingConsent: true,
       sessionToken: true, clientEmail: true, clientName: true, clientPhone: true, casoId: true, urgency: true, neededBy: true,
     },
   });
   const bySession = new Map<string, typeof rows>();
   for (const r of rows) bySession.set(r.sessionToken!, [...(bySession.get(r.sessionToken!) || []), r]);
 
+  const colabEmails = new Set(
+    (await prisma.collaborator.findMany({ select: { email: true } })).map((c) => String(c.email || "").trim().toLowerCase()).filter(Boolean)
+  );
   const outcomes: PuertaFrOutcome[] = [];
   for (const [token, list] of bySession) {
+    if (outcomes.length >= max) break;
+    if (opts.deadlineAt && Date.now() > opts.deadlineAt) break;
     const email = String(list.find((r) => r.clientEmail)?.clientEmail || "").trim().toLowerCase();
     // Filtros baratos: sin claim, se reintentan en la próxima pasada (o caducan a las 24 h).
-    if (!isRealClientEmail(email) || isStaffEmail(email)) continue;
-    if (!list.every((r) => (r.sourceLanguage || "").toLowerCase() === "fr")) continue;
+    if (!isRealClientEmail(email) || isStaffEmail(email) || isHouseAddress(email) || colabEmails.has(email)) continue;
+    if (!list.every((r) => (r.sourceLanguage || "").toLowerCase() === "fr" && (r.targetLanguage || "").toLowerCase() === "es")) continue;
     if (puertaWaitVerdict(list.map((r) => r.createdAt), now) !== "ready") continue;
-    if (!list.every((r) => r.status === "QUOTE_GENERATED" || r.status === "PAYMENT_PENDING")) continue;
+    // Análisis sin terminar, checkout empezado (PAYMENT_PENDING/orderReference): fuera.
+    if (!list.every((r) => r.status === "QUOTE_GENERATED" && !r.orderReference)) continue;
     try {
       const o = await processSession(token, email, list, mode, now);
       if (o) outcomes.push(o);
@@ -115,11 +126,19 @@ async function processSession(
   // Ya habló o dijo que no: no se le empuja (si la guarda lanza, cae al catch y no se envía).
   if (await findClientSaidNo({ email, phone })) return null;
 
-  // Reclamo atómico: una pasada por sesión, aunque dos ejecuciones se pisen.
+  // Actividad del staff sobre esta persona: ya la lleva alguien, la puerta FR no se mete.
+  if (await staffAlreadyOnIt(token, email, casoId)) return null;
+
+  // Reclamo atómico: una pasada por sesión, aunque dos ejecuciones se pisen. Un reclamo que
+  // quedó a medias (la ejecución murió) se retoma a los 10 min; si no, la sesión se perdería.
   try {
     await prisma.funnelEvent.create({ data: { sessionId: `puerta-fr:${token}`, reference: "puerta-fr", step: STEP, metadata: { mode, result: "claimed" } } });
   } catch {
-    return null;
+    const prev = await prisma.funnelEvent.findUnique({ where: { sessionId_step: { sessionId: `puerta-fr:${token}`, step: STEP } } }).catch(() => null);
+    const stale = prev && (prev.metadata as any)?.result === "claimed" && now.getTime() - prev.createdAt.getTime() > STALE_CLAIM_MS;
+    if (!stale) return null;
+    const took = await prisma.funnelEvent.updateMany({ where: { id: prev.id, createdAt: prev.createdAt }, data: { createdAt: now, metadata: { mode, result: "claimed", retaken: true } } });
+    if (took.count === 0) return null;
   }
 
   const builderUrl = `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(token)}`;
@@ -149,7 +168,8 @@ async function processSession(
   if (!q.ok) return manual(q.reason);
 
   // quoteFr solo devuelve ok si TODOS los documentos tienen tarifa por documento.
-  const action = puertaFrAction({ mode, allTariffed: true, decision: q.decision });
+  const marketingConsent = list.some((r: any) => r.marketingConsent === true);
+  const action = puertaFrAction({ mode, allTariffed: true, decision: q.decision, marketingConsent });
   const quote = q.quote;
   const reviewUrl = `${SITE}/zona-traductor/presupuestos/${quote.id}`;
   if (action.action !== "send") {
@@ -161,8 +181,9 @@ async function processSession(
 
   // Envío: el presupuesto y la pregunta de la fecha; sin promoción (LSSI). finalizeAndSendQuote adjunta el PDF.
   const askDeadline = !list.some((r: any) => r.urgency || r.neededBy);
+  const lang = await clientLang(email);
   const body = buildQuoteReply({
-    lang: "es",
+    lang,
     name: greetingName(name),
     items: q.items,
     netEur: q.netEur,
@@ -178,10 +199,39 @@ async function processSession(
     actorEmail: ACTOR,
     skipEmail: false,
     requireDraft: true,
-    customSubject: `Presupuesto ${quote.quoteNumber} · traducción jurada`,
+    customSubject: lang === "fr" ? `Devis ${quote.quoteNumber} · traduction assermentée` : lang === "en" ? `Quote ${quote.quoteNumber} · sworn translation` : `Presupuesto ${quote.quoteNumber} · traducción jurada`,
     customBody: body,
   });
   await patchTrace(token, { mode, result: "sent", quote: quote.quoteNumber });
   await sms(`Puerta FR: presupuesto ${quote.quoteNumber} (${q.totalEur.toFixed(2)} €) enviado a ${email}`, `puerta_fr_enviado ${quote.quoteNumber}`);
   return out("sent", quote.quoteNumber);
+}
+
+/** Idioma del cliente: el de su última sesión de la puerta (OrderSession.clientLocale); si no se sabe, español. */
+async function clientLang(email: string): Promise<ReplyLang> {
+  const os = await prisma.orderSession
+    .findFirst({ where: { clientEmail: { equals: email, mode: "insensitive" } }, orderBy: { updatedAt: "desc" }, select: { clientLocale: true } })
+    .catch(() => null);
+  const l = String(os?.clientLocale || "").toLowerCase();
+  return l === "fr" || l === "en" ? l : "es";
+}
+
+/** ¿Hay ya trabajo del staff sobre esta persona? (misma_persona, solicitud del caso, borrador/presupuesto del constructor, respuesta enviada). */
+async function staffAlreadyOnIt(token: string, email: string, casoId: string | null): Promise<boolean> {
+  const week = new Date(Date.now() - 7 * 864e5);
+  const [misma, solicitudes, casoEv, inbound] = await Promise.all([
+    prisma.funnelEvent.findFirst({ where: { sessionId: `puerta:${token}`, step: "misma_persona" }, select: { id: true } }),
+    solicitudesVivasDelHilo(casoId, { expedienteRef: `puerta:${token}` }),
+    casoId ? prisma.casoEvento.findFirst({ where: { casoId, tipo: { startsWith: "solicitud" } }, select: { id: true } }) : Promise.resolve(null),
+    prisma.inboundEmail.findFirst({
+      where: { fromEmail: { equals: email, mode: "insensitive" }, receivedAt: { gte: week }, OR: [{ repliedAt: { not: null } }, { status: { in: ["REPLIED", "DRAFTED"] } }, { quoteId: { not: null } }] },
+      select: { id: true },
+    }),
+  ]);
+  // Un presupuesto (borrador del constructor incluido) a nombre del mismo email o de la misma sesión.
+  const quote = await prisma.quote.findFirst({
+    where: { deletedAt: null, createdAt: { gte: week }, OR: [{ customerEmail: { equals: email, mode: "insensitive" } }, { expedienteRef: { in: [`puerta:${token}`, `puerta:exp:${token}`] } }] },
+    select: { id: true },
+  });
+  return !!(misma || solicitudes.length || casoEv || inbound || quote);
 }

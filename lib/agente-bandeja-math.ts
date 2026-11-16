@@ -232,6 +232,13 @@ export const TARIFARIO_AUTOSEND_OFF = "autoenvío del tarifario apagado";
 export const BANDEJA_SOLO_FR = "modo solo francés (AGENTE_BANDEJA=fr)";
 
 /** «send» solo en modo on y con la decisión en verde; fuera de FR, además, LEARNED_RATES_AUTOSEND=on (doble llave). */
+export type BandejaWhatsappMode = "off" | "draft";
+
+/** BANDEJA_WHATSAPP: off (por defecto) | draft. Interruptor propio, independiente de AGENTE_BANDEJA. */
+export function bandejaWhatsappMode(raw: string | null | undefined): BandejaWhatsappMode {
+  return String(raw || "").trim().toLowerCase() === "draft" ? "draft" : "off";
+}
+
 export const WHATSAPP_SIEMPRE_BORRADOR = "WhatsApp: siempre borrador (nada sale solo)";
 
 export function bandejaAction(

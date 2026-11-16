@@ -88,7 +88,9 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
     const lead: GraphLead = { clientEmail: m.fromEmail, clientName: m.fromName, clientPhone: m.fromPhone, sessionToken: null, fileHash: null };
     if (m.repliedAt || m.status === "REPLIED" || m.status === "ARCHIVED") { attendedKeys.push(lead); continue; }
     // El email del buzón no trae clasificación fiable (briefJson solo se genera a mano): solo WhatsApp.
-    if (m.status !== "NEW" || m.quoteId || m.channel !== "WHATSAPP") continue;
+    // Un WhatsApp con borrador del agente (DRAFTED) sin respuesta sigue pendiente: el borrador no contesta al cliente.
+    if (m.channel !== "WHATSAPP") continue;
+    if (m.status === "NEW" ? !!m.quoteId : m.status !== "DRAFTED") continue;
     const wa = WA_LOCAL.exec(normEmail(m.fromEmail));
     arrivals.push({
       ...lead, at: m.receivedAt, kind: m.channel === "WHATSAPP" ? "whatsapp" : "email", name: m.fromName, email: wa ? null : normEmail(m.fromEmail),
@@ -127,7 +129,7 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
   const out: SlaLead[] = [];
   for (const [root, items] of byRoot) {
     if (attendedRoots.has(root)) continue;
-    if (items.every((a) => a.kind === "whatsapp") && (g.quotesOfRoot.get(root)?.length || g.solsOfRoot.get(root)?.length)) continue;
+    if (items.every((a) => a.kind === "whatsapp") && ((g.quotesOfRoot.get(root) || []).some((q) => q.sentAt) || g.solsOfRoot.get(root)?.length)) continue;
     const firstAt = new Date(Math.min(...items.map((a) => a.at.getTime())));
     // Un presupuesto enviado antes de que llegara la petición no la contesta.
     if ((g.quotesOfRoot.get(root) || []).some((q) => q.sentAt && q.sentAt.getTime() >= firstAt.getTime() - 2 * 36e5)) continue;

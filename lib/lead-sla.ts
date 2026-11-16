@@ -76,7 +76,8 @@ function renderSms(leads: SlaLead[]): string {
 /** Cron cada 10 min. Nunca lanza por un transporte caído: cada uno deja su resultado en el rastro. */
 export async function runLeadSla(now = new Date()) {
   // Puerta FR primero: si crea o envía el presupuesto, el aviso de SLA de abajo ya lo ve y se calla.
-  const puertaFr = await runPuertaFr(now).catch((e) => {
+  // Tope de 3 sesiones y 35 s (la ruta tiene maxDuration 60): el SLA de abajo siempre llega a avisar.
+  const puertaFr = await runPuertaFr(now, { deadlineAt: Date.now() + 35_000, max: 3 }).catch((e) => {
     console.error("[lead-sla] puerta FR falló", e);
     return { mode: "error" as const, outcomes: [] };
   });

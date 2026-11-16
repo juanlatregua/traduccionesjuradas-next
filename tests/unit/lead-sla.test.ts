@@ -98,3 +98,11 @@ test("plazo del cliente: fecha a ≤3 días o lo antes posible = urgente ya en e
   assert.equal(run({ docs: [doc("a@x.com", 61, { urgency: "DATE", neededBy: new Date("2026-11-20T00:00:00Z") })] })[0].urgent, false);
   assert.equal(run({ docs: [doc("a@x.com", 61)] })[0].deadline, null);
 });
+
+test("WhatsApp con borrador del agente (DRAFTED, sin respuesta) sigue pendiente en el SLA", () => {
+  const wa: SlaInbound = { fromEmail: "34600111222@whatsapp.local", fromName: "Cli", fromPhone: "+34600111222", subject: "WhatsApp", receivedAt: ago(70), status: "DRAFTED", quoteId: null, repliedAt: null, channel: "WHATSAPP" };
+  assert.equal(run({ inbound: [wa] }).length, 1);
+  assert.equal(run({ inbound: [{ ...wa, quoteId: "Q1" }] }).length, 1, "borrador con presupuesto sin enviar: sigue pendiente");
+  assert.equal(run({ inbound: [{ ...wa, repliedAt: ago(10) }] }).length, 0);
+  assert.equal(run({ inbound: [{ ...wa, status: "REPLIED" }] }).length, 0);
+});

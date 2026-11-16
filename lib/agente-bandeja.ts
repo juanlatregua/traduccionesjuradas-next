@@ -18,6 +18,7 @@ import { fetchFileAsAttachment } from "@/lib/delivery-attachments";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import {
   agenteBandejaMode,
+  bandejaWhatsappMode,
   bandejaAction,
   buildHoldingDraft,
   buildNoDocDraft,
@@ -92,11 +93,12 @@ export async function runAgenteBandeja(opts: { deadlineAt: number }): Promise<{ 
   const mode = agenteBandejaMode(process.env.AGENTE_BANDEJA);
   if (mode === "off") return { mode, stale: 0, outcomes: [] };
   const stale = await flagStaleClaims();
+  const waOn = bandejaWhatsappMode(process.env.BANDEJA_WHATSAPP) === "draft";
   const now = Date.now();
   const rows = await prisma.inboundEmail.findMany({
     where: {
       status: "NEW",
-      channel: { in: ["EMAIL", "WHATSAPP"] },
+      channel: { in: waOn ? ["EMAIL", "WHATSAPP"] : ["EMAIL"] },
       receivedAt: { gte: new Date(now - CANDIDATE_WINDOW_HOURS * 3_600_000) },
       quoteId: null,
       orderReference: null,

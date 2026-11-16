@@ -48,6 +48,7 @@ export type PuertaRow = {
   targetLanguage: string | null;
   analysisJson: unknown;
   status: string;
+  orderReference?: string | null;
 };
 
 /** Quita el mismo archivo subido dos veces (hash, o nombre+palabras+páginas). */
@@ -69,7 +70,10 @@ export function segmentsFromPuertaRows(rows: PuertaRow[]): { ok: true; segments:
   if (rows.length === 0) return { ok: false, reason: "sesión sin documentos" };
   const segments: (Segment & { fileUrl: string })[] = [];
   for (const r of rows) {
-    if (r.status !== "QUOTE_GENERATED" && r.status !== "PAYMENT_PENDING") return { ok: false, reason: `${r.fileName}: análisis sin terminar (${r.status})` };
+    // PAYMENT_PENDING u orderReference = ya entró en el checkout: lo gestiona el pago, no la puerta FR.
+    if (r.status !== "QUOTE_GENERATED") return { ok: false, reason: `${r.fileName}: estado ${r.status} (solo QUOTE_GENERATED)` };
+    if (r.orderReference) return { ok: false, reason: `${r.fileName}: ya pasó por el checkout` };
+    if (String(r.targetLanguage || "").toLowerCase() !== "es") return { ok: false, reason: `${r.fileName}: destino ${r.targetLanguage || "?"} (solo es)` };
     const json = r.analysisJson as any;
     if (!json || typeof json !== "object") return { ok: false, reason: `${r.fileName}: sin análisis guardado` };
     const analyses: any[] =
@@ -79,7 +83,7 @@ export function segmentsFromPuertaRows(rows: PuertaRow[]): { ok: true; segments:
       if (!a?.document_type?.specific_type) return { ok: false, reason: `${r.fileName}: tipo de documento sin determinar` };
       const seg = segmentFromAnalysis(a, r.fileName);
       if (!seg.sourceLang) seg.sourceLang = String(r.sourceLanguage || "").toLowerCase();
-      if (!seg.targetLang) seg.targetLang = String(r.targetLanguage || "").toLowerCase();
+      if (!seg.targetLang) seg.targetLang = "es";
       // Una sola fila = un documento: las páginas y palabras de la fila rellenan lo que el análisis no trae.
       if (analyses.length === 1) {
         seg.pages = Math.max(seg.pages, Number(r.pageCount) || 0);
@@ -107,9 +111,11 @@ export type PuertaFrAction = { action: "send" } | { action: "draft"; reasons: st
  * «send» solo con modo fr, TODOS los documentos con tarifa por documento y la decisión de
  * cierre en verde. Cualquier otra cosa: borrador + aviso a Juan. Modo off: nada.
  */
-export function puertaFrAction(o: { mode: PuertaFrMode; allTariffed: boolean; decision: SendDecisionLike }): PuertaFrAction {
+export function puertaFrAction(o: { mode: PuertaFrMode; allTariffed: boolean; decision: SendDecisionLike; marketingConsent?: boolean }): PuertaFrAction {
   if (o.mode === "off") return { action: "skip" };
   if (o.mode === "draft") return { action: "draft", reasons: ["modo borrador (PUERTA_FR=draft)"] };
+  // Sin consentimiento de email (LSSI) como mucho borrador: nada sale al cliente.
+  if (o.marketingConsent !== true) return { action: "draft", reasons: ["sin consentimiento de email (marketingConsent)"] };
   if (!o.allTariffed) return { action: "draft", reasons: ["algún documento sin tarifa por documento"] };
   if (o.decision.action === "send") return { action: "send" };
   return { action: "draft", reasons: o.decision.action === "alert" ? o.decision.reasons : [o.decision.reason] };
