@@ -247,13 +247,13 @@ test("un precio_propuesto o encargo_aceptado sobre una solicitud DESCARTADA no l
   );
 });
 
-test("la solicitud directa de PT va solo a Nielson (Cristina y Juan Amor, a la reapertura)", async () => {
+test("la solicitud directa de PT va solo a Juan Amor (Cristina, a la reapertura; Nielson fuera 16-nov)", async () => {
   const { readFile } = await import("node:fs/promises");
   const src = await readFile(new URL("../../lib/lavori-directo.ts", import.meta.url), "utf8");
   const pt = src.slice(src.indexOf("  pt: {"), src.indexOf("  it: {"));
-  assert.match(pt, /zyuep34us3e33h3fd98w3yyz/);
+  assert.match(pt, /rk1x2kq63rm6ba6mco7c6u2k/);
   assert.doesNotMatch(pt, /nhucqnd3q4znddxhe8qs5c51/);
-  assert.doesNotMatch(pt, /rk1x2kq63rm6ba6mco7c6u2k/);
+  assert.doesNotMatch(pt, /zyuep34us3e33h3fd98w3yyz/);
   const puerta = await readFile(new URL("../../lib/puerta-request-quote.ts", import.meta.url), "utf8");
   assert.match(puerta, /candidatos: directos\.map\(\(d\) => d\.miembroId\)/);
 });

@@ -43,10 +43,10 @@ export const LAVORI_DIRECT: Record<string, { miembros: DirectMember[]; enabled: 
   de: { miembros: [{ miembroId: "ngus1uku6x5uw2pqbmflpbbt", nombre: "Morton Sebastian Peter Münster", priceBasis: "base" }], enabled: true },
   en: { miembros: [{ miembroId: "exwzhhwv5fyegllvblt76uvb", nombre: "María Lourdes Yagüe", priceBasis: "base" }], enabled: true },
   ro: { miembros: [{ miembroId: "8npqw6hd5vavn4maio2173lq", nombre: "Maria Murariu", priceBasis: "base" }], enabled: true },
-  // Nielson primero y solo (orden Juan 19-oct-2026: más barato); si no cotiza,
+  // Juan Amor (orden Juan 16-nov-2026: Nielson fuera); si no cotiza,
   // la reapertura a 6 h va al resto de la cartera PT (Cristina).
   pt: {
-    miembros: [{ miembroId: "zyuep34us3e33h3fd98w3yyz", nombre: "Nielson Maycon de Souza Vilela", priceBasis: "total_con_iva" }],
+    miembros: [{ miembroId: "rk1x2kq63rm6ba6mco7c6u2k", nombre: "Juan Amor Fernández", priceBasis: "base" }],
     enabled: true,
   },
   // Ya tiene Collaborator (alta 15-sep) pero apagado a propósito: hasta que

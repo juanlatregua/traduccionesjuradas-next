@@ -68,7 +68,6 @@ export const LAVORI_CANDIDATES: Record<string, string[]> = {
   // reapertura a 6 h NO la usa: va a pickLavoriAuto sobre la cartera viva
   // menos las directas (hoy, en la práctica, solo Juan Amor si tiene canal).
   pt: [
-    "zyuep34us3e33h3fd98w3yyz", // Nielson Maycon de Souza Vilela SL (primero, orden Juan 19-oct-2026)
     "nhucqnd3q4znddxhe8qs5c51", // Cristina Aguilera Viladés (PT>ES; aceptó 26_94B23C)
     // María Carmen Lencastre (1h8tul4zycnayru8bsi1tmu4) FUERA del carril desde el
     // 8-oct-2026: ver LAVORI_NO_AVISAR.
@@ -398,6 +397,7 @@ export const LAVORI_NO_AUTO: Record<string, string> = {
 export const LAVORI_NO_AVISAR: Record<string, string> = {
   "1h8tul4zycnayru8bsi1tmu4": "María Carmen Lencastre De Albuquerque Charrua: no volver a avisarla (orden Juan 8-oct-2026)",
   "0saaznz1jnylzn7ufmhd152c": "Margarita Aguiló Pastrana: «No me interesa» el 8-oct-2026, se le insistió 3 veces",
+  zyuep34us3e33h3fd98w3yyz: "Nielson Maycon de Souza Vilela: fuera del reparto PT (orden Juan 16-nov-2026)",
 };
 
 export function isLavoriNoAvisar(id: string | null | undefined): boolean {
