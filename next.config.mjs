@@ -126,6 +126,13 @@ const nextConfig = {
         destination: "/uge-ce/es/checker",
         permanent: true,
       },
+      // Coverage GSC 17-nov-2026: más rutas uge-ce previas al basePath.
+      { source: "/es", destination: "/uge-ce/es", permanent: true },
+      { source: "/fr/checker", destination: "/uge-ce/fr/checker", permanent: true },
+      { source: "/fr/beta", destination: "/uge-ce/fr/beta", permanent: true },
+      { source: "/fr/chat", destination: "/uge-ce/fr/chat", permanent: true },
+      { source: "/fr/faq", destination: "/uge-ce/fr/faq", permanent: true },
+      { source: "/blog/documentos-nacionalidad-espanola", destination: "/blog/nacionalidad-espanola-documentos", permanent: true },
       {
         source: "/fr",
         destination: "/traduction-assermentee",

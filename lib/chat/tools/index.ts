@@ -54,13 +54,13 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
         has_apostille: {
           type: "boolean",
           description:
-            "True si el documento incluye una apostilla de La Haya que también requiere traducción jurada (recargo de 15 €; en francés y alemán por página, +5 € por documento).",
+            "True si el documento incluye una apostilla de La Haya que también requiere traducción jurada (recargo de 15 €; en francés por página, +5 € por documento).",
         },
         direction: {
           type: "string",
           enum: ["to_spanish", "from_spanish"],
           description:
-            "OBLIGATORIO. 'to_spanish' si el documento está en el otro idioma y se traduce AL español; 'from_spanish' si el documento está en español y se traduce al otro idioma. Si no lo sabes, pregúntalo antes de llamar: la tarifa por página (30 €) existe en francés→español y en alemán en ambos sentidos (alemán→español y español→alemán).",
+            "OBLIGATORIO. 'to_spanish' si el documento está en el otro idioma y se traduce AL español; 'from_spanish' si el documento está en español y se traduce al otro idioma. Si no lo sabes, pregúntalo antes de llamar: la tarifa por página (30 €) solo existe en francés→español; el alemán no tiene precio por página (se presupuesta en el día, desde 40 € + IVA por documento).",
         },
         apostille_separate_page: {
           type: "boolean",
@@ -70,12 +70,12 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
         has_tables: {
           type: "boolean",
           description:
-            "True si las páginas del documento llevan tablas (notas, expedientes, extractos bancarios). Solo cambia el precio en alemán (35 € por página en vez de 30 €).",
+            "True si las páginas del documento llevan tablas (notas, expedientes, extractos bancarios). Sin efecto en el precio del francés.",
         },
         has_handwriting: {
           type: "boolean",
           description:
-            "True si el contenido principal del documento está escrito a mano (no una simple firma). Solo cambia el precio en alemán: cuenta como tablas (35 € por página en vez de 30 €).",
+            "True si el contenido principal del documento está escrito a mano (no una simple firma). Sin efecto en el precio del francés.",
         },
         country: {
           type: "string",

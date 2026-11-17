@@ -182,6 +182,7 @@ export function evaluateAutoApprove(
   isPriceableLang: (lang: string) => boolean
 ): AutoApproveVerdict {
   if (rate.status !== "CANDIDATE") return { ok: false, reason: `estado ${rate.status}` };
+  if (isBlindPriceLang(rate.lang)) return { ok: false, reason: `${rate.lang}: sin precio automático, cotiza el jurado a ciegas` };
   if (AUTO_EXCLUDED_LANGS.has(rate.lang)) return { ok: false, reason: `${rate.lang}: precio propio (casa, tarifa por página o fuera de la auto-tarificación)` };
   if (rate.lang === "es" || !isPriceableLang(rate.lang)) return { ok: false, reason: `idioma ${rate.lang} no auto-presupuestable` };
   if (rate.unit !== "doc" && rate.unit !== "kword") return { ok: false, reason: `unidad ${rate.unit} no válida` };
@@ -372,4 +373,12 @@ export function evaluateChannelPrice(opts: {
     return { ok: false, reason: "coste_bajo_canal", channelPriceCents: opts.channelPriceCents, costCents: opts.costCents };
   }
   return { ok: true };
+}
+
+/** Lenguas a las que NO se les enseña nuestra cifra y que nunca se autopresupuestan: el jurado cotiza a ciegas (alemán, orden Juan 17-nov-2026). */
+export const BLIND_PRICE_LANGS: ReadonlySet<string> = new Set(["de"]);
+
+/** ¿Este idioma va a ciegas (sin cifra nuestra ni autopresupuesto)? Acepta mayúsculas y nulos. */
+export function isBlindPriceLang(lang: string | null | undefined): boolean {
+  return !!lang && BLIND_PRICE_LANGS.has(lang.toLowerCase());
 }

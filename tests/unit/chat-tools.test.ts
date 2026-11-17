@@ -157,13 +157,12 @@ test("get_quote_estimate: FR→ES 2 páginas apostillado = 40 € (hoja aparte s
   assert.equal(s.base_price_eur, 35);
 });
 
-test("get_quote_estimate: DE→ES por página 30 €, 35 € con tablas; sin dirección o ES→DE sin cifra", () => {
-  assert.equal(priced(getQuoteEstimate({ language: "de", direction: "to_spanish", document_type: "birth_certificate", pages: 2 })).base_price_eur, 60);
-  assert.equal(priced(getQuoteEstimate({ language: "de", direction: "to_spanish", document_type: "transcript", pages: 1 })).base_price_eur, 35);
-  assert.ok("auto_priceable" in getQuoteEstimate({ language: "de", document_type: "birth_certificate", pages: 1 }));
-  // ES→DE (10-nov-2026): misma tarifa por página; el manuscrito cuenta como tablas
-  assert.equal(priced(getQuoteEstimate({ language: "de", direction: "from_spanish", document_type: "birth_certificate", pages: 1 })).base_price_eur, 30);
-  assert.equal(priced(getQuoteEstimate({ language: "de", direction: "from_spanish", document_type: "birth_certificate", pages: 1, has_handwriting: true })).base_price_eur, 35);
+test("get_quote_estimate: alemán nunca lleva cifra por página; solo el suelo de 40 €", () => {
+  for (const direction of ["to_spanish", "from_spanish", undefined] as const) {
+    const r: any = getQuoteEstimate({ language: "de", direction, document_type: "birth_certificate", pages: 2 });
+    assert.equal(r.auto_priceable, false);
+    assert.match(r.note, /40 €/);
+  }
 });
 
 test("get_quote_estimate: ES→FR no usa la tarifa por página (35 € mínimo de siempre)", () => {

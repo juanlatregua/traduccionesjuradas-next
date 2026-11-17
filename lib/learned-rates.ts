@@ -16,6 +16,7 @@
 // Nunca francés (motor de reglas de Juan) ni pares sin español.
 
 import { prisma } from "@/lib/prisma";
+import { isBlindPriceLang } from "@/lib/learned-rates-math";
 import { casoIdEnSombra, tomarVigente } from "@/lib/caso/sombra";
 import { anclasDeExpediente, paresDe } from "@/lib/caso/sombra-plan";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
@@ -679,6 +680,7 @@ export async function autoQuoteFromPuertaSession(opts: {
     }
     const info = docInfoFromAnalysis(r);
     if (!info) return { ok: false, reason: `documento no aprendible (${r.fileName})` };
+    if (isBlindPriceLang(info.lang)) return { ok: false, reason: `idioma sin precio automático (${info.lang}): cotiza el jurado a ciegas (${r.fileName})` };
     infos.push(info);
   }
   const priced: { info: DocInfo; rate: NonNullable<Awaited<ReturnType<typeof findApprovedRate>>>; clientCents: number; costCents: number }[] = [];

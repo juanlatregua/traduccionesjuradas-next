@@ -15,7 +15,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuál es el precio de una traducción jurada?",
     answer:
-      "El precio mínimo orientativo es desde 30 € por página en francés (a español) y en alemán (en ambos sentidos). El precio exacto depende del idioma, el tipo de documento, la extensión y el plazo de entrega. En algunos casos, como el francés gestionado directamente con el traductor jurado sin intermediarios, el precio puede ser más ajustado.",
+      "El precio mínimo orientativo es desde 30 € por página en francés (a español); en alemán, desde 40 € por documento, con precio cerrado en el día y confirmado por el traductor jurado. El precio exacto depende del idioma, el tipo de documento, la extensión y el plazo de entrega. En algunos casos, como el francés gestionado directamente con el traductor jurado sin intermediarios, el precio puede ser más ajustado.",
   },
   {
     question: "¿Una traducción jurada “barata” puede ser válida?",
@@ -78,9 +78,9 @@ export default function TraduccionesJuradasBaratas() {
           ¿Cuál es el precio de una traducción jurada?
         </h2>
         <p className="mt-3 font-medium text-encre">
-          Una traducción jurada de francés o alemán a español cuesta 30 € + IVA
-          por página del original (35 € + IVA si lleva apostilla); en otros
-          idiomas parte de 40 € + IVA. La firma un traductor jurado nombrado por
+          Una traducción jurada de francés a español cuesta 30 € + IVA
+          por página del original (35 € + IVA si lleva apostilla); en alemán y
+          otros idiomas parte de 40 € + IVA por documento. La firma un traductor jurado nombrado por
           el MAEC, así que ese es el suelo real de una traducción válida.
         </p>
         <p className="mt-3 text-sepia">

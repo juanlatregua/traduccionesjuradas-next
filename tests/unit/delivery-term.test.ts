@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseDeliveryTerm } from "../../lib/delivery-term.ts";
-import { isClosedPriceDirectLang, quoteCostCents } from "../../lib/lavori-directo-math.ts";
+import { closedPriceLangOfPair, isClosedPriceDirectLang, quoteCostCents } from "../../lib/lavori-directo-math.ts";
 
 const lunes = new Date("2026-11-09T10:00:00Z");
 
@@ -30,9 +30,16 @@ test("otro texto no se toca", () => {
   assert.equal(parseDeliveryTerm(null, lunes), null);
 });
 
-test("closed-price: solo NL/PT/DE", () => {
-  for (const l of ["nl", "PT", " de "]) assert.equal(isClosedPriceDirectLang(l), true);
-  for (const l of ["fr", "en", "ro", "it", "", null, undefined]) assert.equal(isClosedPriceDirectLang(l), false);
+test("closed-price: solo NL/PT (alemán pide precio a Morton)", () => {
+  for (const l of ["nl", "PT"]) assert.equal(isClosedPriceDirectLang(l), true);
+  for (const l of ["de", "fr", "en", "ro", "it", "", null, undefined]) assert.equal(isClosedPriceDirectLang(l), false);
+});
+
+test("puerta: DE>ES y ES>DE no son cerrados (van a sendLeadPriceRequest); NL/PT sí", () => {
+  assert.equal(closedPriceLangOfPair("de", "es"), null);
+  assert.equal(closedPriceLangOfPair("es", "de"), null);
+  assert.equal(closedPriceLangOfPair("nl", "es"), "nl");
+  assert.equal(closedPriceLangOfPair("es", "pt"), "pt");
 });
 
 test("coste del presupuesto multiplica por cantidad", () => {

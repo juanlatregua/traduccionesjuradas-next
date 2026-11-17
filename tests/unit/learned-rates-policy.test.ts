@@ -189,3 +189,12 @@ test("coste que baja > 15 % degrada (coste_baja); justo -15 % no", () => {
   assert.equal(v.degrade && v.cause, "coste_baja");
   assert.equal(evaluateDegrade(rate({ status: "APPROVED" }), [...autoMarked(), cost(2550, 1)], NOW).degrade, false);
 });
+
+test("isBlindPriceLang: alemán a ciegas, el resto no", async () => {
+  const { isBlindPriceLang } = await import("../../lib/learned-rates-math.ts");
+  assert.equal(isBlindPriceLang("de"), true);
+  assert.equal(isBlindPriceLang("DE"), true);
+  assert.equal(isBlindPriceLang("fr"), false);
+  assert.equal(isBlindPriceLang("en"), false);
+  assert.equal(isBlindPriceLang(null), false);
+});

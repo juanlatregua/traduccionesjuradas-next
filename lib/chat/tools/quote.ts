@@ -6,7 +6,7 @@ import {
   AUTO_PRICEABLE_FOREIGN,
 } from "../../pricing-engine/languages.ts";
 import { round2 } from "../../quote-math.ts";
-import { clientBaseFromQuote, clientUrgentFromQuote, isPagePricedType, isFrPerDocType } from "../../pricing-engine/page-pricing.ts";
+import { clientBaseFromQuote, clientUrgentFromQuote, isFrPerDocType } from "../../pricing-engine/page-pricing.ts";
 import { getMinimum, getApostilleSurcharge } from "../../pricing-engine/rules.ts";
 import { DOC_FLOOR_CENTS } from "../../learned-rates-math.ts";
 
@@ -75,11 +75,8 @@ export function getQuoteEstimate(
   // cotización en lavori"). El set del motor sigue siendo más amplio, pero el
   // chatbot es público: mismo gate que la puerta.
   // Carril directo (en/de/nl/pt/ro): se publica el suelo por documento (Juan, 29-sep-2026).
-  // Excepción (8-oct-2026; ambos sentidos desde 10-nov): alemán en documentos «por
-  // página» también lleva cifra pública (30 € / 35 € con tablas o manuscrito por página).
   const hacia = input.direction === "to_spanish";
-  const alemanPorPagina = language === "de" && !!input.direction && isPagePricedType(input.document_type);
-  if ((language !== "fr" && !alemanPorPagina) || !AUTO_PRICEABLE_FOREIGN.has(language)) {
+  if (language !== "fr" || !AUTO_PRICEABLE_FOREIGN.has(language)) {
     const suelo = DIRECT_FLOOR_LANGS.has(language)
       ? `Puedes decir que parte de ${DOC_FLOOR_CENTS / 100} € + IVA por documento; no des otra cifra ni rango. `
       : "NO des ninguna cifra, ni orientativa ni de rango. ";
@@ -107,7 +104,7 @@ export function getQuoteEstimate(
       confidence: 1,
     },
     // Sin dirección explícita o hacia el idioma extranjero: el original se trata como
-    // español → sin tarifa por página (que solo existe FR→ES y DE↔ES).
+    // español → sin tarifa por página (que solo existe FR→ES).
     language: hacia
       ? { source: language, source_name: getLanguageName(language), target: "es", target_name: "Español", confidence: 1 }
       : { source: "es", source_name: "Español", target: language, target_name: getLanguageName(language), confidence: 1 },
@@ -155,11 +152,9 @@ export function getQuoteEstimate(
       "Bulletin n°3 francés con anexo multilingüe UE: precio fijo 75 € IVA incluido (paquete).";
   } else if (quote.pagePricing) {
     note =
-      language === "de"
-        ? `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página${quote.pagePricing.tables ? " (con tablas o manuscrito)" : " (35 € si la página lleva tablas o es manuscrita)"}.`
-        : language === "fr" && quote.pagePricing.pages <= 2 && isFrPerDocType(documentType)
-          ? "Tarifa por documento: 30 € (1 página) o 35 € (2 páginas), + IVA; 55 € si pasa de 900 palabras; +5 € con apostilla."
-          : `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página.`;
+      language === "fr" && quote.pagePricing.pages <= 2 && isFrPerDocType(documentType)
+        ? "Tarifa por documento: 30 € (1 página) o 35 € (2 páginas), + IVA; 55 € si pasa de 900 palabras; +5 € con apostilla."
+        : `Tarifa por página del original: ${quote.pagePricing.pricePerPage} € + IVA por página.`;
   } else if (partialInfo) {
     note =
       "Estimación con información parcial. Para precio cerrado real, sube el documento al presupuesto instantáneo.";

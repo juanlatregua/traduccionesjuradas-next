@@ -69,11 +69,11 @@ export const HOME: HomeStrings = {
       {
         b: tr("Cuánto:", "Combien :", "How much:", "Wie viel:", "Quanto:"),
         t: tr(
-          "precio cerrado; francés y alemán a español, 30 € + IVA por página (35 € en alemán con tablas); inglés, neerlandés, portugués y rumano desde 40 € + IVA. Sin sorpresas.",
+          "precio cerrado; francés a español, 30 € + IVA por página; alemán, inglés, neerlandés, portugués y rumano desde 40 € + IVA por documento (el alemán lo confirma el jurado en el día). Sin sorpresas.",
           "prix ferme, 30 € HT par page (français → espagnol). Sans surprises.",
-          "a fixed price before you pay: French or German into Spanish €30 + VAT per page, other languages from €40 + VAT/document. No surprises.",
-          "Festpreis vor der Zahlung: Deutsch → Spanisch 30 € zzgl. MwSt. pro Seite (35 € mit Tabellen), andere Sprachen ab 40 € zzgl. MwSt./Dokument. Keine Überraschungen.",
-          "preço fechado antes de pagar: francês ou alemão para espanhol 30 € + IVA por página, outros idiomas desde 40 € + IVA/documento. Sem surpresas."
+          "a fixed price before you pay: French into Spanish €30 + VAT per page, other languages from €40 + VAT/document. No surprises.",
+          "Festpreis vor der Zahlung: Französisch → Spanisch 30 € zzgl. MwSt. pro Seite, Deutsch und andere Sprachen ab 40 € zzgl. MwSt./Dokument (Deutsch am selben Tag vom Übersetzer bestätigt). Keine Überraschungen.",
+          "preço fechado antes de pagar: francês para espanhol 30 € + IVA por página, alemão e outros idiomas desde 40 € + IVA/documento. Sem surpresas."
         ),
       },
       {
@@ -95,11 +95,11 @@ export const HOME: HomeStrings = {
       `${GOOGLE_RATING.stars.toString().replace(".", ",")} · ${GOOGLE_RATING.reviews} avaliações no Google`
     ),
     priceLine: tr(
-      "Francés y alemán: 30 € + IVA por página · 10 idiomas · entrega 24–48 h",
+      "Francés: 30 € + IVA por página · alemán desde 40 € + IVA por documento · 10 idiomas · entrega 24–48 h",
       "Français : 30 € HT par page · 10 langues · livraison 24–48 h",
-      "French and German: €30 + VAT per page · 10 languages · deadline confirmed in the quote",
-      "Deutsch und Französisch: 30 € zzgl. MwSt. pro Seite · 10 Sprachen · Frist im Angebot bestätigt",
-      "Francês e alemão: 30 € + IVA por página · 10 idiomas · prazo confirmado no orçamento"
+      "French: €30 + VAT per page · 10 languages · deadline confirmed in the quote",
+      "Französisch: 30 € zzgl. MwSt. pro Seite · Deutsch ab 40 € zzgl. MwSt. pro Dokument · 10 Sprachen · Frist im Angebot bestätigt",
+      "Francês: 30 € + IVA por página · alemão desde 40 € + IVA por documento · 10 idiomas · prazo confirmado no orçamento"
     ),
     credit: tr(
       "Traductores jurados acreditados por el MAEC · PDF firmado con validez oficial. Especialistas en francés (Juan Silva, nº 3850).",
@@ -311,11 +311,11 @@ export const HOME: HomeStrings = {
     primary: tr("Subir y diagnosticar", "Déposer et diagnostiquer", "Upload and diagnose", "Hochladen und diagnostizieren", "Enviar e diagnosticar"),
     secondary: tr("Ver utilidades", "Voir les utilités", "See the toolkit", "Werkzeuge ansehen", "Ver ferramentas"),
     micro: tr(
-      "Pago seguro · traducción jurada de francés y alemán: 30 € + IVA por página (35 € en alemán con tablas) o 40 € + IVA por documento (inglés, neerlandés, portugués, rumano) · sin compromiso",
+      "Pago seguro · traducción jurada de francés: 30 € + IVA por página, o desde 40 € + IVA por documento (alemán, inglés, neerlandés, portugués, rumano) · sin compromiso",
       "Paiement sécurisé · prix ferme : 30 € HT par page (français → espagnol) · sans engagement",
-      "Secure payment · fixed price: French or German into Spanish €30 + VAT per page, other languages from €40 + VAT/document · no commitment",
-      "Sichere Zahlung · Festpreis: Deutsch → Spanisch 30 € zzgl. MwSt. pro Seite (35 € mit Tabellen), andere Sprachen ab 40 € zzgl. MwSt./Dokument · unverbindlich",
-      "Pagamento seguro · preço fechado: francês ou alemão para espanhol 30 € + IVA por página, outros idiomas desde 40 € + IVA/documento · sem compromisso"
+      "Secure payment · fixed price: French into Spanish €30 + VAT per page, other languages from €40 + VAT/document · no commitment",
+      "Sichere Zahlung · Festpreis: Französisch → Spanisch 30 € zzgl. MwSt. pro Seite, Deutsch und andere Sprachen ab 40 € zzgl. MwSt./Dokument · unverbindlich",
+      "Pagamento seguro · preço fechado: francês para espanhol 30 € + IVA por página, alemão e outros idiomas desde 40 € + IVA/documento · sem compromisso"
     ),
   },
 };

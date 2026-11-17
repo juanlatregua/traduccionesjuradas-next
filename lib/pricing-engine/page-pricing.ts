@@ -79,8 +79,8 @@ export function isFrPerDocType(specificType: string | null | undefined, category
   );
 }
 
-/** Idiomas con precio por página (siempre hacia el español). */
-export const PAGE_PRICED_LANGS = new Set(["fr", "de"]);
+/** Idiomas con precio por página (siempre hacia el español). El alemán ya no: lo cotiza el jurado (orden Juan 17-nov-2026). */
+export const PAGE_PRICED_LANGS = new Set(["fr"]);
 
 /** Tipos (specific_type del análisis) que se cobran por página del original. */
 export const PAGE_PRICED_TYPES = new Set([
@@ -149,7 +149,7 @@ export function billablePages(pages: number | null | undefined): number {
 
 /**
  * Precio por página, o null si el documento no entra (otro idioma, original en
- * español, tipo «por palabra»). `inbound` = el original NO está en español (en alemán da igual: vale en ambos sentidos).
+ * español, tipo «por palabra»). `inbound` = el original NO está en español.
  */
 export function computePagePricing(input: {
   specificType: string | null | undefined;
@@ -157,7 +157,6 @@ export function computePagePricing(input: {
   inbound: boolean;
   pages: number | null | undefined;
   hasTables?: boolean | null;
-  /** Manuscrito: en alemán cuenta como tablas (35 €/15 €). */
   hasHandwriting?: boolean | null;
   hasApostille?: boolean | null;
   /** El análisis dice EXPRESAMENTE que la apostilla ocupa una hoja aparte. */
@@ -171,8 +170,7 @@ export function computePagePricing(input: {
 }): PagePricing | null {
   const lang = String(input.foreignLang || "").trim().toLowerCase();
   const type = String(input.specificType || "").trim().toLowerCase();
-  // El alemán tiene tarifa por página en ambos sentidos; el resto, solo hacia el español.
-  if ((!input.inbound && lang !== "de") || !PAGE_PRICED_LANGS.has(lang)) return null;
+  if (!input.inbound || !PAGE_PRICED_LANGS.has(lang)) return null;
   const frPerDoc = lang === "fr" && isFrPerDocType(type, input.category);
   if (!isPagePricedType(type) && !(lang === "fr" && FR_ONLY_PAGE_TYPES.has(type)) && !frPerDoc) return null;
   const apostille = input.hasApostille === true;
@@ -181,10 +179,9 @@ export function computePagePricing(input: {
   // cobrar de más que pagar a Morton por debajo de lo pactado.
   const all = billablePages(input.pages);
   const pages = apostille && input.apostilleSeparatePage === true ? Math.max(1, all - 1) : all;
-  const tables =
-    lang === "de" && (detectTables({ specificType: input.specificType, hasTables: input.hasTables }) || input.hasHandwriting === true);
-  const pricePerPage = tables ? PAGE_PRICE_DE_TABLES_EUR : PAGE_PRICE_EUR;
-  const costPerPage = lang === "de" ? (tables ? PAGE_COST_DE_TABLES_EUR : PAGE_COST_DE_EUR) : 0;
+  const tables = false;
+  const pricePerPage = PAGE_PRICE_EUR;
+  const costPerPage = 0;
   if (frPerDoc && pages <= FR_DOC_MAX_PAGES) {
     const doc = Number(input.words) > FR_DOC_LONG_WORDS ? FR_DOC_LONG_EUR : pages === 1 ? PAGE_PRICE_EUR : FR_DOC_2P_EUR;
     return {

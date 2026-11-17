@@ -22,7 +22,6 @@ import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 import { evaluateLinesMargin, evaluateChannelPrice, MIN_AUTO_MARGIN_PCT, type StaffQuoteLine } from "@/lib/learned-rates-math";
 import { isFrenchPair } from "@/lib/workflow";
 import { closedPriceLangOfPair } from "@/lib/lavori-directo-math";
-import { isDePageTariffQuote } from "@/lib/pricing-engine/page-pricing";
 
 export const MARGIN_BLOCK_CODE = "MARGEN_INSUFICIENTE";
 export const CHANNEL_BLOCK_CODE = "CANAL_SIN_VERIFICAR";
@@ -138,14 +137,7 @@ export async function verifyTranslatorChannelPrice(input: {
   const isFrench = isFrenchPair(`${input.sourceLang || ""}-${input.targetLang || ""}`);
   if (isFrench) return { ok: true };
 
-  // Tarifa por página DE→ES (8-oct-2026): el coste de Morton (10/15 € por página)
-  // es una tarifa pactada de la casa, no un coste inventado ni una cifra que haya
-  // que pedir antes a lavori — el precio sale al momento. Exige la MARCA explícita
-  // del builder (autoPricedBy) Y que TODAS las líneas con precio son exactamente esa tarifa (precio y coste a la vez); cualquier
-  // otra cifra sigue exigiendo el canal.
-  if (isDePageTariffQuote(input)) return { ok: true };
-
-  // NL/PT/DE (orden Juan 8-nov-2026): el precio lo pone Juan en el builder y el
+  // NL/PT (orden Juan 8-nov-2026): el precio lo pone Juan en el builder y el
   // presupuesto queda sellado con el jurado (sealClosedPriceQuote); al cobrar sale
   // el encargo con ese coste cerrado. No se exige solicitud previa en lavori, salvo
   // que ya haya una atada al presupuesto (entonces se compara contra su cifra).

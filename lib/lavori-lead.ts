@@ -34,6 +34,7 @@ import { checkDocForSobre, describeDocForSobre } from "@/lib/lavori-sobre";
 import { TYPE_LABELS } from "@/lib/diagnosis";
 import { documentTypeLabel } from "@/lib/document-labels";
 import { ANALYSIS_SELECT, docInfoFromAnalysis, isLearnedRatesLive } from "@/lib/learned-rates";
+import { isBlindPriceLang } from "@/lib/learned-rates-math";
 import { deadlineOf } from "@/lib/needed-by";
 import { proposedCostCents, type CifraDoc, type PriceBasis } from "@/lib/lavori-directo-math";
 
@@ -401,7 +402,7 @@ export async function sendLeadPriceRequest(input: LeadRequestInput): Promise<Lea
 
   const words = Number.isFinite(Number(input.words)) && Number(input.words) > 0 ? Math.round(Number(input.words)) : null;
   const especificaciones = String(input.especificaciones || "").trim().slice(0, 2000) || null;
-  const cifra = await cifraOrientativaFor(docs, candidatos).catch((err) => {
+  const cifra = isBlindPriceLang(route.lang) ? null : await cifraOrientativaFor(docs, candidatos).catch((err) => {
     console.error("[lavori-lead] cifra orientativa fallo:", err);
     return null;
   });
@@ -463,7 +464,7 @@ export async function cifraOrientativaFor(docs: LeadDoc[], candidatos: string[])
   for (const url of unicos) {
     const row = filas.find((f) => f.fileUrl === url);
     const info = row ? docInfoFromAnalysis(row) : null;
-    if (!row || !info) return null;
+    if (!row || !info || isBlindPriceLang(info.lang)) return null;
     const rate = await prisma.learnedRate.findUnique({
       where: { lang_direction_docType_apostille: { lang: info.lang, direction: info.direction, docType: info.docType, apostille: info.apostille } },
       select: { status: true, unit: true, costCents: true, wordsRef: true },

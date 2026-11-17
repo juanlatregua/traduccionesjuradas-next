@@ -147,25 +147,17 @@ export function clientCentsWithMotorPrice(motorCents: number, costCents: number,
 
 /** `tariffCents` = precio aprobado del tarifario para ese documento: MANDA (caso
  * Daniela 2026-00352, 7-nov: salió a coste + 10 € con la tarifa aprobada más alta);
- * la regla de margen solo es el suelo.
- * `tariffCostCents` = coste de la tarifa por página de alemán (10/15 €): TOPE de la
- * cifra del jurado (Juan, 10-nov-2026). Solo si TODOS los documentos la tienen y la
- * cifra repartida la supera: manda la tarifa, `capped` lo marca y `rawCostCents`
- * guarda lo que pidió el jurado. */
+ * la regla de margen solo es el suelo. */
 export function directQuoteLines(
   baseCents: number,
-  docs: { words: number | null; tariffCents?: number | null; tariffCostCents?: number | null }[]
-): { clientCents: number; costCents: number; rawCostCents: number; capped: boolean }[] {
-  const n = docs.length;
-  if (n === 0) return [];
+  docs: { words: number | null; tariffCents?: number | null }[]
+): { clientCents: number; costCents: number }[] {
+  if (docs.length === 0) return [];
   const spread = spreadCents(baseCents, docs.map((d) => (d.words && d.words > 0 ? d.words : 0)));
-  const caps = docs.map((d) => (d.tariffCostCents && d.tariffCostCents > 0 ? d.tariffCostCents : null));
-  const capped = caps.every((c) => c != null) && baseCents > caps.reduce((a: number, c) => a + (c as number), 0);
-  return spread.map((rawCostCents, i) => {
-    const costCents = capped ? (caps[i] as number) : rawCostCents;
+  return spread.map((costCents, i) => {
     const minimo = roundUpEuro(autoClientPriceCentsFromCost(costCents, DOC_FLOOR_CENTS));
     const tariff = docs[i].tariffCents;
-    return { costCents, rawCostCents, capped, clientCents: tariff && tariff > 0 ? Math.max(minimo, roundDownEuro(tariff)) : minimo };
+    return { costCents, clientCents: tariff && tariff > 0 ? Math.max(minimo, roundDownEuro(tariff)) : minimo };
   });
 }
 
@@ -196,14 +188,14 @@ export function exceedsQuotedCost(basePriceCents: number, quotedCostCents: numbe
   return basePriceCents > quotedCostCents + 1;
 }
 
-const CLOSED_PRICE_DIRECT_LANGS = new Set(["nl", "pt", "de"]);
+const CLOSED_PRICE_DIRECT_LANGS = new Set(["nl", "pt"]);
 
-/** NL/PT/DE: la puerta nunca pide precio previo al jurado; el precio sale de la tarifa o de Juan (orden Juan 8-nov-2026). */
+/** NL/PT: la puerta nunca pide precio previo al jurado; el precio sale de la tarifa o de Juan (orden Juan 8-nov-2026). */
 export function isClosedPriceDirectLang(lang: string | null | undefined): boolean {
   return CLOSED_PRICE_DIRECT_LANGS.has(String(lang || "").trim().toLowerCase());
 }
 
-/** Lengua NL/PT/DE de un par con español (ES>X o X>ES); null si no aplica. */
+/** Lengua NL/PT de un par con español (ES>X o X>ES); null si no aplica. */
 export function closedPriceLangOfPair(source: string | null | undefined, target: string | null | undefined): string | null {
   const s = String(source || "").trim().toLowerCase();
   const t = String(target || "").trim().toLowerCase();

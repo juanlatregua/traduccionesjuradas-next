@@ -50,7 +50,7 @@ export function toBuilderDocuments(
     const foreign = resolvePriceablePair(a.language.source, a.language.target);
     // Apostilla clasificada como documento propio (fr/de): no se cobra sola; el
     // builder le suma +5 € si acompaña a un documento por página (pairApostilles).
-    const apostilleAlone = a.document_type.specific_type === "apostille" && (a.language.source !== "es" || foreign === "de") && PAGE_PRICED_LANGS.has(String(foreign));
+    const apostilleAlone = a.document_type.specific_type === "apostille" && a.language.source !== "es" && PAGE_PRICED_LANGS.has(String(foreign));
     const priceable = !!foreign && isAutoPriceable(foreign) && !apostilleAlone;
     const quote = priceable ? calculatePrice(a) : null;
     return {

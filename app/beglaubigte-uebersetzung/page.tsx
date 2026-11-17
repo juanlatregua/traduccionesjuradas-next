@@ -15,11 +15,11 @@ import { LOCALE_ABS, HREFLANG_ALTERNATES, LOCALE_HOME_LABEL } from "@/lib/i18n/l
 export const metadata: Metadata = {
   title: { absolute: "Beglaubigte Übersetzung Spanisch ↔ Deutsch · amtlich gültig in Spanien" },
   description:
-    "Amtliche beglaubigte Übersetzung in 10 Sprachen, 100 % online. Dokument hochladen und vor der Zahlung ein Festpreisangebot erhalten. Vom spanischen MAEC ermächtigte Übersetzer. Beglaubigte Übersetzung Deutsch → Spanisch: 30 € zzgl. MwSt. pro Seite (35 € mit Tabellen), Festpreis sofort.",
+    "Amtliche beglaubigte Übersetzung in 10 Sprachen, 100 % online. Dokument hochladen und vor der Zahlung ein Festpreisangebot erhalten. Vom spanischen MAEC ermächtigte Übersetzer. Beglaubigte Übersetzung Deutsch → Spanisch: Festpreis am selben Tag, vom vereidigten Übersetzer bestätigt, ab 40 € zzgl. MwSt. pro Dokument.",
   alternates: { canonical: LOCALE_ABS.de, languages: HREFLANG_ALTERNATES },
   openGraph: {
     title: "Beglaubigte Übersetzung Spanisch ↔ Deutsch",
-    description: "Festpreis vor der Zahlung. Vom spanischen Außenministerium (MAEC) ermächtigte Übersetzer. Deutsch → Spanisch: 30 € zzgl. MwSt. pro Seite.",
+    description: "Festpreis vor der Zahlung. Vom spanischen Außenministerium (MAEC) ermächtigte Übersetzer. Deutsch → Spanisch: Festpreis am selben Tag, vom vereidigten Übersetzer bestätigt, ab 40 € zzgl. MwSt. pro Dokument.",
     locale: "de_DE",
     url: LOCALE_ABS.de,
   },

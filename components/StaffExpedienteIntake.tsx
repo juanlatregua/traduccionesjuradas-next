@@ -7,7 +7,7 @@ import { upload } from "@vercel/blob/client";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors, Merge } from "lucide-react";
 import { autoClientPriceForRow, clientPriceFromCost, isFrenchForeign, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
-import { PAGE_PRICED_LANGS, APOSTILLE_EXTRA_EUR, PAGE_TARIFF_MARK, pairApostilles } from "@/lib/pricing-engine/page-pricing";
+import { PAGE_PRICED_LANGS, APOSTILLE_EXTRA_EUR, pairApostilles } from "@/lib/pricing-engine/page-pricing";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { lavoriRouteFromPair, lavoriLangFromPair, type LavoriRoute } from "@/lib/lavori-bridge";
 import LavoriCandidatePicker, { describeLavoriPick, lavoriPickError, lavoriPickToCandidatos, useLavoriCartera, type LavoriPick } from "@/components/LavoriCandidatePicker";
@@ -937,16 +937,13 @@ export default function StaffExpedienteIntake({
           const note = manualPriceReason(d.sourceLang, foreign);
           return d.unitPrice === 0 && d.clientPrice === undefined && d.priceNote === note ? d : { ...d, unitPrice: 0, clientPrice: undefined, priceNote: note };
         }
-        // Apostilla SUELTA (fr/de): +5 € solo si acompaña a un documento por página
+        // Apostilla SUELTA (fr): +5 € solo si acompaña a un documento por página
         // del expediente; si no, precio a mano. Nunca 30 € ni el mínimo por palabra.
-        if (d.documentType === "apostille" && (d.sourceLang !== "es" || foreign === "de") && PAGE_PRICED_LANGS.has(foreign)) {
+        if (d.documentType === "apostille" && d.sourceLang !== "es" && PAGE_PRICED_LANGS.has(foreign)) {
           if (apostillePairs[idx]) {
-            const de = foreign === "de";
-            const cost = de ? 0 : APOSTILLE_EXTRA_EUR;
-            const cp = de ? APOSTILLE_EXTRA_EUR : undefined;
-            return d.unitPrice === cost && d.clientPrice === cp && !d.priceNote && (!de || d.pageTariff === true)
+            return d.unitPrice === APOSTILLE_EXTRA_EUR && d.clientPrice === undefined && !d.priceNote
               ? d
-              : { ...d, unitPrice: cost, clientPrice: cp, pageTariff: de ? true : undefined, priceNote: undefined, minApplied: false };
+              : { ...d, unitPrice: APOSTILLE_EXTRA_EUR, clientPrice: undefined, pageTariff: undefined, priceNote: undefined, minApplied: false };
           }
           const note = "Apostilla suelta sin documento al que acompañar: precio a mano";
           return d.unitPrice === 0 && d.clientPrice === undefined && d.priceNote === note ? d : { ...d, unitPrice: 0, clientPrice: undefined, pageTariff: undefined, priceNote: note };
@@ -1384,13 +1381,6 @@ export default function StaffExpedienteIntake({
           sourceLang,
           targetLang,
           deliveryType,
-          // Marca de tarifa por página de alemán (DE↔ES): solo si TODAS las filas incluidas siguen
-          // como las dejó el motor (cualquier edición a mano desactiva autoPriced).
-          autoPricedBy:
-            ((sourceLang === "de" && (targetLang || "es") === "es") || (sourceLang === "es" && targetLang === "de")) && includedDocs.length > 0 &&
-            includedDocs.every((d) => d.autoPriced && d.pageTariff)
-              ? PAGE_TARIFF_MARK
-              : undefined,
           expedienteRef: expedienteRef || undefined,
           lavoriLeadRef: lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || yaPedida?.ref || undefined,
           pdfLang,

@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
+import { BLIND_PRICE_LANGS } from "@/lib/learned-rates-math";
 import { SchemaProduct } from "@/components/SchemaProduct";
 import { SchemaService } from "@/components/SchemaService";
 import UploadHeroPlaceholder from "@/components/UploadHeroPlaceholder";
@@ -121,7 +122,7 @@ export default async function PaginaIdioma({
           lang === "fr"
             ? "Traducción jurada de francés: 30 € + IVA por página del original (certificados, actas, títulos, expedientes, antecedentes) · 35 € si está apostillado. Sube el documento y recibes el precio cerrado al instante."
             : lang === "de"
-              ? "Traducción jurada de alemán a español y de español a alemán: 30 € + IVA por página del original (35 € + IVA si la página lleva tablas —notas, expedientes, extractos bancarios— o es manuscrita) · +5 € si está apostillado. Sube el documento y recibes el precio cerrado al instante."
+              ? "Traducción jurada de alemán a español y de español a alemán: precio cerrado en el día, confirmado por el traductor jurado, desde 40 € + IVA por documento. Sube el documento y te lo confirmamos antes de pagar."
               : "Depende del documento. Súbelo y tu traductor jurado nombrado por el MAEC te confirma el precio hoy mismo, sin compromiso.",
       });
     }
@@ -174,7 +175,9 @@ export default async function PaginaIdioma({
         offers={
           // fr/de→es: tarifa por página, IVA no incluido (8-oct-2026). ES→FR/ES→DE
           // no tienen oferta por página y siguen con su precio.
-          porPagina
+          BLIND_PRICE_LANGS.has(lang)
+            ? [{ name: "Desde (por documento)", price: "40", priceCurrency: "EUR", url: canonicalUrl, vatIncluded: false }]
+            : porPagina
             ? [
                 { name: "1 página", price: priceDoc, priceCurrency: "EUR", url: canonicalUrl, vatIncluded: false },
                 { name: "2 páginas", price: priceStd, priceCurrency: "EUR", url: canonicalUrl, vatIncluded: false },
