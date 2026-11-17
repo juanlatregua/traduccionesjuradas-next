@@ -4,7 +4,7 @@ import PaginaIdioma from "@/components/PaginaIdioma";
 export const metadata: Metadata = {
   title: "Traductor Jurado de Alem\u00E1n \u00B7 Traducci\u00F3n Oficial Alem\u00E1n\u2194Espa\u00F1ol \u00B7 MAEC",
   description:
-    "Traducci\u00F3n jurada de alem\u00E1n por traductor oficial MAEC. Documentos legales, certificados, t\u00EDtulos universitarios. Alem\u00E1n-espa\u00F1ol y espa\u00F1ol-alem\u00E1n. Alem\u00E1n a espa\u00F1ol: 30\u20AC + IVA por p\u00E1gina.",
+    "Traducci\u00F3n jurada de alem\u00E1n por traductor oficial MAEC. Documentos legales, certificados, t\u00EDtulos universitarios. Alem\u00E1n-espa\u00F1ol y espa\u00F1ol-alem\u00E1n. Precio cerrado en el d\u00EDa, confirmado por el traductor jurado, desde 40\u20AC + IVA por documento.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-aleman",
   },
