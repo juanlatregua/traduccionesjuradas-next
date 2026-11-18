@@ -23,10 +23,9 @@ export type RatePrice =
   | { kind: "blocked"; clientCents: Cents; costCents: Cents; margin: Margin; reason: string }
   | { kind: "noPrice"; reason: string };
 
-/** A per-document tariff fits documents from ¼ of the reference up to +30 %. Without a reference it never fits; without a word count of the document it does. */
+/** A per-document tariff fits documents from ¼ of the reference up to +30 %. Unknown size on either side never fits. */
 export function fitsDocSize(words: number | null | undefined, wordsRef: number | null | undefined): boolean {
-  if (!wordsRef) return false;
-  if (!words) return true;
+  if (!wordsRef || !words) return false;
   return words * 100 >= wordsRef * DOC_SIZE_MIN_PCT && words * 100 <= wordsRef * DOC_SIZE_MAX_PCT;
 }
 
@@ -69,6 +68,7 @@ export function selectRate(
   const { exact, wildcard } = candidates;
   if (exact?.approved) {
     if (exact.unit === "doc" && !exact.wordsRef) return { kind: "none", reason: "tarifa sin referencia de tamaño" };
+    if (exact.unit === "doc" && !doc.words) return { kind: "none", reason: "documento sin recuento: no se puede comprobar el tamaño" };
     if (exact.unit === "doc" && !fitsDocSize(doc.words, exact.wordsRef)) return { kind: "none", reason: "el documento no encaja en el tamaño de la tarifa (±30 %)" };
     if (exact.unit === "per1000Words" && !doc.words) return { kind: "none", reason: "tarifa por 1000 palabras sin palabras" };
     return { kind: "rate", rate: exact };

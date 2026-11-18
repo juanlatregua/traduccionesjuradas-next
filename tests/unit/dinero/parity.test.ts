@@ -198,7 +198,12 @@ test("paridad rate ↔ priceDocWithRate, canAutoQuote y fitsDocSize (coste 0 y c
       }
       assert.equal(nw.kind === "priced", oldOk, `${unit} ${cost} ${cl} ${w}`);
     }
-  for (let w = 0; w <= 3000; w++) for (let r = 1; r <= 2000; r += 7) assert.equal(fitsDocSize(w, r), oldFitsDocSize(w, r));
+  for (let w = 1; w <= 3000; w++) for (let r = 1; r <= 2000; r += 7) assert.equal(fitsDocSize(w, r), oldFitsDocSize(w, r));
+  // DOCUMENTED: a document without word count — old accepts it against any reference; new: size unknown, does not fit.
+  for (const w of [0, null, undefined]) {
+    assert.equal(oldFitsDocSize(w, 300), true);
+    assert.equal(fitsDocSize(w, 300), false);
+  }
   // DOCUMENTED: a per-document tariff without wordsRef — old applies it to any size (a 30-page document); new: not applicable.
   assert.equal(oldFitsDocSize(9000, null), true);
   assert.equal(fitsDocSize(9000, null), false);

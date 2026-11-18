@@ -152,7 +152,8 @@ test("rate: tamaño ±30 %, unidad y comodín", () => {
   assert.equal(fitsDocSize(131, 100), false);
   assert.equal(fitsDocSize(25, 100), true);
   assert.equal(fitsDocSize(24, 100), false);
-  assert.equal(fitsDocSize(null, 100), true);
+  assert.equal(fitsDocSize(null, 100), false); // documento sin recuento: tamaño desconocido no encaja
+  assert.equal(fitsDocSize(0, 100), false);
   assert.equal(fitsDocSize(9000, null), false); // sin referencia de tamaño no encaja nunca
   assert.equal(fitsDocSize(300, 0), false);
   assert.equal(unitFor(5000, 2), "doc");
