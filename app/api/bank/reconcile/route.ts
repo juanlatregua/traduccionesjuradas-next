@@ -1,5 +1,6 @@
 // app/api/bank/reconcile/route.ts — STAFF: cruza los movimientos del extracto
-// (parseados en cliente) contra facturas/pedidos/gastos. NO escribe nada.
+// (parseados en cliente) contra facturas/pedidos/gastos. Solo guarda el último saldo
+// de un extracto completo (panel de Contabilidad); no casa ni contabiliza nada.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
@@ -75,5 +76,20 @@ export async function POST(req: Request) {
   };
 
   const result = reconcile(rows, snap);
+  // Saldo del movimiento más reciente, solo si los saldos son continuos (extracto completo)
+  // y no es más antiguo que el ya guardado. Los bancos exportan ordenado en un sentido u otro.
+  if (result.balanceCheck.ok) {
+    const [a, b] = [rows[0], rows[rows.length - 1]];
+    const ultimo = new Date(a.bookingDate) >= new Date(b.bookingDate) ? a : b;
+    if (ultimo.balanceCents != null) {
+      const asOf = new Date(ultimo.bookingDate);
+      const previo = await prisma.bankBalance.findUnique({ where: { account: "banco" }, select: { asOf: true } });
+      if (!previo || asOf >= previo.asOf) {
+        await prisma.bankBalance
+          .upsert({ where: { account: "banco" }, create: { account: "banco", balanceCents: ultimo.balanceCents, asOf }, update: { balanceCents: ultimo.balanceCents, asOf } })
+          .catch((e) => console.error("[bank/reconcile] saldo", e));
+      }
+    }
+  }
   return NextResponse.json({ ok: true, result });
 }

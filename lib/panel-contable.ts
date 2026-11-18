@@ -17,15 +17,31 @@ export type ResumenPanel = {
   resultadoMesCents: number;
   ivaTrimestreCents: number;
   retencionesTrimestreCents: number;
+  resultadoAnioCents: number;
+  sociedadesAnioCents: number; // Impuesto de Sociedades estimado del año en curso
   reservasCents: number;
+  banco: { saldoCents: number; asOf: Date; libreCents: number } | null;
   gastosSinCompletar: number; // needsReview sin las facturas de traductor, que lleva el agente
 };
+
+// Microempresa (INCN del año anterior < 1 M€): escala de la DT 44.ª LIS (Ley 7/2024).
+// Primeros 50.000 € de base / resto. Estimación sobre el resultado contable, no sobre
+// la base imponible: sin ajustes, ni bases negativas de años anteriores, ni pagos a cuenta.
+const ESCALA_MICRO: Record<number, [number, number]> = { 2025: [0.21, 0.22], 2026: [0.19, 0.21] };
+const ESCALA_MICRO_DESDE_2027: [number, number] = [0.17, 0.2];
+export function cuotaSociedadesCents(baseCents: number, year: number): number {
+  if (baseCents <= 0) return 0;
+  const [t1, t2] = year >= 2027 ? ESCALA_MICRO_DESDE_2027 : ESCALA_MICRO[year] ?? [0.25, 0.25];
+  const tramo = Math.min(baseCents, 5_000_000);
+  return Math.round(tramo * t1 + (baseCents - tramo) * t2);
+}
 
 export function resumenPanelContable(input: {
   invoices: PanelInvoice[];
   expenses: PanelExpense[];
   devengos: PanelDevengo[];
   cobrosSinFactura: PanelCobro[]; // pedidos pagados aún sin factura: mismo ingreso que el balance
+  banco?: { saldoCents: number; asOf: Date } | null;
   now: Date;
 }): ResumenPanel {
   const { year, month } = madridParts(input.now);
@@ -36,6 +52,9 @@ export function resumenPanelContable(input: {
   const finTrimestre = primerMes === 10 ? madridStartOfMonthUtc(year + 1, 1) : madridStartOfMonthUtc(year, primerMes + 3);
   const delMes = (d: Date) => d >= inicioMes && d < finMes;
   const delTrimestre = (d: Date) => d >= inicioTrimestre && d < finTrimestre;
+  const inicioAnio = madridStartOfMonthUtc(year, 1);
+  const finAnio = madridStartOfMonthUtc(year + 1, 1);
+  const delAnio = (d: Date) => d >= inicioAnio && d < finAnio;
 
   const ingresosMesCents = input.invoices.filter((i) => delMes(i.issuedAt)).reduce((a, i) => a + i.baseCents, 0);
   const cobradoSinFacturaMesCents = input.cobrosSinFactura.filter((c) => delMes(c.date)).reduce((a, c) => a + c.baseCents, 0);
@@ -49,6 +68,14 @@ export function resumenPanelContable(input: {
   const ivaTrimestreCents = Math.max(0, d303.resultadoCents);
   const retencionesTrimestreCents = Math.max(0, d111.retencionesCents);
 
+  const resultadoAnioCents =
+    input.invoices.filter((i) => delAnio(i.issuedAt)).reduce((a, i) => a + i.baseCents, 0) +
+    input.cobrosSinFactura.filter((c) => delAnio(c.date)).reduce((a, c) => a + c.baseCents, 0) -
+    input.expenses.filter((e) => delAnio(e.date) && !e.needsReview).reduce((a, e) => a + e.baseCents, 0) -
+    input.devengos.filter((d) => delAnio(d.date)).reduce((a, d) => a + d.baseCents, 0);
+  const sociedadesAnioCents = cuotaSociedadesCents(resultadoAnioCents, year);
+  const reservasCents = ivaTrimestreCents + retencionesTrimestreCents + sociedadesAnioCents;
+
   return {
     ingresosMesCents,
     cobradoSinFacturaMesCents,
@@ -57,7 +84,10 @@ export function resumenPanelContable(input: {
     resultadoMesCents: ingresosMesCents + cobradoSinFacturaMesCents - gastosMesCents - costeSinFacturaMesCents,
     ivaTrimestreCents,
     retencionesTrimestreCents,
-    reservasCents: ivaTrimestreCents + retencionesTrimestreCents,
+    resultadoAnioCents,
+    sociedadesAnioCents,
+    reservasCents,
+    banco: input.banco ? { ...input.banco, libreCents: input.banco.saldoCents - reservasCents } : null,
     gastosSinCompletar: input.expenses.filter((e) => e.needsReview && delTrimestre(e.date) && !e.concept?.startsWith("Factura del sobre lavori")).length,
   };
 }

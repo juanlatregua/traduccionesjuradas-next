@@ -478,6 +478,16 @@ model BankDecision {
   @@index([brand])
 }
 
+// Último saldo leído de un extracto bancario completo (saldos continuos), para el
+// panel de Contabilidad: saldo real frente a lo que hay que guardar.
+model BankBalance {
+  id           String   @id @default(cuid())
+  account      String   @unique
+  balanceCents Int
+  asOf         DateTime
+  updatedAt    DateTime @default(now()) @updatedAt
+}
+
 model OrderEvent {
   id        String   @id @default(cuid())
   orderId   String

@@ -93,6 +93,7 @@ export default async function ZonaTraductorContabilidadPage() {
     expenses: rawExpenses,
     devengos: rawAccruals,
     cobrosSinFactura: unbilledIncome.map((u) => ({ date: new Date(u.date), baseCents: u.baseCents })),
+    banco: await prisma.bankBalance.findUnique({ where: { account: "banco" }, select: { balanceCents: true, asOf: true } }).then((b) => (b ? { saldoCents: b.balanceCents, asOf: b.asOf } : null)),
     now: new Date(),
   });
 

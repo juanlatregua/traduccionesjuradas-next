@@ -20,7 +20,7 @@ export default function PanelDiarioContable({ resumen, paradas, porLeer }: { res
   const r = resumen;
   return (
     <section aria-label="Panel diario" className="mt-6 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Cifra label="Facturado este mes" valor={eur(r.ingresosMesCents)} nota="Sin IVA, las dos actividades" />
         <Cifra
           label="Resultado del mes"
@@ -29,10 +29,20 @@ export default function PanelDiarioContable({ resumen, paradas, porLeer }: { res
           tono={r.resultadoMesCents >= 0 ? "text-emerald-300" : "text-rose-300"}
         />
         <Cifra
-          label="A guardar este trimestre"
+          label="A guardar"
           valor={eur(r.reservasCents)}
-          nota={`IVA ${eur(r.ivaTrimestreCents)} · retenciones ${eur(r.retencionesTrimestreCents)}. Sin Sociedades.`}
+          nota={`IVA del trimestre ${eur(r.ivaTrimestreCents)} · retenciones ${eur(r.retencionesTrimestreCents)} · Sociedades del año ${eur(r.sociedadesAnioCents)} (estimado: 19 % hasta 50.000 € y 21 % el resto sobre ${eur(r.resultadoAnioCents)} de resultado)`}
         />
+        {r.banco ? (
+          <Cifra
+            label="Libre en el banco"
+            valor={eur(r.banco.libreCents)}
+            nota={`Saldo ${eur(r.banco.saldoCents)} el ${r.banco.asOf.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} menos lo que hay que guardar. Se actualiza al subir el extracto.`}
+            tono={r.banco.libreCents >= 0 ? "text-emerald-300" : "text-rose-300"}
+          />
+        ) : (
+          <Cifra label="Libre en el banco" valor="—" nota="Sube el extracto del banco en Conciliación y aparece aquí." />
+        )}
       </div>
 
       {paradas.length > 0 ? (
