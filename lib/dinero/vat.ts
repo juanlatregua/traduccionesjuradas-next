@@ -40,12 +40,17 @@ export function addVat(baseCents: Cents, regime: VatRegime): VatBreakdown {
   return { base: baseCents, vat, total: baseCents + vat };
 }
 
-/** From an amount already charged (VAT included): keeps the total, base = round(total/(1+r)), vat = total − base. */
-export function splitGross(totalCents: Cents, regime: VatRegime): VatBreakdown {
+/**
+ * Only for amounts born VAT-included (a charge already paid): keeps the total, base = round(total/(1+r)),
+ * vat = total − base. New invoices are issued from the BASE (lines); `consistent` says whether this vat
+ * also equals the base→vat rule, i.e. whether an invoice issued from this gross amount is coherent.
+ */
+export function splitGross(totalCents: Cents, regime: VatRegime): VatBreakdown & { consistent: boolean } {
   assertNonNegativeCents(totalCents, "total");
   const bp = rateBpOf(regime);
   const base = bp === 0 ? totalCents : divRoundHalfUp(totalCents * 10000, 10000 + bp);
-  return { base, vat: totalCents - base, total: totalCents };
+  const vat = totalCents - base;
+  return { base, vat, total: totalCents, consistent: vat === vatOn(base, regime) };
 }
 
 /**
@@ -55,7 +60,11 @@ export function splitGross(totalCents: Cents, regime: VatRegime): VatBreakdown {
  */
 export function parseVatRate(stored: unknown, opts: { zeroAs?: ZeroVatKind } = {}): VatRegime {
   if (stored === null || stored === undefined || stored === "") throw new RangeError("vatRate vacío: régimen de IVA desconocido");
-  if (typeof stored !== "number" && typeof stored !== "string" && typeof stored !== "object") {
+  const isDecimalObject =
+    typeof stored === "object" && !Array.isArray(stored) &&
+    typeof (stored as { toString?: unknown }).toString === "function" &&
+    (stored as object).toString !== Object.prototype.toString;
+  if (typeof stored !== "number" && typeof stored !== "string" && !isDecimalObject) {
     throw new RangeError(`vatRate ${String(stored)} no entendido`);
   }
   const tenThousandths = scaledIntFromDecimal(stored as number | string | { toString(): string }, 4, "vatRate");
@@ -72,4 +81,9 @@ export function parseVatRate(stored: unknown, opts: { zeroAs?: ZeroVatKind } = {
 /** Boundary: regime → fraction for the Prisma `vatRate` column. */
 export function vatRateFraction(regime: VatRegime): number {
   return rateBpOf(regime) / 10000;
+}
+
+/** Boundary: what to write next to `vatRate` so a 0 % keeps which regime it was. */
+export function vatFields(regime: VatRegime): { vatRate: number; vatRegime: VatRegime["kind"] } {
+  return { vatRate: vatRateFraction(regime), vatRegime: regime.kind };
 }

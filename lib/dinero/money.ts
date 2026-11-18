@@ -70,29 +70,28 @@ export function divRoundHalfUp(numerator: number, denominator: number): number {
 }
 
 /**
- * Splits `total` proportionally to integer `weights`; equal parts if any weight is
- * missing/≤0. Each share rounds half up and the last one absorbs the remainder,
- * so the parts always add up to `total`.
+ * Splits `total` proportionally to non-negative integer `weights` (a 0 weight gets 0).
+ * Each share rounds half up and the last positive weight absorbs the remainder,
+ * so the parts always add up to `total`. For equal parts pass equal weights.
  */
 export function spread(total: Cents, weights: readonly number[]): Cents[] {
   assertNonNegativeCents(total, "reparto");
-  const n = weights.length;
-  if (n === 0) return [];
-  const equal = weights.some((w) => !(w > 0));
-  if (!equal) for (const w of weights) if (!Number.isSafeInteger(w)) throw new RangeError(`peso ${w} no entero`);
-  const weightTotal = equal ? n : weights.reduce((a, w) => a + w, 0);
+  if (weights.length === 0) return [];
+  for (const w of weights) if (!Number.isSafeInteger(w) || w < 0) throw new RangeError(`peso ${w} no es un entero ≥ 0`);
+  const weightTotal = weights.reduce((a, w) => a + w, 0);
+  if (weightTotal === 0) throw new RangeError("reparto: todos los pesos son 0");
+  let last = weights.length - 1;
+  while (weights[last] === 0) last--;
   const out: Cents[] = [];
   let assigned = 0;
-  for (let i = 0; i < n; i++) {
-    if (i === n - 1) {
-      out.push(total - assigned);
-    } else {
-      // Capped so the last part can never go negative (e.g. 2 c among 4 equal parts).
-      const share = Math.min(divRoundHalfUp(total * (equal ? 1 : weights[i]), weightTotal), total - assigned);
-      out.push(share);
-      assigned += share;
-    }
-  }
+  weights.forEach((w, i) => {
+    if (i === last) return out.push(0);
+    // Capped so the absorbing part can never go negative (e.g. 2 c among 4 equal parts).
+    const share = Math.min(divRoundHalfUp(total * w, weightTotal), total - assigned);
+    assigned += share;
+    out.push(share);
+  });
+  out[last] = total - assigned;
   return out;
 }
 

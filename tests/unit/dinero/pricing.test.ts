@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toBase, fromBase, parseSupplierBasis, knownCost, costFromSupplier, sumCosts, OWN_WORK, UNKNOWN_COST } from "../../../lib/dinero/supplier.ts";
+import { toBase, fromBase, parseSupplierBasis, costFromStoredBase, costFromSupplierFigure, sumCosts, OWN_WORK, UNKNOWN_COST } from "../../../lib/dinero/supplier.ts";
 import { marginOf, canIssue, pctOverCost, MIN_MARGIN_PCT_OVER_COST } from "../../../lib/dinero/margin.ts";
 import { priceFrToEs, frSameDayCents } from "../../../lib/dinero/tariff-fr.ts";
 import { priceWithRate, fitsDocSize, selectRate, unitFor } from "../../../lib/dinero/rate.ts";
@@ -11,48 +11,78 @@ const fr = (over: Partial<Parameters<typeof priceFrToEs>[0]> = {}) =>
   priceFrToEs({ docType: "birth_certificate", pages: 1, words: 300, apostille: false, ...over });
 const cents = (p: ReturnType<typeof priceFrToEs>) => (p.kind === "priced" ? p.cents : null);
 
-test("supplier: base ↔ cifra del jurado", () => {
-  assert.equal(toBase(10000, "base"), 10000);
-  assert.equal(toBase(10000, "payableVatIrpf"), 9434); // Daniela: 100 € líquidos = 94,34 base
-  assert.equal(toBase(6000, "totalWithVat"), 4959); // Nielson: 60 € = 49,59 + 10,41
-  assert.equal(fromBase(9434, "payableVatIrpf"), 10000);
-  assert.equal(fromBase(50, "totalWithVat"), 61); // 60,5 → 61
-  assert.throws(() => toBase(-1, "base"));
-  for (const basis of ["base", "payableVatIrpf", "totalWithVat"] as const) {
-    for (let b = 0; b <= 100000; b += 13) assert.equal(toBase(fromBase(b, basis), basis), b);
+const DANIELA = { kind: "payable", vatBp: 2100, irpfBp: 1500 } as const;
+const NIELSON = { kind: "totalWithVat", vatBp: 2100 } as const;
+const BASE = { kind: "base" } as const;
+const ext = (c: number) => costFromStoredBase(c);
+
+test("supplier: líquido y total con IVA redondean IVA e IRPF por separado", () => {
+  assert.deepEqual(toBase(10000, BASE), { baseCents: 10000, exact: true });
+  assert.deepEqual(toBase(10000, DANIELA), { baseCents: 9434, exact: true }); // 94,34 + 19,81 − 14,15 = 100,00
+  assert.equal(fromBase(9434, DANIELA), 10000);
+  assert.deepEqual(toBase(6000, NIELSON), { baseCents: 4959, exact: true }); // 49,59 + 10,41
+  assert.equal(fromBase(50, NIELSON), 61); // 0,50 + 0,11 (10,5 → 11)
+  // some figures no base can produce (VAT and IRPF can step together): closest base, exact false
+  const unreachable = [...Array(3000).keys()].find((x) => !toBase(x, DANIELA).exact)!;
+  assert.ok(unreachable !== undefined);
+  const near = toBase(unreachable, DANIELA);
+  assert.equal(near.exact, false);
+  assert.ok(Math.abs(fromBase(near.baseCents, DANIELA) - unreachable) <= 1);
+  assert.throws(() => toBase(-1, BASE));
+  assert.throws(() => fromBase(100, { kind: "payable", vatBp: 2100, irpfBp: -1 }));
+  for (const basis of [BASE, DANIELA, NIELSON]) {
+    for (let b = 0; b <= 100000; b += 13) {
+      const back = toBase(fromBase(b, basis), basis);
+      assert.ok(back.exact);
+      assert.equal(fromBase(back.baseCents, basis), fromBase(b, basis));
+    }
   }
-  assert.equal(parseSupplierBasis("payable_iva_irpf"), "payableVatIrpf");
-  assert.equal(parseSupplierBasis("total_con_iva"), "totalWithVat");
-  assert.throws(() => parseSupplierBasis(null));
-  assert.deepEqual(costFromSupplier(10000, "payableVatIrpf"), { known: true, baseCents: 9434 });
-  assert.deepEqual(sumCosts([knownCost(100), knownCost(250)]), { known: true, baseCents: 350 });
-  assert.deepEqual(sumCosts([knownCost(100), UNKNOWN_COST]), UNKNOWN_COST);
+  assert.deepEqual(parseSupplierBasis("payable_iva_irpf", { vatBp: 2100, irpfBp: 1500 }), DANIELA);
+  assert.deepEqual(parseSupplierBasis("total_con_iva", { vatBp: 2100 }), NIELSON);
+  assert.deepEqual(parseSupplierBasis("base"), BASE);
+  assert.throws(() => parseSupplierBasis("payable_iva_irpf")); // sin tipos no hay valor por defecto
+  assert.throws(() => parseSupplierBasis("payable_iva_irpf", { vatBp: 2100 }));
+  assert.throws(() => parseSupplierBasis(null, { vatBp: 2100 }));
+});
+
+test("supplier: un coste ajeno conocido es > 0; 0 solo existe como trabajo propio", () => {
+  const f = costFromSupplierFigure(10000, DANIELA);
+  assert.ok(f.exact && f.cost.known && f.cost.baseCents === 9434 && !f.cost.ownWork);
+  assert.deepEqual(costFromSupplierFigure(0, BASE).cost, UNKNOWN_COST);
+  assert.deepEqual(costFromStoredBase(0), UNKNOWN_COST);
+  assert.deepEqual(costFromStoredBase(null), UNKNOWN_COST);
+  assert.throws(() => costFromStoredBase(-5));
+  assert.deepEqual(sumCosts([ext(100), ext(250)]), ext(350));
+  assert.deepEqual(sumCosts([ext(100), UNKNOWN_COST]), UNKNOWN_COST);
+  assert.deepEqual(sumCosts([ext(100), ext(0)]), UNKNOWN_COST);
   assert.deepEqual(sumCosts([OWN_WORK, OWN_WORK]), OWN_WORK);
-  assert.deepEqual(sumCosts([OWN_WORK, knownCost(500)]), { known: true, baseCents: 500 });
+  assert.deepEqual(sumCosts([OWN_WORK, ext(500)]), ext(500));
   assert.deepEqual(sumCosts([]), UNKNOWN_COST);
 });
 
 test("margin: una definición, cuatro clases", () => {
   assert.equal(MIN_MARGIN_PCT_OVER_COST, 10);
   assert.equal(marginOf(5000, UNKNOWN_COST).class, "unknown");
-  assert.equal(marginOf(5000, knownCost(5000)).class, "loss");
-  assert.equal(marginOf(4000, knownCost(5000)).class, "loss");
-  assert.equal(marginOf(5499, knownCost(5000)).class, "low");
-  assert.equal(marginOf(5500, knownCost(5000)).class, "ok"); // exactamente 10 % sobre coste
+  assert.equal(marginOf(5000, ext(5000)).class, "loss");
+  assert.equal(marginOf(4000, ext(5000)).class, "loss");
+  assert.equal(marginOf(5499, ext(5000)).class, "low");
+  assert.equal(marginOf(5500, ext(5000)).class, "ok"); // exactamente 10 % sobre coste
   assert.equal(marginOf(3000, OWN_WORK).class, "ok");
-  assert.equal(marginOf(0, OWN_WORK).class, "ok");
-  assert.equal(marginOf(100, knownCost(0)).class, "ok");
-  assert.equal(marginOf(0, knownCost(0)).class, "loss");
-  assert.equal(pctOverCost(5500, knownCost(5000)), 10);
+  assert.equal(marginOf(0, OWN_WORK).class, "loss"); // trabajo propio sin ingreso
+  assert.equal(marginOf(-100, OWN_WORK).class, "loss");
+  assert.equal(marginOf(100, ext(0)).class, "unknown"); // coste 0 ajeno = sin informar
+  assert.equal(pctOverCost(5500, ext(5000)), 10);
   assert.equal(pctOverCost(5500, UNKNOWN_COST), null);
   assert.equal(pctOverCost(5500, OWN_WORK), null);
-  assert.equal(canIssue(5500, knownCost(5000)).ok, true);
-  const low = canIssue(5400, knownCost(5000));
+  assert.equal(canIssue(5500, ext(5000)).ok, true);
+  assert.equal(canIssue(3000, OWN_WORK).ok, true);
+  assert.equal(canIssue(0, OWN_WORK).ok, false);
+  const low = canIssue(5400, ext(5000));
   assert.equal(low.ok, false);
   assert.match(!low.ok ? low.reason : "", /Margen bajo: ingreso 54,00 € − coste 50,00 € = 4,00 € \(8,0 %/);
-  const unk = canIssue(5400, UNKNOWN_COST);
-  assert.match(!unk.ok ? unk.reason : "", /desconocido/);
-  const loss = canIssue(4000, knownCost(5000));
+  const zero = canIssue(5000, ext(0));
+  assert.match(!zero.ok ? zero.reason : "", /coste del traductor sin informar/i);
+  const loss = canIssue(4000, ext(5000));
   assert.match(!loss.ok ? loss.reason : "", /Pérdida/);
 });
 
@@ -113,6 +143,8 @@ test("rate: tarifa aprobada exige coste y venta", () => {
   assert.equal(priceWithRate({ unit: "doc", costCents: 4000, clientCents: null }, 400).kind, "noPrice");
   assert.equal(priceWithRate({ unit: "doc", costCents: null, clientCents: 6000 }, 400).kind, "noPrice");
   assert.equal(priceWithRate({ unit: "per1000Words", costCents: 8000, clientCents: 11000 }, null).kind, "noPrice");
+  assert.equal(priceWithRate({ unit: "doc", costCents: 0, clientCents: 6000 }, 400).kind, "noPrice"); // coste 0 = sin informar
+  assert.equal(priceWithRate({ unit: "per1000Words", costCents: 0, clientCents: 11000 }, 2000).kind, "noPrice");
 });
 
 test("rate: tamaño ±30 %, unidad y comodín", () => {
@@ -121,31 +153,37 @@ test("rate: tamaño ±30 %, unidad y comodín", () => {
   assert.equal(fitsDocSize(25, 100), true);
   assert.equal(fitsDocSize(24, 100), false);
   assert.equal(fitsDocSize(null, 100), true);
+  assert.equal(fitsDocSize(9000, null), false); // sin referencia de tamaño no encaja nunca
+  assert.equal(fitsDocSize(300, 0), false);
   assert.equal(unitFor(5000, 2), "doc");
   assert.equal(unitFor(1000, 3), "per1000Words");
   assert.equal(unitFor(999, 3), "doc");
   const exact = { unit: "doc" as const, costCents: 3000, clientCents: 5000, wordsRef: 300, approved: true };
   const wildcard = { unit: "per1000Words" as const, costCents: 8000, clientCents: 11000, approved: true };
-  assert.equal(selectRate({ exact, wildcard }, { words: 300, pages: 1 }), exact);
-  assert.equal(selectRate({ exact, wildcard }, { words: 1000, pages: 4 }), null); // la exacta manda aunque no encaje
-  assert.equal(selectRate({ exact: { ...exact, approved: false }, wildcard }, { words: 1500, pages: 4 }), wildcard);
-  assert.equal(selectRate({ exact: null, wildcard }, { words: 1500, pages: 2 }), null);
-  assert.equal(selectRate({ exact: null, wildcard: { ...wildcard, approved: false } }, { words: 1500, pages: 4 }), null);
+  assert.deepEqual(selectRate({ exact, wildcard }, { words: 300, pages: 1 }), { kind: "rate", rate: exact });
+  assert.equal(selectRate({ exact, wildcard }, { words: 1000, pages: 4 }).kind, "none"); // la exacta manda aunque no encaje
+  const noRef = selectRate({ exact: { ...exact, wordsRef: null }, wildcard }, { words: 9000, pages: 30 });
+  assert.ok(noRef.kind === "none" && noRef.reason === "tarifa sin referencia de tamaño");
+  assert.deepEqual(selectRate({ exact: { ...exact, approved: false }, wildcard }, { words: 1500, pages: 4 }), { kind: "rate", rate: wildcard });
+  assert.equal(selectRate({ exact: null, wildcard }, { words: 1500, pages: 2 }).kind, "none");
+  assert.equal(selectRate({ exact: null, wildcard: { ...wildcard, approved: false } }, { words: 1500, pages: 4 }).kind, "none");
 });
 
 test("suggest: regla única de sugerencia desde coste", () => {
   assert.equal(marginPctForCostCents(9999), 30);
   assert.equal(marginPctForCostCents(10000), 25);
   assert.equal(marginPctForCostCents(19000), 20);
-  assert.equal(suggestClientPrice(UNKNOWN_COST), null);
-  assert.deepEqual(suggestClientPrice(knownCost(1000)), { kind: "suggestion", suggestedCents: 4000, bound: "floor" });
-  assert.equal(suggestClientPrice(knownCost(3000))!.suggestedCents, 4000); // 39 € < suelo
-  assert.equal(suggestClientPrice(knownCost(5000))!.suggestedCents, 6500);
-  assert.equal(suggestClientPrice(knownCost(15000))!.suggestedCents, 18750);
-  assert.equal(suggestClientPrice(knownCost(20000))!.suggestedCents, 24000);
-  assert.equal(suggestClientPrice(knownCost(2000), { floorCents: 0 })!.suggestedCents, 3000); // +10 € manda
-  assert.equal(suggestClientPrice(knownCost(1000), { floorCents: 0 })!.bound, "markupCap"); // 16 € tope ×1,6
-  assert.equal(suggestClientPrice(knownCost(0), { floorCents: 0 })!.suggestedCents, 0);
+  const F = { floorCents: 4000 };
+  assert.equal(suggestClientPrice(UNKNOWN_COST, F), null);
+  assert.equal(suggestClientPrice(ext(0), F), null); // 0 ajeno = sin informar
+  assert.deepEqual(suggestClientPrice(ext(1000), F), { kind: "suggestion", suggestedCents: 4000, bound: "floor" });
+  assert.equal(suggestClientPrice(ext(3000), F)!.suggestedCents, 4000); // 39 € < suelo
+  assert.equal(suggestClientPrice(ext(5000), F)!.suggestedCents, 6500);
+  assert.equal(suggestClientPrice(ext(15000), F)!.suggestedCents, 18750);
+  assert.equal(suggestClientPrice(ext(20000), F)!.suggestedCents, 24000);
+  assert.equal(suggestClientPrice(ext(2000), { floorCents: 0 })!.suggestedCents, 3000); // +10 € manda
+  assert.equal(suggestClientPrice(ext(1000), { floorCents: 0 })!.bound, "markupCap"); // 16 € tope ×1,6
+  assert.equal(suggestClientPrice(OWN_WORK, { floorCents: 0 })!.suggestedCents, 0);
 });
 
 test("estimate: coste interno por palabra (no es precio al cliente)", () => {

@@ -42,23 +42,28 @@ export function discountCents(subtotal: Cents, discount: Discount): Cents {
     if (pctHundredths < 0) throw new RangeError("descuento % negativo");
     amount = divRoundHalfUp(subtotal * pctHundredths, 10000);
   }
-  // The discount applies to the subtotal: it can bring it to 0, never below, and never eats the shipping.
-  return Math.min(amount, subtotal);
+  return amount;
 }
+
+export type QuoteTotalsResult =
+  | { ok: true; totals: QuoteTotals }
+  | { ok: false; error: "discount_exceeds_subtotal"; subtotal: Cents; discount: Cents };
 
 export function quoteTotals(input: {
   lines: readonly QuoteLineMoney[];
   discount: Discount;
   shippingCents: Cents;
   regime: VatRegime;
-}): QuoteTotals {
+}): QuoteTotalsResult {
   const lineTotals = input.lines.map(lineTotalCents);
   const subtotal = sumCents(lineTotals);
   const discount = discountCents(subtotal, input.discount);
+  // A discount above the subtotal is an input error, never silently capped (nor allowed to eat the shipping).
+  if (discount > subtotal) return { ok: false, error: "discount_exceeds_subtotal", subtotal, discount };
   const shipping = assertNonNegativeCents(input.shippingCents, "envío");
   const taxableBase = subtotal - discount + shipping;
   const { vat, total } = addVat(taxableBase, input.regime);
-  return { lineTotals, subtotal, discount, shipping, taxableBase, vat, total };
+  return { ok: true, totals: { lineTotals, subtotal, discount, shipping, taxableBase, vat, total } };
 }
 
 /** Invoice lines are bases (no VAT). Negative lines only for rectifications (R1). */
@@ -74,7 +79,8 @@ export function invoiceTotalsFromLines(
   return { base, vat, total: base + vat };
 }
 
-export function invoiceTotalsFromGross(totalCents: Cents, regime: VatRegime): VatBreakdown {
+/** Only for amounts born VAT-included; new invoices are issued from lines (base). See splitGross. */
+export function invoiceTotalsFromGross(totalCents: Cents, regime: VatRegime): VatBreakdown & { consistent: boolean } {
   return splitGross(totalCents, regime);
 }
 

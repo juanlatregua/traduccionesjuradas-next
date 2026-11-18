@@ -1,6 +1,6 @@
 import { assertNonNegativeCents, divRoundHalfUp, roundDownToEuro, type Cents } from "./money.ts";
 import { canIssue, type Margin } from "./margin.ts";
-import { knownCost } from "./supplier.ts";
+import { costFromStoredBase } from "./supplier.ts";
 
 export const DOC_FLOOR_CENTS: Cents = 4000;
 export const PER_1000_WORDS_MIN_WORDS = 1000;
@@ -23,9 +23,10 @@ export type RatePrice =
   | { kind: "blocked"; clientCents: Cents; costCents: Cents; margin: Margin; reason: string }
   | { kind: "noPrice"; reason: string };
 
-/** A per-document tariff fits documents from ¼ of the reference up to +30 %; without data it fits. */
+/** A per-document tariff fits documents from ¼ of the reference up to +30 %. Without a reference it never fits; without a word count of the document it does. */
 export function fitsDocSize(words: number | null | undefined, wordsRef: number | null | undefined): boolean {
-  if (!words || !wordsRef) return true;
+  if (!wordsRef) return false;
+  if (!words) return true;
   return words * 100 >= wordsRef * DOC_SIZE_MIN_PCT && words * 100 <= wordsRef * DOC_SIZE_MAX_PCT;
 }
 
@@ -36,8 +37,8 @@ export function unitFor(words: number | null | undefined, pages?: number | null)
 }
 
 export function priceWithRate(rate: ApprovedRate, words: number | null | undefined): RatePrice {
-  if (rate.costCents == null || rate.clientCents == null) {
-    return { kind: "noPrice", reason: "la tarifa no trae el par coste ↔ venta" };
+  if (!rate.costCents || !rate.clientCents) {
+    return { kind: "noPrice", reason: "la tarifa no trae el par coste ↔ venta (los dos > 0)" };
   }
   assertNonNegativeCents(rate.costCents, "coste de la tarifa");
   assertNonNegativeCents(rate.clientCents, "venta de la tarifa");
@@ -51,7 +52,7 @@ export function priceWithRate(rate: ApprovedRate, words: number | null | undefin
     costCents = rate.costCents;
     clientCents = Math.max(DOC_FLOOR_CENTS, roundDownToEuro(rate.clientCents));
   }
-  const check = canIssue(clientCents, knownCost(costCents));
+  const check = canIssue(clientCents, costFromStoredBase(costCents));
   if (!check.ok) return { kind: "blocked", clientCents, costCents, margin: check.margin, reason: check.reason };
   return { kind: "priced", clientCents, costCents, margin: check.margin };
 }
@@ -59,16 +60,19 @@ export function priceWithRate(rate: ApprovedRate, words: number | null | undefin
 export type RateCandidate = ApprovedRate & { approved: boolean };
 
 /** Exact key first (with its size check); else the per-1000-words wildcard for long documents. */
+export type RateSelection = { kind: "rate"; rate: ApprovedRate } | { kind: "none"; reason: string };
+
 export function selectRate(
   candidates: { exact: RateCandidate | null; wildcard: RateCandidate | null },
   doc: { words: number | null | undefined; pages: number | null | undefined }
-): ApprovedRate | null {
+): RateSelection {
   const { exact, wildcard } = candidates;
   if (exact?.approved) {
-    if (exact.unit === "doc" && !fitsDocSize(doc.words, exact.wordsRef)) return null;
-    if (exact.unit === "per1000Words" && !doc.words) return null;
-    return exact;
+    if (exact.unit === "doc" && !exact.wordsRef) return { kind: "none", reason: "tarifa sin referencia de tamaño" };
+    if (exact.unit === "doc" && !fitsDocSize(doc.words, exact.wordsRef)) return { kind: "none", reason: "el documento no encaja en el tamaño de la tarifa (±30 %)" };
+    if (exact.unit === "per1000Words" && !doc.words) return { kind: "none", reason: "tarifa por 1000 palabras sin palabras" };
+    return { kind: "rate", rate: exact };
   }
-  if (unitFor(doc.words, doc.pages) === "per1000Words" && wildcard?.approved && wildcard.unit === "per1000Words") return wildcard;
-  return null;
+  if (unitFor(doc.words, doc.pages) === "per1000Words" && wildcard?.approved && wildcard.unit === "per1000Words") return { kind: "rate", rate: wildcard };
+  return { kind: "none", reason: "sin tarifa aprobada" };
 }

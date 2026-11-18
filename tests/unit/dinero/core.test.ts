@@ -4,11 +4,17 @@ import {
   assertCents, centsFromEuros, eurosFromCents, euroStringFromCents, sumCents, spread, roundUpToEuro, roundDownToEuro, divRoundHalfUp,
 } from "../../../lib/dinero/money.ts";
 import {
-  addVat, splitGross, parseVatRate, vatOn, vatRateFraction, VAT_GENERAL_21, VAT_REDUCED_10, VAT_SUPER_REDUCED_4, VAT_NOT_SUBJECT, VAT_EXEMPT, VAT_REVERSE_CHARGE,
+  addVat, splitGross, parseVatRate, vatOn, vatRateFraction, vatFields, VAT_GENERAL_21, VAT_REDUCED_10, VAT_SUPER_REDUCED_4, VAT_NOT_SUBJECT, VAT_EXEMPT, VAT_REVERSE_CHARGE,
 } from "../../../lib/dinero/vat.ts";
-import { quoteTotals, invoiceTotalsFromLines, invoiceTotalsFromGross, splitInstallments, lineTotalCents, discountCents, PAPER_SHIPPING_BASE_CENTS } from "../../../lib/dinero/totals.ts";
+import { quoteTotals as quoteTotalsResult, invoiceTotalsFromLines, invoiceTotalsFromGross, splitInstallments, lineTotalCents, discountCents, PAPER_SHIPPING_BASE_CENTS } from "../../../lib/dinero/totals.ts";
 import { formatEuros, formatEurosPlain } from "../../../lib/dinero/format.ts";
 import { AUTO_SEND_CAP_WITH_VAT_CENTS, withinAutoSendCap } from "../../../lib/dinero/limits.ts";
+
+function quoteTotals(input: Parameters<typeof quoteTotalsResult>[0]) {
+  const r = quoteTotalsResult(input);
+  if (!r.ok) throw new Error(r.error);
+  return r.totals;
+}
 
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -58,7 +64,13 @@ test("money: suma, división y redondeo al euro", () => {
 test("money: reparto — el último absorbe el resto y la suma es exacta", () => {
   assert.deepEqual(spread(10000, [1, 1, 1]), [3333, 3333, 3334]);
   assert.deepEqual(spread(10000, [100, 300]), [2500, 7500]);
-  assert.deepEqual(spread(10000, [100, 0]), [5000, 5000]); // falta un peso → a partes iguales
+  assert.deepEqual(spread(10000, [100, 0]), [10000, 0]); // un peso 0 recibe 0
+  assert.deepEqual(spread(10000, [0, 1, 0]), [0, 10000, 0]);
+  assert.deepEqual(spread(10000, [1, 1, 0]), [5000, 5000, 0]);
+  assert.throws(() => spread(100, [NaN, 1]));
+  assert.throws(() => spread(100, [-1, 2]));
+  assert.throws(() => spread(100, [0, 0]));
+  assert.throws(() => spread(100, [1.5, 1]));
   assert.deepEqual(spread(0, [5, 5]), [0, 0]);
   assert.deepEqual(spread(500, []), []);
   assert.deepEqual(spread(2, [1, 1, 1, 1]), [1, 1, 0, 0]); // nunca una parte negativa
@@ -66,8 +78,10 @@ test("money: reparto — el último absorbe el resto y la suma es exacta", () =>
   const r = rng(2);
   for (let i = 0; i < 3000; i++) {
     const total = Math.floor(r() * 500000);
-    const weights = Array.from({ length: 1 + Math.floor(r() * 6) }, () => Math.floor(r() * 3000));
+    const weights = Array.from({ length: 1 + Math.floor(r() * 6) }, () => (r() < 0.2 ? 0 : Math.floor(r() * 3000)));
+    if (weights.every((w) => w === 0)) continue;
     const parts = spread(total, weights);
+    weights.forEach((w, k) => w === 0 && assert.equal(parts[k], 0));
     assert.equal(parts.reduce((a, b) => a + b, 0), total);
     assert.ok(parts.every((p) => Number.isSafeInteger(p) && p >= 0));
   }
@@ -91,10 +105,11 @@ test("vat: regla única mitad hacia arriba", () => {
 });
 
 test("vat: splitGross conserva el total cobrado", () => {
-  assert.deepEqual(splitGross(6050, VAT_GENERAL_21), { base: 5000, vat: 1050, total: 6050 });
-  assert.deepEqual(splitGross(101, VAT_GENERAL_21), { base: 83, vat: 18, total: 101 });
-  assert.deepEqual(splitGross(7500, VAT_NOT_SUBJECT), { base: 7500, vat: 0, total: 7500 });
-  assert.deepEqual(splitGross(0, VAT_GENERAL_21), { base: 0, vat: 0, total: 0 });
+  assert.deepEqual(splitGross(6050, VAT_GENERAL_21), { base: 5000, vat: 1050, total: 6050, consistent: true });
+  // keeps the 1,01 € charged, but 0,18 ≠ round(0,83 × 21 %) = 0,17: an invoice from it is incoherent
+  assert.deepEqual(splitGross(101, VAT_GENERAL_21), { base: 83, vat: 18, total: 101, consistent: false });
+  assert.deepEqual(splitGross(7500, VAT_NOT_SUBJECT), { base: 7500, vat: 0, total: 7500, consistent: true });
+  assert.deepEqual(splitGross(0, VAT_GENERAL_21), { base: 0, vat: 0, total: 0, consistent: true });
   assert.throws(() => splitGross(-100, VAT_GENERAL_21));
 });
 
@@ -104,6 +119,7 @@ test("vat: propiedades base+vat=total y splitGross sobre muchos importes", () =>
       const a = addVat(c, regime);
       assert.equal(a.base + a.vat, a.total);
       const g = splitGross(c, regime);
+      assert.equal(g.consistent, g.vat === vatOn(g.base, regime));
       assert.equal(g.total, c);
       assert.equal(g.base + g.vat, c);
       // the base found is the closest base to total/(1+r)
@@ -131,6 +147,13 @@ test("vat: parser de vatRate explícito, nunca cae a 21 %", () => {
   assert.throws(() => parseVatRate(-0.21));
   assert.throws(() => parseVatRate(1));
   assert.throws(() => parseVatRate(true));
+  assert.throws(() => parseVatRate([0.21]));
+  assert.throws(() => parseVatRate({}));
+  assert.throws(() => parseVatRate({ rate: 0.21 }));
+  assert.throws(() => parseVatRate({ toString: () => "veintiuno" }));
+  assert.deepEqual(vatFields(VAT_REVERSE_CHARGE), { vatRate: 0, vatRegime: "reverseCharge" });
+  assert.deepEqual(vatFields(VAT_EXEMPT), { vatRate: 0, vatRegime: "exempt" });
+  assert.deepEqual(vatFields(VAT_GENERAL_21), { vatRate: 0.21, vatRegime: "general" });
   assert.equal(vatRateFraction(VAT_GENERAL_21), 0.21);
   assert.equal(vatRateFraction(VAT_NOT_SUBJECT), 0);
 });
@@ -155,15 +178,15 @@ test("totals: presupuesto — líneas, descuento, envío e IVA una sola vez", ()
   assert.throws(() => lineTotalCents({ quantity: 1, unitPriceCents: -100 }));
 });
 
-test("totals: el descuento nunca deja el subtotal por debajo de 0 ni se come el envío", () => {
-  assert.equal(discountCents(5000, { kind: "fixed", cents: 9000 }), 5000);
-  assert.equal(discountCents(5000, { kind: "percent", percent: 150 }), 5000);
+test("totals: un descuento mayor que el subtotal es un error tipado, no un tope", () => {
+  for (const discount of [{ kind: "fixed" as const, cents: 9000 }, { kind: "percent" as const, percent: 150 }]) {
+    const r = quoteTotalsResult({ lines: [{ quantity: 1, unitPriceCents: 5000 }], discount, shippingCents: 1200, regime: VAT_GENERAL_21 });
+    assert.ok(!r.ok && r.error === "discount_exceeds_subtotal" && r.subtotal === 5000);
+  }
+  assert.equal(quoteTotals({ lines: [{ quantity: 1, unitPriceCents: 5000 }], discount: { kind: "fixed", cents: 5000 }, shippingCents: 1200, regime: VAT_GENERAL_21 }).total, 1452);
   assert.equal(discountCents(5000, { kind: "percent", percent: "7.5" }), 375);
   assert.equal(discountCents(5000, { kind: "none" }), 0);
   assert.throws(() => discountCents(5000, { kind: "fixed", cents: -1 }));
-  const t = quoteTotals({ lines: [{ quantity: 1, unitPriceCents: 5000 }], discount: { kind: "fixed", cents: 9000 }, shippingCents: 1200, regime: VAT_GENERAL_21 });
-  assert.equal(t.taxableBase, 1200);
-  assert.equal(t.total, 1452);
   const ns = quoteTotals({ lines: [{ quantity: 1, unitPriceCents: 5000 }], discount: { kind: "none" }, shippingCents: 0, regime: VAT_NOT_SUBJECT });
   assert.equal(ns.vat, 0);
   assert.equal(ns.total, 5000);
@@ -174,6 +197,8 @@ test("totals: propiedad base+IVA=total en presupuestos aleatorios", () => {
   for (let i = 0; i < 3000; i++) {
     const lines = Array.from({ length: 1 + Math.floor(r() * 5) }, () => ({ quantity: Math.floor(r() * 400) / 100, unitPriceCents: Math.floor(r() * 30000) }));
     const discount = r() < 0.5 ? { kind: "percent" as const, percent: Math.floor(r() * 30) } : { kind: "fixed" as const, cents: Math.floor(r() * 5000) };
+    const res = quoteTotalsResult({ lines, discount, shippingCents: 0, regime: VAT_GENERAL_21 });
+    if (!res.ok) { assert.ok(res.discount > res.subtotal); continue; }
     const t = quoteTotals({ lines, discount, shippingCents: r() < 0.5 ? 0 : 1200, regime: VAT_GENERAL_21 });
     assert.equal(t.subtotal, t.lineTotals.reduce((a, b) => a + b, 0));
     assert.equal(t.taxableBase, t.subtotal - t.discount + t.shipping);
@@ -187,7 +212,7 @@ test("totals: facturas desde líneas y desde bruto; rectificativas negativas", (
   assert.deepEqual(invoiceTotalsFromLines([], VAT_GENERAL_21), { base: 0, vat: 0, total: 0 });
   assert.throws(() => invoiceTotalsFromLines([-5000], VAT_GENERAL_21));
   assert.deepEqual(invoiceTotalsFromLines([-3050], VAT_GENERAL_21, { allowNegative: true }), { base: -3050, vat: -641, total: -3691 });
-  assert.deepEqual(invoiceTotalsFromGross(6050, VAT_GENERAL_21), { base: 5000, vat: 1050, total: 6050 });
+  assert.deepEqual(invoiceTotalsFromGross(6050, VAT_GENERAL_21), { base: 5000, vat: 1050, total: 6050, consistent: true });
 });
 
 test("totals: plazos suman exactamente el total", () => {
