@@ -204,6 +204,7 @@ export type CollaboratorInvoiceInput = {
   baseCents?: number; // por defecto, la suma de los devengos
   vatRate: number;
   irpfRetentionPct?: number;
+  taxTreatment?: string | null; // isp_intracom para proveedores UE (sin IVA)
   supplierNif?: string | null;
   notes?: string | null;
   attachmentUrl?: string | null;
@@ -260,6 +261,7 @@ export async function registerCollaboratorInvoice(input: CollaboratorInvoiceInpu
     baseCents,
     vatRate: input.vatRate,
     irpfRetentionPct: input.irpfRetentionPct,
+    taxTreatment: input.taxTreatment,
     notes: input.notes,
     attachmentUrl: input.attachmentUrl,
     attachmentKey: input.attachmentKey,

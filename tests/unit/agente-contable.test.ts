@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cierreEfectivo, decidirFacturaColaborador, esNifEspanol, type FacturaLeida } from "../../lib/agente-contable-logic.ts";
+import { cierreEfectivo, decidirFacturaColaborador, esNifEspanol, esNifIvaUe, type FacturaLeida } from "../../lib/agente-contable-logic.ts";
 
 const now = new Date("2026-10-31T10:00:00Z");
 const cierre = new Date("2026-10-01T00:00:00Z");
@@ -49,11 +49,48 @@ test("autónomo sin retención se para", () => {
   assert.equal(motivo(decidir({ irpfRate: 0, irpfEur: 0, totalEur: 84.7 })), "irpf_no_cuadra");
 });
 
-test("NIF portugués sin prefijo o con PT se para (Morton)", () => {
+test("NIF extranjero sin prefijo UE se para; PT ajeno a la ficha no se acepta", () => {
   assert.equal(esNifEspanol("123456789"), false);
   assert.equal(motivo(decidir({ supplierNif: "123456789" })), "nif_no_espanol");
-  assert.equal(motivo(decidir({ supplierNif: "PT123456789" })), "nif_no_espanol");
+  assert.equal(motivo(decidir({ supplierNif: "US123456789" })), "nif_no_espanol");
+  assert.equal(motivo(decidir({ supplierNif: "PT123456789", vatRate: 0, irpfRate: 0, irpfEur: 0, totalEur: 70 })), "emisor_distinto");
   assert.equal(esNifEspanol("ES B93712784"), true);
+});
+
+const morton = { fullName: "Morton Sebastian Peter Münster", companyName: null, nif: "PT245167838", supplierType: "AUTONOMO" };
+const mortonLeida = { supplier: "Morton Sebastian Peter Münster", supplierNif: "PT 245167838", baseEur: 50, vatRate: 0, irpfRate: 0, irpfEur: 0, totalEur: 50 };
+const mortonExtra = { colaborador: morton, devengoCents: 5000, lavori: { numero: null, importeCents: 5000 } };
+
+test("proveedor UE (Morton, PT) sin IVA ni retención: ISP intracomunitario", () => {
+  assert.equal(esNifIvaUe("PT245167838"), true);
+  assert.equal(esNifIvaUe("B93712784"), false);
+  const d = decidir(mortonLeida, mortonExtra);
+  assert.equal(d.ok, true);
+  if (d.ok) {
+    assert.equal(d.taxTreatment, "isp_intracom");
+    assert.equal(d.vatRate, 0);
+    assert.equal(d.irpfPct, 0);
+    assert.equal(d.baseCents, 5000);
+  }
+});
+
+test("NIF UE sin prefijo se completa solo con la ficha; un número fiscal distinto se para", () => {
+  const d = decidir({ ...mortonLeida, supplierNif: "245167838" }, mortonExtra);
+  assert.equal(d.ok && d.supplierNif, "PT245167838");
+  assert.equal(motivo(decidir({ ...mortonLeida, supplierNif: "30/157/61297" }, mortonExtra)), "nif_no_espanol");
+  assert.equal(motivo(decidir({ ...mortonLeida, supplierNif: "245167838" })), "nif_no_espanol");
+});
+
+test("proveedor UE con IVA o con retención se para", () => {
+  assert.equal(motivo(decidir({ ...mortonLeida, vatRate: 0.21, totalEur: 60.5 }, mortonExtra)), "iva_no_general");
+  assert.equal(motivo(decidir({ ...mortonLeida, irpfRate: 0.15, irpfEur: 7.5, totalEur: 42.5 }, mortonExtra)), "irpf_no_cuadra");
+  assert.equal(motivo(decidir({ ...mortonLeida, totalEur: 60.5 }, mortonExtra)), "total_no_cuadra");
+  assert.equal(motivo(decidir(mortonLeida, { ...mortonExtra, devengoCents: 4000 })), "base_no_cuadra");
+});
+
+test("proveedor español sigue en régimen general", () => {
+  const d = decidir();
+  assert.equal(d.ok && d.taxTreatment, "general");
 });
 
 test("base distinta del encargo se para; redondeo de 2 céntimos no (Nielson 440 frente a 402,04)", () => {

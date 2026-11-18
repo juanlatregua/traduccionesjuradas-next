@@ -192,8 +192,9 @@ export async function runAgenteContable(opts?: { dryRun?: boolean; now?: Date })
         baseCents: decision.baseCents,
         vatRate: decision.vatRate,
         irpfRetentionPct: decision.irpfPct,
+        taxTreatment: decision.taxTreatment,
         supplierNif: decision.supplierNif,
-        notes: `Contabilizada por el agente contable: la base coincide con el encargo.${redondeo}`,
+        notes: `Contabilizada por el agente contable: la base coincide con el encargo.${decision.taxTreatment === "isp_intracom" ? " Proveedor UE: ISP intracomunitario, sin IVA ni retención." : ""}${redondeo}`,
         existingExpenseId: f.id,
         acceptMismatch: true, // el decisor ya ha limitado la diferencia al redondeo
       });

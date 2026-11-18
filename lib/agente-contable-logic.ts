@@ -65,7 +65,7 @@ export const MOTIVO_TEXTO: Record<MotivoParada, string> = {
 };
 
 export type DecisionFactura =
-  | { ok: true; number: string; date: string; baseCents: number; vatRate: number; irpfPct: number; supplierNif: string; diferenciaCents: number }
+  | { ok: true; number: string; date: string; baseCents: number; vatRate: number; irpfPct: number; supplierNif: string; diferenciaCents: number; taxTreatment: "general" | "isp_intracom" }
   | { ok: false; motivo: MotivoParada; detalle: string };
 
 export const referenciaPedido = (concept: string) => /\(pedido ([^)]+)\)/.exec(concept)?.[1] ?? null;
@@ -77,6 +77,13 @@ export function normalizarNif(nif: string | null | undefined): string {
 // Formato español (DNI, NIE o CIF). Un NIF portugués de 9 cifras no pasa.
 export function esNifEspanol(nif: string | null | undefined): boolean {
   return /^([0-9]{8}[A-Z]|[XYZ][0-9]{7}[A-Z]|[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J])$/.test(normalizarNif(nif));
+}
+
+// NIF-IVA de otro Estado de la UE (prefijo de país + 2 a 12 caracteres). Grecia usa EL.
+const PREFIJOS_UE = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "FI", "FR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"];
+export function esNifIvaUe(nif: string | null | undefined): boolean {
+  const n = normalizarNif(nif);
+  return PREFIJOS_UE.includes(n.slice(0, 2)) && /^[A-Z]{2}[0-9A-Z]{2,12}$/.test(n);
 }
 
 const esCif = (nif: string) => /^[ABCDEFGHJNPQRSUVW]/.test(nif);
@@ -119,25 +126,33 @@ export function decidirFacturaColaborador(input: {
   if (leida.documentType !== "factura") return parar("no_es_factura", `documento: ${leida.documentType || "sin tipo"}`);
   if (normalizarNif(leida.recipientNif) !== HBTJ_NIF) return parar("receptor_ajeno", `receptor ${leida.recipientNif || "sin NIF"}`);
 
-  const nifLeido = normalizarNif(leida.supplierNif);
-  if (!esNifEspanol(nifLeido)) return parar("nif_no_espanol", `NIF ${leida.supplierNif || "sin leer"}`);
   const nifFicha = normalizarNif(colaborador.nif);
+  // La factura puede traer el NIF-IVA sin el prefijo de país («245167838» por PT245167838):
+  // solo se completa con el de la ficha, nunca se deduce el país de un PDF.
+  const leidoCrudo = normalizarNif(leida.supplierNif);
+  const nifLeido = esNifIvaUe(nifFicha) && leidoCrudo === nifFicha.slice(2) ? nifFicha : leidoCrudo;
+  // Proveedor de otro Estado de la UE (Morton, NIF PT): servicio intracomunitario con
+  // inversión del sujeto pasivo, factura sin IVA y sin retención española.
+  const intracom = esNifIvaUe(nifLeido);
+  if (!intracom && !esNifEspanol(nifLeido)) return parar("nif_no_espanol", `NIF ${leida.supplierNif || "sin leer"}`);
   if (!nifFicha) return parar("sin_nif_ficha", colaborador.fullName);
   if (nifFicha !== nifLeido) return parar("emisor_distinto", `${leida.supplier || "emisor sin leer"} (${nifLeido})`);
 
-  if (Math.abs(leida.vatRate - 0.21) > 0.0001) return parar("iva_no_general", `IVA ${leida.vatRate}`);
+  const vatRate = intracom ? 0 : 0.21;
+  if (Math.abs(leida.vatRate - vatRate) > 0.0001) return parar("iva_no_general", `IVA ${leida.vatRate}${intracom ? " en factura intracomunitaria" : ""}`);
 
   const irpf = esNumero(leida.irpfRate) ? leida.irpfRate : 0;
-  const irpfValido =
-    colaborador.supplierType === "EMPRESA"
+  const irpfValido = intracom
+    ? irpf === 0
+    : colaborador.supplierType === "EMPRESA"
       ? irpf === 0 && esCif(nifLeido)
       : colaborador.supplierType === "AUTONOMO"
         ? Math.abs(irpf - 0.15) < 0.0001 || Math.abs(irpf - 0.07) < 0.0001
         : false;
-  if (!irpfValido) return parar("irpf_no_cuadra", `IRPF ${irpf} en proveedor ${colaborador.supplierType || "sin tipo"} ${nifLeido}`);
+  if (!irpfValido) return parar("irpf_no_cuadra", `IRPF ${irpf} en proveedor ${intracom ? "UE" : colaborador.supplierType || "sin tipo"} ${nifLeido}`);
 
   const baseCents = aCents(leida.baseEur);
-  const vatCents = Math.round(baseCents * 0.21);
+  const vatCents = Math.round(baseCents * vatRate);
   const irpfCents = Math.round(baseCents * irpf);
   if (!cerca(aCents(esNumero(leida.irpfEur) ? leida.irpfEur : 0), irpfCents)) {
     return parar("irpf_no_cuadra", `retención leída ${leida.irpfEur ?? "ninguna"} · calculada ${irpfCents}`);
@@ -165,5 +180,5 @@ export function decidirFacturaColaborador(input: {
   }
   if (fecha < cierre) return parar("periodo_cerrado", date);
 
-  return { ok: true, number, date, baseCents, vatRate: 0.21, irpfPct: irpf, supplierNif: nifLeido, diferenciaCents: baseCents - devengoCents };
+  return { ok: true, number, date, baseCents, vatRate, irpfPct: irpf, supplierNif: nifLeido, diferenciaCents: baseCents - devengoCents, taxTreatment: intracom ? "isp_intracom" : "general" };
 }
