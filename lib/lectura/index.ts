@@ -6,14 +6,18 @@ import { billableWords, countWords, TEXT_PAGE_MIN_WORDS } from "./words.ts";
 import { addUsage, costOf, ZERO_USAGE, DEFAULT_EUR_PER_USD, type Cost, type ModelUsage, type TokenUsage } from "./cost.ts";
 import type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
 import type { ReadingContext } from "./prompt.ts";
+import { assessReading, type Assessment } from "./assess.ts";
 
 export type { SourceFile, PreparedBatch, BatchLimits } from "./prepare.ts";
 export type { ReadingContext } from "./prompt.ts";
 export type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
 export { prepareBatch, DEFAULT_LIMITS } from "./prepare.ts";
 export { validateReading } from "./validate.ts";
-export { assembleDocumentPdf, documentFileName } from "./assemble.ts";
+export { assembleDocumentPdf, documentFileName, type AssembledPdf } from "./assemble.ts";
+export { documentLabel } from "./label.ts";
+export { partitionOf, samePartition } from "./invariance.ts";
 export { priceHint, type PriceHint } from "./price-hint.ts";
+export { assessReading, type Assessment, type ReviewReason } from "./assess.ts";
 export { costOf, MODEL_PRICES } from "./cost.ts";
 export { PROMPT_VERSION } from "./prompt.ts";
 
@@ -22,7 +26,8 @@ export type ReadDocument = ReadDocumentRaw & { pageCount: number; words: number;
 type Meter = { attempts: number; usage: TokenUsage; usages: ModelUsage[]; cost: Cost; ms: number; servedBy: string[] };
 
 export type Reading =
-  | ({ status: "ok"; batch: PreparedBatch; reading: ModelReading; documents: ReadDocument[] } & Meter)
+  | ({ status: "ok"; batch: PreparedBatch; reading: ModelReading; documents: ReadDocument[]; assessment: Assessment } & Meter)
+  | ({ status: "nothing_to_translate"; batch: PreparedBatch; reading: ModelReading; assessment: Assessment } & Meter)
   | { status: "too_large"; limit: "files" | "pages" | "bytes"; max: number; actual: number; reasonEs: string }
   | { status: "empty"; reasonEs: string; skipped: PreparedBatch["skipped"] }
   | ({ status: "refused"; batch: PreparedBatch; category: string | null; explanation: string | null } & Meter)
@@ -38,7 +43,7 @@ export type ReadDeps = CallOptions & {
 };
 
 function exactWords(batch: PreparedBatch, doc: ReadDocumentRaw): number | null {
-  const parts: Part[] = [...doc.parts, ...(doc.apostille?.parts ?? [])];
+  const parts: Part[] = [...doc.parts, ...(doc.annexes ?? []).flatMap((a) => a.parts), ...(doc.apostille?.parts ?? [])];
   let total = 0;
   for (const p of parts) {
     const f = batch.files.find((x) => x.index === p.fileIndex);
@@ -56,7 +61,7 @@ export function withWords(batch: PreparedBatch, reading: ModelReading): ReadDocu
     const exact = exactWords(batch, d);
     return {
       ...d,
-      pageCount: d.parts.length,
+      pageCount: d.parts.length + (d.annexes ?? []).reduce((n, a) => n + a.parts.length, 0),
       words: exact ?? Math.max(0, Math.round(d.estimatedWords) || 0),
       wordsBasis: exact === null ? "estimated" : "exact",
     };
@@ -101,7 +106,12 @@ export async function readBatch(files: readonly SourceFile[], context: ReadingCo
     else {
       lastReading = outcome.reading;
       errors = [...outcome.wireErrors, ...validateReading(batch, outcome.reading)];
-      if (errors.length === 0) return { status: "ok", batch, reading: outcome.reading, documents: withWords(batch, outcome.reading), ...meter(attempt) };
+      if (errors.length === 0) {
+        const documents = withWords(batch, outcome.reading);
+        const assessment = assessReading(batch, { ...outcome.reading, documents });
+        if (documents.length === 0) return { status: "nothing_to_translate", batch, reading: outcome.reading, assessment, ...meter(attempt) };
+        return { status: "ok", batch, reading: outcome.reading, documents, assessment, ...meter(attempt) };
+      }
     }
     messages = retryMessages(first, outcome.message, errors);
   }

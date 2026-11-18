@@ -3,7 +3,8 @@
 //
 // The wire schema is flatter than the contract because the API compiles it into a grammar with a
 // size limit ("compiled grammar is too large", measured 18-nov-2026): page references travel as
-// "N.p" strings and absent values as "" / 0 / {present:false} instead of null (no unions at all).
+// "N.p" strings, annexes as "label :: N.p N.p" strings, and absent values as "" / 0 / {present:false}
+// instead of null (no unions at all).
 // `fromWire` turns it into the contract and reports malformed references as errors for the retry.
 
 export const DOCUMENT_TYPES = [
@@ -19,6 +20,7 @@ export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
 export const NOT_TO_TRANSLATE_KINDS = ["identity_doc", "payment_proof", "screenshot", "previous_translation", "blank", "other"] as const;
 export const TARGET_LANG_BASES = ["stated_by_client", "inferred_from_documents", "inferred_from_instructions", "unknown"] as const;
 export const LEGIBILITY = ["good", "medium", "illegible"] as const;
+export const APOSTILLE_MATCH = ["on_document_page", "apostille_names_document", "physical_continuity", "weak"] as const;
 export const QUESTION_KINDS = ["target_lang", "missing_pages", "apostille_owner", "illegible", "grouping", "document_type", "purpose", "other"] as const;
 
 export type Part = { fileIndex: number; page: number };
@@ -31,9 +33,13 @@ export type ReadDocumentRaw = {
   holder: string | null;
   issuingCountry: string | null;
   sourceLang: string;
+  /** Body pages, in reading order. */
   parts: Part[];
+  /** Only for a notarial deed that declares or numbers its annexes: those pages belong to the deed. */
+  annexes: { labelEs: string; parts: Part[] }[];
   /** Own sheets of the apostille/legalization; empty parts + onDocumentPage when stamped on a document page. */
-  apostille: { parts: Part[]; onDocumentPage: boolean } | null;
+  /** number: as read on the apostille, null when not clearly legible. matchedBy: the evidence that ties it to this document. */
+  apostille: { parts: Part[]; onDocumentPage: boolean; number: string | null; matchedBy: (typeof APOSTILLE_MATCH)[number] } | null;
   declaredPages: number | null;
   missingPages: number[];
   legibility: (typeof LEGIBILITY)[number];
@@ -75,11 +81,14 @@ export const READING_JSON_SCHEMA: Schema = obj({
     holder: str("Titular tal como se lee; vacío si no se lee con claridad"),
     issuingCountry: str("ISO 3166-1 alfa-2 del país emisor; vacío si no consta"),
     sourceLang: str("ISO 639-1 del idioma que se traduce; unknown si no se reconoce"),
-    parts: PARTS("Páginas del documento en orden de lectura, sin las hojas propias de la apostilla"),
+    parts: PARTS("Páginas del cuerpo del documento en orden de lectura, sin anexos ni hojas propias de la apostilla"),
+    annexes: arr(str(), 'Solo en actas notariales que declaran o numeran sus anexos; vacío en los demás. Cada anexo como "qué es :: N.p N.p", p. ej. "Poder notarial :: 2.7 2.8"'),
     apostille: obj({
       present: bool("true si el documento lleva apostilla o legalización"),
       parts: PARTS("Hojas propias de la apostilla; vacío si va estampada en una página del documento o si no hay"),
       onDocumentPage: bool("true si la apostilla está estampada en una página del propio documento"),
+      number: str("Número de la apostilla tal como se lee en ella; vacío si no se lee con claridad. Nunca inventado"),
+      matchedBy: enumOf(APOSTILLE_MATCH),
     }),
     declaredPages: int("Total de páginas que declara el propio documento; 0 si no declara"),
     missingPages: arr(int(), "Páginas declaradas por el documento que no han llegado"),
@@ -114,8 +123,8 @@ export const READING_JSON_SCHEMA: Schema = obj({
 
 export const READING_OUTPUT_FORMAT = { type: "json_schema" as const, schema: READING_JSON_SCHEMA };
 
-type WireDoc = Omit<ReadDocumentRaw, "holder" | "issuingCountry" | "parts" | "apostille" | "declaredPages"> & {
-  holder: string; issuingCountry: string; parts: string[]; apostille: { present: boolean; parts: string[]; onDocumentPage: boolean }; declaredPages: number;
+type WireDoc = Omit<ReadDocumentRaw, "holder" | "issuingCountry" | "parts" | "annexes" | "apostille" | "declaredPages"> & {
+  holder: string; issuingCountry: string; parts: string[]; annexes: string[]; apostille: { present: boolean; parts: string[]; onDocumentPage: boolean; number: string; matchedBy: (typeof APOSTILLE_MATCH)[number] }; declaredPages: number;
 };
 export type WireReading = {
   documents: WireDoc[];
@@ -154,7 +163,15 @@ export function fromWire(w: WireReading): { reading: ModelReading; errors: strin
       holder: blank(d.holder),
       issuingCountry: blank(d.issuingCountry),
       parts: parts(d.parts, `el documento ${d.id}`),
-      apostille: d.apostille?.present ? { parts: parts(d.apostille.parts, `la apostilla de ${d.id}`), onDocumentPage: !!d.apostille.onDocumentPage } : null,
+      annexes: (d.annexes ?? []).map((a, i) => {
+        const cut = a.lastIndexOf("::");
+        if (cut < 0) errors.push(`el anexo ${i + 1} de ${d.id}: «${a}» no sigue el formato "qué es :: N.p N.p".`);
+        const pages = cut < 0 ? [] : a.slice(cut + 2).trim().split(/\s+/).filter(Boolean);
+        return { labelEs: (cut < 0 ? a : a.slice(0, cut)).trim(), parts: parts(pages, `el anexo ${i + 1} de ${d.id}`) };
+      }),
+      apostille: d.apostille?.present
+        ? { parts: parts(d.apostille.parts, `la apostilla de ${d.id}`), onDocumentPage: !!d.apostille.onDocumentPage, number: d.apostille.number?.trim() ? d.apostille.number.trim() : null, matchedBy: d.apostille.matchedBy }
+        : null,
       declaredPages: d.declaredPages > 0 ? d.declaredPages : null,
       missingPages: d.missingPages ?? [],
     })),
@@ -172,9 +189,14 @@ export function fromWire(w: WireReading): { reading: ModelReading; errors: strin
     clientLang: blank(w.clientLang),
     questions: w.questions.map((q, i) => ({ kind: q.kind, aboutParts: parts(q.aboutParts, `questions[${i}]`), aboutDocumentId: blank(q.aboutDocumentId), textEs: q.textEs })),
   };
-  if (!w.instructions.present && (w.instructions.parts ?? []).length > 0) errors.push("instructions trae páginas pero present es false.");
+  const ins = w.instructions;
+  if (!ins.present && ((ins.parts ?? []).length > 0 || blank(ins.authority) || blank(ins.country) || blank(ins.procedure) || (ins.requirements ?? []).length > 0)) {
+    errors.push("instructions trae datos pero present es false: o present es true, o todo vacío.");
+  }
   w.documents.forEach((d) => {
-    if (!d.apostille?.present && (d.apostille?.parts ?? []).length > 0) errors.push(`La apostilla de ${d.id} trae páginas pero present es false.`);
+    if (!d.apostille?.present && ((d.apostille?.parts ?? []).length > 0 || d.apostille?.onDocumentPage || blank(d.apostille?.number))) {
+      errors.push(`La apostilla de ${d.id} trae páginas o onDocumentPage pero present es false.`);
+    }
   });
   return { reading, errors };
 }
@@ -188,7 +210,10 @@ export function toWire(r: ModelReading): WireReading {
       holder: d.holder ?? "",
       issuingCountry: d.issuingCountry ?? "",
       parts: s(d.parts),
-      apostille: d.apostille ? { present: true, parts: s(d.apostille.parts), onDocumentPage: d.apostille.onDocumentPage } : { present: false, parts: [], onDocumentPage: false },
+      annexes: d.annexes.map((a) => `${a.labelEs} :: ${s(a.parts).join(" ")}`),
+      apostille: d.apostille
+        ? { present: true, parts: s(d.apostille.parts), onDocumentPage: d.apostille.onDocumentPage, number: d.apostille.number ?? "", matchedBy: d.apostille.matchedBy }
+        : { present: false, parts: [], onDocumentPage: false, number: "", matchedBy: "weak" },
       declaredPages: d.declaredPages ?? 0,
     })),
     notToTranslate: r.notToTranslate.map((n) => ({ ...n, parts: s(n.parts) })),

@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFHexString, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
 import type { ModelReading, ReadDocumentRaw } from "../../../lib/lectura/schema.ts";
 
@@ -14,6 +14,20 @@ export async function makePdf(texts: string[]): Promise<Uint8Array> {
     }
   }
   return doc.save();
+}
+
+/**
+ * PDF flagged as encrypted with an owner password only (opens without a password): a /Encrypt
+ * dictionary in the trailer, as banks and administrations produce. The content itself is plain.
+ */
+export async function makeOwnerEncryptedPdf(pages: number): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  for (let i = 0; i < pages; i++) doc.addPage([595, 842]).drawText(`pagina ${i + 1}`, { x: 40, y: 800, size: 12, font });
+  const ctx = doc.context;
+  const encrypt = ctx.obj({ Filter: "Standard", V: 1, R: 2, Length: 40, P: -4, O: PDFHexString.of("11".repeat(32)), U: PDFHexString.of("22".repeat(32)) });
+  ctx.trailerInfo.Encrypt = ctx.register(encrypt);
+  return doc.save({ useObjectStreams: false });
 }
 
 export async function makeImage(format: "png" | "jpeg" | "tiff" | "webp", width = 300, height = 400, color = "#336699"): Promise<Uint8Array> {
@@ -34,6 +48,7 @@ export function doc(id: string, parts: [number, number][], extra: Partial<ReadDo
     issuingCountry: "FR",
     sourceLang: "fr",
     parts: parts.map(([fileIndex, page]) => ({ fileIndex, page })),
+    annexes: [],
     apostille: null,
     declaredPages: null,
     missingPages: [],
@@ -44,6 +59,17 @@ export function doc(id: string, parts: [number, number][], extra: Partial<ReadDo
     isBilingualDuplicate: false,
     confidence: 0.9,
     groupingReason: "mismo titular y numeración",
+    ...extra,
+  };
+}
+
+/** Apostille on its own sheets (or stamped on the page when no parts). */
+export function ap(parts: [number, number][], extra: Partial<NonNullable<ReadDocumentRaw["apostille"]>> = {}): NonNullable<ReadDocumentRaw["apostille"]> {
+  return {
+    parts: parts.map(([fileIndex, page]) => ({ fileIndex, page })),
+    onDocumentPage: parts.length === 0,
+    number: "123456",
+    matchedBy: parts.length === 0 ? "on_document_page" : "apostille_names_document",
     ...extra,
   };
 }

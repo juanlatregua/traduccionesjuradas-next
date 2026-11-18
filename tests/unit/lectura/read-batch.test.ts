@@ -5,7 +5,7 @@ import { readBatch, withWords } from "../../../lib/lectura/index.ts";
 import { buildRequest, READING_MODEL } from "../../../lib/lectura/read.ts";
 import { READING_SYSTEM_PROMPT } from "../../../lib/lectura/prompt.ts";
 import { toWire, fromWire, READING_OUTPUT_FORMAT, type ModelReading } from "../../../lib/lectura/schema.ts";
-import { doc, reading, makeImage, makePdf } from "./fixtures.ts";
+import { ap, doc, reading, makeImage, makePdf } from "./fixtures.ts";
 
 function message(content: ModelReading | string, stop_reason = "end_turn", stop_details: unknown = null) {
   return {
@@ -35,7 +35,7 @@ async function twoFiles() {
   ];
 }
 
-const good = () => reading([doc("D1", [[1, 1], [1, 2]], { apostille: { parts: [{ fileIndex: 2, page: 1 }], onDocumentPage: false } })]);
+const good = () => reading([doc("D1", [[1, 1], [1, 2]], { apostille: ap([[2, 1]]) })]);
 const ctx = { clientMessage: "Necesito la traducción para el lunes", declaredTargetLang: "es" };
 
 test("valid reading on the first call: documents, usage and cost", async () => {
@@ -59,8 +59,10 @@ test("valid reading on the first call: documents, usage and cost", async () => {
   assert.deepEqual(p.system[0].cache_control, { type: "ephemeral" });
   const blocks = p.messages[0].content;
   assert.deepEqual(blocks.map((b: any) => b.type), ["text", "document", "text", "image", "text"]);
-  assert.match(blocks[0].text, /^Archivo 1: acta\.pdf, 2 páginas/);
-  assert.match(blocks[2].text, /^Archivo 2: apostilla\.jpg, 1 página/);
+  assert.match(blocks[0].text, /^Archivo 1: nombre «acta\.pdf», 2 páginas/);
+  assert.match(blocks[2].text, /^Archivo 2: nombre «apostilla\.jpg», 1 página/);
+  assert.deepEqual(blocks[3].cache_control, { type: "ephemeral" });
+  assert.equal(blocks[4].cache_control, undefined);
   assert.match(blocks[4].text, /Necesito la traducción para el lunes/);
 });
 
@@ -137,7 +139,7 @@ test("the system prompt is stable: no dates, ids or names inside", () => {
 });
 
 test("wire format: round trip, absent values become null, malformed pages are errors", () => {
-  const r = reading([doc("D1", [[1, 1], [2, 1]], { apostille: { parts: [], onDocumentPage: true } })], {
+  const r = reading([doc("D1", [[1, 1], [2, 1]], { apostille: ap([]) })], {
     duplicates: [{ parts: [{ fileIndex: 3, page: 1 }], duplicateOf: { documentId: "D1", parts: [] } }],
   });
   assert.deepEqual(fromWire(toWire(r)), { reading: r, errors: [] });

@@ -105,7 +105,7 @@ test("limits: too many files, pages or bytes give too_large with the reason, nev
   assert.equal(pages.status, "too_large");
   if (pages.status === "too_large") {
     assert.equal(pages.limit, "pages");
-    assert.match(pages.reasonEs, /4 páginas/);
+    assert.match(pages.reasonEs, /al menos 4/);
   }
 
   const bytes = await prepareBatch(three, { ...DEFAULT_LIMITS, maxRequestBytes: 100 });

@@ -42,6 +42,9 @@ export function batchContent(batch: PreparedBatch, ctx: ReadingContext): BetaCon
     if (f.kind === "pdf") content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: b64(f.bytes) } });
     else content.push({ type: "image", source: { type: "base64", media_type: f.mediaType as "image/jpeg" | "image/png", data: b64(f.bytes) } });
   }
+  // Second breakpoint after the last file: the retry repeats this turn unchanged and reads the files from cache.
+  const last = content[content.length - 1] as { cache_control?: { type: "ephemeral" } };
+  last.cache_control = { type: "ephemeral" };
   content.push({ type: "text", text: contextText(batch, ctx) });
   return content;
 }

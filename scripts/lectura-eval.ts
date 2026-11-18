@@ -1,16 +1,20 @@
 // scripts/lectura-eval.ts — evaluación de la lectura única con expedientes reales.
-//   npx tsx --env-file=.env.local scripts/lectura-eval.ts [--max-usd 15] [--only fixed|broad] [--limit N] [--effort medium] [--no-fallback]
+//   npx tsx --env-file=.env.local scripts/lectura-eval.ts [--max-usd 15] [--only fixed|broad] [--keys REF=N,…] [--limit N] [--effort medium] [--no-fallback] [--report ruta]
+//   npx tsx scripts/lectura-eval.ts --from-raw <dir>     # regenera el informe de los JSON crudos, sin llamar a la API
 // Solo LECTURA: Prisma findMany/findFirst y descarga de los archivos públicos de Blob. No escribe en la BD.
-// Informe sin nombres ni texto de documentos: /Users/nip/proyectos/tjnet-golden/lectura-eval.md
+// Informe sin nombres ni texto de documentos: solo estructura, clases y cifras.
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { prisma } from "../lib/prisma";
-import { readBatch, PROMPT_VERSION, type Reading, type ReadingContext, type SourceFile } from "../lib/lectura/index.ts";
+import { readBatch, PROMPT_VERSION, type ModelReading, type Reading, type ReadingContext, type SourceFile } from "../lib/lectura/index.ts";
 import type { Effort } from "../lib/lectura/read.ts";
+import type { Part } from "../lib/lectura/schema.ts";
+import { sniffType } from "../lib/lectura/prepare.ts";
+import { imagesToPdf, partitionOf, samePartition, shuffled, splitPdf } from "../lib/lectura/invariance.ts";
 
-const REPORT = "/Users/nip/proyectos/tjnet-golden/lectura-eval.md";
+const REPORT = process.argv.includes("--report") ? process.argv[process.argv.indexOf("--report") + 1] : "/Users/nip/proyectos/tjnet-golden/lectura-eval.md";
 const RAW_DIR = process.env.LECTURA_RAW_DIR || join(tmpdir(), "lectura-eval-raw");
 const BROAD_SINCE = new Date("2026-10-20T00:00:00Z");
 const NON_TRANSLATION_LINE = /^\s*(gastos de )?env[ií]o|urgen|recargo|descuento|impresi[oó]n|mensajer|correo postal|papel/i;
@@ -29,7 +33,7 @@ const CONCURRENCY = Number(arg("concurrency") ?? 3);
 type Row = { id: string; fileUrl: string; fileName: string; mimeType: string; sessionToken: string | null; createdAt: Date; sourceLanguage: string | null; targetLanguage: string | null; neededBy: Date | null; urgency: string | null; casoId: string | null };
 const ROW_SELECT = { id: true, fileUrl: true, fileName: true, mimeType: true, sessionToken: true, createdAt: true, sourceLanguage: true, targetLanguage: true, neededBy: true, urgency: true, casoId: true } as const;
 
-type Expected = { docs: number; withApostille?: number; pages?: number[]; target?: string; declaredPages?: number; missing?: number[] };
+type Expected = { docs: number; docsAlt?: number[]; withApostille?: number; pages?: number[]; target?: string; declaredPages?: number; missing?: number[] };
 type Case = { key: string; kind: "fixed" | "broad"; files: { url: string; name: string; mime: string }[]; context: ReadingContext; expected: Expected; notes: string[]; casoId: string | null; before: Date };
 
 function isPuertaToken(t: string | null): boolean {
@@ -74,18 +78,14 @@ const toFiles = (rows: Row[]) => rows.filter((r) => !/zip/i.test(r.mimeType)).ma
 
 async function fixedCases(): Promise<Case[]> {
   const out: Case[] = [];
-  const spec: { number: string; expected: Expected; checked?: string; pick?: (rows: Row[]) => { rows: Row[]; note?: string } }[] = [
-    {
-      number: "2026-00399",
-      expected: { docs: 3, withApostille: 3, target: "es" },
-      checked: "comprobado a mano el 18-nov mirando las 7 páginas: en el lote solo hay UNA hoja de apostilla (archivo 2, del acta de 2017); las dos sentencias llegan sin apostilla",
-    },
+  const spec: { number: string; expected: Expected; pick?: (rows: Row[]) => { rows: Row[]; note?: string } }[] = [
+    { number: "2026-00399", expected: { docs: 3, withApostille: 1, target: "es" } },
     {
       number: "2026-00401",
       expected: { docs: 1, pages: [4], target: "fr" },
       pick: (rows) => {
         const merged = rows.filter((r) => r.sessionToken?.startsWith("merged:"));
-        return { rows: merged, note: `se leen solo las ${merged.length} imágenes originales (el expediente trae además ${rows.length - merged.length} PDF aparte, que no forma parte del caso esperado)` };
+        return { rows: merged, note: `solo las ${merged.length} imágenes originales; fuera ${rows.length - merged.length} archivo(s) del expediente` };
       },
     },
     { number: "2026-00402", expected: { docs: 1, withApostille: 1, target: "de" } },
@@ -103,7 +103,6 @@ async function fixedCases(): Promise<Case[]> {
       rows = picked.rows;
       if (picked.note) notes.push(picked.note);
     }
-    if (s.checked) notes.push(s.checked);
     const casoId = q.casoId ?? rows.find((r) => r.casoId)?.casoId ?? null;
     out.push({ key: s.number, kind: "fixed", files: toFiles(rows), context: contextFrom(rows, await clientMessage(casoId, q.createdAt)), expected: s.expected, notes, casoId, before: q.createdAt });
   }
@@ -113,11 +112,8 @@ async function fixedCases(): Promise<Case[]> {
     out.push({
       key: "análisis cmwmd0igj", kind: "fixed", files: toFiles(rows),
       context: contextFrom(rows, await clientMessage(a.casoId, new Date())),
-      expected: { docs: 1, pages: [3], declaredPages: 7, missing: [3, 4, 6, 7], target: "es" },
-      notes: [
-        ...(rows.length > 1 ? [`la sesión trae ${rows.length} archivos`] : []),
-        "comprobado a mano el 18-nov mirando las 7 páginas del PDF: trae las páginas 1, 2, 5, 6 y 7 de las 7 que declara la resolución (faltan la 3 y la 4) y, detrás, una hoja informativa genérica de 2 páginas",
-      ],
+      expected: { docs: 1, docsAlt: [2], pages: [5], declaredPages: 7, missing: [3, 4], target: "es" },
+      notes: rows.length > 1 ? [`la sesión trae ${rows.length} archivos`] : [],
       casoId: a.casoId, before: new Date(),
     });
   } else console.log("análisis cmwmd0igj: no encontrado");
@@ -168,141 +164,238 @@ async function download(c: Case): Promise<{ files: SourceFile[]; missing: number
   return { files, missing };
 }
 
-const initials = (s: string) => s.split(/\s+/).filter(Boolean).map((w) => `${w[0].toUpperCase()}.`).join(" ");
+type DocSummary = { type: string; pages: number; annexes: string[]; apostille: "none" | "sheet" | "on_page"; declared: number | null; missing: number; wordsBasis: string };
+type Summary = {
+  key: string; kind: "fixed" | "broad"; status: string; files: number; pages: number; missingFiles: number;
+  expectedDocs: number; obtainedDocs: number | null; check: string[]; targetLang: string | null; targetBasis: string | null;
+  docs: DocSummary[]; notToTranslate: string[]; duplicatePages: number; questionKinds: string[]; reviewCodes: string[];
+  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number } | null; costUsd: number; seconds: number; attempts: number;
+};
 
-function sanitize(text: string, holders: string[]): string {
-  let out = text;
-  for (const h of holders) {
-    if (!h) continue;
-    out = out.split(h).join(initials(h));
-    for (const w of h.split(/\s+/)) if (w.length > 2) out = out.replace(new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi"), `${w[0].toUpperCase()}.`);
-  }
-  // Reference numbers and codes read from the documents.
-  out = out.replace(/\b[A-Z]{1,6}\d[A-Z0-9/-]{2,}\b/g, "[ref]").replace(/\b\d[\d/.-]{3,}\d\b/g, "[nº]");
-  // Remaining capitalised sequences of 2+ words that look like names (ALL CAPS or Capitalised), outside common words.
-  return out.replace(/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñü]+|[A-ZÁÉÍÓÚÑ]{2,})(\s+(de|del|da|dos|el|y|ben|bin|van|von)?\s*([A-ZÁÉÍÓÚÑ][a-záéíóúñü]+|[A-ZÁÉÍÓÚÑ]{2,})){1,4}\b/g, (m) =>
-    /^(Certificado|Acta|Registro|Título|Apostilla|Documento|Resolución|Sentencia|Extracto|Copia|Archivo|Antecedentes|Libro|Partida)\b/.test(m) ? m : initials(m.replace(/\b(de|del|da|dos|el|y)\b/g, " ")),
-  );
+// Annex labels are free text from the documents: the report only keeps a generic class.
+function annexClass(label: string): string {
+  const l = label.toLowerCase();
+  if (/poder|procura|procuration|power/.test(l)) return "poder";
+  if (/defunci|décès|deces|death/.test(l)) return "defunción";
+  if (/[uú]ltimas voluntades|volontés|adsn|fichier central|registro central/.test(l)) return "últimas voluntades";
+  if (/legaliza|apostill/.test(l)) return "legalización";
+  if (/nacimiento|naissance|birth/.test(l)) return "nacimiento";
+  if (/matrimonio|mariage|marriage/.test(l)) return "matrimonio";
+  return "otro";
 }
 
-type Result = { c: Case; r: Reading | null; missingFiles: number; seconds: number; check: string[] };
-
-function check(c: Case, r: Reading): string[] {
+function check(c: Pick<Case, "expected">, r: Reading): string[] {
   if (r.status !== "ok") return [`estado ${r.status}`];
   const e = c.expected;
   const out: string[] = [];
-  if (r.documents.length !== e.docs) out.push(`documentos ${r.documents.length} ≠ ${e.docs}`);
+  if (r.documents.length !== e.docs && !(e.docsAlt ?? []).includes(r.documents.length)) out.push(`documentos ${r.documents.length} ≠ ${[e.docs, ...(e.docsAlt ?? [])].join(" o ")}`);
   if (e.withApostille !== undefined) {
     const n = r.documents.filter((d) => d.apostille).length;
     if (n !== e.withApostille) out.push(`con apostilla ${n} ≠ ${e.withApostille}`);
   }
-  if (e.pages && JSON.stringify(r.documents.map((d) => d.parts.length)) !== JSON.stringify(e.pages)) out.push(`páginas ${JSON.stringify(r.documents.map((d) => d.parts.length))} ≠ ${JSON.stringify(e.pages)}`);
+  const got = r.documents.map((d) => d.pageCount).slice(0, e.pages?.length);
+  if (e.pages && JSON.stringify(got) !== JSON.stringify(e.pages)) out.push(`páginas ${JSON.stringify(got)} ≠ ${JSON.stringify(e.pages)}`);
   if (e.target && r.reading.targetLang !== e.target) out.push(`destino ${r.reading.targetLang} ≠ ${e.target}`);
   if (e.declaredPages !== undefined && r.documents[0]?.declaredPages !== e.declaredPages) out.push(`declara ${r.documents[0]?.declaredPages} ≠ ${e.declaredPages}`);
   if (e.missing && JSON.stringify(r.documents[0]?.missingPages ?? []) !== JSON.stringify(e.missing)) out.push(`faltan ${JSON.stringify(r.documents[0]?.missingPages ?? [])} ≠ ${JSON.stringify(e.missing)}`);
   return out;
 }
 
-let spentUsd = 0;
-
-async function runCase(c: Case): Promise<Result> {
-  const t0 = Date.now();
-  const { files, missing } = await download(c);
-  if (files.length === 0) return { c, r: null, missingFiles: missing, seconds: 0, check: ["archivos borrados"] };
-  const r = await readBatch(files, c.context, { effort: EFFORT, fallback: FALLBACK });
-  if ("cost" in r) spentUsd += r.cost.usd;
-  mkdirSync(RAW_DIR, { recursive: true });
-  writeFileSync(join(RAW_DIR, `${c.key.replace(/[^\w-]+/g, "_")}.json`), JSON.stringify({ key: c.key, expected: c.expected, context: c.context, result: { ...r, batch: undefined } }, null, 2));
-  const seconds = (Date.now() - t0) / 1000;
-  const res = { c, r, missingFiles: missing, seconds, check: check(c, r) };
-  const cost = "cost" in r ? `$${r.cost.usd.toFixed(3)}` : "-";
-  console.log(`${c.key}: ${r.status} ${r.status === "ok" ? `${r.documents.length} docs (esperado ${c.expected.docs})` : ""} ${cost} ${seconds.toFixed(0)} s · acumulado $${spentUsd.toFixed(2)} ${res.check.length ? "✗ " + res.check.join("; ") : "✓"}`);
-  return res;
+function summarize(c: Pick<Case, "key" | "kind" | "expected">, r: Reading | null, missingFiles: number, seconds: number, checks: string[]): Summary {
+  const base: Summary = {
+    key: c.key, kind: c.kind, status: r ? r.status : "archivos borrados", files: 0, pages: 0, missingFiles, expectedDocs: c.expected.docs, obtainedDocs: null, check: checks,
+    targetLang: null, targetBasis: null, docs: [], notToTranslate: [], duplicatePages: 0, questionKinds: [], reviewCodes: [], tokens: null, costUsd: 0, seconds, attempts: 0,
+  };
+  if (!r || r.status === "too_large" || r.status === "empty") return base;
+  base.files = r.batch.files.length;
+  base.pages = r.batch.pages.length;
+  base.tokens = r.usage;
+  base.costUsd = r.cost.usd;
+  base.attempts = r.attempts;
+  if (r.status !== "ok" && r.status !== "nothing_to_translate") return base;
+  const rd = r.reading;
+  base.obtainedDocs = rd.documents.length;
+  base.targetLang = rd.targetLang;
+  base.targetBasis = rd.targetLangBasis;
+  base.docs = (r.status === "ok" ? r.documents : []).map((d) => ({
+    type: d.type, pages: d.pageCount, annexes: (d.annexes ?? []).map((a) => annexClass(a.labelEs)),
+    apostille: !d.apostille ? "none" : d.apostille.parts.length ? "sheet" : "on_page", declared: d.declaredPages, missing: d.missingPages.length, wordsBasis: d.wordsBasis,
+  }));
+  base.notToTranslate = rd.notToTranslate.map((n) => n.kind);
+  base.duplicatePages = rd.duplicates.reduce((s, d) => s + d.parts.length, 0);
+  base.questionKinds = rd.questions.map((q) => q.kind);
+  base.reviewCodes = [...new Set(r.assessment.reasons.map((x) => x.code))];
+  return base;
 }
 
-function describe(res: Result): string[] {
-  const { c, r } = res;
-  const lines: string[] = [];
-  lines.push(`### ${c.key} (${c.kind === "fixed" ? "fijo" : "amplio"}) — ${res.check.length === 0 ? "COINCIDE" : "NO coincide: " + res.check.join("; ")}`);
-  lines.push(`- Archivos: ${c.files.length}${res.missingFiles ? ` (${res.missingFiles} ya borrados)` : ""}. Contexto: mensaje ${c.context.clientMessage ? "sí" : "no"}, destino declarado ${c.context.declaredTargetLang ?? "no"}, fecha ${c.context.deadline ?? "no"}.`);
-  for (const n of c.notes) lines.push(`- Nota: ${n}`);
-  lines.push(`- Esperado: ${c.expected.docs} documento(s)${c.expected.withApostille !== undefined ? `, ${c.expected.withApostille} con apostilla` : ""}${c.expected.pages ? `, páginas ${c.expected.pages.join("/")}` : ""}${c.expected.target ? `, destino ${c.expected.target}` : ""}${c.expected.missing ? `, faltan ${c.expected.missing.join(", ")}` : ""}${c.kind === "broad" ? " (líneas de traducción del presupuesto enviado)" : ""}.`);
-  if (!r) return lines;
-  if (r.status === "too_large" || r.status === "empty") {
-    lines.push(`- Resultado: ${r.status} — ${r.reasonEs}`);
-    return lines;
+/** Pessimistic cost of one reading (two attempts, input uncached, full max_tokens): reserved before launching. */
+function maxCostUsd(pagesGuess: number): number {
+  const input = 10_000 + pagesGuess * 5_000;
+  return (2 * (input * 4 + 32_000 * 20)) / 1_000_000;
+}
+
+let spentUsd = 0;
+let reservedUsd = 0;
+
+async function runCase(c: Case): Promise<Summary> {
+  const t0 = Date.now();
+  const { files, missing } = await download(c);
+  if (files.length === 0) return summarize(c, null, missing, 0, ["archivos borrados"]);
+  const r = await readBatch(files, c.context, { effort: EFFORT, fallback: FALLBACK });
+  const seconds = (Date.now() - t0) / 1000;
+  const checks = check(c, r);
+  const summary = summarize(c, r, missing, seconds, checks);
+  spentUsd += summary.costUsd;
+  mkdirSync(RAW_DIR, { recursive: true });
+  writeFileSync(join(RAW_DIR, `${c.key.replace(/[^\w-]+/g, "_")}.json`), JSON.stringify({ summary, result: { ...r, batch: undefined } }, null, 2));
+  console.log(`${c.key}: ${summary.status} ${summary.obtainedDocs ?? "-"} docs (esperado ${c.expected.docs}) $${summary.costUsd.toFixed(3)} ${seconds.toFixed(0)} s · gastado $${spentUsd.toFixed(2)} ${checks.length ? "✗ " + checks.join("; ") : "✓"}`);
+  return summary;
+}
+
+function describe(s: Summary): string {
+  const docs = s.docs
+    .map((d) => `${d.type}·${d.pages}p${d.annexes.length ? `+anexos[${d.annexes.join(",")}]` : ""}${d.apostille !== "none" ? `+apostilla(${d.apostille === "sheet" ? "hoja" : "en página"})` : ""}${d.missing ? `·faltan ${d.missing}` : ""}`)
+    .join("; ");
+  const tok = s.tokens ? `${s.tokens.input}/${s.tokens.output}/${s.tokens.cacheRead}/${s.tokens.cacheWrite}` : "-";
+  return `| ${s.key} | ${s.kind === "fixed" ? "fijo" : "amplio"} | ${s.status} | ${s.files}/${s.pages}${s.missingFiles ? ` (${s.missingFiles} borrados)` : ""} | ${s.expectedDocs} | ${s.obtainedDocs ?? "-"} | ${s.check.length ? "✗ " + s.check.join("; ") : "✓"} | ${docs || "-"} | ${s.notToTranslate.length ? s.notToTranslate.join(",") : "-"} | ${s.questionKinds.length ? s.questionKinds.join(",") : "-"} | ${s.reviewCodes.length ? s.reviewCodes.join(",") : s.tokens ? "limpia" : "-"} | ${s.targetLang ?? "-"} | ${tok} | ${s.costUsd.toFixed(3)} | ${s.seconds.toFixed(0)} |`;
+}
+
+function writeReport(path: string, summaries: Summary[], meta: { prompt: string; stoppedByCap: boolean; skipped: number; note?: string }) {
+  const ran = summaries.filter((s) => s.tokens);
+  const costs = ran.map((s) => s.costUsd);
+  const secs = ran.map((s) => s.seconds);
+  const fixed = summaries.filter((s) => s.kind === "fixed");
+  const broad = summaries.filter((s) => s.kind === "broad" && s.tokens);
+  const md = [
+    "# Evaluación de la lectura única", "",
+    `- Generado: ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC · prompt ${meta.prompt} · claude-opus-5-5 · effort ${EFFORT}${meta.note ? ` · ${meta.note}` : ""}`,
+    `- Gasto: $${costs.reduce((a, b) => a + b, 0).toFixed(2)}${meta.stoppedByCap ? " · TOPE ALCANZADO, evaluación incompleta" : ""}`,
+    `- Fijos: ${fixed.filter((s) => s.check.length === 0).length}/${fixed.length} coinciden · amplio: ${broad.filter((s) => s.check.length === 0).length}/${broad.length} coinciden en nº de documentos${meta.skipped ? ` · ${meta.skipped} sin archivos localizables` : ""}`,
+    costs.length ? `- Coste por lote: medio $${(costs.reduce((a, b) => a + b, 0) / costs.length).toFixed(3)}, máximo $${Math.max(...costs).toFixed(3)} · tiempo medio ${(secs.reduce((a, b) => a + b, 0) / secs.length).toFixed(0)} s, máximo ${Math.max(...secs).toFixed(0)} s` : "",
+    "- Solo estructura: tipos del catálogo, nº de páginas, clases de anexo, clases de pregunta y códigos de revisión. Sin nombres ni texto de documentos.",
+    "",
+    "| Ref. | Conjunto | Estado | Archivos/págs | Esperado | Obtenido | Comprobación | Documentos | No se traduce | Preguntas | Revisión | Destino | Tokens ent/sal/caché leída/escrita | $ | s |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ...summaries.map(describe),
+    "",
+  ];
+  writeFileSync(path, md.join("\n"));
+}
+
+/** Raw files written before summaries existed: rebuild the same fields from the stored reading. */
+function summaryFromOldRaw(j: { key: string; expected: Expected; result: Record<string, unknown> }): Summary {
+  const r = j.result as Record<string, any>;
+  const rd = r.reading as ModelReading | undefined;
+  const all = rd
+    ? [...rd.documents.flatMap((d) => [...d.parts, ...(d.apostille?.parts ?? [])]), ...rd.notToTranslate.flatMap((n) => n.parts), ...rd.duplicates.flatMap((d) => d.parts), ...(rd.instructions?.parts ?? [])]
+    : [];
+  const kind: Summary["kind"] = /^2026-00(399|401|402)$|cmwmd0igj/.test(j.key) ? "fixed" : "broad";
+  const docs: Array<Record<string, any>> = ((r.documents ?? []) as Array<Record<string, any>>).map((d) => ({ ...d, pageCount: d.parts.length, annexes: [] }));
+  return {
+    key: j.key, kind, status: r.status, files: new Set(all.map((p) => p.fileIndex)).size, pages: all.length, missingFiles: 0,
+    expectedDocs: j.expected.docs, obtainedDocs: rd ? rd.documents.length : null,
+    check: check({ expected: j.expected }, { ...r, documents: docs } as unknown as Reading),
+    targetLang: rd?.targetLang ?? null, targetBasis: rd?.targetLangBasis ?? null,
+    docs: docs.map((d) => ({ type: d.type, pages: d.parts.length, annexes: [], apostille: !d.apostille ? "none" : d.apostille.parts.length ? "sheet" : "on_page", declared: d.declaredPages, missing: d.missingPages.length, wordsBasis: d.wordsBasis })),
+    notToTranslate: rd?.notToTranslate.map((n) => n.kind) ?? [],
+    duplicatePages: rd?.duplicates.reduce((a, d) => a + d.parts.length, 0) ?? 0,
+    questionKinds: rd?.questions.map((q) => q.kind) ?? [],
+    reviewCodes: ["no_evaluada"],
+    tokens: r.usage ?? null, costUsd: r.cost?.usd ?? 0, seconds: (r.ms ?? 0) / 1000, attempts: r.attempts ?? 0,
+  };
+}
+
+function fromRaw(dir: string) {
+  const summaries = readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => {
+    const j = JSON.parse(readFileSync(join(dir, f), "utf8"));
+    return (j.summary as Summary | undefined) ?? summaryFromOldRaw(j);
+  });
+  summaries.sort((a, b) => (a.kind === b.kind ? b.key.localeCompare(a.key) : a.kind === "fixed" ? -1 : 1));
+  writeReport(REPORT, summaries, { prompt: arg("prompt-label") ?? "(de los crudos)", stoppedByCap: false, skipped: 0, note: "regenerado de los JSON crudos, sin llamar a la API" });
+  console.log(`Informe regenerado: ${REPORT} (${summaries.length} casos)`);
+}
+
+// Same paper, other packing: 00401 (4 images → one PDF) and 00319 (one PDF → one shuffled PDF per page).
+async function invariance() {
+  const fixed = (await fixedCases()).filter((c) => c.key === "2026-00401");
+  const broad = (await broadCases(new Set())).cases.filter((c) => c.key === "2026-00319");
+  const lines = ["# Invariancia de la lectura (mismo papel, otro empaquetado)", "", `- prompt ${PROMPT_VERSION} · claude-opus-5-5 · effort ${EFFORT}`, ""];
+  for (const c of [...fixed, ...broad]) {
+    const { files } = await download(c);
+    let variant: SourceFile[];
+    let originA: (p: Part) => string;
+    let originB: (p: Part) => string;
+    if (files.every((f) => sniffType(f.bytes) !== "pdf")) {
+      variant = [{ name: "documento.pdf", bytes: await imagesToPdf(files.map((f) => ({ bytes: f.bytes, png: sniffType(f.bytes) === "png" }))) }];
+      originA = (p) => `h${p.fileIndex}`;
+      originB = (p) => `h${p.page}`;
+    } else {
+      const pages = await splitPdf(files[0].bytes);
+      const order = shuffled(pages);
+      variant = order.map((o, i) => ({ name: `escaneo_${i + 1}.pdf`, bytes: o.item }));
+      originA = (p) => `p${p.page}`;
+      originB = (p) => `p${order[p.fileIndex - 1].from + 1}`;
+    }
+    const a = await readBatch(files, c.context, { effort: EFFORT, fallback: FALLBACK });
+    const b = await readBatch(variant, c.context, { effort: EFFORT, fallback: FALLBACK });
+    for (const r of [a, b]) if ("cost" in r) spentUsd += r.cost.usd;
+    const pa = a.status === "ok" ? partitionOf(a.reading, originA) : null;
+    const pb = b.status === "ok" ? partitionOf(b.reading, originB) : null;
+    const same = !!pa && !!pb && samePartition(pa, pb);
+    const show = (p: string[][] | null) => (p ? p.map((d) => `[${d.join(" ")}]`).join(" ") : "-");
+    const cost = (r: Reading) => ("cost" in r ? r.cost.usd.toFixed(3) : "-");
+    lines.push(
+      `## ${c.key} — ${same ? "MISMOS documentos y páginas" : "DISTINTO"}`,
+      `- Original (${files.length} archivo(s)): ${a.status}, ${a.status === "ok" ? a.documents.length : "-"} documento(s) ${show(pa)} · $${cost(a)}`,
+      `- Variante (${variant.length} archivo(s)): ${b.status}, ${b.status === "ok" ? b.documents.length : "-"} documento(s) ${show(pb)} · $${cost(b)}`,
+      "",
+    );
+    mkdirSync(RAW_DIR, { recursive: true });
+    writeFileSync(join(RAW_DIR, `inv_${c.key}.json`), JSON.stringify({ a: { ...a, batch: undefined }, b: { ...b, batch: undefined } }, null, 2));
+    console.log(lines.slice(-4).join("\n"));
   }
-  const b = r.batch;
-  lines.push(`- Lote: ${b.files.length} archivo(s), ${b.pages.length} página(s), ${(b.requestBytes / 1024 / 1024).toFixed(1)} MB${b.duplicateFiles.length ? `, ${b.duplicateFiles.length} copia(s) exacta(s) descartada(s)` : ""}${b.skipped.length ? `, omitidos: ${b.skipped.map((s) => s.reasonEs).join("; ")}` : ""}.`);
-  lines.push(`- Tokens: entrada ${r.usage.input}, salida ${r.usage.output}, caché leída ${r.usage.cacheRead}, caché escrita ${r.usage.cacheWrite} · coste $${r.cost.usd.toFixed(3)} · ${res.seconds.toFixed(0)} s · intentos ${r.attempts}${r.servedBy.some((m) => m !== "claude-opus-5-5") ? ` · servido por ${r.servedBy.join(", ")}` : ""}.`);
-  if (r.status !== "ok") {
-    lines.push(`- Resultado: ${r.status}${r.status === "invalid" ? ` — ${r.errors.slice(0, 6).join(" | ")}` : r.status === "error" ? ` — ${r.error.kind} ${r.error.httpStatus ?? ""}` : r.status === "refused" ? ` — ${r.category ?? ""}` : ""}`);
-    return lines;
-  }
-  const holders = r.documents.map((d) => d.holder ?? "").filter(Boolean);
-  const pageList = (ps: { fileIndex: number; page: number }[]) => ps.map((p) => `${p.fileIndex}.${p.page}`).join(" ");
-  lines.push(`- Obtenido: ${r.documents.length} documento(s), destino ${r.reading.targetLang} (${r.reading.targetLangBasis}).`);
-  for (const d of r.documents) {
-    const holder = d.holder ? ` · titular ${initials(d.holder)}` : "";
-    const ap = d.apostille ? ` · apostilla ${d.apostille.parts.length ? pageList(d.apostille.parts) : "en la página"}` : "";
-    const miss = d.missingPages.length ? ` · declara ${d.declaredPages}, faltan ${d.missingPages.join(", ")}` : "";
-    lines.push(`  - ${d.id} ${d.type} «${sanitize(d.typeLabelEs, holders)}» ${d.sourceLang}${holder} · págs ${pageList(d.parts)}${ap}${miss} · ${d.words} pal (${d.wordsBasis}) · conf ${d.confidence}`);
-  }
-  const rd = r.reading;
-  if (rd.notToTranslate.length) lines.push(`  - No se traduce: ${rd.notToTranslate.map((n) => `${n.kind} [${pageList(n.parts)}]`).join("; ")}`);
-  if (rd.duplicates.length) lines.push(`  - Repetidas: ${rd.duplicates.map((d) => `[${pageList(d.parts)}] → ${d.duplicateOf.documentId ?? pageList(d.duplicateOf.parts)}`).join("; ")}`);
-  if (rd.instructions) lines.push(`  - Requerimiento: ${sanitize([rd.instructions.authority, rd.instructions.country, rd.instructions.procedure].filter(Boolean).join(" · "), holders)}`);
-  for (const q of rd.questions) lines.push(`  - Pregunta (${q.kind}): ${sanitize(q.textEs, holders)}`);
-  return lines;
+  writeFileSync(REPORT, lines.join("\n"));
+  console.log(`Informe: ${REPORT} · gastado $${spentUsd.toFixed(2)}`);
 }
 
 async function main() {
+  const raw = arg("from-raw");
+  if (raw) return fromRaw(raw);
+  if (process.argv.includes("--invariance")) return invariance();
   console.log(`Lectura única · ${PROMPT_VERSION} · effort ${EFFORT} · fallback ${FALLBACK ? "sí" : "no"} · tope $${MAX_USD}`);
+  // --keys 2026-00363=4,2026-00328=10 : only those quotes from the broad set, with the expected count given.
+  const keysArg = arg("keys");
+  const keys = keysArg ? new Map(keysArg.split(",").map((kv) => { const [k, v] = kv.split("="); return [k.trim(), Number(v)] as [string, number]; })) : null;
   const fixed = ONLY === "broad" ? [] : await fixedCases();
-  const { cases: broad, skipped } = ONLY === "fixed" ? { cases: [], skipped: [] } : await broadCases(new Set(fixed.map((c) => c.key)));
+  const loaded = ONLY === "fixed" ? { cases: [] as Case[], skipped: [] as { key: string; why: string }[] } : await broadCases(new Set(fixed.map((c) => c.key)));
+  const broad = keys ? loaded.cases.filter((c) => keys.has(c.key)).map((c) => ({ ...c, expected: { docs: keys.get(c.key)! } })) : loaded.cases;
   const queue = [...fixed, ...broad.slice(0, LIMIT)];
-  const results: Result[] = [];
+  const results: Summary[] = [];
   let stoppedByCap = false;
   let next = 0;
   async function worker() {
     while (next < queue.length) {
-      if (spentUsd >= MAX_USD) {
+      const c = queue[next];
+      const reserve = maxCostUsd(c.files.length * 3);
+      if (spentUsd + reservedUsd + reserve > MAX_USD) {
         stoppedByCap = true;
         return;
       }
-      const c = queue[next++];
+      next++;
+      reservedUsd += reserve;
       try {
         results.push(await runCase(c));
       } catch (err) {
-        console.error(`${c.key}: fallo del script`, err);
-        results.push({ c, r: null, missingFiles: 0, seconds: 0, check: [`fallo del script: ${err instanceof Error ? err.message : String(err)}`] });
+        console.error(`${c.key}: fallo del script`, err instanceof Error ? err.message : err);
+        results.push(summarize(c, null, 0, 0, ["fallo del script"]));
+      } finally {
+        reservedUsd -= reserve;
       }
     }
   }
   await Promise.all(Array.from({ length: Math.max(1, CONCURRENCY) }, worker));
-  results.sort((a, b) => queue.indexOf(a.c) - queue.indexOf(b.c));
-
-  const ran = results.filter((x) => x.r && "cost" in x.r);
-  const costs = ran.map((x) => (x.r as Extract<Reading, { cost: unknown }>).cost.usd);
-  const secs = ran.map((x) => x.seconds);
-  const fixedRes = results.filter((x) => x.c.kind === "fixed");
-  const broadRes = results.filter((x) => x.c.kind === "broad" && x.r);
-  const deleted = results.filter((x) => x.c.kind === "broad" && !x.r);
-  const md: string[] = [];
-  md.push(`# Evaluación de la lectura única`, "");
-  md.push(`- Fecha: ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC · modelo claude-opus-5-5 · effort ${EFFORT} · prompt ${PROMPT_VERSION} · fallback de rechazo ${FALLBACK ? "activado" : "desactivado"}`);
-  md.push(`- Tope de gasto $${MAX_USD}${stoppedByCap ? " — ALCANZADO: la evaluación se paró antes de terminar" : ""}. Gastado: $${spentUsd.toFixed(2)}.`);
-  md.push(`- Casos fijos: ${fixedRes.filter((x) => x.check.length === 0).length}/${fixedRes.length} coinciden.`);
-  md.push(`- Conjunto amplio (presupuestos enviados con expediente desde ${BROAD_SINCE.toISOString().slice(0, 10)}): ${broad.length} candidatos, ${broadRes.length} leídos, ${deleted.length} con los archivos ya borrados, ${skipped.length} sin archivos localizables${queue.length < fixed.length + broad.length ? `, ${fixed.length + broad.length - queue.length} fuera por --limit` : ""}; coinciden en nº de documentos ${broadRes.filter((x) => x.check.length === 0).length}/${broadRes.length}.`);
-  if (costs.length) {
-    md.push(`- Coste por lote: medio $${(costs.reduce((s, x) => s + x, 0) / costs.length).toFixed(3)}, máximo $${Math.max(...costs).toFixed(3)} · tiempo medio ${(secs.reduce((s, x) => s + x, 0) / secs.length).toFixed(0)} s, máximo ${Math.max(...secs).toFixed(0)} s.`);
-  }
-  md.push("", "## Casos fijos", "");
-  for (const x of fixedRes) md.push(...describe(x), "");
-  md.push("## Conjunto amplio", "");
-  for (const x of results.filter((y) => y.c.kind === "broad")) md.push(...describe(x), "");
-  if (skipped.length) md.push("## Sin archivos localizables", "", ...skipped.map((s) => `- ${s.key}: ${s.why}`), "");
-  writeFileSync(REPORT, md.join("\n"));
+  results.sort((a, b) => queue.findIndex((c) => c.key === a.key) - queue.findIndex((c) => c.key === b.key));
+  writeReport(REPORT, results, { prompt: PROMPT_VERSION, stoppedByCap, skipped: keys ? 0 : loaded.skipped.length });
   console.log(`Informe: ${REPORT} · crudos (con datos personales, temporales): ${RAW_DIR}`);
 }
 

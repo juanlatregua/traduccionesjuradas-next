@@ -1,41 +1,74 @@
-import { PDFDocument, type PDFPage } from "pdf-lib";
+import { PDFArray, PDFDocument, PDFRawStream, PDFRef, type PDFPage } from "pdf-lib";
 import type { PreparedBatch } from "./prepare.ts";
 import type { Part, ReadDocumentRaw } from "./schema.ts";
+import { documentLabel } from "./label.ts";
 
 const A4 = { w: 595.28, h: 841.89 };
 
 function safeName(s: string): string {
-  return s.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  return s.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120).trim();
 }
 
-export function documentFileName(document: Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs">, position?: number): string {
+/** «NN_<documentLabel>.pdf», with the characters a file system rejects removed. */
+export function documentFileName(document: Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs" | "apostille">, position?: number): string {
   const n = position ?? (Number(document.id.replace(/\D+/g, "")) || 1);
-  const nn = String(n).padStart(2, "0");
-  const type = safeName(document.typeLabelEs) || "Documento";
-  const holder = document.holder ? safeName(document.holder) : "";
-  return `${nn}_${holder ? `${holder} - ` : ""}${type}.pdf`;
+  return `${String(n).padStart(2, "0")}_${safeName(documentLabel(document)) || "Documento"}.pdf`;
 }
 
-/** One PDF per document: its pages in reading order, then the apostille sheets. */
+export type AssembledPdf =
+  | { ok: true; fileName: string; bytes: Uint8Array; pageCount: number }
+  | { ok: false; kind: "cannot_assemble"; reasonEs: string };
+
+/** Bytes of a page's content streams (0 = the page draws nothing). */
+function contentLength(page: PDFPage): number {
+  const contents = page.node.Contents();
+  if (!contents) return 0;
+  const ctx = page.doc.context;
+  const items = contents instanceof PDFArray ? contents.asArray() : [contents];
+  let total = 0;
+  for (const item of items) {
+    const stream = item instanceof PDFRef ? ctx.lookup(item) : item;
+    if (stream instanceof PDFRawStream) total += stream.contents.length;
+    else if (stream && "getContentsSize" in (stream as object)) total += (stream as unknown as { getContentsSize(): number }).getContentsSize();
+  }
+  return total;
+}
+
+/**
+ * One PDF per document: body pages in reading order, then the annexes in order, then the apostille sheets.
+ * Never returns a PDF with missing or blank pages: it fails with a typed reason instead.
+ */
 export async function assembleDocumentPdf(
   batch: Pick<PreparedBatch, "files">,
-  document: Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs" | "parts" | "apostille">,
+  document: Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs" | "parts" | "apostille"> & { annexes?: ReadDocumentRaw["annexes"] },
   position?: number,
-): Promise<{ fileName: string; bytes: Uint8Array; pageCount: number }> {
+): Promise<AssembledPdf> {
+  const fail = (reasonEs: string): AssembledPdf => ({ ok: false, kind: "cannot_assemble", reasonEs });
+  const parts: Part[] = [...document.parts, ...(document.annexes ?? []).flatMap((a) => a.parts), ...(document.apostille?.parts ?? [])];
+  if (parts.length === 0) return fail("el documento no tiene páginas");
   const out = await PDFDocument.create();
   const sources = new Map<number, PDFDocument>();
-  const parts: Part[] = [...document.parts, ...(document.apostille?.parts ?? [])];
+  const expectContent: boolean[] = [];
   for (const part of parts) {
     const file = batch.files.find((f) => f.index === part.fileIndex);
-    if (!file || part.page < 1 || part.page > file.pageCount) throw new Error(`Página inexistente: archivo ${part.fileIndex} pág. ${part.page}`);
+    if (!file || part.page < 1 || part.page > file.pageCount) return fail(`página inexistente: archivo ${part.fileIndex} pág. ${part.page}`);
     if (file.kind === "pdf") {
+      // Copying pages of an encrypted PDF carries its still-encrypted streams: the result would look blank.
+      // Without a decrypting renderer on the server, refuse instead of handing over empty sheets.
+      if (file.encrypted) return fail(`el archivo ${file.index} es un PDF cifrado: sus páginas no se pueden copiar sin descifrarlo (hay que entregar el original o reimprimirlo)`);
       let src = sources.get(file.index);
       if (!src) {
-        src = await PDFDocument.load(file.bytes, { ignoreEncryption: true, updateMetadata: false });
+        try {
+          src = await PDFDocument.load(file.bytes, { updateMetadata: false });
+        } catch {
+          return fail(`el archivo ${file.index} no se puede abrir para montar el documento`);
+        }
         sources.set(file.index, src);
       }
+      const srcPage = src.getPage(part.page - 1);
       const [page] = await out.copyPages(src, [part.page - 1]);
       out.addPage(page);
+      expectContent.push(contentLength(srcPage) > 0);
       continue;
     }
     const image = file.mediaType === "image/png" ? await out.embedPng(file.bytes) : await out.embedJpg(file.bytes);
@@ -46,7 +79,12 @@ export async function assembleDocumentPdf(
     const w = image.width * scale;
     const h = image.height * scale;
     page.drawImage(image, { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h });
+    expectContent.push(true);
   }
   const bytes = await out.save();
-  return { fileName: documentFileName(document, position), bytes, pageCount: out.getPageCount() };
+  const check = await PDFDocument.load(bytes);
+  if (check.getPageCount() !== parts.length) return fail(`se esperaban ${parts.length} páginas y salieron ${check.getPageCount()}`);
+  const blank = check.getPages().findIndex((p, i) => expectContent[i] && contentLength(p) === 0);
+  if (blank >= 0) return fail(`la página ${blank + 1} del montaje ha salido vacía y su original no lo estaba`);
+  return { ok: true, fileName: documentFileName(document, position), bytes, pageCount: parts.length };
 }
