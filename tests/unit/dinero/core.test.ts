@@ -107,7 +107,7 @@ test("vat: regla única mitad hacia arriba", () => {
 test("vat: splitGross conserva el total cobrado", () => {
   assert.deepEqual(splitGross(6050, VAT_GENERAL_21), { base: 5000, vat: 1050, total: 6050, consistent: true });
   // keeps the 1,01 € charged, but 0,18 ≠ round(0,83 × 21 %) = 0,17: an invoice from it is incoherent
-  assert.deepEqual(splitGross(101, VAT_GENERAL_21), { base: 83, vat: 18, total: 101, consistent: false });
+  assert.deepEqual(splitGross(101, VAT_GENERAL_21), { base: 83, vat: 18, total: 101, consistent: false, expectedVat: 17 });
   assert.deepEqual(splitGross(7500, VAT_NOT_SUBJECT), { base: 7500, vat: 0, total: 7500, consistent: true });
   assert.deepEqual(splitGross(0, VAT_GENERAL_21), { base: 0, vat: 0, total: 0, consistent: true });
   assert.throws(() => splitGross(-100, VAT_GENERAL_21));

@@ -2,7 +2,7 @@ export { type Cents, centsFromEuros, eurosFromCents, euroStringFromCents, sumCen
 export {
   type VatRegime, type VatBreakdown, type ZeroVatKind,
   VAT_GENERAL_21, VAT_REDUCED_10, VAT_SUPER_REDUCED_4, VAT_NOT_SUBJECT, VAT_REVERSE_CHARGE, VAT_EXEMPT,
-  addVat, splitGross, parseVatRate, vatRateFraction, vatFields,
+  type GrossSplit, addVat, splitGross, parseVatRate, vatRateFraction, vatFields, parseVatFields,
 } from "./vat.ts";
 export {
   type QuoteLineMoney, type Discount, type QuoteTotals, type QuoteTotalsResult, PAPER_SHIPPING_BASE_CENTS,

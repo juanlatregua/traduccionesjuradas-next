@@ -21,8 +21,21 @@ const ALLOWED_BP = new Set<number>([2100, 1000, 400]);
 
 export type VatBreakdown = { base: Cents; vat: Cents; total: Cents };
 
+const ZERO_KINDS = new Set<string>(["notSubject", "reverseCharge", "exempt"]);
+
+/** Runtime check: a regime that arrived malformed (cast, JSON) throws, so no total can ever be NaN. */
+export function assertRegime(regime: unknown): VatRegime {
+  const r = regime as { kind?: unknown; rateBp?: unknown } | null;
+  if (r && typeof r === "object") {
+    if (r.kind === "general" && typeof r.rateBp === "number" && ALLOWED_BP.has(r.rateBp)) return r as VatRegime;
+    if (typeof r.kind === "string" && ZERO_KINDS.has(r.kind)) return r as VatRegime;
+  }
+  throw new RangeError(`régimen de IVA mal formado: ${JSON.stringify(regime)}`);
+}
+
 export function rateBpOf(regime: VatRegime): number {
-  return regime.kind === "general" ? regime.rateBp : 0;
+  const r = assertRegime(regime);
+  return r.kind === "general" ? r.rateBp : 0;
 }
 
 /** The single VAT rounding rule: half up on exact integers. Negative bases (rectifications) mirror the positive ones. */
@@ -40,17 +53,22 @@ export function addVat(baseCents: Cents, regime: VatRegime): VatBreakdown {
   return { base: baseCents, vat, total: baseCents + vat };
 }
 
+export type GrossSplit =
+  | (VatBreakdown & { consistent: true })
+  | (VatBreakdown & { consistent: false; expectedVat: Cents });
+
 /**
  * Only for amounts born VAT-included (a charge already paid): keeps the total, base = round(total/(1+r)),
- * vat = total − base. New invoices are issued from the BASE (lines); `consistent` says whether this vat
- * also equals the base→vat rule, i.e. whether an invoice issued from this gross amount is coherent.
+ * vat = total − base. New invoices are issued from the BASE (lines). When this vat is not the base→vat
+ * rule, the result says so (`consistent: false`) and carries the vat the base would give.
  */
-export function splitGross(totalCents: Cents, regime: VatRegime): VatBreakdown & { consistent: boolean } {
+export function splitGross(totalCents: Cents, regime: VatRegime): GrossSplit {
   assertNonNegativeCents(totalCents, "total");
   const bp = rateBpOf(regime);
   const base = bp === 0 ? totalCents : divRoundHalfUp(totalCents * 10000, 10000 + bp);
   const vat = totalCents - base;
-  return { base, vat, total: totalCents, consistent: vat === vatOn(base, regime) };
+  const expectedVat = vatOn(base, regime);
+  return vat === expectedVat ? { base, vat, total: totalCents, consistent: true } : { base, vat, total: totalCents, consistent: false, expectedVat };
 }
 
 /**
@@ -59,6 +77,7 @@ export function splitGross(totalCents: Cents, regime: VatRegime): VatBreakdown &
  * anything not understood throws instead of falling back to 21 %.
  */
 export function parseVatRate(stored: unknown, opts: { zeroAs?: ZeroVatKind } = {}): VatRegime {
+  if (opts.zeroAs !== undefined && !ZERO_KINDS.has(opts.zeroAs)) throw new RangeError(`zeroAs «${String(opts.zeroAs)}» no es un régimen de tipo cero`);
   if (stored === null || stored === undefined || stored === "") throw new RangeError("vatRate vacío: régimen de IVA desconocido");
   const isDecimalObject =
     typeof stored === "object" && !Array.isArray(stored) &&
@@ -85,5 +104,19 @@ export function vatRateFraction(regime: VatRegime): number {
 
 /** Boundary: what to write next to `vatRate` so a 0 % keeps which regime it was. */
 export function vatFields(regime: VatRegime): { vatRate: number; vatRegime: VatRegime["kind"] } {
-  return { vatRate: vatRateFraction(regime), vatRegime: regime.kind };
+  return { vatRate: vatRateFraction(regime), vatRegime: assertRegime(regime).kind };
+}
+
+/** Exact inverse of vatFields: rate and regime must agree (general needs a rate > 0, the others 0). */
+export function parseVatFields(fields: { vatRate: unknown; vatRegime: unknown }): VatRegime {
+  const { vatRate, vatRegime } = fields ?? ({} as never);
+  if (vatRegime === "general") {
+    const r = parseVatRate(vatRate);
+    if (r.kind !== "general") throw new RangeError("régimen general con tipo 0");
+    return r;
+  }
+  if (typeof vatRegime !== "string" || !ZERO_KINDS.has(vatRegime)) throw new RangeError(`vatRegime «${String(vatRegime)}» desconocido`);
+  const r = parseVatRate(vatRate, { zeroAs: vatRegime as ZeroVatKind });
+  if (r.kind !== vatRegime) throw new RangeError(`régimen ${vatRegime} con tipo ${String(vatRate)} distinto de 0`);
+  return r;
 }

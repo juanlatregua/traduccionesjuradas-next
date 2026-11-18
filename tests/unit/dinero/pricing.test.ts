@@ -132,19 +132,19 @@ test("tariff-fr: por palabra y casos sin tarifa (nunca un número inventado)", (
 });
 
 test("rate: tarifa aprobada exige coste y venta", () => {
-  const doc = priceWithRate({ unit: "doc", costCents: 3500, clientCents: 4590 }, 400);
+  const doc = priceWithRate({ unit: "doc", costCents: 3500, clientCents: 4590 }, { words: 400, pages: 1 });
   assert.ok(doc.kind === "priced" && doc.clientCents === 4500 && doc.costCents === 3500);
-  const floor = priceWithRate({ unit: "doc", costCents: 2000, clientCents: 3000 }, 400);
+  const floor = priceWithRate({ unit: "doc", costCents: 2000, clientCents: 3000 }, { words: 400, pages: 1 });
   assert.ok(floor.kind === "priced" && floor.clientCents === 4000);
-  const kw = priceWithRate({ unit: "per1000Words", costCents: 8000, clientCents: 11000 }, 2500);
+  const kw = priceWithRate({ unit: "per1000Words", costCents: 8000, clientCents: 11000 }, { words: 2500, pages: 3 });
   assert.ok(kw.kind === "priced" && kw.costCents === 20000 && kw.clientCents === 27500);
-  const blocked = priceWithRate({ unit: "doc", costCents: 4000, clientCents: 4300 }, 400);
+  const blocked = priceWithRate({ unit: "doc", costCents: 4000, clientCents: 4300 }, { words: 400, pages: 1 });
   assert.ok(blocked.kind === "blocked" && /Margen bajo/.test(blocked.reason));
-  assert.equal(priceWithRate({ unit: "doc", costCents: 4000, clientCents: null }, 400).kind, "noPrice");
-  assert.equal(priceWithRate({ unit: "doc", costCents: null, clientCents: 6000 }, 400).kind, "noPrice");
-  assert.equal(priceWithRate({ unit: "per1000Words", costCents: 8000, clientCents: 11000 }, null).kind, "noPrice");
-  assert.equal(priceWithRate({ unit: "doc", costCents: 0, clientCents: 6000 }, 400).kind, "noPrice"); // coste 0 = sin informar
-  assert.equal(priceWithRate({ unit: "per1000Words", costCents: 0, clientCents: 11000 }, 2000).kind, "noPrice");
+  assert.equal(priceWithRate({ unit: "doc", costCents: 4000, clientCents: null }, { words: 400, pages: 1 }).kind, "noPrice");
+  assert.equal(priceWithRate({ unit: "doc", costCents: null, clientCents: 6000 }, { words: 400, pages: 1 }).kind, "noPrice");
+  assert.equal(priceWithRate({ unit: "per1000Words", costCents: 8000, clientCents: 11000 }, { words: null, pages: 3 }).kind, "noPrice");
+  assert.equal(priceWithRate({ unit: "doc", costCents: 0, clientCents: 6000 }, { words: 400, pages: 1 }).kind, "noPrice"); // coste 0 = sin informar
+  assert.equal(priceWithRate({ unit: "per1000Words", costCents: 0, clientCents: 11000 }, { words: 2000, pages: 3 }).kind, "noPrice");
 });
 
 test("rate: tamaño ±30 %, unidad y comodín", () => {

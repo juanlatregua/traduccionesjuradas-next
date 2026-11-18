@@ -180,10 +180,14 @@ test("paridad supplier ↔ channelPriceToBaseCents / baseToChannelPriceCents (0�
 test("paridad rate ↔ priceDocWithRate, canAutoQuote y fitsDocSize (coste 0 y costes pequeños incluidos)", () => {
   const costs = [0, 1, 5, 50, 99, 100, 500, 999, ...Array.from({ length: 77 }, (_, i) => 1000 + i * 250)];
   for (const unit of ["doc", "kword"] as const) for (const cost of costs) for (let cl = 1000; cl <= 30000; cl += 333)
-    for (const w of [1, 250, 999, 1000, 1234, 2500, 4321]) {
+    for (const w of [1, 250, 999, 1000, 1234, 2500, 4321]) for (const pages of [1, 3]) {
       const old = priceDocWithRate({ unit, costCents: cost, clientCents: cl }, w);
-      const nw = priceWithRate({ unit: unit === "kword" ? "per1000Words" : "doc", costCents: cost, clientCents: cl }, w);
+      const nw = priceWithRate({ unit: unit === "kword" ? "per1000Words" : "doc", costCents: cost, clientCents: cl }, { words: w, pages });
       const oldOk = canAutoQuote(old.clientCents, old.costCents);
+      if (nw.kind === "noPrice" && unit === "kword" && cost > 0 && (pages <= 2 || w < 1000)) {
+        // DOCUMENTED: per 1000 words only where the unit rule applies (unitFor); old prices any document with it.
+        continue;
+      }
       if (nw.kind === "noPrice") {
         // cost 0 = not informed: the old code refuses it too (margin % over a 0 cost is 0)
         assert.ok(cost === 0 && !oldOk, `noPrice ${unit} ${cost} ${cl} ${w}`);
@@ -207,9 +211,39 @@ test("paridad rate ↔ priceDocWithRate, canAutoQuote y fitsDocSize (coste 0 y c
   // DOCUMENTED: a per-document tariff without wordsRef — old applies it to any size (a 30-page document); new: not applicable.
   assert.equal(oldFitsDocSize(9000, null), true);
   assert.equal(fitsDocSize(9000, null), false);
+  // DOCUMENTED (M3): a 1-page certificate with 5 words against a per-1000-words tariff — old 40 €; new: no price.
+  assert.equal(priceDocWithRate({ unit: "kword", costCents: 8000, clientCents: 11000 }, 5).clientCents, 4000);
+  const cert = priceWithRate({ unit: "per1000Words", costCents: 8000, clientCents: 11000 }, { words: 5, pages: 1 });
+  assert.ok(cert.kind === "noPrice" && /no se cobra por palabra/.test(cert.reason));
   // DOCUMENTED: a tariff without its client price — old invents it with the suggestion rule; new refuses.
   assert.equal(priceDocWithRate({ unit: "doc", costCents: 3000, clientCents: null }, 300).clientCents, 4000);
-  assert.equal(priceWithRate({ unit: "doc", costCents: 3000, clientCents: null }, 300).kind, "noPrice");
+  assert.equal(priceWithRate({ unit: "doc", costCents: 3000, clientCents: null }, { words: 300, pages: 1 }).kind, "noPrice");
+});
+
+test("paridad: normalización del tipo, palabras con decimales y complejidad desconocida (B1)", () => {
+  // Type with capitals/spaces. Old: the penal check is an exact `=== "criminal_record"`, but page pricing lowercases:
+  // «Criminal_Record» of 5 pages → old 5 × 30 = 150 €; new normalises → penal FR 61,98 €.
+  assert.equal(computeBase({ specificType: "Criminal_Record", foreignLang: "fr", words: 300, pages: 5, inbound: true }).basePrice, 150);
+  const pen = priceFrToEs({ docType: "Criminal_Record", pages: 5, words: 300, apostille: false });
+  assert.ok(pen.kind === "priced" && pen.cents === 6198 && pen.rule === "criminalRecord");
+  // « birth_certificate » (spaces): old page pricing trims → 30 € (same as new)
+  assert.equal(computeBase({ specificType: " birth_certificate ", foreignLang: "fr", words: 300, pages: 1, inbound: true }).basePrice, 30);
+  assert.ok((() => { const p = priceFrToEs({ docType: " birth_certificate ", pages: 1, words: 300, apostille: false }); return p.kind === "priced" && p.cents === 3000; })());
+  // Engine (non FR): old looks the type up without normalising → «Criminal_Record» EN 2 pages, 100 words:
+  // old = max(42 default, 50 lang, 40 × 2 page floor because not recognised as exempt) = 80 €; new = 50 € (exempt certificate).
+  assert.equal(computeBase({ specificType: "Criminal_Record", foreignLang: "en", words: 100, pages: 2, inbound: true }).basePrice, 80);
+  const en = estimateInternalCost({ lang: "en", docType: "Criminal_Record", words: 100, pages: 2, apostille: false });
+  assert.ok(en.kind === "internalCostEstimate" && en.internalCostCents === 5000);
+  // Words with decimals. Old multiplies them; new refuses (a word count is an integer).
+  assert.equal(round2NoEps(computeBase({ specificType: "contract", foreignLang: "fr", words: 1000.5, pages: 3, inbound: true }).basePrice), 80.04);
+  assert.equal(priceFrToEs({ docType: "contract", pages: 3, words: 1000.5, apostille: false }).kind, "noTariff");
+  assert.equal(round2NoEps(computeBase({ specificType: "contract", foreignLang: "en", words: 1000.5, pages: 3, inbound: true }).basePrice), 110.06);
+  assert.equal(estimateInternalCost({ lang: "en", docType: "contract", words: 1000.5, pages: 3, apostille: false }).kind, "noEstimate");
+  // Unknown complexity. Old falls back to ×1; new refuses.
+  assert.equal(computeBase({ specificType: "contract", foreignLang: "en", words: 1000, pages: 3, complexity: "weird", inbound: true }).basePrice, 110);
+  assert.equal(estimateInternalCost({ lang: "en", docType: "contract", words: 1000, pages: 3, complexity: "weird" as never, apostille: false }).kind, "noEstimate");
+  assert.equal(computeBase({ specificType: "contract", foreignLang: "fr", words: 1000, pages: 3, complexity: "weird", inbound: true }).basePrice, 80);
+  assert.equal(priceFrToEs({ docType: "contract", pages: 3, words: 1000, complexity: "weird" as never, apostille: false }).kind, "noTariff");
 });
 
 test("paridad margen ↔ evaluateLinesMargin (una línea no FR, coste 0 incluido)", () => {

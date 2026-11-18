@@ -90,9 +90,22 @@ export function costFromStoredBase(baseCents: Cents | null | undefined): Supplie
   return baseCents > 0 ? known(baseCents) : UNKNOWN_COST;
 }
 
+/**
+ * Runtime check of a cost that may have arrived through a cast or JSON: anything that is not
+ * own work with base 0 or an external cost with an integer base > 0 is treated as unknown.
+ */
+export function checkedCost(cost: unknown): SupplierCost {
+  const c = cost as { known?: unknown; baseCents?: unknown; ownWork?: unknown } | null;
+  if (!c || typeof c !== "object" || c.known !== true) return UNKNOWN_COST;
+  if (c.ownWork === true) return c.baseCents === 0 ? OWN_WORK : UNKNOWN_COST;
+  if (c.ownWork !== false) return UNKNOWN_COST;
+  return typeof c.baseCents === "number" && Number.isSafeInteger(c.baseCents) && c.baseCents > 0 ? known(c.baseCents) : UNKNOWN_COST;
+}
+
 /** Sum of several costs: unknown if any one is unknown; own work only if all are. */
-export function sumCosts(costs: readonly SupplierCost[]): SupplierCost {
-  if (costs.length === 0) return UNKNOWN_COST;
+export function sumCosts(input: readonly SupplierCost[]): SupplierCost {
+  if (input.length === 0) return UNKNOWN_COST;
+  const costs = input.map(checkedCost);
   let total = 0;
   for (const c of costs) {
     if (!c.known) return UNKNOWN_COST;

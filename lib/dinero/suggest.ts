@@ -1,5 +1,5 @@
 import { assertNonNegativeCents, divRoundHalfUp, type Cents } from "./money.ts";
-import type { SupplierCost } from "./supplier.ts";
+import { checkedCost, type SupplierCost } from "./supplier.ts";
 
 /** Usual floor per document; callers pass it (or 0) explicitly. */
 export const SUGGEST_DOC_FLOOR_CENTS: Cents = 4000;
@@ -24,8 +24,9 @@ export type PriceSuggestion = {
  * max(floor, min(cost × 1.6, max(cost × (1 + band), cost + 10 €))).
  */
 export function suggestClientPrice(cost: SupplierCost, opts: { floorCents: Cents }): PriceSuggestion | null {
-  if (!cost.known) return null;
-  const c = assertNonNegativeCents(cost.baseCents, "coste");
+  const checked = checkedCost(cost);
+  if (!checked.known) return null;
+  const c = assertNonNegativeCents(checked.baseCents, "coste");
   const floor = assertNonNegativeCents(opts.floorCents, "suelo");
   // Hundredths of a cent, so every candidate is exact before the single rounding.
   const band = c * (100 + marginPctForCostCents(c));

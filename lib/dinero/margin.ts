@@ -1,6 +1,6 @@
 import { assertCents, type Cents } from "./money.ts";
 import { formatEuros } from "./format.ts";
-import type { SupplierCost } from "./supplier.ts";
+import { checkedCost, type SupplierCost } from "./supplier.ts";
 
 /** Minimum margin, as a percentage over the supplier's base cost. */
 export const MIN_MARGIN_PCT_OVER_COST = 10;
@@ -12,8 +12,9 @@ export type Margin =
   | { class: Exclude<MarginClass, "unknown">; marginCents: Cents; netRevenueCents: Cents; costCents: Cents; ownWork: boolean };
 
 /** margin = net revenue − supplier base cost, both without VAT. */
-export function marginOf(netRevenueCents: Cents, cost: SupplierCost): Margin {
+export function marginOf(netRevenueCents: Cents, input: SupplierCost): Margin {
   assertCents(netRevenueCents, "ingreso neto");
+  const cost = checkedCost(input);
   if (!cost.known) return { class: "unknown" };
   const marginCents = netRevenueCents - cost.baseCents;
   const ownWork = cost.ownWork === true;
@@ -25,7 +26,8 @@ export function marginOf(netRevenueCents: Cents, cost: SupplierCost): Margin {
 }
 
 /** Margin as % over cost (display only); null when the cost is unknown or own work. */
-export function pctOverCost(netRevenueCents: Cents, cost: SupplierCost): number | null {
+export function pctOverCost(netRevenueCents: Cents, input: SupplierCost): number | null {
+  const cost = checkedCost(input);
   if (!cost.known || cost.baseCents === 0) return null;
   return ((netRevenueCents - cost.baseCents) / cost.baseCents) * 100;
 }

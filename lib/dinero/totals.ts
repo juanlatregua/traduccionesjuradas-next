@@ -1,5 +1,5 @@
 import { assertCents, assertNonNegativeCents, divRoundHalfUp, scaledIntFromDecimal, spread, sumCents, type Cents } from "./money.ts";
-import { addVat, vatOn, splitGross, type VatBreakdown, type VatRegime } from "./vat.ts";
+import { addVat, assertRegime, vatOn, splitGross, type GrossSplit, type VatBreakdown, type VatRegime } from "./vat.ts";
 
 export const PAPER_SHIPPING_BASE_CENTS: Cents = 1200;
 
@@ -55,6 +55,7 @@ export function quoteTotals(input: {
   shippingCents: Cents;
   regime: VatRegime;
 }): QuoteTotalsResult {
+  assertRegime(input.regime);
   const lineTotals = input.lines.map(lineTotalCents);
   const subtotal = sumCents(lineTotals);
   const discount = discountCents(subtotal, input.discount);
@@ -80,7 +81,7 @@ export function invoiceTotalsFromLines(
 }
 
 /** Only for amounts born VAT-included; new invoices are issued from lines (base). See splitGross. */
-export function invoiceTotalsFromGross(totalCents: Cents, regime: VatRegime): VatBreakdown & { consistent: boolean } {
+export function invoiceTotalsFromGross(totalCents: Cents, regime: VatRegime): GrossSplit {
   return splitGross(totalCents, regime);
 }
 
@@ -89,5 +90,7 @@ export function splitInstallments(totalWithVatCents: Cents, weights: readonly nu
   if (weights.length === 0 || weights.some((w) => !(Number.isSafeInteger(w) && w > 0))) {
     throw new RangeError("plazos: pesos enteros positivos");
   }
-  return spread(totalWithVatCents, weights);
+  const parts = spread(totalWithVatCents, weights);
+  if (parts.some((p) => p === 0)) throw new RangeError("plazos: algún plazo saldría a 0");
+  return parts;
 }
