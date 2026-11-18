@@ -13,7 +13,7 @@ export type { ReadingContext } from "./prompt.ts";
 export type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
 export { prepareBatch, DEFAULT_LIMITS } from "./prepare.ts";
 export { validateReading } from "./validate.ts";
-export { assembleDocumentPdf, documentFileName, type AssembledPdf } from "./assemble.ts";
+export { assembleDocumentPdf, documentFileName, documentFileNames, type AssembledPdf } from "./assemble.ts";
 export { documentLabel } from "./label.ts";
 export { partitionOf, samePartition } from "./invariance.ts";
 export { priceHint, type PriceHint } from "./price-hint.ts";
@@ -105,7 +105,7 @@ export async function readBatch(files: readonly SourceFile[], context: ReadingCo
     if (outcome.kind === "unparseable") errors = [outcome.detail];
     else {
       lastReading = outcome.reading;
-      errors = [...outcome.wireErrors, ...validateReading(batch, outcome.reading)];
+      errors = [...outcome.wireErrors, ...validateReading(batch, outcome.reading, context)];
       if (errors.length === 0) {
         const documents = withWords(batch, outcome.reading);
         const assessment = assessReading(batch, { ...outcome.reading, documents });

@@ -36,7 +36,7 @@ async function twoFiles() {
 }
 
 const good = () => reading([doc("D1", [[1, 1], [1, 2]], { apostille: ap([[2, 1]]) })]);
-const ctx = { clientMessage: "Necesito la traducción para el lunes", declaredTargetLang: "es" };
+const ctx = { clientMessage: "Necesito la traducción para el lunes" };
 
 test("valid reading on the first call: documents, usage and cost", async () => {
   const fake = fakeModel([message(good())]);
@@ -59,8 +59,9 @@ test("valid reading on the first call: documents, usage and cost", async () => {
   assert.deepEqual(p.system[0].cache_control, { type: "ephemeral" });
   const blocks = p.messages[0].content;
   assert.deepEqual(blocks.map((b: any) => b.type), ["text", "document", "text", "image", "text"]);
-  assert.match(blocks[0].text, /^Archivo 1: nombre «acta\.pdf», 2 páginas/);
-  assert.match(blocks[2].text, /^Archivo 2: nombre «apostilla\.jpg», 1 página/);
+  assert.match(blocks[0].text, /^Archivo 1: 2 páginas/);
+  assert.match(blocks[2].text, /^Archivo 2: 1 página/);
+  assert.match(blocks[4].text, /<datos_cliente>[\s\S]*Archivo 1: «acta\.pdf»[\s\S]*<\/datos_cliente>/);
   assert.deepEqual(blocks[3].cache_control, { type: "ephemeral" });
   assert.equal(blocks[4].cache_control, undefined);
   assert.match(blocks[4].text, /Necesito la traducción para el lunes/);

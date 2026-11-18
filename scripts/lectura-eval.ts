@@ -11,7 +11,7 @@ import { prisma } from "../lib/prisma";
 import { readBatch, PROMPT_VERSION, type ModelReading, type Reading, type ReadingContext, type SourceFile } from "../lib/lectura/index.ts";
 import type { Effort } from "../lib/lectura/read.ts";
 import type { Part } from "../lib/lectura/schema.ts";
-import { sniffType } from "../lib/lectura/prepare.ts";
+import { prepareBatch, sniffType } from "../lib/lectura/prepare.ts";
 import { imagesToPdf, partitionOf, samePartition, shuffled, splitPdf } from "../lib/lectura/invariance.ts";
 
 const REPORT = process.argv.includes("--report") ? process.argv[process.argv.indexOf("--report") + 1] : "/Users/nip/proyectos/tjnet-golden/lectura-eval.md";
@@ -237,11 +237,34 @@ function maxCostUsd(pagesGuess: number): number {
 let spentUsd = 0;
 let reservedUsd = 0;
 
+/** Real page count of the batch (same preparation the reading will do), for the spending reservation. */
+async function realPages(files: SourceFile[]): Promise<number> {
+  const p = await prepareBatch(files);
+  return p.status === "ok" ? p.batch.pages.length : 0;
+}
+
+/** Reserves the worst case before an API call; false = the cap would be passed, the call is not made. */
+function reserve(pages: number): number | null {
+  const amount = maxCostUsd(pages);
+  if (spentUsd + reservedUsd + amount > MAX_USD) return null;
+  reservedUsd += amount;
+  return amount;
+}
+
+class CapReached extends Error {}
+
 async function runCase(c: Case): Promise<Summary> {
   const t0 = Date.now();
   const { files, missing } = await download(c);
   if (files.length === 0) return summarize(c, null, missing, 0, ["archivos borrados"]);
-  const r = await readBatch(files, c.context, { effort: EFFORT, fallback: FALLBACK });
+  const held = reserve(await realPages(files));
+  if (held === null) throw new CapReached();
+  let r: Reading;
+  try {
+    r = await readBatch(files, c.context, { effort: EFFORT, fallback: FALLBACK });
+  } finally {
+    reservedUsd -= held;
+  }
   const seconds = (Date.now() - t0) / 1000;
   const checks = check(c, r);
   const summary = summarize(c, r, missing, seconds, checks);
@@ -336,8 +359,19 @@ async function invariance() {
       originA = (p) => `p${p.page}`;
       originB = (p) => `p${order[p.fileIndex - 1].from + 1}`;
     }
-    const a = await readBatch(files, c.context, { effort: EFFORT, fallback: FALLBACK });
-    const b = await readBatch(variant, c.context, { effort: EFFORT, fallback: FALLBACK });
+    const held = reserve(2 * (await realPages(files)));
+    if (held === null) {
+      lines.push(`## ${c.key} — NO EJECUTADO: el tope de gasto de $${MAX_USD} no cubre las dos lecturas`, "");
+      continue;
+    }
+    let a: Reading;
+    let b: Reading;
+    try {
+      a = await readBatch(files, c.context, { effort: EFFORT, fallback: FALLBACK });
+      b = await readBatch(variant, c.context, { effort: EFFORT, fallback: FALLBACK });
+    } finally {
+      reservedUsd -= held;
+    }
     for (const r of [a, b]) if ("cost" in r) spentUsd += r.cost.usd;
     const pa = a.status === "ok" ? partitionOf(a.reading, originA) : null;
     const pb = b.status === "ok" ? partitionOf(b.reading, originB) : null;
@@ -375,21 +409,16 @@ async function main() {
   let next = 0;
   async function worker() {
     while (next < queue.length) {
-      const c = queue[next];
-      const reserve = maxCostUsd(c.files.length * 3);
-      if (spentUsd + reservedUsd + reserve > MAX_USD) {
-        stoppedByCap = true;
-        return;
-      }
-      next++;
-      reservedUsd += reserve;
+      const c = queue[next++];
       try {
         results.push(await runCase(c));
       } catch (err) {
+        if (err instanceof CapReached) {
+          stoppedByCap = true;
+          return;
+        }
         console.error(`${c.key}: fallo del script`, err instanceof Error ? err.message : err);
         results.push(summarize(c, null, 0, 0, ["fallo del script"]));
-      } finally {
-        reservedUsd -= reserve;
       }
     }
   }

@@ -5,14 +5,20 @@ import { documentLabel } from "./label.ts";
 
 const A4 = { w: 595.28, h: 841.89 };
 
-function safeName(s: string): string {
-  return s.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120).trim();
+/** File systems reject these; the label is already one clean line of bounded length. */
+const safeName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+
+/**
+ * «NN_<documentLabel>.pdf». NN is the document's position in the reading (1-based), so names are unique and
+ * stable within a batch even when two labels are identical.
+ */
+export function documentFileName(document: Pick<ReadDocumentRaw, "holder" | "typeLabelEs" | "apostille">, position: number): string {
+  if (!Number.isInteger(position) || position < 1) throw new RangeError("posición de documento inválida");
+  return `${String(position).padStart(2, "0")}_${safeName(documentLabel(document)) || "Documento"}.pdf`;
 }
 
-/** «NN_<documentLabel>.pdf», with the characters a file system rejects removed. */
-export function documentFileName(document: Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs" | "apostille">, position?: number): string {
-  const n = position ?? (Number(document.id.replace(/\D+/g, "")) || 1);
-  return `${String(n).padStart(2, "0")}_${safeName(documentLabel(document)) || "Documento"}.pdf`;
+export function documentFileNames(documents: readonly Pick<ReadDocumentRaw, "holder" | "typeLabelEs" | "apostille">[]): string[] {
+  return documents.map((d, i) => documentFileName(d, i + 1));
 }
 
 export type AssembledPdf =
@@ -41,7 +47,7 @@ function contentLength(page: PDFPage): number {
 export async function assembleDocumentPdf(
   batch: Pick<PreparedBatch, "files">,
   document: Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs" | "parts" | "apostille"> & { annexes?: ReadDocumentRaw["annexes"] },
-  position?: number,
+  position: number,
 ): Promise<AssembledPdf> {
   const fail = (reasonEs: string): AssembledPdf => ({ ok: false, kind: "cannot_assemble", reasonEs });
   const parts: Part[] = [...document.parts, ...(document.annexes ?? []).flatMap((a) => a.parts), ...(document.apostille?.parts ?? [])];

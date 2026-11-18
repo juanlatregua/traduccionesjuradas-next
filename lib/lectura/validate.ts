@@ -1,5 +1,6 @@
 import type { PreparedBatch } from "./prepare.ts";
 import type { ModelReading, Part } from "./schema.ts";
+import { declaredLang } from "./prompt.ts";
 
 const key = (p: Part) => `${p.fileIndex}:${p.page}`;
 const label = (p: Part) => `archivo ${p.fileIndex} pág. ${p.page}`;
@@ -8,7 +9,8 @@ const label = (p: Part) => `archivo ${p.fileIndex} pág. ${p.page}`;
 const CLEARLY_NOT_TRANSLATABLE = new Set(["identity_doc", "payment_proof", "screenshot", "previous_translation", "blank"]);
 
 // Each problem is a concrete sentence the model can act on in the retry.
-export function validateReading(batch: Pick<PreparedBatch, "files">, reading: ModelReading): string[] {
+/** `context.declaredTargetLang`: the structured form field, when there is one; the reading must follow it. */
+export function validateReading(batch: Pick<PreparedBatch, "files">, reading: ModelReading, context: { declaredTargetLang?: string | null } = {}): string[] {
   const errors: string[] = [];
   const pageCount = new Map(batch.files.map((f) => [f.index, f.pageCount]));
   const inRange = (p: Part) => Number.isInteger(p.fileIndex) && Number.isInteger(p.page) && p.page >= 1 && p.page <= (pageCount.get(p.fileIndex) ?? 0);
@@ -37,7 +39,9 @@ export function validateReading(batch: Pick<PreparedBatch, "files">, reading: Mo
     if (d.parts.length === 0) errors.push(`El documento ${d.id} no tiene páginas.`);
     assign(d.parts, `el documento ${d.id}`);
     for (const p of d.parts) documentPages.add(key(p));
+    if (!(typeof d.confidence === "number" && d.confidence >= 0 && d.confidence <= 1)) errors.push(`confidence de ${d.id} tiene que estar entre 0 y 1.`);
     (d.annexes ?? []).forEach((a, i) => {
+      if (!a.labelEs?.trim()) errors.push(`El anexo ${i + 1} de ${d.id} no dice qué es.`);
       if (a.parts.length === 0) errors.push(`El anexo ${i + 1} de ${d.id} no tiene páginas.`);
       assign(a.parts, `el anexo ${i + 1} de ${d.id}`);
       for (const p of a.parts) documentPages.add(key(p));
@@ -49,7 +53,7 @@ export function validateReading(batch: Pick<PreparedBatch, "files">, reading: Mo
         errors.push(`La apostilla de ${d.id} no tiene hojas propias ni está marcada como estampada en el documento.`);
       }
       const num = d.apostille.number;
-      if (num !== null && (num.length > 40 || /[\r\n\u0000-\u001f]/.test(num))) errors.push(`El número de la apostilla de ${d.id} no tiene forma de número de apostilla: déjalo vacío si no se lee con claridad.`);
+      if (num !== null && (num.length > 40 || /[\p{Cc}\p{Cf}\u2028\u2029]/u.test(num))) errors.push(`El número de la apostilla de ${d.id} no tiene forma de número de apostilla: déjalo vacío si no se lee con claridad.`);
       if (d.apostille.parts.length > 0 && d.apostille.onDocumentPage) {
         errors.push(`La apostilla de ${d.id} tiene hojas propias y a la vez está marcada como estampada en el documento: elige una.`);
       }
@@ -105,6 +109,10 @@ export function validateReading(batch: Pick<PreparedBatch, "files">, reading: Mo
     for (const p of q.aboutParts) if (!inRange(p)) errors.push(`Una pregunta cita ${label(p)}, que no existe.`);
   }
   const target = (reading.targetLang || "").trim().toLowerCase();
+  const declared = declaredLang(context.declaredTargetLang);
+  if (declared && (target !== declared || reading.targetLangBasis !== "stated_by_client")) {
+    errors.push(`El formulario declara el idioma de destino «${declared}»: targetLang tiene que ser «${declared}» con targetLangBasis stated_by_client; si el cliente pide otra cosa en su mensaje, pregúntalo.`);
+  }
   if ((target === "" || target === "unknown" || reading.targetLangBasis === "unknown") && !hasQuestion("target_lang")) {
     errors.push("El idioma de destino es desconocido y no hay ninguna pregunta de tipo target_lang.");
   }

@@ -23,7 +23,7 @@ test("pages in reading order across files, apostille at the end, images as pages
   ]);
   assert.equal(r.status, "ok");
   if (r.status !== "ok") return;
-  const out = await assembleDocumentPdf(r.batch, doc("D1", [[1, 3], [3, 1], [1, 1]], { apostille: ap([[2, 1]]) }));
+  const out = await assembleDocumentPdf(r.batch, doc("D1", [[1, 3], [3, 1], [1, 1]], { apostille: ap([[2, 1]]) }), 1);
   assert.equal(out.ok, true);
   if (!out.ok) return;
   assert.equal(out.pageCount, 4);
@@ -37,12 +37,12 @@ test("documentLabel: type, holder, apostille number; the PDF name uses the same 
   assert.equal(documentLabel({ ...base, apostille: ap([[2, 1]], { number: null }) }), "Certificado de nacimiento Adam — apostilla (n.º no legible)");
   assert.equal(documentLabel({ ...base, apostille: null }), "Certificado de nacimiento Adam");
   assert.equal(documentLabel({ typeLabelEs: " Título\n/ diploma​ ", holder: "A.\tB.", apostille: ap([], { number: " 12\u0000-3 " }) }), "Título / diploma A. B. — apostilla n.º 12 -3");
-  assert.equal(documentFileName({ id: "D3", ...base }), "03_Certificado de nacimiento Adam — apostilla n.º 23457765.pdf");
-  assert.equal(documentFileName({ id: "D1", typeLabelEs: "Título / diploma", holder: null, apostille: null }, 12), "12_Título diploma.pdf");
+  assert.equal(documentFileName(base, 3), "03_Certificado de nacimiento Adam — apostilla n.º 23457765.pdf");
+  assert.equal(documentFileName({ typeLabelEs: "Título / diploma", holder: null, apostille: null }, 12), "12_Título diploma.pdf");
 });
 
 test("priceHint: French tariff only for fr→es (codes trimmed, any case), apostille +5 €, needsReview carried", () => {
-  const birth = doc("D1", [[1, 1]], { apostille: ap([[2, 1]]) });
+  const birth = { ...doc("D1", [[1, 1]], { apostille: ap([[2, 1]]) }), words: 200, wordsBasis: "exact" as const };
   const assessment = assessReading({ skipped: [] }, reading([birth], { targetLangBasis: "stated_by_client" }));
   const hint = priceHint({ ...birth, sourceLang: " FR " }, "ES ", assessment);
   assert.equal(hint.kind, "fr_es");

@@ -1,6 +1,6 @@
 import type { PreparedBatch } from "./prepare.ts";
 
-export const PROMPT_VERSION = "lectura-7";
+export const PROMPT_VERSION = "lectura-8";
 
 // Stable system prompt: nothing variable (dates, ids, names) so the cache prefix never changes.
 export const READING_SYSTEM_PROMPT = `Eres el lector de expedientes de un despacho de traducción jurada en España. Un cliente ha mandado un lote de archivos (fotos, escaneos, PDF) y, a veces, un mensaje. Tu trabajo es leer EL CONJUNTO y decir qué DOCUMENTOS hay que traducir, no qué archivos hay.
@@ -14,7 +14,7 @@ Piensa como el traductor jurado que va a entregar el encargo. Cada «documento»
 - Un acta notarial con sus anexos es UNA sola traducción (ver «Actas notariales y anexos»).
 El resultado tiene que ser el mismo venga el material como un único PDF con todo o como un archivo por página: lo que cuenta es el papel, no cómo lo ha empaquetado el cliente.
 
-Cada archivo llega precedido de una etiqueta «Archivo N: nombre, k páginas». Te refieres a cada página con el texto "N.p" (archivo N, página p): "3.2" es la página 2 del archivo 3; una imagen es siempre la página 1 de su archivo ("4.1"). Al final viene lo que sabemos del cliente y del caso. Donde un dato no existe, el esquema pide texto vacío "", 0 o present false: no inventes un valor para rellenarlo.
+Cada archivo llega precedido de una etiqueta «Archivo N: k páginas»; sus nombres van aparte, entre los datos del cliente. Te refieres a cada página con el texto "N.p" (archivo N, página p): "3.2" es la página 2 del archivo 3; una imagen es siempre la página 1 de su archivo ("4.1"). Al final viene lo que sabemos del cliente y del caso. Donde un dato no existe, el esquema pide texto vacío "", 0 o present false: no inventes un valor para rellenarlo.
 
 ## Regla de cobertura (obligatoria)
 Cada página de cada archivo va EXACTAMENTE a un sitio, ni más ni menos:
@@ -89,10 +89,10 @@ export type ReadingContext = {
 
 /** One line, no control characters, no angle brackets (they delimit the data section), bounded length. */
 export function cleanText(s: string | null | undefined, max: number): string {
-  const one = String(s ?? "").replace(/[\p{Cc}\p{Cf}\u2028\u2029]+/gu, " ").replace(/[<>]/g, " ").replace(/\s+/g, " ").trim();
+  const one = String(s ?? "").replace(/[\p{Cc}\p{Cf}\u2028\u2029]+/gu, " ").replace(/[<>\uff1c\uff1e\u2039\u203a\u3008\u3009]/g, " ").replace(/[«»\u201c\u201d]/g, '"').replace(/\s+/g, " ").trim();
   return one.length > max ? `${one.slice(0, max - 1)}…` : one;
 }
-const langCode = (s: string | null | undefined) => (/^[a-z]{2,3}$/i.test(String(s ?? "").trim()) ? String(s).trim().toLowerCase() : null);
+export const declaredLang = (s: string | null | undefined) => (/^[a-z]{2,3}$/i.test(String(s ?? "").trim()) ? String(s).trim().toLowerCase() : null);
 const deadlineValue = (s: string | null | undefined) => {
   const v = String(s ?? "").trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(v) || /^[A-Za-z_]{1,20}$/.test(v) ? v : null;
@@ -104,21 +104,23 @@ export const MAX_CLIENT_TEXT = 2000;
 export function fileLabel(f: PreparedBatch["files"][number]): string {
   const pages = f.pageCount === 1 ? "1 página" : `${f.pageCount} páginas`;
   const extra = [f.kind === "pdf" ? (f.textLayer ? "PDF con texto" : "PDF escaneado") : "imagen", f.conversion].filter(Boolean).join(", ");
-  return `Archivo ${f.index}: nombre «${cleanText(f.name, MAX_FILE_NAME)}», ${pages} (${extra})`;
+  return `Archivo ${f.index}: ${pages} (${extra})`;
 }
 
 export function contextText(batch: PreparedBatch, ctx: ReadingContext): string {
   const lines = ["## Datos del formulario (campos estructurados)"];
-  lines.push(`Idioma de origen declarado: ${langCode(ctx.declaredSourceLang) ?? "no declarado"}.`);
-  lines.push(`Idioma de destino declarado: ${langCode(ctx.declaredTargetLang) ?? "no declarado"}.`);
+  lines.push(`Idioma de origen declarado: ${declaredLang(ctx.declaredSourceLang) ?? "no declarado"}.`);
+  lines.push(`Idioma de destino declarado: ${declaredLang(ctx.declaredTargetLang) ?? "no declarado"}.`);
   lines.push(`Fecha pedida: ${deadlineValue(ctx.deadline) ?? "no la ha dicho"}.`);
   if (batch.skipped.length > 0) {
-    lines.push("", "## Archivos que no se han podido abrir (no llegan a la lectura)");
-    for (const s of batch.skipped) lines.push(`- nombre «${cleanText(s.name, MAX_FILE_NAME)}»: ${s.reasonEs}`);
+    lines.push("", `## Archivos que no se han podido abrir (no llegan a la lectura): ${batch.skipped.length}`);
   }
   lines.push("", "<datos_cliente>");
+  lines.push("Nombres de archivo (los pone el cliente o su móvil):");
+  for (const f of batch.files) lines.push(`- Archivo ${f.index}: «${cleanText(f.name, MAX_FILE_NAME)}»`);
   const message = cleanText(ctx.clientMessage, MAX_CLIENT_TEXT);
   lines.push(`Mensaje del cliente: ${message ? `«${message}»` : "no hay mensaje."}`);
+  for (const s of batch.skipped) lines.push(`- No se pudo abrir «${cleanText(s.name, MAX_FILE_NAME)}»: ${s.reasonEs}`);
   const notes = cleanText(ctx.caseNotes, MAX_CLIENT_TEXT);
   if (notes) lines.push(`Notas del caso: «${notes}»`);
   lines.push("</datos_cliente>");

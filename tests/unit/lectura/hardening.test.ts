@@ -5,7 +5,9 @@ import JSZip from "jszip";
 import { PDFDocument } from "pdf-lib";
 import { prepareBatch, DEFAULT_LIMITS } from "../../../lib/lectura/prepare.ts";
 import { assembleDocumentPdf } from "../../../lib/lectura/assemble.ts";
-import { ap, doc, makeImage, makeOwnerEncryptedPdf, makePdf } from "./fixtures.ts";
+import { ap, doc, makeImage, makePdf } from "./fixtures.ts";
+
+const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));
 
 const zipOf = async (entries: Record<string, Uint8Array | string>) => {
   const z = new JSZip();
@@ -79,20 +81,22 @@ test("pixel cap: «imagen demasiado grande», not «dañada»; per-file time cap
   if (slow.status === "empty") assert.match(slow.skipped[0].reasonEs, /tiempo de lectura agotado/);
 });
 
-test("owner-encrypted PDF is read (not skipped as «protected») and keeps its page count", async () => {
-  const bytes = await makeOwnerEncryptedPdf(3);
-  assert.equal((await PDFDocument.load(bytes, { ignoreEncryption: true })).isEncrypted, true);
-  const r = await prepareBatch([{ name: "banco.pdf", bytes }]);
+// Fixtures made with Ghostscript (RC4 128, R3) from a 2-page pdf-lib PDF of generated words:
+//   gs -sDEVICE=pdfwrite -sOwnerPassword=propietario [-sUserPassword=apertura] -dEncryptionR=3 -dKeyLength=128 …
+test("owner-password PDF is read with its pages and text; open-password PDF is skipped with the true reason", async () => {
+  const r = await prepareBatch([{ name: "banco.pdf", bytes: fixture("cifrado-propietario.pdf") }, { name: "cerrado.pdf", bytes: fixture("cifrado-apertura.pdf") }]);
   assert.equal(r.status, "ok");
   if (r.status !== "ok") return;
-  assert.deepEqual([r.batch.files[0].pageCount, r.batch.files[0].encrypted, r.batch.skipped.length], [3, true, 0]);
+  assert.deepEqual([r.batch.files.length, r.batch.files[0].pageCount, r.batch.files[0].encrypted, r.batch.files[0].textLayer], [1, 2, true, true]);
+  assert.equal(r.batch.skipped.length, 1);
+  assert.match(r.batch.skipped[0].reasonEs, /contraseña de apertura: pide una copia sin proteger/);
 });
 
 test("assembling from an encrypted PDF is a typed cannot_assemble, never blank pages", async () => {
-  const r = await prepareBatch([{ name: "banco.pdf", bytes: await makeOwnerEncryptedPdf(2) }]);
+  const r = await prepareBatch([{ name: "banco.pdf", bytes: fixture("cifrado-propietario.pdf") }]);
   assert.equal(r.status, "ok");
   if (r.status !== "ok") return;
-  const out = await assembleDocumentPdf(r.batch, doc("D1", [[1, 1], [1, 2]]));
+  const out = await assembleDocumentPdf(r.batch, doc("D1", [[1, 1], [1, 2]]), 1);
   assert.equal(out.ok, false);
   if (!out.ok) {
     assert.equal(out.kind, "cannot_assemble");
@@ -110,7 +114,7 @@ test("assembly: body, then annexes in order, then apostille; page count checked;
     annexes: [{ labelEs: "Poder", parts: [{ fileIndex: 1, page: 3 }] }, { labelEs: "Certificado", parts: [{ fileIndex: 1, page: 2 }, { fileIndex: 1, page: 4 }] }],
     apostille: ap([[2, 1]]),
   });
-  const out = await assembleDocumentPdf(r.batch, d);
+  const out = await assembleDocumentPdf(r.batch, d, 1);
   assert.equal(out.ok, true);
   if (!out.ok) return;
   const pages = (await PDFDocument.load(out.bytes)).getPages();
@@ -122,7 +126,7 @@ test("a page outside the batch is cannot_assemble, not an exception or a short P
   const r = await prepareBatch([{ name: "a.pdf", bytes: await makePdf(["", ""]) }]);
   assert.equal(r.status, "ok");
   if (r.status !== "ok") return;
-  const out = await assembleDocumentPdf(r.batch, doc("D1", [[1, 3]]));
+  const out = await assembleDocumentPdf(r.batch, doc("D1", [[1, 3]]), 1);
   assert.equal(out.ok, false);
 });
 

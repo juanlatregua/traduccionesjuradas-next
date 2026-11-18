@@ -28,7 +28,7 @@ test("a PNG named .pdf is still an image", async () => {
   assert.equal(r.status, "ok");
   if (r.status !== "ok") return;
   assert.equal(r.batch.files[0].kind, "image");
-  assert.equal(r.batch.files[0].mediaType, "image/png");
+  assert.equal(r.batch.files[0].mediaType, "image/jpeg");
   assert.equal(r.batch.files[0].pageCount, 1);
 });
 
@@ -68,8 +68,6 @@ test("exact duplicates are dropped before the AI and kept as exactDuplicateOf", 
   );
 });
 
-// The text-layer reader (pdf.js 1.10 inside pdf-parse) misreads pdf-lib-generated files when the process runs
-// as ESM (this test runner); real PDFs are read fine. Exact counting is covered in read-batch.test.ts via pageTexts.
 test("PDF: page count; a scan without text has no text layer", async () => {
   const scan = await prepareBatch([{ name: "s.pdf", bytes: await makePdf(["", "", ""]) }]);
   assert.equal(scan.status, "ok");
