@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm run build:vercel",
+  "functions": {
+    "app/api/zona-traductor/lectura/route.ts": {
+      "memory": 2048,
+      "maxDuration": 300
+    }
+  },
   "redirects": [],
   "crons": [
     {

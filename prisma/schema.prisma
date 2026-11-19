@@ -1253,3 +1253,88 @@ model CasoEvento {
   @@index([tipo, createdAt])
   @@index([casoId, createdAt])
 }
+
+// Lectura única del lote en el constructor (R1b, solo staff). Sin FK a Caso/Quote: ids sueltos.
+// activeKey = huella mientras el lote está en curso o busy (único: una lectura viva por huella); null al terminar.
+model LecturaLote {
+  id              String    @id @default(cuid())
+  fingerprint     String
+  activeKey       String?   @unique
+  status          String
+  busyAttempts    Int       @default(0)
+  casoId          String?
+  sessionKey      String?
+  quoteId         String?
+  targetLang      String?
+  targetLangBasis String?
+  promptVersion   String
+  clean           Boolean?
+  reasonsJson     Json?
+  readingJson     Json?
+  detailEs        String?
+  costJson        Json?
+  createdBy       String
+  confirmedBy     String?
+  confirmedAt     DateTime?
+  linesJson       Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  files     LecturaArchivo[]
+  documents LecturaDocumento[]
+
+  @@index([fingerprint, createdAt])
+  @@index([casoId])
+  @@index([sessionKey])
+  @@index([quoteId])
+}
+
+model LecturaArchivo {
+  id        String  @id @default(cuid())
+  loteId    String
+  position  Int?
+  name      String
+  url       String?
+  sha256    String?
+  pageCount Int?
+  state     String
+  reasonEs  String?
+
+  lote LecturaLote @relation(fields: [loteId], references: [id], onDelete: Cascade)
+
+  @@index([loteId])
+}
+
+model LecturaDocumento {
+  id                   String   @id @default(cuid())
+  loteId               String
+  position             Int
+  docKey               String
+  type                 String
+  category             String
+  typeLabelEs          String
+  holder               String?
+  sourceLang           String
+  parts                Json
+  annexes              Json
+  apostille            Json?
+  pageCount            Int
+  words                Int
+  wordsBasis           String
+  estimatedWords       Int
+  legibility           String
+  confidence           Float
+  isBilingualDuplicate Boolean  @default(false)
+  reasonsJson          Json
+  included             Boolean  @default(true)
+  excludedReason       String?
+  manualPriceCents     Int?
+  manualCostCents      Int?
+  editedBy             String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  lote LecturaLote @relation(fields: [loteId], references: [id], onDelete: Cascade)
+
+  @@index([loteId, position])
+}

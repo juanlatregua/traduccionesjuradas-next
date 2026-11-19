@@ -11,6 +11,31 @@ if (!process.env.VELITE_STARTED && (isDev || isBuild)) {
 const nextConfig = {
   reactStrictMode: true,
 
+  // The reading worker loads these with createRequire at run time: nothing imports them statically.
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/zona-traductor/lectura": [
+        "./node_modules/pdf-lib/**",
+        "./node_modules/@pdf-lib/**",
+        "./node_modules/pako/**",
+        "./node_modules/tslib/**",
+        "./node_modules/sharp/**",
+        "./node_modules/@img/**",
+        "./node_modules/detect-libc/**",
+        "./node_modules/semver/**",
+        "./node_modules/heic-convert/**",
+        "./node_modules/heic-decode/**",
+        "./node_modules/libheif-js/**",
+        "./node_modules/jpeg-js/**",
+        "./node_modules/pngjs/**",
+        "./node_modules/pdf-parse/**",
+        "./node_modules/debug/**",
+        "./node_modules/ms/**",
+        "./node_modules/node-ensure/**",
+      ],
+    },
+  },
+
   async headers() {
     const noindexHeader = {
       key: "X-Robots-Tag",

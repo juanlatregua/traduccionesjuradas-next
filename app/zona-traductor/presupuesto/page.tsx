@@ -12,6 +12,7 @@ import { nombreMiembro } from "@/lib/caso/vista";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
 import { priceBasisForMember } from "@/lib/lavori-directo";
 import { channelPriceToBaseCents } from "@/lib/lavori-directo-math";
+import { lecturaConstructorOn } from "@/lib/lectura-constructor/flag.ts";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -229,6 +230,14 @@ export default async function ZonaTraductorPresupuestoPage({
           <h1 className="mt-2 text-2xl font-semibold text-white">
             Presupuesto{expRef ? ` de expediente · ${expRef}` : lead ? ` de solicitud lavori · ${lead.ref}` : ""}
           </h1>
+          {lecturaConstructorOn() && (sessionKey || casoId) && (
+            <a
+              href={`/zona-traductor/lectura?${sessionKey ? `session=${encodeURIComponent(sessionKey)}` : `caso=${encodeURIComponent(casoId!)}`}`}
+              className="mt-2 inline-block rounded border border-cyan-500/40 px-3 py-1 text-sm text-cyan-300 hover:text-cyan-200"
+            >
+              Leer el lote entero (lectura nueva)
+            </a>
+          )}
           <RecurrentClientBadge email={recurrentEmail} phone={recurrentPhone} />
           <OpenSiblingsBanner
             email={recurrentEmail}
