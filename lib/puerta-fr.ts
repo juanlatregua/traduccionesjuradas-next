@@ -56,7 +56,7 @@ export async function runPuertaFr(now = new Date(), opts: { deadlineAt?: number;
       fileUrl: { not: "" },
       gdprConsent: true,
       NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }, { sessionToken: { startsWith: "entrada:" } }],
-      AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }],
+      AND: [{ OR: [{ source: null }, { source: { notIn: ["lector", "prueba"] } }] }],
     },
     orderBy: { createdAt: "asc" },
     take: 300,

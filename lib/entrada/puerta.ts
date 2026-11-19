@@ -115,7 +115,8 @@ export async function resolverEntrada(deps: GateDeps, input: GateInput): Promise
       identidad: identidadDe({ email: f.email, phone: f.phone9 }, { alias: deps.alias, propios: deps.propios, telefonosVetados: vetados }),
     }));
     const nombre = input.contacto.nombre?.trim() || null;
-    const decision = decidirEntrada({ identidad, nombre, hashes, ahora: input.ahora }, casos);
+    const verificadas = [...identidad.aliasKeys, ...identidad.keys.filter((k) => input.canal === "constructor" || (input.canal === "whatsapp" ? k.startsWith("p:") : k.startsWith("e:")))];
+    const decision = decidirEntrada({ identidad, nombre, hashes, ahora: input.ahora, verificadas }, casos);
     const payload = { entrada: input.canal, ancla: input.ancla, regla: decision.regla };
 
     if (decision.accion === "unir" && decision.casoId) {

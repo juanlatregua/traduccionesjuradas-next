@@ -81,7 +81,7 @@ test("A1: a lote reused from another entrada (same bytes) is read-only for the c
   const w = world(blobs);
   const deps = flowDeps(w, { read: (fs) => okReading(fs) });
   const first = await verified(deps, w, "uno@x.com", [`${B}x1.pdf`]);
-  const second = await verified(deps, w, "dos@x.com", [`${B}x2.pdf`]);
+  const second = await verified(deps, w, "uno@x.com", [`${B}x2.pdf`]);
   assert.equal(second.loteId, first.loteId);
   const view = await vistaEntrada(deps, second);
   assert.equal(view.lectura?.editable, false);

@@ -41,7 +41,7 @@ export type EntradaLead = {
 
 export function entradaLeads(entradas: EntradaParaLead[]): EntradaLead[] {
   return entradas
-    .filter((e) => e.estado !== "sin_jurado" && e.files.length > 0 && (e.email || e.phone9))
+    .filter((e) => e.estado !== "sin_jurado" && e.estado !== "prueba" && e.files.length > 0 && (e.email || e.phone9))
     .map((e) => ({
       clientEmail: e.email,
       clientName: e.nombre,

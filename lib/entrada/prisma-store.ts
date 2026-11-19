@@ -9,7 +9,8 @@ type EntradaRecord = Prisma.EntradaGetPayload<{}>;
 
 const toEntrada = (r: EntradaRecord): EntradaRow => ({
   id: r.id, canal: r.canal as Canal, estado: r.estado as EntradaEstado, casoId: r.casoId, loteId: r.loteId, regla: r.regla, posibles: r.posibles, relacionados: r.relacionados, source: r.source, lang: r.lang,
-  email: r.email, phone9: r.phone9, nombre: r.nombre, sourceLang: r.sourceLang, targetLang: r.targetLang, urgency: r.urgency, neededBy: r.neededBy,
+  email: r.email, phone9: r.phone9, nombre: r.nombre, sourceLang: r.sourceLang, targetLang: r.targetLang, targetLangs: r.targetLangs, pais: r.pais,
+  respuestas: Array.isArray(r.respuestasJson) ? (r.respuestasJson as EntradaRow["respuestas"]) : null, urgency: r.urgency, neededBy: r.neededBy,
   organismo: r.organismo, notas: r.notas, confirmedAt: r.confirmedAt,
   emailVerifiedAt: r.emailVerifiedAt, codeHash: r.codeHash, codeExpiresAt: r.codeExpiresAt, codeAttempts: r.codeAttempts, createdAt: r.createdAt, updatedAt: r.updatedAt,
 });
@@ -31,14 +32,14 @@ export function prismaEntradaStore(db: PrismaClient): EntradaStore {
       const rows = await db.documentAnalysis.findMany({
         where: { sessionToken: sessionKeyOf(entradaId), fileHash: { not: null } },
         orderBy: { createdAt: "asc" },
-        select: { id: true, fileName: true, fileUrl: true, mimeType: true, fileSize: true, fileHash: true },
+        select: { id: true, fileName: true, fileUrl: true, mimeType: true, fileSize: true, fileHash: true, pageCount: true },
       });
-      return rows.map((r): ArchivoRow => ({ id: r.id, name: r.fileName, url: r.fileUrl, mimeType: r.mimeType, size: r.fileSize, sha256: r.fileHash! }));
+      return rows.map((r): ArchivoRow => ({ id: r.id, name: r.fileName, url: r.fileUrl, mimeType: r.mimeType, size: r.fileSize, sha256: r.fileHash!, pages: r.pageCount }));
     },
     async addFile(e, f) {
       const r = await db.documentAnalysis.create({
         data: {
-          fileName: f.name, fileUrl: f.url, fileSize: f.size, mimeType: f.mimeType, fileHash: f.sha256, sessionToken: sessionKeyOf(e.id), source: e.source,
+          fileName: f.name, fileUrl: f.url, fileSize: f.size, mimeType: f.mimeType, fileHash: f.sha256, ...(f.pages !== null ? { pageCount: f.pages } : {}), sessionToken: sessionKeyOf(e.id), source: e.source,
           status: "UPLOADED", gdprConsent: true, gdprConsentAt: new Date(), clientEmail: e.email, clientName: e.nombre, clientPhone: e.phone9,
           ...(e.email ? { marketingConsent: true, marketingConsentAt: new Date() } : {}),
           ...(e.sourceLang ? { sourceLanguage: e.sourceLang } : {}),
@@ -53,8 +54,9 @@ export function prismaEntradaStore(db: PrismaClient): EntradaStore {
       const r = await db.documentAnalysis.deleteMany({ where: { id: fileId, sessionToken: sessionKeyOf(entradaId), orderId: null } });
       return r.count === 1;
     },
-    async update(id, patch, onlyIn) {
-      const r = await db.entrada.updateMany({ where: { id, estado: { in: [...onlyIn] } }, data: patch });
+    async update(id, { respuestas, ...patch }, onlyIn) {
+      const data = respuestas === undefined ? patch : { ...patch, respuestasJson: respuestas === null ? Prisma.DbNull : (respuestas as Prisma.InputJsonValue) };
+      const r = await db.entrada.updateMany({ where: { id, estado: { in: [...onlyIn] } }, data });
       return r.count === 1;
     },
     async takeAttempt(id, max) {

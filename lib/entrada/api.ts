@@ -56,6 +56,7 @@ export const EditBody = z.discriminatedUnion("op", [
   z.strictObject({ op: z.literal("exclude"), id: z.string().min(1).max(120), note: Text(200).nullable().optional() }),
   z.strictObject({ op: z.literal("include"), id: z.string().min(1).max(120) }),
   z.strictObject({ op: z.literal("setTargetLang"), targetLang: Lang }),
+  z.strictObject({ op: z.literal("setLangs"), sourceLang: Lang.nullable(), targetLangs: z.array(Lang).min(1).max(5) }),
 ]);
 
 export const CodeBody = z.strictObject({ code: z.string().trim().regex(/^\d{6}$/, "6 cifras") });
@@ -66,6 +67,8 @@ export const ConfirmBody = z.strictObject({
   organismo: Text(300).nullable().optional(),
   notas: Text(2000).nullable().optional(),
   loteUpdatedAt: z.iso.datetime().nullable().optional(),
+  pais: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/).nullable().optional(),
+  respuestas: z.array(z.strictObject({ pregunta: Text(300), respuesta: Text(1000) })).max(20).optional(),
 });
 
 const json = (status: number, body: unknown, headers?: Record<string, string>): ApiResponse => ({ status, body, ...(headers ? { headers } : {}) });
@@ -213,6 +216,6 @@ export async function handleConfirm(req: Request, token: string, deps: EntradaAp
   const deadline = parseDeadline(b.urgency, b.neededBy ?? null, deps.now());
   if (!deadline) return json(400, { ok: false, error: "Indica para qué fecha lo necesitas (de hoy a un año vista)." });
   return fromOutcome(await confirmarEntrada(deps, g.entrada, {
-    urgency: deadline.urgency, neededBy: deadline.neededBy, organismo: b.organismo || null, notas: b.notas || null, loteUpdatedAt: b.loteUpdatedAt ?? null,
+    urgency: deadline.urgency, neededBy: deadline.neededBy, organismo: b.organismo || null, notas: b.notas || null, loteUpdatedAt: b.loteUpdatedAt ?? null, pais: b.pais ?? null, respuestas: b.respuestas,
   }));
 }

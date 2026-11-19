@@ -94,7 +94,11 @@ export const BUSY_ES = "El servidor está ocupado con otros lotes y no ha podido
 /** Retries after a busy result; on the attempt after the last one, a file that still finds no room is skipped instead. */
 export const MAX_BUSY_RETRIES = 2;
 const BUSY_SKIP_ES = (what: string) => `${what}: el servidor no tuvo memoria libre para abrirlo tras ${MAX_BUSY_RETRIES + 1} intentos`;
+/** A module the worker could not load is a deployment fault: the whole reading fails instead of blaming the file. */
+export const moduleMissing = (err: unknown) => /Cannot find module|MODULE_NOT_FOUND/.test(err instanceof Error ? `${err.message} ${(err as { code?: string }).code ?? ""}` : String(err));
+
 const rethrowBusy = (err: unknown, final: boolean) => {
+  if (moduleMissing(err)) throw err;
   if (err instanceof HeavyBusy && !final) throw err;
 };
 

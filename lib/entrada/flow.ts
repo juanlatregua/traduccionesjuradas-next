@@ -41,6 +41,8 @@ export type FlowDeps = {
   };
   notify(aviso: Aviso): Promise<void>;
   sendCode(to: string, code: string, lang: string | null): Promise<void>;
+  /** Pages and openability of one file at upload time (no model call); null when it cannot be told here. */
+  inspect?(file: { name: string; mimeType: string; bytes: Uint8Array }): Promise<{ pages: number | null; problem: string | null } | null>;
   now(): Date;
   newId(): string;
 };
@@ -50,6 +52,8 @@ export const VERIFIED_CANALES: ReadonlySet<Canal> = new Set<Canal>(["whatsapp", 
 /** The caso existed before this entrada: it only gets additions, never overwrites. */
 export const joinedExisting = (e: Pick<EntradaRow, "regla">) => e.regla === "huella" || e.regla === "contacto";
 
+export const targetsOf = (e: Pick<EntradaRow, "targetLang" | "targetLangs">): string[] => (e.targetLangs.length ? e.targetLangs : e.targetLang ? [e.targetLang] : []);
+
 export const tokenHashOf = (token: string) => createHash("sha256").update(token).digest("hex");
 const actorOf = (e: EntradaRow) => `cliente:${e.email ?? e.phone9 ?? e.id}`;
 
@@ -57,7 +61,7 @@ export async function abrirEntrada(deps: FlowDeps, input: { canal: Canal; email:
   const token = randomBytes(24).toString("base64url");
   const now = deps.now();
   const entrada = await deps.store.create({
-    canal: input.canal, email: input.email, phone9: input.phone9, nombre: input.nombre, sourceLang: input.sourceLang, targetLang: input.targetLang, source: input.source ?? null, lang: input.lang ?? null,
+    canal: input.canal, email: input.email, phone9: input.phone9, nombre: input.nombre, sourceLang: input.sourceLang, targetLang: input.targetLang, targetLangs: input.targetLang ? [input.targetLang] : [], source: input.source ?? null, lang: input.lang ?? null,
     tokenHash: tokenHashOf(token), ipHash: input.ipHash, gdprConsentAt: now, marketingConsentAt: input.marketing ? now : null,
     emailVerifiedAt: VERIFIED_CANALES.has(input.canal) ? now : null,
   });
@@ -135,7 +139,9 @@ export async function registrarArchivo(deps: FlowDeps, e: EntradaRow, f: { url: 
   }
   const hash = sha256(bytes);
   if (!files.some((x) => x.sha256 === hash)) {
-    await deps.store.addFile(e, { url: f.url, name: f.name.slice(0, 255), mimeType: f.mimeType, size: bytes.length, sha256: hash });
+    const info = deps.inspect ? await deps.inspect({ name: f.name, mimeType: f.mimeType, bytes }).catch(() => null) : null;
+    const pages = info ? (info.problem ? 0 : info.pages) : null;
+    await deps.store.addFile(e, { url: f.url, name: f.name.slice(0, 255), mimeType: f.mimeType, size: bytes.length, sha256: hash, pages });
     if (e.estado === "leida") await deps.store.update(e.id, { estado: "abierta" }, ["leida"]);
   }
   return { ok: true, view: await vistaEntrada(deps, (await deps.store.get(e.id)) ?? e) };
@@ -192,8 +198,8 @@ export async function leerEntrada(deps: FlowDeps, e: EntradaRow, opts: { continu
   await deps.store.linkFilesToCaso(e.id, casoId);
   let cur: EntradaRow = { ...e, ...joined, casoId };
 
-  if (cur.sourceLang && cur.targetLang) {
-    const lang = await langWithoutJurado(deps, [[cur.sourceLang, cur.targetLang]]);
+  if (cur.sourceLang && targetsOf(cur).length) {
+    const lang = await langWithoutJurado(deps, targetsOf(cur).map((t) => [cur.sourceLang!, t]));
     if (lang) return { ok: true, view: await vistaEntrada(deps, await cerrarSinJurado(deps, cur, casoId, lang)) };
   }
 
@@ -223,31 +229,46 @@ export async function leerEntrada(deps: FlowDeps, e: EntradaRow, opts: { continu
 
   const data = await deps.lectura.store.get(loteId);
   if (data && data.lote.status === "ok") {
-    const target = data.lote.targetLang && data.lote.targetLang !== "unknown" ? data.lote.targetLang : cur.targetLang ?? "unknown";
+    const targets = targetsOf(cur).length ? targetsOf(cur) : [data.lote.targetLang && data.lote.targetLang !== "unknown" ? data.lote.targetLang : "unknown"];
     const included = data.documents.filter((d) => d.included);
-    const lang = included.length ? await langWithoutJurado(deps, included.map((d) => [cur.sourceLang ?? d.sourceLang, target])) : null;
+    const lang = included.length ? await langWithoutJurado(deps, included.flatMap((d) => targets.map((t): [string, string] => [cur.sourceLang ?? d.sourceLang, t]))) : null;
     if (lang) cur = await cerrarSinJurado(deps, cur, casoId, lang);
   }
   return { ok: true, view: await vistaEntrada(deps, cur) };
 }
 
-export type ClientEdit = { op: "exclude"; id: string; note?: string | null } | { op: "include"; id: string } | { op: "setTargetLang"; targetLang: string };
+export type ClientEdit =
+  | { op: "exclude"; id: string; note?: string | null }
+  | { op: "include"; id: string }
+  | { op: "setTargetLang"; targetLang: string }
+  | { op: "setLangs"; sourceLang: string | null; targetLangs: string[] };
+
+/** Languages always belong to the entrada; on its own lote they also change each document's pair. Never a new reading. */
+async function cambiarIdiomas(deps: FlowDeps, e: EntradaRow, sourceLang: string | null, targetLangs: string[]): Promise<Outcome> {
+  if (e.estado !== "abierta" && e.estado !== "leida") return fail(409, "Esta solicitud ya está enviada.");
+  if (await readingInProgress(deps, e)) return fail(409, "Estamos revisando tus archivos: cambia el idioma en cuanto terminemos.");
+  const targets = [...new Set(targetLangs)];
+  if (targets.length === 0) return fail(422, "Dinos a qué idioma necesitas la traducción.");
+  if (sourceLang && targets.includes(sourceLang)) return fail(422, "El idioma del documento y el de la traducción no pueden ser el mismo.");
+  const patch = { sourceLang, targetLang: targets[0], targetLangs: targets };
+  if (!(await deps.store.update(e.id, patch, ["abierta", "leida"]))) return fail(409, "Esta solicitud ha cambiado: recarga la página.");
+  const data = e.loteId ? await deps.lectura.store.get(e.loteId) : null;
+  if (data && data.lote.status === "ok" && ownLote(e, data.lote)) {
+    await deps.lectura.store.setTargetLang(e.loteId!, targets[0]);
+    if (sourceLang && data.documents.some((d) => d.sourceLang !== sourceLang)) {
+      await deps.lectura.store.replaceDocuments(e.loteId!, data.documents.map((d) => ({ ...d, sourceLang })));
+    }
+  }
+  return { ok: true, view: await vistaEntrada(deps, { ...e, ...patch }) };
+}
 
 export async function editarEntrada(deps: FlowDeps, e: EntradaRow, edit: ClientEdit): Promise<Outcome> {
+  if (edit.op === "setLangs") return cambiarIdiomas(deps, e, edit.sourceLang, edit.targetLangs);
+  if (edit.op === "setTargetLang") return cambiarIdiomas(deps, e, e.sourceLang, [edit.targetLang, ...targetsOf(e).filter((t) => t !== edit.targetLang)].slice(0, 1));
   if (e.estado !== "leida" || !e.loteId) return fail(409, "Ahora no se puede cambiar.");
   const data = await deps.lectura.store.get(e.loteId);
   if (!data || data.lote.status !== "ok") return fail(409, "Esta revisión ya no se puede cambiar.", { view: await vistaEntrada(deps, e) });
-  const own = ownLote(e, data.lote);
-  if (edit.op === "setTargetLang" && !own) {
-    await deps.store.update(e.id, { targetLang: edit.targetLang }, ["leida"]);
-    return { ok: true, view: await vistaEntrada(deps, { ...e, targetLang: edit.targetLang }) };
-  }
-  if (!own) return fail(409, "Juan revisa estos documentos contigo: cuéntanos en «Algo más» lo que no haga falta traducir.", { view: await vistaEntrada(deps, e) });
-  if (edit.op === "setTargetLang") {
-    if (!(await deps.lectura.store.setTargetLang(e.loteId, edit.targetLang))) return fail(409, "La revisión ha cambiado: recarga la página.");
-    await deps.store.update(e.id, { targetLang: edit.targetLang }, ["leida"]);
-    return { ok: true, view: await vistaEntrada(deps, { ...e, targetLang: edit.targetLang }) };
-  }
+  if (!ownLote(e, data.lote)) return fail(409, "Juan revisa estos documentos contigo: cuéntanos en «Algo más» lo que no haga falta traducir.", { view: await vistaEntrada(deps, e) });
   const reason = edit.op === "exclude" ? (edit.note?.trim() ? `${EXCLUDED_BY_CLIENT}: ${edit.note.trim()}` : EXCLUDED_BY_CLIENT) : "";
   const result = applyEdit(data.documents, edit.op === "exclude" ? { op: "exclude", id: edit.id, reason } : { op: "include", id: edit.id }, actorOf(e), deps.newId);
   if (!result.ok) return fail(422, result.error);
@@ -255,7 +276,10 @@ export async function editarEntrada(deps: FlowDeps, e: EntradaRow, edit: ClientE
   return { ok: true, view: await vistaEntrada(deps, e) };
 }
 
-export type Confirmacion = { urgency: "ASAP" | "DATE" | "FLEXIBLE"; neededBy: Date | null; organismo: string | null; notas: string | null; loteUpdatedAt: string | null };
+export type Confirmacion = {
+  urgency: "ASAP" | "DATE" | "FLEXIBLE"; neededBy: Date | null; organismo: string | null; notas: string | null; loteUpdatedAt: string | null;
+  pais?: string | null; respuestas?: { pregunta: string; respuesta: string }[];
+};
 
 export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirmacion): Promise<Outcome> {
   if (e.estado === "confirmada") return { ok: true, view: await vistaEntrada(deps, e) };
@@ -265,18 +289,20 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
     if (c.loteUpdatedAt && new Date(c.loteUpdatedAt).getTime() !== data.lote.updatedAt.getTime()) {
       return fail(409, "La revisión ha cambiado mientras la mirabas: repásala antes de enviarla.", { view: await vistaEntrada(deps, e) });
     }
-    const target = data.lote.targetLang && data.lote.targetLang !== "unknown" ? data.lote.targetLang : e.targetLang;
-    if (!target) return fail(422, "Dinos a qué idioma necesitas la traducción.", { view: await vistaEntrada(deps, e) });
+    const known = targetsOf(e).length > 0 || (data.lote.targetLang && data.lote.targetLang !== "unknown");
+    if (!known) return fail(422, "Dinos a qué idioma necesitas la traducción.", { view: await vistaEntrada(deps, e) });
   }
   const now = deps.now();
-  const patch = { estado: "confirmada" as const, confirmedAt: now, urgency: c.urgency, neededBy: c.neededBy, organismo: c.organismo, notas: c.notas };
+  const respuestas = c.respuestas?.length ? c.respuestas : null;
+  const patch = { estado: "confirmada" as const, confirmedAt: now, urgency: c.urgency, neededBy: c.neededBy, organismo: c.organismo, notas: c.notas, pais: c.pais ?? null, respuestas };
   if (!(await deps.store.update(e.id, patch, ["leida"]))) return fail(409, "Esta solicitud ha cambiado: recarga la página.");
   const done: EntradaRow = { ...e, ...patch };
   const documentos = data?.documents.filter((d) => d.included).length ?? 0;
   const excluidos = data?.documents.filter((d) => !d.included).map((d) => ({ id: d.id, motivo: d.excludedReason })) ?? [];
   if (!joinedExisting(e)) await deps.caso.plazo(e.casoId, c.urgency, c.neededBy);
   await deps.caso.evento(e.casoId, "entrada_confirmada", actorOf(e), {
-    entradaId: e.id, loteId: e.loteId, documentos, excluidos, urgency: c.urgency, neededBy: c.neededBy?.toISOString() ?? null, organismo: c.organismo, notas: c.notas,
+    entradaId: e.id, loteId: e.loteId, documentos, excluidos, urgency: c.urgency, neededBy: c.neededBy?.toISOString() ?? null, organismo: c.organismo, pais: c.pais ?? null,
+    notas: c.notas, respuestas, sourceLang: e.sourceLang, targetLangs: targetsOf(e),
   });
   deps.notify({ kind: "confirmada", entrada: done, casoRef: await deps.caso.ref(e.casoId), documentos }).catch(console.error);
   return { ok: true, view: await vistaEntrada(deps, done) };

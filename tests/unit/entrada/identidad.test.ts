@@ -12,21 +12,40 @@ const senal = (o: { email?: string; phone?: string; nombre?: string; hashes?: st
   identidad: identidadDe({ email: o.email, phone: o.phone }), nombre: o.nombre ?? null, hashes: o.hashes ?? [], ahora: AHORA,
 });
 
-test("huella: same file joins even with no common contact (Diego: email vs WhatsApp)", () => {
+test("huella of another person never joins (Julián's testament by another email, Diego email vs WhatsApp): new caso «¿mismo cliente?»", () => {
+  const julian = caso({ id: "julian", phone: "626261354", nombre: "Julian", hashes: ["bb4bb71c"] });
+  const d = decidirEntrada(senal({ email: "juansilvamoreno@msn.com", phone: "607356273", hashes: ["bb4bb71c"] }), [julian]);
+  assert.deepEqual([d.accion, d.regla, d.dudoso, d.posibles], ["crear", "dudoso", true, ["julian"]]);
   const wa = caso({ id: "wa", phone: "+5547997504962", hashes: ["1176acb13419e259"] });
-  const d = decidirEntrada(senal({ email: "diegoarndt@outlook.com", hashes: ["1176acb13419e259"] }), [wa]);
-  assert.deepEqual([d.accion, d.casoId, d.regla, d.dudoso], ["unir", "wa", "huella", false]);
+  const diego = decidirEntrada(senal({ email: "diegoarndt@outlook.com", hashes: ["1176acb13419e259"] }), [wa]);
+  assert.deepEqual([diego.accion, diego.dudoso, diego.posibles], ["crear", true, ["wa"]]);
+});
+
+test("huella with the same verified key joins; an unverified typed phone is not a proven key", () => {
+  const c = caso({ id: "c", email: "ana@x.com", hashes: ["h"], lastActivityAt: hace(40) });
+  assert.deepEqual([decidirEntrada(senal({ email: "ana@x.com", hashes: ["h"] }), [c]).regla], ["huella"]);
+  const p = caso({ id: "p", phone: "600111222", hashes: ["h"] });
+  const web = { ...senal({ email: "otra@y.com", phone: "600111222", hashes: ["h"] }), verificadas: ["e:otra@y.com"] };
+  assert.equal(decidirEntrada(web, [p]).accion, "crear");
+  const wa = { ...senal({ phone: "600111222", hashes: ["h"] }), verificadas: ["p:600111222"] };
+  assert.deepEqual([decidirEntrada(wa, [p]).accion, decidirEntrada(wa, [p]).regla], ["unir", "huella"]);
 });
 
 test("huella: an open caso wins over a delivered one, which is only linked as related", () => {
-  const open = caso({ id: "open", hashes: ["h"], lastActivityAt: hace(20) });
-  const done = caso({ id: "done", estado: "ENTREGADO", hashes: ["h"], lastActivityAt: hace(1) });
-  const d = decidirEntrada(senal({ hashes: ["h"] }), [done, open]);
+  const open = caso({ id: "open", email: "a@x.com", hashes: ["h"], lastActivityAt: hace(20) });
+  const done = caso({ id: "done", email: "a@x.com", estado: "ENTREGADO", hashes: ["h"], lastActivityAt: hace(1) });
+  const d = decidirEntrada(senal({ email: "a@x.com", hashes: ["h"] }), [done, open]);
   assert.deepEqual([d.accion, d.casoId, d.relacionados], ["unir", "open", ["done"]]);
 });
 
 test("Juan 1: same file as a caso EN_CURSO, ENTREGADO, SIN_JURADO or with an order → NEW caso related to it, never joined", () => {
-  for (const c of [caso({ id: "x", estado: "EN_CURSO", hashes: ["h"] }), caso({ id: "x", estado: "ENTREGADO", hashes: ["h"] }), caso({ id: "x", estado: "SIN_JURADO", hashes: ["h"] }), caso({ id: "x", hashes: ["h"], conPedido: true })]) {
+  for (const c of [caso({ id: "x", email: "a@x.com", estado: "EN_CURSO", hashes: ["h"] }), caso({ id: "x", email: "a@x.com", estado: "ENTREGADO", hashes: ["h"] }), caso({ id: "x", email: "a@x.com", estado: "SIN_JURADO", hashes: ["h"] }), caso({ id: "x", email: "b@x.com", hashes: ["h"], conPedido: true, phone: null })]) {
+    if (c.conPedido) {
+      const own = { ...c, identidad: identidadDe({ email: "a@x.com" }) };
+      const d = decidirEntrada(senal({ email: "a@x.com", hashes: ["h"] }), [own]);
+      assert.deepEqual([d.accion, d.regla, d.relacionados], ["crear", "relacionado", ["x"]]);
+      continue;
+    }
     const d = decidirEntrada(senal({ email: "a@x.com", hashes: ["h"] }), [c]);
     assert.deepEqual([d.accion, d.regla, d.relacionados, d.casoId], ["crear", "relacionado", ["x"], undefined], c.estado);
   }
@@ -81,5 +100,5 @@ test("Juan 4: a phone without a matching email never joins: new caso «¿mismo c
   }
   const m = caso({ id: "m", email: "ana@x.com", phone: "600111222" });
   assert.deepEqual([decidirEntrada(senal({ email: "ana@x.com", phone: "699999999" }), [m]).casoId], ["m"]);
-  assert.equal(decidirEntrada(senal({ phone: "600111222", hashes: ["h"] }), [{ ...p, hashes: ["h"] }]).regla, "huella", "the fingerprint still joins");
+  assert.equal(decidirEntrada({ ...senal({ phone: "600111222", hashes: ["h"] }), verificadas: ["p:600111222"] }, [{ ...p, hashes: ["h"] }]).regla, "huella", "the fingerprint joins with the same verified phone");
 });

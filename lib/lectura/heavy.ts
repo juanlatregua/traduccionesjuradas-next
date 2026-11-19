@@ -93,15 +93,18 @@ const tasks = {
   },
   pdfProbe: async ({ bytes, pdfjsMaxBytes }) => {
     let pages = 0, encrypted = false;
+    // Loaded outside the try: a module missing from the deployment is a server fault, never «PDF dañado».
+    const { PDFDocument } = lib.pdfLib();
     try {
-      const doc = await lib.pdfLib().PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+      const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
       encrypted = doc.isEncrypted;
       pages = doc.getPageCount();
     } catch { pages = 0; }
     if (!encrypted && pages > 0) return { pages, encrypted, openPassword: false, checked: true };
     if (bytes.length > pdfjsMaxBytes) return { pages, encrypted, openPassword: false, checked: false };
+    const parse = lib.pdfParse();
     try {
-      const r = await lib.pdfParse()(own(bytes), { max: 1, pagerender: async () => "" });
+      const r = await parse(own(bytes), { max: 1, pagerender: async () => "" });
       return { pages: Number(r.numpages) || 0, encrypted, openPassword: false, checked: true };
     } catch (e) {
       return { pages: 0, encrypted, openPassword: !!e && e.name === "PasswordException", checked: true };

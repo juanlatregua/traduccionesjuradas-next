@@ -1357,6 +1357,9 @@ model Entrada {
   nombre             String?
   sourceLang         String?
   targetLang         String?
+  targetLangs        String[]
+  pais               String?
+  respuestasJson     Json?
   urgency            String?
   neededBy           DateTime?
   organismo          String?

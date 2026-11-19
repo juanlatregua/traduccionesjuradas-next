@@ -26,7 +26,7 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
   const quotesSince = new Date(now.getTime() - 90 * 864e5);
   const [docRows, inbound, solicitudes, quotes, paidOrders, entradaDocs] = await Promise.all([
     prisma.documentAnalysis.findMany({
-      where: { createdAt: { gte: since }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "staff:" } }, { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } }], AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] },
+      where: { createdAt: { gte: since }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "staff:" } }, { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } }], AND: [{ OR: [{ source: null }, { source: { notIn: ["lector", "prueba"] } }] }] },
       select: { clientEmail: true, clientName: true, clientPhone: true, sessionToken: true, fileHash: true, fileName: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, createdAt: true, urgency: true, neededBy: true },
     }),
     prisma.inboundEmail.findMany({

@@ -40,7 +40,7 @@ export async function funnelForWindow(days: number, source?: string): Promise<Fu
   const [analizadoDocs, presupuesto, leadDocs, pedido, pagado, expGroups, entradas] = await Promise.all([
     prisma.documentAnalysis.count({ where: base }),
     prisma.documentAnalysis.count({ where: { ...base, quoteAmount: { not: null } } }),
-    prisma.documentAnalysis.count({ where: { ...base, clientEmail: { not: null }, AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] } }),
+    prisma.documentAnalysis.count({ where: { ...base, clientEmail: { not: null }, AND: [{ OR: [{ source: null }, { source: { notIn: ["lector", "prueba"] } }] }] } }),
     prisma.documentAnalysis.count({ where: { ...base, orderId: { not: null } } }),
     prisma.documentAnalysis.count({ where: { ...base, order: { is: { paymentStatus: "PAID" } } } }),
     prisma.documentAnalysis.groupBy({
@@ -157,7 +157,7 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
           { sessionToken: { startsWith: "staff:" } },
           { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } },
         ],
-        AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }],
+        AND: [{ OR: [{ source: null }, { source: { notIn: ["lector", "prueba"] } }] }],
       },
       orderBy: { createdAt: "asc" },
       take: 60,

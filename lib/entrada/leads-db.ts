@@ -5,7 +5,7 @@ import { sessionKeyOf } from "./store.ts";
 /** Fail-open: before the Entrada table exists (or if it fails) the vigía and the SLA keep working without it. */
 export async function loadEntradaLeads(since: Date): Promise<EntradaLead[]> {
   try {
-    const entradas = await prisma.entrada.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: "asc" }, take: 500 });
+    const entradas = await prisma.entrada.findMany({ where: { createdAt: { gte: since }, estado: { not: "prueba" } }, orderBy: { createdAt: "asc" }, take: 500 });
     if (entradas.length === 0) return [];
     const [files, casos] = await Promise.all([
       prisma.documentAnalysis.findMany({
@@ -33,7 +33,7 @@ export async function loadEntradaLeads(since: Date): Promise<EntradaLead[]> {
 
 export async function loadEntradaFunnel(since: Date, source?: string): Promise<{ analizado: number; lead: number }> {
   try {
-    const entradas = await prisma.entrada.findMany({ where: { createdAt: { gte: since }, ...(source ? { source } : {}) }, select: { id: true, loteId: true, email: true, phone9: true } });
+    const entradas = await prisma.entrada.findMany({ where: { createdAt: { gte: since }, estado: { not: "prueba" }, ...(source ? { source } : {}) }, select: { id: true, loteId: true, email: true, phone9: true } });
     if (entradas.length === 0) return { analizado: 0, lead: 0 };
     const groups = await prisma.documentAnalysis.groupBy({ by: ["sessionToken"], where: { sessionToken: { in: entradas.map((e) => sessionKeyOf(e.id)) } }, _count: { _all: true } });
     const n = new Map(groups.map((g) => [g.sessionToken, g._count._all]));

@@ -13,7 +13,7 @@ export const sha = (b: Uint8Array) => createHash("sha256").update(b).digest("hex
 export const bytesOf = (s: string) => new TextEncoder().encode(s);
 
 export type Caso = CasoFila & { origen: string; dudoso: boolean };
-export type Doc = { id: string; casoId: string | null; session: string | null; url: string; name: string; size: number; hash: string | null; mimeType: string };
+export type Doc = { id: string; casoId: string | null; session: string | null; url: string; name: string; size: number; hash: string | null; mimeType: string; pages?: number | null };
 
 /** One in-memory «database» shared by the gate, the entradas and the lectura store. */
 export function world(blobs: Record<string, Uint8Array> = {}) {
@@ -86,7 +86,7 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
 
   const store: EntradaStore = {
     async create(data) {
-      const e = { ...data, id: `ent-${++seq}`, estado: "abierta" as const, casoId: null, loteId: null, regla: null, posibles: [], relacionados: [], codeHash: null, codeExpiresAt: null, codeAttempts: 0, urgency: null, neededBy: null, organismo: null, notas: null, confirmedAt: null, createdAt: AHORA, updatedAt: AHORA };
+      const e = { ...data, id: `ent-${++seq}`, estado: "abierta" as const, casoId: null, loteId: null, regla: null, posibles: [], relacionados: [], pais: null, respuestas: null, codeHash: null, codeExpiresAt: null, codeAttempts: 0, urgency: null, neededBy: null, organismo: null, notas: null, confirmedAt: null, createdAt: AHORA, updatedAt: AHORA };
       entradas.push(e);
       return { ...e };
     },
@@ -99,11 +99,11 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
       return e ? { ...e } : null;
     },
     async files(id) {
-      return docs.filter((d) => d.session === sessionKeyOf(id) && d.hash).map((d): ArchivoRow => ({ id: d.id, name: d.name, url: d.url, mimeType: d.mimeType, size: d.size, sha256: d.hash! }));
+      return docs.filter((d) => d.session === sessionKeyOf(id) && d.hash).map((d): ArchivoRow => ({ id: d.id, name: d.name, url: d.url, mimeType: d.mimeType, size: d.size, sha256: d.hash!, pages: d.pages ?? null }));
     },
     async addFile(e, f) {
       const id = `doc-${++seq}`;
-      docs.push({ id, casoId: e.casoId, session: sessionKeyOf(e.id), url: f.url, name: f.name, size: f.size, hash: f.sha256, mimeType: f.mimeType });
+      docs.push({ id, casoId: e.casoId, session: sessionKeyOf(e.id), url: f.url, name: f.name, size: f.size, hash: f.sha256, mimeType: f.mimeType, pages: f.pages });
       return { id, ...f };
     },
     async removeFile(eid, fid) {

@@ -8,6 +8,11 @@ type Entrada = {
   regla: string | null;
   posibles: string[];
   relacionados: string[];
+  sourceLang: string | null;
+  targetLang: string | null;
+  targetLangs: string[];
+  pais: string | null;
+  respuestasJson: unknown;
   source: string | null;
   lang: string | null;
   email: string | null;
@@ -37,6 +42,10 @@ export function EntradaResumen({ entradas, refs }: { entradas: Entrada[]; refs: 
           </p>
           <p className="text-slate-400">{[e.nombre, e.email, e.phone9].filter(Boolean).join(" · ")} · {plazo(e)}{e.organismo ? ` · ${e.organismo}` : ""}</p>
           {(e.source || (e.lang && e.lang !== "es")) && <p className="text-slate-500">{[e.source && `origen ${e.source}`, e.lang && e.lang !== "es" && `idioma del cliente: ${e.lang}`].filter(Boolean).join(" · ")}</p>}
+          <p className="text-slate-400">Idiomas: {e.sourceLang ?? "?"} → {(e.targetLangs.length ? e.targetLangs : e.targetLang ? [e.targetLang] : ["?"]).join(", ")}{e.pais ? ` · país ${e.pais}` : ""}</p>
+          {Array.isArray(e.respuestasJson) && (e.respuestasJson as { pregunta: string; respuesta: string }[]).map((r, i) => (
+            <p key={i} className="text-slate-300">{r.pregunta} → <strong>{r.respuesta}</strong></p>
+          ))}
           {e.notas && <p className="mt-1 text-slate-300">«{e.notas}»</p>}
           {e.relacionados.length > 0 && (
             <p className="mt-1 text-sky-300">Relacionado con {e.relacionados.map((id) => refs[id] ?? id).join(", ")}: mismo archivo en un caso ya encargado o cerrado. No se ha unido.</p>

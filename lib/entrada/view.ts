@@ -31,7 +31,7 @@ export type ClientView = {
   estado: EntradaRow["estado"];
   email: string | null;
   emailVerificado: boolean;
-  archivos: Pick<ArchivoRow, "id" | "name" | "url" | "mimeType" | "size">[];
+  archivos: Pick<ArchivoRow, "id" | "name" | "url" | "mimeType" | "size" | "pages">[];
   lectura:
     | null
     | {
@@ -47,6 +47,10 @@ export type ClientView = {
   sinJurado: null | { idioma: string; codigo: string; maecUrl: string };
   plazo: { urgency: string | null; neededBy: string | null };
   organismo: string | null;
+  pais: string | null;
+  idiomas: { origen: string | null; destinos: string[] };
+  /** Why the client cannot change the documents (languages and messages still can). */
+  soloLectura: null | "otra_entrada" | "caso_existente";
 };
 
 const FASE: Record<string, "leyendo" | "lista" | "revision_manual"> = {
@@ -85,11 +89,14 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
     estado: entrada.estado,
     email: entrada.email,
     emailVerificado: Boolean(entrada.emailVerifiedAt),
-    archivos: archivos.map(({ id, name, url, mimeType, size }) => ({ id, name, url, mimeType, size })),
+    archivos: archivos.map(({ id, name, url, mimeType, size, pages }) => ({ id, name, url, mimeType, size, pages })),
     lectura: null,
     sinJurado: sinJurado ? { idioma: langName(sinJurado), codigo: sinJurado, maecUrl: MAEC_URL } : null,
     plazo: { urgency: entrada.urgency, neededBy: entrada.neededBy ? entrada.neededBy.toISOString().slice(0, 10) : null },
     organismo: entrada.organismo,
+    pais: entrada.pais,
+    idiomas: { origen: entrada.sourceLang, destinos: entrada.targetLangs.length ? entrada.targetLangs : entrada.targetLang ? [entrada.targetLang] : [] },
+    soloLectura: null,
   };
   if (!data) return base;
   const { lote, files, documents } = data;
@@ -114,8 +121,10 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
     : fase === "leyendo"
       ? "Estamos revisando el conjunto de tus archivos."
       : "Tus archivos los revisa Juan personalmente.";
+  const soloLectura = lote.status !== "ok" ? null : lote.sessionKey !== sessionKeyOf(entrada.id) ? "otra_entrada" : entrada.regla === "huella" || entrada.regla === "contacto" ? "caso_existente" : null;
   return {
     ...base,
+    soloLectura,
     lectura: {
       fase,
       loteUpdatedAt: lote.updatedAt.toISOString(),

@@ -1,6 +1,6 @@
 import type { Canal } from "./identidad.ts";
 
-export const ENTRADA_ESTADOS = ["abierta", "leida", "confirmada", "sin_jurado"] as const;
+export const ENTRADA_ESTADOS = ["abierta", "leida", "confirmada", "sin_jurado", "prueba"] as const;
 export type EntradaEstado = (typeof ENTRADA_ESTADOS)[number];
 
 export type EntradaRow = {
@@ -19,6 +19,10 @@ export type EntradaRow = {
   nombre: string | null;
   sourceLang: string | null;
   targetLang: string | null;
+  /** One line per pair: every target the client asked for (targetLang is the first). */
+  targetLangs: string[];
+  pais: string | null;
+  respuestas: { pregunta: string; respuesta: string }[] | null;
   urgency: string | null;
   neededBy: Date | null;
   organismo: string | null;
@@ -32,7 +36,7 @@ export type EntradaRow = {
   updatedAt: Date;
 };
 
-export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nombre" | "sourceLang" | "targetLang" | "source" | "lang"> & {
+export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nombre" | "sourceLang" | "targetLang" | "targetLangs" | "source" | "lang"> & {
   tokenHash: string;
   ipHash: string | null;
   emailVerifiedAt: Date | null;
@@ -40,9 +44,10 @@ export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nomb
   marketingConsentAt: Date | null;
 };
 
-export type ArchivoRow = { id: string; name: string; url: string; mimeType: string; size: number; sha256: string };
+/** pages: counted when it was uploaded (0 = could not be opened, null = not counted). */
+export type ArchivoRow = { id: string; name: string; url: string; mimeType: string; size: number; sha256: string; pages: number | null };
 
-export type EntradaPatch = Partial<Pick<EntradaRow, "estado" | "casoId" | "loteId" | "regla" | "posibles" | "relacionados" | "targetLang" | "urgency" | "neededBy" | "organismo" | "notas" | "confirmedAt" | "emailVerifiedAt" | "codeHash" | "codeExpiresAt" | "codeAttempts">>;
+export type EntradaPatch = Partial<Pick<EntradaRow, "estado" | "casoId" | "loteId" | "regla" | "posibles" | "relacionados" | "sourceLang" | "targetLang" | "targetLangs" | "pais" | "respuestas" | "urgency" | "neededBy" | "organismo" | "notas" | "confirmedAt" | "emailVerifiedAt" | "codeHash" | "codeExpiresAt" | "codeAttempts">>;
 
 export type EntradaStore = {
   create(data: NuevaEntrada): Promise<EntradaRow>;

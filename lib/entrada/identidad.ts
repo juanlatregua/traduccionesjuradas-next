@@ -1,5 +1,6 @@
 // Puerta de identidad única (lógica PURA): antes de crear nada, ¿esta entrada es de un caso vivo?
-//  1. huella  — comparte un archivo (sha256) con un caso → ese caso.
+//  1. huella  — comparte un archivo (sha256) con un caso DEL MISMO cliente (clave verificada en común) → ese caso;
+//               con un caso de otra persona → caso nuevo «¿mismo cliente que…?».
 //  2. contacto — email (verificado) o alias declarado, con caso ABIERTO o PERDIDO sin pedido en 14 días.
 //  3. dudoso  — nombre parecido, o mismo teléfono con otro email: caso NUEVO marcado «¿mismo cliente que…?». Nunca une.
 import { compararIdentidad, type Identidad } from "../caso/identidad.ts";
@@ -23,7 +24,8 @@ export type CasoVisto = {
   conPedido: boolean;
 };
 
-export type SenalEntrada = { identidad: Identidad; nombre: string | null; hashes: string[]; ahora: Date };
+/** verificadas: the keys this entrada has proven (web/email: its email; WhatsApp: its phone; constructor: all). */
+export type SenalEntrada = { identidad: Identidad; nombre: string | null; hashes: string[]; ahora: Date; verificadas?: string[] };
 
 export type ReglaEntrada = "huella" | "contacto" | "agencia" | "dudoso" | "relacionado" | "nuevo";
 export type DecisionEntrada = {
@@ -64,25 +66,31 @@ export function decidirEntrada(s: SenalEntrada, casos: CasoVisto[]): DecisionEnt
   const edad = (c: CasoVisto) => s.ahora.getTime() - c.lastActivityAt.getTime();
   const hs = new Set(s.hashes);
 
-  const porHuella = casos.filter((c) => c.hashes.some((h) => hs.has(h))).sort(reciente);
+  const verificadas = new Set(s.verificadas ?? s.identidad.keys);
+  const mismoCliente = (c: CasoVisto) => c.identidad.keys.some((k) => verificadas.has(k));
+  const conHuella = casos.filter((c) => c.hashes.some((h) => hs.has(h))).sort(reciente);
+  // The fingerprint alone never joins another person's caso: only with a proven key in common (Juan, 19-nov).
+  const ajenos = conHuella.filter((c) => !mismoCliente(c)).map((c) => c.id);
+  const porHuella = conHuella.filter(mismoCliente);
   const unible = (c: CasoVisto) => !c.conPedido && (c.estado === "ABIERTO" || (c.estado === "PERDIDO" && edad(c) <= VENTANA_HUELLA_DIAS * DAY));
   const elegido = porHuella.find((c) => unible(c) && c.estado === "ABIERTO") ?? porHuella.find(unible);
   const relacionados = porHuella.filter((c) => !unible(c)).map((c) => c.id);
   if (elegido) {
-    return { accion: "unir", casoId: elegido.id, regla: "huella", dudoso: false, posibles: porHuella.filter((c) => c !== elegido && unible(c)).map((c) => c.id), relacionados };
+    return { accion: "unir", casoId: elegido.id, regla: "huella", dudoso: false, posibles: uniq([...porHuella.filter((c) => c !== elegido && unible(c)).map((c) => c.id), ...ajenos]), relacionados };
   }
 
   const vivos = casos.filter((c) => (c.estado === "ABIERTO" || c.estado === "PERDIDO") && !c.conPedido && edad(c) <= VENTANA_CONTACTO_DIAS * DAY);
   const fuerzas = vivos.map((c) => ({ c, f: s.identidad.keys.length ? compararIdentidad(s.identidad, c.identidad) : "ninguna" }));
   const mismo = fuerzas.filter(({ f }) => f === "fuerte").map(({ c }) => c).sort(reciente);
   if (mismo.length > 0) {
-    if (mismo[0].esAgencia) return { accion: "crear", regla: "agencia", dudoso: false, posibles: mismo.map((c) => c.id), relacionados };
-    return { accion: "unir", casoId: mismo[0].id, regla: "contacto", dudoso: false, posibles: mismo.slice(1).map((c) => c.id), relacionados };
+    if (mismo[0].esAgencia) return { accion: "crear", regla: "agencia", dudoso: false, posibles: uniq([...mismo.map((c) => c.id), ...ajenos]), relacionados };
+    return { accion: "unir", casoId: mismo[0].id, regla: "contacto", dudoso: false, posibles: uniq([...mismo.slice(1).map((c) => c.id), ...ajenos]), relacionados };
   }
 
   const dudas = fuerzas
     .filter(({ c, f }) => f === "telefono" || f === "posible" || (f === "ninguna" && nombreParecido(s.nombre, c.nombre)))
-    .map(({ c }) => c.id);
+    .map(({ c }) => c.id)
+    .concat(ajenos);
   if (dudas.length > 0) return { accion: "crear", regla: "dudoso", dudoso: true, posibles: uniq(dudas), relacionados };
   return { accion: "crear", regla: relacionados.length ? "relacionado" : "nuevo", dudoso: false, posibles: [], relacionados };
 }

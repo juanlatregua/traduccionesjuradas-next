@@ -16,6 +16,8 @@ import { resolverEntrada, type GateDeps } from "./puerta.ts";
 import { filesWithoutHash, prismaEntradaStore, prismaGateTx, readingExtras, reusableLote } from "./prisma-store.ts";
 import { langName } from "./view.ts";
 import { codeEmail } from "./codigo.ts";
+import { DEFAULT_LIMITS, prepareBatch } from "@/lib/lectura/index.ts";
+import { explicitRssCeilingMb } from "@/lib/lectura-constructor/flag.ts";
 import { sessionKeyOf } from "./store.ts";
 
 const own = (url: string) => isOwnBlobUrl(url, process.env.BLOB_READ_WRITE_TOKEN);
@@ -54,9 +56,11 @@ async function notify(a: Aviso): Promise<void> {
   const subject = a.kind === "confirmada"
     ? `Entrada web confirmada — ${a.casoRef ?? e.casoId} (${a.documentos} doc.)`
     : `Entrada web sin jurado (${langName(a.idioma)}) — ${a.casoRef ?? e.casoId}`;
+  const idiomas = `${e.sourceLang ? langName(e.sourceLang) : "?"} → ${(e.targetLangs.length ? e.targetLangs : e.targetLang ? [e.targetLang] : []).map(langName).join(", ") || "?"}`;
+  const respuestas = (e.respuestas ?? []).map((r) => `<li>${escapeHtml(r.pregunta)}: <strong>${escapeHtml(r.respuesta)}</strong></li>`).join("");
   const plazo = e.urgency === "DATE" && e.neededBy ? `para el ${fmtNeededBy(e.neededBy)}` : e.urgency === "ASAP" ? "lo antes posible" : e.urgency === "FLEXIBLE" ? "sin prisa" : "sin indicar";
   const html = a.kind === "confirmada"
-    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p><p>${a.documentos} documento(s) · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}</p>${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir la lectura y presupuestar</a></p>`
+    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p><p>${a.documentos} documento(s) · ${escapeHtml(idiomas)} · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}${e.pais ? ` (${escapeHtml(e.pais)})` : ""}</p>${respuestas ? `<ul>${respuestas}</ul>` : ""}${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir la lectura y presupuestar</a></p>`
     : `<h2>Idioma sin jurado: ${escapeHtml(langName(a.idioma))}</h2><p>${who}</p><p>Al cliente se le ha dado el buscador del MAEC y el caso queda en «Sin jurado» (no cuenta como perdido) si no tenía nada más.</p><p><a href="${link}">Ver el caso</a></p>`;
   await sendMail({ to, subject, html });
 }
@@ -96,6 +100,14 @@ export const flowDeps: FlowDeps = {
     },
   },
   notify,
+  inspect: async (file) => {
+    const ceiling = explicitRssCeilingMb();
+    if (ceiling === null) return null;
+    const r = await prepareBatch([{ name: file.name, mimeType: file.mimeType, bytes: file.bytes }], { ...DEFAULT_LIMITS, rssCeilingMb: ceiling });
+    if (r.status === "ok") return { pages: r.batch.files[0]?.pageCount ?? null, problem: r.batch.skipped[0]?.reasonEs ?? null };
+    if (r.status === "empty") return { pages: 0, problem: r.skipped[0]?.reasonEs ?? "no se puede abrir" };
+    return null;
+  },
   sendCode: async (to, code, lang) => {
     const { subject, html } = codeEmail(lang, code);
     await sendMail({ to, subject, html });

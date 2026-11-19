@@ -50,41 +50,35 @@ const casoCount = (w: World) => w.casos.length;
 let CURRENT: World | null = null;
 const mundo = () => (CURRENT = world(blobs));
 
-test("Jeniffer: same PDF by web and by WhatsApp → 1 caso, 1 reading, no quote and no request", async () => {
+test("Jeniffer: same PDF by web and by WhatsApp, different people as far as we can prove → 2 casos linked «¿mismo cliente?», no quote, no request", async () => {
   const w = mundo();
   const deps = flowDeps(w, { read: (fs) => okReading(fs) });
   const web = await entrar(deps, "web", { email: "jenifferdeschamps@icloud.com", nombre: "Jeniffer Deschamps" }, [`${BLOB}/web/acta-x1.pdf`]);
   const wa = await entrar(deps, "whatsapp", { phone9: "791365173" }, [`${BLOB}/wa/acta-y2.pdf`]);
-  assert.equal(casoCount(w), 1);
-  assert.equal(web.entrada.casoId, wa.entrada.casoId);
-  assert.equal(wa.entrada.regla, "huella");
-  assert.equal(w.reads.length, 1, "the second entrada reuses the reading of the same file");
-  assert.equal(wa.entrada.loteId, web.entrada.loteId);
+  assert.equal(casoCount(w), 2);
+  assert.deepEqual([wa.entrada.regla, wa.entrada.posibles], ["dudoso", [web.entrada.casoId]]);
+  assert.equal(w.casos.find((c) => c.id === wa.entrada.casoId)!.dudoso, true);
   assert.deepEqual(w.quotesCreated, []);
 });
 
-test("Diego: same Facturas.pdf by email and WhatsApp, in either order → 1 caso", async () => {
-  for (const order of [["email", "whatsapp"], ["whatsapp", "email"]] as const) {
-    const w = mundo();
-    const deps = flowDeps(w, { read: (fs) => okReading(fs, "pt") });
-    for (const canal of order) {
-      if (canal === "email") await entrar(deps, "email", { email: "diegoarndt@outlook.com" }, [`${BLOB}/web/Facturas-a.pdf`]);
-      else await entrar(deps, "whatsapp", { phone9: "997504962" }, [`${BLOB}/wa/Facturas-b.pdf`]);
-    }
-    assert.equal(casoCount(w), 1, order.join(">"));
-    assert.equal(w.reads.length, 1);
-  }
+test("same PDF by the same verified email twice → 1 caso and 1 reading", async () => {
+  const w = mundo();
+  const deps = flowDeps(w, { read: (fs) => okReading(fs, "pt") });
+  const a1 = await entrar(deps, "web", { email: "diegoarndt@outlook.com" }, [`${BLOB}/web/Facturas-a.pdf`]);
+  const a2 = await entrar(deps, "email", { email: "diegoarndt@outlook.com" }, [`${BLOB}/wa/Facturas-b.pdf`]);
+  assert.equal(casoCount(w), 1);
+  assert.equal(a2.entrada.casoId, a1.entrada.casoId);
+  assert.equal(w.reads.length, 1);
 });
 
-test("legacy WhatsApp file without stored hash (fileHash NULL) is hashed on demand and joins", async () => {
+test("legacy file without stored hash (fileHash NULL) is hashed on demand: another person's caso is flagged, not joined", async () => {
   const w = mundo();
   w.casos.push({ id: "old", ref: "CASO-OLD", estado: "ABIERTO", email: null, phone9: "997504962", nombre: null, esAgencia: false, lastActivityAt: new Date(AHORA.getTime() - 3 * 864e5), hashes: [], conPedido: false, origen: "whatsapp", dudoso: false });
   w.docs.push({ id: "legacy", casoId: "old", session: "exp:X", url: `${BLOB}/wa/Facturas-b.pdf`, name: "Facturas.pdf", size: DIEGO_PDF.length, hash: null, mimeType: "application/pdf" });
   const deps = flowDeps(w, { read: (fs) => okReading(fs, "pt") });
   const r = await entrar(deps, "web", { email: "diegoarndt@outlook.com" }, [`${BLOB}/web/Facturas-a.pdf`]);
-  assert.equal(r.entrada.casoId, "old");
-  assert.equal(r.entrada.regla, "huella");
-  assert.equal(casoCount(w), 1);
+  assert.notEqual(r.entrada.casoId, "old");
+  assert.deepEqual(r.entrada.posibles, ["old"]);
   assert.equal(w.docs.find((d) => d.id === "legacy")!.hash, null, "the old row is not written");
 });
 
@@ -201,7 +195,7 @@ test("Juan 1: the same file after the first caso was ordered opens a new caso, r
   const first = await entrar(deps, "web", { email: "ana@x.com" }, [`${BLOB}/web/acta-x1.pdf`]);
   w.casos[0].conPedido = true;
   w.casos[0].estado = "EN_CURSO";
-  const again = await entrar(deps, "whatsapp", { phone9: "600111222" }, [`${BLOB}/wa/acta-y2.pdf`]);
+  const again = await entrar(deps, "web", { email: "ana@x.com" }, [`${BLOB}/wa/acta-y2.pdf`]);
   assert.equal(casoCount(w), 2);
   assert.notEqual(again.entrada.casoId, first.entrada.casoId);
   assert.deepEqual(again.entrada.relacionados, [first.entrada.casoId]);
