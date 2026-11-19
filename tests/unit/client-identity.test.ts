@@ -72,3 +72,22 @@ test("un grupo mal escrito no rompe nada", () => {
   assert.deepEqual(parseIdentityGroups(";;  ;"), []);
   assert.deepEqual(parseIdentityGroups(null), []);
 });
+
+import { hasPaidOrder, personPaidOrdersWhere, PAID_LOOKBACK_DAYS } from "../../lib/paid-orders.ts";
+
+test("hasPaidOrder: misma persona; con huellas solo la misma huella, sin huellas ±24 h; whatsapp.local aporta teléfono", () => {
+  const at = new Date("2026-11-10T12:00:00Z");
+  const paidAt = new Date("2026-11-10T00:00:00Z");
+  const withHash = [{ clientEmail: "A@x.com", clientPhone: "0034600111222", paidAt, fileHashes: ["H1"] }];
+  assert.equal(hasPaidOrder({ email: "a@x.com", at, hashes: ["H1"] }, withHash), true);
+  assert.equal(hasPaidOrder({ email: "a@x.com", at, hashes: ["H2"] }, withHash), false);
+  assert.equal(hasPaidOrder({ email: "a@x.com", at: new Date("2026-11-09T12:00:00Z"), hashes: ["H2"] }, withHash), true);
+  assert.equal(hasPaidOrder({ phone: "+34 600 111 222", at, hashes: ["H1"] }, withHash), true);
+  assert.equal(hasPaidOrder({ email: "b@x.com", phone: "611000000", at, hashes: ["H1"] }, withHash), false);
+  const noHash = [{ clientEmail: "a@x.com", clientPhone: null, paidAt }];
+  assert.equal(hasPaidOrder({ email: "a@x.com", at }, noHash), true);
+  assert.equal(hasPaidOrder({ email: "a@x.com", at: new Date("2026-11-13T12:00:00Z") }, noHash), false);
+  assert.equal(hasPaidOrder({ phone: "600111222", at }, [{ clientEmail: "34600111222@whatsapp.local", clientPhone: null, paidAt }]), true);
+  assert.equal(PAID_LOOKBACK_DAYS, 14);
+  assert.equal(personPaidOrdersWhere({}, new Date()), null);
+});

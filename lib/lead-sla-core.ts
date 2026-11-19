@@ -3,6 +3,7 @@
 // y el envío viven en lib/lead-sla.ts.
 import { buildPersonGraph, type GraphLead, type GraphOrder, type GraphQuote, type GraphSolicitud } from "./vigia-graph.ts";
 import { normEmail, primaryKey } from "./vigia-persona.ts";
+import { hasPaidOrder, type PaidOrderLike } from "./paid-orders.ts";
 import { deadlineOf, isUrgentDeadline, type Deadline } from "./needed-by.ts";
 
 export const SLA_STAGE1_MIN = 60;
@@ -24,7 +25,7 @@ export type SlaInput = {
   inbound: SlaInbound[];
   solicitudes: SlaSolicitud[];
   quotes: SlaQuote[];
-  paidOrders: GraphOrder[];
+  paidOrders: (GraphOrder & PaidOrderLike)[];
   hashesOfQuote?: Map<string, string[]>;
   staffEmails?: string[];
 };
@@ -117,12 +118,16 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
     hashesOfQuote: input.hashesOfQuote || new Map(),
   });
 
-  const attendedRoots = new Set<string>(g.paidRoots);
+  const attendedRoots = new Set<string>();
   for (const l of attendedKeys) { const r = g.rootOf(g.leadKeys(l)); if (r) attendedRoots.add(r); }
 
   const byRoot = new Map<string, Arrival[]>();
   const push = (root: string | null, a: Arrival) => { if (root) byRoot.set(root, [...(byRoot.get(root) || []), a]); };
-  for (const a of personArrivals) push(g.rootOf(g.leadKeys(a)), a);
+  for (const a of personArrivals) {
+    const root = g.rootOf(g.leadKeys(a));
+    if (hasPaidOrder({ email: a.email, phone: a.phone, at: a.at, hashes: [a.fileHash], sameRoot: (o) => !!root && g.rootOf(g.orderKeys(o)) === root }, paidOrders)) continue;
+    push(root, a);
+  }
   const pendingSols = solicitudes.filter((s) => s.status === "SENT" && s.priceCents == null && s.createdAt.getTime() >= since);
   pendingSols.forEach((s, i) => push(g.rootOf(g.solKeys(s)), solArrivals[i]));
 

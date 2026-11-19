@@ -27,7 +27,7 @@ export const phoneDigits9 = (p: string | null | undefined) => {
   const d = String(p || "").replace(/\D/g, "");
   return d.length >= 9 ? d.slice(-9) : "";
 };
-const WA_LOCAL = /^(\d{8,15})@whatsapp\.local$/;
+export const WA_LOCAL = /^(\d{8,15})@whatsapp\.local$/;
 
 export function personKeys(i: { emails?: (string | null | undefined)[]; phones?: (string | null | undefined)[]; sessions?: (string | null | undefined)[]; refs?: (string | null | undefined)[]; hashes?: (string | null | undefined)[]; quoteIds?: (string | null | undefined)[] }): string[] {
   const out = new Set<string>();

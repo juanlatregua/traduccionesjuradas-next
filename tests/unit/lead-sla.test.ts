@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { dedupeId, selectLeadSla, smsAllowed, stageFor, type SlaDoc, type SlaInbound, type SlaInput, type SlaQuote } from "../../lib/lead-sla-core.ts";
+import { hasPaidOrder } from "../../lib/paid-orders.ts";
 
 const NOW = new Date("2026-10-22T10:00:00Z");
 const ago = (min: number) => new Date(NOW.getTime() - min * 60000);
@@ -32,7 +33,7 @@ test("atendido: presupuesto enviado, pedido pagado o email contestado lo excluye
   assert.equal(run({ docs: [doc("a@x.com", 90)], quotes: [q(null)] }).length, 0, "borrador posterior: aviso 1 suprimido");
   assert.equal(run({ docs: [doc("a@x.com", 200)], quotes: [q(null)] }).length, 1, "aviso 2 sigue hasta que se envíe");
   assert.equal(run({ docs: [doc("a@x.com", 90)], quotes: [q(ago(60 * 24 * 3), ago(60 * 24 * 3))] }).length, 1, "presupuesto enviado hace días no contesta esta petición");
-  assert.equal(run({ docs: [doc("a@x.com", 90)], paidOrders: [{ clientEmail: "a@x.com", clientPhone: null, clientName: "Ana" }] }).length, 0);
+  assert.equal(run({ docs: [doc("a@x.com", 90)], paidOrders: [{ clientEmail: "a@x.com", clientPhone: null, clientName: "Ana", paidAt: ago(30) }] }).length, 0);
   const replied: SlaInbound = { fromEmail: "a@x.com", fromName: null, fromPhone: null, subject: "s", receivedAt: ago(80), status: "REPLIED", quoteId: null, repliedAt: ago(5), channel: "EMAIL" };
   assert.equal(run({ docs: [doc("a@x.com", 90)], inbound: [replied] }).length, 0);
 });
@@ -105,4 +106,56 @@ test("WhatsApp con borrador del agente (DRAFTED, sin respuesta) sigue pendiente 
   assert.equal(run({ inbound: [{ ...wa, quoteId: "Q1" }] }).length, 1, "borrador con presupuesto sin enviar: sigue pendiente");
   assert.equal(run({ inbound: [{ ...wa, repliedAt: ago(10) }] }).length, 0);
   assert.equal(run({ inbound: [{ ...wa, status: "REPLIED" }] }).length, 0);
+});
+
+const DAY = 24 * 60;
+const paidAgo = (min: number, extra: object = {}) => ({ clientEmail: "c@x.com", clientPhone: "+34 600 111 222", clientName: "C", paidAt: ago(min), ...extra });
+
+test("pagado hace 25 h: una sesión a 23 h 46 min (revisita, ±24 h del pago) no es lead, por email ni por teléfono", () => {
+  assert.deepEqual(run({ docs: [doc("c@x.com", 23 * 60 + 46)], paidOrders: [paidAgo(25 * 60)] }), []);
+  assert.deepEqual(run({ docs: [doc("otro@x.com", 23 * 60 + 46, { clientPhone: "600111222" })], paidOrders: [paidAgo(25 * 60)] }), []);
+});
+
+test("sin pedido pagado la misma sesión sí es lead", () => {
+  assert.equal(run({ docs: [doc("c@x.com", 23 * 60 + 46)] }).length, 1);
+});
+
+test("misma persona, documento distinto, 3 días después del pago: sí es lead", () => {
+  assert.equal(run({ docs: [doc("c@x.com", 90, { fileHash: "H2" })], paidOrders: [paidAgo(3 * DAY, { fileHashes: ["H1"] })] }).length, 1);
+});
+
+test("misma persona, misma huella, 3 días después del pago: no es lead", () => {
+  assert.deepEqual(run({ docs: [doc("c@x.com", 90, { fileHash: "H1" })], paidOrders: [paidAgo(3 * DAY, { fileHashes: ["H1"] })] }), []);
+});
+
+test("pedido con huella X pagado a las 10:00: otro documento (Y) 5 h DESPUÉS sí es lead", () => {
+  assert.equal(run({ docs: [doc("c@x.com", 90, { fileHash: "Y" })], paidOrders: [paidAgo(90 + 5 * 60, { fileHashes: ["X"] })] }).length, 1);
+});
+
+test("pedido de presupuesto (huella solo del quote), misma huella 3 días después: no es lead", () => {
+  assert.deepEqual(run({ docs: [doc("c@x.com", 90, { fileHash: "Q1" })], paidOrders: [paidAgo(3 * DAY, { fileHashes: ["Q1"] })] }), []);
+});
+
+test("pedido whatsapp.local sin teléfono: lo cubre la llegada con ese teléfono (sin huellas, ±24 h)", () => {
+  const wa = { clientEmail: "34600111222@whatsapp.local", clientPhone: null, clientName: "W", paidAt: ago(5 * 60) };
+  assert.deepEqual(run({ docs: [doc("w@x.com", 90, { clientPhone: "600111222" })], paidOrders: [wa] }), []);
+});
+
+test("alexbqmq: tres subidas con huellas distintas y pago con la última: ninguna avisa", () => {
+  const docs = [doc("c@x.com", 140, { fileHash: "A", sessionToken: "S1" }), doc("c@x.com", 133, { fileHash: "B", sessionToken: "S2" }), doc("c@x.com", 122, { fileHash: "C", sessionToken: "S3" })];
+  assert.deepEqual(run({ docs, paidOrders: [paidAgo(119, { fileHashes: ["C"] })] }), []);
+});
+
+const wa = (minutesAgo: number): SlaInbound => ({ fromEmail: "34600111222@whatsapp.local", fromName: null, fromPhone: "+34600111222", subject: "s", receivedAt: ago(minutesAgo), status: "NEW", quoteId: null, repliedAt: null, channel: "WHATSAPP" });
+
+test("WhatsApp sin huella 10 h después del pago: cubierto; 5 días después: lead", () => {
+  assert.deepEqual(run({ inbound: [wa(90)], paidOrders: [paidAgo(90 + 10 * 60, { fileHashes: ["X"] })] }), []);
+  assert.equal(run({ inbound: [wa(90)], paidOrders: [paidAgo(90 + 5 * DAY, { fileHashes: ["X"] })] }).length, 1);
+});
+
+test("hasPaidOrder: subió el documento 3 días ANTES de pagar con esa misma huella: cubierto; otra huella no", () => {
+  const o = [{ clientEmail: "c@x.com", clientPhone: null, paidAt: new Date("2026-11-15T19:00:00Z"), fileHashes: ["H1"] }];
+  const at = new Date("2026-11-12T19:00:00Z");
+  assert.equal(hasPaidOrder({ email: "c@x.com", at, hashes: ["H1"] }, o), true);
+  assert.equal(hasPaidOrder({ email: "c@x.com", at, hashes: ["H2"] }, o), false);
 });
