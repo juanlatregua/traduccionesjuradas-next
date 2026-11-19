@@ -16,6 +16,7 @@ import {
   listSentMessages,
 } from "@/lib/azure-mail-read";
 import { isStaffEmail } from "@/lib/staff-access";
+import { isSignatureLike } from "@/lib/inbox-attachments";
 
 const FIRST_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const RESYNC_OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;
@@ -103,18 +104,14 @@ const INBOX_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 const INBOX_ATTACHMENT_BACKFILL_PER_SYNC = 15;
 
 /**
- * Adjuntos reales de un email (sin inline: firmas, logos) → nuestro Blob, en la
+ * Adjuntos reales de un email (sin firmas ni logos; sí fotos pegadas inline) → nuestro Blob, en la
  * misma forma que las medias de WhatsApp (`mediaJson`). Así la fila de la
  * bandeja los enseña, el borrador IA los ve y "Montar presupuesto" los reutiliza
  * sin volver a bajarlos de Graph.
  */
 async function ingestEmailAttachments(graphId: string): Promise<InboundMedia[]> {
   const attachments = await listInboxAttachments(graphId);
-  const usable = attachments.filter((a) => {
-    if (a.isInline || a.size <= 0 || a.size > INBOX_ATTACHMENT_MAX_BYTES) return false;
-    if (a.contentType.startsWith("image/") && a.size < EXPEDIENTE_MIN_IMAGE_BYTES) return false; // firma/logo sin marcar inline
-    return true;
-  });
+  const usable = attachments.filter((a) => a.size > 0 && a.size <= INBOX_ATTACHMENT_MAX_BYTES && !isSignatureLike(a));
   const media: InboundMedia[] = [];
   for (const a of usable.slice(0, EXPEDIENTE_MAX_DOCS)) {
     const buf = await getInboxAttachmentBytes(graphId, a.id);
@@ -314,7 +311,6 @@ const EXPEDIENTE_ALLOWED_TYPES = new Set([
   "image/webp",
 ]);
 const EXPEDIENTE_MAX_FILE_BYTES = 20 * 1024 * 1024; // mismo tope que /api/documents/upload
-const EXPEDIENTE_MIN_IMAGE_BYTES = 30 * 1024; // firmas/logos no marcados como inline
 const EXPEDIENTE_MAX_DOCS = 40;
 
 /** EXP-XXXXXX determinista a partir del email: repetir el botón no duplica. */
@@ -409,8 +405,7 @@ export async function buildExpedienteFromInbound(inbound: {
   const attachments = await listInboxAttachments(inbound.graphId);
   const skipped: string[] = [];
   const usable = attachments.filter((a) => {
-    if (a.isInline) return false;
-    const isImage = a.contentType.startsWith("image/");
+    if (isSignatureLike(a)) return false;
     if (!EXPEDIENTE_ALLOWED_TYPES.has(a.contentType)) {
       skipped.push(`${a.name} (${a.contentType})`);
       return false;
@@ -419,7 +414,6 @@ export async function buildExpedienteFromInbound(inbound: {
       skipped.push(`${a.name} (>20 MB)`);
       return false;
     }
-    if (isImage && a.size < EXPEDIENTE_MIN_IMAGE_BYTES) return false; // firma/logo
     return true;
   });
   if (usable.length === 0) return { ref: null, docs: 0, skipped, reused: false };
