@@ -114,3 +114,28 @@ test("the code never reaches the mail log", async () => {
   assert.doesNotMatch(redactCodes(subject), /482913/);
   assert.match(redactCodes(subject), /\[código oculto\]/);
 });
+
+test("race: a file slipped in after the «continue» check is caught by the reading itself", async () => {
+  const blobs = { [`${B}a.pdf`]: bytesOf("%PDF-a"), [`${B}b.pdf`]: bytesOf("%PDF-b") };
+  const w = world(blobs);
+  const { deps, hits } = apiDeps(w, (_fs, attempt) => busy(attempt));
+  const tok = ((await handleOpen(p({ email: "a@x.com", gdprConsent: true, marketingConsent: true }), deps)).body as { token: string }).token;
+  w.entradas[0].emailVerifiedAt = new Date();
+  await handleAddFile(p({ url: `${B}a.pdf`, name: "a.pdf", size: 10, mimeType: "application/pdf" }), tok, deps);
+  await handleRead(p(), tok, deps);
+  const readsBefore = w.reads.length;
+  const files = deps.store.files.bind(deps.store);
+  let calls = 0;
+  deps.store = { ...deps.store, files: async (id) => {
+    calls += 1;
+    if (calls === 2) w.docs.push({ ...w.docs[0], id: "sneaked", url: `${B}b.pdf`, hash: sha(blobs[`${B}b.pdf`]) });
+    return files(id);
+  } };
+  const r = await handleRead(p(), tok, deps);
+  assert.equal(r.status, 409);
+  assert.equal(w.reads.length, readsBefore, "no reading was launched");
+  assert.equal(hits.get("entrada:read:email:a@x.com"), 1);
+  const again = await handleRead(p(), tok, deps);
+  assert.notEqual(again.status, 409);
+  assert.equal(hits.get("entrada:read:email:a@x.com"), 2, "the changed set now goes through the caps");
+});

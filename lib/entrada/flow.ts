@@ -167,11 +167,15 @@ async function langWithoutJurado(deps: FlowDeps, pairs: [string, string][]): Pro
   return s === "es" ? t : s;
 }
 
-export async function leerEntrada(deps: FlowDeps, e: EntradaRow): Promise<Outcome> {
+/** `continuing`: fingerprint the caller exempted from the caps; the set is re-fingerprinted here and must still match. */
+export async function leerEntrada(deps: FlowDeps, e: EntradaRow, opts: { continuing?: string } = {}): Promise<Outcome> {
   if (e.estado === "confirmada" || e.estado === "sin_jurado") return { ok: true, view: await vistaEntrada(deps, e) };
   if (!e.emailVerifiedAt) return fail(403, "Confirma tu email con el código que te hemos enviado y revisamos tus archivos.");
   const files = await deps.store.files(e.id);
   if (files.length === 0) return fail(422, "Sube al menos un archivo.");
+  if (opts.continuing !== undefined && fingerprintOf(files.map((f) => ({ name: f.name, url: f.url, mimeType: f.mimeType })), e.targetLang, e.sourceLang) !== opts.continuing) {
+    return fail(409, "Tus archivos han cambiado mientras los revisábamos: vuelve a pulsar «He terminado».", { view: await vistaEntrada(deps, e) });
+  }
   const notReady = deps.lectura.ready();
 
   let casoId = e.casoId;

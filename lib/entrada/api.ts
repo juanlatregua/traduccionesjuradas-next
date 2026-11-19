@@ -182,8 +182,8 @@ export async function handleRead(req: Request, token: string, deps: EntradaApiDe
   const e = g.entrada;
   if (!e.emailVerifiedAt || e.estado === "confirmada" || e.estado === "sin_jurado") return fromOutcome(await leerEntrada(deps, e));
   const running = await readingInProgress(deps, e);
-  const continuing = running !== null && running.fingerprint === (await currentFingerprint(deps, e));
-  if (!continuing) {
+  const continuing = running !== null && running.fingerprint === (await currentFingerprint(deps, e)) ? running.fingerprint : undefined;
+  if (continuing === undefined) {
     const who = e.email ?? e.phone9 ?? e.id;
     const rl = await limits(deps, [[`read:entrada:${e.id}`, 12, DAY], [`read:email:${who}`, READS_PER_EMAIL_DAY, DAY], [`read:ip:${g.ip}`, READS_PER_IP_DAY, DAY]]);
     if (rl) return rl;
@@ -193,7 +193,7 @@ export async function handleRead(req: Request, token: string, deps: EntradaApiDe
     }
     if (!global.ok) return json(503, { ok: false, error: "Hoy estamos revisando muchos documentos. Juan verá los tuyos personalmente: déjalos subidos y te escribimos." }, { "Retry-After": String(global.retryAfterSec) });
   }
-  return fromOutcome(await leerEntrada(deps, e));
+  return fromOutcome(await leerEntrada(deps, e, { continuing }));
 }
 
 export async function handleEdit(req: Request, token: string, deps: EntradaApiDeps): Promise<ApiResponse> {
