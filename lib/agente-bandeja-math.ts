@@ -256,6 +256,11 @@ export function bandejaAction(
   return { action: "draft", reasons: [mode === "draft" ? "modo borrador (AGENTE_BANDEJA=draft)" : "agente apagado"] };
 }
 
+/** Adjuntos que no se pudieron leer (ZIP, formatos raros, >20 MB): presupuestar solo el resto se queda corto. */
+export function unreadAttachmentsReason(skipped: string[]): string | null {
+  return skipped.length ? `adjuntos sin leer (${skipped.join(", ")}): presupuestar solo el resto se queda corto` : null;
+}
+
 /** Últimos 9 dígitos: clave de comparación de teléfonos (+34 600… = 600…). */
 export function phoneKey(phone: string | null | undefined): string {
   const d = String(phone || "").replace(/\D/g, "");

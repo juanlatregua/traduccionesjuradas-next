@@ -14,6 +14,7 @@ import {
   looksLikeVendorPitch,
   looksLikePaymentOrInvoice,
   splitOrRepeatedReason,
+  unreadAttachmentsReason,
   TARIFARIO_AUTOSEND_OFF,
   BANDEJA_SOLO_FR,
   mentionsDeadline,
@@ -282,4 +283,10 @@ test("modo fr: sale solo el francés; el resto, borrador aunque el tarifario est
   assert.deepEqual(bandejaAction("fr", { action: "send" }, { fr: true, learnedAutosend: false }), { action: "send" });
   assert.deepEqual(bandejaAction("fr", { action: "send" }, { fr: false, learnedAutosend: true }), { action: "draft", reasons: [BANDEJA_SOLO_FR] });
   assert.deepEqual(bandejaAction("fr", { action: "alert", reasons: ["x"] }, { fr: true, learnedAutosend: false }), { action: "draft", reasons: ["x"] });
+});
+
+test("unreadAttachmentsReason: un ZIP sin leer frena el envío (caso Paulette 2026-00406)", () => {
+  assert.equal(unreadAttachmentsReason([]), null);
+  const r = unreadAttachmentsReason(["Diplomes.zip (application/x-zip-compressed)"]);
+  assert.ok(r && r.includes("Diplomes.zip"));
 });

@@ -48,6 +48,7 @@ import {
   MAX_EMAILS_PER_RUN,
   type AgenteBandejaMode,
   type Segment,
+  unreadAttachmentsReason,
 } from "@/lib/agente-bandeja-math";
 
 const SITE = "https://www.traduccionesjuradas.net";
@@ -240,6 +241,10 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
     await sms(`Agente bandeja: ${via} de ${who} sin precio automático (${short(reason, 120)}). Sin solicitud a lavori (fuera de alcance). Presupuesto: ${builderUrl}${waTail}`, `agente_bandeja_manual ${row.id}`, smsMax);
     return out("drafted", reason);
   };
+
+  // Caso Paulette 2026-00406: un ZIP descartado en silencio dio un presupuesto de 1 de 14 documentos.
+  const unread = unreadAttachmentsReason(exp.skipped);
+  if (unread) return manual(unread);
 
   // 2. Presupuesto ya existente para este expediente (builder o pasada anterior): no se crea otro.
   const previo = await prisma.quote.findFirst({
